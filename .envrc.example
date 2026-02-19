@@ -1,0 +1,13 @@
+export ERL_AFLAGS="-kernel shell_history enabled -logger level debug"
+export MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8
+
+# The UID/GID are usually 1000, but you may need to change for your system.
+# To get UID use your own username: id -u <username>
+# to get GID use your own username: id -g <username>
+export USER_UID=1000
+export USER_GID=1000
+
+# Your development machine's hostname (get with: hostname)
+export HOSTNAME=
+
+export WEB_HOST=http://localhost:4000
