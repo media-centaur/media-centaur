@@ -9,7 +9,12 @@ defmodule MediaManager.Library.Season do
   end
 
   actions do
-    defaults [:create, :read, :update, :destroy]
+    defaults [:read, :update, :destroy]
+
+    create :create do
+      primary? true
+      accept [:season_number, :number_of_episodes, :name, :entity_id]
+    end
   end
 
   attributes do

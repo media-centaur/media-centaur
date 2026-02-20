@@ -161,10 +161,11 @@ Stage 4 — Metadata Fetcher (MediaManager.Pipeline.MetadataFetcher)
     │  Full TMDB fetch: details, cast, seasons, episodes (for TV)
     │  Assigns UUID for the entity (@id) if not already exists
     │  Creates/updates Entity record in SQLite
+    │  Creates Image records with url populated, content_url: nil
     ▼
 Stage 5 — Image Downloader (MediaManager.Pipeline.ImageDownloader)
     │  Downloads poster, backdrop, logo to shared_library_dir/images/{uuid}/
-    │  Writes Image records to SQLite (both url + contentUrl)
+    │  Updates Image records: populates content_url with local path
     ▼
 Stage 6 — JSON Writer (MediaManager.JsonWriter GenServer)
     │  Generates entity map from SQLite records
@@ -259,6 +260,7 @@ Tracks every media file the pipeline knows about. One row per file. Multiple row
 | `episode_number` | integer | For TV episode files |
 | `tmdb_id` | string | Best TMDB candidate |
 | `confidence_score` | float | Score of best TMDB match |
+| `search_title` | string | Optional human override for TMDB search query; used instead of `parsed_title` when set |
 | `state` | atom/enum | See state machine below |
 | `error_message` | string | Set on `:error` state |
 | `inserted_at` | utc_datetime | |
@@ -274,6 +276,14 @@ Tracks every media file the pipeline knows about. One row per file. Multiple row
                                                               → :error
 :complete → :removed  (file deleted, entity removed)
 ```
+
+**Ash actions:**
+
+| Action | Type | Description |
+|--------|------|-------------|
+| `:detect` | create | Parses `file_path`, sets `state: :detected`, populates parsed_* fields |
+| `:search` | update | Calls TMDB search via `TMDB.Client`, scores results via `TMDB.Confidence`, sets `tmdb_id`, `confidence_score`, and transitions state to `:approved` or `:pending_review` |
+| `:fetch_metadata` | update | Fetches full TMDB details, creates `Entity` + `Image` + `Identifier` + `Season` + `Episode` records, transitions state to `:fetching_images` |
 
 ### `MediaManager.Library.Entity`
 
@@ -305,6 +315,12 @@ Canonical store for all library entity data. This is what `media.json` is genera
 - `has_many :seasons, MediaManager.Library.Season` (TVSeries only)
 - `has_many :watched_files, MediaManager.Library.WatchedFile`
 
+**Ash actions:**
+
+| Action | Type | Description |
+|--------|------|-------------|
+| `:create_from_tmdb` | create | Creates an entity from scraped TMDB data; accepts type, name, description, date_published, genres, url, duration, director, content_rating, number_of_seasons, aggregate_rating_value |
+
 ### `MediaManager.Library.Image`
 
 | Field | Type | Notes |
@@ -312,8 +328,8 @@ Canonical store for all library entity data. This is what `media.json` is genera
 | `id` | UUID | |
 | `entity_id` | UUID (FK) | |
 | `role` | string | `"poster"`, `"backdrop"`, `"logo"`, `"thumb"` |
-| `url` | string | Remote source URL — used for re-download |
-| `content_url` | string | Local path relative to `shared_library_dir` |
+| `url` | string | Remote source URL — populated at Stage 4 (metadata fetch); used for re-download |
+| `content_url` | string or nil | Local path relative to `shared_library_dir` — `nil` until Stage 5 (image download) completes |
 | `extension` | string | `.jpg` or `.png` |
 
 ### `MediaManager.Library.Identifier`
@@ -357,7 +373,7 @@ Canonical store for all library entity data. This is what `media.json` is genera
 
 **Base URL:** `https://api.themoviedb.org/3`
 
-**Auth:** `Authorization: Bearer {tmdb_api_key}` header (Req middleware)
+**Auth:** `api_key` query parameter on every request (TMDB v3 auth)
 
 **Search:**
 - `GET /search/movie?query={title}&year={year}`
@@ -368,12 +384,12 @@ Canonical store for all library entity data. This is what `media.json` is genera
 - `GET /tv/{id}`
 - `GET /tv/{id}/season/{n}`
 
-**Confidence scoring:**
+**Confidence scoring** (`MediaManager.TMDB.Confidence`):
 
-1. Normalise result title vs parsed title (Jaro-Winkler similarity)
-2. Bonus if year matches
-3. Bonus if it is the first result
-4. Score 0.0–1.0; compare against `auto_approve_threshold`
+1. Normalise result title vs parsed title (Jaro distance via `String.jaro_distance/2`)
+2. Bonus (+0.08) if year matches
+3. Bonus (+0.05) if it is the first result in the list
+4. Score clamped to 0.0–1.0; compare against `auto_approve_threshold` (default 0.85)
 
 **Image URL construction** (per `IMAGE-CACHING.md`):
 `https://image.tmdb.org/t/p/original{path}` for poster, backdrop, logo.

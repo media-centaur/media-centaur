@@ -44,4 +44,59 @@ defmodule MediaManager.IntegrationTest do
       assert is_list(entries)
     end
   end
+
+  @tag :external
+  test "WatchedFile :search finds The Shadowy Sentinel with high confidence" do
+    {:ok, file} =
+      WatchedFile
+      |> Ash.Changeset.for_create(:detect, %{
+        file_path: "/media/The.Shadowy.Sentinel.2008.1080p.BluRay.mkv"
+      })
+      |> Ash.create()
+
+    {:ok, file} =
+      file
+      |> Ash.Changeset.for_update(:search, %{})
+      |> Ash.update()
+
+    assert file.state in [:approved, :pending_review],
+           "Expected :approved or :pending_review, got :#{file.state}. Error: #{file.error_message}"
+
+    assert file.tmdb_id == "155"
+    assert file.confidence_score >= 0.85
+  end
+
+  @tag :external
+  test "WatchedFile :fetch_metadata creates entity with images" do
+    {:ok, file} =
+      WatchedFile
+      |> Ash.Changeset.for_create(:detect, %{
+        file_path: "/media/fetch_meta/The.Shadowy.Sentinel.2008.1080p.BluRay.mkv"
+      })
+      |> Ash.create()
+
+    {:ok, file} =
+      file
+      |> Ash.Changeset.for_update(:search, %{})
+      |> Ash.update()
+
+    assert file.state in [:approved, :pending_review],
+           "Search failed: #{file.error_message}"
+
+    {:ok, file} =
+      file
+      |> Ash.Changeset.for_update(:fetch_metadata, %{})
+      |> Ash.update()
+
+    assert file.state == :fetching_images,
+           "Expected :fetching_images, got :#{file.state}. Error: #{file.error_message}"
+
+    assert file.entity_id != nil
+
+    entity = Ash.get!(Entity, file.entity_id, action: :with_associations)
+    assert entity.name == "The Shadowy Sentinel"
+    assert entity.type == :movie
+    assert length(entity.images) >= 1
+    assert Enum.any?(entity.images, &(&1.role == "poster"))
+  end
 end

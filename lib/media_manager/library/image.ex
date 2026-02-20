@@ -9,7 +9,12 @@ defmodule MediaManager.Library.Image do
   end
 
   actions do
-    defaults [:create, :read, :update, :destroy]
+    defaults [:read, :update, :destroy]
+
+    create :create do
+      primary? true
+      accept [:role, :url, :content_url, :extension, :entity_id]
+    end
   end
 
   attributes do

@@ -9,7 +9,12 @@ defmodule MediaManager.Library.Identifier do
   end
 
   actions do
-    defaults [:create, :read, :update, :destroy]
+    defaults [:read, :update, :destroy]
+
+    create :create do
+      primary? true
+      accept [:property_id, :value, :entity_id]
+    end
   end
 
   attributes do
