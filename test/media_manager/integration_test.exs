@@ -135,13 +135,12 @@ defmodule MediaManager.IntegrationTest do
     end
   end
 
-  describe "JsonWriter.regenerate_all/0" do
-    test "writes a valid JSON array to the output dir" do
-      output_dir = System.tmp_dir!()
+  describe "JsonWriter.regenerate_all/1" do
+    test "writes a valid JSON array to the given path" do
+      json_path = Path.join(System.tmp_dir!(), "media.json")
 
-      assert :ok = MediaManager.JsonWriter.regenerate_all(output_dir)
+      assert :ok = MediaManager.JsonWriter.regenerate_all(json_path)
 
-      json_path = Path.join(output_dir, "media.json")
       assert {:ok, contents} = File.read(json_path)
       assert {:ok, entries} = Jason.decode(contents)
       assert is_list(entries)

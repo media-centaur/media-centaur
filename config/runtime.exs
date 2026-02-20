@@ -22,10 +22,15 @@ end
 
 config :media_manager,
   media_dir: System.get_env("MEDIA_DIR", "/mnt/videos/Videos"),
-  shared_library_dir:
+  shared_media_library:
     System.get_env(
-      "SHARED_LIBRARY_DIR",
-      Path.expand("~/.local/share/freedia-center/data")
+      "SHARED_MEDIA_LIBRARY",
+      Path.expand("~/.local/share/freedia-center/media.json")
+    ),
+  media_images_dir:
+    System.get_env(
+      "MEDIA_IMAGES_DIR",
+      Path.expand("~/.local/share/freedia-center/images")
     ),
   tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
   auto_approve_threshold: 0.85
