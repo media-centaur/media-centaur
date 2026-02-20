@@ -26,6 +26,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `priv/repo/seeds.exs` | Database seed data |
 | `test/` | ExUnit tests |
 | `assets/` | JS and CSS source (esbuild + Tailwind v4) |
+| `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
 | `AGENTS.md` | Elixir/Phoenix/LiveView/Ecto/CSS/JS coding rules |
 
 ## Architecture Principles
@@ -73,6 +74,16 @@ Never let the implementation drift ahead of the spec. The spec is how the user-i
 ### Keep Documentation Updated
 
 Any .md documentation created for this project should be kept up to date.
+
+## Defaults
+
+The `defaults/` directory contains git-tracked starter config files. These are seed values shipped with the repo — they represent every configurable option with a logical default. They are **never overwritten at runtime**; the running app reads user config from XDG paths and falls back to these.
+
+| File | Purpose |
+|------|---------|
+| `defaults/media-manager.toml` | All TOML configuration keys with their default values |
+
+> **Keep `defaults/media-manager.toml` complete.** Every configuration key recognised by `MediaManager.Config` must have an entry in `defaults/media-manager.toml` with a logical default value and a comment explaining what it controls. Add the entry whenever a new config key is introduced. The file must always be valid TOML and parse without errors.
 
 ## Plans
 
