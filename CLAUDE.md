@@ -95,7 +95,7 @@ ordering and prevents naming collisions. Each plan must be **self-contained** â€
 it must include all context required to execute fully in a new session, without
 relying on the conversation history from the session where the planning was done.
 
-Always write the plan and save it before asking to execute.
+Always write the plan and save it before asking to execute. DO NOT AUTO EXECUTE AN IMPLEMENTATION PLAN AFTER SAVING THE PLAN. STOP AND REQUEST PERMISSION BEFORE EXECUTION.
 
 ## Testing Strategy
 

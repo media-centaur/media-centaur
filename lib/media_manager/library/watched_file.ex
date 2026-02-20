@@ -17,6 +17,18 @@ defmodule MediaManager.Library.WatchedFile do
       change set_attribute(:state, :detected)
       change MediaManager.Library.WatchedFile.Changes.ParseFileName
     end
+
+    update :search do
+      require_atomic? false
+      change set_attribute(:state, :searching)
+      change MediaManager.Library.WatchedFile.Changes.SearchTmdb
+    end
+
+    update :fetch_metadata do
+      require_atomic? false
+      change set_attribute(:state, :fetching_metadata)
+      change MediaManager.Library.WatchedFile.Changes.FetchMetadata
+    end
   end
 
   attributes do
@@ -54,6 +66,7 @@ defmodule MediaManager.Library.WatchedFile do
       default :detected
     end
 
+    attribute :search_title, :string
     attribute :error_message, :string
 
     create_timestamp :inserted_at

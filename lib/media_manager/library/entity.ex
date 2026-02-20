@@ -14,6 +14,22 @@ defmodule MediaManager.Library.Entity do
     read :with_associations do
       prepare build(load: [:images, :identifiers, :watched_files, seasons: [:episodes]])
     end
+
+    create :create_from_tmdb do
+      accept [
+        :type,
+        :name,
+        :description,
+        :date_published,
+        :genres,
+        :url,
+        :duration,
+        :director,
+        :content_rating,
+        :number_of_seasons,
+        :aggregate_rating_value
+      ]
+    end
   end
 
   attributes do
