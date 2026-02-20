@@ -29,6 +29,16 @@ defmodule MediaManager.Library.WatchedFile do
       change set_attribute(:state, :fetching_metadata)
       change MediaManager.Library.WatchedFile.Changes.FetchMetadata
     end
+
+    read :detected_files do
+      filter expr(state == :detected)
+      prepare build(sort: [inserted_at: :asc])
+    end
+
+    update :claim do
+      validate attribute_equals(:state, :detected)
+      change set_attribute(:state, :queued)
+    end
   end
 
   attributes do
@@ -53,6 +63,7 @@ defmodule MediaManager.Library.WatchedFile do
     attribute :state, :atom do
       constraints one_of: [
                     :detected,
+                    :queued,
                     :searching,
                     :pending_review,
                     :approved,
