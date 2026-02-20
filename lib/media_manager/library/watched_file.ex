@@ -15,6 +15,7 @@ defmodule MediaManager.Library.WatchedFile do
       accept [:file_path]
 
       change set_attribute(:state, :detected)
+      change MediaManager.Library.WatchedFile.Changes.ParseFileName
     end
   end
 
