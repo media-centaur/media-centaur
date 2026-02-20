@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "elixir-phoenix-guide@elixir-phoenix-guide": true
+    "elixir-phoenix-guide@elixir-phoenix-guide": true,
+    "elixir-architect@elixir-architect": true
   }
 }

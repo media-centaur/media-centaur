@@ -69,3 +69,17 @@ When a format decision changes — a new field, a new entity type, a changed ima
 3. Note in `COMPONENTS.md` or the relevant spec if the change affects the user-interface, so its `CLAUDE.md` can be updated too.
 
 Never let the implementation drift ahead of the spec. The spec is how the user-interface team (and future agents) learn what to expect from files this app produces.
+
+### Keep Documentation Updated
+
+Any .md documentation created for this project should be kept up to date.
+
+## Plans
+
+Implementation plans live in `plans/` and are prefixed with a unique incrementing
+number (e.g. `001-animate-menu-bar.md`, `002-add-search.md`). The number ensures
+ordering and prevents naming collisions. Each plan must be **self-contained** —
+it must include all context required to execute fully in a new session, without
+relying on the conversation history from the session where the planning was done.
+
+Always write the plan and save it before asking to execute.
