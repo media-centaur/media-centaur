@@ -12,9 +12,9 @@ defmodule MediaManager.Application do
       MediaManager.Repo,
       {DNSCluster, query: Application.get_env(:media_manager, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MediaManager.PubSub},
-      # Start a worker by calling: MediaManager.Worker.start_link(arg)
-      # {MediaManager.Worker, arg},
-      # Start to serve requests, typically the last entry
+      MediaManager.Config,
+      MediaManager.JsonWriter,
+      MediaManager.Watcher,
       MediaManagerWeb.Endpoint
     ]
 

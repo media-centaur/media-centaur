@@ -1,0 +1,24 @@
+# defaults/media-manager.toml
+#
+# Shipped default configuration for Freedia Center — Media Manager.
+# Copy this file to ~/.config/freedia-center/media-manager.toml and edit as needed.
+# This file must contain every recognised config key; keep it up to date as new
+# keys are added to MediaManager.Config.
+
+# Directory containing video/media files (e.g. torrent downloads folder).
+# Watched for additions and removals. May be on a removable or network drive.
+media_dir = "/mnt/videos/Videos"
+
+# Shared library directory: media.json lives here + images/ subdirectory.
+# Must match the path the user-interface is configured to read from.
+# May be on a removable or network drive.
+shared_library_dir = "~/.local/share/freedia-center/data"
+
+[tmdb]
+# TMDB API key. Required for metadata scraping. Get one at https://www.themoviedb.org/settings/api
+api_key = ""
+
+[pipeline]
+# Confidence score threshold (0.0–1.0). Matches at or above this score are
+# written automatically. Below it, the item is queued for human review.
+auto_approve_threshold = 0.85
