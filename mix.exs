@@ -112,10 +112,10 @@ defmodule MediaManager.MixProject do
       # rules to include directly in CLAUDE.md
       # use a regex to match multiple deps, or atoms/strings for specific ones
       usage_rules: [
-        :ash,
-        ~r/^ash_/,
-        :elixir,
-        :otp
+        {:ash, link: :markdown},
+        {~r/^ash_/, link: :markdown},
+        {:elixir, link: :markdown},
+        {:otp, link: :markdown}
       ],
       # If your CLAUDE.md is getting too big, link instead of inlining:
       usage_rules: [:ash, {~r/^ash_/, link: :markdown}],
@@ -136,6 +136,11 @@ defmodule MediaManager.MixProject do
               "Use this skill working with Phoenix Framework. Consult this when working with the web layer, controllers, views, liveviews etc.",
             # Include all Phoenix dependencies
             usage_rules: [:phoenix, ~r/^phoenix_/]
+          ],
+          "elixir-otp": [
+            description:
+              "Use this skill for working with Elixir / OTP, for example working with genservers, agents, and other OTP tools.",
+            usage_rules: [:otp]
           ]
         ]
       ]

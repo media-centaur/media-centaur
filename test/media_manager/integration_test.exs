@@ -4,14 +4,19 @@ defmodule MediaManager.IntegrationTest do
   alias MediaManager.Library.{Entity, WatchedFile}
 
   describe "WatchedFile :detect action" do
-    test "creates a record with :detected state" do
+    test "creates a record with :detected state and parses file name" do
       assert {:ok, file} =
                WatchedFile
-               |> Ash.Changeset.for_create(:detect, %{file_path: "/tmp/test.mkv"})
+               |> Ash.Changeset.for_create(:detect, %{
+                 file_path:
+                   "/mnt/videos/Videos/Sample.Movie.Two.1991.BluRay.Remux.1080p.AVC.DTS-HD.MA.5.1-HiFi.mkv"
+               })
                |> Ash.create()
 
       assert file.state == :detected
-      assert file.file_path == "/tmp/test.mkv"
+      assert file.parsed_title == "Sample Movie Two"
+      assert file.parsed_year == 1991
+      assert file.parsed_type == :movie
     end
   end
 
