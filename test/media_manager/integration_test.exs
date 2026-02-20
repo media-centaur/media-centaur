@@ -32,6 +32,109 @@ defmodule MediaManager.IntegrationTest do
     end
   end
 
+  describe "Library.Serializer" do
+    alias MediaManager.Library.{Serializer, Image, Identifier}
+
+    test "movie with associations serializes to DATA-FORMAT.md structure" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{
+          type: :movie,
+          name: "Test Movie",
+          description: "A test movie.",
+          date_published: "2024",
+          genres: ["Action", "Drama"],
+          director: "Test Director",
+          duration: "PT2H",
+          content_rating: "R",
+          aggregate_rating_value: 8.5,
+          url: "https://example.com/movie"
+        })
+        |> Ash.create()
+
+      {:ok, _image} =
+        Image
+        |> Ash.Changeset.for_create(:create, %{
+          role: "poster",
+          url: "https://example.com/poster.jpg",
+          content_url: "images/#{entity.id}/poster.jpg",
+          entity_id: entity.id
+        })
+        |> Ash.create()
+
+      {:ok, _identifier} =
+        Identifier
+        |> Ash.Changeset.for_create(:create, %{
+          property_id: "tmdb",
+          value: "12345",
+          entity_id: entity.id
+        })
+        |> Ash.create()
+
+      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      result = Serializer.serialize_entity(entity)
+
+      assert result["@id"] == entity.id
+
+      inner = result["entity"]
+      assert inner["@type"] == "Movie"
+      assert inner["name"] == "Test Movie"
+      assert inner["description"] == "A test movie."
+      assert inner["datePublished"] == "2024"
+      assert inner["genre"] == ["Action", "Drama"]
+      assert inner["director"] == "Test Director"
+      assert inner["duration"] == "PT2H"
+      assert inner["contentRating"] == "R"
+      assert inner["aggregateRating"] == %{"ratingValue" => 8.5}
+      assert inner["url"] == "https://example.com/movie"
+
+      [image] = inner["image"]
+      assert image["@type"] == "ImageObject"
+      assert image["name"] == "poster"
+      assert image["url"] == "https://example.com/poster.jpg"
+      assert image["contentUrl"] == "images/#{entity.id}/poster.jpg"
+
+      [identifier] = inner["identifier"]
+      assert identifier["@type"] == "PropertyValue"
+      assert identifier["propertyID"] == "tmdb"
+      assert identifier["value"] == "12345"
+
+      # TVSeries-specific fields should not appear
+      refute Map.has_key?(inner, "numberOfSeasons")
+      refute Map.has_key?(inner, "containsSeason")
+    end
+
+    test "nil fields and empty lists are omitted from output" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :movie, name: "Minimal"})
+        |> Ash.create()
+
+      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      result = Serializer.serialize_entity(entity)
+
+      inner = result["entity"]
+      assert inner["@type"] == "Movie"
+      assert inner["name"] == "Minimal"
+
+      for key <- [
+            "description",
+            "datePublished",
+            "genre",
+            "contentUrl",
+            "url",
+            "duration",
+            "director",
+            "contentRating",
+            "aggregateRating",
+            "identifier"
+          ] do
+        refute Map.has_key?(inner, key),
+               "Expected key #{inspect(key)} to be absent, but it was present"
+      end
+    end
+  end
+
   describe "JsonWriter.regenerate_all/0" do
     test "writes a valid JSON array to the output dir" do
       output_dir = System.tmp_dir!()
