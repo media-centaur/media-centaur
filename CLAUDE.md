@@ -21,7 +21,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 | Path | Purpose |
 |------|---------|
-| `lib/media_manager/` | Business logic: scraping, JSON I/O, image downloading, entity management |
+| `lib/media_manager/` | Business logic: file watcher, parser, TMDB client, JSON writer, Ash resources (`library/`) |
 | `lib/media_manager_web/` | Phoenix web layer: router, LiveViews, controllers, components |
 | `lib/media_manager_web/components/` | Shared HEEx components and layouts |
 | `priv/repo/migrations/` | Ecto migrations |
@@ -30,15 +30,30 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `assets/` | JS and CSS source (esbuild + Tailwind v4) |
 | `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
 | `AGENTS.md` | Elixir/Phoenix/LiveView/Ecto/CSS/JS coding rules |
+| `PIPELINE.md` | Broadway pipeline architecture (detection → search → metadata fetch) |
 
 ## Architecture Principles
 
-- **This app owns all writes.** Only the manager writes `media.json` and `data/images/`. The `user-interface` never writes these files.
+- **This app owns all writes.** Only the manager writes `media.json` and `images/`. The `user-interface` never writes these files.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
 - **File system is the integration point.** There is no IPC with the user-interface. Write files to the data directory; the UI picks them up via hot-reload.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
 - **External API clients use `Req`.** Never use `:httpoison`, `:tesla`, or `:httpc`. `Req` is included and is the preferred HTTP client.
+
+## Pipeline
+
+Video files flow through an automated pipeline driven by the **file watcher** (`MediaManager.Watcher`) and a **Broadway pipeline** (`MediaManager.Pipeline`):
+
+1. **Watcher** detects new video files in `media_dir`, waits for size stability, creates a `WatchedFile` via `:detect` → state `:detected`
+2. **Producer** polls DB every 10s, claims detected files → state `:queued`
+3. **Processor** runs `:search` — searches TMDB, scores confidence → `:approved` or `:pending_review`
+4. **Processor** (if approved) runs `:fetch_metadata` — fetches full TMDB details, creates `Entity` + `Image` + `Identifier` records → `:fetching_images`
+5. **Image download** → `:complete` *(not yet implemented)*
+
+Steps 1–4 are fully automated. Low-confidence matches stop at `:pending_review` and await manual approval in the admin UI. See [`PIPELINE.md`](PIPELINE.md) for full architecture details.
+
+Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/library/serializer.ex`, `lib/media_manager/json_writer.ex`.
 
 ## Specifications
 

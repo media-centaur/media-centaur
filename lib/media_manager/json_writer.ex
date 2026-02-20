@@ -16,8 +16,8 @@ defmodule MediaManager.JsonWriter do
     GenServer.call(__MODULE__, {:remove_entity, entity_id})
   end
 
-  def regenerate_all(dir \\ nil) do
-    GenServer.call(__MODULE__, {:regenerate_all, dir})
+  def regenerate_all(path \\ nil) do
+    GenServer.call(__MODULE__, {:regenerate_all, path})
   end
 
   @impl true
@@ -28,19 +28,19 @@ defmodule MediaManager.JsonWriter do
 
   @impl true
   def handle_call({:write_entity, _entity_id}, _from, state) do
-    result = do_regenerate_all(MediaManager.Config.get(:shared_library_dir))
+    result = do_regenerate_all(MediaManager.Config.get(:shared_media_library))
     {:reply, result, state}
   end
 
   @impl true
   def handle_call({:remove_entity, _entity_id}, _from, state) do
-    result = do_regenerate_all(MediaManager.Config.get(:shared_library_dir))
+    result = do_regenerate_all(MediaManager.Config.get(:shared_media_library))
     {:reply, result, state}
   end
 
   @impl true
-  def handle_call({:regenerate_all, dir}, _from, state) do
-    result = do_regenerate_all(dir || MediaManager.Config.get(:shared_library_dir))
+  def handle_call({:regenerate_all, path}, _from, state) do
+    result = do_regenerate_all(path || MediaManager.Config.get(:shared_media_library))
     {:reply, result, state}
   end
 
@@ -54,11 +54,10 @@ defmodule MediaManager.JsonWriter do
     {:noreply, state}
   end
 
-  defp do_regenerate_all(shared_library_dir) do
-    media_json_path = Path.join(shared_library_dir, "media.json")
+  defp do_regenerate_all(media_json_path) do
     tmp_path = media_json_path <> ".tmp"
 
-    File.mkdir_p!(shared_library_dir)
+    media_json_path |> Path.dirname() |> File.mkdir_p!()
 
     entities = Ash.read!(Entity, action: :with_associations)
     data = Serializer.serialize_all(entities)

@@ -8,8 +8,18 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
         Ash.Changeset.get_attribute(changeset, :parsed_title)
 
     parsed_year = Ash.Changeset.get_attribute(changeset, :parsed_year)
-    parsed_type = Ash.Changeset.get_attribute(changeset, :parsed_type)
+    parsed_type = Ash.Changeset.get_attribute(changeset, :parsed_type) || :unknown
 
+    if is_nil(parsed_title) do
+      changeset
+      |> Ash.Changeset.change_attribute(:state, :error)
+      |> Ash.Changeset.change_attribute(:error_message, "no parsed title available for search")
+    else
+      search_and_apply(changeset, parsed_title, parsed_year, parsed_type)
+    end
+  end
+
+  defp search_and_apply(changeset, parsed_title, parsed_year, parsed_type) do
     case search(parsed_title, parsed_year, parsed_type) do
       {:ok, []} ->
         Ash.Changeset.change_attribute(changeset, :state, :pending_review)

@@ -15,6 +15,7 @@ defmodule MediaManager.Application do
       MediaManager.Config,
       MediaManager.JsonWriter,
       MediaManager.Watcher,
+      MediaManager.Pipeline,
       MediaManagerWeb.Endpoint
     ]
 

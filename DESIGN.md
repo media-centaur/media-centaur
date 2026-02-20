@@ -25,12 +25,12 @@ This document captures the full architecture of the `media-manager` Phoenix/Elix
 
 ## 1. Overview
 
-The media manager is the **write-side** of Freedia Center. It watches a configured `media_dir` for newly completed torrent downloads, identifies the content, scrapes metadata and artwork from external APIs, and maintains `media.json` and the image cache in `shared_library_dir` that the `user-interface` reads.
+The media manager is the **write-side** of Freedia Center. It watches a configured `media_dir` for newly completed torrent downloads, identifies the content, scrapes metadata and artwork from external APIs, and maintains `media.json` (at `shared_media_library`) and the image cache (at `media_images_dir`) that the `user-interface` reads.
 
 **SQLite is the canonical database.** All entity data (names, descriptions, genres, TMDB IDs, image remote URLs, season/episode structure) is stored in SQLite. `media.json` is a generated export of SQLite data — it can always be regenerated. This means:
 
-- Moving `shared_library_dir` → update config, regenerate, done
-- `shared_library_dir` becomes unavailable → app continues, writes queue, resume on reconnect
+- Moving output paths → update config, regenerate, done
+- Output paths become unavailable → app continues, writes queue, resume on reconnect
 - `media.json` corrupted or deleted → regenerate from SQLite instantly
 - Images lost → remote `url` stored in SQLite → re-download on demand
 
@@ -53,10 +53,13 @@ At startup, `MediaManager.Config` (a GenServer) reads this file and merges it ov
 # Watched for additions and removals. May be on a removable or network drive.
 media_dir = "/mnt/videos/Videos"
 
-# Shared library directory: media.json lives here + images/ subdirectory.
+# Path to the media library JSON file, read by the user-interface.
 # Must match the path the user-interface is configured to read from.
-# May be on a removable or network drive.
-shared_library_dir = "~/.local/share/freedia-center/data"
+shared_media_library = "~/.local/share/freedia-center/media.json"
+
+# Directory for cached artwork images, one subdirectory per entity UUID.
+# Must match the path the user-interface is configured to read from.
+media_images_dir = "~/.local/share/freedia-center/images"
 
 [tmdb]
 api_key = ""
@@ -72,20 +75,21 @@ auto_approve_threshold = 0.85
 ```elixir
 config :media_manager,
   media_dir: System.get_env("MEDIA_DIR", "/mnt/videos/Videos"),
-  shared_library_dir: System.get_env("SHARED_LIBRARY_DIR", "~/.local/share/freedia-center/data"),
+  shared_media_library: System.get_env("SHARED_MEDIA_LIBRARY", "~/.local/share/freedia-center/media.json"),
+  media_images_dir: System.get_env("MEDIA_IMAGES_DIR", "~/.local/share/freedia-center/images"),
   tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
   auto_approve_threshold: 0.85
 ```
 
 **TOML parsing:** `toml_elixir` library (added to `mix.exs`).
 
-**SQLite database location:** `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — **not** in `shared_library_dir`, so it survives any mount failure).
+**SQLite database location:** `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — separate from the shared media paths, so it survives any mount failure).
 
 ---
 
 ## 3. Mount Resilience
 
-Both `media_dir` and `shared_library_dir` may reside on removable drives, NAS shares, or external mounts. The application must never lose library data due to a transient mount failure.
+Both `media_dir` and the shared output paths (`shared_media_library`, `media_images_dir`) may reside on removable drives, NAS shares, or external mounts. The application must never lose library data due to a transient mount failure.
 
 ### 3.1 `media_dir` Resilience (file watcher)
 
@@ -117,11 +121,11 @@ Both `media_dir` and `shared_library_dir` may reside on removable drives, NAS sh
 
 **Periodic health check:** The `Watcher` GenServer pings `media_dir` every 30 seconds. On any state change it broadcasts via `Phoenix.PubSub` so the dashboard shows a warning banner immediately.
 
-### 3.2 `shared_library_dir` Resilience (JSON writer)
+### 3.2 Output Path Resilience (JSON writer / image downloader)
 
 - **On startup:** check accessibility; if `media.json` is missing but SQLite has data → regenerate.
-- **During writes:** if `shared_library_dir` is unavailable, queue the pending write in SQLite (a `pending_write` flag). Resume when the directory becomes accessible again.
-- **If directory moves:** update `shared_library_dir` in TOML → restart app → regenerate `media.json` at new path. Admin UI provides a "Regenerate library file" button.
+- **During writes:** if `shared_media_library` parent directory is unavailable, queue the pending write in SQLite (a `pending_write` flag). Resume when accessible again.
+- **If paths move:** update `shared_media_library` / `media_images_dir` in TOML → restart app → regenerate `media.json` at new path. Admin UI provides a "Regenerate library file" button.
 - **Images:** remote `url` for every image is stored in SQLite. If images are missing (lost or new path), the admin UI can trigger a re-download of any or all images.
 
 ---
@@ -137,41 +141,35 @@ Both `media_dir` and `shared_library_dir` may reside on removable drives, NAS sh
 
 ### 4.2 Broadway Pipeline (addition path)
 
+The pipeline is decoupled from the Watcher. The Watcher writes to the database; the Broadway pipeline reads from it via polling. See [`PIPELINE.md`](PIPELINE.md) for full implementation details.
+
 ```
-Watcher
-    │  {:file_added, path}
-    ▼
-Broadway.Producer (MediaManager.Pipeline.Producer)
+Watcher (GenServer)
+    │  detects file → :detect action → WatchedFile (:detected)
     │
-    ▼
-Stage 1 — Name Parser (MediaManager.Pipeline.NameParser)
-    │  Extracts: title, year, type hint (movie/tv/unknown), season/episode
-    │  Output: %ParsedMedia{path, title, year, type, season, episode}
-    ▼
-Stage 2 — TMDB Searcher (MediaManager.Pipeline.TmdbSearcher)
-    │  Calls TMDB search API via Req
-    │  Computes confidence score for best match
-    │  Output: %SearchResult{parsed, tmdb_id, confidence, entity_type, raw_result}
-    ▼
-Stage 3 — Router (MediaManager.Pipeline.Router)
-    │  confidence >= threshold → proceed to Stage 4
-    │  confidence < threshold  → persist WatchedFile as :pending_review, stop
-    ▼
-Stage 4 — Metadata Fetcher (MediaManager.Pipeline.MetadataFetcher)
-    │  Full TMDB fetch: details, cast, seasons, episodes (for TV)
-    │  Assigns UUID for the entity (@id) if not already exists
-    │  Creates/updates Entity record in SQLite
-    │  Creates Image records with url populated, content_url: nil
-    ▼
-Stage 5 — Image Downloader (MediaManager.Pipeline.ImageDownloader)
-    │  Downloads poster, backdrop, logo to shared_library_dir/images/{uuid}/
-    │  Updates Image records: populates content_url with local path
-    ▼
-Stage 6 — JSON Writer (MediaManager.JsonWriter GenServer)
-    │  Generates entity map from SQLite records
-    │  Atomically writes to media.json (write tmp → rename)
-    │  Updates WatchedFile state to :complete
-    └──▶ media.json updated; user-interface hot-reloads
+Broadway Pipeline (MediaManager.Pipeline)
+    │
+    ├─ Producer (MediaManager.Pipeline.Producer)
+    │    Polls DB every 10s for :detected files
+    │    Claims each file atomically (:detected → :queued)
+    │    Respects GenStage demand (fetches only what's needed)
+    │
+    └─ Processors (concurrency: 3)
+         │
+         ├─ :search action
+         │    Calls TMDB search API via Req
+         │    Computes confidence score for best match
+         │    → :approved (high confidence) or :pending_review (low/no results)
+         │
+         ├─ :fetch_metadata action (only if :approved)
+         │    Full TMDB fetch: details, cast, seasons, episodes (for TV)
+         │    Creates Entity, Image, Identifier, Season, Episode records
+         │    → :fetching_images
+         │
+         ├─ Image download (not yet implemented)
+         │    → :complete
+         │
+         └─ :pending_review → stop (awaits human review in admin UI)
 ```
 
 ### 4.3 Removal Path
@@ -187,13 +185,13 @@ MediaManager.RemovalHandler (GenServer)
     ├─ Movie / VideoObject:
     │     Remove entity from SQLite
     │     Remove entity from media.json via JsonWriter
-    │     Delete shared_library_dir/images/{uuid}/ directory
+    │     Delete {media_images_dir}/{uuid}/ directory
     │
     └─ TVSeries episode file removed:
           Remove that episode from Season → Episode records in SQLite
           If no episodes remain in any season → remove whole TVSeries entity
           Regenerate TVSeries entry in media.json via JsonWriter
-          Delete shared_library_dir/images/{uuid}/ only if whole series removed
+          Delete {media_images_dir}/{uuid}/ only if whole series removed
 ```
 
 ---
@@ -242,7 +240,7 @@ Unknown type → attempt TMDB movie search; falls back to `:pending_review` rega
 
 **Domain:** `MediaManager.Library`
 
-SQLite database lives at `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — NOT in `shared_library_dir`). This ensures it survives any `shared_library_dir` or `media_dir` mount failures.
+SQLite database lives at `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — separate from the shared media paths). This ensures it survives any output path or `media_dir` mount failures.
 
 ### `MediaManager.Library.WatchedFile`
 
@@ -269,19 +267,23 @@ Tracks every media file the pipeline knows about. One row per file. Multiple row
 **State machine:**
 
 ```
-:detected → :searching → :pending_review → :approved (manual)
-                       → :approved (auto, high confidence)
-                            ↓
-                       :fetching_metadata → :fetching_images → :complete
-                                                              → :error
+:detected → :queued → :searching → :pending_review → :approved (manual)
+                                 → :approved (auto, high confidence)
+                                      ↓
+                                 :fetching_metadata → :fetching_images → :complete
+                                                                        → :error
 :complete → :removed  (file deleted, entity removed)
 ```
+
+The `:queued` state is set by the Broadway pipeline producer when it claims a file for processing. This prevents duplicate processing in concurrent environments.
 
 **Ash actions:**
 
 | Action | Type | Description |
 |--------|------|-------------|
 | `:detect` | create | Parses `file_path`, sets `state: :detected`, populates parsed_* fields |
+| `:detected_files` | read | Returns all files in `:detected` state, sorted by `inserted_at` ascending |
+| `:claim` | update | Atomically transitions from `:detected` → `:queued`; fails if file is not in `:detected` state |
 | `:search` | update | Calls TMDB search via `TMDB.Client`, scores results via `TMDB.Confidence`, sets `tmdb_id`, `confidence_score`, and transitions state to `:approved` or `:pending_review` |
 | `:fetch_metadata` | update | Fetches full TMDB details, creates `Entity` + `Image` + `Identifier` + `Season` + `Episode` records, transitions state to `:fetching_images` |
 
@@ -329,7 +331,7 @@ Canonical store for all library entity data. This is what `media.json` is genera
 | `entity_id` | UUID (FK) | |
 | `role` | string | `"poster"`, `"backdrop"`, `"logo"`, `"thumb"` |
 | `url` | string | Remote source URL — populated at Stage 4 (metadata fetch); used for re-download |
-| `content_url` | string or nil | Local path relative to `shared_library_dir` — `nil` until Stage 5 (image download) completes |
+| `content_url` | string or nil | Local path relative to `media_images_dir` — `nil` until Stage 5 (image download) completes |
 | `extension` | string | `.jpg` or `.png` |
 
 ### `MediaManager.Library.Identifier`
@@ -406,7 +408,7 @@ Canonical store for all library entity data. This is what `media.json` is genera
 2. Read current `media.json` (or `[]` if missing)
 3. Find existing entry by `@id` (update) or append (new)
 4. Encode → write to `media.json.tmp` → `File.rename/2` (atomic on Linux)
-5. If `shared_library_dir` unavailable → set `entity.pending_write = true` in SQLite; retry on reconnect
+5. If `shared_media_library` parent directory unavailable → set `entity.pending_write = true` in SQLite; retry on reconnect
 
 **`JsonWriter.regenerate_all/0`** — reads all `:complete` `WatchedFile` entities from SQLite and rewrites `media.json` from scratch. Used after config changes (directory move, etc.) or when `media.json` is missing/corrupted.
 
@@ -431,7 +433,7 @@ GET /library/:id     → Library Item LiveView (detail, re-scrape, remove, re-do
 **Dashboard warnings (via PubSub):**
 
 - `media_dir` unavailable → red banner: "Media directory not accessible — removal events suppressed"
-- `shared_library_dir` unavailable → yellow banner: "Library directory not accessible — writes queued"
+- `shared_media_library` parent directory unavailable → yellow banner: "Library file not writable — writes queued"
 
 **Review flow:**
 

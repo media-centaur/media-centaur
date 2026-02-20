@@ -24,8 +24,9 @@ defmodule MediaManager.Config do
 
   defp load_config do
     defaults = %{
-      media_dir: Application.get_env(:media_manager, :media_dir),
-      shared_library_dir: Application.get_env(:media_manager, :shared_library_dir),
+      media_dir: expand(Application.get_env(:media_manager, :media_dir)),
+      shared_media_library: expand(Application.get_env(:media_manager, :shared_media_library)),
+      media_images_dir: expand(Application.get_env(:media_manager, :media_images_dir)),
       tmdb_api_key: Application.get_env(:media_manager, :tmdb_api_key),
       auto_approve_threshold: Application.get_env(:media_manager, :auto_approve_threshold)
     }
@@ -46,11 +47,16 @@ defmodule MediaManager.Config do
 
   defp merge_toml(defaults, toml) do
     %{
-      media_dir: get_in(toml, ["media_dir"]) || defaults.media_dir,
-      shared_library_dir: get_in(toml, ["shared_library_dir"]) || defaults.shared_library_dir,
+      media_dir: expand(get_in(toml, ["media_dir"]) || defaults.media_dir),
+      shared_media_library:
+        expand(get_in(toml, ["shared_media_library"]) || defaults.shared_media_library),
+      media_images_dir: expand(get_in(toml, ["media_images_dir"]) || defaults.media_images_dir),
       tmdb_api_key: get_in(toml, ["tmdb", "api_key"]) || defaults.tmdb_api_key,
       auto_approve_threshold:
         get_in(toml, ["pipeline", "auto_approve_threshold"]) || defaults.auto_approve_threshold
     }
   end
+
+  defp expand(path) when is_binary(path), do: Path.expand(path)
+  defp expand(path), do: path
 end
