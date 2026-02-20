@@ -20,6 +20,16 @@ if System.get_env("PHX_SERVER") do
   config :media_manager, MediaManagerWeb.Endpoint, server: true
 end
 
+config :media_manager,
+  media_dir: System.get_env("MEDIA_DIR", "/mnt/videos/Videos"),
+  shared_library_dir:
+    System.get_env(
+      "SHARED_LIBRARY_DIR",
+      Path.expand("~/.local/share/freedia-center/data")
+    ),
+  tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
+  auto_approve_threshold: 0.85
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

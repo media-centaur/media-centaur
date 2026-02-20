@@ -47,6 +47,11 @@ config :media_manager,
   ecto_repos: [MediaManager.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :media_manager, :ash_domains, [MediaManager.Library]
+
+config :media_manager, MediaManager.Repo,
+  database: Path.expand("~/.local/share/freedia-center/media-manager.db")
+
 # Configures the endpoint
 config :media_manager, MediaManagerWeb.Endpoint,
   url: [host: "localhost"],
