@@ -37,3 +37,6 @@ npm-debug.log
 
 # Local env varibales
 /.envrc
+
+# sqlite stuff
+/media_manager_dev*
