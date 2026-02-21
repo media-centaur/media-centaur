@@ -29,6 +29,8 @@ defmodule MediaManager.Config do
 
   defp load_config do
     defaults = %{
+      database_path:
+        expand(get_in(Application.get_env(:media_manager, MediaManager.Repo), [:database])),
       watch_dirs: expand_list(Application.get_env(:media_manager, :watch_dirs, [])),
       shared_media_library: expand(Application.get_env(:media_manager, :shared_media_library)),
       media_images_dir: expand(Application.get_env(:media_manager, :media_images_dir)),
@@ -54,6 +56,7 @@ defmodule MediaManager.Config do
     watch_dirs = resolve_watch_dirs(toml, defaults)
 
     %{
+      database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
       watch_dirs: watch_dirs,
       shared_media_library:
         expand(get_in(toml, ["shared_media_library"]) || defaults.shared_media_library),
