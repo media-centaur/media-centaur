@@ -302,12 +302,18 @@ defmodule MediaManager.IntegrationTest do
       assert first["@type"] == "Movie"
       assert first["name"] == "Part One"
       assert first["director"] == "Alice"
-      assert first["identifier"] == [%{"@type" => "PropertyValue", "propertyID" => "tmdb", "value" => "201"}]
+
+      assert first["identifier"] == [
+               %{"@type" => "PropertyValue", "propertyID" => "tmdb", "value" => "201"}
+             ]
 
       assert second["@type"] == "Movie"
       assert second["name"] == "Part Two"
       assert second["director"] == "Bob"
-      assert second["identifier"] == [%{"@type" => "PropertyValue", "propertyID" => "tmdb", "value" => "202"}]
+
+      assert second["identifier"] == [
+               %{"@type" => "PropertyValue", "propertyID" => "tmdb", "value" => "202"}
+             ]
 
       # Series-level should not have movie-specific fields
       refute Map.has_key?(inner, "duration")

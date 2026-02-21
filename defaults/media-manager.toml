@@ -5,6 +5,9 @@
 # This file must contain every recognised config key; keep it up to date as new
 # keys are added to MediaManager.Config.
 
+# Path to the SQLite database file.
+database_path = "~/.local/share/freedia-center/media-manager.db"
+
 # Directories containing video/media files (e.g. torrent downloads folders).
 # Watched for additions and removals. May be on removable or network drives.
 # Add multiple directories to watch media across several drives/mounts.
