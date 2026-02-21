@@ -21,11 +21,19 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 | Path | Purpose |
 |------|---------|
-| `lib/media_manager/` | Business logic: file watcher, parser, TMDB client, JSON writer, Ash resources (`library/`) |
-| `lib/media_manager_web/` | Phoenix web layer: router, LiveViews, controllers, components |
-| `lib/media_manager_web/components/` | Shared HEEx components and layouts |
-| `priv/repo/migrations/` | Ecto migrations |
-| `priv/repo/seeds.exs` | Database seed data |
+| `lib/media_manager/library/` | Ash domain and resources: Entity, WatchedFile, Image, Identifier, Season, Episode |
+| `lib/media_manager/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
+| `lib/media_manager/library/entity_resolver.ex` | Entity find-or-create orchestration with race-loss recovery |
+| `lib/media_manager/library/watched_file/changes/` | Ash change modules for each pipeline step |
+| `lib/media_manager/pipeline/` | Broadway pipeline, producer, and image downloader |
+| `lib/media_manager/tmdb/` | TMDB API client, confidence scorer, and response mapper |
+| `lib/media_manager/serializer.ex` | Schema.org JSON-LD serializer (Entity → media.json format) |
+| `lib/media_manager/json_writer.ex` | GenServer that atomically writes `media.json` |
+| `lib/media_manager/config.ex` | TOML config loader (GenServer) |
+| `lib/media_manager/watcher.ex` | File system watcher (inotify) |
+| `lib/media_manager/parser.ex` | Video filename parser |
+| `lib/media_manager_web/` | Phoenix web layer: router, LiveViews, components |
+| `priv/repo/migrations/` | Ecto migrations (auto-generated from Ash resources) |
 | `test/` | ExUnit tests |
 | `assets/` | JS and CSS source (esbuild + Tailwind v4) |
 | `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
@@ -58,7 +66,7 @@ Video files flow through an automated pipeline driven by the **file watcher** (`
 
 Steps 1–6 are fully automated, **idempotent**, and **concurrency-safe** — DB unique constraints and upsert patterns prevent duplicate records regardless of how many processors run in parallel. Scanning the same directories multiple times produces exactly one Entity per TMDB ID. Low-confidence matches stop at `:pending_review` and await manual approval in the admin UI. See [`PIPELINE.md`](PIPELINE.md) for full architecture details.
 
-Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/`, `lib/media_manager/image_downloader.ex`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/library/serializer.ex`, `lib/media_manager/json_writer.ex`.
+Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/entity_resolver.ex`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/serializer.ex`, `lib/media_manager/json_writer.ex`.
 
 ## Specifications
 

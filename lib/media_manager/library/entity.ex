@@ -1,4 +1,10 @@
 defmodule MediaManager.Library.Entity do
+  @moduledoc """
+  A media entity in the library — a movie, TV series, or generic video object.
+
+  Entities are created from TMDB metadata and serialized to `media.json`
+  for consumption by the user-interface.
+  """
   use Ash.Resource,
     domain: MediaManager.Library,
     data_layer: AshSqlite.DataLayer
@@ -9,7 +15,7 @@ defmodule MediaManager.Library.Entity do
   end
 
   actions do
-    defaults [:create, :read, :update, :destroy]
+    defaults [:read, :destroy]
 
     read :with_associations do
       prepare build(load: [:images, :identifiers, :watched_files, seasons: [:episodes]])
@@ -30,6 +36,8 @@ defmodule MediaManager.Library.Entity do
         :number_of_seasons,
         :aggregate_rating_value
       ]
+
+      validate present([:type, :name])
     end
 
     update :set_content_url do
@@ -40,10 +48,7 @@ defmodule MediaManager.Library.Entity do
   attributes do
     uuid_primary_key :id
 
-    attribute :type, :atom do
-      constraints one_of: [:movie, :tv_series, :video_object]
-    end
-
+    attribute :type, MediaManager.Library.Types.EntityType
     attribute :name, :string
     attribute :description, :string
     attribute :date_published, :string
@@ -55,10 +60,6 @@ defmodule MediaManager.Library.Entity do
     attribute :content_rating, :string
     attribute :number_of_seasons, :integer
     attribute :aggregate_rating_value, :float
-
-    attribute :pending_write, :boolean do
-      default false
-    end
 
     create_timestamp :inserted_at
     update_timestamp :updated_at

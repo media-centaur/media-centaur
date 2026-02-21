@@ -1,4 +1,8 @@
 defmodule MediaManager.Library do
+  @moduledoc """
+  The media library domain — entities, images, identifiers, seasons, episodes,
+  and watched files that flow through the ingestion pipeline.
+  """
   use Ash.Domain
 
   resources do

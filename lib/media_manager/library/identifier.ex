@@ -1,4 +1,8 @@
 defmodule MediaManager.Library.Identifier do
+  @moduledoc """
+  An external identifier linking an entity to a third-party service
+  (TMDB, IMDB, etc.). Modelled as a schema.org `PropertyValue`.
+  """
   use Ash.Resource,
     domain: MediaManager.Library,
     data_layer: AshSqlite.DataLayer
@@ -9,11 +13,13 @@ defmodule MediaManager.Library.Identifier do
   end
 
   actions do
-    defaults [:read, :update, :destroy]
+    defaults [:read]
 
     create :create do
       primary? true
       accept [:property_id, :value, :entity_id]
+
+      validate present([:property_id, :value, :entity_id])
     end
 
     create :find_or_create do

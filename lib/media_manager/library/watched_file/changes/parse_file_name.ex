@@ -1,4 +1,8 @@
 defmodule MediaManager.Library.WatchedFile.Changes.ParseFileName do
+  @moduledoc """
+  Ash change that parses the file path into title, year, type, season,
+  and episode attributes using `MediaManager.Parser`.
+  """
   use Ash.Resource.Change
 
   def change(changeset, _opts, _context) do

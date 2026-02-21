@@ -86,16 +86,18 @@ The Broadway module that orchestrates file processing.
    - Scores results via `TMDB.Confidence`
    - Transitions to `:approved` (high confidence) or `:pending_review` (low confidence / no results)
 2. If the file reached `:approved`, call the `:fetch_metadata` action
+   - Delegates to `EntityResolver.resolve/3`, which orchestrates entity find-or-create
    - Checks if an Entity with the same TMDB ID already exists (via `Identifier`)
    - **If entity exists:** links the WatchedFile to the existing Entity, ensures the Season/Episode record exists (for TV), and transitions directly to `:complete` (images already downloaded)
-   - **If entity is new:** fetches full TMDB details, creates `Entity`, `Image`, `Identifier` records, and (for TV) only the Season and Episode matching this file — not all seasons/episodes from TMDB
+   - **If entity is new:** fetches full TMDB details via `TMDB.Client`, maps responses to domain attributes via `TMDB.Mapper`, creates `Entity`, `Image`, `Identifier` records, and (for TV) only the Season and Episode matching this file — not all seasons/episodes from TMDB
    - Sets `content_url` on the Entity (movies) or Episode (TV) to the video file path
    - Transitions to `:fetching_images` for new entities
 3. If the file reached `:fetching_images`, call the `:download_images` action
-   - Downloads artwork from TMDB CDN via `ImageDownloader.download_all/1`
+   - Downloads artwork from TMDB CDN via `Pipeline.ImageDownloader.download_all/1`
    - Writes files to `{media_images_dir}/{entity-uuid}/{role}.{ext}`
    - Updates `Image` records' `content_url` with the local relative path
-   - Transitions to `:complete` (best-effort — failure logs a warning but does not fail the message)
+   - Individual image failures are logged as warnings but do not block completion — all downloadable images are attempted
+   - Always transitions to `:complete`
 4. The Broadway **batcher** (concurrency 1, batch size 10, timeout 5s) collects completed messages and calls `JsonWriter.regenerate_all()` once per batch to export the full DB to `media.json`
 5. If the file reached `:pending_review`, processing stops — the file awaits human review in the admin UI
 
@@ -149,7 +151,7 @@ Fetches full TMDB metadata for an approved file. **Idempotent:** if an Entity wi
 
 ### `:download_images` (update)
 
-Downloads artwork for all `Image` records with a `url` but no `content_url`. Writes files to `{media_images_dir}/{entity-uuid}/{role}.{ext}`, updates `Image.content_url`. Transitions to `:complete` on success, `:error` on failure.
+Downloads artwork for all `Image` records with a `url` but no `content_url` via `Pipeline.ImageDownloader`. Writes files to `{media_images_dir}/{entity-uuid}/{role}.{ext}`, updates `Image.content_url`. Individual image failures are logged but do not block completion — all images are attempted. Always transitions to `:complete`.
 
 ---
 
@@ -158,7 +160,7 @@ Downloads artwork for all `Image` records with a `url` but no `content_url`. Wri
 The pipeline is designed to be safe to re-run and safe under concurrent processing. Scanning the same directories multiple times produces the same result, even with 3 concurrent processors:
 
 - **WatchedFile deduplication:** The `unique_file_path` identity prevents the same file from being tracked twice.
-- **Entity deduplication:** `FetchMetadata` checks for an existing Entity by TMDB ID (via the `Identifier` resource's `unique_external_id` identity on `(property_id, value)`). If found, the WatchedFile is linked to the existing Entity with no new records created.
+- **Entity deduplication:** `EntityResolver` (called by `FetchMetadata`) checks for an existing Entity by TMDB ID (via the `Identifier` resource's `unique_external_id` identity on `(property_id, value)`). If found, the WatchedFile is linked to the existing Entity with no new records created.
 - **DB-level unique constraints:** Season (`entity_id, season_number`), Episode (`season_id, episode_number`), and Image (`entity_id, role`) all have unique indexes enforced by SQLite. These prevent duplicate records regardless of concurrency.
 - **Upsert patterns:** All child record creation uses Ash `:find_or_create` actions with `upsert? true`. On conflict, the existing row is returned without modification. This replaces the previous read-then-write pattern which was racy.
 - **Race-loss recovery:** If two processors both try to create an Entity for the same TMDB ID, the `Identifier` upsert detects the race. The loser destroys its orphan Entity and falls back to using the winner's Entity (treating it as `:existing`).
