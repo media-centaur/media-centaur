@@ -24,7 +24,7 @@ defmodule MediaManager.Config do
 
   defp load_config do
     defaults = %{
-      media_dir: expand(Application.get_env(:media_manager, :media_dir)),
+      watch_dirs: expand_list(Application.get_env(:media_manager, :watch_dirs, [])),
       shared_media_library: expand(Application.get_env(:media_manager, :shared_media_library)),
       media_images_dir: expand(Application.get_env(:media_manager, :media_images_dir)),
       tmdb_api_key: Application.get_env(:media_manager, :tmdb_api_key),
@@ -46,8 +46,10 @@ defmodule MediaManager.Config do
   end
 
   defp merge_toml(defaults, toml) do
+    watch_dirs = resolve_watch_dirs(toml, defaults)
+
     %{
-      media_dir: expand(get_in(toml, ["media_dir"]) || defaults.media_dir),
+      watch_dirs: watch_dirs,
       shared_media_library:
         expand(get_in(toml, ["shared_media_library"]) || defaults.shared_media_library),
       media_images_dir: expand(get_in(toml, ["media_images_dir"]) || defaults.media_images_dir),
@@ -57,6 +59,23 @@ defmodule MediaManager.Config do
     }
   end
 
+  # Supports both new `watch_dirs` (list) and old `media_dir` (string) keys in TOML.
+  defp resolve_watch_dirs(toml, defaults) do
+    case get_in(toml, ["watch_dirs"]) do
+      dirs when is_list(dirs) and dirs != [] ->
+        expand_list(dirs)
+
+      _ ->
+        case get_in(toml, ["media_dir"]) do
+          dir when is_binary(dir) -> [expand(dir)]
+          _ -> defaults.watch_dirs
+        end
+    end
+  end
+
   defp expand(path) when is_binary(path), do: Path.expand(path)
   defp expand(path), do: path
+
+  defp expand_list(paths) when is_list(paths), do: Enum.map(paths, &expand/1)
+  defp expand_list(_), do: []
 end

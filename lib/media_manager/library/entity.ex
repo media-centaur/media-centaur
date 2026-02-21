@@ -26,9 +26,14 @@ defmodule MediaManager.Library.Entity do
         :duration,
         :director,
         :content_rating,
+        :content_url,
         :number_of_seasons,
         :aggregate_rating_value
       ]
+    end
+
+    update :set_content_url do
+      accept [:content_url]
     end
   end
 

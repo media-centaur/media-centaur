@@ -30,6 +30,11 @@ defmodule MediaManager.Library.WatchedFile do
       change MediaManager.Library.WatchedFile.Changes.FetchMetadata
     end
 
+    update :download_images do
+      require_atomic? false
+      change MediaManager.Library.WatchedFile.Changes.DownloadImages
+    end
+
     read :detected_files do
       filter expr(state == :detected)
       prepare build(sort: [inserted_at: :asc])

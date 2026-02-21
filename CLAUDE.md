@@ -30,7 +30,11 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `assets/` | JS and CSS source (esbuild + Tailwind v4) |
 | `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
 | `AGENTS.md` | Elixir/Phoenix/LiveView/Ecto/CSS/JS coding rules |
-| `PIPELINE.md` | Broadway pipeline architecture (detection → search → metadata fetch) |
+| `PIPELINE.md` | Broadway pipeline architecture (detection → search → metadata fetch → image download → serialize) |
+
+## Ash-Driven Migrations
+
+**Never hand-write Ecto migrations.** Always design Ash resources first (attributes, identities, relationships), then run `mix ash_sqlite.generate_migrations --name <short_name>` to auto-generate the migration. The resource definition is the source of truth — the migration is a derived artifact.
 
 ## Architecture Principles
 
@@ -45,15 +49,16 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 Video files flow through an automated pipeline driven by the **file watcher** (`MediaManager.Watcher`) and a **Broadway pipeline** (`MediaManager.Pipeline`):
 
-1. **Watcher** detects new video files in `media_dir`, waits for size stability, creates a `WatchedFile` via `:detect` → state `:detected`
+1. **Watcher** detects new video files in `watch_dirs`, waits for size stability, creates a `WatchedFile` via `:detect` → state `:detected`
 2. **Producer** polls DB every 10s, claims detected files → state `:queued`
 3. **Processor** runs `:search` — searches TMDB, scores confidence → `:approved` or `:pending_review`
-4. **Processor** (if approved) runs `:fetch_metadata` — fetches full TMDB details, creates `Entity` + `Image` + `Identifier` records → `:fetching_images`
-5. **Image download** → `:complete` *(not yet implemented)*
+4. **Processor** (if approved) runs `:fetch_metadata` — checks for existing Entity by TMDB ID; if found, reuses it (→ `:complete`); if new, creates `Entity` + `Image` + `Identifier` records, and for TV series only the Season/Episode matching this file (→ `:fetching_images`)
+5. **Processor** runs `:download_images` (new entities only) — downloads artwork to `{media_images_dir}/{uuid}/`, updates `Image.content_url` → `:complete` (best-effort; failure logs warning)
+6. **Batcher** (concurrency 1) collects completed messages and calls `JsonWriter.regenerate_all()` once per batch to export the full DB to `media.json`
 
-Steps 1–4 are fully automated. Low-confidence matches stop at `:pending_review` and await manual approval in the admin UI. See [`PIPELINE.md`](PIPELINE.md) for full architecture details.
+Steps 1–6 are fully automated, **idempotent**, and **concurrency-safe** — DB unique constraints and upsert patterns prevent duplicate records regardless of how many processors run in parallel. Scanning the same directories multiple times produces exactly one Entity per TMDB ID. Low-confidence matches stop at `:pending_review` and await manual approval in the admin UI. See [`PIPELINE.md`](PIPELINE.md) for full architecture details.
 
-Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/library/serializer.ex`, `lib/media_manager/json_writer.ex`.
+Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/`, `lib/media_manager/image_downloader.ex`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/library/serializer.ex`, `lib/media_manager/json_writer.ex`.
 
 ## Specifications
 

@@ -5,9 +5,10 @@
 # This file must contain every recognised config key; keep it up to date as new
 # keys are added to MediaManager.Config.
 
-# Directory containing video/media files (e.g. torrent downloads folder).
-# Watched for additions and removals. May be on a removable or network drive.
-media_dir = "/mnt/videos/Videos"
+# Directories containing video/media files (e.g. torrent downloads folders).
+# Watched for additions and removals. May be on removable or network drives.
+# Add multiple directories to watch media across several drives/mounts.
+watch_dirs = ["/mnt/videos/Videos"]
 
 # Path to the media library JSON file, read by the user-interface.
 # Must match the path the user-interface is configured to read from.
