@@ -10,7 +10,7 @@ defmodule MediaManager.Library.EntityResolver do
   """
 
   alias MediaManager.TMDB.{Client, Mapper}
-  alias MediaManager.Library.{Entity, Image, Identifier, Season, Episode}
+  alias MediaManager.Library.{Entity, Image, Identifier, Movie, Season, Episode}
 
   @doc """
   Resolves a TMDB ID to an entity — reusing an existing one or creating new.
@@ -43,6 +43,12 @@ defmodule MediaManager.Library.EntityResolver do
 
   defp link_file_to_existing_entity(entity, :tv, file_context) do
     with :ok <- ensure_episode_exists(entity, file_context) do
+      {:ok, entity, :existing}
+    end
+  end
+
+  defp link_file_to_existing_entity(%{type: :movie_series} = entity, _type, file_context) do
+    with {:ok, _movie} <- ensure_child_movie_exists(entity, file_context) do
       {:ok, entity, :existing}
     end
   end
@@ -82,6 +88,16 @@ defmodule MediaManager.Library.EntityResolver do
   # --- Movie entity creation ---
 
   defp create_movie_entity(tmdb_id, data, file_context) do
+    case data["belongs_to_collection"] do
+      %{"id" => collection_id} ->
+        create_movie_in_collection(tmdb_id, data, file_context, collection_id)
+
+      _ ->
+        create_standalone_movie(tmdb_id, data, file_context)
+    end
+  end
+
+  defp create_standalone_movie(tmdb_id, data, file_context) do
     attrs = Mapper.movie_attrs(tmdb_id, data, file_context.file_path)
 
     with {:ok, entity} <- Ash.create(Entity, attrs, action: :create_from_tmdb),
@@ -96,6 +112,184 @@ defmodule MediaManager.Library.EntityResolver do
       error ->
         error
     end
+  end
+
+  # --- MovieSeries (collection) flow ---
+
+  defp create_movie_in_collection(tmdb_id, movie_data, file_context, collection_id) do
+    case find_existing_movie_series(collection_id) do
+      {:ok, entity} ->
+        position = determine_position(collection_id, tmdb_id)
+
+        with {:ok, _movie} <-
+               create_child_movie(entity, tmdb_id, movie_data, file_context, position),
+             :ok <- create_movie_tmdb_identifier(entity, tmdb_id) do
+          {:ok, entity, :new_child}
+        end
+
+      :not_found ->
+        create_new_movie_series(tmdb_id, movie_data, file_context, collection_id)
+    end
+  end
+
+  defp find_existing_movie_series(collection_id) do
+    case Ash.read(Identifier,
+           action: :find_by_tmdb_collection,
+           args: %{collection_id: to_string(collection_id)}
+         ) do
+      {:ok, [%{entity: entity}]} -> {:ok, entity}
+      _ -> :not_found
+    end
+  end
+
+  defp create_new_movie_series(tmdb_id, movie_data, file_context, collection_id) do
+    case Client.get_collection(collection_id) do
+      {:ok, collection_data} ->
+        attrs = Mapper.movie_series_attrs(collection_id, collection_data)
+
+        with {:ok, entity} <- Ash.create(Entity, attrs, action: :create_from_tmdb),
+             :ok <- create_collection_identifier_with_race_retry(entity, collection_id),
+             :ok <- create_collection_images(entity, collection_data) do
+          position = determine_position_from_parts(collection_data["parts"], tmdb_id)
+
+          with {:ok, _movie} <-
+                 create_child_movie(entity, tmdb_id, movie_data, file_context, position),
+               :ok <- create_movie_tmdb_identifier(entity, tmdb_id) do
+            {:ok, entity, :new}
+          end
+        else
+          {:race_lost, winner_entity_id} ->
+            winner = Ash.get!(Entity, winner_entity_id)
+            position = determine_position_from_parts(collection_data["parts"], tmdb_id)
+
+            with {:ok, _movie} <-
+                   create_child_movie(winner, tmdb_id, movie_data, file_context, position),
+                 :ok <- create_movie_tmdb_identifier(winner, tmdb_id) do
+              {:ok, winner, :new_child}
+            end
+
+          error ->
+            error
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp create_child_movie(entity, tmdb_id, movie_data, file_context, position) do
+    attrs =
+      Mapper.child_movie_attrs(entity.id, tmdb_id, movie_data, file_context.file_path, position)
+
+    case Ash.create(Movie, attrs, action: :find_or_create) do
+      {:ok, movie} ->
+        if is_nil(movie.content_url) and not is_nil(file_context.file_path) do
+          case Ash.update(movie, %{content_url: file_context.file_path}, action: :set_content_url) do
+            {:ok, updated_movie} ->
+              create_movie_images(updated_movie, movie_data)
+              {:ok, updated_movie}
+
+            {:error, reason} ->
+              {:error, reason}
+          end
+        else
+          create_movie_images(movie, movie_data)
+          {:ok, movie}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp ensure_child_movie_exists(entity, file_context) do
+    entity = Ash.load!(entity, [:movies])
+
+    existing =
+      Enum.find(entity.movies, fn movie -> movie.content_url == file_context.file_path end)
+
+    if existing do
+      {:ok, existing}
+    else
+      # Child movie not found by file path — this is a re-scan where the child movie
+      # already exists but content_url may differ, or a race condition edge case.
+      # Either way, the entity exists, so return ok.
+      {:ok, nil}
+    end
+  end
+
+  defp determine_position(collection_id, tmdb_id) do
+    case Client.get_collection(collection_id) do
+      {:ok, collection_data} ->
+        determine_position_from_parts(collection_data["parts"], tmdb_id)
+
+      {:error, _} ->
+        0
+    end
+  end
+
+  defp determine_position_from_parts(nil, _tmdb_id), do: 0
+
+  defp determine_position_from_parts(parts, tmdb_id) do
+    tmdb_id_int = if is_binary(tmdb_id), do: String.to_integer(tmdb_id), else: tmdb_id
+
+    case Enum.find_index(parts, fn part -> part["id"] == tmdb_id_int end) do
+      nil -> length(parts)
+      index -> index
+    end
+  end
+
+  defp create_movie_tmdb_identifier(entity, tmdb_id) do
+    attrs = %{
+      property_id: "tmdb",
+      value: to_string(tmdb_id),
+      entity_id: entity.id
+    }
+
+    case Ash.create(Identifier, attrs, action: :find_or_create) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp create_collection_identifier_with_race_retry(entity, collection_id) do
+    attrs = %{
+      property_id: "tmdb_collection",
+      value: to_string(collection_id),
+      entity_id: entity.id
+    }
+
+    case Ash.create(Identifier, attrs, action: :find_or_create) do
+      {:ok, identifier} ->
+        if identifier.entity_id == entity.id do
+          :ok
+        else
+          Ash.destroy!(entity)
+          {:race_lost, identifier.entity_id}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp create_collection_images(entity, collection_data) do
+    images = Mapper.collection_image_attrs(entity.id, collection_data)
+
+    Enum.reduce_while(images, :ok, fn attrs, :ok ->
+      case Ash.create(Image, attrs, action: :find_or_create) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp create_movie_images(movie, movie_data) do
+    images = Mapper.movie_image_attrs(movie.id, movie_data)
+
+    Enum.each(images, fn attrs ->
+      Ash.create(Image, attrs, action: :find_or_create_for_movie)
+    end)
   end
 
   # --- TV entity creation ---

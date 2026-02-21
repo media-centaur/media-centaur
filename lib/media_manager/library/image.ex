@@ -24,15 +24,22 @@ defmodule MediaManager.Library.Image do
 
     create :create do
       primary? true
-      accept [:role, :url, :content_url, :extension, :entity_id]
+      accept [:role, :url, :content_url, :extension, :entity_id, :movie_id]
 
-      validate present([:role, :entity_id])
+      validate present([:role])
     end
 
     create :find_or_create do
       accept [:role, :url, :content_url, :extension, :entity_id]
       upsert? true
       upsert_identity :unique_entity_role
+      upsert_fields []
+    end
+
+    create :find_or_create_for_movie do
+      accept [:role, :url, :content_url, :extension, :movie_id]
+      upsert? true
+      upsert_identity :unique_movie_role
       upsert_fields []
     end
   end
@@ -50,10 +57,17 @@ defmodule MediaManager.Library.Image do
   end
 
   relationships do
-    belongs_to :entity, MediaManager.Library.Entity
+    belongs_to :entity, MediaManager.Library.Entity do
+      allow_nil? true
+    end
+
+    belongs_to :movie, MediaManager.Library.Movie do
+      allow_nil? true
+    end
   end
 
   identities do
     identity :unique_entity_role, [:entity_id, :role]
+    identity :unique_movie_role, [:movie_id, :role]
   end
 end

@@ -10,6 +10,7 @@ defmodule MediaManager.Library do
     resource MediaManager.Library.WatchedFile
     resource MediaManager.Library.Image
     resource MediaManager.Library.Identifier
+    resource MediaManager.Library.Movie
     resource MediaManager.Library.Season
     resource MediaManager.Library.Episode
   end
