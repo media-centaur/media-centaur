@@ -1,4 +1,10 @@
 defmodule MediaManager.Watcher do
+  @moduledoc """
+  Watches a single directory for new video files via inotify.
+
+  Each instance is started by `MediaManager.Watcher.Supervisor` and registers
+  itself in `MediaManager.Watcher.Registry` with its directory path as key.
+  """
   use GenServer
   require Logger
 
@@ -10,57 +16,70 @@ defmodule MediaManager.Watcher do
   @burst_threshold 50
 
   defstruct [
-    :media_dir,
+    :dir,
     :watcher_pid,
     state: :initializing,
     removal_timestamps: [],
     pending_files: %{}
   ]
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  def start_link(dir) do
+    GenServer.start_link(__MODULE__, dir,
+      name: {:via, Registry, {MediaManager.Watcher.Registry, dir}}
+    )
   end
 
-  def state, do: GenServer.call(__MODULE__, :state)
-  def media_dir_healthy?, do: GenServer.call(__MODULE__, :media_dir_healthy)
+  def state(pid), do: GenServer.call(pid, :state)
+  def dir(pid), do: GenServer.call(pid, :dir)
+
+  @doc """
+  Walks the watched directory recursively, detects video files not yet tracked.
+  Returns `{:ok, count}` where count is the number of newly detected files.
+  """
+  def scan(pid), do: GenServer.call(pid, :scan, 60_000)
 
   @impl true
-  def init(_opts) do
-    media_dir = MediaManager.Config.get(:media_dir)
+  def init(dir) do
     send(self(), :start_watching)
-    {:ok, %__MODULE__{media_dir: media_dir}}
+    {:ok, %__MODULE__{dir: dir}}
   end
 
   @impl true
   def handle_call(:state, _from, s), do: {:reply, s.state, s}
 
   @impl true
-  def handle_call(:media_dir_healthy, _from, s) do
-    healthy = s.state not in [:initializing, :media_dir_unavailable]
-    {:reply, healthy, s}
+  def handle_call(:dir, _from, s), do: {:reply, s.dir, s}
+
+  @impl true
+  def handle_call(:scan, _from, s) do
+    count = scan_directory(s.dir)
+    {:reply, {:ok, count}, s}
   end
 
   @impl true
   def handle_info(:start_watching, s) do
-    case FileSystem.start_link(dirs: [s.media_dir], recursive: true) do
+    case FileSystem.start_link(dirs: [s.dir], recursive: true) do
       {:ok, pid} ->
         FileSystem.subscribe(pid)
-        Logger.info("Watcher: started watching #{s.media_dir}")
+        Logger.info("Watcher: started watching #{s.dir}")
         schedule_health_check()
-        broadcast_state(:watching)
+        broadcast_state(s.dir, :watching)
         {:noreply, %{s | watcher_pid: pid, state: :watching}}
 
       {:error, reason} ->
-        Logger.warning("Watcher: could not start file_system watcher: #{inspect(reason)}")
+        Logger.warning(
+          "Watcher: could not start file_system watcher for #{s.dir}: #{inspect(reason)}"
+        )
+
         schedule_health_check()
-        broadcast_state(:media_dir_unavailable)
-        {:noreply, %{s | state: :media_dir_unavailable}}
+        broadcast_state(s.dir, :unavailable)
+        {:noreply, %{s | state: :unavailable}}
 
       :ignore ->
         Logger.warning("Watcher: file_system watcher not available (inotify-tools missing?)")
         schedule_health_check()
-        broadcast_state(:media_dir_unavailable)
-        {:noreply, %{s | state: :media_dir_unavailable}}
+        broadcast_state(s.dir, :unavailable)
+        {:noreply, %{s | state: :unavailable}}
     end
   end
 
@@ -68,9 +87,9 @@ defmodule MediaManager.Watcher do
   def handle_info({:file_event, _pid, {path, events}}, s) do
     cond do
       Enum.member?(events, :unmounted) ->
-        Logger.warning("Watcher: media_dir unmounted")
-        broadcast_state(:media_dir_unavailable)
-        {:noreply, %{s | state: :media_dir_unavailable}}
+        Logger.warning("Watcher: directory unmounted: #{s.dir}")
+        broadcast_state(s.dir, :unavailable)
+        {:noreply, %{s | state: :unavailable}}
 
       :removed in events or :deleted in events ->
         now = System.monotonic_time(:millisecond)
@@ -79,7 +98,7 @@ defmodule MediaManager.Watcher do
         recent = [now | recent]
 
         if length(recent) >= @burst_threshold do
-          Logger.warning("Watcher: suspicious burst of removal events detected")
+          Logger.warning("Watcher: suspicious burst of removal events detected in #{s.dir}")
           Phoenix.PubSub.broadcast(MediaManager.PubSub, "watcher:state", :suspicious_burst)
         end
 
@@ -96,7 +115,7 @@ defmodule MediaManager.Watcher do
 
   @impl true
   def handle_info({:file_event, _pid, :stop}, s) do
-    Logger.warning("Watcher: file_system watcher stopped")
+    Logger.warning("Watcher: file_system watcher stopped for #{s.dir}")
     {:noreply, s}
   end
 
@@ -118,10 +137,10 @@ defmodule MediaManager.Watcher do
 
   @impl true
   def handle_info(:health_check, s) do
-    case File.stat(s.media_dir) do
+    case File.stat(s.dir) do
       {:ok, _} ->
-        if s.state == :media_dir_unavailable do
-          Logger.info("Watcher: media_dir is accessible again, re-watching")
+        if s.state == :unavailable do
+          Logger.info("Watcher: directory is accessible again, re-watching #{s.dir}")
           send(self(), :start_watching)
           {:noreply, %{s | state: :initializing}}
         else
@@ -130,10 +149,10 @@ defmodule MediaManager.Watcher do
         end
 
       {:error, _} ->
-        if s.state != :media_dir_unavailable do
-          Logger.warning("Watcher: media_dir is not accessible")
-          broadcast_state(:media_dir_unavailable)
-          {:noreply, %{s | state: :media_dir_unavailable}}
+        if s.state != :unavailable do
+          Logger.warning("Watcher: directory is not accessible: #{s.dir}")
+          broadcast_state(s.dir, :unavailable)
+          {:noreply, %{s | state: :unavailable}}
         else
           schedule_health_check()
           {:noreply, s}
@@ -141,15 +160,30 @@ defmodule MediaManager.Watcher do
     end
   end
 
+  defp scan_directory(dir) do
+    pattern = Path.join(dir, "**/*")
+
+    pattern
+    |> Path.wildcard()
+    |> Enum.filter(&video_file?/1)
+    |> Enum.reduce(0, fn path, count ->
+      case detect_file(path) do
+        :ok -> count + 1
+        :skipped -> count
+      end
+    end)
+  end
+
   defp detect_file(path) do
     case MediaManager.Library.WatchedFile
          |> Ash.Changeset.for_create(:detect, %{file_path: path})
          |> Ash.create() do
-      {:ok, wf} ->
-        Logger.info("Watcher: detected file #{path} as WatchedFile #{wf.id}")
+      {:ok, file} ->
+        Logger.info("Watcher: detected file #{path} as WatchedFile #{file.id}")
+        :ok
 
-      {:error, reason} ->
-        Logger.warning("Watcher: failed to create WatchedFile for #{path}: #{inspect(reason)}")
+      {:error, _reason} ->
+        :skipped
     end
   end
 
@@ -162,11 +196,11 @@ defmodule MediaManager.Watcher do
     Process.send_after(self(), :health_check, @health_check_interval)
   end
 
-  defp broadcast_state(new_state) do
+  defp broadcast_state(dir, new_state) do
     Phoenix.PubSub.broadcast(
       MediaManager.PubSub,
       "watcher:state",
-      {:watcher_state_changed, new_state}
+      {:watcher_state_changed, dir, new_state}
     )
   end
 end

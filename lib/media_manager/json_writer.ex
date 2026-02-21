@@ -8,50 +8,19 @@ defmodule MediaManager.JsonWriter do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def write_entity(entity_id) do
-    GenServer.call(__MODULE__, {:write_entity, entity_id})
-  end
-
-  def remove_entity(entity_id) do
-    GenServer.call(__MODULE__, {:remove_entity, entity_id})
-  end
-
   def regenerate_all(path \\ nil) do
     GenServer.call(__MODULE__, {:regenerate_all, path})
   end
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaManager.PubSub, "watcher:state")
     {:ok, %{}}
-  end
-
-  @impl true
-  def handle_call({:write_entity, _entity_id}, _from, state) do
-    result = do_regenerate_all(MediaManager.Config.get(:shared_media_library))
-    {:reply, result, state}
-  end
-
-  @impl true
-  def handle_call({:remove_entity, _entity_id}, _from, state) do
-    result = do_regenerate_all(MediaManager.Config.get(:shared_media_library))
-    {:reply, result, state}
   end
 
   @impl true
   def handle_call({:regenerate_all, path}, _from, state) do
     result = do_regenerate_all(path || MediaManager.Config.get(:shared_media_library))
     {:reply, result, state}
-  end
-
-  @impl true
-  def handle_info({:watcher_state_changed, _new_state}, state) do
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info(:suspicious_burst, state) do
-    {:noreply, state}
   end
 
   defp do_regenerate_all(media_json_path) do

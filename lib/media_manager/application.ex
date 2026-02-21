@@ -14,7 +14,8 @@ defmodule MediaManager.Application do
       {Phoenix.PubSub, name: MediaManager.PubSub},
       MediaManager.Config,
       MediaManager.JsonWriter,
-      MediaManager.Watcher,
+      MediaManager.Watcher.Supervisor,
+      {Task, &MediaManager.Watcher.Supervisor.start_watchers/0},
       MediaManager.Pipeline,
       MediaManagerWeb.Endpoint
     ]

@@ -15,6 +15,19 @@ defmodule MediaManager.Library.Identifier do
       primary? true
       accept [:property_id, :value, :entity_id]
     end
+
+    create :find_or_create do
+      accept [:property_id, :value, :entity_id]
+      upsert? true
+      upsert_identity :unique_external_id
+      upsert_fields []
+    end
+
+    read :find_by_tmdb_id do
+      argument :tmdb_id, :string, allow_nil?: false
+      filter expr(property_id == "tmdb" and value == ^arg(:tmdb_id))
+      prepare build(load: [:entity], limit: 1)
+    end
   end
 
   attributes do
@@ -29,5 +42,9 @@ defmodule MediaManager.Library.Identifier do
 
   relationships do
     belongs_to :entity, MediaManager.Library.Entity
+  end
+
+  identities do
+    identity :unique_external_id, [:property_id, :value]
   end
 end

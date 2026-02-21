@@ -1,0 +1,99 @@
+defmodule MediaManager.Watcher.Supervisor do
+  @moduledoc """
+  Coordinates multiple `MediaManager.Watcher` instances, one per watched directory.
+
+  Starts a `DynamicSupervisor` and a `Registry`, then launches one Watcher child
+  per directory from `Config.get(:watch_dirs)`.
+  """
+  use Supervisor
+  require Logger
+
+  def start_link(opts) do
+    Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @impl true
+  def init(_opts) do
+    children = [
+      {Registry, keys: :unique, name: MediaManager.Watcher.Registry},
+      {DynamicSupervisor, name: MediaManager.Watcher.DynamicSupervisor, strategy: :one_for_one}
+    ]
+
+    Supervisor.init(children, strategy: :one_for_all)
+  end
+
+  @doc """
+  Called after the supervisor starts to launch a watcher for each configured directory.
+  """
+  def start_watchers do
+    dirs = MediaManager.Config.get(:watch_dirs) || []
+
+    Enum.each(dirs, fn dir ->
+      case DynamicSupervisor.start_child(
+             MediaManager.Watcher.DynamicSupervisor,
+             {MediaManager.Watcher, dir}
+           ) do
+        {:ok, _pid} ->
+          Logger.info("Watcher.Supervisor: started watcher for #{dir}")
+
+        {:error, {:already_started, _pid}} ->
+          Logger.debug("Watcher.Supervisor: watcher already running for #{dir}")
+
+        {:error, reason} ->
+          Logger.warning(
+            "Watcher.Supervisor: failed to start watcher for #{dir}: #{inspect(reason)}"
+          )
+      end
+    end)
+  end
+
+  @doc """
+  Aggregate state: `:watching` if any child is watching, `:unavailable` if all are down.
+  """
+  def state do
+    statuses = statuses()
+
+    cond do
+      statuses == [] -> :unavailable
+      Enum.any?(statuses, fn %{state: s} -> s == :watching end) -> :watching
+      true -> :unavailable
+    end
+  end
+
+  @doc """
+  Returns a list of `%{dir: path, state: atom}` for all running watchers.
+  """
+  def statuses do
+    MediaManager.Watcher.Registry
+    |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+    |> Enum.map(fn {dir, pid} ->
+      %{dir: dir, state: MediaManager.Watcher.state(pid)}
+    end)
+    |> Enum.sort_by(& &1.dir)
+  end
+
+  @doc """
+  Scans all watched directories for video files not yet tracked.
+  Returns `{:ok, total_count}`.
+  """
+  def scan do
+    results =
+      MediaManager.Watcher.Registry
+      |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+      |> Enum.map(fn {_dir, pid} ->
+        case MediaManager.Watcher.scan(pid) do
+          {:ok, count} -> count
+          _ -> 0
+        end
+      end)
+
+    {:ok, Enum.sum(results)}
+  end
+
+  @doc """
+  Returns true if any watcher is in a healthy state.
+  """
+  def media_dir_healthy? do
+    state() == :watching
+  end
+end

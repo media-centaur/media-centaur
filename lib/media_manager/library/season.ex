@@ -15,6 +15,13 @@ defmodule MediaManager.Library.Season do
       primary? true
       accept [:season_number, :number_of_episodes, :name, :entity_id]
     end
+
+    create :find_or_create do
+      accept [:season_number, :number_of_episodes, :name, :entity_id]
+      upsert? true
+      upsert_identity :unique_entity_season
+      upsert_fields []
+    end
   end
 
   attributes do
@@ -31,5 +38,9 @@ defmodule MediaManager.Library.Season do
   relationships do
     belongs_to :entity, MediaManager.Library.Entity
     has_many :episodes, MediaManager.Library.Episode
+  end
+
+  identities do
+    identity :unique_entity_season, [:entity_id, :season_number]
   end
 end

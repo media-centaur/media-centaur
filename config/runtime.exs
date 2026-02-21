@@ -20,8 +20,10 @@ if System.get_env("PHX_SERVER") do
   config :media_manager, MediaManagerWeb.Endpoint, server: true
 end
 
+watch_dirs = [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")]
+
 config :media_manager,
-  media_dir: System.get_env("MEDIA_DIR", "/mnt/videos/Videos"),
+  watch_dirs: watch_dirs,
   shared_media_library:
     System.get_env(
       "SHARED_MEDIA_LIBRARY",
