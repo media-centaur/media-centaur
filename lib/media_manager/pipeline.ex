@@ -8,7 +8,8 @@ defmodule MediaManager.Pipeline do
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
       producer: [module: {MediaManager.Pipeline.Producer, []}, concurrency: 1],
-      processors: [default: [concurrency: 3]]
+      processors: [default: [concurrency: 3, partition_by: &partition_key/1]],
+      batchers: [default: [concurrency: 1, batch_size: 10, batch_timeout: 5_000]]
     )
   end
 
@@ -17,8 +18,8 @@ defmodule MediaManager.Pipeline do
     file = message.data
 
     case process_file(file) do
-      {:ok, _} ->
-        message
+      {:ok, processed} ->
+        Broadway.Message.update_data(message, fn _ -> processed end)
 
       {:error, reason} ->
         Logger.warning("Pipeline: failed for #{file.id}: #{inspect(reason)}")
@@ -26,10 +27,40 @@ defmodule MediaManager.Pipeline do
     end
   end
 
+  @impl true
+  def handle_batch(:default, messages, _batch_info, _context) do
+    has_entity =
+      Enum.any?(messages, fn message ->
+        match?(%WatchedFile{entity_id: entity_id} when not is_nil(entity_id), message.data)
+      end)
+
+    if has_entity do
+      case MediaManager.JsonWriter.regenerate_all() do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning("Pipeline: batch JSON export failed: #{inspect(reason)}")
+      end
+    end
+
+    messages
+  end
+
+  defp partition_key(%Broadway.Message{data: %WatchedFile{tmdb_id: tmdb_id}})
+       when not is_nil(tmdb_id) do
+    tmdb_id
+  end
+
+  defp partition_key(%Broadway.Message{data: %WatchedFile{id: id}}) do
+    :erlang.phash2(id)
+  end
+
   defp process_file(file) do
     with {:ok, searched} <- search(file),
-         :ok <- maybe_fetch_metadata(searched) do
-      {:ok, searched}
+         {:ok, fetched} <- maybe_fetch_metadata(searched),
+         {:ok, downloaded} <- maybe_download_images(fetched) do
+      {:ok, downloaded}
     end
   end
 
@@ -38,19 +69,21 @@ defmodule MediaManager.Pipeline do
   end
 
   defp maybe_fetch_metadata(%WatchedFile{state: :approved} = file) do
-    with {:ok, fetched} <- Ash.update(file, %{}, action: :fetch_metadata) do
-      export_library(fetched)
+    Ash.update(file, %{}, action: :fetch_metadata)
+  end
+
+  defp maybe_fetch_metadata(%WatchedFile{} = file), do: {:ok, file}
+
+  defp maybe_download_images(%WatchedFile{state: :fetching_images} = file) do
+    case Ash.update(file, %{}, action: :download_images) do
+      {:ok, downloaded} ->
+        {:ok, downloaded}
+
+      {:error, reason} ->
+        Logger.warning("Pipeline: image download failed for #{file.id}: #{inspect(reason)}")
+        {:ok, file}
     end
   end
 
-  defp maybe_fetch_metadata(%WatchedFile{}), do: :ok
-
-  defp export_library(%WatchedFile{entity_id: entity_id}) when not is_nil(entity_id) do
-    case MediaManager.JsonWriter.write_entity(entity_id) do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp export_library(_file), do: :ok
+  defp maybe_download_images(%WatchedFile{} = file), do: {:ok, file}
 end
