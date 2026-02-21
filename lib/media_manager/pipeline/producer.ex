@@ -1,4 +1,8 @@
 defmodule MediaManager.Pipeline.Producer do
+  @moduledoc """
+  GenStage producer that polls the database for detected files and claims
+  them for processing by the Broadway pipeline.
+  """
   use GenStage
   require Logger
 

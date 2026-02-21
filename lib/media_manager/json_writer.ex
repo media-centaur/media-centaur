@@ -1,8 +1,12 @@
 defmodule MediaManager.JsonWriter do
+  @moduledoc """
+  GenServer that exports the full entity database to `media.json` via atomic
+  write (tmp file + rename). Called by the pipeline batcher after entity creation.
+  """
   use GenServer
   require Logger
 
-  alias MediaManager.Library.{Entity, Serializer}
+  alias MediaManager.Library.Entity
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -29,7 +33,7 @@ defmodule MediaManager.JsonWriter do
     media_json_path |> Path.dirname() |> File.mkdir_p!()
 
     entities = Ash.read!(Entity, action: :with_associations)
-    data = Serializer.serialize_all(entities)
+    data = MediaManager.Serializer.serialize_all(entities)
     json = Jason.encode!(data, pretty: true)
 
     case File.write(tmp_path, json) do

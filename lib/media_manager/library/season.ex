@@ -1,4 +1,8 @@
 defmodule MediaManager.Library.Season do
+  @moduledoc """
+  A TV season belonging to a `TVSeries` entity. Created from TMDB season data
+  when a file for that season is first ingested.
+  """
   use Ash.Resource,
     domain: MediaManager.Library,
     data_layer: AshSqlite.DataLayer
@@ -9,7 +13,7 @@ defmodule MediaManager.Library.Season do
   end
 
   actions do
-    defaults [:read, :update, :destroy]
+    defaults [:read]
 
     create :create do
       primary? true

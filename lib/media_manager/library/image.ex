@@ -1,4 +1,10 @@
 defmodule MediaManager.Library.Image do
+  @moduledoc """
+  An image associated with a media entity — poster, backdrop, logo, or thumb.
+
+  Each entity has at most one image per role, enforced by the `unique_entity_role`
+  identity and the `find_or_create` upsert action.
+  """
   use Ash.Resource,
     domain: MediaManager.Library,
     data_layer: AshSqlite.DataLayer
@@ -9,7 +15,7 @@ defmodule MediaManager.Library.Image do
   end
 
   actions do
-    defaults [:read, :destroy]
+    defaults [:read]
 
     update :update do
       primary? true
@@ -19,6 +25,8 @@ defmodule MediaManager.Library.Image do
     create :create do
       primary? true
       accept [:role, :url, :content_url, :extension, :entity_id]
+
+      validate present([:role, :entity_id])
     end
 
     create :find_or_create do

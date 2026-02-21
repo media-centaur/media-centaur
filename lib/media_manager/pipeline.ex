@@ -1,4 +1,8 @@
 defmodule MediaManager.Pipeline do
+  @moduledoc """
+  Broadway pipeline that processes detected video files through search,
+  metadata fetch, image download, and JSON export stages.
+  """
   use Broadway
   require Logger
 

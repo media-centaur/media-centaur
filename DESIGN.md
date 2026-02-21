@@ -1,7 +1,7 @@
 # Media Manager — Application Design
 
 > **Status:** Active (in development)
-> **Last updated:** 2026-02-20
+> **Last updated:** 2026-02-21
 
 This document captures the full architecture of the `media-manager` Phoenix/Elixir application before implementation begins. Format contracts (`media.json`, images) are specified in `../specifications/`; this document covers app-internal design.
 
@@ -124,7 +124,7 @@ Both `media_dir` and the shared output paths (`shared_media_library`, `media_ima
 ### 3.2 Output Path Resilience (JSON writer / image downloader)
 
 - **On startup:** check accessibility; if `media.json` is missing but SQLite has data → regenerate.
-- **During writes:** if `shared_media_library` parent directory is unavailable, queue the pending write in SQLite (a `pending_write` flag). Resume when accessible again.
+- **During writes:** if `shared_media_library` parent directory is unavailable, write fails with a logged error. The batcher retries on the next batch cycle.
 - **If paths move:** update `shared_media_library` / `media_images_dir` in TOML → restart app → regenerate `media.json` at new path. Admin UI provides a "Regenerate library file" button.
 - **Images:** remote `url` for every image is stored in SQLite. If images are missing (lost or new path), the admin UI can trigger a re-download of any or all images.
 
@@ -166,8 +166,9 @@ Broadway Pipeline (MediaManager.Pipeline)
          │    Creates Entity, Image, Identifier, Season, Episode records
          │    → :fetching_images
          │
-         ├─ Image download (not yet implemented)
-         │    → :complete
+         ├─ :download_images action (only if :fetching_images)
+         │    Downloads artwork via Pipeline.ImageDownloader
+         │    → :complete (best-effort; individual failures logged)
          │
          └─ :pending_review → stop (awaits human review in admin UI)
 ```
@@ -240,6 +241,13 @@ Unknown type → attempt TMDB movie search; falls back to `:pending_review` rega
 
 **Domain:** `MediaManager.Library`
 
+**Enum types:** State and type fields use dedicated `Ash.Type.Enum` modules for compile-time safety:
+- `MediaManager.Library.Types.EntityType` — `:movie`, `:tv_series`, `:video_object`
+- `MediaManager.Library.Types.MediaType` — `:movie`, `:tv`, `:unknown` (parsed file type)
+- `MediaManager.Library.Types.WatchedFileState` — all pipeline states
+
+**Action policy:** Resources only expose purpose-built actions (no generic CRUD defaults). Each resource's `defaults` is limited to what the pipeline and UI actually need.
+
 SQLite database lives at `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — separate from the shared media paths). This ensures it survives any output path or `media_dir` mount failures.
 
 ### `MediaManager.Library.WatchedFile`
@@ -253,13 +261,13 @@ Tracks every media file the pipeline knows about. One row per file. Multiple row
 | `entity_id` | UUID (FK → Entity) | Assigned at Stage 4; nil until then |
 | `parsed_title` | string | Output of name parser |
 | `parsed_year` | integer | Output of name parser |
-| `parsed_type` | atom/enum | `:movie`, `:tv`, `:unknown` |
+| `parsed_type` | `MediaType` enum | `:movie`, `:tv`, `:unknown` |
 | `season_number` | integer | For TV episode files |
 | `episode_number` | integer | For TV episode files |
 | `tmdb_id` | string | Best TMDB candidate |
 | `confidence_score` | float | Score of best TMDB match |
 | `search_title` | string | Optional human override for TMDB search query; used instead of `parsed_title` when set |
-| `state` | atom/enum | See state machine below |
+| `state` | `WatchedFileState` enum | See state machine below |
 | `error_message` | string | Set on `:error` state |
 | `inserted_at` | utc_datetime | |
 | `updated_at` | utc_datetime | |
@@ -285,7 +293,8 @@ The `:queued` state is set by the Broadway pipeline producer when it claims a fi
 | `:detected_files` | read | Returns all files in `:detected` state, sorted by `inserted_at` ascending |
 | `:claim` | update | Atomically transitions from `:detected` → `:queued`; fails if file is not in `:detected` state |
 | `:search` | update | Calls TMDB search via `TMDB.Client`, scores results via `TMDB.Confidence`, sets `tmdb_id`, `confidence_score`, and transitions state to `:approved` or `:pending_review` |
-| `:fetch_metadata` | update | Fetches full TMDB details, creates `Entity` + `Image` + `Identifier` + `Season` + `Episode` records, transitions state to `:fetching_images` |
+| `:fetch_metadata` | update | Delegates to `EntityResolver` — fetches full TMDB details, creates `Entity` + `Image` + `Identifier` + `Season` + `Episode` records via `TMDB.Mapper`, transitions state to `:fetching_images` (new entity) or `:complete` (existing entity) |
+| `:download_images` | update | Downloads artwork via `Pipeline.ImageDownloader`, transitions to `:complete` |
 
 ### `MediaManager.Library.Entity`
 
@@ -294,7 +303,7 @@ Canonical store for all library entity data. This is what `media.json` is genera
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | The `@id` used in `media.json`; stable forever |
-| `type` | atom/enum | `:movie`, `:tv_series`, `:video_object` |
+| `type` | `EntityType` enum | `:movie`, `:tv_series`, `:video_object` |
 | `name` | string | |
 | `description` | string | |
 | `date_published` | string | Year or ISO date |
@@ -306,7 +315,6 @@ Canonical store for all library entity data. This is what `media.json` is genera
 | `content_rating` | string | Movies |
 | `number_of_seasons` | integer | TVSeries |
 | `aggregate_rating_value` | float | |
-| `pending_write` | boolean | True when a JSON write is queued but not yet written |
 | `inserted_at` | utc_datetime | |
 | `updated_at` | utc_datetime | |
 
@@ -321,7 +329,10 @@ Canonical store for all library entity data. This is what `media.json` is genera
 
 | Action | Type | Description |
 |--------|------|-------------|
-| `:create_from_tmdb` | create | Creates an entity from scraped TMDB data; accepts type, name, description, date_published, genres, url, duration, director, content_rating, number_of_seasons, aggregate_rating_value |
+| `:create_from_tmdb` | create | Creates an entity from scraped TMDB data; validates presence of `:type` and `:name`; accepts type, name, description, date_published, genres, url, duration, director, content_rating, number_of_seasons, aggregate_rating_value |
+| `:set_content_url` | update | Sets the local playback `content_url` |
+| `:with_associations` | read | Loads entity with all images, identifiers, watched_files, and seasons (with episodes) |
+| `:destroy` | destroy | Used for race-loss cleanup when two processors create the same entity |
 
 ### `MediaManager.Library.Image`
 
@@ -367,11 +378,15 @@ Canonical store for all library entity data. This is what `media.json` is genera
 | `duration` | string | ISO 8601 |
 | `content_url` | string | Local playback path |
 
-**Associations:** `has_many :images, MediaManager.Library.Image` (thumbnails)
+**Associations:** `belongs_to :season, MediaManager.Library.Season`
 
 ---
 
 ## 7. TMDB API Usage
+
+**Client:** `MediaManager.TMDB.Client` — uses `Req` with a cached `persistent_term` client to avoid rebuilding the request pipeline on every call. Each function accepts an optional `Req.Request` argument for testability.
+
+**Mapper:** `MediaManager.TMDB.Mapper` — pure-function module that maps raw TMDB JSON responses to domain-ready attribute maps, isolating the API data shape from entity creation.
 
 **Base URL:** `https://api.themoviedb.org/3`
 
@@ -408,7 +423,7 @@ Canonical store for all library entity data. This is what `media.json` is genera
 2. Read current `media.json` (or `[]` if missing)
 3. Find existing entry by `@id` (update) or append (new)
 4. Encode → write to `media.json.tmp` → `File.rename/2` (atomic on Linux)
-5. If `shared_media_library` parent directory unavailable → set `entity.pending_write = true` in SQLite; retry on reconnect
+5. If `shared_media_library` parent directory unavailable → write fails, logged as error; batcher retries next cycle
 
 **`JsonWriter.regenerate_all/0`** — reads all `:complete` `WatchedFile` entities from SQLite and rewrites `media.json` from scratch. Used after config changes (directory move, etc.) or when `media.json` is missing/corrupted.
 

@@ -1,4 +1,9 @@
 defmodule MediaManager.TMDB.Confidence do
+  @moduledoc """
+  Scores TMDB search results against parsed filenames using Jaro string
+  distance, with bonuses for matching years and top-result position.
+  """
+
   @doc """
   Score a TMDB search result against a parsed filename.
 
