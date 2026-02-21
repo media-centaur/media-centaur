@@ -8,7 +8,7 @@ defmodule MediaManager.Pipeline.Producer do
 
   alias MediaManager.Library.WatchedFile
 
-  @poll_interval 10_000
+  @poll_interval 1_000
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
