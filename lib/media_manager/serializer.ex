@@ -7,7 +7,7 @@ defmodule MediaManager.Serializer do
   which calls it to produce `media.json`.
   """
 
-  alias MediaManager.Library.{Entity, Image, Identifier, Season, Episode}
+  alias MediaManager.Library.{Entity, Image, Identifier, Movie, Season, Episode}
 
   @doc """
   Serializes a list of entities into wrapped JSON-LD maps.
@@ -19,6 +19,10 @@ defmodule MediaManager.Serializer do
   @doc """
   Serializes a single entity into a wrapped map: `%{"@id" => uuid, "entity" => %{...}}`.
   """
+  def serialize_entity(%Entity{type: :movie_series} = entity) do
+    serialize_movie_series(entity)
+  end
+
   def serialize_entity(%Entity{} = entity) do
     %{
       "@id" => entity.id,
@@ -62,6 +66,11 @@ defmodule MediaManager.Serializer do
     }
   end
 
+  defp type_specific_fields(%Entity{type: :movie_series}) do
+    # MovieSeries uses custom serialization via serialize_movie_series/1
+    %{}
+  end
+
   defp type_specific_fields(%Entity{}) do
     %{}
   end
@@ -102,6 +111,106 @@ defmodule MediaManager.Serializer do
     }
     |> compact()
   end
+
+  # --- MovieSeries serialization ---
+
+  defp serialize_movie_series(%Entity{} = entity) do
+    movies = sorted_child_movies(entity.movies)
+
+    case movies do
+      [single_movie] ->
+        # 1 child movie → export as top-level Movie using child's data
+        %{
+          "@id" => entity.id,
+          "entity" => serialize_single_child_as_movie(single_movie, entity)
+        }
+
+      _ ->
+        # 2+ child movies → export as MovieSeries with hasPart
+        %{
+          "@id" => entity.id,
+          "entity" => serialize_as_movie_series(entity, movies)
+        }
+    end
+  end
+
+  defp serialize_single_child_as_movie(%Movie{} = movie, _entity) do
+    %{
+      "@type" => "Movie",
+      "name" => movie.name,
+      "description" => movie.description,
+      "datePublished" => movie.date_published,
+      "contentUrl" => movie.content_url,
+      "url" => movie.url,
+      "duration" => movie.duration,
+      "director" => movie.director,
+      "contentRating" => movie.content_rating
+    }
+    |> maybe_add_child_movie_images(movie)
+    |> maybe_add_child_movie_identifier(movie)
+    |> maybe_add_child_movie_rating(movie)
+    |> compact()
+  end
+
+  defp serialize_as_movie_series(%Entity{} = entity, movies) do
+    base_fields(entity)
+    |> Map.put("hasPart", Enum.map(movies, &serialize_child_movie/1))
+    |> maybe_add_images(entity)
+    |> maybe_add_identifiers(entity)
+    |> maybe_add_rating(entity)
+    |> compact()
+  end
+
+  defp serialize_child_movie(%Movie{} = movie) do
+    %{
+      "@type" => "Movie",
+      "name" => movie.name,
+      "description" => movie.description,
+      "datePublished" => movie.date_published,
+      "contentUrl" => movie.content_url,
+      "url" => movie.url,
+      "duration" => movie.duration,
+      "director" => movie.director,
+      "contentRating" => movie.content_rating
+    }
+    |> maybe_add_child_movie_images(movie)
+    |> maybe_add_child_movie_identifier(movie)
+    |> maybe_add_child_movie_rating(movie)
+    |> compact()
+  end
+
+  defp maybe_add_child_movie_images(map, %Movie{images: images}) when is_list(images) do
+    serialized = Enum.map(images, &serialize_image/1)
+    Map.put(map, "image", serialized)
+  end
+
+  defp maybe_add_child_movie_images(map, _), do: map
+
+  defp maybe_add_child_movie_identifier(map, %Movie{tmdb_id: tmdb_id})
+       when is_binary(tmdb_id) do
+    identifier = %{
+      "@type" => "PropertyValue",
+      "propertyID" => "tmdb",
+      "value" => tmdb_id
+    }
+
+    Map.update(map, "identifier", [identifier], fn existing -> existing ++ [identifier] end)
+  end
+
+  defp maybe_add_child_movie_identifier(map, _), do: map
+
+  defp maybe_add_child_movie_rating(map, %Movie{aggregate_rating_value: value})
+       when is_number(value) do
+    Map.put(map, "aggregateRating", %{"ratingValue" => value})
+  end
+
+  defp maybe_add_child_movie_rating(map, _), do: map
+
+  defp sorted_child_movies(movies) when is_list(movies) do
+    Enum.sort_by(movies, fn movie -> {movie.position || 0, movie.date_published || ""} end)
+  end
+
+  defp sorted_child_movies(_), do: []
 
   defp maybe_add_images(map, %Entity{images: images}) when is_list(images) do
     serialized = Enum.map(images, &serialize_image/1)
@@ -145,6 +254,7 @@ defmodule MediaManager.Serializer do
   defp maybe_add_rating(map, _), do: map
 
   defp type_string(:movie), do: "Movie"
+  defp type_string(:movie_series), do: "MovieSeries"
   defp type_string(:tv_series), do: "TVSeries"
   defp type_string(:video_object), do: "VideoObject"
 

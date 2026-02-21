@@ -21,7 +21,7 @@ defmodule MediaManager.Library.WatchedFile.Changes.FetchMetadata do
     }
 
     case EntityResolver.resolve(tmdb_id, parsed_type, file_context) do
-      {:ok, entity, :new} ->
+      {:ok, entity, status} when status in [:new, :new_child] ->
         changeset
         |> Ash.Changeset.change_attribute(:entity_id, entity.id)
         |> Ash.Changeset.change_attribute(:state, :fetching_images)

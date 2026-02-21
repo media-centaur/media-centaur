@@ -136,6 +136,186 @@ defmodule MediaManager.IntegrationTest do
     end
   end
 
+  describe "Serializer — MovieSeries" do
+    alias MediaManager.{Serializer}
+    alias MediaManager.Library.{Image, Identifier, Movie}
+
+    test "movie_series with 1 child exports as Movie using child's data" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{
+          type: :movie_series,
+          name: "Test Collection"
+        })
+        |> Ash.create()
+
+      {:ok, movie} =
+        Movie
+        |> Ash.Changeset.for_create(:create, %{
+          name: "First Film",
+          description: "A great film.",
+          date_published: "2020",
+          duration: "PT1H45M",
+          director: "Jane Doe",
+          content_rating: "PG-13",
+          url: "https://example.com/first-film",
+          aggregate_rating_value: 7.5,
+          tmdb_id: "111",
+          position: 0,
+          entity_id: entity.id
+        })
+        |> Ash.create()
+
+      {:ok, _image} =
+        Image
+        |> Ash.Changeset.for_create(:create, %{
+          role: "poster",
+          url: "https://example.com/poster.jpg",
+          content_url: "images/#{movie.id}/poster.jpg",
+          movie_id: movie.id
+        })
+        |> Ash.create()
+
+      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      result = Serializer.serialize_entity(entity)
+
+      assert result["@id"] == entity.id
+
+      inner = result["entity"]
+      assert inner["@type"] == "Movie"
+      assert inner["name"] == "First Film"
+      assert inner["description"] == "A great film."
+      assert inner["duration"] == "PT1H45M"
+      assert inner["director"] == "Jane Doe"
+      assert inner["contentRating"] == "PG-13"
+      assert inner["aggregateRating"] == %{"ratingValue" => 7.5}
+
+      [image] = inner["image"]
+      assert image["@type"] == "ImageObject"
+      assert image["name"] == "poster"
+
+      [identifier] = inner["identifier"]
+      assert identifier["propertyID"] == "tmdb"
+      assert identifier["value"] == "111"
+
+      refute Map.has_key?(inner, "hasPart")
+    end
+
+    test "movie_series with 2+ children exports as MovieSeries with hasPart" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{
+          type: :movie_series,
+          name: "Test Collection"
+        })
+        |> Ash.create()
+
+      {:ok, _series_image} =
+        Image
+        |> Ash.Changeset.for_create(:create, %{
+          role: "poster",
+          url: "https://example.com/series-poster.jpg",
+          content_url: "images/#{entity.id}/poster.jpg",
+          entity_id: entity.id
+        })
+        |> Ash.create()
+
+      {:ok, _series_identifier} =
+        Identifier
+        |> Ash.Changeset.for_create(:create, %{
+          property_id: "tmdb_collection",
+          value: "999",
+          entity_id: entity.id
+        })
+        |> Ash.create()
+
+      {:ok, movie_a} =
+        Movie
+        |> Ash.Changeset.for_create(:create, %{
+          name: "Part One",
+          duration: "PT2H",
+          director: "Alice",
+          content_rating: "R",
+          aggregate_rating_value: 8.0,
+          tmdb_id: "201",
+          position: 0,
+          entity_id: entity.id
+        })
+        |> Ash.create()
+
+      {:ok, _img_a} =
+        Image
+        |> Ash.Changeset.for_create(:create, %{
+          role: "poster",
+          url: "https://example.com/a-poster.jpg",
+          content_url: "images/#{movie_a.id}/poster.jpg",
+          movie_id: movie_a.id
+        })
+        |> Ash.create()
+
+      {:ok, movie_b} =
+        Movie
+        |> Ash.Changeset.for_create(:create, %{
+          name: "Part Two",
+          duration: "PT2H15M",
+          director: "Bob",
+          content_rating: "R",
+          aggregate_rating_value: 7.0,
+          tmdb_id: "202",
+          position: 1,
+          entity_id: entity.id
+        })
+        |> Ash.create()
+
+      {:ok, _img_b} =
+        Image
+        |> Ash.Changeset.for_create(:create, %{
+          role: "poster",
+          url: "https://example.com/b-poster.jpg",
+          content_url: "images/#{movie_b.id}/poster.jpg",
+          movie_id: movie_b.id
+        })
+        |> Ash.create()
+
+      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      result = Serializer.serialize_entity(entity)
+
+      assert result["@id"] == entity.id
+
+      inner = result["entity"]
+      assert inner["@type"] == "MovieSeries"
+      assert inner["name"] == "Test Collection"
+
+      [series_image] = inner["image"]
+      assert series_image["@type"] == "ImageObject"
+      assert series_image["name"] == "poster"
+      assert series_image["contentUrl"] == "images/#{entity.id}/poster.jpg"
+
+      [series_id] = inner["identifier"]
+      assert series_id["propertyID"] == "tmdb_collection"
+      assert series_id["value"] == "999"
+
+      children = inner["hasPart"]
+      assert length(children) == 2
+
+      [first, second] = children
+      assert first["@type"] == "Movie"
+      assert first["name"] == "Part One"
+      assert first["director"] == "Alice"
+      assert first["identifier"] == [%{"@type" => "PropertyValue", "propertyID" => "tmdb", "value" => "201"}]
+
+      assert second["@type"] == "Movie"
+      assert second["name"] == "Part Two"
+      assert second["director"] == "Bob"
+      assert second["identifier"] == [%{"@type" => "PropertyValue", "propertyID" => "tmdb", "value" => "202"}]
+
+      # Series-level should not have movie-specific fields
+      refute Map.has_key?(inner, "duration")
+      refute Map.has_key?(inner, "director")
+      refute Map.has_key?(inner, "contentRating")
+    end
+  end
+
   describe "JsonWriter.regenerate_all/1" do
     test "writes a valid JSON array to the given path" do
       json_path = Path.join(System.tmp_dir!(), "media.json")

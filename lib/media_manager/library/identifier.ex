@@ -34,6 +34,12 @@ defmodule MediaManager.Library.Identifier do
       filter expr(property_id == "tmdb" and value == ^arg(:tmdb_id))
       prepare build(load: [:entity], limit: 1)
     end
+
+    read :find_by_tmdb_collection do
+      argument :collection_id, :string, allow_nil?: false
+      filter expr(property_id == "tmdb_collection" and value == ^arg(:collection_id))
+      prepare build(load: [:entity], limit: 1)
+    end
   end
 
   attributes do

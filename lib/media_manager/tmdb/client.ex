@@ -75,6 +75,18 @@ defmodule MediaManager.TMDB.Client do
     end
   end
 
+  @spec get_collection(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
+  def get_collection(collection_id, client \\ default_client()) do
+    case Req.get(client,
+           url: "/collection/#{collection_id}",
+           params: [append_to_response: "images"]
+         ) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body}
+      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   @spec get_season(String.t() | integer(), integer(), Req.Request.t()) ::
           {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, client \\ default_client()) do
