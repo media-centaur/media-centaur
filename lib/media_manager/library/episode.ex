@@ -1,4 +1,8 @@
 defmodule MediaManager.Library.Episode do
+  @moduledoc """
+  A TV episode belonging to a `Season`. Stores per-episode metadata from TMDB
+  and the local `content_url` linking to the video file.
+  """
   use Ash.Resource,
     domain: MediaManager.Library,
     data_layer: AshSqlite.DataLayer
@@ -9,7 +13,7 @@ defmodule MediaManager.Library.Episode do
   end
 
   actions do
-    defaults [:read, :update, :destroy]
+    defaults [:read]
 
     create :create do
       primary? true

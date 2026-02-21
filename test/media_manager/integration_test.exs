@@ -24,7 +24,7 @@ defmodule MediaManager.IntegrationTest do
     test "id is a UUID and survives a round-trip read" do
       assert {:ok, entity} =
                Entity
-               |> Ash.Changeset.for_create(:create, %{})
+               |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :movie, name: "Round Trip"})
                |> Ash.create()
 
       assert {:ok, [found]} = Ash.read(Entity)
@@ -32,8 +32,9 @@ defmodule MediaManager.IntegrationTest do
     end
   end
 
-  describe "Library.Serializer" do
-    alias MediaManager.Library.{Serializer, Image, Identifier}
+  describe "Serializer" do
+    alias MediaManager.{Serializer}
+    alias MediaManager.Library.{Image, Identifier}
 
     test "movie with associations serializes to DATA-FORMAT.md structure" do
       {:ok, entity} =

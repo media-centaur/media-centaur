@@ -1,4 +1,8 @@
 defmodule MediaManager.Library.WatchedFile do
+  @moduledoc """
+  Tracks a video file through the ingestion pipeline — from detection through
+  TMDB search, metadata fetch, image download, and final completion.
+  """
   use Ash.Resource,
     domain: MediaManager.Library,
     data_layer: AshSqlite.DataLayer
@@ -9,7 +13,7 @@ defmodule MediaManager.Library.WatchedFile do
   end
 
   actions do
-    defaults [:create, :read, :update, :destroy]
+    defaults [:read]
 
     create :detect do
       accept [:file_path]
@@ -55,30 +59,13 @@ defmodule MediaManager.Library.WatchedFile do
 
     attribute :parsed_title, :string
     attribute :parsed_year, :integer
-
-    attribute :parsed_type, :atom do
-      constraints one_of: [:movie, :tv, :unknown]
-    end
-
+    attribute :parsed_type, MediaManager.Library.Types.MediaType
     attribute :season_number, :integer
     attribute :episode_number, :integer
     attribute :tmdb_id, :string
     attribute :confidence_score, :float
 
-    attribute :state, :atom do
-      constraints one_of: [
-                    :detected,
-                    :queued,
-                    :searching,
-                    :pending_review,
-                    :approved,
-                    :fetching_metadata,
-                    :fetching_images,
-                    :complete,
-                    :error,
-                    :removed
-                  ]
-
+    attribute :state, MediaManager.Library.Types.WatchedFileState do
       default :detected
     end
 

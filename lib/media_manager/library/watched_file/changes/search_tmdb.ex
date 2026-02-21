@@ -1,4 +1,9 @@
 defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
+  @moduledoc """
+  Ash change that searches TMDB for the parsed title/year/type and scores
+  results using `TMDB.Confidence`. Sets the file to `:approved` or
+  `:pending_review` based on the confidence threshold.
+  """
   use Ash.Resource.Change
   alias MediaManager.TMDB.{Client, Confidence}
 

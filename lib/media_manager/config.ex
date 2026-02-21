@@ -1,4 +1,9 @@
 defmodule MediaManager.Config do
+  @moduledoc """
+  GenServer that loads and serves application configuration from the user's
+  TOML config file (`~/.config/freedia-center/media-manager.toml`),
+  falling back to application environment defaults.
+  """
   use GenServer
 
   @config_path "~/.config/freedia-center/media-manager.toml"

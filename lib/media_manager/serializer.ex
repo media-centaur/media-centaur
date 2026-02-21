@@ -1,7 +1,10 @@
-defmodule MediaManager.Library.Serializer do
+defmodule MediaManager.Serializer do
   @moduledoc """
   Pure-function module that converts loaded Ash entity structs into
   schema.org JSON-LD maps matching DATA-FORMAT.md.
+
+  This is an output/export concern — it lives alongside `JsonWriter`
+  which calls it to produce `media.json`.
   """
 
   alias MediaManager.Library.{Entity, Image, Identifier, Season, Episode}
