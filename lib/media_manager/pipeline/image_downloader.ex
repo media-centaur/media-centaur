@@ -11,9 +11,10 @@ defmodule MediaManager.Pipeline.ImageDownloader do
   def download_all(entity) do
     images_dir = MediaManager.Config.get(:media_images_dir)
 
-    results =
+    # Download entity-level images (directory = entity.id)
+    entity_results =
       entity.images
-      |> Enum.filter(fn image -> image.url && !image.content_url end)
+      |> filter_pending()
       |> Enum.map(fn image ->
         case download_image(image, entity.id, images_dir) do
           :ok -> :ok
@@ -21,7 +22,23 @@ defmodule MediaManager.Pipeline.ImageDownloader do
         end
       end)
 
-    failures = Enum.filter(results, &match?({:error, _, _}, &1))
+    # Download child movie images (directory = movie.id)
+    movie_results =
+      (entity.movies || [])
+      |> Enum.flat_map(fn movie ->
+        movie.images
+        |> filter_pending()
+        |> Enum.map(fn image ->
+          case download_image(image, movie.id, images_dir) do
+            :ok -> :ok
+            {:error, reason} -> {:error, image.role, reason}
+          end
+        end)
+      end)
+
+    failures =
+      (entity_results ++ movie_results)
+      |> Enum.filter(&match?({:error, _, _}, &1))
 
     for {:error, role, reason} <- failures do
       Logger.warning(
@@ -30,6 +47,10 @@ defmodule MediaManager.Pipeline.ImageDownloader do
     end
 
     :ok
+  end
+
+  defp filter_pending(images) do
+    Enum.filter(images, fn image -> image.url && !image.content_url end)
   end
 
   defp download_image(image, entity_id, images_dir) do

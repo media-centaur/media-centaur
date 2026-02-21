@@ -18,7 +18,15 @@ defmodule MediaManager.Library.Entity do
     defaults [:read, :destroy]
 
     read :with_associations do
-      prepare build(load: [:images, :identifiers, :watched_files, seasons: [:episodes]])
+      prepare build(
+                load: [
+                  :images,
+                  :identifiers,
+                  :watched_files,
+                  seasons: [:episodes],
+                  movies: [:images]
+                ]
+              )
     end
 
     create :create_from_tmdb do
@@ -68,6 +76,7 @@ defmodule MediaManager.Library.Entity do
   relationships do
     has_many :images, MediaManager.Library.Image
     has_many :identifiers, MediaManager.Library.Identifier
+    has_many :movies, MediaManager.Library.Movie
     has_many :seasons, MediaManager.Library.Season
     has_many :watched_files, MediaManager.Library.WatchedFile
   end

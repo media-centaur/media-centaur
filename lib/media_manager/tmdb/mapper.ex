@@ -106,9 +106,104 @@ defmodule MediaManager.TMDB.Mapper do
     |> Enum.reject(&is_nil/1)
   end
 
+  @doc """
+  Extracts domain attributes for a MovieSeries entity from TMDB collection data.
+  """
+  def movie_series_attrs(collection_id, data) do
+    %{
+      type: :movie_series,
+      name: data["name"],
+      description: data["overview"],
+      url: tmdb_url(:collection, collection_id)
+    }
+  end
+
+  @doc """
+  Extracts domain attributes for a child Movie from TMDB movie data.
+  """
+  def child_movie_attrs(entity_id, tmdb_id, data, file_path, position) do
+    %{
+      entity_id: entity_id,
+      tmdb_id: to_string(tmdb_id),
+      name: data["title"],
+      description: data["overview"],
+      date_published: data["release_date"],
+      url: tmdb_url(:movie, tmdb_id),
+      duration: minutes_to_iso8601(data["runtime"]),
+      director: extract_director(data["credits"]),
+      content_rating: extract_us_rating(data["release_dates"]),
+      aggregate_rating_value: data["vote_average"],
+      content_url: file_path,
+      position: position
+    }
+  end
+
+  @doc """
+  Builds image attribute maps for a child Movie (poster, backdrop, logo).
+  Uses `movie_id` instead of `entity_id`.
+  """
+  def movie_image_attrs(movie_id, data) do
+    poster_path = data["poster_path"]
+    backdrop_path = data["backdrop_path"]
+    logos = get_in(data, ["images", "logos"]) || []
+    logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
+
+    [
+      poster_path &&
+        %{
+          movie_id: movie_id,
+          role: "poster",
+          url: tmdb_image_url(poster_path),
+          extension: "jpg"
+        },
+      backdrop_path &&
+        %{
+          movie_id: movie_id,
+          role: "backdrop",
+          url: tmdb_image_url(backdrop_path),
+          extension: "jpg"
+        },
+      logo &&
+        %{
+          movie_id: movie_id,
+          role: "logo",
+          url: tmdb_image_url(logo["file_path"]),
+          extension: "jpg"
+        }
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  @doc """
+  Builds image attribute maps for a MovieSeries entity from collection data.
+  """
+  def collection_image_attrs(entity_id, data) do
+    poster_path = data["poster_path"]
+    backdrop_path = data["backdrop_path"]
+
+    [
+      poster_path &&
+        %{
+          entity_id: entity_id,
+          role: "poster",
+          url: tmdb_image_url(poster_path),
+          extension: "jpg"
+        },
+      backdrop_path &&
+        %{
+          entity_id: entity_id,
+          role: "backdrop",
+          url: tmdb_image_url(backdrop_path),
+          extension: "jpg"
+        }
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
   @doc "Builds a TMDB web URL for the given type and ID."
   def tmdb_url(:movie, tmdb_id), do: "https://www.themoviedb.org/movie/#{tmdb_id}"
   def tmdb_url(:tv, tmdb_id), do: "https://www.themoviedb.org/tv/#{tmdb_id}"
+  def tmdb_url(:collection, id), do: "https://www.themoviedb.org/collection/#{id}"
 
   @doc "Builds a full TMDB image CDN URL from a relative path."
   def tmdb_image_url(nil), do: nil
