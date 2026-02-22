@@ -3,8 +3,6 @@ defmodule MediaManagerWeb.LibraryChannelTest do
 
   alias MediaManager.Library.{Entity, WatchProgress}
 
-  defp json_roundtrip(payload), do: payload |> Jason.encode!() |> Jason.decode!()
-
   defp join_library do
     {:ok, _, socket} =
       MediaManagerWeb.UserSocket

@@ -1,8 +1,6 @@
 defmodule MediaManagerWeb.PlaybackChannelTest do
   use MediaManagerWeb.ChannelCase
 
-  defp json_roundtrip(payload), do: payload |> Jason.encode!() |> Jason.decode!()
-
   defp join_playback do
     {:ok, _reply, socket} =
       MediaManagerWeb.UserSocket

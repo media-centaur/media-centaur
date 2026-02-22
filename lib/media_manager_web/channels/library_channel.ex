@@ -60,25 +60,21 @@ defmodule MediaManagerWeb.LibraryChannel do
 
   defp load_entity_payload(entity_id) do
     case Ash.get(Entity, entity_id, action: :with_associations) do
-      {:ok, entity} ->
-        progress_records = entity.watch_progress || []
-        serialized = Serializer.serialize_entity(entity)
-        progress = ProgressSummary.compute(entity, progress_records)
-        Map.put(serialized, "progress", progress)
-
-      {:error, _} ->
-        nil
+      {:ok, entity} -> serialize_with_progress(entity)
+      {:error, _} -> nil
     end
   end
 
   defp build_entity_list do
-    entities = Ash.read!(Entity, action: :with_associations)
+    Entity
+    |> Ash.read!(action: :with_associations)
+    |> Enum.map(&serialize_with_progress/1)
+  end
 
-    Enum.map(entities, fn entity ->
-      progress_records = entity.watch_progress || []
-      serialized = Serializer.serialize_entity(entity)
-      progress = ProgressSummary.compute(entity, progress_records)
-      Map.put(serialized, "progress", progress)
-    end)
+  defp serialize_with_progress(entity) do
+    progress_records = entity.watch_progress || []
+    serialized = Serializer.serialize_entity(entity)
+    progress = ProgressSummary.compute(entity, progress_records)
+    Map.put(serialized, "progress", progress)
   end
 end

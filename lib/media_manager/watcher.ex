@@ -45,117 +45,117 @@ defmodule MediaManager.Watcher do
   end
 
   @impl true
-  def handle_call(:state, _from, s), do: {:reply, s.state, s}
+  def handle_call(:state, _from, state), do: {:reply, state.state, state}
 
   @impl true
-  def handle_call(:dir, _from, s), do: {:reply, s.dir, s}
+  def handle_call(:dir, _from, state), do: {:reply, state.dir, state}
 
   @impl true
-  def handle_call(:scan, _from, s) do
-    count = scan_directory(s.dir)
-    {:reply, {:ok, count}, s}
+  def handle_call(:scan, _from, state) do
+    count = scan_directory(state.dir)
+    {:reply, {:ok, count}, state}
   end
 
   @impl true
-  def handle_info(:start_watching, s) do
-    case FileSystem.start_link(dirs: [s.dir], recursive: true) do
+  def handle_info(:start_watching, state) do
+    case FileSystem.start_link(dirs: [state.dir], recursive: true) do
       {:ok, pid} ->
         FileSystem.subscribe(pid)
-        Logger.info("Watcher: started watching #{s.dir}")
+        Logger.info("Watcher: started watching #{state.dir}")
         schedule_health_check()
-        broadcast_state(s.dir, :watching)
-        {:noreply, %{s | watcher_pid: pid, state: :watching}}
+        broadcast_state(state.dir, :watching)
+        {:noreply, %{state | watcher_pid: pid, state: :watching}}
 
       {:error, reason} ->
         Logger.warning(
-          "Watcher: could not start file_system watcher for #{s.dir}: #{inspect(reason)}"
+          "Watcher: could not start file_system watcher for #{state.dir}: #{inspect(reason)}"
         )
 
         schedule_health_check()
-        broadcast_state(s.dir, :unavailable)
-        {:noreply, %{s | state: :unavailable}}
+        broadcast_state(state.dir, :unavailable)
+        {:noreply, %{state | state: :unavailable}}
 
       :ignore ->
         Logger.warning("Watcher: file_system watcher not available (inotify-tools missing?)")
         schedule_health_check()
-        broadcast_state(s.dir, :unavailable)
-        {:noreply, %{s | state: :unavailable}}
+        broadcast_state(state.dir, :unavailable)
+        {:noreply, %{state | state: :unavailable}}
     end
   end
 
   @impl true
-  def handle_info({:file_event, _pid, {path, events}}, s) do
+  def handle_info({:file_event, _pid, {path, events}}, state) do
     cond do
       Enum.member?(events, :unmounted) ->
-        Logger.warning("Watcher: directory unmounted: #{s.dir}")
-        broadcast_state(s.dir, :unavailable)
-        {:noreply, %{s | state: :unavailable}}
+        Logger.warning("Watcher: directory unmounted: #{state.dir}")
+        broadcast_state(state.dir, :unavailable)
+        {:noreply, %{state | state: :unavailable}}
 
       :removed in events or :deleted in events ->
         now = System.monotonic_time(:millisecond)
         cutoff = now - @burst_window_ms
-        recent = Enum.filter(s.removal_timestamps, &(&1 >= cutoff))
+        recent = Enum.filter(state.removal_timestamps, &(&1 >= cutoff))
         recent = [now | recent]
 
         if length(recent) >= @burst_threshold do
-          Logger.warning("Watcher: suspicious burst of removal events detected in #{s.dir}")
+          Logger.warning("Watcher: suspicious burst of removal events detected in #{state.dir}")
           Phoenix.PubSub.broadcast(MediaManager.PubSub, "watcher:state", :suspicious_burst)
         end
 
-        {:noreply, %{s | removal_timestamps: recent}}
+        {:noreply, %{state | removal_timestamps: recent}}
 
       (:created in events or :modified in events) and video_file?(path) ->
         send(self(), {:check_size, path, nil, 0})
-        {:noreply, s}
+        {:noreply, state}
 
       true ->
-        {:noreply, s}
+        {:noreply, state}
     end
   end
 
   @impl true
-  def handle_info({:file_event, _pid, :stop}, s) do
-    Logger.warning("Watcher: file_system watcher stopped for #{s.dir}")
-    {:noreply, s}
+  def handle_info({:file_event, _pid, :stop}, state) do
+    Logger.warning("Watcher: file_system watcher stopped for #{state.dir}")
+    {:noreply, state}
   end
 
   @impl true
-  def handle_info({:check_size, path, last_size, count}, s) do
+  def handle_info({:check_size, path, last_size, count}, state) do
     case File.stat(path) do
       {:ok, %{size: size}} when size == last_size and count >= @size_stability_checks - 1 ->
         detect_file(path)
-        {:noreply, s}
+        {:noreply, state}
 
       {:ok, %{size: size}} ->
         Process.send_after(self(), {:check_size, path, size, count + 1}, @size_stability_interval)
-        {:noreply, s}
+        {:noreply, state}
 
       {:error, _} ->
-        {:noreply, s}
+        {:noreply, state}
     end
   end
 
   @impl true
-  def handle_info(:health_check, s) do
-    case File.stat(s.dir) do
+  def handle_info(:health_check, state) do
+    case File.stat(state.dir) do
       {:ok, _} ->
-        if s.state == :unavailable do
-          Logger.info("Watcher: directory is accessible again, re-watching #{s.dir}")
+        if state.state == :unavailable do
+          Logger.info("Watcher: directory is accessible again, re-watching #{state.dir}")
           send(self(), :start_watching)
-          {:noreply, %{s | state: :initializing}}
+          {:noreply, %{state | state: :initializing}}
         else
           schedule_health_check()
-          {:noreply, s}
+          {:noreply, state}
         end
 
       {:error, _} ->
-        if s.state != :unavailable do
-          Logger.warning("Watcher: directory is not accessible: #{s.dir}")
-          broadcast_state(s.dir, :unavailable)
-          {:noreply, %{s | state: :unavailable}}
+        if state.state != :unavailable do
+          Logger.warning("Watcher: directory is not accessible: #{state.dir}")
+          broadcast_state(state.dir, :unavailable)
+          {:noreply, %{state | state: :unavailable}}
         else
           schedule_health_check()
-          {:noreply, s}
+          {:noreply, state}
         end
     end
   end

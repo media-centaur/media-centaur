@@ -13,9 +13,12 @@ defmodule MediaManagerWeb.ChannelCase do
   using do
     quote do
       import Phoenix.ChannelTest
+      import MediaManagerWeb.ChannelCase, only: [json_roundtrip: 1]
       @endpoint MediaManagerWeb.Endpoint
     end
   end
+
+  def json_roundtrip(payload), do: payload |> Jason.encode!() |> Jason.decode!()
 
   setup tags do
     MediaManager.DataCase.setup_sandbox(tags)

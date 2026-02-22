@@ -32,14 +32,12 @@ defmodule MediaManager.Config do
       database_path:
         expand(get_in(Application.get_env(:media_manager, MediaManager.Repo), [:database])),
       watch_dirs: expand_list(Application.get_env(:media_manager, :watch_dirs, [])),
-      shared_media_library: expand(Application.get_env(:media_manager, :shared_media_library)),
       media_images_dir: expand(Application.get_env(:media_manager, :media_images_dir)),
       tmdb_api_key: Application.get_env(:media_manager, :tmdb_api_key),
       auto_approve_threshold: Application.get_env(:media_manager, :auto_approve_threshold),
       mpv_path: "mpv",
       mpv_socket_dir: "/tmp",
-      mpv_socket_timeout_ms: 5000,
-      media_json_enabled: true
+      mpv_socket_timeout_ms: 5000
     }
 
     path = Path.expand(@config_path)
@@ -62,8 +60,6 @@ defmodule MediaManager.Config do
     %{
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
       watch_dirs: watch_dirs,
-      shared_media_library:
-        expand(get_in(toml, ["shared_media_library"]) || defaults.shared_media_library),
       media_images_dir: expand(get_in(toml, ["media_images_dir"]) || defaults.media_images_dir),
       tmdb_api_key: get_in(toml, ["tmdb", "api_key"]) || defaults.tmdb_api_key,
       auto_approve_threshold:
@@ -71,12 +67,7 @@ defmodule MediaManager.Config do
       mpv_path: get_in(toml, ["playback", "mpv_path"]) || defaults.mpv_path,
       mpv_socket_dir: get_in(toml, ["playback", "socket_dir"]) || defaults.mpv_socket_dir,
       mpv_socket_timeout_ms:
-        get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms,
-      media_json_enabled:
-        case get_in(toml, ["media_json_enabled"]) do
-          value when is_boolean(value) -> value
-          _ -> defaults.media_json_enabled
-        end
+        get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms
     }
   end
 

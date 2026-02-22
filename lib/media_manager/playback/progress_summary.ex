@@ -4,6 +4,8 @@ defmodule MediaManager.Playback.ProgressSummary do
   Pure function — no DB or side effects.
   """
 
+  alias MediaManager.Playback.EpisodeList
+
   @type t :: %{
           current_episode: %{season: integer(), episode: integer()} | nil,
           episode_position_seconds: float(),
@@ -40,7 +42,11 @@ defmodule MediaManager.Playback.ProgressSummary do
   end
 
   defp compute_tv_series(entity, progress_records) do
-    episodes = list_available_episodes(entity)
+    episodes =
+      entity
+      |> EpisodeList.list_available()
+      |> Enum.map(fn {season, episode, _url} -> {season, episode} end)
+
     episodes_total = length(episodes)
     episodes_completed = Enum.count(progress_records, & &1.completed)
 
@@ -55,26 +61,13 @@ defmodule MediaManager.Playback.ProgressSummary do
     }
   end
 
-  # Returns a flat list of {season_number, episode_number} tuples for episodes
-  # that have a content_url (i.e. a local video file), sorted by season then episode.
-  defp list_available_episodes(entity) do
-    (entity.seasons || [])
-    |> Enum.sort_by(& &1.season_number)
-    |> Enum.flat_map(fn season ->
-      (season.episodes || [])
-      |> Enum.filter(& &1.content_url)
-      |> Enum.sort_by(& &1.episode_number)
-      |> Enum.map(&{season.season_number, &1.episode_number})
-    end)
-  end
-
   # Finds the "current" episode to resume. Logic:
   # 1. Find the most recently watched progress record (by last_watched_at)
   # 2. If it's completed, advance to the next episode in the available list
   # 3. If it's partial, that's the current episode
   # 4. If no next episode exists (series finished), return the last watched one
   defp find_current_episode(episodes, progress_records) do
-    progress_by_key = index_by_key(progress_records)
+    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
 
     most_recent =
       progress_records
@@ -135,12 +128,6 @@ defmodule MediaManager.Playback.ProgressSummary do
   end
 
   defp first_episode_or_nil([]), do: {nil, nil}
-
-  defp index_by_key(progress_records) do
-    Map.new(progress_records, fn record ->
-      {{record.season_number, record.episode_number}, record}
-    end)
-  end
 
   defp position_for(nil), do: 0.0
   defp position_for(progress), do: progress.position_seconds || 0.0

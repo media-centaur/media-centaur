@@ -3,18 +3,10 @@ defmodule MediaManager.Serializer do
   Pure-function module that converts loaded Ash entity structs into
   schema.org JSON-LD maps matching DATA-FORMAT.md.
 
-  This is an output/export concern — it lives alongside `JsonWriter`
-  which calls it to produce `media.json`.
+  Used by LibraryChannel to serialize entities for WebSocket pushes.
   """
 
   alias MediaManager.Library.{Entity, Image, Identifier, Movie, Season, Episode}
-
-  @doc """
-  Serializes a list of entities into wrapped JSON-LD maps.
-  """
-  def serialize_all(entities) do
-    Enum.map(entities, &serialize_entity/1)
-  end
 
   @doc """
   Serializes a single entity into a wrapped map: `%{"@id" => uuid, "entity" => %{...}}`.

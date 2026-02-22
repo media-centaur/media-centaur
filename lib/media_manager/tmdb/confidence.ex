@@ -16,7 +16,7 @@ defmodule MediaManager.TMDB.Confidence do
     result_title = result[title_key] || result["name"] || ""
     result_year = extract_year(result[year_key])
 
-    base = String.jaro_distance(normalise(parsed_title), normalise(result_title))
+    base = String.jaro_distance(normalize(parsed_title), normalize(result_title))
     year_bonus = if parsed_year && result_year && parsed_year == result_year, do: 0.08, else: 0.0
     position_bonus = if is_top_result?, do: 0.05, else: 0.0
 
@@ -28,7 +28,7 @@ defmodule MediaManager.TMDB.Confidence do
     MediaManager.Config.get(:auto_approve_threshold) || 0.85
   end
 
-  defp normalise(str) do
+  defp normalize(str) do
     str
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9 ]/, "")
