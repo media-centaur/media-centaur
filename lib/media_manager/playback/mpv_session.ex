@@ -13,8 +13,10 @@ defmodule MediaManager.Playback.MpvSession do
   defstruct [
     :session_id,
     :entity_id,
+    :entity_name,
     :season_number,
     :episode_number,
+    :episode_name,
     :content_url,
     :start_position,
     :socket_path,
@@ -62,8 +64,10 @@ defmodule MediaManager.Playback.MpvSession do
     state = %__MODULE__{
       session_id: session_id,
       entity_id: params.entity_id,
+      entity_name: params[:entity_name],
       season_number: params[:season_number],
       episode_number: params[:episode_number],
+      episode_name: params[:episode_name],
       content_url: params.content_url,
       start_position: params[:start_position] || 0.0,
       socket_path: socket_path,
@@ -348,8 +352,10 @@ defmodule MediaManager.Playback.MpvSession do
       if new_state in [:playing, :paused] do
         %{
           entity_id: session.entity_id,
+          entity_name: session.entity_name,
           season_number: session.season_number,
           episode_number: session.episode_number,
+          episode_name: session.episode_name,
           content_url: session.content_url,
           position_seconds: session.position,
           duration_seconds: session.duration

@@ -37,17 +37,17 @@ defmodule MediaManagerWeb.LibraryChannel do
     known_ids = socket.assigns.known_entity_ids
 
     {updated, removed, new_known_ids} =
-      Enum.reduce(entity_ids, {[], [], known_ids}, fn entity_id, {upd, rem, ids} ->
+      Enum.reduce(entity_ids, {[], [], known_ids}, fn entity_id, {updated, removed, known} ->
         case load_entity_payload(entity_id) do
           nil ->
-            if MapSet.member?(ids, entity_id) do
-              {upd, [entity_id | rem], MapSet.delete(ids, entity_id)}
+            if MapSet.member?(known, entity_id) do
+              {updated, [entity_id | removed], MapSet.delete(known, entity_id)}
             else
-              {upd, rem, ids}
+              {updated, removed, known}
             end
 
           payload ->
-            {[payload | upd], rem, MapSet.put(ids, entity_id)}
+            {[payload | updated], removed, MapSet.put(known, entity_id)}
         end
       end)
 

@@ -32,8 +32,8 @@ defmodule MediaManagerWeb.PlaybackChannel do
         :ok ->
           {:reply, {:ok, play_reply(play_params)}, socket}
 
-        {:error, :already_playing} ->
-          {:reply, {:error, %{reason: "already_playing"}}, socket}
+        {:error, reason} ->
+          {:reply, {:error, %{reason: to_string(reason)}}, socket}
       end
     else
       {:error, reason} ->
@@ -51,11 +51,15 @@ defmodule MediaManagerWeb.PlaybackChannel do
 
     with {:ok, entity} <- load_entity(entity_id),
          {:ok, content_url} <- EpisodeList.find_content_url(entity, season, episode) do
+      episode_name = EpisodeList.find_episode_name(entity, season, episode)
+
       play_params = %{
         action: :play_episode,
         entity_id: entity_id,
+        entity_name: entity.name,
         season_number: season,
         episode_number: episode,
+        episode_name: episode_name,
         content_url: content_url,
         start_position: 0.0
       }
@@ -64,8 +68,8 @@ defmodule MediaManagerWeb.PlaybackChannel do
         :ok ->
           {:reply, {:ok, play_reply(play_params)}, socket}
 
-        {:error, :already_playing} ->
-          {:reply, {:error, %{reason: "already_playing"}}, socket}
+        {:error, reason} ->
+          {:reply, {:error, %{reason: to_string(reason)}}, socket}
       end
     else
       {:error, reason} ->
@@ -157,14 +161,17 @@ defmodule MediaManagerWeb.PlaybackChannel do
         {:error, :no_playable_content}
 
       {action, content_url, position} ->
-        {season, episode} = episode_context(action, entity, content_url, progress_records)
+        {season, episode, episode_name} =
+          episode_context(action, entity, content_url, progress_records)
 
         {:ok,
          %{
            action: action,
            entity_id: entity.id,
+           entity_name: entity.name,
            season_number: season,
            episode_number: episode,
+           episode_name: episode_name,
            content_url: content_url,
            start_position: position
          }}
@@ -181,12 +188,21 @@ defmodule MediaManagerWeb.PlaybackChannel do
     }
   end
 
-  defp episode_context(:resume, _entity, _url, progress_records) do
-    most_recent_episode(progress_records)
+  defp episode_context(:resume, entity, _url, progress_records) do
+    {season, episode} = most_recent_episode(progress_records)
+    episode_name = EpisodeList.find_episode_name(entity, season, episode)
+    {season, episode, episode_name}
   end
 
   defp episode_context(_action, entity, content_url, _progress_records) do
-    EpisodeList.find_by_content_url(entity, content_url) || {nil, nil}
+    case EpisodeList.find_by_content_url(entity, content_url) do
+      {season, episode} ->
+        episode_name = EpisodeList.find_episode_name(entity, season, episode)
+        {season, episode, episode_name}
+
+      nil ->
+        {nil, nil, nil}
+    end
   end
 
   defp most_recent_episode([]), do: {nil, nil}

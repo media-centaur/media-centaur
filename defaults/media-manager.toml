@@ -36,8 +36,8 @@ auto_approve_threshold = 0.85
 extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
 
 [playback]
-# Path to the mpv binary. Uses system PATH by default.
-mpv_path = "mpv"
+# Absolute path to the mpv binary.
+mpv_path = "/usr/bin/mpv"
 # Directory for MPV IPC sockets. Must be writable.
 socket_dir = "/tmp"
 # Timeout in ms for connecting to the MPV IPC socket after launch.

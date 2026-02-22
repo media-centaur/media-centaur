@@ -27,7 +27,7 @@ defmodule MediaManagerWeb.PlaybackChannelTest do
   end
 
   describe "playback pushes" do
-    test "state_changed push with string keys and state value" do
+    test "state_changed push with playing state includes full now_playing" do
       socket = join_playback()
 
       now_playing = %{
@@ -52,6 +52,85 @@ defmodule MediaManagerWeb.PlaybackChannelTest do
       assert wire["now_playing"]["entity_id"] == "550e8400-test-uuid"
       assert wire["now_playing"]["entity_name"] == "Severance"
       assert wire["now_playing"]["season_number"] == 2
+      assert wire["now_playing"]["episode_number"] == 3
+      assert wire["now_playing"]["episode_name"] == "Who Is Alive?"
+      assert wire["now_playing"]["content_url"] == "/media/tv/Severance/S02/S02E03.mkv"
+      assert wire["now_playing"]["position_seconds"] == 1200.5
+      assert wire["now_playing"]["duration_seconds"] == 3200.0
+    end
+
+    test "state_changed push with paused state still includes now_playing" do
+      socket = join_playback()
+
+      now_playing = %{
+        entity_id: "550e8400-test-uuid",
+        entity_name: "Sample Movie",
+        season_number: nil,
+        episode_number: nil,
+        episode_name: nil,
+        content_url: "/media/movies/Sample Movie.mkv",
+        position_seconds: 3600.0,
+        duration_seconds: 9840.0
+      }
+
+      send(socket.channel_pid, {:playback_state_changed, :paused, now_playing})
+
+      assert_push "playback:state_changed", payload
+      wire = json_roundtrip(payload)
+
+      assert wire["state"] == "paused"
+      assert is_map(wire["now_playing"])
+      assert wire["now_playing"]["entity_name"] == "Sample Movie"
+      assert wire["now_playing"]["season_number"] == nil
+      assert wire["now_playing"]["episode_name"] == nil
+    end
+
+    test "state_changed push with idle state has null now_playing" do
+      socket = join_playback()
+
+      send(socket.channel_pid, {:playback_state_changed, :stopped, nil})
+
+      assert_push "playback:state_changed", payload
+      wire = json_roundtrip(payload)
+
+      assert wire["state"] == "stopped"
+      assert wire["now_playing"] == nil
+    end
+
+    test "now_playing has all fields from API.md schema" do
+      socket = join_playback()
+
+      now_playing = %{
+        entity_id: "test-uuid",
+        entity_name: "Test Entity",
+        season_number: 1,
+        episode_number: 5,
+        episode_name: "The Grim Barbarity of Optics and Design",
+        content_url: "/media/tv/test/S01E05.mkv",
+        position_seconds: 0.0,
+        duration_seconds: 2800.0
+      }
+
+      send(socket.channel_pid, {:playback_state_changed, :playing, now_playing})
+
+      assert_push "playback:state_changed", payload
+      wire = json_roundtrip(payload)
+
+      required_keys = [
+        "entity_id",
+        "entity_name",
+        "season_number",
+        "episode_number",
+        "episode_name",
+        "content_url",
+        "position_seconds",
+        "duration_seconds"
+      ]
+
+      for key <- required_keys do
+        assert Map.has_key?(wire["now_playing"], key),
+               "now_playing missing required key: #{key}"
+      end
     end
 
     test "progress push with string keys" do
