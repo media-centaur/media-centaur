@@ -32,7 +32,7 @@ defmodule MediaManager.Config do
       media_images_dir: expand(Application.get_env(:media_manager, :media_images_dir)),
       tmdb_api_key: Application.get_env(:media_manager, :tmdb_api_key),
       auto_approve_threshold: Application.get_env(:media_manager, :auto_approve_threshold),
-      mpv_path: "mpv",
+      mpv_path: "/usr/bin/mpv",
       mpv_socket_dir: "/tmp",
       mpv_socket_timeout_ms: 5000,
       exclude_dirs: [],

@@ -34,19 +34,19 @@ defmodule MediaManager.Playback.Manager do
   end
 
   @impl true
-  def handle_call({:play, _params}, _from, %{session: pid} = state) when is_pid(pid) do
-    {:reply, {:error, :already_playing}, state}
-  end
-
   def handle_call({:play, params}, _from, state) do
+    state = stop_existing_session(state)
+
     case SessionSupervisor.start_session(params) do
       {:ok, pid} ->
         ref = Process.monitor(pid)
 
         now_playing = %{
           entity_id: params.entity_id,
+          entity_name: params[:entity_name],
           season_number: params[:season_number],
           episode_number: params[:episode_number],
+          episode_name: params[:episode_name],
           content_url: params.content_url,
           position_seconds: params[:start_position] || 0.0,
           duration_seconds: 0.0
@@ -138,4 +138,14 @@ defmodule MediaManager.Playback.Manager do
 
   @impl true
   def handle_info(_message, state), do: {:noreply, state}
+
+  # --- Private Helpers ---
+
+  defp stop_existing_session(%{session: pid, monitor_ref: ref} = state) when is_pid(pid) do
+    Process.demonitor(ref, [:flush])
+    SessionSupervisor.terminate_session(pid)
+    %{state | session: nil, monitor_ref: nil, state: :idle, now_playing: nil}
+  end
+
+  defp stop_existing_session(state), do: state
 end
