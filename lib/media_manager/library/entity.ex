@@ -2,8 +2,8 @@ defmodule MediaManager.Library.Entity do
   @moduledoc """
   A media entity in the library — a movie, TV series, or generic video object.
 
-  Entities are created from TMDB metadata and serialized to `media.json`
-  for consumption by the user-interface.
+  Entities are created from TMDB metadata and served to the user-interface
+  via Phoenix Channels.
   """
   use Ash.Resource,
     domain: MediaManager.Library,

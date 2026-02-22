@@ -17,7 +17,7 @@ starts one Watcher per watch_dir       Producer polls DB every 10s
 each Watcher detects files via         finds :detected files, claims → :queued
   inotify + scan → :detect action      Processor (concurrency 3):
   creates WatchedFile (:detected)  →     :search → if approved → :fetch_metadata
-                                         → :download_images → serialize → :complete
+                                         → :download_images → :complete
                                          if pending_review → stop (awaits UI)
 ```
 
@@ -77,7 +77,7 @@ The Broadway module that orchestrates file processing.
 **Configuration:**
 - Producer concurrency: 1 (single poller is sufficient)
 - Processor concurrency: 3 (limits parallel TMDB API calls)
-- Batcher concurrency: 1 (serializes JSON export), batch size 10, timeout 5s
+- Batcher concurrency: 1 (serializes PubSub broadcasts), batch size 10, timeout 5s
 
 **Processing flow per message:**
 
@@ -98,7 +98,7 @@ The Broadway module that orchestrates file processing.
    - Updates `Image` records' `content_url` with the local relative path
    - Individual image failures are logged as warnings but do not block completion — all downloadable images are attempted
    - Always transitions to `:complete`
-4. The Broadway **batcher** (concurrency 1, batch size 10, timeout 5s) collects completed messages, broadcasts `library:entity_added`/`library:entity_updated` via PubSub (pushing to connected UIs over Phoenix Channels), and calls `JsonWriter.regenerate_all()` once per batch to export the full DB to `media.json` (if `media_json_enabled`)
+4. The Broadway **batcher** (concurrency 1, batch size 10, timeout 5s) collects completed messages and broadcasts `{:entities_changed, entity_ids}` via PubSub (pushing to connected UIs over Phoenix Channels)
 5. If the file reached `:pending_review`, processing stops — the file awaits human review in the admin UI
 
 **Error handling:** If any action fails, the Broadway message is marked as failed with the error reason. The WatchedFile's state reflects where the failure occurred (`:searching`, `:error`, etc.).
@@ -166,7 +166,7 @@ The pipeline is designed to be safe to re-run and safe under concurrent processi
 - **Race-loss recovery:** If two processors both try to create an Entity for the same TMDB ID, the `Identifier` upsert detects the race. The loser destroys its orphan Entity and falls back to using the winner's Entity (treating it as `:existing`).
 - **TV Season/Episode granularity:** Only Season and Episode records for files the user actually has are created — not all seasons/episodes from TMDB. Additional episode files for the same series add to the existing Entity.
 - **Image download skip:** When reusing an existing Entity, images are already downloaded. The WatchedFile transitions directly to `:complete`, skipping `DownloadImages`.
-- **Batch JSON export:** JSON serialization happens once per batch (up to 10 messages) via a Broadway batcher with concurrency 1, avoiding redundant writes.
+- **Batch PubSub broadcast:** Entity change notifications happen once per batch (up to 10 messages) via a Broadway batcher with concurrency 1, avoiding redundant broadcasts.
 
 ---
 

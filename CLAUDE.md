@@ -28,8 +28,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `lib/media_manager/playback/` | Playback engine: resume algorithm, MPV session, playback manager |
 | `lib/media_manager/pipeline/` | Broadway pipeline, producer, and image downloader |
 | `lib/media_manager/tmdb/` | TMDB API client, confidence scorer, and response mapper |
-| `lib/media_manager/serializer.ex` | Schema.org JSON-LD serializer (Entity → media.json format) |
-| `lib/media_manager/json_writer.ex` | GenServer that atomically writes `media.json` |
+| `lib/media_manager/serializer.ex` | Schema.org JSON-LD serializer (Entity → channel push format) |
 | `lib/media_manager/config.ex` | TOML config loader (GenServer) |
 | `lib/media_manager/watcher.ex` | File system watcher (inotify) |
 | `lib/media_manager/parser.ex` | Video filename parser |
@@ -49,11 +48,10 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 ## Architecture Principles
 
-- **This app owns all writes.** Only the manager writes `images/` and generates `media.json`. The `user-interface` never writes these files.
+- **This app owns all writes.** Only the manager writes `images/`. The `user-interface` never writes these files.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
-- **Phoenix Channels is the integration point with the UI.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend sends the full library on join and pushes all data and state changes in real time. The UI does **not** read `media.json` — it receives all data over the WebSocket.
-- **`media.json` is a backend-only export.** It is still generated for external tooling and debugging, but the UI does not consume it. The `media_json_enabled` config flag controls whether it is written.
+- **Phoenix Channels is the integration point with the UI.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend sends the full library on join and pushes all data and state changes in real time.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
 - **External API clients use `Req`.** Never use `:httpoison`, `:tesla`, or `:httpc`. `Req` is included and is the preferred HTTP client.
 
@@ -66,11 +64,11 @@ Video files flow through an automated pipeline driven by the **file watcher** (`
 3. **Processor** runs `:search` — searches TMDB, scores confidence → `:approved` or `:pending_review`
 4. **Processor** (if approved) runs `:fetch_metadata` — checks for existing Entity by TMDB ID; if found, reuses it (→ `:complete`); if new, creates `Entity` + `Image` + `Identifier` records, and for TV series only the Season/Episode matching this file (→ `:fetching_images`)
 5. **Processor** runs `:download_images` (new entities only) — downloads artwork to `{media_images_dir}/{uuid}/`, updates `Image.content_url` → `:complete` (best-effort; failure logs warning)
-6. **Batcher** (concurrency 1) collects completed messages and calls `JsonWriter.regenerate_all()` once per batch to export the full DB to `media.json`
+6. **Batcher** (concurrency 1) collects completed messages and broadcasts entity changes via PubSub (pushing to connected UIs over Phoenix Channels)
 
 Steps 1–6 are fully automated, **idempotent**, and **concurrency-safe** — DB unique constraints and upsert patterns prevent duplicate records regardless of how many processors run in parallel. Scanning the same directories multiple times produces exactly one Entity per TMDB ID. Low-confidence matches stop at `:pending_review` and await manual approval in the admin UI. See [`PIPELINE.md`](PIPELINE.md) for full architecture details.
 
-Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/entity_resolver.ex`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/serializer.ex`, `lib/media_manager/json_writer.ex`.
+Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/entity_resolver.ex`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/serializer.ex`.
 
 ## Specifications
 
@@ -81,7 +79,7 @@ Cross-component specifications live in the **[freedia-center/specifications](htt
 | [`COMPONENTS.md`](../specifications/COMPONENTS.md) | System architecture — how the manager and user-interface relate; responsibilities, integration contract |
 | [`API.md`](../specifications/API.md) | Phoenix Channels WebSocket API — connection, channel topics, message schemas, error handling |
 | [`PLAYBACK.md`](../specifications/PLAYBACK.md) | MPV integration, watch progress data model, resume algorithm, progress reporting |
-| [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for entity data — entity types, field names, sub-types, examples |
+| [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for entity data — entity types, field names, sub-types, examples, and `config.json` |
 | [`IMAGE-CACHING.md`](../specifications/IMAGE-CACHING.md) | Image roles, directory layout, remote URL patterns, manager/UI responsibilities |
 | [`TESTING.md`](../specifications/TESTING.md) | Automated and manual testing guide for both components |
 
@@ -89,7 +87,7 @@ Cross-component specifications live in the **[freedia-center/specifications](htt
 
 - **Before writing any code that touches the WebSocket API** (channels, messages, join replies), read `API.md` in full.
 - **Before writing any playback, resume, or watch progress code**, read `PLAYBACK.md` in full.
-- **Before writing any code that serializes entities** (for `media.json` or channel pushes), read `DATA-FORMAT.md` in full.
+- **Before writing any code that serializes entities** (for channel pushes), read `DATA-FORMAT.md` in full.
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
 - **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
 - Field names (`name`, `datePublished`, `contentUrl`, `containsSeason`, etc.) and type names (`Movie`, `TVSeries`, `VideoGame`, `ImageObject`, `PropertyValue`) are schema.org identifiers — do not rename them.
@@ -147,7 +145,7 @@ This app is in a volatile prototype state. Keep the test suite **minimal and sea
 - **Only test stable contracts** — things whose silent failure would be a disaster.
 - **Do not test GenServer internals** (Watcher state machine, Config loading) — they change too often.
 - **Do not test LiveView interactions** (PubSub updates, DOM state) — defer until features stabilise.
-- The integration seam worth testing: Ash resource actions (DB round-trips), `JsonWriter.regenerate_all` (file output contract), and the root route (wiring check).
+- The integration seam worth testing: Ash resource actions (DB round-trips) and the root route (wiring check).
 - All integration tests live in `test/media_manager/integration_test.exs` and use `DataCase`.
 - Add a new test only when: (a) a regression just burned you, or (b) a feature is stable and its contract is clear.
 - When implementing a plan, always write the smoke tests identified in the plan as part of the implementation — not as a follow-up task.

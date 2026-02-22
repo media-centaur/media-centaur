@@ -13,18 +13,9 @@ database_path = "~/.local/share/freedia-center/media-manager.db"
 # Add multiple directories to watch media across several drives/mounts.
 watch_dirs = ["/mnt/videos/Videos"]
 
-# Path to the media library JSON export file (optional, for external tooling/debugging).
-# The user-interface does NOT read this file — it receives data via Phoenix Channels.
-shared_media_library = "~/.local/share/freedia-center/media.json"
-
 # Directory for cached artwork images, one subdirectory per entity UUID.
 # Shared with the user-interface (UI resolves image paths relative to this dir).
 media_images_dir = "~/.local/share/freedia-center/images"
-
-# Whether to write media.json on every pipeline batch.
-# The user-interface does not read media.json — set to false to skip the export.
-# Useful to keep enabled for external scripts, debugging, or data portability.
-media_json_enabled = true
 
 [tmdb]
 # TMDB API key. Required for metadata scraping. Get one at https://www.themoviedb.org/settings/api
