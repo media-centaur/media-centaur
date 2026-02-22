@@ -97,21 +97,83 @@ defmodule MediaManager.Parser do
 
   defp parse_extra(file_path) do
     extra_title = file_path |> base_without_media_extension() |> clean_title()
-    grandparent = file_path |> Path.split() |> Enum.drop(-2) |> List.last()
-
-    {parent_title, parent_year} = parse_parent_movie(grandparent)
+    parts = Path.split(file_path)
+    grandparent = parts |> Enum.drop(-2) |> List.last()
+    {parent_title, parent_year, season} = parse_extra_parent(parts, grandparent)
 
     %Result{
       file_path: file_path,
       title: extra_title,
       year: nil,
       type: :extra,
-      season: nil,
+      season: season,
       episode: nil,
       episode_title: nil,
       parent_title: parent_title,
       parent_year: parent_year
     }
+  end
+
+  defp parse_extra_parent(parts, grandparent) do
+    cond do
+      # Layout A: grandparent is a pure season dir (Season 1, S01)
+      grandparent && season_directory?(grandparent) ->
+        season = extract_season_number(grandparent)
+        great_grandparent = parts |> Enum.drop(-3) |> List.last()
+        {title, year} = parse_parent_movie(great_grandparent)
+        {title, year, season}
+
+      # Layout B: grandparent contains embedded season marker
+      grandparent && extract_embedded_season(grandparent) != nil ->
+        season = extract_embedded_season(grandparent)
+        {title, year} = parse_parent_with_season_stripped(grandparent)
+        {title, year, season}
+
+      # Movie extra (existing behavior)
+      true ->
+        {title, year} = parse_parent_movie(grandparent)
+        {title, year, nil}
+    end
+  end
+
+  defp extract_season_number(dir) do
+    case Regex.run(~r/^Season\s+(\d+)$/i, dir, capture: :all_but_first) do
+      [num] ->
+        String.to_integer(num)
+
+      nil ->
+        case Regex.run(~r/^[Ss](\d{1,2})$/, dir, capture: :all_but_first) do
+          [num] -> String.to_integer(num)
+          nil -> nil
+        end
+    end
+  end
+
+  defp extract_embedded_season(dir) do
+    case Regex.run(~r/\bSeason\s+(\d+)/i, dir, capture: :all_but_first) do
+      [num] ->
+        String.to_integer(num)
+
+      nil ->
+        case Regex.run(~r/[.\s_-]S(\d{2})[.\s_-]/i, dir, capture: :all_but_first) do
+          [num] -> String.to_integer(num)
+          nil -> nil
+        end
+    end
+  end
+
+  defp parse_parent_with_season_stripped(dir_name) do
+    # Strip from the season marker onward, then parse as a movie parent
+    stripped = Regex.replace(~r/\s*\bSeason\s+\d+\b.*/i, dir_name, "")
+
+    stripped =
+      if stripped == dir_name do
+        Regex.replace(~r/\s*[.\s_-]S\d{2}[.\s_-].*/i, dir_name, "")
+      else
+        stripped
+      end
+
+    parse_parent_movie(stripped)
   end
 
   defp parse_parent_movie(nil), do: {nil, nil}
@@ -355,7 +417,7 @@ defmodule MediaManager.Parser do
 
   defp clean_title(raw) do
     raw
-    |> String.replace(~r/[._]/, " ")
+    |> String.replace(~r/[._꞉]/, " ")
     |> String.replace(~r/\s+/, " ")
     |> then(&Regex.replace(@quality_bracket_pattern, &1, ""))
     |> then(&Regex.replace(@quality_pattern, &1, ""))

@@ -42,6 +42,7 @@ defmodule MediaManager.Library.Season do
   relationships do
     belongs_to :entity, MediaManager.Library.Entity
     has_many :episodes, MediaManager.Library.Episode
+    has_many :extras, MediaManager.Library.Extra
   end
 
   identities do
