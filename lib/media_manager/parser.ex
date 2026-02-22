@@ -50,6 +50,9 @@ defmodule MediaManager.Parser do
   # SxxExx pattern — captures show name, season, episode, optional episode title
   @tv_pattern ~r/^(.+?)[.\s_-]*[Ss](\d{1,2})[Ee](\d{1,2})(?:-[Ee]?\d{1,2})?(?:[.\s_-]+(.+?))?$/i
 
+  # NxNN pattern — e.g. "Sample Show One 7x02 - Sample Episode Toil"
+  @tv_nxnn_pattern ~r/^(.+?)[.\s_-]+(\d{1,2})x(\d{2,3})(?:[.\s_-]+(.+?))?$/i
+
   # Season-only pack pattern (no episode number)
   @season_pack_pattern ~r/^(.+?)[.\s_-]*[Ss](\d{1,2})[.\s_-]/i
 
@@ -72,6 +75,9 @@ defmodule MediaManager.Parser do
 
       cond do
         match = Regex.run(@tv_pattern, candidate, capture: :all_but_first) ->
+          parse_tv(file_path, candidate, match)
+
+        match = Regex.run(@tv_nxnn_pattern, candidate, capture: :all_but_first) ->
           parse_tv(file_path, candidate, match)
 
         match = Regex.run(@season_pack_pattern, candidate, capture: :all_but_first) ->
@@ -211,9 +217,15 @@ defmodule MediaManager.Parser do
 
     cond do
       # File is inside a "Season N" or "S01" directory → use grandparent (show name) + file base
+      # Skip prepend if the base already starts with the show name (e.g. "Sample Show One 7x02")
       parent && season_directory?(parent) ->
         show_name = grandparent || base
-        show_name <> " " <> base
+
+        if grandparent && String.starts_with?(String.downcase(base), String.downcase(grandparent)) do
+          base
+        else
+          show_name <> " " <> base
+        end
 
       # Bare episode filename (e.g. "S01E03") → prepend parent directory name
       bare_episode?(base) && parent ->

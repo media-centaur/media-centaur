@@ -83,8 +83,9 @@ defmodule MediaManager.Review do
     search_fn = if type == :tv, do: &Client.search_tv/2, else: &Client.search_movie/2
     title_key = if type == :tv, do: "name", else: "title"
     year_key = if type == :tv, do: "first_air_date", else: "release_date"
+    cleaned_query = clean_search_query(query)
 
-    case search_fn.(query, nil) do
+    case search_fn.(cleaned_query, nil) do
       {:ok, results} ->
         normalized =
           results
@@ -104,6 +105,15 @@ defmodule MediaManager.Review do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp clean_search_query(query) do
+    query
+    |> String.replace(~r/[Ss]\d{1,2}[Ee]\d{1,2}/, "")
+    |> String.replace(~r/[Ss]eason\s*\d+/i, "")
+    |> String.replace(~r/[Ee]pisode\s*\d+/i, "")
+    |> String.replace(~r/[Ee]\d{2,}/, "")
+    |> String.trim()
   end
 
   defp extract_year(nil), do: nil
