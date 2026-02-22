@@ -132,41 +132,21 @@ defmodule MediaManagerWeb.PlaybackChannel do
 
   defp resolve_playback(entity, progress_records) do
     case Resume.resolve(entity, progress_records) do
-      {:resume, content_url, position} ->
-        {:ok,
-         %{
-           action: :resume,
-           entity_id: entity.id,
-           season_number: extract_season(entity, progress_records),
-           episode_number: extract_episode(entity, progress_records),
-           content_url: content_url,
-           start_position: position
-         }}
-
-      {:play_next, content_url, position} ->
-        {:ok,
-         %{
-           action: :play_next,
-           entity_id: entity.id,
-           season_number: extract_season_for_url(entity, content_url),
-           episode_number: extract_episode_for_url(entity, content_url),
-           content_url: content_url,
-           start_position: position
-         }}
-
-      {:restart, content_url, position} ->
-        {:ok,
-         %{
-           action: :restart,
-           entity_id: entity.id,
-           season_number: extract_season_for_url(entity, content_url),
-           episode_number: extract_episode_for_url(entity, content_url),
-           content_url: content_url,
-           start_position: position
-         }}
-
       {:no_playable_content} ->
         {:error, :no_playable_content}
+
+      {action, content_url, position} ->
+        {season, episode} = episode_context(action, entity, content_url, progress_records)
+
+        {:ok,
+         %{
+           action: action,
+           entity_id: entity.id,
+           season_number: season,
+           episode_number: episode,
+           content_url: content_url,
+           start_position: position
+         }}
     end
   end
 
@@ -199,41 +179,20 @@ defmodule MediaManagerWeb.PlaybackChannel do
     end
   end
 
-  # Extract season/episode numbers from the most recently watched progress record
-  defp extract_season(_entity, []), do: nil
+  defp episode_context(:resume, _entity, _url, progress_records) do
+    most_recent_episode(progress_records)
+  end
 
-  defp extract_season(_entity, progress_records) do
+  defp episode_context(_action, entity, content_url, _progress_records) do
+    find_episode_by_url(entity, content_url) || {nil, nil}
+  end
+
+  defp most_recent_episode([]), do: {nil, nil}
+
+  defp most_recent_episode(progress_records) do
     most_recent = Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
-    if most_recent, do: most_recent.season_number, else: nil
+    if most_recent, do: {most_recent.season_number, most_recent.episode_number}, else: {nil, nil}
   end
-
-  defp extract_episode(_entity, []), do: nil
-
-  defp extract_episode(_entity, progress_records) do
-    most_recent = Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
-    if most_recent, do: most_recent.episode_number, else: nil
-  end
-
-  # Find season/episode numbers for a given content_url by searching the entity tree
-  defp extract_season_for_url(%{type: :tv_series} = entity, content_url) do
-    find_episode_by_url(entity, content_url)
-    |> case do
-      {season_number, _episode_number} -> season_number
-      nil -> nil
-    end
-  end
-
-  defp extract_season_for_url(_entity, _url), do: nil
-
-  defp extract_episode_for_url(%{type: :tv_series} = entity, content_url) do
-    find_episode_by_url(entity, content_url)
-    |> case do
-      {_season_number, episode_number} -> episode_number
-      nil -> nil
-    end
-  end
-
-  defp extract_episode_for_url(_entity, _url), do: nil
 
   defp find_episode_by_url(entity, content_url) do
     Enum.find_value(entity.seasons || [], fn season ->

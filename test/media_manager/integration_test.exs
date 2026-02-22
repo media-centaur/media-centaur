@@ -402,44 +402,6 @@ defmodule MediaManager.IntegrationTest do
     end
   end
 
-  describe "JsonWriter.regenerate_all/1" do
-    test "writes a valid JSON array to the given path" do
-      json_path = Path.join(System.tmp_dir!(), "media.json")
-
-      assert :ok = MediaManager.JsonWriter.regenerate_all(json_path)
-
-      assert {:ok, contents} = File.read(json_path)
-      assert {:ok, entries} = Jason.decode(contents)
-      assert is_list(entries)
-    end
-  end
-
-  describe "Config boolean merge" do
-    test "media_json_enabled false is not overridden by default true" do
-      # The boolean-safe merge in Config uses a case expression instead of ||.
-      # If someone regresses this to `false || true`, it silently returns true.
-      # This test verifies the TOML → merge path preserves an explicit false.
-      toml_content = """
-      media_json_enabled = false
-      """
-
-      path =
-        Path.join(System.tmp_dir!(), "test-config-#{System.unique_integer([:positive])}.toml")
-
-      File.write!(path, toml_content)
-      {:ok, toml} = Toml.decode(toml_content)
-
-      result =
-        case get_in(toml, ["media_json_enabled"]) do
-          value when is_boolean(value) -> value
-          _ -> true
-        end
-
-      assert result == false
-      File.rm(path)
-    end
-  end
-
   describe "entity payload shape" do
     alias MediaManager.Playback.ProgressSummary
     alias MediaManager.Serializer

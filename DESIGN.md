@@ -16,22 +16,20 @@ This document captures the full architecture of the `media-manager` Phoenix/Elix
 5. [File Name Parsing](#5-file-name-parsing)
 6. [Ash Resources (SQLite)](#6-ash-resources-sqlite)
 7. [TMDB API Usage](#7-tmdb-api-usage)
-8. [media.json Write Strategy](#8-mediajson-write-strategy)
-9. [Web UI (Admin Panel)](#9-web-ui-admin-panel)
-10. [Dependencies](#10-dependencies)
-11. [Open Questions / Future Work](#11-open-questions--future-work)
+8. [Web UI (Admin Panel)](#8-web-ui-admin-panel)
+9. [Dependencies](#9-dependencies)
+10. [Open Questions / Future Work](#10-open-questions--future-work)
 
 ---
 
 ## 1. Overview
 
-The media manager is the **write-side** of Freedia Center. It watches a configured `media_dir` for newly completed torrent downloads, identifies the content, scrapes metadata and artwork from external APIs, and serves the library to the `user-interface` over Phoenix Channels (WebSocket). It also maintains an image cache (at `media_images_dir`) and optionally exports `media.json` for external tooling.
+The media manager is the **write-side** of Freedia Center. It watches a configured `media_dir` for newly completed torrent downloads, identifies the content, scrapes metadata and artwork from external APIs, and serves the library to the `user-interface` over Phoenix Channels (WebSocket). It also maintains an image cache (at `media_images_dir`).
 
-**SQLite is the canonical database.** All entity data (names, descriptions, genres, TMDB IDs, image remote URLs, season/episode structure) is stored in SQLite. The UI receives data via Phoenix Channels; `media.json` is an optional generated export. This means:
+**SQLite is the canonical database.** All entity data (names, descriptions, genres, TMDB IDs, image remote URLs, season/episode structure) is stored in SQLite. The UI receives data via Phoenix Channels. This means:
 
 - Moving output paths → update config, regenerate images, done
 - Output paths become unavailable → app continues, writes queue, resume on reconnect
-- `media.json` corrupted or deleted → regenerate from SQLite instantly (or disable entirely)
 - Images lost → remote `url` stored in SQLite → re-download on demand
 
 **Media types supported:** Movies, TVSeries (full episode metadata), VideoObject (fallback for unidentified content).
@@ -53,10 +51,6 @@ At startup, `MediaManager.Config` (a GenServer) reads this file and merges it ov
 # Watched for additions and removals. May be on a removable or network drive.
 media_dir = "/mnt/videos/Videos"
 
-# Path to the media library JSON export file (optional, for external tooling).
-# The user-interface does NOT read this file — it gets data via Phoenix Channels.
-shared_media_library = "~/.local/share/freedia-center/media.json"
-
 # Directory for cached artwork images, one subdirectory per entity UUID.
 # Shared with the user-interface (UI resolves image paths relative to this dir).
 media_images_dir = "~/.local/share/freedia-center/images"
@@ -75,7 +69,6 @@ auto_approve_threshold = 0.85
 ```elixir
 config :media_manager,
   media_dir: System.get_env("MEDIA_DIR", "/mnt/videos/Videos"),
-  shared_media_library: System.get_env("SHARED_MEDIA_LIBRARY", "~/.local/share/freedia-center/media.json"),
   media_images_dir: System.get_env("MEDIA_IMAGES_DIR", "~/.local/share/freedia-center/images"),
   tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
   auto_approve_threshold: 0.85
@@ -89,7 +82,7 @@ config :media_manager,
 
 ## 3. Mount Resilience
 
-Both `media_dir` and the output paths (`shared_media_library`, `media_images_dir`) may reside on removable drives, NAS shares, or external mounts. The application must never lose library data due to a transient mount failure.
+Both `media_dir` and the output path (`media_images_dir`) may reside on removable drives, NAS shares, or external mounts. The application must never lose library data due to a transient mount failure.
 
 ### 3.1 `media_dir` Resilience (file watcher)
 
@@ -121,11 +114,9 @@ Both `media_dir` and the output paths (`shared_media_library`, `media_images_dir
 
 **Periodic health check:** The `Watcher` GenServer pings `media_dir` every 30 seconds. On any state change it broadcasts via `Phoenix.PubSub` so the dashboard shows a warning banner immediately.
 
-### 3.2 Output Path Resilience (JSON writer / image downloader)
+### 3.2 Output Path Resilience (image downloader)
 
-- **On startup:** check accessibility; if `media.json` is missing but SQLite has data and `media_json_enabled` is true → regenerate.
-- **During writes:** if `shared_media_library` parent directory is unavailable, the JSON write fails with a logged error. The batcher retries on the next batch cycle. This does not affect the WebSocket API — the UI always gets data from channels.
-- **If paths move:** update `shared_media_library` / `media_images_dir` in TOML → restart app → regenerate if needed. Admin UI provides a "Regenerate library file" button.
+- **If paths move:** update `media_images_dir` in TOML → restart app. Admin UI can trigger re-download.
 - **Images:** remote `url` for every image is stored in SQLite. If images are missing (lost or new path), the admin UI can trigger a re-download of any or all images.
 
 ---
@@ -186,14 +177,12 @@ MediaManager.RemovalHandler (GenServer)
     ├─ Movie / VideoObject:
     │     Remove entity from SQLite
     │     Push library:entity_removed via PubSub
-    │     Update media.json via JsonWriter (if enabled)
     │     Delete {media_images_dir}/{uuid}/ directory
     │
     └─ TVSeries episode file removed:
           Remove that episode from Season → Episode records in SQLite
           If no episodes remain in any season → remove whole TVSeries entity
           Push library:entity_updated or library:entity_removed via PubSub
-          Update media.json via JsonWriter (if enabled)
           Delete {media_images_dir}/{uuid}/ only if whole series removed
 ```
 
@@ -300,11 +289,11 @@ The `:queued` state is set by the Broadway pipeline producer when it claims a fi
 
 ### `MediaManager.Library.Entity`
 
-Canonical store for all library entity data. Served to the UI via Phoenix Channels and optionally exported to `media.json`.
+Canonical store for all library entity data. Served to the UI via Phoenix Channels.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `id` | UUID | The `@id` used in channel messages and `media.json`; stable forever |
+| `id` | UUID | The `@id` used in channel messages; stable forever |
 | `type` | `EntityType` enum | `:movie`, `:tv_series`, `:video_object` |
 | `name` | string | |
 | `description` | string | |
@@ -415,27 +404,7 @@ Canonical store for all library entity data. Served to the UI via Phoenix Channe
 
 ---
 
-## 8. `media.json` Write Strategy
-
-> **Note:** `media.json` is an optional backend-only export. The user-interface does **not** read this file — it receives all library data via Phoenix Channels. The export is useful for external tooling, debugging, and scripting. Set `media_json_enabled = false` in config to disable it entirely.
-
-`MediaManager.JsonWriter` is a singleton GenServer that serialises all writes.
-
-**Write flow:**
-
-1. Generate entity map from SQLite (`Entity` + associations)
-2. Read current `media.json` (or `[]` if missing)
-3. Find existing entry by `@id` (update) or append (new)
-4. Encode → write to `media.json.tmp` → `File.rename/2` (atomic on Linux)
-5. If `shared_media_library` parent directory unavailable → write fails, logged as error; batcher retries next cycle
-
-**`JsonWriter.regenerate_all/0`** — reads all `:complete` `WatchedFile` entities from SQLite and rewrites `media.json` from scratch. Used after config changes (directory move, etc.) or when `media.json` is missing/corrupted.
-
-**JSON format:** follows `DATA-FORMAT.md` exactly. Field names are schema.org identifiers.
-
----
-
-## 9. Web UI (Admin Panel)
+## 8. Web UI (Admin Panel)
 
 A lightweight Phoenix LiveView admin panel — local-only, no authentication.
 
@@ -452,7 +421,6 @@ GET /library/:id     → Library Item LiveView (detail, re-scrape, remove, re-do
 **Dashboard warnings (via PubSub):**
 
 - `media_dir` unavailable → red banner: "Media directory not accessible — removal events suppressed"
-- `shared_media_library` parent directory unavailable (when `media_json_enabled`) → yellow banner: "Library file not writable — writes queued"
 
 **Review flow:**
 
@@ -467,11 +435,10 @@ On confirm → `WatchedFile` transitions to `:approved` → pipeline resumes at 
 - Re-scrape entity from TMDB
 - Re-download images
 - Remove entity (with confirmation)
-- Regenerate `media.json` for this entity (if enabled)
 
 ---
 
-## 10. Dependencies
+## 9. Dependencies
 
 | Package | Purpose | Already in mix.exs? |
 |---------|---------|---------------------|
@@ -486,7 +453,7 @@ On confirm → `WatchedFile` transitions to `:approved` → pipeline resumes at 
 
 ---
 
-## 11. Open Questions / Future Work
+## 10. Open Questions / Future Work
 
 - **Subtitle files:** Ignore `.srt`/`.ass` for now.
 - **Re-scrape:** Trigger fresh TMDB fetch for existing entity — design in a later plan.

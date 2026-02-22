@@ -4,6 +4,8 @@ defmodule MediaManager.Playback.Resume do
   and its watch progress records. No DB access, no side effects.
   """
 
+  alias MediaManager.Playback.EpisodeList
+
   @type result ::
           {:resume, String.t(), float()}
           | {:play_next, String.t(), float()}
@@ -66,7 +68,7 @@ defmodule MediaManager.Playback.Resume do
 
   # TVSeries — walk episodes in order, find resume point
   defp resolve_tv_series(entity, progress_records) do
-    episodes = list_available_episodes(entity)
+    episodes = EpisodeList.list_available(entity)
 
     case episodes do
       [] -> {:no_playable_content}
@@ -80,7 +82,7 @@ defmodule MediaManager.Playback.Resume do
   end
 
   defp resolve_tv_episodes(episodes, progress_records) do
-    progress_by_key = index_progress_by_key(progress_records)
+    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
 
     most_recent =
       Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
@@ -152,24 +154,5 @@ defmodule MediaManager.Playback.Resume do
       {_s, _e, url} -> url
       nil -> nil
     end
-  end
-
-  # Returns a flat list of {season_number, episode_number, content_url} tuples
-  # for episodes that have a content_url, sorted by season then episode.
-  defp list_available_episodes(entity) do
-    (entity.seasons || [])
-    |> Enum.sort_by(& &1.season_number)
-    |> Enum.flat_map(fn season ->
-      (season.episodes || [])
-      |> Enum.filter(& &1.content_url)
-      |> Enum.sort_by(& &1.episode_number)
-      |> Enum.map(&{season.season_number, &1.episode_number, &1.content_url})
-    end)
-  end
-
-  defp index_progress_by_key(progress_records) do
-    Map.new(progress_records, fn record ->
-      {{record.season_number, record.episode_number}, record}
-    end)
   end
 end

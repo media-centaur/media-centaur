@@ -1,7 +1,7 @@
 defmodule MediaManager.Pipeline do
   @moduledoc """
   Broadway pipeline that processes detected video files through search,
-  metadata fetch, image download, and JSON export stages.
+  metadata fetch, and image download stages.
   """
   use Broadway
   require Logger
@@ -40,16 +40,6 @@ defmodule MediaManager.Pipeline do
       |> Enum.uniq()
 
     if entity_ids != [] do
-      if MediaManager.Config.get(:media_json_enabled) do
-        case MediaManager.JsonWriter.regenerate_all() do
-          :ok ->
-            :ok
-
-          {:error, reason} ->
-            Logger.warning("Pipeline: batch JSON export failed: #{inspect(reason)}")
-        end
-      end
-
       Phoenix.PubSub.broadcast(
         MediaManager.PubSub,
         "library:updates",

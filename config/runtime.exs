@@ -24,11 +24,6 @@ watch_dirs = [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")]
 
 config :media_manager,
   watch_dirs: watch_dirs,
-  shared_media_library:
-    System.get_env(
-      "SHARED_MEDIA_LIBRARY",
-      Path.expand("~/.local/share/freedia-center/media.json")
-    ),
   media_images_dir:
     System.get_env(
       "MEDIA_IMAGES_DIR",
