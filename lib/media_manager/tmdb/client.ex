@@ -75,6 +75,8 @@ defmodule MediaManager.TMDB.Client do
   end
 
   defp get(client, opts) do
+    MediaManager.TMDB.RateLimiter.wait()
+
     case Req.get(client, opts) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}

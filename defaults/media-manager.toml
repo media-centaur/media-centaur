@@ -13,6 +13,11 @@ database_path = "~/.local/share/freedia-center/media-manager.db"
 # Add multiple directories to watch media across several drives/mounts.
 watch_dirs = ["/mnt/videos/Videos"]
 
+# Directories to exclude from watching. Files inside these directories
+# (and their subdirectories) are ignored by both inotify and manual scans.
+# Paths are expanded (~ resolved). Must be absolute paths.
+exclude_dirs = []
+
 # Directory for cached artwork images, one subdirectory per entity UUID.
 # Shared with the user-interface (UI resolves image paths relative to this dir).
 media_images_dir = "~/.local/share/freedia-center/images"
