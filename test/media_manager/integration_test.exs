@@ -1,7 +1,7 @@
 defmodule MediaManager.IntegrationTest do
   use MediaManager.DataCase
 
-  alias MediaManager.Library.{Entity, WatchedFile}
+  alias MediaManager.Library.{Entity, WatchedFile, WatchProgress}
 
   describe "WatchedFile :detect action" do
     test "creates a record with :detected state and parses file name" do
@@ -319,6 +319,86 @@ defmodule MediaManager.IntegrationTest do
       refute Map.has_key?(inner, "duration")
       refute Map.has_key?(inner, "director")
       refute Map.has_key?(inner, "contentRating")
+    end
+  end
+
+  describe "WatchProgress" do
+    test "create and read back via :for_entity" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :movie, name: "Progress Movie"})
+        |> Ash.create()
+
+      {:ok, _progress} =
+        WatchProgress
+        |> Ash.Changeset.for_create(:upsert_progress, %{
+          entity_id: entity.id,
+          position_seconds: 120.5,
+          duration_seconds: 7200.0
+        })
+        |> Ash.create()
+
+      {:ok, [found]} =
+        WatchProgress
+        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
+        |> Ash.read()
+
+      assert found.entity_id == entity.id
+      assert found.position_seconds == 120.5
+      assert found.duration_seconds == 7200.0
+      assert found.completed == false
+      assert found.last_watched_at != nil
+    end
+
+    test "auto-completion at 90% threshold" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :movie, name: "Almost Done"})
+        |> Ash.create()
+
+      {:ok, progress} =
+        WatchProgress
+        |> Ash.Changeset.for_create(:upsert_progress, %{
+          entity_id: entity.id,
+          position_seconds: 6840.0,
+          duration_seconds: 7200.0
+        })
+        |> Ash.create()
+
+      assert progress.completed == true
+    end
+
+    test "upsert idempotency — second upsert updates values, no duplicate" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :tv_series, name: "Upsert Show"})
+        |> Ash.create()
+
+      attrs = %{
+        entity_id: entity.id,
+        season_number: 1,
+        episode_number: 3,
+        position_seconds: 60.0,
+        duration_seconds: 2400.0
+      }
+
+      {:ok, _first} =
+        WatchProgress
+        |> Ash.Changeset.for_create(:upsert_progress, attrs)
+        |> Ash.create()
+
+      {:ok, _second} =
+        WatchProgress
+        |> Ash.Changeset.for_create(:upsert_progress, %{attrs | position_seconds: 1200.0})
+        |> Ash.create()
+
+      {:ok, records} =
+        WatchProgress
+        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
+        |> Ash.read()
+
+      assert length(records) == 1
+      assert hd(records).position_seconds == 1200.0
     end
   end
 
