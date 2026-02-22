@@ -8,7 +8,7 @@ defmodule MediaManager.TestFactory do
     Use for resource tests and channel tests.
   """
 
-  alias MediaManager.Library.{Entity, Image, Identifier, Movie, Season, Episode}
+  alias MediaManager.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
 
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
@@ -32,6 +32,7 @@ defmodule MediaManager.TestFactory do
       images: [],
       identifiers: [],
       movies: [],
+      extras: [],
       seasons: [],
       watched_files: [],
       watch_progress: []
@@ -85,6 +86,18 @@ defmodule MediaManager.TestFactory do
     }
 
     struct(Movie, Map.merge(defaults, overrides))
+  end
+
+  def build_extra(overrides \\ %{}) do
+    defaults = %{
+      id: Ash.UUID.generate(),
+      name: "Behind the Scenes",
+      content_url: "/path/to/extra.mkv",
+      position: 0,
+      entity_id: nil
+    }
+
+    struct(Extra, Map.merge(defaults, overrides))
   end
 
   def build_season(overrides \\ %{}) do
@@ -166,6 +179,12 @@ defmodule MediaManager.TestFactory do
 
   def create_movie(attrs) do
     Movie
+    |> Ash.Changeset.for_create(:create, attrs)
+    |> Ash.create!()
+  end
+
+  def create_extra(attrs) do
+    Extra
     |> Ash.Changeset.for_create(:create, attrs)
     |> Ash.create!()
   end

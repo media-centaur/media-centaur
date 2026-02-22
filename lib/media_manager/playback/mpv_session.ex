@@ -35,6 +35,14 @@ defmodule MediaManager.Playback.MpvSession do
     GenServer.start_link(__MODULE__, params)
   end
 
+  def child_spec(params) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [params]},
+      restart: :temporary
+    }
+  end
+
   def pause(pid), do: GenServer.call(pid, :pause)
   def stop(pid), do: GenServer.call(pid, :stop)
   def seek(pid, position), do: GenServer.call(pid, {:seek, position})
@@ -43,6 +51,8 @@ defmodule MediaManager.Playback.MpvSession do
 
   @impl true
   def init(params) do
+    Process.flag(:trap_exit, true)
+
     session_id = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
     socket_dir = MediaManager.Config.get(:mpv_socket_dir)
     socket_path = Path.join(socket_dir, "freedia-mpv-#{session_id}.sock")
@@ -151,14 +161,17 @@ defmodule MediaManager.Playback.MpvSession do
           {:noreply, %{state | socket_retries: state.socket_retries - 1}}
         else
           Logger.error("MpvSession #{state.session_id}: socket connect timeout")
-          cleanup(state)
           {:stop, :normal, %{state | state: :stopped}}
         end
     end
   end
 
-  # MPV IPC data
+  # MPV IPC data — discard late messages after finalization
   @impl true
+  def handle_info({:tcp, _socket, _data}, %{state: :stopped} = state) do
+    {:noreply, state}
+  end
+
   def handle_info({:tcp, _socket, data}, state) do
     state =
       data
@@ -176,27 +189,41 @@ defmodule MediaManager.Playback.MpvSession do
   @impl true
   def handle_info({:tcp_closed, _socket}, state) do
     Logger.info("MpvSession #{state.session_id}: socket closed")
-    persist_progress(state)
-    broadcast_entity_progress(state)
-    broadcast_state_changed(:stopped, state)
-    cleanup(state)
-    {:stop, :normal, %{state | state: :stopped}}
+    {:stop, :normal, finalize(state)}
   end
 
   # MPV process exited
   @impl true
   def handle_info({_port, {:exit_status, status}}, state) do
     Logger.info("MpvSession #{state.session_id}: MPV exited with status #{status}")
-    persist_progress(state)
-    broadcast_entity_progress(state)
-    broadcast_state_changed(:stopped, state)
-    cleanup(state)
-    {:stop, :normal, %{state | state: :stopped}}
+    {:stop, :normal, finalize(state)}
   end
 
   # Ignore MPV stdout/stderr output
   @impl true
   def handle_info({_port, {:data, _data}}, state), do: {:noreply, state}
+
+  # Absorb EXIT messages from port link (required with trap_exit)
+  @impl true
+  def handle_info(_message, state), do: {:noreply, state}
+
+  @impl true
+  def terminate(_reason, state) do
+    finalize(state)
+    cleanup(state)
+    :ok
+  end
+
+  # --- Idempotent Finalization ---
+
+  defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
+    persist_progress(session)
+    broadcast_entity_progress(session)
+    broadcast_state_changed(:stopped, session)
+    %{session | state: :stopped}
+  end
+
+  defp finalize(session), do: %{session | state: :stopped}
 
   # --- MPV Message Handling ---
 
@@ -235,19 +262,13 @@ defmodule MediaManager.Playback.MpvSession do
          %{"event" => "property-change", "name" => "eof-reached", "data" => true},
          state
        ) do
-    persist_progress(state)
-    broadcast_entity_progress(state)
-    broadcast_state_changed(:stopped, state)
+    state = finalize(state)
     send_mpv_command(state.socket, ["quit"])
     state
   end
 
   defp handle_mpv_message(%{"event" => "end-file"}, state) do
-    persist_progress(state)
-    broadcast_entity_progress(state)
-    broadcast_state_changed(:stopped, state)
-    cleanup(state)
-    state
+    finalize(state)
   end
 
   defp handle_mpv_message(_message, state), do: state

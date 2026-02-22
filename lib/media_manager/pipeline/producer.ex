@@ -45,10 +45,11 @@ defmodule MediaManager.Pipeline.Producer do
   def ack(:ack_id, _successful, _failed), do: :ok
 
   defp claim_detected_files(limit) do
-    case Ash.read(WatchedFile, action: :detected_files) do
+    query = Ash.Query.for_read(WatchedFile, :detected_files, %{limit: limit})
+
+    case Ash.read(query) do
       {:ok, files} ->
         files
-        |> Enum.take(limit)
         |> Enum.reduce([], fn file, claimed ->
           case Ash.update(file, %{}, action: :claim) do
             {:ok, claimed_file} -> [claimed_file | claimed]

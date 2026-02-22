@@ -22,8 +22,18 @@ defmodule MediaManager.Library.Entity do
                 load: [
                   :images,
                   :identifiers,
-                  :watched_files,
                   :watch_progress,
+                  :extras,
+                  seasons: [episodes: [:images]],
+                  movies: [:images]
+                ]
+              )
+    end
+
+    read :with_images do
+      prepare build(
+                load: [
+                  :images,
                   seasons: [episodes: [:images]],
                   movies: [:images]
                 ]
@@ -78,6 +88,7 @@ defmodule MediaManager.Library.Entity do
     has_many :images, MediaManager.Library.Image
     has_many :identifiers, MediaManager.Library.Identifier
     has_many :movies, MediaManager.Library.Movie
+    has_many :extras, MediaManager.Library.Extra
     has_many :seasons, MediaManager.Library.Season
     has_many :watched_files, MediaManager.Library.WatchedFile
     has_many :watch_progress, MediaManager.Library.WatchProgress
