@@ -200,6 +200,26 @@ defmodule MediaManager.TestFactory do
     |> Ash.create!()
   end
 
+  def create_entity_with_associations(attrs \\ %{}) do
+    entity = create_entity(attrs)
+
+    create_image(%{
+      entity_id: entity.id,
+      role: "poster",
+      url: "https://image.tmdb.org/t/p/original/poster.jpg",
+      extension: "jpg"
+    })
+
+    create_identifier(%{
+      entity_id: entity.id,
+      property_id: "tmdb",
+      value: attrs[:tmdb_id] || "99999"
+    })
+
+    # Reload with associations
+    Ash.get!(Entity, entity.id, action: :with_associations)
+  end
+
   def create_watched_file(attrs \\ %{}) do
     defaults = %{file_path: "/media/test/#{Ash.UUID.generate()}.mkv"}
 
