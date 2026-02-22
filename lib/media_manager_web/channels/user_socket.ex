@@ -1,4 +1,8 @@
 defmodule MediaManagerWeb.UserSocket do
+  @moduledoc """
+  Single WebSocket endpoint for the user-interface. Routes to library
+  and playback channels. Unauthenticated (local-only v1).
+  """
   use Phoenix.Socket
 
   channel "library", MediaManagerWeb.LibraryChannel

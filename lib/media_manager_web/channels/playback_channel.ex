@@ -1,4 +1,8 @@
 defmodule MediaManagerWeb.PlaybackChannel do
+  @moduledoc """
+  Handles playback commands (play, pause, stop, seek) and forwards
+  playback state changes and progress ticks from PubSub to the UI.
+  """
   use Phoenix.Channel
   require Logger
 
