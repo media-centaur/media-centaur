@@ -10,6 +10,10 @@ defmodule MediaManager.Library.WatchedFile do
   sqlite do
     table "watched_files"
     repo MediaManager.Repo
+
+    custom_indexes do
+      index [:state, :inserted_at], name: "watched_files_state_inserted_index"
+    end
   end
 
   actions do
@@ -40,8 +44,9 @@ defmodule MediaManager.Library.WatchedFile do
     end
 
     read :detected_files do
+      argument :limit, :integer, default: 10
       filter expr(state == :detected)
-      prepare build(sort: [inserted_at: :asc])
+      prepare build(sort: [inserted_at: :asc], limit: arg(:limit))
     end
 
     update :claim do

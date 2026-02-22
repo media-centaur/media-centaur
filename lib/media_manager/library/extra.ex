@@ -1,0 +1,50 @@
+defmodule MediaManager.Library.Extra do
+  @moduledoc """
+  A bonus feature (featurette, behind-the-scenes, deleted scene) belonging to
+  a movie `Entity`. Extras live in subdirectories like `Extras/` alongside
+  the main movie file and are serialized as `hasPart` → `VideoObject` entries.
+  """
+  use Ash.Resource,
+    domain: MediaManager.Library,
+    data_layer: AshSqlite.DataLayer
+
+  sqlite do
+    table "extras"
+    repo MediaManager.Repo
+  end
+
+  actions do
+    defaults [:read]
+
+    create :create do
+      primary? true
+      accept [:name, :content_url, :position, :entity_id]
+    end
+
+    create :find_or_create do
+      accept [:name, :content_url, :position, :entity_id]
+      upsert? true
+      upsert_identity :unique_entity_extra
+      upsert_fields []
+    end
+  end
+
+  attributes do
+    uuid_primary_key :id
+
+    attribute :name, :string
+    attribute :content_url, :string
+    attribute :position, :integer
+
+    create_timestamp :inserted_at
+    update_timestamp :updated_at
+  end
+
+  relationships do
+    belongs_to :entity, MediaManager.Library.Entity
+  end
+
+  identities do
+    identity :unique_entity_extra, [:entity_id, :content_url]
+  end
+end

@@ -26,6 +26,10 @@ api_key = ""
 # written automatically. Below it, the item is queued for human review.
 auto_approve_threshold = 0.85
 
+# Directory names (case-insensitive) treated as bonus-feature containers.
+# Files inside these directories are linked to the parent movie as extras.
+extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
+
 [playback]
 # Path to the mpv binary. Uses system PATH by default.
 mpv_path = "mpv"

@@ -45,6 +45,8 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
     end
   end
 
+  defp search(title, year, :extra), do: search(title, year, :movie)
+
   defp search(title, year, :movie) do
     with {:ok, results} <- Client.search_movie(title, year) do
       {:ok, best_match(results, title, year, "title", "release_date")}
@@ -58,8 +60,11 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
   end
 
   defp search(title, year, :unknown) do
-    with {:ok, movie_results} <- Client.search_movie(title, year),
-         {:ok, tv_results} <- Client.search_tv(title, year) do
+    movie_task = Task.async(fn -> Client.search_movie(title, year) end)
+    tv_task = Task.async(fn -> Client.search_tv(title, year) end)
+
+    with {:ok, movie_results} <- Task.await(movie_task),
+         {:ok, tv_results} <- Task.await(tv_task) do
       movie_match = best_match(movie_results, title, year, "title", "release_date")
       tv_match = best_match(tv_results, title, year, "name", "first_air_date")
 

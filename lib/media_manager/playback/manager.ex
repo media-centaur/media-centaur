@@ -6,7 +6,7 @@ defmodule MediaManager.Playback.Manager do
   use GenServer
   require Logger
 
-  alias MediaManager.Playback.MpvSession
+  alias MediaManager.Playback.{MpvSession, SessionSupervisor}
 
   defstruct session: nil,
             monitor_ref: nil,
@@ -39,7 +39,7 @@ defmodule MediaManager.Playback.Manager do
   end
 
   def handle_call({:play, params}, _from, state) do
-    case MpvSession.start_link(params) do
+    case SessionSupervisor.start_session(params) do
       {:ok, pid} ->
         ref = Process.monitor(pid)
 

@@ -10,6 +10,10 @@ defmodule MediaManager.Library.Identifier do
   sqlite do
     table "identifiers"
     repo MediaManager.Repo
+
+    custom_indexes do
+      index [:entity_id], name: "identifiers_entity_id_index"
+    end
   end
 
   actions do

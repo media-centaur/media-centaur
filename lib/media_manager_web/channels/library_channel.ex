@@ -1,7 +1,7 @@
 defmodule MediaManagerWeb.LibraryChannel do
   @moduledoc """
-  Serves the media library over Phoenix Channels. Sends the full entity list
-  on join and pushes incremental adds/updates/removals via PubSub.
+  Serves the media library over Phoenix Channels. Streams the full entity list
+  in batches on join, then pushes incremental updates via PubSub.
   """
   use Phoenix.Channel
 
@@ -9,50 +9,54 @@ defmodule MediaManagerWeb.LibraryChannel do
   alias MediaManager.Playback.ProgressSummary
   alias MediaManager.Serializer
 
+  @batch_size 50
+
   @impl true
   def join("library", _params, socket) do
     Phoenix.PubSub.subscribe(MediaManager.PubSub, "library:updates")
+    send(self(), :sync_library)
+    {:ok, %{}, assign(socket, :known_entity_ids, MapSet.new())}
+  end
+
+  @impl true
+  def handle_info(:sync_library, socket) do
     entities = build_entity_list()
     known_ids = MapSet.new(entities, fn entity -> entity["@id"] end)
-    socket = assign(socket, :known_entity_ids, known_ids)
-    {:ok, %{entities: entities}, socket}
+
+    entities
+    |> Enum.chunk_every(@batch_size)
+    |> Enum.each(fn batch ->
+      push(socket, "library:entities", %{entities: batch})
+    end)
+
+    push(socket, "library:sync_complete", %{})
+
+    {:noreply, assign(socket, :known_entity_ids, known_ids)}
   end
 
   @impl true
   def handle_info({:entities_changed, entity_ids}, socket) do
     known_ids = socket.assigns.known_entity_ids
 
-    new_known_ids =
-      Enum.reduce(entity_ids, known_ids, fn entity_id, acc ->
+    {updated, removed, new_known_ids} =
+      Enum.reduce(entity_ids, {[], [], known_ids}, fn entity_id, {upd, rem, ids} ->
         case load_entity_payload(entity_id) do
           nil ->
-            if MapSet.member?(acc, entity_id) do
-              push(socket, "library:entity_removed", %{"@id" => entity_id})
+            if MapSet.member?(ids, entity_id) do
+              {upd, [entity_id | rem], MapSet.delete(ids, entity_id)}
+            else
+              {upd, rem, ids}
             end
-
-            MapSet.delete(acc, entity_id)
 
           payload ->
-            if MapSet.member?(acc, entity_id) do
-              push(socket, "library:entity_updated", payload)
-            else
-              push(socket, "library:entity_added", payload)
-            end
-
-            MapSet.put(acc, entity_id)
+            {[payload | upd], rem, MapSet.put(ids, entity_id)}
         end
       end)
 
-    {:noreply, assign(socket, :known_entity_ids, new_known_ids)}
-  end
+    if updated != [], do: push(socket, "library:entities", %{entities: Enum.reverse(updated)})
+    if removed != [], do: push(socket, "library:entities_removed", %{ids: Enum.reverse(removed)})
 
-  @impl true
-  def handle_info(:library_changed, socket) do
-    # Backward compatibility for any code still sending the old message
-    entities = build_entity_list()
-    known_ids = MapSet.new(entities, fn entity -> entity["@id"] end)
-    for payload <- entities, do: push(socket, "library:entity_updated", payload)
-    {:noreply, assign(socket, :known_entity_ids, known_ids)}
+    {:noreply, assign(socket, :known_entity_ids, new_known_ids)}
   end
 
   @impl true

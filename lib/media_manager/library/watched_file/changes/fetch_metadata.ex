@@ -10,6 +10,7 @@ defmodule MediaManager.Library.WatchedFile.Changes.FetchMetadata do
   def change(changeset, _opts, _context) do
     tmdb_id = Ash.Changeset.get_attribute(changeset, :tmdb_id)
     parsed_type = Ash.Changeset.get_attribute(changeset, :parsed_type)
+    parsed_title = Ash.Changeset.get_attribute(changeset, :parsed_title)
     file_path = Ash.Changeset.get_attribute(changeset, :file_path)
     season_number = Ash.Changeset.get_attribute(changeset, :season_number)
     episode_number = Ash.Changeset.get_attribute(changeset, :episode_number)
@@ -17,7 +18,8 @@ defmodule MediaManager.Library.WatchedFile.Changes.FetchMetadata do
     file_context = %{
       file_path: file_path,
       season_number: season_number,
-      episode_number: episode_number
+      episode_number: episode_number,
+      extra_title: if(parsed_type == :extra, do: parsed_title, else: nil)
     }
 
     case EntityResolver.resolve(tmdb_id, parsed_type, file_context) do

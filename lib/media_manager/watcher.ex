@@ -51,9 +51,15 @@ defmodule MediaManager.Watcher do
   def handle_call(:dir, _from, state), do: {:reply, state.dir, state}
 
   @impl true
-  def handle_call(:scan, _from, state) do
-    count = scan_directory(state.dir)
-    {:reply, {:ok, count}, state}
+  def handle_call(:scan, from, state) do
+    dir = state.dir
+
+    Task.start(fn ->
+      count = scan_directory(dir)
+      GenServer.reply(from, {:ok, count})
+    end)
+
+    {:noreply, state}
   end
 
   @impl true
@@ -94,8 +100,10 @@ defmodule MediaManager.Watcher do
       :removed in events or :deleted in events ->
         now = System.monotonic_time(:millisecond)
         cutoff = now - @burst_window_ms
-        recent = Enum.filter(state.removal_timestamps, &(&1 >= cutoff))
-        recent = [now | recent]
+
+        recent =
+          [now | Enum.filter(state.removal_timestamps, &(&1 >= cutoff))]
+          |> Enum.take(@burst_threshold)
 
         if length(recent) >= @burst_threshold do
           Logger.warning("Watcher: suspicious burst of removal events detected in #{state.dir}")

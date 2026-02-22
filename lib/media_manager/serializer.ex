@@ -6,7 +6,7 @@ defmodule MediaManager.Serializer do
   Used by LibraryChannel to serialize entities for WebSocket pushes.
   """
 
-  alias MediaManager.Library.{Entity, Image, Identifier, Movie, Season, Episode}
+  alias MediaManager.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
 
   @doc """
   Serializes a single entity into a wrapped map: `%{"@id" => uuid, "entity" => %{...}}`.
@@ -25,6 +25,7 @@ defmodule MediaManager.Serializer do
   defp entity_to_map(%Entity{} = entity) do
     base_fields(entity)
     |> Map.merge(type_specific_fields(entity))
+    |> maybe_add_extras(entity)
     |> maybe_add_images(entity)
     |> maybe_add_identifiers(entity)
     |> maybe_add_rating(entity)
@@ -102,6 +103,29 @@ defmodule MediaManager.Serializer do
       "contentUrl" => episode.content_url
     }
     |> maybe_add_images(episode)
+    |> compact()
+  end
+
+  # --- Extras serialization ---
+
+  defp maybe_add_extras(map, %Entity{extras: extras})
+       when is_list(extras) and extras != [] do
+    serialized =
+      extras
+      |> Enum.sort_by(&(&1.position || 0))
+      |> Enum.map(&serialize_extra/1)
+
+    Map.put(map, "hasPart", serialized)
+  end
+
+  defp maybe_add_extras(map, _), do: map
+
+  defp serialize_extra(%Extra{} = extra) do
+    %{
+      "@type" => "VideoObject",
+      "name" => extra.name,
+      "contentUrl" => extra.content_url
+    }
     |> compact()
   end
 

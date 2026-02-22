@@ -31,7 +31,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `lib/media_manager/serializer.ex` | Schema.org JSON-LD serializer (Entity → channel push format) |
 | `lib/media_manager/config.ex` | TOML config loader (GenServer) |
 | `lib/media_manager/watcher.ex` | File system watcher (inotify) |
-| `lib/media_manager/parser.ex` | Video filename parser |
+| `lib/media_manager/parser.ex` | Video filename parser — pure function, path → `%Parser.Result{}` (see Parser section below) |
 | `lib/media_manager_web/channels/` | Phoenix Channels: UserSocket, LibraryChannel, PlaybackChannel (WebSocket API for the UI) |
 | `lib/media_manager_web/` | Phoenix web layer: router, LiveViews, components |
 | `priv/repo/migrations/` | Ecto migrations (auto-generated from Ash resources) |
@@ -48,6 +48,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 ## Architecture Principles
 
+- **Ash is the only data interface.** Never write raw SQL queries or use `Ecto.Query` / `Repo` directly. All database reads and writes go through Ash actions. If Ash doesn't have the necessary action or capability for an operation, plan and implement the missing Ash action first — never bypass Ash with manual queries.
 - **This app owns all writes.** Only the manager writes `images/`. The `user-interface` never writes these files.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
@@ -180,6 +181,35 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 - **GenServer internals** (Watcher, Config, MpvSession, PlaybackManager) — implementation details, not contracts.
 - **LiveView DOM** — LiveViews are thin presentation layers. Test the data contracts they consume, not the DOM they render.
 - **External API calls** in normal runs — tag `@tag :external` and exclude from default `mix test`.
+
+## Parser
+
+`lib/media_manager/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode.
+
+### Test-First Workflow
+
+- **Test-first, always.** Every parser bug or new pattern starts with a failing test. Write the test with the real file path, assert the expected result, watch it fail, then fix the parser.
+- **Real paths only.** Every test case uses a real file path observed in the wild — never synthetic/invented paths. Include the full path as it appeared on disk.
+- **One test per pattern.** Each distinct filename convention gets its own test case with a descriptive test name explaining what makes it unique.
+- **No silent regressions.** Run the full parser test suite after every change. A green suite is the only definition of "done."
+- **Document the pattern.** When adding a test for a new filename pattern, the test name should describe what's distinctive about it (e.g., "bare episode file inside abbreviated season directory").
+- **NEVER delete or remove parser tests.** Every existing test case represents a real filename pattern observed in the wild. Removing a test risks silently reintroducing a regression for that pattern. If a parser change causes an existing test to fail, fix the parser — do not delete or weaken the test. Tests may only be added, never removed.
+
+### Architecture
+
+**Decision tree:** `candidate_name/1` selects the best text source → pattern matching (TV → season pack → movie → unknown) → title cleaning.
+
+**`candidate_name/1` fallback chain:**
+1. Parent is a season directory (`Season 1`, `S01`) → use grandparent (show name) + filename base
+2. Filename is a bare episode marker (`S01E03`) → use parent directory + filename base
+3. Filename is generic or very short lowercase → use parent directory
+4. Otherwise → use filename base
+
+**Quality token stripping:** bracket patterns first, then quality keywords, then release groups.
+
+**TV title extraction:** strips year tokens, cleans title, strips trailing season markers (`S01`), falls back to directory names when the result is empty.
+
+**Key constraint:** TV pattern `(.+?)SxxExx` requires at least one character before the S marker — bare episode filenames like `S01E03.mkv` won't match TV on their own, which is why `candidate_name/1` must prepend the show name from ancestor directories.
 
 ## Variable Naming
 

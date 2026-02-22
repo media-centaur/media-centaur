@@ -14,18 +14,14 @@ defmodule MediaManager.Config do
   end
 
   def get(key) do
-    GenServer.call(__MODULE__, {:get, key})
+    :persistent_term.get({__MODULE__, :config}) |> Map.get(key)
   end
 
   @impl true
   def init(_) do
     config = load_config()
+    :persistent_term.put({__MODULE__, :config}, config)
     {:ok, config}
-  end
-
-  @impl true
-  def handle_call({:get, key}, _from, config) do
-    {:reply, Map.get(config, key), config}
   end
 
   defp load_config do
@@ -38,7 +34,15 @@ defmodule MediaManager.Config do
       auto_approve_threshold: Application.get_env(:media_manager, :auto_approve_threshold),
       mpv_path: "mpv",
       mpv_socket_dir: "/tmp",
-      mpv_socket_timeout_ms: 5000
+      mpv_socket_timeout_ms: 5000,
+      extras_dirs: [
+        "Extras",
+        "Featurettes",
+        "Special Features",
+        "Behind The Scenes",
+        "Bonus",
+        "Deleted Scenes"
+      ]
     }
 
     path = Path.expand(@config_path)
@@ -72,7 +76,8 @@ defmodule MediaManager.Config do
       mpv_path: get_in(toml, ["playback", "mpv_path"]) || defaults.mpv_path,
       mpv_socket_dir: get_in(toml, ["playback", "socket_dir"]) || defaults.mpv_socket_dir,
       mpv_socket_timeout_ms:
-        get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms
+        get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms,
+      extras_dirs: get_in(toml, ["pipeline", "extras_dirs"]) || defaults.extras_dirs
     }
   end
 

@@ -77,7 +77,8 @@ defmodule MediaManager.MixProject do
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:file_system, "~> 1.0"},
       {:broadway, "~> 1.1"},
-      {:toml, "~> 0.7"}
+      {:toml, "~> 0.7"},
+      {:tidewave, "~> 0.5", only: :dev}
     ]
   end
 

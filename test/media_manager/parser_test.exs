@@ -1,3 +1,9 @@
+# POLICY: NEVER delete or remove tests from this file. Every test case represents
+# a real filename pattern observed in the wild. Removing a test risks silently
+# reintroducing a regression for that pattern. If a parser change causes an
+# existing test to fail, fix the parser — do not delete or weaken the test.
+# Tests may only be added, never removed.
+
 defmodule MediaManager.ParserTest do
   use ExUnit.Case, async: true
 
@@ -411,6 +417,23 @@ defmodule MediaManager.ParserTest do
     end
   end
 
+  # ─── TV: bare episode file with show name in ancestor directory ───────
+
+  describe "tv — bare episode file with show name in ancestor directory" do
+    test "S01E03 inside S01 dir with show name and year in grandparent pack directory" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show Fifteen.2025.S01.Hybrid.MULTI.2160p.WEB-DL.DV.HDR.H265-AOC/S01/S01E03.mkv"
+        )
+
+      assert result.title == "Sample Show Fifteen"
+      assert result.year == 2025
+      assert result.season == 1
+      assert result.episode == 3
+      assert result.type == :tv
+    end
+  end
+
   # ─── TV: season pack directory names ──────────────────────────────────────
 
   describe "tv — season pack directory (no episode)" do
@@ -435,6 +458,77 @@ defmodule MediaManager.ParserTest do
       assert result.title == "Sample Show Ten"
       assert result.season == 1
       assert result.type == :tv
+    end
+  end
+
+  # ─── Extra: file inside extras directory ──────────────────────────────────
+
+  describe "extra — file inside extras directory" do
+    test "Criterion release Extras/ subdirectory" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE/Extras/Like Home.mkv"
+        )
+
+      assert result.title == "Like Home"
+      assert result.type == :extra
+      assert result.parent_title == "Sample Movie One"
+      assert result.parent_year == 1967
+    end
+
+    test "Special Features directory with no year in parent" do
+      result =
+        Parser.parse("/mnt/videos/Videos/Some Movie Collection/Special Features/Making Of.mkv")
+
+      assert result.title == "Making Of"
+      assert result.type == :extra
+      assert result.parent_title == "Some Movie Collection"
+      assert result.parent_year == nil
+    end
+
+    test "Behind The Scenes directory" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Alien.1979.Directors.Cut.1080p.BluRay-FGT/Behind The Scenes/Production Gallery.mkv"
+        )
+
+      assert result.title == "Production Gallery"
+      assert result.type == :extra
+      assert result.parent_title == "Alien"
+      assert result.parent_year == 1979
+    end
+
+    test "case-insensitive extras directory matching" do
+      result =
+        Parser.parse("/mnt/videos/Videos/Alien.1979.UHD.BluRay/extras/Final Cut.mkv")
+
+      assert result.title == "Final Cut"
+      assert result.type == :extra
+      assert result.parent_title == "Alien"
+      assert result.parent_year == 1979
+    end
+
+    test "custom extras_dirs option" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Some.Movie.2020.BluRay/supplements/Interview.mkv",
+          extras_dirs: ["supplements"]
+        )
+
+      assert result.title == "Interview"
+      assert result.type == :extra
+      assert result.parent_title == "Some Movie"
+      assert result.parent_year == 2020
+    end
+
+    test "non-extras directory is not detected as extra" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE.mkv"
+        )
+
+      assert result.type == :movie
+      refute result.type == :extra
     end
   end
 

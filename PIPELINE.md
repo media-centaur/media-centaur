@@ -170,6 +170,24 @@ The pipeline is designed to be safe to re-run and safe under concurrent processi
 
 ---
 
+## Extras (Bonus Features)
+
+Movie extras (featurettes, behind-the-scenes, deleted scenes) are video files inside a subdirectory of a movie release — commonly named `Extras/`, `Featurettes/`, `Special Features/`, etc. The directory names are configurable via `extras_dirs` in `media-manager.toml`.
+
+**Detection:** The parser (`MediaManager.Parser`) checks whether the file's parent directory name matches the configured extras list (case-insensitive) **before** running the normal candidate/pattern logic. When matched, it returns `type: :extra` with the cleaned filename as `title`, and the grandparent directory parsed as `parent_title` / `parent_year`.
+
+**Pipeline flow for extras:**
+
+1. **ParseFileName** passes the configured `extras_dirs` to the parser. When `type: :extra`, it sets `search_title` to `parent_title` and `parsed_year` to `parent_year`, so SearchTmdb searches for the parent movie (not the extra itself).
+2. **SearchTmdb** routes `:extra` to the `:movie` search path — extras share the parent movie's TMDB match.
+3. **FetchMetadata / EntityResolver** — for a new entity, creates the parent movie Entity (without setting `content_url` to the extra's file path) and then creates an `Extra` record linking the bonus feature to the entity. For an existing entity, only creates the `Extra` record.
+4. **DownloadImages** downloads artwork for the parent movie entity only — extras have no separate artwork.
+5. **Serializer** outputs extras as `hasPart` containing `@type: "VideoObject"` entries within the parent Movie entity.
+
+**Key invariant:** The parent movie's `content_url` is never set to the extra's file path. Only standalone movie files set `content_url` on the Entity. Extras get their own `content_url` in the `Extra` record.
+
+---
+
 ## Future Stages
 
 - **Re-processing** — After manual approval in the admin UI, the approved file can be re-queued for `:fetch_metadata`
