@@ -36,6 +36,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `lib/media_manager_web/channels/` | Phoenix Channels: UserSocket, LibraryChannel, PlaybackChannel (WebSocket API for the UI) |
 | `lib/media_manager_web/` | Phoenix web layer: router, LiveViews, components |
 | `priv/repo/migrations/` | Ecto migrations (auto-generated from Ash resources) |
+| `test/media_manager_web/channels/` | Channel tests: library and playback wire format verification (use `ChannelCase`) |
 | `test/` | ExUnit tests |
 | `assets/` | JS and CSS source (esbuild + Tailwind v4) |
 | `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
@@ -81,6 +82,7 @@ Cross-component specifications live in the **[freedia-center/specifications](htt
 | [`PLAYBACK.md`](../specifications/PLAYBACK.md) | MPV integration, watch progress data model, resume algorithm, progress reporting |
 | [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for `media.json` (legacy) — entity types, field names, sub-types, examples |
 | [`IMAGE-CACHING.md`](../specifications/IMAGE-CACHING.md) | Image roles, directory layout, remote URL patterns, manager/UI responsibilities |
+| [`TESTING.md`](../specifications/TESTING.md) | Automated and manual testing guide for both components |
 
 ### Reading the Specs
 
