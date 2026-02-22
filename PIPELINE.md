@@ -98,7 +98,7 @@ The Broadway module that orchestrates file processing.
    - Updates `Image` records' `content_url` with the local relative path
    - Individual image failures are logged as warnings but do not block completion — all downloadable images are attempted
    - Always transitions to `:complete`
-4. The Broadway **batcher** (concurrency 1, batch size 10, timeout 5s) collects completed messages and calls `JsonWriter.regenerate_all()` once per batch to export the full DB to `media.json`
+4. The Broadway **batcher** (concurrency 1, batch size 10, timeout 5s) collects completed messages, broadcasts `library:entity_added`/`library:entity_updated` via PubSub (pushing to connected UIs over Phoenix Channels), and calls `JsonWriter.regenerate_all()` once per batch to export the full DB to `media.json` (if `media_json_enabled`)
 5. If the file reached `:pending_review`, processing stops — the file awaits human review in the admin UI
 
 **Error handling:** If any action fails, the Broadway message is marked as failed with the error reason. The WatchedFile's state reflects where the failure occurred (`:searching`, `:error`, etc.).
