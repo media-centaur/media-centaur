@@ -14,7 +14,7 @@ defmodule MediaManager.Library.Movie do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :create do
       primary? true

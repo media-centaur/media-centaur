@@ -145,5 +145,42 @@ defmodule MediaManagerWeb.LibraryChannelTest do
       removed_wire = json_roundtrip(removed_payload)
       assert removed_wire == %{"ids" => [removed.id]}
     end
+
+    test "large entity update is batched into multiple pushes" do
+      entities = for i <- 1..55, do: create_entity(%{type: :movie, name: "Batch Movie #{i}"})
+      socket = join_library()
+
+      entity_ids = Enum.map(entities, & &1.id)
+      send(socket.channel_pid, {:entities_changed, entity_ids})
+
+      assert_push "library:entities", first_payload
+      assert_push "library:entities", second_payload
+      refute_push "library:entities", _
+
+      first_wire = json_roundtrip(first_payload)
+      second_wire = json_roundtrip(second_payload)
+
+      assert length(first_wire["entities"]) == 50
+      assert length(second_wire["entities"]) == 5
+    end
+
+    test "large removal list is batched into multiple pushes" do
+      entities = for i <- 1..55, do: create_entity(%{type: :movie, name: "Remove Movie #{i}"})
+      socket = join_library()
+
+      entity_ids = Enum.map(entities, & &1.id)
+      Enum.each(entities, &Ash.destroy!/1)
+      send(socket.channel_pid, {:entities_changed, entity_ids})
+
+      assert_push "library:entities_removed", first_payload
+      assert_push "library:entities_removed", second_payload
+      refute_push "library:entities_removed", _
+
+      first_wire = json_roundtrip(first_payload)
+      second_wire = json_roundtrip(second_payload)
+
+      assert length(first_wire["ids"]) == 50
+      assert length(second_wire["ids"]) == 5
+    end
   end
 end

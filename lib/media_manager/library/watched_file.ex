@@ -17,7 +17,7 @@ defmodule MediaManager.Library.WatchedFile do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :detect do
       accept [:file_path]

@@ -23,12 +23,7 @@ defmodule MediaManagerWeb.LibraryChannel do
     entities = build_entity_list()
     known_ids = MapSet.new(entities, fn entity -> entity["@id"] end)
 
-    entities
-    |> Enum.chunk_every(@batch_size)
-    |> Enum.each(fn batch ->
-      push(socket, "library:entities", %{entities: batch})
-    end)
-
+    push_batched(socket, "library:entities", entities, :entities)
     push(socket, "library:sync_complete", %{})
 
     {:noreply, assign(socket, :known_entity_ids, known_ids)}
@@ -53,14 +48,24 @@ defmodule MediaManagerWeb.LibraryChannel do
         end
       end)
 
-    if updated != [], do: push(socket, "library:entities", %{entities: Enum.reverse(updated)})
-    if removed != [], do: push(socket, "library:entities_removed", %{ids: Enum.reverse(removed)})
+    push_batched(socket, "library:entities", Enum.reverse(updated), :entities)
+    push_batched(socket, "library:entities_removed", Enum.reverse(removed), :ids)
 
     {:noreply, assign(socket, :known_entity_ids, new_known_ids)}
   end
 
   @impl true
   def handle_info(_message, socket), do: {:noreply, socket}
+
+  defp push_batched(_socket, _event, [], _key), do: :ok
+
+  defp push_batched(socket, event, items, key) do
+    items
+    |> Enum.chunk_every(@batch_size)
+    |> Enum.each(fn batch ->
+      push(socket, event, %{key => batch})
+    end)
+  end
 
   defp load_entity_payload(entity_id) do
     case Ash.get(Entity, entity_id, action: :with_associations) do

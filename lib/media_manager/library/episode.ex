@@ -13,7 +13,7 @@ defmodule MediaManager.Library.Episode do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :create do
       primary? true
