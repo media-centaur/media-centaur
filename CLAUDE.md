@@ -140,15 +140,46 @@ Every implementation plan must include a **Smoke Tests** section identifying whi
 
 ## Testing Strategy
 
-This app is in a volatile prototype state. Keep the test suite **minimal and seam-focused**:
+**Test-first.** Write tests before implementation for all new features and bug fixes. Tests are the executable specification — if you can't write the test, the requirements aren't clear enough.
 
-- **Only test stable contracts** — things whose silent failure would be a disaster.
-- **Do not test GenServer internals** (Watcher state machine, Config loading) — they change too often.
-- **Do not test LiveView interactions** (PubSub updates, DOM state) — defer until features stabilise.
-- The integration seam worth testing: Ash resource actions (DB round-trips) and the root route (wiring check).
-- All integration tests live in `test/media_manager/integration_test.exs` and use `DataCase`.
-- Add a new test only when: (a) a regression just burned you, or (b) a feature is stable and its contract is clear.
-- When implementing a plan, always write the smoke tests identified in the plan as part of the implementation — not as a follow-up task.
+### Test Organization
+
+Tests mirror `lib/` by domain. Each module gets its own test file.
+
+| Test path | Tests for | `async` | Case |
+|-----------|-----------|---------|------|
+| `test/media_manager/parser_test.exs` | `Parser` | yes | `ExUnit.Case` |
+| `test/media_manager/serializer_test.exs` | `Serializer` | yes | `ExUnit.Case` |
+| `test/media_manager/tmdb/mapper_test.exs` | `TMDB.Mapper` | yes | `ExUnit.Case` |
+| `test/media_manager/tmdb/confidence_test.exs` | `TMDB.Confidence` | yes | `ExUnit.Case` |
+| `test/media_manager/playback/resume_test.exs` | `Playback.Resume` | yes | `ExUnit.Case` |
+| `test/media_manager/playback/progress_summary_test.exs` | `Playback.ProgressSummary` | yes | `ExUnit.Case` |
+| `test/media_manager/library/entity_test.exs` | Entity Ash actions | no | `DataCase` |
+| `test/media_manager/library/watched_file_test.exs` | WatchedFile actions | no | `DataCase` |
+| `test/media_manager/library/watch_progress_test.exs` | WatchProgress actions | no | `DataCase` |
+| `test/media_manager_web/channels/library_channel_test.exs` | Library channel contract | no | `ChannelCase` |
+| `test/media_manager_web/channels/playback_channel_test.exs` | Playback channel contract | no | `ChannelCase` |
+
+### Pure Function Tests vs Resource Tests
+
+- **Pure function modules** (Parser, Serializer, Mapper, Confidence, Resume, ProgressSummary) use `async: true` and build struct literals via factory — no database.
+- **Ash resource tests** (Entity, WatchedFile, WatchProgress) use `DataCase` and exercise Ash actions against the real database.
+- **Channel tests** use `ChannelCase` and verify wire format contracts.
+
+### Shared Test Factory
+
+`test/support/factory.ex` provides `MediaManager.TestFactory`:
+
+- `build_*` functions return plain structs with sensible defaults (no DB). Use for pure function tests.
+- `create_*` functions persist via Ash actions and return loaded records. Use for resource and channel tests.
+
+All tests that need test data use the factory. Never inline `Ash.Changeset.for_create` boilerplate in tests.
+
+### What We Never Test
+
+- **GenServer internals** (Watcher, Config, MpvSession, PlaybackManager) — implementation details, not contracts.
+- **LiveView DOM** — LiveViews are thin presentation layers. Test the data contracts they consume, not the DOM they render.
+- **External API calls** in normal runs — tag `@tag :external` and exclude from default `mix test`.
 
 ## Variable Naming
 

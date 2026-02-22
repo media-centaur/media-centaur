@@ -11,33 +11,25 @@ defmodule MediaManager.Pipeline.ImageDownloader do
   def download_all(entity) do
     images_dir = MediaManager.Config.get(:media_images_dir)
 
-    # Download entity-level images (directory = entity.id)
-    entity_results =
-      entity.images
-      |> filter_pending()
-      |> Enum.map(fn image ->
-        case download_image(image, entity.id, images_dir) do
-          :ok -> :ok
-          {:error, reason} -> {:error, image.role, reason}
-        end
-      end)
+    entity_results = download_pending_images(entity.images, entity.id, images_dir)
 
-    # Download child movie images (directory = movie.id)
     movie_results =
       (entity.movies || [])
       |> Enum.flat_map(fn movie ->
-        movie.images
-        |> filter_pending()
-        |> Enum.map(fn image ->
-          case download_image(image, movie.id, images_dir) do
-            :ok -> :ok
-            {:error, reason} -> {:error, image.role, reason}
-          end
+        download_pending_images(movie.images, movie.id, images_dir)
+      end)
+
+    episode_results =
+      (entity.seasons || [])
+      |> Enum.flat_map(fn season ->
+        (season.episodes || [])
+        |> Enum.flat_map(fn episode ->
+          download_pending_images(episode.images, episode.id, images_dir)
         end)
       end)
 
     failures =
-      (entity_results ++ movie_results)
+      (entity_results ++ movie_results ++ episode_results)
       |> Enum.filter(&match?({:error, _, _}, &1))
 
     for {:error, role, reason} <- failures do
@@ -47,6 +39,17 @@ defmodule MediaManager.Pipeline.ImageDownloader do
     end
 
     :ok
+  end
+
+  defp download_pending_images(images, owner_id, images_dir) do
+    images
+    |> filter_pending()
+    |> Enum.map(fn image ->
+      case download_image(image, owner_id, images_dir) do
+        :ok -> :ok
+        {:error, reason} -> {:error, image.role, reason}
+      end
+    end)
   end
 
   defp filter_pending(images) do
