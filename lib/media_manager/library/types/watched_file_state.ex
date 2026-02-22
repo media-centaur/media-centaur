@@ -10,6 +10,7 @@ defmodule MediaManager.Library.Types.WatchedFileState do
       :fetching_images,
       :complete,
       :error,
-      :removed
+      :removed,
+      :dismissed
     ]
 end

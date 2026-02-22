@@ -13,6 +13,7 @@ defmodule MediaManager.Application do
       {DNSCluster, query: Application.get_env(:media_manager, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MediaManager.PubSub},
       MediaManager.Config,
+      {Task.Supervisor, name: MediaManager.TaskSupervisor},
       MediaManager.Watcher.Supervisor,
       {Task, &MediaManager.Watcher.Supervisor.start_watchers/0},
       MediaManager.Pipeline,

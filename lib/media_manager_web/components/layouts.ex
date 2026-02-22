@@ -26,21 +26,22 @@ defmodule MediaManagerWeb.Layouts do
 
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
-
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
+  attr :current_path, :string, default: nil, doc: "the current request path for nav highlighting"
 
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
     <header class="navbar bg-base-200 px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
+      <div class="flex-1 flex items-center gap-1">
+        <a href="/" class="flex w-fit items-center gap-2">
           <.icon name="hero-film" class="size-6" />
           <span class="text-sm font-semibold">Media Manager</span>
         </a>
+        <nav class="ml-6 flex gap-1">
+          <.link navigate="/" class={nav_link_class(@current_path, "/")}>Dashboard</.link>
+          <.link navigate="/review" class={nav_link_class(@current_path, "/review")}>Review</.link>
+        </nav>
       </div>
       <div class="flex-none">
         <.theme_toggle />
@@ -98,6 +99,14 @@ defmodule MediaManagerWeb.Layouts do
       </.flash>
     </div>
     """
+  end
+
+  defp nav_link_class(current_path, path) do
+    if current_path == path do
+      "btn btn-sm btn-ghost btn-active"
+    else
+      "btn btn-sm btn-ghost"
+    end
   end
 
   @doc """
