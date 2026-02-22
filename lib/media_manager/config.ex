@@ -38,7 +38,8 @@ defmodule MediaManager.Config do
       auto_approve_threshold: Application.get_env(:media_manager, :auto_approve_threshold),
       mpv_path: "mpv",
       mpv_socket_dir: "/tmp",
-      mpv_socket_timeout_ms: 5000
+      mpv_socket_timeout_ms: 5000,
+      media_json_enabled: true
     }
 
     path = Path.expand(@config_path)
@@ -70,7 +71,12 @@ defmodule MediaManager.Config do
       mpv_path: get_in(toml, ["playback", "mpv_path"]) || defaults.mpv_path,
       mpv_socket_dir: get_in(toml, ["playback", "socket_dir"]) || defaults.mpv_socket_dir,
       mpv_socket_timeout_ms:
-        get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms
+        get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms,
+      media_json_enabled:
+        case get_in(toml, ["media_json_enabled"]) do
+          value when is_boolean(value) -> value
+          _ -> defaults.media_json_enabled
+        end
     }
   end
 
