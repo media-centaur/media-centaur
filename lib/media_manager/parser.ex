@@ -43,7 +43,7 @@ defmodule MediaManager.Parser do
 
   @quality_bracket_pattern ~r/[\[(][^\])]*(1080|720|2160|BluRay|WEB|x26|HEVC|HDR|DDP|AAC|YTS|TGx)[^\])]*[\])]/i
 
-  @release_group_pattern ~r/-[A-Z0-9][A-Z0-9.]*$/
+  @release_group_pattern ~r/\s*-\s*[A-Za-z0-9][A-Za-z0-9.]*$/
 
   @url_prefix_pattern ~r/^www\.\S+\s+-\s+/i
 
@@ -53,11 +53,14 @@ defmodule MediaManager.Parser do
   # NxNN pattern — e.g. "Sample Show One 7x02 - Sample Episode Toil"
   @tv_nxnn_pattern ~r/^(.+?)[.\s_-]+(\d{1,2})x(\d{2,3})(?:[.\s_-]+(.+?))?$/i
 
+  # Spelled-out "Season N Episode N" pattern — e.g. "Sample Show Four (2022) Season 5 Episode 1- Keep It Plain"
+  @tv_spelled_pattern ~r/^(.+?)\s*Season\s+(\d+)\s*Episode\s+(\d+)[.\s_-]*(.+)?$/i
+
   # Season-only pack pattern (no episode number)
   @season_pack_pattern ~r/^(.+?)[.\s_-]*[Ss](\d{1,2})[.\s_-]/i
 
-  # Year pattern for movies: 4 digits between 1900–2099 with surrounding separators
-  @year_pattern ~r/[\s.\[(]((19|20)\d{2})[\s.)\]]/
+  # Year pattern for movies: 4 digits between 1900–2099 with surrounding separators (or end-of-string)
+  @year_pattern ~r/[\s.\[(]((19|20)\d{2})(?:[\s.)\]]|$)/
 
   # Year pattern for TV: includes parentheses as valid delimiters
   @year_in_tv_title_pattern ~r/[\s._\[(]((19|20)\d{2})[\s._\])]/
@@ -67,28 +70,36 @@ defmodule MediaManager.Parser do
     extras_dirs =
       Keyword.get(opts, :extras_dirs, @default_extras_dirs ++ @default_extras_dirs_multi_word)
 
-    if extras_file?(file_path, extras_dirs) do
-      parse_extra(file_path)
-    else
-      candidate = candidate_name(file_path)
-      candidate = strip_url_prefix(candidate)
+    cond do
+      extras_file?(file_path, extras_dirs) ->
+        parse_extra(file_path, extras_dirs)
 
-      cond do
-        match = Regex.run(@tv_pattern, candidate, capture: :all_but_first) ->
-          parse_tv(file_path, candidate, match)
+      result = parse_compact_episode(file_path) ->
+        result
 
-        match = Regex.run(@tv_nxnn_pattern, candidate, capture: :all_but_first) ->
-          parse_tv(file_path, candidate, match)
+      true ->
+        candidate = candidate_name(file_path)
+        candidate = strip_url_prefix(candidate)
 
-        match = Regex.run(@season_pack_pattern, candidate, capture: :all_but_first) ->
-          parse_season_pack(file_path, match)
+        cond do
+          match = Regex.run(@tv_pattern, candidate, capture: :all_but_first) ->
+            parse_tv(file_path, candidate, match)
 
-        match = Regex.run(@year_pattern, candidate, capture: :all_but_first) ->
-          parse_movie(file_path, candidate, match)
+          match = Regex.run(@tv_nxnn_pattern, candidate, capture: :all_but_first) ->
+            parse_tv(file_path, candidate, match)
 
-        true ->
-          parse_unknown(file_path, candidate)
-      end
+          match = Regex.run(@tv_spelled_pattern, candidate, capture: :all_but_first) ->
+            parse_tv(file_path, candidate, match)
+
+          match = Regex.run(@season_pack_pattern, candidate, capture: :all_but_first) ->
+            parse_season_pack(file_path, match)
+
+          match = Regex.run(@year_pattern, candidate, capture: :all_but_first) ->
+            parse_movie(file_path, candidate, match)
+
+          true ->
+            parse_unknown(file_path, candidate)
+        end
     end
   end
 
@@ -97,15 +108,37 @@ defmodule MediaManager.Parser do
   # ---------------------------------------------------------------------------
 
   defp extras_file?(file_path, extras_dirs) do
-    parent = file_path |> Path.split() |> Enum.drop(-1) |> List.last()
-    parent && String.downcase(parent) in Enum.map(extras_dirs, &String.downcase/1)
+    find_extras_ancestor(file_path, extras_dirs) != nil
   end
 
-  defp parse_extra(file_path) do
-    extra_title = file_path |> base_without_media_extension() |> clean_title()
+  # Returns the index (in Path.split/1) of the extras directory ancestor, or nil
+  defp find_extras_ancestor(file_path, extras_dirs) do
     parts = Path.split(file_path)
-    grandparent = parts |> Enum.drop(-2) |> List.last()
-    {parent_title, parent_year, season} = parse_extra_parent(parts, grandparent)
+    downcased_dirs = Enum.map(extras_dirs, &String.downcase/1)
+
+    parts
+    |> Enum.with_index()
+    |> Enum.drop(-1)
+    |> Enum.find_value(fn {part, index} ->
+      if String.downcase(part) in downcased_dirs, do: index
+    end)
+  end
+
+  defp parse_extra(file_path, extras_dirs) do
+    parts = Path.split(file_path)
+    extras_index = find_extras_ancestor(file_path, extras_dirs)
+
+    # Directories between the extras dir and the file (e.g. Featurettes/subdir/file.mkv → ["subdir"])
+    intermediate_dirs = Enum.slice(parts, (extras_index + 1)..(length(parts) - 2)//1)
+    base = base_without_media_extension(file_path)
+
+    extra_title =
+      case intermediate_dirs do
+        [] -> clean_title(base)
+        dirs -> (dirs ++ [base]) |> Enum.join(" - ") |> clean_title()
+      end
+
+    {parent_title, parent_year, season} = parse_extra_parent(parts, extras_index)
 
     %Result{
       file_path: file_path,
@@ -120,24 +153,26 @@ defmodule MediaManager.Parser do
     }
   end
 
-  defp parse_extra_parent(parts, grandparent) do
+  defp parse_extra_parent(parts, extras_index) do
+    above_extras = if extras_index > 0, do: Enum.at(parts, extras_index - 1)
+
     cond do
-      # Layout A: grandparent is a pure season dir (Season 1, S01)
-      grandparent && season_directory?(grandparent) ->
-        season = extract_season_number(grandparent)
-        great_grandparent = parts |> Enum.drop(-3) |> List.last()
-        {title, year} = parse_parent_movie(great_grandparent)
+      # Layout A: directory above extras is a pure season dir (Season 1, S01)
+      above_extras && season_directory?(above_extras) ->
+        season = extract_season_number(above_extras)
+        two_above = if extras_index > 1, do: Enum.at(parts, extras_index - 2)
+        {title, year} = parse_parent_movie(two_above)
         {title, year, season}
 
-      # Layout B: grandparent contains embedded season marker
-      grandparent && extract_embedded_season(grandparent) != nil ->
-        season = extract_embedded_season(grandparent)
-        {title, year} = parse_parent_with_season_stripped(grandparent)
+      # Layout B: directory above extras contains embedded season marker
+      above_extras && extract_embedded_season(above_extras) != nil ->
+        season = extract_embedded_season(above_extras)
+        {title, year} = parse_parent_with_season_stripped(above_extras)
         {title, year, season}
 
-      # Movie extra (existing behavior)
+      # Movie extra
       true ->
-        {title, year} = parse_parent_movie(grandparent)
+        {title, year} = parse_parent_movie(above_extras)
         {title, year, nil}
     end
   end
@@ -274,6 +309,60 @@ defmodule MediaManager.Parser do
 
   defp strip_url_prefix(candidate) do
     Regex.replace(@url_prefix_pattern, candidate, "")
+  end
+
+  # ---------------------------------------------------------------------------
+  # Compact episode numbering (e.g. "501" = season 5, episode 01)
+  # Only matches when the file is inside a season directory.
+  # ---------------------------------------------------------------------------
+
+  # Pattern: digits followed by optional separator and episode title (e.g. "501- My Title")
+  @compact_episode_pattern ~r/^(\d{3,4})[.\s_-]*(.+)?$/
+
+  defp parse_compact_episode(file_path) do
+    parts = Path.split(file_path)
+    parent = parts |> Enum.drop(-1) |> List.last()
+    grandparent = parts |> Enum.drop(-2) |> List.last()
+    base = base_without_media_extension(file_path)
+
+    with true <- parent != nil and season_directory?(parent),
+         season_from_dir when is_integer(season_from_dir) <- extract_season_number(parent),
+         [digits, raw_episode_title] <-
+           Regex.run(@compact_episode_pattern, base, capture: :all_but_first),
+         {episode, _season_prefix} <- parse_compact_digits(digits, season_from_dir) do
+      show_name = if grandparent, do: clean_title(grandparent), else: "Unknown"
+      episode_title = extract_episode_title(raw_episode_title)
+
+      %Result{
+        file_path: file_path,
+        title: show_name,
+        year: nil,
+        type: :tv,
+        season: season_from_dir,
+        episode: episode,
+        episode_title: episode_title
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  # Split compact digits into season prefix + episode. The season prefix must match
+  # the season from the directory. E.g. "501" with season 5 → episode 01.
+  defp parse_compact_digits(digits, season_from_dir) do
+    season_str = Integer.to_string(season_from_dir)
+    season_len = String.length(season_str)
+
+    if String.starts_with?(digits, season_str) do
+      episode_str = String.slice(digits, season_len..-1//1)
+
+      case Integer.parse(episode_str) do
+        {episode, ""} when episode > 0 -> {episode, season_str}
+        _ -> nil
+      end
+    else
+      nil
+    end
   end
 
   # ---------------------------------------------------------------------------

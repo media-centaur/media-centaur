@@ -15,7 +15,7 @@ defmodule MediaManager.Pipeline do
         module: {MediaManager.Pipeline.Producer, []},
         concurrency: 1
       ],
-      processors: [default: [concurrency: 5, partition_by: &partition_key/1]],
+      processors: [default: [concurrency: 15, partition_by: &partition_key/1]],
       batchers: [default: [concurrency: 1, batch_size: 10, batch_timeout: 5_000]]
     )
   end
