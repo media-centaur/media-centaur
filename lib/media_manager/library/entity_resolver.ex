@@ -101,7 +101,7 @@ defmodule MediaManager.Library.EntityResolver do
     attrs = Mapper.movie_attrs(tmdb_id, data, file_context.file_path)
 
     with {:ok, entity} <- Ash.create(Entity, attrs, action: :create_from_tmdb),
-         :ok <- create_identifier_with_race_retry(entity, tmdb_id),
+         :ok <- create_identifier_with_race_retry(entity, "tmdb", tmdb_id),
          :ok <- create_images(entity, data) do
       {:ok, entity, :new}
     else
@@ -148,7 +148,7 @@ defmodule MediaManager.Library.EntityResolver do
         attrs = Mapper.movie_series_attrs(collection_id, collection_data)
 
         with {:ok, entity} <- Ash.create(Entity, attrs, action: :create_from_tmdb),
-             :ok <- create_collection_identifier_with_race_retry(entity, collection_id),
+             :ok <- create_identifier_with_race_retry(entity, "tmdb_collection", collection_id),
              :ok <- create_collection_images(entity, collection_data) do
           position = determine_position_from_parts(collection_data["parts"], tmdb_id)
 
@@ -252,44 +252,12 @@ defmodule MediaManager.Library.EntityResolver do
     end
   end
 
-  defp create_collection_identifier_with_race_retry(entity, collection_id) do
-    attrs = %{
-      property_id: "tmdb_collection",
-      value: to_string(collection_id),
-      entity_id: entity.id
-    }
-
-    case Ash.create(Identifier, attrs, action: :find_or_create) do
-      {:ok, identifier} ->
-        if identifier.entity_id == entity.id do
-          :ok
-        else
-          Ash.destroy!(entity)
-          {:race_lost, identifier.entity_id}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
   defp create_collection_images(entity, collection_data) do
-    images = Mapper.collection_image_attrs(entity.id, collection_data)
-
-    Enum.reduce_while(images, :ok, fn attrs, :ok ->
-      case Ash.create(Image, attrs, action: :find_or_create) do
-        {:ok, _} -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
+    create_images_for(Mapper.collection_image_attrs(entity.id, collection_data), :find_or_create)
   end
 
   defp create_movie_images(movie, movie_data) do
-    images = Mapper.movie_image_attrs(movie.id, movie_data)
-
-    Enum.each(images, fn attrs ->
-      Ash.create(Image, attrs, action: :find_or_create_for_movie)
-    end)
+    create_images_for(Mapper.movie_image_attrs(movie.id, movie_data), :find_or_create_for_movie)
   end
 
   # --- TV entity creation ---
@@ -298,7 +266,7 @@ defmodule MediaManager.Library.EntityResolver do
     attrs = Mapper.tv_attrs(tmdb_id, data)
 
     with {:ok, entity} <- Ash.create(Entity, attrs, action: :create_from_tmdb),
-         :ok <- create_identifier_with_race_retry(entity, tmdb_id),
+         :ok <- create_identifier_with_race_retry(entity, "tmdb", tmdb_id),
          :ok <- create_images(entity, data),
          :ok <- create_season_and_episode(entity, tmdb_id, file_context) do
       {:ok, entity, :new}
@@ -379,6 +347,8 @@ defmodule MediaManager.Library.EntityResolver do
 
     case Ash.create(Episode, attrs, action: :find_or_create) do
       {:ok, episode} ->
+        create_episode_images(episode, season_data, file_context.episode_number)
+
         if is_nil(episode.content_url) and not is_nil(file_context.file_path) do
           case Ash.update(episode, %{content_url: file_context.file_path},
                  action: :set_content_url
@@ -395,12 +365,22 @@ defmodule MediaManager.Library.EntityResolver do
     end
   end
 
+  defp create_episode_images(episode, season_data, episode_number) do
+    episodes = season_data["episodes"] || []
+    tmdb_episode = Enum.find(episodes, &(&1["episode_number"] == episode_number))
+
+    create_images_for(
+      Mapper.episode_image_attrs(episode.id, tmdb_episode),
+      :find_or_create_for_episode
+    )
+  end
+
   # --- Associations ---
 
-  defp create_identifier_with_race_retry(entity, tmdb_id) do
+  defp create_identifier_with_race_retry(entity, property_id, value) do
     attrs = %{
-      property_id: "tmdb",
-      value: to_string(tmdb_id),
+      property_id: property_id,
+      value: to_string(value),
       entity_id: entity.id
     }
 
@@ -419,10 +399,12 @@ defmodule MediaManager.Library.EntityResolver do
   end
 
   defp create_images(entity, data) do
-    images = Mapper.image_attrs(entity.id, data)
+    create_images_for(Mapper.image_attrs(entity.id, data), :find_or_create)
+  end
 
-    Enum.reduce_while(images, :ok, fn attrs, :ok ->
-      case Ash.create(Image, attrs, action: :find_or_create) do
+  defp create_images_for(image_attrs_list, action) do
+    Enum.reduce_while(image_attrs_list, :ok, fn attrs, :ok ->
+      case Ash.create(Image, attrs, action: action) do
         {:ok, _} -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end

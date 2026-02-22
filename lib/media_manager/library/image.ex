@@ -24,7 +24,7 @@ defmodule MediaManager.Library.Image do
 
     create :create do
       primary? true
-      accept [:role, :url, :content_url, :extension, :entity_id, :movie_id]
+      accept [:role, :url, :content_url, :extension, :entity_id, :movie_id, :episode_id]
 
       validate present([:role])
     end
@@ -40,6 +40,13 @@ defmodule MediaManager.Library.Image do
       accept [:role, :url, :content_url, :extension, :movie_id]
       upsert? true
       upsert_identity :unique_movie_role
+      upsert_fields []
+    end
+
+    create :find_or_create_for_episode do
+      accept [:role, :url, :content_url, :extension, :episode_id]
+      upsert? true
+      upsert_identity :unique_episode_role
       upsert_fields []
     end
   end
@@ -64,10 +71,15 @@ defmodule MediaManager.Library.Image do
     belongs_to :movie, MediaManager.Library.Movie do
       allow_nil? true
     end
+
+    belongs_to :episode, MediaManager.Library.Episode do
+      allow_nil? true
+    end
   end
 
   identities do
     identity :unique_entity_role, [:entity_id, :role]
     identity :unique_movie_role, [:movie_id, :role]
+    identity :unique_episode_role, [:episode_id, :role]
   end
 end

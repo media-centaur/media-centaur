@@ -101,6 +101,7 @@ defmodule MediaManager.Serializer do
       "duration" => episode.duration,
       "contentUrl" => episode.content_url
     }
+    |> maybe_add_images(episode)
     |> compact()
   end
 
@@ -114,7 +115,7 @@ defmodule MediaManager.Serializer do
         # 1 child movie → export as top-level Movie using child's data
         %{
           "@id" => entity.id,
-          "entity" => serialize_single_child_as_movie(single_movie, entity)
+          "entity" => serialize_child_movie(single_movie)
         }
 
       _ ->
@@ -124,24 +125,6 @@ defmodule MediaManager.Serializer do
           "entity" => serialize_as_movie_series(entity, movies)
         }
     end
-  end
-
-  defp serialize_single_child_as_movie(%Movie{} = movie, _entity) do
-    %{
-      "@type" => "Movie",
-      "name" => movie.name,
-      "description" => movie.description,
-      "datePublished" => movie.date_published,
-      "contentUrl" => movie.content_url,
-      "url" => movie.url,
-      "duration" => movie.duration,
-      "director" => movie.director,
-      "contentRating" => movie.content_rating
-    }
-    |> maybe_add_child_movie_images(movie)
-    |> maybe_add_child_movie_identifier(movie)
-    |> maybe_add_child_movie_rating(movie)
-    |> compact()
   end
 
   defp serialize_as_movie_series(%Entity{} = entity, movies) do
@@ -165,18 +148,11 @@ defmodule MediaManager.Serializer do
       "director" => movie.director,
       "contentRating" => movie.content_rating
     }
-    |> maybe_add_child_movie_images(movie)
+    |> maybe_add_images(movie)
     |> maybe_add_child_movie_identifier(movie)
     |> maybe_add_child_movie_rating(movie)
     |> compact()
   end
-
-  defp maybe_add_child_movie_images(map, %Movie{images: images}) when is_list(images) do
-    serialized = Enum.map(images, &serialize_image/1)
-    Map.put(map, "image", serialized)
-  end
-
-  defp maybe_add_child_movie_images(map, _), do: map
 
   defp maybe_add_child_movie_identifier(map, %Movie{tmdb_id: tmdb_id})
        when is_binary(tmdb_id) do
@@ -204,12 +180,15 @@ defmodule MediaManager.Serializer do
 
   defp sorted_child_movies(_), do: []
 
-  defp maybe_add_images(map, %Entity{images: images}) when is_list(images) do
-    serialized = Enum.map(images, &serialize_image/1)
-    Map.put(map, "image", serialized)
-  end
+  defp maybe_add_images(map, record) do
+    case Map.get(record, :images) do
+      images when is_list(images) ->
+        Map.put(map, "image", Enum.map(images, &serialize_image/1))
 
-  defp maybe_add_images(map, _), do: map
+      _ ->
+        map
+    end
+  end
 
   defp serialize_image(%Image{} = image) do
     %{

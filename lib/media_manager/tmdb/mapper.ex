@@ -115,6 +115,27 @@ defmodule MediaManager.TMDB.Mapper do
   def movie_image_attrs(movie_id, data), do: build_image_attrs(:movie_id, movie_id, data)
 
   @doc """
+  Builds a thumb image attribute map for an episode from TMDB episode data.
+  Returns a list with one entry if the episode has a `still_path`, or an empty list.
+  """
+  def episode_image_attrs(episode_id, tmdb_episode) do
+    still_path = tmdb_episode && tmdb_episode["still_path"]
+
+    if still_path do
+      [
+        %{
+          episode_id: episode_id,
+          role: "thumb",
+          url: tmdb_image_url(still_path),
+          extension: "jpg"
+        }
+      ]
+    else
+      []
+    end
+  end
+
+  @doc """
   Builds image attribute maps for a MovieSeries entity from collection data.
   """
   def collection_image_attrs(entity_id, data), do: build_image_attrs(:entity_id, entity_id, data)

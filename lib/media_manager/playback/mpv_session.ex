@@ -201,20 +201,20 @@ defmodule MediaManager.Playback.MpvSession do
   # --- MPV Message Handling ---
 
   defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "time-pos", "data" => pos},
+         %{"event" => "property-change", "name" => "time-pos", "data" => position},
          state
        )
-       when is_number(pos) do
-    state = %{state | position: pos}
+       when is_number(position) do
+    state = %{state | position: position}
     maybe_persist(state) |> maybe_broadcast(state)
   end
 
   defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "duration", "data" => dur},
+         %{"event" => "property-change", "name" => "duration", "data" => duration},
          state
        )
-       when is_number(dur) do
-    %{state | duration: dur}
+       when is_number(duration) do
+    %{state | duration: duration}
   end
 
   defp handle_mpv_message(

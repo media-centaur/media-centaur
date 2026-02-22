@@ -24,6 +24,7 @@ defmodule MediaManager.DataCase do
       import Ecto.Changeset
       import Ecto.Query
       import MediaManager.DataCase
+      import MediaManager.TestFactory
     end
   end
 

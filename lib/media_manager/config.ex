@@ -5,6 +5,7 @@ defmodule MediaManager.Config do
   falling back to application environment defaults.
   """
   use GenServer
+  require Logger
 
   @config_path "~/.config/freedia-center/media-manager.toml"
 
@@ -45,8 +46,12 @@ defmodule MediaManager.Config do
     case File.read(path) do
       {:ok, contents} ->
         case Toml.decode(contents) do
-          {:ok, toml} -> merge_toml(defaults, toml)
-          {:error, _} -> defaults
+          {:ok, toml} ->
+            merge_toml(defaults, toml)
+
+          {:error, error} ->
+            Logger.warning("Config: failed to parse #{path}: #{inspect(error)}, using defaults")
+            defaults
         end
 
       {:error, _} ->

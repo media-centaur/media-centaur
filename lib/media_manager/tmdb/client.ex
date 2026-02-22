@@ -35,10 +35,8 @@ defmodule MediaManager.TMDB.Client do
   def search_movie(title, year \\ nil, client \\ default_client()) do
     params = [query: title] ++ if(year, do: [year: year], else: [])
 
-    case Req.get(client, url: "/search/movie", params: params) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body["results"] || []}
-      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
+    with {:ok, body} <- get(client, url: "/search/movie", params: params) do
+      {:ok, body["results"] || []}
     end
   end
 
@@ -47,50 +45,37 @@ defmodule MediaManager.TMDB.Client do
   def search_tv(title, year \\ nil, client \\ default_client()) do
     params = [query: title] ++ if(year, do: [first_air_date_year: year], else: [])
 
-    case Req.get(client, url: "/search/tv", params: params) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body["results"] || []}
-      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
+    with {:ok, body} <- get(client, url: "/search/tv", params: params) do
+      {:ok, body["results"] || []}
     end
   end
 
   @spec get_movie(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_movie(tmdb_id, client \\ default_client()) do
-    case Req.get(client,
-           url: "/movie/#{tmdb_id}",
-           params: [append_to_response: "credits,release_dates,images"]
-         ) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
-    end
+    get(client,
+      url: "/movie/#{tmdb_id}",
+      params: [append_to_response: "credits,release_dates,images"]
+    )
   end
 
   @spec get_tv(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_tv(tmdb_id, client \\ default_client()) do
-    case Req.get(client, url: "/tv/#{tmdb_id}", params: [append_to_response: "images"]) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
-    end
+    get(client, url: "/tv/#{tmdb_id}", params: [append_to_response: "images"])
   end
 
   @spec get_collection(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_collection(collection_id, client \\ default_client()) do
-    case Req.get(client,
-           url: "/collection/#{collection_id}",
-           params: [append_to_response: "images"]
-         ) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
-    end
+    get(client, url: "/collection/#{collection_id}", params: [append_to_response: "images"])
   end
 
   @spec get_season(String.t() | integer(), integer(), Req.Request.t()) ::
           {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, client \\ default_client()) do
-    case Req.get(client, url: "/tv/#{tmdb_id}/season/#{season_number}") do
+    get(client, url: "/tv/#{tmdb_id}/season/#{season_number}")
+  end
+
+  defp get(client, opts) do
+    case Req.get(client, opts) do
       {:ok, %{status: 200, body: body}} -> {:ok, body}
       {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
       {:error, reason} -> {:error, reason}
