@@ -2,7 +2,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 
 # Freedia Center — Media Manager
 
-A Phoenix/Elixir web application that manages the Freedia Center media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The `user-interface` app consumes its output as a read-only consumer.
+A Phoenix/Elixir web application that manages the Freedia Center media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The `user-interface` app connects via WebSocket (Phoenix Channels) to receive library data, send playback commands, and get real-time updates.
 
 ## Build & Run
 
@@ -49,10 +49,11 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 ## Architecture Principles
 
-- **This app owns all writes.** Only the manager writes `media.json` and `images/`. The `user-interface` never writes these files.
+- **This app owns all writes.** Only the manager writes `images/` and generates `media.json`. The `user-interface` never writes these files.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
-- **Phoenix Channels is the primary integration point.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend pushes all data and state changes in real time. `media.json` is a legacy fallback still generated during the transition.
+- **Phoenix Channels is the integration point with the UI.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend sends the full library on join and pushes all data and state changes in real time. The UI does **not** read `media.json` — it receives all data over the WebSocket.
+- **`media.json` is a backend-only export.** It is still generated for external tooling and debugging, but the UI does not consume it. The `media_json_enabled` config flag controls whether it is written.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
 - **External API clients use `Req`.** Never use `:httpoison`, `:tesla`, or `:httpc`. `Req` is included and is the preferred HTTP client.
 
@@ -80,7 +81,7 @@ Cross-component specifications live in the **[freedia-center/specifications](htt
 | [`COMPONENTS.md`](../specifications/COMPONENTS.md) | System architecture — how the manager and user-interface relate; responsibilities, integration contract |
 | [`API.md`](../specifications/API.md) | Phoenix Channels WebSocket API — connection, channel topics, message schemas, error handling |
 | [`PLAYBACK.md`](../specifications/PLAYBACK.md) | MPV integration, watch progress data model, resume algorithm, progress reporting |
-| [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for `media.json` (legacy) — entity types, field names, sub-types, examples |
+| [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for entity data — entity types, field names, sub-types, examples |
 | [`IMAGE-CACHING.md`](../specifications/IMAGE-CACHING.md) | Image roles, directory layout, remote URL patterns, manager/UI responsibilities |
 | [`TESTING.md`](../specifications/TESTING.md) | Automated and manual testing guide for both components |
 
@@ -88,7 +89,7 @@ Cross-component specifications live in the **[freedia-center/specifications](htt
 
 - **Before writing any code that touches the WebSocket API** (channels, messages, join replies), read `API.md` in full.
 - **Before writing any playback, resume, or watch progress code**, read `PLAYBACK.md` in full.
-- **Before writing any code that reads or writes `media.json`**, read `DATA-FORMAT.md` in full.
+- **Before writing any code that serializes entities** (for `media.json` or channel pushes), read `DATA-FORMAT.md` in full.
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
 - **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
 - Field names (`name`, `datePublished`, `contentUrl`, `containsSeason`, etc.) and type names (`Movie`, `TVSeries`, `VideoGame`, `ImageObject`, `PropertyValue`) are schema.org identifiers — do not rename them.

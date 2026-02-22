@@ -13,16 +13,17 @@ database_path = "~/.local/share/freedia-center/media-manager.db"
 # Add multiple directories to watch media across several drives/mounts.
 watch_dirs = ["/mnt/videos/Videos"]
 
-# Path to the media library JSON file, read by the user-interface.
-# Must match the path the user-interface is configured to read from.
+# Path to the media library JSON export file (optional, for external tooling/debugging).
+# The user-interface does NOT read this file — it receives data via Phoenix Channels.
 shared_media_library = "~/.local/share/freedia-center/media.json"
 
 # Directory for cached artwork images, one subdirectory per entity UUID.
-# Must match the path the user-interface is configured to read from.
+# Shared with the user-interface (UI resolves image paths relative to this dir).
 media_images_dir = "~/.local/share/freedia-center/images"
 
 # Whether to write media.json on every pipeline batch.
-# Set to false when the user-interface connects exclusively via WebSocket.
+# The user-interface does not read media.json — set to false to skip the export.
+# Useful to keep enabled for external scripts, debugging, or data portability.
 media_json_enabled = true
 
 [tmdb]
