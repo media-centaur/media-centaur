@@ -1,4 +1,8 @@
 defmodule MediaManagerWeb.LibraryChannel do
+  @moduledoc """
+  Serves the media library over Phoenix Channels. Sends the full entity list
+  on join and pushes incremental adds/updates/removals via PubSub.
+  """
   use Phoenix.Channel
 
   alias MediaManager.Library.Entity
