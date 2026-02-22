@@ -29,3 +29,11 @@ api_key = ""
 # Confidence score threshold (0.0–1.0). Matches at or above this score are
 # written automatically. Below it, the item is queued for human review.
 auto_approve_threshold = 0.85
+
+[playback]
+# Path to the mpv binary. Uses system PATH by default.
+mpv_path = "mpv"
+# Directory for MPV IPC sockets. Must be writable.
+socket_dir = "/tmp"
+# Timeout in ms for connecting to the MPV IPC socket after launch.
+socket_timeout_ms = 5000

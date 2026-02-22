@@ -41,7 +41,7 @@ defmodule MediaManager.Pipeline do
     if has_entity do
       case MediaManager.JsonWriter.regenerate_all() do
         :ok ->
-          :ok
+          Phoenix.PubSub.broadcast(MediaManager.PubSub, "library:updates", :library_changed)
 
         {:error, reason} ->
           Logger.warning("Pipeline: batch JSON export failed: #{inspect(reason)}")

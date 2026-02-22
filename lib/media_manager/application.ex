@@ -17,6 +17,7 @@ defmodule MediaManager.Application do
       MediaManager.Watcher.Supervisor,
       {Task, &MediaManager.Watcher.Supervisor.start_watchers/0},
       MediaManager.Pipeline,
+      MediaManager.Playback.Manager,
       MediaManagerWeb.Endpoint
     ]
 
