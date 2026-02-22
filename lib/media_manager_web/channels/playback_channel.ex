@@ -152,7 +152,9 @@ defmodule MediaManagerWeb.PlaybackChannel do
   end
 
   defp load_progress(entity_id) do
-    Ash.read!(WatchProgress, action: :for_entity, args: [entity_id: entity_id])
+    WatchProgress
+    |> Ash.Query.for_read(:for_entity, %{entity_id: entity_id})
+    |> Ash.read!()
   end
 
   defp resolve_playback(entity, progress_records) do

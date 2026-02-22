@@ -23,7 +23,8 @@ defmodule MediaManagerWeb.ReviewLive do
      |> assign(search_query: "")
      |> assign(search_type: :movie)
      |> assign(search_results: [])
-     |> assign(searching: false)}
+     |> assign(searching: false)
+     |> assign(searched: false)}
   end
 
   @impl true
@@ -65,7 +66,8 @@ defmodule MediaManagerWeb.ReviewLive do
      |> assign(search_query: (file && file.parsed_title) || "")
      |> assign(search_type: search_type)
      |> assign(search_results: [])
-     |> assign(searching: false)}
+     |> assign(searching: false)
+     |> assign(searched: false)}
   end
 
   def handle_event("close_search", _params, socket) do
@@ -74,7 +76,8 @@ defmodule MediaManagerWeb.ReviewLive do
      |> assign(search_open: nil)
      |> assign(search_query: "")
      |> assign(search_results: [])
-     |> assign(searching: false)}
+     |> assign(searching: false)
+     |> assign(searched: false)}
   end
 
   def handle_event("search", %{"query" => query, "type" => type}, socket) do
@@ -83,12 +86,12 @@ defmodule MediaManagerWeb.ReviewLive do
 
     case Review.search_tmdb(query, type) do
       {:ok, results} ->
-        {:noreply, assign(socket, search_results: results, searching: false)}
+        {:noreply, assign(socket, search_results: results, searching: false, searched: true)}
 
       {:error, _reason} ->
         {:noreply,
          socket
-         |> assign(search_results: [], searching: false)
+         |> assign(search_results: [], searching: false, searched: true)
          |> put_flash(:error, "TMDB search failed")}
     end
   end
@@ -165,6 +168,7 @@ defmodule MediaManagerWeb.ReviewLive do
             search_type={@search_type}
             search_results={@search_results}
             searching={@searching}
+            searched={@searched}
           />
         </div>
       </div>
@@ -213,6 +217,12 @@ defmodule MediaManagerWeb.ReviewLive do
               </span>
               <span class="badge badge-sm badge-outline ml-1">
                 {format_type(@file.parsed_type)}
+              </span>
+              <span
+                :if={@file.season_number && @file.episode_number}
+                class="text-base-content/60 ml-1"
+              >
+                · S{zero_pad(@file.season_number)}E{zero_pad(@file.episode_number)}
               </span>
             </p>
 
@@ -272,6 +282,7 @@ defmodule MediaManagerWeb.ReviewLive do
           type={@search_type}
           results={@search_results}
           searching={@searching}
+          searched={@searched}
         />
       </div>
     </div>
@@ -281,6 +292,16 @@ defmodule MediaManagerWeb.ReviewLive do
   defp search_panel(assigns) do
     ~H"""
     <div class="mt-4 border border-base-300 rounded-lg p-4 space-y-3">
+      <p :if={@type == :tv} class="text-sm text-base-content/70">
+        Match this episode to a TV series.
+        <span :if={@file.season_number && @file.episode_number}>
+          Season {@file.season_number}, Episode {@file.episode_number} already parsed from the filename.
+        </span>
+      </p>
+      <p :if={@type != :tv} class="text-sm text-base-content/70">
+        Find the correct title for this file.
+      </p>
+
       <form phx-submit="search" class="flex gap-2 items-end">
         <div class="form-control flex-1">
           <label class="label py-0"><span class="label-text text-xs">Search</span></label>
@@ -289,7 +310,9 @@ defmodule MediaManagerWeb.ReviewLive do
             name="query"
             value={@query}
             class="input input-bordered input-sm w-full"
-            placeholder="Title..."
+            placeholder={
+              if @type == :tv, do: "Show name, e.g. Sample Show One", else: "Movie title, e.g. The Matrix"
+            }
           />
         </div>
         <div class="form-control">
@@ -306,6 +329,16 @@ defmodule MediaManagerWeb.ReviewLive do
           Cancel
         </button>
       </form>
+
+      <p class="text-xs text-base-content/50">
+        {if @type == :tv,
+          do: "Search by show name only — season and episode numbers are stripped automatically.",
+          else: "Search by movie title. Year is optional and will be ignored."}
+      </p>
+
+      <p :if={@results == [] && @searched} class="text-sm text-base-content/50">
+        No results found. Try a simpler title — leave out years, seasons, and episode numbers.
+      </p>
 
       <div :if={@results != []} class="space-y-2">
         <div
@@ -367,6 +400,9 @@ defmodule MediaManagerWeb.ReviewLive do
   defp format_type(:unknown), do: "Unknown"
   defp format_type(nil), do: "Unknown"
   defp format_type(type), do: type |> to_string() |> String.capitalize()
+
+  defp zero_pad(number) when number < 10, do: "0#{number}"
+  defp zero_pad(number), do: "#{number}"
 
   defp confidence_badge_class(score) when score >= 0.8, do: "badge-success"
   defp confidence_badge_class(score) when score >= 0.5, do: "badge-warning"

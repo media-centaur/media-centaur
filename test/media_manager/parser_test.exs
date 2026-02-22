@@ -347,6 +347,19 @@ defmodule MediaManager.ParserTest do
       assert result.episode == 5
       assert result.type == :tv
     end
+
+    test "Sample Show One: NxNN format (7x02) inside Season directory" do
+      result =
+        Parser.parse(
+          "/home/shawn/videos/media-library/Sample Show One/Season 7/Sample Show One 7x02 - Sample Episode Toil.avi"
+        )
+
+      assert result.title == "Sample Show One"
+      assert result.season == 7
+      assert result.episode == 2
+      assert result.episode_title == "Sample Episode Toil"
+      assert result.type == :tv
+    end
   end
 
   describe "tv — episode file inside show+season directory (show name in file)" do
