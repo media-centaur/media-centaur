@@ -25,7 +25,9 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
   end
 
   defp search_and_apply(changeset, parsed_title, parsed_year, parsed_type) do
-    case search(parsed_title, parsed_year, parsed_type) do
+    search_type = effective_search_type(changeset, parsed_type)
+
+    case search(parsed_title, parsed_year, search_type) do
       {:ok, []} ->
         Ash.Changeset.change_attribute(changeset, :state, :pending_review)
 
@@ -52,7 +54,11 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
     end
   end
 
-  defp search(title, year, :extra), do: search(title, year, :movie)
+  defp effective_search_type(changeset, :extra) do
+    if Ash.Changeset.get_attribute(changeset, :season_number), do: :tv, else: :movie
+  end
+
+  defp effective_search_type(_changeset, type), do: type
 
   defp search(title, year, :movie) do
     with {:ok, results} <- Client.search_movie(title, year) do

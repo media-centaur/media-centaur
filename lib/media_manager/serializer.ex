@@ -83,8 +83,21 @@ defmodule MediaManager.Serializer do
       "name" => season.name,
       "episode" => serialize_episodes(season.episodes)
     }
+    |> maybe_add_season_extras(season)
     |> compact()
   end
+
+  defp maybe_add_season_extras(map, %Season{extras: extras})
+       when is_list(extras) and extras != [] do
+    serialized =
+      extras
+      |> Enum.sort_by(&(&1.position || 0))
+      |> Enum.map(&serialize_extra/1)
+
+    Map.put(map, "hasPart", serialized)
+  end
+
+  defp maybe_add_season_extras(map, _), do: map
 
   defp serialize_episodes(episodes) when is_list(episodes) do
     episodes
@@ -110,12 +123,19 @@ defmodule MediaManager.Serializer do
 
   defp maybe_add_extras(map, %Entity{extras: extras})
        when is_list(extras) and extras != [] do
-    serialized =
-      extras
-      |> Enum.sort_by(&(&1.position || 0))
-      |> Enum.map(&serialize_extra/1)
+    # Only include extras that don't belong to a season (those go at the season level)
+    entity_extras = Enum.filter(extras, fn extra -> is_nil(extra.season_id) end)
 
-    Map.put(map, "hasPart", serialized)
+    if entity_extras == [] do
+      map
+    else
+      serialized =
+        entity_extras
+        |> Enum.sort_by(&(&1.position || 0))
+        |> Enum.map(&serialize_extra/1)
+
+      Map.put(map, "hasPart", serialized)
+    end
   end
 
   defp maybe_add_extras(map, _), do: map
