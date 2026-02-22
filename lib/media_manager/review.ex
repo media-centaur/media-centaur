@@ -53,6 +53,20 @@ defmodule MediaManager.Review do
     end
   end
 
+  def retry(file) do
+    result =
+      file
+      |> Ash.Changeset.for_update(:retry, %{})
+      |> Ash.update()
+
+    case result do
+      {:ok, _file} -> broadcast_reviewed(file.id)
+      _ -> :ok
+    end
+
+    result
+  end
+
   def dismiss(file) do
     result =
       file

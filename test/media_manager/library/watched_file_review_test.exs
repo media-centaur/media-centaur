@@ -82,6 +82,45 @@ defmodule MediaManager.Library.WatchedFileReviewTest do
     end
   end
 
+  describe ":retry action" do
+    test "transitions :pending_review to :detected and clears match fields" do
+      file =
+        create_pending_review_file(%{
+          tmdb_id: "12345",
+          confidence_score: 0.6,
+          match_title: "Some Movie",
+          match_year: "2024",
+          match_poster_path: "/poster.jpg"
+        })
+
+      assert file.state == :pending_review
+      assert file.tmdb_id == "12345"
+
+      {:ok, retried} =
+        file
+        |> Ash.Changeset.for_update(:retry, %{})
+        |> Ash.update()
+
+      assert retried.state == :detected
+      assert retried.tmdb_id == nil
+      assert retried.confidence_score == nil
+      assert retried.match_title == nil
+      assert retried.match_year == nil
+      assert retried.match_poster_path == nil
+      assert retried.error_message == nil
+    end
+
+    test "rejects non-pending_review files" do
+      file = create_watched_file()
+      assert file.state == :detected
+
+      assert {:error, _} =
+               file
+               |> Ash.Changeset.for_update(:retry, %{})
+               |> Ash.update()
+    end
+  end
+
   describe ":pending_review_files read action" do
     test "returns only pending_review files sorted by inserted_at asc" do
       _detected = create_watched_file(%{file_path: "/media/detected.mkv"})

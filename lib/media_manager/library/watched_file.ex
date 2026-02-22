@@ -20,7 +20,7 @@ defmodule MediaManager.Library.WatchedFile do
     defaults [:read, :destroy]
 
     create :detect do
-      accept [:file_path]
+      accept [:file_path, :watch_dir]
 
       change set_attribute(:state, :detected)
       change MediaManager.Library.WatchedFile.Changes.ParseFileName
@@ -62,6 +62,18 @@ defmodule MediaManager.Library.WatchedFile do
     update :dismiss do
       validate attribute_equals(:state, :pending_review)
       change set_attribute(:state, :dismissed)
+    end
+
+    update :retry do
+      validate attribute_equals(:state, :pending_review)
+
+      change set_attribute(:state, :detected)
+      change set_attribute(:tmdb_id, nil)
+      change set_attribute(:confidence_score, nil)
+      change set_attribute(:match_title, nil)
+      change set_attribute(:match_year, nil)
+      change set_attribute(:match_poster_path, nil)
+      change set_attribute(:error_message, nil)
     end
 
     update :set_tmdb_match do
@@ -108,6 +120,7 @@ defmodule MediaManager.Library.WatchedFile do
 
     attribute :search_title, :string
     attribute :error_message, :string
+    attribute :watch_dir, :string
     attribute :match_title, :string
     attribute :match_year, :string
     attribute :match_poster_path, :string

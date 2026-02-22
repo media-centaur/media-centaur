@@ -18,6 +18,18 @@ defmodule MediaManager.Library.WatchedFileTest do
       assert file.parsed_year == 1991
       assert file.parsed_type == :movie
     end
+
+    test "stores watch_dir when provided" do
+      assert {:ok, file} =
+               WatchedFile
+               |> Ash.Changeset.for_create(:detect, %{
+                 file_path: "/media/movies/Inception.2010.mkv",
+                 watch_dir: "/media/movies"
+               })
+               |> Ash.create()
+
+      assert file.watch_dir == "/media/movies"
+    end
   end
 
   @tag :external
