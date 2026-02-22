@@ -40,3 +40,4 @@ npm-debug.log
 
 # sqlite stuff
 /media_manager_dev*
+/priv/repo/media_manager_test*.db*

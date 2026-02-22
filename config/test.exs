@@ -1,16 +1,14 @@
 import Config
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
-# Configure your database
-#
-# The MIX_TEST_PARTITION environment variable can be used
-# to provide built-in test partitioning in CI environment.
-# Run `mix help test` for more information.
+# Dedicated SQLite test database — separate from the dev/user database.
+# The MIX_TEST_PARTITION environment variable supports CI test partitioning.
 config :media_manager, MediaManager.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "media_manager_test#{System.get_env("MIX_TEST_PARTITION")}",
+  database:
+    Path.expand(
+      "priv/repo/media_manager_test#{System.get_env("MIX_TEST_PARTITION")}.db",
+      __DIR__ |> Path.dirname()
+    ),
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 

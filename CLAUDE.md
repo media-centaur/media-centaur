@@ -21,10 +21,11 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 | Path | Purpose |
 |------|---------|
-| `lib/media_manager/library/` | Ash domain and resources: Entity, WatchedFile, Image, Identifier, Season, Episode |
+| `lib/media_manager/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode |
 | `lib/media_manager/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
 | `lib/media_manager/library/entity_resolver.ex` | Entity find-or-create orchestration with race-loss recovery |
 | `lib/media_manager/library/watched_file/changes/` | Ash change modules for each pipeline step |
+| `lib/media_manager/playback/` | Playback engine: resume algorithm, MPV session, playback manager |
 | `lib/media_manager/pipeline/` | Broadway pipeline, producer, and image downloader |
 | `lib/media_manager/tmdb/` | TMDB API client, confidence scorer, and response mapper |
 | `lib/media_manager/serializer.ex` | Schema.org JSON-LD serializer (Entity → media.json format) |
@@ -32,6 +33,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `lib/media_manager/config.ex` | TOML config loader (GenServer) |
 | `lib/media_manager/watcher.ex` | File system watcher (inotify) |
 | `lib/media_manager/parser.ex` | Video filename parser |
+| `lib/media_manager_web/channels/` | Phoenix Channels: UserSocket, LibraryChannel, PlaybackChannel (WebSocket API for the UI) |
 | `lib/media_manager_web/` | Phoenix web layer: router, LiveViews, components |
 | `priv/repo/migrations/` | Ecto migrations (auto-generated from Ash resources) |
 | `test/` | ExUnit tests |
@@ -49,7 +51,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 - **This app owns all writes.** Only the manager writes `media.json` and `images/`. The `user-interface` never writes these files.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
-- **File system is the integration point.** There is no IPC with the user-interface. Write files to the data directory; the UI picks them up via hot-reload.
+- **Phoenix Channels is the primary integration point.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend pushes all data and state changes in real time. `media.json` is a legacy fallback still generated during the transition.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
 - **External API clients use `Req`.** Never use `:httpoison`, `:tesla`, or `:httpc`. `Req` is included and is the preferred HTTP client.
 
@@ -70,16 +72,20 @@ Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/p
 
 ## Specifications
 
-Cross-component specifications live in the **[freedia-center/specifications](https://github.com/freedia-center/specifications)** repository, stored locally at `../specifications` relative to this repo.
+Cross-component specifications live in the **[freedia-center/specifications](https://github.com/freedia-center/specifications)** repository, stored locally at `../specifications` relative to this repo. **Every contract between the backend and the user-interface must be documented in its own specification file.** If a feature introduces a new integration surface — a new channel topic, a new message format, a new file convention, a new IPC mechanism — it must have a corresponding spec in `../specifications/` before the implementation ships.
 
 | Document | Contents |
 |----------|---------|
-| [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for `media.json` — entity types, field names, sub-types, examples |
+| [`COMPONENTS.md`](../specifications/COMPONENTS.md) | System architecture — how the manager and user-interface relate; responsibilities, integration contract |
+| [`API.md`](../specifications/API.md) | Phoenix Channels WebSocket API — connection, channel topics, message schemas, error handling |
+| [`PLAYBACK.md`](../specifications/PLAYBACK.md) | MPV integration, watch progress data model, resume algorithm, progress reporting |
+| [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for `media.json` (legacy) — entity types, field names, sub-types, examples |
 | [`IMAGE-CACHING.md`](../specifications/IMAGE-CACHING.md) | Image roles, directory layout, remote URL patterns, manager/UI responsibilities |
-| [`COMPONENTS.md`](../specifications/COMPONENTS.md) | How the manager and user-interface relate; the integration contract |
 
 ### Reading the Specs
 
+- **Before writing any code that touches the WebSocket API** (channels, messages, join replies), read `API.md` in full.
+- **Before writing any playback, resume, or watch progress code**, read `PLAYBACK.md` in full.
 - **Before writing any code that reads or writes `media.json`**, read `DATA-FORMAT.md` in full.
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
 - **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
@@ -87,19 +93,23 @@ Cross-component specifications live in the **[freedia-center/specifications](htt
 
 ### Working with the Specs
 
-- Treat `DATA-FORMAT.md` as the authoritative contract for the JSON written by this app and read by the user-interface. When in doubt about a field name, type, or structure, the spec wins.
+- **Specs are the authoritative contract.** The user-interface team (and future agents) learn what this app produces by reading the specs. When in doubt about a field name, message format, or behavior, the spec wins over the implementation.
+- `API.md` specifies every channel topic, every client message, every server push, and every reply schema. The Rust UI implements its WebSocket client from this document — any deviation breaks the UI.
+- `PLAYBACK.md` specifies the MPV launch flags, IPC protocol, progress persistence intervals, and resume algorithm. Both the backend implementation and the UI's playback state display derive from this spec.
+- `DATA-FORMAT.md` specifies the JSON written by this app. Follow field names and structure exactly.
 - `IMAGE-CACHING.md` specifies the exact `contentUrl` path format (`images/{uuid}/{role}.{ext}`), image roles, and remote URL patterns for each source (TMDB, Steam). Follow these precisely — the user-interface uses them verbatim.
-- `COMPONENTS.md` describes the integration contract between manager and user-interface. Refer to it when designing new features that affect the shared data directory.
+- `COMPONENTS.md` describes the overall system architecture and which component owns what. Refer to it when designing new features that affect the integration boundary.
 
 ### Keeping the Specs Updated
 
-When a format decision changes — a new field, a new entity type, a changed image role, a modified `config.json` structure — **update the spec first**, then update the implementation:
+When a contract changes — a new channel message, a new field, a new entity type, a changed image role, a new API endpoint — **update the spec first**, then update the implementation:
 
-1. Edit the relevant file in `../specifications` (e.g. `DATA-FORMAT.md`).
-2. Update this app's implementation to match.
-3. Note in `COMPONENTS.md` or the relevant spec if the change affects the user-interface, so its `CLAUDE.md` can be updated too.
+1. Edit the relevant file in `../specifications` (e.g. `API.md`).
+2. If no existing spec covers the change, **create a new spec file** in `../specifications/` and add it to the table above and to `COMPONENTS.md`.
+3. Update this app's implementation to match.
+4. Note in `COMPONENTS.md` or the relevant spec if the change affects the user-interface, so its `CLAUDE.md` can be updated too.
 
-Never let the implementation drift ahead of the spec. The spec is how the user-interface team (and future agents) learn what to expect from files this app produces.
+Never let the implementation drift ahead of the spec. Never add a backend-to-UI contract (WebSocket message, file format, IPC protocol) without a spec documenting it.
 
 ### Keep Documentation Updated
 
