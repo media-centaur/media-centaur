@@ -37,6 +37,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
     with {:ok, entity} <- load_entity(entity_id),
          {:ok, content_url} <- find_episode_content_url(entity, season, episode) do
       play_params = %{
+        action: :play_episode,
         entity_id: entity_id,
         season_number: season,
         episode_number: episode,
@@ -130,6 +131,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
       {:resume, content_url, position} ->
         {:ok,
          %{
+           action: :resume,
            entity_id: entity.id,
            season_number: extract_season(entity, progress_records),
            episode_number: extract_episode(entity, progress_records),
@@ -140,6 +142,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
       {:play_next, content_url, position} ->
         {:ok,
          %{
+           action: :play_next,
            entity_id: entity.id,
            season_number: extract_season_for_url(entity, content_url),
            episode_number: extract_episode_for_url(entity, content_url),
@@ -150,6 +153,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
       {:restart, content_url, position} ->
         {:ok,
          %{
+           action: :restart,
            entity_id: entity.id,
            season_number: extract_season_for_url(entity, content_url),
            episode_number: extract_episode_for_url(entity, content_url),
@@ -164,6 +168,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
 
   defp play_reply(params) do
     %{
+      action: to_string(params.action),
       entity_id: params.entity_id,
       season_number: params[:season_number],
       episode_number: params[:episode_number],
