@@ -13,5 +13,6 @@ defmodule MediaManager.Library do
     resource MediaManager.Library.Movie
     resource MediaManager.Library.Season
     resource MediaManager.Library.Episode
+    resource MediaManager.Library.WatchProgress
   end
 end
