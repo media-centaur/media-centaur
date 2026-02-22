@@ -9,10 +9,18 @@ defmodule MediaManager.Repo do
 
   This runs before the Repo process starts (and before the Config GenServer),
   so it reads the TOML file directly rather than going through Config.
+
+  In test (Sandbox pool), the TOML override is skipped so tests use the
+  dedicated test database configured in `config/test.exs`.
   """
   @impl true
   def init(_context, config) do
-    database_path = read_database_path_from_toml() || config[:database]
+    database_path =
+      if config[:pool] == Ecto.Adapters.SQL.Sandbox do
+        config[:database]
+      else
+        read_database_path_from_toml() || config[:database]
+      end
 
     {:ok, Keyword.put(config, :database, database_path)}
   end
