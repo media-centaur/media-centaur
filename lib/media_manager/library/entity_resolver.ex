@@ -53,6 +53,22 @@ defmodule MediaManager.Library.EntityResolver do
     end
   end
 
+  defp link_file_to_existing_entity(
+         entity,
+         :extra,
+         %{season_number: season_number} = file_context
+       )
+       when is_integer(season_number) do
+    entity = Ash.load!(entity, [:identifiers])
+    tmdb_identifier = Enum.find(entity.identifiers, &(&1.property_id == "tmdb"))
+    tmdb_id = if tmdb_identifier, do: tmdb_identifier.value
+
+    with {:ok, season} <- ensure_season_for_extra(entity, tmdb_id, file_context),
+         {:ok, _extra} <- find_or_create_extra(entity, file_context, season) do
+      {:ok, entity, :existing}
+    end
+  end
+
   defp link_file_to_existing_entity(entity, :extra, file_context) do
     with {:ok, _extra} <- find_or_create_extra(entity, file_context) do
       {:ok, entity, :existing}
@@ -71,6 +87,29 @@ defmodule MediaManager.Library.EntityResolver do
   end
 
   # --- Create new entity ---
+
+  defp create_new_entity(tmdb_id, :extra, %{season_number: season_number} = file_context)
+       when is_integer(season_number) do
+    # TV season extra — create the TV entity, then link the extra to the season
+    case Client.get_tv(tmdb_id) do
+      {:ok, data} ->
+        tv_context = %{file_context | file_path: nil, episode_number: nil}
+
+        case create_tv_entity(tmdb_id, data, tv_context) do
+          {:ok, entity, _status} ->
+            with {:ok, season} <- ensure_season_for_extra(entity, tmdb_id, file_context),
+                 {:ok, _extra} <- find_or_create_extra(entity, file_context, season) do
+              {:ok, entity, :new}
+            end
+
+          error ->
+            error
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
   defp create_new_entity(tmdb_id, :extra, file_context) do
     case Client.get_movie(tmdb_id) do
@@ -289,15 +328,43 @@ defmodule MediaManager.Library.EntityResolver do
 
   # --- Extra creation ---
 
-  defp find_or_create_extra(entity, file_context) do
+  defp find_or_create_extra(entity, file_context, season \\ nil) do
     attrs = %{
       name: file_context.extra_title,
       content_url: file_context.file_path,
       position: 0,
-      entity_id: entity.id
+      entity_id: entity.id,
+      season_id: if(season, do: season.id)
     }
 
     Ash.create(Extra, attrs, action: :find_or_create)
+  end
+
+  defp ensure_season_for_extra(entity, tmdb_id, file_context) do
+    season_number = file_context.season_number
+
+    if tmdb_id do
+      case Client.get_season(tmdb_id, season_number) do
+        {:ok, season_data} ->
+          find_or_create_season(entity, season_data)
+
+        {:error, _} ->
+          # TMDB season fetch failed — create a minimal season record
+          minimal_season_data = %{
+            "season_number" => season_number,
+            "name" => "Season #{season_number}"
+          }
+
+          find_or_create_season(entity, minimal_season_data)
+      end
+    else
+      minimal_season_data = %{
+        "season_number" => season_number,
+        "name" => "Season #{season_number}"
+      }
+
+      find_or_create_season(entity, minimal_season_data)
+    end
   end
 
   # --- TV entity creation ---

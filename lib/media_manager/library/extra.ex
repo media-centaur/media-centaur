@@ -18,11 +18,11 @@ defmodule MediaManager.Library.Extra do
 
     create :create do
       primary? true
-      accept [:name, :content_url, :position, :entity_id]
+      accept [:name, :content_url, :position, :entity_id, :season_id]
     end
 
     create :find_or_create do
-      accept [:name, :content_url, :position, :entity_id]
+      accept [:name, :content_url, :position, :entity_id, :season_id]
       upsert? true
       upsert_identity :unique_entity_extra
       upsert_fields []
@@ -42,6 +42,7 @@ defmodule MediaManager.Library.Extra do
 
   relationships do
     belongs_to :entity, MediaManager.Library.Entity
+    belongs_to :season, MediaManager.Library.Season
   end
 
   identities do

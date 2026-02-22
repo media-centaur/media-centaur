@@ -532,6 +532,58 @@ defmodule MediaManager.ParserTest do
     end
   end
 
+  # ─── Extra: TV season extras ─────────────────────────────────────────────
+
+  describe "extra — TV season extras" do
+    test "Featurettes dir with season marker in release-style grandparent (Layout B)" do
+      result =
+        Parser.parse(
+          "/home/shawn/videos/media-library/Sample Saga of Creatures (2023) Season 1 S01 REPACK (1080p ATVP WEB-DL x265 HEVC 10bit EAC3 Atmos 5.1 Ghost)/Featurettes/Season 1 - Sample Interview with Cast - Sample Talk Show.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.season == 1
+      assert result.parent_title == "Sample Saga Of Creatures"
+      assert result.parent_year == 2023
+    end
+
+    test "Layout A: Show/Season 3/Extras/file.mkv — grandparent is pure season dir" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show Eight/Season 3/Extras/Deleted Scene - Sample Person at the Place.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.season == 3
+      assert result.parent_title == "Sample Show Eight"
+      assert result.parent_year == nil
+    end
+
+    test "Layout A with S-prefix: Show (2022)/S02/Extras/file.mkv" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show Nine (2022)/S02/Extras/Inside the Segment.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.season == 2
+      assert result.parent_title == "Sample Show Nine"
+      assert result.parent_year == 2022
+    end
+
+    test "regression: movie extra remains season nil" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE/Extras/Like Home.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.season == nil
+      assert result.parent_title == "Sample Movie One"
+      assert result.parent_year == 1967
+    end
+  end
+
   # ─── Unknown fallback ─────────────────────────────────────────────────────
 
   describe "unknown fallback" do

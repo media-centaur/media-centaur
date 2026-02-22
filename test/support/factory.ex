@@ -103,7 +103,8 @@ defmodule MediaManager.TestFactory do
       name: "Behind the Scenes",
       content_url: "/path/to/extra.mkv",
       position: 0,
-      entity_id: nil
+      entity_id: nil,
+      season_id: nil
     }
 
     struct(Extra, Map.merge(defaults, overrides))
@@ -116,7 +117,8 @@ defmodule MediaManager.TestFactory do
       number_of_episodes: 0,
       name: "Season 1",
       entity_id: nil,
-      episodes: []
+      episodes: [],
+      extras: []
     }
 
     struct(Season, Map.merge(defaults, overrides))

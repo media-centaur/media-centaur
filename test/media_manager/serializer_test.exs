@@ -346,6 +346,137 @@ defmodule MediaManager.SerializerTest do
     end
   end
 
+  describe "TVSeries with season extras" do
+    test "season extras serialize as hasPart on the season object" do
+      season_id = Ash.UUID.generate()
+
+      season =
+        build_season(%{
+          id: season_id,
+          season_number: 1,
+          episodes: [],
+          extras: [
+            build_extra(%{
+              name: "Behind the Scenes",
+              content_url: "/path/to/behind.mkv",
+              position: 0,
+              season_id: season_id
+            }),
+            build_extra(%{
+              name: "Interview",
+              content_url: "/path/to/interview.mkv",
+              position: 1,
+              season_id: season_id
+            })
+          ]
+        })
+
+      entity =
+        build_entity(%{
+          type: :tv_series,
+          name: "Test Show",
+          seasons: [season],
+          extras: []
+        })
+
+      result = Serializer.serialize_entity(entity)
+      [serialized_season] = result["entity"]["containsSeason"]
+
+      [first, second] = serialized_season["hasPart"]
+      assert first["@type"] == "VideoObject"
+      assert first["name"] == "Behind the Scenes"
+      assert first["contentUrl"] == "/path/to/behind.mkv"
+      assert second["name"] == "Interview"
+    end
+
+    test "season-linked extras do NOT appear in entity-level hasPart" do
+      season_id = Ash.UUID.generate()
+
+      season =
+        build_season(%{
+          id: season_id,
+          season_number: 1,
+          extras: [
+            build_extra(%{
+              name: "Featurette",
+              content_url: "/path/to/featurette.mkv",
+              season_id: season_id
+            })
+          ]
+        })
+
+      entity =
+        build_entity(%{
+          type: :tv_series,
+          name: "Test Show",
+          seasons: [season],
+          extras: [
+            build_extra(%{
+              name: "Featurette",
+              content_url: "/path/to/featurette.mkv",
+              season_id: season_id
+            })
+          ]
+        })
+
+      result = Serializer.serialize_entity(entity)
+      inner = result["entity"]
+
+      # Entity-level hasPart should be absent (the only extra has a season_id)
+      refute Map.has_key?(inner, "hasPart")
+
+      # Season-level hasPart should have the extra
+      [serialized_season] = inner["containsSeason"]
+      assert [%{"name" => "Featurette"}] = serialized_season["hasPart"]
+    end
+
+    test "entity-level extras and season extras coexist without duplication" do
+      season_id = Ash.UUID.generate()
+
+      season =
+        build_season(%{
+          id: season_id,
+          season_number: 1,
+          extras: [
+            build_extra(%{
+              name: "Season Featurette",
+              content_url: "/path/to/season-feat.mkv",
+              season_id: season_id
+            })
+          ]
+        })
+
+      entity =
+        build_entity(%{
+          type: :tv_series,
+          name: "Test Show",
+          seasons: [season],
+          extras: [
+            build_extra(%{
+              name: "Show Overview",
+              content_url: "/path/to/overview.mkv",
+              season_id: nil
+            }),
+            build_extra(%{
+              name: "Season Featurette",
+              content_url: "/path/to/season-feat.mkv",
+              season_id: season_id
+            })
+          ]
+        })
+
+      result = Serializer.serialize_entity(entity)
+      inner = result["entity"]
+
+      # Entity-level hasPart only contains the non-season extra
+      assert [%{"name" => "Show Overview"}] = inner["hasPart"]
+
+      # Season-level hasPart contains the season extra
+      [serialized_season] = inner["containsSeason"]
+      assert [%{"name" => "Season Featurette"}] = serialized_season["hasPart"]
+    end
+  end
+
   describe "images" do
     test "ImageObject with @type, name (role), url, contentUrl" do
       entity =
