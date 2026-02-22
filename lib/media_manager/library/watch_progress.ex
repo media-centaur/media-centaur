@@ -13,7 +13,7 @@ defmodule MediaManager.Library.WatchProgress do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     create :upsert_progress do
       accept [:entity_id, :season_number, :episode_number, :position_seconds, :duration_seconds]

@@ -15,11 +15,15 @@ defmodule MediaManager.Library.Image do
   end
 
   actions do
-    defaults [:read]
+    defaults [:read, :destroy]
 
     update :update do
       primary? true
       accept [:content_url]
+    end
+
+    update :clear_content_url do
+      change set_attribute(:content_url, nil)
     end
 
     create :create do

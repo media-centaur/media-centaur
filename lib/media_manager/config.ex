@@ -35,6 +35,7 @@ defmodule MediaManager.Config do
       mpv_path: "mpv",
       mpv_socket_dir: "/tmp",
       mpv_socket_timeout_ms: 5000,
+      exclude_dirs: [],
       extras_dirs: [
         "Extras",
         "Featurettes",
@@ -69,6 +70,7 @@ defmodule MediaManager.Config do
     %{
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
       watch_dirs: watch_dirs,
+      exclude_dirs: expand_list(get_in(toml, ["exclude_dirs"]) || defaults.exclude_dirs),
       media_images_dir: expand(get_in(toml, ["media_images_dir"]) || defaults.media_images_dir),
       tmdb_api_key: get_in(toml, ["tmdb", "api_key"]) || defaults.tmdb_api_key,
       auto_approve_threshold:

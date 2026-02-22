@@ -1,7 +1,7 @@
 defmodule MediaManagerWeb.DashboardLive do
   use MediaManagerWeb, :live_view
 
-  alias MediaManager.Dashboard
+  alias MediaManager.{Admin, Dashboard}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -32,7 +32,7 @@ defmodule MediaManagerWeb.DashboardLive do
         |> assign(config: %{})
       end
 
-    {:ok, assign(socket, scanning: false)}
+    {:ok, assign(socket, scanning: false, clearing_database: false, refreshing_images: false)}
   end
 
   @impl true
@@ -50,6 +50,55 @@ defmodule MediaManagerWeb.DashboardLive do
 
         {:noreply, socket |> put_flash(:info, message) |> assign(scanning: false)}
     end
+  end
+
+  def handle_event("clear_database", _params, socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaManager.TaskSupervisor, fn ->
+      Admin.clear_database()
+      send(liveview, :database_cleared)
+    end)
+
+    {:noreply, assign(socket, clearing_database: true)}
+  end
+
+  def handle_event("refresh_image_cache", _params, socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaManager.TaskSupervisor, fn ->
+      {:ok, count} = Admin.refresh_image_cache()
+      send(liveview, {:image_cache_refreshed, count})
+    end)
+
+    {:noreply, assign(socket, refreshing_images: true)}
+  end
+
+  @impl true
+  def handle_info(:database_cleared, socket) do
+    stats = Dashboard.fetch_stats()
+
+    {:noreply,
+     socket
+     |> assign(clearing_database: false)
+     |> assign(library_stats: stats.library)
+     |> assign(pipeline_stats: stats.pipeline)
+     |> assign(pending_review: stats.pending_review)
+     |> assign(recent_errors: stats.recent_errors)
+     |> put_flash(:info, "Database cleared successfully")}
+  end
+
+  def handle_info({:image_cache_refreshed, count}, socket) do
+    stats = Dashboard.fetch_stats()
+
+    {:noreply,
+     socket
+     |> assign(refreshing_images: false)
+     |> assign(library_stats: stats.library)
+     |> assign(pipeline_stats: stats.pipeline)
+     |> assign(pending_review: stats.pending_review)
+     |> assign(recent_errors: stats.recent_errors)
+     |> put_flash(:info, "Image cache refreshed — re-downloaded images for #{count} entities")}
   end
 
   @impl true
@@ -104,6 +153,7 @@ defmodule MediaManagerWeb.DashboardLive do
         <.pending_review_table files={@pending_review} />
         <.recent_errors_table files={@recent_errors} />
         <.config_overview config={@config} />
+        <.danger_zone clearing_database={@clearing_database} refreshing_images={@refreshing_images} />
       </div>
     </Layouts.app>
     """
@@ -150,13 +200,12 @@ defmodule MediaManagerWeb.DashboardLive do
         <h2 class="card-title text-lg">Pipeline Status</h2>
 
         <div class="flex flex-wrap items-center gap-2">
-          <span
-            :for={stage <- pipeline_stages()}
-            class="flex items-center gap-2"
-          >
-            <span class={["badge gap-1", pipeline_badge_class(stage.key, @stats[stage.key] || 0)]}>
-              {@stats[stage.key] || 0}
-              <span>{stage.label}</span>
+          <span :for={stage <- pipeline_stages()} class="flex items-center gap-2">
+            <span class="flex flex-col items-center gap-1">
+              <span class={["badge", pipeline_badge_class(stage.key, @stats[stage.key] || 0)]}>
+                {@stats[stage.key] || 0}
+              </span>
+              <span class="text-xs text-base-content/60">{stage.label}</span>
             </span>
             <.icon :if={stage.arrow} name="hero-arrow-right-micro" class="size-3 opacity-40" />
           </span>
@@ -165,12 +214,11 @@ defmodule MediaManagerWeb.DashboardLive do
         <div :if={has_side_states?(@stats)} class="divider my-1" />
 
         <div :if={has_side_states?(@stats)} class="flex flex-wrap gap-2">
-          <span
-            :for={stage <- side_stages()}
-            class={["badge gap-1", pipeline_badge_class(stage.key, @stats[stage.key] || 0)]}
-          >
-            {@stats[stage.key] || 0}
-            <span>{stage.label}</span>
+          <span :for={stage <- side_stages()} class="flex flex-col items-center gap-1">
+            <span class={["badge", pipeline_badge_class(stage.key, @stats[stage.key] || 0)]}>
+              {@stats[stage.key] || 0}
+            </span>
+            <span class="text-xs text-base-content/60">{stage.label}</span>
           </span>
         </div>
       </div>
@@ -359,6 +407,34 @@ defmodule MediaManagerWeb.DashboardLive do
     """
   end
 
+  defp danger_zone(assigns) do
+    ~H"""
+    <div class="card bg-base-100 shadow-sm border border-error/20">
+      <div class="card-body">
+        <h2 class="card-title text-lg text-error">Danger Zone</h2>
+        <div class="flex flex-wrap gap-3">
+          <button
+            phx-click="clear_database"
+            disabled={@clearing_database}
+            data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
+            class="btn btn-error btn-sm btn-outline"
+          >
+            {if @clearing_database, do: "Clearing...", else: "Clear database"}
+          </button>
+          <button
+            phx-click="refresh_image_cache"
+            disabled={@refreshing_images}
+            data-confirm="This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
+            class="btn btn-warning btn-sm btn-outline"
+          >
+            {if @refreshing_images, do: "Refreshing...", else: "Clear & refresh image cache"}
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   # --- Helpers ---
 
   defp format_type(:movie), do: "Movies"
@@ -397,22 +473,22 @@ defmodule MediaManagerWeb.DashboardLive do
 
   defp pipeline_stages do
     [
-      %{key: :detected, label: "detected", arrow: true},
-      %{key: :queued, label: "queued", arrow: true},
-      %{key: :searching, label: "searching", arrow: true},
-      %{key: :approved, label: "approved", arrow: true},
-      %{key: :fetching_metadata, label: "fetching metadata", arrow: true},
-      %{key: :fetching_images, label: "fetching images", arrow: true},
-      %{key: :complete, label: "complete", arrow: false}
+      %{key: :detected, label: "Detected", arrow: true},
+      %{key: :queued, label: "Queued", arrow: true},
+      %{key: :searching, label: "Searching", arrow: true},
+      %{key: :approved, label: "Approved", arrow: true},
+      %{key: :fetching_metadata, label: "Fetching Metadata", arrow: true},
+      %{key: :fetching_images, label: "Fetching Images", arrow: true},
+      %{key: :complete, label: "Complete", arrow: false}
     ]
   end
 
   defp side_stages do
     [
-      %{key: :pending_review, label: "pending review"},
-      %{key: :error, label: "error"},
-      %{key: :removed, label: "removed"},
-      %{key: :dismissed, label: "dismissed"}
+      %{key: :pending_review, label: "Pending Review"},
+      %{key: :error, label: "Error"},
+      %{key: :removed, label: "Removed"},
+      %{key: :dismissed, label: "Dismissed"}
     ]
   end
 

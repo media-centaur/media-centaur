@@ -14,6 +14,7 @@ defmodule MediaManager.Application do
       {Phoenix.PubSub, name: MediaManager.PubSub},
       MediaManager.Config,
       {Task.Supervisor, name: MediaManager.TaskSupervisor},
+      MediaManager.TMDB.RateLimiter,
       MediaManager.Watcher.Supervisor,
       {Task, &MediaManager.Watcher.Supervisor.start_watchers/0},
       MediaManager.Pipeline,

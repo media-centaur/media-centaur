@@ -11,8 +11,11 @@ defmodule MediaManager.Pipeline do
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
-      producer: [module: {MediaManager.Pipeline.Producer, []}, concurrency: 1],
-      processors: [default: [concurrency: 3, partition_by: &partition_key/1]],
+      producer: [
+        module: {MediaManager.Pipeline.Producer, []},
+        concurrency: 1
+      ],
+      processors: [default: [concurrency: 5, partition_by: &partition_key/1]],
       batchers: [default: [concurrency: 1, batch_size: 10, batch_timeout: 5_000]]
     )
   end

@@ -112,7 +112,8 @@ defmodule MediaManager.Watcher do
 
         {:noreply, %{state | removal_timestamps: recent}}
 
-      (:created in events or :modified in events) and video_file?(path) ->
+      (:created in events or :modified in events) and video_file?(path) and
+          not excluded?(path, exclude_dirs()) ->
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
@@ -169,10 +170,12 @@ defmodule MediaManager.Watcher do
   end
 
   defp scan_directory(dir) do
+    exclude_dirs = exclude_dirs()
     pattern = Path.join(dir, "**/*")
 
     pattern
     |> Path.wildcard()
+    |> Enum.reject(&excluded?(&1, exclude_dirs))
     |> Enum.filter(&video_file?/1)
     |> Enum.reduce(0, fn path, count ->
       case detect_file(path) do
@@ -202,6 +205,16 @@ defmodule MediaManager.Watcher do
 
   defp schedule_health_check do
     Process.send_after(self(), :health_check, @health_check_interval)
+  end
+
+  defp exclude_dirs do
+    MediaManager.Config.get(:exclude_dirs) || []
+  end
+
+  defp excluded?(path, exclude_dirs) do
+    Enum.any?(exclude_dirs, fn dir ->
+      String.starts_with?(path, dir <> "/") or path == dir
+    end)
   end
 
   defp broadcast_state(dir, new_state) do
