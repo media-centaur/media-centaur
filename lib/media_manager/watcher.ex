@@ -132,7 +132,7 @@ defmodule MediaManager.Watcher do
   def handle_info({:check_size, path, last_size, count}, state) do
     case File.stat(path) do
       {:ok, %{size: size}} when size == last_size and count >= @size_stability_checks - 1 ->
-        detect_file(path)
+        detect_file(path, state.dir)
         {:noreply, state}
 
       {:ok, %{size: size}} ->
@@ -178,16 +178,16 @@ defmodule MediaManager.Watcher do
     |> Enum.reject(&excluded?(&1, exclude_dirs))
     |> Enum.filter(&video_file?/1)
     |> Enum.reduce(0, fn path, count ->
-      case detect_file(path) do
+      case detect_file(path, dir) do
         :ok -> count + 1
         :skipped -> count
       end
     end)
   end
 
-  defp detect_file(path) do
+  defp detect_file(path, watch_dir) do
     case MediaManager.Library.WatchedFile
-         |> Ash.Changeset.for_create(:detect, %{file_path: path})
+         |> Ash.Changeset.for_create(:detect, %{file_path: path, watch_dir: watch_dir})
          |> Ash.create() do
       {:ok, file} ->
         Logger.info("Watcher: detected file #{path} as WatchedFile #{file.id}")

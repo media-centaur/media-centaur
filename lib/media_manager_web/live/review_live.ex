@@ -39,6 +39,18 @@ defmodule MediaManagerWeb.ReviewLive do
     end
   end
 
+  def handle_event("retry", %{"id" => id}, socket) do
+    file = Enum.find(socket.assigns.files, &(&1.id == id))
+
+    if file do
+      socket = assign(socket, processing: MapSet.put(socket.assigns.processing, id))
+      Review.retry(file)
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_event("dismiss", %{"id" => id}, socket) do
     file = Enum.find(socket.assigns.files, &(&1.id == id))
 
@@ -206,7 +218,7 @@ defmodule MediaManagerWeb.ReviewLive do
 
           <div class="flex-1 min-w-0 space-y-1">
             <p class="font-mono text-xs text-base-content/70 truncate" title={@file.file_path}>
-              {@file.file_path}
+              {relative_file_path(@file)}
             </p>
 
             <p class="text-sm">
@@ -262,6 +274,14 @@ defmodule MediaManagerWeb.ReviewLive do
                 class="btn btn-info btn-sm btn-outline"
               >
                 Search
+              </button>
+              <button
+                phx-click="retry"
+                phx-value-id={@file.id}
+                disabled={@processing}
+                class="btn btn-warning btn-sm btn-outline"
+              >
+                Retry
               </button>
               <button
                 phx-click="dismiss"
@@ -407,4 +427,11 @@ defmodule MediaManagerWeb.ReviewLive do
   defp confidence_badge_class(score) when score >= 0.8, do: "badge-success"
   defp confidence_badge_class(score) when score >= 0.5, do: "badge-warning"
   defp confidence_badge_class(_), do: "badge-error"
+
+  defp relative_file_path(file) do
+    case file.watch_dir do
+      nil -> file.file_path
+      dir -> String.replace_prefix(file.file_path, dir <> "/", "")
+    end
+  end
 end

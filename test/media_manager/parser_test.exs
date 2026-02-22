@@ -132,6 +132,17 @@ defmodule MediaManager.ParserTest do
       assert result.year == 2024
       assert result.type == :movie
     end
+
+    test "Sample Title Av — year at end of basename with no trailing tokens" do
+      result =
+        Parser.parse(
+          "/mnt/media/library/Sample Title Av 2025 UHD BluRay 2160p HDR10 DV HEVC TrueHD Atmos 7.1 x265-E/Sample Title Av 2025.mkv"
+        )
+
+      assert result.title == "Sample Title Av"
+      assert result.year == 2025
+      assert result.type == :movie
+    end
   end
 
   # ─── Movies: year in parens or brackets ───────────────────────────────────
@@ -360,6 +371,17 @@ defmodule MediaManager.ParserTest do
       assert result.episode_title == "My Hard Labor"
       assert result.type == :tv
     end
+
+    test "Sample Title Ha: compact 3-digit season+episode (501) inside Season directory" do
+      result =
+        Parser.parse("/mnt/media/library/Sample Title Ha/Season 5/501- My Intern's Eyes.avi")
+
+      assert result.title == "Sample Title Ha"
+      assert result.season == 5
+      assert result.episode == 1
+      assert result.episode_title == "My Intern's Eyes"
+      assert result.type == :tv
+    end
   end
 
   describe "tv — episode file inside show+season directory (show name in file)" do
@@ -426,6 +448,20 @@ defmodule MediaManager.ParserTest do
       assert result.title == "Nettare Degli Dei"
       assert result.season == 2
       assert result.episode == 1
+      assert result.type == :tv
+    end
+
+    test "Sample Title Gt: spelled-out Season N Episode N with year and episode title" do
+      result =
+        Parser.parse(
+          "/mnt/media/library/Sample Title Gt S05E01-02 - Primewire/Sample Title Gt (2022) Season 5 Episode 1- Keep It Simple - PrimeWire.mp4"
+        )
+
+      assert result.title == "Sample Title Gt"
+      assert result.year == 2022
+      assert result.season == 5
+      assert result.episode == 1
+      assert result.episode_title == "Keep It Simple"
       assert result.type == :tv
     end
   end
@@ -532,6 +568,21 @@ defmodule MediaManager.ParserTest do
       assert result.type == :extra
       assert result.parent_title == "Some Movie"
       assert result.parent_year == 2020
+    end
+
+    test "nested subdirectory under Featurettes — subdirectory name prepended to title" do
+      result =
+        Parser.parse(
+          "/mnt/media/library/Sample Title Cn (2013) (1080p BluRay x265 HEVC 10bit AAC 5.1 Silence)/Featurettes/Behind the Scenes with the Hilarious Cast and Filmmakers/Nat And Jim.mkv"
+        )
+
+      assert result.type == :extra
+
+      assert result.title ==
+               "Behind The Scenes With The Hilarious Cast And Filmmakers - Nat And Jim"
+
+      assert result.parent_title == "Sample Title Cn"
+      assert result.parent_year == 2013
     end
 
     test "non-extras directory is not detected as extra" do
