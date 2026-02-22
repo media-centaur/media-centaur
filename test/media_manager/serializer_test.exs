@@ -317,6 +317,35 @@ defmodule MediaManager.SerializerTest do
     end
   end
 
+  describe "Movie with extras" do
+    test "extras serialize as hasPart VideoObject entries" do
+      entity =
+        build_entity(%{
+          type: :movie,
+          name: "Sample Movie One",
+          extras: [
+            build_extra(%{name: "Like Home", content_url: "/path/to/Like Home.mkv", position: 0}),
+            build_extra(%{name: "Making Of", content_url: "/path/to/Making Of.mkv", position: 1})
+          ]
+        })
+
+      result = Serializer.serialize_entity(entity)
+      inner = result["entity"]
+
+      [first, second] = inner["hasPart"]
+      assert first["@type"] == "VideoObject"
+      assert first["name"] == "Like Home"
+      assert first["contentUrl"] == "/path/to/Like Home.mkv"
+      assert second["name"] == "Making Of"
+    end
+
+    test "movie without extras has no hasPart" do
+      entity = build_entity(%{type: :movie, name: "No Extras"})
+      result = Serializer.serialize_entity(entity)
+      refute Map.has_key?(result["entity"], "hasPart")
+    end
+  end
+
   describe "images" do
     test "ImageObject with @type, name (role), url, contentUrl" do
       entity =

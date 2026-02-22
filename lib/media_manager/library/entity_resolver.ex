@@ -10,7 +10,7 @@ defmodule MediaManager.Library.EntityResolver do
   """
 
   alias MediaManager.TMDB.{Client, Mapper}
-  alias MediaManager.Library.{Entity, Image, Identifier, Movie, Season, Episode}
+  alias MediaManager.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
 
   @doc """
   Resolves a TMDB ID to an entity — reusing an existing one or creating new.
@@ -53,6 +53,12 @@ defmodule MediaManager.Library.EntityResolver do
     end
   end
 
+  defp link_file_to_existing_entity(entity, :extra, file_context) do
+    with {:ok, _extra} <- find_or_create_extra(entity, file_context) do
+      {:ok, entity, :existing}
+    end
+  end
+
   defp link_file_to_existing_entity(entity, _type, file_context) do
     if is_nil(entity.content_url) do
       case Ash.update(entity, %{content_url: file_context.file_path}, action: :set_content_url) do
@@ -65,6 +71,27 @@ defmodule MediaManager.Library.EntityResolver do
   end
 
   # --- Create new entity ---
+
+  defp create_new_entity(tmdb_id, :extra, file_context) do
+    case Client.get_movie(tmdb_id) do
+      {:ok, data} ->
+        # Create the parent movie entity (content_url is for the movie, not the extra)
+        movie_context = %{file_context | file_path: nil}
+
+        case create_movie_entity(tmdb_id, data, movie_context) do
+          {:ok, entity, _status} ->
+            with {:ok, _extra} <- find_or_create_extra(entity, file_context) do
+              {:ok, entity, :new}
+            end
+
+          error ->
+            error
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 
   defp create_new_entity(tmdb_id, type, file_context) when type in [:movie, :unknown] do
     case Client.get_movie(tmdb_id) do
@@ -119,12 +146,22 @@ defmodule MediaManager.Library.EntityResolver do
   defp create_movie_in_collection(tmdb_id, movie_data, file_context, collection_id) do
     case find_existing_movie_series(collection_id) do
       {:ok, entity} ->
-        position = determine_position(collection_id, tmdb_id)
+        case Client.get_collection(collection_id) do
+          {:ok, collection_data} ->
+            position = determine_position_from_parts(collection_data["parts"], tmdb_id)
 
-        with {:ok, _movie} <-
-               create_child_movie(entity, tmdb_id, movie_data, file_context, position),
-             :ok <- create_movie_tmdb_identifier(entity, tmdb_id) do
-          {:ok, entity, :new_child}
+            with {:ok, _movie} <-
+                   create_child_movie(entity, tmdb_id, movie_data, file_context, position),
+                 :ok <- create_movie_tmdb_identifier(entity, tmdb_id) do
+              {:ok, entity, :new_child}
+            end
+
+          {:error, _} ->
+            with {:ok, _movie} <-
+                   create_child_movie(entity, tmdb_id, movie_data, file_context, 0),
+                 :ok <- create_movie_tmdb_identifier(entity, tmdb_id) do
+              {:ok, entity, :new_child}
+            end
         end
 
       :not_found ->
@@ -218,16 +255,6 @@ defmodule MediaManager.Library.EntityResolver do
     end
   end
 
-  defp determine_position(collection_id, tmdb_id) do
-    case Client.get_collection(collection_id) do
-      {:ok, collection_data} ->
-        determine_position_from_parts(collection_data["parts"], tmdb_id)
-
-      {:error, _} ->
-        0
-    end
-  end
-
   defp determine_position_from_parts(nil, _tmdb_id), do: 0
 
   defp determine_position_from_parts(parts, tmdb_id) do
@@ -258,6 +285,19 @@ defmodule MediaManager.Library.EntityResolver do
 
   defp create_movie_images(movie, movie_data) do
     create_images_for(Mapper.movie_image_attrs(movie.id, movie_data), :find_or_create_for_movie)
+  end
+
+  # --- Extra creation ---
+
+  defp find_or_create_extra(entity, file_context) do
+    attrs = %{
+      name: file_context.extra_title,
+      content_url: file_context.file_path,
+      position: 0,
+      entity_id: entity.id
+    }
+
+    Ash.create(Extra, attrs, action: :find_or_create)
   end
 
   # --- TV entity creation ---
@@ -402,12 +442,15 @@ defmodule MediaManager.Library.EntityResolver do
     create_images_for(Mapper.image_attrs(entity.id, data), :find_or_create)
   end
 
+  defp create_images_for([], _action), do: :ok
+
   defp create_images_for(image_attrs_list, action) do
-    Enum.reduce_while(image_attrs_list, :ok, fn attrs, :ok ->
-      case Ash.create(Image, attrs, action: action) do
-        {:ok, _} -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
-      end
-    end)
+    result = Ash.bulk_create(image_attrs_list, Image, action, return_errors?: true)
+
+    if result.error_count > 0 do
+      {:error, result.errors}
+    else
+      :ok
+    end
   end
 end

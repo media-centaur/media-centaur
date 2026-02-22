@@ -6,18 +6,33 @@ defmodule MediaManager.Parser do
 
   defmodule Result do
     @enforce_keys [:file_path, :title, :type]
-    defstruct [:file_path, :title, :year, :type, :season, :episode, :episode_title]
+    defstruct [
+      :file_path,
+      :title,
+      :year,
+      :type,
+      :season,
+      :episode,
+      :episode_title,
+      :parent_title,
+      :parent_year
+    ]
 
     @type t :: %__MODULE__{
             file_path: String.t(),
             title: String.t(),
             year: integer() | nil,
-            type: :movie | :tv | :unknown,
+            type: :movie | :tv | :extra | :unknown,
             season: integer() | nil,
             episode: integer() | nil,
-            episode_title: String.t() | nil
+            episode_title: String.t() | nil,
+            parent_title: String.t() | nil,
+            parent_year: integer() | nil
           }
   end
+
+  @default_extras_dirs ~w(extras featurettes bonus)
+  @default_extras_dirs_multi_word ["special features", "behind the scenes", "deleted scenes"]
 
   @generic_names ~w(movie video episode file index sample)
 
@@ -44,23 +59,81 @@ defmodule MediaManager.Parser do
   # Year pattern for TV: includes parentheses as valid delimiters
   @year_in_tv_title_pattern ~r/[\s._\[(]((19|20)\d{2})[\s._\])]/
 
-  @spec parse(String.t()) :: Result.t()
-  def parse(file_path) do
-    candidate = candidate_name(file_path)
-    candidate = strip_url_prefix(candidate)
+  @spec parse(String.t(), keyword()) :: Result.t()
+  def parse(file_path, opts \\ []) do
+    extras_dirs =
+      Keyword.get(opts, :extras_dirs, @default_extras_dirs ++ @default_extras_dirs_multi_word)
 
-    cond do
-      match = Regex.run(@tv_pattern, candidate, capture: :all_but_first) ->
-        parse_tv(file_path, candidate, match)
+    if extras_file?(file_path, extras_dirs) do
+      parse_extra(file_path)
+    else
+      candidate = candidate_name(file_path)
+      candidate = strip_url_prefix(candidate)
 
-      match = Regex.run(@season_pack_pattern, candidate, capture: :all_but_first) ->
-        parse_season_pack(file_path, match)
+      cond do
+        match = Regex.run(@tv_pattern, candidate, capture: :all_but_first) ->
+          parse_tv(file_path, candidate, match)
 
-      match = Regex.run(@year_pattern, candidate, capture: :all_but_first) ->
-        parse_movie(file_path, candidate, match)
+        match = Regex.run(@season_pack_pattern, candidate, capture: :all_but_first) ->
+          parse_season_pack(file_path, match)
 
-      true ->
-        parse_unknown(file_path, candidate)
+        match = Regex.run(@year_pattern, candidate, capture: :all_but_first) ->
+          parse_movie(file_path, candidate, match)
+
+        true ->
+          parse_unknown(file_path, candidate)
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Extras detection
+  # ---------------------------------------------------------------------------
+
+  defp extras_file?(file_path, extras_dirs) do
+    parent = file_path |> Path.split() |> Enum.drop(-1) |> List.last()
+    parent && String.downcase(parent) in Enum.map(extras_dirs, &String.downcase/1)
+  end
+
+  defp parse_extra(file_path) do
+    extra_title = file_path |> base_without_media_extension() |> clean_title()
+    grandparent = file_path |> Path.split() |> Enum.drop(-2) |> List.last()
+
+    {parent_title, parent_year} = parse_parent_movie(grandparent)
+
+    %Result{
+      file_path: file_path,
+      title: extra_title,
+      year: nil,
+      type: :extra,
+      season: nil,
+      episode: nil,
+      episode_title: nil,
+      parent_title: parent_title,
+      parent_year: parent_year
+    }
+  end
+
+  defp parse_parent_movie(nil), do: {nil, nil}
+
+  defp parse_parent_movie(dir_name) do
+    # Pad with space so year pattern can match at boundaries
+    padded = " " <> dir_name <> " "
+
+    case Regex.run(@year_pattern, padded, capture: :all_but_first) do
+      [year_str | _] ->
+        year = String.to_integer(year_str)
+
+        title =
+          case Regex.run(~r/^(.+?)[\s.\[(]#{year_str}/, dir_name, capture: :all_but_first) do
+            [raw_title] -> clean_title(raw_title)
+            nil -> clean_title(dir_name)
+          end
+
+        {title, year}
+
+      nil ->
+        {clean_title(dir_name), nil}
     end
   end
 
@@ -75,10 +148,14 @@ defmodule MediaManager.Parser do
     grandparent = parts |> Enum.drop(-2) |> List.last()
 
     cond do
-      # File is inside a "Season N" directory → use grandparent (show name) + file base
-      parent && Regex.match?(~r/^Season\s+\d+$/i, parent) ->
+      # File is inside a "Season N" or "S01" directory → use grandparent (show name) + file base
+      parent && season_directory?(parent) ->
         show_name = grandparent || base
         show_name <> " " <> base
+
+      # Bare episode filename (e.g. "S01E03") → prepend parent directory name
+      bare_episode?(base) && parent ->
+        parent <> " " <> base
 
       # Generic or very short lowercase base → use parent directory
       generic_base?(base) && parent ->
@@ -87,6 +164,14 @@ defmodule MediaManager.Parser do
       true ->
         base
     end
+  end
+
+  defp season_directory?(dir) do
+    Regex.match?(~r/^(Season\s+\d+|[Ss]\d{1,2})$/i, dir)
+  end
+
+  defp bare_episode?(base) do
+    Regex.match?(~r/^[Ss]\d{1,2}[Ee]\d{1,2}$/, base)
   end
 
   # Only strip the extension if it's a known media format — prevents confusing
@@ -143,7 +228,11 @@ defmodule MediaManager.Parser do
 
   defp extract_tv_title(raw_title, file_path) do
     # Strip year tokens before cleaning so they don't appear in the title
-    cleaned = raw_title |> strip_year_tokens() |> clean_title()
+    cleaned =
+      raw_title
+      |> strip_year_tokens()
+      |> clean_title()
+      |> strip_trailing_season_marker()
 
     if cleaned == "" do
       # Title was blank — use show directory name
@@ -152,13 +241,13 @@ defmodule MediaManager.Parser do
       |> Enum.drop(-1)
       |> List.last()
       |> then(fn dir ->
-        if dir && Regex.match?(~r/^Season\s+\d+$/i, dir) do
+        if dir && season_directory?(dir) do
           file_path |> Path.split() |> Enum.drop(-2) |> List.last()
         else
           dir
         end
       end)
-      |> then(&if(&1, do: clean_title(&1), else: ""))
+      |> then(&if(&1, do: clean_title(&1) |> strip_trailing_season_marker(), else: ""))
     else
       cleaned
     end
@@ -168,6 +257,10 @@ defmodule MediaManager.Parser do
   defp strip_year_tokens(str) do
     Regex.replace(~r/\s*[\[(]?(19|20)\d{2}[\])]?\s*/, str, " ")
     |> String.trim()
+  end
+
+  defp strip_trailing_season_marker(title) do
+    Regex.replace(~r/\s+[Ss]\d{1,2}$/, title, "")
   end
 
   defp extract_year_from_tv_title(raw_title) do

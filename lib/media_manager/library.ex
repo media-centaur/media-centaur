@@ -11,6 +11,7 @@ defmodule MediaManager.Library do
     resource MediaManager.Library.Image
     resource MediaManager.Library.Identifier
     resource MediaManager.Library.Movie
+    resource MediaManager.Library.Extra
     resource MediaManager.Library.Season
     resource MediaManager.Library.Episode
     resource MediaManager.Library.WatchProgress
