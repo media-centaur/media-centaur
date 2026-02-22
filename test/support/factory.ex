@@ -8,7 +8,16 @@ defmodule MediaManager.TestFactory do
     Use for resource tests and channel tests.
   """
 
-  alias MediaManager.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
+  alias MediaManager.Library.{
+    Entity,
+    Extra,
+    Image,
+    Identifier,
+    Movie,
+    Season,
+    Episode,
+    WatchedFile
+  }
 
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
@@ -187,6 +196,35 @@ defmodule MediaManager.TestFactory do
     Extra
     |> Ash.Changeset.for_create(:create, attrs)
     |> Ash.create!()
+  end
+
+  def create_watched_file(attrs \\ %{}) do
+    defaults = %{file_path: "/media/test/#{Ash.UUID.generate()}.mkv"}
+
+    WatchedFile
+    |> Ash.Changeset.for_create(:detect, Map.merge(defaults, attrs))
+    |> Ash.create!()
+  end
+
+  def create_pending_review_file(attrs \\ %{}) do
+    detect_attrs = Map.take(attrs, [:file_path])
+    file = create_watched_file(detect_attrs)
+
+    update_attrs =
+      %{state: :pending_review}
+      |> maybe_put(attrs, :tmdb_id)
+      |> maybe_put(attrs, :confidence_score)
+      |> maybe_put(attrs, :match_title)
+      |> maybe_put(attrs, :match_year)
+      |> maybe_put(attrs, :match_poster_path)
+
+    file
+    |> Ash.Changeset.for_update(:update_state, update_attrs)
+    |> Ash.update!()
+  end
+
+  defp maybe_put(map, source, key) do
+    if Map.has_key?(source, key), do: Map.put(map, key, source[key]), else: map
   end
 
   def create_watch_progress(attrs) do

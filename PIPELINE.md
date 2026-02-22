@@ -35,6 +35,8 @@ The Watchers and Pipeline are decoupled by design. The Watchers write to the dat
 ```
 :detected → :queued → :searching → :approved → :fetching_metadata → :fetching_images → :complete
                                  → :pending_review (low confidence; awaits UI)
+                                    → :approved (manual approval via review UI)
+                                    → :dismissed (user-initiated rejection via review UI)
                                  → :error
 ```
 
@@ -50,6 +52,7 @@ The Watchers and Pipeline are decoupled by design. The Watchers write to the dat
 | `:complete` | `:download_images` action (change) | Fully processed, images downloaded |
 | `:error` | Any stage | Processing failed; `error_message` has details |
 | `:removed` | Removal handler | Source file deleted |
+| `:dismissed` | Review UI via `:dismiss` action | User rejected the file; terminal state |
 
 ---
 
@@ -188,7 +191,38 @@ Movie extras (featurettes, behind-the-scenes, deleted scenes) are video files in
 
 ---
 
+## Review Approval Flow
+
+Files that reach `:pending_review` (low-confidence TMDB match or zero results) are surfaced in the `/review` admin UI. The reviewer can:
+
+1. **Approve** — Accepts the current TMDB match. Triggers the same `:fetch_metadata` → `:download_images` pipeline steps as auto-approved files. Runs asynchronously via `Task.Supervisor`.
+2. **Search** — Opens an inline TMDB search panel. The reviewer searches manually, selects a result (which sets `tmdb_id`, `match_title`, `match_year`, `match_poster_path`, `confidence_score: 1.0`), then approves.
+3. **Dismiss** — Rejects the file, transitioning it to `:dismissed` (terminal state). The file is excluded from future processing.
+
+### Review Ash Actions
+
+| Action | Type | Behavior |
+|--------|------|----------|
+| `:approve` | update | Validates state is `:pending_review`, transitions to `:approved` |
+| `:dismiss` | update | Validates state is `:pending_review`, transitions to `:dismissed` |
+| `:set_tmdb_match` | update | Accepts `tmdb_id`, `match_title`, `match_year`, `match_poster_path`, `confidence_score`. Validates state is `:pending_review`. Does not change state — approve separately. |
+| `:update_state` | update | Generic state setter for admin tools and test setup |
+| `:pending_review_files` | read | Returns all files in `:pending_review` state, sorted by `inserted_at` ascending |
+
+### Match Metadata Fields
+
+The WatchedFile stores match metadata from the TMDB search result for display in the review UI:
+
+| Attribute | Type | Purpose |
+|-----------|------|---------|
+| `match_title` | string | TMDB result title (movie title or TV series name) |
+| `match_year` | string | Release year extracted from TMDB date field |
+| `match_poster_path` | string | TMDB poster path fragment, rendered as CDN URL for thumbnail display |
+
+These fields are set automatically during the `:search` step and can be overridden via `:set_tmdb_match` during manual review.
+
+---
+
 ## Future Stages
 
-- **Re-processing** — After manual approval in the admin UI, the approved file can be re-queued for `:fetch_metadata`
 - **Dynamic directory management** — Add/remove watch directories at runtime via the admin UI without restart

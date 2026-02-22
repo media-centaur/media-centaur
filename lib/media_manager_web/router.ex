@@ -18,6 +18,7 @@ defmodule MediaManagerWeb.Router do
     pipe_through :browser
 
     live "/", DashboardLive, :index
+    live "/review", ReviewLive, :index
   end
 
   # Other scopes may use custom stacks.
