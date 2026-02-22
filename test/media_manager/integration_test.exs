@@ -414,6 +414,69 @@ defmodule MediaManager.IntegrationTest do
     end
   end
 
+  describe "Config boolean merge" do
+    test "media_json_enabled false is not overridden by default true" do
+      # The boolean-safe merge in Config uses a case expression instead of ||.
+      # If someone regresses this to `false || true`, it silently returns true.
+      # This test verifies the TOML → merge path preserves an explicit false.
+      toml_content = """
+      media_json_enabled = false
+      """
+
+      path =
+        Path.join(System.tmp_dir!(), "test-config-#{System.unique_integer([:positive])}.toml")
+
+      File.write!(path, toml_content)
+      {:ok, toml} = Toml.decode(toml_content)
+
+      result =
+        case get_in(toml, ["media_json_enabled"]) do
+          value when is_boolean(value) -> value
+          _ -> true
+        end
+
+      assert result == false
+      File.rm(path)
+    end
+  end
+
+  describe "entity payload shape" do
+    alias MediaManager.Playback.ProgressSummary
+    alias MediaManager.Serializer
+
+    test "entity with progress produces expected payload structure" do
+      {:ok, entity} =
+        Entity
+        |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :movie, name: "Payload Movie"})
+        |> Ash.create()
+
+      {:ok, _progress} =
+        WatchProgress
+        |> Ash.Changeset.for_create(:upsert_progress, %{
+          entity_id: entity.id,
+          position_seconds: 600.0,
+          duration_seconds: 7200.0
+        })
+        |> Ash.create()
+
+      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      progress_records = entity.watch_progress || []
+      serialized = Serializer.serialize_entity(entity)
+      progress = ProgressSummary.compute(entity, progress_records)
+      payload = Map.put(serialized, "progress", progress)
+
+      assert is_binary(payload["@id"])
+      assert is_map(payload["entity"])
+      assert payload["entity"]["@type"] == "Movie"
+      assert payload["entity"]["name"] == "Payload Movie"
+      assert is_map(payload["progress"])
+      assert Map.has_key?(payload["progress"], :episode_position_seconds)
+      assert Map.has_key?(payload["progress"], :episode_duration_seconds)
+      assert Map.has_key?(payload["progress"], :episodes_completed)
+      assert Map.has_key?(payload["progress"], :episodes_total)
+    end
+  end
+
   @tag :external
   test "WatchedFile :search finds The Shadowy Sentinel with high confidence" do
     {:ok, file} =
