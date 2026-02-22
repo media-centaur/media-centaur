@@ -53,6 +53,38 @@ defmodule MediaManager.Library.WatchedFile do
       validate attribute_equals(:state, :detected)
       change set_attribute(:state, :queued)
     end
+
+    update :approve do
+      validate attribute_equals(:state, :pending_review)
+      change set_attribute(:state, :approved)
+    end
+
+    update :dismiss do
+      validate attribute_equals(:state, :pending_review)
+      change set_attribute(:state, :dismissed)
+    end
+
+    update :set_tmdb_match do
+      accept [:tmdb_id, :match_title, :match_year, :match_poster_path, :confidence_score]
+      validate attribute_equals(:state, :pending_review)
+    end
+
+    update :update_state do
+      accept [
+        :state,
+        :tmdb_id,
+        :confidence_score,
+        :match_title,
+        :match_year,
+        :match_poster_path,
+        :error_message
+      ]
+    end
+
+    read :pending_review_files do
+      filter expr(state == :pending_review)
+      prepare build(sort: [inserted_at: :asc])
+    end
   end
 
   attributes do
@@ -76,6 +108,9 @@ defmodule MediaManager.Library.WatchedFile do
 
     attribute :search_title, :string
     attribute :error_message, :string
+    attribute :match_title, :string
+    attribute :match_year, :string
+    attribute :match_poster_path, :string
 
     create_timestamp :inserted_at
     update_timestamp :updated_at

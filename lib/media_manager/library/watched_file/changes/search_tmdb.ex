@@ -29,13 +29,20 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
       {:ok, []} ->
         Ash.Changeset.change_attribute(changeset, :state, :pending_review)
 
-      {:ok, {result, score, _title_key}} ->
+      {:ok, {result, score, title_key}} ->
         tmdb_id = to_string(result["id"])
+        match_title = result[title_key]
+        year_key = if title_key == "title", do: "release_date", else: "first_air_date"
+        match_year = extract_year(result[year_key])
+        match_poster_path = result["poster_path"]
         next_state = if score >= Confidence.threshold(), do: :approved, else: :pending_review
 
         changeset
         |> Ash.Changeset.change_attribute(:tmdb_id, tmdb_id)
         |> Ash.Changeset.change_attribute(:confidence_score, score)
+        |> Ash.Changeset.change_attribute(:match_title, match_title)
+        |> Ash.Changeset.change_attribute(:match_year, match_year)
+        |> Ash.Changeset.change_attribute(:match_poster_path, match_poster_path)
         |> Ash.Changeset.change_attribute(:state, next_state)
 
       {:error, reason} ->
@@ -99,4 +106,8 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
     end)
     |> Enum.max_by(fn {_, score, _} -> score end)
   end
+
+  defp extract_year(nil), do: nil
+  defp extract_year(""), do: nil
+  defp extract_year(<<year::binary-size(4), _rest::binary>>), do: year
 end

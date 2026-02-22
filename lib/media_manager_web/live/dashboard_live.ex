@@ -84,7 +84,7 @@ defmodule MediaManagerWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_path="/">
       <div class="space-y-6">
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-bold">Dashboard</h1>
@@ -234,10 +234,15 @@ defmodule MediaManagerWeb.DashboardLive do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body">
-        <h2 class="card-title text-lg">
-          Pending Review
-          <span :if={@files != []} class="badge badge-warning badge-sm">{length(@files)}</span>
-        </h2>
+        <div class="flex items-center justify-between">
+          <h2 class="card-title text-lg">
+            Pending Review
+            <span :if={@files != []} class="badge badge-warning badge-sm">{length(@files)}</span>
+          </h2>
+          <.link :if={@files != []} navigate="/review" class="link link-primary text-sm">
+            Review all &rarr;
+          </.link>
+        </div>
 
         <p :if={@files == []} class="text-base-content/60">No files awaiting review.</p>
 
@@ -406,12 +411,13 @@ defmodule MediaManagerWeb.DashboardLive do
     [
       %{key: :pending_review, label: "pending review"},
       %{key: :error, label: "error"},
-      %{key: :removed, label: "removed"}
+      %{key: :removed, label: "removed"},
+      %{key: :dismissed, label: "dismissed"}
     ]
   end
 
   defp has_side_states?(stats) do
-    Enum.any?([:pending_review, :error, :removed], fn key ->
+    Enum.any?([:pending_review, :error, :removed, :dismissed], fn key ->
       (stats[key] || 0) > 0
     end)
   end
@@ -421,6 +427,7 @@ defmodule MediaManagerWeb.DashboardLive do
   defp pipeline_badge_class(:error, _), do: "badge-error"
   defp pipeline_badge_class(:pending_review, _), do: "badge-warning"
   defp pipeline_badge_class(:removed, _), do: "badge-ghost"
+  defp pipeline_badge_class(:dismissed, _), do: "badge-ghost"
   defp pipeline_badge_class(_, _), do: "badge-info"
 
   defp watcher_badge_class(:watching), do: "badge-success"
