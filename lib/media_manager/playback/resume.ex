@@ -77,7 +77,7 @@ defmodule MediaManager.Playback.Resume do
   end
 
   defp resolve_tv_episodes(episodes, []) do
-    {_season, _episode, url} = List.first(episodes)
+    {_season_number, _episode_number, url} = List.first(episodes)
     {:play_next, url, 0.0}
   end
 
@@ -89,7 +89,7 @@ defmodule MediaManager.Playback.Resume do
 
     case most_recent do
       nil ->
-        {_season, _episode, url} = List.first(episodes)
+        {_season_number, _episode_number, url} = List.first(episodes)
         {:play_next, url, 0.0}
 
       record ->
@@ -108,7 +108,11 @@ defmodule MediaManager.Playback.Resume do
 
   defp advance_from(record, episodes, progress_by_key) do
     current_key = {record.season_number, record.episode_number}
-    current_index = Enum.find_index(episodes, fn {s, e, _url} -> {s, e} == current_key end)
+
+    current_index =
+      Enum.find_index(episodes, fn {season_number, episode_number, _url} ->
+        {season_number, episode_number} == current_key
+      end)
 
     case current_index do
       nil ->
@@ -120,10 +124,10 @@ defmodule MediaManager.Playback.Resume do
         case find_next_with_url(remaining) do
           nil ->
             # All episodes after current are exhausted — restart from beginning
-            {_s, _e, first_url} = List.first(episodes)
+            {_season_number, _episode_number, first_url} = List.first(episodes)
             {:restart, first_url, 0.0}
 
-          {_s, _e, url} ->
+          {_season_number, _episode_number, url} ->
             {:play_next, url, 0.0}
         end
     end
@@ -131,27 +135,29 @@ defmodule MediaManager.Playback.Resume do
 
   defp find_next_unwatched(episodes, progress_by_key) do
     unwatched =
-      Enum.find(episodes, fn {s, e, _url} ->
-        not Map.has_key?(progress_by_key, {s, e})
+      Enum.find(episodes, fn {season_number, episode_number, _url} ->
+        not Map.has_key?(progress_by_key, {season_number, episode_number})
       end)
 
     case unwatched do
-      {_s, _e, url} ->
+      {_season_number, _episode_number, url} ->
         {:play_next, url, 0.0}
 
       nil ->
         # All watched — restart
-        {_s, _e, first_url} = List.first(episodes)
+        {_season_number, _episode_number, first_url} = List.first(episodes)
         {:restart, first_url, 0.0}
     end
   end
 
   defp find_next_with_url([]), do: nil
-  defp find_next_with_url([{s, e, url} | _rest]), do: {s, e, url}
 
-  defp find_episode_url(episodes, {season, episode}) do
-    case Enum.find(episodes, fn {s, e, _url} -> {s, e} == {season, episode} end) do
-      {_s, _e, url} -> url
+  defp find_next_with_url([{season_number, episode_number, url} | _rest]),
+    do: {season_number, episode_number, url}
+
+  defp find_episode_url(episodes, {season_number, episode_number}) do
+    case Enum.find(episodes, fn {sn, en, _url} -> {sn, en} == {season_number, episode_number} end) do
+      {_season_number, _episode_number, url} -> url
       nil -> nil
     end
   end

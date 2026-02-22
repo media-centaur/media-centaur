@@ -14,6 +14,7 @@ defmodule MediaManagerWeb.ChannelCase do
     quote do
       import Phoenix.ChannelTest
       import MediaManagerWeb.ChannelCase, only: [json_roundtrip: 1]
+      import MediaManager.TestFactory
       @endpoint MediaManagerWeb.Endpoint
     end
   end

@@ -1,8 +1,6 @@
 defmodule MediaManagerWeb.LibraryChannelTest do
   use MediaManagerWeb.ChannelCase
 
-  alias MediaManager.Library.{Entity, WatchProgress}
-
   defp join_library do
     {:ok, _, socket} =
       MediaManagerWeb.UserSocket
@@ -10,36 +8,6 @@ defmodule MediaManagerWeb.LibraryChannelTest do
       |> subscribe_and_join(MediaManagerWeb.LibraryChannel, "library")
 
     socket
-  end
-
-  defp create_movie(name) do
-    {:ok, entity} =
-      Entity
-      |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :movie, name: name})
-      |> Ash.create()
-
-    entity
-  end
-
-  defp create_tv_series(name) do
-    {:ok, entity} =
-      Entity
-      |> Ash.Changeset.for_create(:create_from_tmdb, %{type: :tv_series, name: name})
-      |> Ash.create()
-
-    entity
-  end
-
-  defp create_progress(entity_id, attrs) do
-    {:ok, progress} =
-      WatchProgress
-      |> Ash.Changeset.for_create(
-        :upsert_progress,
-        Map.merge(%{entity_id: entity_id}, attrs)
-      )
-      |> Ash.create()
-
-    progress
   end
 
   describe "join" do
@@ -54,7 +22,7 @@ defmodule MediaManagerWeb.LibraryChannelTest do
     end
 
     test "library with a movie returns wrapped entity format" do
-      entity = create_movie("Blade Runner 2049")
+      entity = create_entity(%{type: :movie, name: "Blade Runner 2049"})
 
       {:ok, reply, _socket} =
         MediaManagerWeb.UserSocket
@@ -72,9 +40,10 @@ defmodule MediaManagerWeb.LibraryChannelTest do
     end
 
     test "entity with watch progress includes progress summary with string keys" do
-      entity = create_movie("Progress Movie")
+      entity = create_entity(%{type: :movie, name: "Progress Movie"})
 
-      create_progress(entity.id, %{
+      create_watch_progress(%{
+        entity_id: entity.id,
         position_seconds: 600.0,
         duration_seconds: 7200.0
       })
@@ -105,7 +74,7 @@ defmodule MediaManagerWeb.LibraryChannelTest do
     test "entity_added push for new entity" do
       socket = join_library()
 
-      entity = create_movie("Dune: Part Two")
+      entity = create_entity(%{type: :movie, name: "Dune: Part Two"})
 
       # Send directly to the channel process to avoid PubSub side effects
       send(socket.channel_pid, {:entities_changed, [entity.id]})
@@ -120,7 +89,7 @@ defmodule MediaManagerWeb.LibraryChannelTest do
     end
 
     test "entity_updated push for known entity" do
-      entity = create_movie("Original Name")
+      entity = create_entity(%{type: :movie, name: "Original Name"})
       socket = join_library()
 
       # Entity is known from the join. Sending a change triggers entity_updated.
@@ -134,7 +103,7 @@ defmodule MediaManagerWeb.LibraryChannelTest do
     end
 
     test "entity_removed push for deleted entity" do
-      entity = create_tv_series("Cancelled Show")
+      entity = create_entity(%{type: :tv_series, name: "Cancelled Show"})
       socket = join_library()
 
       # Destroy the entity so the channel can't load it

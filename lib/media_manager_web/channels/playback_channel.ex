@@ -7,7 +7,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
   require Logger
 
   alias MediaManager.Library.{Entity, WatchProgress}
-  alias MediaManager.Playback.{Manager, Resume}
+  alias MediaManager.Playback.{EpisodeList, Manager, Resume}
 
   @impl true
   def join("playback", _params, socket) do
@@ -39,7 +39,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
     %{"entity_id" => entity_id, "season_number" => season, "episode_number" => episode} = params
 
     with {:ok, entity} <- load_entity(entity_id),
-         {:ok, content_url} <- find_episode_content_url(entity, season, episode) do
+         {:ok, content_url} <- EpisodeList.find_content_url(entity, season, episode) do
       play_params = %{
         action: :play_episode,
         entity_id: entity_id,
@@ -64,26 +64,17 @@ defmodule MediaManagerWeb.PlaybackChannel do
 
   @impl true
   def handle_in("pause", _params, socket) do
-    case Manager.pause() do
-      :ok -> {:reply, :ok, socket}
-      {:error, reason} -> {:reply, {:error, %{reason: to_string(reason)}}, socket}
-    end
+    reply_result(Manager.pause(), socket)
   end
 
   @impl true
   def handle_in("stop", _params, socket) do
-    case Manager.stop() do
-      :ok -> {:reply, :ok, socket}
-      {:error, reason} -> {:reply, {:error, %{reason: to_string(reason)}}, socket}
-    end
+    reply_result(Manager.stop(), socket)
   end
 
   @impl true
   def handle_in("seek", %{"position_seconds" => position}, socket) do
-    case Manager.seek(position) do
-      :ok -> {:reply, :ok, socket}
-      {:error, reason} -> {:reply, {:error, %{reason: to_string(reason)}}, socket}
-    end
+    reply_result(Manager.seek(position), socket)
   end
 
   # --- PubSub forwarding ---
@@ -118,6 +109,12 @@ defmodule MediaManagerWeb.PlaybackChannel do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   # --- Helpers ---
+
+  defp reply_result(:ok, socket), do: {:reply, :ok, socket}
+
+  defp reply_result({:error, reason}, socket) do
+    {:reply, {:error, %{reason: to_string(reason)}}, socket}
+  end
 
   defp load_entity(entity_id) do
     case Ash.get(Entity, entity_id, action: :with_associations) do
@@ -160,31 +157,12 @@ defmodule MediaManagerWeb.PlaybackChannel do
     }
   end
 
-  defp find_episode_content_url(entity, season_number, episode_number) do
-    result =
-      (entity.seasons || [])
-      |> Enum.find(&(&1.season_number == season_number))
-      |> case do
-        nil -> nil
-        season -> Enum.find(season.episodes || [], &(&1.episode_number == episode_number))
-      end
-      |> case do
-        nil -> nil
-        episode -> episode.content_url
-      end
-
-    case result do
-      nil -> {:error, :invalid_episode}
-      url -> {:ok, url}
-    end
-  end
-
   defp episode_context(:resume, _entity, _url, progress_records) do
     most_recent_episode(progress_records)
   end
 
   defp episode_context(_action, entity, content_url, _progress_records) do
-    find_episode_by_url(entity, content_url) || {nil, nil}
+    EpisodeList.find_by_content_url(entity, content_url) || {nil, nil}
   end
 
   defp most_recent_episode([]), do: {nil, nil}
@@ -192,15 +170,5 @@ defmodule MediaManagerWeb.PlaybackChannel do
   defp most_recent_episode(progress_records) do
     most_recent = Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
     if most_recent, do: {most_recent.season_number, most_recent.episode_number}, else: {nil, nil}
-  end
-
-  defp find_episode_by_url(entity, content_url) do
-    Enum.find_value(entity.seasons || [], fn season ->
-      Enum.find_value(season.episodes || [], fn episode ->
-        if episode.content_url == content_url do
-          {season.season_number, episode.episode_number}
-        end
-      end)
-    end)
   end
 end

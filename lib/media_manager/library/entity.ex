@@ -24,7 +24,7 @@ defmodule MediaManager.Library.Entity do
                   :identifiers,
                   :watched_files,
                   :watch_progress,
-                  seasons: [:episodes],
+                  seasons: [episodes: [:images]],
                   movies: [:images]
                 ]
               )
