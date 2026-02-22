@@ -4,6 +4,7 @@ defmodule MediaManagerWeb.LibraryChannel do
   in batches on join, then pushes incremental updates via PubSub.
   """
   use Phoenix.Channel
+  require Logger
 
   alias MediaManager.Library.Entity
   alias MediaManager.Playback.ProgressSummary
@@ -13,6 +14,7 @@ defmodule MediaManagerWeb.LibraryChannel do
 
   @impl true
   def join("library", _params, socket) do
+    Logger.debug("LibraryChannel joined")
     Phoenix.PubSub.subscribe(MediaManager.PubSub, "library:updates")
     send(self(), :sync_library)
     {:ok, %{}, assign(socket, :known_entity_ids, MapSet.new())}
@@ -24,6 +26,7 @@ defmodule MediaManagerWeb.LibraryChannel do
     known_ids = MapSet.new(entities, fn entity -> entity["@id"] end)
 
     push_batched(socket, "library:entities", entities, :entities)
+    Logger.debug("LibraryChannel push library:sync_complete")
     push(socket, "library:sync_complete", %{})
 
     {:noreply, assign(socket, :known_entity_ids, known_ids)}
@@ -63,6 +66,7 @@ defmodule MediaManagerWeb.LibraryChannel do
     items
     |> Enum.chunk_every(@batch_size)
     |> Enum.each(fn batch ->
+      Logger.debug("LibraryChannel push #{event} (#{length(batch)} #{key})")
       push(socket, event, %{key => batch})
     end)
   end

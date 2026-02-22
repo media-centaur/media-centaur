@@ -13,11 +13,18 @@ defmodule MediaManagerWeb.PlaybackChannel do
   def join("playback", _params, socket) do
     Phoenix.PubSub.subscribe(MediaManager.PubSub, "playback:events")
     state = Manager.current_state()
+
+    Logger.debug(
+      "PlaybackChannel joined, reply: #{inspect(state, limit: 5, printable_limit: 200)}"
+    )
+
     {:ok, state, socket}
   end
 
   @impl true
-  def handle_in("play", %{"entity_id" => entity_id}, socket) do
+  def handle_in("play", %{"entity_id" => entity_id} = payload, socket) do
+    Logger.debug("PlaybackChannel recv play: #{inspect(payload, limit: 5, printable_limit: 200)}")
+
     with {:ok, entity} <- load_entity(entity_id),
          progress_records <- load_progress(entity_id),
          {:ok, play_params} <- resolve_playback(entity, progress_records) do
@@ -36,6 +43,10 @@ defmodule MediaManagerWeb.PlaybackChannel do
 
   @impl true
   def handle_in("play_episode", params, socket) do
+    Logger.debug(
+      "PlaybackChannel recv play_episode: #{inspect(params, limit: 5, printable_limit: 200)}"
+    )
+
     %{"entity_id" => entity_id, "season_number" => season, "episode_number" => episode} = params
 
     with {:ok, entity} <- load_entity(entity_id),
@@ -64,16 +75,19 @@ defmodule MediaManagerWeb.PlaybackChannel do
 
   @impl true
   def handle_in("pause", _params, socket) do
+    Logger.debug("PlaybackChannel recv pause")
     reply_result(Manager.pause(), socket)
   end
 
   @impl true
   def handle_in("stop", _params, socket) do
+    Logger.debug("PlaybackChannel recv stop")
     reply_result(Manager.stop(), socket)
   end
 
   @impl true
-  def handle_in("seek", %{"position_seconds" => position}, socket) do
+  def handle_in("seek", %{"position_seconds" => position} = payload, socket) do
+    Logger.debug("PlaybackChannel recv seek: #{inspect(payload, limit: 5, printable_limit: 200)}")
     reply_result(Manager.seek(position), socket)
   end
 
@@ -81,26 +95,36 @@ defmodule MediaManagerWeb.PlaybackChannel do
 
   @impl true
   def handle_info({:playback_state_changed, state, now_playing}, socket) do
-    push(socket, "playback:state_changed", %{
-      state: to_string(state),
-      now_playing: now_playing
-    })
+    payload = %{state: to_string(state), now_playing: now_playing}
+
+    Logger.debug(
+      "PlaybackChannel push playback:state_changed: #{inspect(payload, limit: 5, printable_limit: 200)}"
+    )
+
+    push(socket, "playback:state_changed", payload)
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_info({:playback_progress, progress}, socket) do
+    Logger.debug(
+      "PlaybackChannel push playback:progress: #{inspect(progress, limit: 5, printable_limit: 200)}"
+    )
+
     push(socket, "playback:progress", progress)
     {:noreply, socket}
   end
 
   @impl true
   def handle_info({:entity_progress_updated, entity_id, progress_summary}, socket) do
-    push(socket, "playback:entity_progress_updated", %{
-      entity_id: entity_id,
-      progress: progress_summary
-    })
+    payload = %{entity_id: entity_id, progress: progress_summary}
+
+    Logger.debug(
+      "PlaybackChannel push playback:entity_progress_updated: #{inspect(payload, limit: 5, printable_limit: 200)}"
+    )
+
+    push(socket, "playback:entity_progress_updated", payload)
 
     {:noreply, socket}
   end
