@@ -135,6 +135,8 @@ relying on the conversation history from the session where the planning was done
 
 Always write the plan and save it before asking to execute. DO NOT AUTO EXECUTE AN IMPLEMENTATION PLAN AFTER SAVING THE PLAN. STOP AND REQUEST PERMISSION BEFORE EXECUTION.
 
+Every implementation plan must include a **Smoke Tests** section identifying which stable contracts are affected and what tests to add (per the Testing Strategy). If the plan introduces no testable contracts, state that explicitly. Plans without a testing section are incomplete.
+
 ## Testing Strategy
 
 This app is in a volatile prototype state. Keep the test suite **minimal and seam-focused**:
@@ -145,6 +147,7 @@ This app is in a volatile prototype state. Keep the test suite **minimal and sea
 - The integration seam worth testing: Ash resource actions (DB round-trips), `JsonWriter.regenerate_all` (file output contract), and the root route (wiring check).
 - All integration tests live in `test/media_manager/integration_test.exs` and use `DataCase`.
 - Add a new test only when: (a) a regression just burned you, or (b) a feature is stable and its contract is clear.
+- When implementing a plan, always write the smoke tests identified in the plan as part of the implementation — not as a follow-up task.
 
 ## Variable Naming
 

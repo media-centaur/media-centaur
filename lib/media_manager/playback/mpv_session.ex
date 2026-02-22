@@ -177,6 +177,7 @@ defmodule MediaManager.Playback.MpvSession do
   def handle_info({:tcp_closed, _socket}, state) do
     Logger.info("MpvSession #{state.session_id}: socket closed")
     persist_progress(state)
+    broadcast_entity_progress(state)
     broadcast_state_changed(:stopped, state)
     cleanup(state)
     {:stop, :normal, %{state | state: :stopped}}
@@ -187,6 +188,7 @@ defmodule MediaManager.Playback.MpvSession do
   def handle_info({_port, {:exit_status, status}}, state) do
     Logger.info("MpvSession #{state.session_id}: MPV exited with status #{status}")
     persist_progress(state)
+    broadcast_entity_progress(state)
     broadcast_state_changed(:stopped, state)
     cleanup(state)
     {:stop, :normal, %{state | state: :stopped}}
@@ -234,6 +236,7 @@ defmodule MediaManager.Playback.MpvSession do
          state
        ) do
     persist_progress(state)
+    broadcast_entity_progress(state)
     broadcast_state_changed(:stopped, state)
     send_mpv_command(state.socket, ["quit"])
     state
@@ -241,6 +244,7 @@ defmodule MediaManager.Playback.MpvSession do
 
   defp handle_mpv_message(%{"event" => "end-file"}, state) do
     persist_progress(state)
+    broadcast_entity_progress(state)
     broadcast_state_changed(:stopped, state)
     cleanup(state)
     state
@@ -277,6 +281,25 @@ defmodule MediaManager.Playback.MpvSession do
       %{state | last_broadcast_at: now}
     else
       state
+    end
+  end
+
+  # --- Entity Progress Broadcasting ---
+
+  defp broadcast_entity_progress(session) do
+    case Ash.get(MediaManager.Library.Entity, session.entity_id, action: :with_associations) do
+      {:ok, entity} ->
+        progress_records = entity.watch_progress || []
+        summary = MediaManager.Playback.ProgressSummary.compute(entity, progress_records)
+
+        Phoenix.PubSub.broadcast(
+          MediaManager.PubSub,
+          "playback:events",
+          {:entity_progress_updated, session.entity_id, summary}
+        )
+
+      {:error, _} ->
+        :ok
     end
   end
 

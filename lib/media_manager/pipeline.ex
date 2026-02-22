@@ -33,19 +33,28 @@ defmodule MediaManager.Pipeline do
 
   @impl true
   def handle_batch(:default, messages, _batch_info, _context) do
-    has_entity =
-      Enum.any?(messages, fn message ->
-        match?(%WatchedFile{entity_id: entity_id} when not is_nil(entity_id), message.data)
-      end)
+    entity_ids =
+      messages
+      |> Enum.map(fn message -> message.data.entity_id end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
 
-    if has_entity do
-      case MediaManager.JsonWriter.regenerate_all() do
-        :ok ->
-          Phoenix.PubSub.broadcast(MediaManager.PubSub, "library:updates", :library_changed)
+    if entity_ids != [] do
+      if MediaManager.Config.get(:media_json_enabled) do
+        case MediaManager.JsonWriter.regenerate_all() do
+          :ok ->
+            :ok
 
-        {:error, reason} ->
-          Logger.warning("Pipeline: batch JSON export failed: #{inspect(reason)}")
+          {:error, reason} ->
+            Logger.warning("Pipeline: batch JSON export failed: #{inspect(reason)}")
+        end
       end
+
+      Phoenix.PubSub.broadcast(
+        MediaManager.PubSub,
+        "library:updates",
+        {:entities_changed, entity_ids}
+      )
     end
 
     messages
