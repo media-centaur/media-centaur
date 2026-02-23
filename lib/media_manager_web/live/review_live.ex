@@ -8,12 +8,15 @@ defmodule MediaManagerWeb.ReviewLive do
     socket =
       if connected?(socket) do
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "review:updates")
+        files = Review.fetch_pending_files()
 
         socket
-        |> assign(files: Review.fetch_pending_files())
+        |> assign(files: files)
+        |> assign(files_by_id: Map.new(files, &{&1.id, &1}))
       else
         socket
         |> assign(files: [])
+        |> assign(files_by_id: %{})
       end
 
     {:ok,
@@ -29,7 +32,7 @@ defmodule MediaManagerWeb.ReviewLive do
 
   @impl true
   def handle_event("approve", %{"id" => id}, socket) do
-    file = Enum.find(socket.assigns.files, &(&1.id == id))
+    file = socket.assigns.files_by_id[id]
 
     if file do
       Review.approve_and_process(file)
@@ -40,7 +43,7 @@ defmodule MediaManagerWeb.ReviewLive do
   end
 
   def handle_event("retry", %{"id" => id}, socket) do
-    file = Enum.find(socket.assigns.files, &(&1.id == id))
+    file = socket.assigns.files_by_id[id]
 
     if file do
       socket = assign(socket, processing: MapSet.put(socket.assigns.processing, id))
@@ -52,7 +55,7 @@ defmodule MediaManagerWeb.ReviewLive do
   end
 
   def handle_event("dismiss", %{"id" => id}, socket) do
-    file = Enum.find(socket.assigns.files, &(&1.id == id))
+    file = socket.assigns.files_by_id[id]
 
     if file do
       socket = assign(socket, processing: MapSet.put(socket.assigns.processing, id))
@@ -64,7 +67,7 @@ defmodule MediaManagerWeb.ReviewLive do
   end
 
   def handle_event("open_search", %{"id" => id}, socket) do
-    file = Enum.find(socket.assigns.files, &(&1.id == id))
+    file = socket.assigns.files_by_id[id]
 
     search_type =
       case file && file.parsed_type do
@@ -113,7 +116,7 @@ defmodule MediaManagerWeb.ReviewLive do
         %{"file-id" => file_id, "tmdb-id" => tmdb_id, "title" => title} = params,
         socket
       ) do
-    file = Enum.find(socket.assigns.files, &(&1.id == file_id))
+    file = socket.assigns.files_by_id[file_id]
 
     if file do
       match = %{
@@ -133,6 +136,7 @@ defmodule MediaManagerWeb.ReviewLive do
           {:noreply,
            socket
            |> assign(files: files)
+           |> assign(files_by_id: Map.put(socket.assigns.files_by_id, file_id, updated_file))
            |> assign(search_open: nil)
            |> assign(search_results: [])}
 
@@ -146,9 +150,12 @@ defmodule MediaManagerWeb.ReviewLive do
 
   @impl true
   def handle_info({:file_reviewed, file_id}, socket) do
+    files = Enum.reject(socket.assigns.files, &(&1.id == file_id))
+
     {:noreply,
      socket
-     |> assign(files: Enum.reject(socket.assigns.files, &(&1.id == file_id)))
+     |> assign(files: files)
+     |> assign(files_by_id: Map.delete(socket.assigns.files_by_id, file_id))
      |> assign(processing: MapSet.delete(socket.assigns.processing, file_id))}
   end
 

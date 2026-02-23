@@ -11,13 +11,17 @@ defmodule MediaManagerWeb.LibraryLive do
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "library:updates")
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "playback:events")
 
+        entries = LibraryBrowser.fetch_entities()
+
         socket
-        |> assign(entries: LibraryBrowser.fetch_entities())
+        |> assign(entries: entries)
+        |> assign(counts: tab_counts(entries))
         |> assign(watch_dirs: MediaManager.Config.get(:watch_dirs) || [])
         |> assign(playback: MediaManager.Playback.Manager.current_state())
       else
         socket
         |> assign(entries: [])
+        |> assign(counts: %{all: 0, movies: 0, tv: 0})
         |> assign(watch_dirs: [])
         |> assign(playback: %{state: :idle, now_playing: nil})
       end
@@ -72,12 +76,17 @@ defmodule MediaManagerWeb.LibraryLive do
   end
 
   def handle_info(:reload_entities, socket) do
+    entries = LibraryBrowser.fetch_entities()
+
     {:noreply,
-     socket |> assign(entries: LibraryBrowser.fetch_entities()) |> assign(reload_timer: nil)}
+     socket
+     |> assign(entries: entries)
+     |> assign(counts: tab_counts(entries))
+     |> assign(reload_timer: nil)}
   end
 
-  def handle_info({:playback_state_changed, _new_state, _now_playing}, socket) do
-    {:noreply, assign(socket, playback: MediaManager.Playback.Manager.current_state())}
+  def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
+    {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
   end
 
   def handle_info({:entity_progress_updated, entity_id, summary}, socket) do
@@ -86,29 +95,16 @@ defmodule MediaManagerWeb.LibraryLive do
   end
 
   def handle_info({:playback_progress, progress}, socket) do
-    socket = assign(socket, playback: MediaManager.Playback.Manager.current_state())
+    playback = socket.assigns.playback
 
-    case playing_entity_id(socket.assigns.playback) do
-      nil ->
-        {:noreply, socket}
+    now_playing =
+      if playback.now_playing do
+        playback.now_playing
+        |> Map.put(:position_seconds, progress.position_seconds)
+        |> Map.put(:duration_seconds, progress.duration_seconds)
+      end
 
-      entity_id ->
-        entries =
-          update_entry_progress(socket.assigns.entries, entity_id, fn existing ->
-            (existing ||
-               %{
-                 current_episode: nil,
-                 episode_position_seconds: 0.0,
-                 episode_duration_seconds: 0.0,
-                 episodes_completed: 0,
-                 episodes_total: 1
-               })
-            |> Map.put(:episode_position_seconds, progress.position_seconds)
-            |> Map.put(:episode_duration_seconds, progress.duration_seconds)
-          end)
-
-        {:noreply, assign(socket, entries: entries)}
-    end
+    {:noreply, assign(socket, playback: %{playback | now_playing: now_playing})}
   end
 
   @impl true
@@ -121,8 +117,7 @@ defmodule MediaManagerWeb.LibraryLive do
   @impl true
   def render(assigns) do
     filtered = filtered_entries(assigns.entries, assigns.active_tab)
-    counts = tab_counts(assigns.entries)
-    assigns = assign(assigns, filtered: filtered, counts: counts)
+    assigns = assign(assigns, filtered: filtered)
 
     ~H"""
     <Layouts.app flash={@flash} current_path="/library">
@@ -177,14 +172,6 @@ defmodule MediaManagerWeb.LibraryLive do
 
   defp entity_card(%{entry: %{entity: %{type: :tv_series}}} = assigns) do
     entity = assigns.entry.entity
-
-    seasons =
-      (entity.seasons || [])
-      |> Enum.sort_by(& &1.season_number)
-      |> Enum.map(fn season ->
-        %{season | episodes: Enum.sort_by(season.episodes || [], & &1.episode_number)}
-      end)
-
     episodes = EpisodeList.list_available(entity)
     progress_by_key = EpisodeList.index_progress_by_key(assigns.entry.progress_records)
     playing = assigns.playing_entity_id == entity.id
@@ -192,7 +179,7 @@ defmodule MediaManagerWeb.LibraryLive do
     assigns =
       assign(assigns,
         entity: entity,
-        seasons: seasons,
+        seasons: entity.seasons || [],
         episodes: episodes,
         progress_by_key: progress_by_key,
         playing: playing,
@@ -285,13 +272,12 @@ defmodule MediaManagerWeb.LibraryLive do
 
   defp entity_card(%{entry: %{entity: %{type: :movie_series}}} = assigns) do
     entity = assigns.entry.entity
-    movies = Enum.sort_by(entity.movies || [], &{&1.position || 0, &1.date_published || ""})
     playing = assigns.playing_entity_id == entity.id
 
     assigns =
       assign(assigns,
         entity: entity,
-        movies: movies,
+        movies: entity.movies || [],
         playing: playing,
         poster: poster_url(entity)
       )

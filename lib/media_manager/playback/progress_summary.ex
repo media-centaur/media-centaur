@@ -30,7 +30,8 @@ defmodule MediaManager.Playback.ProgressSummary do
 
   # Movie, MovieSeries (single child), VideoObject — one playable item
   defp compute_single(progress_records) do
-    progress = List.first(progress_records)
+    progress = Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
+    progress = progress || List.first(progress_records)
 
     %{
       current_episode: nil,

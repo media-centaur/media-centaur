@@ -21,7 +21,8 @@ defmodule MediaManager.Watcher do
     :watcher_pid,
     state: :initializing,
     removal_timestamps: [],
-    pending_files: %{}
+    pending_files: %{},
+    exclude_dirs: []
   ]
 
   def start_link(dir) do
@@ -42,7 +43,7 @@ defmodule MediaManager.Watcher do
   @impl true
   def init(dir) do
     send(self(), :start_watching)
-    {:ok, %__MODULE__{dir: dir}}
+    {:ok, %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs()}}
   end
 
   @impl true
@@ -114,7 +115,7 @@ defmodule MediaManager.Watcher do
         {:noreply, %{state | removal_timestamps: recent}}
 
       (:created in events or :modified in events) and video_file?(path) and
-          not excluded?(path, exclude_dirs()) ->
+          not excluded?(path, state.exclude_dirs) ->
         Log.info(:watcher, "file event for #{Path.basename(path)}, starting size checks")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
@@ -179,7 +180,7 @@ defmodule MediaManager.Watcher do
 
   defp scan_directory(dir) do
     Log.info(:watcher, "scanning #{dir}")
-    exclude_dirs = exclude_dirs()
+    exclude_dirs = load_exclude_dirs()
     pattern = Path.join(dir, "**/*")
 
     pattern
@@ -216,7 +217,7 @@ defmodule MediaManager.Watcher do
     Process.send_after(self(), :health_check, @health_check_interval)
   end
 
-  defp exclude_dirs do
+  defp load_exclude_dirs do
     MediaManager.Config.get(:exclude_dirs) || []
   end
 

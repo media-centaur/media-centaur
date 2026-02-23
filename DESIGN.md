@@ -1,7 +1,7 @@
 # Media Manager — Application Design
 
 > **Status:** Active (in development)
-> **Last updated:** 2026-02-21
+> **Last updated:** 2026-02-23
 
 This document captures the full architecture of the `media-manager` Phoenix/Elixir application. Format contracts (entity schema, images, WebSocket API) are specified in `../specifications/`; this document covers app-internal design.
 
@@ -24,7 +24,7 @@ This document captures the full architecture of the `media-manager` Phoenix/Elix
 
 ## 1. Overview
 
-The media manager is the **write-side** of Freedia Center. It watches a configured `media_dir` for newly completed torrent downloads, identifies the content, scrapes metadata and artwork from external APIs, and serves the library to the `user-interface` over Phoenix Channels (WebSocket). It also maintains an image cache (at `media_images_dir`).
+The media manager is the **write-side** of Freedia Center. It watches configured `watch_dirs` for newly completed torrent downloads, identifies the content, scrapes metadata and artwork from external APIs, and serves the library to the `user-interface` over Phoenix Channels (WebSocket). It also maintains an image cache (at `media_images_dir`).
 
 **SQLite is the canonical database.** All entity data (names, descriptions, genres, TMDB IDs, image remote URLs, season/episode structure) is stored in SQLite. The UI receives data via Phoenix Channels. This means:
 
@@ -32,7 +32,7 @@ The media manager is the **write-side** of Freedia Center. It watches a configur
 - Output paths become unavailable → app continues, writes queue, resume on reconnect
 - Images lost → remote `url` stored in SQLite → re-download on demand
 
-**Media types supported:** Movies, TVSeries (full episode metadata), VideoObject (fallback for unidentified content).
+**Media types supported:** Movies, MovieSeries (collections), TVSeries (full episode metadata), VideoObject (fallback for unidentified content).
 
 **Out of scope:** Games, subtitle management.
 
@@ -42,39 +42,39 @@ The media manager is the **write-side** of Freedia Center. It watches a configur
 
 **File:** `~/.config/freedia-center/media-manager.toml`
 
-At startup, `MediaManager.Config` (a GenServer) reads this file and merges it over compiled defaults from `config/runtime.exs`. Values are accessible via `MediaManager.Config.get(:key)`.
+At startup, `MediaManager.Config` (a GenServer) reads this file and merges it over defaults from `defaults/media-manager.toml`. Values are accessible via `MediaManager.Config.get(:key)`.
 
 ```toml
 # ~/.config/freedia-center/media-manager.toml
 
-# Directory containing video/media files (e.g. torrent downloads folder).
-# Watched for additions and removals. May be on a removable or network drive.
-media_dir = "/mnt/videos/Videos"
+# Path to the SQLite database file.
+database_path = "~/.local/share/freedia-center/media-manager.db"
+
+# Directories containing video/media files (e.g. torrent downloads folders).
+# Watched for additions and removals. May be on removable or network drives.
+watch_dirs = ["/mnt/videos/Videos"]
+
+# Directories to exclude from watching. Files inside these (and subdirectories)
+# are ignored by both inotify and manual scans. Must be absolute paths.
+exclude_dirs = []
 
 # Directory for cached artwork images, one subdirectory per entity UUID.
-# Shared with the user-interface (UI resolves image paths relative to this dir).
 media_images_dir = "~/.local/share/freedia-center/images"
 
 [tmdb]
 api_key = ""
 
 [pipeline]
-# Confidence score threshold (0.0–1.0). Matches at or above this score are
-# written automatically. Below it, the item is queued for human review.
 auto_approve_threshold = 0.85
+extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
+
+[playback]
+mpv_path = "/usr/bin/mpv"
+socket_dir = "/tmp"
+socket_timeout_ms = 5000
 ```
 
-**Defaults (`config/runtime.exs`):**
-
-```elixir
-config :media_manager,
-  media_dir: System.get_env("MEDIA_DIR", "/mnt/videos/Videos"),
-  media_images_dir: System.get_env("MEDIA_IMAGES_DIR", "~/.local/share/freedia-center/images"),
-  tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
-  auto_approve_threshold: 0.85
-```
-
-**TOML parsing:** `toml_elixir` library (added to `mix.exs`).
+**TOML parsing:** `toml` library (in `mix.exs`).
 
 **SQLite database location:** `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — separate from the shared media paths, so it survives any mount failure).
 
@@ -82,42 +82,21 @@ config :media_manager,
 
 ## 3. Mount Resilience
 
-Both `media_dir` and the output path (`media_images_dir`) may reside on removable drives, NAS shares, or external mounts. The application must never lose library data due to a transient mount failure.
+Both `watch_dirs` and the output path (`media_images_dir`) may reside on removable drives, NAS shares, or external mounts. The application must never lose library data due to a transient mount failure.
 
-### 3.1 `media_dir` Resilience (file watcher)
+### 3.1 Watch Directory Resilience
 
-**Core invariant:** A removal event is only valid when `media_dir` is confirmed mounted and accessible. Never remove a library entry solely on the basis of a raw deletion event.
+The `Watcher` GenServer handles mount failures through two mechanisms:
 
-**Three layers of defence:**
+- **Unmount detection.** inotify fires `IN_UNMOUNT` when a watched filesystem is ejected. The Watcher transitions to `:unavailable` state and stops forwarding events.
+- **Burst detection.** If ≥50 removal events fire within 2 seconds, the Watcher logs a warning and broadcasts a suspicious burst event. An unmount can race the health check.
 
-1. **Gate every removal on mount health.** Before `RemovalHandler` processes any `:deleted` event, check that `media_dir` is still accessible (`File.stat/1`). If it fails → suppress the removal, emit a warning.
+A periodic health check (every 30s) detects when the directory becomes accessible again and re-initialises the file system watcher.
 
-2. **Handle inotify unmount events explicitly.** On Linux, inotify fires `IN_UNMOUNT` when a watched filesystem is ejected. `:file_system` surfaces this as `[:unmounted]`. The `Watcher` transitions to `:media_dir_unavailable` state and stops forwarding any events downstream.
-
-3. **Suspicious burst detection.** If ≥50 removal events fire within 2 seconds and `media_dir` appears accessible, pause processing and alert in the admin UI. An unmount can race the health check.
-
-**Watcher state machine:**
-
-```
-:initializing
-    ↓ media_dir accessible + watcher started
-:watching                        ← normal, events forwarded
-    ↓ :unmounted event OR stat fails
-:media_dir_unavailable           ← all removal events suppressed; dashboard warning shown
-    ↓ health check passes
-:reconciling                     ← scan disk vs SQLite before resuming
-    ↓ diff complete
-:watching
-```
-
-**Reconciliation on remount:** When `media_dir` comes back, scan it and diff against `WatchedFile` records in SQLite. Only process a removal if a file is absent AND the drive is confirmed healthy. This catches files genuinely deleted while the drive was away. The `:file_system` watcher must also be re-initialised, as inotify watches do not survive unmount/remount cycles.
-
-**Periodic health check:** The `Watcher` GenServer pings `media_dir` every 30 seconds. On any state change it broadcasts via `Phoenix.PubSub` so the dashboard shows a warning banner immediately.
-
-### 3.2 Output Path Resilience (image downloader)
+### 3.2 Output Path Resilience
 
 - **If paths move:** update `media_images_dir` in TOML → restart app. Admin UI can trigger re-download.
-- **Images:** remote `url` for every image is stored in SQLite. If images are missing (lost or new path), the admin UI can trigger a re-download of any or all images.
+- **Images:** remote `url` for every image is stored in SQLite. If images are missing, the admin UI can trigger a re-download of any or all images.
 
 ---
 
@@ -125,12 +104,9 @@ Both `media_dir` and the output path (`media_images_dir`) may reside on removabl
 
 ### 4.1 File Watching
 
-`MediaManager.Watcher` (GenServer + `:file_system`) watches `media_dir` recursively. Subject to mount resilience rules in Section 3, it emits:
+`MediaManager.Watcher` (GenServer + `:file_system`) watches each directory in `watch_dirs` recursively. Subject to mount resilience rules in Section 3, it detects new video files after size stability checks and creates `WatchedFile` records via the `:detect` action.
 
-- `{:file_added, path}` — new file has stabilised (size stops changing; heuristic for completed torrent download)
-- `{:file_removed, path}` — a tracked file is confirmed deleted on a healthy mount
-
-### 4.2 Broadway Pipeline (addition path)
+### 4.2 Broadway Pipeline
 
 The pipeline is decoupled from the Watcher. The Watcher writes to the database; the Broadway pipeline reads from it via polling. See [`PIPELINE.md`](PIPELINE.md) for full implementation details.
 
@@ -143,47 +119,17 @@ Broadway Pipeline (MediaManager.Pipeline)
     ├─ Producer (MediaManager.Pipeline.Producer)
     │    Polls DB every 10s for :detected files
     │    Claims each file atomically (:detected → :queued)
-    │    Respects GenStage demand (fetches only what's needed)
     │
     └─ Processors (concurrency: 3)
          │
-         ├─ :search action
-         │    Calls TMDB search API via Req
-         │    Computes confidence score for best match
-         │    → :approved (high confidence) or :pending_review (low/no results)
+         ├─ :search → TMDB search, confidence scoring
+         │    → :approved (high confidence) or :pending_review
          │
-         ├─ :fetch_metadata action (only if :approved)
-         │    Full TMDB fetch: details, cast, seasons, episodes (for TV)
-         │    Creates Entity, Image, Identifier, Season, Episode records
-         │    → :fetching_images
+         ├─ :fetch_metadata (if approved) → creates Entity + associations
+         │    → :fetching_images (new) or :complete (existing)
          │
-         ├─ :download_images action (only if :fetching_images)
-         │    Downloads artwork via Pipeline.ImageDownloader
-         │    → :complete (best-effort; individual failures logged)
-         │
-         └─ :pending_review → stop (awaits human review in admin UI)
-```
-
-### 4.3 Removal Path
-
-```
-Watcher (only when media_dir confirmed healthy)
-    │  {:file_removed, path}
-    ▼
-MediaManager.RemovalHandler (GenServer)
-    │  Look up WatchedFile by file_path in SQLite
-    │  If not found: no-op
-    │
-    ├─ Movie / VideoObject:
-    │     Remove entity from SQLite
-    │     Push library:entity_removed via PubSub
-    │     Delete {media_images_dir}/{uuid}/ directory
-    │
-    └─ TVSeries episode file removed:
-          Remove that episode from Season → Episode records in SQLite
-          If no episodes remain in any season → remove whole TVSeries entity
-          Push library:entity_updated or library:entity_removed via PubSub
-          Delete {media_images_dir}/{uuid}/ only if whole series removed
+         └─ :download_images (new entities) → downloads artwork
+              → :complete
 ```
 
 ---
@@ -217,10 +163,12 @@ Show.Name.S01E05-06.mkv                 ← multi-episode (treat as first episod
   file_path: String.t(),
   title: String.t(),           # cleaned, title-cased
   year: integer() | nil,
-  type: :movie | :tv | :unknown,
+  type: :movie | :tv | :extra | :unknown,
   season: integer() | nil,
   episode: integer() | nil,
-  episode_title: String.t() | nil
+  episode_title: String.t() | nil,
+  parent_title: String.t() | nil,
+  parent_year: integer() | nil
 }
 ```
 
@@ -233,13 +181,13 @@ Unknown type → attempt TMDB movie search; falls back to `:pending_review` rega
 **Domain:** `MediaManager.Library`
 
 **Enum types:** State and type fields use dedicated `Ash.Type.Enum` modules for compile-time safety:
-- `MediaManager.Library.Types.EntityType` — `:movie`, `:tv_series`, `:video_object`
-- `MediaManager.Library.Types.MediaType` — `:movie`, `:tv`, `:unknown` (parsed file type)
+- `MediaManager.Library.Types.EntityType` — `:movie`, `:movie_series`, `:tv_series`, `:video_object`
+- `MediaManager.Library.Types.MediaType` — `:movie`, `:tv`, `:extra`, `:unknown` (parsed file type)
 - `MediaManager.Library.Types.WatchedFileState` — all pipeline states
 
 **Action policy:** Resources only expose purpose-built actions (no generic CRUD defaults). Each resource's `defaults` is limited to what the pipeline and UI actually need.
 
-SQLite database lives at `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — separate from the shared media paths). This ensures it survives any output path or `media_dir` mount failures.
+SQLite database lives at `~/.local/share/freedia-center/media-manager.db` (XDG data home, on system drive — separate from the shared media paths). This ensures it survives any output path or `watch_dirs` mount failures.
 
 ### `MediaManager.Library.WatchedFile`
 
@@ -252,7 +200,7 @@ Tracks every media file the pipeline knows about. One row per file. Multiple row
 | `entity_id` | UUID (FK → Entity) | Assigned at Stage 4; nil until then |
 | `parsed_title` | string | Output of name parser |
 | `parsed_year` | integer | Output of name parser |
-| `parsed_type` | `MediaType` enum | `:movie`, `:tv`, `:unknown` |
+| `parsed_type` | `MediaType` enum | `:movie`, `:tv`, `:extra`, `:unknown` |
 | `season_number` | integer | For TV episode files |
 | `episode_number` | integer | For TV episode files |
 | `tmdb_id` | string | Best TMDB candidate |
@@ -294,7 +242,7 @@ Canonical store for all library entity data. Served to the UI via Phoenix Channe
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | The `@id` used in channel messages; stable forever |
-| `type` | `EntityType` enum | `:movie`, `:tv_series`, `:video_object` |
+| `type` | `EntityType` enum | `:movie`, `:movie_series`, `:tv_series`, `:video_object` |
 | `name` | string | |
 | `description` | string | |
 | `date_published` | string | Year or ISO date |
@@ -313,17 +261,11 @@ Canonical store for all library entity data. Served to the UI via Phoenix Channe
 
 - `has_many :images, MediaManager.Library.Image`
 - `has_many :identifiers, MediaManager.Library.Identifier`
+- `has_many :movies, MediaManager.Library.Movie` (MovieSeries child movies)
+- `has_many :extras, MediaManager.Library.Extra`
 - `has_many :seasons, MediaManager.Library.Season` (TVSeries only)
 - `has_many :watched_files, MediaManager.Library.WatchedFile`
-
-**Ash actions:**
-
-| Action | Type | Description |
-|--------|------|-------------|
-| `:create_from_tmdb` | create | Creates an entity from scraped TMDB data; validates presence of `:type` and `:name`; accepts type, name, description, date_published, genres, url, duration, director, content_rating, number_of_seasons, aggregate_rating_value |
-| `:set_content_url` | update | Sets the local playback `content_url` |
-| `:with_associations` | read | Loads entity with all images, identifiers, watched_files, and seasons (with episodes) |
-| `:destroy` | destroy | Used for race-loss cleanup when two processors create the same entity |
+- `has_many :watch_progress, MediaManager.Library.WatchProgress`
 
 ### `MediaManager.Library.Image`
 
@@ -342,8 +284,23 @@ Canonical store for all library entity data. Served to the UI via Phoenix Channe
 |-------|------|-------|
 | `id` | UUID | |
 | `entity_id` | UUID (FK) | |
-| `property_id` | string | `"tmdb"`, `"tvdb"`, etc. |
+| `property_id` | string | `"tmdb"`, `"tmdb_collection"`, `"tvdb"`, etc. |
 | `value` | string | External ID value |
+
+### `MediaManager.Library.Movie`
+
+Child movie within a MovieSeries (collection).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | |
+| `entity_id` | UUID (FK → Entity) | Parent movie series |
+| `name` | string | |
+| `date_published` | string | Year or ISO date |
+| `content_url` | string | Local playback path |
+| `position` | integer | Sort order within the collection |
+
+**Associations:** `belongs_to :entity`, `has_many :images`
 
 ### `MediaManager.Library.Season`
 
@@ -355,7 +312,7 @@ Canonical store for all library entity data. Served to the UI via Phoenix Channe
 | `number_of_episodes` | integer | |
 | `name` | string | Optional season title |
 
-**Associations:** `has_many :episodes, MediaManager.Library.Episode`
+**Associations:** `has_many :episodes`, `has_many :extras`
 
 ### `MediaManager.Library.Episode`
 
@@ -369,7 +326,44 @@ Canonical store for all library entity data. Served to the UI via Phoenix Channe
 | `duration` | string | ISO 8601 |
 | `content_url` | string | Local playback path |
 
-**Associations:** `belongs_to :season, MediaManager.Library.Season`
+**Associations:** `belongs_to :season`, `has_many :images`
+
+### `MediaManager.Library.Extra`
+
+Bonus features linked to an entity or a specific season.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | |
+| `entity_id` | UUID (FK → Entity) | |
+| `season_id` | UUID (FK → Season) | Optional — if set, extra belongs to a season |
+| `name` | string | |
+| `content_url` | string | Local playback path |
+| `position` | integer | Sort order |
+
+### `MediaManager.Library.WatchProgress`
+
+Tracks watch progress per entity, per episode (for TV series) or per entity (for movies).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | |
+| `entity_id` | UUID (FK → Entity) | |
+| `season_number` | integer | nil for movies |
+| `episode_number` | integer | nil for movies |
+| `position_seconds` | float | Playback position |
+| `duration_seconds` | float | Total duration |
+| `completed` | boolean | |
+| `last_watched_at` | utc_datetime | |
+
+### `MediaManager.Library.Setting`
+
+Key-value store for application settings persisted in SQLite (e.g. log component toggles).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `key` | string | Primary key |
+| `value` | map | JSON-encoded value |
 
 ---
 
@@ -391,6 +385,7 @@ Canonical store for all library entity data. Served to the UI via Phoenix Channe
 - `GET /movie/{id}`
 - `GET /tv/{id}`
 - `GET /tv/{id}/season/{n}`
+- `GET /collection/{id}`
 
 **Confidence scoring** (`MediaManager.TMDB.Confidence`):
 
@@ -411,45 +406,31 @@ A lightweight Phoenix LiveView admin panel — local-only, no authentication.
 **Router layout:**
 
 ```
-GET /                → Dashboard LiveView   (activity feed, mount warnings, queue counts)
-GET /review          → Review LiveView      (pending_review items inbox)
-GET /review/:id      → Review Item LiveView (candidates, confirm/reject/search)
-GET /library         → Library LiveView     (browse entities from SQLite)
-GET /library/:id     → Library Item LiveView (detail, re-scrape, remove, re-download images)
+GET /          → DashboardLive   (activity feed, watcher health, queue counts, playback status)
+GET /review    → ReviewLive      (pending_review items inbox — approve, search, retry, dismiss)
+GET /library   → LibraryLive     (browse entities, play media, view episode/movie details)
+GET /logging   → LoggingLive     (toggle component thinking logs and framework log suppression)
 ```
-
-**Dashboard warnings (via PubSub):**
-
-- `media_dir` unavailable → red banner: "Media directory not accessible — removal events suppressed"
-
-**Review flow:**
-
-User sees: parsed title, year, TMDB candidates with poster thumbnails.
-
-Actions: "Confirm" (top candidate), "Pick other", "Search manually", "Ignore".
-
-On confirm → `WatchedFile` transitions to `:approved` → pipeline resumes at Stage 4.
-
-**Library Item actions:**
-
-- Re-scrape entity from TMDB
-- Re-download images
-- Remove entity (with confirmation)
 
 ---
 
 ## 9. Dependencies
 
-| Package | Purpose | Already in mix.exs? |
-|---------|---------|---------------------|
-| `:file_system` | inotify-based file watching on Linux | No — add |
-| `:broadway` | pipeline processing | No — add |
-| `toml_elixir` | TOML config file parsing | No — add |
-| `:ash_sqlite` | SQLite via Ash | Yes |
-| `:ash` | resource framework | Yes |
-| `:ash_phoenix` | LiveView integration | Yes |
-| `:req` | HTTP client for TMDB | Yes |
-| `:jason` | JSON encoding | Yes |
+| Package | Purpose |
+|---------|---------|
+| `:ash` | Resource framework |
+| `:ash_sqlite` | SQLite via Ash |
+| `:ash_phoenix` | LiveView integration |
+| `:ash_ai` | LLM features for Ash |
+| `:phoenix` | Web framework |
+| `:phoenix_live_view` | LiveView |
+| `:phoenix_live_dashboard` | Dev dashboard |
+| `:req` | HTTP client for TMDB |
+| `:jason` | JSON encoding |
+| `:file_system` | inotify-based file watching |
+| `:broadway` | Pipeline processing |
+| `:toml` | TOML config file parsing |
+| `:bandit` | HTTP server |
 
 ---
 
@@ -457,7 +438,5 @@ On confirm → `WatchedFile` transitions to `:approved` → pipeline resumes at 
 
 - **Subtitle files:** Ignore `.srt`/`.ass` for now.
 - **Re-scrape:** Trigger fresh TMDB fetch for existing entity — design in a later plan.
-- **Multiple `media_dir` paths:** Array support is a TOML-compatible future extension.
 - **In-progress torrent detection:** File size stability polling is a pragmatic heuristic; could be replaced with watching for `.part` file removal.
-- **Image re-download UI:** Admin UI button to re-download all missing images for an entity.
 - **TVDB/other sources:** TMDB only for now; TVDB support is a future extension.

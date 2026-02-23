@@ -105,7 +105,7 @@ defmodule MediaManager.Log do
 
   @doc "Returns the list of currently enabled component atoms."
   def enabled do
-    enabled_set() |> MapSet.to_list() |> Enum.sort()
+    enabled_set() |> Enum.sort()
   end
 
   @doc "Returns all known component atoms."
@@ -192,7 +192,7 @@ defmodule MediaManager.Log do
   end
 
   defp persist_setting(set) do
-    names = set |> MapSet.to_list() |> Enum.map(&to_string/1)
+    names = Enum.map(set, &to_string/1)
 
     MediaManager.Library.Setting
     |> Ash.Changeset.for_create(:upsert, %{
@@ -221,7 +221,7 @@ defmodule MediaManager.Log do
       end
 
     new_set = fun.(current)
-    names = new_set |> MapSet.to_list() |> Enum.map(&to_string/1)
+    names = Enum.map(new_set, &to_string/1)
 
     MediaManager.Library.Setting
     |> Ash.Changeset.for_create(:upsert, %{

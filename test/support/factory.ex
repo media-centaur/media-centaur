@@ -141,8 +141,8 @@ defmodule MediaManager.TestFactory do
 
   def build_progress(overrides \\ %{}) do
     defaults = %{
-      season_number: nil,
-      episode_number: nil,
+      season_number: 0,
+      episode_number: 0,
       position_seconds: 0.0,
       duration_seconds: 0.0,
       completed: false,

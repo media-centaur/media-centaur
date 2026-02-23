@@ -55,6 +55,8 @@ defmodule MediaManager.Pipeline do
       )
     end
 
+    Phoenix.PubSub.broadcast(MediaManager.PubSub, "pipeline:updates", :pipeline_changed)
+
     messages
   end
 

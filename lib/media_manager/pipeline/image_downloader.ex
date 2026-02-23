@@ -41,17 +41,17 @@ defmodule MediaManager.Pipeline.ImageDownloader do
 
     all_results = entity_results ++ movie_results ++ episode_results
 
-    # Persist all successful downloads to DB after all HTTP requests complete
-    for {:ok, image, relative_path} <- all_results do
-      Ash.update!(image, %{content_url: relative_path})
-      Logger.info("ImageDownloader: saved #{relative_path}")
-    end
+    # Persist all successful downloads to DB and log results
+    Enum.each(all_results, fn
+      {:ok, image, relative_path} ->
+        Ash.update!(image, %{content_url: relative_path})
+        Logger.info("ImageDownloader: saved #{relative_path}")
 
-    for {:error, role, reason} <- all_results do
-      Logger.warning(
-        "ImageDownloader: failed #{role} for entity #{entity.id}: #{inspect(reason)}"
-      )
-    end
+      {:error, role, reason} ->
+        Logger.warning(
+          "ImageDownloader: failed #{role} for entity #{entity.id}: #{inspect(reason)}"
+        )
+    end)
 
     :ok
   end

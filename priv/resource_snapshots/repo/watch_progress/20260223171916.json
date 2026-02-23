@@ -7,8 +7,8 @@
       "source": "id",
       "references": null,
       "allow_nil?": false,
-      "primary_key?": true,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": true
     },
     {
       "default": "nil",
@@ -16,9 +16,9 @@
       "type": "bigint",
       "source": "season_number",
       "references": null,
-      "allow_nil?": true,
-      "primary_key?": false,
-      "generated?": false
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -26,9 +26,9 @@
       "type": "bigint",
       "source": "episode_number",
       "references": null,
-      "allow_nil?": true,
-      "primary_key?": false,
-      "generated?": false
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -37,8 +37,8 @@
       "source": "position_seconds",
       "references": null,
       "allow_nil?": true,
-      "primary_key?": false,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -47,8 +47,8 @@
       "source": "duration_seconds",
       "references": null,
       "allow_nil?": true,
-      "primary_key?": false,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -57,8 +57,8 @@
       "source": "completed",
       "references": null,
       "allow_nil?": true,
-      "primary_key?": false,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -67,8 +67,8 @@
       "source": "last_watched_at",
       "references": null,
       "allow_nil?": true,
-      "primary_key?": false,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -77,8 +77,8 @@
       "source": "inserted_at",
       "references": null,
       "allow_nil?": false,
-      "primary_key?": false,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -87,8 +87,8 @@
       "source": "updated_at",
       "references": null,
       "allow_nil?": false,
-      "primary_key?": false,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": false
     },
     {
       "default": "nil",
@@ -103,21 +103,21 @@
           "attribute": null,
           "strategy": null
         },
+        "on_delete": null,
         "primary_key?": true,
         "destination_attribute": "id",
-        "on_delete": null,
-        "on_update": null,
         "deferrable": false,
         "destination_attribute_default": null,
-        "destination_attribute_generated": null
+        "destination_attribute_generated": null,
+        "on_update": null
       },
       "allow_nil?": true,
-      "primary_key?": false,
-      "generated?": false
+      "generated?": false,
+      "primary_key?": false
     }
   ],
   "table": "watch_progress",
-  "hash": "5950B09D60C911555C6906DA0807C8C598F7EC03E3838EF2777F88DE660C5E7F",
+  "hash": "871DCB6C8EF0B4ABB3E1599A2050AB06B011D72401298915EEAFF38D0BFF7109",
   "multitenancy": {
     "global": null,
     "attribute": null,
@@ -131,14 +131,14 @@
         "season_number",
         "episode_number"
       ],
-      "base_filter": null,
-      "index_name": "watch_progress_unique_playable_item_index"
+      "index_name": "watch_progress_unique_playable_item_index",
+      "base_filter": null
     }
   ],
   "repo": "Elixir.MediaManager.Repo",
   "strict?": false,
-  "base_filter": null,
   "custom_indexes": [],
+  "base_filter": null,
   "custom_statements": [],
   "has_create_action": true
 }

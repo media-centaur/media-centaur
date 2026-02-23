@@ -46,8 +46,8 @@ defmodule MediaManager.Library.WatchProgress do
   attributes do
     uuid_primary_key :id
 
-    attribute :season_number, :integer
-    attribute :episode_number, :integer
+    attribute :season_number, :integer, allow_nil?: false, default: 0
+    attribute :episode_number, :integer, allow_nil?: false, default: 0
     attribute :position_seconds, :float, default: 0.0
     attribute :duration_seconds, :float, default: 0.0
     attribute :completed, :boolean, default: false
