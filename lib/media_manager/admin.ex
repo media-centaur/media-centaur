@@ -13,6 +13,7 @@ defmodule MediaManager.Admin do
     Entity,
     Episode,
     Extra,
+    Helpers,
     Identifier,
     Image,
     Movie,
@@ -39,7 +40,7 @@ defmodule MediaManager.Admin do
     images_dir = MediaManager.Config.get(:media_images_dir)
     if images_dir, do: clear_directory(images_dir)
 
-    if entity_ids != [], do: broadcast_entities_changed(entity_ids)
+    if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
 
     Logger.info("Admin: database cleared")
     :ok
@@ -66,18 +67,10 @@ defmodule MediaManager.Admin do
     end)
 
     entity_ids = Enum.map(entities, & &1.id)
-    if entity_ids != [], do: broadcast_entities_changed(entity_ids)
+    if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
 
     Logger.info("Admin: image cache refreshed for #{length(entities)} entities")
     {:ok, length(entities)}
-  end
-
-  defp broadcast_entities_changed(entity_ids) do
-    Phoenix.PubSub.broadcast(
-      MediaManager.PubSub,
-      "library:updates",
-      {:entities_changed, entity_ids}
-    )
   end
 
   defp resources_in_delete_order do

@@ -7,7 +7,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
   require Logger
   require MediaManager.Log, as: Log
 
-  alias MediaManager.Library.{Entity, WatchProgress}
+  alias MediaManager.Library.{Helpers, WatchProgress}
   alias MediaManager.Playback.{EpisodeList, Manager, Resume}
 
   @impl true
@@ -107,7 +107,10 @@ defmodule MediaManagerWeb.PlaybackChannel do
   end
 
   @impl true
-  def handle_info({:entity_progress_updated, entity_id, progress_summary}, socket) do
+  def handle_info(
+        {:entity_progress_updated, entity_id, progress_summary, _progress_records},
+        socket
+      ) do
     payload = %{entity_id: entity_id, progress: progress_summary}
     Log.info(:channel, "playback push entity_progress_updated for #{entity_id}")
     push(socket, "playback:entity_progress_updated", payload)
@@ -125,12 +128,7 @@ defmodule MediaManagerWeb.PlaybackChannel do
     {:reply, {:error, %{reason: to_string(reason)}}, socket}
   end
 
-  defp load_entity(entity_id) do
-    case Ash.get(Entity, entity_id, action: :with_associations) do
-      {:ok, entity} -> {:ok, entity}
-      {:error, _} -> {:error, :not_found}
-    end
-  end
+  defp load_entity(entity_id), do: Helpers.load_entity(entity_id)
 
   defp load_progress(entity_id) do
     WatchProgress

@@ -227,6 +227,7 @@ defmodule MediaManager.Playback.MpvSession do
   end
 
   # --- Idempotent Finalization ---
+  # Guard prevents double-finalize on already-stopped sessions.
 
   defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
     if session.tracker.actively_watching, do: persist_progress(session)
@@ -342,7 +343,7 @@ defmodule MediaManager.Playback.MpvSession do
         Phoenix.PubSub.broadcast(
           MediaManager.PubSub,
           "playback:events",
-          {:entity_progress_updated, entity_id, summary}
+          {:entity_progress_updated, entity_id, summary, progress_records}
         )
 
       {:error, _} ->

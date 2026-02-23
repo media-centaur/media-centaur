@@ -6,7 +6,7 @@ defmodule MediaManager.LibraryBrowser do
 
   require MediaManager.Log, as: Log
 
-  alias MediaManager.Library.{Entity, WatchProgress}
+  alias MediaManager.Library.{Entity, Helpers, WatchProgress}
   alias MediaManager.Playback.{EpisodeList, Manager, ProgressSummary, Resume}
 
   @doc """
@@ -99,12 +99,7 @@ defmodule MediaManager.LibraryBrowser do
 
   # --- Private Helpers ---
 
-  defp load_entity(entity_id) do
-    case Ash.get(Entity, entity_id, action: :with_associations) do
-      {:ok, entity} -> {:ok, entity}
-      {:error, _} -> {:error, :not_found}
-    end
-  end
+  defp load_entity(entity_id), do: Helpers.load_entity(entity_id)
 
   defp load_progress(entity_id) do
     WatchProgress
