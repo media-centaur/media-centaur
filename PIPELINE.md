@@ -226,3 +226,7 @@ These fields are set automatically during the `:search` step and can be overridd
 ## Future Stages
 
 - **Dynamic directory management** — Add/remove watch directories at runtime via the admin UI without restart
+- **Subtitle files** — Currently ignored (`.srt`/`.ass`); future extension
+- **Re-scrape** — Trigger fresh TMDB fetch for an existing entity from the admin UI
+- **In-progress torrent detection** — File size stability polling is a pragmatic heuristic; could be replaced with watching for `.part` file removal
+- **TVDB/other sources** — TMDB only for now; TVDB support is a future extension

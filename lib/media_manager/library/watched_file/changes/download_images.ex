@@ -14,8 +14,12 @@ defmodule MediaManager.Library.WatchedFile.Changes.DownloadImages do
     entity = Ash.get!(Entity, entity_id, action: :with_images)
 
     Log.info(:pipeline, "downloading images for entity #{entity_id}")
-    MediaManager.Pipeline.ImageDownloader.download_all(entity)
+    image_downloader().download_all(entity)
 
     Ash.Changeset.change_attribute(changeset, :state, :complete)
+  end
+
+  defp image_downloader do
+    Application.get_env(:media_manager, :image_downloader, MediaManager.Pipeline.ImageDownloader)
   end
 end

@@ -25,6 +25,9 @@ config :media_manager, MediaManager.Mailer, adapter: Swoosh.Adapters.Test
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
+# Use no-op image downloader in tests (avoids real HTTP + file I/O)
+config :media_manager, :image_downloader, MediaManager.NoopImageDownloader
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 

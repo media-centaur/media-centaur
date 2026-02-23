@@ -256,4 +256,49 @@ defmodule MediaManager.TestFactory do
     |> Ash.Changeset.for_create(:upsert_progress, Map.merge(defaults, attrs))
     |> Ash.create!()
   end
+
+  # ---------------------------------------------------------------------------
+  # Pipeline test helpers — files in specific pipeline states
+  # ---------------------------------------------------------------------------
+
+  def create_queued_file(attrs \\ %{}) do
+    file = create_watched_file(attrs)
+
+    file
+    |> Ash.Changeset.for_update(:update_state, %{state: :queued})
+    |> Ash.update!()
+  end
+
+  def create_approved_file(attrs \\ %{}) do
+    file = create_watched_file(Map.take(attrs, [:file_path]))
+
+    update_attrs =
+      %{state: :approved}
+      |> maybe_put(attrs, :tmdb_id)
+      |> maybe_put(attrs, :confidence_score)
+      |> maybe_put(attrs, :match_title)
+      |> maybe_put(attrs, :match_year)
+      |> maybe_put(attrs, :match_poster_path)
+      |> maybe_put(attrs, :parsed_type)
+      |> maybe_put(attrs, :parsed_title)
+      |> maybe_put(attrs, :season_number)
+      |> maybe_put(attrs, :episode_number)
+
+    file
+    |> Ash.Changeset.for_update(:update_state, update_attrs)
+    |> Ash.update!()
+  end
+
+  def create_fetching_images_file(attrs \\ %{}) do
+    file = create_watched_file(Map.take(attrs, [:file_path]))
+
+    update_attrs =
+      %{state: :fetching_images}
+      |> maybe_put(attrs, :tmdb_id)
+      |> maybe_put(attrs, :entity_id)
+
+    file
+    |> Ash.Changeset.for_update(:update_state, update_attrs)
+    |> Ash.update!()
+  end
 end

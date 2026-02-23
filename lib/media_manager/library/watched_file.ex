@@ -106,7 +106,13 @@ defmodule MediaManager.Library.WatchedFile do
         :match_title,
         :match_year,
         :match_poster_path,
-        :error_message
+        :error_message,
+        :entity_id,
+        :search_title,
+        :parsed_type,
+        :parsed_title,
+        :season_number,
+        :episode_number
       ]
     end
 

@@ -1,7 +1,47 @@
 defmodule MediaManager.Parser do
   @moduledoc """
   Parses media file paths to extract title, year, type, season, and episode information.
-  Pure module — no GenServer, no DB.
+  Pure module — no GenServer, no DB, no side effects.
+
+  ## Patterns Recognised
+
+  **Movie:**
+
+      Movie.Name.YEAR.1080p.BluRay.x264-GROUP.mkv
+      Movie Name (YEAR).mkv
+      Movie Name YEAR.mkv
+      /path/to/Movie Name (YEAR)/movie.mkv   # directory name used if file is generic
+
+  **TV:**
+
+      Show.Name.S01E05.Episode.Title.1080p.mkv
+      Show Name - S01E05 - Episode Title.mkv
+      Show.Name.S01E05-06.mkv                 # multi-episode (treat as first episode)
+      /Show Name/Season 1/S01E05 - Title.mkv  # directory hints used
+
+  ## Decision Tree
+
+  `candidate_name/1` selects the best text source, then pattern matching
+  (TV → season pack → movie → unknown) classifies the result, followed by
+  title cleaning.
+
+  **`candidate_name/1` fallback chain:**
+
+  1. Parent is a season directory (`Season 1`, `S01`) → use grandparent (show name) + filename base
+  2. Filename is a bare episode marker (`S01E03`) → use parent directory + filename base
+  3. Filename is generic or very short lowercase → use parent directory
+  4. Otherwise → use filename base
+
+  **Quality token stripping:** bracket patterns first, then quality keywords,
+  then release groups.
+
+  **TV title extraction:** strips year tokens, cleans title, strips trailing
+  season markers (`S01`), falls back to directory names when the result is empty.
+
+  **Key constraint:** TV pattern `(.+?)SxxExx` requires at least one character
+  before the S marker — bare episode filenames like `S01E03.mkv` won't match
+  TV on their own, which is why `candidate_name/1` must prepend the show name
+  from ancestor directories.
   """
 
   defmodule Result do

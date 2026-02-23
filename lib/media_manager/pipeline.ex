@@ -2,6 +2,14 @@ defmodule MediaManager.Pipeline do
   @moduledoc """
   Broadway pipeline that processes detected video files through search,
   metadata fetch, and image download stages.
+
+  Processing flow per file: search → fetch_metadata → download_images → complete.
+  Low-confidence matches stop at `:pending_review` for human approval.
+
+  Broadway config: 1 producer (DB poller), 15 processors (partitioned by entity),
+  1 batcher (serialises PubSub broadcasts, batch size 10, timeout 5s).
+
+  See `PIPELINE.md` for full architecture details.
   """
   use Broadway
   require Logger

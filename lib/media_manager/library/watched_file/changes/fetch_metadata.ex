@@ -32,11 +32,12 @@ defmodule MediaManager.Library.WatchedFile.Changes.FetchMetadata do
         |> Ash.Changeset.change_attribute(:state, :fetching_images)
 
       {:ok, entity, :existing} ->
+        next_state = if parsed_type == :tv, do: :fetching_images, else: :complete
         Log.info(:pipeline, "entity reused for tmdb:#{tmdb_id} — #{entity.id}")
 
         changeset
         |> Ash.Changeset.change_attribute(:entity_id, entity.id)
-        |> Ash.Changeset.change_attribute(:state, :complete)
+        |> Ash.Changeset.change_attribute(:state, next_state)
 
       {:error, reason} ->
         changeset

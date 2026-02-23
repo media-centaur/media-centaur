@@ -4,6 +4,22 @@ defmodule MediaManager.Watcher do
 
   Each instance is started by `MediaManager.Watcher.Supervisor` and registers
   itself in `MediaManager.Watcher.Registry` with its directory path as key.
+
+  ## Mount Resilience
+
+  Watch directories may reside on removable drives, NAS shares, or external
+  mounts. The watcher handles transient mount failures:
+
+  - **Unmount detection:** inotify fires `IN_UNMOUNT` when a watched filesystem
+    is ejected. The watcher transitions to `:unavailable` and stops forwarding events.
+  - **Burst detection:** ≥50 removal events within 2s triggers a warning
+    broadcast — an unmount can race the health check.
+  - **Health check re-watch:** a periodic check (every 30s) detects when the
+    directory becomes accessible again and re-initialises the file system watcher.
+
+  ## State Lifecycle
+
+      :initializing → :watching → :unavailable → :watching
   """
   use GenServer
   require Logger
