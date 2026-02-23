@@ -54,7 +54,7 @@ defmodule MediaManager.Watcher do
   def handle_call(:scan, from, state) do
     dir = state.dir
 
-    Task.start(fn ->
+    Task.Supervisor.start_child(MediaManager.TaskSupervisor, fn ->
       count = scan_directory(dir)
       GenServer.reply(from, {:ok, count})
     end)

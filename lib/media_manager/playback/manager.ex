@@ -30,7 +30,18 @@ defmodule MediaManager.Playback.Manager do
   @impl true
   def init(_) do
     Phoenix.PubSub.subscribe(MediaManager.PubSub, "playback:events")
-    {:ok, %__MODULE__{}}
+
+    state =
+      case DynamicSupervisor.which_children(SessionSupervisor) do
+        [{_, pid, _, _}] when is_pid(pid) ->
+          ref = Process.monitor(pid)
+          %__MODULE__{session: pid, monitor_ref: ref, state: :playing}
+
+        _ ->
+          %__MODULE__{}
+      end
+
+    {:ok, state}
   end
 
   @impl true

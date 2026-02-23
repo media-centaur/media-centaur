@@ -41,6 +41,7 @@ defmodule MediaManagerWeb.Layouts do
         <nav class="ml-6 flex gap-1">
           <.link navigate="/" class={nav_link_class(@current_path, "/")}>Dashboard</.link>
           <.link navigate="/review" class={nav_link_class(@current_path, "/review")}>Review</.link>
+          <.link navigate="/library" class={nav_link_class(@current_path, "/library")}>Library</.link>
         </nav>
       </div>
       <div class="flex-none">

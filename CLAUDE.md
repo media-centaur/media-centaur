@@ -4,6 +4,16 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 
 A Phoenix/Elixir web application that manages the Freedia Center media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The `user-interface` app connects via WebSocket (Phoenix Channels) to receive library data, send playback commands, and get real-time updates.
 
+## Version Control (Jujutsu)
+
+This repo uses **JJ (Jujutsu)** — never use raw `git` commands.
+
+- After completing a feature, set a change description: `jj describe -m "type: short description"`
+- Use conventional commit style matching existing history (e.g. `feat:`, `fix:`, `refactor:`). Keep it concise and high-level.
+- If follow-up amendments are needed for the same feature and the change hasn't been pushed to remote, amend the existing change rather than creating a new one.
+- When starting an unrelated feature, create a new change with `jj new` and describe it accordingly.
+- Adjust the description over time as the scope of the change becomes clearer.
+
 ## Build & Run
 
 ```bash

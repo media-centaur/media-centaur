@@ -2,9 +2,9 @@ defmodule MediaManager.Playback.Supervisor do
   @moduledoc """
   Groups the Playback Manager and SessionSupervisor under a single supervisor.
 
-  Uses `:one_for_all` strategy because the two children are tightly coupled:
-  if SessionSupervisor crashes, Manager's session reference becomes invalid;
-  if Manager crashes, the active session would be orphaned.
+  Uses `:rest_for_one` strategy: if SessionSupervisor crashes, Manager restarts
+  (session refs are invalid). If Manager crashes, SessionSupervisor and any active
+  MpvSession survive — the restarted Manager rediscovers the running session.
   """
   use Supervisor
 
@@ -19,6 +19,6 @@ defmodule MediaManager.Playback.Supervisor do
       MediaManager.Playback.Manager
     ]
 
-    Supervisor.init(children, strategy: :one_for_all)
+    Supervisor.init(children, strategy: :rest_for_one)
   end
 end

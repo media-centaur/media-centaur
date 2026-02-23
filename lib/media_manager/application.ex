@@ -7,16 +7,21 @@ defmodule MediaManager.Application do
 
   @impl true
   def start(_type, _args) do
+    MediaManager.Config.load!()
+
     children = [
       MediaManagerWeb.Telemetry,
       MediaManager.Repo,
       {DNSCluster, query: Application.get_env(:media_manager, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MediaManager.PubSub},
-      MediaManager.Config,
       {Task.Supervisor, name: MediaManager.TaskSupervisor},
       MediaManager.TMDB.RateLimiter,
       MediaManager.Watcher.Supervisor,
-      {Task, &MediaManager.Watcher.Supervisor.start_watchers/0},
+      %{
+        id: :start_watchers,
+        start: {Task, :start_link, [&MediaManager.Watcher.Supervisor.start_watchers/0]},
+        restart: :temporary
+      },
       MediaManager.Pipeline,
       MediaManager.Playback.Supervisor,
       MediaManagerWeb.Endpoint
