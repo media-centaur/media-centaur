@@ -2,6 +2,16 @@ defmodule MediaManager.TMDB.Confidence do
   @moduledoc """
   Scores TMDB search results against parsed filenames using Jaro string
   distance, with bonuses for matching years and top-result position.
+
+  ## Scoring Formula
+
+  1. Base score = `String.jaro_distance/2` of normalised titles
+  2. +0.08 if the year matches
+  3. +0.05 if the result is the first (top) result in the list
+  4. Total clamped to 0.0–1.0
+
+  The score is compared against `auto_approve_threshold` (default 0.85, from config)
+  to decide auto-approval vs pending review.
   """
 
   @doc """

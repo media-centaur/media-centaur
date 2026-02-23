@@ -6,13 +6,7 @@ A Phoenix/Elixir web application that manages the Freedia Center media library. 
 
 ## Version Control (Jujutsu)
 
-This repo uses **JJ (Jujutsu)** — never use raw `git` commands.
-
-- After completing a feature, set a change description: `jj describe -m "type: short description"`
-- Use conventional commit style matching existing history (e.g. `feat:`, `fix:`, `refactor:`). Keep it concise and high-level.
-- If follow-up amendments are needed for the same feature and the change hasn't been pushed to remote, amend the existing change rather than creating a new one.
-- When starting an unrelated feature, create a new change with `jj new` and describe it accordingly.
-- Adjust the description over time as the scope of the change becomes clearer.
+See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for Jujutsu workflow.
 
 ## Build & Run
 
@@ -75,64 +69,21 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 ## Pipeline
 
-Video files flow through an automated pipeline driven by the **file watcher** (`MediaManager.Watcher`) and a **Broadway pipeline** (`MediaManager.Pipeline`):
-
-1. **Watcher** detects new video files in `watch_dirs`, waits for size stability, creates a `WatchedFile` via `:detect` → state `:detected`
-2. **Producer** polls DB every 10s, claims detected files → state `:queued`
-3. **Processor** runs `:search` — searches TMDB, scores confidence → `:approved` or `:pending_review`
-4. **Processor** (if approved) runs `:fetch_metadata` — checks for existing Entity by TMDB ID; if found, reuses it (→ `:complete`); if new, creates `Entity` + `Image` + `Identifier` records, and for TV series only the Season/Episode matching this file (→ `:fetching_images`)
-5. **Processor** runs `:download_images` (new entities only) — downloads artwork to `{media_images_dir}/{uuid}/`, updates `Image.content_url` → `:complete` (best-effort; failure logs warning)
-6. **Batcher** (concurrency 1) collects completed messages and broadcasts entity changes via PubSub (pushing to connected UIs over Phoenix Channels)
-
-Steps 1–6 are fully automated, **idempotent**, and **concurrency-safe** — DB unique constraints and upsert patterns prevent duplicate records regardless of how many processors run in parallel. Scanning the same directories multiple times produces exactly one Entity per TMDB ID. Low-confidence matches stop at `:pending_review` and await manual approval in the admin UI. See [`PIPELINE.md`](PIPELINE.md) for full architecture details.
+See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — state machine, processing stages, idempotency guarantees, and extras handling.
 
 Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/entity_resolver.ex`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/serializer.ex`.
 
 ## Specifications
 
-Cross-component specifications live in the **[freedia-center/specifications](https://github.com/freedia-center/specifications)** repository, stored locally at `../specifications` relative to this repo. **Every contract between the backend and the user-interface must be documented in its own specification file.** If a feature introduces a new integration surface — a new channel topic, a new message format, a new file convention, a new IPC mechanism — it must have a corresponding spec in `../specifications/` before the implementation ships.
+Cross-component specifications live in `../specifications`. See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for the full document table, reading guide, and update workflow.
 
-| Document | Contents |
-|----------|---------|
-| [`COMPONENTS.md`](../specifications/COMPONENTS.md) | System architecture — how the manager and user-interface relate; responsibilities, integration contract |
-| [`API.md`](../specifications/API.md) | Phoenix Channels WebSocket API — connection, channel topics, message schemas, error handling |
-| [`PLAYBACK.md`](../specifications/PLAYBACK.md) | MPV integration, watch progress data model, resume algorithm, progress reporting |
-| [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md) | JSON schema for entity data — entity types, field names, sub-types, examples, and `config.json` |
-| [`IMAGE-CACHING.md`](../specifications/IMAGE-CACHING.md) | Image roles, directory layout, remote URL patterns, manager/UI responsibilities |
-| [`TESTING.md`](../specifications/TESTING.md) | Automated and manual testing guide for both components |
-
-### Reading the Specs
+**Every contract between the backend and the user-interface must be documented in a specification file.** If a feature introduces a new integration surface — a new channel topic, a new message format, a new file convention — it must have a corresponding spec in `../specifications/` before the implementation ships.
 
 - **Before writing any code that touches the WebSocket API** (channels, messages, join replies), read `API.md` in full.
 - **Before writing any playback, resume, or watch progress code**, read `PLAYBACK.md` in full.
 - **Before writing any code that serializes entities** (for channel pushes), read `DATA-FORMAT.md` in full.
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
 - **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
-- Field names (`name`, `datePublished`, `contentUrl`, `containsSeason`, etc.) and type names (`Movie`, `TVSeries`, `VideoGame`, `ImageObject`, `PropertyValue`) are schema.org identifiers — do not rename them.
-
-### Working with the Specs
-
-- **Specs are the authoritative contract.** The user-interface team (and future agents) learn what this app produces by reading the specs. When in doubt about a field name, message format, or behavior, the spec wins over the implementation.
-- `API.md` specifies every channel topic, every client message, every server push, and every reply schema. The Rust UI implements its WebSocket client from this document — any deviation breaks the UI.
-- `PLAYBACK.md` specifies the MPV launch flags, IPC protocol, progress persistence intervals, and resume algorithm. Both the backend implementation and the UI's playback state display derive from this spec.
-- `DATA-FORMAT.md` specifies the JSON written by this app. Follow field names and structure exactly.
-- `IMAGE-CACHING.md` specifies the exact `contentUrl` path format (`images/{uuid}/{role}.{ext}`), image roles, and remote URL patterns for each source (TMDB, Steam). Follow these precisely — the user-interface uses them verbatim.
-- `COMPONENTS.md` describes the overall system architecture and which component owns what. Refer to it when designing new features that affect the integration boundary.
-
-### Keeping the Specs Updated
-
-When a contract changes — a new channel message, a new field, a new entity type, a changed image role, a new API endpoint — **update the spec first**, then update the implementation:
-
-1. Edit the relevant file in `../specifications` (e.g. `API.md`).
-2. If no existing spec covers the change, **create a new spec file** in `../specifications/` and add it to the table above and to `COMPONENTS.md`.
-3. Update this app's implementation to match.
-4. Note in `COMPONENTS.md` or the relevant spec if the change affects the user-interface, so its `CLAUDE.md` can be updated too.
-
-Never let the implementation drift ahead of the spec. Never add a backend-to-UI contract (WebSocket message, file format, IPC protocol) without a spec documenting it.
-
-### Keep Documentation Updated
-
-Any .md documentation created for this project should be kept up to date.
 
 ## Defaults
 
@@ -146,15 +97,7 @@ The `defaults/` directory contains git-tracked starter config files. These are s
 
 ## Plans
 
-Implementation plans live in `plans/` and are prefixed with a unique incrementing
-number (e.g. `001-animate-menu-bar.md`, `002-add-search.md`). The number ensures
-ordering and prevents naming collisions. Each plan must be **self-contained** —
-it must include all context required to execute fully in a new session, without
-relying on the conversation history from the session where the planning was done.
-
-Always write the plan and save it before asking to execute. DO NOT AUTO EXECUTE AN IMPLEMENTATION PLAN AFTER SAVING THE PLAN. STOP AND REQUEST PERMISSION BEFORE EXECUTION.
-
-Every implementation plan must include a **Smoke Tests** section identifying which stable contracts are affected and what tests to add (per the Testing Strategy). If the plan introduces no testable contracts, state that explicitly. Plans without a testing section are incomplete.
+See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for plans convention.
 
 ## Testing Strategy
 
@@ -175,6 +118,12 @@ Tests mirror `lib/` by domain. Each module gets its own test file.
 | `test/media_manager/library/entity_test.exs` | Entity Ash actions | no | `DataCase` |
 | `test/media_manager/library/watched_file_test.exs` | WatchedFile actions | no | `DataCase` |
 | `test/media_manager/library/watch_progress_test.exs` | WatchProgress actions | no | `DataCase` |
+| `test/media_manager/library/entity_resolver_test.exs` | EntityResolver (TMDB stubs) | no | `DataCase` |
+| `test/media_manager/library/watched_file/changes/search_tmdb_test.exs` | SearchTmdb change (TMDB stubs) | no | `DataCase` |
+| `test/media_manager/library/watched_file/changes/fetch_metadata_test.exs` | FetchMetadata change (TMDB stubs) | no | `DataCase` |
+| `test/media_manager/library/watched_file/changes/download_images_test.exs` | DownloadImages change | no | `DataCase` |
+| `test/media_manager/pipeline/producer_test.exs` | Producer claiming logic | no | `DataCase` |
+| `test/media_manager/pipeline_test.exs` | Pipeline end-to-end (TMDB stubs) | no | `DataCase` |
 | `test/media_manager_web/channels/library_channel_test.exs` | Library channel contract | no | `ChannelCase` |
 | `test/media_manager_web/channels/playback_channel_test.exs` | Playback channel contract | no | `ChannelCase` |
 
@@ -199,9 +148,19 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 - **LiveView DOM** — LiveViews are thin presentation layers. Test the data contracts they consume, not the DOM they render.
 - **External API calls** in normal runs — tag `@tag :external` and exclude from default `mix test`.
 
+### Pipeline Tests (Broadway)
+
+**Test-first, mandatory.** Every change to the Broadway pipeline — EntityResolver, SearchTmdb, FetchMetadata, DownloadImages, Producer, or the Pipeline orchestrator — must have a corresponding test written *before* the implementation. The pipeline is the core of the application and bugs here are silent and cascading.
+
+- **TMDB stubs via `Req.Test`.** All pipeline tests that touch TMDB use `test/support/tmdb_stubs.ex`, which installs a `Req.Test`-backed client into `:persistent_term`. No mocking library needed — stub responses per-test with `stub_routes/1` or the individual `stub_*` helpers. Fixture data (`movie_detail/0`, `tv_detail/0`, `season_detail/0`, `collection_detail/0`) provides realistic TMDB JSON shapes.
+- **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaManager.NoopImageDownloader`. The `DownloadImages` change reads this config, so tests exercise state transitions without HTTP or file I/O.
+- **Test the orchestration, not the leaves.** The pure-function leaf nodes (Parser, Confidence, Mapper, Serializer) have their own test suites. Pipeline tests focus on the *orchestration*: state machine transitions, entity resolution branching, race-loss recovery, error propagation, and the Producer's claiming logic.
+- **No Broadway topology in tests.** Call the pipeline step functions directly (Ash update actions, `EntityResolver.resolve/3`). Broadway is infrastructure — test the business logic it invokes, not the message-passing machinery.
+- **NEVER delete or weaken pipeline tests.** Each test represents a real scenario that has caused or could cause silent data corruption. If a pipeline change causes a test to fail, fix the pipeline — do not delete or relax the assertion.
+
 ## Parser
 
-`lib/media_manager/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode.
+`lib/media_manager/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.
 
 ### Test-First Workflow
 
@@ -211,22 +170,6 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 - **No silent regressions.** Run the full parser test suite after every change. A green suite is the only definition of "done."
 - **Document the pattern.** When adding a test for a new filename pattern, the test name should describe what's distinctive about it (e.g., "bare episode file inside abbreviated season directory").
 - **NEVER delete or remove parser tests.** Every existing test case represents a real filename pattern observed in the wild. Removing a test risks silently reintroducing a regression for that pattern. If a parser change causes an existing test to fail, fix the parser — do not delete or weaken the test. Tests may only be added, never removed.
-
-### Architecture
-
-**Decision tree:** `candidate_name/1` selects the best text source → pattern matching (TV → season pack → movie → unknown) → title cleaning.
-
-**`candidate_name/1` fallback chain:**
-1. Parent is a season directory (`Season 1`, `S01`) → use grandparent (show name) + filename base
-2. Filename is a bare episode marker (`S01E03`) → use parent directory + filename base
-3. Filename is generic or very short lowercase → use parent directory
-4. Otherwise → use filename base
-
-**Quality token stripping:** bracket patterns first, then quality keywords, then release groups.
-
-**TV title extraction:** strips year tokens, cleans title, strips trailing season markers (`S01`), falls back to directory names when the result is empty.
-
-**Key constraint:** TV pattern `(.+?)SxxExx` requires at least one character before the S marker — bare episode filenames like `S01E03.mkv` won't match TV on their own, which is why `candidate_name/1` must prepend the show name from ancestor directories.
 
 ## Thinking Logs
 

@@ -14,6 +14,5 @@ mix precommit      # compile --warnings-as-errors, format, test
 ## Documentation
 
 - [`CLAUDE.md`](CLAUDE.md) — project conventions, architecture principles, testing strategy
-- [`DESIGN.md`](DESIGN.md) — application design: configuration, pipeline, resources, web UI
-- [`PIPELINE.md`](PIPELINE.md) — Broadway pipeline architecture details
+- [`PIPELINE.md`](PIPELINE.md) — Broadway pipeline architecture
 - [`../specifications/`](../specifications/) — cross-component contracts (API, data format, playback, images)
