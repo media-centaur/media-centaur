@@ -25,14 +25,7 @@ defmodule MediaManager.Application do
       MediaManager.Repo,
       %{
         id: :init_logging,
-        start:
-          {Task, :start_link,
-           [
-             fn ->
-               MediaManager.Log.init()
-               MediaManager.Log.init_framework_levels()
-             end
-           ]},
+        start: {__MODULE__, :init_logging, []},
         restart: :temporary
       },
       {DNSCluster, query: Application.get_env(:media_manager, :dns_cluster_query) || :ignore},
@@ -54,6 +47,13 @@ defmodule MediaManager.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: MediaManager.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  @doc false
+  def init_logging do
+    MediaManager.Log.init()
+    MediaManager.Log.init_framework_levels()
+    :ignore
   end
 
   # Tell Phoenix to update the endpoint configuration

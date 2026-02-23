@@ -70,12 +70,35 @@ defmodule MediaManagerWeb.LibraryLive do
     {:noreply, assign(socket, playback: MediaManager.Playback.Manager.current_state())}
   end
 
-  def handle_info({:entity_progress_updated, _entity_id, _summary}, socket) do
-    {:noreply, assign(socket, entries: LibraryBrowser.fetch_entities())}
+  def handle_info({:entity_progress_updated, entity_id, summary}, socket) do
+    entries = update_entry_progress(socket.assigns.entries, entity_id, fn _old -> summary end)
+    {:noreply, assign(socket, entries: entries)}
   end
 
-  def handle_info({:playback_progress, _progress}, socket) do
-    {:noreply, assign(socket, playback: MediaManager.Playback.Manager.current_state())}
+  def handle_info({:playback_progress, progress}, socket) do
+    socket = assign(socket, playback: MediaManager.Playback.Manager.current_state())
+
+    case playing_entity_id(socket.assigns.playback) do
+      nil ->
+        {:noreply, socket}
+
+      entity_id ->
+        entries =
+          update_entry_progress(socket.assigns.entries, entity_id, fn existing ->
+            (existing ||
+               %{
+                 current_episode: nil,
+                 episode_position_seconds: 0.0,
+                 episode_duration_seconds: 0.0,
+                 episodes_completed: 0,
+                 episodes_total: 1
+               })
+            |> Map.put(:episode_position_seconds, progress.position_seconds)
+            |> Map.put(:episode_duration_seconds, progress.duration_seconds)
+          end)
+
+        {:noreply, assign(socket, entries: entries)}
+    end
   end
 
   @impl true
@@ -495,6 +518,16 @@ defmodule MediaManagerWeb.LibraryLive do
 
   defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id
   defp playing_entity_id(_), do: nil
+
+  defp update_entry_progress(entries, entity_id, update_fn) do
+    Enum.map(entries, fn
+      %{entity: %{id: ^entity_id}} = entry ->
+        %{entry | progress: update_fn.(entry.progress)}
+
+      entry ->
+        entry
+    end)
+  end
 
   defp strip_watch_dir(nil, _watch_dirs), do: "—"
 
