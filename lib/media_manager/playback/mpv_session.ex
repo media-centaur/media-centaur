@@ -6,7 +6,9 @@ defmodule MediaManager.Playback.MpvSession do
   use GenServer
   require Logger
 
-  @db_write_interval_ms 5_000
+  alias MediaManager.Playback.WatchingTracker
+
+  @db_write_interval_ms 60_000
   @pubsub_broadcast_interval_ms 2_000
   @socket_retry_interval_ms 200
 
@@ -28,6 +30,7 @@ defmodule MediaManager.Playback.MpvSession do
     :last_db_write_at,
     :last_broadcast_at,
     :socket_retries,
+    :tracker,
     state: :starting
   ]
 
@@ -76,7 +79,8 @@ defmodule MediaManager.Playback.MpvSession do
       paused: false,
       last_db_write_at: System.monotonic_time(:millisecond),
       last_broadcast_at: System.monotonic_time(:millisecond),
-      socket_retries: max_retries
+      socket_retries: max_retries,
+      tracker: WatchingTracker.new()
     }
 
     send(self(), :launch_mpv)
@@ -221,7 +225,7 @@ defmodule MediaManager.Playback.MpvSession do
   # --- Idempotent Finalization ---
 
   defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
-    persist_progress(session)
+    if session.tracker.actively_watching, do: persist_progress(session)
     broadcast_entity_progress(session)
     broadcast_state_changed(:stopped, session)
     %{session | state: :stopped}
@@ -236,7 +240,9 @@ defmodule MediaManager.Playback.MpvSession do
          state
        )
        when is_number(position) do
-    state = %{state | position: position}
+    now = System.monotonic_time(:millisecond)
+    tracker = WatchingTracker.update(state.tracker, position, now)
+    state = %{state | position: position, tracker: tracker}
     maybe_persist(state) |> maybe_broadcast(state)
   end
 
@@ -256,7 +262,7 @@ defmodule MediaManager.Playback.MpvSession do
     new_state = if paused, do: :paused, else: :playing
     state = %{state | paused: paused, state: new_state}
 
-    if paused, do: persist_progress(state)
+    if paused and state.tracker.actively_watching, do: persist_progress(state)
     broadcast_state_changed(new_state, state)
 
     state
@@ -282,7 +288,7 @@ defmodule MediaManager.Playback.MpvSession do
   defp maybe_persist(state) do
     now = System.monotonic_time(:millisecond)
 
-    if now - state.last_db_write_at >= @db_write_interval_ms do
+    if state.tracker.actively_watching and now - state.last_db_write_at >= @db_write_interval_ms do
       persist_progress(state)
       %{state | last_db_write_at: now}
     else
@@ -331,19 +337,41 @@ defmodule MediaManager.Playback.MpvSession do
   # --- Progress Persistence ---
 
   defp persist_progress(state) do
+    saveable = state.tracker.saveable_position || state.position
+
     params = %{
       entity_id: state.entity_id,
       season_number: state.season_number,
       episode_number: state.episode_number,
-      position_seconds: state.position,
+      position_seconds: saveable,
       duration_seconds: state.duration
     }
 
     case Ash.create(MediaManager.Library.WatchProgress, params, action: :upsert_progress) do
-      {:ok, _} -> :ok
-      {:error, reason} -> Logger.warning("MpvSession: progress write failed: #{inspect(reason)}")
+      {:ok, record} ->
+        maybe_mark_completed(record, saveable, state.duration)
+
+      {:error, reason} ->
+        Logger.warning("MpvSession: progress write failed: #{inspect(reason)}")
     end
   end
+
+  defp maybe_mark_completed(record, position, duration)
+       when is_number(position) and is_number(duration) and duration > 0 do
+    if not record.completed and position / duration >= 0.90 do
+      case Ash.update(record, %{}, action: :mark_completed) do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning("MpvSession: mark_completed failed: #{inspect(reason)}")
+      end
+    end
+
+    :ok
+  end
+
+  defp maybe_mark_completed(_record, _position, _duration), do: :ok
 
   # --- PubSub Broadcasting ---
 

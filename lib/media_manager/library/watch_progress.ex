@@ -23,13 +23,11 @@ defmodule MediaManager.Library.WatchProgress do
       upsert_fields [
         :position_seconds,
         :duration_seconds,
-        :completed,
         :last_watched_at,
         :updated_at
       ]
 
       change set_attribute(:last_watched_at, &DateTime.utc_now/0)
-      change MediaManager.Library.WatchProgress.Changes.ComputeCompleted
     end
 
     read :for_entity do
