@@ -11,6 +11,8 @@ defmodule MediaManager.TMDB.Confidence do
   `result_year_key` is "release_date" for movies, "first_air_date" for TV.
   `is_top_result?` is true if this is the first result in the list.
   """
+  require MediaManager.Log, as: Log
+
   @spec score(String.t(), integer() | nil, map(), String.t(), String.t(), boolean()) :: float()
   def score(parsed_title, parsed_year, result, title_key, year_key, is_top_result?) do
     result_title = result[title_key] || result["name"] || ""
@@ -19,8 +21,16 @@ defmodule MediaManager.TMDB.Confidence do
     base = String.jaro_distance(normalize(parsed_title), normalize(result_title))
     year_bonus = if parsed_year && result_year && parsed_year == result_year, do: 0.08, else: 0.0
     position_bonus = if is_top_result?, do: 0.05, else: 0.0
+    total = min(base + year_bonus + position_bonus, 1.0)
 
-    min(base + year_bonus + position_bonus, 1.0)
+    Log.info(:tmdb, fn ->
+      "confidence: #{Float.round(base, 2)} base" <>
+        if(year_bonus > 0, do: " + #{year_bonus} year", else: "") <>
+        if(position_bonus > 0, do: " + #{position_bonus} top", else: "") <>
+        " = #{Float.round(total, 2)} for #{inspect(result_title)}"
+    end)
+
+    total
   end
 
   @doc "Read the auto-approve threshold from config (default 0.85)."

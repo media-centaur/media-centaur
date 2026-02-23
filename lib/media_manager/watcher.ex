@@ -7,6 +7,7 @@ defmodule MediaManager.Watcher do
   """
   use GenServer
   require Logger
+  require MediaManager.Log, as: Log
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
   @health_check_interval 30_000
@@ -67,7 +68,7 @@ defmodule MediaManager.Watcher do
     case FileSystem.start_link(dirs: [state.dir], recursive: true) do
       {:ok, pid} ->
         FileSystem.subscribe(pid)
-        Logger.info("Watcher: started watching #{state.dir}")
+        Log.info(:watcher, "started watching #{state.dir}")
         schedule_health_check()
         broadcast_state(state.dir, :watching)
         {:noreply, %{state | watcher_pid: pid, state: :watching}}
@@ -114,6 +115,7 @@ defmodule MediaManager.Watcher do
 
       (:created in events or :modified in events) and video_file?(path) and
           not excluded?(path, exclude_dirs()) ->
+        Log.info(:watcher, "file event for #{Path.basename(path)}, starting size checks")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
@@ -132,6 +134,7 @@ defmodule MediaManager.Watcher do
   def handle_info({:check_size, path, last_size, count}, state) do
     case File.stat(path) do
       {:ok, %{size: size}} when size == last_size and count >= @size_stability_checks - 1 ->
+        Log.info(:watcher, "size stable for #{Path.basename(path)}, detecting")
         detect_file(path, state.dir)
         {:noreply, state}
 
@@ -149,7 +152,7 @@ defmodule MediaManager.Watcher do
     case File.stat(state.dir) do
       {:ok, _} ->
         if state.state == :unavailable do
-          Logger.info("Watcher: directory is accessible again, re-watching #{state.dir}")
+          Log.info(:watcher, "directory accessible again, re-watching #{state.dir}")
           send(self(), :start_watching)
           {:noreply, %{state | state: :initializing}}
         else
@@ -170,6 +173,7 @@ defmodule MediaManager.Watcher do
   end
 
   defp scan_directory(dir) do
+    Log.info(:watcher, "scanning #{dir}")
     exclude_dirs = exclude_dirs()
     pattern = Path.join(dir, "**/*")
 
@@ -190,7 +194,7 @@ defmodule MediaManager.Watcher do
          |> Ash.Changeset.for_create(:detect, %{file_path: path, watch_dir: watch_dir})
          |> Ash.create() do
       {:ok, file} ->
-        Logger.info("Watcher: detected file #{path} as WatchedFile #{file.id}")
+        Log.info(:watcher, "detected #{Path.basename(path)} as #{file.id}")
         :ok
 
       {:error, _reason} ->

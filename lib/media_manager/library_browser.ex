@@ -4,6 +4,8 @@ defmodule MediaManager.LibraryBrowser do
   Keeps the LiveView thin by centralizing all library queries and playback actions.
   """
 
+  require MediaManager.Log, as: Log
+
   alias MediaManager.Library.{Entity, WatchProgress}
   alias MediaManager.Playback.{EpisodeList, Manager, ProgressSummary, Resume}
 
@@ -19,6 +21,8 @@ defmodule MediaManager.LibraryBrowser do
       |> Ash.Query.sort(name: :asc)
       |> Ash.read!()
 
+    Log.info(:library, "loaded #{length(entities)} entities for browser")
+
     Enum.map(entities, fn entity ->
       progress_records =
         Enum.sort_by(entity.watch_progress, &{&1.season_number, &1.episode_number})
@@ -33,6 +37,8 @@ defmodule MediaManager.LibraryBrowser do
   Smart play for an entity — resolves resume/next/restart via the Resume algorithm.
   """
   def play_entity(entity_id) do
+    Log.info(:library, "play entity #{entity_id}")
+
     with {:ok, entity} <- load_entity(entity_id),
          progress_records <- load_progress(entity_id),
          {:ok, play_params} <- resolve_playback(entity, progress_records) do

@@ -5,6 +5,7 @@ defmodule MediaManager.Pipeline do
   """
   use Broadway
   require Logger
+  require MediaManager.Log, as: Log
 
   alias MediaManager.Library.WatchedFile
 
@@ -23,9 +24,11 @@ defmodule MediaManager.Pipeline do
   @impl true
   def handle_message(:default, message, _context) do
     file = message.data
+    Log.info(:pipeline, "processing #{file.id} (#{Path.basename(file.file_path)})")
 
     case process_file(file) do
       {:ok, processed} ->
+        Log.info(:pipeline, "completed #{file.id}, state: #{processed.state}")
         Broadway.Message.update_data(message, fn _ -> processed end)
 
       {:error, reason} ->
@@ -43,6 +46,8 @@ defmodule MediaManager.Pipeline do
       |> Enum.uniq()
 
     if entity_ids != [] do
+      Log.info(:pipeline, "batch complete, broadcasting #{length(entity_ids)} entity changes")
+
       Phoenix.PubSub.broadcast(
         MediaManager.PubSub,
         "library:updates",
@@ -71,16 +76,29 @@ defmodule MediaManager.Pipeline do
   end
 
   defp search(%WatchedFile{} = file) do
-    Ash.update(file, %{}, action: :search)
+    result = Ash.update(file, %{}, action: :search)
+
+    case result do
+      {:ok, searched} ->
+        Log.info(:pipeline, "post-search state: #{searched.state} for #{file.id}")
+
+      _ ->
+        :ok
+    end
+
+    result
   end
 
   defp maybe_fetch_metadata(%WatchedFile{state: :approved} = file) do
+    Log.info(:pipeline, "fetching metadata for #{file.id}")
     Ash.update(file, %{}, action: :fetch_metadata)
   end
 
   defp maybe_fetch_metadata(%WatchedFile{} = file), do: {:ok, file}
 
   defp maybe_download_images(%WatchedFile{state: :fetching_images} = file) do
+    Log.info(:pipeline, "downloading images for #{file.id}")
+
     case Ash.update(file, %{}, action: :download_images) do
       {:ok, downloaded} ->
         {:ok, downloaded}

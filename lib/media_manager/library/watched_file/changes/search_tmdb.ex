@@ -5,6 +5,7 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
   `:pending_review` based on the confidence threshold.
   """
   use Ash.Resource.Change
+  require MediaManager.Log, as: Log
   alias MediaManager.TMDB.{Client, Confidence}
 
   def change(changeset, _opts, _context) do
@@ -20,6 +21,7 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
       |> Ash.Changeset.change_attribute(:state, :error)
       |> Ash.Changeset.change_attribute(:error_message, "no parsed title available for search")
     else
+      Log.info(:pipeline, "searching TMDB for #{inspect(parsed_title)}, type: #{parsed_type}")
       search_and_apply(changeset, parsed_title, parsed_year, parsed_type)
     end
   end
@@ -38,6 +40,12 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
         match_year = extract_year(result[year_key])
         match_poster_path = result["poster_path"]
         next_state = if score >= Confidence.threshold(), do: :approved, else: :pending_review
+
+        Log.info(:pipeline, fn ->
+          "#{next_state}, confidence #{Float.round(score, 2)} " <>
+            ">= #{Confidence.threshold()} threshold, " <>
+            "matched #{inspect(match_title)} (tmdb:#{tmdb_id})"
+        end)
 
         changeset
         |> Ash.Changeset.change_attribute(:tmdb_id, tmdb_id)
