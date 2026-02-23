@@ -19,6 +19,7 @@ defmodule MediaManagerWeb.Router do
 
     live "/", DashboardLive, :index
     live "/review", ReviewLive, :index
+    live "/library", LibraryLive, :index
   end
 
   # Other scopes may use custom stacks.

@@ -30,6 +30,8 @@ defmodule MediaManagerWeb.Endpoint do
     gzip: not code_reloading?,
     only: MediaManagerWeb.static_paths()
 
+  plug MediaManagerWeb.Plugs.ImageServer
+
   # Tidewave MCP — must be before code_reloading? block per Tidewave docs.
   if Code.ensure_loaded?(Tidewave) do
     plug Tidewave

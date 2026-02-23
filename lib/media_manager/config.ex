@@ -1,27 +1,29 @@
 defmodule MediaManager.Config do
   @moduledoc """
-  GenServer that loads and serves application configuration from the user's
+  Loads and serves application configuration from the user's
   TOML config file (`~/.config/freedia-center/media-manager.toml`),
   falling back to application environment defaults.
+
+  Call `load!/0` once at startup (before the supervision tree).
+  Use `get/1` anywhere to read a config key from `:persistent_term`.
   """
-  use GenServer
   require Logger
 
   @config_path "~/.config/freedia-center/media-manager.toml"
 
-  def start_link(_opts) do
-    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  @doc """
+  Loads configuration from TOML and stores it in `:persistent_term`.
+  Must be called once before any `get/1` calls — typically at the
+  top of `Application.start/2`, before the children list.
+  """
+  def load! do
+    config = load_config()
+    :persistent_term.put({__MODULE__, :config}, config)
+    :ok
   end
 
   def get(key) do
     :persistent_term.get({__MODULE__, :config}) |> Map.get(key)
-  end
-
-  @impl true
-  def init(_) do
-    config = load_config()
-    :persistent_term.put({__MODULE__, :config}, config)
-    {:ok, config}
   end
 
   defp load_config do

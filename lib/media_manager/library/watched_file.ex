@@ -49,8 +49,20 @@ defmodule MediaManager.Library.WatchedFile do
       prepare build(sort: [inserted_at: :asc], limit: arg(:limit))
     end
 
+    read :claimable_files do
+      argument :limit, :integer, default: 10
+      argument :stale_threshold, :utc_datetime_usec, allow_nil?: false
+
+      filter expr(
+               state == :detected or
+                 (state == :queued and updated_at < ^arg(:stale_threshold))
+             )
+
+      prepare build(sort: [inserted_at: :asc], limit: arg(:limit))
+    end
+
     update :claim do
-      validate attribute_equals(:state, :detected)
+      validate attribute_in(:state, [:detected, :queued])
       change set_attribute(:state, :queued)
     end
 
