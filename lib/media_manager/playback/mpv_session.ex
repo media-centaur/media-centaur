@@ -246,6 +246,11 @@ defmodule MediaManager.Playback.MpvSession do
        when is_number(position) do
     now = System.monotonic_time(:millisecond)
     tracker = WatchingTracker.update(state.tracker, position, now)
+
+    if tracker.actively_watching and not state.tracker.actively_watching do
+      Log.info(:playback, "session #{state.session_id} actively watching")
+    end
+
     state = %{state | position: position, tracker: tracker}
     maybe_persist(state) |> maybe_broadcast(state)
   end
@@ -324,15 +329,20 @@ defmodule MediaManager.Playback.MpvSession do
   # --- Entity Progress Broadcasting ---
 
   defp broadcast_entity_progress(session) do
-    case Ash.get(MediaManager.Library.Entity, session.entity_id, action: :with_progress) do
+    broadcast_entity_progress_by_id(session.entity_id)
+  end
+
+  defp broadcast_entity_progress_by_id(entity_id) do
+    case Ash.get(MediaManager.Library.Entity, entity_id, action: :with_progress) do
       {:ok, entity} ->
         progress_records = entity.watch_progress || []
         summary = MediaManager.Playback.ProgressSummary.compute(entity, progress_records)
+        Log.info(:playback, "broadcasting progress for #{entity_id}")
 
         Phoenix.PubSub.broadcast(
           MediaManager.PubSub,
           "playback:events",
-          {:entity_progress_updated, session.entity_id, summary}
+          {:entity_progress_updated, entity_id, summary}
         )
 
       {:error, _} ->
@@ -349,11 +359,13 @@ defmodule MediaManager.Playback.MpvSession do
 
     params = %{
       entity_id: state.entity_id,
-      season_number: state.season_number,
-      episode_number: state.episode_number,
+      season_number: state.season_number || 0,
+      episode_number: state.episode_number || 0,
       position_seconds: saveable,
       duration_seconds: duration
     }
+
+    entity_id = state.entity_id
 
     Task.Supervisor.start_child(MediaManager.TaskSupervisor, fn ->
       case Ash.create(MediaManager.Library.WatchProgress, params, action: :upsert_progress) do
@@ -364,6 +376,7 @@ defmodule MediaManager.Playback.MpvSession do
           )
 
           maybe_mark_completed(record, saveable, duration)
+          broadcast_entity_progress_by_id(entity_id)
 
         {:error, reason} ->
           Logger.warning("MpvSession: progress write failed: #{inspect(reason)}")

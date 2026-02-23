@@ -18,8 +18,8 @@ defmodule MediaManager.Repo.Migrations.AddWatchProgress do
       add :completed, :boolean
       add :duration_seconds, :float
       add :position_seconds, :float
-      add :episode_number, :bigint
-      add :season_number, :bigint
+      add :episode_number, :bigint, null: false
+      add :season_number, :bigint, null: false
       add :id, :uuid, null: false, primary_key: true
     end
 

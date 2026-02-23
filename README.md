@@ -1,18 +1,19 @@
-# MediaManager
+# Freedia Center — Media Manager
 
-To start your Phoenix server:
+Phoenix/Elixir application that manages the Freedia Center media library. Watches configured directories for video files, scrapes metadata and artwork from TMDB, and serves the library to the [user-interface](../user-interface) over Phoenix Channels (WebSocket).
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+## Quick Start
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+```bash
+mix setup          # install deps, create DB, run migrations, build assets
+mix phx.server     # start dev server at http://localhost:4000
+mix test           # run tests
+mix precommit      # compile --warnings-as-errors, format, test
+```
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+## Documentation
 
-## Learn more
-
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+- [`CLAUDE.md`](CLAUDE.md) — project conventions, architecture principles, testing strategy
+- [`DESIGN.md`](DESIGN.md) — application design: configuration, pipeline, resources, web UI
+- [`PIPELINE.md`](PIPELINE.md) — Broadway pipeline architecture details
+- [`../specifications/`](../specifications/) — cross-component contracts (API, data format, playback, images)

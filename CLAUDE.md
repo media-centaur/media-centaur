@@ -56,11 +56,11 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 ## Ash-Driven Migrations
 
-**Never hand-write Ecto migrations.** Always design Ash resources first (attributes, identities, relationships), then run `mix ash_sqlite.generate_migrations --name <short_name>` to auto-generate the migration. The resource definition is the source of truth — the migration is a derived artifact.
+**Never hand-write or manually edit Ecto migrations.** Always design Ash resources first (attributes, identities, relationships), then run `mix ash_sqlite.generate_migrations --name <short_name>` to auto-generate the migration. The resource definition is the source of truth — the migration is a derived artifact. If a migration needs custom SQL (data backfill, deduplication, table recreation for SQLite constraints), create a **separate** manual migration file — never edit or replace an Ash-generated migration. Never use `Ecto.Migration` directly to create, alter, or drop tables managed by Ash resources.
 
 ## Architecture Principles
 
-- **Ash is the only data interface.** Never write raw SQL queries or use `Ecto.Query` / `Repo` directly. All database reads and writes go through Ash actions. If Ash doesn't have the necessary action or capability for an operation, plan and implement the missing Ash action first — never bypass Ash with manual queries.
+- **Ash is the only data interface.** Never write raw SQL queries, use `Ecto.Query`, call `Repo` directly, or use `execute()` with SQL strings in application code or migrations. All database reads and writes go through Ash actions — no exceptions. If Ash doesn't have the necessary action or capability for an operation, plan and implement the missing Ash action first — never bypass Ash with manual queries. This includes data migrations: use Ash actions in a `Mix.Task` or seed script, not raw SQL.
 - **Use bulk APIs for bulk operations.** When operating on multiple records (destroy, update, create), always use `Ash.bulk_destroy/3`, `Ash.bulk_update/4`, or `Ash.bulk_create/4` — never loop `Ash.destroy!/1` or `Ash.update!/2` over individual records. If a resource lacks the necessary action for a bulk operation, add it first. Bulk APIs let the data layer execute a single query instead of N+1.
 - **This app owns all writes.** Only the manager writes `images/`. The `user-interface` never writes these files.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
@@ -70,6 +70,8 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 - **External API clients use `Req`.** Never use `:httpoison`, `:tesla`, or `:httpc`. `Req` is included and is the preferred HTTP client.
 - **Batch all channel entity pushes.** Any code path that pushes entity lists or entity-removal IDs to a channel must chunk the payload using the channel's `@batch_size`. Never push an unbounded list of entities in a single message — bulk operations can touch every entity in the library.
 - **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). The channel handler resolves IDs into updated/removed sets — the broadcaster doesn't need to distinguish.
+- **Bulk operations must never silently discard errors.** Always pass `return_errors?: true` to `Ash.bulk_update/4`, `Ash.bulk_create/4`, and `Ash.bulk_destroy/3`. Check `result.error_count` and log or propagate errors — never assume `result.records || []` is safe without checking for failures first. Silent bulk failures are invisible and can stall entire subsystems.
+- **Bulk operations on non-atomic actions need `strategy: :stream`.** AshSqlite cannot express `attribute_in`/`attribute_equals` validations as atomic SQL. Actions with these validations must set `require_atomic? false`, and any `bulk_update`/`bulk_create` call on such actions must pass `strategy: :stream` — otherwise the default `[:atomic]` strategy fails with `NoMatchingBulkStrategy`.
 
 ## Pipeline
 

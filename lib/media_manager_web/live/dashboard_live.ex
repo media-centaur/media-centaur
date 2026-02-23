@@ -9,6 +9,7 @@ defmodule MediaManagerWeb.DashboardLive do
       if connected?(socket) do
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "watcher:state")
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "library:updates")
+        Phoenix.PubSub.subscribe(MediaManager.PubSub, "pipeline:updates")
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "playback:events")
 
         stats = Dashboard.fetch_stats()
@@ -17,6 +18,7 @@ defmodule MediaManagerWeb.DashboardLive do
         |> assign(watcher_statuses: MediaManager.Watcher.Supervisor.statuses())
         |> assign(library_stats: stats.library)
         |> assign(pipeline_stats: stats.pipeline)
+        |> assign(pipeline_active: in_progress(stats.pipeline) > 0)
         |> assign(pending_review: stats.pending_review)
         |> assign(recent_errors: stats.recent_errors)
         |> assign(playback: MediaManager.Playback.Manager.current_state())
@@ -26,6 +28,7 @@ defmodule MediaManagerWeb.DashboardLive do
         |> assign(watcher_statuses: [])
         |> assign(library_stats: %{entities: 0, files: 0, images: 0, by_type: %{}})
         |> assign(pipeline_stats: %{})
+        |> assign(pipeline_active: false)
         |> assign(pending_review: [])
         |> assign(recent_errors: [])
         |> assign(playback: %{state: :idle, now_playing: nil})
@@ -37,7 +40,8 @@ defmodule MediaManagerWeb.DashboardLive do
        scanning: false,
        clearing_database: false,
        refreshing_images: false,
-       stats_timer: nil
+       stats_timer: nil,
+       pipeline_cooldown_timer: nil
      )}
   end
 
@@ -54,7 +58,18 @@ defmodule MediaManagerWeb.DashboardLive do
             n -> "Scan complete — #{n} new files detected"
           end
 
-        {:noreply, socket |> put_flash(:info, message) |> assign(scanning: false)}
+        stats = Dashboard.fetch_stats()
+
+        socket =
+          socket
+          |> put_flash(:info, message)
+          |> assign(scanning: false)
+          |> assign(pipeline_stats: stats.pipeline)
+          |> assign(library_stats: stats.library)
+
+        socket = if count > 0, do: mark_pipeline_active(socket), else: socket
+
+        {:noreply, socket}
     end
   end
 
@@ -113,12 +128,20 @@ defmodule MediaManagerWeb.DashboardLive do
   end
 
   def handle_info({:entities_changed, _entity_ids}, socket) do
-    if socket.assigns[:stats_timer] do
-      Process.cancel_timer(socket.assigns.stats_timer)
-    end
+    {:noreply, debounce_stats_refresh(socket)}
+  end
 
-    timer = Process.send_after(self(), :refresh_stats, 1_000)
-    {:noreply, assign(socket, stats_timer: timer)}
+  def handle_info(:pipeline_changed, socket) do
+    {:noreply, socket |> debounce_stats_refresh() |> mark_pipeline_active()}
+  end
+
+  def handle_info(:pipeline_cooldown, socket) do
+    if in_progress(socket.assigns.pipeline_stats) > 0 do
+      timer = Process.send_after(self(), :pipeline_cooldown, 5_000)
+      {:noreply, assign(socket, pipeline_cooldown_timer: timer)}
+    else
+      {:noreply, assign(socket, pipeline_active: false, pipeline_cooldown_timer: nil)}
+    end
   end
 
   def handle_info(:refresh_stats, socket) do
@@ -133,12 +156,21 @@ defmodule MediaManagerWeb.DashboardLive do
      |> assign(recent_errors: stats.recent_errors)}
   end
 
-  def handle_info({:playback_state_changed, _new_state, _now_playing}, socket) do
-    {:noreply, assign(socket, playback: MediaManager.Playback.Manager.current_state())}
+  def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
+    {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
   end
 
-  def handle_info({:playback_progress, _progress}, socket) do
-    {:noreply, assign(socket, playback: MediaManager.Playback.Manager.current_state())}
+  def handle_info({:playback_progress, progress}, socket) do
+    playback = socket.assigns.playback
+
+    now_playing =
+      if playback.now_playing do
+        playback.now_playing
+        |> Map.put(:position_seconds, progress.position_seconds)
+        |> Map.put(:duration_seconds, progress.duration_seconds)
+      end
+
+    {:noreply, assign(socket, playback: %{playback | now_playing: now_playing})}
   end
 
   @impl true
@@ -163,7 +195,7 @@ defmodule MediaManagerWeb.DashboardLive do
         </div>
 
         <.library_stats stats={@library_stats} />
-        <.pipeline_status stats={@pipeline_stats} />
+        <.pipeline_status stats={@pipeline_stats} active={@pipeline_active} />
         <.watcher_health statuses={@watcher_statuses} />
         <.playback_status playback={@playback} />
         <.pending_review_table files={@pending_review} />
@@ -210,32 +242,57 @@ defmodule MediaManagerWeb.DashboardLive do
   end
 
   defp pipeline_status(assigns) do
+    assigns =
+      assigns
+      |> assign(:in_progress, in_progress(assigns.stats))
+      |> assign(:completed, completed_count(assigns.stats))
+      |> assign(:needs_review, pending_review_count(assigns.stats))
+      |> assign(:errors, error_count(assigns.stats))
+      |> assign(:total, total_processed(assigns.stats) + in_progress(assigns.stats))
+      |> assign(:progress, progress_percent(assigns.stats))
+
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body">
-        <h2 class="card-title text-lg">Pipeline Status</h2>
+        <div :if={@active} class="space-y-3">
+          <h2 class="card-title text-lg">
+            Pipeline <span class="loading loading-dots loading-xs text-success"></span>
+          </h2>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <span :for={stage <- pipeline_stages()} class="flex items-center gap-2">
-            <span class="flex flex-col items-center gap-1">
-              <span class={["badge", pipeline_badge_class(stage.key, @stats[stage.key] || 0)]}>
-                {@stats[stage.key] || 0}
-              </span>
-              <span class="text-xs text-base-content/60">{stage.label}</span>
+          <progress class="progress progress-primary w-full" value={@progress} max="100"></progress>
+
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span>{@completed} completed</span>
+            <span class="text-base-content/30">&middot;</span>
+            <span>{@in_progress} in progress</span>
+          </div>
+
+          <div :if={@needs_review > 0 or @errors > 0} class="flex flex-wrap items-center gap-2">
+            <.link :if={@needs_review > 0} navigate="/review" class="badge badge-warning gap-1">
+              {@needs_review} pending review
+            </.link>
+            <span :if={@errors > 0} class="badge badge-error gap-1">
+              {@errors} errors
             </span>
-            <.icon :if={stage.arrow} name="hero-arrow-right-micro" class="size-3 opacity-40" />
-          </span>
+          </div>
         </div>
 
-        <div :if={has_side_states?(@stats)} class="divider my-1" />
+        <div :if={!@active}>
+          <h2 class="card-title text-lg mb-3">Pipeline</h2>
 
-        <div :if={has_side_states?(@stats)} class="flex flex-wrap gap-2">
-          <span :for={stage <- side_stages()} class="flex flex-col items-center gap-1">
-            <span class={["badge", pipeline_badge_class(stage.key, @stats[stage.key] || 0)]}>
-              {@stats[stage.key] || 0}
+          <p :if={@total == 0} class="text-base-content/60">No files processed yet.</p>
+
+          <div :if={@total > 0} class="flex flex-wrap items-center gap-2">
+            <span :if={@completed > 0} class="badge badge-success gap-1">
+              {@completed} complete
             </span>
-            <span class="text-xs text-base-content/60">{stage.label}</span>
-          </span>
+            <.link :if={@needs_review > 0} navigate="/review" class="badge badge-warning gap-1">
+              {@needs_review} pending review
+            </.link>
+            <span :if={@errors > 0} class="badge badge-error gap-1">
+              {@errors} errors
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -451,6 +508,27 @@ defmodule MediaManagerWeb.DashboardLive do
     """
   end
 
+  defp mark_pipeline_active(socket) do
+    if socket.assigns[:pipeline_cooldown_timer] do
+      Process.cancel_timer(socket.assigns.pipeline_cooldown_timer)
+    end
+
+    timer = Process.send_after(self(), :pipeline_cooldown, 5_000)
+
+    socket
+    |> assign(pipeline_active: true)
+    |> assign(pipeline_cooldown_timer: timer)
+  end
+
+  defp debounce_stats_refresh(socket) do
+    if socket.assigns[:stats_timer] do
+      Process.cancel_timer(socket.assigns.stats_timer)
+    end
+
+    timer = Process.send_after(self(), :refresh_stats, 1_000)
+    assign(socket, stats_timer: timer)
+  end
+
   # --- Helpers ---
 
   defp format_type(:movie), do: "Movies"
@@ -487,41 +565,6 @@ defmodule MediaManagerWeb.DashboardLive do
     }
   end
 
-  defp pipeline_stages do
-    [
-      %{key: :detected, label: "Detected", arrow: true},
-      %{key: :queued, label: "Queued", arrow: true},
-      %{key: :searching, label: "Searching", arrow: true},
-      %{key: :approved, label: "Approved", arrow: true},
-      %{key: :fetching_metadata, label: "Fetching Metadata", arrow: true},
-      %{key: :fetching_images, label: "Fetching Images", arrow: true},
-      %{key: :complete, label: "Complete", arrow: false}
-    ]
-  end
-
-  defp side_stages do
-    [
-      %{key: :pending_review, label: "Pending Review"},
-      %{key: :error, label: "Error"},
-      %{key: :removed, label: "Removed"},
-      %{key: :dismissed, label: "Dismissed"}
-    ]
-  end
-
-  defp has_side_states?(stats) do
-    Enum.any?([:pending_review, :error, :removed, :dismissed], fn key ->
-      (stats[key] || 0) > 0
-    end)
-  end
-
-  defp pipeline_badge_class(_key, 0), do: "badge-ghost"
-  defp pipeline_badge_class(:complete, _), do: "badge-success"
-  defp pipeline_badge_class(:error, _), do: "badge-error"
-  defp pipeline_badge_class(:pending_review, _), do: "badge-warning"
-  defp pipeline_badge_class(:removed, _), do: "badge-ghost"
-  defp pipeline_badge_class(:dismissed, _), do: "badge-ghost"
-  defp pipeline_badge_class(_, _), do: "badge-info"
-
   defp watcher_badge_class(:watching), do: "badge-success"
   defp watcher_badge_class(:initializing), do: "badge-warning"
   defp watcher_badge_class(_), do: "badge-error"
@@ -534,4 +577,34 @@ defmodule MediaManagerWeb.DashboardLive do
   defp confidence_badge_class(score) when score >= 0.8, do: "badge-success"
   defp confidence_badge_class(score) when score >= 0.5, do: "badge-warning"
   defp confidence_badge_class(_), do: "badge-error"
+
+  # --- Pipeline stats ---
+
+  @transient_states [
+    :detected,
+    :queued,
+    :searching,
+    :approved,
+    :fetching_metadata,
+    :fetching_images
+  ]
+
+  defp in_progress(stats) do
+    Enum.reduce(@transient_states, 0, fn state, sum -> sum + (stats[state] || 0) end)
+  end
+
+  defp completed_count(stats), do: stats[:complete] || 0
+  defp pending_review_count(stats), do: stats[:pending_review] || 0
+  defp error_count(stats), do: stats[:error] || 0
+
+  defp total_processed(stats) do
+    completed_count(stats) + pending_review_count(stats) + error_count(stats)
+  end
+
+  defp progress_percent(stats) do
+    done = total_processed(stats)
+    flying = in_progress(stats)
+    total = done + flying
+    if total == 0, do: 100, else: trunc(done / total * 100)
+  end
 end

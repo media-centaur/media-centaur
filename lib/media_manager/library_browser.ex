@@ -23,7 +23,10 @@ defmodule MediaManager.LibraryBrowser do
 
     Log.info(:library, "loaded #{length(entities)} entities for browser")
 
-    Enum.map(entities, fn entity ->
+    entities
+    |> Enum.map(fn entity ->
+      entity = pre_sort_children(entity)
+
       progress_records =
         Enum.sort_by(entity.watch_progress, &{&1.season_number, &1.episode_number})
 
@@ -31,6 +34,7 @@ defmodule MediaManager.LibraryBrowser do
 
       %{entity: entity, progress: summary, progress_records: progress_records}
     end)
+    |> Enum.map(&maybe_unwrap_single_movie/1)
   end
 
   @doc """
@@ -153,5 +157,35 @@ defmodule MediaManager.LibraryBrowser do
   defp most_recent_episode(progress_records) do
     most_recent = Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
     if most_recent, do: {most_recent.season_number, most_recent.episode_number}, else: {nil, nil}
+  end
+
+  defp maybe_unwrap_single_movie(%{entity: %{type: :movie_series, movies: [movie]}} = entry) do
+    entity =
+      %{
+        entry.entity
+        | type: :movie,
+          name: movie.name || entry.entity.name,
+          date_published: movie.date_published || entry.entity.date_published,
+          content_url: movie.content_url,
+          movies: []
+      }
+
+    progress = ProgressSummary.compute(entity, entry.progress_records)
+    %{entry | entity: entity, progress: progress}
+  end
+
+  defp maybe_unwrap_single_movie(entry), do: entry
+
+  defp pre_sort_children(entity) do
+    seasons =
+      (entity.seasons || [])
+      |> Enum.sort_by(& &1.season_number)
+      |> Enum.map(fn season ->
+        %{season | episodes: Enum.sort_by(season.episodes || [], & &1.episode_number)}
+      end)
+
+    movies = Enum.sort_by(entity.movies || [], &{&1.position || 0, &1.date_published || ""})
+
+    %{entity | seasons: seasons, movies: movies}
   end
 end

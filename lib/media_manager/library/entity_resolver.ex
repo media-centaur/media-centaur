@@ -65,9 +65,7 @@ defmodule MediaManager.Library.EntityResolver do
          %{season_number: season_number} = file_context
        )
        when is_integer(season_number) do
-    entity = Ash.load!(entity, [:identifiers])
-    tmdb_identifier = Enum.find(entity.identifiers, &(&1.property_id == "tmdb"))
-    tmdb_id = if tmdb_identifier, do: tmdb_identifier.value
+    tmdb_id = extract_tmdb_id(entity)
 
     with {:ok, season} <- ensure_season_for_extra(entity, tmdb_id, file_context),
          {:ok, _extra} <- find_or_create_extra(entity, file_context, season) do
@@ -400,6 +398,17 @@ defmodule MediaManager.Library.EntityResolver do
   # --- Season/Episode for a single file ---
 
   defp create_season_and_episode(entity, tmdb_id, file_context) do
+    ensure_season_and_episode(entity, tmdb_id, file_context)
+  end
+
+  defp ensure_episode_exists(entity, file_context) do
+    case extract_tmdb_id(entity) do
+      nil -> :ok
+      tmdb_id -> ensure_season_and_episode(entity, tmdb_id, file_context)
+    end
+  end
+
+  defp ensure_season_and_episode(entity, tmdb_id, file_context) do
     season_number = file_context.season_number
     episode_number = file_context.episode_number
 
@@ -415,35 +424,6 @@ defmodule MediaManager.Library.EntityResolver do
 
         {:error, reason} ->
           {:error, reason}
-      end
-    end
-  end
-
-  defp ensure_episode_exists(entity, file_context) do
-    season_number = file_context.season_number
-    episode_number = file_context.episode_number
-
-    if is_nil(season_number) or is_nil(episode_number) do
-      :ok
-    else
-      entity = Ash.load!(entity, [:identifiers])
-      tmdb_identifier = Enum.find(entity.identifiers, &(&1.property_id == "tmdb"))
-
-      if tmdb_identifier do
-        tmdb_id = tmdb_identifier.value
-
-        case Client.get_season(tmdb_id, season_number) do
-          {:ok, season_data} ->
-            with {:ok, season} <- find_or_create_season(entity, season_data),
-                 :ok <- find_or_create_episode(season, season_data, file_context) do
-              :ok
-            end
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-      else
-        :ok
       end
     end
   end
@@ -500,6 +480,14 @@ defmodule MediaManager.Library.EntityResolver do
       Mapper.episode_image_attrs(episode.id, tmdb_episode),
       :find_or_create_for_episode
     )
+  end
+
+  # --- Helpers ---
+
+  defp extract_tmdb_id(entity) do
+    entity = Ash.load!(entity, [:identifiers])
+    tmdb_identifier = Enum.find(entity.identifiers, &(&1.property_id == "tmdb"))
+    if tmdb_identifier, do: tmdb_identifier.value
   end
 
   # --- Associations ---
