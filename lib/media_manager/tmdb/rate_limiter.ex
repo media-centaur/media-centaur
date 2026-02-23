@@ -3,8 +3,8 @@ defmodule MediaManager.TMDB.RateLimiter do
   Sliding window rate limiter for TMDB API requests.
 
   Enforces a maximum number of HTTP requests per time interval.
-  Callers block until a slot is available, ensuring we stay within
-  TMDB's rate limits even under high concurrency.
+  The GenServer replies immediately — callers sleep on their own
+  when rate-limited, so the mailbox is never blocked.
   """
   use GenServer
 
@@ -19,7 +19,14 @@ defmodule MediaManager.TMDB.RateLimiter do
   Blocks until a request slot is available, then returns `:ok`.
   """
   def wait do
-    GenServer.call(__MODULE__, :acquire, :infinity)
+    case GenServer.call(__MODULE__, :acquire) do
+      :ok ->
+        :ok
+
+      {:retry_after, ms} ->
+        Process.sleep(ms)
+        wait()
+    end
   end
 
   @impl true
@@ -39,11 +46,7 @@ defmodule MediaManager.TMDB.RateLimiter do
     else
       {{:value, oldest}, _} = :queue.out(timestamps)
       wait_ms = max(oldest + state.interval - now, 0)
-      Process.sleep(wait_ms)
-
-      now = System.monotonic_time(:millisecond)
-      timestamps = drop_expired(state.timestamps, now - state.interval)
-      {:reply, :ok, %{state | timestamps: :queue.in(now, timestamps)}}
+      {:reply, {:retry_after, wait_ms}, state}
     end
   end
 
