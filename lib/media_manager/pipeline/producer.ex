@@ -12,26 +12,27 @@ defmodule MediaManager.Pipeline.Producer do
 
   alias MediaManager.Library.WatchedFile
 
-  @idle_interval 20_000
-  @active_interval 1_000
+  @poll_interval 2_000
   @stale_threshold_minutes 5
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
   @impl true
-  def init(opts) do
-    poll_interval = opts[:poll_interval] || @idle_interval
-    schedule_poll(poll_interval)
-    {:producer, %{poll_interval: poll_interval, demand: 0}}
+  def init(_opts) do
+    {:producer, %{demand: 0, poll_scheduled: false}}
   end
 
   @impl true
   def handle_demand(incoming_demand, state) do
-    {:noreply, [], %{state | demand: state.demand + incoming_demand}}
+    state = %{state | demand: state.demand + incoming_demand}
+    state = ensure_poll_scheduled(state)
+    {:noreply, [], state}
   end
 
   @impl true
   def handle_info(:poll, state) do
+    state = %{state | poll_scheduled: false}
+
     if state.demand > 0 do
       files = claim_files(state.demand)
 
@@ -44,13 +45,11 @@ defmodule MediaManager.Pipeline.Producer do
           %Broadway.Message{data: file, acknowledger: {__MODULE__, :ack_id, :ack_data}}
         end)
 
-      next_interval = if files != [], do: @active_interval, else: @idle_interval
-      schedule_poll(next_interval)
+      state = %{state | demand: state.demand - length(messages)}
+      state = schedule_poll(state, @poll_interval)
 
-      {:noreply, messages,
-       %{state | demand: state.demand - length(messages), poll_interval: next_interval}}
+      {:noreply, messages, state}
     else
-      schedule_poll(state.poll_interval)
       {:noreply, [], state}
     end
   end
@@ -74,12 +73,24 @@ defmodule MediaManager.Pipeline.Producer do
       {:ok, files} ->
         result =
           Ash.bulk_update(files, :claim, %{},
+            strategy: :stream,
             return_records?: true,
-            stop_on_error?: false,
-            return_errors?: false
+            return_errors?: true
           )
 
-        result.records || []
+        if result.error_count > 0 do
+          Logger.warning(
+            "Pipeline producer: #{result.error_count} claim errors: #{inspect(Enum.take(result.errors, 3))}"
+          )
+        end
+
+        claimed = result.records || []
+
+        if claimed != [] do
+          Phoenix.PubSub.broadcast(MediaManager.PubSub, "pipeline:updates", :pipeline_changed)
+        end
+
+        claimed
 
       {:error, reason} ->
         Logger.warning("Pipeline producer: failed to read claimable files: #{inspect(reason)}")
@@ -87,5 +98,12 @@ defmodule MediaManager.Pipeline.Producer do
     end
   end
 
-  defp schedule_poll(interval), do: Process.send_after(self(), :poll, interval)
+  defp ensure_poll_scheduled(%{poll_scheduled: true} = state), do: state
+
+  defp ensure_poll_scheduled(state), do: schedule_poll(state, 0)
+
+  defp schedule_poll(state, interval) do
+    Process.send_after(self(), :poll, interval)
+    %{state | poll_scheduled: true}
+  end
 end

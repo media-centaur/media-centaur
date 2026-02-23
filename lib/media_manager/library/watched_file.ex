@@ -62,21 +62,25 @@ defmodule MediaManager.Library.WatchedFile do
     end
 
     update :claim do
+      require_atomic? false
       validate attribute_in(:state, [:detected, :queued])
       change set_attribute(:state, :queued)
     end
 
     update :approve do
+      require_atomic? false
       validate attribute_equals(:state, :pending_review)
       change set_attribute(:state, :approved)
     end
 
     update :dismiss do
+      require_atomic? false
       validate attribute_equals(:state, :pending_review)
       change set_attribute(:state, :dismissed)
     end
 
     update :retry do
+      require_atomic? false
       validate attribute_equals(:state, :pending_review)
 
       change set_attribute(:state, :detected)
@@ -89,6 +93,7 @@ defmodule MediaManager.Library.WatchedFile do
     end
 
     update :set_tmdb_match do
+      require_atomic? false
       accept [:tmdb_id, :match_title, :match_year, :match_poster_path, :confidence_score]
       validate attribute_equals(:state, :pending_review)
     end

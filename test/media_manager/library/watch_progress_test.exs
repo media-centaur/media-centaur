@@ -101,6 +101,30 @@ defmodule MediaManager.Library.WatchProgressTest do
       assert hd(records).position_seconds == 1200.0
     end
 
+    test "upsert idempotency — movie (no season/episode) creates one record, not duplicates" do
+      entity = create_entity(%{type: :movie, name: "Upsert Movie"})
+
+      create_watch_progress(%{
+        entity_id: entity.id,
+        position_seconds: 35.0,
+        duration_seconds: 7200.0
+      })
+
+      create_watch_progress(%{
+        entity_id: entity.id,
+        position_seconds: 3930.0,
+        duration_seconds: 7200.0
+      })
+
+      {:ok, records} =
+        WatchProgress
+        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
+        |> Ash.read()
+
+      assert length(records) == 1
+      assert hd(records).position_seconds == 3930.0
+    end
+
     test "upsert updates last_watched_at timestamp" do
       entity = create_entity(%{type: :tv_series, name: "Timestamp Show"})
 
