@@ -36,10 +36,11 @@ defmodule MediaManagerWeb.LibraryChannel do
   @impl true
   def handle_info({:entities_changed, entity_ids}, socket) do
     known_ids = socket.assigns.known_entity_ids
+    payloads_by_id = load_entity_payloads(entity_ids)
 
     {updated, removed, new_known_ids} =
       Enum.reduce(entity_ids, {[], [], known_ids}, fn entity_id, {updated, removed, known} ->
-        case load_entity_payload(entity_id) do
+        case Map.get(payloads_by_id, entity_id) do
           nil ->
             if MapSet.member?(known, entity_id) do
               {updated, [entity_id | removed], MapSet.delete(known, entity_id)}
@@ -81,11 +82,12 @@ defmodule MediaManagerWeb.LibraryChannel do
     end)
   end
 
-  defp load_entity_payload(entity_id) do
-    case Ash.get(Entity, entity_id, action: :with_associations) do
-      {:ok, entity} -> serialize_with_progress(entity)
-      {:error, _} -> nil
-    end
+  defp load_entity_payloads(entity_ids) do
+    Entity
+    |> Ash.Query.for_read(:with_associations)
+    |> Ash.Query.do_filter(%{id: [in: entity_ids]})
+    |> Ash.read!()
+    |> Map.new(fn entity -> {entity.id, serialize_with_progress(entity)} end)
   end
 
   defp build_entity_list do

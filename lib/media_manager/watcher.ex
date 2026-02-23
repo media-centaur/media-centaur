@@ -148,6 +148,11 @@ defmodule MediaManager.Watcher do
   end
 
   @impl true
+  def handle_info(:health_check, %{state: :watching} = state) do
+    schedule_health_check()
+    {:noreply, state}
+  end
+
   def handle_info(:health_check, state) do
     case File.stat(state.dir) do
       {:ok, _} ->
