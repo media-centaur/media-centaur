@@ -36,10 +36,9 @@ defmodule MediaManager.Library.EntityResolver do
   # --- Find existing ---
 
   defp find_existing_entity(tmdb_id) do
-    case Ash.read(Identifier,
-           action: :find_by_tmdb_id,
-           args: %{tmdb_id: to_string(tmdb_id)}
-         ) do
+    query = Ash.Query.for_read(Identifier, :find_by_tmdb_id, %{tmdb_id: to_string(tmdb_id)})
+
+    case Ash.read(query) do
       {:ok, [%{entity: entity}]} -> {:ok, entity}
       _ -> :not_found
     end
@@ -215,10 +214,12 @@ defmodule MediaManager.Library.EntityResolver do
   end
 
   defp find_existing_movie_series(collection_id) do
-    case Ash.read(Identifier,
-           action: :find_by_tmdb_collection,
-           args: %{collection_id: to_string(collection_id)}
-         ) do
+    query =
+      Ash.Query.for_read(Identifier, :find_by_tmdb_collection, %{
+        collection_id: to_string(collection_id)
+      })
+
+    case Ash.read(query) do
       {:ok, [%{entity: entity}]} -> {:ok, entity}
       _ -> :not_found
     end
