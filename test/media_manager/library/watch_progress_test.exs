@@ -25,22 +25,8 @@ defmodule MediaManager.Library.WatchProgressTest do
       assert found.last_watched_at != nil
     end
 
-    test "auto-completion at exactly 90% threshold" do
-      entity = create_entity(%{type: :movie, name: "Exactly 90%"})
-
-      progress =
-        create_watch_progress(%{
-          entity_id: entity.id,
-          position_seconds: 6480.0,
-          duration_seconds: 7200.0
-        })
-
-      # 6480 / 7200 = 0.90 exactly
-      assert progress.completed == true
-    end
-
-    test "auto-completion above 90% threshold" do
-      entity = create_entity(%{type: :movie, name: "Almost Done"})
+    test "new record defaults completed to false" do
+      entity = create_entity(%{type: :movie, name: "New Progress"})
 
       progress =
         create_watch_progress(%{
@@ -49,21 +35,47 @@ defmodule MediaManager.Library.WatchProgressTest do
           duration_seconds: 7200.0
         })
 
-      assert progress.completed == true
+      # Even at 95% position, upsert does not auto-complete
+      assert progress.completed == false
     end
 
-    test "not completed just under 90% threshold" do
-      entity = create_entity(%{type: :movie, name: "Still Watching"})
+    test "upsert preserves existing completed: true" do
+      entity = create_entity(%{type: :tv_series, name: "Completed Show"})
 
-      progress =
-        create_watch_progress(%{
-          entity_id: entity.id,
-          position_seconds: 6479.0,
-          duration_seconds: 7200.0
-        })
+      # Create initial progress for a specific episode
+      create_watch_progress(%{
+        entity_id: entity.id,
+        season_number: 1,
+        episode_number: 1,
+        position_seconds: 6480.0,
+        duration_seconds: 7200.0
+      })
 
-      # 6479 / 7200 ≈ 0.8998 < 0.90
-      assert progress.completed == false
+      # Mark completed via dedicated action
+      {:ok, [record]} =
+        WatchProgress
+        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
+        |> Ash.read()
+
+      {:ok, _} = Ash.update(record, %{}, action: :mark_completed)
+
+      # Now upsert with a lower position (re-watching from earlier)
+      create_watch_progress(%{
+        entity_id: entity.id,
+        season_number: 1,
+        episode_number: 1,
+        position_seconds: 300.0,
+        duration_seconds: 7200.0
+      })
+
+      {:ok, [updated]} =
+        WatchProgress
+        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
+        |> Ash.read()
+
+      # completed stays true — never regresses
+      assert updated.completed == true
+      assert updated.position_seconds == 300.0
     end
 
     test "upsert idempotency — second upsert updates values, no duplicate" do
@@ -148,9 +160,43 @@ defmodule MediaManager.Library.WatchProgressTest do
       assert length(records) == 2
       [episode_1, episode_2] = Enum.sort_by(records, & &1.episode_number)
       assert episode_1.episode_number == 1
-      assert episode_1.completed == true
+      assert episode_1.completed == false
       assert episode_2.episode_number == 2
       assert episode_2.completed == false
+    end
+  end
+
+  describe "mark_completed" do
+    test "transitions false to true" do
+      entity = create_entity(%{type: :movie, name: "Mark Complete"})
+
+      progress =
+        create_watch_progress(%{
+          entity_id: entity.id,
+          position_seconds: 6480.0,
+          duration_seconds: 7200.0
+        })
+
+      assert progress.completed == false
+
+      {:ok, updated} = Ash.update(progress, %{}, action: :mark_completed)
+      assert updated.completed == true
+    end
+
+    test "updates last_watched_at" do
+      entity = create_entity(%{type: :movie, name: "Mark Complete Timestamp"})
+
+      progress =
+        create_watch_progress(%{
+          entity_id: entity.id,
+          position_seconds: 100.0,
+          duration_seconds: 7200.0
+        })
+
+      Process.sleep(1100)
+
+      {:ok, updated} = Ash.update(progress, %{}, action: :mark_completed)
+      assert DateTime.compare(updated.last_watched_at, progress.last_watched_at) in [:gt, :eq]
     end
   end
 
