@@ -31,7 +31,9 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 | Path | Purpose |
 |------|---------|
-| `lib/media_manager/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode |
+| `lib/media_manager/log.ex` | Component-level thinking logs: macro, filter, state management |
+| `lib/media_manager/log/formatter.ex` | Custom log formatter: `[level][component] message` |
+| `lib/media_manager/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode, Setting |
 | `lib/media_manager/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
 | `lib/media_manager/library/entity_resolver.ex` | Entity find-or-create orchestration with race-loss recovery |
 | `lib/media_manager/library/watched_file/changes/` | Ash change modules for each pipeline step |
@@ -223,6 +225,56 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 **TV title extraction:** strips year tokens, cleans title, strips trailing season markers (`S01`), falls back to directory names when the result is empty.
 
 **Key constraint:** TV pattern `(.+?)SxxExx` requires at least one character before the S marker — bare episode filenames like `S01E03.mkv` won't match TV on their own, which is why `candidate_name/1` must prepend the show name from ancestor directories.
+
+## Thinking Logs
+
+The app has a component-level logging system for development visibility. All thinking logs are **info level** and filtered by an Erlang primary filter based on a set of enabled component atoms stored in `:persistent_term`.
+
+### Usage
+
+```elixir
+require MediaManager.Log, as: Log
+Log.info(:pipeline, "claimed 3 files")
+Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
+```
+
+### Components
+
+| Component | Covers |
+|-----------|--------|
+| `:watcher` | File events, size checks, detection, scanning |
+| `:pipeline` | Processing steps, producer claims, batch results |
+| `:tmdb` | API calls, rate limiting, confidence scoring |
+| `:playback` | Play/pause/stop, session lifecycle, progress |
+| `:channel` | Library sync, entity pushes, playback commands |
+| `:library` | Entity resolver, browser, admin, review |
+
+### IEx Helpers
+
+`Log.enable(:pipeline)`, `Log.disable(:pipeline)`, `Log.solo(:pipeline)`, `Log.mute(:pipeline)`, `Log.all()`, `Log.none()`, `Log.enabled()`, `Log.status()`
+
+### LiveView
+
+Visit `/logging` to toggle components and framework log suppression from the browser.
+
+### Message Format
+
+- Lowercase, no trailing period: `"claimed 3 files"`
+- No component prefix in message (`:component` metadata handles it)
+- Include key identifiers: file IDs, entity IDs, TMDB IDs
+- Shorten paths with `Path.basename/1` when full path adds noise
+- For decisions, log outcome AND reason: `"approved, confidence 0.92 >= 0.85 threshold"`
+- Use `fn -> ... end` for messages with expensive interpolation
+
+### What NOT to Log (too noisy)
+
+- MPV `time-pos` property updates (every second)
+- `MpvSession.maybe_broadcast` (every 2s)
+- `PlaybackChannel` progress tick forwarding (every 2s)
+- `WatchingTracker.update` (every second)
+- Serializer per-entity calls
+- Mapper per-field transforms
+- Watcher health check when already healthy
 
 ## Variable Naming
 

@@ -7,6 +7,7 @@ defmodule MediaManager.Watcher.Supervisor do
   """
   use Supervisor
   require Logger
+  require MediaManager.Log, as: Log
 
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
@@ -34,10 +35,10 @@ defmodule MediaManager.Watcher.Supervisor do
              {MediaManager.Watcher, dir}
            ) do
         {:ok, _pid} ->
-          Logger.info("Watcher.Supervisor: started watcher for #{dir}")
+          Log.info(:watcher, "started watcher for #{dir}")
 
         {:error, {:already_started, _pid}} ->
-          Logger.debug("Watcher.Supervisor: watcher already running for #{dir}")
+          Log.info(:watcher, "watcher already running for #{dir}")
 
         {:error, reason} ->
           Logger.warning(

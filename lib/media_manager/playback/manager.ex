@@ -5,6 +5,7 @@ defmodule MediaManager.Playback.Manager do
   """
   use GenServer
   require Logger
+  require MediaManager.Log, as: Log
 
   alias MediaManager.Playback.{MpvSession, SessionSupervisor}
 
@@ -46,6 +47,7 @@ defmodule MediaManager.Playback.Manager do
 
   @impl true
   def handle_call({:play, params}, _from, state) do
+    Log.info(:playback, "play #{params[:entity_name] || params.entity_id}")
     state = stop_existing_session(state)
 
     case SessionSupervisor.start_session(params) do
@@ -73,6 +75,7 @@ defmodule MediaManager.Playback.Manager do
 
   @impl true
   def handle_call(:pause, _from, %{session: pid} = state) when is_pid(pid) do
+    Log.info(:playback, "pause toggled")
     result = MpvSession.pause(pid)
     {:reply, result, state}
   end
@@ -83,6 +86,7 @@ defmodule MediaManager.Playback.Manager do
 
   @impl true
   def handle_call(:stop, _from, %{session: pid} = state) when is_pid(pid) do
+    Log.info(:playback, "stop requested")
     result = MpvSession.stop(pid)
     {:reply, result, state}
   end
@@ -93,6 +97,7 @@ defmodule MediaManager.Playback.Manager do
 
   @impl true
   def handle_call({:seek, position}, _from, %{session: pid} = state) when is_pid(pid) do
+    Log.info(:playback, "seek to #{position}")
     result = MpvSession.seek(pid, position)
     {:reply, result, state}
   end
@@ -110,6 +115,8 @@ defmodule MediaManager.Playback.Manager do
 
   @impl true
   def handle_info({:playback_state_changed, new_state, now_playing}, state) do
+    Log.info(:playback, "state changed to #{new_state}")
+
     state =
       case new_state do
         :stopped ->
@@ -144,6 +151,7 @@ defmodule MediaManager.Playback.Manager do
   # MpvSession process died
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, _reason}, %{monitor_ref: ref} = state) do
+    Log.info(:playback, "session process exited")
     {:noreply, %{state | session: nil, monitor_ref: nil, state: :idle, now_playing: nil}}
   end
 

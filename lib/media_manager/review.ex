@@ -4,6 +4,8 @@ defmodule MediaManager.Review do
   Keeps the LiveView thin by centralizing all review queries and actions.
   """
 
+  require MediaManager.Log, as: Log
+
   alias MediaManager.Library.WatchedFile
   alias MediaManager.TMDB.Client
 
@@ -18,6 +20,8 @@ defmodule MediaManager.Review do
   end
 
   defp process_approval(file) do
+    Log.info(:library, "processing approval for #{file.id}")
+
     with {:ok, file} <- approve(file),
          {:ok, file} <- fetch_metadata(file),
          {:ok, _file} <- maybe_download_images(file) do
@@ -94,6 +98,7 @@ defmodule MediaManager.Review do
   end
 
   def search_tmdb(query, type) do
+    Log.info(:library, "manual search: #{inspect(query)} type: #{type}")
     search_fn = if type == :tv, do: &Client.search_tv/2, else: &Client.search_movie/2
     title_key = if type == :tv, do: "name", else: "title"
     year_key = if type == :tv, do: "first_air_date", else: "release_date"
