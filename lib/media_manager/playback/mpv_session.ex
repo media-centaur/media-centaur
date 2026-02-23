@@ -324,7 +324,7 @@ defmodule MediaManager.Playback.MpvSession do
   # --- Entity Progress Broadcasting ---
 
   defp broadcast_entity_progress(session) do
-    case Ash.get(MediaManager.Library.Entity, session.entity_id, action: :with_associations) do
+    case Ash.get(MediaManager.Library.Entity, session.entity_id, action: :with_progress) do
       {:ok, entity} ->
         progress_records = entity.watch_progress || []
         summary = MediaManager.Playback.ProgressSummary.compute(entity, progress_records)
@@ -344,27 +344,31 @@ defmodule MediaManager.Playback.MpvSession do
 
   defp persist_progress(state) do
     saveable = state.tracker.saveable_position || state.position
+    session_id = state.session_id
+    duration = state.duration
 
     params = %{
       entity_id: state.entity_id,
       season_number: state.season_number,
       episode_number: state.episode_number,
       position_seconds: saveable,
-      duration_seconds: state.duration
+      duration_seconds: duration
     }
 
-    case Ash.create(MediaManager.Library.WatchProgress, params, action: :upsert_progress) do
-      {:ok, record} ->
-        Log.info(
-          :playback,
-          "session #{state.session_id} progress saved at #{Float.round(saveable, 1)}s"
-        )
+    Task.Supervisor.start_child(MediaManager.TaskSupervisor, fn ->
+      case Ash.create(MediaManager.Library.WatchProgress, params, action: :upsert_progress) do
+        {:ok, record} ->
+          Log.info(
+            :playback,
+            "session #{session_id} progress saved at #{Float.round(saveable, 1)}s"
+          )
 
-        maybe_mark_completed(record, saveable, state.duration)
+          maybe_mark_completed(record, saveable, duration)
 
-      {:error, reason} ->
-        Logger.warning("MpvSession: progress write failed: #{inspect(reason)}")
-    end
+        {:error, reason} ->
+          Logger.warning("MpvSession: progress write failed: #{inspect(reason)}")
+      end
+    end)
   end
 
   defp maybe_mark_completed(record, position, duration)

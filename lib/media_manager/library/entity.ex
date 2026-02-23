@@ -30,6 +30,16 @@ defmodule MediaManager.Library.Entity do
               )
     end
 
+    read :with_progress do
+      prepare build(
+                load: [
+                  :watch_progress,
+                  seasons: [:episodes],
+                  movies: []
+                ]
+              )
+    end
+
     read :with_images do
       prepare build(
                 load: [

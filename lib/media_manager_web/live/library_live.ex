@@ -22,7 +22,7 @@ defmodule MediaManagerWeb.LibraryLive do
         |> assign(playback: %{state: :idle, now_playing: nil})
       end
 
-    {:ok, assign(socket, active_tab: :all, expanded: MapSet.new())}
+    {:ok, assign(socket, active_tab: :all, expanded: MapSet.new(), reload_timer: nil)}
   end
 
   # --- Events ---
@@ -63,7 +63,17 @@ defmodule MediaManagerWeb.LibraryLive do
 
   @impl true
   def handle_info({:entities_changed, _entity_ids}, socket) do
-    {:noreply, assign(socket, entries: LibraryBrowser.fetch_entities())}
+    if socket.assigns[:reload_timer] do
+      Process.cancel_timer(socket.assigns.reload_timer)
+    end
+
+    timer = Process.send_after(self(), :reload_entities, 500)
+    {:noreply, assign(socket, reload_timer: timer)}
+  end
+
+  def handle_info(:reload_entities, socket) do
+    {:noreply,
+     socket |> assign(entries: LibraryBrowser.fetch_entities()) |> assign(reload_timer: nil)}
   end
 
   def handle_info({:playback_state_changed, _new_state, _now_playing}, socket) do
@@ -167,7 +177,14 @@ defmodule MediaManagerWeb.LibraryLive do
 
   defp entity_card(%{entry: %{entity: %{type: :tv_series}}} = assigns) do
     entity = assigns.entry.entity
-    seasons = Enum.sort_by(entity.seasons || [], & &1.season_number)
+
+    seasons =
+      (entity.seasons || [])
+      |> Enum.sort_by(& &1.season_number)
+      |> Enum.map(fn season ->
+        %{season | episodes: Enum.sort_by(season.episodes || [], & &1.episode_number)}
+      end)
+
     episodes = EpisodeList.list_available(entity)
     progress_by_key = EpisodeList.index_progress_by_key(assigns.entry.progress_records)
     playing = assigns.playing_entity_id == entity.id
@@ -233,7 +250,7 @@ defmodule MediaManagerWeb.LibraryLive do
                 </tr>
               </thead>
               <tbody>
-                <tr :for={episode <- Enum.sort_by(season.episodes || [], & &1.episode_number)}>
+                <tr :for={episode <- season.episodes}>
                   <td>{episode.episode_number}</td>
                   <td>{episode.name || "—"}</td>
                   <td class="font-mono text-xs max-w-xs truncate">
@@ -506,14 +523,20 @@ defmodule MediaManagerWeb.LibraryLive do
   end
 
   defp tab_counts(entries) do
-    %{
-      all: length(entries),
-      movies:
-        Enum.count(entries, fn %{entity: e} ->
-          e.type in [:movie, :movie_series, :video_object]
-        end),
-      tv: Enum.count(entries, fn %{entity: e} -> e.type == :tv_series end)
-    }
+    Enum.reduce(entries, %{all: 0, movies: 0, tv: 0}, fn %{entity: entity}, counts ->
+      counts = %{counts | all: counts.all + 1}
+
+      cond do
+        entity.type in [:movie, :movie_series, :video_object] ->
+          %{counts | movies: counts.movies + 1}
+
+        entity.type == :tv_series ->
+          %{counts | tv: counts.tv + 1}
+
+        true ->
+          counts
+      end
+    end)
   end
 
   defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id

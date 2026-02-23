@@ -32,7 +32,13 @@ defmodule MediaManagerWeb.DashboardLive do
         |> assign(config: %{})
       end
 
-    {:ok, assign(socket, scanning: false, clearing_database: false, refreshing_images: false)}
+    {:ok,
+     assign(socket,
+       scanning: false,
+       clearing_database: false,
+       refreshing_images: false,
+       stats_timer: nil
+     )}
   end
 
   @impl true
@@ -107,10 +113,20 @@ defmodule MediaManagerWeb.DashboardLive do
   end
 
   def handle_info({:entities_changed, _entity_ids}, socket) do
+    if socket.assigns[:stats_timer] do
+      Process.cancel_timer(socket.assigns.stats_timer)
+    end
+
+    timer = Process.send_after(self(), :refresh_stats, 1_000)
+    {:noreply, assign(socket, stats_timer: timer)}
+  end
+
+  def handle_info(:refresh_stats, socket) do
     stats = Dashboard.fetch_stats()
 
     {:noreply,
      socket
+     |> assign(stats_timer: nil)
      |> assign(library_stats: stats.library)
      |> assign(pipeline_stats: stats.pipeline)
      |> assign(pending_review: stats.pending_review)
