@@ -274,8 +274,6 @@ defmodule MediaManager.Serializer do
   defp type_string(:video_object), do: "VideoObject"
 
   defp compact(map) when is_map(map) do
-    map
-    |> Enum.reject(fn {_key, value} -> value == nil or value == [] end)
-    |> Map.new()
+    Map.filter(map, fn {_key, value} -> value != nil and value != [] end)
   end
 end

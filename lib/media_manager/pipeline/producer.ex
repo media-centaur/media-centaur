@@ -68,15 +68,18 @@ defmodule MediaManager.Pipeline.Producer do
       })
 
     case Ash.read(query) do
+      {:ok, []} ->
+        []
+
       {:ok, files} ->
-        files
-        |> Enum.reduce([], fn file, claimed ->
-          case Ash.update(file, %{}, action: :claim) do
-            {:ok, claimed_file} -> [claimed_file | claimed]
-            {:error, _} -> claimed
-          end
-        end)
-        |> Enum.reverse()
+        result =
+          Ash.bulk_update(files, :claim, %{},
+            return_records?: true,
+            stop_on_error?: false,
+            return_errors?: false
+          )
+
+        result.records || []
 
       {:error, reason} ->
         Logger.warning("Pipeline producer: failed to read claimable files: #{inspect(reason)}")
