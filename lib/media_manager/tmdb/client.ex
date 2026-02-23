@@ -7,6 +7,8 @@ defmodule MediaManager.TMDB.Client do
   pipeline on every call.
   """
 
+  require MediaManager.Log, as: Log
+
   @base_url "https://api.themoviedb.org/3"
 
   @doc """
@@ -34,9 +36,12 @@ defmodule MediaManager.TMDB.Client do
           {:ok, list(map())} | {:error, any()}
   def search_movie(title, year \\ nil, client \\ default_client()) do
     params = [query: title] ++ if(year, do: [year: year], else: [])
+    Log.info(:tmdb, "search movie: #{inspect(title)}, year: #{inspect(year)}")
 
     with {:ok, body} <- get(client, url: "/search/movie", params: params) do
-      {:ok, body["results"] || []}
+      results = body["results"] || []
+      Log.info(:tmdb, "search movie: #{length(results)} results")
+      {:ok, results}
     end
   end
 
@@ -44,14 +49,19 @@ defmodule MediaManager.TMDB.Client do
           {:ok, list(map())} | {:error, any()}
   def search_tv(title, year \\ nil, client \\ default_client()) do
     params = [query: title] ++ if(year, do: [first_air_date_year: year], else: [])
+    Log.info(:tmdb, "search tv: #{inspect(title)}, year: #{inspect(year)}")
 
     with {:ok, body} <- get(client, url: "/search/tv", params: params) do
-      {:ok, body["results"] || []}
+      results = body["results"] || []
+      Log.info(:tmdb, "search tv: #{length(results)} results")
+      {:ok, results}
     end
   end
 
   @spec get_movie(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_movie(tmdb_id, client \\ default_client()) do
+    Log.info(:tmdb, "get movie tmdb:#{tmdb_id}")
+
     get(client,
       url: "/movie/#{tmdb_id}",
       params: [append_to_response: "credits,release_dates,images"]
@@ -60,17 +70,20 @@ defmodule MediaManager.TMDB.Client do
 
   @spec get_tv(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_tv(tmdb_id, client \\ default_client()) do
+    Log.info(:tmdb, "get tv tmdb:#{tmdb_id}")
     get(client, url: "/tv/#{tmdb_id}", params: [append_to_response: "images"])
   end
 
   @spec get_collection(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_collection(collection_id, client \\ default_client()) do
+    Log.info(:tmdb, "get collection tmdb:#{collection_id}")
     get(client, url: "/collection/#{collection_id}", params: [append_to_response: "images"])
   end
 
   @spec get_season(String.t() | integer(), integer(), Req.Request.t()) ::
           {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, client \\ default_client()) do
+    Log.info(:tmdb, "get season tmdb:#{tmdb_id} S#{season_number}")
     get(client, url: "/tv/#{tmdb_id}/season/#{season_number}")
   end
 

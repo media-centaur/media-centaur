@@ -7,6 +7,7 @@ defmodule MediaManager.TMDB.RateLimiter do
   when rate-limited, so the mailbox is never blocked.
   """
   use GenServer
+  require MediaManager.Log, as: Log
 
   @default_rate 30
   @default_interval 1_000
@@ -24,6 +25,7 @@ defmodule MediaManager.TMDB.RateLimiter do
         :ok
 
       {:retry_after, ms} ->
+        Log.info(:tmdb, "rate limited, waiting #{ms}ms")
         Process.sleep(ms)
         wait()
     end

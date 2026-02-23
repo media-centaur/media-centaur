@@ -42,6 +42,7 @@ defmodule MediaManagerWeb.Layouts do
           <.link navigate="/" class={nav_link_class(@current_path, "/")}>Dashboard</.link>
           <.link navigate="/review" class={nav_link_class(@current_path, "/review")}>Review</.link>
           <.link navigate="/library" class={nav_link_class(@current_path, "/library")}>Library</.link>
+          <.link navigate="/logging" class={nav_link_class(@current_path, "/logging")}>Logging</.link>
         </nav>
       </div>
       <div class="flex-none">

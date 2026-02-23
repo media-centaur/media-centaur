@@ -4,11 +4,19 @@ defmodule MediaManager.Library.WatchedFile.Changes.ParseFileName do
   and episode attributes using `MediaManager.Parser`.
   """
   use Ash.Resource.Change
+  require MediaManager.Log, as: Log
 
   def change(changeset, _opts, _context) do
     file_path = Ash.Changeset.get_attribute(changeset, :file_path)
     extras_dirs = extras_dirs_from_config()
     result = MediaManager.Parser.parse(file_path, extras_dirs: extras_dirs)
+
+    Log.info(:pipeline, fn ->
+      "parsed #{Path.basename(file_path)}: " <>
+        "title=#{inspect(result.title)}, type=#{result.type}" <>
+        if(result.season, do: ", S#{result.season}E#{result.episode}", else: "") <>
+        if(result.year, do: ", year=#{result.year}", else: "")
+    end)
 
     changeset
     |> Ash.Changeset.change_attribute(:parsed_title, result.title)

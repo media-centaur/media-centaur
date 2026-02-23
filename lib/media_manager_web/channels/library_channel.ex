@@ -5,6 +5,7 @@ defmodule MediaManagerWeb.LibraryChannel do
   """
   use Phoenix.Channel
   require Logger
+  require MediaManager.Log, as: Log
 
   alias MediaManager.Library.Entity
   alias MediaManager.Playback.ProgressSummary
@@ -14,7 +15,7 @@ defmodule MediaManagerWeb.LibraryChannel do
 
   @impl true
   def join("library", _params, socket) do
-    Logger.debug("LibraryChannel joined")
+    Log.info(:channel, "library channel joined")
     Phoenix.PubSub.subscribe(MediaManager.PubSub, "library:updates")
     send(self(), :sync_library)
     {:ok, %{}, assign(socket, :known_entity_ids, MapSet.new())}
@@ -26,7 +27,7 @@ defmodule MediaManagerWeb.LibraryChannel do
     known_ids = MapSet.new(entities, fn entity -> entity["@id"] end)
 
     push_batched(socket, "library:entities", entities, :entities)
-    Logger.debug("LibraryChannel push library:sync_complete")
+    Log.info(:channel, "library sync complete, #{length(entities)} entities")
     push(socket, "library:sync_complete", %{})
 
     {:noreply, assign(socket, :known_entity_ids, known_ids)}
@@ -51,8 +52,18 @@ defmodule MediaManagerWeb.LibraryChannel do
         end
       end)
 
-    push_batched(socket, "library:entities", Enum.reverse(updated), :entities)
-    push_batched(socket, "library:entities_removed", Enum.reverse(removed), :ids)
+    updated_list = Enum.reverse(updated)
+    removed_list = Enum.reverse(removed)
+
+    if updated_list != [] or removed_list != [] do
+      Log.info(
+        :channel,
+        "entity changes: #{length(updated_list)} updated, #{length(removed_list)} removed"
+      )
+    end
+
+    push_batched(socket, "library:entities", updated_list, :entities)
+    push_batched(socket, "library:entities_removed", removed_list, :ids)
 
     {:noreply, assign(socket, :known_entity_ids, new_known_ids)}
   end
@@ -66,7 +77,6 @@ defmodule MediaManagerWeb.LibraryChannel do
     items
     |> Enum.chunk_every(@batch_size)
     |> Enum.each(fn batch ->
-      Logger.debug("LibraryChannel push #{event} (#{length(batch)} #{key})")
       push(socket, event, %{key => batch})
     end)
   end

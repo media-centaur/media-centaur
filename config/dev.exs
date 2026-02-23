@@ -67,8 +67,10 @@ config :media_manager, MediaManagerWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :media_manager, dev_routes: true
 
-# Do not include metadata nor timestamps in development logs
-config :logger, :default_formatter, format: "[$level] $message\n"
+# Use custom formatter that shows [level][component] for thinking logs
+config :logger, :default_formatter,
+  format: {MediaManager.Log.Formatter, :format},
+  metadata: [:component]
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.

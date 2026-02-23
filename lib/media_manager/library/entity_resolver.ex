@@ -9,6 +9,8 @@ defmodule MediaManager.Library.EntityResolver do
   Returns `{:ok, entity, :new | :existing}` or `{:error, reason}`.
   """
 
+  require MediaManager.Log, as: Log
+
   alias MediaManager.TMDB.{Client, Mapper}
   alias MediaManager.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
 
@@ -18,11 +20,15 @@ defmodule MediaManager.Library.EntityResolver do
   `file_context` is a map with `:file_path`, `:season_number`, `:episode_number`.
   """
   def resolve(tmdb_id, parsed_type, file_context) do
+    Log.info(:library, "resolving tmdb:#{tmdb_id} type:#{parsed_type}")
+
     case find_existing_entity(tmdb_id) do
       {:ok, entity} ->
+        Log.info(:library, "found existing entity #{entity.id} for tmdb:#{tmdb_id}")
         link_file_to_existing_entity(entity, parsed_type, file_context)
 
       :not_found ->
+        Log.info(:library, "no existing entity for tmdb:#{tmdb_id}, creating new")
         create_new_entity(tmdb_id, parsed_type, file_context)
     end
   end
@@ -169,9 +175,11 @@ defmodule MediaManager.Library.EntityResolver do
     with {:ok, entity} <- Ash.create(Entity, attrs, action: :create_from_tmdb),
          :ok <- create_identifier_with_race_retry(entity, "tmdb", tmdb_id),
          :ok <- create_images(entity, data) do
+      Log.info(:library, "created movie entity #{entity.id} for tmdb:#{tmdb_id}")
       {:ok, entity, :new}
     else
       {:race_lost, winner_entity_id} ->
+        Log.info(:library, "race lost for tmdb:#{tmdb_id}, using winner #{winner_entity_id}")
         winner = Ash.get!(Entity, winner_entity_id)
         link_file_to_existing_entity(winner, :movie, file_context)
 
@@ -376,9 +384,11 @@ defmodule MediaManager.Library.EntityResolver do
          :ok <- create_identifier_with_race_retry(entity, "tmdb", tmdb_id),
          :ok <- create_images(entity, data),
          :ok <- create_season_and_episode(entity, tmdb_id, file_context) do
+      Log.info(:library, "created tv entity #{entity.id} for tmdb:#{tmdb_id}")
       {:ok, entity, :new}
     else
       {:race_lost, winner_entity_id} ->
+        Log.info(:library, "race lost for tmdb:#{tmdb_id}, using winner #{winner_entity_id}")
         winner = Ash.get!(Entity, winner_entity_id)
         link_file_to_existing_entity(winner, :tv, file_context)
 
@@ -440,7 +450,17 @@ defmodule MediaManager.Library.EntityResolver do
 
   defp find_or_create_season(entity, season_data) do
     attrs = Mapper.season_attrs(entity.id, season_data)
-    Ash.create(Season, attrs, action: :find_or_create)
+    result = Ash.create(Season, attrs, action: :find_or_create)
+
+    case result do
+      {:ok, _season} ->
+        Log.info(:library, "season S#{season_data["season_number"]} for entity #{entity.id}")
+
+      _ ->
+        :ok
+    end
+
+    result
   end
 
   defp find_or_create_episode(season, season_data, file_context) do

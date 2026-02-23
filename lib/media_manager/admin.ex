@@ -7,6 +7,7 @@ defmodule MediaManager.Admin do
   APIs to execute single queries instead of per-record loops.
   """
   require Logger
+  require MediaManager.Log, as: Log
 
   alias MediaManager.Library.{
     Entity,
@@ -27,6 +28,7 @@ defmodule MediaManager.Admin do
   then clears image files from disk.
   """
   def clear_database do
+    Log.info(:library, "clearing database")
     entity_ids = Ash.read!(Entity, action: :read) |> Enum.map(& &1.id)
 
     resources_in_delete_order()
@@ -50,6 +52,7 @@ defmodule MediaManager.Admin do
   Returns `{:ok, count}` where `count` is the number of entities processed.
   """
   def refresh_image_cache do
+    Log.info(:library, "refreshing image cache")
     images_dir = MediaManager.Config.get(:media_images_dir)
 
     if images_dir, do: clear_directory(images_dir)

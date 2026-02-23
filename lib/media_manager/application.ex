@@ -9,9 +9,32 @@ defmodule MediaManager.Application do
   def start(_type, _args) do
     MediaManager.Config.load!()
 
+    :logger.add_primary_filter(
+      :component_filter,
+      {fn event, extra ->
+         try do
+           MediaManager.Log.filter(event, extra)
+         catch
+           :error, :undef -> :ignore
+         end
+       end, []}
+    )
+
     children = [
       MediaManagerWeb.Telemetry,
       MediaManager.Repo,
+      %{
+        id: :init_logging,
+        start:
+          {Task, :start_link,
+           [
+             fn ->
+               MediaManager.Log.init()
+               MediaManager.Log.init_framework_levels()
+             end
+           ]},
+        restart: :temporary
+      },
       {DNSCluster, query: Application.get_env(:media_manager, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MediaManager.PubSub},
       {Task.Supervisor, name: MediaManager.TaskSupervisor},

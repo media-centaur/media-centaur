@@ -8,6 +8,7 @@ defmodule MediaManager.Pipeline.Producer do
   """
   use GenStage
   require Logger
+  require MediaManager.Log, as: Log
 
   alias MediaManager.Library.WatchedFile
 
@@ -33,6 +34,10 @@ defmodule MediaManager.Pipeline.Producer do
   def handle_info(:poll, state) do
     if state.demand > 0 do
       files = claim_files(state.demand)
+
+      if files != [] do
+        Log.info(:pipeline, "producer claimed #{length(files)} files (demand: #{state.demand})")
+      end
 
       messages =
         Enum.map(files, fn file ->

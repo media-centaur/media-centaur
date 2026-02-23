@@ -4,6 +4,7 @@ defmodule MediaManager.Library.WatchedFile.Changes.FetchMetadata do
   to an entity. Delegates all entity creation logic to `EntityResolver`.
   """
   use Ash.Resource.Change
+  require MediaManager.Log, as: Log
 
   alias MediaManager.Library.EntityResolver
 
@@ -24,11 +25,15 @@ defmodule MediaManager.Library.WatchedFile.Changes.FetchMetadata do
 
     case EntityResolver.resolve(tmdb_id, parsed_type, file_context) do
       {:ok, entity, status} when status in [:new, :new_child] ->
+        Log.info(:pipeline, "entity created (#{status}) for tmdb:#{tmdb_id} — #{entity.id}")
+
         changeset
         |> Ash.Changeset.change_attribute(:entity_id, entity.id)
         |> Ash.Changeset.change_attribute(:state, :fetching_images)
 
       {:ok, entity, :existing} ->
+        Log.info(:pipeline, "entity reused for tmdb:#{tmdb_id} — #{entity.id}")
+
         changeset
         |> Ash.Changeset.change_attribute(:entity_id, entity.id)
         |> Ash.Changeset.change_attribute(:state, :complete)

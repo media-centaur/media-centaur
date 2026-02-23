@@ -5,6 +5,7 @@ defmodule MediaManager.Playback.MpvSession do
   """
   use GenServer
   require Logger
+  require MediaManager.Log, as: Log
 
   alias MediaManager.Playback.WatchingTracker
 
@@ -83,6 +84,7 @@ defmodule MediaManager.Playback.MpvSession do
       tracker: WatchingTracker.new()
     }
 
+    Log.info(:playback, "session #{session_id} init for #{Path.basename(params.content_url)}")
     send(self(), :launch_mpv)
     {:ok, state}
   end
@@ -123,6 +125,7 @@ defmodule MediaManager.Playback.MpvSession do
 
   @impl true
   def handle_info(:launch_mpv, state) do
+    Log.info(:playback, "session #{state.session_id} launching mpv")
     mpv_path = MediaManager.Config.get(:mpv_path)
 
     flags = [
@@ -150,13 +153,14 @@ defmodule MediaManager.Playback.MpvSession do
 
     case :gen_tcp.connect({:local, socket_path}, 0, [:binary, packet: :line, active: true]) do
       {:ok, socket} ->
-        Logger.info("MpvSession #{state.session_id}: connected to IPC socket")
+        Log.info(:playback, "session #{state.session_id} connected to IPC socket")
         send_mpv_command(socket, ["observe_property", 1, "time-pos"])
         send_mpv_command(socket, ["observe_property", 2, "duration"])
         send_mpv_command(socket, ["observe_property", 3, "pause"])
         send_mpv_command(socket, ["observe_property", 4, "eof-reached"])
 
         if state.start_position > 0 do
+          Log.info(:playback, "session #{state.session_id} resuming at #{state.start_position}s")
           send_mpv_command(socket, ["seek", state.start_position, "absolute"])
         end
 
@@ -196,14 +200,14 @@ defmodule MediaManager.Playback.MpvSession do
   # MPV socket closed
   @impl true
   def handle_info({:tcp_closed, _socket}, state) do
-    Logger.info("MpvSession #{state.session_id}: socket closed")
+    Log.info(:playback, "session #{state.session_id} socket closed")
     {:stop, :normal, finalize(state)}
   end
 
   # MPV process exited
   @impl true
   def handle_info({_port, {:exit_status, status}}, state) do
-    Logger.info("MpvSession #{state.session_id}: MPV exited with status #{status}")
+    Log.info(:playback, "session #{state.session_id} mpv exited with status #{status}")
     {:stop, :normal, finalize(state)}
   end
 
@@ -260,6 +264,7 @@ defmodule MediaManager.Playback.MpvSession do
        )
        when is_boolean(paused) do
     new_state = if paused, do: :paused, else: :playing
+    Log.info(:playback, "session #{state.session_id} #{if paused, do: "paused", else: "resumed"}")
     state = %{state | paused: paused, state: new_state}
 
     if paused and state.tracker.actively_watching, do: persist_progress(state)
@@ -272,6 +277,7 @@ defmodule MediaManager.Playback.MpvSession do
          %{"event" => "property-change", "name" => "eof-reached", "data" => true},
          state
        ) do
+    Log.info(:playback, "session #{state.session_id} eof reached")
     state = finalize(state)
     send_mpv_command(state.socket, ["quit"])
     state
@@ -349,6 +355,11 @@ defmodule MediaManager.Playback.MpvSession do
 
     case Ash.create(MediaManager.Library.WatchProgress, params, action: :upsert_progress) do
       {:ok, record} ->
+        Log.info(
+          :playback,
+          "session #{state.session_id} progress saved at #{Float.round(saveable, 1)}s"
+        )
+
         maybe_mark_completed(record, saveable, state.duration)
 
       {:error, reason} ->
@@ -359,6 +370,11 @@ defmodule MediaManager.Playback.MpvSession do
   defp maybe_mark_completed(record, position, duration)
        when is_number(position) and is_number(duration) and duration > 0 do
     if not record.completed and position / duration >= 0.90 do
+      Log.info(
+        :playback,
+        "marking episode completed at #{Float.round(position / duration * 100, 0)}%"
+      )
+
       case Ash.update(record, %{}, action: :mark_completed) do
         {:ok, _} ->
           :ok

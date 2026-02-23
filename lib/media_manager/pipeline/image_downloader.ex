@@ -7,9 +7,20 @@ defmodule MediaManager.Pipeline.ImageDownloader do
   implementation detail, not a general-purpose utility.
   """
   require Logger
+  require MediaManager.Log, as: Log
 
   def download_all(entity) do
     images_dir = MediaManager.Config.get(:media_images_dir)
+
+    pending_count =
+      length(filter_pending(entity.images)) +
+        ((entity.movies || []) |> Enum.flat_map(& &1.images) |> filter_pending() |> length()) +
+        ((entity.seasons || [])
+         |> Enum.flat_map(fn s -> (s.episodes || []) |> Enum.flat_map(& &1.images) end)
+         |> filter_pending()
+         |> length())
+
+    Log.info(:pipeline, "#{pending_count} pending images for entity #{entity.id}")
 
     entity_results = download_pending_images(entity.images, entity.id, images_dir)
 
