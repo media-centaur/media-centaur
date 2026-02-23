@@ -6,7 +6,8 @@ defmodule MediaManager.Review do
 
   require MediaManager.Log, as: Log
 
-  alias MediaManager.Library.WatchedFile
+  alias MediaManager.DateUtil
+  alias MediaManager.Library.{Helpers, WatchedFile}
   alias MediaManager.TMDB.Client
 
   def fetch_pending_files do
@@ -26,7 +27,7 @@ defmodule MediaManager.Review do
          {:ok, file} <- fetch_metadata(file),
          {:ok, _file} <- maybe_download_images(file) do
       broadcast_reviewed(file.id)
-      if file.entity_id, do: broadcast_entity_changed(file.entity_id)
+      if file.entity_id, do: Helpers.broadcast_entities_changed([file.entity_id])
     else
       {:error, reason} ->
         require Logger
@@ -57,30 +58,17 @@ defmodule MediaManager.Review do
     end
   end
 
-  def retry(file) do
+  def retry(file), do: update_and_broadcast(file, :retry)
+
+  def dismiss(file), do: update_and_broadcast(file, :dismiss)
+
+  defp update_and_broadcast(file, action) do
     result =
       file
-      |> Ash.Changeset.for_update(:retry, %{})
+      |> Ash.Changeset.for_update(action, %{})
       |> Ash.update()
 
-    case result do
-      {:ok, _file} -> broadcast_reviewed(file.id)
-      _ -> :ok
-    end
-
-    result
-  end
-
-  def dismiss(file) do
-    result =
-      file
-      |> Ash.Changeset.for_update(:dismiss, %{})
-      |> Ash.update()
-
-    case result do
-      {:ok, _file} -> broadcast_reviewed(file.id)
-      _ -> :ok
-    end
+    if match?({:ok, _}, result), do: broadcast_reviewed(file.id)
 
     result
   end
@@ -113,7 +101,7 @@ defmodule MediaManager.Review do
             %{
               tmdb_id: to_string(result["id"]),
               title: result[title_key],
-              year: extract_year(result[year_key]),
+              year: DateUtil.extract_year(result[year_key]),
               overview: result["overview"],
               poster_path: result["poster_path"]
             }
@@ -135,19 +123,7 @@ defmodule MediaManager.Review do
     |> String.trim()
   end
 
-  defp extract_year(nil), do: nil
-  defp extract_year(""), do: nil
-  defp extract_year(<<year::binary-size(4), _rest::binary>>), do: year
-
   defp broadcast_reviewed(file_id) do
     Phoenix.PubSub.broadcast(MediaManager.PubSub, "review:updates", {:file_reviewed, file_id})
-  end
-
-  defp broadcast_entity_changed(entity_id) do
-    Phoenix.PubSub.broadcast(
-      MediaManager.PubSub,
-      "library:updates",
-      {:entities_changed, [entity_id]}
-    )
   end
 end

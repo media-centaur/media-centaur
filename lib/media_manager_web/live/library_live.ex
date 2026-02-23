@@ -1,7 +1,7 @@
 defmodule MediaManagerWeb.LibraryLive do
   use MediaManagerWeb, :live_view
 
-  alias MediaManager.LibraryBrowser
+  alias MediaManager.{DateUtil, LibraryBrowser}
   alias MediaManager.Playback.EpisodeList
 
   @impl true
@@ -89,8 +89,8 @@ defmodule MediaManagerWeb.LibraryLive do
     {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
   end
 
-  def handle_info({:entity_progress_updated, entity_id, summary}, socket) do
-    entries = update_entry_progress(socket.assigns.entries, entity_id, fn _old -> summary end)
+  def handle_info({:entity_progress_updated, entity_id, summary, progress_records}, socket) do
+    entries = update_entry_progress(socket.assigns.entries, entity_id, summary, progress_records)
     {:noreply, assign(socket, entries: entries)}
   end
 
@@ -528,10 +528,10 @@ defmodule MediaManagerWeb.LibraryLive do
   defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id
   defp playing_entity_id(_), do: nil
 
-  defp update_entry_progress(entries, entity_id, update_fn) do
+  defp update_entry_progress(entries, entity_id, summary, progress_records) do
     Enum.map(entries, fn
       %{entity: %{id: ^entity_id}} = entry ->
-        %{entry | progress: update_fn.(entry.progress)}
+        %{entry | progress: summary, progress_records: progress_records}
 
       entry ->
         entry
@@ -569,12 +569,5 @@ defmodule MediaManagerWeb.LibraryLive do
     end
   end
 
-  defp extract_year(nil), do: ""
-
-  defp extract_year(date_string) do
-    case String.split(date_string, "-") do
-      [year | _] -> year
-      _ -> date_string
-    end
-  end
+  defp extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
 end

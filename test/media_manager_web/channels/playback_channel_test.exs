@@ -159,7 +159,7 @@ defmodule MediaManagerWeb.PlaybackChannelTest do
         episodes_total: 20
       }
 
-      send(socket.channel_pid, {:entity_progress_updated, "660f9500-test-uuid", summary})
+      send(socket.channel_pid, {:entity_progress_updated, "660f9500-test-uuid", summary, []})
 
       assert_push "playback:entity_progress_updated", payload
       wire = json_roundtrip(payload)
