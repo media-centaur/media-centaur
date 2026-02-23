@@ -129,8 +129,8 @@ defmodule MediaManagerWeb.ReviewLive do
       case Review.set_tmdb_match(file, match) do
         {:ok, updated_file} ->
           files =
-            Enum.map(socket.assigns.files, fn f ->
-              if f.id == file_id, do: updated_file, else: f
+            Enum.map(socket.assigns.files, fn file ->
+              if file.id == file_id, do: updated_file, else: file
             end)
 
           {:noreply,

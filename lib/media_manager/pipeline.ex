@@ -15,7 +15,7 @@ defmodule MediaManager.Pipeline do
   require Logger
   require MediaManager.Log, as: Log
 
-  alias MediaManager.Library.WatchedFile
+  alias MediaManager.Library.{Helpers, WatchedFile}
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -55,12 +55,7 @@ defmodule MediaManager.Pipeline do
 
     if entity_ids != [] do
       Log.info(:pipeline, "batch complete, broadcasting #{length(entity_ids)} entity changes")
-
-      Phoenix.PubSub.broadcast(
-        MediaManager.PubSub,
-        "library:updates",
-        {:entities_changed, entity_ids}
-      )
+      Helpers.broadcast_entities_changed(entity_ids)
     end
 
     Phoenix.PubSub.broadcast(MediaManager.PubSub, "pipeline:updates", :pipeline_changed)

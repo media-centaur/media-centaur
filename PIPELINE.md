@@ -1,6 +1,6 @@
 # Pipeline Architecture
 
-> **Last updated:** 2026-02-21
+> **Last updated:** 2026-02-23
 
 The media manager processes video files through an automated pipeline built on [Broadway](https://github.com/dashbitco/broadway). This document covers the pipeline's internal architecture — how files move from detection to completion.
 
@@ -13,9 +13,9 @@ For the data format produced at the end of the pipeline, see [`DATA-FORMAT.md`](
 ```
 Watcher.Supervisor                     Broadway Pipeline
 ────────────────                       ─────────────────
-starts one Watcher per watch_dir       Producer polls DB every 10s
-each Watcher detects files via         finds :detected files, claims → :queued
-  inotify + scan → :detect action      Processor (concurrency 3):
+starts one Watcher per watch_dir       Producer polls DB every 2s
+each Watcher detects files via         finds :detected + stale :queued, claims → :queued
+  inotify + scan → :detect action      Processor (concurrency 15, partitioned by entity):
   creates WatchedFile (:detected)  →     :search → if approved → :fetch_metadata
                                          → :download_images → :complete
                                          if pending_review → stop (awaits UI)
@@ -25,7 +25,7 @@ The Watchers and Pipeline are decoupled by design. The Watchers write to the dat
 
 - Detection and processing run at independent rates
 - The Pipeline can be restarted without losing detected files
-- Concurrency is controlled by Broadway (3 concurrent processors by default)
+- Concurrency is controlled by Broadway (15 concurrent processors, partitioned by entity)
 - Multiple directories can be watched independently
 
 ---
@@ -63,13 +63,15 @@ The Watchers and Pipeline are decoupled by design. The Watchers write to the dat
 A custom GenStage producer that feeds messages into Broadway.
 
 **Behaviour:**
-- Polls the database every 10 seconds (configurable via `:poll_interval` option)
+- Polls the database every 2 seconds (configurable via `@poll_interval`)
 - Respects GenStage demand — only fetches as many files as Broadway requests
-- Reads files in `:detected` state via the `:detected_files` read action (sorted by `inserted_at` ascending — oldest first)
+- Reads files via the `:claimable_files` read action, which returns files in `:detected` state **and** stale `:queued` files (older than 5 minutes) for crash recovery
 - Claims each file atomically via the `:claim` action, transitioning it from `:detected` to `:queued`
 - If a claim fails (another process already claimed it), the file is skipped silently
 
 **Claiming mechanism:** The `:claim` action validates that the file's state is still `:detected` before transitioning to `:queued`. This provides atomic, race-safe claiming — if two producers (or a restart) try to claim the same file, only one succeeds.
+
+**Crash recovery:** On startup and during normal polling, the Producer also reclaims files stuck in `:queued` state from a previous crash. Files that have been `:queued` for longer than 5 minutes (`@stale_threshold_minutes`) are treated as abandoned and included in the claimable set.
 
 **Source:** `lib/media_manager/pipeline/producer.ex`
 
@@ -79,7 +81,7 @@ The Broadway module that orchestrates file processing.
 
 **Configuration:**
 - Producer concurrency: 1 (single poller is sufficient)
-- Processor concurrency: 3 (limits parallel TMDB API calls)
+- Processor concurrency: 15 (partitioned by entity to prevent concurrent processing of the same entity)
 - Batcher concurrency: 1 (serializes PubSub broadcasts), batch size 10, timeout 5s
 
 **Processing flow per message:**
@@ -91,10 +93,10 @@ The Broadway module that orchestrates file processing.
 2. If the file reached `:approved`, call the `:fetch_metadata` action
    - Delegates to `EntityResolver.resolve/3`, which orchestrates entity find-or-create
    - Checks if an Entity with the same TMDB ID already exists (via `Identifier`)
-   - **If entity exists:** links the WatchedFile to the existing Entity, ensures the Season/Episode record exists (for TV), and transitions directly to `:complete` (images already downloaded)
-   - **If entity is new:** fetches full TMDB details via `TMDB.Client`, maps responses to domain attributes via `TMDB.Mapper`, creates `Entity`, `Image`, `Identifier` records, and (for TV) only the Season and Episode matching this file — not all seasons/episodes from TMDB
+   - **If entity exists (movie):** links the WatchedFile to the existing Entity and transitions directly to `:complete` (images already downloaded)
+   - **If entity exists (TV):** links the WatchedFile to the existing Entity, ensures the Season/Episode record exists, and transitions to `:fetching_images` (episode thumbnails may need downloading)
+   - **If entity is new:** fetches full TMDB details via `TMDB.Client`, maps responses to domain attributes via `TMDB.Mapper`, creates `Entity`, `Image`, `Identifier` records, and (for TV) only the Season and Episode matching this file — not all seasons/episodes from TMDB. Transitions to `:fetching_images`
    - Sets `content_url` on the Entity (movies) or Episode (TV) to the video file path
-   - Transitions to `:fetching_images` for new entities
 3. If the file reached `:fetching_images`, call the `:download_images` action
    - Downloads artwork from TMDB CDN via `Pipeline.ImageDownloader.download_all/1`
    - Writes files to `{media_images_dir}/{entity-uuid}/{role}.{ext}`
@@ -136,9 +138,9 @@ The dashboard provides a "Scan directories" button that triggers `Watcher.Superv
 
 ## Ash Actions
 
-### `:detected_files` (read)
+### `:claimable_files` (read)
 
-Returns all WatchedFiles in `:detected` state, sorted by `inserted_at` ascending.
+Returns WatchedFiles eligible for pipeline pickup: files in `:detected` state, plus files stuck in `:queued` state longer than the stale threshold (5 minutes). Sorted by `inserted_at` ascending.
 
 ### `:claim` (update)
 
@@ -150,7 +152,7 @@ Searches TMDB for the file's parsed title/year. Sets `tmdb_id`, `confidence_scor
 
 ### `:fetch_metadata` (update)
 
-Fetches full TMDB metadata for an approved file. **Idempotent:** if an Entity with the same TMDB ID already exists, the WatchedFile is linked to the existing Entity and transitions directly to `:complete` (skipping image download). If no existing Entity is found, creates Entity, Image, Identifier, and (for TV series) only the Season/Episode matching the scanned file. Transitions to `:fetching_images` for new entities.
+Fetches full TMDB metadata for an approved file. **Idempotent:** if an Entity with the same TMDB ID already exists, the WatchedFile is linked to the existing Entity. For existing movie entities, transitions directly to `:complete` (images already downloaded). For existing TV entities, transitions to `:fetching_images` (episode thumbnails may need downloading). If no existing Entity is found, creates Entity, Image, Identifier, and (for TV series) only the Season/Episode matching the scanned file. Transitions to `:fetching_images` for new entities.
 
 ### `:download_images` (update)
 
@@ -160,7 +162,7 @@ Downloads artwork for all `Image` records with a `url` but no `content_url` via 
 
 ## Idempotency & Concurrency Safety
 
-The pipeline is designed to be safe to re-run and safe under concurrent processing. Scanning the same directories multiple times produces the same result, even with 3 concurrent processors:
+The pipeline is designed to be safe to re-run and safe under concurrent processing. Scanning the same directories multiple times produces the same result, even with 15 concurrent processors:
 
 - **WatchedFile deduplication:** The `unique_file_path` identity prevents the same file from being tracked twice.
 - **Entity deduplication:** `EntityResolver` (called by `FetchMetadata`) checks for an existing Entity by TMDB ID (via the `Identifier` resource's `unique_external_id` identity on `(property_id, value)`). If found, the WatchedFile is linked to the existing Entity with no new records created.

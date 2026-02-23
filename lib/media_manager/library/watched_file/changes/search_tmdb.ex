@@ -6,6 +6,7 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
   """
   use Ash.Resource.Change
   require MediaManager.Log, as: Log
+  alias MediaManager.DateUtil
   alias MediaManager.TMDB.{Client, Confidence}
 
   def change(changeset, _opts, _context) do
@@ -37,7 +38,7 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
         tmdb_id = to_string(result["id"])
         match_title = result[title_key]
         year_key = if title_key == "title", do: "release_date", else: "first_air_date"
-        match_year = extract_year(result[year_key])
+        match_year = DateUtil.extract_year(result[year_key])
         match_poster_path = result["poster_path"]
         next_state = if score >= Confidence.threshold(), do: :approved, else: :pending_review
 
@@ -120,8 +121,4 @@ defmodule MediaManager.Library.WatchedFile.Changes.SearchTmdb do
     end)
     |> Enum.max_by(fn {_, score, _} -> score end)
   end
-
-  defp extract_year(nil), do: nil
-  defp extract_year(""), do: nil
-  defp extract_year(<<year::binary-size(4), _rest::binary>>), do: year
 end
