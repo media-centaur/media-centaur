@@ -49,6 +49,26 @@ defmodule MediaManager.Watcher.Supervisor do
   end
 
   @doc """
+  Stops all watchers, runs `fun`, then restarts them.
+
+  Used by destructive admin operations (clear_database) to prevent
+  the watcher from re-detecting files during the operation.
+  """
+  def pause_during(fun) when is_function(fun, 0) do
+    if Process.whereis(__MODULE__) do
+      stop_all_watchers()
+
+      try do
+        fun.()
+      after
+        start_watchers()
+      end
+    else
+      fun.()
+    end
+  end
+
+  @doc """
   Aggregate state: `:watching` if any child is watching, `:unavailable` if all are down.
   """
   def state do
@@ -96,5 +116,13 @@ defmodule MediaManager.Watcher.Supervisor do
   """
   def media_dir_healthy? do
     state() == :watching
+  end
+
+  defp stop_all_watchers do
+    MediaManager.Watcher.DynamicSupervisor
+    |> DynamicSupervisor.which_children()
+    |> Enum.each(fn {_, pid, _, _} ->
+      DynamicSupervisor.terminate_child(MediaManager.Watcher.DynamicSupervisor, pid)
+    end)
   end
 end

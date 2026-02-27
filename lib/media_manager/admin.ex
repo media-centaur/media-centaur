@@ -31,21 +31,23 @@ defmodule MediaManager.Admin do
   then clears image files from disk.
   """
   def clear_database do
-    Log.info(:library, "clearing database")
-    entity_ids = Ash.read!(Entity, action: :read) |> Enum.map(& &1.id)
+    MediaManager.Watcher.Supervisor.pause_during(fn ->
+      Log.info(:library, "clearing database")
+      entity_ids = Ash.read!(Entity, action: :read) |> Enum.map(& &1.id)
 
-    resources_in_delete_order()
-    |> Enum.each(fn resource ->
-      Ash.bulk_destroy!(resource, :destroy, %{}, strategy: :stream)
+      resources_in_delete_order()
+      |> Enum.each(fn resource ->
+        Ash.bulk_destroy!(resource, :destroy, %{}, strategy: :stream)
+      end)
+
+      images_dir = MediaManager.Config.get(:media_images_dir)
+      if images_dir, do: clear_directory(images_dir)
+
+      if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
+
+      Logger.info("Admin: database cleared")
+      :ok
     end)
-
-    images_dir = MediaManager.Config.get(:media_images_dir)
-    if images_dir, do: clear_directory(images_dir)
-
-    if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
-
-    Logger.info("Admin: database cleared")
-    :ok
   end
 
   @doc """
