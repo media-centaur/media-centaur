@@ -222,14 +222,6 @@ defmodule MediaManager.TestFactory do
     Ash.get!(Entity, entity.id, action: :with_associations)
   end
 
-  def create_watched_file(attrs \\ %{}) do
-    defaults = %{file_path: "/media/test/#{Ash.UUID.generate()}.mkv"}
-
-    WatchedFile
-    |> Ash.Changeset.for_create(:detect, Map.merge(defaults, attrs))
-    |> Ash.create!()
-  end
-
   def create_linked_file(attrs \\ %{}) do
     entity = attrs[:entity] || create_entity()
 
@@ -258,64 +250,6 @@ defmodule MediaManager.TestFactory do
     PendingFile
     |> Ash.Changeset.for_create(:create, Map.merge(defaults, attrs))
     |> Ash.create!()
-  end
-
-  # ---------------------------------------------------------------------------
-  # Legacy WatchedFile state helpers — used by Ash change module tests
-  # ---------------------------------------------------------------------------
-
-  def create_pending_review_file(attrs \\ %{}) do
-    detect_attrs = Map.take(attrs, [:file_path])
-    file = create_watched_file(detect_attrs)
-
-    update_attrs =
-      %{state: :pending_review}
-      |> maybe_put(attrs, :tmdb_id)
-      |> maybe_put(attrs, :confidence_score)
-      |> maybe_put(attrs, :match_title)
-      |> maybe_put(attrs, :match_year)
-      |> maybe_put(attrs, :match_poster_path)
-
-    file
-    |> Ash.Changeset.for_update(:update_state, update_attrs)
-    |> Ash.update!()
-  end
-
-  def create_approved_file(attrs \\ %{}) do
-    file = create_watched_file(Map.take(attrs, [:file_path]))
-
-    update_attrs =
-      %{state: :approved}
-      |> maybe_put(attrs, :tmdb_id)
-      |> maybe_put(attrs, :confidence_score)
-      |> maybe_put(attrs, :match_title)
-      |> maybe_put(attrs, :match_year)
-      |> maybe_put(attrs, :match_poster_path)
-      |> maybe_put(attrs, :parsed_type)
-      |> maybe_put(attrs, :parsed_title)
-      |> maybe_put(attrs, :season_number)
-      |> maybe_put(attrs, :episode_number)
-
-    file
-    |> Ash.Changeset.for_update(:update_state, update_attrs)
-    |> Ash.update!()
-  end
-
-  def create_fetching_images_file(attrs \\ %{}) do
-    file = create_watched_file(Map.take(attrs, [:file_path]))
-
-    update_attrs =
-      %{state: :fetching_images}
-      |> maybe_put(attrs, :tmdb_id)
-      |> maybe_put(attrs, :entity_id)
-
-    file
-    |> Ash.Changeset.for_update(:update_state, update_attrs)
-    |> Ash.update!()
-  end
-
-  defp maybe_put(map, source, key) do
-    if Map.has_key?(source, key), do: Map.put(map, key, source[key]), else: map
   end
 
   def create_watch_progress(attrs) do

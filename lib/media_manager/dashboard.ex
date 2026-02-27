@@ -11,7 +11,6 @@ defmodule MediaManager.Dashboard do
   def fetch_stats do
     %{
       library: fetch_library_stats(),
-      pipeline: fetch_pipeline_stats(),
       pending_review: fetch_pending_review(),
       recent_errors: fetch_recent_errors()
     }
@@ -33,13 +32,6 @@ defmodule MediaManager.Dashboard do
       files: file_count,
       images: image_count,
       by_type: type_counts
-    }
-  end
-
-  def fetch_pipeline_stats do
-    %{
-      complete: count(WatchedFile |> Ash.Query.do_filter(%{state: :complete})),
-      pending_review: count(PendingFile |> Ash.Query.do_filter(%{status: :pending}))
     }
   end
 

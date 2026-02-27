@@ -78,8 +78,6 @@ defmodule MediaManager.Pipeline do
       Helpers.broadcast_entities_changed(entity_ids)
     end
 
-    Phoenix.PubSub.broadcast(MediaManager.PubSub, "pipeline:updates", :pipeline_changed)
-
     messages
   end
 

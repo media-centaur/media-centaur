@@ -112,10 +112,6 @@ defmodule MediaManager.Pipeline.Producer do
         %Broadway.Message{data: payload, acknowledger: {__MODULE__, :ack_id, :ack_data}}
       end)
 
-    if messages != [] do
-      Phoenix.PubSub.broadcast(MediaManager.PubSub, "pipeline:updates", :pipeline_changed)
-    end
-
     {messages, %{state | queue: queue, demand: remaining_demand}}
   end
 

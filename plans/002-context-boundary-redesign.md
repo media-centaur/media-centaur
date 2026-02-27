@@ -464,8 +464,7 @@ Payload-based stage functions. The new architecture is now live.
 6. ✓ Fixed `NoopImageDownloader` to support `download/2` (new staging
    downloader API) and added `:staging_image_downloader` config to `test.exs`.
 
-**What was NOT done (deferred):**
-- Producer still claims WatchedFiles from DB (Phase 5 adds PubSub producer).
+**What was NOT done (deferred to Phase 6):**
 - WatchedFile still carries all pipeline state fields (Phase 6 strips them).
 - Old Ash change modules still exist (unused, Phase 6 deletes them).
 

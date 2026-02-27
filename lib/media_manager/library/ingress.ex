@@ -1,12 +1,8 @@
 defmodule MediaManager.Library.Ingress do
   @moduledoc """
   Library's inbound API for the pipeline. Consumes pre-built metadata
-  (from `FetchMetadata`) and staged images (from `DownloadImages`) to
-  create or update all library records — without any TMDB calls.
-
-  This replaces `EntityResolver` as the final pipeline stage, eliminating
-  the double-fetch where EntityResolver re-fetched TMDB data that
-  FetchMetadata had already retrieved.
+  and staged images to create or update all library records — without
+  any TMDB calls.
 
   Returns `{:ok, entity, status}` where status is:
   - `:new` — entity was just created
