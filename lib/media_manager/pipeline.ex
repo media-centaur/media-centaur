@@ -1,13 +1,18 @@
 defmodule MediaManager.Pipeline do
   @moduledoc """
-  Broadway pipeline that processes detected video files through search,
+  Broadway pipeline that processes video files through search,
   metadata fetch, and image download stages.
 
-  Processing flow per file: parse → search → fetch_metadata → download_images → ingest.
-  Low-confidence matches stop at `:pending_review` for human approval.
+  Processing flow: parse → search → fetch_metadata → download_images → ingest.
+  Low-confidence matches stop at needs_review for human approval.
 
-  Broadway config: 1 producer (DB poller), 15 processors (partitioned by entity),
-  1 batcher (serialises PubSub broadcasts, batch size 10, timeout 5s).
+  The Producer delivers `%Payload{}` structs via PubSub events. This module
+  processes them and creates WatchedFile records (`:link_file`) on completion
+  or PendingFile records on needs_review.
+
+  Broadway config: 1 producer (PubSub subscriber), 15 processors (partitioned
+  by file path), 1 batcher (serialises PubSub broadcasts, batch size 10,
+  timeout 5s).
 
   See `PIPELINE.md` for full architecture details.
   """
@@ -16,6 +21,7 @@ defmodule MediaManager.Pipeline do
   require MediaManager.Log, as: Log
 
   alias MediaManager.Library.{Helpers, WatchedFile}
+  alias MediaManager.Parser
   alias MediaManager.Pipeline.Payload
 
   alias MediaManager.Pipeline.Stages.{
@@ -26,7 +32,7 @@ defmodule MediaManager.Pipeline do
     Ingest
   }
 
-  alias MediaManager.Review.Intake
+  alias MediaManager.Review.{Intake, PendingFile}
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -42,16 +48,19 @@ defmodule MediaManager.Pipeline do
 
   @impl true
   def handle_message(:default, message, _context) do
-    file = message.data
-    Log.info(:pipeline, "processing #{file.id} (#{Path.basename(file.file_path)})")
+    payload = message.data
+    Log.info(:pipeline, "processing #{Path.basename(payload.file_path)}")
 
-    case process_file(file) do
-      {:ok, processed} ->
-        Log.info(:pipeline, "completed #{file.id}, state: #{processed.state}")
-        Broadway.Message.update_data(message, fn _ -> processed end)
+    case process_payload(payload) do
+      {:ok, payload} ->
+        Log.info(:pipeline, "completed #{Path.basename(payload.file_path)}")
+        Broadway.Message.update_data(message, fn _ -> payload end)
 
       {:error, reason} ->
-        Logger.warning("Pipeline: failed for #{file.id}: #{inspect(reason)}")
+        Logger.warning(
+          "Pipeline: failed for #{Path.basename(payload.file_path)}: #{inspect(reason)}"
+        )
+
         Broadway.Message.failed(message, reason)
     end
   end
@@ -74,31 +83,30 @@ defmodule MediaManager.Pipeline do
     messages
   end
 
-  defp partition_key(%Broadway.Message{data: %WatchedFile{tmdb_id: tmdb_id}})
-       when not is_nil(tmdb_id) do
-    tmdb_id
+  defp partition_key(%Broadway.Message{data: %Payload{file_path: path}}) do
+    :erlang.phash2(path)
   end
 
-  defp partition_key(%Broadway.Message{data: %WatchedFile{id: id}}) do
-    :erlang.phash2(id)
+  @doc false
+  def process_payload(%Payload{entry_point: :file_detected} = payload) do
+    if already_linked?(payload.file_path) do
+      Log.info(:pipeline, "skipping already-linked file: #{Path.basename(payload.file_path)}")
+      {:ok, payload}
+    else
+      case run_pipeline(payload) do
+        {:ok, payload} -> handle_complete(payload)
+        {:needs_review, payload} -> handle_needs_review(payload)
+        {:error, reason} -> handle_error(payload, reason)
+      end
+    end
   end
 
-  defp process_file(file) do
-    payload = %Payload{
-      file_path: file.file_path,
-      watch_directory: file.watch_dir,
-      entry_point: :file_detected
-    }
+  def process_payload(%Payload{entry_point: :review_resolved} = payload) do
+    payload = %{payload | parsed: Parser.parse(payload.file_path)}
 
-    case run_pipeline(payload) do
-      {:ok, payload} ->
-        mark_complete(file, payload)
-
-      {:needs_review, payload} ->
-        send_to_review(file, payload)
-
-      {:error, reason} ->
-        mark_error(file, reason)
+    case run_post_search(payload) do
+      {:ok, payload} -> handle_complete(payload)
+      {:error, reason} -> handle_error(payload, reason)
     end
   end
 
@@ -121,16 +129,51 @@ defmodule MediaManager.Pipeline do
     end
   end
 
-  defp mark_complete(file, payload) do
-    Ash.update(file, %{state: :complete, entity_id: payload.entity_id}, action: :update_state)
+  defp handle_complete(payload) do
+    WatchedFile
+    |> Ash.Changeset.for_create(:link_file, %{
+      file_path: payload.file_path,
+      watch_dir: payload.watch_directory,
+      entity_id: payload.entity_id
+    })
+    |> Ash.create!()
+
+    if payload.pending_file_id do
+      case Ash.get(PendingFile, payload.pending_file_id) do
+        {:ok, pending_file} ->
+          Ash.destroy!(pending_file)
+
+          Phoenix.PubSub.broadcast(
+            MediaManager.PubSub,
+            "review:updates",
+            {:file_reviewed, payload.pending_file_id}
+          )
+
+        {:error, _} ->
+          :ok
+      end
+    end
+
+    {:ok, payload}
   end
 
-  defp send_to_review(file, payload) do
+  defp handle_needs_review(payload) do
     Intake.create_from_payload(payload)
-    Ash.update(file, %{state: :pending_review}, action: :update_state)
+    {:ok, payload}
   end
 
-  defp mark_error(file, reason) do
-    Ash.update(file, %{state: :error, error_message: inspect(reason)}, action: :update_state)
+  defp handle_error(_payload, reason) do
+    {:error, reason}
+  end
+
+  defp already_linked?(file_path) do
+    WatchedFile
+    |> Ash.Query.do_filter(%{file_path: file_path})
+    |> Ash.Query.limit(1)
+    |> Ash.read!()
+    |> case do
+      [%WatchedFile{entity_id: entity_id}] when not is_nil(entity_id) -> true
+      _ -> false
+    end
   end
 end

@@ -1,6 +1,6 @@
 # 002 — Context Boundary Redesign
 
-> **Status: In Progress.** Phase 1 ✓, Phase 2 ✓, Phase 3 ✓, Phase 4 ✓. Phase 5 next.
+> **Status: In Progress.** Phase 1 ✓, Phase 2 ✓, Phase 3 ✓, Phase 4 ✓, Phase 5 ✓. Phase 6 next.
 
 ## Problem Statement
 
@@ -469,16 +469,35 @@ Payload-based stage functions. The new architecture is now live.
 - WatchedFile still carries all pipeline state fields (Phase 6 strips them).
 - Old Ash change modules still exist (unused, Phase 6 deletes them).
 
-#### Phase 5: Rewire File Watching + PubSub Producer
+#### Phase 5: Rewire File Watching + PubSub Producer ✓
 
-1. Rewrite `Pipeline.Producer` to consume PubSub events instead of claiming
-   DB records (currently still polls WatchedFile table).
-2. Modify `Watcher` to emit PubSub events instead of creating `WatchedFile`
-   records.
-3. Ensure directory scanning also emits the same PubSub events.
-4. Wire up the review-resolved entry point (PubSub from Review → Pipeline
-   at stage 3).
-5. Test that file detection flows through PubSub to the pipeline.
+Completed. Key changes:
+
+1. **Payload**: Added `:pending_file_id` field for review-resolved cleanup.
+2. **WatchedFile**: Added `:link_file` create action (upsert on file_path,
+   sets `state: :complete` with `entity_id`). WatchedFile is now created at
+   pipeline completion, not detection.
+3. **Producer**: Complete rewrite — subscribes to `"pipeline:input"` PubSub topic,
+   receives `{:file_detected, ...}` and `{:review_resolved, ...}` events,
+   converts to Payloads, dispatches on demand. Pure `build_payload/2` tested.
+4. **Pipeline**: `process_payload/1` routes by entry_point. `:file_detected` dedup
+   checks WatchedFile, runs full pipeline. `:review_resolved` skips search,
+   runs fetch → download → ingest. Completion creates WatchedFile via `:link_file`
+   and destroys PendingFile if `pending_file_id` set.
+5. **Watcher**: `detect_file/2` broadcasts PubSub event instead of creating
+   WatchedFile. `scan_directory/1` reads existing WatchedFile file_paths (bulk
+   query) to skip already-processed files.
+6. **Review**: `approve_and_process/1` broadcasts `{:review_resolved, ...}` to
+   `"pipeline:input"`. No more Task.Supervisor, stage function aliases, or
+   inline pipeline execution.
+7. **Dashboard**: `fetch_pipeline_stats/0` returns `%{complete: N, pending_review: M}`.
+   `fetch_pending_review/0` reads PendingFile. `fetch_recent_errors/0` returns `[]`.
+   LiveView simplified — removed progress bar, `@transient_states`, in_progress
+   counting, pipeline cooldown timer.
+8. **Factory**: Added `create_linked_file/1`, `create_pending_file/1`. Kept legacy
+   helpers (`create_pending_review_file`, `create_approved_file`,
+   `create_fetching_images_file`) for Ash change module tests. Removed
+   `create_queued_file` (unused).
 
 #### Phase 6: Clean Up WatchedFile + Delete Old Modules
 

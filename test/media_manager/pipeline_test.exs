@@ -1,24 +1,15 @@
 defmodule MediaManager.PipelineTest do
   @moduledoc """
-  End-to-end pipeline flow tests. Replicates `Pipeline.process_file/1` logic
-  directly (without Broadway) to verify the full parse → search →
-  fetch_metadata → download_images → ingest lifecycle using Payload-based
-  stage functions.
+  End-to-end pipeline flow tests. Calls `Pipeline.process_payload/1` directly
+  (without Broadway) to verify the full parse → search → fetch_metadata →
+  download_images → ingest lifecycle using Payload-based stage functions.
   """
   use MediaManager.DataCase
 
-  alias MediaManager.Library.Entity
+  alias MediaManager.Library.{Entity, WatchedFile}
+  alias MediaManager.Pipeline
   alias MediaManager.Pipeline.Payload
-
-  alias MediaManager.Pipeline.Stages.{
-    Parse,
-    Search,
-    FetchMetadata,
-    DownloadImages,
-    Ingest
-  }
-
-  alias MediaManager.Review.{Intake, PendingFile}
+  alias MediaManager.Review.PendingFile
 
   import MediaManager.TmdbStubs
 
@@ -27,53 +18,12 @@ defmodule MediaManager.PipelineTest do
     :ok
   end
 
-  # Replicates Pipeline.process_file/1 logic for testing
-  defp process_file(file) do
-    payload = %Payload{
-      file_path: file.file_path,
-      watch_directory: file.watch_dir,
-      entry_point: :file_detected
-    }
-
-    case run_pipeline(payload) do
-      {:ok, payload} ->
-        Ash.update(file, %{state: :complete, entity_id: payload.entity_id}, action: :update_state)
-
-      {:needs_review, payload} ->
-        Intake.create_from_payload(payload)
-
-        Ash.update(file, %{state: :pending_review}, action: :update_state)
-
-      {:error, reason} ->
-        Ash.update(file, %{state: :error, error_message: inspect(reason)}, action: :update_state)
-    end
-  end
-
-  defp run_pipeline(payload) do
-    with {:ok, payload} <- Parse.run(payload),
-         result <- Search.run(payload) do
-      case result do
-        {:ok, payload} -> run_post_search(payload)
-        {:needs_review, _} = needs_review -> needs_review
-        {:error, _} = error -> error
-      end
-    end
-  end
-
-  defp run_post_search(payload) do
-    with {:ok, payload} <- FetchMetadata.run(payload),
-         {:ok, payload} <- DownloadImages.run(payload),
-         {:ok, payload} <- Ingest.run(payload) do
-      {:ok, payload}
-    end
-  end
-
   # ---------------------------------------------------------------------------
   # Full lifecycle
   # ---------------------------------------------------------------------------
 
   describe "full lifecycle" do
-    test "movie: detected → search → fetch → download → ingest → complete" do
+    test "movie: parse → search → fetch → download → ingest → complete + WatchedFile linked" do
       stub_routes([
         {"/search/movie",
          %{
@@ -88,19 +38,29 @@ defmodule MediaManager.PipelineTest do
         {"/movie/550", movie_detail()}
       ])
 
-      file = create_watched_file(%{file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv"})
-      assert file.state == :detected
+      payload = %Payload{
+        file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
+        watch_directory: "/media/pipeline",
+        entry_point: :file_detected
+      }
 
-      assert {:ok, result} = process_file(file)
-      assert result.state == :complete
+      assert {:ok, result} = Pipeline.process_payload(payload)
       assert result.entity_id != nil
 
       entity = Ash.get!(Entity, result.entity_id)
       assert entity.type == :movie
       assert entity.name == "Fight Club"
+
+      # WatchedFile created via :link_file
+      files = Ash.read!(WatchedFile)
+      assert length(files) == 1
+      file = hd(files)
+      assert file.state == :complete
+      assert file.entity_id == result.entity_id
+      assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
     end
 
-    test "TV episode: detected → search → fetch → download → ingest → complete" do
+    test "TV episode: parse → search → fetch → download → ingest → complete" do
       stub_routes([
         {"/search/tv",
          %{
@@ -116,14 +76,14 @@ defmodule MediaManager.PipelineTest do
         {"/tv/1396/season/1", season_detail()}
       ])
 
-      file =
-        create_watched_file(%{
-          file_path:
-            "/media/pipeline/TV/Sample.Show.Eight/Season.01/Sample.Show.Eight.S01E01.1080p.BluRay.mkv"
-        })
+      payload = %Payload{
+        file_path:
+          "/media/pipeline/TV/Sample.Show.Eight/Season.01/Sample.Show.Eight.S01E01.1080p.BluRay.mkv",
+        watch_directory: "/media/pipeline/TV",
+        entry_point: :file_detected
+      }
 
-      assert {:ok, result} = process_file(file)
-      assert result.state == :complete
+      assert {:ok, result} = Pipeline.process_payload(payload)
       assert result.entity_id != nil
 
       entity = Ash.get!(Entity, result.entity_id, action: :with_associations)
@@ -149,13 +109,13 @@ defmodule MediaManager.PipelineTest do
         {"/collection/263", collection_detail()}
       ])
 
-      file =
-        create_watched_file(%{
-          file_path: "/media/pipeline/The.Shadowy.Sentinel.2008.BluRay.mkv"
-        })
+      payload = %Payload{
+        file_path: "/media/pipeline/The.Shadowy.Sentinel.2008.BluRay.mkv",
+        watch_directory: "/media/pipeline",
+        entry_point: :file_detected
+      }
 
-      assert {:ok, result} = process_file(file)
-      assert result.state == :complete
+      assert {:ok, result} = Pipeline.process_payload(payload)
 
       entity = Ash.get!(Entity, result.entity_id, action: :with_associations)
       assert entity.type == :movie_series
@@ -170,7 +130,7 @@ defmodule MediaManager.PipelineTest do
   # ---------------------------------------------------------------------------
 
   describe "low confidence stops processing" do
-    test "low confidence: detected → search → pending_review + PendingFile created" do
+    test "low confidence: search → needs_review + PendingFile created, no WatchedFile" do
       stub_routes([
         {"/search/movie",
          %{
@@ -184,18 +144,24 @@ defmodule MediaManager.PipelineTest do
         {"/search/tv", %{"results" => []}}
       ])
 
-      file = create_watched_file(%{file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv"})
+      payload = %Payload{
+        file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
+        watch_directory: "/media/pipeline",
+        entry_point: :file_detected
+      }
 
-      assert {:ok, result} = process_file(file)
-      assert result.state == :pending_review
+      assert {:ok, result} = Pipeline.process_payload(payload)
       assert result.entity_id == nil
 
-      # Verify PendingFile was created
+      # PendingFile created
       pending_files = Ash.read!(PendingFile, action: :pending)
       assert length(pending_files) == 1
       pending = hd(pending_files)
       assert pending.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
       assert pending.status == :pending
+
+      # No WatchedFile created
+      assert Ash.read!(WatchedFile) == []
     end
   end
 
@@ -204,14 +170,101 @@ defmodule MediaManager.PipelineTest do
   # ---------------------------------------------------------------------------
 
   describe "error handling" do
-    test "search error: detected → error with error_message" do
+    test "search error: returns error, no WatchedFile, no PendingFile" do
       stub_tmdb_error("/search/movie", 500)
 
-      file = create_watched_file(%{file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv"})
+      payload = %Payload{
+        file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
+        watch_directory: "/media/pipeline",
+        entry_point: :file_detected
+      }
 
-      assert {:ok, result} = process_file(file)
-      assert result.state == :error
-      assert result.error_message != nil
+      assert {:error, _reason} = Pipeline.process_payload(payload)
+
+      # No WatchedFile or PendingFile created
+      assert Ash.read!(WatchedFile) == []
+      assert Ash.read!(PendingFile) == []
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Dedup check
+  # ---------------------------------------------------------------------------
+
+  describe "dedup" do
+    test "skips already-linked file" do
+      entity = create_entity(%{type: :movie, name: "Already Ingested"})
+
+      WatchedFile
+      |> Ash.Changeset.for_create(:link_file, %{
+        file_path: "/media/pipeline/Already.Ingested.mkv",
+        watch_dir: "/media/pipeline",
+        entity_id: entity.id
+      })
+      |> Ash.create!()
+
+      payload = %Payload{
+        file_path: "/media/pipeline/Already.Ingested.mkv",
+        watch_directory: "/media/pipeline",
+        entry_point: :file_detected
+      }
+
+      assert {:ok, _result} = Pipeline.process_payload(payload)
+
+      # Still only one WatchedFile
+      assert length(Ash.read!(WatchedFile)) == 1
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Review resolved
+  # ---------------------------------------------------------------------------
+
+  describe "review resolved" do
+    test "processes with tmdb_id, creates entity, destroys PendingFile" do
+      stub_routes([
+        {"/movie/550", movie_detail()}
+      ])
+
+      # Create PendingFile first
+      {:ok, pending} =
+        PendingFile
+        |> Ash.Changeset.for_create(:create, %{
+          file_path: "/media/pipeline/Review.Resolved.mkv",
+          watch_directory: "/media/pipeline",
+          parsed_title: "Review Resolved",
+          tmdb_id: 550,
+          tmdb_type: "movie",
+          confidence: 1.0,
+          match_title: "Fight Club"
+        })
+        |> Ash.create()
+
+      payload = %Payload{
+        file_path: "/media/pipeline/Review.Resolved.mkv",
+        watch_directory: "/media/pipeline",
+        entry_point: :review_resolved,
+        tmdb_id: 550,
+        tmdb_type: :movie,
+        confidence: 1.0,
+        match_title: "Fight Club",
+        pending_file_id: pending.id
+      }
+
+      assert {:ok, result} = Pipeline.process_payload(payload)
+      assert result.entity_id != nil
+
+      entity = Ash.get!(Entity, result.entity_id)
+      assert entity.type == :movie
+      assert entity.name == "Fight Club"
+
+      # WatchedFile created
+      files = Ash.read!(WatchedFile)
+      assert length(files) == 1
+      assert hd(files).entity_id == result.entity_id
+
+      # PendingFile destroyed
+      assert Ash.read!(PendingFile) == []
     end
   end
 
@@ -220,20 +273,19 @@ defmodule MediaManager.PipelineTest do
   # ---------------------------------------------------------------------------
 
   describe "batch entity_id extraction" do
-    test "extracts and deduplicates entity_ids from processed files" do
+    test "extracts and deduplicates entity_ids from payloads" do
       entity1 = create_entity(%{type: :movie, name: "Movie 1"})
       entity2 = create_entity(%{type: :movie, name: "Movie 2"})
 
-      # Simulate processed files with entity_ids
-      files = [
-        build_entity_id_data(entity1.id),
-        build_entity_id_data(entity1.id),
-        build_entity_id_data(entity2.id),
-        build_entity_id_data(nil)
+      payloads = [
+        %Payload{entity_id: entity1.id},
+        %Payload{entity_id: entity1.id},
+        %Payload{entity_id: entity2.id},
+        %Payload{entity_id: nil}
       ]
 
       entity_ids =
-        files
+        payloads
         |> Enum.map(& &1.entity_id)
         |> Enum.reject(&is_nil/1)
         |> Enum.uniq()
@@ -242,9 +294,5 @@ defmodule MediaManager.PipelineTest do
       assert entity1.id in entity_ids
       assert entity2.id in entity_ids
     end
-  end
-
-  defp build_entity_id_data(entity_id) do
-    %{entity_id: entity_id}
   end
 end

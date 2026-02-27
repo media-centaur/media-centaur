@@ -19,6 +19,14 @@ defmodule MediaManager.Library.WatchedFile do
   actions do
     defaults [:read, :destroy]
 
+    create :link_file do
+      accept [:file_path, :watch_dir, :entity_id]
+      change set_attribute(:state, :complete)
+
+      upsert? true
+      upsert_identity :unique_file_path
+    end
+
     create :detect do
       accept [:file_path, :watch_dir]
 

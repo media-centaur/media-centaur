@@ -1,106 +1,45 @@
 defmodule MediaManager.Pipeline.ProducerTest do
-  use MediaManager.DataCase
+  use ExUnit.Case, async: true
 
-  alias MediaManager.Library.WatchedFile
+  alias MediaManager.Pipeline.Producer
+  alias MediaManager.Pipeline.Payload
 
-  # These tests exercise the claiming query and bulk update logic
-  # extracted from the Producer module, without starting the GenStage process.
+  describe "build_payload/2" do
+    test ":file_detected builds payload with correct fields" do
+      payload =
+        Producer.build_payload(:file_detected, %{
+          path: "/media/movies/Fight.Club.1999.mkv",
+          watch_dir: "/media/movies"
+        })
 
-  defp claim_files(limit) do
-    stale_threshold = DateTime.utc_now() |> DateTime.add(-5, :minute)
-
-    query =
-      Ash.Query.for_read(WatchedFile, :claimable_files, %{
-        limit: limit,
-        stale_threshold: stale_threshold
-      })
-
-    case Ash.read(query) do
-      {:ok, []} ->
-        []
-
-      {:ok, files} ->
-        result =
-          Ash.bulk_update(files, :claim, %{},
-            strategy: :stream,
-            return_records?: true,
-            return_errors?: true
-          )
-
-        result.records || []
-    end
-  end
-
-  describe "claiming files" do
-    test "detected files become :queued after claim" do
-      for _ <- 1..5, do: create_watched_file()
-
-      claimed = claim_files(10)
-
-      assert length(claimed) == 5
-      assert Enum.all?(claimed, &(&1.state == :queued))
+      assert %Payload{} = payload
+      assert payload.file_path == "/media/movies/Fight.Club.1999.mkv"
+      assert payload.watch_directory == "/media/movies"
+      assert payload.entry_point == :file_detected
+      assert payload.tmdb_id == nil
+      assert payload.tmdb_type == nil
+      assert payload.pending_file_id == nil
     end
 
-    test "no files — claim returns empty list" do
-      claimed = claim_files(10)
-      assert claimed == []
-    end
+    test ":review_resolved builds payload with tmdb_id, tmdb_type, and pending_file_id" do
+      pending_id = Ash.UUID.generate()
 
-    test "partial demand — claims only available count" do
-      for _ <- 1..3, do: create_watched_file()
+      payload =
+        Producer.build_payload(:review_resolved, %{
+          path: "/media/movies/Ambiguous.Title.mkv",
+          watch_dir: "/media/movies",
+          tmdb_id: 550,
+          tmdb_type: "movie",
+          pending_file_id: pending_id
+        })
 
-      claimed = claim_files(10)
-      assert length(claimed) == 3
-    end
-
-    test "already queued (fresh) files are not re-claimed" do
-      create_queued_file()
-
-      claimed = claim_files(10)
-      assert claimed == []
-    end
-
-    test "stale queued files are re-claimed" do
-      file = create_queued_file()
-
-      # Backdate the updated_at to simulate a stale file (> 5 minutes old)
-      stale_time = DateTime.utc_now() |> DateTime.add(-10, :minute)
-
-      MediaManager.Repo.query!(
-        "UPDATE watched_files SET updated_at = ?1 WHERE id = ?2",
-        [DateTime.to_iso8601(stale_time), file.id]
-      )
-
-      claimed = claim_files(10)
-      assert length(claimed) == 1
-      assert hd(claimed).id == file.id
-    end
-
-    test "mixed states — only detected and stale queued are claimed" do
-      # Detected files
-      create_watched_file()
-      create_watched_file()
-
-      # Fresh queued (should not be claimed)
-      create_queued_file()
-
-      # Completed/error files (should not be claimed)
-      completed = create_watched_file()
-
-      completed
-      |> Ash.Changeset.for_update(:update_state, %{state: :complete})
-      |> Ash.update!()
-
-      claimed = claim_files(10)
-      assert length(claimed) == 2
-      assert Enum.all?(claimed, &(&1.state == :queued))
-    end
-
-    test "limit is respected — claims at most N files" do
-      for _ <- 1..5, do: create_watched_file()
-
-      claimed = claim_files(2)
-      assert length(claimed) == 2
+      assert %Payload{} = payload
+      assert payload.file_path == "/media/movies/Ambiguous.Title.mkv"
+      assert payload.watch_directory == "/media/movies"
+      assert payload.entry_point == :review_resolved
+      assert payload.tmdb_id == 550
+      assert payload.tmdb_type == "movie"
+      assert payload.pending_file_id == pending_id
     end
   end
 end

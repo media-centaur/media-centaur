@@ -5,6 +5,15 @@ defmodule MediaManager.Watcher do
   Each instance is started by `MediaManager.Watcher.Supervisor` and registers
   itself in `MediaManager.Watcher.Registry` with its directory path as key.
 
+  ## Event-driven pipeline integration
+
+  Instead of creating database records, the watcher broadcasts PubSub events
+  to `"pipeline:input"`. The Pipeline Producer subscribes to this topic and
+  converts events into Payloads for Broadway processing.
+
+  - `detect_file/2` broadcasts `{:file_detected, %{path, watch_dir}}`
+  - `scan_directory/1` reads existing WatchedFile file_paths to skip already-processed files
+
   ## Mount Resilience
 
   Watch directories may reside on removable drives, NAS shares, or external
@@ -24,6 +33,8 @@ defmodule MediaManager.Watcher do
   use GenServer
   require Logger
   require MediaManager.Log, as: Log
+
+  alias MediaManager.Library.WatchedFile
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
   @health_check_interval 30_000
@@ -197,31 +208,37 @@ defmodule MediaManager.Watcher do
   defp scan_directory(dir) do
     Log.info(:watcher, "scanning #{dir}")
     exclude_dirs = load_exclude_dirs()
+    known_paths = fetch_known_file_paths()
     pattern = Path.join(dir, "**/*")
 
     pattern
     |> Path.wildcard()
     |> Enum.reject(&excluded?(&1, exclude_dirs))
     |> Enum.filter(&video_file?/1)
+    |> Enum.reject(fn path -> MapSet.member?(known_paths, path) end)
     |> Enum.reduce(0, fn path, count ->
-      case detect_file(path, dir) do
-        :ok -> count + 1
-        :skipped -> count
-      end
+      detect_file(path, dir)
+      count + 1
     end)
   end
 
   defp detect_file(path, watch_dir) do
-    case MediaManager.Library.WatchedFile
-         |> Ash.Changeset.for_create(:detect, %{file_path: path, watch_dir: watch_dir})
-         |> Ash.create() do
-      {:ok, file} ->
-        Log.info(:watcher, "detected #{Path.basename(path)} as #{file.id}")
-        :ok
+    Log.info(:watcher, "detected #{Path.basename(path)}")
 
-      {:error, _reason} ->
-        :skipped
-    end
+    Phoenix.PubSub.broadcast(
+      MediaManager.PubSub,
+      "pipeline:input",
+      {:file_detected, %{path: path, watch_dir: watch_dir}}
+    )
+
+    :ok
+  end
+
+  defp fetch_known_file_paths do
+    WatchedFile
+    |> Ash.read!()
+    |> Enum.map(& &1.file_path)
+    |> MapSet.new()
   end
 
   defp video_file?(path) do
