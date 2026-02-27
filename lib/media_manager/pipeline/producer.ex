@@ -1,109 +1,130 @@
 defmodule MediaManager.Pipeline.Producer do
   @moduledoc """
-  GenStage producer that polls the database for detected files and claims
-  them for processing by the Broadway pipeline.
+  GenStage producer that subscribes to PubSub for pipeline input events.
 
-  On init, reclaims files stuck in `:queued` state from a previous crash
-  (older than 5 minutes) by including them in the claimable query.
+  Receives `{:file_detected, %{path, watch_dir}}` and
+  `{:review_resolved, %{path, watch_dir, tmdb_id, tmdb_type, pending_file_id}}`
+  messages via PubSub on the `"pipeline:input"` topic, converts them to
+  `%Payload{}` structs, and dispatches to Broadway processors on demand.
   """
   use GenStage
-  require Logger
   require MediaManager.Log, as: Log
 
-  alias MediaManager.Library.WatchedFile
-
-  @poll_interval 2_000
-  @stale_threshold_minutes 5
+  alias MediaManager.Pipeline.Payload
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
   @impl true
   def init(_opts) do
-    {:producer, %{demand: 0, poll_scheduled: false}}
+    Phoenix.PubSub.subscribe(MediaManager.PubSub, "pipeline:input")
+    {:producer, %{queue: :queue.new(), demand: 0}}
   end
 
   @impl true
   def handle_demand(incoming_demand, state) do
     state = %{state | demand: state.demand + incoming_demand}
-    state = ensure_poll_scheduled(state)
-    {:noreply, [], state}
+    {messages, state} = dispatch(state)
+    {:noreply, messages, state}
   end
 
   @impl true
-  def handle_info(:poll, state) do
-    state = %{state | poll_scheduled: false}
+  def handle_info({:file_detected, %{path: path, watch_dir: watch_dir}}, state) do
+    payload = build_payload(:file_detected, %{path: path, watch_dir: watch_dir})
 
-    if state.demand > 0 do
-      files = claim_files(state.demand)
+    Log.info(:pipeline, "producer received file_detected: #{Path.basename(path)}")
 
-      if files != [] do
-        Log.info(:pipeline, "producer claimed #{length(files)} files (demand: #{state.demand})")
-      end
+    state = %{state | queue: :queue.in(payload, state.queue)}
+    {messages, state} = dispatch(state)
+    {:noreply, messages, state}
+  end
 
-      messages =
-        Enum.map(files, fn file ->
-          %Broadway.Message{data: file, acknowledger: {__MODULE__, :ack_id, :ack_data}}
-        end)
+  def handle_info(
+        {:review_resolved,
+         %{
+           path: path,
+           watch_dir: watch_dir,
+           tmdb_id: tmdb_id,
+           tmdb_type: tmdb_type,
+           pending_file_id: pending_file_id
+         }},
+        state
+      ) do
+    payload =
+      build_payload(:review_resolved, %{
+        path: path,
+        watch_dir: watch_dir,
+        tmdb_id: tmdb_id,
+        tmdb_type: tmdb_type,
+        pending_file_id: pending_file_id
+      })
 
-      state = %{state | demand: state.demand - length(messages)}
-      state = schedule_poll(state, @poll_interval)
+    Log.info(:pipeline, "producer received review_resolved: #{Path.basename(path)}")
 
-      {:noreply, messages, state}
-    else
-      {:noreply, [], state}
-    end
+    state = %{state | queue: :queue.in(payload, state.queue)}
+    {messages, state} = dispatch(state)
+    {:noreply, messages, state}
+  end
+
+  def handle_info(_msg, state) do
+    {:noreply, [], state}
   end
 
   def ack(:ack_id, _successful, _failed), do: :ok
 
-  defp claim_files(limit) do
-    stale_threshold =
-      DateTime.utc_now() |> DateTime.add(-@stale_threshold_minutes, :minute)
+  @doc """
+  Builds a `%Payload{}` from a PubSub event.
 
-    query =
-      Ash.Query.for_read(WatchedFile, :claimable_files, %{
-        limit: limit,
-        stale_threshold: stale_threshold
-      })
-
-    case Ash.read(query) do
-      {:ok, []} ->
-        []
-
-      {:ok, files} ->
-        result =
-          Ash.bulk_update(files, :claim, %{},
-            strategy: :stream,
-            return_records?: true,
-            return_errors?: true
-          )
-
-        if result.error_count > 0 do
-          Logger.warning(
-            "Pipeline producer: #{result.error_count} claim errors: #{inspect(Enum.take(result.errors, 3))}"
-          )
-        end
-
-        claimed = result.records || []
-
-        if claimed != [] do
-          Phoenix.PubSub.broadcast(MediaManager.PubSub, "pipeline:updates", :pipeline_changed)
-        end
-
-        claimed
-
-      {:error, reason} ->
-        Logger.warning("Pipeline producer: failed to read claimable files: #{inspect(reason)}")
-        []
-    end
+  Exposed as a public function for testing.
+  """
+  @spec build_payload(atom(), map()) :: Payload.t()
+  def build_payload(:file_detected, %{path: path, watch_dir: watch_dir}) do
+    %Payload{
+      file_path: path,
+      watch_directory: watch_dir,
+      entry_point: :file_detected
+    }
   end
 
-  defp ensure_poll_scheduled(%{poll_scheduled: true} = state), do: state
+  def build_payload(:review_resolved, %{
+        path: path,
+        watch_dir: watch_dir,
+        tmdb_id: tmdb_id,
+        tmdb_type: tmdb_type,
+        pending_file_id: pending_file_id
+      }) do
+    %Payload{
+      file_path: path,
+      watch_directory: watch_dir,
+      entry_point: :review_resolved,
+      tmdb_id: tmdb_id,
+      tmdb_type: tmdb_type,
+      pending_file_id: pending_file_id
+    }
+  end
 
-  defp ensure_poll_scheduled(state), do: schedule_poll(state, 0)
+  defp dispatch(%{demand: 0} = state), do: {[], state}
 
-  defp schedule_poll(state, interval) do
-    Process.send_after(self(), :poll, interval)
-    %{state | poll_scheduled: true}
+  defp dispatch(state) do
+    {payloads, queue, remaining_demand} = dequeue(state.queue, state.demand, [])
+
+    messages =
+      Enum.map(payloads, fn payload ->
+        %Broadway.Message{data: payload, acknowledger: {__MODULE__, :ack_id, :ack_data}}
+      end)
+
+    if messages != [] do
+      Phoenix.PubSub.broadcast(MediaManager.PubSub, "pipeline:updates", :pipeline_changed)
+    end
+
+    {messages, %{state | queue: queue, demand: remaining_demand}}
+  end
+
+  defp dequeue(queue, 0, acc), do: {Enum.reverse(acc), queue, 0}
+
+  defp dequeue(queue, remaining, acc) do
+    case :queue.out(queue) do
+      {{:value, payload}, queue} -> dequeue(queue, remaining - 1, [payload | acc])
+      {:empty, queue} -> {Enum.reverse(acc), queue, remaining}
+    end
   end
 end

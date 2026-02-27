@@ -5,7 +5,8 @@ defmodule MediaManager.Dashboard do
   """
 
   alias MediaManager.Library.{Entity, WatchedFile, Image}
-  alias MediaManager.Library.Types.{EntityType, WatchedFileState}
+  alias MediaManager.Library.Types.EntityType
+  alias MediaManager.Review.PendingFile
 
   def fetch_stats do
     %{
@@ -36,26 +37,19 @@ defmodule MediaManager.Dashboard do
   end
 
   def fetch_pipeline_stats do
-    for state <- WatchedFileState.values(), into: %{} do
-      query = WatchedFile |> Ash.Query.do_filter(%{state: state})
-      {state, count(query)}
-    end
+    %{
+      complete: count(WatchedFile |> Ash.Query.do_filter(%{state: :complete})),
+      pending_review: count(PendingFile |> Ash.Query.do_filter(%{status: :pending}))
+    }
   end
 
   def fetch_pending_review do
-    WatchedFile
-    |> Ash.Query.do_filter(%{state: :pending_review})
-    |> Ash.Query.sort(inserted_at: :desc)
-    |> Ash.Query.limit(20)
-    |> Ash.read!()
+    Ash.read!(PendingFile, action: :pending)
+    |> Enum.take(20)
   end
 
   def fetch_recent_errors do
-    WatchedFile
-    |> Ash.Query.do_filter(%{state: :error})
-    |> Ash.Query.sort(updated_at: :desc)
-    |> Ash.Query.limit(20)
-    |> Ash.read!()
+    []
   end
 
   defp count(queryable) do
