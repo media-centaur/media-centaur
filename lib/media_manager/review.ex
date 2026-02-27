@@ -1,8 +1,16 @@
 defmodule MediaManager.Review do
   @moduledoc """
-  Data-fetching and processing module for the review approval workflow.
-  Keeps the LiveView thin by centralizing all review queries and actions.
+  The review domain — files requiring human review before library ingestion.
+
+  Provides the `PendingFile` resource for the new pipeline-driven review flow,
+  plus legacy helper functions that power the existing ReviewLive (operating on
+  WatchedFile). The legacy functions will be migrated to PendingFile in Phase 4.
   """
+  use Ash.Domain
+
+  resources do
+    resource MediaManager.Review.PendingFile
+  end
 
   require MediaManager.Log, as: Log
 
