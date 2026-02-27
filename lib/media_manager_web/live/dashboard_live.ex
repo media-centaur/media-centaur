@@ -24,7 +24,7 @@ defmodule MediaManagerWeb.DashboardLive do
       else
         socket
         |> assign(watcher_statuses: [])
-        |> assign(library_stats: %{entities: 0, files: 0, images: 0, by_type: %{}})
+        |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
         |> assign(pending_review: [])
         |> assign(recent_errors: [])
         |> assign(playback: %{state: :idle, now_playing: nil})
@@ -189,28 +189,22 @@ defmodule MediaManagerWeb.DashboardLive do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body">
-        <h2 class="card-title text-lg">Library Stats</h2>
-
-        <div class="stats stats-horizontal bg-base-200 w-full">
-          <div class="stat">
-            <div class="stat-title">Total Entities</div>
-            <div class="stat-value text-2xl">{@stats.entities}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-title">Total Files</div>
-            <div class="stat-value text-2xl">{@stats.files}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-title">Total Images</div>
-            <div class="stat-value text-2xl">{@stats.images}</div>
-          </div>
-        </div>
+        <h2 class="card-title text-lg">Library</h2>
 
         <div class="stats stats-horizontal bg-base-200 w-full">
           <div :for={{type, count} <- Enum.sort(@stats.by_type)} class="stat">
             <div class="stat-title">{format_type(type)}</div>
             <div class="stat-value text-2xl">{count}</div>
           </div>
+          <div class="stat">
+            <div class="stat-title">Episodes</div>
+            <div class="stat-value text-2xl">{@stats.episodes}</div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 text-sm text-base-content/60 px-1">
+          <span>{@stats.files} files tracked</span>
+          <span>{@stats.images} images cached</span>
         </div>
       </div>
     </div>
