@@ -88,6 +88,19 @@ Cross-component specifications live in `../specifications`. See [specifications/
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
 - **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
 
+## Architecture Decision Records
+
+Architectural decisions are recorded in `adrs/` using the [MADR 4.0](https://adr.github.io/madr/) lean template. Each ADR documents a single decision: the context that motivated it, the option chosen, and the consequences. See `adrs/template.md` for the blank template.
+
+**Filename convention:** `YYYY-MM-DD-NNN-short-title.md` — date of decision, globally unique sequence number, lowercase hyphenated summary.
+
+**When to write an ADR:**
+- Choosing between two or more meaningful alternatives (library, data model, communication pattern)
+- Establishing a rule that future developers must follow and would question without knowing the reason
+- Superseding a previous decision
+
+**Statuses:** `proposed` → `accepted` → optionally `superseded` (keep the file, link to the replacement).
+
 ## Defaults
 
 The `defaults/` directory contains git-tracked starter config files. These are seed values shipped with the repo — they represent every configurable option with a logical default. They are **never overwritten at runtime**; the running app reads user config from XDG paths and falls back to these.
