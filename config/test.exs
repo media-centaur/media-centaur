@@ -27,6 +27,7 @@ config :swoosh, :api_client, false
 
 # Use no-op image downloader in tests (avoids real HTTP + file I/O)
 config :media_manager, :image_downloader, MediaManager.NoopImageDownloader
+config :media_manager, :staging_image_downloader, MediaManager.NoopImageDownloader
 
 # Disable file watchers and Broadway pipeline in tests.
 # Watchers start inotify on configured directories — not useful in tests and

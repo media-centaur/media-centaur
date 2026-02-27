@@ -1,12 +1,25 @@
 defmodule MediaManager.PipelineTest do
   @moduledoc """
-  End-to-end pipeline flow tests. Calls `Pipeline.process_file/1` logic
-  directly (without Broadway) to verify the full search → fetch → download
-  lifecycle.
+  End-to-end pipeline flow tests. Replicates `Pipeline.process_file/1` logic
+  directly (without Broadway) to verify the full parse → search →
+  fetch_metadata → download_images → ingest lifecycle using Payload-based
+  stage functions.
   """
   use MediaManager.DataCase
 
-  alias MediaManager.Library.{Entity, WatchedFile}
+  alias MediaManager.Library.Entity
+  alias MediaManager.Pipeline.Payload
+
+  alias MediaManager.Pipeline.Stages.{
+    Parse,
+    Search,
+    FetchMetadata,
+    DownloadImages,
+    Ingest
+  }
+
+  alias MediaManager.Review.{Intake, PendingFile}
+
   import MediaManager.TmdbStubs
 
   setup do
@@ -14,41 +27,53 @@ defmodule MediaManager.PipelineTest do
     :ok
   end
 
-  # We replicate Pipeline.process_file/1 logic here since it's private.
-  # This tests the same sequence: search → maybe_fetch_metadata → maybe_download_images
+  # Replicates Pipeline.process_file/1 logic for testing
   defp process_file(file) do
-    with {:ok, searched} <- search(file),
-         {:ok, fetched} <- maybe_fetch_metadata(searched),
-         {:ok, downloaded} <- maybe_download_images(fetched) do
-      {:ok, downloaded}
+    payload = %Payload{
+      file_path: file.file_path,
+      watch_directory: file.watch_dir,
+      entry_point: :file_detected
+    }
+
+    case run_pipeline(payload) do
+      {:ok, payload} ->
+        Ash.update(file, %{state: :complete, entity_id: payload.entity_id}, action: :update_state)
+
+      {:needs_review, payload} ->
+        Intake.create_from_payload(payload)
+
+        Ash.update(file, %{state: :pending_review}, action: :update_state)
+
+      {:error, reason} ->
+        Ash.update(file, %{state: :error, error_message: inspect(reason)}, action: :update_state)
     end
   end
 
-  defp search(file) do
-    Ash.update(file, %{}, action: :search)
-  end
-
-  defp maybe_fetch_metadata(%WatchedFile{state: :approved} = file) do
-    Ash.update(file, %{}, action: :fetch_metadata)
-  end
-
-  defp maybe_fetch_metadata(file), do: {:ok, file}
-
-  defp maybe_download_images(%WatchedFile{state: :fetching_images} = file) do
-    case Ash.update(file, %{}, action: :download_images) do
-      {:ok, downloaded} -> {:ok, downloaded}
-      {:error, _} -> {:ok, file}
+  defp run_pipeline(payload) do
+    with {:ok, payload} <- Parse.run(payload),
+         result <- Search.run(payload) do
+      case result do
+        {:ok, payload} -> run_post_search(payload)
+        {:needs_review, _} = needs_review -> needs_review
+        {:error, _} = error -> error
+      end
     end
   end
 
-  defp maybe_download_images(file), do: {:ok, file}
+  defp run_post_search(payload) do
+    with {:ok, payload} <- FetchMetadata.run(payload),
+         {:ok, payload} <- DownloadImages.run(payload),
+         {:ok, payload} <- Ingest.run(payload) do
+      {:ok, payload}
+    end
+  end
 
   # ---------------------------------------------------------------------------
   # Full lifecycle
   # ---------------------------------------------------------------------------
 
   describe "full lifecycle" do
-    test "movie: detected → search → approved → fetch → fetching_images → download → complete" do
+    test "movie: detected → search → fetch → download → ingest → complete" do
       stub_routes([
         {"/search/movie",
          %{
@@ -75,7 +100,7 @@ defmodule MediaManager.PipelineTest do
       assert entity.name == "Fight Club"
     end
 
-    test "TV episode: detected → search → approved → fetch → download → complete" do
+    test "TV episode: detected → search → fetch → download → ingest → complete" do
       stub_routes([
         {"/search/tv",
          %{
@@ -145,7 +170,7 @@ defmodule MediaManager.PipelineTest do
   # ---------------------------------------------------------------------------
 
   describe "low confidence stops processing" do
-    test "low confidence: detected → search → pending_review (stops)" do
+    test "low confidence: detected → search → pending_review + PendingFile created" do
       stub_routes([
         {"/search/movie",
          %{
@@ -164,6 +189,13 @@ defmodule MediaManager.PipelineTest do
       assert {:ok, result} = process_file(file)
       assert result.state == :pending_review
       assert result.entity_id == nil
+
+      # Verify PendingFile was created
+      pending_files = Ash.read!(PendingFile, action: :pending)
+      assert length(pending_files) == 1
+      pending = hd(pending_files)
+      assert pending.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
+      assert pending.status == :pending
     end
   end
 
@@ -172,31 +204,12 @@ defmodule MediaManager.PipelineTest do
   # ---------------------------------------------------------------------------
 
   describe "error handling" do
-    test "search error: detected → search → error (stops)" do
+    test "search error: detected → error with error_message" do
       stub_tmdb_error("/search/movie", 500)
 
       file = create_watched_file(%{file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv"})
 
       assert {:ok, result} = process_file(file)
-      assert result.state == :error
-      assert result.error_message != nil
-    end
-
-    test "fetch error: approved → fetch_metadata → error (stops)" do
-      stub_tmdb_error("/movie/999", 404)
-
-      file =
-        create_approved_file(%{
-          file_path: "/media/pipeline/fetch_err.mkv",
-          tmdb_id: "999",
-          parsed_type: :movie
-        })
-
-      {:ok, result} =
-        file
-        |> Ash.Changeset.for_update(:fetch_metadata, %{})
-        |> Ash.update()
-
       assert result.state == :error
       assert result.error_message != nil
     end

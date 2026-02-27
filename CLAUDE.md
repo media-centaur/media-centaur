@@ -21,6 +21,8 @@ mix precommit          # compile --warning-as-errors, unlock unused deps, format
 
 Run `mix precommit` before finishing any set of changes and fix all issues it reports.
 
+**Zero warnings policy.** Application code and tests must compile and run with zero warnings. This includes unused variables, unused aliases, unused imports, and any log output during tests that indicates misconfiguration (e.g., HTTP requests hitting real endpoints instead of stubs). Treat every warning as a bug — fix it before moving on.
+
 ## Repository Layout
 
 | Path | Purpose |

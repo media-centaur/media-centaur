@@ -3,7 +3,7 @@ defmodule MediaManager.Pipeline do
   Broadway pipeline that processes detected video files through search,
   metadata fetch, and image download stages.
 
-  Processing flow per file: search → fetch_metadata → download_images → complete.
+  Processing flow per file: parse → search → fetch_metadata → download_images → ingest.
   Low-confidence matches stop at `:pending_review` for human approval.
 
   Broadway config: 1 producer (DB poller), 15 processors (partitioned by entity),
@@ -16,6 +16,17 @@ defmodule MediaManager.Pipeline do
   require MediaManager.Log, as: Log
 
   alias MediaManager.Library.{Helpers, WatchedFile}
+  alias MediaManager.Pipeline.Payload
+
+  alias MediaManager.Pipeline.Stages.{
+    Parse,
+    Search,
+    FetchMetadata,
+    DownloadImages,
+    Ingest
+  }
+
+  alias MediaManager.Review.Intake
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -73,46 +84,53 @@ defmodule MediaManager.Pipeline do
   end
 
   defp process_file(file) do
-    with {:ok, searched} <- search(file),
-         {:ok, fetched} <- maybe_fetch_metadata(searched),
-         {:ok, downloaded} <- maybe_download_images(fetched) do
-      {:ok, downloaded}
-    end
-  end
+    payload = %Payload{
+      file_path: file.file_path,
+      watch_directory: file.watch_dir,
+      entry_point: :file_detected
+    }
 
-  defp search(%WatchedFile{} = file) do
-    result = Ash.update(file, %{}, action: :search)
+    case run_pipeline(payload) do
+      {:ok, payload} ->
+        mark_complete(file, payload)
 
-    case result do
-      {:ok, searched} ->
-        Log.info(:pipeline, "post-search state: #{searched.state} for #{file.id}")
-
-      _ ->
-        :ok
-    end
-
-    result
-  end
-
-  defp maybe_fetch_metadata(%WatchedFile{state: :approved} = file) do
-    Log.info(:pipeline, "fetching metadata for #{file.id}")
-    Ash.update(file, %{}, action: :fetch_metadata)
-  end
-
-  defp maybe_fetch_metadata(%WatchedFile{} = file), do: {:ok, file}
-
-  defp maybe_download_images(%WatchedFile{state: :fetching_images} = file) do
-    Log.info(:pipeline, "downloading images for #{file.id}")
-
-    case Ash.update(file, %{}, action: :download_images) do
-      {:ok, downloaded} ->
-        {:ok, downloaded}
+      {:needs_review, payload} ->
+        send_to_review(file, payload)
 
       {:error, reason} ->
-        Logger.warning("Pipeline: image download failed for #{file.id}: #{inspect(reason)}")
-        {:ok, file}
+        mark_error(file, reason)
     end
   end
 
-  defp maybe_download_images(%WatchedFile{} = file), do: {:ok, file}
+  defp run_pipeline(payload) do
+    with {:ok, payload} <- Parse.run(payload),
+         result <- Search.run(payload) do
+      case result do
+        {:ok, payload} -> run_post_search(payload)
+        {:needs_review, _} = needs_review -> needs_review
+        {:error, _} = error -> error
+      end
+    end
+  end
+
+  defp run_post_search(payload) do
+    with {:ok, payload} <- FetchMetadata.run(payload),
+         {:ok, payload} <- DownloadImages.run(payload),
+         {:ok, payload} <- Ingest.run(payload) do
+      {:ok, payload}
+    end
+  end
+
+  defp mark_complete(file, payload) do
+    Ash.update(file, %{state: :complete, entity_id: payload.entity_id}, action: :update_state)
+  end
+
+  defp send_to_review(file, payload) do
+    Intake.create_from_payload(payload)
+    Ash.update(file, %{state: :pending_review}, action: :update_state)
+  end
+
+  defp mark_error(file, reason) do
+    Ash.update(file, %{state: :error, error_message: inspect(reason)}, action: :update_state)
+  end
 end

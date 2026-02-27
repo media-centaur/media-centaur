@@ -1,6 +1,6 @@
 # 002 — Context Boundary Redesign
 
-> **Status: In Progress.** Phase 1 ✓, Phase 2 ✓. Phase 3 next.
+> **Status: In Progress.** Phase 1 ✓, Phase 2 ✓, Phase 3 ✓, Phase 4 ✓. Phase 5 next.
 
 ## Problem Statement
 
@@ -419,46 +419,81 @@ Build the Library's inbound API as a new module.
    `EntityResolver`.
 5. ✓ Write tests for the ingress (14 tests) and updated Ingest stage (5 tests).
 
-#### Phase 3: Create Review Context
+#### Phase 3: Create Review Context ✓
 
-Build the Review bounded context.
+Built the Review bounded context with its own Ash domain and resource.
 
-1. Create `Review` Ash domain and `Review.PendingFile` resource.
-2. Generate migration for the new resource.
-3. Create the PubSub subscriber that listens for `"needs review"` events and
-   creates `PendingFile` records.
-4. Create the PubSub subscriber that listens for `"entity changed"` events and
-   cleans up resolved `PendingFile` records.
-5. Build the Review LiveView.
-6. Write tests.
+1. ✓ Created `Review` Ash domain and `Review.PendingFile` resource with actions:
+   `:create`, `:find_or_create` (upsert), `:approve`, `:dismiss`,
+   `:set_tmdb_match`, `:pending` (read).
+2. ✓ Generated migration for `review_pending_files` table.
+3. ✓ Created `Review.Intake` module — maps `Pipeline.Payload` fields to
+   `PendingFile` attributes (the pipeline's outbound API to Review).
+4. ✓ Added `Review` helper functions in `review.ex` for the LiveView
+   (`fetch_pending_files`, `approve_and_process`, `dismiss`, `set_tmdb_match`,
+   `search_tmdb`).
+5. ✓ ReviewLive already existed — data source switch deferred to Phase 4.
+6. ✓ Tests: 13 tests for PendingFile resource and Intake module.
 
-#### Phase 4: Rewire the Pipeline
+**Note:** PubSub-based event flow (pipeline emits "needs review", Review
+subscribes) was deferred. Instead, the pipeline calls
+`Intake.create_from_payload/1` directly. PubSub decoupling is a future
+phase.
 
-Replace the existing Broadway pipeline with the new architecture.
+#### Phase 4: Rewire Pipeline + Update Review Flow ✓
 
-1. Rewrite `Pipeline.Producer` to consume PubSub events instead of claiming DB
+Switched the running system from WatchedFile Ash change modules to
+Payload-based stage functions. The new architecture is now live.
+
+1. ✓ Rewrote `Pipeline.process_file/1` — builds a `Payload` from the
+   claimed `WatchedFile` and runs `Parse → Search → FetchMetadata →
+   DownloadImages → Ingest` stage functions.
+2. ✓ Three outcome handlers: `mark_complete/2` (WatchedFile → `:complete`
+   with entity_id), `send_to_review/2` (creates PendingFile via
+   `Intake.create_from_payload/1`, WatchedFile → `:pending_review`),
+   `mark_error/2` (WatchedFile → `:error` with error_message).
+3. ✓ Updated `Review` module — switched from WatchedFile to PendingFile:
+   `fetch_pending_files/0` reads PendingFile `:pending`, `approve_and_process/1`
+   builds Payload and runs post-search stages (FetchMetadata → DownloadImages →
+   Ingest), then destroys PendingFile. Removed `retry/1`.
+4. ✓ Updated `ReviewLive` — field renames (`watch_dir` → `watch_directory`,
+   `confidence_score` → `confidence`), string `parsed_type` handling, removed
+   Retry button.
+5. ✓ Rewrote pipeline tests to use Payload + stage functions, added PendingFile
+   assertion for low-confidence case.
+6. ✓ Fixed `NoopImageDownloader` to support `download/2` (new staging
+   downloader API) and added `:staging_image_downloader` config to `test.exs`.
+
+**What was NOT done (deferred):**
+- Producer still claims WatchedFiles from DB (Phase 5 adds PubSub producer).
+- WatchedFile still carries all pipeline state fields (Phase 6 strips them).
+- Old Ash change modules still exist (unused, Phase 6 deletes them).
+
+#### Phase 5: Rewire File Watching + PubSub Producer
+
+1. Rewrite `Pipeline.Producer` to consume PubSub events instead of claiming
+   DB records (currently still polls WatchedFile table).
+2. Modify `Watcher` to emit PubSub events instead of creating `WatchedFile`
    records.
-2. Rewrite `Pipeline` (Broadway module) to use the new stage functions.
-3. Wire up the two entry points (file detected, review resolved).
-4. Wire up the "needs review" PubSub emission for low-confidence matches.
-5. Write integration tests for the full pipeline flow.
+3. Ensure directory scanning also emits the same PubSub events.
+4. Wire up the review-resolved entry point (PubSub from Review → Pipeline
+   at stage 3).
+5. Test that file detection flows through PubSub to the pipeline.
 
-#### Phase 5: Rewire File Watching
+#### Phase 6: Clean Up WatchedFile + Delete Old Modules
 
-1. Modify `Watcher` to emit PubSub events instead of creating `WatchedFile`
-   records.
-2. Ensure directory scanning also emits the same PubSub events.
-3. Test that file detection flows through PubSub to the pipeline.
-
-#### Phase 6: Clean Up WatchedFile
-
-1. Remove all pipeline state fields from `WatchedFile` resource definition.
-2. Remove all pipeline-related actions and changes from `WatchedFile`.
+1. Remove all pipeline state fields from `WatchedFile` resource definition
+   (`tmdb_id`, `confidence_score`, `match_title`, `match_year`,
+   `match_poster_path`, `parsed_type`, `parsed_title`, `season_number`,
+   `episode_number`, `search_title`, `error_message`, `state` machine fields).
+2. Remove all pipeline-related actions and changes from `WatchedFile`
+   (`:search`, `:fetch_metadata`, `:download_images`, `:approve`, `:dismiss`,
+   `:retry`, `:set_tmdb_match`, `:update_state`, `:pending_review_files`).
 3. Generate Ash migration to drop the removed columns.
 4. Delete the old Ash change modules (`search_tmdb.ex`, `fetch_metadata.ex`,
-   `download_images.ex`, `serialize.ex`, `detect.ex`).
+   `download_images.ex`, `serialize.ex`, `parse_file_name.ex`).
 5. Delete `EntityResolver` (fully replaced by `Library.Ingress`).
-6. Update all tests.
+6. Update all tests and factory helpers.
 
 #### Phase 7: Extras as First-Class Entities
 
