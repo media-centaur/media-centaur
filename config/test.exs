@@ -28,6 +28,13 @@ config :swoosh, :api_client, false
 # Use no-op image downloader in tests (avoids real HTTP + file I/O)
 config :media_manager, :image_downloader, MediaManager.NoopImageDownloader
 
+# Disable file watchers and Broadway pipeline in tests.
+# Watchers start inotify on configured directories — not useful in tests and
+# causes "kill: No such process" noise when the watched dir doesn't exist.
+# The pipeline polls the DB every 2s and can trigger real TMDB HTTP requests.
+config :media_manager, :start_watchers, false
+config :media_manager, :start_pipeline, false
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 
