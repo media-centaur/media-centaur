@@ -255,8 +255,6 @@ _Utilities for integrating Ash and Phoenix_
 ## usage_rules usage
 _A config-driven dev tool for Elixir projects to manage AGENTS.md files and agent skills from dependencies_
 
-Use usage_rules to read documentation for any elixir packages (instead of reaching out to the web).
-
 [usage_rules usage rules](deps/usage_rules/usage-rules.md)
 <!-- usage_rules-end -->
 <!-- usage_rules:elixir-start -->
