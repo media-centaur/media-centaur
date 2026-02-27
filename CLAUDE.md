@@ -31,8 +31,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `lib/media_manager/log/formatter.ex` | Custom log formatter: `[level][component] message` |
 | `lib/media_manager/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode, Setting |
 | `lib/media_manager/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
-| `lib/media_manager/library/entity_resolver.ex` | Entity find-or-create orchestration with race-loss recovery |
-| `lib/media_manager/library/watched_file/changes/` | Ash change modules for each pipeline step |
+| `lib/media_manager/library/ingress.ex` | Library inbound API: creates/updates entities from pipeline metadata |
 | `lib/media_manager/playback/` | Playback engine: resume algorithm, MPV session, playback manager |
 | `lib/media_manager/pipeline/` | Broadway pipeline, producer, and image downloader |
 | `lib/media_manager/tmdb/` | TMDB API client, confidence scorer, and response mapper |
@@ -73,7 +72,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — state machine, processing stages, idempotency guarantees, and extras handling.
 
-Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/entity_resolver.ex`, `lib/media_manager/library/watched_file/changes/`, `lib/media_manager/serializer.ex`.
+Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/pipeline/stages/`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/ingress.ex`, `lib/media_manager/serializer.ex`.
 
 ## Specifications
 
@@ -120,11 +119,13 @@ Tests mirror `lib/` by domain. Each module gets its own test file.
 | `test/media_manager/library/entity_test.exs` | Entity Ash actions | no | `DataCase` |
 | `test/media_manager/library/watched_file_test.exs` | WatchedFile actions | no | `DataCase` |
 | `test/media_manager/library/watch_progress_test.exs` | WatchProgress actions | no | `DataCase` |
-| `test/media_manager/library/entity_resolver_test.exs` | EntityResolver (TMDB stubs) | no | `DataCase` |
-| `test/media_manager/library/watched_file/changes/search_tmdb_test.exs` | SearchTmdb change (TMDB stubs) | no | `DataCase` |
-| `test/media_manager/library/watched_file/changes/fetch_metadata_test.exs` | FetchMetadata change (TMDB stubs) | no | `DataCase` |
-| `test/media_manager/library/watched_file/changes/download_images_test.exs` | DownloadImages change | no | `DataCase` |
-| `test/media_manager/pipeline/producer_test.exs` | Producer claiming logic | no | `DataCase` |
+| `test/media_manager/library/ingress_test.exs` | Ingress library API (TMDB stubs) | no | `DataCase` |
+| `test/media_manager/pipeline/stages/parse_test.exs` | Parse stage | yes | `ExUnit.Case` |
+| `test/media_manager/pipeline/stages/search_test.exs` | Search stage (TMDB stubs) | no | `DataCase` |
+| `test/media_manager/pipeline/stages/fetch_metadata_test.exs` | FetchMetadata stage (TMDB stubs) | no | `DataCase` |
+| `test/media_manager/pipeline/stages/download_images_test.exs` | DownloadImages stage | no | `DataCase` |
+| `test/media_manager/pipeline/stages/ingest_test.exs` | Ingest stage (TMDB stubs) | no | `DataCase` |
+| `test/media_manager/pipeline/producer_test.exs` | Producer dispatch logic | no | `DataCase` |
 | `test/media_manager/pipeline_test.exs` | Pipeline end-to-end (TMDB stubs) | no | `DataCase` |
 | `test/media_manager_web/channels/library_channel_test.exs` | Library channel contract | no | `ChannelCase` |
 | `test/media_manager_web/channels/playback_channel_test.exs` | Playback channel contract | no | `ChannelCase` |
@@ -152,12 +153,12 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 
 ### Pipeline Tests (Broadway)
 
-**Test-first, mandatory.** Every change to the Broadway pipeline — EntityResolver, SearchTmdb, FetchMetadata, DownloadImages, Producer, or the Pipeline orchestrator — must have a corresponding test written *before* the implementation. The pipeline is the core of the application and bugs here are silent and cascading.
+**Test-first, mandatory.** Every change to the Broadway pipeline — Ingress, pipeline stages (Parse, Search, FetchMetadata, DownloadImages, Ingest), Producer, or the Pipeline orchestrator — must have a corresponding test written *before* the implementation. The pipeline is the core of the application and bugs here are silent and cascading.
 
 - **TMDB stubs via `Req.Test`.** All pipeline tests that touch TMDB use `test/support/tmdb_stubs.ex`, which installs a `Req.Test`-backed client into `:persistent_term`. No mocking library needed — stub responses per-test with `stub_routes/1` or the individual `stub_*` helpers. Fixture data (`movie_detail/0`, `tv_detail/0`, `season_detail/0`, `collection_detail/0`) provides realistic TMDB JSON shapes.
 - **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaManager.NoopImageDownloader`. The `DownloadImages` change reads this config, so tests exercise state transitions without HTTP or file I/O.
-- **Test the orchestration, not the leaves.** The pure-function leaf nodes (Parser, Confidence, Mapper, Serializer) have their own test suites. Pipeline tests focus on the *orchestration*: state machine transitions, entity resolution branching, race-loss recovery, error propagation, and the Producer's claiming logic.
-- **No Broadway topology in tests.** Call the pipeline step functions directly (Ash update actions, `EntityResolver.resolve/3`). Broadway is infrastructure — test the business logic it invokes, not the message-passing machinery.
+- **Test the orchestration, not the leaves.** The pure-function leaf nodes (Parser, Confidence, Mapper, Serializer) have their own test suites. Pipeline tests focus on the *orchestration*: stage sequencing, entity resolution branching, race-loss recovery, error propagation, and the Producer's dispatch logic.
+- **No Broadway topology in tests.** Call `Pipeline.process_payload/1` or individual stage `run/1` functions directly. Broadway is infrastructure — test the business logic it invokes, not the message-passing machinery.
 - **NEVER delete or weaken pipeline tests.** Each test represents a real scenario that has caused or could cause silent data corruption. If a pipeline change causes a test to fail, fix the pipeline — do not delete or relax the assertion.
 
 ## Parser
