@@ -4,7 +4,7 @@ defmodule MediaManager.Dashboard do
   Keeps the LiveView thin by centralizing all dashboard queries.
   """
 
-  alias MediaManager.Library.{Entity, WatchedFile, Image}
+  alias MediaManager.Library.{Entity, Episode, WatchedFile, Image}
   alias MediaManager.Library.Types.EntityType
   alias MediaManager.Review.PendingFile
 
@@ -17,7 +17,7 @@ defmodule MediaManager.Dashboard do
   end
 
   def fetch_library_stats do
-    entity_count = count(Entity)
+    episode_count = count(Episode)
     file_count = count(WatchedFile)
     image_count = count(Image)
 
@@ -28,7 +28,7 @@ defmodule MediaManager.Dashboard do
       end
 
     %{
-      entities: entity_count,
+      episodes: episode_count,
       files: file_count,
       images: image_count,
       by_type: type_counts

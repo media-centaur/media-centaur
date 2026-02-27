@@ -22,6 +22,8 @@ defmodule MediaManager.Admin do
     WatchedFile
   }
 
+  alias MediaManager.Review.PendingFile
+
   alias MediaManager.Pipeline.ImageDownloader
 
   @doc """
@@ -75,6 +77,7 @@ defmodule MediaManager.Admin do
 
   defp resources_in_delete_order do
     [
+      PendingFile,
       WatchProgress,
       Extra,
       Image,
