@@ -585,6 +585,29 @@ defmodule MediaManager.ParserTest do
       assert result.parent_year == 2013
     end
 
+    test "extras parent title preserves hyphenated suffix (Sample Title Ec)" do
+      result =
+        Parser.parse(
+          "/mnt/media/library/Sample Title Ec/Featurettes/The Found CD-ROM Video Disc.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.parent_title == "Sample Title Ec"
+      assert result.parent_year == nil
+      assert result.title == "The Found CD-ROM Video Disc"
+    end
+
+    test "extras title preserves hyphenated suffix in filename (Music of Sample Title Ec)" do
+      result =
+        Parser.parse(
+          "/mnt/media/library/Sample Title Ec/Featurettes/Music of Sample Title Ec.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.title == "Music Of Sample Title Ec"
+      assert result.parent_title == "Sample Title Ec"
+    end
+
     test "non-extras directory is not detected as extra" do
       result =
         Parser.parse(
