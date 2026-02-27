@@ -5,4 +5,10 @@ defmodule MediaManager.NoopImageDownloader do
   """
 
   def download_all(_entity), do: :ok
+
+  def download(_url, local_path) do
+    local_path |> Path.dirname() |> File.mkdir_p!()
+    File.write!(local_path, "")
+    :ok
+  end
 end

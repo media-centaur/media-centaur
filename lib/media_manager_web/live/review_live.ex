@@ -42,18 +42,6 @@ defmodule MediaManagerWeb.ReviewLive do
     end
   end
 
-  def handle_event("retry", %{"id" => id}, socket) do
-    file = socket.assigns.files_by_id[id]
-
-    if file do
-      socket = assign(socket, processing: MapSet.put(socket.assigns.processing, id))
-      Review.retry(file)
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
-  end
-
   def handle_event("dismiss", %{"id" => id}, socket) do
     file = socket.assigns.files_by_id[id]
 
@@ -72,6 +60,7 @@ defmodule MediaManagerWeb.ReviewLive do
     search_type =
       case file && file.parsed_type do
         :tv -> :tv
+        "tv" -> :tv
         _ -> :movie
       end
 
@@ -253,10 +242,10 @@ defmodule MediaManagerWeb.ReviewLive do
               </span>
               <span class="text-base-content/50">TMDB #{@file.tmdb_id}</span>
               <span
-                :if={@file.confidence_score}
-                class={["badge badge-sm ml-1", confidence_badge_class(@file.confidence_score)]}
+                :if={@file.confidence}
+                class={["badge badge-sm ml-1", confidence_badge_class(@file.confidence)]}
               >
-                {Float.round(@file.confidence_score, 2)}
+                {Float.round(@file.confidence, 2)}
               </span>
             </p>
 
@@ -281,14 +270,6 @@ defmodule MediaManagerWeb.ReviewLive do
                 class="btn btn-info btn-sm btn-outline"
               >
                 Search
-              </button>
-              <button
-                phx-click="retry"
-                phx-value-id={@file.id}
-                disabled={@processing}
-                class="btn btn-warning btn-sm btn-outline"
-              >
-                Retry
               </button>
               <button
                 phx-click="dismiss"
@@ -417,7 +398,7 @@ defmodule MediaManagerWeb.ReviewLive do
 
   defp sort_files(files) do
     Enum.sort_by(files, fn file ->
-      {if(file.tmdb_id, do: 1, else: 0), file.confidence_score || 0}
+      {if(file.tmdb_id, do: 1, else: 0), file.confidence || 0}
     end)
   end
 
@@ -425,6 +406,10 @@ defmodule MediaManagerWeb.ReviewLive do
   defp format_type(:tv), do: "TV"
   defp format_type(:extra), do: "Extra"
   defp format_type(:unknown), do: "Unknown"
+  defp format_type("movie"), do: "Movie"
+  defp format_type("tv"), do: "TV"
+  defp format_type("extra"), do: "Extra"
+  defp format_type("unknown"), do: "Unknown"
   defp format_type(nil), do: "Unknown"
   defp format_type(type), do: type |> to_string() |> String.capitalize()
 
@@ -436,7 +421,7 @@ defmodule MediaManagerWeb.ReviewLive do
   defp confidence_badge_class(_), do: "badge-error"
 
   defp relative_file_path(file) do
-    case file.watch_dir do
+    case file.watch_directory do
       nil -> file.file_path
       dir -> String.replace_prefix(file.file_path, dir <> "/", "")
     end
