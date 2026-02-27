@@ -97,7 +97,7 @@ defmodule MediaManager.Pipeline.Producer do
       watch_directory: watch_dir,
       entry_point: :review_resolved,
       tmdb_id: tmdb_id,
-      tmdb_type: tmdb_type,
+      tmdb_type: String.to_existing_atom(tmdb_type),
       pending_file_id: pending_file_id
     }
   end

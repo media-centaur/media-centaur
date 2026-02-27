@@ -38,8 +38,21 @@ defmodule MediaManager.Pipeline.ProducerTest do
       assert payload.watch_directory == "/media/movies"
       assert payload.entry_point == :review_resolved
       assert payload.tmdb_id == 550
-      assert payload.tmdb_type == "movie"
+      assert payload.tmdb_type == :movie
       assert payload.pending_file_id == pending_id
+    end
+
+    test ":review_resolved normalizes string tmdb_type to atom for tv" do
+      payload =
+        Producer.build_payload(:review_resolved, %{
+          path: "/media/tv/Some.Show.S01E01.mkv",
+          watch_dir: "/media/tv",
+          tmdb_id: 1399,
+          tmdb_type: "tv",
+          pending_file_id: Ash.UUID.generate()
+        })
+
+      assert payload.tmdb_type == :tv
     end
   end
 end
