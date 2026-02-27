@@ -174,8 +174,8 @@ defmodule MediaManager.Parser do
 
     extra_title =
       case intermediate_dirs do
-        [] -> clean_title(base)
-        dirs -> (dirs ++ [base]) |> Enum.join(" - ") |> clean_title()
+        [] -> clean_title(base, strip_release_group: false)
+        dirs -> (dirs ++ [base]) |> Enum.join(" - ") |> clean_title(strip_release_group: false)
       end
 
     {parent_title, parent_year, season} = parse_extra_parent(parts, extras_index)
@@ -269,14 +269,14 @@ defmodule MediaManager.Parser do
 
         title =
           case Regex.run(~r/^(.+?)[\s.\[(]#{year_str}/, dir_name, capture: :all_but_first) do
-            [raw_title] -> clean_title(raw_title)
-            nil -> clean_title(dir_name)
+            [raw_title] -> clean_title(raw_title, strip_release_group: false)
+            nil -> clean_title(dir_name, strip_release_group: false)
           end
 
         {title, year}
 
       nil ->
-        {clean_title(dir_name), nil}
+        {clean_title(dir_name, strip_release_group: false), nil}
     end
   end
 
@@ -556,13 +556,17 @@ defmodule MediaManager.Parser do
   # Title cleaning
   # ---------------------------------------------------------------------------
 
-  defp clean_title(raw) do
+  defp clean_title(raw, opts \\ []) do
     raw
     |> String.replace(~r/[._꞉]/, " ")
     |> String.replace(~r/\s+/, " ")
     |> then(&Regex.replace(@quality_bracket_pattern, &1, ""))
     |> then(&Regex.replace(@quality_pattern, &1, ""))
-    |> then(&Regex.replace(@release_group_pattern, &1, ""))
+    |> then(fn cleaned ->
+      if Keyword.get(opts, :strip_release_group, true),
+        do: Regex.replace(@release_group_pattern, cleaned, ""),
+        else: cleaned
+    end)
     |> then(&Regex.replace(~r/\s*\(\d{4}\)\s*$/, &1, ""))
     |> String.trim()
     |> then(&Regex.replace(~r/[-_\s]+$/, &1, ""))
