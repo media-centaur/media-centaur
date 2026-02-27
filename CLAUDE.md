@@ -67,10 +67,14 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 - **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). The channel handler resolves IDs into updated/removed sets — the broadcaster doesn't need to distinguish.
 - **Bulk operations must never silently discard errors.** Always pass `return_errors?: true` to `Ash.bulk_update/4`, `Ash.bulk_create/4`, and `Ash.bulk_destroy/3`. Check `result.error_count` and log or propagate errors — never assume `result.records || []` is safe without checking for failures first. Silent bulk failures are invisible and can stall entire subsystems.
 - **Bulk operations on non-atomic actions need `strategy: :stream`.** AshSqlite cannot express `attribute_in`/`attribute_equals` validations as atomic SQL. Actions with these validations must set `require_atomic? false`, and any `bulk_update`/`bulk_create` call on such actions must pass `strategy: :stream` — otherwise the default `[:atomic]` strategy fails with `NoMatchingBulkStrategy`.
+- **Low coupling between features.** Each context owns its own data and behavior. Modifying one feature should not require analyzing blast radius on unrelated features.
+- **Contexts communicate through PubSub.** Cross-context interaction uses events, not shared resources or direct function calls into another context's internals.
+- **Ash changes are for intrinsic data operations only.** Ash changes must NOT orchestrate external integrations, call APIs, download files, or cross context boundaries. They are appropriate for validation and transformation intrinsic to a resource.
+- **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes.
 
 ## Pipeline
 
-See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — state machine, processing stages, idempotency guarantees, and extras handling.
+See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — PubSub-driven event flow, processing stages, idempotency guarantees, and extras handling.
 
 Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/pipeline/stages/`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/ingress.ex`, `lib/media_manager/serializer.ex`.
 
@@ -80,8 +84,6 @@ Cross-component specifications live in `../specifications`. See [specifications/
 
 **Every contract between the backend and the user-interface must be documented in a specification file.** If a feature introduces a new integration surface — a new channel topic, a new message format, a new file convention — it must have a corresponding spec in `../specifications/` before the implementation ships.
 
-- **Before writing any code that touches the WebSocket API** (channels, messages, join replies), read `API.md` in full.
-- **Before writing any playback, resume, or watch progress code**, read `PLAYBACK.md` in full.
 - **Before writing any code that serializes entities** (for channel pushes), read `DATA-FORMAT.md` in full.
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
 - **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
@@ -95,10 +97,6 @@ The `defaults/` directory contains git-tracked starter config files. These are s
 | `defaults/media-manager.toml` | All TOML configuration keys with their default values |
 
 > **Keep `defaults/media-manager.toml` complete.** Every configuration key recognised by `MediaManager.Config` must have an entry in `defaults/media-manager.toml` with a logical default value and a comment explaining what it controls. Add the entry whenever a new config key is introduced. The file must always be valid TOML and parse without errors.
-
-## Plans
-
-See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for plans convention.
 
 ## Testing Strategy
 
