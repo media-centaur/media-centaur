@@ -18,7 +18,6 @@ defmodule MediaManagerWeb.DashboardLive do
         |> assign(watcher_statuses: MediaManager.Watcher.Supervisor.statuses())
         |> assign(library_stats: stats.library)
         |> assign(pipeline_stats: stats.pipeline)
-        |> assign(pipeline_active: in_progress(stats.pipeline) > 0)
         |> assign(pending_review: stats.pending_review)
         |> assign(recent_errors: stats.recent_errors)
         |> assign(playback: MediaManager.Playback.Manager.current_state())
@@ -27,8 +26,7 @@ defmodule MediaManagerWeb.DashboardLive do
         socket
         |> assign(watcher_statuses: [])
         |> assign(library_stats: %{entities: 0, files: 0, images: 0, by_type: %{}})
-        |> assign(pipeline_stats: %{})
-        |> assign(pipeline_active: false)
+        |> assign(pipeline_stats: %{complete: 0, pending_review: 0})
         |> assign(pending_review: [])
         |> assign(recent_errors: [])
         |> assign(playback: %{state: :idle, now_playing: nil})
@@ -40,8 +38,7 @@ defmodule MediaManagerWeb.DashboardLive do
        scanning: false,
        clearing_database: false,
        refreshing_images: false,
-       stats_timer: nil,
-       pipeline_cooldown_timer: nil
+       stats_timer: nil
      )}
   end
 
@@ -66,8 +63,6 @@ defmodule MediaManagerWeb.DashboardLive do
           |> assign(scanning: false)
           |> assign(pipeline_stats: stats.pipeline)
           |> assign(library_stats: stats.library)
-
-        socket = if count > 0, do: mark_pipeline_active(socket), else: socket
 
         {:noreply, socket}
     end
@@ -132,16 +127,7 @@ defmodule MediaManagerWeb.DashboardLive do
   end
 
   def handle_info(:pipeline_changed, socket) do
-    {:noreply, socket |> debounce_stats_refresh() |> mark_pipeline_active()}
-  end
-
-  def handle_info(:pipeline_cooldown, socket) do
-    if in_progress(socket.assigns.pipeline_stats) > 0 do
-      timer = Process.send_after(self(), :pipeline_cooldown, 5_000)
-      {:noreply, assign(socket, pipeline_cooldown_timer: timer)}
-    else
-      {:noreply, assign(socket, pipeline_active: false, pipeline_cooldown_timer: nil)}
-    end
+    {:noreply, debounce_stats_refresh(socket)}
   end
 
   def handle_info(:refresh_stats, socket) do
@@ -195,7 +181,7 @@ defmodule MediaManagerWeb.DashboardLive do
         </div>
 
         <.library_stats stats={@library_stats} />
-        <.pipeline_status stats={@pipeline_stats} active={@pipeline_active} />
+        <.pipeline_status stats={@pipeline_stats} />
         <.watcher_health statuses={@watcher_statuses} />
         <.playback_status playback={@playback} />
         <.pending_review_table files={@pending_review} />
@@ -242,57 +228,25 @@ defmodule MediaManagerWeb.DashboardLive do
   end
 
   defp pipeline_status(assigns) do
-    assigns =
-      assigns
-      |> assign(:in_progress, in_progress(assigns.stats))
-      |> assign(:completed, completed_count(assigns.stats))
-      |> assign(:needs_review, pending_review_count(assigns.stats))
-      |> assign(:errors, error_count(assigns.stats))
-      |> assign(:total, total_processed(assigns.stats) + in_progress(assigns.stats))
-      |> assign(:progress, progress_percent(assigns.stats))
-
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body">
-        <div :if={@active} class="space-y-3">
-          <h2 class="card-title text-lg">
-            Pipeline <span class="loading loading-dots loading-xs text-success"></span>
-          </h2>
+        <h2 class="card-title text-lg">Pipeline</h2>
 
-          <progress class="progress progress-primary w-full" value={@progress} max="100"></progress>
-
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            <span>{@completed} completed</span>
-            <span class="text-base-content/30">&middot;</span>
-            <span>{@in_progress} in progress</span>
-          </div>
-
-          <div :if={@needs_review > 0 or @errors > 0} class="flex flex-wrap items-center gap-2">
-            <.link :if={@needs_review > 0} navigate="/review" class="badge badge-warning gap-1">
-              {@needs_review} pending review
-            </.link>
-            <span :if={@errors > 0} class="badge badge-error gap-1">
-              {@errors} errors
-            </span>
-          </div>
+        <div :if={@stats.complete == 0 and @stats.pending_review == 0} class="text-base-content/60">
+          No files processed yet.
         </div>
 
-        <div :if={!@active}>
-          <h2 class="card-title text-lg mb-3">Pipeline</h2>
-
-          <p :if={@total == 0} class="text-base-content/60">No files processed yet.</p>
-
-          <div :if={@total > 0} class="flex flex-wrap items-center gap-2">
-            <span :if={@completed > 0} class="badge badge-success gap-1">
-              {@completed} complete
-            </span>
-            <.link :if={@needs_review > 0} navigate="/review" class="badge badge-warning gap-1">
-              {@needs_review} pending review
-            </.link>
-            <span :if={@errors > 0} class="badge badge-error gap-1">
-              {@errors} errors
-            </span>
-          </div>
+        <div
+          :if={@stats.complete > 0 or @stats.pending_review > 0}
+          class="flex flex-wrap items-center gap-2"
+        >
+          <span :if={@stats.complete > 0} class="badge badge-success gap-1">
+            {@stats.complete} tracked files
+          </span>
+          <.link :if={@stats.pending_review > 0} navigate="/review" class="badge badge-warning gap-1">
+            {@stats.pending_review} pending review
+          </.link>
         </div>
       </div>
     </div>
@@ -383,12 +337,12 @@ defmodule MediaManagerWeb.DashboardLive do
                 <td>{file.parsed_title || "—"}</td>
                 <td>
                   <span
-                    :if={file.confidence_score}
-                    class={["badge badge-sm", confidence_badge_class(file.confidence_score)]}
+                    :if={file.confidence}
+                    class={["badge badge-sm", confidence_badge_class(file.confidence)]}
                   >
-                    {Float.round(file.confidence_score, 2)}
+                    {Float.round(file.confidence, 2)}
                   </span>
-                  <span :if={!file.confidence_score} class="text-base-content/40">—</span>
+                  <span :if={!file.confidence} class="text-base-content/40">—</span>
                 </td>
                 <td class="text-xs">{format_datetime(file.inserted_at)}</td>
               </tr>
@@ -508,18 +462,6 @@ defmodule MediaManagerWeb.DashboardLive do
     """
   end
 
-  defp mark_pipeline_active(socket) do
-    if socket.assigns[:pipeline_cooldown_timer] do
-      Process.cancel_timer(socket.assigns.pipeline_cooldown_timer)
-    end
-
-    timer = Process.send_after(self(), :pipeline_cooldown, 5_000)
-
-    socket
-    |> assign(pipeline_active: true)
-    |> assign(pipeline_cooldown_timer: timer)
-  end
-
   defp debounce_stats_refresh(socket) do
     if socket.assigns[:stats_timer] do
       Process.cancel_timer(socket.assigns.stats_timer)
@@ -577,34 +519,4 @@ defmodule MediaManagerWeb.DashboardLive do
   defp confidence_badge_class(score) when score >= 0.8, do: "badge-success"
   defp confidence_badge_class(score) when score >= 0.5, do: "badge-warning"
   defp confidence_badge_class(_), do: "badge-error"
-
-  # --- Pipeline stats ---
-
-  @transient_states [
-    :detected,
-    :queued,
-    :searching,
-    :approved,
-    :fetching_metadata,
-    :fetching_images
-  ]
-
-  defp in_progress(stats) do
-    Enum.reduce(@transient_states, 0, fn state, sum -> sum + (stats[state] || 0) end)
-  end
-
-  defp completed_count(stats), do: stats[:complete] || 0
-  defp pending_review_count(stats), do: stats[:pending_review] || 0
-  defp error_count(stats), do: stats[:error] || 0
-
-  defp total_processed(stats) do
-    completed_count(stats) + pending_review_count(stats) + error_count(stats)
-  end
-
-  defp progress_percent(stats) do
-    done = total_processed(stats)
-    flying = in_progress(stats)
-    total = done + flying
-    if total == 0, do: 100, else: trunc(done / total * 100)
-  end
 end

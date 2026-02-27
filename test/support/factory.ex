@@ -19,6 +19,8 @@ defmodule MediaManager.TestFactory do
     WatchedFile
   }
 
+  alias MediaManager.Review.PendingFile
+
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
   # ---------------------------------------------------------------------------
@@ -228,6 +230,40 @@ defmodule MediaManager.TestFactory do
     |> Ash.create!()
   end
 
+  def create_linked_file(attrs \\ %{}) do
+    entity = attrs[:entity] || create_entity()
+
+    defaults = %{
+      file_path: "/media/test/#{Ash.UUID.generate()}.mkv",
+      watch_dir: "/media/test",
+      entity_id: entity.id
+    }
+
+    WatchedFile
+    |> Ash.Changeset.for_create(:link_file, Map.merge(defaults, Map.delete(attrs, :entity)))
+    |> Ash.create!()
+  end
+
+  def create_pending_file(attrs \\ %{}) do
+    defaults = %{
+      file_path: "/media/test/#{Ash.UUID.generate()}.mkv",
+      watch_directory: "/media/test",
+      parsed_title: "Test File",
+      confidence: 0.5,
+      tmdb_id: 12345,
+      tmdb_type: "movie",
+      match_title: "Test Match"
+    }
+
+    PendingFile
+    |> Ash.Changeset.for_create(:create, Map.merge(defaults, attrs))
+    |> Ash.create!()
+  end
+
+  # ---------------------------------------------------------------------------
+  # Legacy WatchedFile state helpers — used by Ash change module tests
+  # ---------------------------------------------------------------------------
+
   def create_pending_review_file(attrs \\ %{}) do
     detect_attrs = Map.take(attrs, [:file_path])
     file = create_watched_file(detect_attrs)
@@ -242,30 +278,6 @@ defmodule MediaManager.TestFactory do
 
     file
     |> Ash.Changeset.for_update(:update_state, update_attrs)
-    |> Ash.update!()
-  end
-
-  defp maybe_put(map, source, key) do
-    if Map.has_key?(source, key), do: Map.put(map, key, source[key]), else: map
-  end
-
-  def create_watch_progress(attrs) do
-    defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
-
-    MediaManager.Library.WatchProgress
-    |> Ash.Changeset.for_create(:upsert_progress, Map.merge(defaults, attrs))
-    |> Ash.create!()
-  end
-
-  # ---------------------------------------------------------------------------
-  # Pipeline test helpers — files in specific pipeline states
-  # ---------------------------------------------------------------------------
-
-  def create_queued_file(attrs \\ %{}) do
-    file = create_watched_file(attrs)
-
-    file
-    |> Ash.Changeset.for_update(:update_state, %{state: :queued})
     |> Ash.update!()
   end
 
@@ -300,5 +312,17 @@ defmodule MediaManager.TestFactory do
     file
     |> Ash.Changeset.for_update(:update_state, update_attrs)
     |> Ash.update!()
+  end
+
+  defp maybe_put(map, source, key) do
+    if Map.has_key?(source, key), do: Map.put(map, key, source[key]), else: map
+  end
+
+  def create_watch_progress(attrs) do
+    defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
+
+    MediaManager.Library.WatchProgress
+    |> Ash.Changeset.for_create(:upsert_progress, Map.merge(defaults, attrs))
+    |> Ash.create!()
   end
 end

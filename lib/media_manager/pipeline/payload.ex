@@ -34,6 +34,9 @@ defmodule MediaManager.Pipeline.Payload do
   **Ingest stage:**
   - `entity_id` — UUID of the created/found entity
   - `ingest_status` — `:new`, `:new_child`, or `:existing`
+
+  **Review resolution (set by Producer for `:review_resolved` entry point):**
+  - `pending_file_id` — UUID of the PendingFile being resolved
   """
 
   @type t :: %__MODULE__{}
@@ -64,6 +67,9 @@ defmodule MediaManager.Pipeline.Payload do
 
     # Ingest stage
     :entity_id,
-    :ingest_status
+    :ingest_status,
+
+    # Review resolution
+    :pending_file_id
   ]
 end

@@ -5,6 +5,9 @@ defmodule MediaManager.Review do
   Provides the `PendingFile` resource for tracking low-confidence matches.
   The ReviewLive UI reads PendingFile records for display and uses these
   functions for approve, dismiss, search, and match-selection workflows.
+
+  Approval broadcasts a `{:review_resolved, ...}` event to `"pipeline:input"`,
+  which the Pipeline Producer picks up for async processing via Broadway.
   """
   use Ash.Domain
 
@@ -15,16 +18,6 @@ defmodule MediaManager.Review do
   require Logger
   require MediaManager.Log, as: Log
 
-  alias MediaManager.Library.Helpers
-  alias MediaManager.Parser
-  alias MediaManager.Pipeline.Payload
-
-  alias MediaManager.Pipeline.Stages.{
-    FetchMetadata,
-    DownloadImages,
-    Ingest
-  }
-
   alias MediaManager.Review.PendingFile
   alias MediaManager.TMDB.Client
   alias MediaManager.DateUtil
@@ -34,48 +27,23 @@ defmodule MediaManager.Review do
   end
 
   def approve_and_process(pending_file) do
-    Task.Supervisor.start_child(MediaManager.TaskSupervisor, fn ->
-      process_approval(pending_file)
-    end)
-  end
+    Log.info(:library, "approving #{pending_file.id}")
 
-  defp process_approval(pending_file) do
-    Log.info(:library, "processing approval for #{pending_file.id}")
+    with {:ok, pending_file} <- Ash.update(pending_file, %{}, action: :approve) do
+      Phoenix.PubSub.broadcast(
+        MediaManager.PubSub,
+        "pipeline:input",
+        {:review_resolved,
+         %{
+           path: pending_file.file_path,
+           watch_dir: pending_file.watch_directory,
+           tmdb_id: pending_file.tmdb_id,
+           tmdb_type: pending_file.tmdb_type,
+           pending_file_id: pending_file.id
+         }}
+      )
 
-    with {:ok, pending_file} <- approve(pending_file),
-         {:ok, _payload} <- run_approved_pipeline(pending_file) do
-      Ash.destroy!(pending_file)
-      broadcast_reviewed(pending_file.id)
-    else
-      {:error, reason} ->
-        Logger.error("Review approval failed for #{pending_file.id}: #{inspect(reason)}")
-        broadcast_reviewed(pending_file.id)
-    end
-  end
-
-  defp approve(pending_file) do
-    Ash.update(pending_file, %{}, action: :approve)
-  end
-
-  defp run_approved_pipeline(pending_file) do
-    payload = %Payload{
-      file_path: pending_file.file_path,
-      watch_directory: pending_file.watch_directory,
-      entry_point: :review_resolved,
-      parsed: Parser.parse(pending_file.file_path),
-      tmdb_id: pending_file.tmdb_id,
-      tmdb_type: String.to_existing_atom(pending_file.tmdb_type),
-      confidence: pending_file.confidence,
-      match_title: pending_file.match_title,
-      match_year: pending_file.match_year,
-      match_poster_path: pending_file.match_poster_path
-    }
-
-    with {:ok, payload} <- FetchMetadata.run(payload),
-         {:ok, payload} <- DownloadImages.run(payload),
-         {:ok, payload} <- Ingest.run(payload) do
-      Helpers.broadcast_entities_changed([payload.entity_id])
-      {:ok, payload}
+      {:ok, pending_file}
     end
   end
 
