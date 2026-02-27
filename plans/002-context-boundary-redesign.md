@@ -1,6 +1,6 @@
 # 002 — Context Boundary Redesign
 
-> **Status: In Progress.** Phase 1 complete. Phase 2 next.
+> **Status: In Progress.** Phase 1 ✓, Phase 2 ✓. Phase 3 next.
 
 ## Problem Statement
 
@@ -407,18 +407,17 @@ before moving to the next.
 All 6 stage modules created with 34 tests. Purely additive — no existing
 code modified.
 
-#### Phase 2: Create Library Ingress
+#### Phase 2: Create Library Ingress ✓
 
 Build the Library's inbound API as a new module.
 
-1. Create `Library.Ingress` module with `ingest/1` function.
-2. Port the core logic from `EntityResolver` into the ingress (find-or-create,
-   identifier management, image storage, TV hierarchy, WatchedFile creation).
-3. The ingress accepts a `Pipeline.Payload` (or a map derived from it) and
-   returns `{:ok, entity}` or `{:error, reason}`.
-4. Update `Pipeline.Stages.Ingest` to call `Library.Ingress` instead of the
-   temporary bridge.
-5. Write tests for the ingress.
+1. ✓ Create `Library.Ingress` module with `ingest/1` function.
+2. ✓ Port the core logic from `EntityResolver` into the ingress (find-or-create,
+   identifier management, image storage, TV hierarchy).
+3. ✓ The ingress accepts a `Pipeline.Payload` and returns `{:ok, entity, status}`.
+4. ✓ Update `Pipeline.Stages.Ingest` to call `Library.Ingress` instead of
+   `EntityResolver`.
+5. ✓ Write tests for the ingress (14 tests) and updated Ingest stage (5 tests).
 
 #### Phase 3: Create Review Context
 

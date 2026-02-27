@@ -1,6 +1,6 @@
 # 002-P2 — Library Ingress
 
-> **Status: In Progress.**
+> **Status: Complete.** Ingress module created, Stages.Ingest updated, 19 tests passing, `mix precommit` clean (320 tests, 0 failures).
 
 ## Context
 

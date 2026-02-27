@@ -1,41 +1,45 @@
 defmodule MediaManager.Pipeline.Stages.IngestTest do
   @moduledoc """
-  Tests for the Phase 1 Ingest bridge that delegates to EntityResolver.
+  Tests for the Ingest stage wrapper that delegates to Library.Ingress.
+
+  No TMDB stubs needed: Ingress consumes pre-built metadata, not TMDB data.
   """
   use MediaManager.DataCase
 
   alias MediaManager.Pipeline.Payload
   alias MediaManager.Pipeline.Stages.Ingest
   alias MediaManager.Library.Entity
-  alias MediaManager.Parser
 
-  import MediaManager.TmdbStubs
-
-  setup do
-    setup_tmdb_client()
-  end
-
-  defp payload_for(overrides \\ %{}) do
-    defaults = %{
-      title: "Fight Club",
-      year: 1999,
-      type: :movie,
-      season: nil,
-      episode: nil,
-      parent_title: nil,
-      parent_year: nil,
-      file_path: "/media/Fight.Club.1999.mkv",
-      episode_title: nil
-    }
-
-    parsed = struct(Parser.Result, Map.merge(defaults, overrides))
+  defp movie_payload(overrides \\ %{}) do
+    metadata =
+      Map.merge(
+        %{
+          entity_type: :movie,
+          entity_attrs: %{
+            type: :movie,
+            name: "Fight Club",
+            description: "An insomniac office worker...",
+            date_published: "1999-10-15",
+            content_url: "/media/Fight.Club.1999.mkv",
+            url: "https://www.themoviedb.org/movie/550"
+          },
+          images: [
+            %{role: "poster", url: "https://image.tmdb.org/poster.jpg", extension: "jpg"}
+          ],
+          identifier: %{property_id: "tmdb", value: "550"},
+          child_movie: nil,
+          season: nil,
+          extra: nil
+        },
+        overrides[:metadata] || %{}
+      )
 
     %Payload{
-      file_path: parsed.file_path,
-      parsed: parsed,
+      file_path: "/media/Fight.Club.1999.mkv",
       tmdb_id: overrides[:tmdb_id] || 550,
       tmdb_type: overrides[:tmdb_type] || :movie,
-      confidence: 0.95
+      metadata: metadata,
+      staged_images: overrides[:staged_images] || []
     }
   end
 
@@ -44,10 +48,8 @@ defmodule MediaManager.Pipeline.Stages.IngestTest do
   # ---------------------------------------------------------------------------
 
   describe "movie ingestion" do
-    test "creates a movie entity via EntityResolver" do
-      stub_routes([{"/movie/550", movie_detail()}])
-
-      payload = payload_for()
+    test "creates a movie entity via Ingress" do
+      payload = movie_payload()
 
       assert {:ok, result} = Ingest.run(payload)
       assert result.entity_id != nil
@@ -59,14 +61,20 @@ defmodule MediaManager.Pipeline.Stages.IngestTest do
     end
 
     test "reuses existing entity on second ingest" do
-      stub_routes([{"/movie/550", movie_detail()}])
-
-      payload = payload_for()
+      payload = movie_payload()
       assert {:ok, first} = Ingest.run(payload)
 
-      # Second ingest for same TMDB ID
+      # Second ingest for same TMDB ID — uses different file path
       second_payload =
-        payload_for(%{file_path: "/media/Fight.Club.1999.other.mkv"})
+        movie_payload(
+          metadata: %{
+            entity_attrs: %{
+              type: :movie,
+              name: "Fight Club",
+              content_url: "/media/Fight.Club.1999.other.mkv"
+            }
+          }
+        )
 
       assert {:ok, second} = Ingest.run(second_payload)
       assert second.entity_id == first.entity_id
@@ -80,18 +88,33 @@ defmodule MediaManager.Pipeline.Stages.IngestTest do
 
   describe "movie in collection" do
     test "creates movie series entity with child movie" do
-      stub_routes([
-        {"/movie/155", movie_in_collection_detail()},
-        {"/collection/263", collection_detail()}
-      ])
-
-      payload =
-        payload_for(%{
-          tmdb_id: 155,
-          title: "The Shadowy Sentinel",
-          year: 2008,
-          file_path: "/media/The.Shadowy.Sentinel.2008.mkv"
-        })
+      payload = %Payload{
+        file_path: "/media/The.Shadowy.Sentinel.2008.mkv",
+        tmdb_id: 155,
+        tmdb_type: :movie,
+        metadata: %{
+          entity_type: :movie_series,
+          entity_attrs: %{
+            type: :movie_series,
+            name: "The Shadowy Sentinel Collection"
+          },
+          images: [],
+          identifier: %{property_id: "tmdb_collection", value: "263"},
+          child_movie: %{
+            attrs: %{
+              tmdb_id: "155",
+              name: "The Shadowy Sentinel",
+              content_url: "/media/The.Shadowy.Sentinel.2008.mkv",
+              position: 1
+            },
+            images: [],
+            identifier: %{property_id: "tmdb", value: "155"}
+          },
+          season: nil,
+          extra: nil
+        },
+        staged_images: []
+      }
 
       assert {:ok, result} = Ingest.run(payload)
       assert result.entity_id != nil
@@ -109,22 +132,37 @@ defmodule MediaManager.Pipeline.Stages.IngestTest do
 
   describe "TV ingestion" do
     test "creates TV entity with season and episode" do
-      stub_routes([
-        {"/tv/1396/season/1", season_detail()},
-        {"/tv/1396", tv_detail()}
-      ])
-
-      payload =
-        payload_for(%{
-          tmdb_id: 1396,
-          tmdb_type: :tv,
-          title: "Sample Show Eight",
-          year: 2008,
-          type: :tv,
-          season: 1,
-          episode: 1,
-          file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv"
-        })
+      payload = %Payload{
+        file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv",
+        tmdb_id: 1396,
+        tmdb_type: :tv,
+        metadata: %{
+          entity_type: :tv_series,
+          entity_attrs: %{
+            type: :tv_series,
+            name: "Sample Show Eight",
+            number_of_seasons: 5
+          },
+          images: [],
+          identifier: %{property_id: "tmdb", value: "1396"},
+          child_movie: nil,
+          season: %{
+            season_number: 1,
+            name: "Season 1",
+            number_of_episodes: 7,
+            episode: %{
+              attrs: %{
+                episode_number: 1,
+                name: "Pilot",
+                content_url: "/media/TV/Sample.Show.Eight.S01E01.mkv"
+              },
+              images: []
+            }
+          },
+          extra: nil
+        },
+        staged_images: []
+      }
 
       assert {:ok, result} = Ingest.run(payload)
       assert result.entity_id != nil
@@ -143,12 +181,12 @@ defmodule MediaManager.Pipeline.Stages.IngestTest do
   # ---------------------------------------------------------------------------
 
   describe "error handling" do
-    test "TMDB detail fetch failure returns error" do
-      stub_tmdb_error("/movie/999", 500)
+    test "nil metadata raises" do
+      payload = %Payload{metadata: nil, staged_images: []}
 
-      payload = payload_for(%{tmdb_id: 999})
-
-      assert {:error, _reason} = Ingest.run(payload)
+      assert_raise BadMapError, fn ->
+        Ingest.run(payload)
+      end
     end
   end
 end
