@@ -1,6 +1,6 @@
 # 002 — Context Boundary Redesign
 
-> **Status: Planning.** Design approved. Implementation not yet started.
+> **Status: In Progress.** Phase 1 complete. Phase 2 next.
 
 ## Problem Statement
 
@@ -400,22 +400,12 @@ carefully since SQLite has limited ALTER TABLE support.
 Each phase should be a self-contained set of changes that passes `mix precommit`
 before moving to the next.
 
-#### Phase 1: Create Pipeline Payload and Stage Functions
+#### Phase 1: Create Pipeline Payload and Stage Functions ✓
 
-Build the new pipeline stages as **new modules alongside the existing ones**.
-Don't delete anything yet. This phase is purely additive.
+**Complete.** See `plans/002-p1-pipeline-payload-and-stages.md` for details.
 
-1. Create `Pipeline.Payload` struct.
-2. Create `Pipeline.Stages.Parse` — calls Parser, returns payload.
-3. Create `Pipeline.Stages.Search` — calls TMDB, scores, returns payload with
-   match or `:needs_review` signal.
-4. Create `Pipeline.Stages.FetchMetadata` — calls TMDB details, assembles
-   metadata in payload.
-5. Create `Pipeline.Stages.DownloadImages` — downloads to staging dir, returns
-   payload with image paths.
-6. Create `Pipeline.Stages.Ingest` — placeholder that calls the existing
-   `EntityResolver` (temporary bridge).
-7. Write tests for each stage function in isolation, using TMDB stubs.
+All 6 stage modules created with 34 tests. Purely additive — no existing
+code modified.
 
 #### Phase 2: Create Library Ingress
 
