@@ -2,9 +2,9 @@ defmodule MediaManager.Review do
   @moduledoc """
   The review domain — files requiring human review before library ingestion.
 
-  Provides the `PendingFile` resource for the new pipeline-driven review flow,
-  plus legacy helper functions that power the existing ReviewLive (operating on
-  WatchedFile). The legacy functions will be migrated to PendingFile in Phase 4.
+  Provides the `PendingFile` resource for tracking low-confidence matches.
+  The ReviewLive UI reads PendingFile records for display and uses these
+  functions for approve, dismiss, search, and match-selection workflows.
   """
   use Ash.Domain
 
@@ -12,85 +12,102 @@ defmodule MediaManager.Review do
     resource MediaManager.Review.PendingFile
   end
 
+  require Logger
   require MediaManager.Log, as: Log
 
-  alias MediaManager.DateUtil
-  alias MediaManager.Library.{Helpers, WatchedFile}
+  alias MediaManager.Library.Helpers
+  alias MediaManager.Parser
+  alias MediaManager.Pipeline.Payload
+
+  alias MediaManager.Pipeline.Stages.{
+    FetchMetadata,
+    DownloadImages,
+    Ingest
+  }
+
+  alias MediaManager.Review.PendingFile
   alias MediaManager.TMDB.Client
+  alias MediaManager.DateUtil
 
   def fetch_pending_files do
-    Ash.read!(WatchedFile, action: :pending_review_files)
+    Ash.read!(PendingFile, action: :pending)
   end
 
-  def approve_and_process(file) do
+  def approve_and_process(pending_file) do
     Task.Supervisor.start_child(MediaManager.TaskSupervisor, fn ->
-      process_approval(file)
+      process_approval(pending_file)
     end)
   end
 
-  defp process_approval(file) do
-    Log.info(:library, "processing approval for #{file.id}")
+  defp process_approval(pending_file) do
+    Log.info(:library, "processing approval for #{pending_file.id}")
 
-    with {:ok, file} <- approve(file),
-         {:ok, file} <- fetch_metadata(file),
-         {:ok, _file} <- maybe_download_images(file) do
-      broadcast_reviewed(file.id)
-      if file.entity_id, do: Helpers.broadcast_entities_changed([file.entity_id])
+    with {:ok, pending_file} <- approve(pending_file),
+         {:ok, _payload} <- run_approved_pipeline(pending_file) do
+      Ash.destroy!(pending_file)
+      broadcast_reviewed(pending_file.id)
     else
       {:error, reason} ->
-        require Logger
-        Logger.error("Review approval failed for #{file.id}: #{inspect(reason)}")
-        broadcast_reviewed(file.id)
+        Logger.error("Review approval failed for #{pending_file.id}: #{inspect(reason)}")
+        broadcast_reviewed(pending_file.id)
     end
   end
 
-  defp approve(file) do
-    file
-    |> Ash.Changeset.for_update(:approve, %{})
-    |> Ash.update()
+  defp approve(pending_file) do
+    Ash.update(pending_file, %{}, action: :approve)
   end
 
-  defp fetch_metadata(file) do
-    file
-    |> Ash.Changeset.for_update(:fetch_metadata, %{})
-    |> Ash.update()
-  end
+  defp run_approved_pipeline(pending_file) do
+    payload = %Payload{
+      file_path: pending_file.file_path,
+      watch_directory: pending_file.watch_directory,
+      entry_point: :review_resolved,
+      parsed: Parser.parse(pending_file.file_path),
+      tmdb_id: pending_file.tmdb_id,
+      tmdb_type: String.to_existing_atom(pending_file.tmdb_type),
+      confidence: pending_file.confidence,
+      match_title: pending_file.match_title,
+      match_year: pending_file.match_year,
+      match_poster_path: pending_file.match_poster_path
+    }
 
-  defp maybe_download_images(file) do
-    if file.state == :fetching_images do
-      file
-      |> Ash.Changeset.for_update(:download_images, %{})
-      |> Ash.update()
-    else
-      {:ok, file}
+    with {:ok, payload} <- FetchMetadata.run(payload),
+         {:ok, payload} <- DownloadImages.run(payload),
+         {:ok, payload} <- Ingest.run(payload) do
+      Helpers.broadcast_entities_changed([payload.entity_id])
+      {:ok, payload}
     end
   end
 
-  def retry(file), do: update_and_broadcast(file, :retry)
-
-  def dismiss(file), do: update_and_broadcast(file, :dismiss)
-
-  defp update_and_broadcast(file, action) do
-    result =
-      file
-      |> Ash.Changeset.for_update(action, %{})
-      |> Ash.update()
-
-    if match?({:ok, _}, result), do: broadcast_reviewed(file.id)
-
+  def dismiss(pending_file) do
+    result = Ash.update(pending_file, %{}, action: :dismiss)
+    if match?({:ok, _}, result), do: broadcast_reviewed(pending_file.id)
     result
   end
 
-  def set_tmdb_match(file, %{tmdb_id: tmdb_id, title: title, year: year, poster_path: poster_path}) do
-    file
-    |> Ash.Changeset.for_update(:set_tmdb_match, %{
-      tmdb_id: to_string(tmdb_id),
-      match_title: title,
-      match_year: year,
-      match_poster_path: poster_path,
-      confidence_score: 1.0
-    })
-    |> Ash.update()
+  def set_tmdb_match(pending_file, %{
+        tmdb_id: tmdb_id,
+        title: title,
+        year: year,
+        poster_path: poster_path
+      }) do
+    tmdb_id_int =
+      case tmdb_id do
+        id when is_integer(id) -> id
+        id when is_binary(id) -> String.to_integer(id)
+      end
+
+    Ash.update(
+      pending_file,
+      %{
+        tmdb_id: tmdb_id_int,
+        match_title: title,
+        match_year: year,
+        match_poster_path: poster_path,
+        confidence: 1.0
+      },
+      action: :set_tmdb_match
+    )
   end
 
   def search_tmdb(query, type) do
