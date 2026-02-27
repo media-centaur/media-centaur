@@ -9,7 +9,7 @@ defmodule MediaManagerWeb.DashboardLive do
       if connected?(socket) do
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "watcher:state")
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "library:updates")
-        Phoenix.PubSub.subscribe(MediaManager.PubSub, "pipeline:updates")
+
         Phoenix.PubSub.subscribe(MediaManager.PubSub, "playback:events")
 
         stats = Dashboard.fetch_stats()
@@ -17,7 +17,6 @@ defmodule MediaManagerWeb.DashboardLive do
         socket
         |> assign(watcher_statuses: MediaManager.Watcher.Supervisor.statuses())
         |> assign(library_stats: stats.library)
-        |> assign(pipeline_stats: stats.pipeline)
         |> assign(pending_review: stats.pending_review)
         |> assign(recent_errors: stats.recent_errors)
         |> assign(playback: MediaManager.Playback.Manager.current_state())
@@ -26,7 +25,6 @@ defmodule MediaManagerWeb.DashboardLive do
         socket
         |> assign(watcher_statuses: [])
         |> assign(library_stats: %{entities: 0, files: 0, images: 0, by_type: %{}})
-        |> assign(pipeline_stats: %{complete: 0, pending_review: 0})
         |> assign(pending_review: [])
         |> assign(recent_errors: [])
         |> assign(playback: %{state: :idle, now_playing: nil})
@@ -61,7 +59,6 @@ defmodule MediaManagerWeb.DashboardLive do
           socket
           |> put_flash(:info, message)
           |> assign(scanning: false)
-          |> assign(pipeline_stats: stats.pipeline)
           |> assign(library_stats: stats.library)
 
         {:noreply, socket}
@@ -98,7 +95,6 @@ defmodule MediaManagerWeb.DashboardLive do
      socket
      |> assign(clearing_database: false)
      |> assign(library_stats: stats.library)
-     |> assign(pipeline_stats: stats.pipeline)
      |> assign(pending_review: stats.pending_review)
      |> assign(recent_errors: stats.recent_errors)
      |> put_flash(:info, "Database cleared successfully")}
@@ -111,7 +107,6 @@ defmodule MediaManagerWeb.DashboardLive do
      socket
      |> assign(refreshing_images: false)
      |> assign(library_stats: stats.library)
-     |> assign(pipeline_stats: stats.pipeline)
      |> assign(pending_review: stats.pending_review)
      |> assign(recent_errors: stats.recent_errors)
      |> put_flash(:info, "Image cache refreshed — re-downloaded images for #{count} entities")}
@@ -126,10 +121,6 @@ defmodule MediaManagerWeb.DashboardLive do
     {:noreply, debounce_stats_refresh(socket)}
   end
 
-  def handle_info(:pipeline_changed, socket) do
-    {:noreply, debounce_stats_refresh(socket)}
-  end
-
   def handle_info(:refresh_stats, socket) do
     stats = Dashboard.fetch_stats()
 
@@ -137,7 +128,6 @@ defmodule MediaManagerWeb.DashboardLive do
      socket
      |> assign(stats_timer: nil)
      |> assign(library_stats: stats.library)
-     |> assign(pipeline_stats: stats.pipeline)
      |> assign(pending_review: stats.pending_review)
      |> assign(recent_errors: stats.recent_errors)}
   end
@@ -181,7 +171,7 @@ defmodule MediaManagerWeb.DashboardLive do
         </div>
 
         <.library_stats stats={@library_stats} />
-        <.pipeline_status stats={@pipeline_stats} />
+
         <.watcher_health statuses={@watcher_statuses} />
         <.playback_status playback={@playback} />
         <.pending_review_table files={@pending_review} />
@@ -221,32 +211,6 @@ defmodule MediaManagerWeb.DashboardLive do
             <div class="stat-title">{format_type(type)}</div>
             <div class="stat-value text-2xl">{count}</div>
           </div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp pipeline_status(assigns) do
-    ~H"""
-    <div class="card bg-base-100 shadow-sm">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Pipeline</h2>
-
-        <div :if={@stats.complete == 0 and @stats.pending_review == 0} class="text-base-content/60">
-          No files processed yet.
-        </div>
-
-        <div
-          :if={@stats.complete > 0 or @stats.pending_review > 0}
-          class="flex flex-wrap items-center gap-2"
-        >
-          <span :if={@stats.complete > 0} class="badge badge-success gap-1">
-            {@stats.complete} tracked files
-          </span>
-          <.link :if={@stats.pending_review > 0} navigate="/review" class="badge badge-warning gap-1">
-            {@stats.pending_review} pending review
-          </.link>
         </div>
       </div>
     </div>
