@@ -88,6 +88,10 @@ Cross-component specifications live in `../specifications`. See [specifications/
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
 - **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
 
+## UI Design
+
+See [`DESIGN.md`](DESIGN.md) for UI principles, page structure, color/theme standards, and component guidelines. Read it before any LiveView, layout, or styling work.
+
 ## Architecture Decision Records
 
 Architectural decisions are recorded in `adrs/` using the [MADR 4.0](https://adr.github.io/madr/) lean template. Each ADR documents a single decision: the context that motivated it, the option chosen, and the consequences. See `adrs/template.md` for the blank template.
