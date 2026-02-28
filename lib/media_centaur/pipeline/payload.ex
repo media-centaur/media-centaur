@@ -29,6 +29,7 @@ defmodule MediaCentaur.Pipeline.Payload do
   - `metadata` — structured map with entity attrs, images, identifiers
 
   **DownloadImages stage:**
+  - `staging_dir` — temporary directory where images are staged before ingest
   - `staged_images` — list of `{role, owner_id, local_path}` tuples
 
   **Ingest stage:**
@@ -63,6 +64,7 @@ defmodule MediaCentaur.Pipeline.Payload do
     :metadata,
 
     # DownloadImages stage
+    :staging_dir,
     :staged_images,
 
     # Ingest stage

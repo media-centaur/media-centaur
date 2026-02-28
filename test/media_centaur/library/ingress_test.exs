@@ -10,14 +10,22 @@ defmodule MediaCentaur.Library.IngressTest do
   alias MediaCentaur.Library.{Entity, Identifier, Ingress}
   alias MediaCentaur.Pipeline.Payload
 
+  @watch_directory "/tmp/ingress_test_watch"
+
   setup do
-    # Set up a temporary images directory for each test.
-    # Config.get reads from :persistent_term, so we override it directly.
+    # Set up a temporary watch directory with images dir for each test.
     images_dir = Path.join(System.tmp_dir!(), "ingress_test_#{Ash.UUID.generate()}")
     File.mkdir_p!(images_dir)
 
     config = :persistent_term.get({MediaCentaur.Config, :config})
-    updated_config = Map.put(config, :media_images_dir, images_dir)
+
+    updated_config =
+      config
+      |> Map.put(:watch_dir_images, %{@watch_directory => images_dir})
+      |> Map.update(:watch_dirs, [@watch_directory], fn dirs ->
+        if @watch_directory in dirs, do: dirs, else: [@watch_directory | dirs]
+      end)
+
     :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
 
     on_exit(fn ->
@@ -128,7 +136,7 @@ defmodule MediaCentaur.Library.IngressTest do
   end
 
   defp payload_with(metadata, staged_images \\ []) do
-    %Payload{metadata: metadata, staged_images: staged_images}
+    %Payload{metadata: metadata, staged_images: staged_images, watch_directory: @watch_directory}
   end
 
   defp create_staged_image(staging_dir, owner, role) do

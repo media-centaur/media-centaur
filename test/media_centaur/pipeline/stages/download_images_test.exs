@@ -24,9 +24,12 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImagesTest do
     prev = Application.get_env(:media_centaur, :staging_image_downloader)
     Application.put_env(:media_centaur, :staging_image_downloader, FakeDownloader)
 
+    staging_parent = Path.join(System.tmp_dir!(), ".media-centaur")
+
     on_exit(fn ->
       if prev, do: Application.put_env(:media_centaur, :staging_image_downloader, prev)
       unless prev, do: Application.delete_env(:media_centaur, :staging_image_downloader)
+      File.rm_rf(staging_parent)
     end)
 
     :ok
@@ -51,7 +54,7 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImagesTest do
         )
     }
 
-    %Payload{metadata: metadata}
+    %Payload{metadata: metadata, watch_directory: System.tmp_dir!()}
   end
 
   # ---------------------------------------------------------------------------
@@ -77,6 +80,13 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImagesTest do
       backdrop = Enum.find(result.staged_images, &(&1.role == "backdrop"))
       assert backdrop.owner == "entity"
       assert File.exists?(backdrop.local_path)
+
+      # Staging dir is set on payload and is a sibling of the images dir
+      assert result.staging_dir != nil
+      assert String.contains?(result.staging_dir, "tmp-image-download")
+      assert String.contains?(result.staging_dir, ".media-centaur")
+
+      File.rm_rf(result.staging_dir)
     end
 
     test "downloads child movie images" do

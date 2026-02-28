@@ -24,11 +24,6 @@ watch_dirs = [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")]
 
 config :media_centaur,
   watch_dirs: watch_dirs,
-  media_images_dir:
-    System.get_env(
-      "MEDIA_IMAGES_DIR",
-      Path.expand("~/.local/share/media-centaur/images")
-    ),
   tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
   auto_approve_threshold: 0.85
 

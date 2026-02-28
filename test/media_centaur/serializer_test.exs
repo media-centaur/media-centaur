@@ -1,13 +1,45 @@
 defmodule MediaCentaur.SerializerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import MediaCentaur.TestFactory
 
+  alias MediaCentaur.Config
   alias MediaCentaur.Serializer
 
+  setup do
+    original_config = :persistent_term.get({Config, :config})
+
+    tmp_dir = Path.join(System.tmp_dir!(), "serializer_test_#{Ash.UUID.generate()}")
+    images_dir = Path.join(tmp_dir, ".media-centaur/images")
+    File.mkdir_p!(images_dir)
+
+    config = %{
+      watch_dirs: [tmp_dir],
+      watch_dir_images: %{tmp_dir => images_dir}
+    }
+
+    :persistent_term.put({Config, :config}, config)
+
+    on_exit(fn ->
+      :persistent_term.put({Config, :config}, original_config)
+      File.rm_rf!(tmp_dir)
+    end)
+
+    %{images_dir: images_dir}
+  end
+
+  # Creates a fake image file on disk so resolve_image_path/1 finds it.
+  defp create_image_file!(images_dir, relative_path) do
+    full_path = Path.join(images_dir, relative_path)
+    File.mkdir_p!(Path.dirname(full_path))
+    File.write!(full_path, "fake")
+    full_path
+  end
+
   describe "Movie" do
-    test "all fields present produces correct JSON-LD structure" do
+    test "all fields present produces correct JSON-LD structure", %{images_dir: images_dir} do
       entity_id = Ash.UUID.generate()
+      expected_path = create_image_file!(images_dir, "#{entity_id}/poster.jpg")
 
       entity =
         build_entity(%{
@@ -26,7 +58,7 @@ defmodule MediaCentaur.SerializerTest do
             build_image(%{
               role: "poster",
               url: "https://example.com/poster.jpg",
-              content_url: "images/#{entity_id}/poster.jpg"
+              content_url: "#{entity_id}/poster.jpg"
             })
           ],
           identifiers: [
@@ -54,7 +86,7 @@ defmodule MediaCentaur.SerializerTest do
       assert image["@type"] == "ImageObject"
       assert image["name"] == "poster"
       assert image["url"] == "https://example.com/poster.jpg"
-      assert image["contentUrl"] == "images/#{entity_id}/poster.jpg"
+      assert image["contentUrl"] == expected_path
 
       [identifier] = inner["identifier"]
       assert identifier["@type"] == "PropertyValue"
@@ -126,8 +158,9 @@ defmodule MediaCentaur.SerializerTest do
       assert second_ep["name"] == "Second"
     end
 
-    test "episode images are serialized" do
+    test "episode images are serialized", %{images_dir: images_dir} do
       episode_id = Ash.UUID.generate()
+      expected_path = create_image_file!(images_dir, "#{episode_id}/thumb.jpg")
 
       episode =
         build_episode(%{
@@ -138,7 +171,7 @@ defmodule MediaCentaur.SerializerTest do
             build_image(%{
               role: "thumb",
               url: "https://image.tmdb.org/t/p/original/still.jpg",
-              content_url: "images/#{episode_id}/thumb.jpg"
+              content_url: "#{episode_id}/thumb.jpg"
             })
           ]
         })
@@ -155,14 +188,15 @@ defmodule MediaCentaur.SerializerTest do
       assert image["@type"] == "ImageObject"
       assert image["name"] == "thumb"
       assert image["url"] == "https://image.tmdb.org/t/p/original/still.jpg"
-      assert image["contentUrl"] == "images/#{episode_id}/thumb.jpg"
+      assert image["contentUrl"] == expected_path
     end
   end
 
   describe "MovieSeries — 1 child" do
-    test "exports as @type Movie using child's data" do
+    test "exports as @type Movie using child's data", %{images_dir: images_dir} do
       entity_id = Ash.UUID.generate()
       movie_id = Ash.UUID.generate()
+      create_image_file!(images_dir, "#{movie_id}/poster.jpg")
 
       movie =
         build_movie(%{
@@ -181,7 +215,7 @@ defmodule MediaCentaur.SerializerTest do
             build_image(%{
               role: "poster",
               url: "https://example.com/poster.jpg",
-              content_url: "images/#{movie_id}/poster.jpg"
+              content_url: "#{movie_id}/poster.jpg"
             })
           ]
         })
@@ -220,8 +254,13 @@ defmodule MediaCentaur.SerializerTest do
   end
 
   describe "MovieSeries — 2+ children" do
-    test "exports as @type MovieSeries with hasPart array, children sorted by position" do
+    test "exports as @type MovieSeries with hasPart array, children sorted by position", %{
+      images_dir: images_dir
+    } do
       entity_id = Ash.UUID.generate()
+      expected_series_path = create_image_file!(images_dir, "#{entity_id}/poster.jpg")
+      create_image_file!(images_dir, "a/poster.jpg")
+      create_image_file!(images_dir, "b/poster.jpg")
 
       movie_a =
         build_movie(%{
@@ -236,7 +275,7 @@ defmodule MediaCentaur.SerializerTest do
             build_image(%{
               role: "poster",
               url: "https://example.com/a-poster.jpg",
-              content_url: "images/a/poster.jpg"
+              content_url: "a/poster.jpg"
             })
           ]
         })
@@ -254,7 +293,7 @@ defmodule MediaCentaur.SerializerTest do
             build_image(%{
               role: "poster",
               url: "https://example.com/b-poster.jpg",
-              content_url: "images/b/poster.jpg"
+              content_url: "b/poster.jpg"
             })
           ]
         })
@@ -268,7 +307,7 @@ defmodule MediaCentaur.SerializerTest do
             build_image(%{
               role: "poster",
               url: "https://example.com/series-poster.jpg",
-              content_url: "images/#{entity_id}/poster.jpg"
+              content_url: "#{entity_id}/poster.jpg"
             })
           ],
           identifiers: [
@@ -288,7 +327,7 @@ defmodule MediaCentaur.SerializerTest do
       [series_image] = inner["image"]
       assert series_image["@type"] == "ImageObject"
       assert series_image["name"] == "poster"
-      assert series_image["contentUrl"] == "images/#{entity_id}/poster.jpg"
+      assert series_image["contentUrl"] == expected_series_path
 
       [series_id] = inner["identifier"]
       assert series_id["propertyID"] == "tmdb_collection"
@@ -478,7 +517,9 @@ defmodule MediaCentaur.SerializerTest do
   end
 
   describe "images" do
-    test "ImageObject with @type, name (role), url, contentUrl" do
+    test "ImageObject with @type, name (role), url, contentUrl", %{images_dir: images_dir} do
+      expected_path = create_image_file!(images_dir, "test/backdrop.jpg")
+
       entity =
         build_entity(%{
           type: :movie,
@@ -487,7 +528,7 @@ defmodule MediaCentaur.SerializerTest do
             build_image(%{
               role: "backdrop",
               url: "https://example.com/backdrop.jpg",
-              content_url: "images/test/backdrop.jpg"
+              content_url: "test/backdrop.jpg"
             })
           ]
         })
@@ -498,7 +539,7 @@ defmodule MediaCentaur.SerializerTest do
       assert image["@type"] == "ImageObject"
       assert image["name"] == "backdrop"
       assert image["url"] == "https://example.com/backdrop.jpg"
-      assert image["contentUrl"] == "images/test/backdrop.jpg"
+      assert image["contentUrl"] == expected_path
     end
   end
 

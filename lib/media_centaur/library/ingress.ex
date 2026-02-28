@@ -16,17 +16,21 @@ defmodule MediaCentaur.Library.Ingress do
 
   @spec ingest(Payload.t()) ::
           {:ok, Entity.t(), :new | :new_child | :existing} | {:error, term()}
-  def ingest(%Payload{metadata: metadata, staged_images: staged_images}) do
+  def ingest(%Payload{
+        metadata: metadata,
+        staged_images: staged_images,
+        watch_directory: watch_directory
+      }) do
     staged_images = staged_images || []
 
     case find_existing_entity(metadata.identifier) do
       {:ok, entity} ->
         Log.info(:library, "found existing entity #{entity.id}")
-        link_to_existing(entity, metadata, staged_images)
+        link_to_existing(entity, metadata, staged_images, watch_directory)
 
       :not_found ->
         Log.info(:library, "no existing entity, creating new")
-        create_new(metadata, staged_images)
+        create_new(metadata, staged_images, watch_directory)
     end
   end
 
@@ -56,7 +60,7 @@ defmodule MediaCentaur.Library.Ingress do
   # Create new entity
   # ---------------------------------------------------------------------------
 
-  defp create_new(metadata, staged_images) do
+  defp create_new(metadata, staged_images, watch_directory) do
     entity_attrs = strip_content_url_if_extra(metadata.entity_attrs, metadata)
 
     with {:ok, entity} <- Ash.create(Entity, entity_attrs, action: :create_from_tmdb),
@@ -68,16 +72,17 @@ defmodule MediaCentaur.Library.Ingress do
              "entity",
              metadata.images,
              staged_images,
-             :find_or_create
+             :find_or_create,
+             watch_directory
            ),
-         :ok <- create_children(entity, metadata, staged_images) do
+         :ok <- create_children(entity, metadata, staged_images, watch_directory) do
       Log.info(:library, "created #{metadata.entity_type} entity #{entity.id}")
       {:ok, entity, :new}
     else
       {:race_lost, winner_entity_id} ->
         Log.info(:library, "race lost, using winner #{winner_entity_id}")
         winner = Ash.get!(Entity, winner_entity_id)
-        link_to_existing(winner, metadata, staged_images)
+        link_to_existing(winner, metadata, staged_images, watch_directory)
 
       {:error, reason} ->
         {:error, reason}
@@ -86,26 +91,33 @@ defmodule MediaCentaur.Library.Ingress do
 
   # Creates type-specific child records (season/episode, child movie, extra).
   # Order matters: season before extra (extra may link to the season).
-  defp create_children(entity, metadata, staged_images) do
-    with :ok <- maybe_create_season(entity, metadata, staged_images),
-         :ok <- maybe_create_child_movie(entity, metadata, staged_images),
+  defp create_children(entity, metadata, staged_images, watch_directory) do
+    with :ok <- maybe_create_season(entity, metadata, staged_images, watch_directory),
+         :ok <- maybe_create_child_movie(entity, metadata, staged_images, watch_directory),
          :ok <- maybe_create_extra(entity, metadata) do
       :ok
     end
   end
 
-  defp maybe_create_season(_entity, %{season: nil}, _staged_images), do: :ok
+  defp maybe_create_season(_entity, %{season: nil}, _staged_images, _watch_directory), do: :ok
 
-  defp maybe_create_season(entity, %{season: season}, staged_images) do
-    create_season_and_episode(entity, season, staged_images)
+  defp maybe_create_season(entity, %{season: season}, staged_images, watch_directory) do
+    create_season_and_episode(entity, season, staged_images, watch_directory)
   end
 
-  defp maybe_create_child_movie(_entity, %{child_movie: nil}, _staged_images), do: :ok
+  defp maybe_create_child_movie(_entity, %{child_movie: nil}, _staged_images, _watch_directory),
+    do: :ok
 
-  defp maybe_create_child_movie(entity, %{child_movie: child_movie} = metadata, staged_images) do
+  defp maybe_create_child_movie(
+         entity,
+         %{child_movie: child_movie} = metadata,
+         staged_images,
+         watch_directory
+       ) do
     child_movie = strip_child_content_url_if_extra(child_movie, metadata)
 
-    with {:ok, _movie} <- create_child_movie(entity, child_movie, staged_images),
+    with {:ok, _movie} <-
+           create_child_movie(entity, child_movie, staged_images, watch_directory),
          :ok <- create_child_movie_identifier(entity, child_movie) do
       :ok
     end
@@ -119,10 +131,10 @@ defmodule MediaCentaur.Library.Ingress do
   # ---------------------------------------------------------------------------
 
   # Extra on existing entity — always handled first (regardless of entity type)
-  defp link_to_existing(entity, %{extra: %{} = extra} = metadata, staged_images) do
+  defp link_to_existing(entity, %{extra: %{} = extra} = metadata, staged_images, watch_directory) do
     # For TV extras, ensure the season exists first
     if metadata.season do
-      create_season_and_episode(entity, metadata.season, staged_images)
+      create_season_and_episode(entity, metadata.season, staged_images, watch_directory)
     end
 
     with :ok <- create_extra(entity, extra) do
@@ -131,9 +143,15 @@ defmodule MediaCentaur.Library.Ingress do
   end
 
   # TV series — ensure season + episode
-  defp link_to_existing(entity, %{entity_type: :tv_series} = metadata, staged_images) do
+  defp link_to_existing(
+         entity,
+         %{entity_type: :tv_series} = metadata,
+         staged_images,
+         watch_directory
+       ) do
     if metadata.season do
-      with :ok <- create_season_and_episode(entity, metadata.season, staged_images) do
+      with :ok <-
+             create_season_and_episode(entity, metadata.season, staged_images, watch_directory) do
         {:ok, entity, :existing}
       end
     else
@@ -142,9 +160,10 @@ defmodule MediaCentaur.Library.Ingress do
   end
 
   # Movie series — ensure child movie → :new_child
-  defp link_to_existing(%{type: :movie_series} = entity, metadata, staged_images) do
+  defp link_to_existing(%{type: :movie_series} = entity, metadata, staged_images, watch_directory) do
     if metadata.child_movie do
-      with {:ok, _movie} <- create_child_movie(entity, metadata.child_movie, staged_images),
+      with {:ok, _movie} <-
+             create_child_movie(entity, metadata.child_movie, staged_images, watch_directory),
            :ok <- create_child_movie_identifier(entity, metadata.child_movie) do
         {:ok, entity, :new_child}
       end
@@ -154,7 +173,7 @@ defmodule MediaCentaur.Library.Ingress do
   end
 
   # Standalone movie — set content_url if nil
-  defp link_to_existing(entity, metadata, _staged_images) do
+  defp link_to_existing(entity, metadata, _staged_images, _watch_directory) do
     content_url = metadata.entity_attrs[:content_url]
 
     if is_nil(entity.content_url) && content_url do
@@ -171,7 +190,7 @@ defmodule MediaCentaur.Library.Ingress do
   # Season + Episode
   # ---------------------------------------------------------------------------
 
-  defp create_season_and_episode(entity, season_data, staged_images) do
+  defp create_season_and_episode(entity, season_data, staged_images, watch_directory) do
     season_attrs = %{
       season_number: season_data.season_number,
       name: season_data.name,
@@ -183,14 +202,14 @@ defmodule MediaCentaur.Library.Ingress do
       Log.info(:library, "season S#{season_data.season_number} for entity #{entity.id}")
 
       if season_data[:episode] do
-        create_episode(season, season_data.episode, staged_images)
+        create_episode(season, season_data.episode, staged_images, watch_directory)
       else
         :ok
       end
     end
   end
 
-  defp create_episode(season, episode_data, staged_images) do
+  defp create_episode(season, episode_data, staged_images, watch_directory) do
     episode_attrs = Map.put(episode_data.attrs, :season_id, season.id)
 
     case Ash.create(Episode, episode_attrs, action: :find_or_create) do
@@ -208,7 +227,8 @@ defmodule MediaCentaur.Library.Ingress do
           "episode",
           episode_data[:images] || [],
           staged_images,
-          :find_or_create_for_episode
+          :find_or_create_for_episode,
+          watch_directory
         )
 
       {:error, reason} ->
@@ -220,7 +240,7 @@ defmodule MediaCentaur.Library.Ingress do
   # Child Movie (for collections)
   # ---------------------------------------------------------------------------
 
-  defp create_child_movie(entity, child_movie_data, staged_images) do
+  defp create_child_movie(entity, child_movie_data, staged_images, watch_directory) do
     movie_attrs = Map.put(child_movie_data.attrs, :entity_id, entity.id)
 
     case Ash.create(Movie, movie_attrs, action: :find_or_create) do
@@ -236,7 +256,8 @@ defmodule MediaCentaur.Library.Ingress do
           "child_movie",
           child_movie_data[:images] || [],
           staged_images,
-          :find_or_create_for_movie
+          :find_or_create_for_movie,
+          watch_directory
         )
 
         {:ok, movie}
@@ -299,10 +320,11 @@ defmodule MediaCentaur.Library.Ingress do
   # Images — create records and move staged files
   # ---------------------------------------------------------------------------
 
-  defp create_images(_owner_id, _owner_key, _owner_tag, [], _staged_images, _action), do: :ok
+  defp create_images(_owner_id, _owner_key, _owner_tag, [], _staged_images, _action, _watch_dir),
+    do: :ok
 
-  defp create_images(owner_id, owner_key, owner_tag, images, staged_images, action) do
-    images_dir = images_dir()
+  defp create_images(owner_id, owner_key, owner_tag, images, staged_images, action, watch_dir) do
+    images_dir = images_dir(watch_dir)
 
     image_attrs =
       Enum.map(images, fn image ->
@@ -362,8 +384,8 @@ defmodule MediaCentaur.Library.Ingress do
     end
   end
 
-  defp images_dir do
-    MediaCentaur.Config.get(:media_images_dir)
+  defp images_dir(watch_directory) do
+    MediaCentaur.Config.images_dir_for(watch_directory)
   end
 
   # ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImages do
 
   @spec run(Payload.t()) :: {:ok, Payload.t()}
   def run(%Payload{metadata: metadata} = payload) do
-    staging_dir = create_staging_dir()
+    staging_dir = create_staging_dir(payload.watch_directory)
 
     entity_images = download_images(metadata.images, staging_dir, "entity")
 
@@ -38,7 +38,7 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImages do
 
     Log.info(:pipeline, "downloaded #{length(staged)} images to staging")
 
-    {:ok, %{payload | staged_images: staged}}
+    {:ok, %{payload | staging_dir: staging_dir, staged_images: staged}}
   end
 
   defp download_images(images, staging_dir, owner_tag) when is_list(images) do
@@ -75,9 +75,9 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImages do
     end)
   end
 
-  defp create_staging_dir do
+  defp create_staging_dir(watch_directory) do
     unique_id = Ash.UUID.generate()
-    dir = Path.join([System.tmp_dir!(), "media_centaur_staging", unique_id])
+    dir = Path.join(MediaCentaur.Config.staging_base_for(watch_directory), unique_id)
     File.mkdir_p!(dir)
     dir
   end

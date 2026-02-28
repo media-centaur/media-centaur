@@ -61,6 +61,17 @@ defmodule MediaCentaur.StorageTest do
     end
   end
 
+  describe "available_bytes/1" do
+    test "returns available bytes for an existing path" do
+      assert {:ok, avail} = Storage.available_bytes("/tmp")
+      assert is_integer(avail) and avail > 0
+    end
+
+    test "returns :error for a nonexistent path" do
+      assert :error = Storage.available_bytes("/nonexistent_path_abc123")
+    end
+  end
+
   describe "measure/2" do
     test "returns a valid usage map for /tmp" do
       result = Storage.measure("/tmp", "Temp")

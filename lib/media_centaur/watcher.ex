@@ -21,8 +21,6 @@ defmodule MediaCentaur.Watcher do
 
   - **Unmount detection:** inotify fires `IN_UNMOUNT` when a watched filesystem
     is ejected. The watcher transitions to `:unavailable` and stops forwarding events.
-  - **Burst detection:** ≥50 removal events within 2s triggers a warning
-    broadcast — an unmount can race the health check.
   - **Health check re-watch:** a periodic check (every 30s) detects when the
     directory becomes accessible again and re-initialises the file system watcher.
 
@@ -39,14 +37,10 @@ defmodule MediaCentaur.Watcher do
   @health_check_interval 30_000
   @size_stability_interval 5_000
   @size_stability_checks 2
-  @burst_window_ms 2_000
-  @burst_threshold 50
-
   defstruct [
     :dir,
     :watcher_pid,
     state: :initializing,
-    removal_timestamps: [],
     pending_files: %{},
     exclude_dirs: []
   ]
@@ -69,7 +63,7 @@ defmodule MediaCentaur.Watcher do
   @impl true
   def init(dir) do
     send(self(), :start_watching)
-    {:ok, %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs()}}
+    {:ok, %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs(dir)}}
   end
 
   @impl true
@@ -125,21 +119,6 @@ defmodule MediaCentaur.Watcher do
         Log.warning(:watcher, "directory unmounted: #{state.dir}")
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable}}
-
-      :removed in events or :deleted in events ->
-        now = System.monotonic_time(:millisecond)
-        cutoff = now - @burst_window_ms
-
-        recent =
-          [now | Enum.filter(state.removal_timestamps, &(&1 >= cutoff))]
-          |> Enum.take(@burst_threshold)
-
-        if length(recent) >= @burst_threshold do
-          Log.warning(:watcher, "suspicious burst of removal events detected in #{state.dir}")
-          Phoenix.PubSub.broadcast(MediaCentaur.PubSub, "watcher:state", :suspicious_burst)
-        end
-
-        {:noreply, %{state | removal_timestamps: recent}}
 
       (:created in events or :modified in events) and video_file?(path) and
           not excluded?(path, state.exclude_dirs) ->
@@ -208,14 +187,12 @@ defmodule MediaCentaur.Watcher do
   defp scan_directory(dir) do
     Log.info(:watcher, "scanning #{dir}")
     start_time = System.monotonic_time()
-    exclude_dirs = load_exclude_dirs()
+    exclude_dirs = load_exclude_dirs(dir)
     known_paths = fetch_known_file_paths()
-    pattern = Path.join(dir, "**/*")
 
     video_files =
-      pattern
-      |> Path.wildcard()
-      |> Enum.reject(&excluded?(&1, exclude_dirs))
+      dir
+      |> walk_files(exclude_dirs)
       |> Enum.filter(&video_file?/1)
 
     new_files = Enum.reject(video_files, fn path -> MapSet.member?(known_paths, path) end)
@@ -275,8 +252,34 @@ defmodule MediaCentaur.Watcher do
     Process.send_after(self(), :health_check, @health_check_interval)
   end
 
-  defp load_exclude_dirs do
-    MediaCentaur.Config.get(:exclude_dirs) || []
+  defp load_exclude_dirs(watch_dir) do
+    configured = MediaCentaur.Config.get(:exclude_dirs) || []
+    images_dir = MediaCentaur.Config.images_dir_for(watch_dir)
+    staging_base = MediaCentaur.Config.staging_base_for(watch_dir)
+
+    auto_excludes =
+      [images_dir, staging_base]
+      |> Enum.filter(&String.starts_with?(&1, watch_dir <> "/"))
+
+    Enum.uniq(configured ++ auto_excludes)
+  end
+
+  defp walk_files(dir, exclude_dirs) do
+    case File.ls(dir) do
+      {:ok, entries} ->
+        Enum.flat_map(entries, fn entry ->
+          path = Path.join(dir, entry)
+
+          cond do
+            excluded?(path, exclude_dirs) -> []
+            File.dir?(path) -> walk_files(path, exclude_dirs)
+            true -> [path]
+          end
+        end)
+
+      {:error, _} ->
+        []
+    end
   end
 
   defp excluded?(path, exclude_dirs) do

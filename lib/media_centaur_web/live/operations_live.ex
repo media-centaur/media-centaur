@@ -555,12 +555,6 @@ defmodule MediaCentaurWeb.OperationsLive do
             <span class="font-mono">{@config[:mpv_path] || "—"}</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-base-content/60">Images directory</span>
-            <span class="font-mono text-xs truncate max-w-48">
-              {@config[:media_images_dir] || "—"}
-            </span>
-          </div>
-          <div class="flex justify-between">
             <span class="text-base-content/60">Database path</span>
             <span class="font-mono text-xs truncate max-w-48">{@config[:database_path] || "—"}</span>
           </div>
@@ -712,7 +706,6 @@ defmodule MediaCentaurWeb.OperationsLive do
       tmdb_configured: config.get(:tmdb_api_key) not in [nil, ""],
       auto_approve_threshold: config.get(:auto_approve_threshold),
       mpv_path: config.get(:mpv_path),
-      media_images_dir: config.get(:media_images_dir),
       database_path: config.get(:database_path),
       watch_dirs_count: length(config.get(:watch_dirs) || [])
     }

@@ -11,16 +11,21 @@ database_path = "~/.local/share/media-centaur/media_library.db"
 # Directories containing video/media files (e.g. torrent downloads folders).
 # Watched for additions and removals. May be on removable or network drives.
 # Add multiple directories to watch media across several drives/mounts.
-watch_dirs = ["/mnt/videos/Videos"]
+#
+# Each watch directory can specify its own images_dir for artwork caching.
+# If omitted, defaults to {dir}/.media-centaur/images.
+# Examples:
+#   watch_dirs = [{ dir = "/mnt/media", images_dir = "/mnt/media/.cache/images" }]
+#   watch_dirs = [{ dir = "/mnt/media" }]   # uses default images_dir
+#   watch_dirs = ["/mnt/media"]              # plain string, uses default images_dir
+watch_dirs = [
+  { dir = "/mnt/videos/Videos" },
+]
 
 # Directories to exclude from watching. Files inside these directories
 # (and their subdirectories) are ignored by both inotify and manual scans.
 # Paths are expanded (~ resolved). Must be absolute paths.
 exclude_dirs = []
-
-# Directory for cached artwork images, one subdirectory per entity UUID.
-# Shared with the user-interface (UI resolves image paths relative to this dir).
-media_images_dir = "~/.local/share/media-centaur/images"
 
 [tmdb]
 # TMDB API key. Required for metadata scraping. Get one at https://www.themoviedb.org/settings/api

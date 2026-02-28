@@ -4,7 +4,7 @@ defmodule MediaCentaur.NoopImageDownloader do
   to avoid real HTTP requests and file I/O during pipeline tests.
   """
 
-  def download_all(_entity), do: :ok
+  def download_all(_entity, _watch_directory), do: :ok
 
   def download(_url, local_path) do
     local_path |> Path.dirname() |> File.mkdir_p!()

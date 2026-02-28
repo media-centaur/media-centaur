@@ -8,8 +8,8 @@ defmodule MediaCentaur.Pipeline.ImageDownloader do
   """
   require MediaCentaur.Log, as: Log
 
-  def download_all(entity) do
-    images_dir = MediaCentaur.Config.get(:media_images_dir)
+  def download_all(entity, watch_directory) do
+    images_dir = MediaCentaur.Config.images_dir_for(watch_directory)
 
     pending_count =
       length(filter_pending(entity.images)) +
