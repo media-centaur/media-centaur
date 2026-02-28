@@ -579,21 +579,5 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp format_type(:video_object), do: "Video"
   defp format_type(type), do: type |> to_string() |> String.capitalize()
 
-  defp format_seconds(nil), do: "0:00"
-
-  defp format_seconds(seconds) when is_number(seconds) do
-    total = trunc(seconds)
-    hours = div(total, 3600)
-    mins = div(rem(total, 3600), 60)
-    secs = rem(total, 60)
-    pad_secs = String.pad_leading(Integer.to_string(secs), 2, "0")
-
-    if hours > 0 do
-      "#{hours}:#{String.pad_leading(Integer.to_string(mins), 2, "0")}:#{pad_secs}"
-    else
-      "#{mins}:#{pad_secs}"
-    end
-  end
-
   defp extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
 end

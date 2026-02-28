@@ -298,22 +298,4 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp playback_border_class(:playing), do: "border-success"
   defp playback_border_class(:paused), do: "border-warning"
   defp playback_border_class(_), do: "border-base-content/20"
-
-  defp format_seconds(nil), do: "0:00"
-
-  defp format_seconds(seconds) when is_number(seconds) do
-    total = trunc(seconds)
-    mins = div(total, 60)
-    secs = rem(total, 60)
-    "#{mins}:#{String.pad_leading(Integer.to_string(secs), 2, "0")}"
-  end
-
-  defp debounce_stats_refresh(socket) do
-    if socket.assigns[:stats_timer] do
-      Process.cancel_timer(socket.assigns.stats_timer)
-    end
-
-    timer = Process.send_after(self(), :refresh_stats, 1_000)
-    assign(socket, stats_timer: timer)
-  end
 end

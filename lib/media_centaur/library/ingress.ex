@@ -61,7 +61,15 @@ defmodule MediaCentaur.Library.Ingress do
 
     with {:ok, entity} <- Ash.create(Entity, entity_attrs, action: :create_from_tmdb),
          :ok <- create_identifier_with_race_retry(entity, metadata.identifier),
-         :ok <- create_entity_images(entity.id, metadata.images, staged_images),
+         :ok <-
+           create_images(
+             entity.id,
+             :entity_id,
+             "entity",
+             metadata.images,
+             staged_images,
+             :find_or_create
+           ),
          :ok <- create_children(entity, metadata, staged_images) do
       Log.info(:library, "created #{metadata.entity_type} entity #{entity.id}")
       {:ok, entity, :new}
@@ -194,7 +202,14 @@ defmodule MediaCentaur.Library.Ingress do
           )
         end
 
-        create_episode_images(episode.id, episode_data[:images] || [], staged_images)
+        create_images(
+          episode.id,
+          :episode_id,
+          "episode",
+          episode_data[:images] || [],
+          staged_images,
+          :find_or_create_for_episode
+        )
 
       {:error, reason} ->
         {:error, reason}
@@ -215,7 +230,15 @@ defmodule MediaCentaur.Library.Ingress do
           Ash.update(movie, %{content_url: movie_attrs[:content_url]}, action: :set_content_url)
         end
 
-        create_movie_images(movie.id, child_movie_data[:images] || [], staged_images)
+        create_images(
+          movie.id,
+          :movie_id,
+          "child_movie",
+          child_movie_data[:images] || [],
+          staged_images,
+          :find_or_create_for_movie
+        )
+
         {:ok, movie}
 
       {:error, reason} ->
@@ -276,67 +299,25 @@ defmodule MediaCentaur.Library.Ingress do
   # Images — create records and move staged files
   # ---------------------------------------------------------------------------
 
-  defp create_entity_images(_entity_id, [], _staged_images), do: :ok
+  defp create_images(_owner_id, _owner_key, _owner_tag, [], _staged_images, _action), do: :ok
 
-  defp create_entity_images(entity_id, images, staged_images) do
+  defp create_images(owner_id, owner_key, owner_tag, images, staged_images, action) do
     images_dir = images_dir()
 
     image_attrs =
       Enum.map(images, fn image ->
-        content_url = move_staged_image(entity_id, image, "entity", staged_images, images_dir)
+        content_url = move_staged_image(owner_id, image, owner_tag, staged_images, images_dir)
 
         %{
           role: image.role,
           url: image.url,
           extension: image.extension,
-          entity_id: entity_id,
           content_url: content_url
         }
+        |> Map.put(owner_key, owner_id)
       end)
 
-    bulk_create_images(image_attrs, :find_or_create)
-  end
-
-  defp create_movie_images(_movie_id, [], _staged_images), do: :ok
-
-  defp create_movie_images(movie_id, images, staged_images) do
-    images_dir = images_dir()
-
-    image_attrs =
-      Enum.map(images, fn image ->
-        content_url = move_staged_image(movie_id, image, "child_movie", staged_images, images_dir)
-
-        %{
-          role: image.role,
-          url: image.url,
-          extension: image.extension,
-          movie_id: movie_id,
-          content_url: content_url
-        }
-      end)
-
-    bulk_create_images(image_attrs, :find_or_create_for_movie)
-  end
-
-  defp create_episode_images(_episode_id, [], _staged_images), do: :ok
-
-  defp create_episode_images(episode_id, images, staged_images) do
-    images_dir = images_dir()
-
-    image_attrs =
-      Enum.map(images, fn image ->
-        content_url = move_staged_image(episode_id, image, "episode", staged_images, images_dir)
-
-        %{
-          role: image.role,
-          url: image.url,
-          extension: image.extension,
-          episode_id: episode_id,
-          content_url: content_url
-        }
-      end)
-
-    bulk_create_images(image_attrs, :find_or_create_for_episode)
+    bulk_create_images(image_attrs, action)
   end
 
   defp bulk_create_images([], _action), do: :ok
