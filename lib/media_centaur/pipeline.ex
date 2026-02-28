@@ -32,8 +32,10 @@ defmodule MediaCentaur.Pipeline do
   }
 
   alias MediaCentaur.Review.{Intake, PendingFile}
+  alias MediaCentaur.Storage
 
   @processor_concurrency 15
+  @min_disk_bytes 100 * 1024 * 1024
 
   def processor_concurrency, do: @processor_concurrency
 
@@ -124,12 +126,36 @@ defmodule MediaCentaur.Pipeline do
   end
 
   defp run_post_search(payload) do
-    with {:ok, payload} <- run_stage(:fetch_metadata, FetchMetadata, payload),
-         {:ok, payload} <- run_stage(:download_images, DownloadImages, payload),
-         {:ok, payload} <- run_stage(:ingest, Ingest, payload) do
-      {:ok, payload}
+    with :ok <- check_disk_space(payload.watch_directory),
+         {:ok, payload} <- run_stage(:fetch_metadata, FetchMetadata, payload),
+         {:ok, payload} <- run_stage(:download_images, DownloadImages, payload) do
+      result = run_stage(:ingest, Ingest, payload)
+      cleanup_staging(payload.staging_dir)
+      result
     end
   end
+
+  defp check_disk_space(watch_directory) do
+    images_dir = MediaCentaur.Config.images_dir_for(watch_directory)
+    # df works on parent even if images_dir doesn't exist yet
+    path = if File.dir?(images_dir), do: images_dir, else: watch_directory
+
+    case Storage.available_bytes(path) do
+      {:ok, avail} when avail < @min_disk_bytes ->
+        Log.warning(
+          :pipeline,
+          "insufficient disk space: #{div(avail, 1_048_576)} MB available"
+        )
+
+        {:error, :insufficient_disk_space}
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp cleanup_staging(nil), do: :ok
+  defp cleanup_staging(dir), do: File.rm_rf(dir)
 
   defp run_stage(stage_name, stage_module, payload) do
     metadata = %{stage: stage_name, file_path: payload.file_path}

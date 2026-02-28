@@ -1,11 +1,15 @@
 defmodule MediaCentaur.Serializer do
   @moduledoc """
-  Pure-function module that converts loaded Ash entity structs into
-  schema.org JSON-LD maps matching DATA-FORMAT.md.
+  Converts loaded Ash entity structs into schema.org JSON-LD maps
+  matching DATA-FORMAT.md.
 
   Used by LibraryChannel to serialize entities for WebSocket pushes.
+  Image `contentUrl` values are resolved to absolute filesystem paths
+  via `Config.resolve_image_path/1` so the frontend can read images
+  directly without its own path resolution.
   """
 
+  alias MediaCentaur.Config
   alias MediaCentaur.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
 
   @doc """
@@ -239,7 +243,7 @@ defmodule MediaCentaur.Serializer do
       "@type" => "ImageObject",
       "name" => image.role,
       "url" => image.url,
-      "contentUrl" => image.content_url
+      "contentUrl" => Config.resolve_image_path(image.content_url)
     }
     |> compact()
   end

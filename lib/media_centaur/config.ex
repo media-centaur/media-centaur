@@ -26,12 +26,42 @@ defmodule MediaCentaur.Config do
     :persistent_term.get({__MODULE__, :config}) |> Map.get(key)
   end
 
+  @doc "Returns the images directory for the given watch directory."
+  @spec images_dir_for(String.t()) :: String.t()
+  def images_dir_for(watch_directory) do
+    get(:watch_dir_images)[watch_directory] ||
+      default_images_dir(watch_directory)
+  end
+
+  @doc "Returns the staging base directory for in-progress image downloads."
+  @spec staging_base_for(String.t()) :: String.t()
+  def staging_base_for(watch_directory) do
+    images_dir = images_dir_for(watch_directory)
+    Path.join(Path.dirname(images_dir), "tmp-image-download")
+  end
+
+  @doc "Resolves a relative image content_url to an absolute filesystem path."
+  @spec resolve_image_path(String.t() | nil) :: String.t() | nil
+  def resolve_image_path(nil), do: nil
+
+  def resolve_image_path(relative_content_url) do
+    watch_dirs = get(:watch_dirs) || []
+
+    Enum.find_value(watch_dirs, fn dir ->
+      candidate = Path.join(images_dir_for(dir), relative_content_url)
+      if File.regular?(candidate), do: candidate
+    end)
+  end
+
   defp load_config do
+    app_watch_dirs = expand_list(Application.get_env(:media_centaur, :watch_dirs, []))
+    {_, default_images_map} = parse_watch_dirs(app_watch_dirs)
+
     defaults = %{
       database_path:
         expand(get_in(Application.get_env(:media_centaur, MediaCentaur.Repo), [:database])),
-      watch_dirs: expand_list(Application.get_env(:media_centaur, :watch_dirs, [])),
-      media_images_dir: expand(Application.get_env(:media_centaur, :media_images_dir)),
+      watch_dirs: app_watch_dirs,
+      watch_dir_images: default_images_map,
       tmdb_api_key: Application.get_env(:media_centaur, :tmdb_api_key),
       auto_approve_threshold: Application.get_env(:media_centaur, :auto_approve_threshold),
       mpv_path: "/usr/bin/mpv",
@@ -67,13 +97,13 @@ defmodule MediaCentaur.Config do
   end
 
   defp merge_toml(defaults, toml) do
-    watch_dirs = resolve_watch_dirs(toml, defaults)
+    {watch_dirs, watch_dir_images} = resolve_watch_dirs(toml, defaults)
 
     %{
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
       watch_dirs: watch_dirs,
+      watch_dir_images: watch_dir_images,
       exclude_dirs: expand_list(get_in(toml, ["exclude_dirs"]) || defaults.exclude_dirs),
-      media_images_dir: expand(get_in(toml, ["media_images_dir"]) || defaults.media_images_dir),
       tmdb_api_key: get_in(toml, ["tmdb", "api_key"]) || defaults.tmdb_api_key,
       auto_approve_threshold:
         get_in(toml, ["pipeline", "auto_approve_threshold"]) || defaults.auto_approve_threshold,
@@ -85,19 +115,41 @@ defmodule MediaCentaur.Config do
     }
   end
 
-  # Supports both new `watch_dirs` (list) and old `media_dir` (string) keys in TOML.
+  # Supports plain string lists, inline table arrays, and legacy `media_dir` key.
   defp resolve_watch_dirs(toml, defaults) do
     case get_in(toml, ["watch_dirs"]) do
       dirs when is_list(dirs) and dirs != [] ->
-        expand_list(dirs)
+        parse_watch_dirs(dirs)
 
       _ ->
         case get_in(toml, ["media_dir"]) do
-          dir when is_binary(dir) -> [expand(dir)]
-          _ -> defaults.watch_dirs
+          dir when is_binary(dir) ->
+            dir = expand(dir)
+            {[dir], %{dir => default_images_dir(dir)}}
+
+          _ ->
+            {defaults.watch_dirs, defaults.watch_dir_images}
         end
     end
   end
+
+  defp parse_watch_dirs(raw_list) do
+    Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
+      case entry do
+        dir when is_binary(dir) ->
+          dir = expand(dir)
+          {[dir | dirs], Map.put(images_map, dir, default_images_dir(dir))}
+
+        %{"dir" => dir} = table ->
+          dir = expand(dir)
+          images_dir = expand(table["images_dir"] || default_images_dir(dir))
+          {[dir | dirs], Map.put(images_map, dir, images_dir)}
+      end
+    end)
+    |> then(fn {dirs, images_map} -> {Enum.reverse(dirs), images_map} end)
+  end
+
+  defp default_images_dir(watch_dir), do: Path.join(watch_dir, ".media-centaur/images")
 
   defp expand(path) when is_binary(path), do: Path.expand(path)
   defp expand(path), do: path

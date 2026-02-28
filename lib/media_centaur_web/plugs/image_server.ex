@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.Plugs.ImageServer do
   @moduledoc """
-  Serves local entity images from the configured `media_images_dir`.
+  Serves local entity images from per-watch-directory image caches.
 
-  Intercepts requests at `/media-images/*` and maps them to files on disk.
-  The images directory is resolved at runtime via `MediaCentaur.Config`.
+  Intercepts requests at `/media-images/*` and searches all configured
+  watch directories' image caches for the requested file.
   """
   @behaviour Plug
   import Plug.Conn
@@ -16,10 +16,16 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     if Enum.any?(rest, &(&1 == "..")) do
       conn |> send_resp(400, "Bad request") |> halt()
     else
-      images_dir = MediaCentaur.Config.get(:media_images_dir)
-      file_path = Path.join([images_dir | rest])
+      relative = Path.join(rest)
+      watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
 
-      if File.regular?(file_path) do
+      file_path =
+        Enum.find_value(watch_dirs, fn dir ->
+          candidate = Path.join(MediaCentaur.Config.images_dir_for(dir), relative)
+          if File.regular?(candidate), do: candidate
+        end)
+
+      if file_path do
         conn
         |> put_resp_content_type(MIME.from_path(file_path))
         |> send_file(200, file_path)

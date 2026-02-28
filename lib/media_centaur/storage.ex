@@ -23,16 +23,45 @@ defmodule MediaCentaur.Storage do
   @spec measure_all() :: [usage()]
   def measure_all do
     watch_dirs = Config.get(:watch_dirs) || []
-    images_dir = Config.get(:media_images_dir)
 
     watch_entries = Enum.map(watch_dirs, fn dir -> {dir, dir} end)
 
-    image_entry =
-      if images_dir, do: [{images_dir, "Image cache"}], else: []
+    image_entries =
+      Enum.map(watch_dirs, fn dir ->
+        {Config.images_dir_for(dir), "Images (#{Path.basename(dir)})"}
+      end)
 
-    (watch_entries ++ image_entry)
+    (watch_entries ++ image_entries)
     |> Enum.map(fn {path, label} -> measure(path, label) end)
     |> Enum.reject(&is_nil/1)
+  end
+
+  @doc """
+  Returns the number of available bytes on the filesystem containing `path`.
+  """
+  @spec available_bytes(String.t()) :: {:ok, non_neg_integer()} | :error
+  def available_bytes(path) do
+    case System.cmd("df", ["--output=avail", "-B1", path], stderr_to_stdout: true) do
+      {output, 0} -> parse_avail(output)
+      _ -> :error
+    end
+  end
+
+  defp parse_avail(output) do
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.drop(1)
+    |> List.first()
+    |> case do
+      nil ->
+        :error
+
+      line ->
+        case line |> String.trim() |> Integer.parse() do
+          {bytes, ""} -> {:ok, bytes}
+          _ -> :error
+        end
+    end
   end
 
   @doc """

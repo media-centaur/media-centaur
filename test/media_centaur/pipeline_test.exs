@@ -15,6 +15,27 @@ defmodule MediaCentaur.PipelineTest do
 
   setup do
     setup_tmdb_client()
+
+    # Register watch_dir_images for paths used in test payloads.
+    # Images go to a temp dir that gets cleaned up after each test.
+    images_dir = Path.join(System.tmp_dir!(), "pipeline_test_#{Ash.UUID.generate()}")
+    File.mkdir_p!(images_dir)
+
+    config = :persistent_term.get({MediaCentaur.Config, :config})
+
+    updated_config =
+      Map.put(config, :watch_dir_images, %{
+        "/media/pipeline" => images_dir,
+        "/media/pipeline/TV" => images_dir
+      })
+
+    :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
+
+    on_exit(fn ->
+      File.rm_rf!(images_dir)
+      :persistent_term.put({MediaCentaur.Config, :config}, config)
+    end)
+
     :ok
   end
 
@@ -58,6 +79,10 @@ defmodule MediaCentaur.PipelineTest do
       assert file.state == :complete
       assert file.entity_id == result.entity_id
       assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
+
+      # Staging dir cleaned up after ingest
+      assert result.staging_dir != nil
+      refute File.dir?(result.staging_dir)
     end
 
     test "TV episode: parse → search → fetch → download → ingest → complete" do

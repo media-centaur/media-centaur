@@ -40,8 +40,12 @@ defmodule MediaCentaur.Admin do
         Ash.bulk_destroy!(resource, :destroy, %{}, strategy: :stream)
       end)
 
-      images_dir = MediaCentaur.Config.get(:media_images_dir)
-      if images_dir, do: clear_directory(images_dir)
+      watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+
+      Enum.each(watch_dirs, fn dir ->
+        clear_directory(MediaCentaur.Config.images_dir_for(dir))
+        cleanup_staging_for(dir)
+      end)
 
       Helpers.broadcast_entities_changed(entity_ids)
 
@@ -58,16 +62,22 @@ defmodule MediaCentaur.Admin do
   """
   def refresh_image_cache do
     Log.info(:library, "refreshing image cache")
-    images_dir = MediaCentaur.Config.get(:media_images_dir)
 
-    if images_dir, do: clear_directory(images_dir)
+    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+
+    Enum.each(watch_dirs, fn dir ->
+      clear_directory(MediaCentaur.Config.images_dir_for(dir))
+      cleanup_staging_for(dir)
+    end)
 
     Ash.bulk_update!(Image, :clear_content_url, %{}, strategy: :stream)
 
-    entities = Ash.read!(Entity, action: :with_images)
+    entities = Ash.read!(Entity, action: :with_images, load: [:watched_files])
 
     Enum.each(entities, fn entity ->
-      ImageDownloader.download_all(entity)
+      if watch_dir = first_watch_dir(entity) do
+        ImageDownloader.download_all(entity, watch_dir)
+      end
     end)
 
     entity_ids = Enum.map(entities, & &1.id)
@@ -96,11 +106,13 @@ defmodule MediaCentaur.Admin do
 
     entities =
       Enum.map(entity_ids, fn id ->
-        Ash.get!(Entity, id, action: :with_images)
+        Ash.get!(Entity, id, action: :with_images, load: [:watched_files])
       end)
 
     Enum.each(entities, fn entity ->
-      ImageDownloader.download_all(entity)
+      if watch_dir = first_watch_dir(entity) do
+        ImageDownloader.download_all(entity, watch_dir)
+      end
     end)
 
     Helpers.broadcast_entities_changed(entity_ids)
@@ -143,6 +155,25 @@ defmodule MediaCentaur.Admin do
       WatchedFile,
       Entity
     ]
+  end
+
+  defp first_watch_dir(entity) do
+    case entity.watched_files do
+      [first | _] ->
+        first.watch_dir
+
+      _ ->
+        Log.warning(
+          :library,
+          "entity #{entity.id} has no watched files, skipping image operation"
+        )
+
+        nil
+    end
+  end
+
+  defp cleanup_staging_for(dir) do
+    File.rm_rf(MediaCentaur.Config.staging_base_for(dir))
   end
 
   defp clear_directory(dir) do

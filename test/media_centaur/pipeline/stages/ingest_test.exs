@@ -36,6 +36,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
 
     %Payload{
       file_path: "/media/Fight.Club.1999.mkv",
+      watch_directory: "/media",
       tmdb_id: overrides[:tmdb_id] || 550,
       tmdb_type: overrides[:tmdb_type] || :movie,
       metadata: metadata,
@@ -90,6 +91,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
     test "creates movie series entity with child movie" do
       payload = %Payload{
         file_path: "/media/The.Shadowy.Sentinel.2008.mkv",
+        watch_directory: "/media",
         tmdb_id: 155,
         tmdb_type: :movie,
         metadata: %{
@@ -134,6 +136,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
     test "creates TV entity with season and episode" do
       payload = %Payload{
         file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv",
+        watch_directory: "/media/TV",
         tmdb_id: 1396,
         tmdb_type: :tv,
         metadata: %{
