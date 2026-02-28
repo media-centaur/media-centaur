@@ -41,7 +41,7 @@ The Watchers and Pipeline are decoupled via PubSub events. Watchers broadcast `{
 | `entry_point` | Producer | `:file_detected` or `:review_resolved` |
 | `parsed` | Parse stage | `%Parser.Result{}` with title, year, type, season, episode |
 | `tmdb_id` | Search stage (or Producer for review_resolved) | TMDB ID of the matched entity |
-| `tmdb_type` | Search stage (or Producer for review_resolved) | `"movie"` or `"tv"` |
+| `tmdb_type` | Search stage (or Producer for review_resolved) | `:movie` or `:tv` |
 | `confidence` | Search stage | Match confidence score (0.0–1.0) |
 | `metadata` | FetchMetadata stage | Full TMDB metadata mapped to domain attributes |
 | `staged_images` | DownloadImages stage | List of downloaded image files in staging directory |

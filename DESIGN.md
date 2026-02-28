@@ -99,22 +99,23 @@ Minimal top bar: app name/icon, page links, theme toggle. Compact height, no unn
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Library** | `/library` | Entity browser with playback controls |
 
-`/logging` is removed as a standalone page — logging toggles fold into Operations.
-
 ---
 
 ### Dashboard (`/`)
 
-**Main content — Library section:**
+**Main content — Library section (implemented):**
 - Aggregate counts: movies, TV series, collections, episodes, files tracked, images cached
+- Incomplete image count (warning indicator)
+
+**Planned additions:**
 - Health indicators: entities missing images, entities without TMDB IDs, library "completeness"
 - Recent activity: last N entities added (what's new since I last looked)
 - Auto-approve rate: % of files auto-approved vs needed review (confidence threshold effectiveness)
 
 **Summary cards (mini-dashboards linking to sub-pages):**
 - **Operations card:** Pipeline status (idle/active/error), watcher health dots, queue depth, error count. Enough to know "all healthy" or "go look."
-- **Review card:** Pending count, confidence distribution, oldest pending age. Enough to know "nothing to do" or "N files waiting."
-- **Playback card:** Now playing indicator (entity name + progress), or "idle" when nothing plays. Collapse/minimize when idle.
+- **Review card:** Pending count. Enough to know "nothing to do" or "N files waiting."
+- **Playback card:** Now playing indicator (entity name + progress), or "idle" when nothing plays.
 
 **Design principle:** The dashboard should answer "do I need to go anywhere?" in one glance. If everything is healthy and the review queue is empty, you're done.
 
@@ -150,14 +151,14 @@ Visual refresh + structural improvements:
 
 ---
 
-## New Data Requirements
+## Planned Data Requirements
 
 Features requiring new backend tracking or computation:
 
-| Feature | Location | Implementation notes |
-|---------|----------|---------------------|
-| Recent event feed | Dashboard | In-memory event buffer (like Stats.recent_errors pattern) |
-| Library completeness | Dashboard | Ash queries: entities missing images, entities without identifiers |
-| Auto-approve rate | Dashboard | Counter in Pipeline.Stats: auto_approved vs needs_review |
-| Storage metrics | Operations | `File.stat` on watch dirs, images dir, database file; periodic measurement |
-| Last scan timestamp | Operations | Track in Watcher.Supervisor state or Stats |
+| Feature | Location | Status | Implementation notes |
+|---------|----------|--------|---------------------|
+| Recent event feed | Dashboard | Planned | In-memory event buffer (like Stats.recent_errors pattern) |
+| Library completeness | Dashboard | Planned | Ash queries: entities missing images, entities without identifiers |
+| Auto-approve rate | Dashboard | Planned | Counter in Pipeline.Stats: auto_approved vs needs_review |
+| Storage metrics | Operations | Done | `Storage.measure_all/0` — disk usage per watch dir, images dir, database |
+| Last scan timestamp | Operations | Planned | Track in Watcher.Supervisor state or Stats |

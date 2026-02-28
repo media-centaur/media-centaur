@@ -8,7 +8,7 @@ Phoenix/Elixir application that manages the Media Centaur media library. Watches
 mix setup          # install deps, create DB, run migrations, build assets
 mix phx.server     # start dev server at http://localhost:4000
 mix test           # run tests
-mix precommit      # compile --warnings-as-errors, format, test
+mix precommit      # compile --warning-as-errors, unlock unused deps, format, test
 ```
 
 ## Documentation

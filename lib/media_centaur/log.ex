@@ -49,7 +49,7 @@ defmodule MediaCentaur.Log do
   @doc """
   Emits a warning-level log tagged with the given component.
   Warning logs always emit (the primary filter only gates info-level),
-  but the component tag enables formatter attribution and `/logging` UI accuracy.
+  but the component tag enables formatter attribution and Operations page UI accuracy.
   """
   defmacro warning(component, message) do
     quote do
