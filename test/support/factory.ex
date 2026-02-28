@@ -1,4 +1,4 @@
-defmodule MediaManager.TestFactory do
+defmodule MediaCentaur.TestFactory do
   @moduledoc """
   Shared test data builders.
 
@@ -8,7 +8,7 @@ defmodule MediaManager.TestFactory do
     Use for resource tests and channel tests.
   """
 
-  alias MediaManager.Library.{
+  alias MediaCentaur.Library.{
     Entity,
     Extra,
     Image,
@@ -19,7 +19,7 @@ defmodule MediaManager.TestFactory do
     WatchedFile
   }
 
-  alias MediaManager.Review.PendingFile
+  alias MediaCentaur.Review.PendingFile
 
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
@@ -255,7 +255,7 @@ defmodule MediaManager.TestFactory do
   def create_watch_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
 
-    MediaManager.Library.WatchProgress
+    MediaCentaur.Library.WatchProgress
     |> Ash.Changeset.for_create(:upsert_progress, Map.merge(defaults, attrs))
     |> Ash.create!()
   end

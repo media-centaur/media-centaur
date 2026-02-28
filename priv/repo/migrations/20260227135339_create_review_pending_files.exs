@@ -1,4 +1,4 @@
-defmodule MediaManager.Repo.Migrations.CreateReviewPendingFiles do
+defmodule MediaCentaur.Repo.Migrations.CreateReviewPendingFiles do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

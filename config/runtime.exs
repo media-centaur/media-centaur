@@ -12,22 +12,22 @@ import Config
 # If you use `mix release`, you need to explicitly enable the server
 # by passing the PHX_SERVER=true when you start it:
 #
-#     PHX_SERVER=true bin/media_manager start
+#     PHX_SERVER=true bin/media_centaur start
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
-  config :media_manager, MediaManagerWeb.Endpoint, server: true
+  config :media_centaur, MediaCentaurWeb.Endpoint, server: true
 end
 
 watch_dirs = [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")]
 
-config :media_manager,
+config :media_centaur,
   watch_dirs: watch_dirs,
   media_images_dir:
     System.get_env(
       "MEDIA_IMAGES_DIR",
-      Path.expand("~/.local/share/freedia-center/images")
+      Path.expand("~/.local/share/media-centaur/images")
     ),
   tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
   auto_approve_threshold: 0.85
@@ -42,7 +42,7 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  config :media_manager, MediaManager.Repo,
+  config :media_centaur, MediaCentaur.Repo,
     # ssl: true,
     url: database_url,
     pool_size:
@@ -68,9 +68,9 @@ if config_env() == :prod do
   host = System.get_env("PHX_HOST") || "example.com"
   port = String.to_integer(System.get_env("PORT") || "4000")
 
-  config :media_manager, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :media_centaur, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  config :media_manager, MediaManagerWeb.Endpoint,
+  config :media_centaur, MediaCentaurWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
       # Enable IPv6 and bind on all interfaces.
@@ -87,7 +87,7 @@ if config_env() == :prod do
   # To get SSL working, you will need to add the `https` key
   # to your endpoint configuration:
   #
-  #     config :media_manager, MediaManagerWeb.Endpoint,
+  #     config :media_centaur, MediaCentaurWeb.Endpoint,
   #       https: [
   #         ...,
   #         port: 443,
@@ -109,7 +109,7 @@ if config_env() == :prod do
   # We also recommend setting `force_ssl` in your config/prod.exs,
   # ensuring no data is ever sent via http, always redirecting to https:
   #
-  #     config :media_manager, MediaManagerWeb.Endpoint,
+  #     config :media_centaur, MediaCentaurWeb.Endpoint,
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
@@ -119,7 +119,7 @@ if config_env() == :prod do
   # In production you need to configure the mailer to use a different adapter.
   # Here is an example configuration for Mailgun:
   #
-  #     config :media_manager, MediaManager.Mailer,
+  #     config :media_centaur, MediaCentaur.Mailer,
   #       adapter: Swoosh.Adapters.Mailgun,
   #       api_key: System.get_env("MAILGUN_API_KEY"),
   #       domain: System.get_env("MAILGUN_DOMAIN")

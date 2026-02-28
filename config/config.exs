@@ -43,24 +43,24 @@ config :spark,
     "Ash.Domain": [section_order: [:resources, :policies, :authorization, :domain, :execution]]
   ]
 
-config :media_manager,
-  ecto_repos: [MediaManager.Repo],
+config :media_centaur,
+  ecto_repos: [MediaCentaur.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :media_manager, :ash_domains, [MediaManager.Library, MediaManager.Review]
+config :media_centaur, :ash_domains, [MediaCentaur.Library, MediaCentaur.Review]
 
-config :media_manager, MediaManager.Repo,
-  database: Path.expand("~/.local/share/freedia-center/media-manager.db")
+config :media_centaur, MediaCentaur.Repo,
+  database: Path.expand("~/.local/share/media-centaur/media_library.db")
 
 # Configures the endpoint
-config :media_manager, MediaManagerWeb.Endpoint,
+config :media_centaur, MediaCentaurWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: MediaManagerWeb.ErrorHTML, json: MediaManagerWeb.ErrorJSON],
+    formats: [html: MediaCentaurWeb.ErrorHTML, json: MediaCentaurWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: MediaManager.PubSub,
+  pubsub_server: MediaCentaur.PubSub,
   live_view: [signing_salt: "802OLLfH"]
 
 # Configures the mailer
@@ -70,12 +70,12 @@ config :media_manager, MediaManagerWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :media_manager, MediaManager.Mailer, adapter: Swoosh.Adapters.Local
+config :media_centaur, MediaCentaur.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  media_manager: [
+  media_centaur: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -85,7 +85,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.1.7",
-  media_manager: [
+  media_centaur: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
