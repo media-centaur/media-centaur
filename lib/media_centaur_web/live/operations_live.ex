@@ -697,15 +697,6 @@ defmodule MediaCentaurWeb.OperationsLive do
     |> assign(suppressed_frameworks: Log.suppressed_frameworks())
   end
 
-  defp debounce_stats_refresh(socket) do
-    if socket.assigns[:stats_timer] do
-      Process.cancel_timer(socket.assigns.stats_timer)
-    end
-
-    timer = Process.send_after(self(), :refresh_stats, 1_000)
-    assign(socket, stats_timer: timer)
-  end
-
   defp fetch_rate_limiter do
     MediaCentaur.TMDB.RateLimiter.status()
   rescue

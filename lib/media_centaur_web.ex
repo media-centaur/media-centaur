@@ -52,6 +52,8 @@ defmodule MediaCentaurWeb do
     quote do
       use Phoenix.LiveView
 
+      import MediaCentaurWeb.LiveHelpers
+
       unquote(html_helpers())
     end
   end

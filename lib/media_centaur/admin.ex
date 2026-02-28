@@ -43,7 +43,7 @@ defmodule MediaCentaur.Admin do
       images_dir = MediaCentaur.Config.get(:media_images_dir)
       if images_dir, do: clear_directory(images_dir)
 
-      if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
+      Helpers.broadcast_entities_changed(entity_ids)
 
       Logger.info("Admin: database cleared")
       :ok
@@ -71,7 +71,7 @@ defmodule MediaCentaur.Admin do
     end)
 
     entity_ids = Enum.map(entities, & &1.id)
-    if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
+    Helpers.broadcast_entities_changed(entity_ids)
 
     Logger.info("Admin: image cache refreshed for #{length(entities)} entities")
     {:ok, length(entities)}
@@ -103,7 +103,7 @@ defmodule MediaCentaur.Admin do
       ImageDownloader.download_all(entity)
     end)
 
-    if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
+    Helpers.broadcast_entities_changed(entity_ids)
 
     Logger.info("Admin: retried incomplete images for #{length(entities)} entities")
     {:ok, %{retried: length(incomplete)}}
@@ -124,7 +124,7 @@ defmodule MediaCentaur.Admin do
 
     Ash.bulk_destroy!(incomplete, :destroy, %{}, strategy: :stream, return_errors?: true)
 
-    if entity_ids != [], do: Helpers.broadcast_entities_changed(entity_ids)
+    Helpers.broadcast_entities_changed(entity_ids)
 
     Logger.info("Admin: dismissed #{count} incomplete images")
     {:ok, count}
