@@ -9,11 +9,7 @@ defmodule MediaCentaurWeb.Telemetry do
   @impl true
   def init(_arg) do
     children = [
-      # Telemetry poller will execute the given period measurements
-      # every 10_000ms. Learn more here: https://hexdocs.pm/telemetry_metrics
       {:telemetry_poller, measurements: periodic_measurements(), period: 10_000}
-      # Add reporters as children of your supervision tree.
-      # {Telemetry.Metrics.ConsoleReporter, metrics: metrics()}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -79,15 +75,78 @@ defmodule MediaCentaurWeb.Telemetry do
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
-      summary("vm.total_run_queue_lengths.io")
+      summary("vm.total_run_queue_lengths.io"),
+
+      # Pipeline Stage Metrics
+      summary("media_centaur.pipeline.stage.stop.duration",
+        tags: [:stage],
+        unit: {:native, :millisecond},
+        description: "Pipeline stage processing duration"
+      ),
+      counter("media_centaur.pipeline.stage.exception.duration",
+        tags: [:stage],
+        description: "Pipeline stage exceptions"
+      ),
+
+      # TMDB API Metrics
+      summary("media_centaur.tmdb.request.stop.duration",
+        tags: [:endpoint],
+        unit: {:native, :millisecond},
+        description: "TMDB API request duration"
+      ),
+      summary("media_centaur.tmdb.rate_limit_wait.duration",
+        unit: {:native, :millisecond},
+        description: "Time spent waiting for TMDB rate limiter"
+      ),
+
+      # Image Download Metrics
+      summary("media_centaur.pipeline.image_download.stop.duration",
+        tags: [:role],
+        unit: {:native, :millisecond},
+        description: "Image download duration per role"
+      ),
+
+      # Watcher Metrics
+      summary("media_centaur.watcher.scan.stop.duration",
+        unit: {:native, :millisecond},
+        description: "Directory scan duration"
+      ),
+
+      # Periodic Gauges
+      last_value("media_centaur.library.size.count",
+        description: "Total entity count in the library"
+      ),
+      last_value("media_centaur.pipeline.queue.depth",
+        description: "Current pipeline queue depth"
+      )
     ]
   end
 
   defp periodic_measurements do
     [
-      # A module, function and arguments to be invoked periodically.
-      # This function must call :telemetry.execute/3 and a metric must be added above.
-      # {MediaCentaurWeb, :count_users, []}
+      {__MODULE__, :measure_library_size, []},
+      {__MODULE__, :measure_pipeline_queue, []}
     ]
+  end
+
+  @doc false
+  def measure_library_size do
+    case Ash.count(MediaCentaur.Library.Entity) do
+      {:ok, count} ->
+        :telemetry.execute([:media_centaur, :library, :size], %{count: count})
+
+      _ ->
+        :ok
+    end
+  end
+
+  @doc false
+  def measure_pipeline_queue do
+    snapshot = MediaCentaur.Pipeline.Stats.get_snapshot()
+    :telemetry.execute([:media_centaur, :pipeline, :queue], %{depth: snapshot.queue_depth})
+  rescue
+    _ -> :ok
+  catch
+    :exit, _ -> :ok
   end
 end

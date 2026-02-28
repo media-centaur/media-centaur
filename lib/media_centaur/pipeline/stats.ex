@@ -14,6 +14,13 @@ defmodule MediaCentaur.Pipeline.Stats do
   - `error_count` — lifetime errors
   - `last_error` — `{message, monotonic_ms} | nil`
 
+  ## Recent errors
+
+  A bounded ring buffer (`recent_errors`) stores the last 50
+  pipeline errors across all stages. Each entry is a map with `file_path`,
+  `error_message`, `stage`, and `updated_at` — shaped to match what the
+  dashboard errors table expects.
+
   ## Status derivation (computed at snapshot time)
 
   - `:erroring` — active and recent errors in window
@@ -26,6 +33,7 @@ defmodule MediaCentaur.Pipeline.Stats do
   @stages [:parse, :search, :fetch_metadata, :download_images, :ingest]
   @window_ms 5_000
   @saturated_threshold 10
+  @max_recent_errors 50
 
   # --- Public API ---
 
@@ -37,8 +45,8 @@ defmodule MediaCentaur.Pipeline.Stats do
   @doc """
   Returns a snapshot of current pipeline statistics.
 
-  Includes per-stage status, throughput, active counts, and lifetime counters.
-  When called on the named process, also includes rate limiter status.
+  Includes per-stage status, throughput, active counts, lifetime counters,
+  and recent errors.
   """
   def get_snapshot(server \\ __MODULE__) do
     GenServer.call(server, :get_snapshot)
@@ -68,7 +76,7 @@ defmodule MediaCentaur.Pipeline.Stats do
       total_processed: 0,
       total_failed: 0,
       needs_review_count: 0,
-      rate_limiter: nil
+      recent_errors: []
     }
   end
 
@@ -92,7 +100,8 @@ defmodule MediaCentaur.Pipeline.Stats do
       queue_depth: 0,
       total_processed: 0,
       total_failed: 0,
-      needs_review_count: 0
+      needs_review_count: 0,
+      recent_errors: []
     }
 
     attach_telemetry()
@@ -122,22 +131,13 @@ defmodule MediaCentaur.Pipeline.Stats do
          }}
       end)
 
-    rate_limiter =
-      try do
-        MediaCentaur.TMDB.RateLimiter.status()
-      rescue
-        _ -> nil
-      catch
-        :exit, _ -> nil
-      end
-
     snapshot = %{
       stages: stages,
       queue_depth: state.queue_depth,
       total_processed: state.total_processed,
       total_failed: state.total_failed,
       needs_review_count: state.needs_review_count,
-      rate_limiter: rate_limiter
+      recent_errors: state.recent_errors
     }
 
     {:reply, snapshot, state}
@@ -153,16 +153,19 @@ defmodule MediaCentaur.Pipeline.Stats do
     {:noreply, state}
   end
 
-  def handle_cast({:stage_stop, stage, duration, result}, state) do
+  def handle_cast({:stage_stop, stage, duration, result, file_path, error_reason}, state) do
     now = System.monotonic_time(:millisecond)
-    handle_stage_stop(state, stage, duration, result, now)
+    handle_stage_stop(state, stage, duration, result, now, file_path, error_reason)
   end
 
-  def handle_cast({:stage_stop_at, stage, duration, result, timestamp}, state) do
-    handle_stage_stop(state, stage, duration, result, timestamp)
+  def handle_cast(
+        {:stage_stop_at, stage, duration, result, timestamp, file_path, error_reason},
+        state
+      ) do
+    handle_stage_stop(state, stage, duration, result, timestamp, file_path, error_reason)
   end
 
-  def handle_cast({:stage_exception, stage, _duration, reason}, state) do
+  def handle_cast({:stage_exception, stage, _duration, reason, file_path}, state) do
     now = System.monotonic_time(:millisecond)
 
     state =
@@ -176,6 +179,7 @@ defmodule MediaCentaur.Pipeline.Stats do
         }
       end)
       |> Map.update!(:total_failed, &(&1 + 1))
+      |> record_error(stage, file_path, reason)
 
     {:noreply, state}
   end
@@ -190,7 +194,7 @@ defmodule MediaCentaur.Pipeline.Stats do
 
   # --- Private ---
 
-  defp handle_stage_stop(state, stage, duration, result, timestamp) do
+  defp handle_stage_stop(state, stage, duration, result, timestamp, file_path, error_reason) do
     state =
       update_stage(state, stage, fn data ->
         %{
@@ -202,13 +206,35 @@ defmodule MediaCentaur.Pipeline.Stats do
 
     state =
       case {stage, result} do
-        {:ingest, :ok} -> %{state | total_processed: state.total_processed + 1}
-        {_, :error} -> %{state | total_failed: state.total_failed + 1}
-        _ -> state
+        {:ingest, :ok} ->
+          %{state | total_processed: state.total_processed + 1}
+
+        {_, :error} ->
+          state
+          |> Map.update!(:total_failed, &(&1 + 1))
+          |> record_error(stage, file_path, error_reason || "stage returned error")
+
+        _ ->
+          state
       end
 
     {:noreply, state}
   end
+
+  defp record_error(state, stage, file_path, reason) do
+    entry = %{
+      file_path: file_path,
+      error_message: format_error_reason(reason),
+      stage: stage,
+      updated_at: DateTime.utc_now()
+    }
+
+    errors = Enum.take([entry | state.recent_errors], @max_recent_errors)
+    %{state | recent_errors: errors}
+  end
+
+  defp format_error_reason(reason) when is_binary(reason), do: reason
+  defp format_error_reason(reason), do: inspect(reason)
 
   defp update_stage(state, stage, fun) do
     %{state | stages: Map.update!(state.stages, stage, fun)}
@@ -283,7 +309,8 @@ defmodule MediaCentaur.Pipeline.Stats do
   def handle_telemetry([:media_centaur, :pipeline, :stage, :stop], measurements, metadata, config) do
     GenServer.cast(
       config.stats,
-      {:stage_stop, metadata.stage, measurements.duration, metadata.result}
+      {:stage_stop, metadata.stage, measurements.duration, metadata.result, metadata.file_path,
+       metadata[:error_reason]}
     )
   end
 
@@ -295,7 +322,8 @@ defmodule MediaCentaur.Pipeline.Stats do
       ) do
     GenServer.cast(
       config.stats,
-      {:stage_exception, metadata.stage, measurements.duration, metadata.reason}
+      {:stage_exception, metadata.stage, measurements.duration, metadata.reason,
+       metadata.file_path}
     )
   end
 

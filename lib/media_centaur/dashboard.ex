@@ -5,7 +5,7 @@ defmodule MediaCentaur.Dashboard do
   """
 
   alias MediaCentaur.Library.{Entity, Episode, WatchedFile, Image}
-  alias MediaCentaur.Library.Types.EntityType
+  alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Review.PendingFile
 
   def fetch_stats do
@@ -22,10 +22,10 @@ defmodule MediaCentaur.Dashboard do
     image_count = count(Image)
 
     type_counts =
-      for type <- EntityType.values(), into: %{} do
-        query = Entity |> Ash.Query.do_filter(%{type: type})
-        {type, count(query)}
-      end
+      Entity
+      |> Ash.Query.select([:type])
+      |> Ash.read!()
+      |> Enum.frequencies_by(& &1.type)
 
     %{
       episodes: episode_count,
@@ -41,7 +41,7 @@ defmodule MediaCentaur.Dashboard do
   end
 
   def fetch_recent_errors do
-    []
+    Stats.get_snapshot().recent_errors
   end
 
   defp count(queryable) do

@@ -28,6 +28,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
       assert snapshot.total_processed == 0
       assert snapshot.total_failed == 0
       assert snapshot.needs_review_count == 0
+      assert snapshot.recent_errors == []
     end
   end
 
@@ -41,6 +42,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
       end
 
       assert snapshot.queue_depth == 0
+      assert snapshot.recent_errors == []
     end
   end
 
@@ -52,7 +54,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
       assert snapshot.stages.parse.active_count == 1
       assert snapshot.stages.parse.status == :active
 
-      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok, "test.mkv", nil})
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.parse.active_count == 0
@@ -66,7 +68,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.search.active_count == 3
 
-      GenServer.cast(stats, {:stage_stop, :search, 100_000, :ok})
+      GenServer.cast(stats, {:stage_stop, :search, 100_000, :ok, "a.mkv", nil})
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.search.active_count == 2
@@ -74,14 +76,14 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
     test "exception decrements active count", %{stats: stats} do
       GenServer.cast(stats, {:stage_start, :ingest, "test.mkv"})
-      GenServer.cast(stats, {:stage_exception, :ingest, 50_000, "something failed"})
+      GenServer.cast(stats, {:stage_exception, :ingest, 50_000, "something failed", "test.mkv"})
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.ingest.active_count == 0
     end
 
     test "active count never goes below zero", %{stats: stats} do
-      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok, "test.mkv", nil})
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.parse.active_count == 0
@@ -90,9 +92,8 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
   describe "throughput window" do
     test "completions within window contribute to throughput", %{stats: stats} do
-      # Send 5 completions
       for _ <- 1..5 do
-        GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+        GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok, "test.mkv", nil})
       end
 
       snapshot = Stats.get_snapshot(stats)
@@ -100,13 +101,14 @@ defmodule MediaCentaur.Pipeline.StatsTest do
     end
 
     test "old completions are pruned from window", %{stats: stats} do
-      # Inject a completion with an old timestamp by manipulating state
       old_time = System.monotonic_time(:millisecond) - 10_000
 
-      GenServer.cast(stats, {:stage_stop_at, :parse, 100_000, :ok, old_time})
+      GenServer.cast(
+        stats,
+        {:stage_stop_at, :parse, 100_000, :ok, old_time, "test.mkv", nil}
+      )
 
       snapshot = Stats.get_snapshot(stats)
-      # Should be pruned since it's older than 5s window
       assert snapshot.stages.parse.throughput == 0.0
     end
   end
@@ -114,7 +116,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
   describe "error tracking" do
     test "exception increments error count and sets last_error", %{stats: stats} do
       GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
-      GenServer.cast(stats, {:stage_exception, :search, 50_000, "TMDB timeout"})
+      GenServer.cast(stats, {:stage_exception, :search, 50_000, "TMDB timeout", "test.mkv"})
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.search.error_count == 1
@@ -125,7 +127,11 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
     test "error result on stop increments total_failed", %{stats: stats} do
       GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
-      GenServer.cast(stats, {:stage_stop, :search, 100_000, :error})
+
+      GenServer.cast(
+        stats,
+        {:stage_stop, :search, 100_000, :error, "test.mkv", {:http_error, 401}}
+      )
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.total_failed == 1
@@ -134,11 +140,68 @@ defmodule MediaCentaur.Pipeline.StatsTest do
     test "multiple errors accumulate", %{stats: stats} do
       for _ <- 1..3 do
         GenServer.cast(stats, {:stage_start, :fetch_metadata, "test.mkv"})
-        GenServer.cast(stats, {:stage_exception, :fetch_metadata, 50_000, "network error"})
+
+        GenServer.cast(
+          stats,
+          {:stage_exception, :fetch_metadata, 50_000, "network error", "test.mkv"}
+        )
       end
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.fetch_metadata.error_count == 3
+    end
+  end
+
+  describe "recent_errors ring buffer" do
+    test "exceptions are recorded in recent_errors", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :search, "/media/movie.mkv"})
+
+      GenServer.cast(
+        stats,
+        {:stage_exception, :search, 50_000, "TMDB timeout", "/media/movie.mkv"}
+      )
+
+      snapshot = Stats.get_snapshot(stats)
+      assert length(snapshot.recent_errors) == 1
+      [error] = snapshot.recent_errors
+      assert error.file_path == "/media/movie.mkv"
+      assert error.error_message == "TMDB timeout"
+      assert error.stage == :search
+      assert %DateTime{} = error.updated_at
+    end
+
+    test "error stop results are recorded in recent_errors", %{stats: stats} do
+      GenServer.cast(
+        stats,
+        {:stage_stop, :search, 100_000, :error, "/media/movie.mkv", {:http_error, 401}}
+      )
+
+      snapshot = Stats.get_snapshot(stats)
+      assert length(snapshot.recent_errors) == 1
+      [error] = snapshot.recent_errors
+      assert error.file_path == "/media/movie.mkv"
+      assert error.stage == :search
+    end
+
+    test "recent_errors are bounded to 50 entries", %{stats: stats} do
+      for i <- 1..60 do
+        GenServer.cast(
+          stats,
+          {:stage_exception, :parse, 50_000, "error #{i}", "/media/file#{i}.mkv"}
+        )
+      end
+
+      snapshot = Stats.get_snapshot(stats)
+      assert length(snapshot.recent_errors) == 50
+      # Most recent error should be first
+      assert snapshot.recent_errors |> hd() |> Map.get(:error_message) == "error 60"
+    end
+
+    test "successful stops do not create error entries", %{stats: stats} do
+      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok, "test.mkv", nil})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.recent_errors == []
     end
   end
 
@@ -169,7 +232,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
   describe "lifetime counters" do
     test "total_processed increments on successful stop", %{stats: stats} do
       GenServer.cast(stats, {:stage_start, :ingest, "test.mkv"})
-      GenServer.cast(stats, {:stage_stop, :ingest, 100_000, :ok})
+      GenServer.cast(stats, {:stage_stop, :ingest, 100_000, :ok, "test.mkv", nil})
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.total_processed == 1
@@ -177,7 +240,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
     test "total_processed does not increment for non-terminal stages", %{stats: stats} do
       GenServer.cast(stats, {:stage_start, :parse, "test.mkv"})
-      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok, "test.mkv", nil})
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.total_processed == 0
@@ -185,10 +248,9 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
     test "needs_review stop on search counts as total_processed", %{stats: stats} do
       GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
-      GenServer.cast(stats, {:stage_stop, :search, 100_000, :needs_review})
+      GenServer.cast(stats, {:stage_stop, :search, 100_000, :needs_review, "test.mkv", nil})
 
       snapshot = Stats.get_snapshot(stats)
-      # needs_review is a successful exit path, just not through ingest
       assert snapshot.total_processed == 0
       assert snapshot.total_failed == 0
     end
@@ -218,8 +280,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
     test "erroring when active and recent errors", %{stats: stats} do
       GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
-      GenServer.cast(stats, {:stage_exception, :search, 50_000, "fail"})
-      # Still have one active (start a new one)
+      GenServer.cast(stats, {:stage_exception, :search, 50_000, "fail", "test.mkv"})
       GenServer.cast(stats, {:stage_start, :search, "test2.mkv"})
 
       snapshot = Stats.get_snapshot(stats)
@@ -229,9 +290,8 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
   describe "average duration" do
     test "calculates average duration from window completions", %{stats: stats} do
-      # 3 completions with known durations (in native time units)
       for duration <- [1_000_000, 2_000_000, 3_000_000] do
-        GenServer.cast(stats, {:stage_stop, :parse, duration, :ok})
+        GenServer.cast(stats, {:stage_stop, :parse, duration, :ok, "test.mkv", nil})
       end
 
       snapshot = Stats.get_snapshot(stats)

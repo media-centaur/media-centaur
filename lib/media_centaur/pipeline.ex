@@ -17,7 +17,6 @@ defmodule MediaCentaur.Pipeline do
   See `PIPELINE.md` for full architecture details.
   """
   use Broadway
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library.{Helpers, WatchedFile}
@@ -61,8 +60,9 @@ defmodule MediaCentaur.Pipeline do
         Broadway.Message.update_data(message, fn _ -> payload end)
 
       {:error, reason} ->
-        Logger.warning(
-          "Pipeline: failed for #{Path.basename(payload.file_path)}: #{inspect(reason)}"
+        Log.warning(
+          :pipeline,
+          "failed for #{Path.basename(payload.file_path)}: #{inspect(reason)}"
         )
 
         Broadway.Message.failed(message, reason)
@@ -147,17 +147,17 @@ defmodule MediaCentaur.Pipeline do
 
       duration = System.monotonic_time() - start_time
 
-      result_tag =
+      stop_metadata =
         case result do
-          {:ok, _} -> :ok
-          {:needs_review, _} -> :needs_review
-          {:error, _} -> :error
+          {:ok, _} -> Map.put(metadata, :result, :ok)
+          {:needs_review, _} -> Map.put(metadata, :result, :needs_review)
+          {:error, reason} -> Map.merge(metadata, %{result: :error, error_reason: reason})
         end
 
       :telemetry.execute(
         [:media_centaur, :pipeline, :stage, :stop],
         %{duration: duration},
-        Map.put(metadata, :result, result_tag)
+        stop_metadata
       )
 
       result

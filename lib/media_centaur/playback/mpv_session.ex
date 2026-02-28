@@ -4,7 +4,6 @@ defmodule MediaCentaur.Playback.MpvSession do
   Launched by the Playback Manager for each play command.
   """
   use GenServer
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Playback.WatchingTracker
@@ -172,7 +171,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
           {:noreply, %{state | socket_retries: state.socket_retries - 1}}
         else
-          Logger.error("MpvSession #{state.session_id}: socket connect timeout")
+          Log.error(:playback, "session #{state.session_id}: socket connect timeout")
           {:stop, :normal, %{state | state: :stopped}}
         end
     end
@@ -380,7 +379,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           broadcast_entity_progress_by_id(entity_id)
 
         {:error, reason} ->
-          Logger.warning("MpvSession: progress write failed: #{inspect(reason)}")
+          Log.warning(:playback, "progress write failed: #{inspect(reason)}")
       end
     end)
   end
@@ -398,7 +397,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           :ok
 
         {:error, reason} ->
-          Logger.warning("MpvSession: mark_completed failed: #{inspect(reason)}")
+          Log.warning(:playback, "mark_completed failed: #{inspect(reason)}")
       end
     end
 
