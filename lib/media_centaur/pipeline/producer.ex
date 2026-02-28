@@ -24,6 +24,7 @@ defmodule MediaCentaur.Pipeline.Producer do
   def handle_demand(incoming_demand, state) do
     state = %{state | demand: state.demand + incoming_demand}
     {messages, state} = dispatch(state)
+    emit_queue_depth(state.queue)
     {:noreply, messages, state}
   end
 
@@ -35,6 +36,7 @@ defmodule MediaCentaur.Pipeline.Producer do
 
     state = %{state | queue: :queue.in(payload, state.queue)}
     {messages, state} = dispatch(state)
+    emit_queue_depth(state.queue)
     {:noreply, messages, state}
   end
 
@@ -62,6 +64,7 @@ defmodule MediaCentaur.Pipeline.Producer do
 
     state = %{state | queue: :queue.in(payload, state.queue)}
     {messages, state} = dispatch(state)
+    emit_queue_depth(state.queue)
     {:noreply, messages, state}
   end
 
@@ -122,5 +125,13 @@ defmodule MediaCentaur.Pipeline.Producer do
       {{:value, payload}, queue} -> dequeue(queue, remaining - 1, [payload | acc])
       {:empty, queue} -> {Enum.reverse(acc), queue, remaining}
     end
+  end
+
+  defp emit_queue_depth(queue) do
+    :telemetry.execute(
+      [:media_centaur, :pipeline, :queue_depth],
+      %{depth: :queue.len(queue)},
+      %{}
+    )
   end
 end

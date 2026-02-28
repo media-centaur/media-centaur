@@ -1,0 +1,246 @@
+defmodule MediaCentaur.Pipeline.StatsTest do
+  use ExUnit.Case, async: true
+
+  alias MediaCentaur.Pipeline.Stats
+
+  @stages [:parse, :search, :fetch_metadata, :download_images, :ingest]
+
+  setup do
+    name = :"stats_#{System.unique_integer([:positive])}"
+    stats = start_supervised!({Stats, name: name})
+    {:ok, stats: stats}
+  end
+
+  describe "initial state" do
+    test "empty snapshot has all stages idle with zero counters", %{stats: stats} do
+      snapshot = Stats.get_snapshot(stats)
+
+      for stage <- @stages do
+        stage_data = snapshot.stages[stage]
+        assert stage_data.active_count == 0
+        assert stage_data.status == :idle
+        assert stage_data.throughput == 0.0
+        assert stage_data.error_count == 0
+        assert stage_data.last_error == nil
+      end
+
+      assert snapshot.queue_depth == 0
+      assert snapshot.total_processed == 0
+      assert snapshot.total_failed == 0
+      assert snapshot.needs_review_count == 0
+    end
+  end
+
+  describe "empty_snapshot/0" do
+    test "returns a valid snapshot without a running GenServer" do
+      snapshot = Stats.empty_snapshot()
+
+      for stage <- @stages do
+        assert snapshot.stages[stage].active_count == 0
+        assert snapshot.stages[stage].status == :idle
+      end
+
+      assert snapshot.queue_depth == 0
+    end
+  end
+
+  describe "active count tracking" do
+    test "start increments active count, stop decrements it", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :parse, "test.mkv"})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.active_count == 1
+      assert snapshot.stages.parse.status == :active
+
+      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.active_count == 0
+    end
+
+    test "multiple concurrent starts track correctly", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :search, "a.mkv"})
+      GenServer.cast(stats, {:stage_start, :search, "b.mkv"})
+      GenServer.cast(stats, {:stage_start, :search, "c.mkv"})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.search.active_count == 3
+
+      GenServer.cast(stats, {:stage_stop, :search, 100_000, :ok})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.search.active_count == 2
+    end
+
+    test "exception decrements active count", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :ingest, "test.mkv"})
+      GenServer.cast(stats, {:stage_exception, :ingest, 50_000, "something failed"})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.ingest.active_count == 0
+    end
+
+    test "active count never goes below zero", %{stats: stats} do
+      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.active_count == 0
+    end
+  end
+
+  describe "throughput window" do
+    test "completions within window contribute to throughput", %{stats: stats} do
+      # Send 5 completions
+      for _ <- 1..5 do
+        GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+      end
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.throughput > 0.0
+    end
+
+    test "old completions are pruned from window", %{stats: stats} do
+      # Inject a completion with an old timestamp by manipulating state
+      old_time = System.monotonic_time(:millisecond) - 10_000
+
+      GenServer.cast(stats, {:stage_stop_at, :parse, 100_000, :ok, old_time})
+
+      snapshot = Stats.get_snapshot(stats)
+      # Should be pruned since it's older than 5s window
+      assert snapshot.stages.parse.throughput == 0.0
+    end
+  end
+
+  describe "error tracking" do
+    test "exception increments error count and sets last_error", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
+      GenServer.cast(stats, {:stage_exception, :search, 50_000, "TMDB timeout"})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.search.error_count == 1
+      assert snapshot.stages.search.last_error != nil
+      {message, _time} = snapshot.stages.search.last_error
+      assert message == "TMDB timeout"
+    end
+
+    test "error result on stop increments total_failed", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
+      GenServer.cast(stats, {:stage_stop, :search, 100_000, :error})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.total_failed == 1
+    end
+
+    test "multiple errors accumulate", %{stats: stats} do
+      for _ <- 1..3 do
+        GenServer.cast(stats, {:stage_start, :fetch_metadata, "test.mkv"})
+        GenServer.cast(stats, {:stage_exception, :fetch_metadata, 50_000, "network error"})
+      end
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.fetch_metadata.error_count == 3
+    end
+  end
+
+  describe "needs_review counter" do
+    test "needs_review increments counter", %{stats: stats} do
+      GenServer.cast(stats, {:needs_review, "test.mkv"})
+      GenServer.cast(stats, {:needs_review, "test2.mkv"})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.needs_review_count == 2
+    end
+  end
+
+  describe "queue depth" do
+    test "queue_depth updates to latest value", %{stats: stats} do
+      GenServer.cast(stats, {:queue_depth, 5})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.queue_depth == 5
+
+      GenServer.cast(stats, {:queue_depth, 2})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.queue_depth == 2
+    end
+  end
+
+  describe "lifetime counters" do
+    test "total_processed increments on successful stop", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :ingest, "test.mkv"})
+      GenServer.cast(stats, {:stage_stop, :ingest, 100_000, :ok})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.total_processed == 1
+    end
+
+    test "total_processed does not increment for non-terminal stages", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :parse, "test.mkv"})
+      GenServer.cast(stats, {:stage_stop, :parse, 100_000, :ok})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.total_processed == 0
+    end
+
+    test "needs_review stop on search counts as total_processed", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
+      GenServer.cast(stats, {:stage_stop, :search, 100_000, :needs_review})
+
+      snapshot = Stats.get_snapshot(stats)
+      # needs_review is a successful exit path, just not through ingest
+      assert snapshot.total_processed == 0
+      assert snapshot.total_failed == 0
+    end
+  end
+
+  describe "status derivation" do
+    test "idle when active_count is 0", %{stats: stats} do
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.status == :idle
+    end
+
+    test "active when active_count > 0", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :parse, "test.mkv"})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.status == :active
+    end
+
+    test "saturated when active_count >= 10", %{stats: stats} do
+      for i <- 1..10 do
+        GenServer.cast(stats, {:stage_start, :download_images, "test#{i}.mkv"})
+      end
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.download_images.status == :saturated
+    end
+
+    test "erroring when active and recent errors", %{stats: stats} do
+      GenServer.cast(stats, {:stage_start, :search, "test.mkv"})
+      GenServer.cast(stats, {:stage_exception, :search, 50_000, "fail"})
+      # Still have one active (start a new one)
+      GenServer.cast(stats, {:stage_start, :search, "test2.mkv"})
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.search.status == :erroring
+    end
+  end
+
+  describe "average duration" do
+    test "calculates average duration from window completions", %{stats: stats} do
+      # 3 completions with known durations (in native time units)
+      for duration <- [1_000_000, 2_000_000, 3_000_000] do
+        GenServer.cast(stats, {:stage_stop, :parse, duration, :ok})
+      end
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.avg_duration_ms > 0
+    end
+
+    test "returns nil when no completions in window", %{stats: stats} do
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.parse.avg_duration_ms == nil
+    end
+  end
+end

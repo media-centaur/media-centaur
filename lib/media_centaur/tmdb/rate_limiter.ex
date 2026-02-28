@@ -31,6 +31,13 @@ defmodule MediaCentaur.TMDB.RateLimiter do
     end
   end
 
+  @doc """
+  Returns current rate limiter status for dashboard display.
+  """
+  def status do
+    GenServer.call(__MODULE__, :status)
+  end
+
   @impl true
   def init(opts) do
     rate = opts[:rate] || @default_rate
@@ -50,6 +57,15 @@ defmodule MediaCentaur.TMDB.RateLimiter do
       wait_ms = max(oldest + state.interval - now, 0)
       {:reply, {:retry_after, wait_ms}, state}
     end
+  end
+
+  @impl true
+  def handle_call(:status, _from, state) do
+    now = System.monotonic_time(:millisecond)
+    timestamps = drop_expired(state.timestamps, now - state.interval)
+    used = :queue.len(timestamps)
+
+    {:reply, %{available: state.rate - used, total: state.rate, used: used}, state}
   end
 
   defp drop_expired(queue, cutoff) do
