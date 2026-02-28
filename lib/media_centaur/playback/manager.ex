@@ -60,6 +60,7 @@ defmodule MediaCentaur.Playback.Manager do
           season_number: params[:season_number],
           episode_number: params[:episode_number],
           episode_name: params[:episode_name],
+          movie_name: params[:movie_name],
           content_url: params.content_url,
           position_seconds: params[:start_position] || 0.0,
           duration_seconds: 0.0

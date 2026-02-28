@@ -20,6 +20,7 @@ defmodule MediaCentaur.Dashboard do
     episode_count = count(Episode)
     file_count = count(WatchedFile)
     image_count = count(Image)
+    incomplete_images = count_action(Image, :incomplete)
 
     type_counts =
       Entity
@@ -31,6 +32,7 @@ defmodule MediaCentaur.Dashboard do
       episodes: episode_count,
       files: file_count,
       images: image_count,
+      incomplete_images: incomplete_images,
       by_type: type_counts
     }
   end
@@ -46,6 +48,13 @@ defmodule MediaCentaur.Dashboard do
 
   defp count(queryable) do
     case Ash.count(queryable) do
+      {:ok, n} -> n
+      _ -> 0
+    end
+  end
+
+  defp count_action(queryable, action) do
+    case Ash.count(queryable, action: action) do
       {:ok, n} -> n
       _ -> 0
     end

@@ -90,6 +90,7 @@ defmodule MediaCentaur.LibraryBrowser do
             action: :play_movie,
             entity_id: entity_id,
             entity_name: entity.name,
+            movie_name: movie.name,
             content_url: movie.content_url,
             start_position: 0.0
           })

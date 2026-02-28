@@ -17,6 +17,11 @@ defmodule MediaCentaur.Library.Image do
   actions do
     defaults [:read, :destroy]
 
+    read :incomplete do
+      filter expr(not is_nil(url) and is_nil(content_url))
+      prepare build(load: [:entity])
+    end
+
     update :update do
       primary? true
       accept [:content_url]
