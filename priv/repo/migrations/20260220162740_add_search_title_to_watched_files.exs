@@ -1,4 +1,4 @@
-defmodule MediaManager.Repo.Migrations.AddSearchTitleToWatchedFiles do
+defmodule MediaCentaur.Repo.Migrations.AddSearchTitleToWatchedFiles do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

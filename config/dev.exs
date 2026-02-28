@@ -2,11 +2,11 @@ import Config
 config :ash, policies: [show_policy_breakdowns?: true]
 
 # Configure your database
-config :media_manager, MediaManager.Repo,
+config :media_centaur, MediaCentaur.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "media_manager_dev",
+  database: "media_centaur_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -17,7 +17,7 @@ config :media_manager, MediaManager.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :media_manager, MediaManagerWeb.Endpoint,
+config :media_centaur, MediaCentaurWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
@@ -26,8 +26,8 @@ config :media_manager, MediaManagerWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "QC0XH/1hm1UEMlboIygQEPtXH1iXVgOZJJZLeIrelftuxkpsNxJ4rhG/6hNeYrEP",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:media_manager, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:media_manager, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:media_centaur, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:media_centaur, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -54,22 +54,22 @@ config :media_manager, MediaManagerWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :media_manager, MediaManagerWeb.Endpoint,
+config :media_centaur, MediaCentaurWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/media_manager_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ~r"lib/media_centaur_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :media_manager, dev_routes: true
+config :media_centaur, dev_routes: true
 
 # Use custom formatter that shows [level][component] for thinking logs
 config :logger, :default_formatter,
-  format: {MediaManager.Log.Formatter, :format},
+  format: {MediaCentaur.Log.Formatter, :format},
   metadata: [:component]
 
 # Set a higher stacktrace during development. Avoid configuring such

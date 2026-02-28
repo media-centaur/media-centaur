@@ -1,4 +1,4 @@
-defmodule MediaManager.NoopImageDownloader do
+defmodule MediaCentaur.NoopImageDownloader do
   @moduledoc """
   No-op image downloader for tests. Replaces `Pipeline.ImageDownloader`
   to avoid real HTTP requests and file I/O during pipeline tests.

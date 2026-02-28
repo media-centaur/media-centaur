@@ -1,4 +1,4 @@
-defmodule MediaManager.Repo.Migrations.AddMovieSeries do
+defmodule MediaCentaur.Repo.Migrations.AddMovieSeries do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
