@@ -29,14 +29,20 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 |------|---------|
 | `lib/media_centaur/log.ex` | Component-level thinking logs: macro, filter, state management |
 | `lib/media_centaur/log/formatter.ex` | Custom log formatter: `[level][component] message` |
-| `lib/media_centaur/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode, Setting |
+| `lib/media_centaur/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode, Movie, Extra, Setting |
 | `lib/media_centaur/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
 | `lib/media_centaur/library/ingress.ex` | Library inbound API: creates/updates entities from pipeline metadata |
-| `lib/media_centaur/playback/` | Playback engine: resume algorithm, MPV session, playback manager |
-| `lib/media_centaur/pipeline/` | Broadway pipeline, producer, and image downloader |
-| `lib/media_centaur/tmdb/` | TMDB API client, confidence scorer, and response mapper |
+| `lib/media_centaur/library/helpers.ex` | Shared helpers: entity loading, PubSub broadcast |
+| `lib/media_centaur/review/` | Review domain: PendingFile resource, Intake module |
+| `lib/media_centaur/playback/` | Playback engine: resume, MPV session, manager, episode list, progress summary, watching tracker |
+| `lib/media_centaur/pipeline/` | Broadway pipeline, producer, image downloader, payload struct |
+| `lib/media_centaur/pipeline/stats.ex` | Pipeline telemetry aggregator (per-stage activity, recent errors) |
+| `lib/media_centaur/tmdb/` | TMDB API client, confidence scorer, response mapper, rate limiter |
 | `lib/media_centaur/serializer.ex` | Schema.org JSON-LD serializer (Entity → channel push format) |
 | `lib/media_centaur/config.ex` | TOML config loader (GenServer) |
+| `lib/media_centaur/admin.ex` | Destructive admin operations (clear database, refresh/retry images) |
+| `lib/media_centaur/dashboard.ex` | Dashboard data-fetching (library stats, pending review, recent errors) |
+| `lib/media_centaur/storage.ex` | Disk usage measurement for watch dirs, images, database |
 | `lib/media_centaur/watcher.ex` | File system watcher (inotify) |
 | `lib/media_centaur/parser.ex` | Video filename parser — pure function, path → `%Parser.Result{}` (see Parser section below) |
 | `lib/media_centaur_web/channels/` | Phoenix Channels: UserSocket, LibraryChannel, PlaybackChannel (WebSocket API for the UI) |
@@ -44,7 +50,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 | `priv/repo/migrations/` | Ecto migrations (auto-generated from Ash resources) |
 | `test/media_centaur_web/channels/` | Channel tests: library and playback wire format verification (use `ChannelCase`) |
 | `test/` | ExUnit tests |
-| `assets/` | JS and CSS source (esbuild + Tailwind v4) |
+| `assets/` | JS and CSS source (esbuild + Tailwind v4 + daisyUI) |
 | `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
 | `AGENTS.md` | Elixir/Phoenix/LiveView/Ecto/CSS/JS coding rules |
 | `PIPELINE.md` | Broadway pipeline architecture (detection → search → metadata fetch → image download → serialize) |
@@ -127,14 +133,25 @@ Tests mirror `lib/` by domain. Each module gets its own test file.
 |-----------|-----------|---------|------|
 | `test/media_centaur/parser_test.exs` | `Parser` | yes | `ExUnit.Case` |
 | `test/media_centaur/serializer_test.exs` | `Serializer` | yes | `ExUnit.Case` |
+| `test/media_centaur/storage_test.exs` | `Storage` | yes | `ExUnit.Case` |
 | `test/media_centaur/tmdb/mapper_test.exs` | `TMDB.Mapper` | yes | `ExUnit.Case` |
 | `test/media_centaur/tmdb/confidence_test.exs` | `TMDB.Confidence` | yes | `ExUnit.Case` |
 | `test/media_centaur/playback/resume_test.exs` | `Playback.Resume` | yes | `ExUnit.Case` |
 | `test/media_centaur/playback/progress_summary_test.exs` | `Playback.ProgressSummary` | yes | `ExUnit.Case` |
+| `test/media_centaur/playback/episode_list_test.exs` | `Playback.EpisodeList` | yes | `ExUnit.Case` |
+| `test/media_centaur/playback/watching_tracker_test.exs` | `Playback.WatchingTracker` | yes | `ExUnit.Case` |
+| `test/media_centaur/pipeline/stats_test.exs` | `Pipeline.Stats` | yes | `ExUnit.Case` |
+| `test/media_centaur/log_test.exs` | `Log` macro and state | no | `DataCase` |
+| `test/media_centaur/admin_test.exs` | Admin operations | no | `DataCase` |
+| `test/media_centaur/dashboard_test.exs` | Dashboard data fetching | no | `DataCase` |
 | `test/media_centaur/library/entity_test.exs` | Entity Ash actions | no | `DataCase` |
 | `test/media_centaur/library/watched_file_test.exs` | WatchedFile actions | no | `DataCase` |
 | `test/media_centaur/library/watch_progress_test.exs` | WatchProgress actions | no | `DataCase` |
+| `test/media_centaur/library/image_test.exs` | Image Ash actions | no | `DataCase` |
 | `test/media_centaur/library/ingress_test.exs` | Ingress library API (TMDB stubs) | no | `DataCase` |
+| `test/media_centaur/review/pending_file_test.exs` | PendingFile actions | no | `DataCase` |
+| `test/media_centaur/review/intake_test.exs` | Review.Intake | no | `DataCase` |
+| `test/media_centaur/watcher/supervisor_test.exs` | Watcher.Supervisor | no | `ExUnit.Case` |
 | `test/media_centaur/pipeline/stages/parse_test.exs` | Parse stage | yes | `ExUnit.Case` |
 | `test/media_centaur/pipeline/stages/search_test.exs` | Search stage (TMDB stubs) | no | `DataCase` |
 | `test/media_centaur/pipeline/stages/fetch_metadata_test.exs` | FetchMetadata stage (TMDB stubs) | no | `DataCase` |
@@ -218,7 +235,7 @@ Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
 
 ### LiveView
 
-Visit `/logging` to toggle components and framework log suppression from the browser.
+Visit `/operations` (Logging section) to toggle components and framework log suppression from the browser.
 
 ### Message Format
 

@@ -2,7 +2,7 @@
 
 ## Context
 
-The parser (`lib/media_manager/parser.ex`) is a ~588-line pure function module that transforms file paths into `%Parser.Result{}` structs. It works — 40+ real-world filename patterns pass — but its internal structure is hard to reason about because **four concerns are interleaved**: pre-processing (candidate name selection), classification (regex cascade), field extraction (type-specific post-processing), and title cleaning. Touching one concern requires understanding all four.
+The parser (`lib/media_centaur/parser.ex`) is a ~588-line pure function module that transforms file paths into `%Parser.Result{}` structs. It works — 40+ real-world filename patterns pass — but its internal structure is hard to reason about because **four concerns are interleaved**: pre-processing (candidate name selection), classification (regex cascade), field extraction (type-specific post-processing), and title cleaning. Touching one concern requires understanding all four.
 
 The goal is to find a design that "masters" this subdomain — making the parser understandable, maintainable, and pleasant to work with.
 
@@ -53,7 +53,7 @@ Path
 
 ## Phase 1: Extract `Parser.Context`
 
-**New module:** `lib/media_manager/parser/context.ex`
+**New module:** `lib/media_centaur/parser/context.ex`
 
 **What it captures:**
 
@@ -88,7 +88,7 @@ Path
 
 ## Phase 2: Extract `Parser.Classifier`
 
-**New module:** `lib/media_manager/parser/classifier.ex`
+**New module:** `lib/media_centaur/parser/classifier.ex`
 
 **Purpose:** Given a `%Context{}`, return `{type, captures}` or `:unknown`.
 
@@ -118,7 +118,7 @@ end
 
 ## Phase 3: Extract `Parser.Extractor`
 
-**New module:** `lib/media_manager/parser/extractor.ex`
+**New module:** `lib/media_centaur/parser/extractor.ex`
 
 **Purpose:** Given `{type, captures}` + `%Context{}`, produce a raw field map.
 
@@ -142,7 +142,7 @@ end
 
 ## Phase 4: Extract `Parser.Cleaner`
 
-**New module:** `lib/media_manager/parser/cleaner.ex`
+**New module:** `lib/media_centaur/parser/cleaner.ex`
 
 **Purpose:** Single pass over all string fields in the raw map, producing the final `%Result{}`.
 
@@ -197,17 +197,17 @@ All 40+ existing tests pass unchanged — same inputs, same outputs.
 ## File layout
 
 ```
-lib/media_manager/parser.ex              # public API, Result struct, 4-step pipe
-lib/media_manager/parser/context.ex      # directory analysis, candidate selection
-lib/media_manager/parser/classifier.ex   # regex patterns, type classification
-lib/media_manager/parser/extractor.ex    # type-specific field extraction
-lib/media_manager/parser/cleaner.ex      # title cleaning, title_case
+lib/media_centaur/parser.ex              # public API, Result struct, 4-step pipe
+lib/media_centaur/parser/context.ex      # directory analysis, candidate selection
+lib/media_centaur/parser/classifier.ex   # regex patterns, type classification
+lib/media_centaur/parser/extractor.ex    # type-specific field extraction
+lib/media_centaur/parser/cleaner.ex      # title cleaning, title_case
 
-test/media_manager/parser_test.exs       # existing tests, unchanged
-test/media_manager/parser/context_test.exs
-test/media_manager/parser/classifier_test.exs
-test/media_manager/parser/extractor_test.exs
-test/media_manager/parser/cleaner_test.exs
+test/media_centaur/parser_test.exs       # existing tests, unchanged
+test/media_centaur/parser/context_test.exs
+test/media_centaur/parser/classifier_test.exs
+test/media_centaur/parser/extractor_test.exs
+test/media_centaur/parser/cleaner_test.exs
 ```
 
 ---

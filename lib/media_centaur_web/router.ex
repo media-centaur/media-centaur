@@ -21,7 +21,6 @@ defmodule MediaCentaurWeb.Router do
     live "/operations", OperationsLive, :index
     live "/review", ReviewLive, :index
     live "/library", LibraryLive, :index
-    live "/logging", LoggingLive, :index
   end
 
   # Other scopes may use custom stacks.
