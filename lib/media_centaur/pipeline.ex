@@ -34,6 +34,10 @@ defmodule MediaCentaur.Pipeline do
 
   alias MediaCentaur.Review.{Intake, PendingFile}
 
+  @processor_concurrency 15
+
+  def processor_concurrency, do: @processor_concurrency
+
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
@@ -41,7 +45,7 @@ defmodule MediaCentaur.Pipeline do
         module: {MediaCentaur.Pipeline.Producer, []},
         concurrency: 1
       ],
-      processors: [default: [concurrency: 15, partition_by: &partition_key/1]],
+      processors: [default: [concurrency: @processor_concurrency, partition_by: &partition_key/1]],
       batchers: [default: [concurrency: 1, batch_size: 10, batch_timeout: 5_000]]
     )
   end
@@ -109,8 +113,8 @@ defmodule MediaCentaur.Pipeline do
   end
 
   defp run_pipeline(payload) do
-    with {:ok, payload} <- Parse.run(payload),
-         result <- Search.run(payload) do
+    with {:ok, payload} <- run_stage(:parse, Parse, payload),
+         result <- run_stage(:search, Search, payload) do
       case result do
         {:ok, payload} -> run_post_search(payload)
         {:needs_review, _} = needs_review -> needs_review
@@ -120,10 +124,54 @@ defmodule MediaCentaur.Pipeline do
   end
 
   defp run_post_search(payload) do
-    with {:ok, payload} <- FetchMetadata.run(payload),
-         {:ok, payload} <- DownloadImages.run(payload),
-         {:ok, payload} <- Ingest.run(payload) do
+    with {:ok, payload} <- run_stage(:fetch_metadata, FetchMetadata, payload),
+         {:ok, payload} <- run_stage(:download_images, DownloadImages, payload),
+         {:ok, payload} <- run_stage(:ingest, Ingest, payload) do
       {:ok, payload}
+    end
+  end
+
+  defp run_stage(stage_name, stage_module, payload) do
+    metadata = %{stage: stage_name, file_path: payload.file_path}
+
+    :telemetry.execute(
+      [:media_centaur, :pipeline, :stage, :start],
+      %{system_time: System.system_time()},
+      metadata
+    )
+
+    start_time = System.monotonic_time()
+
+    try do
+      result = stage_module.run(payload)
+
+      duration = System.monotonic_time() - start_time
+
+      result_tag =
+        case result do
+          {:ok, _} -> :ok
+          {:needs_review, _} -> :needs_review
+          {:error, _} -> :error
+        end
+
+      :telemetry.execute(
+        [:media_centaur, :pipeline, :stage, :stop],
+        %{duration: duration},
+        Map.put(metadata, :result, result_tag)
+      )
+
+      result
+    rescue
+      exception ->
+        duration = System.monotonic_time() - start_time
+
+        :telemetry.execute(
+          [:media_centaur, :pipeline, :stage, :exception],
+          %{duration: duration},
+          Map.merge(metadata, %{kind: :error, reason: Exception.message(exception)})
+        )
+
+        reraise exception, __STACKTRACE__
     end
   end
 
@@ -156,6 +204,10 @@ defmodule MediaCentaur.Pipeline do
   end
 
   defp handle_needs_review(payload) do
+    :telemetry.execute([:media_centaur, :pipeline, :needs_review], %{}, %{
+      file_path: payload.file_path
+    })
+
     Intake.create_from_payload(payload)
     {:ok, payload}
   end

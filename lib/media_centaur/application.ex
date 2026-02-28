@@ -45,6 +45,7 @@ defmodule MediaCentaur.Application do
               restart: :temporary
             }
           ),
+          MediaCentaur.Pipeline.Stats,
           if(start_pipeline?, do: MediaCentaur.Pipeline),
           MediaCentaur.Playback.Supervisor,
           MediaCentaurWeb.Endpoint

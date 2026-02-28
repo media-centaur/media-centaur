@@ -2,6 +2,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.{Admin, Dashboard}
+  alias MediaCentaur.Pipeline.Stats
 
   @impl true
   def mount(_params, _session, socket) do
@@ -9,8 +10,9 @@ defmodule MediaCentaurWeb.DashboardLive do
       if connected?(socket) do
         Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "watcher:state")
         Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "library:updates")
-
         Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "playback:events")
+
+        Process.send_after(self(), :tick_pipeline, 1_000)
 
         stats = Dashboard.fetch_stats()
 
@@ -21,6 +23,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(recent_errors: stats.recent_errors)
         |> assign(playback: MediaCentaur.Playback.Manager.current_state())
         |> assign(config: load_config())
+        |> assign(pipeline_stats: Stats.get_snapshot())
       else
         socket
         |> assign(watcher_statuses: [])
@@ -29,6 +32,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(recent_errors: [])
         |> assign(playback: %{state: :idle, now_playing: nil})
         |> assign(config: %{})
+        |> assign(pipeline_stats: Stats.empty_snapshot())
       end
 
     {:ok,
@@ -36,7 +40,8 @@ defmodule MediaCentaurWeb.DashboardLive do
        scanning: false,
        clearing_database: false,
        refreshing_images: false,
-       stats_timer: nil
+       stats_timer: nil,
+       pipeline_concurrency: MediaCentaur.Pipeline.processor_concurrency()
      )}
   end
 
@@ -149,6 +154,11 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:noreply, assign(socket, playback: %{playback | now_playing: now_playing})}
   end
 
+  def handle_info(:tick_pipeline, socket) do
+    Process.send_after(self(), :tick_pipeline, 1_000)
+    {:noreply, assign(socket, pipeline_stats: Stats.get_snapshot())}
+  end
+
   @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
@@ -171,6 +181,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         </div>
 
         <.library_stats stats={@library_stats} />
+        <.pipeline_status stats={@pipeline_stats} pipeline_concurrency={@pipeline_concurrency} />
 
         <.watcher_health statuses={@watcher_statuses} />
         <.playback_status playback={@playback} />
@@ -213,6 +224,84 @@ defmodule MediaCentaurWeb.DashboardLive do
           <span>{@stats.images} images cached</span>
         </div>
       </div>
+    </div>
+    """
+  end
+
+  defp pipeline_status(assigns) do
+    assigns =
+      assign(assigns, :stage_order, [:parse, :search, :fetch_metadata, :download_images, :ingest])
+
+    ~H"""
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body">
+        <div class="flex items-center justify-between">
+          <h2 class="card-title text-lg">Pipeline</h2>
+          <div class="flex items-center gap-3 text-sm">
+            <span :if={@stats.queue_depth > 0} class="badge badge-info badge-sm">
+              {@stats.queue_depth} queued
+            </span>
+            <span class="text-base-content/60">
+              {if @stats.total_processed > 0,
+                do: "#{@stats.total_processed} processed",
+                else: "idle"}
+            </span>
+            <span :if={@stats.total_failed > 0} class="text-error text-xs">
+              {@stats.total_failed} failed
+            </span>
+          </div>
+        </div>
+
+        <div class="space-y-2 mt-2">
+          <.pipeline_stage
+            :for={stage <- @stage_order}
+            stage={stage}
+            data={@stats.stages[stage]}
+            concurrency={@pipeline_concurrency}
+            needs_review_count={@stats.needs_review_count}
+            rate_limiter={@stats.rate_limiter}
+          />
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp pipeline_stage(assigns) do
+    ~H"""
+    <div class="grid items-center gap-3 py-1" style="grid-template-columns: 0.5rem 8rem 5.5rem 5rem 5rem 2.5rem 1fr">
+      <span class={["w-2 h-2 rounded-full", stage_dot_class(@data.status)]}></span>
+
+      <span class="text-sm font-medium truncate">{stage_display_name(@stage)}</span>
+
+      <span class={["badge badge-xs", stage_badge_class(@data.status)]}>
+        {stage_status_label(@data.status)}
+      </span>
+
+      <span class="text-xs font-mono text-base-content/60 text-right">
+        {format_throughput(@data.throughput)}
+      </span>
+
+      <span class="text-xs font-mono text-base-content/60 text-right">
+        {format_duration(@data.avg_duration_ms)}
+      </span>
+
+      <span class="text-xs font-mono text-base-content/40 text-right">
+        {@data.active_count}/{@concurrency}
+      </span>
+
+      <span class="text-xs text-base-content/40 truncate">
+        <span :if={@stage == :search && @needs_review_count > 0}>
+          {@needs_review_count} sent to review
+        </span>
+        <span :if={@stage == :search && @rate_limiter}>
+          <span :if={@needs_review_count > 0}> · </span>
+          TMDB requests {@rate_limiter.used}/{@rate_limiter.total}
+        </span>
+        <span :if={@data.last_error} class="text-error">
+          {elem(@data.last_error, 0)}
+        </span>
+      </span>
     </div>
     """
   end
@@ -464,6 +553,35 @@ defmodule MediaCentaurWeb.DashboardLive do
       watch_dirs_count: length(config.get(:watch_dirs) || [])
     }
   end
+
+  defp stage_dot_class(:idle), do: "bg-base-content/20"
+  defp stage_dot_class(:active), do: "bg-success"
+  defp stage_dot_class(:saturated), do: "bg-warning"
+  defp stage_dot_class(:erroring), do: "bg-error"
+
+  defp stage_badge_class(:idle), do: "badge-ghost"
+  defp stage_badge_class(:active), do: "badge-success"
+  defp stage_badge_class(:saturated), do: "badge-warning"
+  defp stage_badge_class(:erroring), do: "badge-error"
+
+  defp stage_status_label(:idle), do: "idle"
+  defp stage_status_label(:active), do: "active"
+  defp stage_status_label(:saturated), do: "saturated"
+  defp stage_status_label(:erroring), do: "erroring"
+
+  defp stage_display_name(:parse), do: "Parse"
+  defp stage_display_name(:search), do: "Search"
+  defp stage_display_name(:fetch_metadata), do: "Fetch Metadata"
+  defp stage_display_name(:download_images), do: "Download Images"
+  defp stage_display_name(:ingest), do: "Ingest"
+
+  defp format_throughput(rate) when rate == 0.0, do: "—"
+  defp format_throughput(rate), do: "#{rate}/s"
+
+  defp format_duration(nil), do: "—"
+  defp format_duration(ms) when ms < 1_000, do: "#{round(ms)}ms"
+  defp format_duration(ms) when ms < 60_000, do: "#{Float.round(ms / 1_000, 1)}s"
+  defp format_duration(ms), do: "#{Float.round(ms / 60_000, 1)}m"
 
   defp watcher_badge_class(:watching), do: "badge-success"
   defp watcher_badge_class(:initializing), do: "badge-warning"
