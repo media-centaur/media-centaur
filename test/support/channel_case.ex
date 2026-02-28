@@ -1,4 +1,4 @@
-defmodule MediaManagerWeb.ChannelCase do
+defmodule MediaCentaurWeb.ChannelCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a channel.
@@ -13,16 +13,16 @@ defmodule MediaManagerWeb.ChannelCase do
   using do
     quote do
       import Phoenix.ChannelTest
-      import MediaManagerWeb.ChannelCase, only: [json_roundtrip: 1]
-      import MediaManager.TestFactory
-      @endpoint MediaManagerWeb.Endpoint
+      import MediaCentaurWeb.ChannelCase, only: [json_roundtrip: 1]
+      import MediaCentaur.TestFactory
+      @endpoint MediaCentaurWeb.Endpoint
     end
   end
 
   def json_roundtrip(payload), do: payload |> Jason.encode!() |> Jason.decode!()
 
   setup tags do
-    MediaManager.DataCase.setup_sandbox(tags)
+    MediaCentaur.DataCase.setup_sandbox(tags)
     :ok
   end
 end

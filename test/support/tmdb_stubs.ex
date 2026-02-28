@@ -1,4 +1,4 @@
-defmodule MediaManager.TmdbStubs do
+defmodule MediaCentaur.TmdbStubs do
   @moduledoc """
   Shared TMDB API stub helpers for pipeline tests.
 
@@ -14,10 +14,10 @@ defmodule MediaManager.TmdbStubs do
   def setup_tmdb_client(context \\ %{}) do
     Req.Test.stub(:tmdb, fn conn -> json_resp(conn, 200, %{"results" => []}) end)
     client = Req.new(plug: {Req.Test, :tmdb}, retry: false)
-    :persistent_term.put({MediaManager.TMDB.Client, :client}, client)
+    :persistent_term.put({MediaCentaur.TMDB.Client, :client}, client)
 
     ExUnit.Callbacks.on_exit(fn ->
-      :persistent_term.erase({MediaManager.TMDB.Client, :client})
+      :persistent_term.erase({MediaCentaur.TMDB.Client, :client})
     end)
 
     context

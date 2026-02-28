@@ -1,4 +1,4 @@
-defmodule MediaManager.Repo.Migrations.AddSeasonExtras do
+defmodule MediaCentaur.Repo.Migrations.AddSeasonExtras do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

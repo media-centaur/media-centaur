@@ -3,10 +3,10 @@ config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # Dedicated SQLite test database — separate from the dev/user database.
 # The MIX_TEST_PARTITION environment variable supports CI test partitioning.
-config :media_manager, MediaManager.Repo,
+config :media_centaur, MediaCentaur.Repo,
   database:
     Path.expand(
-      "priv/repo/media_manager_test#{System.get_env("MIX_TEST_PARTITION")}.db",
+      "priv/repo/media_centaur_test#{System.get_env("MIX_TEST_PARTITION")}.db",
       __DIR__ |> Path.dirname()
     ),
   pool: Ecto.Adapters.SQL.Sandbox,
@@ -14,27 +14,27 @@ config :media_manager, MediaManager.Repo,
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :media_manager, MediaManagerWeb.Endpoint,
+config :media_centaur, MediaCentaurWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "drZ4av8PGWJfoIM6MU3ZMDBDopailIvJh5E5PmS/FgSegTMiyMWuhke/O0rXGulA",
   server: false
 
 # In test we don't send emails
-config :media_manager, MediaManager.Mailer, adapter: Swoosh.Adapters.Test
+config :media_centaur, MediaCentaur.Mailer, adapter: Swoosh.Adapters.Test
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
 # Use no-op image downloader in tests (avoids real HTTP + file I/O)
-config :media_manager, :image_downloader, MediaManager.NoopImageDownloader
-config :media_manager, :staging_image_downloader, MediaManager.NoopImageDownloader
+config :media_centaur, :image_downloader, MediaCentaur.NoopImageDownloader
+config :media_centaur, :staging_image_downloader, MediaCentaur.NoopImageDownloader
 
 # Disable file watchers and Broadway pipeline in tests.
 # Watchers start inotify on configured directories — not useful in tests and
 # causes "kill: No such process" noise when the watched dir doesn't exist.
 # The pipeline polls the DB every 2s and can trigger real TMDB HTTP requests.
-config :media_manager, :start_watchers, false
-config :media_manager, :start_pipeline, false
+config :media_centaur, :start_watchers, false
+config :media_centaur, :start_pipeline, false
 
 # Print only warnings and errors during test
 config :logger, level: :warning

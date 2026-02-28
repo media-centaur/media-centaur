@@ -32,7 +32,7 @@ The Watchers and Pipeline are decoupled via PubSub events. Watchers broadcast `{
 
 ## Payload
 
-`MediaManager.Pipeline.Payload` is the data structure that flows through all pipeline stages. It accumulates results as it progresses:
+`MediaCentaur.Pipeline.Payload` is the data structure that flows through all pipeline stages. It accumulates results as it progresses:
 
 | Field | Set by | Purpose |
 |-------|--------|---------|
@@ -52,7 +52,7 @@ The Watchers and Pipeline are decoupled via PubSub events. Watchers broadcast `{
 
 ## Components
 
-### Producer (`MediaManager.Pipeline.Producer`)
+### Producer (`MediaCentaur.Pipeline.Producer`)
 
 A GenStage producer that subscribes to PubSub for pipeline input events.
 
@@ -62,9 +62,9 @@ A GenStage producer that subscribes to PubSub for pipeline input events.
 - Converts events to `%Payload{}` structs and queues them
 - Dispatches payloads to Broadway processors on demand
 
-**Source:** `lib/media_manager/pipeline/producer.ex`
+**Source:** `lib/media_centaur/pipeline/producer.ex`
 
-### Pipeline (`MediaManager.Pipeline`)
+### Pipeline (`MediaCentaur.Pipeline`)
 
 The Broadway module that orchestrates file processing.
 
@@ -96,11 +96,11 @@ For `entry_point: :review_resolved`:
 
 **Error handling:** If any stage fails, the Broadway message is marked as failed with the error reason.
 
-**Source:** `lib/media_manager/pipeline.ex`
+**Source:** `lib/media_centaur/pipeline.ex`
 
 ### Pipeline Stages
 
-All stages are pure-function modules in `lib/media_manager/pipeline/stages/`. Each takes a `%Payload{}` and returns `{:ok, payload}`, `{:needs_review, payload}`, or `{:error, reason}`.
+All stages are pure-function modules in `lib/media_centaur/pipeline/stages/`. Each takes a `%Payload{}` and returns `{:ok, payload}`, `{:needs_review, payload}`, or `{:error, reason}`.
 
 | Stage | Module | Purpose |
 |-------|--------|---------|
@@ -119,10 +119,10 @@ The Pipeline is started as part of the application supervision tree, after the W
 ```elixir
 children = [
   ...
-  MediaManager.Watcher.Supervisor,
-  {Task, &MediaManager.Watcher.Supervisor.start_watchers/0},
-  MediaManager.Pipeline,
-  MediaManagerWeb.Endpoint
+  MediaCentaur.Watcher.Supervisor,
+  {Task, &MediaCentaur.Watcher.Supervisor.start_watchers/0},
+  MediaCentaur.Pipeline,
+  MediaCentaurWeb.Endpoint
 ]
 ```
 
@@ -153,9 +153,9 @@ The pipeline is designed to be safe to re-run and safe under concurrent processi
 
 ## Extras (Bonus Features)
 
-Movie extras (featurettes, behind-the-scenes, deleted scenes) are video files inside a subdirectory of a movie release — commonly named `Extras/`, `Featurettes/`, `Special Features/`, etc. The directory names are configurable via `extras_dirs` in `media-manager.toml`.
+Movie extras (featurettes, behind-the-scenes, deleted scenes) are video files inside a subdirectory of a movie release — commonly named `Extras/`, `Featurettes/`, `Special Features/`, etc. The directory names are configurable via `extras_dirs` in `backend.toml`.
 
-**Detection:** The parser (`MediaManager.Parser`) checks whether the file's parent directory name matches the configured extras list (case-insensitive) **before** running the normal candidate/pattern logic. When matched, it returns `type: :extra` with the cleaned filename as `title`, and the grandparent directory parsed as `parent_title` / `parent_year`.
+**Detection:** The parser (`MediaCentaur.Parser`) checks whether the file's parent directory name matches the configured extras list (case-insensitive) **before** running the normal candidate/pattern logic. When matched, it returns `type: :extra` with the cleaned filename as `title`, and the grandparent directory parsed as `parent_title` / `parent_year`.
 
 **Pipeline flow for extras:**
 
@@ -179,7 +179,7 @@ The `/review` admin UI surfaces these PendingFile records. The reviewer can:
 2. **Search** — Opens an inline TMDB search panel for manual matching, then approves with the selected result.
 3. **Dismiss** — Rejects the file. The PendingFile is destroyed.
 
-PendingFile records are managed by the `Review` domain (`lib/media_manager/review/`), separate from the `Library` domain.
+PendingFile records are managed by the `Review` domain (`lib/media_centaur/review/`), separate from the `Library` domain.
 
 ---
 

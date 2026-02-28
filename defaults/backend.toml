@@ -1,0 +1,44 @@
+# defaults/backend.toml
+#
+# Shipped default configuration for Media Centaur — Backend.
+# Copy this file to ~/.config/media-centaur/backend.toml and edit as needed.
+# This file must contain every recognised config key; keep it up to date as new
+# keys are added to MediaCentaur.Config.
+
+# Path to the SQLite database file.
+database_path = "~/.local/share/media-centaur/media_library.db"
+
+# Directories containing video/media files (e.g. torrent downloads folders).
+# Watched for additions and removals. May be on removable or network drives.
+# Add multiple directories to watch media across several drives/mounts.
+watch_dirs = ["/mnt/videos/Videos"]
+
+# Directories to exclude from watching. Files inside these directories
+# (and their subdirectories) are ignored by both inotify and manual scans.
+# Paths are expanded (~ resolved). Must be absolute paths.
+exclude_dirs = []
+
+# Directory for cached artwork images, one subdirectory per entity UUID.
+# Shared with the user-interface (UI resolves image paths relative to this dir).
+media_images_dir = "~/.local/share/media-centaur/images"
+
+[tmdb]
+# TMDB API key. Required for metadata scraping. Get one at https://www.themoviedb.org/settings/api
+api_key = ""
+
+[pipeline]
+# Confidence score threshold (0.0–1.0). Matches at or above this score are
+# written automatically. Below it, the item is queued for human review.
+auto_approve_threshold = 0.85
+
+# Directory names (case-insensitive) treated as bonus-feature containers.
+# Files inside these directories are linked to the parent movie as extras.
+extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
+
+[playback]
+# Absolute path to the mpv binary.
+mpv_path = "/usr/bin/mpv"
+# Directory for MPV IPC sockets. Must be writable.
+socket_dir = "/tmp"
+# Timeout in ms for connecting to the MPV IPC socket after launch.
+socket_timeout_ms = 5000

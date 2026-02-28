@@ -1,4 +1,4 @@
-defmodule MediaManager.Repo.Migrations.AddSettings do
+defmodule MediaCentaur.Repo.Migrations.AddSettings do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

@@ -1,6 +1,6 @@
-# Freedia Center — Media Manager
+# Media Centaur — Backend
 
-Phoenix/Elixir application that manages the Freedia Center media library. Watches configured directories for video files, scrapes metadata and artwork from TMDB, and serves the library to the [user-interface](../user-interface) over Phoenix Channels (WebSocket).
+Phoenix/Elixir application that manages the Media Centaur media library. Watches configured directories for video files, scrapes metadata and artwork from TMDB, and serves the library to the [frontend](../frontend) over Phoenix Channels (WebSocket).
 
 ## Quick Start
 

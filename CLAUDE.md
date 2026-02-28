@@ -1,8 +1,8 @@
 Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 
-# Freedia Center — Media Manager
+# Media Centaur — Backend
 
-A Phoenix/Elixir web application that manages the Freedia Center media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The `user-interface` app connects via WebSocket (Phoenix Channels) to receive library data, send playback commands, and get real-time updates.
+A Phoenix/Elixir web application that manages the Media Centaur media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The `frontend` app connects via WebSocket (Phoenix Channels) to receive library data, send playback commands, and get real-time updates.
 
 ## Version Control (Jujutsu)
 
@@ -27,22 +27,22 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 | Path | Purpose |
 |------|---------|
-| `lib/media_manager/log.ex` | Component-level thinking logs: macro, filter, state management |
-| `lib/media_manager/log/formatter.ex` | Custom log formatter: `[level][component] message` |
-| `lib/media_manager/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode, Setting |
-| `lib/media_manager/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
-| `lib/media_manager/library/ingress.ex` | Library inbound API: creates/updates entities from pipeline metadata |
-| `lib/media_manager/playback/` | Playback engine: resume algorithm, MPV session, playback manager |
-| `lib/media_manager/pipeline/` | Broadway pipeline, producer, and image downloader |
-| `lib/media_manager/tmdb/` | TMDB API client, confidence scorer, and response mapper |
-| `lib/media_manager/serializer.ex` | Schema.org JSON-LD serializer (Entity → channel push format) |
-| `lib/media_manager/config.ex` | TOML config loader (GenServer) |
-| `lib/media_manager/watcher.ex` | File system watcher (inotify) |
-| `lib/media_manager/parser.ex` | Video filename parser — pure function, path → `%Parser.Result{}` (see Parser section below) |
-| `lib/media_manager_web/channels/` | Phoenix Channels: UserSocket, LibraryChannel, PlaybackChannel (WebSocket API for the UI) |
-| `lib/media_manager_web/` | Phoenix web layer: router, LiveViews, components |
+| `lib/media_centaur/log.ex` | Component-level thinking logs: macro, filter, state management |
+| `lib/media_centaur/log/formatter.ex` | Custom log formatter: `[level][component] message` |
+| `lib/media_centaur/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode, Setting |
+| `lib/media_centaur/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
+| `lib/media_centaur/library/ingress.ex` | Library inbound API: creates/updates entities from pipeline metadata |
+| `lib/media_centaur/playback/` | Playback engine: resume algorithm, MPV session, playback manager |
+| `lib/media_centaur/pipeline/` | Broadway pipeline, producer, and image downloader |
+| `lib/media_centaur/tmdb/` | TMDB API client, confidence scorer, and response mapper |
+| `lib/media_centaur/serializer.ex` | Schema.org JSON-LD serializer (Entity → channel push format) |
+| `lib/media_centaur/config.ex` | TOML config loader (GenServer) |
+| `lib/media_centaur/watcher.ex` | File system watcher (inotify) |
+| `lib/media_centaur/parser.ex` | Video filename parser — pure function, path → `%Parser.Result{}` (see Parser section below) |
+| `lib/media_centaur_web/channels/` | Phoenix Channels: UserSocket, LibraryChannel, PlaybackChannel (WebSocket API for the UI) |
+| `lib/media_centaur_web/` | Phoenix web layer: router, LiveViews, components |
 | `priv/repo/migrations/` | Ecto migrations (auto-generated from Ash resources) |
-| `test/media_manager_web/channels/` | Channel tests: library and playback wire format verification (use `ChannelCase`) |
+| `test/media_centaur_web/channels/` | Channel tests: library and playback wire format verification (use `ChannelCase`) |
 | `test/` | ExUnit tests |
 | `assets/` | JS and CSS source (esbuild + Tailwind v4) |
 | `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
@@ -57,7 +57,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 - **Ash is the only data interface.** Never write raw SQL queries, use `Ecto.Query`, call `Repo` directly, or use `execute()` with SQL strings in application code or migrations. All database reads and writes go through Ash actions — no exceptions. If Ash doesn't have the necessary action or capability for an operation, plan and implement the missing Ash action first — never bypass Ash with manual queries. This includes data migrations: use Ash actions in a `Mix.Task` or seed script, not raw SQL.
 - **Use bulk APIs for bulk operations.** When operating on multiple records (destroy, update, create), always use `Ash.bulk_destroy/3`, `Ash.bulk_update/4`, or `Ash.bulk_create/4` — never loop `Ash.destroy!/1` or `Ash.update!/2` over individual records. If a resource lacks the necessary action for a bulk operation, add it first. Bulk APIs let the data layer execute a single query instead of N+1.
-- **This app owns all writes.** Only the manager writes `images/`. The `user-interface` never writes these files.
+- **This app owns all writes.** Only the manager writes `images/`. The `frontend` never writes these files.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
 - **Phoenix Channels is the integration point with the UI.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend sends the full library on join and pushes all data and state changes in real time.
@@ -76,13 +76,13 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — PubSub-driven event flow, processing stages, idempotency guarantees, and extras handling.
 
-Key source files: `lib/media_manager/pipeline.ex`, `lib/media_manager/pipeline/producer.ex`, `lib/media_manager/pipeline/image_downloader.ex`, `lib/media_manager/pipeline/stages/`, `lib/media_manager/watcher.ex`, `lib/media_manager/watcher/supervisor.ex`, `lib/media_manager/parser.ex`, `lib/media_manager/tmdb/` (client, confidence, mapper), `lib/media_manager/library/ingress.ex`, `lib/media_manager/serializer.ex`.
+Key source files: `lib/media_centaur/pipeline.ex`, `lib/media_centaur/pipeline/producer.ex`, `lib/media_centaur/pipeline/image_downloader.ex`, `lib/media_centaur/pipeline/stages/`, `lib/media_centaur/watcher.ex`, `lib/media_centaur/watcher/supervisor.ex`, `lib/media_centaur/parser.ex`, `lib/media_centaur/tmdb/` (client, confidence, mapper), `lib/media_centaur/library/ingress.ex`, `lib/media_centaur/serializer.ex`.
 
 ## Specifications
 
 Cross-component specifications live in `../specifications`. See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for the full document table, reading guide, and update workflow.
 
-**Every contract between the backend and the user-interface must be documented in a specification file.** If a feature introduces a new integration surface — a new channel topic, a new message format, a new file convention — it must have a corresponding spec in `../specifications/` before the implementation ships.
+**Every contract between the backend and the frontend must be documented in a specification file.** If a feature introduces a new integration surface — a new channel topic, a new message format, a new file convention — it must have a corresponding spec in `../specifications/` before the implementation ships.
 
 - **Before writing any code that serializes entities** (for channel pushes), read `DATA-FORMAT.md` in full.
 - **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
@@ -107,9 +107,9 @@ The `defaults/` directory contains git-tracked starter config files. These are s
 
 | File | Purpose |
 |------|---------|
-| `defaults/media-manager.toml` | All TOML configuration keys with their default values |
+| `defaults/backend.toml` | All TOML configuration keys with their default values |
 
-> **Keep `defaults/media-manager.toml` complete.** Every configuration key recognised by `MediaManager.Config` must have an entry in `defaults/media-manager.toml` with a logical default value and a comment explaining what it controls. Add the entry whenever a new config key is introduced. The file must always be valid TOML and parse without errors.
+> **Keep `defaults/backend.toml` complete.** Every configuration key recognised by `MediaCentaur.Config` must have an entry in `defaults/backend.toml` with a logical default value and a comment explaining what it controls. Add the entry whenever a new config key is introduced. The file must always be valid TOML and parse without errors.
 
 ## Testing Strategy
 
@@ -121,25 +121,25 @@ Tests mirror `lib/` by domain. Each module gets its own test file.
 
 | Test path | Tests for | `async` | Case |
 |-----------|-----------|---------|------|
-| `test/media_manager/parser_test.exs` | `Parser` | yes | `ExUnit.Case` |
-| `test/media_manager/serializer_test.exs` | `Serializer` | yes | `ExUnit.Case` |
-| `test/media_manager/tmdb/mapper_test.exs` | `TMDB.Mapper` | yes | `ExUnit.Case` |
-| `test/media_manager/tmdb/confidence_test.exs` | `TMDB.Confidence` | yes | `ExUnit.Case` |
-| `test/media_manager/playback/resume_test.exs` | `Playback.Resume` | yes | `ExUnit.Case` |
-| `test/media_manager/playback/progress_summary_test.exs` | `Playback.ProgressSummary` | yes | `ExUnit.Case` |
-| `test/media_manager/library/entity_test.exs` | Entity Ash actions | no | `DataCase` |
-| `test/media_manager/library/watched_file_test.exs` | WatchedFile actions | no | `DataCase` |
-| `test/media_manager/library/watch_progress_test.exs` | WatchProgress actions | no | `DataCase` |
-| `test/media_manager/library/ingress_test.exs` | Ingress library API (TMDB stubs) | no | `DataCase` |
-| `test/media_manager/pipeline/stages/parse_test.exs` | Parse stage | yes | `ExUnit.Case` |
-| `test/media_manager/pipeline/stages/search_test.exs` | Search stage (TMDB stubs) | no | `DataCase` |
-| `test/media_manager/pipeline/stages/fetch_metadata_test.exs` | FetchMetadata stage (TMDB stubs) | no | `DataCase` |
-| `test/media_manager/pipeline/stages/download_images_test.exs` | DownloadImages stage | no | `DataCase` |
-| `test/media_manager/pipeline/stages/ingest_test.exs` | Ingest stage (TMDB stubs) | no | `DataCase` |
-| `test/media_manager/pipeline/producer_test.exs` | Producer dispatch logic | no | `DataCase` |
-| `test/media_manager/pipeline_test.exs` | Pipeline end-to-end (TMDB stubs) | no | `DataCase` |
-| `test/media_manager_web/channels/library_channel_test.exs` | Library channel contract | no | `ChannelCase` |
-| `test/media_manager_web/channels/playback_channel_test.exs` | Playback channel contract | no | `ChannelCase` |
+| `test/media_centaur/parser_test.exs` | `Parser` | yes | `ExUnit.Case` |
+| `test/media_centaur/serializer_test.exs` | `Serializer` | yes | `ExUnit.Case` |
+| `test/media_centaur/tmdb/mapper_test.exs` | `TMDB.Mapper` | yes | `ExUnit.Case` |
+| `test/media_centaur/tmdb/confidence_test.exs` | `TMDB.Confidence` | yes | `ExUnit.Case` |
+| `test/media_centaur/playback/resume_test.exs` | `Playback.Resume` | yes | `ExUnit.Case` |
+| `test/media_centaur/playback/progress_summary_test.exs` | `Playback.ProgressSummary` | yes | `ExUnit.Case` |
+| `test/media_centaur/library/entity_test.exs` | Entity Ash actions | no | `DataCase` |
+| `test/media_centaur/library/watched_file_test.exs` | WatchedFile actions | no | `DataCase` |
+| `test/media_centaur/library/watch_progress_test.exs` | WatchProgress actions | no | `DataCase` |
+| `test/media_centaur/library/ingress_test.exs` | Ingress library API (TMDB stubs) | no | `DataCase` |
+| `test/media_centaur/pipeline/stages/parse_test.exs` | Parse stage | yes | `ExUnit.Case` |
+| `test/media_centaur/pipeline/stages/search_test.exs` | Search stage (TMDB stubs) | no | `DataCase` |
+| `test/media_centaur/pipeline/stages/fetch_metadata_test.exs` | FetchMetadata stage (TMDB stubs) | no | `DataCase` |
+| `test/media_centaur/pipeline/stages/download_images_test.exs` | DownloadImages stage | no | `DataCase` |
+| `test/media_centaur/pipeline/stages/ingest_test.exs` | Ingest stage (TMDB stubs) | no | `DataCase` |
+| `test/media_centaur/pipeline/producer_test.exs` | Producer dispatch logic | no | `DataCase` |
+| `test/media_centaur/pipeline_test.exs` | Pipeline end-to-end (TMDB stubs) | no | `DataCase` |
+| `test/media_centaur_web/channels/library_channel_test.exs` | Library channel contract | no | `ChannelCase` |
+| `test/media_centaur_web/channels/playback_channel_test.exs` | Playback channel contract | no | `ChannelCase` |
 
 ### Pure Function Tests vs Resource Tests
 
@@ -149,7 +149,7 @@ Tests mirror `lib/` by domain. Each module gets its own test file.
 
 ### Shared Test Factory
 
-`test/support/factory.ex` provides `MediaManager.TestFactory`:
+`test/support/factory.ex` provides `MediaCentaur.TestFactory`:
 
 - `build_*` functions return plain structs with sensible defaults (no DB). Use for pure function tests.
 - `create_*` functions persist via Ash actions and return loaded records. Use for resource and channel tests.
@@ -167,14 +167,14 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 **Test-first, mandatory.** Every change to the Broadway pipeline — Ingress, pipeline stages (Parse, Search, FetchMetadata, DownloadImages, Ingest), Producer, or the Pipeline orchestrator — must have a corresponding test written *before* the implementation. The pipeline is the core of the application and bugs here are silent and cascading.
 
 - **TMDB stubs via `Req.Test`.** All pipeline tests that touch TMDB use `test/support/tmdb_stubs.ex`, which installs a `Req.Test`-backed client into `:persistent_term`. No mocking library needed — stub responses per-test with `stub_routes/1` or the individual `stub_*` helpers. Fixture data (`movie_detail/0`, `tv_detail/0`, `season_detail/0`, `collection_detail/0`) provides realistic TMDB JSON shapes.
-- **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaManager.NoopImageDownloader`. The `DownloadImages` change reads this config, so tests exercise state transitions without HTTP or file I/O.
+- **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`. The `DownloadImages` change reads this config, so tests exercise state transitions without HTTP or file I/O.
 - **Test the orchestration, not the leaves.** The pure-function leaf nodes (Parser, Confidence, Mapper, Serializer) have their own test suites. Pipeline tests focus on the *orchestration*: stage sequencing, entity resolution branching, race-loss recovery, error propagation, and the Producer's dispatch logic.
 - **No Broadway topology in tests.** Call `Pipeline.process_payload/1` or individual stage `run/1` functions directly. Broadway is infrastructure — test the business logic it invokes, not the message-passing machinery.
 - **NEVER delete or weaken pipeline tests.** Each test represents a real scenario that has caused or could cause silent data corruption. If a pipeline change causes a test to fail, fix the pipeline — do not delete or relax the assertion.
 
 ## Parser
 
-`lib/media_manager/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.
+`lib/media_centaur/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.
 
 ### Test-First Workflow
 
@@ -192,7 +192,7 @@ The app has a component-level logging system for development visibility. All thi
 ### Usage
 
 ```elixir
-require MediaManager.Log, as: Log
+require MediaCentaur.Log, as: Log
 Log.info(:pipeline, "claimed 3 files")
 Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
 ```

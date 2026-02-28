@@ -23,7 +23,7 @@ erl_crash.dump
 /tmp/
 
 # Ignore package tarball (built via "mix hex.build").
-media_manager-*.tar
+media_centaur-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
@@ -39,5 +39,5 @@ npm-debug.log
 /.envrc
 
 # sqlite stuff
-/media_manager_dev*
-/priv/repo/media_manager_test*.db*
+/media_centaur_dev*
+/priv/repo/media_centaur_test*.db*

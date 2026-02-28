@@ -1,9 +1,9 @@
-defmodule MediaManager.MixProject do
+defmodule MediaCentaur.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :media_manager,
+      app: :media_centaur,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -22,7 +22,7 @@ defmodule MediaManager.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {MediaManager.Application, []},
+      mod: {MediaCentaur.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -95,10 +95,10 @@ defmodule MediaManager.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ash.setup --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind media_manager", "esbuild media_manager"],
+      "assets.build": ["compile", "tailwind media_centaur", "esbuild media_centaur"],
       "assets.deploy": [
-        "tailwind media_manager --minify",
-        "esbuild media_manager --minify",
+        "tailwind media_centaur --minify",
+        "esbuild media_centaur --minify",
         "phx.digest"
       ],
       precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"],

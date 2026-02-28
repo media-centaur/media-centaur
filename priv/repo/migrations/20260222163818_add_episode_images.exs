@@ -1,4 +1,4 @@
-defmodule MediaManager.Repo.Migrations.AddEpisodeImages do
+defmodule MediaCentaur.Repo.Migrations.AddEpisodeImages do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
