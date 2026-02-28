@@ -46,6 +46,29 @@ defmodule MediaCentaur.Log do
     end
   end
 
+  @doc """
+  Emits a warning-level log tagged with the given component.
+  Warning logs always emit (the primary filter only gates info-level),
+  but the component tag enables formatter attribution and `/logging` UI accuracy.
+  """
+  defmacro warning(component, message) do
+    quote do
+      require Logger
+      Logger.warning(unquote(message), component: unquote(component))
+    end
+  end
+
+  @doc """
+  Emits an error-level log tagged with the given component.
+  Error logs always emit regardless of component toggle state.
+  """
+  defmacro error(component, message) do
+    quote do
+      require Logger
+      Logger.error(unquote(message), component: unquote(component))
+    end
+  end
+
   # --- Erlang Primary Filter ---
 
   @doc """

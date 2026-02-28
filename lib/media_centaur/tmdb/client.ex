@@ -98,12 +98,29 @@ defmodule MediaCentaur.TMDB.Client do
   end
 
   defp get(client, opts) do
-    MediaCentaur.TMDB.RateLimiter.wait()
+    endpoint = opts[:url] || "unknown"
 
-    case Req.get(client, opts) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
-    end
+    wait_start = System.monotonic_time()
+    MediaCentaur.TMDB.RateLimiter.wait()
+    wait_duration = System.monotonic_time() - wait_start
+
+    :telemetry.execute(
+      [:media_centaur, :tmdb, :rate_limit_wait],
+      %{duration: wait_duration},
+      %{endpoint: endpoint}
+    )
+
+    :telemetry.span([:media_centaur, :tmdb, :request], %{endpoint: endpoint}, fn ->
+      case Req.get(client, opts) do
+        {:ok, %{status: 200, body: body}} ->
+          {{:ok, body}, %{status: 200}}
+
+        {:ok, %{status: status, body: body}} ->
+          {{:error, {:http_error, status, body}}, %{status: status}}
+
+        {:error, reason} ->
+          {{:error, reason}, %{error: reason}}
+      end
+    end)
   end
 end

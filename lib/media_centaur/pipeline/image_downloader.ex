@@ -6,7 +6,6 @@ defmodule MediaCentaur.Pipeline.ImageDownloader do
   Only called by the `DownloadImages` pipeline change — this is a pipeline
   implementation detail, not a general-purpose utility.
   """
-  require Logger
   require MediaCentaur.Log, as: Log
 
   def download_all(entity) do
@@ -45,12 +44,10 @@ defmodule MediaCentaur.Pipeline.ImageDownloader do
     Enum.each(all_results, fn
       {:ok, image, relative_path} ->
         Ash.update!(image, %{content_url: relative_path})
-        Logger.info("ImageDownloader: saved #{relative_path}")
+        Log.info(:pipeline, "saved image #{relative_path}")
 
       {:error, role, reason} ->
-        Logger.warning(
-          "ImageDownloader: failed #{role} for entity #{entity.id}: #{inspect(reason)}"
-        )
+        Log.warning(:pipeline, "image failed #{role} for entity #{entity.id}: #{inspect(reason)}")
     end)
 
     :ok
@@ -84,17 +81,17 @@ defmodule MediaCentaur.Pipeline.ImageDownloader do
             {:ok, relative_path}
 
           {:error, reason} ->
-            Logger.error("ImageDownloader: write failed for #{relative_path}: #{inspect(reason)}")
+            Log.error(:pipeline, "image write failed for #{relative_path}: #{inspect(reason)}")
 
             {:error, {:write_failed, relative_path, reason}}
         end
 
       {:ok, %{status: status}} ->
-        Logger.warning("ImageDownloader: HTTP #{status} for #{image.url}")
+        Log.warning(:pipeline, "image HTTP #{status} for #{image.url}")
         {:error, {:http_error, status, image.url}}
 
       {:error, reason} ->
-        Logger.error("ImageDownloader: request failed for #{image.url}: #{inspect(reason)}")
+        Log.error(:pipeline, "image request failed for #{image.url}: #{inspect(reason)}")
         {:error, {:download_failed, image.url, reason}}
     end
   end

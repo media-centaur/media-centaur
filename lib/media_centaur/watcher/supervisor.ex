@@ -6,7 +6,6 @@ defmodule MediaCentaur.Watcher.Supervisor do
   per directory from `Config.get(:watch_dirs)`.
   """
   use Supervisor
-  require Logger
   require MediaCentaur.Log, as: Log
 
   def start_link(opts) do
@@ -41,9 +40,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
           Log.info(:watcher, "watcher already running for #{dir}")
 
         {:error, reason} ->
-          Logger.warning(
-            "Watcher.Supervisor: failed to start watcher for #{dir}: #{inspect(reason)}"
-          )
+          Log.warning(:watcher, "failed to start watcher for #{dir}: #{inspect(reason)}")
       end
     end)
   end

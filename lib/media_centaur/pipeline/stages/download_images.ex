@@ -10,7 +10,6 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImages do
   Individual image download failures are logged as warnings but do not fail
   the stage.
   """
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Pipeline.Payload
@@ -57,16 +56,23 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImages do
     extension = image[:extension] || "jpg"
     filename = "#{owner_tag}_#{image.role}.#{extension}"
     local_path = Path.join(staging_dir, filename)
+    telemetry_metadata = %{role: image.role, owner: owner_tag}
 
-    case image_downloader().download(image.url, local_path) do
-      :ok ->
-        {:ok, %{role: image.role, owner: owner_tag, local_path: local_path}}
+    :telemetry.span([:media_centaur, :pipeline, :image_download], telemetry_metadata, fn ->
+      case image_downloader().download(image.url, local_path) do
+        :ok ->
+          result = {:ok, %{role: image.role, owner: owner_tag, local_path: local_path}}
+          {result, %{}}
 
-      {:error, reason} ->
-        Logger.warning("DownloadImages: failed #{owner_tag}/#{image.role}: #{inspect(reason)}")
+        {:error, reason} ->
+          Log.warning(
+            :pipeline,
+            "image download failed #{owner_tag}/#{image.role}: #{inspect(reason)}"
+          )
 
-        {:error, reason}
-    end
+          {{:error, reason}, %{error: reason}}
+      end
+    end)
   end
 
   defp create_staging_dir do

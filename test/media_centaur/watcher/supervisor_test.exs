@@ -13,11 +13,16 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
     :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
 
     # Start the supervisor (disabled in test config) — ExUnit handles cleanup
-    start_supervised!(WatcherSupervisor)
+    supervisor = start_supervised!(WatcherSupervisor)
     WatcherSupervisor.start_watchers()
     wait_for_watchers()
 
     on_exit(fn ->
+      # Stop watchers before deleting the directory they're watching,
+      # otherwise inotifywait prints "Couldn't watch" to stderr.
+      # Can't use stop_supervised!/1 here (on_exit runs in a different process),
+      # so stop the supervisor directly if it's still alive.
+      if Process.alive?(supervisor), do: Supervisor.stop(supervisor)
       :persistent_term.put({MediaCentaur.Config, :config}, original_config)
       File.rm_rf!(tmp_dir)
     end)

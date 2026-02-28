@@ -31,7 +31,6 @@ defmodule MediaCentaur.Watcher do
       :initializing → :watching → :unavailable → :watching
   """
   use GenServer
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library.WatchedFile
@@ -102,8 +101,9 @@ defmodule MediaCentaur.Watcher do
         {:noreply, %{state | watcher_pid: pid, state: :watching}}
 
       {:error, reason} ->
-        Logger.warning(
-          "Watcher: could not start file_system watcher for #{state.dir}: #{inspect(reason)}"
+        Log.warning(
+          :watcher,
+          "could not start file_system watcher for #{state.dir}: #{inspect(reason)}"
         )
 
         schedule_health_check()
@@ -111,7 +111,7 @@ defmodule MediaCentaur.Watcher do
         {:noreply, %{state | state: :unavailable}}
 
       :ignore ->
-        Logger.warning("Watcher: file_system watcher not available (inotify-tools missing?)")
+        Log.warning(:watcher, "file_system watcher not available (inotify-tools missing?)")
         schedule_health_check()
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable}}
@@ -122,7 +122,7 @@ defmodule MediaCentaur.Watcher do
   def handle_info({:file_event, _pid, {path, events}}, state) do
     cond do
       Enum.member?(events, :unmounted) ->
-        Logger.warning("Watcher: directory unmounted: #{state.dir}")
+        Log.warning(:watcher, "directory unmounted: #{state.dir}")
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable}}
 
@@ -135,7 +135,7 @@ defmodule MediaCentaur.Watcher do
           |> Enum.take(@burst_threshold)
 
         if length(recent) >= @burst_threshold do
-          Logger.warning("Watcher: suspicious burst of removal events detected in #{state.dir}")
+          Log.warning(:watcher, "suspicious burst of removal events detected in #{state.dir}")
           Phoenix.PubSub.broadcast(MediaCentaur.PubSub, "watcher:state", :suspicious_burst)
         end
 
@@ -154,7 +154,7 @@ defmodule MediaCentaur.Watcher do
 
   @impl true
   def handle_info({:file_event, _pid, :stop}, state) do
-    Logger.warning("Watcher: file_system watcher stopped for #{state.dir}")
+    Log.warning(:watcher, "file_system watcher stopped for #{state.dir}")
     {:noreply, state}
   end
 
@@ -195,7 +195,7 @@ defmodule MediaCentaur.Watcher do
 
       {:error, _} ->
         if state.state != :unavailable do
-          Logger.warning("Watcher: directory is not accessible: #{state.dir}")
+          Log.warning(:watcher, "directory is not accessible: #{state.dir}")
           broadcast_state(state.dir, :unavailable)
           {:noreply, %{state | state: :unavailable}}
         else
@@ -207,19 +207,44 @@ defmodule MediaCentaur.Watcher do
 
   defp scan_directory(dir) do
     Log.info(:watcher, "scanning #{dir}")
+    start_time = System.monotonic_time()
     exclude_dirs = load_exclude_dirs()
     known_paths = fetch_known_file_paths()
     pattern = Path.join(dir, "**/*")
 
-    pattern
-    |> Path.wildcard()
-    |> Enum.reject(&excluded?(&1, exclude_dirs))
-    |> Enum.filter(&video_file?/1)
-    |> Enum.reject(fn path -> MapSet.member?(known_paths, path) end)
-    |> Enum.reduce(0, fn path, count ->
-      detect_file(path, dir)
-      count + 1
-    end)
+    video_files =
+      pattern
+      |> Path.wildcard()
+      |> Enum.reject(&excluded?(&1, exclude_dirs))
+      |> Enum.filter(&video_file?/1)
+
+    new_files = Enum.reject(video_files, fn path -> MapSet.member?(known_paths, path) end)
+
+    dispatched =
+      Enum.reduce(new_files, 0, fn path, count ->
+        detect_file(path, dir)
+        count + 1
+      end)
+
+    duration = System.monotonic_time() - start_time
+
+    :telemetry.execute(
+      [:media_centaur, :watcher, :scan, :stop],
+      %{duration: duration},
+      %{
+        dir: dir,
+        total_video_files: length(video_files),
+        known: length(video_files) - dispatched,
+        dispatched: dispatched
+      }
+    )
+
+    Log.info(
+      :watcher,
+      "scan complete: #{dispatched} new files dispatched, #{length(video_files)} total video files"
+    )
+
+    dispatched
   end
 
   defp detect_file(path, watch_dir) do

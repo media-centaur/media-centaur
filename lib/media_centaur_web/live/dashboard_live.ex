@@ -16,14 +16,17 @@ defmodule MediaCentaurWeb.DashboardLive do
 
         stats = Dashboard.fetch_stats()
 
+        pipeline_stats = Stats.get_snapshot()
+
         socket
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
         |> assign(library_stats: stats.library)
         |> assign(pending_review: stats.pending_review)
-        |> assign(recent_errors: stats.recent_errors)
+        |> assign(recent_errors: pipeline_stats.recent_errors)
         |> assign(playback: MediaCentaur.Playback.Manager.current_state())
         |> assign(config: load_config())
-        |> assign(pipeline_stats: Stats.get_snapshot())
+        |> assign(pipeline_stats: pipeline_stats)
+        |> assign(rate_limiter: fetch_rate_limiter())
       else
         socket
         |> assign(watcher_statuses: [])
@@ -33,6 +36,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(playback: %{state: :idle, now_playing: nil})
         |> assign(config: %{})
         |> assign(pipeline_stats: Stats.empty_snapshot())
+        |> assign(rate_limiter: nil)
       end
 
     {:ok,
@@ -156,7 +160,13 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   def handle_info(:tick_pipeline, socket) do
     Process.send_after(self(), :tick_pipeline, 1_000)
-    {:noreply, assign(socket, pipeline_stats: Stats.get_snapshot())}
+    pipeline_stats = Stats.get_snapshot()
+
+    {:noreply,
+     socket
+     |> assign(pipeline_stats: pipeline_stats)
+     |> assign(recent_errors: pipeline_stats.recent_errors)
+     |> assign(rate_limiter: fetch_rate_limiter())}
   end
 
   @impl true
@@ -180,15 +190,24 @@ defmodule MediaCentaurWeb.DashboardLive do
           </button>
         </div>
 
-        <.library_stats stats={@library_stats} />
-        <.pipeline_status stats={@pipeline_stats} pipeline_concurrency={@pipeline_concurrency} />
-
-        <.watcher_health statuses={@watcher_statuses} />
-        <.playback_status playback={@playback} />
-        <.pending_review_table files={@pending_review} />
-        <.recent_errors_table files={@recent_errors} />
-        <.config_overview config={@config} />
-        <.danger_zone clearing_database={@clearing_database} refreshing_images={@refreshing_images} />
+        <div class="grid lg:grid-cols-2 gap-6">
+          <div class="lg:col-span-2"><.library_stats stats={@library_stats} /></div>
+          <div class="lg:col-span-2">
+            <.pipeline_status stats={@pipeline_stats} pipeline_concurrency={@pipeline_concurrency} />
+          </div>
+          <.external_integrations rate_limiter={@rate_limiter} config={@config} />
+          <.watcher_health statuses={@watcher_statuses} />
+          <.playback_status playback={@playback} />
+          <.config_overview config={@config} />
+          <div class="lg:col-span-2"><.pending_review_table files={@pending_review} /></div>
+          <div class="lg:col-span-2"><.recent_errors_table files={@recent_errors} /></div>
+          <div class="lg:col-span-2">
+            <.danger_zone
+              clearing_database={@clearing_database}
+              refreshing_images={@refreshing_images}
+            />
+          </div>
+        </div>
       </div>
     </Layouts.app>
     """
@@ -259,7 +278,6 @@ defmodule MediaCentaurWeb.DashboardLive do
             data={@stats.stages[stage]}
             concurrency={@pipeline_concurrency}
             needs_review_count={@stats.needs_review_count}
-            rate_limiter={@stats.rate_limiter}
           />
         </div>
       </div>
@@ -269,7 +287,10 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   defp pipeline_stage(assigns) do
     ~H"""
-    <div class="grid items-center gap-3 py-1" style="grid-template-columns: 0.5rem 8rem 5.5rem 5rem 5rem 2.5rem 1fr">
+    <div
+      class="grid items-center gap-3 py-1"
+      style="grid-template-columns: 0.5rem 8rem 5.5rem 5rem 5rem 2.5rem 1fr"
+    >
       <span class={["w-2 h-2 rounded-full", stage_dot_class(@data.status)]}></span>
 
       <span class="text-sm font-medium truncate">{stage_display_name(@stage)}</span>
@@ -294,14 +315,59 @@ defmodule MediaCentaurWeb.DashboardLive do
         <span :if={@stage == :search && @needs_review_count > 0}>
           {@needs_review_count} sent to review
         </span>
-        <span :if={@stage == :search && @rate_limiter}>
-          <span :if={@needs_review_count > 0}> · </span>
-          TMDB requests {@rate_limiter.used}/{@rate_limiter.total}
-        </span>
         <span :if={@data.last_error} class="text-error">
           {elem(@data.last_error, 0)}
         </span>
+        <span :if={@data.status == :idle and !@data.last_error}>
+          {stage_description(@stage)}
+        </span>
       </span>
+    </div>
+    """
+  end
+
+  defp stage_description(:parse), do: "Extract title, year, season from filename"
+  defp stage_description(:search), do: "Find matching TMDB entry"
+  defp stage_description(:fetch_metadata), do: "Fetch full details from TMDB"
+  defp stage_description(:download_images), do: "Download poster, backdrop, logo artwork"
+  defp stage_description(:ingest), do: "Create or update library entity"
+
+  defp external_integrations(assigns) do
+    ~H"""
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body">
+        <h2 class="card-title text-lg">External Integrations</h2>
+
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium">TMDB</span>
+              <span :if={@config[:tmdb_configured]} class="badge badge-success badge-xs">
+                configured
+              </span>
+              <span :if={!@config[:tmdb_configured]} class="badge badge-error badge-xs">
+                not configured
+              </span>
+            </div>
+
+            <div :if={@rate_limiter} class="flex items-center gap-3 text-sm">
+              <span class="font-mono text-base-content/60">
+                {@rate_limiter.used}/{@rate_limiter.total} used
+              </span>
+              <span class={[
+                "font-mono",
+                if(@rate_limiter.available == 0, do: "text-warning", else: "text-success")
+              ]}>
+                {@rate_limiter.available} available
+              </span>
+            </div>
+
+            <span :if={!@rate_limiter} class="text-sm text-base-content/40">
+              rate limiter not started
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
     """
   end
@@ -422,16 +488,22 @@ defmodule MediaCentaurWeb.DashboardLive do
           <table class="table table-sm table-zebra">
             <thead>
               <tr>
+                <th>Stage</th>
                 <th>File</th>
                 <th>Error Message</th>
-                <th>Updated At</th>
+                <th>Time</th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={file <- @files}>
-                <td class="font-mono text-xs max-w-xs truncate">{Path.basename(file.file_path)}</td>
-                <td class="text-error text-xs max-w-md truncate">{file.error_message || "—"}</td>
-                <td class="text-xs">{format_datetime(file.updated_at)}</td>
+              <tr :for={error <- @files}>
+                <td>
+                  <span class="badge badge-error badge-xs">{error[:stage] || "—"}</span>
+                </td>
+                <td class="font-mono text-xs max-w-xs truncate">
+                  {Path.basename(error.file_path || "")}
+                </td>
+                <td class="text-error text-xs max-w-md truncate">{error.error_message || "—"}</td>
+                <td class="text-xs">{format_datetime(error.updated_at)}</td>
               </tr>
             </tbody>
           </table>
@@ -450,15 +522,6 @@ defmodule MediaCentaurWeb.DashboardLive do
         <div :if={@config == %{}} class="text-base-content/60">Loading...</div>
 
         <div :if={@config != %{}} class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
-          <div class="flex justify-between">
-            <span class="text-base-content/60">TMDB API Key</span>
-            <span :if={@config[:tmdb_configured]} class="badge badge-success badge-sm">
-              configured
-            </span>
-            <span :if={!@config[:tmdb_configured]} class="badge badge-error badge-sm">
-              not configured
-            </span>
-          </div>
           <div class="flex justify-between">
             <span class="text-base-content/60">Auto-approve threshold</span>
             <span class="font-mono">{@config[:auto_approve_threshold] || "—"}</span>
@@ -522,6 +585,14 @@ defmodule MediaCentaurWeb.DashboardLive do
 
     timer = Process.send_after(self(), :refresh_stats, 1_000)
     assign(socket, stats_timer: timer)
+  end
+
+  defp fetch_rate_limiter do
+    MediaCentaur.TMDB.RateLimiter.status()
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
   end
 
   # --- Helpers ---
