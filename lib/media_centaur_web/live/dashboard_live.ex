@@ -192,13 +192,19 @@ defmodule MediaCentaurWeb.DashboardLive do
         <h2 class="card-title text-lg">Library</h2>
 
         <div class="stats stats-horizontal bg-base-200 w-full">
-          <div :for={{type, count} <- Enum.sort(@stats.by_type)} class="stat">
-            <div class="stat-title">{format_type(type)}</div>
-            <div class="stat-value text-2xl">{count}</div>
+          <div class="stat">
+            <div class="stat-title">Movies</div>
+            <div class="stat-value text-2xl">{@stats.by_type[:movie] || 0}</div>
+            <div class="stat-desc">{@stats.by_type[:movie_series] || 0} collections</div>
           </div>
           <div class="stat">
-            <div class="stat-title">Episodes</div>
-            <div class="stat-value text-2xl">{@stats.episodes}</div>
+            <div class="stat-title">TV Series</div>
+            <div class="stat-value text-2xl">{@stats.by_type[:tv_series] || 0}</div>
+            <div class="stat-desc">{@stats.episodes} episodes</div>
+          </div>
+          <div :if={(@stats.by_type[:video_object] || 0) > 0} class="stat">
+            <div class="stat-title">Videos</div>
+            <div class="stat-value text-2xl">{@stats.by_type[:video_object]}</div>
           </div>
         </div>
 
@@ -430,12 +436,6 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   # --- Helpers ---
-
-  defp format_type(:movie), do: "Movies"
-  defp format_type(:movie_series), do: "Movie Series"
-  defp format_type(:tv_series), do: "TV Series"
-  defp format_type(:video_object), do: "Videos"
-  defp format_type(type), do: type |> to_string() |> String.capitalize()
 
   defp format_datetime(nil), do: "—"
 
