@@ -26,7 +26,13 @@ defmodule MediaCentaurWeb.LibraryLive do
         |> assign(playback: %{state: :idle, now_playing: nil})
       end
 
-    {:ok, assign(socket, active_tab: :all, expanded: MapSet.new(), reload_timer: nil)}
+    {:ok,
+     assign(socket,
+       active_tab: :all,
+       expanded: MapSet.new(),
+       reload_timer: nil,
+       filter_text: ""
+     )}
   end
 
   # --- Events ---
@@ -34,6 +40,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, active_tab: String.to_existing_atom(tab))}
+  end
+
+  def handle_event("filter", %{"filter_text" => text}, socket) do
+    {:noreply, assign(socket, filter_text: text)}
   end
 
   def handle_event("toggle_expand", %{"id" => id}, socket) do
@@ -116,7 +126,11 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   @impl true
   def render(assigns) do
-    filtered = filtered_entries(assigns.entries, assigns.active_tab)
+    filtered =
+      assigns.entries
+      |> filtered_entries(assigns.active_tab)
+      |> text_filtered_entries(assigns.filter_text)
+
     assigns = assign(assigns, filtered: filtered)
 
     ~H"""
@@ -124,17 +138,28 @@ defmodule MediaCentaurWeb.LibraryLive do
       <div class="space-y-6">
         <h1 class="text-2xl font-bold">Library</h1>
 
-        <.tab_bar active_tab={@active_tab} counts={@counts} />
+        <div class="flex items-center gap-4">
+          <.tab_bar active_tab={@active_tab} counts={@counts} />
+          <form phx-change="filter" class="ml-auto">
+            <input
+              type="text"
+              name="filter_text"
+              value={@filter_text}
+              placeholder="Filter by name…"
+              phx-debounce="150"
+              class="input input-sm input-bordered w-48"
+            />
+          </form>
+        </div>
 
         <div :if={@filtered == []} class="text-base-content/60 py-8 text-center">
           No entities found.
         </div>
 
-        <div class="divide-y divide-base-200 rounded-lg overflow-hidden">
+        <div class="divide-y divide-base-300/50 rounded-lg overflow-hidden">
           <.entity_card
-            :for={{entry, index} <- Enum.with_index(@filtered)}
+            :for={entry <- @filtered}
             entry={entry}
-            index={index}
             expanded={MapSet.member?(@expanded, entry.entity.id)}
             playing_entity_id={playing_entity_id(@playback)}
             watch_dirs={@watch_dirs}
@@ -165,7 +190,6 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   attr :entry, :map, required: true
-  attr :index, :integer, required: true
   attr :expanded, :boolean, required: true
   attr :playing_entity_id, :string, default: nil
   attr :watch_dirs, :list, required: true
@@ -187,17 +211,17 @@ defmodule MediaCentaurWeb.LibraryLive do
       )
 
     ~H"""
-    <div class={[
-      "p-4",
-      rem(@index, 2) == 0 && "bg-base-200/50",
-      @playing && "ring-2 ring-primary ring-inset"
-    ]}>
+    <div class={["p-4", @playing && "ring-2 ring-primary ring-inset"]}>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <button phx-click="toggle_expand" phx-value-id={@entity.id} class="btn btn-ghost btn-xs">
+          <button
+            phx-click="toggle_expand"
+            phx-value-id={@entity.id}
+            class="w-5 flex-shrink-0 flex items-center justify-center"
+          >
             <.icon
               name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-              class="size-4"
+              class="size-4 text-base-content/60"
             />
           </button>
           <.thumbnail url={@poster} />
@@ -220,49 +244,34 @@ defmodule MediaCentaurWeb.LibraryLive do
         </div>
       </div>
 
-      <div :if={@expanded} class="mt-4 space-y-4">
+      <div :if={@expanded} class="mt-3 ml-5 border-l-2 border-base-300 pl-4 space-y-3">
         <div :for={season <- @seasons}>
-          <h3 class="text-sm font-semibold mb-2">
+          <div class="text-sm font-medium text-base-content/70 mb-1">
             {season.name || "Season #{season.season_number}"}
-          </h3>
-          <div class="overflow-x-auto">
-            <table class="table table-sm table-zebra">
-              <thead>
-                <tr>
-                  <th class="w-12">#</th>
-                  <th>Name</th>
-                  <th>File</th>
-                  <th>Progress</th>
-                  <th class="w-16"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={episode <- season.episodes}>
-                  <td>{episode.episode_number}</td>
-                  <td>{episode.name || "—"}</td>
-                  <td class="font-mono text-xs max-w-xs truncate">
-                    {strip_watch_dir(episode.content_url, @watch_dirs)}
-                  </td>
-                  <td>
-                    <.episode_progress_badge progress={
-                      Map.get(@progress_by_key, {season.season_number, episode.episode_number})
-                    } />
-                  </td>
-                  <td>
-                    <button
-                      :if={episode.content_url}
-                      phx-click="play_episode"
-                      phx-value-entity-id={@entity.id}
-                      phx-value-season={season.season_number}
-                      phx-value-episode={episode.episode_number}
-                      class="btn btn-ghost btn-xs"
-                    >
-                      <.icon name="hero-play-mini" class="size-3" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          </div>
+          <div class="divide-y divide-base-300/50">
+            <div :for={episode <- season.episodes} class="flex items-center gap-3 py-1.5 text-sm">
+              <span class="w-6 text-right text-base-content/50 flex-shrink-0 font-mono text-xs">
+                {episode.episode_number}
+              </span>
+              <span class="truncate flex-1">{episode.name || "—"}</span>
+              <span class="font-mono text-xs text-base-content/40 max-w-xs truncate hidden sm:inline flex-shrink-0">
+                {strip_watch_dir(episode.content_url, @watch_dirs)}
+              </span>
+              <.episode_progress_badge progress={
+                Map.get(@progress_by_key, {season.season_number, episode.episode_number})
+              } />
+              <button
+                :if={episode.content_url}
+                phx-click="play_episode"
+                phx-value-entity-id={@entity.id}
+                phx-value-season={season.season_number}
+                phx-value-episode={episode.episode_number}
+                class="btn btn-ghost btn-xs flex-shrink-0"
+              >
+                <.icon name="hero-play-mini" class="size-3" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -283,17 +292,17 @@ defmodule MediaCentaurWeb.LibraryLive do
       )
 
     ~H"""
-    <div class={[
-      "p-4",
-      rem(@index, 2) == 0 && "bg-base-200/50",
-      @playing && "ring-2 ring-primary ring-inset"
-    ]}>
+    <div class={["p-4", @playing && "ring-2 ring-primary ring-inset"]}>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <button phx-click="toggle_expand" phx-value-id={@entity.id} class="btn btn-ghost btn-xs">
+          <button
+            phx-click="toggle_expand"
+            phx-value-id={@entity.id}
+            class="w-5 flex-shrink-0 flex items-center justify-center"
+          >
             <.icon
               name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-              class="size-4"
+              class="size-4 text-base-content/60"
             />
           </button>
           <.thumbnail url={@poster} />
@@ -316,38 +325,28 @@ defmodule MediaCentaurWeb.LibraryLive do
         </div>
       </div>
 
-      <div :if={@expanded} class="mt-4">
-        <div class="overflow-x-auto">
-          <table class="table table-sm table-zebra">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Year</th>
-                <th>File</th>
-                <th class="w-16"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={movie <- @movies}>
-                <td>{movie.name || "—"}</td>
-                <td>{extract_year(movie.date_published)}</td>
-                <td class="font-mono text-xs max-w-xs truncate">
-                  {strip_watch_dir(movie.content_url, @watch_dirs)}
-                </td>
-                <td>
-                  <button
-                    :if={movie.content_url}
-                    phx-click="play_movie"
-                    phx-value-entity-id={@entity.id}
-                    phx-value-movie-id={movie.id}
-                    class="btn btn-ghost btn-xs"
-                  >
-                    <.icon name="hero-play-mini" class="size-3" />
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <div :if={@expanded} class="mt-3 ml-5 border-l-2 border-base-300 pl-4">
+        <div class="divide-y divide-base-300/50">
+          <div :for={movie <- @movies} class="flex items-center gap-3 py-1.5 text-sm">
+            <span class="truncate flex-1">
+              {movie.name || "—"}
+              <span :if={movie.date_published} class="text-base-content/50 ml-1">
+                ({extract_year(movie.date_published)})
+              </span>
+            </span>
+            <span class="font-mono text-xs text-base-content/40 max-w-xs truncate hidden sm:inline flex-shrink-0">
+              {strip_watch_dir(movie.content_url, @watch_dirs)}
+            </span>
+            <button
+              :if={movie.content_url}
+              phx-click="play_movie"
+              phx-value-entity-id={@entity.id}
+              phx-value-movie-id={movie.id}
+              class="btn btn-ghost btn-xs flex-shrink-0"
+            >
+              <.icon name="hero-play-mini" class="size-3" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -362,26 +361,25 @@ defmodule MediaCentaurWeb.LibraryLive do
     assigns = assign(assigns, entity: entity, playing: playing, poster: poster_url(entity))
 
     ~H"""
-    <div class={[
-      "p-4",
-      rem(@index, 2) == 0 && "bg-base-200/50",
-      @playing && "ring-2 ring-primary ring-inset"
-    ]}>
+    <div class={["p-4", @playing && "ring-2 ring-primary ring-inset"]}>
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
+          <div class="w-5 flex-shrink-0"></div>
           <.thumbnail url={@poster} />
           <div>
-            <span class="font-semibold">{@entity.name}</span>
-            <span class="badge badge-outline badge-sm ml-2">{format_type(@entity.type)}</span>
-            <span :if={@entity.date_published} class="text-base-content/60 text-sm ml-2">
-              {extract_year(@entity.date_published)}
-            </span>
+            <div>
+              <span class="font-semibold">{@entity.name}</span>
+              <span class="badge badge-outline badge-sm ml-2">{format_type(@entity.type)}</span>
+              <span :if={@entity.date_published} class="text-base-content/60 text-sm ml-2">
+                {extract_year(@entity.date_published)}
+              </span>
+            </div>
+            <div class="font-mono text-xs text-base-content/40 mt-0.5 max-w-sm truncate hidden sm:block">
+              {strip_watch_dir(@entity.content_url, @watch_dirs)}
+            </div>
           </div>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="font-mono text-xs text-base-content/60 max-w-xs truncate hidden sm:inline">
-            {strip_watch_dir(@entity.content_url, @watch_dirs)}
-          </span>
+        <div class="flex items-center gap-2">
           <.progress_badge progress={@entry.progress} type={@entity.type} />
           <button phx-click="play" phx-value-entity-id={@entity.id} class="btn btn-primary btn-sm">
             <.icon name="hero-play-mini" class="size-4" />
@@ -507,6 +505,34 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp filtered_entries(entries, :tv) do
     Enum.filter(entries, fn %{entity: entity} -> entity.type == :tv_series end)
   end
+
+  defp text_filtered_entries(entries, ""), do: entries
+
+  defp text_filtered_entries(entries, text) do
+    needle = String.downcase(text)
+
+    Enum.filter(entries, fn %{entity: entity} ->
+      name_matches?(entity.name, needle) ||
+        nested_matches?(entity, needle)
+    end)
+  end
+
+  defp name_matches?(nil, _needle), do: false
+  defp name_matches?(name, needle), do: String.contains?(String.downcase(name), needle)
+
+  defp nested_matches?(%{type: :tv_series, seasons: seasons}, needle) when is_list(seasons) do
+    Enum.any?(seasons, fn season ->
+      Enum.any?(season.episodes || [], fn episode ->
+        name_matches?(episode.name, needle)
+      end)
+    end)
+  end
+
+  defp nested_matches?(%{type: :movie_series, movies: movies}, needle) when is_list(movies) do
+    Enum.any?(movies, fn movie -> name_matches?(movie.name, needle) end)
+  end
+
+  defp nested_matches?(_entity, _needle), do: false
 
   defp tab_counts(entries) do
     Enum.reduce(entries, %{all: 0, movies: 0, tv: 0}, fn %{entity: entity}, counts ->
