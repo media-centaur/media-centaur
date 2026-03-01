@@ -9,7 +9,6 @@ defmodule MediaCentaur.Playback.MpvSession do
   alias MediaCentaur.Playback.WatchingTracker
 
   @db_write_interval_ms 60_000
-  @pubsub_broadcast_interval_ms 2_000
   @socket_retry_interval_ms 200
 
   defstruct [
@@ -28,7 +27,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     :duration,
     :paused,
     :last_db_write_at,
-    :last_broadcast_at,
     :socket_retries,
     :tracker,
     state: :starting
@@ -78,7 +76,6 @@ defmodule MediaCentaur.Playback.MpvSession do
       duration: 0.0,
       paused: false,
       last_db_write_at: System.monotonic_time(:millisecond),
-      last_broadcast_at: System.monotonic_time(:millisecond),
       socket_retries: max_retries,
       tracker: WatchingTracker.new()
     }
@@ -253,7 +250,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
 
     state = %{state | position: position, tracker: tracker}
-    maybe_persist(state) |> maybe_broadcast(state)
+    maybe_persist(state)
   end
 
   defp handle_mpv_message(
@@ -308,43 +305,37 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  # --- Debounced PubSub Broadcasts ---
-
-  defp maybe_broadcast(state, old_state) do
-    now = System.monotonic_time(:millisecond)
-
-    if now - old_state.last_broadcast_at >= @pubsub_broadcast_interval_ms do
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
-        "playback:events",
-        {:playback_progress,
-         %{position_seconds: state.position, duration_seconds: state.duration}}
-      )
-
-      %{state | last_broadcast_at: now}
-    else
-      state
-    end
-  end
-
   # --- Entity Progress Broadcasting ---
 
   defp broadcast_entity_progress(session) do
-    broadcast_entity_progress_by_id(session.entity_id)
+    broadcast_entity_progress_by_id(
+      session.entity_id,
+      session.season_number,
+      session.episode_number
+    )
   end
 
-  defp broadcast_entity_progress_by_id(entity_id) do
+  defp broadcast_entity_progress_by_id(entity_id, season_number, episode_number) do
     case Ash.get(MediaCentaur.Library.Entity, entity_id, action: :with_progress) do
       {:ok, entity} ->
         progress_records = entity.watch_progress || []
         summary = MediaCentaur.Playback.ProgressSummary.compute(entity, progress_records)
         resume_target = MediaCentaur.Playback.ResumeTarget.compute(entity, progress_records)
+
+        child_targets_delta =
+          MediaCentaur.Playback.ResumeTarget.compute_child_target_delta(
+            entity,
+            progress_records,
+            season_number,
+            episode_number
+          )
+
         Log.info(:playback, "broadcasting progress for #{entity_id}")
 
         Phoenix.PubSub.broadcast(
           MediaCentaur.PubSub,
           "playback:events",
-          {:entity_progress_updated, entity_id, summary, resume_target, progress_records}
+          {:entity_progress_updated, entity_id, summary, resume_target, child_targets_delta}
         )
 
       {:error, _} ->
@@ -359,10 +350,13 @@ defmodule MediaCentaur.Playback.MpvSession do
     session_id = state.session_id
     duration = state.duration
 
+    season_number = state.season_number || 0
+    episode_number = state.episode_number || 0
+
     params = %{
       entity_id: state.entity_id,
-      season_number: state.season_number || 0,
-      episode_number: state.episode_number || 0,
+      season_number: season_number,
+      episode_number: episode_number,
       position_seconds: saveable,
       duration_seconds: duration
     }
@@ -378,7 +372,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           )
 
           maybe_mark_completed(record, saveable, duration)
-          broadcast_entity_progress_by_id(entity_id)
+          broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
 
         {:error, reason} ->
           Log.warning(:playback, "progress write failed: #{inspect(reason)}")
