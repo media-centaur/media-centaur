@@ -54,7 +54,7 @@ defmodule MediaCentaur.ConfigTest do
       :persistent_term.put({Config, :config}, config)
 
       assert Config.staging_base_for("/mnt/media") ==
-               "/mnt/media/.media-centaur/tmp-image-download"
+               "/mnt/media/.media-centaur/images/partial-downloads"
     end
 
     test "works with custom images_dir" do
@@ -62,7 +62,7 @@ defmodule MediaCentaur.ConfigTest do
       :persistent_term.put({Config, :config}, config)
 
       assert Config.staging_base_for("/mnt/media") ==
-               "/mnt/cache/artwork/tmp-image-download"
+               "/mnt/cache/artwork/images/partial-downloads"
     end
 
     test "works for unconfigured watch dir using default" do
@@ -70,7 +70,7 @@ defmodule MediaCentaur.ConfigTest do
       :persistent_term.put({Config, :config}, config)
 
       assert Config.staging_base_for("/mnt/media") ==
-               "/mnt/media/.media-centaur/tmp-image-download"
+               "/mnt/media/.media-centaur/images/partial-downloads"
     end
   end
 

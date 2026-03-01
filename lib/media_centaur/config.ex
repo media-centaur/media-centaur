@@ -37,7 +37,7 @@ defmodule MediaCentaur.Config do
   @spec staging_base_for(String.t()) :: String.t()
   def staging_base_for(watch_directory) do
     images_dir = images_dir_for(watch_directory)
-    Path.join(Path.dirname(images_dir), "tmp-image-download")
+    Path.join(images_dir, "partial-downloads")
   end
 
   @doc "Resolves a relative image content_url to an absolute filesystem path."
