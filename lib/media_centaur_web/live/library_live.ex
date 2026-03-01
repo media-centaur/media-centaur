@@ -99,7 +99,10 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
   end
 
-  def handle_info({:entity_progress_updated, entity_id, summary, progress_records}, socket) do
+  def handle_info(
+        {:entity_progress_updated, entity_id, summary, _resume_target, progress_records},
+        socket
+      ) do
     entries = update_entry_progress(socket.assigns.entries, entity_id, summary, progress_records)
     {:noreply, assign(socket, entries: entries)}
   end

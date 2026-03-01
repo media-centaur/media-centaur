@@ -82,6 +82,7 @@ defmodule MediaCentaur.Serializer do
 
   defp serialize_season(%Season{} = season) do
     %{
+      "@id" => season.id,
       "seasonNumber" => season.season_number,
       "numberOfEpisodes" => season.number_of_episodes,
       "name" => season.name,
@@ -113,6 +114,7 @@ defmodule MediaCentaur.Serializer do
 
   defp serialize_episode(%Episode{} = episode) do
     %{
+      "@id" => episode.id,
       "episodeNumber" => episode.episode_number,
       "name" => episode.name,
       "description" => episode.description,
@@ -186,6 +188,7 @@ defmodule MediaCentaur.Serializer do
 
   defp serialize_child_movie(%Movie{} = movie) do
     %{
+      "@id" => movie.id,
       "@type" => "Movie",
       "name" => movie.name,
       "description" => movie.description,

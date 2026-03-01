@@ -20,6 +20,20 @@ defmodule MediaCentaur.Playback.ResumeTest do
     %{episode_number: number, content_url: url}
   end
 
+  defp movie_series(movies) do
+    %{type: :movie_series, content_url: nil, seasons: nil, movies: movies}
+  end
+
+  defp child_movie(url, position) do
+    %{
+      id: Ash.UUID.generate(),
+      name: "Movie #{position + 1}",
+      content_url: url,
+      position: position,
+      date_published: nil
+    }
+  end
+
   defp progress(opts) do
     %{
       season_number: Keyword.get(opts, :season),
@@ -192,6 +206,117 @@ defmodule MediaCentaur.Playback.ResumeTest do
 
       assert {:play_next, "/tv/show/S01E02.mkv", position} = Resume.resolve(entity, [])
       assert position == 0.0
+    end
+  end
+
+  describe "MovieSeries" do
+    test "no progress → play_next first movie" do
+      entity =
+        movie_series([
+          child_movie("/movies/first.mkv", 0),
+          child_movie("/movies/second.mkv", 1)
+        ])
+
+      assert {:play_next, "/movies/first.mkv", position} = Resume.resolve(entity, [])
+      assert position == 0.0
+    end
+
+    test "partial progress on first movie → resume" do
+      entity =
+        movie_series([
+          child_movie("/movies/first.mkv", 0),
+          child_movie("/movies/second.mkv", 1)
+        ])
+
+      records = [
+        progress(
+          season: 0,
+          episode: 1,
+          position: 1200.5,
+          duration: 7200.0,
+          last_watched_at: ~U[2026-01-15 20:00:00Z]
+        )
+      ]
+
+      assert {:resume, "/movies/first.mkv", 1200.5} = Resume.resolve(entity, records)
+    end
+
+    test "completed first movie → play_next second movie" do
+      entity =
+        movie_series([
+          child_movie("/movies/first.mkv", 0),
+          child_movie("/movies/second.mkv", 1),
+          child_movie("/movies/third.mkv", 2)
+        ])
+
+      records = [
+        progress(
+          season: 0,
+          episode: 1,
+          completed: true,
+          last_watched_at: ~U[2026-01-15 20:00:00Z]
+        )
+      ]
+
+      assert {:play_next, "/movies/second.mkv", position} = Resume.resolve(entity, records)
+      assert position == 0.0
+    end
+
+    test "all movies completed → restart from first" do
+      entity =
+        movie_series([
+          child_movie("/movies/first.mkv", 0),
+          child_movie("/movies/second.mkv", 1)
+        ])
+
+      records = [
+        progress(
+          season: 0,
+          episode: 1,
+          completed: true,
+          last_watched_at: ~U[2026-01-14 20:00:00Z]
+        ),
+        progress(
+          season: 0,
+          episode: 2,
+          completed: true,
+          last_watched_at: ~U[2026-01-15 20:00:00Z]
+        )
+      ]
+
+      assert {:restart, "/movies/first.mkv", position} = Resume.resolve(entity, records)
+      assert position == 0.0
+    end
+
+    test "skips movies without content_url" do
+      entity =
+        movie_series([
+          child_movie(nil, 0),
+          child_movie("/movies/second.mkv", 1)
+        ])
+
+      assert {:play_next, "/movies/second.mkv", position} = Resume.resolve(entity, [])
+      assert position == 0.0
+    end
+
+    test "no movies with content_url → no_playable_content" do
+      entity =
+        movie_series([
+          child_movie(nil, 0),
+          child_movie(nil, 1)
+        ])
+
+      assert {:no_playable_content} = Resume.resolve(entity, [])
+    end
+
+    test "single movie behaves like walking" do
+      entity = movie_series([child_movie("/movies/solo.mkv", 0)])
+
+      records = [
+        progress(season: 0, episode: 1, position: 600.0, duration: 3600.0)
+      ]
+
+      assert {:resume, "/movies/solo.mkv", 600.0} = Resume.resolve(entity, records)
     end
   end
 

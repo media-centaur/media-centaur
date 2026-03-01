@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.LibraryChannel do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library.Entity
-  alias MediaCentaur.Playback.ProgressSummary
+  alias MediaCentaur.Playback.{ProgressSummary, ResumeTarget}
   alias MediaCentaur.Serializer
 
   @batch_size 50
@@ -100,6 +100,12 @@ defmodule MediaCentaurWeb.LibraryChannel do
     progress_records = entity.watch_progress || []
     serialized = Serializer.serialize_entity(entity)
     progress = ProgressSummary.compute(entity, progress_records)
-    Map.put(serialized, "progress", progress)
+    resume_target = ResumeTarget.compute(entity, progress_records)
+    child_targets = ResumeTarget.compute_child_targets(entity, progress_records)
+
+    serialized
+    |> Map.put("progress", progress)
+    |> Map.put("resumeTarget", resume_target)
+    |> Map.put("childTargets", child_targets)
   end
 end

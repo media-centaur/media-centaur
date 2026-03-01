@@ -337,12 +337,13 @@ defmodule MediaCentaur.Playback.MpvSession do
       {:ok, entity} ->
         progress_records = entity.watch_progress || []
         summary = MediaCentaur.Playback.ProgressSummary.compute(entity, progress_records)
+        resume_target = MediaCentaur.Playback.ResumeTarget.compute(entity, progress_records)
         Log.info(:playback, "broadcasting progress for #{entity_id}")
 
         Phoenix.PubSub.broadcast(
           MediaCentaur.PubSub,
           "playback:events",
-          {:entity_progress_updated, entity_id, summary, progress_records}
+          {:entity_progress_updated, entity_id, summary, resume_target, progress_records}
         )
 
       {:error, _} ->

@@ -7,7 +7,7 @@ defmodule MediaCentaur.LibraryBrowser do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library.{Entity, Helpers, WatchProgress}
-  alias MediaCentaur.Playback.{EpisodeList, Manager, ProgressSummary, Resume}
+  alias MediaCentaur.Playback.{EpisodeList, Manager, MovieList, ProgressSummary, Resume}
 
   @doc """
   Loads all entities with associations, computes progress summaries.
@@ -128,6 +128,13 @@ defmodule MediaCentaur.LibraryBrowser do
            content_url: content_url,
            start_position: position
          }}
+    end
+  end
+
+  defp episode_context(_action, %{type: :movie_series} = entity, content_url, _progress_records) do
+    case MovieList.find_by_content_url(entity, content_url) do
+      {ordinal, _movie_id, movie_name} -> {0, ordinal, movie_name}
+      nil -> {nil, nil, nil}
     end
   end
 

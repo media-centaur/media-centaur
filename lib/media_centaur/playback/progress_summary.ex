@@ -4,7 +4,7 @@ defmodule MediaCentaur.Playback.ProgressSummary do
   Pure function — no DB or side effects.
   """
 
-  alias MediaCentaur.Playback.EpisodeList
+  alias MediaCentaur.Playback.{EpisodeList, MovieList}
 
   @type t :: %{
           current_episode: %{season: integer(), episode: integer()} | nil,
@@ -24,6 +24,7 @@ defmodule MediaCentaur.Playback.ProgressSummary do
   def compute(entity, progress_records) do
     case entity.type do
       :tv_series -> compute_tv_series(entity, progress_records)
+      :movie_series -> compute_movie_series(entity, progress_records)
       _other -> compute_single(progress_records)
     end
   end
@@ -52,6 +53,26 @@ defmodule MediaCentaur.Playback.ProgressSummary do
     episodes_completed = Enum.count(progress_records, & &1.completed)
 
     {current_episode, current_progress} = find_current_episode(episodes, progress_records)
+
+    %{
+      current_episode: current_episode,
+      episode_position_seconds: position_for(current_progress),
+      episode_duration_seconds: duration_for(current_progress),
+      episodes_completed: episodes_completed,
+      episodes_total: episodes_total
+    }
+  end
+
+  defp compute_movie_series(entity, progress_records) do
+    items =
+      entity
+      |> MovieList.list_available()
+      |> Enum.map(fn {ordinal, _movie_id, _url} -> {0, ordinal} end)
+
+    episodes_total = length(items)
+    episodes_completed = Enum.count(progress_records, & &1.completed)
+
+    {current_episode, current_progress} = find_current_episode(items, progress_records)
 
     %{
       current_episode: current_episode,

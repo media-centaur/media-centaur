@@ -159,7 +159,18 @@ defmodule MediaCentaurWeb.PlaybackChannelTest do
         episodes_total: 20
       }
 
-      send(socket.channel_pid, {:entity_progress_updated, "660f9500-test-uuid", summary, []})
+      resume_target = %{
+        "action" => "begin",
+        "targetId" => "ep-uuid",
+        "name" => "Next Episode",
+        "seasonNumber" => 2,
+        "episodeNumber" => 5
+      }
+
+      send(
+        socket.channel_pid,
+        {:entity_progress_updated, "660f9500-test-uuid", summary, resume_target, []}
+      )
 
       assert_push "playback:entity_progress_updated", payload
       wire = json_roundtrip(payload)
@@ -171,6 +182,9 @@ defmodule MediaCentaurWeb.PlaybackChannelTest do
       assert wire["progress"]["episode_duration_seconds"] == 3100.0
       assert wire["progress"]["episodes_completed"] == 13
       assert wire["progress"]["episodes_total"] == 20
+      assert wire["resumeTarget"]["action"] == "begin"
+      assert wire["resumeTarget"]["targetId"] == "ep-uuid"
+      assert wire["resumeTarget"]["name"] == "Next Episode"
     end
   end
 end

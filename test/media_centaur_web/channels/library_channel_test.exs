@@ -56,6 +56,8 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
       assert entry["entity"]["@type"] == "Movie"
       assert entry["entity"]["name"] == "Sample Movie"
       assert entry["progress"] == nil
+      assert Map.has_key?(entry, "resumeTarget")
+      assert Map.has_key?(entry, "childTargets")
     end
 
     test "entity with watch progress includes progress summary in batch" do
