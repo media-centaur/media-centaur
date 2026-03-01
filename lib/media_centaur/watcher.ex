@@ -31,17 +31,20 @@ defmodule MediaCentaur.Watcher do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library.WatchedFile
+  alias MediaCentaur.Library.{FileTracker, Helpers, WatchedFile}
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
   @health_check_interval 30_000
   @size_stability_interval 5_000
   @size_stability_checks 2
+  @deletion_debounce_ms 3_000
   defstruct [
     :dir,
     :watcher_pid,
+    :deletion_timer,
     state: :initializing,
     pending_files: %{},
+    deletion_buffer: %{},
     exclude_dirs: []
   ]
 
@@ -86,12 +89,19 @@ defmodule MediaCentaur.Watcher do
 
   @impl true
   def handle_info(:start_watching, state) do
+    was_unavailable = state.state == :unavailable
+
     case FileSystem.start_link(dirs: [state.dir], recursive: true) do
       {:ok, pid} ->
         FileSystem.subscribe(pid)
         Log.info(:watcher, "started watching #{state.dir}")
         schedule_health_check()
         broadcast_state(state.dir, :watching)
+
+        if was_unavailable do
+          send(self(), :auto_scan)
+        end
+
         {:noreply, %{state | watcher_pid: pid, state: :watching}}
 
       {:error, reason} ->
@@ -125,6 +135,9 @@ defmodule MediaCentaur.Watcher do
         Log.info(:watcher, "file event for #{Path.basename(path)}, starting size checks")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
+
+      :deleted in events and video_file?(path) and not excluded?(path, state.exclude_dirs) ->
+        {:noreply, buffer_deletion(state, path)}
 
       true ->
         {:noreply, state}
@@ -184,6 +197,43 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
+  @impl true
+  def handle_info(:auto_scan, state) do
+    dir = state.dir
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      scan_directory(dir)
+    end)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:flush_deletions, state) do
+    if map_size(state.deletion_buffer) > 0 do
+      paths = Map.keys(state.deletion_buffer)
+      Log.info(:watcher, "flushing #{length(paths)} deletion events")
+
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        "library:file_events",
+        {:files_removed, paths}
+      )
+    end
+
+    {:noreply, %{state | deletion_buffer: %{}, deletion_timer: nil}}
+  end
+
+  defp buffer_deletion(state, path) do
+    buffer = Map.put(state.deletion_buffer, path, state.dir)
+
+    # Cancel existing timer and start a new one (sliding window debounce)
+    if state.deletion_timer, do: Process.cancel_timer(state.deletion_timer)
+    timer = Process.send_after(self(), :flush_deletions, @deletion_debounce_ms)
+
+    %{state | deletion_buffer: buffer, deletion_timer: timer}
+  end
+
   defp scan_directory(dir) do
     Log.info(:watcher, "scanning #{dir}")
     start_time = System.monotonic_time()
@@ -203,6 +253,10 @@ defmodule MediaCentaur.Watcher do
         count + 1
       end)
 
+    # Restore any absent files that are now present on disk
+    restored_entity_ids = FileTracker.restore_present_files(dir, video_files)
+    Helpers.broadcast_entities_changed(restored_entity_ids)
+
     duration = System.monotonic_time() - start_time
 
     :telemetry.execute(
@@ -212,13 +266,14 @@ defmodule MediaCentaur.Watcher do
         dir: dir,
         total_video_files: length(video_files),
         known: length(video_files) - dispatched,
-        dispatched: dispatched
+        dispatched: dispatched,
+        restored: length(restored_entity_ids)
       }
     )
 
     Log.info(
       :watcher,
-      "scan complete: #{dispatched} new files dispatched, #{length(video_files)} total video files"
+      "scan complete: #{dispatched} new, #{length(restored_entity_ids)} restored, #{length(video_files)} total"
     )
 
     dispatched

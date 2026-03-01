@@ -291,7 +291,7 @@ defmodule MediaCentaur.Pipeline.Stats do
         [:media_centaur, :pipeline, :needs_review],
         [:media_centaur, :pipeline, :queue_depth]
       ],
-      &handle_telemetry/4,
+      &__MODULE__.handle_telemetry/4,
       %{stats: self()}
     )
   end

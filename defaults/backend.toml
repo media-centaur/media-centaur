@@ -27,6 +27,11 @@ watch_dirs = [
 # Paths are expanded (~ resolved). Must be absolute paths.
 exclude_dirs = []
 
+# Number of days to retain database records for files on disconnected/unmounted
+# drives before cleaning them up. Files that are explicitly deleted are cleaned
+# up immediately regardless of this setting.
+file_absence_ttl_days = 30
+
 [tmdb]
 # TMDB API key. Required for metadata scraping. Get one at https://www.themoviedb.org/settings/api
 api_key = ""
