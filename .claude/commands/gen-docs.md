@@ -115,6 +115,46 @@ Each subsystem doc should follow this structure. Adapt section depth and content
 
 If the instruction file for this doc contains supplementary content, integrate it naturally — append a section, weave it into existing sections, or follow its explicit placement instructions.
 
+### Navigation and Structure
+
+Every doc (including README.md) must have:
+
+1. **Table of contents** — immediately after the title and purpose statement. List all `##`-level headings as markdown links. Example:
+
+   ```markdown
+   ## Contents
+
+   - [Architecture](#architecture)
+   - [Key Concepts](#key-concepts)
+   - [Configuration](#configuration)
+   - [How It Works](#how-it-works)
+   - [Module Reference](#module-reference)
+   ```
+
+2. **Back / forward links** — at the very bottom of the page. Use the doc order from the Output Structure section above. Example:
+
+   ```markdown
+   ---
+
+   [← Configuration](configuration.md) | [Architecture →](architecture.md)
+   ```
+
+   The first doc (getting-started.md) links back to README.md. The last doc (library.md) has no forward link. README.md has no back link, only a forward to getting-started.md.
+
+**Doc order for navigation:** README → getting-started → configuration → architecture → watcher → pipeline → tmdb → playback → channel → library
+
+### Specification Links
+
+The `../specifications/` directory does not exist in the backend repo — specifications live in a separate repository. All links to specification files must point to the GitHub repository:
+
+`https://github.com/media-centaur/specifications/blob/main/<filename>`
+
+For example:
+- `[DATA-FORMAT.md](https://github.com/media-centaur/specifications/blob/main/DATA-FORMAT.md)` — not `../specifications/DATA-FORMAT.md`
+- `[PLAYBACK.md](https://github.com/media-centaur/specifications/blob/main/PLAYBACK.md)` — not `../specifications/PLAYBACK.md`
+
+This applies everywhere: README.md, architecture.md, and any doc that references specification files.
+
 ### Special Rules
 
 - **configuration.md**: Must embed the full contents of `defaults/backend.toml` as a fenced TOML code block with inline annotations explaining each section.
@@ -157,3 +197,6 @@ Before finishing, verify:
 - [ ] configuration.md contains the full embedded backend.toml
 - [ ] No instruction files were overwritten
 - [ ] getting-started.md lists Elixir/OTP version requirements
+- [ ] Every doc has a table of contents after the title
+- [ ] Every doc has back/forward navigation links at the bottom
+- [ ] All specification links point to `https://github.com/media-centaur/specifications/blob/main/` (not relative `../specifications/` paths)

@@ -2,6 +2,16 @@
 
 Media Centaur Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library to a Rust frontend over WebSocket.
 
+## Contents
+
+- [System Overview](#system-overview)
+- [Data Flow](#data-flow)
+- [Supervision Tree](#supervision-tree)
+- [PubSub Topics](#pubsub-topics)
+- [Key Principles](#key-principles)
+- [Specifications](#specifications)
+- [Module Reference](#module-reference)
+
 ## System Overview
 
 ```mermaid
@@ -116,15 +126,15 @@ All inter-component communication flows through Phoenix PubSub:
 
 ## Specifications
 
-Cross-component contracts live in `../specifications/`:
+Cross-component contracts live in the [specifications repository](https://github.com/media-centaur/specifications):
 
 | Spec | Governs |
 |------|---------|
-| [API.md](../../specifications/API.md) | Phoenix Channels WebSocket protocol |
-| [DATA-FORMAT.md](../../specifications/DATA-FORMAT.md) | JSON-LD entity serialization format |
-| [IMAGE-CACHING.md](../../specifications/IMAGE-CACHING.md) | Image storage conventions |
-| [PLAYBACK.md](../../specifications/PLAYBACK.md) | MPV integration and progress tracking |
-| [COMPONENTS.md](../../specifications/COMPONENTS.md) | System component architecture |
+| [API.md](https://github.com/media-centaur/specifications/blob/main/API.md) | Phoenix Channels WebSocket protocol |
+| [DATA-FORMAT.md](https://github.com/media-centaur/specifications/blob/main/DATA-FORMAT.md) | JSON-LD entity serialization format |
+| [IMAGE-CACHING.md](https://github.com/media-centaur/specifications/blob/main/IMAGE-CACHING.md) | Image storage conventions |
+| [PLAYBACK.md](https://github.com/media-centaur/specifications/blob/main/PLAYBACK.md) | MPV integration and progress tracking |
+| [COMPONENTS.md](https://github.com/media-centaur/specifications/blob/main/COMPONENTS.md) | System component architecture |
 
 ## Module Reference
 
@@ -137,3 +147,7 @@ Cross-component contracts live in `../specifications/`:
 | `MediaCentaur.Storage` | Disk usage measurement | `lib/media_centaur/storage.ex` |
 | `MediaCentaur.Admin` | Destructive admin operations | `lib/media_centaur/admin.ex` |
 | `MediaCentaur.Dashboard` | Dashboard data fetching | `lib/media_centaur/dashboard.ex` |
+
+---
+
+[← Configuration](configuration.md) | [Watcher →](watcher.md)
