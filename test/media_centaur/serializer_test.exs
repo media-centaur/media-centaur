@@ -393,9 +393,11 @@ defmodule MediaCentaur.SerializerTest do
       inner = result["entity"]
 
       [first, second] = inner["hasPart"]
+      assert first["@id"]
       assert first["@type"] == "VideoObject"
       assert first["name"] == "Like Home"
       assert first["contentUrl"] == "/path/to/Like Home.mkv"
+      assert second["@id"]
       assert second["name"] == "Making Of"
     end
 

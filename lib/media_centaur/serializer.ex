@@ -148,6 +148,7 @@ defmodule MediaCentaur.Serializer do
 
   defp serialize_extra(%Extra{} = extra) do
     %{
+      "@id" => extra.id,
       "@type" => "VideoObject",
       "name" => extra.name,
       "contentUrl" => extra.content_url
