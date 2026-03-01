@@ -57,19 +57,8 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, assign(socket, expanded: expanded)}
   end
 
-  def handle_event("play", %{"entity-id" => entity_id}, socket) do
-    LibraryBrowser.play_entity(entity_id)
-    {:noreply, socket}
-  end
-
-  def handle_event("play_episode", params, socket) do
-    %{"entity-id" => entity_id, "season" => season, "episode" => episode} = params
-    LibraryBrowser.play_episode(entity_id, String.to_integer(season), String.to_integer(episode))
-    {:noreply, socket}
-  end
-
-  def handle_event("play_movie", %{"entity-id" => entity_id, "movie-id" => movie_id}, socket) do
-    LibraryBrowser.play_movie(entity_id, movie_id)
+  def handle_event("play", %{"id" => uuid}, socket) do
+    LibraryBrowser.play(uuid)
     {:noreply, socket}
   end
 
@@ -241,7 +230,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         </div>
         <div class="flex items-center gap-2">
           <.progress_badge progress={@entry.progress} type={:tv_series} />
-          <button phx-click="play" phx-value-entity-id={@entity.id} class="btn btn-primary btn-sm">
+          <button phx-click="play" phx-value-id={@entity.id} class="btn btn-primary btn-sm">
             <.icon name="hero-play-mini" class="size-4" />
           </button>
         </div>
@@ -266,10 +255,8 @@ defmodule MediaCentaurWeb.LibraryLive do
               } />
               <button
                 :if={episode.content_url}
-                phx-click="play_episode"
-                phx-value-entity-id={@entity.id}
-                phx-value-season={season.season_number}
-                phx-value-episode={episode.episode_number}
+                phx-click="play"
+                phx-value-id={episode.id}
                 class="btn btn-ghost btn-xs flex-shrink-0"
               >
                 <.icon name="hero-play-mini" class="size-3" />
@@ -322,7 +309,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         </div>
         <div class="flex items-center gap-2">
           <.progress_badge progress={@entry.progress} type={:movie_series} />
-          <button phx-click="play" phx-value-entity-id={@entity.id} class="btn btn-primary btn-sm">
+          <button phx-click="play" phx-value-id={@entity.id} class="btn btn-primary btn-sm">
             <.icon name="hero-play-mini" class="size-4" />
           </button>
         </div>
@@ -342,9 +329,8 @@ defmodule MediaCentaurWeb.LibraryLive do
             </span>
             <button
               :if={movie.content_url}
-              phx-click="play_movie"
-              phx-value-entity-id={@entity.id}
-              phx-value-movie-id={movie.id}
+              phx-click="play"
+              phx-value-id={movie.id}
               class="btn btn-ghost btn-xs flex-shrink-0"
             >
               <.icon name="hero-play-mini" class="size-3" />
@@ -384,7 +370,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         </div>
         <div class="flex items-center gap-2">
           <.progress_badge progress={@entry.progress} type={@entity.type} />
-          <button phx-click="play" phx-value-entity-id={@entity.id} class="btn btn-primary btn-sm">
+          <button phx-click="play" phx-value-id={@entity.id} class="btn btn-primary btn-sm">
             <.icon name="hero-play-mini" class="size-4" />
           </button>
         </div>
