@@ -75,7 +75,8 @@ defmodule MediaCentaur.Config do
         "Behind The Scenes",
         "Bonus",
         "Deleted Scenes"
-      ]
+      ],
+      file_absence_ttl_days: 30
     }
 
     if Application.get_env(:media_centaur, :skip_user_config, false) do
@@ -119,7 +120,9 @@ defmodule MediaCentaur.Config do
       mpv_socket_dir: get_in(toml, ["playback", "socket_dir"]) || defaults.mpv_socket_dir,
       mpv_socket_timeout_ms:
         get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms,
-      extras_dirs: get_in(toml, ["pipeline", "extras_dirs"]) || defaults.extras_dirs
+      extras_dirs: get_in(toml, ["pipeline", "extras_dirs"]) || defaults.extras_dirs,
+      file_absence_ttl_days:
+        get_in(toml, ["file_absence_ttl_days"]) || defaults.file_absence_ttl_days
     }
   end
 

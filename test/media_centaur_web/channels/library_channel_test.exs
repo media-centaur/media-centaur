@@ -85,6 +85,69 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
     end
   end
 
+  describe "absent file filtering" do
+    test "entity with all absent files is excluded from initial sync" do
+      entity = create_entity(%{type: :movie, name: "Absent Movie"})
+      file = create_linked_file(%{entity: entity})
+
+      file
+      |> Ash.Changeset.for_update(:mark_absent, %{})
+      |> Ash.update!()
+
+      _socket = join_and_get_socket()
+
+      assert_push "library:sync_complete", %{}
+      refute_push "library:entities", _
+    end
+
+    test "entity with present files is included in initial sync" do
+      entity = create_entity(%{type: :movie, name: "Present Movie"})
+      _file = create_linked_file(%{entity: entity})
+
+      _socket = join_and_get_socket()
+      entities = drain_initial_sync()
+
+      assert length(entities) == 1
+      assert hd(entities)["@id"] == entity.id
+    end
+
+    test "entity with mix of present and absent files is included" do
+      entity = create_entity(%{type: :tv_series, name: "Partial Show"})
+
+      _present_file =
+        create_linked_file(%{
+          entity: entity,
+          file_path: "/media/tv/ep1.mkv",
+          watch_dir: "/media/tv"
+        })
+
+      absent_file =
+        create_linked_file(%{
+          entity: entity,
+          file_path: "/media/tv/ep2.mkv",
+          watch_dir: "/media/tv"
+        })
+
+      absent_file
+      |> Ash.Changeset.for_update(:mark_absent, %{})
+      |> Ash.update!()
+
+      _socket = join_and_get_socket()
+      entities = drain_initial_sync()
+
+      assert length(entities) == 1
+    end
+
+    test "entities without any watched files are included in sync" do
+      _entity = create_entity(%{type: :movie, name: "No Files Movie"})
+
+      _socket = join_and_get_socket()
+      entities = drain_initial_sync()
+
+      assert length(entities) == 1
+    end
+  end
+
   describe "incremental updates" do
     test "new entity pushes library:entities" do
       socket = join_library()

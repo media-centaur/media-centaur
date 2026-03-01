@@ -6,7 +6,7 @@ defmodule MediaCentaur.LibraryBrowser do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library.Entity
+  alias MediaCentaur.Library.{Entity, Helpers}
   alias MediaCentaur.Playback.{Manager, ProgressSummary, Resolver}
 
   @doc """
@@ -15,11 +15,14 @@ defmodule MediaCentaur.LibraryBrowser do
   Returns a list of `%{entity: entity, progress: summary, progress_records: records}`.
   """
   def fetch_entities do
+    excluded = Helpers.entity_ids_all_absent()
+
     entities =
       Entity
       |> Ash.Query.for_read(:with_associations)
       |> Ash.Query.sort(name: :asc)
       |> Ash.read!()
+      |> Enum.reject(fn entity -> MapSet.member?(excluded, entity.id) end)
 
     Log.info(:library, "loaded #{length(entities)} entities for browser")
 
