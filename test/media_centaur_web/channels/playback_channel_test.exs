@@ -133,58 +133,96 @@ defmodule MediaCentaurWeb.PlaybackChannelTest do
       end
     end
 
-    test "progress push with string keys" do
-      socket = join_playback()
-
-      send(
-        socket.channel_pid,
-        {:playback_progress, %{position_seconds: 120.5, duration_seconds: 7200.0}}
-      )
-
-      assert_push "playback:progress", payload
-      wire = json_roundtrip(payload)
-
-      assert wire["position_seconds"] == 120.5
-      assert wire["duration_seconds"] == 7200.0
-    end
-
-    test "entity_progress_updated push with string keys" do
+    test "entity_progress_updated push includes progress, resumeTarget, and childTargets" do
       socket = join_playback()
 
       summary = %{
-        current_episode: %{season: 2, episode: 4},
-        episode_position_seconds: 0.0,
-        episode_duration_seconds: 3100.0,
-        episodes_completed: 13,
+        current_episode: %{season: 2, episode: 3},
+        episode_position_seconds: 1205.3,
+        episode_duration_seconds: 3200.0,
+        episodes_completed: 12,
         episodes_total: 20
       }
 
       resume_target = %{
-        "action" => "begin",
+        "action" => "resume",
         "targetId" => "ep-uuid",
-        "name" => "Next Episode",
+        "name" => "Who Is Alive?",
         "seasonNumber" => 2,
-        "episodeNumber" => 5
+        "episodeNumber" => 3,
+        "positionSeconds" => 1205.3,
+        "durationSeconds" => 3200.0
+      }
+
+      child_targets_delta = %{
+        "ep-uuid" => %{
+          "action" => "resume",
+          "positionSeconds" => 1205.3,
+          "durationSeconds" => 3200.0
+        }
       }
 
       send(
         socket.channel_pid,
-        {:entity_progress_updated, "660f9500-test-uuid", summary, resume_target, []}
+        {:entity_progress_updated, "660f9500-test-uuid", summary, resume_target,
+         child_targets_delta}
       )
 
       assert_push "playback:entity_progress_updated", payload
       wire = json_roundtrip(payload)
 
       assert wire["entity_id"] == "660f9500-test-uuid"
-      assert is_map(wire["progress"])
-      assert wire["progress"]["current_episode"] == %{"season" => 2, "episode" => 4}
-      assert wire["progress"]["episode_position_seconds"] == 0.0
-      assert wire["progress"]["episode_duration_seconds"] == 3100.0
-      assert wire["progress"]["episodes_completed"] == 13
+
+      assert wire["progress"]["current_episode"] == %{"season" => 2, "episode" => 3}
+      assert wire["progress"]["episode_position_seconds"] == 1205.3
+      assert wire["progress"]["episode_duration_seconds"] == 3200.0
+      assert wire["progress"]["episodes_completed"] == 12
       assert wire["progress"]["episodes_total"] == 20
-      assert wire["resumeTarget"]["action"] == "begin"
+
+      assert wire["resumeTarget"]["action"] == "resume"
       assert wire["resumeTarget"]["targetId"] == "ep-uuid"
-      assert wire["resumeTarget"]["name"] == "Next Episode"
+      assert wire["resumeTarget"]["name"] == "Who Is Alive?"
+      assert wire["resumeTarget"]["positionSeconds"] == 1205.3
+
+      assert wire["childTargets"] == %{
+               "ep-uuid" => %{
+                 "action" => "resume",
+                 "positionSeconds" => 1205.3,
+                 "durationSeconds" => 3200.0
+               }
+             }
+    end
+
+    test "entity_progress_updated push with null childTargets for standalone movies" do
+      socket = join_playback()
+
+      summary = %{
+        current_episode: nil,
+        episode_position_seconds: 3600.0,
+        episode_duration_seconds: 9840.0,
+        episodes_completed: 0,
+        episodes_total: 1
+      }
+
+      resume_target = %{
+        "action" => "resume",
+        "name" => "Sample Movie",
+        "positionSeconds" => 3600.0,
+        "durationSeconds" => 9840.0
+      }
+
+      send(
+        socket.channel_pid,
+        {:entity_progress_updated, "550e8400-test-uuid", summary, resume_target, nil}
+      )
+
+      assert_push "playback:entity_progress_updated", payload
+      wire = json_roundtrip(payload)
+
+      assert wire["entity_id"] == "550e8400-test-uuid"
+      assert wire["childTargets"] == nil
+      assert wire["progress"]["current_episode"] == nil
+      assert wire["progress"]["episodes_total"] == 1
     end
   end
 end

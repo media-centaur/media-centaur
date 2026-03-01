@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.PlaybackChannel do
   @moduledoc """
   Handles the `play` command and forwards playback state changes and
-  progress ticks from PubSub to the UI.
+  entity progress updates from PubSub to the UI.
   """
   use Phoenix.Channel
   require MediaCentaur.Log, as: Log
@@ -46,17 +46,18 @@ defmodule MediaCentaurWeb.PlaybackChannel do
   end
 
   @impl true
-  def handle_info({:playback_progress, progress}, socket) do
-    push(socket, "playback:progress", progress)
-    {:noreply, socket}
-  end
-
-  @impl true
   def handle_info(
-        {:entity_progress_updated, entity_id, progress_summary, resume_target, _progress_records},
+        {:entity_progress_updated, entity_id, progress_summary, resume_target,
+         child_targets_delta},
         socket
       ) do
-    payload = %{entity_id: entity_id, progress: progress_summary, resumeTarget: resume_target}
+    payload = %{
+      entity_id: entity_id,
+      progress: progress_summary,
+      resumeTarget: resume_target,
+      childTargets: child_targets_delta
+    }
+
     Log.info(:channel, "playback push entity_progress_updated for #{entity_id}")
     push(socket, "playback:entity_progress_updated", payload)
     {:noreply, socket}

@@ -75,6 +75,48 @@ defmodule MediaCentaur.Playback.ResumeTarget do
 
   def compute_child_targets(_entity, _progress_records), do: nil
 
+  @doc """
+  Computes a single-key delta for the affected child during a progress save.
+
+  Returns a map with one entry `%{child_uuid => hint}`, or `nil` for standalone items.
+  """
+  @spec compute_child_target_delta(map(), [map()], integer() | nil, integer() | nil) ::
+          map() | nil
+  def compute_child_target_delta(
+        %{type: :tv_series} = entity,
+        progress_records,
+        season_number,
+        episode_number
+      ) do
+    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
+    episode = find_episode_struct(entity, season_number, episode_number)
+
+    if episode do
+      hint = child_hint(Map.get(progress_by_key, {season_number, episode_number}))
+      %{episode.id => hint}
+    end
+  end
+
+  def compute_child_target_delta(
+        %{type: :movie_series} = entity,
+        progress_records,
+        0,
+        ordinal
+      ) do
+    progress_by_ordinal = MovieList.index_progress_by_ordinal(progress_records)
+
+    case MovieList.find_movie_by_ordinal(entity, ordinal) do
+      {movie_id, _name} ->
+        hint = child_hint(Map.get(progress_by_ordinal, ordinal))
+        %{movie_id => hint}
+
+      nil ->
+        nil
+    end
+  end
+
+  def compute_child_target_delta(_entity, _progress_records, _season, _episode), do: nil
+
   # --- Private helpers ---
 
   defp all_completed?(%{type: :tv_series} = entity, progress_records) do

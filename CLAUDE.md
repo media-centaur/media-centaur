@@ -249,8 +249,6 @@ Visit `/operations` (Logging section) to toggle components and framework log sup
 ### What NOT to Log (too noisy)
 
 - MPV `time-pos` property updates (every second)
-- `MpvSession.maybe_broadcast` (every 2s)
-- `PlaybackChannel` progress tick forwarding (every 2s)
 - `WatchingTracker.update` (every second)
 - Serializer per-entity calls
 - Mapper per-field transforms
