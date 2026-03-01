@@ -2,6 +2,18 @@
 
 The pipeline processes detected video files through metadata enrichment and library ingestion. Built on [Broadway](https://github.com/dashbitco/broadway), it runs 15 concurrent processors partitioned by file path.
 
+## Contents
+
+- [Architecture](#architecture)
+- [Key Concepts](#key-concepts)
+- [Pipeline Stages](#pipeline-stages)
+- [Batching](#batching)
+- [Idempotency](#idempotency)
+- [Telemetry & Stats](#telemetry--stats)
+- [Review Flow](#review-flow)
+- [Extras (Bonus Features)](#extras-bonus-features)
+- [Module Reference](#module-reference)
+
 ## Architecture
 
 ```mermaid
@@ -166,3 +178,7 @@ Files inside directories named `Extras/`, `Featurettes/`, `Special Features/`, e
 | `MediaCentaur.Pipeline.Stages.FetchMetadata` | Full TMDB metadata fetch | `lib/media_centaur/pipeline/stages/fetch_metadata.ex` |
 | `MediaCentaur.Pipeline.Stages.DownloadImages` | Artwork download to staging | `lib/media_centaur/pipeline/stages/download_images.ex` |
 | `MediaCentaur.Pipeline.Stages.Ingest` | Library ingestion via Ingress | `lib/media_centaur/pipeline/stages/ingest.ex` |
+
+---
+
+[← Watcher](watcher.md) | [TMDB →](tmdb.md)

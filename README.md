@@ -8,6 +8,13 @@ Phoenix/Elixir application that manages the Media Centaur media library. Watches
 - Tracks playback progress through mpv with seek-aware persistence
 - Serves the full library and real-time updates over WebSocket
 
+## Contents
+
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Tech Stack](#tech-stack)
+- [License](#license)
+
 ## Quick Start
 
 ```bash
@@ -36,7 +43,7 @@ See [Getting Started](docs/getting-started.md) for system requirements and detai
 
 - [`CLAUDE.md`](CLAUDE.md) — project conventions, architecture principles, testing strategy
 - [`PIPELINE.md`](PIPELINE.md) — detailed Broadway pipeline architecture
-- [`../specifications/`](../specifications/) — cross-component contracts (API, data format, playback, images)
+- [specifications](https://github.com/media-centaur/specifications) — cross-component contracts (API, data format, playback, images)
 
 ## Tech Stack
 
@@ -56,3 +63,7 @@ See [Getting Started](docs/getting-started.md) for system requirements and detai
 ## License
 
 <!-- TODO: Add license type when LICENSE file is created -->
+
+---
+
+[Getting Started →](docs/getting-started.md)

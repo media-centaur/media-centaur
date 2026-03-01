@@ -2,6 +2,17 @@
 
 The library is the core data domain. It stores all media entities, their relationships, watch progress, and file tracking. Built entirely on [Ash Framework](https://ash-hq.org/) with SQLite.
 
+## Contents
+
+- [Architecture](#architecture)
+- [Key Concepts](#key-concepts)
+- [Entity Hierarchy](#entity-hierarchy)
+- [Resources](#resources)
+- [Ingress API](#ingress-api)
+- [File Tracking](#file-tracking)
+- [Review Domain](#review-domain)
+- [Module Reference](#module-reference)
+
 ## Architecture
 
 ```mermaid
@@ -211,3 +222,7 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Review` | Review Ash domain | `lib/media_centaur/review.ex` |
 | `MediaCentaur.Review.PendingFile` | Pending review resource | `lib/media_centaur/review/pending_file.ex` |
 | `MediaCentaur.Review.Intake` | Payload → PendingFile mapper | `lib/media_centaur/review/intake.ex` |
+
+---
+
+[← Channels](channel.md)

@@ -2,6 +2,17 @@
 
 Media Centaur Backend is a Phoenix/Elixir application that manages a media library — watching directories for video files, scraping metadata from TMDB, downloading artwork, and serving everything to the frontend over WebSocket.
 
+## Contents
+
+- [System Requirements](#system-requirements)
+- [Install](#install)
+- [Configure](#configure)
+- [Run](#run)
+- [Test](#test)
+- [Compilation](#compilation)
+- [System Overview](#system-overview)
+- [Next Steps](#next-steps)
+
 ## System Requirements
 
 | Dependency | Version | Notes |
@@ -98,3 +109,7 @@ graph LR
 - [Configuration](configuration.md) — all config options with defaults
 - [Architecture](architecture.md) — system overview and component relationships
 - [Pipeline](pipeline.md) — how files are processed
+
+---
+
+[← README](../README.md) | [Configuration →](configuration.md)
