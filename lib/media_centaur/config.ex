@@ -78,6 +78,14 @@ defmodule MediaCentaur.Config do
       ]
     }
 
+    if Application.get_env(:media_centaur, :skip_user_config, false) do
+      defaults
+    else
+      load_toml(defaults)
+    end
+  end
+
+  defp load_toml(defaults) do
     path = Path.expand(@config_path)
 
     case File.read(path) do
