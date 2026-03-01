@@ -2,7 +2,7 @@
 
 The TMDB subsystem provides rate-limited access to [The Movie Database API v3](https://developer.themoviedb.org/docs) for searching titles, fetching metadata, and resolving artwork URLs.
 
-## Contents
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · **TMDB** · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
 
 - [Architecture](#architecture)
 - [Key Concepts](#key-concepts)
@@ -108,7 +108,3 @@ Sliding window using Erlang `:queue`:
 | `MediaCentaur.TMDB.Confidence` | Jaro distance scoring | `lib/media_centaur/tmdb/confidence.ex` |
 | `MediaCentaur.TMDB.Mapper` | JSON → domain attribute mapping | `lib/media_centaur/tmdb/mapper.ex` |
 | `MediaCentaur.TMDB.RateLimiter` | Sliding window rate limiter | `lib/media_centaur/tmdb/rate_limiter.ex` |
-
----
-
-[← Pipeline](pipeline.md) | [Playback →](playback.md)
