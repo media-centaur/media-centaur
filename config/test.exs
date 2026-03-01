@@ -1,6 +1,11 @@
 import Config
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
+# Never read user TOML config (~/.config/media-centaur/backend.toml) in tests.
+# Tests use only app env defaults — no real user paths enter the test environment.
+config :media_centaur, :skip_user_config, true
+config :media_centaur, :watch_dirs, []
+
 # Dedicated SQLite test database — separate from the dev/user database.
 # The MIX_TEST_PARTITION environment variable supports CI test partitioning.
 config :media_centaur, MediaCentaur.Repo,

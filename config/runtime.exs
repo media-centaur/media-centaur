@@ -20,12 +20,14 @@ if System.get_env("PHX_SERVER") do
   config :media_centaur, MediaCentaurWeb.Endpoint, server: true
 end
 
-watch_dirs = [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")]
+if config_env() != :test do
+  watch_dirs = [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")]
 
-config :media_centaur,
-  watch_dirs: watch_dirs,
-  tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
-  auto_approve_threshold: 0.85
+  config :media_centaur,
+    watch_dirs: watch_dirs,
+    tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
+    auto_approve_threshold: 0.85
+end
 
 if config_env() == :prod do
   database_url =
