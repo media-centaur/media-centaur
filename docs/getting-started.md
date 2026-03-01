@@ -1,0 +1,100 @@
+# Getting Started
+
+Media Centaur Backend is a Phoenix/Elixir application that manages a media library — watching directories for video files, scraping metadata from TMDB, downloading artwork, and serving everything to the frontend over WebSocket.
+
+## System Requirements
+
+| Dependency | Version | Notes |
+|------------|---------|-------|
+| Erlang/OTP | 26+ | Required by Elixir 1.15+ |
+| Elixir | ~> 1.15 | See `mix.exs` for exact constraint |
+| SQLite3 | 3.x | Database engine (via `ash_sqlite`) |
+| mpv | any | Video playback (path configurable) |
+| inotify-tools | any | File system watching (Linux kernel support) |
+
+## Install
+
+```bash
+git clone https://github.com/user/media-centaur.git
+cd media-centaur/backend
+mix setup    # install deps, create DB, run migrations, build assets
+```
+
+`mix setup` expands to:
+
+```bash
+mix deps.get
+mix ecto.create
+mix ecto.migrate
+mix run priv/repo/seeds.exs
+mix tailwind.install --if-missing
+mix esbuild.install --if-missing
+mix compile
+mix tailwind media_centaur
+mix esbuild media_centaur
+```
+
+## Configure
+
+Copy the default config and edit:
+
+```bash
+mkdir -p ~/.config/media-centaur
+cp defaults/backend.toml ~/.config/media-centaur/backend.toml
+```
+
+At minimum, set your TMDB API key and watch directories:
+
+```toml
+watch_dirs = [
+  { dir = "/path/to/your/videos" },
+]
+
+[tmdb]
+api_key = "your-tmdb-api-key"
+```
+
+Get a TMDB API key at <https://www.themoviedb.org/settings/api>.
+
+See [configuration.md](configuration.md) for all options.
+
+## Run
+
+```bash
+mix phx.server    # start dev server at http://localhost:4000
+```
+
+The admin UI is at `http://localhost:4000`. The frontend connects via WebSocket at `/socket`.
+
+## Test
+
+```bash
+mix test           # run all tests (creates and migrates test DB automatically)
+mix precommit      # compile --warning-as-errors, unlock unused deps, format, test
+```
+
+## Compilation
+
+Speed up native dependency compilation with:
+
+```bash
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile
+```
+
+## System Overview
+
+```mermaid
+graph LR
+    Config["backend.toml"] --> App[Backend]
+    Videos["Video Files"] --> App
+    App --> TMDB["TMDB API"]
+    App -->|WebSocket| Frontend
+    App --> MPV["mpv player"]
+    App --> DB["SQLite DB"]
+```
+
+## Next Steps
+
+- [Configuration](configuration.md) — all config options with defaults
+- [Architecture](architecture.md) — system overview and component relationships
+- [Pipeline](pipeline.md) — how files are processed
