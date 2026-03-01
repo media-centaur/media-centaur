@@ -539,6 +539,90 @@ defmodule MediaCentaur.SerializerTest do
     end
   end
 
+  describe "MovieSeries with extras — 1 child" do
+    test "entity extras appear as hasPart on the promoted Movie" do
+      entity =
+        build_entity(%{
+          type: :movie_series,
+          name: "Test Collection",
+          movies: [build_movie(%{name: "The Film", position: 0})],
+          extras: [
+            build_extra(%{name: "Making Of", content_url: "/path/to/making-of.mkv", position: 0}),
+            build_extra(%{
+              name: "Deleted Scenes",
+              content_url: "/path/to/deleted.mkv",
+              position: 1
+            })
+          ]
+        })
+
+      result = Serializer.serialize_entity(entity)
+      inner = result["entity"]
+
+      assert inner["@type"] == "Movie"
+
+      [first, second] = inner["hasPart"]
+      assert first["@type"] == "VideoObject"
+      assert first["name"] == "Making Of"
+      assert second["name"] == "Deleted Scenes"
+    end
+  end
+
+  describe "MovieSeries with extras — 2+ children" do
+    test "entity extras are appended to hasPart after child movies" do
+      entity =
+        build_entity(%{
+          type: :movie_series,
+          name: "Test Collection",
+          movies: [
+            build_movie(%{name: "Part One", position: 0}),
+            build_movie(%{name: "Part Two", position: 1})
+          ],
+          extras: [
+            build_extra(%{
+              name: "Behind the Scenes",
+              content_url: "/path/to/behind.mkv",
+              position: 0
+            })
+          ]
+        })
+
+      result = Serializer.serialize_entity(entity)
+      inner = result["entity"]
+
+      assert inner["@type"] == "MovieSeries"
+
+      parts = inner["hasPart"]
+      assert length(parts) == 3
+
+      [first, second, third] = parts
+      assert first["@type"] == "Movie"
+      assert first["name"] == "Part One"
+      assert second["@type"] == "Movie"
+      assert second["name"] == "Part Two"
+      assert third["@type"] == "VideoObject"
+      assert third["name"] == "Behind the Scenes"
+    end
+
+    test "no extras means hasPart contains only child movies" do
+      entity =
+        build_entity(%{
+          type: :movie_series,
+          name: "Test Collection",
+          movies: [
+            build_movie(%{name: "Part One", position: 0}),
+            build_movie(%{name: "Part Two", position: 1})
+          ]
+        })
+
+      result = Serializer.serialize_entity(entity)
+      parts = result["entity"]["hasPart"]
+
+      assert length(parts) == 2
+      assert Enum.all?(parts, fn p -> p["@type"] == "Movie" end)
+    end
+  end
+
   describe "images" do
     test "ImageObject with @type, name (role), url, contentUrl", %{images_dir: images_dir} do
       expected_path = create_image_file!(images_dir, "test/backdrop.jpg")
