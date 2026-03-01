@@ -2,7 +2,7 @@
 
 The playback subsystem manages video playback through mpv, tracks watch progress, and provides resume/next-episode logic for the frontend.
 
-## Contents
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · **Playback** · [Channels](channel.md) · [Library](library.md)
 
 - [Architecture](#architecture)
 - [Key Concepts](#key-concepts)
@@ -155,7 +155,3 @@ After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentaur.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centaur/playback/progress_summary.ex` |
 | `MediaCentaur.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centaur/playback/resume_target.ex` |
 | `MediaCentaur.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centaur/playback/watching_tracker.ex` |
-
----
-
-[← TMDB](tmdb.md) | [Channels →](channel.md)

@@ -2,7 +2,7 @@
 
 Media Centaur Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library to a Rust frontend over WebSocket.
 
-## Contents
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
 
 - [System Overview](#system-overview)
 - [Data Flow](#data-flow)
@@ -147,7 +147,3 @@ Cross-component contracts live in the [specifications repository](https://github
 | `MediaCentaur.Storage` | Disk usage measurement | `lib/media_centaur/storage.ex` |
 | `MediaCentaur.Admin` | Destructive admin operations | `lib/media_centaur/admin.ex` |
 | `MediaCentaur.Dashboard` | Dashboard data fetching | `lib/media_centaur/dashboard.ex` |
-
----
-
-[← Configuration](configuration.md) | [Watcher →](watcher.md)

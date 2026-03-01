@@ -2,7 +2,7 @@
 
 The watcher subsystem monitors configured directories for video file additions and removals using Linux inotify. One `Watcher` GenServer runs per directory, coordinated by a shared supervisor.
 
-## Contents
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · **Watcher** · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
 
 - [Architecture](#architecture)
 - [Key Concepts](#key-concepts)
@@ -106,7 +106,3 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Superviso
 |--------|-------------|------|
 | `MediaCentaur.Watcher` | Per-directory GenServer, inotify + PubSub | `lib/media_centaur/watcher.ex` |
 | `MediaCentaur.Watcher.Supervisor` | Coordinates all watchers, scan/pause API | `lib/media_centaur/watcher/supervisor.ex` |
-
----
-
-[← Architecture](architecture.md) | [Pipeline →](pipeline.md)

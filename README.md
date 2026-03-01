@@ -10,11 +10,6 @@ Phoenix/Elixir application that manages the Media Centaur media library. Watches
 
 Read the [documentation](docs/getting-started.md) to get started.
 
-## Contents
-
-- [Tech Stack](#tech-stack)
-- [License](#license)
-
 ## Tech Stack
 
 | Component | Technology |
@@ -33,7 +28,3 @@ Read the [documentation](docs/getting-started.md) to get started.
 ## License
 
 <!-- TODO: Add license type when LICENSE file is created -->
-
----
-
-[Getting Started →](docs/getting-started.md)

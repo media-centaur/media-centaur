@@ -117,31 +117,24 @@ If the instruction file for this doc contains supplementary content, integrate i
 
 ### Navigation and Structure
 
-Every doc (including README.md) must have:
+Every doc in `docs/` must have two navigation elements immediately after the title and purpose statement:
 
-1. **Table of contents** — immediately after the title and purpose statement. List all `##`-level headings as markdown links. Example:
-
-   ```markdown
-   ## Contents
-
-   - [Architecture](#architecture)
-   - [Key Concepts](#key-concepts)
-   - [Configuration](#configuration)
-   - [How It Works](#how-it-works)
-   - [Module Reference](#module-reference)
-   ```
-
-2. **Back / forward links** — at the very bottom of the page. Use the doc order from the Output Structure section above. Example:
+1. **Cross-doc navigation bar** — a blockquote listing all docs separated by ` · `. The current page is **bold** (not linked); all others are linked. Example for `architecture.md`:
 
    ```markdown
-   ---
-
-   [← Configuration](configuration.md) | [Architecture →](architecture.md)
+   > [Getting Started](getting-started.md) · [Configuration](configuration.md) · **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
    ```
 
-   The first doc (getting-started.md) links back to README.md. The last doc (library.md) has no forward link. README.md has no back link, only a forward to getting-started.md.
+2. **Page table of contents** — a bare bullet list of all `##`-level headings as anchor links. No heading above it — it flows directly after the nav bar.
 
-**Doc order for navigation:** README → getting-started → configuration → architecture → watcher → pipeline → tmdb → playback → channel → library
+**Doc order:** Getting Started · Configuration · Architecture · Watcher · Pipeline · TMDB · Playback · Channels · Library
+
+**README.md** does NOT get a nav bar or page TOC — it links to `docs/getting-started.md` as the entry point and the docs handle their own cross-navigation.
+
+Do NOT add:
+- `## Contents` headings (visual clutter)
+- Back/forward links at the bottom (the nav bar makes them redundant)
+- Duplicate doc indexes in README
 
 ### Specification Links
 
@@ -196,6 +189,6 @@ Before finishing, verify:
 - [ ] configuration.md contains the full embedded backend.toml
 - [ ] No instruction files were overwritten
 - [ ] getting-started.md lists Elixir/OTP version requirements
-- [ ] Every doc has a table of contents after the title
-- [ ] Every doc has back/forward navigation links at the bottom
+- [ ] Every doc in `docs/` has a cross-doc nav bar and page TOC (no `## Contents` heading)
+- [ ] No back/forward links at the bottom of any doc
 - [ ] All specification links point to `https://github.com/media-centaur/specifications/blob/main/` (not relative `../specifications/` paths)

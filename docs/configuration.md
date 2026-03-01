@@ -2,7 +2,7 @@
 
 All configuration is loaded from a single TOML file at startup. No runtime reload — restart the application to apply changes.
 
-## Contents
+> [Getting Started](getting-started.md) · **Configuration** · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
 
 - [Config File Location](#config-file-location)
 - [Loading Order](#loading-order)
@@ -138,7 +138,3 @@ socket_timeout_ms = 5000
 | Module | Description | Path |
 |--------|-------------|------|
 | `MediaCentaur.Config` | TOML loader, `:persistent_term` storage, path helpers | `lib/media_centaur/config.ex` |
-
----
-
-[← Getting Started](getting-started.md) | [Architecture →](architecture.md)

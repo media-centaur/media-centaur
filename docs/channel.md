@@ -2,7 +2,7 @@
 
 The backend serves the frontend over WebSocket at `/socket`. Two channels provide the real-time API: `library` for entity data and `playback` for player control.
 
-## Contents
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · **Channels** · [Library](library.md)
 
 - [Architecture](#architecture)
 - [Key Concepts](#key-concepts)
@@ -177,7 +177,3 @@ States: `idle`, `playing`, `paused`, `stopped`
 | `MediaCentaurWeb.UserSocket` | WebSocket endpoint, topic routing | `lib/media_centaur_web/channels/user_socket.ex` |
 | `MediaCentaurWeb.LibraryChannel` | Library data sync and updates | `lib/media_centaur_web/channels/library_channel.ex` |
 | `MediaCentaurWeb.PlaybackChannel` | Playback commands and state | `lib/media_centaur_web/channels/playback_channel.ex` |
-
----
-
-[← Playback](playback.md) | [Library →](library.md)
