@@ -127,24 +127,22 @@ defmodule MediaCentaur.Serializer do
 
   # --- Extras serialization ---
 
-  defp maybe_add_extras(map, %Entity{extras: extras})
-       when is_list(extras) and extras != [] do
-    # Only include extras that don't belong to a season (those go at the season level)
-    entity_extras = Enum.filter(extras, fn extra -> is_nil(extra.season_id) end)
-
-    if entity_extras == [] do
-      map
-    else
-      serialized =
-        entity_extras
-        |> Enum.sort_by(&(&1.position || 0))
-        |> Enum.map(&serialize_extra/1)
-
-      Map.put(map, "hasPart", serialized)
+  defp maybe_add_extras(map, %Entity{} = entity) do
+    case serialize_entity_extras(entity) do
+      [] -> map
+      extras -> Map.put(map, "hasPart", extras)
     end
   end
 
-  defp maybe_add_extras(map, _), do: map
+  defp serialize_entity_extras(%Entity{extras: extras})
+       when is_list(extras) and extras != [] do
+    extras
+    |> Enum.filter(fn extra -> is_nil(extra.season_id) end)
+    |> Enum.sort_by(&(&1.position || 0))
+    |> Enum.map(&serialize_extra/1)
+  end
+
+  defp serialize_entity_extras(_), do: []
 
   defp serialize_extra(%Extra{} = extra) do
     %{
@@ -166,7 +164,9 @@ defmodule MediaCentaur.Serializer do
         # 1 child movie → export as top-level Movie using child's data
         %{
           "@id" => entity.id,
-          "entity" => serialize_child_movie(single_movie)
+          "entity" =>
+            serialize_child_movie(single_movie)
+            |> maybe_add_extras(entity)
         }
 
       _ ->
@@ -179,8 +179,11 @@ defmodule MediaCentaur.Serializer do
   end
 
   defp serialize_as_movie_series(%Entity{} = entity, movies) do
+    child_movies = Enum.map(movies, &serialize_child_movie/1)
+    extras = serialize_entity_extras(entity)
+
     base_fields(entity)
-    |> Map.put("hasPart", Enum.map(movies, &serialize_child_movie/1))
+    |> Map.put("hasPart", child_movies ++ extras)
     |> maybe_add_images(entity)
     |> maybe_add_identifiers(entity)
     |> maybe_add_rating(entity)
