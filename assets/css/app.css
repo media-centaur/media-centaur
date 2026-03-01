@@ -115,3 +115,11 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* Left-truncate long paths: ellipsis appears at the start instead of the end */
+.truncate-left {
+  direction: rtl;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
