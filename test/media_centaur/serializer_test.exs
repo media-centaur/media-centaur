@@ -125,6 +125,25 @@ defmodule MediaCentaur.SerializerTest do
   end
 
   describe "TVSeries" do
+    test "seasons, episodes, and child movies include @id" do
+      episode = build_episode(%{episode_number: 1, name: "Pilot", content_url: "/ep1.mkv"})
+      season = build_season(%{season_number: 1, episodes: [episode]})
+
+      entity =
+        build_entity(%{
+          type: :tv_series,
+          name: "ID Test",
+          seasons: [season]
+        })
+
+      result = Serializer.serialize_entity(entity)
+      [serialized_season] = result["entity"]["containsSeason"]
+      [serialized_episode] = serialized_season["episode"]
+
+      assert serialized_season["@id"] == season.id
+      assert serialized_episode["@id"] == episode.id
+    end
+
     test "seasons sorted by season_number, episodes sorted by episode_number" do
       episode_a = build_episode(%{episode_number: 2, name: "Second"})
       episode_b = build_episode(%{episode_number: 1, name: "First"})
@@ -233,6 +252,7 @@ defmodule MediaCentaur.SerializerTest do
       assert result["@id"] == entity_id
 
       inner = result["entity"]
+      assert inner["@id"] == movie_id
       assert inner["@type"] == "Movie"
       assert inner["name"] == "First Film"
       assert inner["description"] == "A great film."
@@ -334,6 +354,7 @@ defmodule MediaCentaur.SerializerTest do
       assert series_id["value"] == "999"
 
       [first, second] = inner["hasPart"]
+      assert first["@id"] == movie_a.id
       assert first["@type"] == "Movie"
       assert first["name"] == "Part One"
       assert first["director"] == "Alice"

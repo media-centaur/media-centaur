@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.PlaybackChannel do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library.{Helpers, WatchProgress}
-  alias MediaCentaur.Playback.{EpisodeList, Manager, Resume}
+  alias MediaCentaur.Playback.{EpisodeList, Manager, MovieList, Resume}
 
   @impl true
   def join("playback", _params, socket) do
@@ -108,10 +108,10 @@ defmodule MediaCentaurWeb.PlaybackChannel do
 
   @impl true
   def handle_info(
-        {:entity_progress_updated, entity_id, progress_summary, _progress_records},
+        {:entity_progress_updated, entity_id, progress_summary, resume_target, _progress_records},
         socket
       ) do
-    payload = %{entity_id: entity_id, progress: progress_summary}
+    payload = %{entity_id: entity_id, progress: progress_summary, resumeTarget: resume_target}
     Log.info(:channel, "playback push entity_progress_updated for #{entity_id}")
     push(socket, "playback:entity_progress_updated", payload)
     {:noreply, socket}
@@ -167,6 +167,13 @@ defmodule MediaCentaurWeb.PlaybackChannel do
       episode_number: params[:episode_number],
       position_seconds: params[:start_position] || 0.0
     }
+  end
+
+  defp episode_context(_action, %{type: :movie_series} = entity, content_url, _progress_records) do
+    case MovieList.find_by_content_url(entity, content_url) do
+      {ordinal, _movie_id, movie_name} -> {0, ordinal, movie_name}
+      nil -> {nil, nil, nil}
+    end
   end
 
   defp episode_context(:resume, entity, _url, progress_records) do
