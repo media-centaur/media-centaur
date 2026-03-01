@@ -83,7 +83,7 @@ defmodule MediaCentaur.Pipeline.Stages.DownloadImagesTest do
 
       # Staging dir is set on payload and is a sibling of the images dir
       assert result.staging_dir != nil
-      assert String.contains?(result.staging_dir, "tmp-image-download")
+      assert String.contains?(result.staging_dir, "partial-downloads")
       assert String.contains?(result.staging_dir, ".media-centaur")
 
       File.rm_rf(result.staging_dir)
