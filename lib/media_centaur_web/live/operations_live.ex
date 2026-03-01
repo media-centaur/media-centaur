@@ -5,6 +5,8 @@ defmodule MediaCentaurWeb.OperationsLive do
   alias MediaCentaur.Library.Image
   alias MediaCentaur.Pipeline.Stats
 
+  @storage_refresh_ms 5 * 60 * 1_000
+
   @impl true
   def mount(_params, _session, socket) do
     socket =
@@ -14,6 +16,7 @@ defmodule MediaCentaurWeb.OperationsLive do
         Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "logging:updates")
 
         Process.send_after(self(), :tick_pipeline, 1_000)
+        Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
 
         pipeline_stats = Stats.get_snapshot()
         {enabled, all} = Log.status()
@@ -22,7 +25,7 @@ defmodule MediaCentaurWeb.OperationsLive do
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
         |> assign(recent_errors: pipeline_stats.recent_errors)
         |> assign(incomplete_images: Ash.read!(Image, action: :incomplete))
-        |> assign(storage_health: Storage.measure_all())
+        |> assign(storage_drives: Storage.measure_all())
         |> assign(config: load_config())
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(rate_limiter: fetch_rate_limiter())
@@ -34,7 +37,7 @@ defmodule MediaCentaurWeb.OperationsLive do
         |> assign(watcher_statuses: [])
         |> assign(recent_errors: [])
         |> assign(incomplete_images: [])
-        |> assign(storage_health: [])
+        |> assign(storage_drives: [])
         |> assign(config: %{})
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(rate_limiter: nil)
@@ -206,6 +209,11 @@ defmodule MediaCentaurWeb.OperationsLive do
      |> assign(rate_limiter: fetch_rate_limiter())}
   end
 
+  def handle_info(:refresh_storage, socket) do
+    Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
+    {:noreply, assign(socket, storage_drives: Storage.measure_all())}
+  end
+
   def handle_info(:log_settings_changed, socket) do
     {:noreply, assign_log_state(socket)}
   end
@@ -235,7 +243,7 @@ defmodule MediaCentaurWeb.OperationsLive do
           images={@incomplete_images}
           retrying={@retrying_images}
         />
-        <.storage_health usages={@storage_health} />
+        <.storage_health drives={@storage_drives} />
         <.external_integrations rate_limiter={@rate_limiter} config={@config} />
         <.config_overview config={@config} />
         <.thinking_logs enabled={@enabled_components} all={@all_components} />
@@ -461,34 +469,47 @@ defmodule MediaCentaurWeb.OperationsLive do
       <div class="card-body">
         <h2 class="card-title text-lg">Storage</h2>
 
-        <p :if={@usages == []} class="text-base-content/60">No directories configured.</p>
+        <p :if={@drives == []} class="text-base-content/60">No directories configured.</p>
 
-        <div :if={@usages != []} class="space-y-4">
-          <div :for={usage <- @usages}>
+        <div :if={@drives != []} class="space-y-6">
+          <div :for={drive <- @drives}>
             <div class="flex items-baseline justify-between mb-1">
-              <div>
-                <span class="text-sm font-medium">{usage.label}</span>
-                <code :if={usage.label != usage.path} class="text-xs text-base-content/40 ml-2">
-                  {usage.path}
-                </code>
-              </div>
+              <span class="text-sm font-medium">
+                {drive.mount_point}
+                <span class="text-base-content/40 font-normal">({drive.device})</span>
+              </span>
               <span class="text-xs text-base-content/60 font-mono">
-                {format_bytes(usage.used_bytes)} / {format_bytes(usage.total_bytes)}
+                {format_bytes(drive.used_bytes)} / {format_bytes(drive.total_bytes)}
               </span>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 mb-3">
               <progress
-                class={["progress flex-1", usage_progress_class(usage.usage_percent)]}
-                value={usage.usage_percent}
+                class={["progress flex-1", usage_progress_class(drive.usage_percent)]}
+                value={drive.usage_percent}
                 max="100"
               >
               </progress>
               <span class={[
                 "text-sm font-mono w-10 text-right",
-                usage_text_class(usage.usage_percent)
+                usage_text_class(drive.usage_percent)
               ]}>
-                {usage.usage_percent}%
+                {drive.usage_percent}%
               </span>
+            </div>
+            <div class="space-y-1 ml-2">
+              <div
+                :for={role <- drive.roles}
+                class="grid gap-3 text-xs"
+                style="grid-template-columns: 6rem 1fr"
+              >
+                <span class="text-base-content/50">{role.label}</span>
+                <code
+                  class="truncate-left text-base-content/70"
+                  title={role.path}
+                >
+                  {role.path}
+                </code>
+              </div>
             </div>
           </div>
         </div>
