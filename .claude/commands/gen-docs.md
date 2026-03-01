@@ -167,10 +167,9 @@ Generate `backend/README.md` with this structure:
 
 1. **One-line description** — what Media Centaur Backend is
 2. **What it does** — 3-5 bullet points of key capabilities
-3. **Quick start** — minimal commands to get running (from CLAUDE.md build section)
-4. **Documentation** — linked table of all `docs/` files with one-line descriptions
-5. **Tech stack** — compact table (Elixir, Phoenix, Ash, SQLite, Broadway, etc.)
-6. **License** — read mix.exs or LICENSE file for license type; if none found, leave a TODO placeholder
+3. **Documentation link** — single line linking to `docs/getting-started.md` as the entry point (do NOT duplicate the quick start or the full doc index here — the docs have their own TOC and navigation)
+4. **Tech stack** — compact table (Elixir, Phoenix, Ash, SQLite, Broadway, etc.)
+5. **License** — read mix.exs or LICENSE file for license type; if none found, leave a TODO placeholder
 
 If README.md already exists, apply surgical edits to update it rather than full rewrite.
 
@@ -192,7 +191,7 @@ Use the Task tool to parallelize where possible:
 ## Quality Checks
 
 Before finishing, verify:
-- [ ] Every doc in `docs/` is linked from README.md
+- [ ] README.md links to `docs/getting-started.md` as the documentation entry point
 - [ ] Every subsystem doc has at least one mermaid diagram
 - [ ] configuration.md contains the full embedded backend.toml
 - [ ] No instruction files were overwritten
