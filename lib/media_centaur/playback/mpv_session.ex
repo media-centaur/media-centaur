@@ -127,13 +127,15 @@ defmodule MediaCentaur.Playback.MpvSession do
     Log.info(:playback, "session #{state.session_id} launching mpv")
     mpv_path = MediaCentaur.Config.get(:mpv_path)
 
-    flags = [
-      "--fullscreen",
-      "--no-terminal",
-      "--force-window=immediate",
-      "--input-ipc-server=#{state.socket_path}",
-      state.content_url
-    ]
+    flags =
+      [
+        "--fullscreen",
+        "--no-terminal",
+        "--force-window=immediate",
+        "--input-ipc-server=#{state.socket_path}"
+      ] ++
+        if(state.start_position > 0, do: ["--start=#{state.start_position}"], else: []) ++
+        [state.content_url]
 
     port =
       Port.open({:spawn_executable, to_charlist(mpv_path)}, [
@@ -160,7 +162,6 @@ defmodule MediaCentaur.Playback.MpvSession do
 
         if state.start_position > 0 do
           Log.info(:playback, "session #{state.session_id} resuming at #{state.start_position}s")
-          send_mpv_command(socket, ["seek", state.start_position, "absolute"])
         end
 
         broadcast_state_changed(:playing, state)
