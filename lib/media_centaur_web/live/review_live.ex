@@ -27,7 +27,8 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(search_type: :movie)
      |> assign(search_results: [])
      |> assign(searching: false)
-     |> assign(searched: false)}
+     |> assign(searched: false)
+     |> assign(reload_timer: nil)}
   end
 
   @impl true
@@ -186,6 +187,22 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   @impl true
+  def handle_info({:file_added, _pending_file_id}, socket) do
+    if socket.assigns.reload_timer, do: Process.cancel_timer(socket.assigns.reload_timer)
+    timer = Process.send_after(self(), :reload_groups, 500)
+    {:noreply, assign(socket, reload_timer: timer)}
+  end
+
+  def handle_info(:reload_groups, socket) do
+    groups = Review.fetch_pending_groups()
+
+    {:noreply,
+     socket
+     |> assign(groups: groups)
+     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+     |> assign(reload_timer: nil)}
+  end
+
   def handle_info({:file_reviewed, file_id}, socket) do
     groups =
       socket.assigns.groups
