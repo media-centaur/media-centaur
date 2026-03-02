@@ -108,6 +108,10 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
     has_year_match? and no_episode_indicators?
   end
 
+  defp resolvable_tie?(%{type: :tv, year: parsed_year}, match_year) do
+    not is_nil(parsed_year) and to_string(parsed_year) == to_string(match_year)
+  end
+
   defp resolvable_tie?(_, _), do: false
 
   # ---------------------------------------------------------------------------

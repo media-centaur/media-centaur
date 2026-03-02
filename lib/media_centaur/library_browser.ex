@@ -19,7 +19,7 @@ defmodule MediaCentaur.LibraryBrowser do
     excluded = Helpers.entity_ids_all_absent()
 
     entities =
-      Library.list_entities_with_associations!(sort: [name: :asc])
+      Library.list_entities_with_associations!(query: [sort: [name: :asc]])
       |> Enum.reject(fn entity -> MapSet.member?(excluded, entity.id) end)
 
     Log.info(:library, "loaded #{length(entities)} entities for browser")
