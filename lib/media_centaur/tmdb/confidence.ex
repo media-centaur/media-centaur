@@ -29,13 +29,24 @@ defmodule MediaCentaur.TMDB.Confidence do
     result_year = extract_year(result[year_key])
 
     base = String.jaro_distance(normalize(parsed_title), normalize(result_title))
-    year_bonus = if parsed_year && result_year && parsed_year == result_year, do: 0.08, else: 0.0
+
+    year_adjustment =
+      cond do
+        is_nil(parsed_year) or is_nil(result_year) -> 0.0
+        parsed_year == result_year -> 0.08
+        true -> -0.15
+      end
+
     position_bonus = if is_top_result?, do: 0.05, else: 0.0
-    total = min(base + year_bonus + position_bonus, 1.0)
+    total = max(min(base + year_adjustment + position_bonus, 1.0), 0.0)
 
     Log.info(:tmdb, fn ->
       "confidence: #{Float.round(base, 2)} base" <>
-        if(year_bonus > 0, do: " + #{year_bonus} year", else: "") <>
+        cond do
+          year_adjustment > 0 -> " + #{year_adjustment} year"
+          year_adjustment < 0 -> " #{year_adjustment} year"
+          true -> ""
+        end <>
         if(position_bonus > 0, do: " + #{position_bonus} top", else: "") <>
         " = #{Float.round(total, 2)} for #{inspect(result_title)}"
     end)

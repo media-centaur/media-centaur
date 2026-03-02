@@ -125,6 +125,8 @@ The `defaults/` directory contains git-tracked starter config files. These are s
 
 **Test-first.** Write tests before implementation for all new features and bug fixes. Tests are the executable specification — if you can't write the test, the requirements aren't clear enough.
 
+**Zero tolerance for flaky tests.** Every test must pass deterministically, every time. A flaky test is a bug — diagnose and fix the root cause (race condition, leaked state, timing dependency) before moving on. Never ignore, skip, or retry a flaky test. If `mix precommit` fails due to a flaky test, fixing that test is the immediate priority.
+
 ### Test Organization
 
 Tests mirror `lib/` by domain. Each module gets its own test file.

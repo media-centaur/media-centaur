@@ -81,7 +81,7 @@ defmodule MediaCentaur.Review.IntakeTest do
       assert pending_file.status == :pending
     end
 
-    test "normalizes candidates — strips raw TMDB maps, keeps essential fields" do
+    test "normalizes candidates — strips raw TMDB maps, keeps essential fields and overview" do
       payload =
         build_payload(%{
           candidates: [
@@ -123,7 +123,8 @@ defmodule MediaCentaur.Review.IntakeTest do
                "title" => "Inception",
                "year" => "2010",
                "score" => 0.92,
-               "poster_path" => "/poster1.jpg"
+               "poster_path" => "/poster1.jpg",
+               "overview" => "Should be stripped"
              }
 
       assert second == %{
@@ -131,7 +132,8 @@ defmodule MediaCentaur.Review.IntakeTest do
                "title" => "Other Movie",
                "year" => "2015",
                "score" => 0.45,
-               "poster_path" => "/poster2.jpg"
+               "poster_path" => "/poster2.jpg",
+               "overview" => "Also stripped"
              }
     end
 

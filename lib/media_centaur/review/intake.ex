@@ -63,7 +63,8 @@ defmodule MediaCentaur.Review.Intake do
       "title" => raw_result[title_key],
       "year" => DateUtil.extract_year(raw_result[year_key]),
       "score" => score,
-      "poster_path" => raw_result["poster_path"]
+      "poster_path" => raw_result["poster_path"],
+      "overview" => raw_result["overview"]
     }
   end
 end
