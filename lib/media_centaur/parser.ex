@@ -481,7 +481,15 @@ defmodule MediaCentaur.Parser do
     parent = parts |> Enum.drop(-1) |> List.last()
     grandparent = parts |> Enum.drop(-2) |> List.last()
 
-    extract_year_from_tv_title(parent) || extract_year_from_tv_title(grandparent)
+    extract_premiere_year(parent) || extract_premiere_year(grandparent)
+  end
+
+  defp extract_premiere_year(nil), do: nil
+
+  defp extract_premiere_year(dir) do
+    # Strip remaster/remux year markers so they aren't mistaken for premiere years
+    cleaned = Regex.replace(~r/\(?\s*(19|20)\d{2}\s+remaster(ed)?\s*\)?/i, dir, "")
+    extract_year_from_tv_title(cleaned)
   end
 
   defp extract_episode_title(nil), do: nil
