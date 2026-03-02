@@ -13,7 +13,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, [found]} = Library.list_entity_watch_progress(entity.id)
+      {:ok, [found]} = Library.list_watch_progress_for_entity(entity.id)
 
       assert found.entity_id == entity.id
       assert found.position_seconds == 120.5
@@ -49,7 +49,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       })
 
       # Mark completed via dedicated action
-      {:ok, [record]} = Library.list_entity_watch_progress(entity.id)
+      {:ok, [record]} = Library.list_watch_progress_for_entity(entity.id)
 
       {:ok, _} = Library.mark_watch_completed(record)
 
@@ -62,7 +62,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, [updated]} = Library.list_entity_watch_progress(entity.id)
+      {:ok, [updated]} = Library.list_watch_progress_for_entity(entity.id)
 
       # completed stays true — never regresses
       assert updated.completed == true
@@ -83,7 +83,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       create_watch_progress(attrs)
       create_watch_progress(%{attrs | position_seconds: 1200.0})
 
-      {:ok, records} = Library.list_entity_watch_progress(entity.id)
+      {:ok, records} = Library.list_watch_progress_for_entity(entity.id)
 
       assert length(records) == 1
       assert hd(records).position_seconds == 1200.0
@@ -104,7 +104,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, records} = Library.list_entity_watch_progress(entity.id)
+      {:ok, records} = Library.list_watch_progress_for_entity(entity.id)
 
       assert length(records) == 1
       assert hd(records).position_seconds == 3930.0
@@ -133,7 +133,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, [updated]} = Library.list_entity_watch_progress(entity.id)
+      {:ok, [updated]} = Library.list_watch_progress_for_entity(entity.id)
 
       assert DateTime.compare(updated.last_watched_at, first.last_watched_at) in [:gt, :eq]
       assert updated.position_seconds == 300.0
@@ -158,7 +158,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, records} = Library.list_entity_watch_progress(entity.id)
+      {:ok, records} = Library.list_watch_progress_for_entity(entity.id)
 
       assert length(records) == 2
       [episode_1, episode_2] = Enum.sort_by(records, & &1.episode_number)
@@ -232,7 +232,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, records} = Library.list_entity_watch_progress(entity.id)
+      {:ok, records} = Library.list_watch_progress_for_entity(entity.id)
 
       assert [{1, 1}, {1, 2}, {2, 1}] ==
                Enum.map(records, &{&1.season_number, &1.episode_number})

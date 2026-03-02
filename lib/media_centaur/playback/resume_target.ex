@@ -49,10 +49,10 @@ defmodule MediaCentaur.Playback.ResumeTarget do
     progress_by_key = EpisodeList.index_progress_by_key(progress_records)
 
     (entity.seasons || [])
-    |> Enum.sort_by(& &1.season_number)
+    |> EpisodeList.sort_seasons()
     |> Enum.flat_map(fn season ->
       (season.episodes || [])
-      |> Enum.sort_by(& &1.episode_number)
+      |> EpisodeList.sort_episodes()
       |> Enum.filter(& &1.content_url)
       |> Enum.map(fn episode ->
         key = {season.season_number, episode.episode_number}

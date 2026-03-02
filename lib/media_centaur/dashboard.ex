@@ -37,7 +37,7 @@ defmodule MediaCentaur.Dashboard do
   end
 
   def fetch_pending_review do
-    Review.list_pending!()
+    Review.list_pending_files_for_review!()
     |> Enum.take(20)
   end
 

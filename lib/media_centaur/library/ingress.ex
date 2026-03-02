@@ -351,8 +351,8 @@ defmodule MediaCentaur.Library.Ingress do
 
   defp move_staged_image(owner_id, image, owner_tag, staged_images, images_dir) do
     staged =
-      Enum.find(staged_images, fn s ->
-        s.owner == owner_tag && s.role == image.role
+      Enum.find(staged_images, fn staged_image ->
+        staged_image.owner == owner_tag && staged_image.role == image.role
       end)
 
     if staged && images_dir do

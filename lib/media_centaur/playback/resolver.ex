@@ -211,7 +211,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Shared helpers ---
 
   defp load_progress(entity_id) do
-    Library.list_entity_watch_progress!(entity_id)
+    Library.list_watch_progress_for_entity!(entity_id)
   end
 
   defp resume_position(progress_by_key, key) do

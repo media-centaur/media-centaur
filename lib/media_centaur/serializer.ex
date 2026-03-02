@@ -11,6 +11,7 @@ defmodule MediaCentaur.Serializer do
 
   alias MediaCentaur.Config
   alias MediaCentaur.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
+  alias MediaCentaur.Playback.{EpisodeList, MovieList}
 
   @doc """
   Serializes a single entity into a wrapped map: `%{"@id" => uuid, "entity" => %{...}}`.
@@ -74,7 +75,7 @@ defmodule MediaCentaur.Serializer do
 
   defp serialize_seasons(seasons) when is_list(seasons) do
     seasons
-    |> Enum.sort_by(& &1.season_number)
+    |> EpisodeList.sort_seasons()
     |> Enum.map(&serialize_season/1)
   end
 
@@ -106,7 +107,7 @@ defmodule MediaCentaur.Serializer do
 
   defp serialize_episodes(episodes) when is_list(episodes) do
     episodes
-    |> Enum.sort_by(& &1.episode_number)
+    |> EpisodeList.sort_episodes()
     |> Enum.map(&serialize_episode/1)
   end
 
@@ -229,11 +230,7 @@ defmodule MediaCentaur.Serializer do
 
   defp maybe_add_child_movie_rating(map, _), do: map
 
-  defp sorted_child_movies(movies) when is_list(movies) do
-    Enum.sort_by(movies, fn movie -> {movie.position || 0, movie.date_published || ""} end)
-  end
-
-  defp sorted_child_movies(_), do: []
+  defp sorted_child_movies(movies), do: MovieList.sort_movies(movies)
 
   defp maybe_add_images(map, record) do
     case Map.get(record, :images) do

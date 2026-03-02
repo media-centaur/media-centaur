@@ -129,7 +129,7 @@ defmodule MediaCentaur.Review.PendingFileTest do
           parsed_title: "Second"
         })
 
-      pending = Review.list_pending!()
+      pending = Review.list_pending_files_for_review!()
 
       assert length(pending) == 2
       assert Enum.map(pending, & &1.id) == [first.id, second.id]

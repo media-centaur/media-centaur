@@ -28,6 +28,16 @@ defmodule MediaCentaur.Library.Helpers do
   end
 
   @doc """
+  Extracts unique non-nil entity IDs from a list of records with an `entity_id` field.
+  """
+  def unique_entity_ids(records) do
+    records
+    |> Enum.map(& &1.entity_id)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  @doc """
   Broadcasts `{:entities_changed, entity_ids}` to the `"library:updates"` PubSub topic.
   """
   def broadcast_entities_changed([]), do: :ok

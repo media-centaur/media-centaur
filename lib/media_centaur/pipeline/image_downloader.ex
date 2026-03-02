@@ -15,7 +15,7 @@ defmodule MediaCentaur.Pipeline.ImageDownloader do
       length(filter_pending(entity.images)) +
         ((entity.movies || []) |> Enum.flat_map(& &1.images) |> filter_pending() |> length()) +
         ((entity.seasons || [])
-         |> Enum.flat_map(fn s -> (s.episodes || []) |> Enum.flat_map(& &1.images) end)
+         |> Enum.flat_map(fn season -> (season.episodes || []) |> Enum.flat_map(& &1.images) end)
          |> filter_pending()
          |> length())
 

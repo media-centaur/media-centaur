@@ -281,7 +281,7 @@ defmodule MediaCentaur.Library do
 
     resource MediaCentaur.Library.WatchProgress do
       define :list_watch_progress, action: :read
-      define :list_entity_watch_progress, action: :for_entity, args: [:entity_id]
+      define :list_watch_progress_for_entity, action: :for_entity, args: [:entity_id]
       define :upsert_watch_progress, action: :upsert_progress
       define :mark_watch_completed, action: :mark_completed
       define :destroy_watch_progress, action: :destroy

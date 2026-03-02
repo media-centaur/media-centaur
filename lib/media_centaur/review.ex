@@ -41,7 +41,7 @@ defmodule MediaCentaur.Review do
     resource MediaCentaur.Review.PendingFile do
       define :list_pending_files, action: :read
       define :get_pending_file, action: :read, get_by: [:id]
-      define :list_pending, action: :pending
+      define :list_pending_files_for_review, action: :pending
       define :create_pending_file, action: :create
       define :find_or_create_pending_file, action: :find_or_create
       define :approve_pending_file, action: :approve
@@ -58,7 +58,7 @@ defmodule MediaCentaur.Review do
   alias MediaCentaur.DateUtil
 
   def fetch_pending_files do
-    __MODULE__.list_pending!()
+    __MODULE__.list_pending_files_for_review!()
   end
 
   @doc """

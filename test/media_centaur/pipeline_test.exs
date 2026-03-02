@@ -179,7 +179,7 @@ defmodule MediaCentaur.PipelineTest do
       assert result.entity_id == nil
 
       # PendingFile created
-      pending_files = Review.list_pending!()
+      pending_files = Review.list_pending_files_for_review!()
       assert length(pending_files) == 1
       pending = hd(pending_files)
       assert pending.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"

@@ -73,10 +73,7 @@ defmodule MediaCentaur.Library.FileTracker do
       end)
     end
 
-    restored
-    |> Enum.map(& &1.entity_id)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq()
+    Helpers.unique_entity_ids(restored)
   end
 
   @doc """
@@ -94,10 +91,7 @@ defmodule MediaCentaur.Library.FileTracker do
         Library.mark_file_absent!(file)
       end)
 
-      files
-      |> Enum.map(& &1.entity_id)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq()
+      Helpers.unique_entity_ids(files)
     end
   end
 
@@ -172,10 +166,9 @@ defmodule MediaCentaur.Library.FileTracker do
       |> MapSet.new()
       |> MapSet.intersection(removed_paths)
 
-    # Delete child records matching removed file paths
     delete_children_for_paths(entity_id, removed_file_paths)
 
-    # Delete the WatchedFile records
+    # WatchedFile records cleaned up after children to avoid FK violations
     Enum.each(watched_files, fn file ->
       if MapSet.member?(removed_paths, file.file_path) do
         Library.destroy_watched_file!(file)
