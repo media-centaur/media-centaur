@@ -70,4 +70,40 @@ defmodule MediaCentaur.LibraryBrowserTest do
       assert [] = LibraryBrowser.fetch_entities()
     end
   end
+
+  describe "fetch_entries_by_ids/1" do
+    test "fetches a specific entity by ID" do
+      entity = create_entity(%{type: :movie, name: "Target Movie"})
+      create_linked_file(%{entity: entity})
+
+      other = create_entity(%{type: :movie, name: "Other Movie"})
+      create_linked_file(%{entity: other})
+
+      {entries, gone_ids} = LibraryBrowser.fetch_entries_by_ids([entity.id])
+
+      assert [%{entity: fetched}] = entries
+      assert fetched.id == entity.id
+      assert MapSet.size(gone_ids) == 0
+    end
+
+    test "returns gone_ids for destroyed entities" do
+      missing_id = Ash.UUID.generate()
+
+      {entries, gone_ids} = LibraryBrowser.fetch_entries_by_ids([missing_id])
+
+      assert entries == []
+      assert MapSet.member?(gone_ids, missing_id)
+    end
+
+    test "excludes absent entities and includes them in gone_ids" do
+      entity = create_entity(%{type: :movie, name: "Absent Movie"})
+      file = create_linked_file(%{entity: entity})
+      MediaCentaur.Library.mark_file_absent!(file)
+
+      {entries, gone_ids} = LibraryBrowser.fetch_entries_by_ids([entity.id])
+
+      assert entries == []
+      assert MapSet.member?(gone_ids, entity.id)
+    end
+  end
 end

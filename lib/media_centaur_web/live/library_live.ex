@@ -31,6 +31,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        active_tab: :all,
        expanded: MapSet.new(),
        reload_timer: nil,
+       pending_entity_ids: MapSet.new(),
        filter_text: ""
      )}
   end
@@ -65,23 +66,39 @@ defmodule MediaCentaurWeb.LibraryLive do
   # --- PubSub Handlers ---
 
   @impl true
-  def handle_info({:entities_changed, _entity_ids}, socket) do
+  def handle_info({:entities_changed, entity_ids}, socket) do
     if socket.assigns[:reload_timer] do
       Process.cancel_timer(socket.assigns.reload_timer)
     end
 
+    pending = MapSet.union(socket.assigns.pending_entity_ids, MapSet.new(entity_ids))
     timer = Process.send_after(self(), :reload_entities, 500)
-    {:noreply, assign(socket, reload_timer: timer)}
+    {:noreply, assign(socket, reload_timer: timer, pending_entity_ids: pending)}
   end
 
   def handle_info(:reload_entities, socket) do
-    entries = LibraryBrowser.fetch_entities()
+    changed_ids = socket.assigns.pending_entity_ids
+    {updated_entries, gone_ids} = LibraryBrowser.fetch_entries_by_ids(MapSet.to_list(changed_ids))
+    updated_map = Map.new(updated_entries, fn entry -> {entry.entity.id, entry} end)
+
+    entries =
+      socket.assigns.entries
+      |> Enum.reject(fn entry -> MapSet.member?(gone_ids, entry.entity.id) end)
+      |> Enum.map(fn entry -> Map.get(updated_map, entry.entity.id, entry) end)
+
+    existing_ids = MapSet.new(entries, fn entry -> entry.entity.id end)
+
+    new_entries =
+      Enum.reject(updated_entries, fn entry -> MapSet.member?(existing_ids, entry.entity.id) end)
+
+    entries = Enum.sort_by(entries ++ new_entries, fn entry -> entry.entity.name || "" end)
 
     {:noreply,
      socket
      |> assign(entries: entries)
      |> assign(counts: tab_counts(entries))
-     |> assign(reload_timer: nil)}
+     |> assign(reload_timer: nil)
+     |> assign(pending_entity_ids: MapSet.new())}
   end
 
   def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
