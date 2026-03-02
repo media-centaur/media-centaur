@@ -137,6 +137,10 @@ Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
 
 Visit `/operations` (Logging section) to toggle components and framework log suppression from the browser.
 
+## LiveView Callbacks
+
+- **Annotate every callback group with `@impl true`.** Place `@impl true` before the first clause of each callback function name (`mount`, `render`, `handle_event`, `handle_info`, `handle_params`). This is the convention used across all LiveViews in this project.
+
 ## Variable Naming
 
 Write code for humans to read first, compilers second.
