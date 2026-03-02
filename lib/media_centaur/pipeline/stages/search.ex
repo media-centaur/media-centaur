@@ -27,8 +27,8 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
         {:ok, []} ->
           {:needs_review, %{payload | candidates: []}}
 
-        {:ok, {result, score, title_key}} ->
-          apply_match(payload, result, score, title_key)
+        {:ok, {best, top_matches}} ->
+          apply_match(payload, best, top_matches)
 
         {:error, reason} ->
           {:error, reason}
@@ -49,17 +49,26 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   defp effective_search_type(%{type: :unknown}), do: :unknown
   defp effective_search_type(%{type: type}), do: type
 
-  defp apply_match(payload, result, score, title_key) do
+  defp apply_match(payload, {result, score, title_key}, top_matches) do
     tmdb_id = result["id"]
     match_title = result[title_key]
     year_key = if title_key == "title", do: "release_date", else: "first_air_date"
     match_year = DateUtil.extract_year(result[year_key])
     match_poster_path = result["poster_path"]
     tmdb_type = if title_key == "title", do: :movie, else: :tv
+    tied? = length(top_matches) > 1
+    resolvable_tie? = tied? and resolvable_tie?(payload.parsed, match_year)
 
     Log.info(:pipeline, fn ->
       threshold = Confidence.threshold()
-      status = if score >= threshold, do: "approved", else: "needs_review"
+
+      status =
+        cond do
+          tied? and resolvable_tie? -> "approved (tie resolved by year match)"
+          tied? -> "needs_review (#{length(top_matches)} tied results)"
+          score >= threshold -> "approved"
+          true -> "needs_review"
+        end
 
       "#{status}, confidence #{Float.round(score, 2)} " <>
         "(threshold #{threshold}), " <>
@@ -75,15 +84,31 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
           match_title: match_title,
           match_year: match_year,
           match_poster_path: match_poster_path,
-          candidates: [{result, score, title_key}]
+          candidates: top_matches
       }
 
-    if score >= Confidence.threshold() do
+    if score >= Confidence.threshold() and (not tied? or resolvable_tie?) do
       {:ok, updated}
     else
       {:needs_review, updated}
     end
   end
+
+  # A tied movie result can be auto-resolved when the parsed year matches the
+  # result year and there are no season/episode indicators (which would suggest
+  # the file is actually TV content misclassified as a movie). TMDB sorts by
+  # popularity, so the first result is the most likely correct match.
+  defp resolvable_tie?(
+         %{type: type, year: parsed_year, season: season, episode: episode},
+         match_year
+       )
+       when type in [:movie, :unknown] do
+    has_year_match? = not is_nil(parsed_year) and to_string(parsed_year) == to_string(match_year)
+    no_episode_indicators? = is_nil(season) and is_nil(episode)
+    has_year_match? and no_episode_indicators?
+  end
+
+  defp resolvable_tie?(_, _), do: false
 
   # ---------------------------------------------------------------------------
   # TMDB search
@@ -114,17 +139,21 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
         {[], []} ->
           {:ok, []}
 
-        {[], match} ->
-          {:ok, match}
+        {[], tv} ->
+          {:ok, tv}
 
-        {match, []} ->
-          {:ok, match}
-
-        {{_, movie_score, _} = movie, {_, tv_score, _}} when movie_score >= tv_score ->
+        {movie, []} ->
           {:ok, movie}
 
-        {_movie, tv} ->
-          {:ok, tv}
+        {{movie_best, _}, {tv_best, _}} ->
+          {_, movie_score, _} = movie_best
+          {_, tv_score, _} = tv_best
+
+          if movie_score >= tv_score do
+            {:ok, movie_match}
+          else
+            {:ok, tv_match}
+          end
       end
     end
   end
@@ -132,13 +161,19 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   defp best_match([], _parsed_title, _parsed_year, _title_key, _year_key), do: []
 
   defp best_match(results, parsed_title, parsed_year, title_key, year_key) do
-    results
-    |> Enum.take(5)
-    |> Enum.with_index()
-    |> Enum.map(fn {result, index} ->
-      score = Confidence.score(parsed_title, parsed_year, result, title_key, year_key, index == 0)
-      {result, score, title_key}
-    end)
-    |> Enum.max_by(fn {_, score, _} -> score end)
+    scored =
+      results
+      |> Enum.take(5)
+      |> Enum.with_index()
+      |> Enum.map(fn {result, index} ->
+        score =
+          Confidence.score(parsed_title, parsed_year, result, title_key, year_key, index == 0)
+
+        {result, score, title_key}
+      end)
+
+    {_, best_score, _} = Enum.max_by(scored, fn {_, score, _} -> score end)
+    top_matches = Enum.filter(scored, fn {_, score, _} -> score == best_score end)
+    {hd(top_matches), top_matches}
   end
 end

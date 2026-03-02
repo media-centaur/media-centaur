@@ -77,6 +77,7 @@ defmodule MediaCentaur.Review.PendingFile do
       require_atomic? false
       accept [:tmdb_id, :tmdb_type, :confidence, :match_title, :match_year, :match_poster_path]
       validate attribute_equals(:status, :pending)
+      change set_attribute(:candidates, [])
     end
 
     read :pending do

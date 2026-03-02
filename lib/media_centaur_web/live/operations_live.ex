@@ -272,11 +272,6 @@ defmodule MediaCentaurWeb.OperationsLive do
             <span :if={@stats.queue_depth > 0} class="badge badge-info badge-sm">
               {@stats.queue_depth} queued
             </span>
-            <span class="text-base-content/60">
-              {if @stats.total_processed > 0,
-                do: "#{@stats.total_processed} processed",
-                else: "idle"}
-            </span>
             <span :if={@stats.total_failed > 0} class="text-error text-xs">
               {@stats.total_failed} failed
             </span>
@@ -296,7 +291,6 @@ defmodule MediaCentaurWeb.OperationsLive do
             stage={stage}
             data={@stats.stages[stage]}
             concurrency={@pipeline_concurrency}
-            needs_review_count={@stats.needs_review_count}
           />
         </div>
       </div>
@@ -331,14 +325,9 @@ defmodule MediaCentaurWeb.OperationsLive do
       </span>
 
       <span class="text-xs text-base-content/40 truncate">
-        <span :if={@stage == :search && @needs_review_count > 0}>
-          {@needs_review_count} sent to review
-        </span>
-        <span :if={@data.last_error} class="text-error">
+        {stage_description(@stage)}
+        <span :if={@data.last_error} class="text-error ml-2">
           {elem(@data.last_error, 0)}
-        </span>
-        <span :if={@data.status == :idle and !@data.last_error}>
-          {stage_description(@stage)}
         </span>
       </span>
     </div>

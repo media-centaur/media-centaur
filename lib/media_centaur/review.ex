@@ -48,6 +48,79 @@ defmodule MediaCentaur.Review do
     Ash.read!(PendingFile, action: :pending)
   end
 
+  @doc """
+  Groups pending files by series root — the first directory component below
+  the watch directory. Two files share a group when they have the same
+  `{watch_directory, series_root}`.
+
+  Returns a list of group maps:
+
+      %{key: {watch_dir, root}, files: [pending_files], representative: first_file}
+
+  Single-file groups (movies, flat downloads) are groups of 1 — same shape.
+  """
+  def fetch_pending_groups do
+    fetch_pending_files()
+    |> Enum.group_by(fn file ->
+      {file.watch_directory, series_root(file)}
+    end)
+    |> Enum.map(fn {key, files} ->
+      %{key: key, files: files, representative: hd(files)}
+    end)
+  end
+
+  @doc """
+  Extracts the series root — the first path component below the watch directory.
+
+  Examples:
+
+      /media/tv/Sample Show One (2001)/Season 1/ep.mkv  →  "Sample Show One (2001)"
+      /media/movies/movie.mkv                   →  "movie.mkv"
+  """
+  def series_root(%{file_path: file_path, watch_directory: nil}), do: file_path
+
+  def series_root(%{file_path: file_path, watch_directory: watch_dir}) do
+    relative = String.replace_prefix(file_path, watch_dir <> "/", "")
+
+    case Path.split(relative) do
+      [single] -> single
+      [root | _] -> root
+    end
+  end
+
+  @doc """
+  Approves all files in a group and sends them to the pipeline.
+  Returns `{approved_count, error_count}`.
+  """
+  def approve_group(files) do
+    results = Enum.map(files, &approve_and_process/1)
+    approved = Enum.count(results, &match?({:ok, _}, &1))
+    errors = Enum.count(results, &match?({:error, _}, &1))
+    {approved, errors}
+  end
+
+  @doc """
+  Dismisses all files in a group.
+  Returns `{dismissed_count, error_count}`.
+  """
+  def dismiss_group(files) do
+    results = Enum.map(files, &dismiss/1)
+    dismissed = Enum.count(results, &match?({:ok, _}, &1))
+    errors = Enum.count(results, &match?({:error, _}, &1))
+    {dismissed, errors}
+  end
+
+  @doc """
+  Sets the TMDB match on all files in a group.
+  Returns `{updated_count, error_count}`.
+  """
+  def set_group_match(files, match) do
+    results = Enum.map(files, &set_tmdb_match(&1, match))
+    updated = Enum.count(results, &match?({:ok, _}, &1))
+    errors = Enum.count(results, &match?({:error, _}, &1))
+    {updated, errors}
+  end
+
   def approve_and_process(pending_file) do
     Log.info(:library, "approving #{pending_file.id}")
 

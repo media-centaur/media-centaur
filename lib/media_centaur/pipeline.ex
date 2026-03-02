@@ -234,7 +234,14 @@ defmodule MediaCentaur.Pipeline do
       file_path: payload.file_path
     })
 
-    Intake.create_from_payload(payload)
+    case Intake.create_from_payload(payload) do
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        Log.warning(:pipeline, "failed to create pending file: #{inspect(reason)}")
+    end
+
     {:ok, payload}
   end
 
