@@ -9,6 +9,11 @@ defmodule MediaCentaur.Library.WatchedFile do
   sqlite do
     table "watched_files"
     repo MediaCentaur.Repo
+
+    custom_indexes do
+      index [:entity_id], name: "watched_files_entity_id_index"
+      index [:watch_dir, :state], name: "watched_files_watch_dir_state_index"
+    end
   end
 
   actions do

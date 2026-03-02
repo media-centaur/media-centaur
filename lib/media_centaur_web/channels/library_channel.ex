@@ -84,7 +84,7 @@ defmodule MediaCentaurWeb.LibraryChannel do
   end
 
   defp load_entity_payloads(entity_ids) do
-    excluded = Helpers.entity_ids_all_absent()
+    excluded = Helpers.entity_ids_all_absent_for(entity_ids)
 
     Library.list_entities_by_ids!(entity_ids)
     |> Enum.reject(fn entity -> MapSet.member?(excluded, entity.id) end)

@@ -120,8 +120,13 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   end
 
   defp search(title, year, :unknown) do
-    movie_task = Task.async(fn -> Client.search_movie(title, year) end)
-    tv_task = Task.async(fn -> Client.search_tv(title, year) end)
+    movie_task =
+      Task.Supervisor.async(MediaCentaur.TaskSupervisor, fn ->
+        Client.search_movie(title, year)
+      end)
+
+    tv_task =
+      Task.Supervisor.async(MediaCentaur.TaskSupervisor, fn -> Client.search_tv(title, year) end)
 
     with {:ok, movie_results} <- Task.await(movie_task),
          {:ok, tv_results} <- Task.await(tv_task) do
