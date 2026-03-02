@@ -8,7 +8,7 @@ defmodule MediaCentaur.LibraryBrowser do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Helpers
-  alias MediaCentaur.Playback.{Manager, ProgressSummary, Resolver}
+  alias MediaCentaur.Playback.{EpisodeList, Manager, MovieList, ProgressSummary, Resolver}
 
   @doc """
   Loads all entities with associations, computes progress summaries.
@@ -72,12 +72,12 @@ defmodule MediaCentaur.LibraryBrowser do
   defp pre_sort_children(entity) do
     seasons =
       (entity.seasons || [])
-      |> Enum.sort_by(& &1.season_number)
+      |> EpisodeList.sort_seasons()
       |> Enum.map(fn season ->
-        %{season | episodes: Enum.sort_by(season.episodes || [], & &1.episode_number)}
+        %{season | episodes: EpisodeList.sort_episodes(season.episodes || [])}
       end)
 
-    movies = Enum.sort_by(entity.movies || [], &{&1.position || 0, &1.date_published || ""})
+    movies = MovieList.sort_movies(entity.movies || [])
 
     %{entity | seasons: seasons, movies: movies}
   end

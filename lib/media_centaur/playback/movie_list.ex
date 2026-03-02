@@ -7,6 +7,13 @@ defmodule MediaCentaur.Playback.MovieList do
   `season_number: 0, episode_number: ordinal`.
   """
 
+  @doc "Sorts movies by position then date_published."
+  def sort_movies(movies) when is_list(movies) do
+    Enum.sort_by(movies, fn movie -> {movie.position || 0, movie.date_published || ""} end)
+  end
+
+  def sort_movies(_), do: []
+
   @doc """
   Returns a flat list of `{ordinal, movie_id, content_url}` tuples
   for child movies that have a content_url, sorted by position then date_published.
@@ -14,7 +21,7 @@ defmodule MediaCentaur.Playback.MovieList do
   """
   def list_available(entity) do
     (entity.movies || [])
-    |> Enum.sort_by(fn movie -> {movie.position || 0, movie.date_published || ""} end)
+    |> sort_movies()
     |> Enum.filter(& &1.content_url)
     |> Enum.with_index(1)
     |> Enum.map(fn {movie, ordinal} -> {ordinal, movie.id, movie.content_url} end)

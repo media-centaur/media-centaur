@@ -98,11 +98,7 @@ defmodule MediaCentaur.Admin do
 
     incomplete = Library.list_incomplete_images!()
 
-    entity_ids =
-      incomplete
-      |> Enum.map(& &1.entity_id)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq()
+    entity_ids = Helpers.unique_entity_ids(incomplete)
 
     entities =
       Library.list_entities_with_images!(
@@ -132,7 +128,7 @@ defmodule MediaCentaur.Admin do
     Log.info(:library, "dismissing incomplete images")
 
     incomplete = Library.list_incomplete_images!()
-    entity_ids = incomplete |> Enum.map(& &1.entity_id) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+    entity_ids = Helpers.unique_entity_ids(incomplete)
     count = length(incomplete)
 
     Ash.bulk_destroy!(incomplete, :destroy, %{}, strategy: :stream, return_errors?: true)

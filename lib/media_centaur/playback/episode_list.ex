@@ -4,17 +4,27 @@ defmodule MediaCentaur.Playback.EpisodeList do
   Used by Resume, ProgressSummary, and PlaybackChannel.
   """
 
+  @doc "Sorts seasons by season_number."
+  def sort_seasons(seasons) when is_list(seasons), do: Enum.sort_by(seasons, & &1.season_number)
+  def sort_seasons(_), do: []
+
+  @doc "Sorts episodes by episode_number."
+  def sort_episodes(episodes) when is_list(episodes),
+    do: Enum.sort_by(episodes, & &1.episode_number)
+
+  def sort_episodes(_), do: []
+
   @doc """
   Returns a flat list of `{season_number, episode_number, content_url}` tuples
   for episodes that have a content_url, sorted by season then episode.
   """
   def list_available(entity) do
     (entity.seasons || [])
-    |> Enum.sort_by(& &1.season_number)
+    |> sort_seasons()
     |> Enum.flat_map(fn season ->
       (season.episodes || [])
       |> Enum.filter(& &1.content_url)
-      |> Enum.sort_by(& &1.episode_number)
+      |> sort_episodes()
       |> Enum.map(&{season.season_number, &1.episode_number, &1.content_url})
     end)
   end
