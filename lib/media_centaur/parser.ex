@@ -414,7 +414,7 @@ defmodule MediaCentaur.Parser do
     episode = String.to_integer(raw_episode)
     raw_episode_title = List.first(rest)
 
-    year = extract_year_from_tv_title(raw_title)
+    year = extract_year_from_tv_title(raw_title) || extract_year_from_ancestors(file_path)
     title = extract_tv_title(raw_title, file_path)
     episode_title = extract_episode_title(raw_episode_title)
 
@@ -474,6 +474,14 @@ defmodule MediaCentaur.Parser do
       [year_str | _] -> String.to_integer(year_str)
       nil -> nil
     end
+  end
+
+  defp extract_year_from_ancestors(file_path) do
+    parts = Path.split(file_path)
+    parent = parts |> Enum.drop(-1) |> List.last()
+    grandparent = parts |> Enum.drop(-2) |> List.last()
+
+    extract_year_from_tv_title(parent) || extract_year_from_tv_title(grandparent)
   end
 
   defp extract_episode_title(nil), do: nil

@@ -433,6 +433,7 @@ defmodule MediaCentaur.ParserTest do
         )
 
       assert result.title == "Sample Show Seven"
+      assert result.year == 2019
       assert result.season == 2
       assert result.episode == 1
       assert result.episode_title == "Sample Least Favorite Year"
