@@ -31,21 +31,34 @@ defmodule MediaCentaur.Review do
     tool :destroy_pending_file, MediaCentaur.Review.PendingFile, :destroy do
       description "Delete a pending file record"
     end
+
+    tool :search_tmdb, MediaCentaur.Review.PendingFile, :search_tmdb do
+      description "Search TMDB for a movie or TV show by title"
+    end
   end
 
   resources do
-    resource MediaCentaur.Review.PendingFile
+    resource MediaCentaur.Review.PendingFile do
+      define :list_pending_files, action: :read
+      define :get_pending_file, action: :read, get_by: [:id]
+      define :list_pending, action: :pending
+      define :create_pending_file, action: :create
+      define :find_or_create_pending_file, action: :find_or_create
+      define :approve_pending_file, action: :approve
+      define :dismiss_pending_file, action: :dismiss
+      define :set_pending_file_match, action: :set_tmdb_match
+      define :destroy_pending_file, action: :destroy
+    end
   end
 
   require Logger
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Review.PendingFile
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.DateUtil
 
   def fetch_pending_files do
-    Ash.read!(PendingFile, action: :pending)
+    __MODULE__.list_pending!()
   end
 
   @doc """
@@ -124,7 +137,7 @@ defmodule MediaCentaur.Review do
   def approve_and_process(pending_file) do
     Log.info(:library, "approving #{pending_file.id}")
 
-    with {:ok, pending_file} <- Ash.update(pending_file, %{}, action: :approve) do
+    with {:ok, pending_file} <- __MODULE__.approve_pending_file(pending_file) do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         "pipeline:input",
@@ -143,7 +156,7 @@ defmodule MediaCentaur.Review do
   end
 
   def dismiss(pending_file) do
-    result = Ash.update(pending_file, %{}, action: :dismiss)
+    result = __MODULE__.dismiss_pending_file(pending_file)
     if match?({:ok, _}, result), do: broadcast_reviewed(pending_file.id)
     result
   end
@@ -160,17 +173,13 @@ defmodule MediaCentaur.Review do
         id when is_binary(id) -> String.to_integer(id)
       end
 
-    Ash.update(
-      pending_file,
-      %{
-        tmdb_id: tmdb_id_int,
-        match_title: title,
-        match_year: year,
-        match_poster_path: poster_path,
-        confidence: 1.0
-      },
-      action: :set_tmdb_match
-    )
+    __MODULE__.set_pending_file_match(pending_file, %{
+      tmdb_id: tmdb_id_int,
+      match_title: title,
+      match_year: year,
+      match_poster_path: poster_path,
+      confidence: 1.0
+    })
   end
 
   def search_tmdb(query, type) do

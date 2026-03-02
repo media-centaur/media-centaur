@@ -7,7 +7,8 @@ defmodule MediaCentaurWeb.LibraryChannel do
   require Logger
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library.{Entity, Helpers}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Playback.{ProgressSummary, ResumeTarget}
   alias MediaCentaur.Serializer
 
@@ -85,10 +86,7 @@ defmodule MediaCentaurWeb.LibraryChannel do
   defp load_entity_payloads(entity_ids) do
     excluded = Helpers.entity_ids_all_absent()
 
-    Entity
-    |> Ash.Query.for_read(:with_associations)
-    |> Ash.Query.do_filter(%{id: [in: entity_ids]})
-    |> Ash.read!()
+    Library.list_entities_by_ids!(entity_ids)
     |> Enum.reject(fn entity -> MapSet.member?(excluded, entity.id) end)
     |> Map.new(fn entity -> {entity.id, serialize_with_progress(entity)} end)
   end
@@ -96,8 +94,7 @@ defmodule MediaCentaurWeb.LibraryChannel do
   defp build_entity_list do
     excluded = Helpers.entity_ids_all_absent()
 
-    Entity
-    |> Ash.read!(action: :with_associations)
+    Library.list_entities_with_associations!()
     |> Enum.reject(fn entity -> MapSet.member?(excluded, entity.id) end)
     |> Enum.map(&serialize_with_progress/1)
   end

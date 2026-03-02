@@ -4,9 +4,10 @@ defmodule MediaCentaur.Dashboard do
   Keeps the LiveView thin by centralizing all dashboard queries.
   """
 
-  alias MediaCentaur.Library.{Entity, Episode, WatchedFile, Image}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.{Episode, WatchedFile, Image}
   alias MediaCentaur.Pipeline.Stats
-  alias MediaCentaur.Review.PendingFile
+  alias MediaCentaur.Review
 
   def fetch_stats do
     %{
@@ -23,9 +24,7 @@ defmodule MediaCentaur.Dashboard do
     incomplete_images = count_action(Image, :incomplete)
 
     type_counts =
-      Entity
-      |> Ash.Query.select([:type])
-      |> Ash.read!()
+      Library.list_entities!()
       |> Enum.frequencies_by(& &1.type)
 
     %{
@@ -38,7 +37,7 @@ defmodule MediaCentaur.Dashboard do
   end
 
   def fetch_pending_review do
-    Ash.read!(PendingFile, action: :pending)
+    Review.list_pending!()
     |> Enum.take(20)
   end
 

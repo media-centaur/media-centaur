@@ -2,8 +2,8 @@ defmodule MediaCentaur.AdminTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Admin
-  alias MediaCentaur.Library.Image
-  alias MediaCentaur.Review.PendingFile
+  alias MediaCentaur.Library
+  alias MediaCentaur.Review
 
   import MediaCentaur.TestFactory
 
@@ -12,11 +12,11 @@ defmodule MediaCentaur.AdminTest do
       create_pending_file()
       create_pending_file()
 
-      assert [_, _] = Ash.read!(PendingFile, action: :read)
+      assert [_, _] = Review.list_pending_files!()
 
       Admin.clear_database()
 
-      assert [] = Ash.read!(PendingFile, action: :read)
+      assert [] = Review.list_pending_files!()
     end
   end
 
@@ -33,7 +33,7 @@ defmodule MediaCentaur.AdminTest do
 
       assert {:ok, 1} = Admin.dismiss_incomplete_images()
 
-      assert [] = Ash.read!(Image)
+      assert [] = Library.list_images!()
     end
 
     test "preserves images that have been downloaded" do
@@ -49,7 +49,7 @@ defmodule MediaCentaur.AdminTest do
 
       assert {:ok, 0} = Admin.dismiss_incomplete_images()
 
-      assert [_] = Ash.read!(Image)
+      assert [_] = Library.list_images!()
     end
 
     test "returns zero when no incomplete images exist" do
@@ -76,7 +76,7 @@ defmodule MediaCentaur.AdminTest do
 
       assert {:ok, 1} = Admin.dismiss_incomplete_images()
 
-      remaining = Ash.read!(Image)
+      remaining = Library.list_images!()
       assert length(remaining) == 1
       assert hd(remaining).role == "poster"
     end

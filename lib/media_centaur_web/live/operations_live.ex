@@ -1,8 +1,7 @@
 defmodule MediaCentaurWeb.OperationsLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Admin, Dashboard, Log, Storage}
-  alias MediaCentaur.Library.Image
+  alias MediaCentaur.{Admin, Dashboard, Library, Log, Storage}
   alias MediaCentaur.Pipeline.Stats
 
   @storage_refresh_ms 5 * 60 * 1_000
@@ -24,7 +23,7 @@ defmodule MediaCentaurWeb.OperationsLive do
         socket
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
         |> assign(recent_errors: pipeline_stats.recent_errors)
-        |> assign(incomplete_images: Ash.read!(Image, action: :incomplete))
+        |> assign(incomplete_images: Library.list_incomplete_images!())
         |> assign(storage_drives: Storage.measure_all())
         |> assign(config: load_config())
         |> assign(pipeline_stats: pipeline_stats)
@@ -176,7 +175,7 @@ defmodule MediaCentaurWeb.OperationsLive do
     {:noreply,
      socket
      |> assign(retrying_images: false)
-     |> assign(incomplete_images: Ash.read!(Image, action: :incomplete))
+     |> assign(incomplete_images: Library.list_incomplete_images!())
      |> put_flash(:info, "Retried #{result.retried} incomplete images")}
   end
 
@@ -195,7 +194,7 @@ defmodule MediaCentaurWeb.OperationsLive do
      socket
      |> assign(stats_timer: nil)
      |> assign(recent_errors: stats.recent_errors)
-     |> assign(incomplete_images: Ash.read!(Image, action: :incomplete))}
+     |> assign(incomplete_images: Library.list_incomplete_images!())}
   end
 
   def handle_info(:tick_pipeline, socket) do

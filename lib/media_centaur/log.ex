@@ -217,21 +217,17 @@ defmodule MediaCentaur.Log do
   defp persist_setting(set) do
     names = Enum.map(set, &to_string/1)
 
-    MediaCentaur.Library.Setting
-    |> Ash.Changeset.for_create(:upsert, %{
+    MediaCentaur.Library.upsert_setting!(%{
       key: "log_components",
       value: %{"enabled" => names}
     })
-    |> Ash.create!()
 
     :ok
   end
 
   defp read_setting do
-    case MediaCentaur.Library.Setting
-         |> Ash.Query.for_read(:by_key, %{key: "log_components"})
-         |> Ash.read() do
-      {:ok, [%{value: %{"enabled" => names}}]} -> names
+    case MediaCentaur.Library.get_setting_by_key("log_components") do
+      {:ok, %{value: %{"enabled" => names}}} -> names
       _ -> nil
     end
   end
@@ -246,22 +242,18 @@ defmodule MediaCentaur.Log do
     new_set = fun.(current)
     names = Enum.map(new_set, &to_string/1)
 
-    MediaCentaur.Library.Setting
-    |> Ash.Changeset.for_create(:upsert, %{
+    MediaCentaur.Library.upsert_setting!(%{
       key: "log_framework_suppressed",
       value: %{"suppressed" => names}
     })
-    |> Ash.create!()
 
     broadcast_change()
     :ok
   end
 
   defp read_framework_setting do
-    case MediaCentaur.Library.Setting
-         |> Ash.Query.for_read(:by_key, %{key: "log_framework_suppressed"})
-         |> Ash.read() do
-      {:ok, [%{value: %{"suppressed" => names}}]} -> names
+    case MediaCentaur.Library.get_setting_by_key("log_framework_suppressed") do
+      {:ok, %{value: %{"suppressed" => names}}} -> names
       _ -> nil
     end
   end

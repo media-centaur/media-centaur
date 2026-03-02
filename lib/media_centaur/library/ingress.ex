@@ -11,7 +11,8 @@ defmodule MediaCentaur.Library.Ingress do
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.{Entity, Image}
   alias MediaCentaur.Pipeline.Payload
 
   @spec ingest(Payload.t()) ::
@@ -39,19 +40,15 @@ defmodule MediaCentaur.Library.Ingress do
   # ---------------------------------------------------------------------------
 
   defp find_existing_entity(%{property_id: "tmdb_collection", value: value}) do
-    query = Ash.Query.for_read(Identifier, :find_by_tmdb_collection, %{collection_id: value})
-
-    case Ash.read(query) do
-      {:ok, [%{entity: entity}]} -> {:ok, entity}
+    case Library.find_by_tmdb_collection(value) do
+      {:ok, %{entity: entity}} -> {:ok, entity}
       _ -> :not_found
     end
   end
 
   defp find_existing_entity(%{property_id: _property_id, value: value}) do
-    query = Ash.Query.for_read(Identifier, :find_by_tmdb_id, %{tmdb_id: value})
-
-    case Ash.read(query) do
-      {:ok, [%{entity: entity}]} -> {:ok, entity}
+    case Library.find_by_tmdb_id(value) do
+      {:ok, %{entity: entity}} -> {:ok, entity}
       _ -> :not_found
     end
   end
@@ -63,7 +60,7 @@ defmodule MediaCentaur.Library.Ingress do
   defp create_new(metadata, staged_images, watch_directory) do
     entity_attrs = strip_content_url_if_extra(metadata.entity_attrs, metadata)
 
-    with {:ok, entity} <- Ash.create(Entity, entity_attrs, action: :create_from_tmdb),
+    with {:ok, entity} <- Library.create_entity(entity_attrs),
          :ok <- create_identifier_with_race_retry(entity, metadata.identifier),
          :ok <-
            create_images(
@@ -81,7 +78,7 @@ defmodule MediaCentaur.Library.Ingress do
     else
       {:race_lost, winner_entity_id} ->
         Log.info(:library, "race lost, using winner #{winner_entity_id}")
-        winner = Ash.get!(Entity, winner_entity_id)
+        winner = Library.get_entity!(winner_entity_id)
         link_to_existing(winner, metadata, staged_images, watch_directory)
 
       {:error, reason} ->
@@ -177,7 +174,7 @@ defmodule MediaCentaur.Library.Ingress do
     content_url = metadata.entity_attrs[:content_url]
 
     if is_nil(entity.content_url) && content_url do
-      case Ash.update(entity, %{content_url: content_url}, action: :set_content_url) do
+      case Library.set_entity_content_url(entity, %{content_url: content_url}) do
         {:ok, updated} -> {:ok, updated, :existing}
         {:error, reason} -> {:error, reason}
       end
@@ -198,7 +195,7 @@ defmodule MediaCentaur.Library.Ingress do
       entity_id: entity.id
     }
 
-    with {:ok, season} <- Ash.create(Season, season_attrs, action: :find_or_create) do
+    with {:ok, season} <- Library.find_or_create_season(season_attrs) do
       Log.info(:library, "season S#{season_data.season_number} for entity #{entity.id}")
 
       if season_data[:episode] do
@@ -212,13 +209,11 @@ defmodule MediaCentaur.Library.Ingress do
   defp create_episode(season, episode_data, staged_images, watch_directory) do
     episode_attrs = Map.put(episode_data.attrs, :season_id, season.id)
 
-    case Ash.create(Episode, episode_attrs, action: :find_or_create) do
+    case Library.find_or_create_episode(episode_attrs) do
       {:ok, episode} ->
         # Set content_url if the upsert returned an existing record without it
         if is_nil(episode.content_url) && episode_attrs[:content_url] do
-          Ash.update(episode, %{content_url: episode_attrs[:content_url]},
-            action: :set_content_url
-          )
+          Library.set_episode_content_url(episode, %{content_url: episode_attrs[:content_url]})
         end
 
         create_images(
@@ -243,11 +238,11 @@ defmodule MediaCentaur.Library.Ingress do
   defp create_child_movie(entity, child_movie_data, staged_images, watch_directory) do
     movie_attrs = Map.put(child_movie_data.attrs, :entity_id, entity.id)
 
-    case Ash.create(Movie, movie_attrs, action: :find_or_create) do
+    case Library.find_or_create_movie(movie_attrs) do
       {:ok, movie} ->
         # Set content_url if the upsert returned an existing record without it
         if is_nil(movie.content_url) && movie_attrs[:content_url] do
-          Ash.update(movie, %{content_url: movie_attrs[:content_url]}, action: :set_content_url)
+          Library.set_movie_content_url(movie, %{content_url: movie_attrs[:content_url]})
         end
 
         create_images(
@@ -276,7 +271,7 @@ defmodule MediaCentaur.Library.Ingress do
       entity_id: entity.id
     }
 
-    case Ash.create(Identifier, attrs, action: :find_or_create) do
+    case Library.find_or_create_identifier(attrs) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -296,7 +291,7 @@ defmodule MediaCentaur.Library.Ingress do
           entity_id: entity.id
         }
 
-        case Ash.create(Season, season_attrs, action: :find_or_create) do
+        case Library.find_or_create_season(season_attrs) do
           {:ok, season} -> season
           _ -> nil
         end
@@ -310,7 +305,7 @@ defmodule MediaCentaur.Library.Ingress do
       season_id: if(season, do: season.id)
     }
 
-    case Ash.create(Extra, extra_attrs, action: :find_or_create) do
+    case Library.find_or_create_extra(extra_attrs) do
       {:ok, _extra} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -399,12 +394,12 @@ defmodule MediaCentaur.Library.Ingress do
       entity_id: entity.id
     }
 
-    case Ash.create(Identifier, attrs, action: :find_or_create) do
+    case Library.find_or_create_identifier(attrs) do
       {:ok, created_identifier} ->
         if created_identifier.entity_id == entity.id do
           :ok
         else
-          Ash.destroy!(entity)
+          Library.destroy_entity!(entity)
           {:race_lost, created_identifier.entity_id}
         end
 

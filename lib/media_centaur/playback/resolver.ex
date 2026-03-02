@@ -14,7 +14,8 @@ defmodule MediaCentaur.Playback.Resolver do
   4. Extra — play from 0 (no progress tracking)
   """
 
-  alias MediaCentaur.Library.{Episode, Extra, Helpers, Movie, Season, WatchProgress}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Playback.{EpisodeList, MovieList, Resume}
 
   @type play_params :: %{
@@ -82,7 +83,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Episode resolution ---
 
   defp resolve_episode(uuid) do
-    case Ash.get(Episode, uuid) do
+    case Library.get_episode(uuid) do
       {:ok, episode} ->
         resolve_episode_playback(episode)
 
@@ -94,7 +95,7 @@ defmodule MediaCentaur.Playback.Resolver do
   defp resolve_episode_playback(%{content_url: nil}), do: {:error, :no_playable_content}
 
   defp resolve_episode_playback(episode) do
-    with {:ok, season} <- Ash.get(Season, episode.season_id),
+    with {:ok, season} <- Library.get_season(episode.season_id),
          {:ok, entity} <- Helpers.load_entity(season.entity_id) do
       progress_records = load_progress(entity.id)
 
@@ -123,7 +124,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Movie (child) resolution ---
 
   defp resolve_movie(uuid) do
-    case Ash.get(Movie, uuid) do
+    case Library.get_movie(uuid) do
       {:ok, movie} ->
         resolve_movie_playback(movie)
 
@@ -176,7 +177,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Extra resolution ---
 
   defp resolve_extra(uuid) do
-    case Ash.get(Extra, uuid) do
+    case Library.get_extra(uuid) do
       {:ok, extra} ->
         resolve_extra_playback(extra)
 
@@ -210,9 +211,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Shared helpers ---
 
   defp load_progress(entity_id) do
-    WatchProgress
-    |> Ash.Query.for_read(:for_entity, %{entity_id: entity_id})
-    |> Ash.read!()
+    Library.list_entity_watch_progress!(entity_id)
   end
 
   defp resume_position(progress_by_key, key) do

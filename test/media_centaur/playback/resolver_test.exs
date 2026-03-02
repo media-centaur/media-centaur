@@ -3,12 +3,11 @@ defmodule MediaCentaur.Playback.ResolverTest do
 
   import MediaCentaur.TestFactory
 
+  alias MediaCentaur.Library
   alias MediaCentaur.Playback.Resolver
 
   defp mark_completed(progress) do
-    progress
-    |> Ash.Changeset.for_update(:mark_completed)
-    |> Ash.update!()
+    Library.mark_watch_completed!(progress)
   end
 
   describe "resolve/1 with Entity UUID" do

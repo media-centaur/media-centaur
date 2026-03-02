@@ -16,7 +16,9 @@ defmodule MediaCentaur.Library.FileTracker do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Config
-  alias MediaCentaur.Library.{Entity, Episode, Extra, Helpers, Image, Movie, Season, WatchedFile}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.Helpers
+  alias MediaCentaur.Library.Image
 
   @ttl_check_interval :timer.hours(24)
 
@@ -36,10 +38,7 @@ defmodule MediaCentaur.Library.FileTracker do
   def cleanup_removed_files([]), do: []
 
   def cleanup_removed_files(file_paths) do
-    watched_files =
-      WatchedFile
-      |> Ash.Query.for_read(:by_file_paths, %{file_paths: file_paths})
-      |> Ash.read!()
+    watched_files = Library.list_files_by_paths!(file_paths)
 
     if watched_files == [] do
       []
@@ -59,10 +58,7 @@ defmodule MediaCentaur.Library.FileTracker do
   def restore_present_files(watch_dir, existing_paths) do
     existing_set = MapSet.new(existing_paths)
 
-    absent_files =
-      WatchedFile
-      |> Ash.Query.for_read(:by_watch_dir, %{watch_dir: watch_dir, state: :absent})
-      |> Ash.read!()
+    absent_files = Library.list_files_by_watch_dir!(watch_dir, :absent)
 
     restored =
       Enum.filter(absent_files, fn file ->
@@ -73,9 +69,7 @@ defmodule MediaCentaur.Library.FileTracker do
       Log.info(:library, "restoring #{length(restored)} absent files for #{watch_dir}")
 
       Enum.each(restored, fn file ->
-        file
-        |> Ash.Changeset.for_update(:mark_present, %{})
-        |> Ash.update!()
+        Library.mark_file_present!(file)
       end)
     end
 
@@ -91,18 +85,13 @@ defmodule MediaCentaur.Library.FileTracker do
   """
   @spec mark_absent_for_watch_dir(String.t()) :: [String.t()]
   def mark_absent_for_watch_dir(watch_dir) do
-    files =
-      WatchedFile
-      |> Ash.Query.for_read(:by_watch_dir, %{watch_dir: watch_dir, state: :complete})
-      |> Ash.read!()
+    files = Library.list_files_by_watch_dir!(watch_dir, :complete)
 
     if files == [] do
       []
     else
       Enum.each(files, fn file ->
-        file
-        |> Ash.Changeset.for_update(:mark_absent, %{})
-        |> Ash.update!()
+        Library.mark_file_absent!(file)
       end)
 
       files
@@ -189,15 +178,12 @@ defmodule MediaCentaur.Library.FileTracker do
     # Delete the WatchedFile records
     Enum.each(watched_files, fn file ->
       if MapSet.member?(removed_paths, file.file_path) do
-        Ash.destroy!(file)
+        Library.destroy_watched_file!(file)
       end
     end)
 
     # Check if entity is now orphaned (no remaining WatchedFiles)
-    remaining_files =
-      WatchedFile
-      |> Ash.Query.do_filter(%{entity_id: entity_id})
-      |> Ash.read!()
+    remaining_files = Library.list_watched_files_for_entity!(entity_id)
 
     if remaining_files == [] do
       delete_entity_cascade(entity_id)
@@ -210,134 +196,75 @@ defmodule MediaCentaur.Library.FileTracker do
 
   defp delete_children_for_paths(entity_id, removed_paths) do
     # Delete episodes whose content_url matches a removed path
-    episodes =
-      Episode
-      |> Ash.read!()
-      |> Enum.filter(fn ep ->
-        ep.content_url && MapSet.member?(removed_paths, ep.content_url) &&
-          episode_belongs_to_entity?(ep, entity_id)
+    Library.list_seasons_for_entity!(entity_id)
+    |> Enum.each(fn season ->
+      Library.list_episodes_for_season!(season.id)
+      |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+      |> Enum.each(fn episode ->
+        delete_images(Library.list_images_for_episode!(episode.id))
+        Library.destroy_episode!(episode)
       end)
-
-    Enum.each(episodes, fn episode ->
-      delete_episode_images(episode.id)
-      Ash.destroy!(episode)
     end)
 
     # Delete child movies whose content_url matches
-    movies =
-      Movie
-      |> Ash.read!()
-      |> Enum.filter(fn movie ->
-        movie.entity_id == entity_id && movie.content_url &&
-          MapSet.member?(removed_paths, movie.content_url)
-      end)
-
-    Enum.each(movies, fn movie ->
-      delete_movie_images(movie.id)
-      Ash.destroy!(movie)
+    Library.list_movies_for_entity!(entity_id)
+    |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+    |> Enum.each(fn movie ->
+      delete_images(Library.list_images_for_movie!(movie.id))
+      Library.destroy_movie!(movie)
     end)
 
     # Delete extras whose content_url matches
-    extras =
-      Extra
-      |> Ash.read!()
-      |> Enum.filter(fn extra ->
-        extra.entity_id == entity_id && extra.content_url &&
-          MapSet.member?(removed_paths, extra.content_url)
-      end)
-
-    Enum.each(extras, &Ash.destroy!/1)
-  end
-
-  defp episode_belongs_to_entity?(episode, entity_id) do
-    season = Ash.get!(Season, episode.season_id)
-    season.entity_id == entity_id
+    Library.list_extras_for_entity!(entity_id)
+    |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+    |> Enum.each(&Library.destroy_extra!/1)
   end
 
   defp cleanup_empty_seasons(entity_id) do
-    seasons =
-      Season
-      |> Ash.read!()
-      |> Enum.filter(&(&1.entity_id == entity_id))
-
-    Enum.each(seasons, fn season ->
-      episodes =
-        Episode
-        |> Ash.Query.do_filter(%{season_id: season.id})
-        |> Ash.read!()
-
-      if episodes == [] do
-        # Also remove any season extras
-        extras =
-          Extra
-          |> Ash.Query.do_filter(%{season_id: season.id})
-          |> Ash.read!()
-
-        Enum.each(extras, &Ash.destroy!/1)
-        Ash.destroy!(season)
+    Enum.each(Library.list_seasons_for_entity!(entity_id), fn season ->
+      if Library.list_episodes_for_season!(season.id) == [] do
+        Enum.each(Library.list_extras_for_season!(season.id), &Library.destroy_extra!/1)
+        Library.destroy_season!(season)
       end
     end)
   end
 
   defp delete_entity_cascade(entity_id) do
-    entity = Ash.get!(Entity, entity_id, action: :with_associations)
+    entity = Library.get_entity_with_associations!(entity_id)
 
     # Delete in FK-safe order
-    Enum.each(entity.watch_progress || [], &Ash.destroy!/1)
+    Enum.each(entity.watch_progress || [], &Library.destroy_watch_progress!/1)
 
-    Enum.each(entity.extras || [], &Ash.destroy!/1)
+    Enum.each(entity.extras || [], &Library.destroy_extra!/1)
 
     Enum.each(entity.seasons || [], fn season ->
       Enum.each(season.episodes || [], fn episode ->
-        delete_episode_images(episode.id)
-        Ash.destroy!(episode)
+        delete_images(Library.list_images_for_episode!(episode.id))
+        Library.destroy_episode!(episode)
       end)
 
-      Enum.each(season.extras || [], &Ash.destroy!/1)
-      Ash.destroy!(season)
+      Enum.each(season.extras || [], &Library.destroy_extra!/1)
+      Library.destroy_season!(season)
     end)
 
     Enum.each(entity.movies || [], fn movie ->
-      delete_movie_images(movie.id)
-      Ash.destroy!(movie)
+      delete_images(Library.list_images_for_movie!(movie.id))
+      Library.destroy_movie!(movie)
     end)
 
-    delete_entity_images(entity_id)
+    delete_images(Library.list_images_for_entity!(entity_id))
     delete_image_dirs(entity)
 
-    Enum.each(entity.identifiers || [], &Ash.destroy!/1)
+    Enum.each(entity.identifiers || [], &Library.destroy_identifier!/1)
 
-    Ash.destroy!(entity)
+    Library.destroy_entity!(entity)
     Log.info(:library, "deleted orphaned entity #{entity_id}")
   end
 
-  defp delete_episode_images(episode_id) do
-    Image
-    |> Ash.read!()
-    |> Enum.filter(&(&1.episode_id == episode_id))
-    |> Enum.each(fn image ->
+  defp delete_images(images) do
+    Enum.each(images, fn image ->
       delete_image_file(image)
-      Ash.destroy!(image)
-    end)
-  end
-
-  defp delete_movie_images(movie_id) do
-    Image
-    |> Ash.read!()
-    |> Enum.filter(&(&1.movie_id == movie_id))
-    |> Enum.each(fn image ->
-      delete_image_file(image)
-      Ash.destroy!(image)
-    end)
-  end
-
-  defp delete_entity_images(entity_id) do
-    Image
-    |> Ash.read!()
-    |> Enum.filter(&(&1.entity_id == entity_id))
-    |> Enum.each(fn image ->
-      delete_image_file(image)
-      Ash.destroy!(image)
+      Library.destroy_image!(image)
     end)
   end
 
@@ -381,10 +308,7 @@ defmodule MediaCentaur.Library.FileTracker do
     ttl_days = Config.get(:file_absence_ttl_days) || 30
     cutoff = DateTime.add(DateTime.utc_now(), -ttl_days, :day)
 
-    expired =
-      WatchedFile
-      |> Ash.Query.for_read(:expired_absent, %{cutoff: cutoff})
-      |> Ash.read!()
+    expired = Library.list_expired_absent_files!(cutoff)
 
     if expired != [] do
       Log.info(:library, "TTL expiration: cleaning up #{length(expired)} absent files")

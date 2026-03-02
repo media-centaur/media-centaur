@@ -9,15 +9,13 @@ defmodule MediaCentaur.Review.Intake do
 
   alias MediaCentaur.DateUtil
   alias MediaCentaur.Pipeline.Payload
+  alias MediaCentaur.Review
   alias MediaCentaur.Review.PendingFile
 
   @spec create_from_payload(Payload.t()) :: {:ok, PendingFile.t()} | {:error, term()}
   def create_from_payload(%Payload{} = payload) do
     attrs = build_attrs(payload)
-
-    PendingFile
-    |> Ash.Changeset.for_create(:find_or_create, attrs)
-    |> Ash.create()
+    Review.find_or_create_pending_file(attrs)
   end
 
   defp build_attrs(payload) do

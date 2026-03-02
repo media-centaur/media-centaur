@@ -43,7 +43,7 @@ defmodule MediaCentaur.Pipeline.ImageDownloader do
     # Persist all successful downloads to DB and log results
     Enum.each(all_results, fn
       {:ok, image, relative_path} ->
-        Ash.update!(image, %{content_url: relative_path})
+        MediaCentaur.Library.update_image!(image, %{content_url: relative_path})
         Log.info(:pipeline, "saved image #{relative_path}")
 
       {:error, role, reason} ->

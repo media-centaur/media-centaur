@@ -17,6 +17,21 @@ defmodule MediaCentaur.Library.Image do
   actions do
     defaults [:read, :destroy]
 
+    read :by_entity do
+      argument :entity_id, :uuid, allow_nil?: false
+      filter expr(entity_id == ^arg(:entity_id))
+    end
+
+    read :by_episode do
+      argument :episode_id, :uuid, allow_nil?: false
+      filter expr(episode_id == ^arg(:episode_id))
+    end
+
+    read :by_movie do
+      argument :movie_id, :uuid, allow_nil?: false
+      filter expr(movie_id == ^arg(:movie_id))
+    end
+
     read :incomplete do
       filter expr(not is_nil(url) and is_nil(content_url))
       prepare build(load: [:entity])
@@ -57,6 +72,41 @@ defmodule MediaCentaur.Library.Image do
       upsert? true
       upsert_identity :unique_episode_role
       upsert_fields []
+    end
+
+    # --- Generic actions (MCP tools) ---
+
+    action :refresh_cache, :map do
+      description "Clear all cached artwork from disk and re-download images for all entities"
+
+      run fn _input, _context ->
+        case MediaCentaur.Admin.refresh_image_cache() do
+          {:ok, count} -> {:ok, %{status: :refreshed, entity_count: count}}
+          {:error, _} = error -> error
+        end
+      end
+    end
+
+    action :retry_incomplete, :map do
+      description "Re-download images that have a TMDB URL but no local content"
+
+      run fn _input, _context ->
+        case MediaCentaur.Admin.retry_incomplete_images() do
+          {:ok, result} -> {:ok, result}
+          {:error, _} = error -> error
+        end
+      end
+    end
+
+    action :dismiss_incomplete, :map do
+      description "Delete all image records that have a TMDB URL but no local content"
+
+      run fn _input, _context ->
+        case MediaCentaur.Admin.dismiss_incomplete_images() do
+          {:ok, count} -> {:ok, %{status: :dismissed, count: count}}
+          {:error, _} = error -> error
+        end
+      end
     end
   end
 

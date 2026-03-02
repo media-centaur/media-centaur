@@ -9,13 +9,14 @@ defmodule MediaCentaur.Admin do
   require Logger
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.{Helpers, Image}
+
   alias MediaCentaur.Library.{
     Entity,
     Episode,
     Extra,
-    Helpers,
     Identifier,
-    Image,
     Movie,
     Season,
     WatchProgress,
@@ -23,7 +24,6 @@ defmodule MediaCentaur.Admin do
   }
 
   alias MediaCentaur.Review.PendingFile
-
   alias MediaCentaur.Pipeline.ImageDownloader
 
   @doc """
@@ -33,7 +33,7 @@ defmodule MediaCentaur.Admin do
   def clear_database do
     MediaCentaur.Watcher.Supervisor.pause_during(fn ->
       Log.info(:library, "clearing database")
-      entity_ids = Ash.read!(Entity, action: :read) |> Enum.map(& &1.id)
+      entity_ids = Library.list_entities!() |> Enum.map(& &1.id)
 
       resources_in_delete_order()
       |> Enum.each(fn resource ->
@@ -72,7 +72,7 @@ defmodule MediaCentaur.Admin do
 
     Ash.bulk_update!(Image, :clear_content_url, %{}, strategy: :stream)
 
-    entities = Ash.read!(Entity, action: :with_images, load: [:watched_files])
+    entities = Library.list_entities_with_images!(load: [:watched_files])
 
     Enum.each(entities, fn entity ->
       if watch_dir = first_watch_dir(entity) do
@@ -96,7 +96,7 @@ defmodule MediaCentaur.Admin do
   def retry_incomplete_images do
     Log.info(:library, "retrying incomplete images")
 
-    incomplete = Ash.read!(Image, action: :incomplete)
+    incomplete = Library.list_incomplete_images!()
 
     entity_ids =
       incomplete
@@ -105,9 +105,10 @@ defmodule MediaCentaur.Admin do
       |> Enum.uniq()
 
     entities =
-      Enum.map(entity_ids, fn id ->
-        Ash.get!(Entity, id, action: :with_images, load: [:watched_files])
-      end)
+      Library.list_entities_with_images!(
+        query: [filter: [id: [in: entity_ids]]],
+        load: [:watched_files]
+      )
 
     Enum.each(entities, fn entity ->
       if watch_dir = first_watch_dir(entity) do
@@ -130,7 +131,7 @@ defmodule MediaCentaur.Admin do
   def dismiss_incomplete_images do
     Log.info(:library, "dismissing incomplete images")
 
-    incomplete = Ash.read!(Image, action: :incomplete)
+    incomplete = Library.list_incomplete_images!()
     entity_ids = incomplete |> Enum.map(& &1.entity_id) |> Enum.reject(&is_nil/1) |> Enum.uniq()
     count = length(incomplete)
 
