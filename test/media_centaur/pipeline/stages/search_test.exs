@@ -121,7 +121,7 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
   # ---------------------------------------------------------------------------
 
   describe "tied scores" do
-    test "tied 1.0 scores force review even above threshold" do
+    test "position bonus resolves tied 1.0 scores above threshold" do
       stub_search_tv([
         tv_search_result(%{
           "id" => 295_778,
@@ -133,9 +133,8 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
 
       payload = payload_with_parsed(%{title: "Sample Show One", year: nil, type: :tv})
 
-      assert {:needs_review, result} = Search.run(payload)
-      assert result.confidence >= 0.85
-      assert length(result.candidates) == 2
+      assert {:ok, result} = Search.run(payload)
+      assert result.tmdb_id == 295_778
     end
 
     test "single result at 1.0 is still auto-approved" do
@@ -169,7 +168,7 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
       assert result.tmdb_id == 882_598
     end
 
-    test "tied movie without parsed year still goes to review" do
+    test "position bonus resolves tied movies without parsed year" do
       stub_search_movie([
         movie_search_result(%{
           "id" => 882_598,
@@ -185,27 +184,8 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
 
       payload = payload_with_parsed(%{title: "Sample Movie Twelve", year: nil, type: :movie})
 
-      assert {:needs_review, _result} = Search.run(payload)
-    end
-
-    test "tied movie with episode indicators still goes to review" do
-      stub_search_movie([
-        movie_search_result(%{
-          "id" => 882_598,
-          "title" => "Sample Movie Twelve",
-          "release_date" => "2022-09-23"
-        }),
-        movie_search_result(%{
-          "id" => 1_051_335,
-          "title" => "Sample Movie Twelve",
-          "release_date" => "2022-01-01"
-        })
-      ])
-
-      payload =
-        payload_with_parsed(%{title: "Sample Movie Twelve", year: 2022, type: :movie, season: 1, episode: 3})
-
-      assert {:needs_review, _result} = Search.run(payload)
+      assert {:ok, result} = Search.run(payload)
+      assert result.tmdb_id == 882_598
     end
 
     test "tied TV shows with matching year auto-approves first result" do
@@ -235,19 +215,25 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
       assert result.tmdb_id == 90_282
     end
 
-    test "tied TV shows with no year still go to review" do
+    test "position bonus breaks tie for perfect title matches with no year" do
       stub_search_tv([
         tv_search_result(%{
-          "id" => 295_778,
-          "name" => "Sample Show One",
-          "first_air_date" => "2026-01-15"
+          "id" => 106_379,
+          "name" => "Sample Show Five",
+          "first_air_date" => "2024-04-10"
         }),
-        tv_search_result(%{"id" => 4556, "name" => "Sample Show One", "first_air_date" => "2001-10-02"})
+        tv_search_result(%{
+          "id" => 32_366,
+          "name" => "Sample Show Five",
+          "first_air_date" => "2006-04-23"
+        })
       ])
 
-      payload = payload_with_parsed(%{title: "Sample Show One", year: nil, type: :tv})
+      payload =
+        payload_with_parsed(%{title: "Sample Show Five", year: nil, type: :tv, season: 2, episode: 1})
 
-      assert {:needs_review, _result} = Search.run(payload)
+      assert {:ok, result} = Search.run(payload)
+      assert result.tmdb_id == 106_379
     end
   end
 

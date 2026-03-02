@@ -94,22 +94,11 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
     end
   end
 
-  # A tied movie result can be auto-resolved when the parsed year matches the
-  # result year and there are no season/episode indicators (which would suggest
-  # the file is actually TV content misclassified as a movie). TMDB sorts by
-  # popularity, so the first result is the most likely correct match.
-  defp resolvable_tie?(
-         %{type: type, year: parsed_year, season: season, episode: episode},
-         match_year
-       )
-       when type in [:movie, :unknown] do
-    has_year_match? = not is_nil(parsed_year) and to_string(parsed_year) == to_string(match_year)
-    no_episode_indicators? = is_nil(season) and is_nil(episode)
-    has_year_match? and no_episode_indicators?
-  end
-
-  defp resolvable_tie?(%{type: :tv, year: parsed_year}, match_year) do
-    not is_nil(parsed_year) and to_string(parsed_year) == to_string(match_year)
+  # Tied results can be resolved when the parsed year matches the top
+  # match's year. TMDB sorts by popularity within the same title/year,
+  # so the first matching result is the most likely correct one.
+  defp resolvable_tie?(%{year: parsed_year}, match_year) when not is_nil(parsed_year) do
+    to_string(parsed_year) == to_string(match_year)
   end
 
   defp resolvable_tie?(_, _), do: false

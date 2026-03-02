@@ -24,10 +24,15 @@ defmodule MediaCentaur.TMDB.ConfidenceTest do
     assert top > not_top
   end
 
-  test "score is clamped to 1.0" do
+  test "position bonus differentiates tied results at the score cap" do
     result = %{"title" => "Exact Match", "release_date" => "2020-01-01"}
-    score = Confidence.score("Exact Match", 2020, result, "title", "release_date", true)
-    assert score <= 1.0
+    top = Confidence.score("Exact Match", 2020, result, "title", "release_date", true)
+    not_top = Confidence.score("Exact Match", 2020, result, "title", "release_date", false)
+
+    # Base quality (title + year) is capped at 1.0, but the position bonus
+    # lets the top result stand out — this is how TMDB popularity breaks ties
+    assert not_top == 1.0
+    assert top > not_top
   end
 
   test "completely different title scores low" do

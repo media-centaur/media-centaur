@@ -6,9 +6,13 @@ defmodule MediaCentaur.TMDB.Confidence do
   ## Scoring Formula
 
   1. Base score = `String.jaro_distance/2` of normalised titles
-  2. +0.08 if the year matches
-  3. +0.05 if the result is the first (top) result in the list
-  4. Total clamped to 0.0–1.0
+  2. +0.08 if the year matches, −0.15 if years differ
+  3. Quality clamped to 0.0–1.0
+  4. +0.05 if the result is the first (top) result in the list
+
+  The position bonus lives outside the quality cap so it can differentiate
+  tied results. TMDB sorts by popularity, so the first result for a given
+  title is the most likely correct match.
 
   The score is compared against `auto_approve_threshold` (default 0.85, from config)
   to decide auto-approval vs pending review.
@@ -37,8 +41,9 @@ defmodule MediaCentaur.TMDB.Confidence do
         true -> -0.15
       end
 
+    quality = max(min(base + year_adjustment, 1.0), 0.0)
     position_bonus = if is_top_result?, do: 0.05, else: 0.0
-    total = max(min(base + year_adjustment + position_bonus, 1.0), 0.0)
+    total = quality + position_bonus
 
     Log.info(:tmdb, fn ->
       "confidence: #{Float.round(base, 2)} base" <>
