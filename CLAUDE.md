@@ -23,38 +23,6 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 **Zero warnings policy.** Application code and tests must compile and run with zero warnings. This includes unused variables, unused aliases, unused imports, and any log output during tests that indicates misconfiguration (e.g., HTTP requests hitting real endpoints instead of stubs). Treat every warning as a bug — fix it before moving on.
 
-## Repository Layout
-
-| Path | Purpose |
-|------|---------|
-| `lib/media_centaur/log.ex` | Component-level thinking logs: macro, filter, state management |
-| `lib/media_centaur/log/formatter.ex` | Custom log formatter: `[level][component] message` |
-| `lib/media_centaur/library/` | Ash domain and resources: Entity, WatchedFile, WatchProgress, Image, Identifier, Season, Episode, Movie, Extra, Setting |
-| `lib/media_centaur/library/types/` | Ash enum types: EntityType, MediaType, WatchedFileState |
-| `lib/media_centaur/library/ingress.ex` | Library inbound API: creates/updates entities from pipeline metadata |
-| `lib/media_centaur/library/helpers.ex` | Shared helpers: entity loading, PubSub broadcast |
-| `lib/media_centaur/review/` | Review domain: PendingFile resource, Intake module |
-| `lib/media_centaur/playback/` | Playback engine: resume, MPV session, manager, episode list, progress summary, watching tracker |
-| `lib/media_centaur/pipeline/` | Broadway pipeline, producer, image downloader, payload struct |
-| `lib/media_centaur/pipeline/stats.ex` | Pipeline telemetry aggregator (per-stage activity, recent errors) |
-| `lib/media_centaur/tmdb/` | TMDB API client, confidence scorer, response mapper, rate limiter |
-| `lib/media_centaur/serializer.ex` | Schema.org JSON-LD serializer (Entity → channel push format) |
-| `lib/media_centaur/config.ex` | TOML config loader (GenServer) |
-| `lib/media_centaur/admin.ex` | Destructive admin operations (clear database, refresh/retry images) |
-| `lib/media_centaur/dashboard.ex` | Dashboard data-fetching (library stats, pending review, recent errors) |
-| `lib/media_centaur/storage.ex` | Disk usage measurement for watch dirs, images, database |
-| `lib/media_centaur/watcher.ex` | File system watcher (inotify) |
-| `lib/media_centaur/parser.ex` | Video filename parser — pure function, path → `%Parser.Result{}` (see Parser section below) |
-| `lib/media_centaur_web/channels/` | Phoenix Channels: UserSocket, LibraryChannel, PlaybackChannel (WebSocket API for the UI) |
-| `lib/media_centaur_web/` | Phoenix web layer: router, LiveViews, components |
-| `priv/repo/migrations/` | Ecto migrations (auto-generated from Ash resources) |
-| `test/media_centaur_web/channels/` | Channel tests: library and playback wire format verification (use `ChannelCase`) |
-| `test/` | ExUnit tests |
-| `assets/` | JS and CSS source (esbuild + Tailwind v4 + daisyUI) |
-| `defaults/` | Shipped starter config files (git-tracked seed values; never overwritten at runtime) |
-| `AGENTS.md` | Elixir/Phoenix/LiveView/Ecto/CSS/JS coding rules |
-| `PIPELINE.md` | Broadway pipeline architecture (detection → search → metadata fetch → image download → serialize) |
-
 ## Ash-Driven Migrations
 
 **Never hand-write or manually edit Ecto migrations.** Always design Ash resources first (attributes, identities, relationships), then run `mix ash_sqlite.generate_migrations --name <short_name>` to auto-generate the migration. The resource definition is the source of truth — the migration is a derived artifact. If a migration needs custom SQL (data backfill, deduplication, table recreation for SQLite constraints), create a **separate** manual migration file — never edit or replace an Ash-generated migration. Never use `Ecto.Migration` directly to create, alter, or drop tables managed by Ash resources.
@@ -68,13 +36,10 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
 - **Phoenix Channels is the integration point with the UI.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend sends the full library on join and pushes all data and state changes in real time.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
-- **External API clients use `Req`.** Never use `:httpoison`, `:tesla`, or `:httpc`. `Req` is included and is the preferred HTTP client.
 - **Batch all channel entity pushes.** Any code path that pushes entity lists or entity-removal IDs to a channel must chunk the payload using the channel's `@batch_size`. Never push an unbounded list of entities in a single message — bulk operations can touch every entity in the library.
-- **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). The channel handler resolves IDs into updated/removed sets — the broadcaster doesn't need to distinguish.
+- **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). The channel handler resolves IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals.
 - **Bulk operations must never silently discard errors.** Always pass `return_errors?: true` to `Ash.bulk_update/4`, `Ash.bulk_create/4`, and `Ash.bulk_destroy/3`. Check `result.error_count` and log or propagate errors — never assume `result.records || []` is safe without checking for failures first. Silent bulk failures are invisible and can stall entire subsystems.
 - **Bulk operations on non-atomic actions need `strategy: :stream`.** AshSqlite cannot express `attribute_in`/`attribute_equals` validations as atomic SQL. Actions with these validations must set `require_atomic? false`, and any `bulk_update`/`bulk_create` call on such actions must pass `strategy: :stream` — otherwise the default `[:atomic]` strategy fails with `NoMatchingBulkStrategy`.
-- **Low coupling between features.** Each context owns its own data and behavior. Modifying one feature should not require analyzing blast radius on unrelated features.
-- **Contexts communicate through PubSub.** Cross-context interaction uses events, not shared resources or direct function calls into another context's internals.
 - **Ash changes are for intrinsic data operations only.** Ash changes must NOT orchestrate external integrations, call APIs, download files, or cross context boundaries. They are appropriate for validation and transformation intrinsic to a resource.
 - **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes.
 
@@ -82,17 +47,9 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — PubSub-driven event flow, processing stages, idempotency guarantees, and extras handling.
 
-Key source files: `lib/media_centaur/pipeline.ex`, `lib/media_centaur/pipeline/producer.ex`, `lib/media_centaur/pipeline/image_downloader.ex`, `lib/media_centaur/pipeline/stages/`, `lib/media_centaur/watcher.ex`, `lib/media_centaur/watcher/supervisor.ex`, `lib/media_centaur/parser.ex`, `lib/media_centaur/tmdb/` (client, confidence, mapper), `lib/media_centaur/library/ingress.ex`, `lib/media_centaur/serializer.ex`.
-
 ## Specifications
 
-Cross-component specifications live in `../specifications`. See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for the full document table, reading guide, and update workflow.
-
-**Every contract between the backend and the frontend must be documented in a specification file.** If a feature introduces a new integration surface — a new channel topic, a new message format, a new file convention — it must have a corresponding spec in `../specifications/` before the implementation ships.
-
-- **Before writing any code that serializes entities** (for channel pushes), read `DATA-FORMAT.md` in full.
-- **Before writing any image download or storage code**, read `IMAGE-CACHING.md` in full.
-- **When adding a new entity field or type**, check [schema.org](https://schema.org) first. Use the canonical schema.org property name if one fits. Only introduce a non-schema.org field if there is no reasonable match, and document the reason in `DATA-FORMAT.md`.
+Cross-component specifications live in `../specifications`. See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for the full document table, reading guide, and update workflow. **Every contract between the backend and the frontend must be documented in a specification file.** Read the relevant spec (`DATA-FORMAT.md`, `IMAGE-CACHING.md`) before writing code that touches serialization, images, or entity fields.
 
 ## UI Design
 
@@ -100,69 +57,17 @@ See [`DESIGN.md`](DESIGN.md) for UI principles, page structure, color/theme stan
 
 ## Architecture Decision Records
 
-Architectural decisions are recorded in `adrs/` using the [MADR 4.0](https://adr.github.io/madr/) lean template. Each ADR documents a single decision: the context that motivated it, the option chosen, and the consequences. See `adrs/template.md` for the blank template.
-
-**Filename convention:** `YYYY-MM-DD-NNN-short-title.md` — date of decision, globally unique sequence number, lowercase hyphenated summary.
-
-**When to write an ADR:**
-- Choosing between two or more meaningful alternatives (library, data model, communication pattern)
-- Establishing a rule that future developers must follow and would question without knowing the reason
-- Superseding a previous decision
-
-**Statuses:** `proposed` → `accepted` → optionally `superseded` (keep the file, link to the replacement).
+ADRs live in `adrs/` using [MADR 4.0](https://adr.github.io/madr/). See `adrs/template.md` for the blank template. **Filename convention:** `YYYY-MM-DD-NNN-short-title.md`.
 
 ## Defaults
 
-The `defaults/` directory contains git-tracked starter config files. These are seed values shipped with the repo — they represent every configurable option with a logical default. They are **never overwritten at runtime**; the running app reads user config from XDG paths and falls back to these.
-
-| File | Purpose |
-|------|---------|
-| `defaults/backend.toml` | All TOML configuration keys with their default values |
-
-> **Keep `defaults/backend.toml` complete.** Every configuration key recognised by `MediaCentaur.Config` must have an entry in `defaults/backend.toml` with a logical default value and a comment explaining what it controls. Add the entry whenever a new config key is introduced. The file must always be valid TOML and parse without errors.
+The `defaults/` directory contains git-tracked starter config files — seed values shipped with the repo, **never overwritten at runtime**. **Keep `defaults/backend.toml` complete.** Every configuration key recognised by `MediaCentaur.Config` must have an entry with a logical default value and a comment. The file must always be valid TOML.
 
 ## Testing Strategy
 
 **Test-first.** Write tests before implementation for all new features and bug fixes. Tests are the executable specification — if you can't write the test, the requirements aren't clear enough.
 
-**Zero tolerance for flaky tests.** Every test must pass deterministically, every time. A flaky test is a bug — diagnose and fix the root cause (race condition, leaked state, timing dependency) before moving on. Never ignore, skip, or retry a flaky test. If `mix precommit` fails due to a flaky test, fixing that test is the immediate priority.
-
-### Test Organization
-
-Tests mirror `lib/` by domain. Each module gets its own test file.
-
-| Test path | Tests for | `async` | Case |
-|-----------|-----------|---------|------|
-| `test/media_centaur/parser_test.exs` | `Parser` | yes | `ExUnit.Case` |
-| `test/media_centaur/serializer_test.exs` | `Serializer` | yes | `ExUnit.Case` |
-| `test/media_centaur/storage_test.exs` | `Storage` | yes | `ExUnit.Case` |
-| `test/media_centaur/tmdb/mapper_test.exs` | `TMDB.Mapper` | yes | `ExUnit.Case` |
-| `test/media_centaur/tmdb/confidence_test.exs` | `TMDB.Confidence` | yes | `ExUnit.Case` |
-| `test/media_centaur/playback/resume_test.exs` | `Playback.Resume` | yes | `ExUnit.Case` |
-| `test/media_centaur/playback/progress_summary_test.exs` | `Playback.ProgressSummary` | yes | `ExUnit.Case` |
-| `test/media_centaur/playback/episode_list_test.exs` | `Playback.EpisodeList` | yes | `ExUnit.Case` |
-| `test/media_centaur/playback/watching_tracker_test.exs` | `Playback.WatchingTracker` | yes | `ExUnit.Case` |
-| `test/media_centaur/pipeline/stats_test.exs` | `Pipeline.Stats` | yes | `ExUnit.Case` |
-| `test/media_centaur/log_test.exs` | `Log` macro and state | no | `DataCase` |
-| `test/media_centaur/admin_test.exs` | Admin operations | no | `DataCase` |
-| `test/media_centaur/dashboard_test.exs` | Dashboard data fetching | no | `DataCase` |
-| `test/media_centaur/library/entity_test.exs` | Entity Ash actions | no | `DataCase` |
-| `test/media_centaur/library/watched_file_test.exs` | WatchedFile actions | no | `DataCase` |
-| `test/media_centaur/library/watch_progress_test.exs` | WatchProgress actions | no | `DataCase` |
-| `test/media_centaur/library/image_test.exs` | Image Ash actions | no | `DataCase` |
-| `test/media_centaur/library/ingress_test.exs` | Ingress library API (TMDB stubs) | no | `DataCase` |
-| `test/media_centaur/review/pending_file_test.exs` | PendingFile actions | no | `DataCase` |
-| `test/media_centaur/review/intake_test.exs` | Review.Intake | no | `DataCase` |
-| `test/media_centaur/watcher/supervisor_test.exs` | Watcher.Supervisor | no | `ExUnit.Case` |
-| `test/media_centaur/pipeline/stages/parse_test.exs` | Parse stage | yes | `ExUnit.Case` |
-| `test/media_centaur/pipeline/stages/search_test.exs` | Search stage (TMDB stubs) | no | `DataCase` |
-| `test/media_centaur/pipeline/stages/fetch_metadata_test.exs` | FetchMetadata stage (TMDB stubs) | no | `DataCase` |
-| `test/media_centaur/pipeline/stages/download_images_test.exs` | DownloadImages stage | no | `DataCase` |
-| `test/media_centaur/pipeline/stages/ingest_test.exs` | Ingest stage (TMDB stubs) | no | `DataCase` |
-| `test/media_centaur/pipeline/producer_test.exs` | Producer dispatch logic | no | `DataCase` |
-| `test/media_centaur/pipeline_test.exs` | Pipeline end-to-end (TMDB stubs) | no | `DataCase` |
-| `test/media_centaur_web/channels/library_channel_test.exs` | Library channel contract | no | `ChannelCase` |
-| `test/media_centaur_web/channels/playback_channel_test.exs` | Playback channel contract | no | `ChannelCase` |
+**Zero tolerance for flaky tests.** Every test must pass deterministically, every time. A flaky test is a bug — diagnose and fix the root cause before moving on. Never ignore, skip, or retry a flaky test.
 
 ### Pure Function Tests vs Resource Tests
 
@@ -187,26 +92,19 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 
 ### Pipeline Tests (Broadway)
 
-**Test-first, mandatory.** Every change to the Broadway pipeline — Ingress, pipeline stages (Parse, Search, FetchMetadata, DownloadImages, Ingest), Producer, or the Pipeline orchestrator — must have a corresponding test written *before* the implementation. The pipeline is the core of the application and bugs here are silent and cascading.
+**Test-first, mandatory.** Every change to the Broadway pipeline must have a corresponding test written *before* the implementation. The pipeline is the core of the application and bugs here are silent and cascading.
 
-- **TMDB stubs via `Req.Test`.** All pipeline tests that touch TMDB use `test/support/tmdb_stubs.ex`, which installs a `Req.Test`-backed client into `:persistent_term`. No mocking library needed — stub responses per-test with `stub_routes/1` or the individual `stub_*` helpers. Fixture data (`movie_detail/0`, `tv_detail/0`, `season_detail/0`, `collection_detail/0`) provides realistic TMDB JSON shapes.
-- **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`. The `DownloadImages` change reads this config, so tests exercise state transitions without HTTP or file I/O.
-- **Test the orchestration, not the leaves.** The pure-function leaf nodes (Parser, Confidence, Mapper, Serializer) have their own test suites. Pipeline tests focus on the *orchestration*: stage sequencing, entity resolution branching, race-loss recovery, error propagation, and the Producer's dispatch logic.
-- **No Broadway topology in tests.** Call `Pipeline.process_payload/1` or individual stage `run/1` functions directly. Broadway is infrastructure — test the business logic it invokes, not the message-passing machinery.
+- **TMDB stubs via `Req.Test`.** All pipeline tests that touch TMDB use `test/support/tmdb_stubs.ex`, which installs a `Req.Test`-backed client into `:persistent_term`. Stub responses per-test with `stub_routes/1` or the individual `stub_*` helpers.
+- **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`.
 - **NEVER delete or weaken pipeline tests.** Each test represents a real scenario that has caused or could cause silent data corruption. If a pipeline change causes a test to fail, fix the pipeline — do not delete or relax the assertion.
 
 ## Parser
 
 `lib/media_centaur/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.
 
-### Test-First Workflow
-
-- **Test-first, always.** Every parser bug or new pattern starts with a failing test. Write the test with the real file path, assert the expected result, watch it fail, then fix the parser.
-- **Real paths only.** Every test case uses a real file path observed in the wild — never synthetic/invented paths. Include the full path as it appeared on disk.
+- **Real paths only.** Every test case uses a real file path observed in the wild — never synthetic/invented paths.
 - **One test per pattern.** Each distinct filename convention gets its own test case with a descriptive test name explaining what makes it unique.
-- **No silent regressions.** Run the full parser test suite after every change. A green suite is the only definition of "done."
-- **Document the pattern.** When adding a test for a new filename pattern, the test name should describe what's distinctive about it (e.g., "bare episode file inside abbreviated season directory").
-- **NEVER delete or remove parser tests.** Every existing test case represents a real filename pattern observed in the wild. Removing a test risks silently reintroducing a regression for that pattern. If a parser change causes an existing test to fail, fix the parser — do not delete or weaken the test. Tests may only be added, never removed.
+- **NEVER delete or remove parser tests.** Every existing test case represents a real filename pattern observed in the wild. If a parser change causes an existing test to fail, fix the parser — do not delete or weaken the test. Tests may only be added, never removed.
 
 ## Thinking Logs
 
@@ -238,23 +136,6 @@ Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
 ### LiveView
 
 Visit `/operations` (Logging section) to toggle components and framework log suppression from the browser.
-
-### Message Format
-
-- Lowercase, no trailing period: `"claimed 3 files"`
-- No component prefix in message (`:component` metadata handles it)
-- Include key identifiers: file IDs, entity IDs, TMDB IDs
-- Shorten paths with `Path.basename/1` when full path adds noise
-- For decisions, log outcome AND reason: `"approved, confidence 0.92 >= 0.85 threshold"`
-- Use `fn -> ... end` for messages with expensive interpolation
-
-### What NOT to Log (too noisy)
-
-- MPV `time-pos` property updates (every second)
-- `WatchingTracker.update` (every second)
-- Serializer per-entity calls
-- Mapper per-field transforms
-- Watcher health check when already healthy
 
 ## Variable Naming
 

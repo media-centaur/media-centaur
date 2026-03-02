@@ -20,6 +20,23 @@ defmodule MediaCentaur.Log do
       Log.enabled()             # list currently enabled components
       Log.components()          # list all known components
       Log.status()              # {enabled, all_components}
+
+  ## Message Format
+
+  - Lowercase, no trailing period: `"claimed 3 files"`
+  - No component prefix in message (`:component` metadata handles it)
+  - Include key identifiers: file IDs, entity IDs, TMDB IDs
+  - Shorten paths with `Path.basename/1` when full path adds noise
+  - For decisions, log outcome AND reason: `"approved, confidence 0.92 >= 0.85 threshold"`
+  - Use `fn -> ... end` for messages with expensive interpolation
+
+  ## What NOT to Log (too noisy)
+
+  - MPV `time-pos` property updates (every second)
+  - `WatchingTracker.update` (every second)
+  - Serializer per-entity calls
+  - Mapper per-field transforms
+  - Watcher health check when already healthy
   """
 
   require Logger
