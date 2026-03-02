@@ -9,7 +9,29 @@ defmodule MediaCentaur.Review do
   Approval broadcasts a `{:review_resolved, ...}` event to `"pipeline:input"`,
   which the Pipeline Producer picks up for async processing via Broadway.
   """
-  use Ash.Domain
+  use Ash.Domain, extensions: [AshAi]
+
+  tools do
+    tool :read_pending_files, MediaCentaur.Review.PendingFile, :pending do
+      description "List files pending human review before library ingestion"
+    end
+
+    tool :approve_pending_file, MediaCentaur.Review.PendingFile, :approve do
+      description "Approve a pending file for library ingestion"
+    end
+
+    tool :dismiss_pending_file, MediaCentaur.Review.PendingFile, :dismiss do
+      description "Dismiss a pending file (skip ingestion)"
+    end
+
+    tool :set_pending_file_match, MediaCentaur.Review.PendingFile, :set_tmdb_match do
+      description "Set the TMDB match on a pending file (tmdb_id, confidence, match_title, match_year, match_poster_path)"
+    end
+
+    tool :destroy_pending_file, MediaCentaur.Review.PendingFile, :destroy do
+      description "Delete a pending file record"
+    end
+  end
 
   resources do
     resource MediaCentaur.Review.PendingFile
