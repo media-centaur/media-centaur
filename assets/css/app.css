@@ -119,6 +119,7 @@
 /* Left-truncate long paths: ellipsis appears at the start instead of the end */
 .truncate-left {
   direction: rtl;
+  unicode-bidi: plaintext;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
