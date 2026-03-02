@@ -1,6 +1,8 @@
 defmodule MediaCentaurWeb.LibraryChannelTest do
   use MediaCentaurWeb.ChannelCase
 
+  alias MediaCentaur.Library
+
   defp join_and_get_socket do
     {:ok, reply, socket} =
       MediaCentaurWeb.UserSocket
@@ -90,9 +92,7 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
       entity = create_entity(%{type: :movie, name: "Absent Movie"})
       file = create_linked_file(%{entity: entity})
 
-      file
-      |> Ash.Changeset.for_update(:mark_absent, %{})
-      |> Ash.update!()
+      Library.mark_file_absent!(file)
 
       _socket = join_and_get_socket()
 
@@ -128,9 +128,7 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
           watch_dir: "/media/tv"
         })
 
-      absent_file
-      |> Ash.Changeset.for_update(:mark_absent, %{})
-      |> Ash.update!()
+      Library.mark_file_absent!(absent_file)
 
       _socket = join_and_get_socket()
       entities = drain_initial_sync()
@@ -183,7 +181,7 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
       entity = create_entity(%{type: :tv_series, name: "Cancelled Show"})
       socket = join_library()
 
-      Ash.destroy!(entity)
+      Library.destroy_entity!(entity)
       send(socket.channel_pid, {:entities_changed, [entity.id]})
 
       assert_push "library:entities_removed", payload
@@ -197,7 +195,7 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
       removed = create_entity(%{type: :movie, name: "Removed Movie"})
       socket = join_library()
 
-      Ash.destroy!(removed)
+      Library.destroy_entity!(removed)
       send(socket.channel_pid, {:entities_changed, [kept.id, removed.id]})
 
       assert_push "library:entities", entities_payload
@@ -234,7 +232,7 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
       socket = join_library()
 
       entity_ids = Enum.map(entities, & &1.id)
-      Enum.each(entities, &Ash.destroy!/1)
+      Enum.each(entities, &Library.destroy_entity!/1)
       send(socket.channel_pid, {:entities_changed, entity_ids})
 
       assert_push "library:entities_removed", first_payload

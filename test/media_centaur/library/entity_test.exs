@@ -1,13 +1,13 @@
 defmodule MediaCentaur.Library.EntityTest do
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Library.Entity
+  alias MediaCentaur.Library
 
   describe "create_from_tmdb" do
     test "id is a UUID and survives a round-trip read" do
       entity = create_entity(%{type: :movie, name: "Round Trip"})
 
-      assert {:ok, [found]} = Ash.read(Entity)
+      assert {:ok, [found]} = Library.list_entities()
       assert found.id == entity.id
     end
 
@@ -69,10 +69,7 @@ defmodule MediaCentaur.Library.EntityTest do
       entity = create_entity(%{type: :movie, name: "Direct Play"})
       assert entity.content_url == nil
 
-      updated =
-        entity
-        |> Ash.Changeset.for_update(:set_content_url, %{content_url: "/media/movies/test.mkv"})
-        |> Ash.update!()
+      updated = Library.set_entity_content_url!(entity, %{content_url: "/media/movies/test.mkv"})
 
       assert updated.content_url == "/media/movies/test.mkv"
     end
@@ -89,7 +86,7 @@ defmodule MediaCentaur.Library.EntityTest do
         extension: "jpg"
       })
 
-      {:ok, [loaded]} = Ash.read(Entity, action: :with_associations)
+      {:ok, [loaded]} = Library.list_entities_with_associations()
 
       assert length(loaded.images) == 1
       assert hd(loaded.images).role == "poster"
@@ -104,7 +101,7 @@ defmodule MediaCentaur.Library.EntityTest do
         value: "335984"
       })
 
-      {:ok, [loaded]} = Ash.read(Entity, action: :with_associations)
+      {:ok, [loaded]} = Library.list_entities_with_associations()
 
       assert length(loaded.identifiers) == 1
       assert hd(loaded.identifiers).property_id == "tmdb"
@@ -122,7 +119,7 @@ defmodule MediaCentaur.Library.EntityTest do
         content_url: "/media/tv/show/S01/S01E01.mkv"
       })
 
-      {:ok, [loaded]} = Ash.read(Entity, action: :with_associations)
+      {:ok, [loaded]} = Library.list_entities_with_associations()
 
       assert length(loaded.seasons) == 1
       assert hd(loaded.seasons).season_number == 1
@@ -139,7 +136,7 @@ defmodule MediaCentaur.Library.EntityTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, [loaded]} = Ash.read(Entity, action: :with_associations)
+      {:ok, [loaded]} = Library.list_entities_with_associations()
 
       assert length(loaded.watch_progress) == 1
       assert hd(loaded.watch_progress).position_seconds == 600.0

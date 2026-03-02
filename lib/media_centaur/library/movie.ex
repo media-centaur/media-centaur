@@ -16,6 +16,11 @@ defmodule MediaCentaur.Library.Movie do
   actions do
     defaults [:read, :destroy]
 
+    read :by_entity do
+      argument :entity_id, :uuid, allow_nil?: false
+      filter expr(entity_id == ^arg(:entity_id))
+    end
+
     create :create do
       primary? true
 

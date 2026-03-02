@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Library.WatchProgressTest do
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Library.WatchProgress
+  alias MediaCentaur.Library
 
   describe "upsert_progress" do
     test "create and read back via :for_entity" do
@@ -13,10 +13,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, [found]} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, [found]} = Library.list_entity_watch_progress(entity.id)
 
       assert found.entity_id == entity.id
       assert found.position_seconds == 120.5
@@ -52,12 +49,9 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       })
 
       # Mark completed via dedicated action
-      {:ok, [record]} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, [record]} = Library.list_entity_watch_progress(entity.id)
 
-      {:ok, _} = Ash.update(record, %{}, action: :mark_completed)
+      {:ok, _} = Library.mark_watch_completed(record)
 
       # Now upsert with a lower position (re-watching from earlier)
       create_watch_progress(%{
@@ -68,10 +62,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, [updated]} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, [updated]} = Library.list_entity_watch_progress(entity.id)
 
       # completed stays true — never regresses
       assert updated.completed == true
@@ -92,10 +83,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       create_watch_progress(attrs)
       create_watch_progress(%{attrs | position_seconds: 1200.0})
 
-      {:ok, records} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, records} = Library.list_entity_watch_progress(entity.id)
 
       assert length(records) == 1
       assert hd(records).position_seconds == 1200.0
@@ -116,10 +104,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, records} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, records} = Library.list_entity_watch_progress(entity.id)
 
       assert length(records) == 1
       assert hd(records).position_seconds == 3930.0
@@ -148,10 +133,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, [updated]} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, [updated]} = Library.list_entity_watch_progress(entity.id)
 
       assert DateTime.compare(updated.last_watched_at, first.last_watched_at) in [:gt, :eq]
       assert updated.position_seconds == 300.0
@@ -176,10 +158,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, records} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, records} = Library.list_entity_watch_progress(entity.id)
 
       assert length(records) == 2
       [episode_1, episode_2] = Enum.sort_by(records, & &1.episode_number)
@@ -203,7 +182,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
 
       assert progress.completed == false
 
-      {:ok, updated} = Ash.update(progress, %{}, action: :mark_completed)
+      {:ok, updated} = Library.mark_watch_completed(progress)
       assert updated.completed == true
     end
 
@@ -219,7 +198,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
 
       Process.sleep(1100)
 
-      {:ok, updated} = Ash.update(progress, %{}, action: :mark_completed)
+      {:ok, updated} = Library.mark_watch_completed(progress)
       assert DateTime.compare(updated.last_watched_at, progress.last_watched_at) in [:gt, :eq]
     end
   end
@@ -253,10 +232,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, records} =
-        WatchProgress
-        |> Ash.Query.for_read(:for_entity, %{entity_id: entity.id})
-        |> Ash.read()
+      {:ok, records} = Library.list_entity_watch_progress(entity.id)
 
       assert [{1, 1}, {1, 2}, {2, 1}] ==
                Enum.map(records, &{&1.season_number, &1.episode_number})

@@ -31,7 +31,8 @@ defmodule MediaCentaur.Watcher do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library.{FileTracker, Helpers, WatchedFile}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.{FileTracker, Helpers}
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
   @health_check_interval 30_000
@@ -292,8 +293,7 @@ defmodule MediaCentaur.Watcher do
   end
 
   defp fetch_known_file_paths do
-    WatchedFile
-    |> Ash.read!()
+    Library.list_watched_files!()
     |> Enum.map(& &1.file_path)
     |> MapSet.new()
   end

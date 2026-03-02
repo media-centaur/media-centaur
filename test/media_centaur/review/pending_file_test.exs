@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Review.PendingFileTest do
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Review.PendingFile
+  alias MediaCentaur.Review
 
   @valid_attrs %{
     file_path: "/media/movies/Inception.2010.1080p.BluRay.mkv",
@@ -28,10 +28,7 @@ defmodule MediaCentaur.Review.PendingFileTest do
 
   describe ":create action" do
     test "creates a PendingFile with full attributes" do
-      pending_file =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, @valid_attrs)
-        |> Ash.create!()
+      pending_file = Review.create_pending_file!(@valid_attrs)
 
       assert pending_file.file_path == @valid_attrs.file_path
       assert pending_file.watch_directory == "/media/movies"
@@ -50,15 +47,8 @@ defmodule MediaCentaur.Review.PendingFileTest do
 
   describe ":find_or_create action" do
     test "returns existing record for same file_path" do
-      first =
-        PendingFile
-        |> Ash.Changeset.for_create(:find_or_create, @valid_attrs)
-        |> Ash.create!()
-
-      second =
-        PendingFile
-        |> Ash.Changeset.for_create(:find_or_create, @valid_attrs)
-        |> Ash.create!()
+      first = Review.find_or_create_pending_file!(@valid_attrs)
+      second = Review.find_or_create_pending_file!(@valid_attrs)
 
       assert first.id == second.id
     end
@@ -66,48 +56,27 @@ defmodule MediaCentaur.Review.PendingFileTest do
 
   describe ":approve action" do
     test "transitions status from :pending to :approved" do
-      pending_file =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, @valid_attrs)
-        |> Ash.create!()
+      pending_file = Review.create_pending_file!(@valid_attrs)
 
-      approved =
-        pending_file
-        |> Ash.Changeset.for_update(:approve, %{})
-        |> Ash.update!()
+      {:ok, approved} = Review.approve_pending_file(pending_file)
 
       assert approved.status == :approved
     end
 
     test "rejects non-pending status" do
-      pending_file =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, @valid_attrs)
-        |> Ash.create!()
+      pending_file = Review.create_pending_file!(@valid_attrs)
 
-      approved =
-        pending_file
-        |> Ash.Changeset.for_update(:approve, %{})
-        |> Ash.update!()
+      {:ok, approved} = Review.approve_pending_file(pending_file)
 
-      assert {:error, _} =
-               approved
-               |> Ash.Changeset.for_update(:approve, %{})
-               |> Ash.update()
+      assert {:error, _} = Review.approve_pending_file(approved)
     end
   end
 
   describe ":dismiss action" do
     test "transitions status from :pending to :dismissed" do
-      pending_file =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, @valid_attrs)
-        |> Ash.create!()
+      pending_file = Review.create_pending_file!(@valid_attrs)
 
-      dismissed =
-        pending_file
-        |> Ash.Changeset.for_update(:dismiss, %{})
-        |> Ash.update!()
+      {:ok, dismissed} = Review.dismiss_pending_file(pending_file)
 
       assert dismissed.status == :dismissed
     end
@@ -116,16 +85,13 @@ defmodule MediaCentaur.Review.PendingFileTest do
   describe ":set_tmdb_match action" do
     test "updates match fields while keeping status :pending" do
       pending_file =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, %{
+        Review.create_pending_file!(%{
           file_path: "/media/movies/Unknown.mkv",
           parsed_title: "Unknown"
         })
-        |> Ash.create!()
 
-      updated =
-        pending_file
-        |> Ash.Changeset.for_update(:set_tmdb_match, %{
+      {:ok, updated} =
+        Review.set_pending_file_match(pending_file, %{
           tmdb_id: 12345,
           tmdb_type: "movie",
           confidence: 1.0,
@@ -133,7 +99,6 @@ defmodule MediaCentaur.Review.PendingFileTest do
           match_year: "2020",
           match_poster_path: "/poster.jpg"
         })
-        |> Ash.update!()
 
       assert updated.status == :pending
       assert updated.tmdb_id == 12345
@@ -145,32 +110,26 @@ defmodule MediaCentaur.Review.PendingFileTest do
   describe ":pending read action" do
     test "returns only :pending records sorted by inserted_at" do
       first =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, %{
+        Review.create_pending_file!(%{
           file_path: "/media/first.mkv",
           parsed_title: "First"
         })
-        |> Ash.create!()
 
-      _dismissed =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, %{
+      dismissed_file =
+        Review.create_pending_file!(%{
           file_path: "/media/dismissed.mkv",
           parsed_title: "Dismissed"
         })
-        |> Ash.create!()
-        |> Ash.Changeset.for_update(:dismiss, %{})
-        |> Ash.update!()
+
+      {:ok, _dismissed} = Review.dismiss_pending_file(dismissed_file)
 
       second =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, %{
+        Review.create_pending_file!(%{
           file_path: "/media/second.mkv",
           parsed_title: "Second"
         })
-        |> Ash.create!()
 
-      pending = Ash.read!(PendingFile, action: :pending)
+      pending = Review.list_pending!()
 
       assert length(pending) == 2
       assert Enum.map(pending, & &1.id) == [first.id, second.id]
@@ -179,13 +138,10 @@ defmodule MediaCentaur.Review.PendingFileTest do
 
   describe ":destroy action" do
     test "removes the record" do
-      pending_file =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, @valid_attrs)
-        |> Ash.create!()
+      pending_file = Review.create_pending_file!(@valid_attrs)
 
-      assert :ok = Ash.destroy!(pending_file)
-      assert Ash.read!(PendingFile) == []
+      assert :ok = Review.destroy_pending_file!(pending_file)
+      assert Review.list_pending_files!() == []
     end
   end
 end

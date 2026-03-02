@@ -1,16 +1,8 @@
 defmodule MediaCentaur.Library.FileTrackerTest do
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Library.{
-    Entity,
-    Episode,
-    Extra,
-    FileTracker,
-    Image,
-    Movie,
-    Season,
-    WatchedFile
-  }
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.FileTracker
 
   describe "cleanup_removed_files/1" do
     test "deletes WatchedFile and standalone movie entity when file removed" do
@@ -31,8 +23,8 @@ defmodule MediaCentaur.Library.FileTrackerTest do
       entity_ids = FileTracker.cleanup_removed_files(["/media/movies/blade_runner.mkv"])
 
       assert entity_ids == [entity.id]
-      assert Ash.read!(WatchedFile) == []
-      assert Ash.read!(Entity) == []
+      assert Library.list_watched_files!() == []
+      assert Library.list_entities!() == []
     end
 
     test "deletes episode and keeps TV series when one episode removed" do
@@ -81,18 +73,18 @@ defmodule MediaCentaur.Library.FileTrackerTest do
       assert entity_ids == [entity.id]
 
       # Episode 1 is gone
-      assert {:error, _} = Ash.get(Episode, ep1.id)
+      assert {:error, _} = Library.get_episode(ep1.id)
 
       # Episode 2, season, and entity remain
-      remaining_episodes = Ash.read!(Episode)
+      remaining_episodes = Library.list_episodes!()
       assert length(remaining_episodes) == 1
       assert hd(remaining_episodes).episode_number == 2
 
-      assert {:ok, _} = Ash.get(Season, season.id)
-      assert {:ok, _} = Ash.get(Entity, entity.id)
+      assert {:ok, _} = Library.get_season(season.id)
+      assert {:ok, _} = Library.get_entity(entity.id)
 
       # Only 1 WatchedFile remains
-      assert length(Ash.read!(WatchedFile)) == 1
+      assert length(Library.list_watched_files!()) == 1
     end
 
     test "deletes empty season when all its episodes are removed" do
@@ -148,9 +140,9 @@ defmodule MediaCentaur.Library.FileTrackerTest do
       FileTracker.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       # Season 1 should be gone (empty), season 2 should remain
-      assert {:error, _} = Ash.get(Season, season.id)
-      assert {:ok, _} = Ash.get(Season, season2.id)
-      assert {:ok, _} = Ash.get(Entity, entity.id)
+      assert {:error, _} = Library.get_season(season.id)
+      assert {:ok, _} = Library.get_season(season2.id)
+      assert {:ok, _} = Library.get_entity(entity.id)
     end
 
     test "deletes entire TV series when all files removed" do
@@ -181,10 +173,10 @@ defmodule MediaCentaur.Library.FileTrackerTest do
 
       FileTracker.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
-      assert Ash.read!(Entity) == []
-      assert Ash.read!(Season) == []
-      assert Ash.read!(Episode) == []
-      assert Ash.read!(WatchedFile) == []
+      assert Library.list_entities!() == []
+      assert Library.list_seasons!() == []
+      assert Library.list_episodes!() == []
+      assert Library.list_watched_files!() == []
     end
 
     test "deletes child movie from movie series, keeps series with 2+ remaining" do
@@ -241,9 +233,9 @@ defmodule MediaCentaur.Library.FileTrackerTest do
       FileTracker.cleanup_removed_files(["/media/movies/batman_begins.mkv"])
 
       # Movie 1 is gone, series and other movies remain
-      assert {:error, _} = Ash.get(Movie, movie1.id)
-      assert length(Ash.read!(Movie)) == 2
-      assert {:ok, _} = Ash.get(Entity, entity.id)
+      assert {:error, _} = Library.get_movie(movie1.id)
+      assert length(Library.list_movies!()) == 2
+      assert {:ok, _} = Library.get_entity(entity.id)
     end
 
     test "deletes extra when its file is removed" do
@@ -278,9 +270,9 @@ defmodule MediaCentaur.Library.FileTrackerTest do
       FileTracker.cleanup_removed_files(["/media/movies/Extras/bts.mkv"])
 
       # Extra is gone, movie entity remains
-      assert {:error, _} = Ash.get(Extra, extra.id)
-      assert {:ok, _} = Ash.get(Entity, entity.id)
-      assert length(Ash.read!(WatchedFile)) == 1
+      assert {:error, _} = Library.get_extra(extra.id)
+      assert {:ok, _} = Library.get_entity(entity.id)
+      assert length(Library.list_watched_files!()) == 1
     end
 
     test "handles batch deletion of multiple files" do
@@ -331,10 +323,10 @@ defmodule MediaCentaur.Library.FileTrackerTest do
         ])
 
       assert entity_ids == [entity.id]
-      assert Ash.read!(Entity) == []
-      assert Ash.read!(Season) == []
-      assert Ash.read!(Episode) == []
-      assert Ash.read!(WatchedFile) == []
+      assert Library.list_entities!() == []
+      assert Library.list_seasons!() == []
+      assert Library.list_episodes!() == []
+      assert Library.list_watched_files!() == []
     end
 
     test "returns empty list when no matching files found" do
@@ -393,7 +385,7 @@ defmodule MediaCentaur.Library.FileTrackerTest do
       FileTracker.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       # Episode image should be gone
-      assert Ash.read!(Image) == []
+      assert Library.list_images!() == []
     end
   end
 
@@ -426,7 +418,7 @@ defmodule MediaCentaur.Library.FileTrackerTest do
 
       assert entity_ids == [entity.id]
 
-      files = Ash.read!(WatchedFile)
+      files = Library.list_watched_files!()
       drive1_files = Enum.filter(files, &(&1.watch_dir == "/media/drive1"))
       drive2_files = Enum.filter(files, &(&1.watch_dir == "/media/drive2"))
 
@@ -460,9 +452,7 @@ defmodule MediaCentaur.Library.FileTrackerTest do
 
       # Mark both absent
       Enum.each([file1, file2], fn file ->
-        file
-        |> Ash.Changeset.for_update(:mark_absent, %{})
-        |> Ash.update!()
+        Library.mark_file_absent!(file)
       end)
 
       # Only movie1 is back on disk
@@ -471,7 +461,7 @@ defmodule MediaCentaur.Library.FileTrackerTest do
 
       assert entity_ids == [entity.id]
 
-      files = Ash.read!(WatchedFile)
+      files = Library.list_watched_files!()
       restored = Enum.find(files, &(&1.file_path == "/media/drive1/movie1.mkv"))
       still_absent = Enum.find(files, &(&1.file_path == "/media/drive1/movie2.mkv"))
 

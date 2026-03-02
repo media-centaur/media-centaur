@@ -15,6 +15,11 @@ defmodule MediaCentaur.Library.Episode do
   actions do
     defaults [:read, :destroy]
 
+    read :by_season do
+      argument :season_id, :uuid, allow_nil?: false
+      filter expr(season_id == ^arg(:season_id))
+    end
+
     create :create do
       primary? true
       accept [:episode_number, :name, :description, :duration, :content_url, :season_id]

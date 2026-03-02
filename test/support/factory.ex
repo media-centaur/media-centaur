@@ -8,18 +8,9 @@ defmodule MediaCentaur.TestFactory do
     Use for resource tests and channel tests.
   """
 
-  alias MediaCentaur.Library.{
-    Entity,
-    Extra,
-    Image,
-    Identifier,
-    Movie,
-    Season,
-    Episode,
-    WatchedFile
-  }
-
-  alias MediaCentaur.Review.PendingFile
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
+  alias MediaCentaur.Review
 
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
@@ -160,46 +151,31 @@ defmodule MediaCentaur.TestFactory do
 
   def create_entity(attrs \\ %{}) do
     defaults = %{type: :movie, name: "Test Movie"}
-
-    Entity
-    |> Ash.Changeset.for_create(:create_from_tmdb, Map.merge(defaults, attrs))
-    |> Ash.create!()
+    Library.create_entity!(Map.merge(defaults, attrs))
   end
 
   def create_image(attrs) do
-    Image
-    |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create!()
+    Library.create_image!(attrs)
   end
 
   def create_identifier(attrs) do
-    Identifier
-    |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create!()
+    Library.create_identifier!(attrs)
   end
 
   def create_season(attrs) do
-    Season
-    |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create!()
+    Library.create_season!(attrs)
   end
 
   def create_episode(attrs) do
-    Episode
-    |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create!()
+    Library.create_episode!(attrs)
   end
 
   def create_movie(attrs) do
-    Movie
-    |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create!()
+    Library.create_movie!(attrs)
   end
 
   def create_extra(attrs) do
-    Extra
-    |> Ash.Changeset.for_create(:create, attrs)
-    |> Ash.create!()
+    Library.create_extra!(attrs)
   end
 
   def create_entity_with_associations(attrs \\ %{}) do
@@ -219,7 +195,7 @@ defmodule MediaCentaur.TestFactory do
     })
 
     # Reload with associations
-    Ash.get!(Entity, entity.id, action: :with_associations)
+    Library.get_entity_with_associations!(entity.id)
   end
 
   def create_linked_file(attrs \\ %{}) do
@@ -231,9 +207,7 @@ defmodule MediaCentaur.TestFactory do
       entity_id: entity.id
     }
 
-    WatchedFile
-    |> Ash.Changeset.for_create(:link_file, Map.merge(defaults, Map.delete(attrs, :entity)))
-    |> Ash.create!()
+    Library.link_file!(Map.merge(defaults, Map.delete(attrs, :entity)))
   end
 
   def create_pending_file(attrs \\ %{}) do
@@ -247,16 +221,11 @@ defmodule MediaCentaur.TestFactory do
       match_title: "Test Match"
     }
 
-    PendingFile
-    |> Ash.Changeset.for_create(:create, Map.merge(defaults, attrs))
-    |> Ash.create!()
+    Review.create_pending_file!(Map.merge(defaults, attrs))
   end
 
   def create_watch_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
-
-    MediaCentaur.Library.WatchProgress
-    |> Ash.Changeset.for_create(:upsert_progress, Map.merge(defaults, attrs))
-    |> Ash.create!()
+    Library.upsert_watch_progress!(Map.merge(defaults, attrs))
   end
 end

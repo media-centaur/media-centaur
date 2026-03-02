@@ -1,13 +1,13 @@
 defmodule MediaCentaur.Library.Helpers do
   @moduledoc false
 
-  alias MediaCentaur.Library.{Entity, WatchedFile}
+  alias MediaCentaur.Library
 
   @doc """
   Loads an entity with all associations. Returns `{:ok, entity}` or `{:error, :not_found}`.
   """
   def load_entity(entity_id) do
-    case Ash.get(Entity, entity_id, action: :with_associations) do
+    case Library.get_entity_with_associations(entity_id) do
       {:ok, entity} -> {:ok, entity}
       {:error, _} -> {:error, :not_found}
     end
@@ -18,8 +18,7 @@ defmodule MediaCentaur.Library.Helpers do
   These entities should be excluded from the library view.
   """
   def entity_ids_all_absent do
-    WatchedFile
-    |> Ash.read!()
+    Library.list_watched_files!()
     |> Enum.group_by(& &1.entity_id)
     |> Enum.filter(fn {_entity_id, files} ->
       Enum.all?(files, &(&1.state == :absent))

@@ -54,7 +54,19 @@ defmodule MediaCentaurWeb.Router do
         :approve_pending_file,
         :dismiss_pending_file,
         :set_pending_file_match,
-        :destroy_pending_file
+        :destroy_pending_file,
+        :search_tmdb,
+        # Generic actions (operations)
+        :parse_filename,
+        :resolve_playback,
+        :trigger_scan,
+        :measure_storage,
+        :watcher_statuses,
+        :serialize_entity,
+        :clear_database,
+        :refresh_cache,
+        :retry_incomplete,
+        :dismiss_incomplete
       ],
       protocol_version_statement: "2024-11-05",
       otp_app: :media_centaur

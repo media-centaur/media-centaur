@@ -316,7 +316,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp broadcast_entity_progress_by_id(entity_id, season_number, episode_number) do
-    case Ash.get(MediaCentaur.Library.Entity, entity_id, action: :with_progress) do
+    case MediaCentaur.Library.get_entity_with_progress(entity_id) do
       {:ok, entity} ->
         progress_records = entity.watch_progress || []
         summary = MediaCentaur.Playback.ProgressSummary.compute(entity, progress_records)
@@ -364,7 +364,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     entity_id = state.entity_id
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case Ash.create(MediaCentaur.Library.WatchProgress, params, action: :upsert_progress) do
+      case MediaCentaur.Library.upsert_watch_progress(params) do
         {:ok, record} ->
           Log.info(
             :playback,
@@ -388,7 +388,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         "marking episode completed at #{Float.round(position / duration * 100, 0)}%"
       )
 
-      case Ash.update(record, %{}, action: :mark_completed) do
+      case MediaCentaur.Library.mark_watch_completed(record) do
         {:ok, _} ->
           :ok
 

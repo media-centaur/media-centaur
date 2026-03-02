@@ -6,10 +6,10 @@ defmodule MediaCentaur.PipelineTest do
   """
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Library.{Entity, WatchedFile}
+  alias MediaCentaur.Library
   alias MediaCentaur.Pipeline
   alias MediaCentaur.Pipeline.Payload
-  alias MediaCentaur.Review.PendingFile
+  alias MediaCentaur.Review
 
   import MediaCentaur.TmdbStubs
 
@@ -68,12 +68,12 @@ defmodule MediaCentaur.PipelineTest do
       assert {:ok, result} = Pipeline.process_payload(payload)
       assert result.entity_id != nil
 
-      entity = Ash.get!(Entity, result.entity_id)
+      entity = Library.get_entity!(result.entity_id)
       assert entity.type == :movie
       assert entity.name == "Fight Club"
 
       # WatchedFile created via :link_file
-      files = Ash.read!(WatchedFile)
+      files = Library.list_watched_files!()
       assert length(files) == 1
       file = hd(files)
       assert file.state == :complete
@@ -111,7 +111,7 @@ defmodule MediaCentaur.PipelineTest do
       assert {:ok, result} = Pipeline.process_payload(payload)
       assert result.entity_id != nil
 
-      entity = Ash.get!(Entity, result.entity_id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(result.entity_id)
       assert entity.type == :tv_series
       assert entity.name == "Sample Show Eight"
       assert length(entity.seasons) == 1
@@ -142,7 +142,7 @@ defmodule MediaCentaur.PipelineTest do
 
       assert {:ok, result} = Pipeline.process_payload(payload)
 
-      entity = Ash.get!(Entity, result.entity_id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(result.entity_id)
       assert entity.type == :movie_series
       assert entity.name == "The Shadowy Sentinel Collection"
       assert length(entity.movies) == 1
@@ -179,14 +179,14 @@ defmodule MediaCentaur.PipelineTest do
       assert result.entity_id == nil
 
       # PendingFile created
-      pending_files = Ash.read!(PendingFile, action: :pending)
+      pending_files = Review.list_pending!()
       assert length(pending_files) == 1
       pending = hd(pending_files)
       assert pending.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
       assert pending.status == :pending
 
       # No WatchedFile created
-      assert Ash.read!(WatchedFile) == []
+      assert Library.list_watched_files!() == []
     end
   end
 
@@ -207,8 +207,8 @@ defmodule MediaCentaur.PipelineTest do
       assert {:error, _reason} = Pipeline.process_payload(payload)
 
       # No WatchedFile or PendingFile created
-      assert Ash.read!(WatchedFile) == []
-      assert Ash.read!(PendingFile) == []
+      assert Library.list_watched_files!() == []
+      assert Review.list_pending_files!() == []
     end
   end
 
@@ -220,13 +220,11 @@ defmodule MediaCentaur.PipelineTest do
     test "skips already-linked file" do
       entity = create_entity(%{type: :movie, name: "Already Ingested"})
 
-      WatchedFile
-      |> Ash.Changeset.for_create(:link_file, %{
+      Library.link_file!(%{
         file_path: "/media/pipeline/Already.Ingested.mkv",
         watch_dir: "/media/pipeline",
         entity_id: entity.id
       })
-      |> Ash.create!()
 
       payload = %Payload{
         file_path: "/media/pipeline/Already.Ingested.mkv",
@@ -237,7 +235,7 @@ defmodule MediaCentaur.PipelineTest do
       assert {:ok, _result} = Pipeline.process_payload(payload)
 
       # Still only one WatchedFile
-      assert length(Ash.read!(WatchedFile)) == 1
+      assert length(Library.list_watched_files!()) == 1
     end
   end
 
@@ -253,8 +251,7 @@ defmodule MediaCentaur.PipelineTest do
 
       # Create PendingFile first
       {:ok, pending} =
-        PendingFile
-        |> Ash.Changeset.for_create(:create, %{
+        Review.create_pending_file(%{
           file_path: "/media/pipeline/Review.Resolved.mkv",
           watch_directory: "/media/pipeline",
           parsed_title: "Review Resolved",
@@ -263,7 +260,6 @@ defmodule MediaCentaur.PipelineTest do
           confidence: 1.0,
           match_title: "Fight Club"
         })
-        |> Ash.create()
 
       payload = %Payload{
         file_path: "/media/pipeline/Review.Resolved.mkv",
@@ -279,17 +275,17 @@ defmodule MediaCentaur.PipelineTest do
       assert {:ok, result} = Pipeline.process_payload(payload)
       assert result.entity_id != nil
 
-      entity = Ash.get!(Entity, result.entity_id)
+      entity = Library.get_entity!(result.entity_id)
       assert entity.type == :movie
       assert entity.name == "Fight Club"
 
       # WatchedFile created
-      files = Ash.read!(WatchedFile)
+      files = Library.list_watched_files!()
       assert length(files) == 1
       assert hd(files).entity_id == result.entity_id
 
       # PendingFile destroyed
-      assert Ash.read!(PendingFile) == []
+      assert Review.list_pending_files!() == []
     end
   end
 

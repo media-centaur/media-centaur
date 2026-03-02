@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Library.ImageTest do
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Library.Image
+  alias MediaCentaur.Library
 
   describe "incomplete action" do
     test "returns images with url but no content_url" do
@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      {:ok, incomplete} = Ash.read(Image, action: :incomplete)
+      incomplete = Library.list_incomplete_images!()
 
       assert length(incomplete) == 1
       assert hd(incomplete).role == "poster"
@@ -33,7 +33,7 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      {:ok, incomplete} = Ash.read(Image, action: :incomplete)
+      incomplete = Library.list_incomplete_images!()
 
       assert incomplete == []
     end
@@ -47,7 +47,7 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      {:ok, incomplete} = Ash.read(Image, action: :incomplete)
+      incomplete = Library.list_incomplete_images!()
 
       assert incomplete == []
     end
@@ -62,7 +62,7 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      {:ok, [image]} = Ash.read(Image, action: :incomplete)
+      [image] = Library.list_incomplete_images!()
 
       assert image.entity != nil
       assert image.entity.name == "With Entity"

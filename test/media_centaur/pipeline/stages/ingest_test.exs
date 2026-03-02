@@ -6,9 +6,9 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
   """
   use MediaCentaur.DataCase
 
+  alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Pipeline.Stages.Ingest
-  alias MediaCentaur.Library.Entity
 
   defp movie_payload(overrides \\ %{}) do
     metadata =
@@ -56,7 +56,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert result.entity_id != nil
       assert result.ingest_status == :new
 
-      entity = Ash.get!(Entity, result.entity_id)
+      entity = Library.get_entity!(result.entity_id)
       assert entity.type == :movie
       assert entity.name == "Fight Club"
     end
@@ -121,7 +121,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert {:ok, result} = Ingest.run(payload)
       assert result.entity_id != nil
 
-      entity = Ash.get!(Entity, result.entity_id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(result.entity_id)
       assert entity.type == :movie_series
       assert entity.name == "The Shadowy Sentinel Collection"
       assert length(entity.movies) == 1
@@ -171,7 +171,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert result.entity_id != nil
       assert result.ingest_status == :new
 
-      entity = Ash.get!(Entity, result.entity_id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(result.entity_id)
       assert entity.type == :tv_series
       assert entity.name == "Sample Show Eight"
       assert length(entity.seasons) == 1

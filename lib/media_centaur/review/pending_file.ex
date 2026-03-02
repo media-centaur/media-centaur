@@ -84,6 +84,18 @@ defmodule MediaCentaur.Review.PendingFile do
       filter expr(status == :pending)
       prepare build(sort: [inserted_at: :asc])
     end
+
+    # --- Generic actions (MCP tools) ---
+
+    action :search_tmdb, {:array, :map} do
+      description "Search TMDB for a movie or TV show by title"
+      argument :query, :string, allow_nil?: false
+      argument :type, :atom, allow_nil?: false, constraints: [one_of: [:movie, :tv]]
+
+      run fn input, _context ->
+        MediaCentaur.Review.search_tmdb(input.arguments.query, input.arguments.type)
+      end
+    end
   end
 
   attributes do

@@ -7,7 +7,8 @@ defmodule MediaCentaur.Library.IngressTest do
   """
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Library.{Entity, Identifier, Ingress}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.Ingress
   alias MediaCentaur.Pipeline.Payload
 
   @watch_directory "/tmp/ingress_test_watch"
@@ -162,11 +163,11 @@ defmodule MediaCentaur.Library.IngressTest do
       assert entity.content_url == "/media/Fight.Club.1999.mkv"
 
       # Identifier created
-      assert {:ok, [identifier]} = find_identifier("tmdb", "550")
+      assert {:ok, identifier} = find_identifier("tmdb", "550")
       assert identifier.entity_id == entity.id
 
       # Images created
-      entity = Ash.get!(Entity, entity.id, action: :with_images)
+      entity = Library.get_entity_with_images!(entity.id)
       assert length(entity.images) == 2
       assert Enum.any?(entity.images, &(&1.role == "poster"))
       assert Enum.any?(entity.images, &(&1.role == "backdrop"))
@@ -195,7 +196,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert File.exists?(permanent_path)
 
       # Image record has content_url set
-      entity = Ash.get!(Entity, entity.id, action: :with_images)
+      entity = Library.get_entity_with_images!(entity.id)
       poster = Enum.find(entity.images, &(&1.role == "poster"))
       assert poster.content_url == "#{entity.id}/poster.jpg"
 
@@ -220,11 +221,11 @@ defmodule MediaCentaur.Library.IngressTest do
       assert entity.name == "The Shadowy Sentinel Collection"
 
       # Collection identifier
-      assert {:ok, [collection_id]} = find_identifier("tmdb_collection", "263")
+      assert {:ok, collection_id} = find_identifier("tmdb_collection", "263")
       assert collection_id.entity_id == entity.id
 
       # Movie-level TMDB identifier
-      assert {:ok, [movie_id]} = find_identifier("tmdb", "155")
+      assert {:ok, movie_id} = find_identifier("tmdb", "155")
       assert movie_id.entity_id == entity.id
 
       # Child movie
@@ -284,11 +285,11 @@ defmodule MediaCentaur.Library.IngressTest do
       assert entity.name == "Sample Show Eight"
 
       # Identifier
-      assert {:ok, [identifier]} = find_identifier("tmdb", "1396")
+      assert {:ok, identifier} = find_identifier("tmdb", "1396")
       assert identifier.entity_id == entity.id
 
       # Season + Episode
-      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(entity.id)
       assert length(entity.seasons) == 1
       season = hd(entity.seasons)
       assert season.season_number == 1
@@ -327,7 +328,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert {:ok, entity, :existing} = Ingress.ingest(payload)
       assert entity.id == existing.id
 
-      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(entity.id)
       assert length(entity.seasons) == 1
       episode = hd(hd(entity.seasons).episodes)
       assert episode.episode_number == 2
@@ -341,7 +342,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert {:ok, entity, :new} = Ingress.ingest(payload)
       assert entity.type == :tv_series
 
-      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(entity.id)
       assert entity.seasons == []
     end
   end
@@ -360,7 +361,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert {:ok, entity, :existing} = Ingress.ingest(payload)
       assert entity.id == existing.id
 
-      reloaded = Ash.get!(Entity, entity.id)
+      reloaded = Library.get_entity!(entity.id)
       assert reloaded.content_url == "/media/Fight.Club.1999.mkv"
     end
 
@@ -375,7 +376,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert {:ok, entity, :existing} = Ingress.ingest(payload)
       assert entity.id == existing.id
 
-      reloaded = Ash.get!(Entity, entity.id)
+      reloaded = Library.get_entity!(entity.id)
       assert reloaded.content_url == "/media/original.mkv"
     end
   end
@@ -403,7 +404,7 @@ defmodule MediaCentaur.Library.IngressTest do
       # Entity should NOT get the extra's file path as content_url
       assert is_nil(entity.content_url)
 
-      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(entity.id)
       assert length(entity.extras) == 1
       extra = hd(entity.extras)
       assert extra.name == "Behind the Scenes"
@@ -431,7 +432,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert {:ok, entity, :new} = Ingress.ingest(payload)
       assert entity.type == :tv_series
 
-      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(entity.id)
       assert length(entity.seasons) == 1
       season = hd(entity.seasons)
       assert length(season.extras) == 1
@@ -458,7 +459,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert {:ok, entity, :existing} = Ingress.ingest(payload)
       assert entity.id == existing.id
 
-      entity = Ash.get!(Entity, entity.id, action: :with_associations)
+      entity = Library.get_entity_with_associations!(entity.id)
       assert length(entity.extras) == 1
       assert hd(entity.extras).name == "Deleted Scenes"
     end
@@ -483,7 +484,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert entity.id == winner.id
 
       # The duplicate entity was destroyed — only the winner remains
-      {:ok, entities} = Ash.read(Entity)
+      {:ok, entities} = Library.list_entities()
       assert length(entities) == 1
       assert hd(entities).id == winner.id
     end
@@ -508,15 +509,9 @@ defmodule MediaCentaur.Library.IngressTest do
   # ---------------------------------------------------------------------------
 
   defp find_identifier(property_id, value) do
-    query =
-      case property_id do
-        "tmdb_collection" ->
-          Ash.Query.for_read(Identifier, :find_by_tmdb_collection, %{collection_id: value})
-
-        _ ->
-          Ash.Query.for_read(Identifier, :find_by_tmdb_id, %{tmdb_id: value})
-      end
-
-    Ash.read(query)
+    case property_id do
+      "tmdb_collection" -> Library.find_by_tmdb_collection(value)
+      _ -> Library.find_by_tmdb_id(value)
+    end
   end
 end

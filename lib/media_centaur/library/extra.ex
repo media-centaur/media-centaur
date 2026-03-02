@@ -16,6 +16,16 @@ defmodule MediaCentaur.Library.Extra do
   actions do
     defaults [:read, :destroy]
 
+    read :by_entity do
+      argument :entity_id, :uuid, allow_nil?: false
+      filter expr(entity_id == ^arg(:entity_id))
+    end
+
+    read :by_season do
+      argument :season_id, :uuid, allow_nil?: false
+      filter expr(season_id == ^arg(:season_id))
+    end
+
     create :create do
       primary? true
       accept [:name, :content_url, :position, :entity_id, :season_id]

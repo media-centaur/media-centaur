@@ -19,7 +19,8 @@ defmodule MediaCentaur.Pipeline do
   use Broadway
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library.{Helpers, WatchedFile}
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Parser
   alias MediaCentaur.Pipeline.Payload
 
@@ -31,7 +32,8 @@ defmodule MediaCentaur.Pipeline do
     Ingest
   }
 
-  alias MediaCentaur.Review.{Intake, PendingFile}
+  alias MediaCentaur.Review
+  alias MediaCentaur.Review.Intake
   alias MediaCentaur.Storage
 
   @processor_concurrency 15
@@ -202,18 +204,16 @@ defmodule MediaCentaur.Pipeline do
   end
 
   defp handle_complete(payload) do
-    WatchedFile
-    |> Ash.Changeset.for_create(:link_file, %{
+    Library.link_file!(%{
       file_path: payload.file_path,
       watch_dir: payload.watch_directory,
       entity_id: payload.entity_id
     })
-    |> Ash.create!()
 
     if payload.pending_file_id do
-      case Ash.get(PendingFile, payload.pending_file_id) do
+      case Review.get_pending_file(payload.pending_file_id) do
         {:ok, pending_file} ->
-          Ash.destroy!(pending_file)
+          Review.destroy_pending_file!(pending_file)
 
           Phoenix.PubSub.broadcast(
             MediaCentaur.PubSub,
@@ -250,12 +250,8 @@ defmodule MediaCentaur.Pipeline do
   end
 
   defp already_linked?(file_path) do
-    WatchedFile
-    |> Ash.Query.do_filter(%{file_path: file_path})
-    |> Ash.Query.limit(1)
-    |> Ash.read!()
-    |> case do
-      [%WatchedFile{entity_id: entity_id}] when not is_nil(entity_id) -> true
+    case Library.list_files_by_paths!([file_path]) do
+      [%{entity_id: entity_id}] when not is_nil(entity_id) -> true
       _ -> false
     end
   end

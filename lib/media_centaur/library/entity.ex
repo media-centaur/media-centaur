@@ -69,8 +69,100 @@ defmodule MediaCentaur.Library.Entity do
       validate present([:type, :name])
     end
 
+    read :by_ids do
+      argument :ids, {:array, :uuid_v7}, allow_nil?: false
+      filter expr(id in ^arg(:ids))
+
+      prepare build(
+                load: [
+                  :images,
+                  :identifiers,
+                  :watch_progress,
+                  :extras,
+                  seasons: [:extras, episodes: [:images]],
+                  movies: [:images]
+                ]
+              )
+    end
+
     update :set_content_url do
       accept [:content_url]
+    end
+
+    # --- Generic actions (MCP tools) ---
+
+    action :parse_filename, :map do
+      description "Parse a video filename into structured metadata (title, year, type, season, episode)"
+      argument :file_path, :string, allow_nil?: false
+
+      run fn input, _context ->
+        result = MediaCentaur.Parser.parse(input.arguments.file_path)
+        {:ok, Map.from_struct(result)}
+      end
+    end
+
+    action :resolve_playback, :map do
+      description "Resolve a UUID into playback parameters (content URL, resume position, episode info)"
+      argument :uuid, :string, allow_nil?: false
+
+      run fn input, _context ->
+        case MediaCentaur.Playback.Resolver.resolve(input.arguments.uuid) do
+          {:ok, params} -> {:ok, params}
+          {:error, reason} -> {:error, Ash.Error.Unknown.exception(error: "#{reason}")}
+        end
+      end
+    end
+
+    action :trigger_scan, :map do
+      description "Trigger a file system scan across all watched directories"
+
+      run fn _input, _context ->
+        MediaCentaur.Watcher.Supervisor.scan()
+        {:ok, %{status: :triggered}}
+      end
+    end
+
+    action :measure_storage, {:array, :map} do
+      description "Measure disk usage for watch directories, images, and database"
+
+      run fn _input, _context ->
+        {:ok, MediaCentaur.Storage.measure_all()}
+      end
+    end
+
+    action :watcher_statuses, {:array, :map} do
+      description "Get the current status of all file system watchers"
+
+      run fn _input, _context ->
+        statuses =
+          MediaCentaur.Watcher.Supervisor.statuses()
+          |> Enum.map(fn {dir, status} -> %{directory: dir, status: status} end)
+
+        {:ok, statuses}
+      end
+    end
+
+    action :serialize_entity, :map do
+      description "Load and serialize an entity to its schema.org JSON-LD representation"
+      argument :entity_id, :uuid_v7, allow_nil?: false
+
+      run fn input, _context ->
+        case MediaCentaur.Library.Helpers.load_entity(input.arguments.entity_id) do
+          {:ok, entity} -> {:ok, MediaCentaur.Serializer.serialize_entity(entity)}
+          {:error, _} = error -> error
+        end
+      end
+    end
+
+    action :clear_database, :map do
+      description "Destroy all library records and clear image files from disk (destructive!)"
+
+      run fn _input, _context ->
+        case MediaCentaur.Admin.clear_database() do
+          :ok -> {:ok, %{status: :cleared}}
+          {:error, _} = error -> error
+        end
+      end
     end
   end
 
