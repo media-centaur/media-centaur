@@ -15,7 +15,16 @@ defmodule MediaCentaur.Review.Intake do
   @spec create_from_payload(Payload.t()) :: {:ok, PendingFile.t()} | {:error, term()}
   def create_from_payload(%Payload{} = payload) do
     attrs = build_attrs(payload)
-    Review.find_or_create_pending_file(attrs)
+
+    with {:ok, pending_file} <- Review.find_or_create_pending_file(attrs) do
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        "review:updates",
+        {:file_added, pending_file.id}
+      )
+
+      {:ok, pending_file}
+    end
   end
 
   defp build_attrs(payload) do

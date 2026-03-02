@@ -146,6 +146,16 @@ defmodule MediaCentaur.Review.IntakeTest do
       assert first.id == second.id
     end
 
+    test "broadcasts {:file_added, id} to review:updates on create" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "review:updates")
+
+      payload = build_payload()
+      assert {:ok, pending_file} = Intake.create_from_payload(payload)
+
+      assert_receive {:file_added, id}
+      assert id == pending_file.id
+    end
+
     test "handles extra type — uses parent_title/parent_year from parsed" do
       payload =
         build_payload(%{
