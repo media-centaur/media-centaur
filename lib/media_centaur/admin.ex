@@ -37,7 +37,15 @@ defmodule MediaCentaur.Admin do
 
       resources_in_delete_order()
       |> Enum.each(fn resource ->
-        Ash.bulk_destroy!(resource, :destroy, %{}, strategy: :stream)
+        result =
+          Ash.bulk_destroy!(resource, :destroy, %{},
+            strategy: :stream,
+            return_errors?: true
+          )
+
+        if result.error_count > 0 do
+          Logger.error("Admin: #{inspect(resource)} had #{result.error_count} destroy errors")
+        end
       end)
 
       watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
@@ -70,7 +78,15 @@ defmodule MediaCentaur.Admin do
       cleanup_staging_for(dir)
     end)
 
-    Ash.bulk_update!(Image, :clear_content_url, %{}, strategy: :stream)
+    result =
+      Ash.bulk_update!(Image, :clear_content_url, %{},
+        strategy: :stream,
+        return_errors?: true
+      )
+
+    if result.error_count > 0 do
+      Logger.error("Admin: #{result.error_count} images failed to clear content_url")
+    end
 
     entities = Library.list_entities_with_images!(load: [:watched_files])
 

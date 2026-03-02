@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     if group do
       socket = assign(socket, processing: MapSet.put(socket.assigns.processing, group_key))
 
-      Task.start(fn ->
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
         {approved, errors} = Review.approve_group(group.files)
 
         if errors > 0 do
@@ -80,7 +80,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
           |> put_flash(:error, "#{errors} file(s) failed to dismiss")
         else
-          socket
+          assign(socket, processing: MapSet.delete(socket.assigns.processing, group_key))
         end
 
       {:noreply, socket}
