@@ -128,12 +128,12 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
       assert max(width, height) <= 1440
     end
 
-    test "returns error for HTTP failure", %{tmp_dir: tmp_dir} do
+    test "returns permanent error for HTTP 404", %{tmp_dir: tmp_dir} do
       stub_http_error(404)
 
       dest = Path.join(tmp_dir, "entity-id/poster.jpg")
 
-      assert {:error, {:http_error, 404, _}} =
+      assert {:error, :permanent, {:http_error, 404, _}} =
                ImageProcessor.download_and_resize(
                  "https://example.com/missing.jpg",
                  "poster",
@@ -141,12 +141,25 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
                )
     end
 
-    test "returns error for connection failure", %{tmp_dir: tmp_dir} do
+    test "returns transient error for HTTP 500", %{tmp_dir: tmp_dir} do
+      stub_http_error(500)
+
+      dest = Path.join(tmp_dir, "entity-id/poster.jpg")
+
+      assert {:error, :transient, {:http_error, 500, _}} =
+               ImageProcessor.download_and_resize(
+                 "https://example.com/poster.jpg",
+                 "poster",
+                 dest
+               )
+    end
+
+    test "returns transient error for connection failure", %{tmp_dir: tmp_dir} do
       stub_http_connection_error(:timeout)
 
       dest = Path.join(tmp_dir, "entity-id/poster.jpg")
 
-      assert {:error, {:download_failed, _, :timeout}} =
+      assert {:error, :transient, {:download_failed, _, :timeout}} =
                ImageProcessor.download_and_resize(
                  "https://example.com/poster.jpg",
                  "poster",
@@ -167,6 +180,60 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
                )
 
       assert File.exists?(nested_dest)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Error categorization
+  # ---------------------------------------------------------------------------
+
+  describe "error categorization" do
+    test "403 is permanent", %{tmp_dir: tmp_dir} do
+      stub_http_error(403)
+      dest = Path.join(tmp_dir, "entity-id/poster.jpg")
+
+      assert {:error, :permanent, {:http_error, 403, _}} =
+               ImageProcessor.download_and_resize("https://example.com/x.jpg", "poster", dest)
+    end
+
+    test "410 is permanent", %{tmp_dir: tmp_dir} do
+      stub_http_error(410)
+      dest = Path.join(tmp_dir, "entity-id/poster.jpg")
+
+      assert {:error, :permanent, {:http_error, 410, _}} =
+               ImageProcessor.download_and_resize("https://example.com/x.jpg", "poster", dest)
+    end
+
+    test "429 is transient", %{tmp_dir: tmp_dir} do
+      stub_http_error(429)
+      dest = Path.join(tmp_dir, "entity-id/poster.jpg")
+
+      assert {:error, :transient, {:http_error, 429, _}} =
+               ImageProcessor.download_and_resize("https://example.com/x.jpg", "poster", dest)
+    end
+
+    test "502 is transient", %{tmp_dir: tmp_dir} do
+      stub_http_error(502)
+      dest = Path.join(tmp_dir, "entity-id/poster.jpg")
+
+      assert {:error, :transient, {:http_error, 502, _}} =
+               ImageProcessor.download_and_resize("https://example.com/x.jpg", "poster", dest)
+    end
+
+    test "connection failure is transient", %{tmp_dir: tmp_dir} do
+      stub_http_connection_error(:econnrefused)
+      dest = Path.join(tmp_dir, "entity-id/poster.jpg")
+
+      assert {:error, :transient, {:download_failed, _, :econnrefused}} =
+               ImageProcessor.download_and_resize("https://example.com/x.jpg", "poster", dest)
+    end
+
+    test "corrupt image data is permanent", %{tmp_dir: tmp_dir} do
+      stub_http_success("not an image")
+      dest = Path.join(tmp_dir, "entity-id/poster.jpg")
+
+      assert {:error, :permanent, {:image_open_failed, _}} =
+               ImageProcessor.download_and_resize("https://example.com/x.jpg", "poster", dest)
     end
   end
 
