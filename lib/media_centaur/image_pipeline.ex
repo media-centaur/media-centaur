@@ -65,12 +65,12 @@ defmodule MediaCentaur.ImagePipeline do
           Map.merge(data, %{relative_path: relative_path, extension: extension})
         end)
 
-      {:error, reason} ->
+      {:error, category, reason} ->
         duration = System.monotonic_time() - start_time
 
         Log.warning(
           :pipeline,
-          "image download failed #{image.role} for #{owner_id}: #{inspect(reason)}"
+          "image download failed (#{category}) #{image.role} for #{owner_id}: #{inspect(reason)}"
         )
 
         :telemetry.execute(
@@ -79,7 +79,7 @@ defmodule MediaCentaur.ImagePipeline do
           Map.merge(telemetry_metadata, %{result: :error, error_reason: inspect(reason)})
         )
 
-        Broadway.Message.failed(message, reason)
+        Broadway.Message.failed(message, {category, reason})
     end
   end
 
@@ -112,8 +112,21 @@ defmodule MediaCentaur.ImagePipeline do
   @impl true
   def handle_failed(messages, _context) do
     Enum.each(messages, fn
-      %{data: %{image: image, owner_id: owner_id}} ->
-        Log.warning(:pipeline, "image failed: #{image.role} for #{owner_id}")
+      %{status: {:failed, {category, reason}}, data: %{image: image, owner_id: owner_id}} ->
+        Log.warning(
+          :pipeline,
+          "image failed (#{category}): #{image.role} for #{owner_id} — #{inspect(reason)}"
+        )
+
+        case category do
+          :permanent ->
+            Ash.destroy!(image)
+
+          :transient ->
+            if GenServer.whereis(MediaCentaur.ImagePipeline.RetryScheduler) do
+              MediaCentaur.ImagePipeline.RetryScheduler.record_failure(image.id)
+            end
+        end
 
       _ ->
         :ok

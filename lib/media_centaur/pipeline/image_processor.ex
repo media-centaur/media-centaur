@@ -32,10 +32,12 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
   Downloads an image from `url`, resizes it to the spec for `role`,
   and writes it to `dest_path`.
 
-  Returns `:ok` on success or `{:error, reason}` on failure.
-  Downscale only — never upscales. Logos saved as PNG, everything else JPEG.
+  Returns `:ok` on success or `{:error, category, reason}` on failure,
+  where `category` is `:permanent` (will never succeed) or `:transient`
+  (might work later).
   """
-  @spec download_and_resize(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
+  @spec download_and_resize(String.t(), String.t(), String.t()) ::
+          :ok | {:error, :permanent | :transient, term()}
   def download_and_resize(url, role, dest_path) do
     dest_path |> Path.dirname() |> File.mkdir_p!()
 
@@ -44,8 +46,19 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
          {:ok, resized} <- resize(image, role),
          :ok <- write_image(resized, role, dest_path) do
       :ok
+    else
+      {:error, reason} -> {:error, categorize(reason), reason}
     end
   end
+
+  @permanent_statuses [400, 401, 403, 404, 405, 410, 451]
+
+  defp categorize({:http_error, status, _url}) when status in @permanent_statuses, do: :permanent
+  defp categorize({:http_error, _status, _url}), do: :transient
+  defp categorize({:download_failed, _url, _reason}), do: :transient
+  defp categorize({:image_open_failed, _reason}), do: :permanent
+  defp categorize({:resize_failed, _reason}), do: :permanent
+  defp categorize({:write_failed, _path, _reason}), do: :transient
 
   @doc """
   Returns the output file extension for the given role.
