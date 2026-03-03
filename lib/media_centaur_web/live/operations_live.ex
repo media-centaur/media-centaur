@@ -206,24 +206,40 @@ defmodule MediaCentaurWeb.OperationsLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_path="/operations">
-      <div class="space-y-6">
-        <h1 class="text-2xl font-bold">Operations</h1>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <h1 class="text-2xl font-bold sm:col-span-2">Operations</h1>
 
-        <.pipeline_card
-          content_stats={@pipeline_stats}
-          image_stats={@image_pipeline_stats}
-          retry_status={@retry_status}
-          pipeline_concurrency={@pipeline_concurrency}
-          image_concurrency={@image_pipeline_concurrency}
-          scanning={@scanning}
-        />
+        <div class="sm:col-span-2">
+          <.pipeline_card
+            content_stats={@pipeline_stats}
+            image_stats={@image_pipeline_stats}
+            retry_status={@retry_status}
+            pipeline_concurrency={@pipeline_concurrency}
+            image_concurrency={@image_pipeline_concurrency}
+            scanning={@scanning}
+          />
+        </div>
+
         <.watcher_health statuses={@watcher_statuses} />
-        <.recent_errors_table files={@recent_errors} />
-        <.storage_health drives={@storage_drives} />
         <.external_integrations rate_limiter={@rate_limiter} config={@config} />
+
+        <div class="sm:col-span-2">
+          <.recent_errors_table files={@recent_errors} />
+        </div>
+
+        <div class="sm:col-span-2">
+          <.storage_health drives={@storage_drives} />
+        </div>
+
+        <div class="sm:col-span-2">
+          <.logging_card
+            enabled={@enabled_components}
+            all={@all_components}
+            suppressed={@suppressed_frameworks}
+          />
+        </div>
+
         <.config_overview config={@config} />
-        <.thinking_logs enabled={@enabled_components} all={@all_components} />
-        <.framework_logs suppressed={@suppressed_frameworks} />
         <.danger_zone
           clearing_database={@clearing_database}
           refreshing_images={@refreshing_images}
@@ -244,7 +260,7 @@ defmodule MediaCentaurWeb.OperationsLive do
       |> assign(:grid_columns, @stage_grid_columns)
 
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
         <%!-- Pipeline header --%>
         <div class="flex items-center justify-between">
@@ -389,7 +405,7 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   defp watcher_health(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Watcher Health</h2>
 
@@ -410,7 +426,7 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   defp recent_errors_table(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">
           Recent Errors
@@ -450,7 +466,7 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   defp storage_health(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Storage</h2>
 
@@ -505,7 +521,7 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   defp external_integrations(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">External Integrations</h2>
 
@@ -545,27 +561,31 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   defp config_overview(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Configuration</h2>
 
         <div :if={@config == %{}} class="text-base-content/60">Loading...</div>
 
         <div :if={@config != %{}} class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
-          <div class="flex justify-between">
-            <span class="text-base-content/60">Auto-approve threshold</span>
+          <div class="flex justify-between gap-4">
+            <span class="text-base-content/60 shrink-0">Auto-approve threshold</span>
             <span class="font-mono">{@config[:auto_approve_threshold] || "—"}</span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-base-content/60">MPV path</span>
-            <span class="font-mono">{@config[:mpv_path] || "—"}</span>
+          <div class="flex justify-between gap-4 min-w-0">
+            <span class="text-base-content/60 shrink-0">MPV path</span>
+            <span class="font-mono truncate-left" title={@config[:mpv_path]}>
+              {@config[:mpv_path] || "—"}
+            </span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-base-content/60">Database path</span>
-            <span class="font-mono text-xs">{@config[:database_path] || "—"}</span>
+          <div class="flex justify-between gap-4 min-w-0">
+            <span class="text-base-content/60 shrink-0">Database path</span>
+            <span class="font-mono text-xs truncate-left" title={@config[:database_path]}>
+              {@config[:database_path] || "—"}
+            </span>
           </div>
-          <div class="flex justify-between">
-            <span class="text-base-content/60">Watch directories</span>
+          <div class="flex justify-between gap-4">
+            <span class="text-base-content/60 shrink-0">Watch directories</span>
             <span class="font-mono">{@config[:watch_dirs_count] || 0}</span>
           </div>
         </div>
@@ -574,12 +594,13 @@ defmodule MediaCentaurWeb.OperationsLive do
     """
   end
 
-  defp thinking_logs(assigns) do
+  defp logging_card(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
+        <%!-- Thinking Logs section --%>
         <div class="flex items-center justify-between">
-          <h2 class="card-title text-lg">Thinking Logs</h2>
+          <h2 class="card-title text-lg">Logging</h2>
           <div class="flex gap-2">
             <button phx-click="enable_all" class="btn btn-xs btn-outline btn-success">
               Enable all
@@ -597,7 +618,7 @@ defmodule MediaCentaurWeb.OperationsLive do
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
           <div
             :for={component <- @all}
-            class="flex items-center justify-between p-3 rounded-lg bg-base-200"
+            class="flex items-center justify-between p-3 rounded-lg glass-inset"
           >
             <div>
               <span class="font-medium">{component}</span>
@@ -612,25 +633,21 @@ defmodule MediaCentaurWeb.OperationsLive do
             />
           </div>
         </div>
-      </div>
-    </div>
-    """
-  end
 
-  defp framework_logs(assigns) do
-    ~H"""
-    <div class="card bg-base-100 shadow-sm">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Framework Logs</h2>
+        <%!-- Divider --%>
+        <div class="divider my-2"></div>
+
+        <%!-- Framework Logs section --%>
+        <h3 class="text-base font-semibold">Framework Logs</h3>
 
         <p class="text-sm text-base-content/60">
           Suppress noisy library output at runtime. Suppressed modules only emit warning and above.
         </p>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
           <div
             :for={{key, _mod} <- Log.framework_modules()}
-            class="flex items-center justify-between p-3 rounded-lg bg-base-200"
+            class="flex items-center justify-between p-3 rounded-lg glass-inset"
           >
             <div>
               <span class="font-medium">{framework_label(key)}</span>
@@ -660,7 +677,7 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   defp danger_zone(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm border border-error/20">
+    <div class="card glass-surface border border-error/20">
       <div class="card-body">
         <h2 class="card-title text-lg text-error">Danger Zone</h2>
         <div class="flex flex-wrap gap-3">
