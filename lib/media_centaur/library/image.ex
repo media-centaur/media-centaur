@@ -32,7 +32,7 @@ defmodule MediaCentaur.Library.Image do
       filter expr(movie_id == ^arg(:movie_id))
     end
 
-    read :incomplete do
+    read :pending_download do
       filter expr(not is_nil(url) and is_nil(content_url))
       prepare build(load: [:entity])
     end
@@ -82,28 +82,6 @@ defmodule MediaCentaur.Library.Image do
       run fn _input, _context ->
         case MediaCentaur.Admin.refresh_image_cache() do
           {:ok, count} -> {:ok, %{status: :refreshed, entity_count: count}}
-          {:error, _} = error -> error
-        end
-      end
-    end
-
-    action :retry_incomplete, :map do
-      description "Re-download images that have a TMDB URL but no local content"
-
-      run fn _input, _context ->
-        case MediaCentaur.Admin.retry_incomplete_images() do
-          {:ok, result} -> {:ok, result}
-          {:error, _} = error -> error
-        end
-      end
-    end
-
-    action :dismiss_incomplete, :map do
-      description "Delete all image records that have a TMDB URL but no local content"
-
-      run fn _input, _context ->
-        case MediaCentaur.Admin.dismiss_incomplete_images() do
-          {:ok, count} -> {:ok, %{status: :dismissed, count: count}}
           {:error, _} = error -> error
         end
       end
