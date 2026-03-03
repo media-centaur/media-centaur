@@ -3,7 +3,7 @@ defmodule MediaCentaur.Pipeline do
   Broadway pipeline that processes video files through search,
   metadata fetch, and image download stages.
 
-  Processing flow: parse → search → fetch_metadata → download_images → ingest.
+  Processing flow: parse → search → fetch_metadata → ingest.
   Low-confidence matches stop at needs_review for human approval.
 
   The Producer delivers `%Payload{}` structs via PubSub events. This module
