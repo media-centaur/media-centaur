@@ -1,5 +1,14 @@
 # TODO
 
+## MPV Plugins & Scripts
+
+Future enhancements to the MPV playback experience. These are all MPV-side (Lua scripts or C plugins in `~/.config/mpv/scripts/`) and require no backend code changes — our IPC observers pick up any state changes they cause.
+
+- [ ] **OLED screensaver** — [mpv-oled-screensaver](https://github.com/Akemi/mpv-oled-screensaver). Fades to black after 15s when paused in fullscreen. Prevents OLED burn-in.
+- [ ] **Chapter skip** — [chapterskip](https://github.com/po5/chapterskip) or [SmartSkip](https://github.com/Eisa01/mpv-scripts/#smartskip). Auto-skip intros/outros/credits by chapter name. Useful for TV series binging. Requires chapters in media files (MKV chapter metadata).
+- [ ] **Refresh rate matching** — [mpv-kscreen-doctor](https://gitlab.com/smaniottonicola/mpv-kscreen-doctor) or similar Wayland-compatible solution. Auto-match display refresh rate to video framerate (24Hz for 24fps film). Eliminates judder.
+- [ ] **MPRIS** — [mpv-mpris](https://github.com/hoyon/mpv-mpris). Standard Linux media key support (play/pause/next/prev). MPV state changes from MPRIS flow through our existing IPC property observers, so watch progress tracking remains intact.
+
 ## TMDB Confidence Scorer: Same-Title Disambiguation
 
 **Problem:** When two shows share an identical title (e.g., "Sample Show One" 2001 vs "Sample Show One" 2026 reboot), both receive a confidence score of 1.0. `Enum.max_by` silently picks whichever TMDB returns first in its search results. There is no tiebreaker logic.
