@@ -30,7 +30,7 @@ defmodule MediaCentaur.Pipeline.Stats do
   """
   use GenServer
 
-  @stages [:parse, :search, :fetch_metadata, :download_images, :ingest]
+  @stages [:parse, :search, :fetch_metadata, :ingest]
   @window_ms 5_000
   @saturated_threshold 10
   @max_recent_errors 50

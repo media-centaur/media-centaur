@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   alias MediaCentaur.{Admin, Dashboard, Library, Log, Storage}
   alias MediaCentaur.Pipeline.Stats
+  alias MediaCentaur.ImagePipeline
 
   @storage_refresh_ms 5 * 60 * 1_000
 
@@ -18,15 +19,17 @@ defmodule MediaCentaurWeb.OperationsLive do
         Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
 
         pipeline_stats = Stats.get_snapshot()
+        image_stats = ImagePipeline.Stats.get_snapshot()
         {enabled, all} = Log.status()
 
         socket
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
-        |> assign(recent_errors: pipeline_stats.recent_errors)
+        |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
         |> assign(incomplete_images: Library.list_incomplete_images!())
         |> assign(storage_drives: Storage.measure_all())
         |> assign(config: load_config())
         |> assign(pipeline_stats: pipeline_stats)
+        |> assign(image_pipeline_stats: image_stats)
         |> assign(rate_limiter: fetch_rate_limiter())
         |> assign(enabled_components: enabled)
         |> assign(all_components: all)
@@ -39,6 +42,7 @@ defmodule MediaCentaurWeb.OperationsLive do
         |> assign(storage_drives: [])
         |> assign(config: %{})
         |> assign(pipeline_stats: Stats.empty_snapshot())
+        |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
         |> assign(rate_limiter: nil)
         |> assign(enabled_components: [])
         |> assign(all_components: [])
@@ -52,7 +56,8 @@ defmodule MediaCentaurWeb.OperationsLive do
        refreshing_images: false,
        retrying_images: false,
        stats_timer: nil,
-       pipeline_concurrency: MediaCentaur.Pipeline.processor_concurrency()
+       pipeline_concurrency: MediaCentaur.Pipeline.processor_concurrency(),
+       image_pipeline_concurrency: 4
      )}
   end
 
@@ -200,11 +205,13 @@ defmodule MediaCentaurWeb.OperationsLive do
   def handle_info(:tick_pipeline, socket) do
     Process.send_after(self(), :tick_pipeline, 1_000)
     pipeline_stats = Stats.get_snapshot()
+    image_stats = ImagePipeline.Stats.get_snapshot()
 
     {:noreply,
      socket
      |> assign(pipeline_stats: pipeline_stats)
-     |> assign(recent_errors: pipeline_stats.recent_errors)
+     |> assign(image_pipeline_stats: image_stats)
+     |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
      |> assign(rate_limiter: fetch_rate_limiter())}
   end
 
@@ -231,9 +238,11 @@ defmodule MediaCentaurWeb.OperationsLive do
       <div class="space-y-6">
         <h1 class="text-2xl font-bold">Operations</h1>
 
-        <.pipeline_status
-          stats={@pipeline_stats}
+        <.pipeline_card
+          content_stats={@pipeline_stats}
+          image_stats={@image_pipeline_stats}
           pipeline_concurrency={@pipeline_concurrency}
+          image_concurrency={@image_pipeline_concurrency}
           scanning={@scanning}
         />
         <.watcher_health statuses={@watcher_statuses} />
@@ -258,21 +267,26 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   # --- Section Components ---
 
-  defp pipeline_status(assigns) do
+  @stage_grid_columns "grid-template-columns: 0.5rem 11rem 5.5rem 4.5rem 4.5rem 3rem"
+
+  defp pipeline_card(assigns) do
     assigns =
-      assign(assigns, :stage_order, [:parse, :search, :fetch_metadata, :download_images, :ingest])
+      assigns
+      |> assign(:stage_order, [:parse, :search, :fetch_metadata, :ingest])
+      |> assign(:grid_columns, @stage_grid_columns)
 
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body">
+        <%!-- Pipeline header --%>
         <div class="flex items-center justify-between">
           <h2 class="card-title text-lg">Pipeline</h2>
           <div class="flex items-center gap-3 text-sm">
-            <span :if={@stats.queue_depth > 0} class="badge badge-info badge-sm">
-              {@stats.queue_depth} queued
+            <span :if={@content_stats.queue_depth > 0} class="badge badge-info badge-sm">
+              {@content_stats.queue_depth} queued
             </span>
-            <span :if={@stats.total_failed > 0} class="text-error text-xs">
-              {@stats.total_failed} failed
+            <span :if={@content_stats.total_failed > 0} class="text-error text-xs">
+              {@content_stats.total_failed} failed
             </span>
             <button
               phx-click="scan"
@@ -284,13 +298,83 @@ defmodule MediaCentaurWeb.OperationsLive do
           </div>
         </div>
 
-        <div class="space-y-2 mt-2">
+        <%!-- Column headers --%>
+        <div
+          class="grid items-center gap-3 mt-3 mb-1"
+          style={@grid_columns}
+        >
+          <span></span>
+          <span class="text-xs text-base-content/40 uppercase tracking-wide">Stage</span>
+          <span class="text-xs text-base-content/40 uppercase tracking-wide">Status</span>
+          <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Rate</span>
+          <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Avg</span>
+          <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Slots</span>
+        </div>
+
+        <%!-- New Media section --%>
+        <h3 class="text-xs text-base-content/50 uppercase tracking-wide mt-1">New Media</h3>
+
+        <%!-- Content pipeline stages --%>
+        <div class="space-y-0.5">
           <.pipeline_stage
             :for={stage <- @stage_order}
             stage={stage}
-            data={@stats.stages[stage]}
+            data={@content_stats.stages[stage]}
             concurrency={@pipeline_concurrency}
+            grid_columns={@grid_columns}
           />
+        </div>
+
+        <%!-- Images section --%>
+        <h3 class="text-xs text-base-content/50 uppercase tracking-wide mt-3">Images</h3>
+
+        <%!-- Image pipeline row — same grid as content stages --%>
+        <div
+          class="grid items-center gap-3 py-1"
+          style={@grid_columns}
+        >
+          <span class={["w-2 h-2 rounded-full", stage_dot_class(@image_stats.status)]}></span>
+
+          <span class="text-sm font-medium truncate">
+            Download + Resize
+            <span :if={@image_stats.last_error} class="text-error text-xs font-normal ml-2">
+              {elem(@image_stats.last_error, 0)}
+            </span>
+          </span>
+
+          <span class={["badge badge-xs", stage_badge_class(@image_stats.status)]}>
+            {stage_status_label(@image_stats.status)}
+          </span>
+
+          <span class="text-xs font-mono text-base-content/60 text-right">
+            {format_throughput(@image_stats.throughput)}
+          </span>
+
+          <span class="text-xs font-mono text-base-content/60 text-right">
+            {format_duration(@image_stats.avg_duration_ms)}
+          </span>
+
+          <span class="text-xs font-mono text-base-content/40 text-right">
+            {@image_stats.active_count}/{@image_concurrency}
+          </span>
+        </div>
+
+        <div
+          :if={
+            @image_stats.total_downloaded > 0 or @image_stats.total_failed > 0 or
+              @image_stats.queue_depth > 0
+          }
+          class="flex items-center gap-3 text-xs text-base-content/50 ml-6"
+        >
+          <span :if={@image_stats.total_downloaded > 0}>
+            {@image_stats.total_downloaded} downloaded
+          </span>
+          <span :if={@image_stats.total_failed > 0} class="text-error">
+            {@image_stats.total_failed} failed
+          </span>
+          <span :if={@image_stats.queue_depth > 0}>
+            {@image_stats.queue_depth} queued
+          </span>
         </div>
       </div>
     </div>
@@ -301,11 +385,16 @@ defmodule MediaCentaurWeb.OperationsLive do
     ~H"""
     <div
       class="grid items-center gap-3 py-1"
-      style="grid-template-columns: 0.5rem 8rem 5.5rem 5rem 5rem 2.5rem 1fr"
+      style={@grid_columns}
     >
       <span class={["w-2 h-2 rounded-full", stage_dot_class(@data.status)]}></span>
 
-      <span class="text-sm font-medium truncate">{stage_display_name(@stage)}</span>
+      <span class="text-sm font-medium truncate">
+        {stage_display_name(@stage)}
+        <span :if={@data.last_error} class="text-error text-xs font-normal ml-2">
+          {elem(@data.last_error, 0)}
+        </span>
+      </span>
 
       <span class={["badge badge-xs", stage_badge_class(@data.status)]}>
         {stage_status_label(@data.status)}
@@ -321,13 +410,6 @@ defmodule MediaCentaurWeb.OperationsLive do
 
       <span class="text-xs font-mono text-base-content/40 text-right">
         {@data.active_count}/{@concurrency}
-      </span>
-
-      <span class="text-xs text-base-content/40 truncate">
-        {stage_description(@stage)}
-        <span :if={@data.last_error} class="text-error ml-2">
-          {elem(@data.last_error, 0)}
-        </span>
       </span>
     </div>
     """
@@ -720,6 +802,12 @@ defmodule MediaCentaurWeb.OperationsLive do
     }
   end
 
+  defp merge_recent_errors(content_stats, image_stats) do
+    (content_stats.recent_errors ++ image_stats.recent_errors)
+    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
+    |> Enum.take(50)
+  end
+
   defp format_datetime(nil), do: "—"
 
   defp format_datetime(datetime) do
@@ -749,17 +837,10 @@ defmodule MediaCentaurWeb.OperationsLive do
   defp stage_status_label(:saturated), do: "saturated"
   defp stage_status_label(:erroring), do: "erroring"
 
-  defp stage_display_name(:parse), do: "Parse"
-  defp stage_display_name(:search), do: "Search"
-  defp stage_display_name(:fetch_metadata), do: "Fetch Metadata"
-  defp stage_display_name(:download_images), do: "Download Images"
-  defp stage_display_name(:ingest), do: "Ingest"
-
-  defp stage_description(:parse), do: "Extract title, year, season from filename"
-  defp stage_description(:search), do: "Find matching TMDB entry"
-  defp stage_description(:fetch_metadata), do: "Fetch full details from TMDB"
-  defp stage_description(:download_images), do: "Download poster, backdrop, logo artwork"
-  defp stage_description(:ingest), do: "Create or update library entity"
+  defp stage_display_name(:parse), do: "Parse Media Path"
+  defp stage_display_name(:search), do: "Match on TMDB"
+  defp stage_display_name(:fetch_metadata), do: "Enrich Metadata"
+  defp stage_display_name(:ingest), do: "Add to Library"
 
   defp watcher_badge_class(:watching), do: "badge-success"
   defp watcher_badge_class(:initializing), do: "badge-warning"

@@ -3,7 +3,7 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
   alias MediaCentaur.Pipeline.Stats
 
-  @stages [:parse, :search, :fetch_metadata, :download_images, :ingest]
+  @stages [:parse, :search, :fetch_metadata, :ingest]
 
   setup do
     name = :"stats_#{System.unique_integer([:positive])}"
@@ -271,11 +271,11 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
     test "saturated when active_count >= 10", %{stats: stats} do
       for i <- 1..10 do
-        GenServer.cast(stats, {:stage_start, :download_images, "test#{i}.mkv"})
+        GenServer.cast(stats, {:stage_start, :fetch_metadata, "test#{i}.mkv"})
       end
 
       snapshot = Stats.get_snapshot(stats)
-      assert snapshot.stages.download_images.status == :saturated
+      assert snapshot.stages.fetch_metadata.status == :saturated
     end
 
     test "erroring when active and recent errors", %{stats: stats} do
