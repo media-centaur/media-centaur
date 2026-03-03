@@ -47,6 +47,7 @@ defmodule MediaCentaur.Application do
           ),
           MediaCentaur.Pipeline.Stats,
           if(start_pipeline?, do: MediaCentaur.Pipeline),
+          MediaCentaur.ImagePipeline.Stats,
           if(start_pipeline?, do: MediaCentaur.ImagePipeline),
           MediaCentaur.Library.FileTracker,
           MediaCentaur.Playback.Supervisor,

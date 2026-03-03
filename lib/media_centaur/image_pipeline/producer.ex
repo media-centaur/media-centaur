@@ -112,6 +112,12 @@ defmodule MediaCentaur.ImagePipeline.Producer do
         %Broadway.Message{data: item, acknowledger: {__MODULE__, :ack_id, :ack_data}}
       end)
 
+    :telemetry.execute(
+      [:media_centaur, :image_pipeline, :queue_depth],
+      %{depth: :queue.len(queue)},
+      %{}
+    )
+
     {messages, %{state | queue: queue, demand: remaining_demand}}
   end
 
