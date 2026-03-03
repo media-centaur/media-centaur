@@ -321,8 +321,8 @@ defmodule MediaCentaurWeb.ReviewLive do
           <div class="flex-1 min-w-0 space-y-1">
             <p
               :if={@file_count == 1}
-              class="font-mono text-xs text-base-content/70 truncate"
-              title={@file.file_path}
+              class="font-mono text-xs text-base-content/70 truncate-left"
+              title={relative_file_path(@file)}
             >
               {relative_file_path(@file)}
             </p>
@@ -421,8 +421,8 @@ defmodule MediaCentaurWeb.ReviewLive do
           <ul class="space-y-1">
             <li
               :for={file <- @group.files}
-              class="font-mono text-xs text-base-content/70 truncate"
-              title={file.file_path}
+              class="font-mono text-xs text-base-content/70 truncate-left"
+              title={relative_file_path(file)}
             >
               {relative_file_path(file)}
               <span
