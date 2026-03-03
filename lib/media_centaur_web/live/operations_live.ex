@@ -562,7 +562,7 @@ defmodule MediaCentaurWeb.OperationsLive do
           </div>
           <div class="flex justify-between">
             <span class="text-base-content/60">Database path</span>
-            <span class="font-mono text-xs truncate max-w-48">{@config[:database_path] || "—"}</span>
+            <span class="font-mono text-xs">{@config[:database_path] || "—"}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-base-content/60">Watch directories</span>
