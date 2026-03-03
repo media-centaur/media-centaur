@@ -112,11 +112,11 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   defp library_stats(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
+    <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Library</h2>
 
-        <div class="stats stats-horizontal bg-base-200 w-full">
+        <div class="stats stats-horizontal glass-inset w-full">
           <div class="stat">
             <div class="stat-title">Movies</div>
             <div class="stat-value text-2xl">{@stats.by_type[:movie] || 0}</div>
@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.DashboardLive do
     <.link
       navigate="/operations"
       class={[
-        "card bg-base-200 shadow-sm hover:shadow-md transition-shadow border-l-3",
+        "card glass-surface hover:shadow-md transition-shadow border-l-3",
         ops_border_class(@overall_status)
       ]}
     >
@@ -194,7 +194,7 @@ defmodule MediaCentaurWeb.DashboardLive do
     <.link
       navigate="/review"
       class={[
-        "card bg-base-200 shadow-sm hover:shadow-md transition-shadow border-l-3",
+        "card glass-surface hover:shadow-md transition-shadow border-l-3",
         if(@count > 0, do: "border-warning", else: "border-base-content/20")
       ]}
     >
@@ -216,7 +216,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp playback_summary_card(assigns) do
     ~H"""
     <div class={[
-      "card bg-base-200 shadow-sm border-l-3",
+      "card glass-surface border-l-3",
       playback_border_class(@playback.state)
     ]}>
       <div class="card-body">

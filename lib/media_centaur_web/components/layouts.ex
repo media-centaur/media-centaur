@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar bg-base-200 px-4 sm:px-6 lg:px-8">
+    <header class="navbar glass-nav px-4 sm:px-6 lg:px-8">
       <div class="flex-1 flex items-center gap-1">
         <a href="/" class="flex w-fit items-center gap-2">
           <.icon name="hero-film" class="size-6" />

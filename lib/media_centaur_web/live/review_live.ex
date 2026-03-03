@@ -288,10 +288,10 @@ defmodule MediaCentaurWeb.ReviewLive do
       |> assign(encoded_key: encode_key(assigns.group.key))
 
     ~H"""
-    <div class="card bg-base-100 shadow-sm relative">
+    <div class="card glass-surface relative">
       <div
         :if={@processing}
-        class="absolute inset-0 bg-base-100/80 z-10 flex items-center justify-center rounded-2xl"
+        class="absolute inset-0 bg-base-300/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl"
       >
         <span class="loading loading-spinner loading-lg"></span>
       </div>
@@ -313,7 +313,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           </div>
           <div
             :if={!@file.match_poster_path}
-            class="shrink-0 w-[92px] h-[138px] bg-base-200 rounded flex items-center justify-center"
+            class="shrink-0 w-[92px] h-[138px] glass-inset rounded flex items-center justify-center"
           >
             <.icon name="hero-film" class="size-8 opacity-30" />
           </div>
@@ -470,7 +470,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           </div>
           <div
             :if={!candidate["poster_path"]}
-            class="shrink-0 w-16 h-24 bg-base-200 rounded flex items-center justify-center"
+            class="shrink-0 w-16 h-24 glass-inset rounded flex items-center justify-center"
           >
             <.icon name="hero-film" class="size-4 opacity-30" />
           </div>
@@ -567,7 +567,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       <div :if={@results != []} class="space-y-2">
         <div
           :for={result <- @results}
-          class="flex items-center gap-3 p-2 rounded hover:bg-base-200"
+          class="flex items-center gap-3 p-2 rounded hover:bg-base-content/5"
         >
           <div :if={result.poster_path} class="shrink-0">
             <img
@@ -578,7 +578,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           </div>
           <div
             :if={!result.poster_path}
-            class="shrink-0 w-12 h-18 bg-base-200 rounded flex items-center justify-center"
+            class="shrink-0 w-12 h-18 glass-inset rounded flex items-center justify-center"
           >
             <.icon name="hero-film" class="size-4 opacity-30" />
           </div>

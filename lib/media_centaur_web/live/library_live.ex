@@ -165,7 +165,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           No entities found.
         </div>
 
-        <div class="divide-y divide-base-300/50 rounded-lg overflow-hidden">
+        <div class="card glass-surface divide-y divide-base-300/50 overflow-hidden">
           <.entity_card
             :for={entry <- @filtered}
             entry={entry}
@@ -485,7 +485,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp thumbnail(assigns) do
     ~H"""
-    <div class="w-10 h-15 rounded overflow-hidden bg-base-200 flex-shrink-0 flex items-center justify-center">
+    <div class="w-10 h-15 rounded overflow-hidden glass-inset flex-shrink-0 flex items-center justify-center">
       <img :if={@url} src={@url} class="w-full h-full object-cover" loading="lazy" />
       <.icon :if={!@url} name="hero-film" class="size-5 text-base-content/30" />
     </div>
