@@ -264,7 +264,10 @@ defmodule MediaCentaurWeb.LibraryLive do
                 {episode.episode_number}
               </span>
               <span class="truncate flex-1">{episode.name || "—"}</span>
-              <span class="font-mono text-xs text-base-content/40 max-w-xs truncate hidden sm:inline flex-shrink-0">
+              <span
+                title={strip_watch_dir(episode.content_url, @watch_dirs)}
+                class="font-mono text-xs text-base-content/40 max-w-xs truncate-left hidden sm:inline flex-shrink-0"
+              >
                 {strip_watch_dir(episode.content_url, @watch_dirs)}
               </span>
               <.episode_progress_badge progress={
@@ -341,7 +344,10 @@ defmodule MediaCentaurWeb.LibraryLive do
                 ({extract_year(movie.date_published)})
               </span>
             </span>
-            <span class="font-mono text-xs text-base-content/40 max-w-xs truncate hidden sm:inline flex-shrink-0">
+            <span
+              title={strip_watch_dir(movie.content_url, @watch_dirs)}
+              class="font-mono text-xs text-base-content/40 max-w-xs truncate-left hidden sm:inline flex-shrink-0"
+            >
               {strip_watch_dir(movie.content_url, @watch_dirs)}
             </span>
             <button
@@ -380,7 +386,10 @@ defmodule MediaCentaurWeb.LibraryLive do
                 {extract_year(@entity.date_published)}
               </span>
             </div>
-            <div class="font-mono text-xs text-base-content/40 mt-0.5 max-w-sm truncate hidden sm:block">
+            <div
+              title={strip_watch_dir(@entity.content_url, @watch_dirs)}
+              class="font-mono text-xs text-base-content/40 mt-0.5 max-w-sm truncate-left hidden sm:block"
+            >
               {strip_watch_dir(@entity.content_url, @watch_dirs)}
             </div>
           </div>

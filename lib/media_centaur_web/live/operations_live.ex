@@ -434,8 +434,8 @@ defmodule MediaCentaurWeb.OperationsLive do
                 <td>
                   <span class="badge badge-error badge-xs">{error[:stage] || "—"}</span>
                 </td>
-                <td class="font-mono text-xs max-w-xs truncate">
-                  {Path.basename(error.file_path || "")}
+                <td class="font-mono text-xs max-w-xs truncate-left" title={error.file_path}>
+                  {error.file_path || "—"}
                 </td>
                 <td class="text-error text-xs max-w-md truncate">{error.error_message || "—"}</td>
                 <td class="text-xs">{format_datetime(error.updated_at)}</td>
