@@ -3,7 +3,7 @@ defmodule MediaCentaur.Library.ImageTest do
 
   alias MediaCentaur.Library
 
-  describe "incomplete action" do
+  describe "pending_download action" do
     test "returns images with url but no content_url" do
       entity = create_entity(%{type: :movie, name: "Missing Poster"})
 
@@ -14,12 +14,12 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      incomplete = Library.list_incomplete_images!()
+      pending = Library.list_pending_downloads!()
 
-      assert length(incomplete) == 1
-      assert hd(incomplete).role == "poster"
-      assert hd(incomplete).url != nil
-      assert hd(incomplete).content_url == nil
+      assert length(pending) == 1
+      assert hd(pending).role == "poster"
+      assert hd(pending).url != nil
+      assert hd(pending).content_url == nil
     end
 
     test "excludes images that have been downloaded" do
@@ -33,9 +33,9 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      incomplete = Library.list_incomplete_images!()
+      pending = Library.list_pending_downloads!()
 
-      assert incomplete == []
+      assert pending == []
     end
 
     test "excludes images with no url" do
@@ -47,9 +47,9 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      incomplete = Library.list_incomplete_images!()
+      pending = Library.list_pending_downloads!()
 
-      assert incomplete == []
+      assert pending == []
     end
 
     test "preloads the parent entity" do
@@ -62,7 +62,7 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       })
 
-      [image] = Library.list_incomplete_images!()
+      [image] = Library.list_pending_downloads!()
 
       assert image.entity != nil
       assert image.entity.name == "With Entity"

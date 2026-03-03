@@ -25,9 +25,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(playback: MediaCentaur.Playback.Manager.current_state())
       else
         socket
-        |> assign(
-          library_stats: %{episodes: 0, files: 0, images: 0, incomplete_images: 0, by_type: %{}}
-        )
+        |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
         |> assign(pending_review_count: 0)
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(watcher_statuses: [])
@@ -138,9 +136,6 @@ defmodule MediaCentaurWeb.DashboardLive do
         <div class="flex gap-4 text-sm text-base-content/60 px-1">
           <span>{@stats.files} files tracked</span>
           <span>{@stats.images} images cached</span>
-          <span :if={@stats.incomplete_images > 0} class="text-warning">
-            {@stats.incomplete_images} incomplete
-          </span>
         </div>
       </div>
     </div>

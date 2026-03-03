@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.OperationsLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Admin, Dashboard, Library, Log, Storage}
+  alias MediaCentaur.{Admin, Dashboard, Log, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
 
@@ -25,12 +25,12 @@ defmodule MediaCentaurWeb.OperationsLive do
         socket
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
         |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
-        |> assign(incomplete_images: Library.list_incomplete_images!())
         |> assign(storage_drives: Storage.measure_all())
         |> assign(config: load_config())
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
         |> assign(rate_limiter: fetch_rate_limiter())
+        |> assign(retry_status: fetch_retry_status())
         |> assign(enabled_components: enabled)
         |> assign(all_components: all)
         |> assign(suppressed_frameworks: Log.suppressed_frameworks())
@@ -38,12 +38,12 @@ defmodule MediaCentaurWeb.OperationsLive do
         socket
         |> assign(watcher_statuses: [])
         |> assign(recent_errors: [])
-        |> assign(incomplete_images: [])
         |> assign(storage_drives: [])
         |> assign(config: %{})
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
         |> assign(rate_limiter: nil)
+        |> assign(retry_status: nil)
         |> assign(enabled_components: [])
         |> assign(all_components: [])
         |> assign(suppressed_frameworks: [])
@@ -54,7 +54,6 @@ defmodule MediaCentaurWeb.OperationsLive do
        scanning: false,
        clearing_database: false,
        refreshing_images: false,
-       retrying_images: false,
        stats_timer: nil,
        pipeline_concurrency: MediaCentaur.Pipeline.processor_concurrency(),
        image_pipeline_concurrency: 4
@@ -139,26 +138,6 @@ defmodule MediaCentaurWeb.OperationsLive do
     {:noreply, assign_log_state(socket)}
   end
 
-  def handle_event("retry_incomplete_images", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      {:ok, result} = Admin.retry_incomplete_images()
-      send(liveview, {:incomplete_images_retried, result})
-    end)
-
-    {:noreply, assign(socket, retrying_images: true)}
-  end
-
-  def handle_event("dismiss_incomplete_images", _params, socket) do
-    {:ok, count} = Admin.dismiss_incomplete_images()
-
-    {:noreply,
-     socket
-     |> assign(incomplete_images: [])
-     |> put_flash(:info, "Dismissed #{count} incomplete images")}
-  end
-
   # --- Info handlers ---
 
   @impl true
@@ -176,14 +155,6 @@ defmodule MediaCentaurWeb.OperationsLive do
      |> put_flash(:info, "Image cache refreshed — re-downloaded images for #{count} entities")}
   end
 
-  def handle_info({:incomplete_images_retried, result}, socket) do
-    {:noreply,
-     socket
-     |> assign(retrying_images: false)
-     |> assign(incomplete_images: Library.list_incomplete_images!())
-     |> put_flash(:info, "Retried #{result.retried} incomplete images")}
-  end
-
   def handle_info({:watcher_state_changed, _dir, _new_state}, socket) do
     {:noreply, assign(socket, watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())}
   end
@@ -198,8 +169,7 @@ defmodule MediaCentaurWeb.OperationsLive do
     {:noreply,
      socket
      |> assign(stats_timer: nil)
-     |> assign(recent_errors: stats.recent_errors)
-     |> assign(incomplete_images: Library.list_incomplete_images!())}
+     |> assign(recent_errors: stats.recent_errors)}
   end
 
   def handle_info(:tick_pipeline, socket) do
@@ -212,7 +182,8 @@ defmodule MediaCentaurWeb.OperationsLive do
      |> assign(pipeline_stats: pipeline_stats)
      |> assign(image_pipeline_stats: image_stats)
      |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
-     |> assign(rate_limiter: fetch_rate_limiter())}
+     |> assign(rate_limiter: fetch_rate_limiter())
+     |> assign(retry_status: fetch_retry_status())}
   end
 
   def handle_info(:refresh_storage, socket) do
@@ -241,16 +212,13 @@ defmodule MediaCentaurWeb.OperationsLive do
         <.pipeline_card
           content_stats={@pipeline_stats}
           image_stats={@image_pipeline_stats}
+          retry_status={@retry_status}
           pipeline_concurrency={@pipeline_concurrency}
           image_concurrency={@image_pipeline_concurrency}
           scanning={@scanning}
         />
         <.watcher_health statuses={@watcher_statuses} />
         <.recent_errors_table files={@recent_errors} />
-        <.incomplete_images_card
-          images={@incomplete_images}
-          retrying={@retrying_images}
-        />
         <.storage_health drives={@storage_drives} />
         <.external_integrations rate_limiter={@rate_limiter} config={@config} />
         <.config_overview config={@config} />
@@ -362,7 +330,8 @@ defmodule MediaCentaurWeb.OperationsLive do
         <div
           :if={
             @image_stats.total_downloaded > 0 or @image_stats.total_failed > 0 or
-              @image_stats.queue_depth > 0
+              @image_stats.queue_depth > 0 or
+              (@retry_status && @retry_status.retrying_count > 0)
           }
           class="flex items-center gap-3 text-xs text-base-content/50 ml-6"
         >
@@ -374,6 +343,9 @@ defmodule MediaCentaurWeb.OperationsLive do
           </span>
           <span :if={@image_stats.queue_depth > 0}>
             {@image_stats.queue_depth} queued
+          </span>
+          <span :if={@retry_status && @retry_status.retrying_count > 0} class="text-warning">
+            {@retry_status.retrying_count} retrying
           </span>
         </div>
       </div>
@@ -467,63 +439,6 @@ defmodule MediaCentaurWeb.OperationsLive do
                 </td>
                 <td class="text-error text-xs max-w-md truncate">{error.error_message || "—"}</td>
                 <td class="text-xs">{format_datetime(error.updated_at)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp incomplete_images_card(assigns) do
-    ~H"""
-    <div :if={@images != []} class="card bg-base-100 shadow-sm border border-warning/20">
-      <div class="card-body">
-        <div class="flex items-center justify-between">
-          <h2 class="card-title text-lg">
-            Incomplete Images <span class="badge badge-warning badge-sm">{length(@images)}</span>
-          </h2>
-          <div class="flex gap-2">
-            <button
-              phx-click="retry_incomplete_images"
-              disabled={@retrying}
-              class="btn btn-sm btn-primary"
-            >
-              {if @retrying, do: "Retrying…", else: "Retry all"}
-            </button>
-            <button
-              phx-click="dismiss_incomplete_images"
-              data-confirm="This will delete all incomplete image records. The images will need to be re-fetched through the pipeline. Continue?"
-              class="btn btn-sm btn-outline btn-warning"
-            >
-              Dismiss all
-            </button>
-          </div>
-        </div>
-
-        <p class="text-sm text-base-content/60">
-          Images with a TMDB URL that were never successfully downloaded.
-        </p>
-
-        <div class="overflow-x-auto">
-          <table class="table table-sm table-zebra">
-            <thead>
-              <tr>
-                <th>Entity</th>
-                <th>Role</th>
-                <th>URL</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={image <- @images}>
-                <td class="text-sm max-w-xs truncate">
-                  {if image.entity, do: image.entity.name, else: "—"}
-                </td>
-                <td>
-                  <span class="badge badge-ghost badge-xs">{image.role}</span>
-                </td>
-                <td class="font-mono text-xs max-w-md truncate">{image.url}</td>
               </tr>
             </tbody>
           </table>
@@ -784,6 +699,14 @@ defmodule MediaCentaurWeb.OperationsLive do
 
   defp fetch_rate_limiter do
     MediaCentaur.TMDB.RateLimiter.status()
+  rescue
+    _ -> nil
+  catch
+    :exit, _ -> nil
+  end
+
+  defp fetch_retry_status do
+    MediaCentaur.ImagePipeline.RetryScheduler.status()
   rescue
     _ -> nil
   catch

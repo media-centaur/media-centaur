@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Router do
         :read_entity_progress,
         :read_watched_files,
         :read_images,
-        :read_incomplete_images,
+        :read_pending_downloads,
         :find_by_tmdb_id,
         :read_watch_progress,
         :read_entity_watch_progress,
@@ -64,9 +64,7 @@ defmodule MediaCentaurWeb.Router do
         :watcher_statuses,
         :serialize_entity,
         :clear_database,
-        :refresh_cache,
-        :retry_incomplete,
-        :dismiss_incomplete
+        :refresh_cache
       ],
       protocol_version_statement: "2024-11-05",
       otp_app: :media_centaur

@@ -26,7 +26,7 @@ defmodule MediaCentaur.Library do
       description "List all images in the library"
     end
 
-    tool :read_incomplete_images, MediaCentaur.Library.Image, :incomplete do
+    tool :read_pending_downloads, MediaCentaur.Library.Image, :pending_download do
       description "List images that have a remote URL but haven't been downloaded yet"
     end
 
@@ -167,14 +167,6 @@ defmodule MediaCentaur.Library do
     tool :refresh_cache, MediaCentaur.Library.Image, :refresh_cache do
       description "Clear all cached artwork from disk and re-download images for all entities"
     end
-
-    tool :retry_incomplete, MediaCentaur.Library.Image, :retry_incomplete do
-      description "Re-download images that have a TMDB URL but no local content"
-    end
-
-    tool :dismiss_incomplete, MediaCentaur.Library.Image, :dismiss_incomplete do
-      description "Delete all image records that have a TMDB URL but no local content"
-    end
   end
 
   resources do
@@ -210,7 +202,7 @@ defmodule MediaCentaur.Library do
       define :list_images_for_entity, action: :by_entity, args: [:entity_id]
       define :list_images_for_episode, action: :by_episode, args: [:episode_id]
       define :list_images_for_movie, action: :by_movie, args: [:movie_id]
-      define :list_incomplete_images, action: :incomplete
+      define :list_pending_downloads, action: :pending_download
       define :create_image, action: :create
       define :find_or_create_image, action: :find_or_create
       define :find_or_create_movie_image, action: :find_or_create_for_movie
