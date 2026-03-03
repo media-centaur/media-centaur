@@ -80,7 +80,7 @@ Design principles, page structure, and visual standards for the Phoenix LiveView
 
 11. **Cards for grouping.** Use the card pattern to create scannable sections. Each card is a self-contained unit of related information.
 
-12. **Minimal navigation chrome.** Top bar is compact: app name, page links, theme toggle. No unnecessary height or decoration. Content area gets maximum vertical space.
+12. **Collapsible sidebar navigation.** Left sidebar expands to 200px (icon + label) and collapses to 52px (icon-only with tooltips). State persisted to `localStorage`. Theme toggle lives in the sidebar bottom. Content area gets maximum horizontal space.
 
 ---
 
@@ -88,7 +88,7 @@ Design principles, page structure, and visual standards for the Phoenix LiveView
 
 ### Navigation
 
-Minimal top bar: app name/icon, page links, theme toggle. Compact height, no unnecessary decoration.
+Collapsible left sidebar with glassmorphism treatment. Expanded (200px): icon + text label for each page link, brand, theme toggle pill, and collapse button. Collapsed (52px): icon-only with daisyUI tooltips on hover. State persisted via `data-sidebar` attribute on `<html>` and `localStorage`, set before first paint to prevent flash. Collapse toggle dispatches a `phx:toggle-sidebar` JS event.
 
 ### Pages
 

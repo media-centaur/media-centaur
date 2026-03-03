@@ -193,3 +193,151 @@ body {
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--glass-border);
 }
+
+/* Glass sidebar — same treatment as navbar, vertical orientation */
+.glass-sidebar {
+  background: var(--glass-nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--glass-border);
+}
+
+/* ── Collapsible Sidebar ──
+   Expands to 200px (icon + label), collapses to 52px (icon-only).
+   State stored on <html data-sidebar="collapsed"> for flash-free paint. */
+
+.sidebar {
+  width: 200px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 0.25rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  flex-shrink: 0;
+  transition: width 0.25s ease, padding 0.25s ease;
+}
+
+[data-sidebar=collapsed] .sidebar {
+  width: 52px;
+  padding: 1rem 0.5rem;
+}
+
+/* Sidebar brand — hidden when collapsed */
+.sidebar-brand {
+  white-space: nowrap;
+}
+
+[data-sidebar=collapsed] .sidebar-brand {
+  display: none;
+}
+
+/* Sidebar navigation links */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  color: oklch(75% 0.005 264);
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-link:hover {
+  background: oklch(90% 0.005 264 / 0.08);
+  color: oklch(90% 0.005 264);
+}
+
+.sidebar-link-active {
+  background: oklch(62% 0.16 250 / 0.1);
+  color: oklch(70% 0.14 250);
+}
+
+.sidebar-link-active:hover {
+  background: oklch(62% 0.16 250 / 0.15);
+  color: oklch(75% 0.14 250);
+}
+
+/* Light theme sidebar link overrides */
+[data-theme=light] .sidebar-link {
+  color: oklch(45% 0.015 264);
+}
+
+[data-theme=light] .sidebar-link:hover {
+  background: oklch(23% 0.020 264 / 0.06);
+  color: oklch(23% 0.020 264);
+}
+
+[data-theme=light] .sidebar-link-active {
+  background: oklch(50% 0.18 250 / 0.1);
+  color: oklch(45% 0.18 250);
+}
+
+[data-theme=light] .sidebar-link-active:hover {
+  background: oklch(50% 0.18 250 / 0.15);
+  color: oklch(40% 0.18 250);
+}
+
+/* Label text fades out when collapsed */
+.sidebar-label {
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+[data-sidebar=collapsed] .sidebar-label {
+  opacity: 0;
+}
+
+/* Collapse button chevron rotates */
+.sidebar-collapse-icon {
+  transition: transform 0.25s;
+}
+
+[data-sidebar=collapsed] .sidebar-collapse-icon {
+  transform: rotate(180deg);
+}
+
+/* Tooltips: only show when sidebar is collapsed */
+.sidebar-link::before,
+.sidebar-link::after {
+  display: none !important;
+}
+
+[data-sidebar=collapsed] .sidebar-link:hover::before,
+[data-sidebar=collapsed] .sidebar-link:hover::after {
+  display: block !important;
+}
+
+/* Theme toggle: full pill when expanded, hidden when collapsed */
+.sidebar-theme-wrap {
+  overflow: hidden;
+}
+
+[data-sidebar=collapsed] .sidebar-theme-wrap {
+  display: none;
+}
+
+/* Theme cycle button: hidden when expanded, visible when collapsed */
+.sidebar-theme-cycle {
+  display: none;
+}
+
+[data-sidebar=collapsed] .sidebar-theme-cycle {
+  display: flex;
+}
+
+/* Show only the active theme icon */
+.theme-icon { display: none; }
+.theme-icon-system { display: block; }
+
+[data-theme=light] .theme-icon-system { display: none; }
+[data-theme=light] .theme-icon-light { display: block; }
+
+[data-theme=dark] .theme-icon-system { display: none; }
+[data-theme=dark] .theme-icon-dark { display: block; }

@@ -27,6 +27,29 @@
         window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
         
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+
+        // Cycle theme: system → light → dark → system
+        window.addEventListener("phx:cycle-theme", () => {
+          const current = localStorage.getItem("phx:theme");
+          setTheme(current === null ? "light" : current === "light" ? "dark" : "system");
+        });
+
+        // Sidebar collapsed state — mirrors the theme pattern
+        const sidebarState = localStorage.getItem("phx:sidebar-collapsed");
+        if (sidebarState === "true") {
+          document.documentElement.setAttribute("data-sidebar", "collapsed");
+        }
+        window.addEventListener("phx:toggle-sidebar", () => {
+          const el = document.documentElement;
+          const collapsed = el.getAttribute("data-sidebar") === "collapsed";
+          if (collapsed) {
+            el.removeAttribute("data-sidebar");
+            localStorage.removeItem("phx:sidebar-collapsed");
+          } else {
+            el.setAttribute("data-sidebar", "collapsed");
+            localStorage.setItem("phx:sidebar-collapsed", "true");
+          }
+        });
       })();
     </script>
   </head>
