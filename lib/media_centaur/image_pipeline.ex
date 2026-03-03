@@ -32,16 +32,33 @@ defmodule MediaCentaur.ImagePipeline do
 
   @impl true
   def handle_message(:default, message, _context) do
-    %{image: image, owner_id: owner_id, watch_dir: watch_dir} = message.data
+    %{image: image, owner_id: owner_id, entity_id: entity_id, watch_dir: watch_dir} =
+      message.data
 
     extension = ImageProcessor.output_extension(image.role)
     relative_path = "#{owner_id}/#{image.role}.#{extension}"
     images_dir = MediaCentaur.Config.images_dir_for(watch_dir)
     dest_path = Path.join(images_dir, relative_path)
 
+    telemetry_metadata = %{role: image.role, entity_id: entity_id}
+    start_time = System.monotonic_time()
+
+    :telemetry.execute(
+      [:media_centaur, :image_pipeline, :download, :start],
+      %{system_time: System.system_time()},
+      telemetry_metadata
+    )
+
     case ImageProcessor.download_and_resize(image.url, image.role, dest_path) do
       :ok ->
+        duration = System.monotonic_time() - start_time
         Log.info(:pipeline, "image downloaded: #{relative_path}")
+
+        :telemetry.execute(
+          [:media_centaur, :image_pipeline, :download, :stop],
+          %{duration: duration},
+          Map.merge(telemetry_metadata, %{result: :ok})
+        )
 
         message
         |> Broadway.Message.update_data(fn data ->
@@ -49,9 +66,17 @@ defmodule MediaCentaur.ImagePipeline do
         end)
 
       {:error, reason} ->
+        duration = System.monotonic_time() - start_time
+
         Log.warning(
           :pipeline,
           "image download failed #{image.role} for #{owner_id}: #{inspect(reason)}"
+        )
+
+        :telemetry.execute(
+          [:media_centaur, :image_pipeline, :download, :stop],
+          %{duration: duration},
+          Map.merge(telemetry_metadata, %{result: :error, error_reason: inspect(reason)})
         )
 
         Broadway.Message.failed(message, reason)
