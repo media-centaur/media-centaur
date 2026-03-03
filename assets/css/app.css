@@ -30,7 +30,7 @@
   /* Base: slate grays with blue undertone */
   --color-base-100: oklch(27% 0.019 264);
   --color-base-200: oklch(23% 0.017 264);
-  --color-base-300: oklch(19.5% 0.015 264);
+  --color-base-300: oklch(14% 0.015 264);
   --color-base-content: oklch(93% 0.005 264);
   /* Interactive: blue accent */
   --color-primary: oklch(62% 0.16 250);
@@ -123,4 +123,73 @@
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
+}
+
+/* ── Glassmorphism ──
+   Translucent frosted-glass surfaces over gradient backdrops.
+   Three tiers: .glass-nav (navbar), .glass-surface (cards), .glass-inset (inner panels). */
+
+/* Glass custom properties — dark theme (default) */
+:root {
+  --glass-bg: oklch(20% 0.02 264 / 0.45);
+  --glass-border: oklch(90% 0.005 264 / 0.09);
+  --glass-shadow: oklch(0% 0 0 / 0.25);
+  --glass-inset-bg: oklch(18% 0.017 264 / 0.4);
+  --glass-nav-bg: oklch(14% 0.015 264 / 0.8);
+  --glass-gradient-a: oklch(40% 0.16 250 / 0.2);
+  --glass-gradient-b: oklch(38% 0.14 300 / 0.15);
+}
+
+/* Light theme overrides */
+[data-theme=light] {
+  --glass-bg: oklch(98.5% 0.003 264 / 0.55);
+  --glass-border: oklch(23% 0.020 264 / 0.06);
+  --glass-shadow: oklch(0% 0 0 / 0.05);
+  --glass-inset-bg: oklch(91% 0.010 264 / 0.4);
+  --glass-nav-bg: oklch(95.5% 0.006 264 / 0.7);
+  --glass-gradient-a: oklch(70% 0.06 250 / 0.10);
+  --glass-gradient-b: oklch(70% 0.06 300 / 0.08);
+}
+
+/* System theme (no data-theme attribute) — follow OS preference */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --glass-bg: oklch(98.5% 0.003 264 / 0.55);
+    --glass-border: oklch(23% 0.020 264 / 0.06);
+    --glass-shadow: oklch(0% 0 0 / 0.05);
+    --glass-inset-bg: oklch(91% 0.010 264 / 0.4);
+    --glass-nav-bg: oklch(95.5% 0.006 264 / 0.7);
+    --glass-gradient-a: oklch(70% 0.06 250 / 0.10);
+    --glass-gradient-b: oklch(70% 0.06 300 / 0.08);
+  }
+}
+
+/* Gradient backdrop — gives the glass something to show through */
+body {
+  background-image:
+    radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
+    radial-gradient(ellipse at 80% 80%, var(--glass-gradient-b), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Primary glass surface — cards */
+.glass-surface {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 16px var(--glass-shadow);
+}
+
+/* Nested inset — inner panels, toggle items, placeholders */
+.glass-inset {
+  background: var(--glass-inset-bg);
+}
+
+/* Glass navbar — more opaque, stronger blur, sticky-ready */
+.glass-nav {
+  background: var(--glass-nav-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
 }
