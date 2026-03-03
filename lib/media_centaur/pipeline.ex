@@ -28,7 +28,6 @@ defmodule MediaCentaur.Pipeline do
     Parse,
     Search,
     FetchMetadata,
-    DownloadImages,
     Ingest
   }
 
@@ -75,16 +74,32 @@ defmodule MediaCentaur.Pipeline do
 
   @impl true
   def handle_batch(:default, messages, _batch_info, _context) do
+    completed =
+      Enum.filter(messages, fn message ->
+        message.data.entity_id != nil and message.data.watch_directory != nil
+      end)
+
     entity_ids =
-      messages
+      completed
       |> Enum.map(fn message -> message.data.entity_id end)
-      |> Enum.reject(&is_nil/1)
       |> Enum.uniq()
 
     if entity_ids != [] do
       Log.info(:pipeline, "batch complete, broadcasting #{length(entity_ids)} entity changes")
       Helpers.broadcast_entities_changed(entity_ids)
     end
+
+    # Trigger image pipeline for entities that need images
+    completed
+    |> Enum.uniq_by(fn message -> message.data.entity_id end)
+    |> Enum.each(fn message ->
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        "pipeline:images",
+        {:images_pending,
+         %{entity_id: message.data.entity_id, watch_dir: message.data.watch_directory}}
+      )
+    end)
 
     messages
   end
@@ -129,11 +144,8 @@ defmodule MediaCentaur.Pipeline do
 
   defp run_post_search(payload) do
     with :ok <- check_disk_space(payload.watch_directory),
-         {:ok, payload} <- run_stage(:fetch_metadata, FetchMetadata, payload),
-         {:ok, payload} <- run_stage(:download_images, DownloadImages, payload) do
-      result = run_stage(:ingest, Ingest, payload)
-      cleanup_staging(payload.staging_dir)
-      result
+         {:ok, payload} <- run_stage(:fetch_metadata, FetchMetadata, payload) do
+      run_stage(:ingest, Ingest, payload)
     end
   end
 
@@ -155,9 +167,6 @@ defmodule MediaCentaur.Pipeline do
         :ok
     end
   end
-
-  defp cleanup_staging(nil), do: :ok
-  defp cleanup_staging(dir), do: File.rm_rf(dir)
 
   defp run_stage(stage_name, stage_module, payload) do
     metadata = %{stage: stage_name, file_path: payload.file_path}

@@ -79,10 +79,6 @@ defmodule MediaCentaur.PipelineTest do
       assert file.state == :complete
       assert file.entity_id == result.entity_id
       assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
-
-      # Staging dir cleaned up after ingest
-      assert result.staging_dir != nil
-      refute File.dir?(result.staging_dir)
     end
 
     test "TV episode: parse → search → fetch → download → ingest → complete" do

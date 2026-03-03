@@ -77,6 +77,7 @@ defmodule MediaCentaur.MixProject do
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:file_system, "~> 1.0"},
       {:broadway, "~> 1.1"},
+      {:image, "~> 0.54"},
       {:toml, "~> 0.7"},
       {:tidewave, "~> 0.5", only: :dev}
     ]

@@ -24,7 +24,6 @@ defmodule MediaCentaur.Admin do
   }
 
   alias MediaCentaur.Review.PendingFile
-  alias MediaCentaur.Pipeline.ImageDownloader
 
   @doc """
   Destroys all records from every library resource in FK-safe order,
@@ -52,7 +51,6 @@ defmodule MediaCentaur.Admin do
 
       Enum.each(watch_dirs, fn dir ->
         clear_directory(MediaCentaur.Config.images_dir_for(dir))
-        cleanup_staging_for(dir)
       end)
 
       Helpers.broadcast_entities_changed(entity_ids)
@@ -75,7 +73,6 @@ defmodule MediaCentaur.Admin do
 
     Enum.each(watch_dirs, fn dir ->
       clear_directory(MediaCentaur.Config.images_dir_for(dir))
-      cleanup_staging_for(dir)
     end)
 
     result =
@@ -92,7 +89,11 @@ defmodule MediaCentaur.Admin do
 
     Enum.each(entities, fn entity ->
       if watch_dir = first_watch_dir(entity) do
-        ImageDownloader.download_all(entity, watch_dir)
+        Phoenix.PubSub.broadcast(
+          MediaCentaur.PubSub,
+          "pipeline:images",
+          {:images_pending, %{entity_id: entity.id, watch_dir: watch_dir}}
+        )
       end
     end)
 
@@ -124,7 +125,11 @@ defmodule MediaCentaur.Admin do
 
     Enum.each(entities, fn entity ->
       if watch_dir = first_watch_dir(entity) do
-        ImageDownloader.download_all(entity, watch_dir)
+        Phoenix.PubSub.broadcast(
+          MediaCentaur.PubSub,
+          "pipeline:images",
+          {:images_pending, %{entity_id: entity.id, watch_dir: watch_dir}}
+        )
       end
     end)
 
@@ -183,10 +188,6 @@ defmodule MediaCentaur.Admin do
 
         nil
     end
-  end
-
-  defp cleanup_staging_for(dir) do
-    File.rm_rf(MediaCentaur.Config.staging_base_for(dir))
   end
 
   defp clear_directory(dir) do

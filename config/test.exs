@@ -30,9 +30,8 @@ config :media_centaur, MediaCentaur.Mailer, adapter: Swoosh.Adapters.Test
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
-# Use no-op image downloader in tests (avoids real HTTP + file I/O)
-config :media_centaur, :image_downloader, MediaCentaur.NoopImageDownloader
-config :media_centaur, :staging_image_downloader, MediaCentaur.NoopImageDownloader
+# Use no-op HTTP client for image pipeline tests (avoids real downloads)
+config :media_centaur, :image_http_client, MediaCentaur.NoopImageDownloader
 
 # Disable file watchers and Broadway pipeline in tests.
 # Watchers start inotify on configured directories — not useful in tests and

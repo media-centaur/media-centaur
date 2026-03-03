@@ -39,8 +39,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       watch_directory: "/media",
       tmdb_id: overrides[:tmdb_id] || 550,
       tmdb_type: overrides[:tmdb_type] || :movie,
-      metadata: metadata,
-      staged_images: overrides[:staged_images] || []
+      metadata: metadata
     }
   end
 
@@ -114,8 +113,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
           },
           season: nil,
           extra: nil
-        },
-        staged_images: []
+        }
       }
 
       assert {:ok, result} = Ingest.run(payload)
@@ -163,8 +161,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
             }
           },
           extra: nil
-        },
-        staged_images: []
+        }
       }
 
       assert {:ok, result} = Ingest.run(payload)
@@ -185,7 +182,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
 
   describe "error handling" do
     test "nil metadata raises" do
-      payload = %Payload{metadata: nil, staged_images: []}
+      payload = %Payload{metadata: nil}
 
       assert_raise BadMapError, fn ->
         Ingest.run(payload)

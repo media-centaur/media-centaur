@@ -20,8 +20,6 @@ defmodule MediaCentaur.Application do
        end, []}
     )
 
-    cleanup_stale_staging()
-
     start_watchers? = Application.get_env(:media_centaur, :start_watchers, true)
     start_pipeline? = Application.get_env(:media_centaur, :start_pipeline, true)
 
@@ -49,6 +47,7 @@ defmodule MediaCentaur.Application do
           ),
           MediaCentaur.Pipeline.Stats,
           if(start_pipeline?, do: MediaCentaur.Pipeline),
+          if(start_pipeline?, do: MediaCentaur.ImagePipeline),
           MediaCentaur.Library.FileTracker,
           MediaCentaur.Playback.Supervisor,
           MediaCentaurWeb.Endpoint
@@ -67,14 +66,6 @@ defmodule MediaCentaur.Application do
     MediaCentaur.Log.init()
     MediaCentaur.Log.init_framework_levels()
     :ignore
-  end
-
-  defp cleanup_stale_staging do
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
-
-    Enum.each(watch_dirs, fn dir ->
-      File.rm_rf(MediaCentaur.Config.staging_base_for(dir))
-    end)
   end
 
   # Tell Phoenix to update the endpoint configuration
