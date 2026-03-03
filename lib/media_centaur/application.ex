@@ -45,11 +45,8 @@ defmodule MediaCentaur.Application do
               restart: :temporary
             }
           ),
-          MediaCentaur.Pipeline.Stats,
-          if(start_pipeline?, do: MediaCentaur.Pipeline),
-          MediaCentaur.ImagePipeline.Stats,
-          if(start_pipeline?, do: MediaCentaur.ImagePipeline),
-          if(start_pipeline?, do: MediaCentaur.ImagePipeline.RetryScheduler),
+          {MediaCentaur.Pipeline.Supervisor, start_pipeline: start_pipeline?},
+          {MediaCentaur.ImagePipeline.Supervisor, start_pipeline: start_pipeline?},
           MediaCentaur.Library.FileTracker,
           MediaCentaur.Playback.Supervisor,
           MediaCentaurWeb.Endpoint
@@ -59,7 +56,13 @@ defmodule MediaCentaur.Application do
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
-    opts = [strategy: :one_for_one, name: MediaCentaur.Supervisor]
+    opts = [
+      strategy: :one_for_one,
+      name: MediaCentaur.Supervisor,
+      max_restarts: 10,
+      max_seconds: 30
+    ]
+
     Supervisor.start_link(children, opts)
   end
 

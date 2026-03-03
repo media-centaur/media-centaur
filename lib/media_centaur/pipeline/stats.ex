@@ -282,6 +282,8 @@ defmodule MediaCentaur.Pipeline.Stats do
   # --- Telemetry wiring ---
 
   defp attach_telemetry do
+    :telemetry.detach("pipeline-stats")
+
     :telemetry.attach_many(
       "pipeline-stats",
       [
