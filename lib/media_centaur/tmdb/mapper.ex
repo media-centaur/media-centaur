@@ -161,7 +161,7 @@ defmodule MediaCentaur.TMDB.Mapper do
           extension: "jpg"
         },
       logo_path &&
-        %{owner_key => owner_id, role: "logo", url: tmdb_image_url(logo_path), extension: "jpg"}
+        %{owner_key => owner_id, role: "logo", url: tmdb_image_url(logo_path), extension: "png"}
     ]
     |> Enum.reject(&is_nil/1)
   end

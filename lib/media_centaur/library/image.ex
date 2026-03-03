@@ -39,7 +39,7 @@ defmodule MediaCentaur.Library.Image do
 
     update :update do
       primary? true
-      accept [:content_url]
+      accept [:content_url, :extension]
     end
 
     update :clear_content_url do

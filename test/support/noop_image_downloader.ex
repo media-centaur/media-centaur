@@ -1,14 +1,12 @@
 defmodule MediaCentaur.NoopImageDownloader do
   @moduledoc """
-  No-op image downloader for tests. Replaces `Pipeline.ImageDownloader`
-  to avoid real HTTP requests and file I/O during pipeline tests.
+  No-op HTTP client for tests. Replaces `Req` in the image pipeline
+  to avoid real HTTP requests and file I/O during tests.
+
+  Returns an empty response body on `get/1`.
   """
 
-  def download_all(_entity, _watch_directory), do: :ok
-
-  def download(_url, local_path) do
-    local_path |> Path.dirname() |> File.mkdir_p!()
-    File.write!(local_path, "")
-    :ok
+  def get(_url) do
+    {:ok, %{status: 200, body: ""}}
   end
 end

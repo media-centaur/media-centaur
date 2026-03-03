@@ -3,39 +3,13 @@ defmodule MediaCentaur.Library.IngressTest do
   Tests for Library.Ingress — the pipeline's persistence layer.
 
   No TMDB stubs needed: Ingress doesn't call TMDB. Tests construct
-  metadata maps and staged image files directly.
+  metadata maps directly.
   """
   use MediaCentaur.DataCase
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Ingress
   alias MediaCentaur.Pipeline.Payload
-
-  @watch_directory "/tmp/ingress_test_watch"
-
-  setup do
-    # Set up a temporary watch directory with images dir for each test.
-    images_dir = Path.join(System.tmp_dir!(), "ingress_test_#{Ash.UUID.generate()}")
-    File.mkdir_p!(images_dir)
-
-    config = :persistent_term.get({MediaCentaur.Config, :config})
-
-    updated_config =
-      config
-      |> Map.put(:watch_dir_images, %{@watch_directory => images_dir})
-      |> Map.update(:watch_dirs, [@watch_directory], fn dirs ->
-        if @watch_directory in dirs, do: dirs, else: [@watch_directory | dirs]
-      end)
-
-    :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
-
-    on_exit(fn ->
-      File.rm_rf!(images_dir)
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
-    end)
-
-    %{images_dir: images_dir}
-  end
 
   # ---------------------------------------------------------------------------
   # Metadata builders
@@ -136,16 +110,8 @@ defmodule MediaCentaur.Library.IngressTest do
     Map.merge(defaults, Enum.into(overrides, %{}))
   end
 
-  defp payload_with(metadata, staged_images \\ []) do
-    %Payload{metadata: metadata, staged_images: staged_images, watch_directory: @watch_directory}
-  end
-
-  defp create_staged_image(staging_dir, owner, role) do
-    filename = "#{owner}_#{role}.jpg"
-    path = Path.join(staging_dir, filename)
-    File.mkdir_p!(staging_dir)
-    File.write!(path, "fake image bytes")
-    %{role: role, owner: owner, local_path: path}
+  defp payload_with(metadata) do
+    %Payload{metadata: metadata}
   end
 
   # ---------------------------------------------------------------------------
@@ -173,13 +139,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert Enum.any?(entity.images, &(&1.role == "backdrop"))
     end
 
-    test "moves staged images to permanent storage", %{images_dir: images_dir} do
-      staging_dir = Path.join(System.tmp_dir!(), "staging_#{Ash.UUID.generate()}")
-
-      staged_images = [
-        create_staged_image(staging_dir, "entity", "poster")
-      ]
-
+    test "creates images with nil content_url (image pipeline fills them later)" do
       metadata =
         movie_metadata(
           images: [
@@ -187,23 +147,16 @@ defmodule MediaCentaur.Library.IngressTest do
           ]
         )
 
-      payload = payload_with(metadata, staged_images)
+      payload = payload_with(metadata)
 
       assert {:ok, entity, :new} = Ingress.ingest(payload)
 
-      # Image moved to permanent storage
-      permanent_path = Path.join(images_dir, "#{entity.id}/poster.jpg")
-      assert File.exists?(permanent_path)
-
-      # Image record has content_url set
+      # Image record created with url but content_url is nil (image pipeline fills it)
       entity = Library.get_entity_with_images!(entity.id)
       poster = Enum.find(entity.images, &(&1.role == "poster"))
-      assert poster.content_url == "#{entity.id}/poster.jpg"
-
-      # Staging file no longer exists
-      refute File.exists?(hd(staged_images).local_path)
-
-      File.rm_rf!(staging_dir)
+      assert poster.url == "https://image.tmdb.org/poster.jpg"
+      assert poster.content_url == nil
+      assert poster.extension == "jpg"
     end
   end
 
@@ -496,7 +449,7 @@ defmodule MediaCentaur.Library.IngressTest do
 
   describe "error handling" do
     test "missing metadata raises" do
-      payload = %Payload{metadata: nil, staged_images: []}
+      payload = %Payload{metadata: nil}
 
       assert_raise BadMapError, fn ->
         Ingress.ingest(payload)
