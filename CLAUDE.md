@@ -1,5 +1,23 @@
 Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 
+## Skills-First Development
+
+**Always invoke the appropriate thinking skill BEFORE exploring code or writing implementation.** Skills contain paradigm-shifting insights that guide what patterns to look for and what anti-patterns to avoid.
+
+| Area | Skill |
+|------|-------|
+| General Elixir implementation, refactoring, architecture | `elixir-thinking` |
+| LiveView, Channels, PubSub, components, mount | `phoenix-thinking` |
+| Ecto, schemas, changesets, contexts, migrations | `ecto-thinking` |
+| GenServer, Supervisor, Task, ETS, concurrency | `otp-thinking` |
+| Oban, background jobs, workflows, scheduling | `oban-thinking` |
+| Ash resources, domains, actions, changes | `ash-framework` |
+| Broadway pipeline, producers, processors, batchers | `broadway` |
+| Phoenix web layer, controllers, views, routing | `phoenix-framework` |
+| General coding standards, naming, structure | `coding-guidelines` |
+
+Invoke the skill **first**, then explore the codebase, then write code.
+
 # Media Centaur — Backend
 
 A Phoenix/Elixir web application that manages the Media Centaur media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The `frontend` app connects via WebSocket (Phoenix Channels) to receive library data, send playback commands, and get real-time updates.
