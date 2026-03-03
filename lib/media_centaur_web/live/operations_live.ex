@@ -600,7 +600,7 @@ defmodule MediaCentaurWeb.OperationsLive do
       <div class="card-body">
         <%!-- Thinking Logs section --%>
         <div class="flex items-center justify-between">
-          <h2 class="card-title text-lg">Logging</h2>
+          <h2 class="card-title text-lg">Component Logs</h2>
           <div class="flex gap-2">
             <button phx-click="enable_all" class="btn btn-xs btn-outline btn-success">
               Enable all
@@ -610,10 +610,6 @@ defmodule MediaCentaurWeb.OperationsLive do
             </button>
           </div>
         </div>
-
-        <p class="text-sm text-base-content/60">
-          Per-component decision logs. Enable a component to see its thinking in the terminal.
-        </p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
           <div
@@ -634,15 +630,10 @@ defmodule MediaCentaurWeb.OperationsLive do
           </div>
         </div>
 
-        <%!-- Divider --%>
         <div class="divider my-2"></div>
 
         <%!-- Framework Logs section --%>
         <h3 class="text-base font-semibold">Framework Logs</h3>
-
-        <p class="text-sm text-base-content/60">
-          Suppress noisy library output at runtime. Suppressed modules only emit warning and above.
-        </p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
           <div

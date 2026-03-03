@@ -32,31 +32,85 @@ defmodule MediaCentaurWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar glass-nav px-4 sm:px-6 lg:px-8">
-      <div class="flex-1 flex items-center gap-1">
-        <a href="/" class="flex w-fit items-center gap-2">
-          <.icon name="hero-film" class="size-6" />
-          <span class="text-sm font-semibold">Media Centaur</span>
-        </a>
-        <nav class="ml-6 flex gap-1">
-          <.link navigate="/" class={nav_link_class(@current_path, "/")}>Dashboard</.link>
-          <.link navigate="/operations" class={nav_link_class(@current_path, "/operations")}>
-            Operations
-          </.link>
-          <.link navigate="/review" class={nav_link_class(@current_path, "/review")}>Review</.link>
-          <.link navigate="/library" class={nav_link_class(@current_path, "/library")}>Library</.link>
-        </nav>
-      </div>
-      <div class="flex-none">
-        <.theme_toggle />
-      </div>
-    </header>
+    <div class="flex min-h-screen">
+      <aside id="sidebar" class="sidebar glass-sidebar">
+        <div class="sidebar-brand mb-4 px-0.5">
+          <span class="sidebar-brand-text text-sm font-semibold">Media Centaur</span>
+        </div>
 
-    <main class="px-4 py-6 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-7xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
+        <nav class="flex flex-col gap-0.5">
+          <.link
+            navigate="/"
+            class={sidebar_link_class(@current_path, "/")}
+            data-tip="Dashboard"
+          >
+            <.icon name="hero-squares-2x2" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Dashboard</span>
+          </.link>
+          <.link
+            navigate="/operations"
+            class={sidebar_link_class(@current_path, "/operations")}
+            data-tip="Operations"
+          >
+            <.icon name="hero-cog-6-tooth" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Operations</span>
+          </.link>
+          <.link
+            navigate="/review"
+            class={sidebar_link_class(@current_path, "/review")}
+            data-tip="Review"
+          >
+            <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Review</span>
+          </.link>
+          <.link
+            navigate="/library"
+            class={sidebar_link_class(@current_path, "/library")}
+            data-tip="Library"
+          >
+            <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Library</span>
+          </.link>
+        </nav>
+
+        <div class="flex-1" />
+
+        <div class="sidebar-theme-wrap mb-2">
+          <.theme_toggle />
+        </div>
+
+        <button
+          class="sidebar-theme-cycle sidebar-link tooltip tooltip-right"
+          phx-click={JS.dispatch("phx:cycle-theme")}
+          data-tip="Theme"
+        >
+          <.icon
+            name="hero-computer-desktop-micro"
+            class="size-5 flex-shrink-0 theme-icon theme-icon-system"
+          />
+          <.icon name="hero-sun-micro" class="size-5 flex-shrink-0 theme-icon theme-icon-light" />
+          <.icon name="hero-moon-micro" class="size-5 flex-shrink-0 theme-icon theme-icon-dark" />
+        </button>
+
+        <button
+          class="sidebar-link"
+          phx-click={JS.dispatch("phx:toggle-sidebar")}
+          data-tip="Expand"
+        >
+          <.icon
+            name="hero-chevron-double-left"
+            class="size-5 flex-shrink-0 sidebar-collapse-icon"
+          />
+          <span class="sidebar-label">Collapse</span>
+        </button>
+      </aside>
+
+      <main class="flex-1 min-w-0 px-6 py-6">
+        <div class="max-w-7xl space-y-4">
+          {render_slot(@inner_block)}
+        </div>
+      </main>
+    </div>
 
     <.flash_group flash={@flash} />
     """
@@ -105,11 +159,13 @@ defmodule MediaCentaurWeb.Layouts do
     """
   end
 
-  defp nav_link_class(current_path, path) do
+  defp sidebar_link_class(current_path, path) do
+    base = "sidebar-link tooltip tooltip-right"
+
     if current_path == path do
-      "btn btn-sm btn-ghost btn-active"
+      base <> " sidebar-link-active"
     else
-      "btn btn-sm btn-ghost"
+      base
     end
   end
 
@@ -120,11 +176,11 @@ defmodule MediaCentaurWeb.Layouts do
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
+    <div class="relative flex flex-row items-center w-full border-2 border-base-300 bg-base-300 rounded-full">
       <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
       >
@@ -132,7 +188,7 @@ defmodule MediaCentaurWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
       >
@@ -140,7 +196,7 @@ defmodule MediaCentaurWeb.Layouts do
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="flex items-center justify-center p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
       >
