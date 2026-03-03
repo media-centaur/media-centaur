@@ -19,6 +19,6 @@ defmodule MediaCentaur.Playback.Supervisor do
       MediaCentaur.Playback.Manager
     ]
 
-    Supervisor.init(children, strategy: :rest_for_one)
+    Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
   end
 end

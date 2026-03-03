@@ -19,7 +19,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
       {DynamicSupervisor, name: MediaCentaur.Watcher.DynamicSupervisor, strategy: :one_for_one}
     ]
 
-    Supervisor.init(children, strategy: :one_for_all)
+    Supervisor.init(children, strategy: :one_for_all, max_restarts: 5, max_seconds: 60)
   end
 
   @doc """
