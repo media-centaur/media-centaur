@@ -189,31 +189,30 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   defp library_stats(assigns) do
     ~H"""
-    <div class="card glass-surface">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Library</h2>
-
-        <div class="stats stats-horizontal glass-inset w-full">
-          <div class="stat">
-            <div class="stat-title">Movies</div>
-            <div class="stat-value text-2xl">{@stats.by_type[:movie] || 0}</div>
-            <div class="stat-desc">{@stats.by_type[:movie_series] || 0} collections</div>
-          </div>
-          <div class="stat">
-            <div class="stat-title">TV Series</div>
-            <div class="stat-value text-2xl">{@stats.by_type[:tv_series] || 0}</div>
-            <div class="stat-desc">{@stats.episodes} episodes</div>
-          </div>
-          <div :if={(@stats.by_type[:video_object] || 0) > 0} class="stat">
-            <div class="stat-title">Videos</div>
-            <div class="stat-value text-2xl">{@stats.by_type[:video_object]}</div>
-          </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div class="p-4 rounded-lg glass-surface">
+        <div class="text-2xl font-bold">{@stats.by_type[:movie] || 0}</div>
+        <div class="text-sm text-base-content/60">Movies</div>
+        <div class="text-xs text-base-content/40 mt-1">
+          {@stats.by_type[:movie_series] || 0} collections
         </div>
-
-        <div class="flex gap-4 text-sm text-base-content/60 px-1">
-          <span>{@stats.files} files tracked</span>
-          <span>{@stats.images} images cached</span>
-        </div>
+      </div>
+      <div class="p-4 rounded-lg glass-surface">
+        <div class="text-2xl font-bold">{@stats.by_type[:tv_series] || 0}</div>
+        <div class="text-sm text-base-content/60">TV Series</div>
+        <div class="text-xs text-base-content/40 mt-1">{@stats.episodes} episodes</div>
+      </div>
+      <div :if={(@stats.by_type[:video_object] || 0) > 0} class="p-4 rounded-lg glass-surface">
+        <div class="text-2xl font-bold">{@stats.by_type[:video_object]}</div>
+        <div class="text-sm text-base-content/60">Videos</div>
+      </div>
+      <div class="p-4 rounded-lg glass-surface">
+        <div class="text-2xl font-bold">{@stats.files}</div>
+        <div class="text-sm text-base-content/60">Files Tracked</div>
+      </div>
+      <div class="p-4 rounded-lg glass-surface">
+        <div class="text-2xl font-bold">{@stats.images}</div>
+        <div class="text-sm text-base-content/60">Images Cached</div>
       </div>
     </div>
     """
