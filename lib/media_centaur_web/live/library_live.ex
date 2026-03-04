@@ -185,14 +185,32 @@ defmodule MediaCentaurWeb.LibraryLive do
           <.tab_bar active_tab={@active_tab} counts={@counts} />
           <form phx-change="filter" class="ml-auto">
             <input
+              id="library-filter"
               type="text"
               name="filter_text"
               value={@filter_text}
               placeholder="Filter by name…"
               phx-debounce="150"
+              phx-hook=".SlashFocus"
               class="input input-sm input-bordered w-48"
             />
           </form>
+          <script :type={Phoenix.LiveView.ColocatedHook} name=".SlashFocus">
+            export default {
+              mounted() {
+                this.handler = (e) => {
+                  if (e.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
+                    e.preventDefault()
+                    this.el.focus()
+                  }
+                }
+                window.addEventListener("keydown", this.handler)
+              },
+              destroyed() {
+                window.removeEventListener("keydown", this.handler)
+              }
+            }
+          </script>
         </div>
 
         <div :if={@filtered == []} class="text-base-content/60 py-8 text-center">
