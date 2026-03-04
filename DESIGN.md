@@ -94,45 +94,41 @@ Collapsible left sidebar with glassmorphism treatment. Expanded (200px): icon + 
 
 | Page | Path | Role |
 |------|------|------|
-| **Dashboard** | `/` | Hub page: library stats + mini-dashboard cards linking to sub-pages |
-| **Operations** | `/operations` | System health, pipeline, watchers, errors, controls, config, logging |
+| **Dashboard** | `/` | Hub page: library stats, pipeline, watchers, errors, storage, review & playback summaries |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Library** | `/library` | Entity browser with playback controls |
+| **Settings** | `/settings` | Logging toggles, configuration reference, danger zone |
 
 ---
 
 ### Dashboard (`/`)
 
-**Main content — Library section (implemented):**
-- Aggregate counts: movies, TV series, collections, episodes, files tracked, images cached
-- Incomplete image count (warning indicator)
+Single scrolling page. The dashboard is the operational hub — everything you need at a glance.
+
+**Sections:**
+1. **Library stats** — aggregate counts: movies, TV series, collections, episodes, files tracked, images cached
+2. **Pipeline status** — per-stage detail: status, throughput, avg duration, active count, errors, last error. Scan button.
+3. **Watcher health** — per-directory status, state indicators
+4. **External integrations** — TMDB rate limiter status (used/total/available), configuration status
+5. **Recent errors table** — last 50 pipeline errors (stage, file, message, time)
+6. **Storage metrics** — disk usage per watch directory drive + image cache directory + database file size
+7. **Review summary card** — pending count, links to `/review`
+8. **Playback summary card** — now playing indicator (entity name + progress), or "idle"
 
 **Planned additions:**
 - Health indicators: entities missing images, entities without TMDB IDs, library "completeness"
 - Recent activity: last N entities added (what's new since I last looked)
 - Auto-approve rate: % of files auto-approved vs needed review (confidence threshold effectiveness)
 
-**Summary cards (mini-dashboards linking to sub-pages):**
-- **Operations card:** Pipeline status (idle/active/error), watcher health dots, queue depth, error count. Enough to know "all healthy" or "go look."
-- **Review card:** Pending count. Enough to know "nothing to do" or "N files waiting."
-- **Playback card:** Now playing indicator (entity name + progress), or "idle" when nothing plays.
-
-**Design principle:** The dashboard should answer "do I need to go anywhere?" in one glance. If everything is healthy and the review queue is empty, you're done.
-
 ---
 
-### Operations (`/operations`)
+### Settings (`/settings`)
 
 Single scrolling page. Sections:
 
-1. **Pipeline status** — per-stage detail: status, throughput, avg duration, active count, errors, last error
-2. **Watcher health** — per-directory status, state indicators
-3. **Recent errors table** — last 50 pipeline errors (stage, file, message, time)
-4. **Storage metrics** — disk usage per watch directory drive + image cache directory + database file size
-5. **TMDB API integration** — rate limiter status (used/total/available), configuration status
-6. **Configuration** — read-only reference of current config values (auto-approve threshold, MPV path, dirs, etc.)
-7. **Logging toggles** — component-level log control (folded in from former `/logging` page)
-8. **Danger zone** — clear database, clear & refresh image cache, scan directories
+1. **Logging toggles** — component-level log control + framework log suppression
+2. **Configuration** — read-only reference of current config values (auto-approve threshold, MPV path, dirs, etc.)
+3. **Danger zone** — clear database, clear & refresh image cache
 
 ---
 
