@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.DashboardLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Dashboard, Storage}
+  alias MediaCentaur.{Admin, Dashboard, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
 
@@ -52,6 +52,7 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:ok,
      assign(socket,
        scanning: false,
+       clearing_database: false,
        stats_timer: nil,
        pipeline_concurrency: MediaCentaur.Pipeline.processor_concurrency(),
        image_pipeline_concurrency: 4
@@ -78,6 +79,17 @@ defmodule MediaCentaurWeb.DashboardLive do
          |> put_flash(:info, message)
          |> assign(scanning: false)}
     end
+  end
+
+  def handle_event("clear_database", _params, socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      Admin.clear_database()
+      send(liveview, :database_cleared)
+    end)
+
+    {:noreply, assign(socket, clearing_database: true)}
   end
 
   # --- Info handlers ---
@@ -138,6 +150,13 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:noreply, assign(socket, playback: %{playback | now_playing: now_playing})}
   end
 
+  def handle_info(:database_cleared, socket) do
+    {:noreply,
+     socket
+     |> assign(clearing_database: false)
+     |> put_flash(:info, "Database cleared successfully")}
+  end
+
   @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
@@ -149,14 +168,12 @@ defmodule MediaCentaurWeb.DashboardLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_path="/">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <h1 class="text-2xl font-bold sm:col-span-2">Dashboard</h1>
+      <div class="space-y-6">
+        <h1 class="text-2xl font-bold">Dashboard</h1>
 
-        <div class="sm:col-span-2">
-          <.library_stats stats={@library_stats} />
-        </div>
+        <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
 
-        <div class="sm:col-span-2">
+        <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
           <.pipeline_card
             content_stats={@pipeline_stats}
             image_stats={@image_pipeline_stats}
@@ -164,22 +181,18 @@ defmodule MediaCentaurWeb.DashboardLive do
             pipeline_concurrency={@pipeline_concurrency}
             image_concurrency={@image_pipeline_concurrency}
             scanning={@scanning}
+            clearing_database={@clearing_database}
           />
+
+          <div class="flex flex-col gap-6">
+            <.playback_summary_card playback={@playback} />
+            <.watcher_health statuses={@watcher_statuses} />
+            <.external_integrations rate_limiter={@rate_limiter} config={@config} />
+          </div>
         </div>
 
-        <.watcher_health statuses={@watcher_statuses} />
-        <.external_integrations rate_limiter={@rate_limiter} config={@config} />
-
-        <div class="sm:col-span-2">
-          <.recent_errors_table files={@recent_errors} />
-        </div>
-
-        <div class="sm:col-span-2">
-          <.storage_health drives={@storage_drives} />
-        </div>
-
-        <.review_summary_card count={@pending_review_count} />
-        <.playback_summary_card playback={@playback} />
+        <.recent_errors_table files={@recent_errors} />
+        <.storage_health drives={@storage_drives} />
       </div>
     </Layouts.app>
     """
@@ -214,11 +227,21 @@ defmodule MediaCentaurWeb.DashboardLive do
         <div class="text-2xl font-bold">{@stats.images}</div>
         <div class="text-sm text-base-content/60">Images Cached</div>
       </div>
+      <.link
+        navigate="/review"
+        class={[
+          "p-4 rounded-lg glass-surface hover:shadow-md transition-shadow",
+          if(@pending_review_count > 0, do: "border-l-3 border-warning")
+        ]}
+      >
+        <div class="text-2xl font-bold">{@pending_review_count}</div>
+        <div class="text-sm text-base-content/60">Pending Review</div>
+      </.link>
     </div>
     """
   end
 
-  @stage_grid_columns "grid-template-columns: 0.5rem 11rem 5.5rem 4.5rem 4.5rem 3rem"
+  @stage_grid_columns "grid-template-columns: 0.5rem 1fr 5rem 4.5rem 4.5rem 3rem"
 
   defp pipeline_card(assigns) do
     assigns =
@@ -227,7 +250,7 @@ defmodule MediaCentaurWeb.DashboardLive do
       |> assign(:grid_columns, @stage_grid_columns)
 
     ~H"""
-    <div class="card glass-surface">
+    <div class="card glass-surface self-start">
       <div class="card-body">
         <%!-- Pipeline header --%>
         <div class="flex items-center justify-between">
@@ -240,6 +263,14 @@ defmodule MediaCentaurWeb.DashboardLive do
               {@content_stats.total_failed} failed
             </span>
             <button
+              phx-click="clear_database"
+              disabled={@clearing_database}
+              data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
+              class="btn btn-error btn-xs btn-outline"
+            >
+              {if @clearing_database, do: "Clearing…", else: "Clear database"}
+            </button>
+            <button
               phx-click="scan"
               disabled={@scanning}
               class="btn btn-primary btn-xs"
@@ -251,7 +282,7 @@ defmodule MediaCentaurWeb.DashboardLive do
 
         <%!-- Column headers --%>
         <div
-          class="grid items-center gap-3 mt-3 mb-1"
+          class="grid items-center gap-2 mt-3 mb-1"
           style={@grid_columns}
         >
           <span></span>
@@ -281,7 +312,7 @@ defmodule MediaCentaurWeb.DashboardLive do
 
         <%!-- Image pipeline row — same grid as content stages --%>
         <div
-          class="grid items-center gap-3 py-1"
+          class="grid items-center gap-2 py-1"
           style={@grid_columns}
         >
           <span class={["w-2 h-2 rounded-full", stage_dot_class(@image_stats.status)]}></span>
@@ -339,7 +370,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp pipeline_stage(assigns) do
     ~H"""
     <div
-      class="grid items-center gap-3 py-1"
+      class="grid items-center gap-2 py-1"
       style={@grid_columns}
     >
       <span class={["w-2 h-2 rounded-full", stage_dot_class(@data.status)]}></span>
@@ -523,30 +554,6 @@ defmodule MediaCentaurWeb.DashboardLive do
         </div>
       </div>
     </div>
-    """
-  end
-
-  defp review_summary_card(assigns) do
-    ~H"""
-    <.link
-      navigate="/review"
-      class={[
-        "card glass-surface hover:shadow-md transition-shadow border-l-3",
-        if(@count > 0, do: "border-warning", else: "border-base-content/20")
-      ]}
-    >
-      <div class="card-body">
-        <h2 class="card-title text-lg">Review</h2>
-
-        <div class="text-sm">
-          <span :if={@count == 0} class="text-base-content/60">No files pending review</span>
-          <div :if={@count > 0} class="flex items-center gap-2">
-            <span class="badge badge-warning badge-sm">{@count}</span>
-            <span>files awaiting review</span>
-          </div>
-        </div>
-      </div>
-    </.link>
     """
   end
 
