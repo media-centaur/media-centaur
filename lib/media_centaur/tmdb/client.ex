@@ -74,20 +74,31 @@ defmodule MediaCentaur.TMDB.Client do
 
     get(client,
       url: "/movie/#{tmdb_id}",
-      params: [append_to_response: "credits,release_dates,images"]
+      params: [
+        append_to_response: "credits,release_dates,images",
+        include_image_language: "en,null"
+      ]
     )
   end
 
   @spec get_tv(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_tv(tmdb_id, client \\ default_client()) do
     Log.info(:tmdb, "get tv tmdb:#{tmdb_id}")
-    get(client, url: "/tv/#{tmdb_id}", params: [append_to_response: "images"])
+
+    get(client,
+      url: "/tv/#{tmdb_id}",
+      params: [append_to_response: "images", include_image_language: "en,null"]
+    )
   end
 
   @spec get_collection(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_collection(collection_id, client \\ default_client()) do
     Log.info(:tmdb, "get collection tmdb:#{collection_id}")
-    get(client, url: "/collection/#{collection_id}", params: [append_to_response: "images"])
+
+    get(client,
+      url: "/collection/#{collection_id}",
+      params: [append_to_response: "images", include_image_language: "en,null"]
+    )
   end
 
   @spec get_season(String.t() | integer(), integer(), Req.Request.t()) ::
