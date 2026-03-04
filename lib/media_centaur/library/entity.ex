@@ -85,6 +85,13 @@ defmodule MediaCentaur.Library.Entity do
               )
     end
 
+    read :all_files_absent do
+      filter expr(
+               exists(watched_files, true) and
+                 not exists(watched_files, state == :complete)
+             )
+    end
+
     update :set_content_url do
       accept [:content_url]
     end

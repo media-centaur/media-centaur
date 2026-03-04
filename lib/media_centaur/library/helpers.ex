@@ -18,14 +18,8 @@ defmodule MediaCentaur.Library.Helpers do
   These entities should be excluded from the library view.
   """
   def entity_ids_all_absent do
-    Library.list_watched_files!()
-    |> Enum.group_by(& &1.entity_id)
-    |> then(fn grouped ->
-      for {entity_id, files} <- grouped,
-          Enum.all?(files, &(&1.state == :absent)),
-          into: MapSet.new(),
-          do: entity_id
-    end)
+    Library.list_entities_all_files_absent!()
+    |> MapSet.new(& &1.id)
   end
 
   @doc """
@@ -35,14 +29,8 @@ defmodule MediaCentaur.Library.Helpers do
   def entity_ids_all_absent_for([]), do: MapSet.new()
 
   def entity_ids_all_absent_for(entity_ids) do
-    Library.list_watched_files!(query: [filter: [entity_id: [in: entity_ids]]])
-    |> Enum.group_by(& &1.entity_id)
-    |> then(fn grouped ->
-      for {entity_id, files} <- grouped,
-          Enum.all?(files, &(&1.state == :absent)),
-          into: MapSet.new(),
-          do: entity_id
-    end)
+    Library.list_entities_all_files_absent!(query: [filter: [id: [in: entity_ids]]])
+    |> MapSet.new(& &1.id)
   end
 
   @doc """
