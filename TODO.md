@@ -9,6 +9,9 @@ Future enhancements to the MPV playback experience. These are all MPV-side (Lua 
 - [ ] **Refresh rate matching** — [mpv-kscreen-doctor](https://gitlab.com/smaniottonicola/mpv-kscreen-doctor) or similar Wayland-compatible solution. Auto-match display refresh rate to video framerate (24Hz for 24fps film). Eliminates judder.
 - [ ] **MPRIS** — [mpv-mpris](https://github.com/hoyon/mpv-mpris). Standard Linux media key support (play/pause/next/prev). MPV state changes from MPRIS flow through our existing IPC property observers, so watch progress tracking remains intact.
 
+Configurations
+- [ ] Don't visualize cache
+
 ## TMDB Confidence Scorer: Same-Title Disambiguation
 
 **Problem:** When two shows share an identical title (e.g., "Sample Show One" 2001 vs "Sample Show One" 2026 reboot), both receive a confidence score of 1.0. `Enum.max_by` silently picks whichever TMDB returns first in its search results. There is no tiebreaker logic.
