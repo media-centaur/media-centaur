@@ -29,7 +29,9 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:ok,
      assign(socket,
        active_tab: :all,
-       expanded: MapSet.new(),
+       selected_id: nil,
+       metadata_expanded: false,
+       expanded_episodes: MapSet.new(),
        reload_timer: nil,
        pending_entity_ids: MapSet.new(),
        filter_text: ""
@@ -47,15 +49,32 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, assign(socket, filter_text: text)}
   end
 
-  def handle_event("toggle_expand", %{"id" => id}, socket) do
+  def handle_event("select_entity", %{"id" => id}, socket) do
+    if socket.assigns.selected_id == id do
+      {:noreply, assign(socket, selected_id: nil)}
+    else
+      {:noreply,
+       assign(socket,
+         selected_id: id,
+         metadata_expanded: false,
+         expanded_episodes: MapSet.new()
+       )}
+    end
+  end
+
+  def handle_event("toggle_metadata", _params, socket) do
+    {:noreply, assign(socket, metadata_expanded: !socket.assigns.metadata_expanded)}
+  end
+
+  def handle_event("toggle_episode_detail", %{"id" => id}, socket) do
     expanded =
-      if MapSet.member?(socket.assigns.expanded, id) do
-        MapSet.delete(socket.assigns.expanded, id)
+      if MapSet.member?(socket.assigns.expanded_episodes, id) do
+        MapSet.delete(socket.assigns.expanded_episodes, id)
       else
-        MapSet.put(socket.assigns.expanded, id)
+        MapSet.put(socket.assigns.expanded_episodes, id)
       end
 
-    {:noreply, assign(socket, expanded: expanded)}
+    {:noreply, assign(socket, expanded_episodes: expanded)}
   end
 
   def handle_event("play", %{"id" => uuid}, socket) do
@@ -93,12 +112,18 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     entries = Enum.sort_by(entries ++ new_entries, fn entry -> entry.entity.name || "" end)
 
+    selected_id =
+      if socket.assigns.selected_id && MapSet.member?(gone_ids, socket.assigns.selected_id),
+        do: nil,
+        else: socket.assigns.selected_id
+
     {:noreply,
      socket
      |> assign(entries: entries)
      |> assign(counts: tab_counts(entries))
      |> assign(reload_timer: nil)
-     |> assign(pending_entity_ids: MapSet.new())}
+     |> assign(pending_entity_ids: MapSet.new())
+     |> assign(selected_id: selected_id)}
   end
 
   def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
@@ -106,10 +131,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_info(
-        {:entity_progress_updated, entity_id, summary, _resume_target, progress_records},
+        {:entity_progress_updated, entity_id, summary, _resume_target, _child_targets_delta},
         socket
       ) do
-    entries = update_entry_progress(socket.assigns.entries, entity_id, summary, progress_records)
+    entries = update_entry_progress(socket.assigns.entries, entity_id, summary)
     {:noreply, assign(socket, entries: entries)}
   end
 
@@ -140,11 +165,20 @@ defmodule MediaCentaurWeb.LibraryLive do
       |> filtered_entries(assigns.active_tab)
       |> text_filtered_entries(assigns.filter_text)
 
-    assigns = assign(assigns, filtered: filtered)
+    selected_entry =
+      if assigns.selected_id do
+        Enum.find(assigns.entries, fn entry -> entry.entity.id == assigns.selected_id end)
+      end
+
+    assigns =
+      assign(assigns,
+        filtered: filtered,
+        selected_entry: selected_entry
+      )
 
     ~H"""
     <Layouts.app flash={@flash} current_path="/library">
-      <div class="space-y-6">
+      <div class="space-y-4">
         <h1 class="text-2xl font-bold">Library</h1>
 
         <div class="flex items-center gap-4">
@@ -165,21 +199,37 @@ defmodule MediaCentaurWeb.LibraryLive do
           No entities found.
         </div>
 
-        <div class="card glass-surface divide-y divide-base-300/50 overflow-hidden">
-          <.entity_card
-            :for={entry <- @filtered}
-            entry={entry}
-            expanded={MapSet.member?(@expanded, entry.entity.id)}
-            playing_entity_id={playing_entity_id(@playback)}
-            watch_dirs={@watch_dirs}
-          />
+        <div :if={@filtered != []} class="flex gap-4">
+          <%!-- Grid area --%>
+          <div class="flex-1 min-w-0">
+            <div class="grid grid-cols-[repeat(auto-fill,minmax(135px,1fr))] gap-3">
+              <.entity_card
+                :for={entry <- @filtered}
+                entry={entry}
+                selected={@selected_id == entry.entity.id}
+                playing={playing_entity_id(@playback) == entry.entity.id}
+                attention={compute_attention(entry)}
+              />
+            </div>
+          </div>
+
+          <%!-- Drawer area --%>
+          <div class="w-[360px] flex-shrink-0 hidden lg:block sticky top-0 self-start max-h-screen overflow-y-auto">
+            <.side_drawer
+              entry={@selected_entry}
+              watch_dirs={@watch_dirs}
+              metadata_expanded={@metadata_expanded}
+              expanded_episodes={@expanded_episodes}
+              playback={@playback}
+            />
+          </div>
         </div>
       </div>
     </Layouts.app>
     """
   end
 
-  # --- Section Components ---
+  # --- Tab Bar ---
 
   defp tab_bar(assigns) do
     ~H"""
@@ -198,260 +248,529 @@ defmodule MediaCentaurWeb.LibraryLive do
     """
   end
 
+  # --- Entity Card (compact poster card) ---
+
   attr :entry, :map, required: true
-  attr :expanded, :boolean, required: true
-  attr :playing_entity_id, :string, default: nil
-  attr :watch_dirs, :list, required: true
+  attr :selected, :boolean, required: true
+  attr :playing, :boolean, required: true
+  attr :attention, :atom, default: nil
 
-  defp entity_card(%{entry: %{entity: %{type: :tv_series}}} = assigns) do
-    entity = assigns.entry.entity
-    episodes = EpisodeList.list_available(entity)
-    progress_by_key = EpisodeList.index_progress_by_key(assigns.entry.progress_records)
-    playing = assigns.playing_entity_id == entity.id
-
-    assigns =
-      assign(assigns,
-        entity: entity,
-        seasons: entity.seasons || [],
-        episodes: episodes,
-        progress_by_key: progress_by_key,
-        playing: playing,
-        poster: poster_url(entity)
-      )
-
-    ~H"""
-    <div class={["p-4", @playing && "ring-2 ring-primary ring-inset"]}>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <button
-            phx-click="toggle_expand"
-            phx-value-id={@entity.id}
-            class="w-5 flex-shrink-0 flex items-center justify-center"
-          >
-            <.icon
-              name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-              class="size-4 text-base-content/60"
-            />
-          </button>
-          <.thumbnail url={@poster} />
-          <div>
-            <span class="font-semibold">{@entity.name}</span>
-            <span class="badge badge-outline badge-sm ml-2">TV Series</span>
-            <span :if={@entity.date_published} class="text-base-content/60 text-sm ml-2">
-              {extract_year(@entity.date_published)}
-            </span>
-            <span class="text-base-content/60 text-sm ml-2">
-              {length(@seasons)} season{if length(@seasons) != 1, do: "s"}
-            </span>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <.progress_badge progress={@entry.progress} type={:tv_series} />
-          <button phx-click="play" phx-value-id={@entity.id} class="btn btn-primary btn-sm">
-            <.icon name="hero-play-mini" class="size-4" />
-          </button>
-        </div>
-      </div>
-
-      <div :if={@expanded} class="mt-3 ml-5 border-l-2 border-base-300 pl-4 space-y-3">
-        <div :for={season <- @seasons}>
-          <div class="text-sm font-medium text-base-content/70 mb-1">
-            {season.name || "Season #{season.season_number}"}
-          </div>
-          <div class="divide-y divide-base-300/50">
-            <div :for={episode <- season.episodes} class="flex items-center gap-3 py-1.5 text-sm">
-              <span class="w-6 text-right text-base-content/50 flex-shrink-0 font-mono text-xs">
-                {episode.episode_number}
-              </span>
-              <span class="truncate flex-1">{episode.name || "—"}</span>
-              <span
-                title={strip_watch_dir(episode.content_url, @watch_dirs)}
-                class="font-mono text-xs text-base-content/40 max-w-xs truncate-left hidden sm:inline flex-shrink-0"
-              >
-                {strip_watch_dir(episode.content_url, @watch_dirs)}
-              </span>
-              <.episode_progress_badge progress={
-                Map.get(@progress_by_key, {season.season_number, episode.episode_number})
-              } />
-              <button
-                :if={episode.content_url}
-                phx-click="play"
-                phx-value-id={episode.id}
-                class="btn btn-ghost btn-xs flex-shrink-0"
-              >
-                <.icon name="hero-play-mini" class="size-3" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp entity_card(%{entry: %{entity: %{type: :movie_series}}} = assigns) do
-    entity = assigns.entry.entity
-    playing = assigns.playing_entity_id == entity.id
-
-    assigns =
-      assign(assigns,
-        entity: entity,
-        movies: entity.movies || [],
-        playing: playing,
-        poster: poster_url(entity)
-      )
-
-    ~H"""
-    <div class={["p-4", @playing && "ring-2 ring-primary ring-inset"]}>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <button
-            phx-click="toggle_expand"
-            phx-value-id={@entity.id}
-            class="w-5 flex-shrink-0 flex items-center justify-center"
-          >
-            <.icon
-              name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-              class="size-4 text-base-content/60"
-            />
-          </button>
-          <.thumbnail url={@poster} />
-          <div>
-            <span class="font-semibold">{@entity.name}</span>
-            <span class="badge badge-outline badge-sm ml-2">Movie Series</span>
-            <span :if={@entity.date_published} class="text-base-content/60 text-sm ml-2">
-              {extract_year(@entity.date_published)}
-            </span>
-            <span class="text-base-content/60 text-sm ml-2">
-              {length(@movies)} movie{if length(@movies) != 1, do: "s"}
-            </span>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <.progress_badge progress={@entry.progress} type={:movie_series} />
-          <button phx-click="play" phx-value-id={@entity.id} class="btn btn-primary btn-sm">
-            <.icon name="hero-play-mini" class="size-4" />
-          </button>
-        </div>
-      </div>
-
-      <div :if={@expanded} class="mt-3 ml-5 border-l-2 border-base-300 pl-4">
-        <div class="divide-y divide-base-300/50">
-          <div :for={movie <- @movies} class="flex items-center gap-3 py-1.5 text-sm">
-            <span class="truncate flex-1">
-              {movie.name || "—"}
-              <span :if={movie.date_published} class="text-base-content/50 ml-1">
-                ({extract_year(movie.date_published)})
-              </span>
-            </span>
-            <span
-              title={strip_watch_dir(movie.content_url, @watch_dirs)}
-              class="font-mono text-xs text-base-content/40 max-w-xs truncate-left hidden sm:inline flex-shrink-0"
-            >
-              {strip_watch_dir(movie.content_url, @watch_dirs)}
-            </span>
-            <button
-              :if={movie.content_url}
-              phx-click="play"
-              phx-value-id={movie.id}
-              class="btn btn-ghost btn-xs flex-shrink-0"
-            >
-              <.icon name="hero-play-mini" class="size-3" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  # Movie / VideoObject — single-row card
   defp entity_card(assigns) do
-    entity = assigns.entry.entity
-    playing = assigns.playing_entity_id == entity.id
-
-    assigns = assign(assigns, entity: entity, playing: playing, poster: poster_url(entity))
+    assigns = assign(assigns, poster: poster_url(assigns.entry.entity))
 
     ~H"""
-    <div class={["p-4", @playing && "ring-2 ring-primary ring-inset"]}>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-5 flex-shrink-0"></div>
-          <.thumbnail url={@poster} />
-          <div>
-            <div>
-              <span class="font-semibold">{@entity.name}</span>
-              <span class="badge badge-outline badge-sm ml-2">{format_type(@entity.type)}</span>
-              <span :if={@entity.date_published} class="text-base-content/60 text-sm ml-2">
-                {extract_year(@entity.date_published)}
-              </span>
-            </div>
-            <div
-              title={strip_watch_dir(@entity.content_url, @watch_dirs)}
-              class="font-mono text-xs text-base-content/40 mt-0.5 max-w-sm truncate-left hidden sm:block"
-            >
-              {strip_watch_dir(@entity.content_url, @watch_dirs)}
-            </div>
-          </div>
+    <div
+      phx-click="select_entity"
+      phx-value-id={@entry.entity.id}
+      class={[
+        "card glass-surface cursor-pointer overflow-hidden transition-all",
+        "hover:ring-1 hover:ring-base-content/20",
+        @selected && "ring-2 ring-primary",
+        @playing && "ring-2 ring-primary",
+        @attention == :error && "border-l-3 border-l-error"
+      ]}
+    >
+      <%!-- Poster --%>
+      <div class="aspect-[2/3] glass-inset relative">
+        <img
+          :if={@poster}
+          src={@poster}
+          class="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div
+          :if={!@poster}
+          class="w-full h-full flex items-center justify-center"
+        >
+          <.icon name="hero-film" class="size-8 text-base-content/20" />
         </div>
-        <div class="flex items-center gap-2">
-          <.progress_badge progress={@entry.progress} type={@entity.type} />
-          <button phx-click="play" phx-value-id={@entity.id} class="btn btn-primary btn-sm">
-            <.icon name="hero-play-mini" class="size-4" />
-          </button>
+
+        <%!-- Now-playing pulse --%>
+        <div
+          :if={@playing}
+          class="absolute top-2 right-2 size-3 rounded-full bg-primary animate-pulse"
+        />
+
+        <%!-- Attention dot --%>
+        <div
+          :if={@attention == :error && !@playing}
+          class="absolute top-2 right-2 size-2.5 rounded-full bg-error"
+        />
+      </div>
+
+      <%!-- Card footer --%>
+      <div class="p-2">
+        <div class="text-sm font-medium leading-tight line-clamp-2">
+          {@entry.entity.name || "Untitled"}
         </div>
+        <div class="mt-0.5 text-xs text-base-content/50">
+          {format_type(@entry.entity.type)}<span :if={@entry.entity.date_published}> · {extract_year(@entry.entity.date_published)}</span>
+        </div>
+        <.card_progress progress={@entry.progress} type={@entry.entity.type} />
       </div>
     </div>
     """
   end
 
-  defp progress_badge(%{progress: nil} = assigns) do
+  # --- Card Progress (compact text for grid cards) ---
+
+  defp card_progress(%{progress: nil} = assigns) do
     ~H"""
-    <span class="badge badge-ghost badge-sm">Unwatched</span>
     """
   end
 
-  defp progress_badge(%{type: :tv_series, progress: progress} = assigns) do
+  defp card_progress(%{type: :tv_series, progress: progress} = assigns) do
     assigns = assign(assigns, progress: progress)
 
     ~H"""
     <span
       :if={@progress.episodes_completed == @progress.episodes_total && @progress.episodes_total > 0}
-      class="text-success text-sm"
+      class="text-xs text-success"
     >
       Watched
     </span>
     <span
       :if={@progress.episodes_completed < @progress.episodes_total || @progress.episodes_total == 0}
-      class="text-info text-sm"
+      class="text-xs text-info"
+    >
+      {@progress.episodes_completed}/{@progress.episodes_total} eps
+    </span>
+    """
+  end
+
+  defp card_progress(%{progress: progress} = assigns) do
+    completed = progress.episodes_completed > 0
+    assigns = assign(assigns, progress: progress, completed: completed)
+
+    ~H"""
+    <span :if={@completed} class="text-xs text-success">Watched</span>
+    <span
+      :if={!@completed && @progress.episode_duration_seconds > 0}
+      class="text-xs text-info"
+    >
+      {format_seconds(@progress.episode_position_seconds)}
+    </span>
+    """
+  end
+
+  # --- Side Drawer ---
+
+  attr :entry, :map, default: nil
+  attr :watch_dirs, :list, required: true
+  attr :metadata_expanded, :boolean, required: true
+  attr :expanded_episodes, :any, required: true
+  attr :playback, :map, required: true
+
+  defp side_drawer(%{entry: nil} = assigns) do
+    ~H"""
+    <div class="card glass-surface h-full min-h-[400px] flex items-center justify-center">
+      <div class="text-center text-base-content/40">
+        <.icon name="hero-cursor-arrow-rays" class="size-8 mx-auto mb-2" />
+        <p class="text-sm">Select an item to view details</p>
+      </div>
+    </div>
+    """
+  end
+
+  defp side_drawer(assigns) do
+    entity = assigns.entry.entity
+    episodes = if entity.type == :tv_series, do: EpisodeList.list_available(entity), else: []
+
+    progress_by_key =
+      if entity.type == :tv_series,
+        do: EpisodeList.index_progress_by_key(assigns.entry.progress_records),
+        else: %{}
+
+    assigns =
+      assign(assigns,
+        entity: entity,
+        episodes: episodes,
+        progress_by_key: progress_by_key
+      )
+
+    ~H"""
+    <div class="card glass-surface">
+      <.drawer_header entity={@entity} progress={@entry.progress} />
+      <div class="p-4 space-y-4">
+        <.drawer_actions entity={@entity} />
+        <.drawer_details entity={@entity} />
+        <.drawer_status entity={@entity} />
+        <.drawer_content_list
+          entity={@entity}
+          watch_dirs={@watch_dirs}
+          expanded_episodes={@expanded_episodes}
+          progress_by_key={@progress_by_key}
+        />
+        <.drawer_more_details
+          entity={@entity}
+          watch_dirs={@watch_dirs}
+          expanded={@metadata_expanded}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  # --- Drawer Header ---
+
+  defp drawer_header(assigns) do
+    backdrop = image_url(assigns.entity, "backdrop")
+    background = backdrop || poster_url(assigns.entity)
+    logo = image_url(assigns.entity, "logo")
+    assigns = assign(assigns, background: background, logo: logo)
+
+    ~H"""
+    <div class="relative">
+      <%!-- Backdrop / poster banner --%>
+      <div class="aspect-[16/9] glass-inset overflow-hidden relative">
+        <img
+          :if={@background}
+          src={@background}
+          class="w-full h-full object-cover"
+        />
+        <div :if={!@background} class="w-full h-full flex items-center justify-center">
+          <.icon name="hero-film" class="size-12 text-base-content/20" />
+        </div>
+        <%!-- Logo overlay --%>
+        <div :if={@logo} class="absolute inset-0 flex items-center justify-center p-6">
+          <img
+            src={@logo}
+            class="max-h-full max-w-[70%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]"
+          />
+        </div>
+      </div>
+
+      <%!-- Title overlay --%>
+      <div class="p-4 pb-2">
+        <h2 class="text-lg font-bold leading-snug">{@entity.name}</h2>
+        <div class="flex items-center gap-2 mt-1 text-sm text-base-content/60">
+          <span class="badge badge-outline badge-sm">{format_type(@entity.type)}</span>
+          <span :if={@entity.date_published}>{extract_year(@entity.date_published)}</span>
+          <span :if={@entity.type == :tv_series && is_list(@entity.seasons)}>
+            {length(@entity.seasons)} season{if length(@entity.seasons) != 1, do: "s"}
+          </span>
+          <span :if={@entity.type == :movie_series && is_list(@entity.movies)}>
+            {length(@entity.movies)} movie{if length(@entity.movies) != 1, do: "s"}
+          </span>
+        </div>
+        <div class="mt-1">
+          <.drawer_progress progress={@progress} type={@entity.type} />
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  # --- Drawer Progress ---
+
+  defp drawer_progress(%{progress: nil} = assigns) do
+    ~H"""
+    <span class="text-sm text-base-content/40">Unwatched</span>
+    """
+  end
+
+  defp drawer_progress(%{type: :tv_series, progress: progress} = assigns) do
+    assigns = assign(assigns, progress: progress)
+
+    ~H"""
+    <span
+      :if={@progress.episodes_completed == @progress.episodes_total && @progress.episodes_total > 0}
+      class="text-sm text-success"
+    >
+      Watched
+    </span>
+    <span
+      :if={@progress.episodes_completed < @progress.episodes_total || @progress.episodes_total == 0}
+      class="text-sm text-info"
     >
       {@progress.episodes_completed}/{@progress.episodes_total} episodes
     </span>
     """
   end
 
-  defp progress_badge(%{progress: progress} = assigns) do
+  defp drawer_progress(%{progress: progress} = assigns) do
     completed = progress.episodes_completed > 0
     assigns = assign(assigns, progress: progress, completed: completed)
 
     ~H"""
-    <span :if={@completed} class="text-success text-sm">Watched</span>
-    <span
-      :if={!@completed && @progress.episode_duration_seconds > 0}
-      class="text-info text-sm"
-    >
+    <span :if={@completed} class="text-sm text-success">Watched</span>
+    <span :if={!@completed && @progress.episode_duration_seconds > 0} class="text-sm text-info">
       {format_seconds(@progress.episode_position_seconds)} / {format_seconds(
         @progress.episode_duration_seconds
       )}
     </span>
     <span
       :if={!@completed && @progress.episode_duration_seconds == 0}
-      class="badge badge-ghost badge-sm"
+      class="text-sm text-base-content/40"
     >
       Unwatched
     </span>
     """
   end
+
+  # --- Drawer Actions ---
+
+  defp drawer_actions(assigns) do
+    ~H"""
+    <div class="flex gap-2">
+      <button
+        phx-click="play"
+        phx-value-id={@entity.id}
+        class="btn btn-soft btn-primary btn-sm flex-1"
+      >
+        <.icon name="hero-play-mini" class="size-4" /> Resume
+      </button>
+      <button class="btn btn-ghost btn-sm" disabled title="Re-match coming soon">
+        <.icon name="hero-arrow-path-mini" class="size-4" /> Re-match
+      </button>
+    </div>
+    """
+  end
+
+  # --- Drawer Status ---
+
+  defp drawer_status(assigns) do
+    tmdb_id = find_identifier(assigns.entity, "tmdb")
+    has_poster = poster_url(assigns.entity) != nil
+    assigns = assign(assigns, tmdb_id: tmdb_id, has_poster: has_poster)
+
+    ~H"""
+    <div class="space-y-1 text-sm">
+      <div class="flex items-center justify-between">
+        <span class="text-base-content/60">TMDB</span>
+        <span :if={@tmdb_id} class="text-success">Matched</span>
+        <span :if={!@tmdb_id} class="text-warning">Unmatched</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-base-content/60">Poster</span>
+        <span :if={@has_poster} class="text-success">Available</span>
+        <span :if={!@has_poster} class="text-error">Missing</span>
+      </div>
+    </div>
+    """
+  end
+
+  # --- Drawer Metadata (collapsible) ---
+
+  attr :entity, :map, required: true
+
+  defp drawer_details(assigns) do
+    ~H"""
+    <div :if={has_details?(@entity)} class="space-y-2 text-sm">
+      <p :if={@entity.description} class="text-base-content/70 line-clamp-4">
+        {@entity.description}
+      </p>
+
+      <div :if={@entity.genres && @entity.genres != []} class="flex flex-wrap gap-1">
+        <span :for={genre <- @entity.genres} class="badge badge-outline badge-sm">
+          {genre}
+        </span>
+      </div>
+
+      <div class="flex items-center gap-4 text-base-content/60">
+        <span :if={@entity.content_rating}>{@entity.content_rating}</span>
+        <span :if={@entity.director}>{@entity.director}</span>
+      </div>
+    </div>
+    """
+  end
+
+  defp has_details?(entity) do
+    entity.description || (entity.genres && entity.genres != []) ||
+      entity.content_rating || entity.director
+  end
+
+  # --- More Details (collapsible) ---
+
+  attr :entity, :map, required: true
+  attr :watch_dirs, :list, required: true
+  attr :expanded, :boolean, required: true
+
+  defp drawer_more_details(assigns) do
+    ~H"""
+    <div class="border-t border-base-300/50 pt-3">
+      <button
+        phx-click="toggle_metadata"
+        class="flex items-center gap-1 text-sm text-base-content/60 hover:text-base-content w-full"
+      >
+        <.icon
+          name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
+          class="size-4"
+        /> More details
+      </button>
+
+      <div :if={@expanded} class="mt-2 space-y-2 text-sm">
+        <div :if={@entity.content_url} class="flex items-center justify-between gap-2">
+          <span class="text-base-content/60 flex-shrink-0">File</span>
+          <span
+            title={strip_watch_dir(@entity.content_url, @watch_dirs)}
+            class="font-mono text-xs text-base-content/50 truncate-left"
+          >
+            {strip_watch_dir(@entity.content_url, @watch_dirs)}
+          </span>
+        </div>
+
+        <div class="pt-1">
+          <span class="font-mono text-xs text-base-content/30 select-all">{@entity.id}</span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  # --- Drawer Content List ---
+
+  attr :entity, :map, required: true
+  attr :watch_dirs, :list, required: true
+  attr :expanded_episodes, :any, required: true
+  attr :progress_by_key, :map, required: true
+
+  defp drawer_content_list(%{entity: %{type: :tv_series}} = assigns) do
+    assigns = assign(assigns, seasons: assigns.entity.seasons || [])
+
+    ~H"""
+    <div class="border-t border-base-300/50 pt-3 space-y-3">
+      <div :for={season <- @seasons}>
+        <div class="text-xs font-medium text-base-content/50 uppercase tracking-wide mb-1">
+          {season.name || "Season #{season.season_number}"}
+        </div>
+        <div class="divide-y divide-base-300/30">
+          <.episode_row
+            :for={episode <- season.episodes}
+            episode={episode}
+            season_number={season.season_number}
+            watch_dirs={@watch_dirs}
+            expanded={MapSet.member?(@expanded_episodes, episode.id)}
+            progress={Map.get(@progress_by_key, {season.season_number, episode.episode_number})}
+          />
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp drawer_content_list(%{entity: %{type: :movie_series}} = assigns) do
+    assigns = assign(assigns, movies: assigns.entity.movies || [])
+
+    ~H"""
+    <div class="border-t border-base-300/50 pt-3">
+      <div class="divide-y divide-base-300/30">
+        <.movie_row
+          :for={movie <- @movies}
+          movie={movie}
+          watch_dirs={@watch_dirs}
+          expanded={MapSet.member?(@expanded_episodes, movie.id)}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  defp drawer_content_list(assigns) do
+    ~H"""
+    """
+  end
+
+  # --- Episode Row ---
+
+  attr :episode, :map, required: true
+  attr :season_number, :integer, required: true
+  attr :watch_dirs, :list, required: true
+  attr :expanded, :boolean, required: true
+  attr :progress, :map, default: nil
+
+  defp episode_row(assigns) do
+    ~H"""
+    <div class="py-1.5">
+      <div
+        class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded px-1 -mx-1"
+        phx-click="toggle_episode_detail"
+        phx-value-id={@episode.id}
+      >
+        <span class="w-5 text-right text-base-content/50 flex-shrink-0 font-mono text-xs">
+          {@episode.episode_number}
+        </span>
+        <span class="truncate flex-1">{@episode.name || "—"}</span>
+        <.episode_progress_badge progress={@progress} />
+        <button
+          :if={@episode.content_url}
+          phx-click="play"
+          phx-value-id={@episode.id}
+          class="btn btn-ghost btn-xs flex-shrink-0"
+        >
+          <.icon name="hero-play-mini" class="size-3" />
+        </button>
+      </div>
+
+      <div :if={@expanded} class="ml-7 mt-1 space-y-1 text-xs text-base-content/50">
+        <p :if={@episode.description} class="line-clamp-3 text-base-content/60">
+          {@episode.description}
+        </p>
+        <div :if={@episode.duration} class="flex items-center gap-1">
+          <.icon name="hero-clock-mini" class="size-3" />
+          {@episode.duration}
+        </div>
+        <div :if={@episode.content_url} title={strip_watch_dir(@episode.content_url, @watch_dirs)}>
+          <span class="font-mono truncate-left inline-block max-w-full">
+            {strip_watch_dir(@episode.content_url, @watch_dirs)}
+          </span>
+        </div>
+        <div class="font-mono text-base-content/30 select-all">{@episode.id}</div>
+      </div>
+    </div>
+    """
+  end
+
+  # --- Movie Row (for movie_series) ---
+
+  attr :movie, :map, required: true
+  attr :watch_dirs, :list, required: true
+  attr :expanded, :boolean, required: true
+
+  defp movie_row(assigns) do
+    ~H"""
+    <div class="py-1.5">
+      <div
+        class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded px-1 -mx-1"
+        phx-click="toggle_episode_detail"
+        phx-value-id={@movie.id}
+      >
+        <span class="truncate flex-1">
+          {@movie.name || "—"}
+          <span :if={@movie.date_published} class="text-base-content/50 ml-1">
+            ({extract_year(@movie.date_published)})
+          </span>
+        </span>
+        <button
+          :if={@movie.content_url}
+          phx-click="play"
+          phx-value-id={@movie.id}
+          class="btn btn-ghost btn-xs flex-shrink-0"
+        >
+          <.icon name="hero-play-mini" class="size-3" />
+        </button>
+      </div>
+
+      <div :if={@expanded} class="ml-2 mt-1 space-y-1 text-xs text-base-content/50">
+        <p :if={@movie.description} class="line-clamp-3 text-base-content/60">
+          {@movie.description}
+        </p>
+        <div :if={@movie.duration} class="flex items-center gap-1">
+          <.icon name="hero-clock-mini" class="size-3" />
+          {@movie.duration}
+        </div>
+        <div :if={@movie.content_url} title={strip_watch_dir(@movie.content_url, @watch_dirs)}>
+          <span class="font-mono truncate-left inline-block max-w-full">
+            {strip_watch_dir(@movie.content_url, @watch_dirs)}
+          </span>
+        </div>
+        <div class="font-mono text-base-content/30 select-all">{@movie.id}</div>
+      </div>
+    </div>
+    """
+  end
+
+  # --- Episode Progress Badge ---
 
   defp episode_progress_badge(%{progress: nil} = assigns) do
     ~H"""
@@ -479,35 +798,32 @@ defmodule MediaCentaurWeb.LibraryLive do
     """
   end
 
-  # --- Thumbnail Component ---
+  # --- Helpers ---
 
-  attr :url, :string, default: nil
-
-  defp thumbnail(assigns) do
-    ~H"""
-    <div class="w-10 h-15 rounded overflow-hidden glass-inset flex-shrink-0 flex items-center justify-center">
-      <img :if={@url} src={@url} class="w-full h-full object-cover" loading="lazy" />
-      <.icon :if={!@url} name="hero-film" class="size-5 text-base-content/30" />
-    </div>
-    """
+  defp compute_attention(%{entity: entity}) do
+    if poster_url(entity) == nil, do: :error
   end
 
-  defp poster_url(entity) do
-    poster = Enum.find(entity.images || [], &(&1.role == "poster"))
+  defp find_identifier(entity, property_id) do
+    Enum.find(entity.identifiers || [], fn id -> id.property_id == property_id end)
+  end
+
+  defp poster_url(entity), do: image_url(entity, "poster")
+
+  defp image_url(entity, role) do
+    image = Enum.find(entity.images || [], &(&1.role == role))
 
     cond do
-      poster && poster.content_url ->
-        "/media-images/#{poster.content_url}"
+      image && image.content_url ->
+        "/media-images/#{image.content_url}"
 
-      poster && poster.url ->
-        poster.url
+      image && image.url ->
+        image.url
 
       true ->
         nil
     end
   end
-
-  # --- Helpers ---
 
   defp filtered_entries(entries, :all), do: entries
 
@@ -569,10 +885,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id
   defp playing_entity_id(_), do: nil
 
-  defp update_entry_progress(entries, entity_id, summary, progress_records) do
+  defp update_entry_progress(entries, entity_id, summary) do
     Enum.map(entries, fn
       %{entity: %{id: ^entity_id}} = entry ->
-        %{entry | progress: summary, progress_records: progress_records}
+        %{entry | progress: summary}
 
       entry ->
         entry
