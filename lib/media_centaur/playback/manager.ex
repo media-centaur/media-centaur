@@ -4,7 +4,6 @@ defmodule MediaCentaur.Playback.Manager do
   Provides the public API for playback control.
   """
   use GenServer
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Playback.{MpvSession, SessionSupervisor}

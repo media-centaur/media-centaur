@@ -51,7 +51,6 @@ defmodule MediaCentaur.Review do
     end
   end
 
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.TMDB.Client
