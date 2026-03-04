@@ -417,13 +417,13 @@ defmodule MediaCentaurWeb.LibraryLive do
     ~H"""
     <span
       :if={@progress.episodes_completed == @progress.episodes_total && @progress.episodes_total > 0}
-      class="badge badge-success badge-sm"
+      class="text-success text-sm"
     >
       Watched
     </span>
     <span
       :if={@progress.episodes_completed < @progress.episodes_total || @progress.episodes_total == 0}
-      class="badge badge-info badge-sm"
+      class="text-info text-sm"
     >
       {@progress.episodes_completed}/{@progress.episodes_total} episodes
     </span>
@@ -435,10 +435,10 @@ defmodule MediaCentaurWeb.LibraryLive do
     assigns = assign(assigns, progress: progress, completed: completed)
 
     ~H"""
-    <span :if={@completed} class="badge badge-success badge-sm">Watched</span>
+    <span :if={@completed} class="text-success text-sm">Watched</span>
     <span
       :if={!@completed && @progress.episode_duration_seconds > 0}
-      class="badge badge-info badge-sm"
+      class="text-info text-sm"
     >
       {format_seconds(@progress.episode_position_seconds)} / {format_seconds(
         @progress.episode_duration_seconds
@@ -463,10 +463,10 @@ defmodule MediaCentaurWeb.LibraryLive do
     assigns = assign(assigns, progress: progress)
 
     ~H"""
-    <span :if={@progress.completed} class="badge badge-success badge-xs">done</span>
+    <span :if={@progress.completed} class="text-success text-xs">done</span>
     <span
       :if={!@progress.completed && @progress.position_seconds > 0}
-      class="badge badge-info badge-xs"
+      class="text-info text-xs"
     >
       {format_seconds(@progress.position_seconds)}
     </span>

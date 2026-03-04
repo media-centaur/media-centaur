@@ -256,7 +256,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         <div class="flex items-center justify-between">
           <h2 class="card-title text-lg">Pipeline</h2>
           <div class="flex items-center gap-3 text-sm">
-            <span :if={@content_stats.queue_depth > 0} class="badge badge-info badge-sm">
+            <span :if={@content_stats.queue_depth > 0} class="text-info text-sm">
               {@content_stats.queue_depth} queued
             </span>
             <span :if={@content_stats.total_failed > 0} class="text-error text-xs">
@@ -266,7 +266,7 @@ defmodule MediaCentaurWeb.DashboardLive do
               phx-click="clear_database"
               disabled={@clearing_database}
               data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
-              class="btn btn-error btn-xs btn-outline"
+              class="btn btn-soft btn-error btn-xs"
             >
               {if @clearing_database, do: "Clearing…", else: "Clear database"}
             </button>
@@ -280,21 +280,18 @@ defmodule MediaCentaurWeb.DashboardLive do
           </div>
         </div>
 
-        <%!-- Column headers --%>
+        <%!-- New Media section with column headers --%>
         <div
           class="grid items-center gap-2 mt-3 mb-1"
           style={@grid_columns}
         >
           <span></span>
-          <span class="text-xs text-base-content/40 uppercase tracking-wide">Stage</span>
+          <span class="text-xs text-base-content/50 uppercase tracking-wide">New Media</span>
           <span class="text-xs text-base-content/40 uppercase tracking-wide">Status</span>
           <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Rate</span>
           <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Avg</span>
           <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Slots</span>
         </div>
-
-        <%!-- New Media section --%>
-        <h3 class="text-xs text-base-content/50 uppercase tracking-wide mt-1">New Media</h3>
 
         <%!-- Content pipeline stages --%>
         <div class="space-y-0.5">
@@ -324,7 +321,7 @@ defmodule MediaCentaurWeb.DashboardLive do
             </span>
           </span>
 
-          <span class={["badge badge-xs", stage_badge_class(@image_stats.status)]}>
+          <span class={["text-xs", stage_text_class(@image_stats.status)]}>
             {stage_status_label(@image_stats.status)}
           </span>
 
@@ -382,7 +379,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         </span>
       </span>
 
-      <span class={["badge badge-xs", stage_badge_class(@data.status)]}>
+      <span class={["text-xs", stage_text_class(@data.status)]}>
         {stage_status_label(@data.status)}
       </span>
 
@@ -411,7 +408,7 @@ defmodule MediaCentaurWeb.DashboardLive do
 
         <ul :if={@statuses != []} class="space-y-2">
           <li :for={status <- @statuses} class="flex items-center gap-3">
-            <span class={["badge badge-sm", watcher_badge_class(status.state)]}>
+            <span class={["text-sm", watcher_text_class(status.state)]}>
               {status.state}
             </span>
             <code class="text-sm">{status.dir}</code>
@@ -432,10 +429,10 @@ defmodule MediaCentaurWeb.DashboardLive do
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium">TMDB</span>
-              <span :if={@config[:tmdb_configured]} class="badge badge-success badge-xs">
+              <span :if={@config[:tmdb_configured]} class="text-success text-xs">
                 configured
               </span>
-              <span :if={!@config[:tmdb_configured]} class="badge badge-error badge-xs">
+              <span :if={!@config[:tmdb_configured]} class="text-error text-xs">
                 not configured
               </span>
             </div>
@@ -467,8 +464,7 @@ defmodule MediaCentaurWeb.DashboardLive do
     <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">
-          Recent Errors
-          <span :if={@files != []} class="badge badge-error badge-sm">{length(@files)}</span>
+          Recent Errors <span :if={@files != []} class="text-error text-sm">{length(@files)}</span>
         </h2>
 
         <p :if={@files == []} class="text-base-content/60">No errors.</p>
@@ -486,7 +482,7 @@ defmodule MediaCentaurWeb.DashboardLive do
             <tbody>
               <tr :for={error <- @files}>
                 <td>
-                  <span class="badge badge-error badge-xs">{error[:stage] || "—"}</span>
+                  <span class="text-error text-xs">{error[:stage] || "—"}</span>
                 </td>
                 <td class="font-mono text-xs max-w-xs truncate-left" title={error.file_path}>
                   {error.file_path || "—"}
@@ -568,7 +564,7 @@ defmodule MediaCentaurWeb.DashboardLive do
 
         <div class="text-sm">
           <div class="flex items-center gap-2">
-            <span class={["badge badge-sm", playback_badge_class(@playback.state)]}>
+            <span class={["text-sm", playback_text_class(@playback.state)]}>
               {@playback.state}
             </span>
 
@@ -651,10 +647,10 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp stage_dot_class(:saturated), do: "bg-warning"
   defp stage_dot_class(:erroring), do: "bg-error"
 
-  defp stage_badge_class(:idle), do: "badge-ghost"
-  defp stage_badge_class(:active), do: "badge-success"
-  defp stage_badge_class(:saturated), do: "badge-warning"
-  defp stage_badge_class(:erroring), do: "badge-error"
+  defp stage_text_class(:idle), do: "text-base-content/60"
+  defp stage_text_class(:active), do: "text-success"
+  defp stage_text_class(:saturated), do: "text-warning"
+  defp stage_text_class(:erroring), do: "text-error"
 
   defp stage_status_label(:idle), do: "idle"
   defp stage_status_label(:active), do: "active"
@@ -666,14 +662,14 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp stage_display_name(:fetch_metadata), do: "Enrich Metadata"
   defp stage_display_name(:ingest), do: "Add to Library"
 
-  defp watcher_badge_class(:watching), do: "badge-success"
-  defp watcher_badge_class(:initializing), do: "badge-warning"
-  defp watcher_badge_class(_), do: "badge-error"
+  defp watcher_text_class(:watching), do: "text-success"
+  defp watcher_text_class(:initializing), do: "text-warning"
+  defp watcher_text_class(_), do: "text-error"
 
-  defp playback_badge_class(:idle), do: "badge-ghost"
-  defp playback_badge_class(:playing), do: "badge-success"
-  defp playback_badge_class(:paused), do: "badge-warning"
-  defp playback_badge_class(_), do: "badge-info"
+  defp playback_text_class(:idle), do: "text-base-content/60"
+  defp playback_text_class(:playing), do: "text-success"
+  defp playback_text_class(:paused), do: "text-warning"
+  defp playback_text_class(_), do: "text-info"
 
   defp now_playing_label(%{episode_name: name} = np) when is_binary(name) do
     "S#{np[:season_number] || "?"}E#{np[:episode_number] || "?"} · #{name}"

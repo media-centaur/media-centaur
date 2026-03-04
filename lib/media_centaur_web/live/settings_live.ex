@@ -152,7 +152,7 @@ defmodule MediaCentaurWeb.SettingsLive do
         <div class="flex items-center justify-between">
           <h2 class="card-title text-lg">Component Logs</h2>
           <div class="flex gap-2">
-            <button phx-click="enable_all" class="btn btn-xs btn-outline btn-success">
+            <button phx-click="enable_all" class="btn btn-xs btn-soft btn-success">
               Enable all
             </button>
             <button phx-click="disable_all" class="btn btn-xs btn-outline">
@@ -268,7 +268,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             phx-click="clear_database"
             disabled={@clearing_database}
             data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
-            class="btn btn-error btn-sm btn-outline"
+            class="btn btn-soft btn-error btn-sm"
           >
             {if @clearing_database, do: "Clearing...", else: "Clear database"}
           </button>
@@ -276,7 +276,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             phx-click="refresh_image_cache"
             disabled={@refreshing_images}
             data-confirm="This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
-            class="btn btn-warning btn-sm btn-outline"
+            class="btn btn-soft btn-warning btn-sm"
           >
             {if @refreshing_images, do: "Refreshing...", else: "Clear & refresh image cache"}
           </button>
