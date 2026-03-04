@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.LibraryChannel do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Helpers
+  alias MediaCentaur.LastActivity
   alias MediaCentaur.Playback.{ProgressSummary, ResumeTarget}
   alias MediaCentaur.Serializer
 
@@ -105,10 +106,15 @@ defmodule MediaCentaurWeb.LibraryChannel do
     progress = ProgressSummary.compute(entity, progress_records)
     resume_target = ResumeTarget.compute(entity, progress_records)
     child_targets = ResumeTarget.compute_child_targets(entity, progress_records)
+    last_activity_at = LastActivity.compute(entity)
 
     serialized
     |> Map.put("progress", progress)
     |> Map.put("resumeTarget", resume_target)
     |> Map.put("childTargets", child_targets)
+    |> Map.put("lastActivityAt", format_timestamp(last_activity_at))
   end
+
+  defp format_timestamp(nil), do: nil
+  defp format_timestamp(datetime), do: DateTime.to_iso8601(datetime)
 end

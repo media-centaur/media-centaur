@@ -60,6 +60,7 @@ defmodule MediaCentaurWeb.LibraryChannelTest do
       assert entry["progress"] == nil
       assert Map.has_key?(entry, "resumeTarget")
       assert Map.has_key?(entry, "childTargets")
+      assert Map.has_key?(entry, "lastActivityAt")
     end
 
     test "entity with watch progress includes progress summary in batch" do
