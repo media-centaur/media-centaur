@@ -162,10 +162,12 @@ defmodule MediaCentaurWeb.PlaybackChannelTest do
         }
       }
 
+      now = DateTime.utc_now()
+
       send(
         socket.channel_pid,
         {:entity_progress_updated, "660f9500-test-uuid", summary, resume_target,
-         child_targets_delta}
+         child_targets_delta, now}
       )
 
       assert_push "playback:entity_progress_updated", payload
@@ -191,6 +193,8 @@ defmodule MediaCentaurWeb.PlaybackChannelTest do
                  "durationSeconds" => 3200.0
                }
              }
+
+      assert wire["lastActivityAt"] == DateTime.to_iso8601(now)
     end
 
     test "entity_progress_updated push with null childTargets for standalone movies" do
@@ -211,9 +215,11 @@ defmodule MediaCentaurWeb.PlaybackChannelTest do
         "durationSeconds" => 9840.0
       }
 
+      now = DateTime.utc_now()
+
       send(
         socket.channel_pid,
-        {:entity_progress_updated, "550e8400-test-uuid", summary, resume_target, nil}
+        {:entity_progress_updated, "550e8400-test-uuid", summary, resume_target, nil, now}
       )
 
       assert_push "playback:entity_progress_updated", payload
@@ -223,6 +229,7 @@ defmodule MediaCentaurWeb.PlaybackChannelTest do
       assert wire["childTargets"] == nil
       assert wire["progress"]["current_episode"] == nil
       assert wire["progress"]["episodes_total"] == 1
+      assert wire["lastActivityAt"] == DateTime.to_iso8601(now)
     end
   end
 end

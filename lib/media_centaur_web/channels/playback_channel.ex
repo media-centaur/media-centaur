@@ -48,14 +48,15 @@ defmodule MediaCentaurWeb.PlaybackChannel do
   @impl true
   def handle_info(
         {:entity_progress_updated, entity_id, progress_summary, resume_target,
-         child_targets_delta},
+         child_targets_delta, last_activity_at},
         socket
       ) do
     payload = %{
       entity_id: entity_id,
       progress: progress_summary,
       resumeTarget: resume_target,
-      childTargets: child_targets_delta
+      childTargets: child_targets_delta,
+      lastActivityAt: last_activity_at && DateTime.to_iso8601(last_activity_at)
     }
 
     Log.info(:channel, "playback push entity_progress_updated for #{entity_id}")

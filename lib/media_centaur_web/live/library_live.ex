@@ -37,23 +37,23 @@ defmodule MediaCentaurWeb.LibraryLive do
        pending_entity_ids: MapSet.new(),
        filter_text: ""
      )
-     |> apply_filters()}
+     |> reset_stream()}
   end
 
   # --- Events ---
 
   @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
-    {:noreply, socket |> assign(active_tab: String.to_existing_atom(tab)) |> apply_filters()}
+    {:noreply, socket |> assign(active_tab: String.to_existing_atom(tab)) |> reset_stream()}
   end
 
   def handle_event("filter", %{"filter_text" => text}, socket) do
-    {:noreply, socket |> assign(filter_text: text) |> apply_filters()}
+    {:noreply, socket |> assign(filter_text: text) |> reset_stream()}
   end
 
   def handle_event("select_entity", %{"id" => id}, socket) do
     if socket.assigns.selected_id == id do
-      {:noreply, socket |> assign(selected_id: nil) |> apply_filters()}
+      {:noreply, socket |> assign(selected_id: nil) |> assign_selected_entry()}
     else
       {:noreply,
        socket
@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.LibraryLive do
          metadata_expanded: false,
          expanded_episodes: MapSet.new()
        )
-       |> apply_filters()}
+       |> assign_selected_entry()}
     end
   end
 
@@ -121,26 +121,39 @@ defmodule MediaCentaurWeb.LibraryLive do
         do: nil,
         else: socket.assigns.selected_id
 
-    {:noreply,
-     socket
-     |> assign(entries: entries)
-     |> assign(counts: tab_counts(entries))
-     |> assign(reload_timer: nil)
-     |> assign(pending_entity_ids: MapSet.new())
-     |> assign(selected_id: selected_id)
-     |> apply_filters()}
+    socket =
+      socket
+      |> assign(entries: entries, counts: tab_counts(entries))
+      |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
+      |> assign(selected_id: selected_id)
+
+    # Structural changes (entities added/removed) need a full stream reset for correct ordering.
+    # Pure updates get surgical stream_inserts for O(1) per changed card.
+    if MapSet.size(gone_ids) > 0 || new_entries != [] do
+      {:noreply, reset_stream(socket)}
+    else
+      {:noreply, touch_stream_entries(socket, MapSet.to_list(changed_ids))}
+    end
   end
 
   def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
-    {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
+    old_playing_id = playing_entity_id(socket.assigns.playback)
+    socket = assign(socket, playback: %{state: new_state, now_playing: now_playing})
+    new_playing_id = playing_entity_id(socket.assigns.playback)
+
+    ids_to_touch =
+      [old_playing_id, new_playing_id] |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+    {:noreply, touch_stream_entries(socket, ids_to_touch)}
   end
 
   def handle_info(
-        {:entity_progress_updated, entity_id, summary, _resume_target, _child_targets_delta},
+        {:entity_progress_updated, entity_id, summary, _resume_target, _child_targets_delta,
+             _last_activity_at},
         socket
       ) do
     entries = update_entry_progress(socket.assigns.entries, entity_id, summary)
-    {:noreply, socket |> assign(entries: entries) |> apply_filters()}
+    {:noreply, socket |> assign(entries: entries) |> touch_stream_entries([entity_id])}
   end
 
   @impl true
@@ -189,16 +202,21 @@ defmodule MediaCentaurWeb.LibraryLive do
           </script>
         </div>
 
-        <div :if={@filtered == []} class="text-base-content/60 py-8 text-center">
+        <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center">
           No entities found.
         </div>
 
-        <div :if={@filtered != []} class="flex gap-4">
+        <div :if={@grid_count > 0} class="flex gap-4">
           <%!-- Grid area --%>
           <div class="flex-1 min-w-0">
-            <div class="grid grid-cols-[repeat(auto-fill,minmax(135px,1fr))] gap-3">
+            <div
+              id="library-grid"
+              phx-update="stream"
+              class="grid grid-cols-[repeat(auto-fill,minmax(135px,1fr))] gap-3"
+            >
               <.entity_card
-                :for={entry <- @filtered}
+                :for={{dom_id, entry} <- @streams.grid}
+                id={dom_id}
                 entry={entry}
                 selected={@selected_id == entry.entity.id}
                 playing={playing_entity_id(@playback) == entry.entity.id}
@@ -244,6 +262,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   # --- Entity Card (compact poster card) ---
 
+  attr :id, :string, required: true
   attr :entry, :map, required: true
   attr :selected, :boolean, required: true
   attr :playing, :boolean, required: true
@@ -254,6 +273,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     ~H"""
     <div
+      id={@id}
       phx-click="select_entity"
       phx-value-id={@entry.entity.id}
       class={[
@@ -796,26 +816,48 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   # --- Derived Assigns ---
 
-  defp apply_filters(socket) do
-    %{
-      entries: entries,
-      active_tab: active_tab,
-      filter_text: filter_text,
-      selected_id: selected_id
-    } =
-      socket.assigns
+  defp reset_stream(socket) do
+    filtered = compute_filtered(socket)
 
-    filtered =
-      entries
-      |> filtered_entries(active_tab)
-      |> text_filtered_entries(filter_text)
+    socket
+    |> stream(:grid, filtered, reset: true, dom_id: &"entity-#{&1.entity.id}")
+    |> assign(grid_count: length(filtered))
+    |> assign_selected_entry()
+  end
 
+  defp touch_stream_entries(socket, entity_ids) do
+    filtered_ids = compute_filtered(socket) |> MapSet.new(& &1.entity.id)
+
+    Enum.reduce(entity_ids, socket, fn id, sock ->
+      entry = Enum.find(sock.assigns.entries, &(&1.entity.id == id))
+
+      cond do
+        entry == nil ->
+          stream_delete_by_dom_id(sock, :grid, "entity-#{id}")
+
+        MapSet.member?(filtered_ids, id) ->
+          stream_insert(sock, :grid, entry)
+
+        true ->
+          stream_delete_by_dom_id(sock, :grid, "entity-#{id}")
+      end
+    end)
+    |> assign_selected_entry()
+  end
+
+  defp assign_selected_entry(socket) do
     selected_entry =
-      if selected_id do
-        Enum.find(entries, fn entry -> entry.entity.id == selected_id end)
+      if socket.assigns.selected_id do
+        Enum.find(socket.assigns.entries, &(&1.entity.id == socket.assigns.selected_id))
       end
 
-    assign(socket, filtered: filtered, selected_entry: selected_entry)
+    assign(socket, selected_entry: selected_entry)
+  end
+
+  defp compute_filtered(socket) do
+    socket.assigns.entries
+    |> filtered_entries(socket.assigns.active_tab)
+    |> text_filtered_entries(socket.assigns.filter_text)
   end
 
   # --- Helpers ---
