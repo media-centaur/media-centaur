@@ -4,7 +4,6 @@ defmodule MediaCentaurWeb.LibraryChannel do
   in batches on join, then pushes incremental updates via PubSub.
   """
   use Phoenix.Channel
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library

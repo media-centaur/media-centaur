@@ -6,7 +6,6 @@ defmodule MediaCentaur.Admin do
   developer dashboard Danger Zone buttons. All bulk operations use Ash bulk
   APIs to execute single queries instead of per-record loops.
   """
-  require Logger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
@@ -43,7 +42,7 @@ defmodule MediaCentaur.Admin do
           )
 
         if result.error_count > 0 do
-          Logger.error("Admin: #{inspect(resource)} had #{result.error_count} destroy errors")
+          Log.error(:library, "#{inspect(resource)} had #{result.error_count} destroy errors")
         end
       end)
 
@@ -55,7 +54,7 @@ defmodule MediaCentaur.Admin do
 
       Helpers.broadcast_entities_changed(entity_ids)
 
-      Logger.info("Admin: database cleared")
+      Log.info(:library, "database cleared")
       :ok
     end)
   end
@@ -82,7 +81,7 @@ defmodule MediaCentaur.Admin do
       )
 
     if result.error_count > 0 do
-      Logger.error("Admin: #{result.error_count} images failed to clear content_url")
+      Log.error(:library, "#{result.error_count} images failed to clear content_url")
     end
 
     entities = Library.list_entities_with_images!(load: [:watched_files])
@@ -100,7 +99,7 @@ defmodule MediaCentaur.Admin do
     entity_ids = Enum.map(entities, & &1.id)
     Helpers.broadcast_entities_changed(entity_ids)
 
-    Logger.info("Admin: image cache refreshed for #{length(entities)} entities")
+    Log.info(:library, "image cache refreshed for #{length(entities)} entities")
     {:ok, length(entities)}
   end
 

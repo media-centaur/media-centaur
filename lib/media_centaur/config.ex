@@ -7,7 +7,7 @@ defmodule MediaCentaur.Config do
   Call `load!/0` once at startup (before the supervision tree).
   Use `get/1` anywhere to read a config key from `:persistent_term`.
   """
-  require Logger
+  require MediaCentaur.Log, as: Log
 
   @config_path "~/.config/media-centaur/backend.toml"
 
@@ -96,7 +96,11 @@ defmodule MediaCentaur.Config do
             merge_toml(defaults, toml)
 
           {:error, error} ->
-            Logger.warning("Config: failed to parse #{path}: #{inspect(error)}, using defaults")
+            Log.warning(
+              :library,
+              "failed to parse config #{path}: #{inspect(error)}, using defaults"
+            )
+
             defaults
         end
 
