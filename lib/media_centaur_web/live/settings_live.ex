@@ -126,11 +126,11 @@ defmodule MediaCentaurWeb.SettingsLive do
         <h1 class="text-2xl font-bold sm:col-span-2">Settings</h1>
 
         <div class="sm:col-span-2">
-          <.logging_card
-            enabled={@enabled_components}
-            all={@all_components}
-            suppressed={@suppressed_frameworks}
-          />
+          <.component_logs_card enabled={@enabled_components} all={@all_components} />
+        </div>
+
+        <div class="sm:col-span-2">
+          <.framework_logs_card suppressed={@suppressed_frameworks} />
         </div>
 
         <.config_overview config={@config} />
@@ -145,11 +145,10 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # --- Section Components ---
 
-  defp logging_card(assigns) do
+  defp component_logs_card(assigns) do
     ~H"""
     <div class="card glass-surface">
       <div class="card-body">
-        <%!-- Thinking Logs section --%>
         <div class="flex items-center justify-between">
           <h2 class="card-title text-lg">Component Logs</h2>
           <div class="flex gap-2">
@@ -162,14 +161,20 @@ defmodule MediaCentaurWeb.SettingsLive do
           </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+        <p class="text-sm text-base-content/50">
+          Per-component decision logs. Enable to see thinking in the terminal.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
           <div
             :for={component <- @all}
-            class="flex items-center justify-between p-3 rounded-lg glass-inset"
+            class="flex items-center justify-between p-4 rounded-lg glass-inset"
           >
             <div>
               <span class="font-medium">{component}</span>
-              <p class="text-xs text-base-content/50">{component_description(component)}</p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                {component_description(component)}
+              </p>
             </div>
             <input
               type="checkbox"
@@ -180,36 +185,37 @@ defmodule MediaCentaurWeb.SettingsLive do
             />
           </div>
         </div>
+      </div>
+    </div>
+    """
+  end
 
-        <div class="divider my-2"></div>
+  defp framework_logs_card(assigns) do
+    ~H"""
+    <div class="card glass-surface">
+      <div class="card-body">
+        <h2 class="card-title text-lg">Framework Logs</h2>
 
-        <%!-- Framework Logs section --%>
-        <h3 class="text-base font-semibold">Framework Logs</h3>
+        <p class="text-sm text-base-content/50">
+          Suppress noisy library output at runtime. Suppressed modules only emit warning and above.
+        </p>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
           <div
             :for={{key, _mod} <- Log.framework_modules()}
-            class="flex items-center justify-between p-3 rounded-lg glass-inset"
+            class="flex items-center justify-between p-4 rounded-lg glass-inset"
           >
             <div>
               <span class="font-medium">{framework_label(key)}</span>
-              <p class="text-xs text-base-content/50">{framework_description(key)}</p>
+              <p class="text-xs text-base-content/50 mt-0.5">{framework_description(key)}</p>
             </div>
-            <label class="flex items-center gap-2 cursor-pointer">
-              <span class={[
-                "text-xs",
-                if(key in @suppressed, do: "text-warning", else: "text-success")
-              ]}>
-                {if key in @suppressed, do: "suppressed", else: "active"}
-              </span>
-              <input
-                type="checkbox"
-                class="toggle toggle-sm toggle-warning"
-                checked={key in @suppressed}
-                phx-click="toggle_framework"
-                phx-value-key={key}
-              />
-            </label>
+            <input
+              type="checkbox"
+              class="toggle toggle-sm toggle-warning"
+              checked={key in @suppressed}
+              phx-click="toggle_framework"
+              phx-value-key={key}
+            />
           </div>
         </div>
       </div>
@@ -225,9 +231,9 @@ defmodule MediaCentaurWeb.SettingsLive do
 
         <div :if={@config == %{}} class="text-base-content/60">Loading...</div>
 
-        <div :if={@config != %{}} class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+        <div :if={@config != %{}} class="space-y-3 text-sm mt-1">
           <div class="flex justify-between gap-4">
-            <span class="text-base-content/60 shrink-0">Auto-approve threshold</span>
+            <span class="text-base-content/60">Auto-approve threshold</span>
             <span class="font-mono">{@config[:auto_approve_threshold] || "—"}</span>
           </div>
           <div class="flex justify-between gap-4 min-w-0">
@@ -243,7 +249,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             </span>
           </div>
           <div class="flex justify-between gap-4">
-            <span class="text-base-content/60 shrink-0">Watch directories</span>
+            <span class="text-base-content/60">Watch directories</span>
             <span class="font-mono">{@config[:watch_dirs_count] || 0}</span>
           </div>
         </div>
