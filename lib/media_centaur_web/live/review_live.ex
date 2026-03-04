@@ -28,7 +28,8 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(search_results: [])
      |> assign(searching: false)
      |> assign(searched: false)
-     |> assign(reload_timer: nil)}
+     |> assign(reload_timer: nil)
+     |> apply_group_stats()}
   end
 
   @impl true
@@ -170,7 +171,8 @@ defmodule MediaCentaurWeb.ReviewLive do
          |> assign(groups: groups)
          |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
          |> assign(search_open: nil)
-         |> assign(search_results: [])}
+         |> assign(search_results: [])
+         |> apply_group_stats()}
       else
         {:noreply, socket}
       end
@@ -200,7 +202,8 @@ defmodule MediaCentaurWeb.ReviewLive do
      socket
      |> assign(groups: groups)
      |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-     |> assign(reload_timer: nil)}
+     |> assign(reload_timer: nil)
+     |> apply_group_stats()}
   end
 
   def handle_info({:file_reviewed, file_id}, socket) do
@@ -216,7 +219,8 @@ defmodule MediaCentaurWeb.ReviewLive do
      socket
      |> assign(groups: groups)
      |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-     |> assign(processing: MapSet.delete(socket.assigns.processing, file_id))}
+     |> assign(processing: MapSet.delete(socket.assigns.processing, file_id))
+     |> apply_group_stats()}
   end
 
   def handle_info({:group_error, group_key, message}, socket) do
@@ -237,14 +241,6 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   @impl true
   def render(assigns) do
-    total_files = Enum.reduce(assigns.groups, 0, fn group, acc -> acc + length(group.files) end)
-    reason_counts = count_by_reason(assigns.groups)
-
-    assigns =
-      assigns
-      |> assign(total_files: total_files)
-      |> assign(reason_counts: reason_counts)
-
     ~H"""
     <Layouts.app flash={@flash} current_path="/review">
       <div class="space-y-6">
@@ -283,7 +279,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
         <div class="space-y-4">
           <.group_card
-            :for={group <- sort_groups(@groups)}
+            :for={group <- @sorted_groups}
             group={group}
             processing={MapSet.member?(@processing, group.key)}
             search_open={@search_open == group.key}
@@ -666,6 +662,19 @@ defmodule MediaCentaurWeb.ReviewLive do
       </div>
     </div>
     """
+  end
+
+  # --- Derived Assigns ---
+
+  defp apply_group_stats(socket) do
+    groups = socket.assigns.groups
+    total_files = Enum.reduce(groups, 0, fn group, acc -> acc + length(group.files) end)
+
+    assign(socket,
+      sorted_groups: sort_groups(groups),
+      total_files: total_files,
+      reason_counts: count_by_reason(groups)
+    )
   end
 
   # --- Helpers ---

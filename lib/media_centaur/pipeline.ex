@@ -81,8 +81,8 @@ defmodule MediaCentaur.Pipeline do
 
     entity_ids =
       completed
-      |> Enum.map(fn message -> message.data.entity_id end)
-      |> Enum.uniq()
+      |> MapSet.new(fn message -> message.data.entity_id end)
+      |> MapSet.to_list()
 
     if entity_ids != [] do
       Log.info(:pipeline, "batch complete, broadcasting #{length(entity_ids)} entity changes")

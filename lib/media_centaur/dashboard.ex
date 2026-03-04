@@ -4,8 +4,7 @@ defmodule MediaCentaur.Dashboard do
   Keeps the LiveView thin by centralizing all dashboard queries.
   """
 
-  alias MediaCentaur.Library
-  alias MediaCentaur.Library.{Episode, WatchedFile, Image}
+  alias MediaCentaur.Library.{Entity, Episode, WatchedFile, Image}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Review
 
@@ -22,9 +21,12 @@ defmodule MediaCentaur.Dashboard do
     file_count = count(WatchedFile)
     image_count = count(Image)
 
-    type_counts =
-      Library.list_entities!()
-      |> Enum.frequencies_by(& &1.type)
+    type_counts = %{
+      movie: count(Entity, type: :movie),
+      tv_series: count(Entity, type: :tv_series),
+      movie_series: count(Entity, type: :movie_series),
+      video_object: count(Entity, type: :video_object)
+    }
 
     %{
       episodes: episode_count,
@@ -43,8 +45,10 @@ defmodule MediaCentaur.Dashboard do
     Stats.get_snapshot().recent_errors
   end
 
-  defp count(queryable) do
-    case Ash.count(queryable) do
+  defp count(queryable, filter \\ []) do
+    opts = if filter == [], do: [], else: [query: [filter: filter]]
+
+    case Ash.count(queryable, opts) do
       {:ok, n} -> n
       _ -> 0
     end

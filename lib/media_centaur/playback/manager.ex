@@ -136,18 +136,6 @@ defmodule MediaCentaur.Playback.Manager do
     {:noreply, state}
   end
 
-  @impl true
-  def handle_info({:playback_progress, progress}, state) do
-    now_playing =
-      if state.now_playing do
-        state.now_playing
-        |> Map.put(:position_seconds, progress.position_seconds)
-        |> Map.put(:duration_seconds, progress.duration_seconds)
-      end
-
-    {:noreply, %{state | now_playing: now_playing}}
-  end
-
   # MpvSession process died
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, _reason}, %{monitor_ref: ref} = state) do

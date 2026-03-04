@@ -137,19 +137,6 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
   end
 
-  def handle_info({:playback_progress, progress}, socket) do
-    playback = socket.assigns.playback
-
-    now_playing =
-      if playback.now_playing do
-        playback.now_playing
-        |> Map.put(:position_seconds, progress.position_seconds)
-        |> Map.put(:duration_seconds, progress.duration_seconds)
-      end
-
-    {:noreply, assign(socket, playback: %{playback | now_playing: now_playing})}
-  end
-
   def handle_info(:database_cleared, socket) do
     {:noreply,
      socket

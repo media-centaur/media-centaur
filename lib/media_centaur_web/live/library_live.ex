@@ -27,7 +27,8 @@ defmodule MediaCentaurWeb.LibraryLive do
       end
 
     {:ok,
-     assign(socket,
+     socket
+     |> assign(
        active_tab: :all,
        selected_id: nil,
        metadata_expanded: false,
@@ -35,30 +36,33 @@ defmodule MediaCentaurWeb.LibraryLive do
        reload_timer: nil,
        pending_entity_ids: MapSet.new(),
        filter_text: ""
-     )}
+     )
+     |> apply_filters()}
   end
 
   # --- Events ---
 
   @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
-    {:noreply, assign(socket, active_tab: String.to_existing_atom(tab))}
+    {:noreply, socket |> assign(active_tab: String.to_existing_atom(tab)) |> apply_filters()}
   end
 
   def handle_event("filter", %{"filter_text" => text}, socket) do
-    {:noreply, assign(socket, filter_text: text)}
+    {:noreply, socket |> assign(filter_text: text) |> apply_filters()}
   end
 
   def handle_event("select_entity", %{"id" => id}, socket) do
     if socket.assigns.selected_id == id do
-      {:noreply, assign(socket, selected_id: nil)}
+      {:noreply, socket |> assign(selected_id: nil) |> apply_filters()}
     else
       {:noreply,
-       assign(socket,
+       socket
+       |> assign(
          selected_id: id,
          metadata_expanded: false,
          expanded_episodes: MapSet.new()
-       )}
+       )
+       |> apply_filters()}
     end
   end
 
@@ -123,7 +127,8 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> assign(counts: tab_counts(entries))
      |> assign(reload_timer: nil)
      |> assign(pending_entity_ids: MapSet.new())
-     |> assign(selected_id: selected_id)}
+     |> assign(selected_id: selected_id)
+     |> apply_filters()}
   end
 
   def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
@@ -135,20 +140,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         socket
       ) do
     entries = update_entry_progress(socket.assigns.entries, entity_id, summary)
-    {:noreply, assign(socket, entries: entries)}
-  end
-
-  def handle_info({:playback_progress, progress}, socket) do
-    playback = socket.assigns.playback
-
-    now_playing =
-      if playback.now_playing do
-        playback.now_playing
-        |> Map.put(:position_seconds, progress.position_seconds)
-        |> Map.put(:duration_seconds, progress.duration_seconds)
-      end
-
-    {:noreply, assign(socket, playback: %{playback | now_playing: now_playing})}
+    {:noreply, socket |> assign(entries: entries) |> apply_filters()}
   end
 
   @impl true
@@ -160,22 +152,6 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   @impl true
   def render(assigns) do
-    filtered =
-      assigns.entries
-      |> filtered_entries(assigns.active_tab)
-      |> text_filtered_entries(assigns.filter_text)
-
-    selected_entry =
-      if assigns.selected_id do
-        Enum.find(assigns.entries, fn entry -> entry.entity.id == assigns.selected_id end)
-      end
-
-    assigns =
-      assign(assigns,
-        filtered: filtered,
-        selected_entry: selected_entry
-      )
-
     ~H"""
     <Layouts.app flash={@flash} current_path="/library">
       <div class="space-y-4">
@@ -465,10 +441,12 @@ defmodule MediaCentaurWeb.LibraryLive do
           <span class="badge badge-outline badge-sm">{format_type(@entity.type)}</span>
           <span :if={@entity.date_published}>{extract_year(@entity.date_published)}</span>
           <span :if={@entity.type == :tv_series && is_list(@entity.seasons)}>
-            {length(@entity.seasons)} season{if length(@entity.seasons) != 1, do: "s"}
+            <% season_count = length(@entity.seasons) %>
+            {season_count} season{if season_count != 1, do: "s"}
           </span>
           <span :if={@entity.type == :movie_series && is_list(@entity.movies)}>
-            {length(@entity.movies)} movie{if length(@entity.movies) != 1, do: "s"}
+            <% movie_count = length(@entity.movies) %>
+            {movie_count} movie{if movie_count != 1, do: "s"}
           </span>
         </div>
         <div class="mt-1">
@@ -814,6 +792,30 @@ defmodule MediaCentaurWeb.LibraryLive do
       —
     </span>
     """
+  end
+
+  # --- Derived Assigns ---
+
+  defp apply_filters(socket) do
+    %{
+      entries: entries,
+      active_tab: active_tab,
+      filter_text: filter_text,
+      selected_id: selected_id
+    } =
+      socket.assigns
+
+    filtered =
+      entries
+      |> filtered_entries(active_tab)
+      |> text_filtered_entries(filter_text)
+
+    selected_entry =
+      if selected_id do
+        Enum.find(entries, fn entry -> entry.entity.id == selected_id end)
+      end
+
+    assign(socket, filtered: filtered, selected_entry: selected_entry)
   end
 
   # --- Helpers ---

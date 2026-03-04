@@ -24,8 +24,7 @@ defmodule MediaCentaur.LibraryBrowser do
 
     Log.info(:library, "loaded #{length(entities)} entities for browser")
 
-    entities
-    |> Enum.map(fn entity ->
+    Enum.map(entities, fn entity ->
       entity = pre_sort_children(entity)
 
       progress_records =
@@ -34,8 +33,8 @@ defmodule MediaCentaur.LibraryBrowser do
       summary = ProgressSummary.compute(entity, progress_records)
 
       %{entity: entity, progress: summary, progress_records: progress_records}
+      |> maybe_unwrap_single_movie()
     end)
-    |> Enum.map(&maybe_unwrap_single_movie/1)
   end
 
   @doc """
@@ -65,8 +64,8 @@ defmodule MediaCentaur.LibraryBrowser do
         summary = ProgressSummary.compute(entity, progress_records)
 
         %{entity: entity, progress: summary, progress_records: progress_records}
+        |> maybe_unwrap_single_movie()
       end)
-      |> Enum.map(&maybe_unwrap_single_movie/1)
 
     {entries, gone_ids}
   end
