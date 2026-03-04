@@ -35,6 +35,8 @@ defmodule MediaCentaur.ImagePipeline.Stats do
   """
   use GenServer
 
+  alias MediaCentaur.StatsHelpers
+
   @window_ms 5_000
   @saturated_threshold 3
   @max_recent_errors 20
@@ -96,10 +98,18 @@ defmodule MediaCentaur.ImagePipeline.Stats do
   def handle_call(:get_snapshot, _from, state) do
     now = System.monotonic_time(:millisecond)
 
-    completions = prune_window(state.window_completions, now)
-    throughput = calculate_throughput(completions)
-    avg_duration = calculate_avg_duration(completions)
-    status = derive_status(state.active_count, state.last_error, now)
+    completions = StatsHelpers.prune_window(state.window_completions, now, @window_ms)
+    throughput = StatsHelpers.calculate_throughput(completions, @window_ms)
+    avg_duration = StatsHelpers.calculate_avg_duration(completions)
+
+    status =
+      StatsHelpers.derive_status(
+        state.active_count,
+        state.last_error,
+        now,
+        @window_ms,
+        @saturated_threshold
+      )
 
     snapshot = %{
       status: status,
@@ -140,7 +150,7 @@ defmodule MediaCentaur.ImagePipeline.Stats do
           state
           |> Map.update!(:total_failed, &(&1 + 1))
           |> Map.update!(:error_count, &(&1 + 1))
-          |> Map.put(:last_error, {format_error_reason(error_reason), now})
+          |> Map.put(:last_error, {StatsHelpers.format_error_reason(error_reason), now})
           |> record_error(role, entity_id, error_reason || "download failed")
       end
 
@@ -155,7 +165,7 @@ defmodule MediaCentaur.ImagePipeline.Stats do
       | active_count: max(state.active_count - 1, 0),
         window_completions: [{now, duration} | state.window_completions],
         error_count: state.error_count + 1,
-        last_error: {format_error_reason(reason), now},
+        last_error: {StatsHelpers.format_error_reason(reason), now},
         total_failed: state.total_failed + 1
     }
 
@@ -173,55 +183,13 @@ defmodule MediaCentaur.ImagePipeline.Stats do
   defp record_error(state, role, entity_id, reason) do
     entry = %{
       file_path: "#{entity_id}/#{role}",
-      error_message: format_error_reason(reason),
+      error_message: StatsHelpers.format_error_reason(reason),
       stage: :download_resize,
       updated_at: DateTime.utc_now()
     }
 
     errors = Enum.take([entry | state.recent_errors], @max_recent_errors)
     %{state | recent_errors: errors}
-  end
-
-  defp format_error_reason(reason) when is_binary(reason), do: reason
-  defp format_error_reason(reason), do: inspect(reason)
-
-  defp prune_window(completions, now) do
-    cutoff = now - @window_ms
-    Enum.filter(completions, fn {ts, _duration} -> ts >= cutoff end)
-  end
-
-  defp calculate_throughput([]), do: 0.0
-
-  defp calculate_throughput(completions) do
-    count = length(completions)
-    Float.round(count / (@window_ms / 1_000), 1)
-  end
-
-  defp calculate_avg_duration([]), do: nil
-
-  defp calculate_avg_duration(completions) do
-    total =
-      completions
-      |> Enum.map(fn {_ts, duration} -> duration end)
-      |> Enum.sum()
-
-    avg_native = total / length(completions)
-    Float.round(System.convert_time_unit(round(avg_native), :native, :millisecond) / 1, 1)
-  end
-
-  defp derive_status(active_count, last_error, now) do
-    has_recent_error =
-      case last_error do
-        {_msg, error_time} -> now - error_time < @window_ms
-        nil -> false
-      end
-
-    cond do
-      active_count > 0 and has_recent_error -> :erroring
-      active_count >= @saturated_threshold -> :saturated
-      active_count > 0 -> :active
-      true -> :idle
-    end
   end
 
   # --- Telemetry wiring ---

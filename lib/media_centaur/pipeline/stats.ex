@@ -30,6 +30,8 @@ defmodule MediaCentaur.Pipeline.Stats do
   """
   use GenServer
 
+  alias MediaCentaur.StatsHelpers
+
   @stages [:parse, :search, :fetch_metadata, :ingest]
   @window_ms 5_000
   @saturated_threshold 10
@@ -115,10 +117,18 @@ defmodule MediaCentaur.Pipeline.Stats do
 
     stages =
       Map.new(state.stages, fn {stage, data} ->
-        completions = prune_window(data.window_completions, now)
-        throughput = calculate_throughput(completions)
-        avg_duration = calculate_avg_duration(completions)
-        status = derive_status(data.active_count, data.last_error, now)
+        completions = StatsHelpers.prune_window(data.window_completions, now, @window_ms)
+        throughput = StatsHelpers.calculate_throughput(completions, @window_ms)
+        avg_duration = StatsHelpers.calculate_avg_duration(completions)
+
+        status =
+          StatsHelpers.derive_status(
+            data.active_count,
+            data.last_error,
+            now,
+            @window_ms,
+            @saturated_threshold
+          )
 
         {stage,
          %{
@@ -224,7 +234,7 @@ defmodule MediaCentaur.Pipeline.Stats do
   defp record_error(state, stage, file_path, reason) do
     entry = %{
       file_path: file_path,
-      error_message: format_error_reason(reason),
+      error_message: StatsHelpers.format_error_reason(reason),
       stage: stage,
       updated_at: DateTime.utc_now()
     }
@@ -233,50 +243,8 @@ defmodule MediaCentaur.Pipeline.Stats do
     %{state | recent_errors: errors}
   end
 
-  defp format_error_reason(reason) when is_binary(reason), do: reason
-  defp format_error_reason(reason), do: inspect(reason)
-
   defp update_stage(state, stage, fun) do
     %{state | stages: Map.update!(state.stages, stage, fun)}
-  end
-
-  defp prune_window(completions, now) do
-    cutoff = now - @window_ms
-    Enum.filter(completions, fn {ts, _duration} -> ts >= cutoff end)
-  end
-
-  defp calculate_throughput([]), do: 0.0
-
-  defp calculate_throughput(completions) do
-    count = length(completions)
-    Float.round(count / (@window_ms / 1_000), 1)
-  end
-
-  defp calculate_avg_duration([]), do: nil
-
-  defp calculate_avg_duration(completions) do
-    total =
-      completions
-      |> Enum.map(fn {_ts, duration} -> duration end)
-      |> Enum.sum()
-
-    avg_native = total / length(completions)
-    Float.round(System.convert_time_unit(round(avg_native), :native, :millisecond) / 1, 1)
-  end
-
-  defp derive_status(active_count, last_error, now) do
-    has_recent_error =
-      case last_error do
-        {_msg, error_time} -> now - error_time < @window_ms
-        nil -> false
-      end
-
-    cond do
-      active_count > 0 and has_recent_error -> :erroring
-      active_count >= @saturated_threshold -> :saturated
-      active_count > 0 -> :active
-      true -> :idle
-    end
   end
 
   # --- Telemetry wiring ---
