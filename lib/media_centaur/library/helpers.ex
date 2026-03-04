@@ -20,11 +20,12 @@ defmodule MediaCentaur.Library.Helpers do
   def entity_ids_all_absent do
     Library.list_watched_files!()
     |> Enum.group_by(& &1.entity_id)
-    |> Enum.filter(fn {_entity_id, files} ->
-      Enum.all?(files, &(&1.state == :absent))
+    |> then(fn grouped ->
+      for {entity_id, files} <- grouped,
+          Enum.all?(files, &(&1.state == :absent)),
+          into: MapSet.new(),
+          do: entity_id
     end)
-    |> Enum.map(fn {entity_id, _} -> entity_id end)
-    |> MapSet.new()
   end
 
   @doc """
@@ -36,11 +37,12 @@ defmodule MediaCentaur.Library.Helpers do
   def entity_ids_all_absent_for(entity_ids) do
     Library.list_watched_files!(query: [filter: [entity_id: [in: entity_ids]]])
     |> Enum.group_by(& &1.entity_id)
-    |> Enum.filter(fn {_entity_id, files} ->
-      Enum.all?(files, &(&1.state == :absent))
+    |> then(fn grouped ->
+      for {entity_id, files} <- grouped,
+          Enum.all?(files, &(&1.state == :absent)),
+          into: MapSet.new(),
+          do: entity_id
     end)
-    |> Enum.map(fn {entity_id, _} -> entity_id end)
-    |> MapSet.new()
   end
 
   @doc """
@@ -48,9 +50,9 @@ defmodule MediaCentaur.Library.Helpers do
   """
   def unique_entity_ids(records) do
     records
-    |> Enum.map(& &1.entity_id)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq()
+    |> MapSet.new(& &1.entity_id)
+    |> MapSet.delete(nil)
+    |> MapSet.to_list()
   end
 
   @doc """

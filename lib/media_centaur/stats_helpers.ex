@@ -25,12 +25,12 @@ defmodule MediaCentaur.StatsHelpers do
   def calculate_avg_duration([]), do: nil
 
   def calculate_avg_duration(completions) do
-    total =
-      completions
-      |> Enum.map(fn {_ts, duration} -> duration end)
-      |> Enum.sum()
+    {total, count} =
+      Enum.reduce(completions, {0, 0}, fn {_ts, duration}, {sum, n} ->
+        {sum + duration, n + 1}
+      end)
 
-    avg_native = total / length(completions)
+    avg_native = total / count
     Float.round(System.convert_time_unit(round(avg_native), :native, :millisecond) / 1, 1)
   end
 

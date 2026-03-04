@@ -98,6 +98,7 @@ defmodule MediaCentaur.ImagePipeline.Stats do
   def handle_call(:get_snapshot, _from, state) do
     now = System.monotonic_time(:millisecond)
 
+    # Prune completions and write back to state to prevent unbounded growth
     completions = StatsHelpers.prune_window(state.window_completions, now, @window_ms)
     throughput = StatsHelpers.calculate_throughput(completions, @window_ms)
     avg_duration = StatsHelpers.calculate_avg_duration(completions)
@@ -124,7 +125,7 @@ defmodule MediaCentaur.ImagePipeline.Stats do
       recent_errors: state.recent_errors
     }
 
-    {:reply, snapshot, state}
+    {:reply, snapshot, %{state | window_completions: completions}}
   end
 
   @impl true

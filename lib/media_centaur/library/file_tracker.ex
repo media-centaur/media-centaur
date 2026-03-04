@@ -68,9 +68,16 @@ defmodule MediaCentaur.Library.FileTracker do
     if restored != [] do
       Log.info(:library, "restoring #{length(restored)} absent files for #{watch_dir}")
 
-      Enum.each(restored, fn file ->
-        Library.mark_file_present!(file)
-      end)
+      result =
+        Ash.bulk_update(restored, :mark_present, %{},
+          resource: Library.WatchedFile,
+          strategy: :stream,
+          return_errors?: true
+        )
+
+      if result.error_count > 0 do
+        Log.warning(:library, "mark_present bulk errors: #{inspect(result.errors)}")
+      end
     end
 
     Helpers.unique_entity_ids(restored)
@@ -87,9 +94,16 @@ defmodule MediaCentaur.Library.FileTracker do
     if files == [] do
       []
     else
-      Enum.each(files, fn file ->
-        Library.mark_file_absent!(file)
-      end)
+      result =
+        Ash.bulk_update(files, :mark_absent, %{},
+          resource: Library.WatchedFile,
+          strategy: :stream,
+          return_errors?: true
+        )
+
+      if result.error_count > 0 do
+        Log.warning(:library, "mark_absent bulk errors: #{inspect(result.errors)}")
+      end
 
       Helpers.unique_entity_ids(files)
     end
@@ -175,11 +189,20 @@ defmodule MediaCentaur.Library.FileTracker do
     delete_children_for_paths(entity_id, removed_file_paths)
 
     # WatchedFile records cleaned up after children to avoid FK violations
-    Enum.each(watched_files, fn file ->
-      if MapSet.member?(removed_paths, file.file_path) do
-        Library.destroy_watched_file!(file)
+    files_to_delete = Enum.filter(watched_files, &MapSet.member?(removed_paths, &1.file_path))
+
+    if files_to_delete != [] do
+      result =
+        Ash.bulk_destroy(files_to_delete, :destroy, %{},
+          resource: Library.WatchedFile,
+          strategy: :stream,
+          return_errors?: true
+        )
+
+      if result.error_count > 0 do
+        Log.warning(:library, "bulk destroy watched files errors: #{inspect(result.errors)}")
       end
-    end)
+    end
 
     # Check if entity is now orphaned (no remaining WatchedFiles)
     remaining_files = Library.list_watched_files_for_entity!(entity_id)
@@ -197,32 +220,40 @@ defmodule MediaCentaur.Library.FileTracker do
     # Delete episodes whose content_url matches a removed path
     Library.list_seasons_for_entity!(entity_id)
     |> Enum.each(fn season ->
-      Library.list_episodes_for_season!(season.id)
-      |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
-      |> Enum.each(fn episode ->
+      matched_episodes =
+        Library.list_episodes_for_season!(season.id)
+        |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+
+      Enum.each(matched_episodes, fn episode ->
         delete_images(Library.list_images_for_episode!(episode.id))
-        Library.destroy_episode!(episode)
       end)
+
+      bulk_destroy(matched_episodes, Library.Episode)
     end)
 
     # Delete child movies whose content_url matches
-    Library.list_movies_for_entity!(entity_id)
-    |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
-    |> Enum.each(fn movie ->
+    matched_movies =
+      Library.list_movies_for_entity!(entity_id)
+      |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+
+    Enum.each(matched_movies, fn movie ->
       delete_images(Library.list_images_for_movie!(movie.id))
-      Library.destroy_movie!(movie)
     end)
 
+    bulk_destroy(matched_movies, Library.Movie)
+
     # Delete extras whose content_url matches
-    Library.list_extras_for_entity!(entity_id)
-    |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
-    |> Enum.each(&Library.destroy_extra!/1)
+    matched_extras =
+      Library.list_extras_for_entity!(entity_id)
+      |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+
+    bulk_destroy(matched_extras, Library.Extra)
   end
 
   defp cleanup_empty_seasons(entity_id) do
     Enum.each(Library.list_seasons_for_entity!(entity_id), fn season ->
       if Library.list_episodes_for_season!(season.id) == [] do
-        Enum.each(Library.list_extras_for_season!(season.id), &Library.destroy_extra!/1)
+        bulk_destroy(Library.list_extras_for_season!(season.id), Library.Extra)
         Library.destroy_season!(season)
       end
     end)
@@ -232,39 +263,59 @@ defmodule MediaCentaur.Library.FileTracker do
     entity = Library.get_entity_with_associations!(entity_id)
 
     # Delete in FK-safe order
-    Enum.each(entity.watch_progress || [], &Library.destroy_watch_progress!/1)
+    bulk_destroy(entity.watch_progress || [], Library.WatchProgress)
 
-    Enum.each(entity.extras || [], &Library.destroy_extra!/1)
+    bulk_destroy(entity.extras || [], Library.Extra)
 
     Enum.each(entity.seasons || [], fn season ->
-      Enum.each(season.episodes || [], fn episode ->
+      episodes = season.episodes || []
+
+      Enum.each(episodes, fn episode ->
         delete_images(Library.list_images_for_episode!(episode.id))
-        Library.destroy_episode!(episode)
       end)
 
-      Enum.each(season.extras || [], &Library.destroy_extra!/1)
+      bulk_destroy(episodes, Library.Episode)
+      bulk_destroy(season.extras || [], Library.Extra)
       Library.destroy_season!(season)
     end)
 
-    Enum.each(entity.movies || [], fn movie ->
+    movies = entity.movies || []
+
+    Enum.each(movies, fn movie ->
       delete_images(Library.list_images_for_movie!(movie.id))
-      Library.destroy_movie!(movie)
     end)
+
+    bulk_destroy(movies, Library.Movie)
 
     delete_images(Library.list_images_for_entity!(entity_id))
     delete_image_dirs(entity)
 
-    Enum.each(entity.identifiers || [], &Library.destroy_identifier!/1)
+    bulk_destroy(entity.identifiers || [], Library.Identifier)
 
     Library.destroy_entity!(entity)
     Log.info(:library, "deleted orphaned entity #{entity_id}")
   end
 
+  defp bulk_destroy([], _resource), do: :ok
+
+  defp bulk_destroy(records, resource) do
+    result =
+      Ash.bulk_destroy(records, :destroy, %{},
+        resource: resource,
+        strategy: :stream,
+        return_errors?: true
+      )
+
+    if result.error_count > 0 do
+      Log.warning(:library, "bulk destroy #{inspect(resource)} errors: #{inspect(result.errors)}")
+    end
+  end
+
+  defp delete_images([]), do: :ok
+
   defp delete_images(images) do
-    Enum.each(images, fn image ->
-      delete_image_file(image)
-      Library.destroy_image!(image)
-    end)
+    Enum.each(images, &delete_image_file/1)
+    bulk_destroy(images, Image)
   end
 
   defp delete_image_file(%Image{content_url: nil}), do: :ok

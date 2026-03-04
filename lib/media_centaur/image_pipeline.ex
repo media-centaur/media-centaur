@@ -93,9 +93,9 @@ defmodule MediaCentaur.ImagePipeline do
 
     entity_ids =
       messages
-      |> Enum.map(fn message -> message.data.entity_id end)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq()
+      |> MapSet.new(fn message -> message.data.entity_id end)
+      |> MapSet.delete(nil)
+      |> MapSet.to_list()
 
     if entity_ids != [] do
       Log.info(

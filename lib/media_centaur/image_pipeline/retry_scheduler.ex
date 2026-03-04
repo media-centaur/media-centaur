@@ -22,7 +22,6 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Helpers
 
   @retry_interval_ms 2 * 60 * 1_000
   @max_retries 5
@@ -176,8 +175,6 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
             :ok
         end
       end)
-
-      Helpers.broadcast_entities_changed(ids)
     end
   end
 

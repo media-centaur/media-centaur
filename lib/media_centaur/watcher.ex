@@ -293,9 +293,7 @@ defmodule MediaCentaur.Watcher do
   end
 
   defp fetch_known_file_paths do
-    Library.list_watched_files!()
-    |> Enum.map(& &1.file_path)
-    |> MapSet.new()
+    MapSet.new(Library.list_watched_files!(), & &1.file_path)
   end
 
   defp video_file?(path) do

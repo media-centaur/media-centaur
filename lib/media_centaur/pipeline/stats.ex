@@ -115,11 +115,21 @@ defmodule MediaCentaur.Pipeline.Stats do
   def handle_call(:get_snapshot, _from, state) do
     now = System.monotonic_time(:millisecond)
 
-    stages =
+    # Prune completions and write back to state to prevent unbounded growth
+    pruned_stages =
       Map.new(state.stages, fn {stage, data} ->
-        completions = StatsHelpers.prune_window(data.window_completions, now, @window_ms)
-        throughput = StatsHelpers.calculate_throughput(completions, @window_ms)
-        avg_duration = StatsHelpers.calculate_avg_duration(completions)
+        {stage,
+         %{
+           data
+           | window_completions:
+               StatsHelpers.prune_window(data.window_completions, now, @window_ms)
+         }}
+      end)
+
+    stages =
+      Map.new(pruned_stages, fn {stage, data} ->
+        throughput = StatsHelpers.calculate_throughput(data.window_completions, @window_ms)
+        avg_duration = StatsHelpers.calculate_avg_duration(data.window_completions)
 
         status =
           StatsHelpers.derive_status(
@@ -150,7 +160,7 @@ defmodule MediaCentaur.Pipeline.Stats do
       recent_errors: state.recent_errors
     }
 
-    {:reply, snapshot, state}
+    {:reply, snapshot, %{state | stages: pruned_stages}}
   end
 
   @impl true
