@@ -179,6 +179,7 @@ defmodule MediaCentaur.Library do
       define :list_entities_with_images, action: :with_images
       define :get_entity_with_images, action: :with_images, get_by: [:id]
       define :list_entities_by_ids, action: :by_ids, args: [:ids]
+      define :list_entities_all_files_absent, action: :all_files_absent
       define :create_entity, action: :create_from_tmdb
       define :set_entity_content_url, action: :set_content_url
       define :destroy_entity, action: :destroy
