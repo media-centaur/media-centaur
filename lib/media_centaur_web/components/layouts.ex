@@ -48,14 +48,6 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="sidebar-label">Dashboard</span>
           </.link>
           <.link
-            navigate="/operations"
-            class={sidebar_link_class(@current_path, "/operations")}
-            data-tip="Operations"
-          >
-            <.icon name="hero-cog-6-tooth" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Operations</span>
-          </.link>
-          <.link
             navigate="/review"
             class={sidebar_link_class(@current_path, "/review")}
             data-tip="Review"
@@ -70,6 +62,14 @@ defmodule MediaCentaurWeb.Layouts do
           >
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
+          </.link>
+          <.link
+            navigate="/settings"
+            class={sidebar_link_class(@current_path, "/settings")}
+            data-tip="Settings"
+          >
+            <.icon name="hero-cog-6-tooth" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Settings</span>
           </.link>
         </nav>
 
