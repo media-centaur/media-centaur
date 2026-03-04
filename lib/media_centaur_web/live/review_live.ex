@@ -238,19 +238,48 @@ defmodule MediaCentaurWeb.ReviewLive do
   @impl true
   def render(assigns) do
     total_files = Enum.reduce(assigns.groups, 0, fn group, acc -> acc + length(group.files) end)
-    assigns = assign(assigns, total_files: total_files)
+    reason_counts = count_by_reason(assigns.groups)
+
+    assigns =
+      assigns
+      |> assign(total_files: total_files)
+      |> assign(reason_counts: reason_counts)
 
     ~H"""
     <Layouts.app flash={@flash} current_path="/review">
       <div class="space-y-6">
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold">Review</h1>
-          <span class="badge badge-warning">{@total_files} pending</span>
+        <h1 class="text-2xl font-bold">Review</h1>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class={[
+            "p-4 rounded-lg glass-surface",
+            if(@total_files > 0, do: "border-l-3 border-warning")
+          ]}>
+            <div class="text-2xl font-bold">{@total_files}</div>
+            <div class="text-sm text-base-content/60">Pending Files</div>
+          </div>
+          <div class="p-4 rounded-lg glass-surface">
+            <div class="text-2xl font-bold">{@reason_counts.no_results}</div>
+            <div class="text-sm text-base-content/60">No Results</div>
+          </div>
+          <div class="p-4 rounded-lg glass-surface">
+            <div class="text-2xl font-bold">{@reason_counts.tied}</div>
+            <div class="text-sm text-base-content/60">Tied</div>
+          </div>
+          <div class="p-4 rounded-lg glass-surface">
+            <div class="text-2xl font-bold">{@reason_counts.low_confidence}</div>
+            <div class="text-sm text-base-content/60">Low Confidence</div>
+          </div>
         </div>
 
-        <p :if={@groups == []} class="text-base-content/60">
-          No files awaiting review.
-        </p>
+        <div
+          :if={@groups == []}
+          class="glass-surface rounded-2xl py-12 flex flex-col items-center justify-center gap-3"
+        >
+          <.icon name="hero-check-circle" class="size-16 text-success/30" />
+          <h2 class="text-xl font-semibold">All clear</h2>
+          <p class="text-base-content/60">No files awaiting review.</p>
+        </div>
 
         <div class="space-y-4">
           <.group_card
@@ -298,77 +327,97 @@ defmodule MediaCentaurWeb.ReviewLive do
 
       <div class="card-body p-4">
         <%!-- Group heading for multi-file groups --%>
-        <div :if={@file_count > 1} class="flex items-center gap-2 mb-2">
+        <div :if={@file_count > 1} class="flex items-center justify-between mb-2">
           <h3 class="font-semibold text-base">{series_root_name(@group)}</h3>
-          <span class="badge badge-sm badge-neutral">{@file_count} episodes</span>
+          <button
+            phx-click="toggle_files"
+            phx-value-key={@encoded_key}
+            class="btn btn-ghost btn-sm gap-1"
+          >
+            <span class="badge badge-sm badge-neutral">{@file_count} episodes</span>
+            <.icon
+              name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-down"}
+              class="size-4"
+            />
+          </button>
         </div>
 
-        <div class="flex gap-4">
+        <div class="flex gap-5">
+          <%!-- Poster --%>
           <div :if={@file.match_poster_path} class="shrink-0">
             <img
-              src={"https://image.tmdb.org/t/p/w92#{@file.match_poster_path}"}
+              src={"https://image.tmdb.org/t/p/w185#{@file.match_poster_path}"}
               alt="poster"
-              class="w-[92px] rounded"
+              class="w-[140px] rounded-lg"
             />
           </div>
           <div
             :if={!@file.match_poster_path}
-            class="shrink-0 w-[92px] h-[138px] glass-inset rounded flex items-center justify-center"
+            class="shrink-0 w-[140px] h-[210px] glass-inset rounded-lg flex items-center justify-center"
           >
-            <.icon name="hero-film" class="size-8 opacity-30" />
+            <.icon name="hero-film" class="size-12 opacity-30" />
           </div>
 
-          <div class="flex-1 min-w-0 space-y-1">
-            <p
-              :if={@file_count == 1}
-              class="font-mono text-xs text-base-content/70 truncate-left"
-              title={relative_file_path(@file)}
-            >
-              {relative_file_path(@file)}
-            </p>
-
-            <p class="text-sm">
-              <span class="font-medium">Parsed:</span>
-              {@file.parsed_title || "Unknown"}
-              <span :if={@file.parsed_year} class="text-base-content/60">
-                ({@file.parsed_year})
-              </span>
-              <span class="badge badge-sm badge-outline ml-1">
-                {format_type(@file.parsed_type)}
-              </span>
-              <span
-                :if={@file_count == 1 && @file.season_number && @file.episode_number}
-                class="text-base-content/60 ml-1"
+          <div class="flex-1 min-w-0 space-y-3">
+            <%!-- File path + reason badge --%>
+            <div class="flex items-start justify-between gap-2">
+              <p
+                :if={@file_count == 1}
+                class="font-mono text-xs text-base-content/70 truncate-left"
+                title={relative_file_path(@file)}
               >
-                · S{zero_pad(@file.season_number)}E{zero_pad(@file.episode_number)}
-              </span>
-            </p>
-
-            <%!-- Review reason label --%>
-            <p class="text-xs">
-              <span class={["badge badge-sm", reason_badge_class(@reason)]}>
+                {relative_file_path(@file)}
+              </p>
+              <div :if={@file_count > 1} />
+              <span class={["text-xs shrink-0", reason_text_class(@reason)]}>
                 {reason_label(@reason)}
               </span>
-            </p>
+            </div>
 
-            <p :if={@file.tmdb_id && !@tied} class="text-sm">
-              <span class="font-medium">Match:</span>
-              {@file.match_title || "TMDB ##{@file.tmdb_id}"}
-              <span :if={@file.match_year} class="text-base-content/60">
-                ({@file.match_year})
-              </span>
-              <span class="text-base-content/50">TMDB #{@file.tmdb_id}</span>
-              <span
-                :if={@file.confidence}
-                class={["badge badge-sm ml-1", confidence_badge_class(@file.confidence)]}
-              >
-                {Float.round(@file.confidence, 2)}
-              </span>
-            </p>
+            <%!-- Parsed from filename panel --%>
+            <div class="glass-inset rounded-lg p-3 space-y-1">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-base-content/40">
+                Parsed from filename
+              </p>
+              <p class="text-sm">
+                <span class="font-medium">{@file.parsed_title || "Unknown"}</span>
+                <span :if={@file.parsed_year} class="text-base-content/60">
+                  ({@file.parsed_year})
+                </span>
+                <span class="badge badge-sm badge-outline ml-1">
+                  {format_type(@file.parsed_type)}
+                </span>
+                <span
+                  :if={@file_count == 1 && @file.season_number && @file.episode_number}
+                  class="text-base-content/60 ml-1"
+                >
+                  S{zero_pad(@file.season_number)}E{zero_pad(@file.episode_number)}
+                </span>
+              </p>
+            </div>
 
-            <p :if={!@file.tmdb_id} class="text-sm text-base-content/50">
-              <span class="font-medium">Match:</span> No TMDB results
-            </p>
+            <%!-- TMDB match panel (hidden when tied — candidates section replaces it) --%>
+            <div :if={!@tied} class="glass-inset rounded-lg p-3 space-y-1">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-base-content/40">
+                TMDB Match
+              </p>
+              <p :if={@file.tmdb_id} class="text-sm">
+                <span class="font-medium">{@file.match_title || "TMDB ##{@file.tmdb_id}"}</span>
+                <span :if={@file.match_year} class="text-base-content/60">
+                  ({@file.match_year})
+                </span>
+                <span class="text-base-content/50 ml-1">TMDB #{@file.tmdb_id}</span>
+                <span
+                  :if={@file.confidence}
+                  class={["ml-1", confidence_text_class(@file.confidence)]}
+                >
+                  {round(@file.confidence * 100)}% confidence
+                </span>
+              </p>
+              <p :if={!@file.tmdb_id} class="text-sm text-base-content/50">
+                No results found
+              </p>
+            </div>
 
             <%!-- Tied candidates chooser --%>
             <.tied_candidates
@@ -378,13 +427,14 @@ defmodule MediaCentaurWeb.ReviewLive do
               encoded_key={@encoded_key}
             />
 
-            <div class="flex gap-2 pt-2">
+            <%!-- Action buttons --%>
+            <div class="flex gap-2 pt-1">
               <button
                 :if={@file.tmdb_id && !@tied}
                 phx-click="approve"
                 phx-value-key={@encoded_key}
                 disabled={@processing}
-                class="btn btn-success btn-sm"
+                class="btn btn-soft btn-success btn-sm"
               >
                 {if @file_count > 1, do: "Approve All", else: "Approve"}
               </button>
@@ -392,9 +442,9 @@ defmodule MediaCentaurWeb.ReviewLive do
                 phx-click="open_search"
                 phx-value-key={@encoded_key}
                 disabled={@processing}
-                class="btn btn-info btn-sm btn-outline"
+                class="btn btn-soft btn-info btn-sm"
               >
-                Search
+                Search TMDB
               </button>
               <button
                 phx-click="dismiss"
@@ -404,32 +454,25 @@ defmodule MediaCentaurWeb.ReviewLive do
               >
                 {if @file_count > 1, do: "Dismiss All", else: "Dismiss"}
               </button>
-              <button
-                :if={@file_count > 1}
-                phx-click="toggle_files"
-                phx-value-key={@encoded_key}
-                class="btn btn-ghost btn-sm ml-auto"
-              >
-                {if @expanded, do: "Hide files", else: "Show files"}
-              </button>
             </div>
           </div>
         </div>
 
         <%!-- Collapsible file list for multi-file groups --%>
-        <div :if={@file_count > 1 && @expanded} class="mt-3 border-t border-base-300 pt-3">
+        <div :if={@file_count > 1 && @expanded} class="glass-inset rounded-lg p-3 mt-3">
           <ul class="space-y-1">
-            <li
-              :for={file <- @group.files}
-              class="font-mono text-xs text-base-content/70 truncate-left"
-              title={relative_file_path(file)}
-            >
-              {relative_file_path(file)}
+            <li :for={file <- @group.files} class="flex items-center gap-2">
               <span
                 :if={file.season_number && file.episode_number}
-                class="text-base-content/50"
+                class="badge badge-xs badge-ghost font-mono"
               >
                 S{zero_pad(file.season_number)}E{zero_pad(file.episode_number)}
+              </span>
+              <span
+                class="font-mono text-xs text-base-content/70 truncate-left"
+                title={relative_file_path(file)}
+              >
+                {relative_file_path(file)}
               </span>
             </li>
           </ul>
@@ -452,38 +495,45 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   defp tied_candidates(assigns) do
     ~H"""
-    <div class="mt-2 space-y-3">
-      <p class="text-sm text-warning font-medium">
-        Multiple TMDB results matched equally — choose the correct one:
-      </p>
-      <div class="space-y-3">
+    <div class="glass-inset rounded-lg p-4 space-y-3">
+      <div class="flex items-center gap-2 text-warning">
+        <.icon name="hero-exclamation-triangle" class="size-5" />
+        <p class="text-sm font-medium">
+          Multiple TMDB results matched equally — choose the correct one:
+        </p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div
           :for={candidate <- @candidates}
-          class="flex gap-3 p-3 rounded-lg border border-base-300 hover:border-primary transition-colors"
+          class="glass-surface p-3 rounded-lg flex flex-col hover:border-primary transition-colors"
         >
-          <div :if={candidate["poster_path"]} class="shrink-0">
-            <img
-              src={"https://image.tmdb.org/t/p/w92#{candidate["poster_path"]}"}
-              alt="poster"
-              class="w-16 rounded"
-            />
-          </div>
-          <div
-            :if={!candidate["poster_path"]}
-            class="shrink-0 w-16 h-24 glass-inset rounded flex items-center justify-center"
-          >
-            <.icon name="hero-film" class="size-4 opacity-30" />
-          </div>
-          <div class="flex-1 min-w-0 space-y-1">
-            <div class="flex items-baseline gap-2">
-              <p class="text-sm font-medium">{candidate["title"]}</p>
-              <span :if={candidate["year"]} class="text-xs text-base-content/60">
-                ({candidate["year"]})
-              </span>
+          <div class="flex gap-3">
+            <div :if={candidate["poster_path"]} class="shrink-0">
+              <img
+                src={"https://image.tmdb.org/t/p/w154#{candidate["poster_path"]}"}
+                alt="poster"
+                class="w-[100px] rounded"
+              />
             </div>
-            <p :if={candidate["overview"]} class="text-xs text-base-content/60 line-clamp-2">
-              {candidate["overview"]}
-            </p>
+            <div
+              :if={!candidate["poster_path"]}
+              class="shrink-0 w-[100px] h-[150px] glass-inset rounded flex items-center justify-center"
+            >
+              <.icon name="hero-film" class="size-6 opacity-30" />
+            </div>
+            <div class="flex-1 min-w-0 space-y-1">
+              <div class="flex items-baseline gap-2">
+                <p class="text-sm font-medium">{candidate["title"]}</p>
+                <span :if={candidate["year"]} class="text-xs text-base-content/60">
+                  ({candidate["year"]})
+                </span>
+              </div>
+              <p :if={candidate["overview"]} class="text-xs text-base-content/60 line-clamp-3">
+                {candidate["overview"]}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between mt-auto pt-3">
             <a
               href={tmdb_url(@tmdb_type, candidate["tmdb_id"])}
               target="_blank"
@@ -493,8 +543,6 @@ defmodule MediaCentaurWeb.ReviewLive do
               TMDB #{candidate["tmdb_id"]}
               <.icon name="hero-arrow-top-right-on-square" class="size-3" />
             </a>
-          </div>
-          <div class="shrink-0 self-center">
             <button
               phx-click="select_match"
               phx-value-key={@encoded_key}
@@ -515,11 +563,24 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   defp search_panel(assigns) do
     ~H"""
-    <div class="mt-4 border border-base-300 rounded-lg p-4 space-y-3">
+    <div class="mt-4 glass-inset rounded-lg p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <.icon name="hero-magnifying-glass" class="size-5 text-base-content/60" />
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-base-content/40">
+            TMDB Search
+          </span>
+        </div>
+        <button phx-click="close_search" class="btn btn-ghost btn-xs btn-circle">
+          <.icon name="hero-x-mark" class="size-4" />
+        </button>
+      </div>
+
       <p :if={@type == :tv} class="text-sm text-base-content/70">
         Match this episode to a TV series.
         <span :if={@file.season_number && @file.episode_number}>
-          Season {@file.season_number}, Episode {@file.episode_number} already parsed from the filename.
+          Season {@file.season_number}, Episode {@file.episode_number} already parsed from the
+          filename.
         </span>
       </p>
       <p :if={@type != :tv} class="text-sm text-base-content/70">
@@ -549,9 +610,6 @@ defmodule MediaCentaurWeb.ReviewLive do
         <button type="submit" class="btn btn-primary btn-sm" disabled={@searching}>
           {if @searching, do: "Searching...", else: "Search"}
         </button>
-        <button type="button" phx-click="close_search" class="btn btn-ghost btn-sm">
-          Cancel
-        </button>
       </form>
 
       <p class="text-xs text-base-content/50">
@@ -567,7 +625,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       <div :if={@results != []} class="space-y-2">
         <div
           :for={result <- @results}
-          class="flex items-center gap-3 p-2 rounded hover:bg-base-content/5"
+          class="glass-surface p-3 rounded-lg flex items-center gap-3 hover:border-primary transition-colors"
         >
           <div :if={result.poster_path} class="shrink-0">
             <img
@@ -626,15 +684,22 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
+  defp count_by_reason(groups) do
+    Enum.reduce(groups, %{no_results: 0, tied: 0, low_confidence: 0}, fn group, acc ->
+      reason = review_reason(group.representative)
+      Map.update!(acc, reason, &(&1 + 1))
+    end)
+  end
+
   defp reason_label(:no_results), do: "No TMDB results"
 
   defp reason_label(:low_confidence), do: "Low confidence"
 
   defp reason_label(:tied), do: "Tied match"
 
-  defp reason_badge_class(:no_results), do: "badge-error"
-  defp reason_badge_class(:low_confidence), do: "badge-warning"
-  defp reason_badge_class(:tied), do: "badge-info"
+  defp reason_text_class(:no_results), do: "text-error"
+  defp reason_text_class(:low_confidence), do: "text-warning"
+  defp reason_text_class(:tied), do: "text-info"
 
   defp tied_candidates?(%{candidates: candidates}) when is_list(candidates) do
     case candidates do
@@ -675,9 +740,9 @@ defmodule MediaCentaurWeb.ReviewLive do
   defp zero_pad(number) when number < 10, do: "0#{number}"
   defp zero_pad(number), do: "#{number}"
 
-  defp confidence_badge_class(score) when score >= 0.8, do: "badge-success"
-  defp confidence_badge_class(score) when score >= 0.5, do: "badge-warning"
-  defp confidence_badge_class(_), do: "badge-error"
+  defp confidence_text_class(score) when score >= 0.8, do: "text-success"
+  defp confidence_text_class(score) when score >= 0.5, do: "text-warning"
+  defp confidence_text_class(_), do: "text-error"
 
   defp relative_file_path(file) do
     case file.watch_directory do

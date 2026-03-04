@@ -84,6 +84,22 @@ Design principles, page structure, and visual standards for the Phoenix LiveView
 
 ---
 
+## Component Guidelines
+
+### Badges
+
+- **Status/reason labels** (review reasons, entity states, labels that classify rather than act): plain colored text (`text-error`, `text-warning`, `text-info`) — no badge border or fill. The color alone is sufficient signal. Badges add visual noise without aiding readability for inline status indicators.
+- **Metric badges** (confidence scores, counts): solid fill is acceptable — these are data values, not labels, and benefit from stronger visual weight to aid scanning.
+- **Type badges** (Movie, TV, Extra): `badge-outline` with no color override — neutral classification, not status.
+
+### Buttons
+
+- **Action buttons** (approve, search, select): use `btn-soft` with semantic color (`btn-soft btn-success`, `btn-soft btn-info`). Soft variants use a subtle tinted background with colored text — readable against glass surfaces without competing for attention. Never use solid-fill semantic buttons (`btn-success`, `btn-info` without `btn-soft`) — the saturated backgrounds wash out button text.
+- **Destructive/dismiss actions**: `btn-ghost` — minimal visual weight for secondary or negative actions.
+- **Solid-fill buttons** are acceptable only for `btn-primary` (theme accent) in contexts where a single dominant call-to-action is needed (e.g. form submit).
+
+---
+
 ## Page Structure
 
 ### Navigation
