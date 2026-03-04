@@ -84,8 +84,12 @@ defmodule MediaCentaur.Watcher.Supervisor do
   def statuses do
     MediaCentaur.Watcher.Registry
     |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
-    |> Enum.map(fn {dir, pid} ->
-      %{dir: dir, state: MediaCentaur.Watcher.state(pid)}
+    |> Enum.flat_map(fn {dir, pid} ->
+      try do
+        [%{dir: dir, state: MediaCentaur.Watcher.state(pid)}]
+      catch
+        :exit, _ -> []
+      end
     end)
     |> Enum.sort_by(& &1.dir)
   end
