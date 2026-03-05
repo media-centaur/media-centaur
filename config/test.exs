@@ -21,14 +21,7 @@ config :media_centaur, MediaCentaur.Repo,
 # you can enable the server option below.
 config :media_centaur, MediaCentaurWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "drZ4av8PGWJfoIM6MU3ZMDBDopailIvJh5E5PmS/FgSegTMiyMWuhke/O0rXGulA",
   server: false
-
-# In test we don't send emails
-config :media_centaur, MediaCentaur.Mailer, adapter: Swoosh.Adapters.Test
-
-# Disable swoosh api client as it is only required for production adapters
-config :swoosh, :api_client, false
 
 # Use no-op HTTP client for image pipeline tests (avoids real downloads)
 config :media_centaur, :image_http_client, MediaCentaur.NoopImageDownloader

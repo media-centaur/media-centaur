@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_info(
         {:entity_progress_updated, entity_id, summary, _resume_target, _child_targets_delta,
-             _last_activity_at},
+         _last_activity_at},
         socket
       ) do
     entries = update_entry_progress(socket.assigns.entries, entity_id, summary)

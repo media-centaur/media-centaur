@@ -33,7 +33,6 @@ defmodule MediaCentaur.Application do
             start: {__MODULE__, :init_logging, []},
             restart: :temporary
           },
-          {DNSCluster, query: Application.get_env(:media_centaur, :dns_cluster_query) || :ignore},
           {Phoenix.PubSub, name: MediaCentaur.PubSub},
           {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
           MediaCentaur.TMDB.RateLimiter,

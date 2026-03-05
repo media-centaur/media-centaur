@@ -10,6 +10,7 @@ Media Centaur Backend is a Phoenix/Elixir application that manages a media libra
 - [Run](#run)
 - [Test](#test)
 - [Compilation](#compilation)
+- [Release](#release)
 - [System Overview](#system-overview)
 - [Next Steps](#next-steps)
 
@@ -91,6 +92,58 @@ Speed up native dependency compilation with:
 ```bash
 MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile
 ```
+
+## Release
+
+Build a self-contained release for production/deployment:
+
+```bash
+MIX_ENV=prod mix assets.deploy
+MIX_ENV=prod mix release
+```
+
+The release is written to `_build/prod/rel/media_centaur/`.
+
+### Run the release
+
+```bash
+bin/media_centaur start       # foreground
+bin/media_centaur daemon       # background
+bin/media_centaur stop         # stop a running daemon
+bin/media_centaur remote       # IEx shell attached to running node
+```
+
+The release binds to `127.0.0.1:4000` and enables `server: true` automatically — no environment variables needed.
+
+### Run migrations
+
+```bash
+bin/media_centaur eval "MediaCentaur.Release.migrate()"
+```
+
+### systemd user unit
+
+A template unit file ships at `defaults/media-centaur-backend.service`. To install:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp defaults/media-centaur-backend.service ~/.config/systemd/user/media-centaur-backend.service
+```
+
+Edit `ExecStart` and `ExecStop` to point to your release `bin/media_centaur`, then:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now media-centaur-backend
+journalctl --user -u media-centaur-backend -f    # view logs
+```
+
+### Release tuning
+
+`rel/env.sh.eex` configures the BEAM for desktop daemon use:
+
+- **`sname`** distribution — simpler than full names for a local-only node
+- **`+sbwt none`** — disables scheduler busy-waiting, reducing idle CPU usage
 
 ## System Overview
 

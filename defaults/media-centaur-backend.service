@@ -1,0 +1,19 @@
+[Unit]
+Description=Media Centaur Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+# Set this to your media-centaur release directory, e.g.:
+#   ExecStart=%h/.local/lib/media-centaur/bin/media_centaur start
+ExecStart=/path/to/media_centaur start
+ExecStop=/path/to/media_centaur stop
+Restart=on-failure
+RestartSec=5
+KillMode=process
+TimeoutStopSec=30
+LimitNOFILE=65536
+
+[Install]
+WantedBy=default.target
