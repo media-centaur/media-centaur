@@ -1,6 +1,6 @@
 # Media Centaur — Backend
 
-Phoenix/Elixir application that manages the Media Centaur media library. Watches configured directories for video files, scrapes metadata and artwork from TMDB, and serves the library to the [frontend](../frontend) over Phoenix Channels (WebSocket).
+Phoenix/Elixir application that manages the Media Centaur media library. Watches configured directories for video files, scrapes metadata and artwork from TMDB, and serves the library to the [frontend](https://github.com/media-centaur/frontend) over Phoenix Channels (WebSocket).
 
 - Watches directories for video files via inotify with mount resilience
 - Identifies titles through TMDB search with confidence-scored auto-approval
