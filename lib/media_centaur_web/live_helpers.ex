@@ -26,6 +26,29 @@ defmodule MediaCentaurWeb.LiveHelpers do
   end
 
   @doc """
+  Formats an ISO 8601 duration string (e.g. `"PT3H48M"`) into a human-readable
+  form like `"3h 48m"`. Returns `nil` for `nil` input.
+  """
+  def format_iso_duration(nil), do: nil
+
+  def format_iso_duration("PT" <> rest) do
+    {hours, rest} = parse_duration_component(rest, "H")
+    {minutes, _rest} = parse_duration_component(rest, "M")
+
+    case {hours, minutes} do
+      {0, m} -> "#{m}m"
+      {h, m} -> "#{h}h #{m}m"
+    end
+  end
+
+  defp parse_duration_component(string, suffix) do
+    case String.split(string, suffix, parts: 2) do
+      [num, rest] -> {String.to_integer(num), rest}
+      [rest] -> {0, rest}
+    end
+  end
+
+  @doc """
   Debounces a stats refresh by cancelling any pending timer and scheduling a new
   `:refresh_stats` message after 1 second.
 

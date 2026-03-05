@@ -724,7 +724,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         </p>
         <div :if={@episode.duration} class="flex items-center gap-1">
           <.icon name="hero-clock-mini" class="size-3" />
-          {@episode.duration}
+          {format_iso_duration(@episode.duration)}
         </div>
         <div :if={@episode.content_url} title={strip_watch_dir(@episode.content_url, @watch_dirs)}>
           <span class="font-mono truncate-left inline-block max-w-full">
@@ -773,7 +773,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         </p>
         <div :if={@movie.duration} class="flex items-center gap-1">
           <.icon name="hero-clock-mini" class="size-3" />
-          {@movie.duration}
+          {format_iso_duration(@movie.duration)}
         </div>
         <div :if={@movie.content_url} title={strip_watch_dir(@movie.content_url, @watch_dirs)}>
           <span class="font-mono truncate-left inline-block max-w-full">
