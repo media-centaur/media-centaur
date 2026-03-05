@@ -20,38 +20,29 @@ defmodule MediaCentaur.Application do
        end, []}
     )
 
-    start_watchers? = Application.get_env(:media_centaur, :start_watchers, true)
-    start_pipeline? = Application.get_env(:media_centaur, :start_pipeline, true)
-
-    children =
-      Enum.reject(
-        [
-          MediaCentaurWeb.Telemetry,
-          MediaCentaur.Repo,
-          %{
-            id: :init_logging,
-            start: {__MODULE__, :init_logging, []},
-            restart: :temporary
-          },
-          {Phoenix.PubSub, name: MediaCentaur.PubSub},
-          {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
-          MediaCentaur.TMDB.RateLimiter,
-          if(start_watchers?, do: MediaCentaur.Watcher.Supervisor),
-          if(start_watchers?,
-            do: %{
-              id: :start_watchers,
-              start: {Task, :start_link, [&MediaCentaur.Watcher.Supervisor.start_watchers/0]},
-              restart: :temporary
-            }
-          ),
-          {MediaCentaur.Pipeline.Supervisor, start_pipeline: start_pipeline?},
-          {MediaCentaur.ImagePipeline.Supervisor, start_pipeline: start_pipeline?},
-          MediaCentaur.Library.FileTracker,
-          MediaCentaur.Playback.Supervisor,
-          MediaCentaurWeb.Endpoint
-        ],
-        &is_nil/1
-      )
+    children = [
+      MediaCentaurWeb.Telemetry,
+      MediaCentaur.Repo,
+      %{
+        id: :init_logging,
+        start: {__MODULE__, :init_logging, []},
+        restart: :temporary
+      },
+      {Phoenix.PubSub, name: MediaCentaur.PubSub},
+      {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
+      MediaCentaur.TMDB.RateLimiter,
+      MediaCentaur.Watcher.Supervisor,
+      MediaCentaur.Pipeline.Supervisor,
+      MediaCentaur.ImagePipeline.Supervisor,
+      %{
+        id: :init_services,
+        start: {Task, :start_link, [fn -> init_services() end]},
+        restart: :temporary
+      },
+      MediaCentaur.Library.FileTracker,
+      MediaCentaur.Playback.Supervisor,
+      MediaCentaurWeb.Endpoint
+    ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -70,6 +61,30 @@ defmodule MediaCentaur.Application do
     MediaCentaur.Log.init()
     MediaCentaur.Log.init_framework_levels()
     :ignore
+  end
+
+  defp init_services do
+    env = Application.get_env(:media_centaur, :environment, :dev)
+
+    if should_start?(env, :start_watchers) do
+      MediaCentaur.Watcher.Supervisor.start_watchers()
+    end
+
+    unless should_start?(env, :start_pipeline) do
+      MediaCentaur.Pipeline.Supervisor.stop_pipeline()
+      MediaCentaur.ImagePipeline.Supervisor.stop_pipeline()
+    end
+  end
+
+  defp should_start?(env, service) do
+    config_default = Application.get_env(:media_centaur, service, true)
+    key = "services:#{env}:#{service}"
+
+    case MediaCentaur.Library.get_setting_by_key(key) do
+      {:ok, %{value: "true"}} -> true
+      {:ok, %{value: "false"}} -> false
+      _ -> config_default
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
