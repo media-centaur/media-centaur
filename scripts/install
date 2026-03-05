@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Install a previously-built release to ~/.local/lib/media-centaur/
+# and set up the systemd user unit.
+# Usage: scripts/install
+
+cd "$(dirname "$0")/.."
+
+banner() { echo "==> $1"; }
+
+release_src="_build/prod/rel/media_centaur"
+install_dir="$HOME/.local/lib/media-centaur"
+unit_src="defaults/media-centaur-backend.service"
+unit_dst="$HOME/.config/systemd/user/media-centaur-backend.service"
+
+# 1. Verify the release exists
+if [ ! -d "$release_src" ]; then
+  echo "Error: Release not found at $release_src"
+  echo "Run 'scripts/release' first to build it."
+  exit 1
+fi
+
+# 2. Copy release to install directory
+banner "Installing release to $install_dir"
+rm -rf "$install_dir"
+mkdir -p "$install_dir"
+cp -a "$release_src/." "$install_dir/"
+
+# 3. Install patched systemd unit
+banner "Installing systemd unit to $unit_dst"
+mkdir -p "$(dirname "$unit_dst")"
+sed \
+  -e "s|ExecStart=.*|ExecStart=$install_dir/bin/media_centaur start|" \
+  -e "s|ExecStop=.*|ExecStop=$install_dir/bin/media_centaur stop|" \
+  "$unit_src" > "$unit_dst"
+
+# 4. Reload systemd
+banner "Reloading systemd"
+systemctl --user daemon-reload
+
+# 5. Run migrations
+banner "Running migrations"
+"$install_dir/bin/media_centaur" eval "MediaCentaur.Release.migrate()"
+
+# 6. Restart service if active
+if systemctl --user is-active --quiet media-centaur-backend; then
+  banner "Restarting service"
+  systemctl --user restart media-centaur-backend
+fi
+
+# 7. Status summary
+banner "Install complete"
+echo "  Release: $install_dir"
+echo "  Unit:    $unit_dst"
+echo "  Version: $("$install_dir/bin/media_centaur" version)"
+echo ""
+systemctl --user status media-centaur-backend --no-pager 2>/dev/null || echo "  Service is not running. Start with: systemctl --user start media-centaur-backend"

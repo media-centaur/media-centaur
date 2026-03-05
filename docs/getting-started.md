@@ -95,7 +95,18 @@ MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile
 
 ## Release
 
-Build a self-contained release for production/deployment:
+Build and install with the provided scripts:
+
+```bash
+scripts/release              # build production release (add --clean to wipe _build/prod first)
+scripts/install              # install to ~/.local/lib/media-centaur/ and set up systemd
+```
+
+`scripts/install` copies the release, installs a patched systemd unit, runs migrations, and restarts the service if it was already active.
+
+### Manual build
+
+If you prefer to build manually:
 
 ```bash
 MIX_ENV=prod mix assets.deploy
@@ -122,6 +133,8 @@ bin/media_centaur eval "MediaCentaur.Release.migrate()"
 ```
 
 ### systemd user unit
+
+`scripts/install` handles systemd setup automatically. To set up manually instead:
 
 A template unit file ships at `defaults/media-centaur-backend.service`. To install:
 

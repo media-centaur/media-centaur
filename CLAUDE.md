@@ -38,6 +38,13 @@ mix precommit          # compile --warning-as-errors, unlock unused deps, format
 ### Release
 
 ```bash
+scripts/release              # build production release
+scripts/install              # install to ~/.local/lib/media-centaur/ and set up systemd
+```
+
+Manual build (if needed):
+
+```bash
 MIX_ENV=prod mix assets.deploy && MIX_ENV=prod mix release   # build release
 _build/prod/rel/media_centaur/bin/media_centaur start         # run release
 ```

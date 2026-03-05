@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build a production release of Media Centaur Backend.
+# Usage: scripts/release [--clean]
+
+cd "$(dirname "$0")/.."
+
+clean=false
+for arg in "$@"; do
+  case "$arg" in
+    --clean) clean=true ;;
+    *) echo "Unknown flag: $arg"; exit 1 ;;
+  esac
+done
+
+banner() { echo "==> $1"; }
+
+if [ "$clean" = true ]; then
+  banner "Cleaning _build/prod"
+  rm -rf _build/prod
+fi
+
+banner "Fetching dependencies"
+MIX_ENV=prod mix deps.get --only prod
+
+banner "Compiling"
+MIX_ENV=prod MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile
+
+banner "Deploying assets"
+MIX_ENV=prod mix assets.deploy
+
+banner "Building release"
+MIX_ENV=prod mix release --overwrite
+
+release_path="_build/prod/rel/media_centaur"
+banner "Release built at: $(pwd)/$release_path"
+"$release_path/bin/media_centaur" version
