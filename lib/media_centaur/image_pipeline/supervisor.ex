@@ -9,24 +9,37 @@ defmodule MediaCentaur.ImagePipeline.Supervisor do
   """
   use Supervisor
 
-  def start_link(opts) do
-    Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
+  def start_link(_opts) do
+    Supervisor.start_link(__MODULE__, [], name: __MODULE__)
   end
 
   @impl true
-  def init(opts) do
-    start_pipeline? = Keyword.get(opts, :start_pipeline, true)
-
-    children =
-      Enum.reject(
-        [
-          MediaCentaur.ImagePipeline.Stats,
-          if(start_pipeline?, do: MediaCentaur.ImagePipeline),
-          if(start_pipeline?, do: MediaCentaur.ImagePipeline.RetryScheduler)
-        ],
-        &is_nil/1
-      )
+  def init(_opts) do
+    children = [
+      MediaCentaur.ImagePipeline.Stats,
+      MediaCentaur.ImagePipeline,
+      MediaCentaur.ImagePipeline.RetryScheduler
+    ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
+  end
+
+  @doc "Starts the ImagePipeline Broadway process and RetryScheduler."
+  def start_pipeline do
+    Supervisor.restart_child(__MODULE__, MediaCentaur.ImagePipeline)
+    Supervisor.restart_child(__MODULE__, MediaCentaur.ImagePipeline.RetryScheduler)
+  end
+
+  @doc "Stops the ImagePipeline Broadway process and RetryScheduler."
+  def stop_pipeline do
+    Supervisor.terminate_child(__MODULE__, MediaCentaur.ImagePipeline.RetryScheduler)
+    Supervisor.terminate_child(__MODULE__, MediaCentaur.ImagePipeline)
+  end
+
+  @doc "Returns true if the ImagePipeline Broadway process is running."
+  def pipeline_running? do
+    __MODULE__
+    |> Supervisor.which_children()
+    |> Enum.any?(fn {id, pid, _, _} -> id == MediaCentaur.ImagePipeline and is_pid(pid) end)
   end
 end

@@ -3,6 +3,7 @@ config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # Never read user TOML config (~/.config/media-centaur/backend.toml) in tests.
 # Tests use only app env defaults — no real user paths enter the test environment.
+config :media_centaur, :environment, :test
 config :media_centaur, :skip_user_config, true
 config :media_centaur, :watch_dirs, []
 

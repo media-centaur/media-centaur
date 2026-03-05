@@ -1,7 +1,10 @@
 defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Admin, Log}
+  alias MediaCentaur.{Admin, Library, Log}
+  alias MediaCentaur.Watcher
+  alias MediaCentaur.Pipeline
+  alias MediaCentaur.ImagePipeline
 
   @impl true
   def mount(_params, _session, socket) do
@@ -16,12 +19,18 @@ defmodule MediaCentaurWeb.SettingsLive do
         |> assign(enabled_components: enabled)
         |> assign(all_components: all)
         |> assign(suppressed_frameworks: Log.suppressed_frameworks())
+        |> assign(watchers_running: Watcher.Supervisor.running?())
+        |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
+        |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())
       else
         socket
         |> assign(config: %{})
         |> assign(enabled_components: [])
         |> assign(all_components: [])
         |> assign(suppressed_frameworks: [])
+        |> assign(watchers_running: false)
+        |> assign(pipeline_running: false)
+        |> assign(image_pipeline_running: false)
       end
 
     {:ok,
@@ -54,6 +63,41 @@ defmodule MediaCentaurWeb.SettingsLive do
     end)
 
     {:noreply, assign(socket, refreshing_images: true)}
+  end
+
+  def handle_event("toggle_watchers", _params, socket) do
+    if socket.assigns.watchers_running do
+      Watcher.Supervisor.stop_watchers()
+      persist_service_flag(:start_watchers, false)
+    else
+      Watcher.Supervisor.start_watchers()
+      persist_service_flag(:start_watchers, true)
+    end
+
+    {:noreply, assign(socket, watchers_running: Watcher.Supervisor.running?())}
+  end
+
+  def handle_event("toggle_pipeline", _params, socket) do
+    if socket.assigns.pipeline_running do
+      Pipeline.Supervisor.stop_pipeline()
+      persist_service_flag(:start_pipeline, false)
+    else
+      Pipeline.Supervisor.start_pipeline()
+      persist_service_flag(:start_pipeline, true)
+    end
+
+    {:noreply, assign(socket, pipeline_running: Pipeline.Supervisor.pipeline_running?())}
+  end
+
+  def handle_event("toggle_image_pipeline", _params, socket) do
+    if socket.assigns.image_pipeline_running do
+      ImagePipeline.Supervisor.stop_pipeline()
+    else
+      ImagePipeline.Supervisor.start_pipeline()
+    end
+
+    {:noreply,
+     assign(socket, image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
   end
 
   def handle_event("toggle_component", %{"component" => component}, socket) do
@@ -126,6 +170,14 @@ defmodule MediaCentaurWeb.SettingsLive do
         <h1 class="text-2xl font-bold sm:col-span-2">Settings</h1>
 
         <div class="sm:col-span-2">
+          <.services_card
+            watchers_running={@watchers_running}
+            pipeline_running={@pipeline_running}
+            image_pipeline_running={@image_pipeline_running}
+          />
+        </div>
+
+        <div class="sm:col-span-2">
           <.component_logs_card enabled={@enabled_components} all={@all_components} />
         </div>
 
@@ -144,6 +196,65 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # --- Section Components ---
+
+  defp services_card(assigns) do
+    ~H"""
+    <div class="card glass-surface">
+      <div class="card-body">
+        <h2 class="card-title text-lg">Services</h2>
+
+        <p class="text-sm text-base-content/50">
+          Start or stop background services. State is saved per environment.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+          <div class="flex items-center justify-between p-4 rounded-lg glass-inset">
+            <div>
+              <span class="font-medium">Watchers</span>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                File system monitoring for media directories
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              class="toggle toggle-sm toggle-info"
+              checked={@watchers_running}
+              phx-click="toggle_watchers"
+            />
+          </div>
+          <div class="flex items-center justify-between p-4 rounded-lg glass-inset">
+            <div>
+              <span class="font-medium">Pipeline</span>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Metadata search and entity ingestion
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              class="toggle toggle-sm toggle-info"
+              checked={@pipeline_running}
+              phx-click="toggle_pipeline"
+            />
+          </div>
+          <div class="flex items-center justify-between p-4 rounded-lg glass-inset">
+            <div>
+              <span class="font-medium">Image Pipeline</span>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Artwork downloading and processing
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              class="toggle toggle-sm toggle-info"
+              checked={@image_pipeline_running}
+              phx-click="toggle_image_pipeline"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
 
   defp component_logs_card(assigns) do
     ~H"""
@@ -307,6 +418,11 @@ defmodule MediaCentaurWeb.SettingsLive do
       database_path: config.get(:database_path),
       watch_dirs_count: length(config.get(:watch_dirs) || [])
     }
+  end
+
+  defp persist_service_flag(service, value) do
+    env = Application.get_env(:media_centaur, :environment, :dev)
+    Library.upsert_setting!(%{key: "services:#{env}:#{service}", value: to_string(value)})
   end
 
   defp component_description(:watcher), do: "file events, size checks, detection"

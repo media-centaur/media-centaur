@@ -53,7 +53,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   """
   def pause_during(fun) when is_function(fun, 0) do
     if Process.whereis(__MODULE__) do
-      stop_all_watchers()
+      stop_watchers()
 
       try do
         fun.()
@@ -119,7 +119,13 @@ defmodule MediaCentaur.Watcher.Supervisor do
     state() == :watching
   end
 
-  defp stop_all_watchers do
+  @doc "Returns true if any watcher children are currently running."
+  def running? do
+    DynamicSupervisor.which_children(MediaCentaur.Watcher.DynamicSupervisor) != []
+  end
+
+  @doc "Stops all running watcher children."
+  def stop_watchers do
     MediaCentaur.Watcher.DynamicSupervisor
     |> DynamicSupervisor.which_children()
     |> Enum.each(fn {_, pid, _, _} ->
