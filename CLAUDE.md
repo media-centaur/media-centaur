@@ -95,9 +95,12 @@ Protocol specifications live in `specs/`. See [specs/README.md](specs/README.md)
 
 See [`DESIGN.md`](DESIGN.md) for UI principles, page structure, color/theme standards, and component guidelines. Read it before any LiveView, layout, or styling work.
 
-## Architecture Decision Records
+## Decision Records
 
-ADRs live in `adrs/` using [MADR 4.0](https://adr.github.io/madr/). See `adrs/template.md` for the blank template. **Filename convention:** `YYYY-MM-DD-NNN-short-title.md`.
+Decision records live in `decisions/` using [MADR 4.0](https://adr.github.io/madr/). See `decisions/README.md` for the category index. **Filename convention:** `YYYY-MM-DD-NNN-short-title.md`, numbered per category.
+
+- **Architecture** (`decisions/architecture/`): system design, data model, integration patterns, engineering standards
+- **User Interface** (`decisions/user-interface/`): visual conventions, component behavior, layout patterns, interaction design
 
 ## Defaults
 

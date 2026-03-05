@@ -10,7 +10,7 @@ Architectural decisions are scattered across CLAUDE.md (principles), PIPELINE.md
 
 ## Decision Outcome
 
-Chosen option: "MADR 4.0 lean template in `adrs/`", because it is the lightest structured format that captures context, decision, and consequences without ceremony.
+Chosen option: "MADR 4.0 lean template in `decisions/`", because it is the lightest structured format that captures context, decision, and consequences without ceremony.
 
 ### Consequences
 
