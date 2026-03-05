@@ -1,0 +1,152 @@
+# Image Cache Specification
+
+This document specifies how artwork images are stored, referenced, and loaded in the Media Centaur system.
+
+---
+
+## Hard Rules
+
+1. **The frontend loads images directly from the filesystem.** The backend sends absolute filesystem paths in `contentUrl`; the frontend opens the files itself via GPUI's GPU-accelerated image loader. Image pixel data is never transferred over the WebSocket or any HTTP endpoint.
+2. **The backend's HTTP image endpoint (`/media-images/*`) is for the admin LiveView only.** The frontend must never use it.
+
+---
+
+## Design Principles
+
+- **One copy per role, sized to spec.** Store a single image per role, resized to the dimensions specified in [`IMAGE-SIZING.md`](IMAGE-SIZING.md). GPUI renders via Vulkan — GPU texture scaling handles the final fit to rendered elements.
+- **Remote URL + local path separation.** Each image record stores both the original remote URL and the local cached path. The manager app writes `url` during metadata fetch and `contentUrl` after the file is downloaded; the frontend reads only the local path.
+- **Always use an array.** `image` is always `ImageObject[]`, even when there is one image. This avoids a schema migration when additional roles are added.
+- **UUID-keyed directories.** Each entity's images live under `data/images/{entity-@id}/`. The entity `@id` is the sole key — no name-based paths.
+
+---
+
+## ImageObject Schema
+
+Each entry in an entity's `image` array is a schema.org `ImageObject`. See [`DATA-FORMAT.md`](DATA-FORMAT.md#imageobject) for the full field definition.
+
+Key points for image caching:
+
+- **`url`** — the canonical remote source URL (written by manager, used for re-download)
+- **`contentUrl`** — stored as a relative path in the database (`{uuid}/poster.jpg`). Resolved to an absolute filesystem path by the serializer when pushed over the channel (e.g. `/mnt/media/.media-centaur/images/{uuid}/poster.jpg`). `null` until download completes. Read by the UI.
+- **`name`** — the image role (see roles below)
+
+---
+
+## Image Roles
+
+| Role | `name` value | Aspect ratio | Usage |
+|------|-------------|--------------|-------|
+| Poster | `"poster"` | 2:3 portrait | Grid card artwork; required for v1 |
+| Backdrop | `"backdrop"` | 16:9 landscape | Detail view hero background |
+| Logo | `"logo"` | variable, transparent | Detail view title overlay |
+| Thumbnail | `"thumb"` | 16:9 | Episode thumbnails in TVSeries |
+
+**v1 requirement:** Only `poster` is needed for the grid card view. Backdrop and logo are used in detail hero layouts.
+
+### Roles by Entity Type
+
+| Role | Movie | TVSeries | VideoObject |
+|------|-------|----------|-------------|
+| `poster` | TMDB poster (2:3) | TMDB poster (2:3) | Thumbnail |
+| `backdrop` | TMDB backdrop (16:9) | TMDB backdrop (16:9) | — |
+| `logo` | TMDB logo (transparent) | TMDB logo (transparent) | — |
+| `thumb` | — | Episode thumbnail | — |
+
+---
+
+## Directory Structure
+
+Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centaur/images/`. Users can override this per watch directory in the TOML config.
+
+```toml
+# Per-watch-directory image caches
+watch_dirs = [
+  { dir = "/mnt/videos/Movies", images_dir = "/mnt/videos/.media-centaur/images" },
+  { dir = "/mnt/nas/TV" },  # defaults to /mnt/nas/TV/.media-centaur/images
+]
+```
+
+```
+/mnt/videos/.media-centaur/
+└── images/
+    ├── 550e8400-e29b-41d4-a716-446655440001/   # Sample Movie (entity)
+    │   ├── poster.jpg
+    │   └── backdrop.jpg
+    ├── 660a1200-b33c-42e5-b819-557766550010/   # Child Movie (movie)
+    │   └── poster.jpg
+    └── ...
+
+/mnt/nas/TV/.media-centaur/
+└── images/
+    ├── 550e8400-e29b-41d4-a716-446655440004/   # Sample Show Eight (entity)
+    │   └── poster.jpg
+    ├── 770b2300-c44d-53f6-c920-668877660020/   # S01E03 (episode)
+    │   └── thumb.jpg
+    └── ...
+```
+
+- One subdirectory per owner (entity, child movie, or episode), named by the owner's UUID.
+- Filename is `{role}.{ext}` — extension matches the source format (`.jpg` or `.png`).
+- `contentUrl` in channel messages is an absolute filesystem path resolved by the serializer at push time. The database stores relative paths (`{uuid}/{role}.{ext}`).
+- Staging directories for in-progress downloads are created at `{images_dir}/../tmp-image-download/` and cleaned up after pipeline completion and on application startup.
+
+---
+
+## Remote URL Patterns
+
+The manager app uses these patterns when downloading images:
+
+**Movies and TV Series (TMDB):**
+
+| Role | URL pattern |
+|------|-------------|
+| Poster | `https://image.tmdb.org/t/p/original/{poster_path}` |
+| Backdrop | `https://image.tmdb.org/t/p/original/{backdrop_path}` |
+| Logo | `https://image.tmdb.org/t/p/original/{logo_path}` |
+
+`{poster_path}` etc. come from the TMDB API response (e.g. `/1E5baAaEse26fej7uHcjOgEE2t2.jpg`). See [`IMAGE-SIZING.md`](IMAGE-SIZING.md) for recommended TMDB size variants and resize targets per role.
+
+**Video Objects:** No standard source. User-provided thumbnails or frames extracted from video.
+
+---
+
+## Responsibilities
+
+### Manager App
+
+- Query external APIs to get image URLs
+- Create `ImageObject` entries with `url` populated (remote TMDB URL) and `contentUrl: null`
+- Download images to `{images_dir}/{uuid}/{role}.{ext}`, where `images_dir` is resolved per watch directory via `Config.images_dir_for/1`
+- Update `contentUrl` in the `ImageObject` entry with the local path after successful download
+- Never overwrite a locally modified image without user confirmation
+- Serve images over HTTP at `/media-images/*` (see [HTTP Endpoint](#http-endpoint) below)
+
+### User-Interface App
+
+- Read `contentUrl` from the first `ImageObject` where `name == "poster"` for grid card rendering
+- Read `contentUrl` for `backdrop` and `logo` when rendering detail view hero areas
+- If `contentUrl` is absent or the file does not exist, render a solid-color placeholder — no crash, no error
+- Never write to the `data/images/` directory
+
+---
+
+## HTTP Endpoint
+
+The backend serves images over HTTP at `/media-images/*` via `ImageServerPlug`. This is used by the admin LiveView for `<img>` tags. The frontend does not use this endpoint — it reads images directly from absolute `contentUrl` filesystem paths.
+
+**Request:** `GET /media-images/{uuid}/{role}.{ext}` (e.g. `/media-images/550e8400-.../poster.jpg`)
+
+The plug searches all configured watch directories' image caches for the requested file and returns the first match. Returns 404 if the file is not found in any cache. Path traversal (`..`) is rejected with 400.
+
+---
+
+## Fallback Behavior
+
+The frontend must handle missing images gracefully at every level:
+
+1. Entity has no `image` array or empty array → solid-color placeholder
+2. No entry with `name == "poster"` → solid-color placeholder
+3. `contentUrl` field is absent → solid-color placeholder
+4. File at `contentUrl` does not exist on disk → solid-color placeholder
+
+Fallback colors are assigned per `MediaKind` for visual distinction.

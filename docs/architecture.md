@@ -126,15 +126,15 @@ All inter-component communication flows through Phoenix PubSub:
 
 ## Specifications
 
-Cross-component contracts live in the [specifications repository](https://github.com/media-centaur/specifications):
+Protocol specifications live in [`specs/`](../specs/):
 
 | Spec | Governs |
 |------|---------|
-| [API.md](https://github.com/media-centaur/specifications/blob/main/API.md) | Phoenix Channels WebSocket protocol |
-| [DATA-FORMAT.md](https://github.com/media-centaur/specifications/blob/main/DATA-FORMAT.md) | JSON-LD entity serialization format |
-| [IMAGE-CACHING.md](https://github.com/media-centaur/specifications/blob/main/IMAGE-CACHING.md) | Image storage conventions |
-| [PLAYBACK.md](https://github.com/media-centaur/specifications/blob/main/PLAYBACK.md) | MPV integration and progress tracking |
-| [COMPONENTS.md](https://github.com/media-centaur/specifications/blob/main/COMPONENTS.md) | System component architecture |
+| [API.md](../specs/API.md) | Phoenix Channels WebSocket protocol |
+| [DATA-FORMAT.md](../specs/DATA-FORMAT.md) | JSON-LD entity serialization format |
+| [IMAGE-CACHING.md](../specs/IMAGE-CACHING.md) | Image storage conventions |
+| [PLAYBACK.md](../specs/PLAYBACK.md) | MPV integration and progress tracking |
+| [COMPONENTS.md](../specs/COMPONENTS.md) | System component architecture |
 
 ## Module Reference
 

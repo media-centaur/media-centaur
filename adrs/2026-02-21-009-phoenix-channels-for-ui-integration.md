@@ -29,5 +29,5 @@ Chosen option: "Phoenix Channels over WebSocket", because it provides bidirectio
 * Good, because updates are instant — no polling delay or file-watch latency
 * Good, because the connection is bidirectional — playback commands use the same socket
 * Good, because the backend controls serialization format — no risk of the UI reading a partially-written file
-* Good, because every contract between backend and UI is documented in `../specifications/`
+* Good, because every contract between backend and UI is documented in `specs/`
 * Bad, because the UI must maintain a WebSocket connection — offline/disconnected state requires handling

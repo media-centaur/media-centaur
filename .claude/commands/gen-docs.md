@@ -73,12 +73,12 @@ For each doc file listed below, follow this process:
 |-----|------------------------|
 | getting-started.md | mix.exs, defaults/backend.toml, CLAUDE.md (Build & Run section) |
 | configuration.md | defaults/backend.toml, lib/media_centaur/config.ex |
-| architecture.md | CLAUDE.md (Architecture Principles, Repository Layout), lib/media_centaur/application.ex, specifications/ directory listing |
+| architecture.md | CLAUDE.md (Architecture Principles, Repository Layout), lib/media_centaur/application.ex, specs/ directory listing |
 | watcher.md | lib/media_centaur/watcher.ex, lib/media_centaur/watcher/supervisor.ex, PIPELINE.md (watcher-relevant sections) |
 | pipeline.md | PIPELINE.md, lib/media_centaur/pipeline.ex, lib/media_centaur/pipeline/stages/ (all stage files), lib/media_centaur/pipeline/producer.ex |
 | tmdb.md | lib/media_centaur/tmdb/ (all files: client, confidence, mapper, rate_limiter) |
-| playback.md | lib/media_centaur/playback/ (all files), specifications/PLAYBACK.md (if exists) |
-| channel.md | lib/media_centaur_web/channels/ (all files), specifications/API.md (if exists) |
+| playback.md | lib/media_centaur/playback/ (all files), specs/PLAYBACK.md |
+| channel.md | lib/media_centaur_web/channels/ (all files), specs/API.md |
 | library.md | lib/media_centaur/library/ (domain, resources, ingress, helpers), lib/media_centaur/review/ |
 
 ### Doc Template (each subsystem doc)
@@ -138,13 +138,11 @@ Do NOT add:
 
 ### Specification Links
 
-The `../specifications/` directory does not exist in the backend repo — specifications live in a separate repository. All links to specification files must point to the GitHub repository:
-
-`https://github.com/media-centaur/specifications/blob/main/<filename>`
+Specifications live in `specs/` within the backend repo. All links to specification files must use relative paths to `specs/`:
 
 For example:
-- `[DATA-FORMAT.md](https://github.com/media-centaur/specifications/blob/main/DATA-FORMAT.md)` — not `../specifications/DATA-FORMAT.md`
-- `[PLAYBACK.md](https://github.com/media-centaur/specifications/blob/main/PLAYBACK.md)` — not `../specifications/PLAYBACK.md`
+- `[DATA-FORMAT.md](../specs/DATA-FORMAT.md)` from a file in `docs/`
+- `[PLAYBACK.md](specs/PLAYBACK.md)` from a file in the backend root
 
 This applies everywhere: README.md, architecture.md, and any doc that references specification files.
 
@@ -191,4 +189,4 @@ Before finishing, verify:
 - [ ] getting-started.md lists Elixir/OTP version requirements
 - [ ] Every doc in `docs/` has a cross-doc nav bar and page TOC (no `## Contents` heading)
 - [ ] No back/forward links at the bottom of any doc
-- [ ] All specification links point to `https://github.com/media-centaur/specifications/blob/main/` (not relative `../specifications/` paths)
+- [ ] All specification links use relative paths to `specs/`

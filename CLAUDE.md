@@ -24,7 +24,13 @@ A Phoenix/Elixir web application that manages the Media Centaur media library. I
 
 ## Version Control (Jujutsu)
 
-See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for Jujutsu workflow.
+All repositories use **JJ (Jujutsu)** — never use raw `git` commands.
+
+- After completing a feature: `jj describe -m "type: short description"`
+- Use conventional commit style (e.g. `feat:`, `fix:`, `refactor:`). Concise and high-level.
+- Amend the existing change for follow-up fixes (if not yet pushed).
+- Start unrelated features with `jj new`.
+- Adjust the description as scope becomes clearer.
 
 ## Build & Run
 
@@ -83,7 +89,7 @@ See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — PubSub-drive
 
 ## Specifications
 
-Cross-component specifications live in `../specifications`. See [specifications/CLAUDE.md](../specifications/CLAUDE.md) for the full document table, reading guide, and update workflow. **Every contract between the backend and the frontend must be documented in a specification file.** Read the relevant spec (`DATA-FORMAT.md`, `IMAGE-CACHING.md`) before writing code that touches serialization, images, or entity fields.
+Protocol specifications live in `specs/`. See [specs/README.md](specs/README.md) for the full document table, reading guide, and update workflow. **Every contract between the backend and the frontend must be documented in a specification file.** Read the relevant spec (`DATA-FORMAT.md`, `IMAGE-CACHING.md`) before writing code that touches serialization, images, or entity fields.
 
 ## UI Design
 
