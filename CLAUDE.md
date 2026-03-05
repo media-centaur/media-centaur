@@ -35,6 +35,15 @@ mix test               # run tests (creates and migrates test DB automatically)
 mix precommit          # compile --warning-as-errors, unlock unused deps, format, test
 ```
 
+### Release
+
+```bash
+MIX_ENV=prod mix assets.deploy && MIX_ENV=prod mix release   # build release
+_build/prod/rel/media_centaur/bin/media_centaur start         # run release
+```
+
+Migrations in a release: `bin/media_centaur eval "MediaCentaur.Release.migrate()"`. See `docs/getting-started.md#release` for full details including systemd setup.
+
 > Note: When compiling, always use the environment variable `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8` to parallelize and speed up compilation.
 
 Run `mix precommit` before finishing any set of changes and fix all issues it reports.
