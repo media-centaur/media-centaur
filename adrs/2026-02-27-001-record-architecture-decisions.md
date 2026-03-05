@@ -6,7 +6,7 @@ date: 2026-02-27
 
 ## Context and Problem Statement
 
-Architectural decisions are scattered across CLAUDE.md (principles), PIPELINE.md (pipeline architecture), `../specifications/` (data contracts), `plans/` (implementation plans), and git history. There is no single place to find *why* a decision was made or what alternatives were rejected. New contributors (human or AI) must reverse-engineer rationale from code and comments.
+Architectural decisions are scattered across CLAUDE.md (principles), PIPELINE.md (pipeline architecture), `specs/` (data contracts), `plans/` (implementation plans), and git history. There is no single place to find *why* a decision was made or what alternatives were rejected. New contributors (human or AI) must reverse-engineer rationale from code and comments.
 
 ## Decision Outcome
 

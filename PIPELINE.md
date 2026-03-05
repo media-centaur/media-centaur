@@ -4,7 +4,7 @@
 
 The media manager processes video files through an automated pipeline built on [Broadway](https://github.com/dashbitco/broadway). This document covers the pipeline's internal architecture — how files move from detection to completion.
 
-For the data format produced at the end of the pipeline, see [`DATA-FORMAT.md`](../specifications/DATA-FORMAT.md). For image handling, see [`IMAGE-CACHING.md`](../specifications/IMAGE-CACHING.md).
+For the data format produced at the end of the pipeline, see [`DATA-FORMAT.md`](specs/DATA-FORMAT.md). For image handling, see [`IMAGE-CACHING.md`](specs/IMAGE-CACHING.md).
 
 ---
 
