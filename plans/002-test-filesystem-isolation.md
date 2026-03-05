@@ -92,7 +92,7 @@ None — purely internal. No cross-component contracts affected.
 
 ## Decisions
 
-See `adrs/2026-03-01-016-test-env-filesystem-isolation.md`.
+See `decisions/architecture/2026-03-01-016-test-env-filesystem-isolation.md`.
 
 ## Smoke Tests
 

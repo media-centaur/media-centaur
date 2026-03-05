@@ -144,7 +144,7 @@ The channel handler and LiveView filter: entities with zero `:complete` WatchedF
 
 ## Decisions
 
-See `adrs/2026-03-01-015-two-phase-file-removal.md`
+See `decisions/architecture/2026-03-01-015-two-phase-file-removal.md`
 
 ## Smoke Tests
 
