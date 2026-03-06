@@ -66,6 +66,7 @@ defmodule MediaCentaur.Watcher do
 
   @impl true
   def init(dir) do
+    Process.flag(:trap_exit, true)
     send(self(), :start_watching)
     {:ok, %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs(dir)}}
   end
@@ -90,8 +91,6 @@ defmodule MediaCentaur.Watcher do
 
   @impl true
   def handle_info(:start_watching, state) do
-    was_unavailable = state.state == :unavailable
-
     case FileSystem.start_link(dirs: [state.dir], recursive: true) do
       {:ok, pid} ->
         FileSystem.subscribe(pid)
@@ -99,9 +98,8 @@ defmodule MediaCentaur.Watcher do
         schedule_health_check()
         broadcast_state(state.dir, :watching)
 
-        if was_unavailable do
-          send(self(), :auto_scan)
-        end
+        # Always scan on startup to catch files added while we were down (ADR-023)
+        send(self(), :auto_scan)
 
         {:noreply, %{state | watcher_pid: pid, state: :watching}}
 
@@ -225,6 +223,22 @@ defmodule MediaCentaur.Watcher do
     {:noreply, %{state | deletion_buffer: %{}, deletion_timer: nil}}
   end
 
+  @impl true
+  def terminate(_reason, state) do
+    if map_size(state.deletion_buffer) > 0 do
+      paths = Map.keys(state.deletion_buffer)
+      Log.info(:watcher, "flushing #{length(paths)} buffered deletions on shutdown")
+
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        "library:file_events",
+        {:files_removed, paths}
+      )
+    end
+
+    :ok
+  end
+
   defp buffer_deletion(state, path) do
     buffer = Map.put(state.deletion_buffer, path, state.dir)
 
@@ -237,9 +251,20 @@ defmodule MediaCentaur.Watcher do
 
   defp scan_directory(dir) do
     Log.info(:watcher, "scanning #{dir}")
+
+    case fetch_known_file_paths() do
+      {:ok, known_paths} ->
+        scan_directory(dir, known_paths)
+
+      {:error, _reason} ->
+        Log.info(:watcher, "scan skipped, database not available")
+        0
+    end
+  end
+
+  defp scan_directory(dir, known_paths) do
     start_time = System.monotonic_time()
     exclude_dirs = load_exclude_dirs(dir)
-    known_paths = fetch_known_file_paths()
 
     video_files =
       dir
@@ -293,7 +318,10 @@ defmodule MediaCentaur.Watcher do
   end
 
   defp fetch_known_file_paths do
-    MapSet.new(Library.list_watched_files!(), & &1.file_path)
+    case Library.list_watched_files() do
+      {:ok, files} -> {:ok, MapSet.new(files, & &1.file_path)}
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp video_file?(path) do

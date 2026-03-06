@@ -17,6 +17,7 @@ defmodule MediaCentaur.Pipeline.Producer do
   @impl true
   def init(_opts) do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "pipeline:input")
+    send(self(), :reconcile)
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
 
@@ -66,6 +67,20 @@ defmodule MediaCentaur.Pipeline.Producer do
     {messages, state} = dispatch(state)
     emit_queue_depth(state.queue)
     {:noreply, messages, state}
+  end
+
+  # Startup reconciliation (ADR-023): rescan all watch directories to re-detect
+  # files that were missed while the pipeline was down.
+  def handle_info(:reconcile, state) do
+    if MediaCentaur.Watcher.Supervisor.running?() do
+      Log.info(:pipeline, "producer startup reconciliation: triggering watcher rescan")
+
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        MediaCentaur.Watcher.Supervisor.scan()
+      end)
+    end
+
+    {:noreply, [], state}
   end
 
   def handle_info(_msg, state) do

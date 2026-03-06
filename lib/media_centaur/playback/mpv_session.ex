@@ -10,6 +10,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   @db_write_interval_ms 60_000
   @socket_retry_interval_ms 200
+  @well_known_socket_name "media-centaur-mpv.sock"
 
   defstruct [
     :session_id,
@@ -58,7 +59,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     session_id = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
     socket_dir = MediaCentaur.Config.get(:mpv_socket_dir)
-    socket_path = Path.join(socket_dir, "media-centaur-mpv-#{session_id}.sock")
+    socket_path = Path.join(socket_dir, @well_known_socket_name)
     timeout_ms = MediaCentaur.Config.get(:mpv_socket_timeout_ms)
     max_retries = div(timeout_ms, @socket_retry_interval_ms)
 
@@ -81,7 +82,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     }
 
     Log.info(:playback, "session #{session_id} init for #{Path.basename(params.content_url)}")
-    send(self(), :launch_mpv)
+    send(self(), :try_reconnect)
     {:ok, state}
   end
 
@@ -117,6 +118,41 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   def handle_call({:seek, _position}, _from, state) do
     {:reply, {:error, :not_playing}, state}
+  end
+
+  # ADR-023: Try to reconnect to an existing mpv process via the well-known socket
+  # before launching a new one. This handles the case where the backend restarts
+  # while mpv is still running.
+  @impl true
+  def handle_info(:try_reconnect, state) do
+    socket_charlist = to_charlist(state.socket_path)
+
+    case :gen_tcp.connect(
+           {:local, socket_charlist},
+           0,
+           [:binary, packet: :line, active: true],
+           500
+         ) do
+      {:ok, socket} ->
+        Log.info(
+          :playback,
+          "session #{state.session_id} reconnected to existing mpv via #{@well_known_socket_name}"
+        )
+
+        send_mpv_command(socket, ["observe_property", 1, "time-pos"])
+        send_mpv_command(socket, ["observe_property", 2, "duration"])
+        send_mpv_command(socket, ["observe_property", 3, "pause"])
+        send_mpv_command(socket, ["observe_property", 4, "eof-reached"])
+
+        broadcast_state_changed(:playing, state)
+        {:noreply, %{state | socket: socket, state: :playing}}
+
+      {:error, _reason} ->
+        # No existing mpv — clean up stale socket file and launch fresh
+        File.rm(state.socket_path)
+        send(self(), :launch_mpv)
+        {:noreply, state}
+    end
   end
 
   @impl true
