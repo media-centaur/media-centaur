@@ -472,7 +472,12 @@ defmodule MediaCentaur.Playback.MpvSession do
       :gen_tcp.close(state.socket)
     end
 
-    File.rm(state.socket_path)
+    # Only delete the socket file if mpv has already exited.
+    # If mpv is still running (backend shutting down), leave the socket
+    # so SessionRecovery can reconnect on next startup (ADR-023).
+    if state.state == :stopped do
+      File.rm(state.socket_path)
+    end
   end
 
   defp send_mpv_command(nil, _command), do: :ok

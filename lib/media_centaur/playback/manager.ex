@@ -6,7 +6,7 @@ defmodule MediaCentaur.Playback.Manager do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Playback.{MpvSession, SessionSupervisor}
+  alias MediaCentaur.Playback.{MpvSession, SessionSupervisor, SessionRecovery}
 
   defstruct session: nil,
             monitor_ref: nil,
@@ -38,6 +38,7 @@ defmodule MediaCentaur.Playback.Manager do
           %__MODULE__{session: pid, monitor_ref: ref, state: :playing}
 
         _ ->
+          send(self(), :try_recover_session)
           %__MODULE__{}
       end
 
@@ -110,6 +111,46 @@ defmodule MediaCentaur.Playback.Manager do
   def handle_call(:current_state, _from, state) do
     {:reply, %{state: state.state, now_playing: state.now_playing}, state}
   end
+
+  # ADR-023: Recover an orphaned mpv process on startup
+  @impl true
+  def handle_info(:try_recover_session, %{session: nil} = state) do
+    case SessionRecovery.recover_params() do
+      {:ok, params} ->
+        Log.info(
+          :playback,
+          "recovering orphaned mpv session for #{params[:entity_name] || params.entity_id}"
+        )
+
+        case SessionSupervisor.start_session(params) do
+          {:ok, pid} ->
+            ref = Process.monitor(pid)
+
+            now_playing = %{
+              entity_id: params.entity_id,
+              entity_name: params[:entity_name],
+              season_number: params[:season_number],
+              episode_number: params[:episode_number],
+              episode_name: params[:episode_name],
+              content_url: params.content_url,
+              position_seconds: params[:start_position] || 0.0,
+              duration_seconds: 0.0
+            }
+
+            {:noreply,
+             %{state | session: pid, monitor_ref: ref, state: :starting, now_playing: now_playing}}
+
+          {:error, reason} ->
+            Log.info(:playback, "session recovery failed to start: #{inspect(reason)}")
+            {:noreply, state}
+        end
+
+      :skip ->
+        {:noreply, state}
+    end
+  end
+
+  def handle_info(:try_recover_session, state), do: {:noreply, state}
 
   # --- PubSub Events from MpvSession ---
 
