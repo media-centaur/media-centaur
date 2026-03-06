@@ -8,7 +8,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   alias MediaCentaur.Playback.WatchingTracker
 
-  @db_write_interval_ms 60_000
+  @db_write_interval_ms 10_000
   @socket_retry_interval_ms 200
   @well_known_socket_name "media-centaur-mpv.sock"
 
