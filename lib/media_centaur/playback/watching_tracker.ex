@@ -21,7 +21,7 @@ defmodule MediaCentaur.Playback.WatchingTracker do
   """
 
   @seek_threshold_seconds 3.0
-  @continuous_threshold_ms 20_000
+  @continuous_threshold_ms 10_000
 
   defstruct previous_position: nil,
             continuous_since: nil,

@@ -26,13 +26,13 @@ defmodule MediaCentaur.Playback.WatchingTrackerTest do
   end
 
   describe "continuous playback" do
-    test "does not set actively_watching before 20 seconds" do
+    test "does not set actively_watching before 10 seconds" do
       tracker = WatchingTracker.new()
       tracker = WatchingTracker.update(tracker, 0.0, 0)
 
-      # Simulate 19 seconds of 1-second ticks
+      # Simulate 9 seconds of 1-second ticks
       tracker =
-        Enum.reduce(1..19, tracker, fn second, tracker ->
+        Enum.reduce(1..9, tracker, fn second, tracker ->
           WatchingTracker.update(tracker, second * 1.0, second * 1000)
         end)
 
@@ -40,18 +40,18 @@ defmodule MediaCentaur.Playback.WatchingTrackerTest do
       assert tracker.saveable_position == nil
     end
 
-    test "sets actively_watching after 20 seconds of continuous playback" do
+    test "sets actively_watching after 10 seconds of continuous playback" do
       tracker = WatchingTracker.new()
       tracker = WatchingTracker.update(tracker, 0.0, 0)
 
-      # Simulate 21 seconds of 1-second ticks
+      # Simulate 11 seconds of 1-second ticks
       tracker =
-        Enum.reduce(1..21, tracker, fn second, tracker ->
+        Enum.reduce(1..11, tracker, fn second, tracker ->
           WatchingTracker.update(tracker, second * 1.0, second * 1000)
         end)
 
       assert tracker.actively_watching == true
-      assert tracker.saveable_position == 21.0
+      assert tracker.saveable_position == 11.0
     end
 
     test "advances saveable_position with each tick after threshold" do
@@ -191,7 +191,7 @@ defmodule MediaCentaur.Playback.WatchingTrackerTest do
       tracker = WatchingTracker.update(tracker, 0.0, 0)
 
       tracker =
-        Enum.reduce(1..19, tracker, fn second, tracker ->
+        Enum.reduce(1..9, tracker, fn second, tracker ->
           WatchingTracker.update(tracker, second * 1.0, second * 1000)
         end)
 
