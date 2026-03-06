@@ -481,10 +481,10 @@ defmodule MediaCentaurWeb.LibraryLive do
           <.icon name="hero-film" class="size-12 text-base-content/20" />
         </div>
         <%!-- Logo overlay --%>
-        <div :if={@logo} class="absolute inset-0 flex items-center justify-center p-6">
+        <div :if={@logo} class="absolute inset-0 flex items-center justify-center p-4">
           <img
             src={@logo}
-            class="max-h-full max-w-[70%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]"
+            class="max-h-[85%] max-w-[90%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]"
           />
         </div>
       </div>
