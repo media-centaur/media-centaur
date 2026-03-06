@@ -31,39 +31,65 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> assign(
        active_tab: :all,
        selected_id: nil,
+       filter_text: "",
        metadata_expanded: false,
        expanded_episodes: MapSet.new(),
        reload_timer: nil,
-       pending_entity_ids: MapSet.new(),
-       filter_text: ""
-     )
-     |> reset_stream()}
+       pending_entity_ids: MapSet.new()
+     )}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    tab = parse_tab(params["tab"])
+    selected_id = params["selected"]
+    filter_text = params["filter"] || ""
+
+    socket =
+      socket
+      |> assign(active_tab: tab, selected_id: selected_id, filter_text: filter_text)
+      |> reset_stream()
+
+    {:noreply, socket}
   end
 
   # --- Events ---
 
   @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
-    {:noreply, socket |> assign(active_tab: String.to_existing_atom(tab)) |> reset_stream()}
+    tab = String.to_existing_atom(tab)
+
+    {:noreply,
+     push_patch(socket,
+       to:
+         ~p"/library?#{build_params(tab, socket.assigns.selected_id, socket.assigns.filter_text)}"
+     )}
   end
 
   def handle_event("filter", %{"filter_text" => text}, socket) do
-    {:noreply, socket |> assign(filter_text: text) |> reset_stream()}
+    {:noreply,
+     push_patch(socket,
+       to:
+         ~p"/library?#{build_params(socket.assigns.active_tab, socket.assigns.selected_id, text)}",
+       replace: true
+     )}
   end
 
   def handle_event("select_entity", %{"id" => id}, socket) do
-    if socket.assigns.selected_id == id do
-      {:noreply, socket |> assign(selected_id: nil) |> assign_selected_entry()}
-    else
-      {:noreply,
-       socket
-       |> assign(
-         selected_id: id,
-         metadata_expanded: false,
-         expanded_episodes: MapSet.new()
-       )
-       |> assign_selected_entry()}
-    end
+    new_id = if socket.assigns.selected_id == id, do: nil, else: id
+
+    socket =
+      if new_id != socket.assigns.selected_id do
+        assign(socket, metadata_expanded: false, expanded_episodes: MapSet.new())
+      else
+        socket
+      end
+
+    {:noreply,
+     push_patch(socket,
+       to:
+         ~p"/library?#{build_params(socket.assigns.active_tab, new_id, socket.assigns.filter_text)}"
+     )}
   end
 
   def handle_event("toggle_metadata", _params, socket) do
@@ -116,23 +142,32 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     entries = Enum.sort_by(entries ++ new_entries, fn entry -> entry.entity.name || "" end)
 
-    selected_id =
-      if socket.assigns.selected_id && MapSet.member?(gone_ids, socket.assigns.selected_id),
-        do: nil,
-        else: socket.assigns.selected_id
+    selection_deleted =
+      socket.assigns.selected_id != nil &&
+        MapSet.member?(gone_ids, socket.assigns.selected_id)
 
     socket =
       socket
       |> assign(entries: entries, counts: tab_counts(entries))
       |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
-      |> assign(selected_id: selected_id)
 
     # Structural changes (entities added/removed) need a full stream reset for correct ordering.
     # Pure updates get surgical stream_inserts for O(1) per changed card.
-    if MapSet.size(gone_ids) > 0 || new_entries != [] do
-      {:noreply, reset_stream(socket)}
+    socket =
+      if MapSet.size(gone_ids) > 0 || new_entries != [] do
+        reset_stream(socket)
+      else
+        touch_stream_entries(socket, MapSet.to_list(changed_ids))
+      end
+
+    if selection_deleted do
+      {:noreply,
+       push_patch(socket,
+         to:
+           ~p"/library?#{build_params(socket.assigns.active_tab, nil, socket.assigns.filter_text)}"
+       )}
     else
-      {:noreply, touch_stream_entries(socket, MapSet.to_list(changed_ids))}
+      {:noreply, socket}
     end
   end
 
@@ -858,6 +893,19 @@ defmodule MediaCentaurWeb.LibraryLive do
     socket.assigns.entries
     |> filtered_entries(socket.assigns.active_tab)
     |> text_filtered_entries(socket.assigns.filter_text)
+  end
+
+  # --- URL Params ---
+
+  defp parse_tab("movies"), do: :movies
+  defp parse_tab("tv"), do: :tv
+  defp parse_tab(_), do: :all
+
+  defp build_params(tab, selected_id, filter_text) do
+    params = %{}
+    params = if tab != :all, do: Map.put(params, :tab, tab), else: params
+    params = if selected_id, do: Map.put(params, :selected, selected_id), else: params
+    if filter_text != "", do: Map.put(params, :filter, filter_text), else: params
   end
 
   # --- Helpers ---
