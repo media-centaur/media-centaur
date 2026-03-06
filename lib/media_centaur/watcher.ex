@@ -44,6 +44,7 @@ defmodule MediaCentaur.Watcher do
     :watcher_pid,
     :deletion_timer,
     state: :initializing,
+    was_unavailable: false,
     pending_files: %{},
     deletion_buffer: %{},
     exclude_dirs: []
@@ -99,9 +100,9 @@ defmodule MediaCentaur.Watcher do
         broadcast_state(state.dir, :watching)
 
         # Always scan on startup to catch files added while we were down (ADR-023)
-        send(self(), :auto_scan)
+        send(self(), {:auto_scan, recovery: state.was_unavailable})
 
-        {:noreply, %{state | watcher_pid: pid, state: :watching}}
+        {:noreply, %{state | watcher_pid: pid, state: :watching, was_unavailable: false}}
 
       {:error, reason} ->
         Log.warning(
@@ -111,13 +112,13 @@ defmodule MediaCentaur.Watcher do
 
         schedule_health_check()
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable}}
+        {:noreply, %{state | state: :unavailable, was_unavailable: true}}
 
       :ignore ->
         Log.warning(:watcher, "file_system watcher not available (inotify-tools missing?)")
         schedule_health_check()
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable}}
+        {:noreply, %{state | state: :unavailable, was_unavailable: true}}
     end
   end
 
@@ -127,7 +128,7 @@ defmodule MediaCentaur.Watcher do
       Enum.member?(events, :unmounted) ->
         Log.warning(:watcher, "directory unmounted: #{state.dir}")
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable}}
+        {:noreply, %{state | state: :unavailable, was_unavailable: true}}
 
       (:created in events or :modified in events) and video_file?(path) and
           not excluded?(path, state.exclude_dirs) ->
@@ -188,7 +189,7 @@ defmodule MediaCentaur.Watcher do
         if state.state != :unavailable do
           Log.warning(:watcher, "directory is not accessible: #{state.dir}")
           broadcast_state(state.dir, :unavailable)
-          {:noreply, %{state | state: :unavailable}}
+          {:noreply, %{state | state: :unavailable, was_unavailable: true}}
         else
           schedule_health_check()
           {:noreply, state}
@@ -197,13 +198,18 @@ defmodule MediaCentaur.Watcher do
   end
 
   @impl true
-  def handle_info(:auto_scan, state) do
+  def handle_info({:auto_scan, opts}, state) do
     dir = state.dir
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      scan_directory(dir)
+      scan_directory(dir, opts)
     end)
 
+    {:noreply, state}
+  end
+
+  def handle_info(:auto_scan, state) do
+    send(self(), {:auto_scan, recovery: false})
     {:noreply, state}
   end
 
@@ -249,12 +255,13 @@ defmodule MediaCentaur.Watcher do
     %{state | deletion_buffer: buffer, deletion_timer: timer}
   end
 
-  defp scan_directory(dir) do
-    Log.info(:watcher, "scanning #{dir}")
+  defp scan_directory(dir, opts \\ []) do
+    recovery = Keyword.get(opts, :recovery, false)
+    Log.info(:watcher, "scanning #{dir}#{if recovery, do: " (recovery)", else: ""}")
 
     case fetch_known_file_paths() do
       {:ok, known_paths} ->
-        scan_directory(dir, known_paths)
+        scan_directory_with_paths(dir, known_paths, recovery: recovery)
 
       {:error, _reason} ->
         Log.info(:watcher, "scan skipped, database not available")
@@ -262,7 +269,7 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
-  defp scan_directory(dir, known_paths) do
+  defp scan_directory_with_paths(dir, known_paths, opts) do
     start_time = System.monotonic_time()
     exclude_dirs = load_exclude_dirs(dir)
 
@@ -282,6 +289,23 @@ defmodule MediaCentaur.Watcher do
     # Restore any absent files that are now present on disk
     restored_entity_ids = FileTracker.restore_present_files(dir, video_files)
     Helpers.broadcast_entities_changed(restored_entity_ids)
+
+    # On recovery from :unavailable, re-push ALL entities for this watch dir
+    # so the channel re-serializes with now-available image paths
+    if Keyword.get(opts, :recovery, false) do
+      complete_files = Library.list_files_by_watch_dir!(dir, :complete)
+      all_entity_ids = Helpers.unique_entity_ids(complete_files)
+      additional_ids = all_entity_ids -- restored_entity_ids
+
+      if additional_ids != [] do
+        Log.info(
+          :watcher,
+          "recovery: re-pushing #{length(additional_ids)} entities for image re-resolution"
+        )
+
+        Helpers.broadcast_entities_changed(additional_ids)
+      end
+    end
 
     duration = System.monotonic_time() - start_time
 
