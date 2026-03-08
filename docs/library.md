@@ -2,7 +2,7 @@
 
 The library is the core data domain. It stores all media entities, their relationships, watch progress, and file tracking. Built entirely on [Ash Framework](https://ash-hq.org/) with SQLite.
 
-> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · **Library**
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · **Library**
 
 - [Architecture](#architecture)
 - [Key Concepts](#key-concepts)

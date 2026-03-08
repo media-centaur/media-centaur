@@ -26,12 +26,6 @@ description: "Use this skill for any implementation task — adding features, fi
 - Test orchestration and state transitions, not leaf functions (Parser, Mapper have their own suites).
 - **Never delete or weaken pipeline tests.**
 
-### Channels (LibraryChannel, PlaybackChannel)
-
-- Use `ChannelCase`.
-- Verify wire format with `json_roundtrip/1` — encode to JSON and decode back.
-- Test the contract (message shapes, event names), not internal state.
-
 ### Pure Functions (Parser, Serializer, Mapper, Confidence, Resume)
 
 - Use `async: true` with `ExUnit.Case`.

@@ -1,6 +1,6 @@
 # Data Format Specification
 
-Canonical reference for all JSON data formats in the Media Centaur system. Both the `frontend` app and the `manager` app use these formats.
+Canonical reference for all JSON data formats in the Media Centaur system.
 
 ---
 
@@ -22,7 +22,7 @@ All media entities use vocabulary from [schema.org](https://schema.org), seriali
 
 ### Top-Level Structure
 
-The library is represented as a JSON array of wrapped entities. This format is used by the `library` channel (see API.md):
+The library is represented as a JSON array of wrapped entities:
 
 ```json
 [
@@ -415,73 +415,3 @@ Each value is either:
 }
 ```
 
----
-
-## config.json — User Configuration
-
-### Structure
-
-```json
-{
-  "keybindings": { ... },
-  "actions": { ... }
-}
-```
-
-### Keybindings
-
-Maps logical action names to key strings. Key strings use GPUI keystroke notation.
-
-```json
-{
-  "keybindings": {
-    "move_up":     "up",
-    "move_down":   "down",
-    "move_left":   "left",
-    "move_right":  "right",
-    "select":      "enter",
-    "back":        "escape",
-    "scale_up":    "=",
-    "scale_down":  "-",
-    "cycle_theme": "t",
-    "quit":        "q"
-  }
-}
-```
-
-### Action Templates
-
-Actions are grouped by `@type` and define shell commands with placeholder variables.
-
-```json
-{
-  "actions": {
-    "Movie": [
-      { "name": "Play",        "command": "mpv '{contentUrl}'" },
-      { "name": "Info (TMDB)", "command": "xdg-open '{url}'" }
-    ],
-    "VideoGame": [
-      { "name": "Launch (Steam)", "command": "steam steam://rungameid/{identifier.steam}" }
-    ],
-    "TVSeries": [
-      { "name": "Play Episode", "command": "mpv '{contentUrl}'" }
-    ],
-    "MovieSeries": [
-      { "name": "Info (TMDB)", "command": "xdg-open '{url}'" }
-    ]
-  }
-}
-```
-
-#### Placeholder Resolution
-
-Placeholders use `{fieldName}` syntax and are resolved from the raw entity JSON at load time.
-
-| Pattern | Source |
-|---------|--------|
-| `{name}` | Top-level string field |
-| `{contentUrl}` | Top-level `contentUrl` |
-| `{identifier.steam}` | `identifier` array entry with `propertyID == "steam"`, its `value` |
-| `{genre}` | String arrays joined with `", "` |
-
-An action is omitted from the UI (greyed out in prior designs, excluded in current) if any placeholder in its `command` cannot be resolved for that specific entity.

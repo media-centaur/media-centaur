@@ -48,7 +48,6 @@ defmodule MediaCentaur.Log do
     :pipeline,
     :tmdb,
     :playback,
-    :channel,
     :library
   ]
 

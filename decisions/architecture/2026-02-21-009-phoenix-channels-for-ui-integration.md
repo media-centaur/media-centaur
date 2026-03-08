@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 date: 2026-02-21
 ---
 # Phoenix Channels as the UI integration point
+
+> **Superseded.** The Rust frontend was deprecated in favor of the LiveView web UI. Phoenix Channels and the WebSocket layer have been removed. Real-time updates now flow through PubSub directly to LiveView subscribers.
 
 ## Context and Problem Statement
 

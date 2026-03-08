@@ -2,7 +2,7 @@
 
 The playback subsystem manages video playback through mpv, tracks watch progress, and provides resume/next-episode logic for the frontend.
 
-> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · **Playback** · [Channels](channel.md) · [Library](library.md)
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · **Playback** · [Library](library.md)
 
 - [Architecture](#architecture)
 - [Key Concepts](#key-concepts)
@@ -19,12 +19,12 @@ graph TD
         Manager[Manager<br/>singleton GenServer]
     end
 
-    Channel[PlaybackChannel] -->|play, pause, stop, seek| Manager
+    LiveView[LiveView / MCP] -->|play, pause, stop, seek| Manager
     Manager -->|start_session| SessionSup
     SessionSup --> Session[MpvSession<br/>GenServer]
     Session -->|Port + Unix socket| MPV[mpv process]
-    Session -->|PubSub: playback_state_changed| Channel
-    Session -->|PubSub: entity_progress_updated| Channel
+    Session -->|PubSub: playback_state_changed| LiveView
+    Session -->|PubSub: entity_progress_updated| LiveView
     Session -->|WatchProgress.upsert_progress| DB[(SQLite)]
 ```
 
@@ -73,7 +73,7 @@ See [configuration.md](configuration.md) for the full config reference.
 
 ### Play Command
 
-1. Frontend sends `play` with an entity UUID via PlaybackChannel
+1. UI sends `play` with an entity UUID via the Playback Manager API
 2. `Resolver.resolve/1` loads the entity and progress, then runs `Resume.resolve/2`
 3. Manager stops any active session, starts a new `MpvSession` via `SessionSupervisor`
 4. MpvSession launches mpv with `--input-ipc-server`, `--fullscreen`, and optional `--start=position`
@@ -115,7 +115,7 @@ Every save broadcasts to `"playback:events"`:
 {:entity_progress_updated, entity_id, progress_summary, resume_target, child_targets_delta}
 ```
 
-PlaybackChannel forwards this to the frontend as `playback:entity_progress_updated`.
+LiveView subscribers receive this via PubSub.
 
 ### WatchingTracker
 

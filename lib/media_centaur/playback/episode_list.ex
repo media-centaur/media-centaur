@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Playback.EpisodeList do
   @moduledoc """
   Shared helpers for walking a TV series entity's seasons and episodes.
-  Used by Resume, ProgressSummary, and PlaybackChannel.
+  Used by Resume and ProgressSummary.
   """
 
   @doc "Sorts seasons by season_number."
