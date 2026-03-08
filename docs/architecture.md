@@ -1,8 +1,8 @@
 # Architecture
 
-Media Centaur Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library to a Rust frontend over WebSocket.
+Media Centaur Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library through a LiveView web UI.
 
-> [Getting Started](getting-started.md) · [Configuration](configuration.md) · **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
 
 - [System Overview](#system-overview)
 - [Data Flow](#data-flow)
@@ -16,12 +16,10 @@ Media Centaur Backend is a Phoenix/Elixir application that watches directories f
 
 ```mermaid
 graph TB
-    subgraph Frontend["Frontend (Rust)"]
-        UI[UI Application]
-    end
-
     subgraph Backend["Backend (Elixir/Phoenix)"]
-        WS[Phoenix Channels<br/>WebSocket /socket]
+        subgraph Web["Web Layer"]
+            LiveViews[LiveViews<br/>Dashboard, Library, Review, Settings]
+        end
 
         subgraph Core["Core Subsystems"]
             Watcher[Watcher<br/>inotify per directory]
@@ -41,8 +39,7 @@ graph TB
         MPV[mpv player]
     end
 
-    UI <-->|WebSocket| WS
-    WS <--> PubSub
+    LiveViews <--> PubSub
     Watcher --> PubSub
     PubSub --> Pipeline
     Pipeline --> TMDB
@@ -65,8 +62,7 @@ flowchart LR
     C -->|FetchMetadata| E
     C -->|DownloadImages| F[TMDB CDN]
     C -->|Ingest| G[Library]
-    G -->|PubSub: entities_changed| H[Channel]
-    H -->|WebSocket push| I[Frontend]
+    G -->|PubSub: entities_changed| H[LiveViews]
 
     J[Review UI] -->|PubSub: review_resolved| C
 ```
@@ -110,10 +106,10 @@ All inter-component communication flows through Phoenix PubSub:
 | Topic | Events | Publishers | Subscribers |
 |-------|--------|------------|-------------|
 | `pipeline:input` | `file_detected`, `review_resolved` | Watcher, Review UI | Pipeline Producer |
-| `library:updates` | `entities_changed` | Pipeline batcher, FileTracker | LibraryChannel |
+| `library:updates` | `entities_changed` | Pipeline batcher, FileTracker | DashboardLive, LibraryLive |
 | `library:file_events` | `files_removed` | Watcher | FileTracker |
 | `watcher:state` | `watcher_state_changed` | Watcher | FileTracker |
-| `playback:events` | `playback_state_changed`, `entity_progress_updated` | MpvSession | PlaybackChannel, Manager |
+| `playback:events` | `playback_state_changed`, `entity_progress_updated` | MpvSession | DashboardLive, Manager |
 | `review:updates` | `file_reviewed` | Pipeline | Review LiveView |
 
 ## Key Principles
@@ -130,11 +126,9 @@ Protocol specifications live in [`specs/`](../specs/):
 
 | Spec | Governs |
 |------|---------|
-| [API.md](../specs/API.md) | Phoenix Channels WebSocket protocol |
 | [DATA-FORMAT.md](../specs/DATA-FORMAT.md) | JSON-LD entity serialization format |
 | [IMAGE-CACHING.md](../specs/IMAGE-CACHING.md) | Image storage conventions |
 | [PLAYBACK.md](../specs/PLAYBACK.md) | MPV integration and progress tracking |
-| [COMPONENTS.md](../specs/COMPONENTS.md) | System component architecture |
 
 ## Module Reference
 

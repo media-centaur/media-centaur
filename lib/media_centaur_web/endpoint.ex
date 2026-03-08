@@ -15,10 +15,6 @@ defmodule MediaCentaurWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
-  socket "/socket", MediaCentaurWeb.UserSocket,
-    websocket: [timeout: 45_000],
-    longpoll: false
-
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),

@@ -2,7 +2,7 @@
 
 The pipeline processes detected video files through metadata enrichment and library ingestion. Built on [Broadway](https://github.com/dashbitco/broadway), it runs 15 concurrent processors partitioned by file path.
 
-> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · **Pipeline** · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
+> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · **Pipeline** · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
 
 - [Architecture](#architecture)
 - [Key Concepts](#key-concepts)
@@ -35,7 +35,7 @@ graph LR
     subgraph Output
         Ingest --> Library[Library Domain]
         Ingest --> Batcher
-        Batcher -->|PubSub: entities_changed| Channel[LibraryChannel]
+        Batcher -->|PubSub: entities_changed| LiveViews[LiveViews]
     end
 ```
 

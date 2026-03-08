@@ -2,7 +2,7 @@
 
 All configuration is loaded from a single TOML file at startup. No runtime reload — restart the application to apply changes.
 
-> [Getting Started](getting-started.md) · **Configuration** · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Channels](channel.md) · [Library](library.md)
+> [Getting Started](getting-started.md) · **Configuration** · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
 
 - [Config File Location](#config-file-location)
 - [Loading Order](#loading-order)

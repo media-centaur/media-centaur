@@ -429,7 +429,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp component_description(:pipeline), do: "processing steps, batch results"
   defp component_description(:tmdb), do: "API calls, rate limiting, confidence"
   defp component_description(:playback), do: "play/pause/stop, session lifecycle"
-  defp component_description(:channel), do: "library sync, entity pushes"
   defp component_description(:library), do: "entity resolver, browser, admin"
 
   defp framework_label(:ecto), do: "Ecto SQL queries"

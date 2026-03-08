@@ -7,7 +7,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | Area | Skill |
 |------|-------|
 | General Elixir implementation, refactoring, architecture | `elixir-thinking` |
-| LiveView, Channels, PubSub, components, mount | `phoenix-thinking` |
+| LiveView, PubSub, components, mount | `phoenix-thinking` |
 | Ecto, schemas, changesets, contexts, migrations | `ecto-thinking` |
 | GenServer, Supervisor, Task, ETS, concurrency | `otp-thinking` |
 | Oban, background jobs, workflows, scheduling | `oban-thinking` |
@@ -20,7 +20,7 @@ Invoke the skill **first**, then explore the codebase, then write code.
 
 # Media Centaur — Backend
 
-A Phoenix/Elixir web application that manages the Media Centaur media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The `frontend` app connects via WebSocket (Phoenix Channels) to receive library data, send playback commands, and get real-time updates.
+A Phoenix/Elixir web application that manages the Media Centaur media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The LiveView web UI provides library browsing, review, playback control, and administration.
 
 ## Version Control (Jujutsu)
 
@@ -71,13 +71,11 @@ See [ADR-024](decisions/architecture/2026-03-07-024-ash-driven-migrations.md). G
 
 - **Ash is the only data interface.** Never write raw SQL queries, use `Ecto.Query`, call `Repo` directly, or use `execute()` with SQL strings in application code or migrations. All database reads and writes go through Ash actions — no exceptions. If Ash doesn't have the necessary action or capability for an operation, plan and implement the missing Ash action first — never bypass Ash with manual queries. This includes data migrations: use Ash actions in a `Mix.Task` or seed script, not raw SQL.
 - **Use bulk APIs for bulk operations.** When operating on multiple records (destroy, update, create), always use `Ash.bulk_destroy/3`, `Ash.bulk_update/4`, or `Ash.bulk_create/4` — never loop `Ash.destroy!/1` or `Ash.update!/2` over individual records. If a resource lacks the necessary action for a bulk operation, add it first. Bulk APIs let the data layer execute a single query instead of N+1.
-- **This app owns all writes.** See [ADR-028](decisions/architecture/2026-03-07-028-backend-write-ownership.md). The frontend sends commands; only the backend writes to `images/` and mutates entities.
+- **This app owns all writes.** See [ADR-028](decisions/architecture/2026-03-07-028-backend-write-ownership.md). Only the backend writes to `images/` and mutates entities.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
-- **Phoenix Channels is the integration point with the UI.** The UI connects via WebSocket (`/socket`) and joins `library` and `playback` channels. The backend sends the full library on join and pushes all data and state changes in real time.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
-- **Batch all channel entity pushes.** Any code path that pushes entity lists or entity-removal IDs to a channel must chunk the payload using the channel's `@batch_size`. Never push an unbounded list of entities in a single message — bulk operations can touch every entity in the library.
-- **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). The channel handler resolves IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals.
+- **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals.
 - **Bulk operation safety.** See [ADR-025](decisions/architecture/2026-03-07-025-ash-bulk-operation-safety.md). Always pass `return_errors?: true`, check `error_count`, and use `strategy: :stream` for non-atomic actions.
 - **Ash changes are for intrinsic data operations only.** See [ADR-003](decisions/architecture/2026-02-20-003-ash-as-exclusive-data-interface.md). Changes handle validation and transformation — never external integrations or cross-context calls.
 - **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes.
@@ -88,7 +86,7 @@ See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — PubSub-drive
 
 ## Specifications
 
-Protocol specifications live in `specs/`. See [specs/README.md](specs/README.md) for the full document table, reading guide, and update workflow. **Every contract between the backend and the frontend must be documented in a specification file.** Read the relevant spec (`DATA-FORMAT.md`, `IMAGE-CACHING.md`) before writing code that touches serialization, images, or entity fields.
+Protocol specifications live in `specs/`. See [specs/README.md](specs/README.md) for the full document table, reading guide, and update workflow. Read the relevant spec (`DATA-FORMAT.md`, `IMAGE-CACHING.md`) before writing code that touches serialization, images, or entity fields.
 
 ## UI Design
 
@@ -115,14 +113,12 @@ The `defaults/` directory contains git-tracked starter config files — seed val
 
 - **Pure function modules** (Parser, Serializer, Mapper, Confidence, Resume, ProgressSummary) use `async: true` and build struct literals via factory — no database.
 - **Ash resource tests** (Entity, WatchedFile, WatchProgress) use `DataCase` and exercise Ash actions against the real database.
-- **Channel tests** use `ChannelCase` and verify wire format contracts.
-
 ### Shared Test Factory
 
 `test/support/factory.ex` provides `MediaCentaur.TestFactory`:
 
 - `build_*` functions return plain structs with sensible defaults (no DB). Use for pure function tests.
-- `create_*` functions persist via Ash actions and return loaded records. Use for resource and channel tests.
+- `create_*` functions persist via Ash actions and return loaded records. Use for resource tests.
 
 All tests that need test data use the factory. Never inline `Ash.Changeset.for_create` boilerplate in tests.
 
@@ -168,7 +164,6 @@ Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
 | `:pipeline` | Processing steps, producer claims, batch results |
 | `:tmdb` | API calls, rate limiting, confidence scoring |
 | `:playback` | Play/pause/stop, session lifecycle, progress |
-| `:channel` | Library sync, entity pushes, playback commands |
 | `:library` | Entity resolver, browser, admin, review |
 
 ### IEx Helpers
