@@ -2,17 +2,41 @@
 
 ## Context
 
-The library view currently treats all entities as one flat alphabetical grid, which serves none of the user's primary tasks well. This plan covers the **Continue Watching** mode and its **detail modal** — the first of two modes in the redesigned library page. The second mode (Library browse grid) is planned in `library-browse-design.md`.
-
-**Mockup reference:** `/tmp/media-centaur-mockups/continue-watching.html` (served at `http://localhost:8090/continue-watching.html`, requires the app running at localhost:4000 for images).
+The library view currently treats all entities as one flat alphabetical grid, which serves none of the user's primary tasks well. This plan covers the **Continue Watching** mode and its **detail modal** — the first of two modes in the redesigned library page. The second mode (Library browse grid) is planned in `004-library-browse-design.md`.
 
 **Companion plans:**
-- Library Browse mode: `library-browse-design.md`
-- Input system: `giggly-beaming-valley.md`
+- Library Browse mode: `004-library-browse-design.md`
+- Input system: `005-input-system-design.md`
+- Unified detail system: `006-unified-detail-system.md`
 
-**Design decision:** The side drawer is **removed entirely** from the library page. Both modes use the detail modal as the sole entity detail view. See Library Browse plan for rationale.
+**Design decision:** Continue Watching and Library Browse share a **DetailPanel** component — the same content rendered in two different shells. Continue Watching uses ModalShell (centered overlay). Library Browse uses DrawerShell (right-docked sidebar). See `006-unified-detail-system.md` for the unified architecture.
 
 **Future constraint (design-compatible, not implemented yet):** Full-screen 4K OLED TV with mouse, keyboard, and gamepad input. No hover-dependent interactions, generous focus states, spatial-navigation-friendly layouts.
+
+---
+
+## Component Architecture
+
+### DetailPanel (shared content component)
+
+A standalone LiveView function component that renders identically in both shells:
+- Hero (21:9, backdrop, logo, gradient)
+- Progress + Resume/Play button
+- Metadata (type badge, year, counts)
+- Description
+- Content list (episodes / movies / —)
+- Event handling (play, toggle, etc.)
+
+Accepts: `entity`, `progress`, `resume`, `on_play` / `on_close` event names.
+
+### ModalShell (used by Continue Watching)
+
+- Fixed centered overlay
+- Backdrop: `oklch(0% 0 0 / 0.7)` + `backdrop-filter: blur(4px)`
+- Panel: `width: min(600px, 92vw)`, `max-height: 90vh`, `border-radius: 0.75rem`
+- Focus trap — grid is inert, all nav confined to modal
+- Entrance: `scale(0.96) translateY(8px)` → identity, 200ms
+- Dismiss: Escape / B / click-outside / close button (top-right circle, 32px)
 
 ---
 
@@ -41,7 +65,7 @@ Large horizontal 16:9 backdrop cards displayed in an auto-fill grid:
 
 ### Interaction Paths on Cards
 
-1. **Click / Enter / A** → opens the **detail modal** for that entity
+1. **Click / Enter / A** → opens the **detail modal** (DetailPanel in ModalShell) for that entity
 2. **Double-click / P / Start** → triggers **smart play** immediately (calls `LibraryBrowser.play/1`), visual feedback via brief green outline flash on the card
 
 ### Empty State
@@ -52,14 +76,7 @@ When no entities have active progress: brief message prompting to browse the lib
 
 ## Design: Detail Modal
 
-A centered overlay modal that provides full entity detail and episode navigation. Shared component used by both Continue Watching and Library modes.
-
-### Modal Chrome
-- **Backdrop:** fixed overlay, `oklch(0% 0 0 / 0.7)` with `backdrop-filter: blur(4px)`
-- **Panel:** `width: min(600px, 92vw)`, `max-height: 90vh`, `border-radius: 0.75rem`
-- Background: `var(--base-200)`, border and shadow matching glass system
-- Entrance animation: `scale(0.96) translateY(8px)` -> `scale(1) translateY(0)`, 200ms
-- **Dismiss:** Escape / B / click on backdrop / close button (top-right circle, 32px)
+A centered overlay modal (ModalShell) containing the shared DetailPanel component. Provides full entity detail and episode navigation.
 
 ### Hero Section
 - Aspect ratio: `21 / 9` (ultrawide, cinematic)
@@ -130,32 +147,46 @@ Key finding: `ResumeTarget` is already computed on progress updates but **discar
 
 ## Implementation Steps
 
-### 1. Continue Watching zone + data
+### 1. DetailPanel component (shared)
+- Extract a standalone function component for entity detail content
+- Accepts entity, progress, resume, event names as assigns
+- Renders hero, metadata, description, season/episode list
+- Three variants based on entity type (TV series, movie series, standalone movie)
+
+### 2. ModalShell component
+- Centered overlay shell that wraps DetailPanel
+- Focus trap, backdrop blur, dismiss behavior
+- Entrance animation
+
+### 3. Continue Watching zone + data
 - Filter entities with active progress into a separate assign
 - Keep `ResumeTarget` from PubSub updates instead of discarding it
 
-### 2. Continue Watching card grid
+### 4. Continue Watching card grid
 - New render function for the backdrop card layout
 - Cards show backdrop image, logo, episode info, resume label, progress bar
 - Click/Enter opens detail modal, double-click/P/Start triggers smart play
 
-### 3. Detail modal (shared LiveView component)
-- Modal state: `selected_entity_id` assign, show/hide via presence
-- Hero section with backdrop, logo, series progress, resume button
-- Body with metadata, description, season/episode list
-- Episode rows with watched/current/unwatched styling
-- Auto-scroll JS hook to position the episode list on open
-- Keyboard/gamepad navigation via spatial nav system (see input system plan)
-
-### 4. Zone transition
+### 5. Zone transition
 - Edge hint at bottom of Continue Watching: "↓ Library · N titles"
 - Scrolling/navigating down crosses into Library zone
 
 ---
 
+## LiveView State
+
+```elixir
+@selected_entity_id   # which entity is shown in modal (nil = closed)
+@detail_presentation  # :modal (always, for CW zone)
+```
+
+---
+
 ## Files to Modify
 
-- `lib/media_centaur_web/live/library_live.ex` — continue watching rendering, modal component, event handlers
+- `lib/media_centaur_web/live/library_live.ex` — continue watching rendering, event handlers
+- `lib/media_centaur_web/components/detail_panel.ex` — shared DetailPanel function component (new)
+- `lib/media_centaur_web/components/modal_shell.ex` — modal wrapper component (new)
 - `lib/media_centaur/library_browser.ex` — possibly add a filtered fetch for in-progress entities
 - `assets/css/app.css` — continue watching card styles, modal styles, episode row styles, edge hint styles
 
