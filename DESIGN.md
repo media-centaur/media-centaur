@@ -157,9 +157,15 @@ Visual refresh + UX improvement:
 
 ### Library (`/library`)
 
-Visual refresh + structural improvements:
-- **Better filtering/search:** Real search, genre filtering, year ranges (replacing the basic All/Movies/TV tabs).
-- **Collapse/expand alignment:** Nested entities (TV → seasons → episodes) collapse toggles must not break the visual rhythm of the list. Expandable and non-expandable rows should look similar, with better alignment.
+Two-zone layout with top-level tab switching. Both zones share the same LiveView and loaded data — switching zones uses `push_patch`, not a full remount.
+
+**Continue Watching** (default zone): Backdrop cards (16:9 aspect) for entities with active watch progress. Each card shows the backdrop/poster image with a gradient overlay, logo or title text, resume label ("Resume S2 E5 at 12:34"), and a progress bar. Selecting a card opens a **ModalShell** — centered overlay with backdrop blur.
+
+**Library Browse** (tab): Full entity catalog as a poster grid with toolbar controls (type tabs: All/Movies/TV, sort: Recently Added/A–Z/Year, text filter). Selecting a poster opens a **DrawerShell** — right-docked sidebar. The drawer column (480px) is always reserved in the flex layout to prevent grid reflow when the drawer opens or closes.
+
+**DetailPanel** is a shared function component rendered inside both shells. It displays a 21:9 hero section (backdrop + logo/title + progress + resume button), metadata row, description, and type-specific content lists (season/episode tree for TV, movie list for movie series, file details for single items).
+
+See [UIDR-006](decisions/user-interface/2026-03-09-006-library-zone-architecture.md) for the zone architecture decision.
 
 ---
 
