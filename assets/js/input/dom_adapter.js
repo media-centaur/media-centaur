@@ -165,6 +165,14 @@ export const DomReader = {
   getSidebarCollapsed() {
     return localStorage.getItem("phx:sidebar-collapsed") === "true"
   },
+
+  /**
+   * Get the page behavior name from the data-page-behavior attribute.
+   * Returns null if no behavior is set.
+   */
+  getPageBehavior() {
+    return document.querySelector("[data-page-behavior]")?.dataset?.pageBehavior ?? null
+  },
 }
 
 export const DomWriter = {
@@ -255,15 +263,6 @@ export const DomWriter = {
   clickZoneTab(index) {
     const tabs = document.querySelectorAll(CONTEXT_SELECTORS[Context.ZONE_TABS])
     tabs[index]?.click()
-  },
-
-  /**
-   * Update the Library sidebar link's href to include the given zone param.
-   */
-  updateLibrarySidebarLink(zone) {
-    const link = document.querySelector("[data-nav-zone='sidebar'] [href='/library'], [data-nav-zone='sidebar'] [href^='/library?']")
-    if (!link) return
-    link.setAttribute("href", zone === "library" ? "/library?zone=library" : "/library")
   },
 
   /**

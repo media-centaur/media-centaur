@@ -193,20 +193,21 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
     })
 
-    test("right exits to grid", () => {
+    test("right produces exit_sidebar (context set by orchestrator)", () => {
       const directive = machine.transition(Action.NAVIGATE_RIGHT)
       expect(directive).toEqual({ type: "exit_sidebar" })
-      expect(machine.context).toBe(Context.GRID)
+      // Context stays SIDEBAR — orchestrator's _executeExitSidebar sets it
+      expect(machine.context).toBe(Context.SIDEBAR)
     })
 
     test("left is wall", () => {
       expect(machine.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "none" })
     })
 
-    test("back exits to grid", () => {
+    test("back produces exit_sidebar (context set by orchestrator)", () => {
       const directive = machine.transition(Action.BACK)
       expect(directive).toEqual({ type: "exit_sidebar" })
-      expect(machine.context).toBe(Context.GRID)
+      expect(machine.context).toBe(Context.SIDEBAR)
     })
 
     test("select activates", () => {
@@ -266,6 +267,54 @@ describe("FocusContextMachine", () => {
       machine.presentationChanged("drawer")
       machine.zoneChanged("watching")
       expect(machine._drawerOpen).toBe(false)
+    })
+  })
+
+  describe("forceContext()", () => {
+    test("sets context to the given value", () => {
+      machine.forceContext(Context.SIDEBAR)
+      expect(machine.context).toBe(Context.SIDEBAR)
+    })
+
+    test("can restore to any context", () => {
+      machine.forceContext(Context.TOOLBAR)
+      expect(machine.context).toBe(Context.TOOLBAR)
+
+      machine.forceContext(Context.ZONE_TABS)
+      expect(machine.context).toBe(Context.ZONE_TABS)
+    })
+  })
+
+  describe("syncDrawerState()", () => {
+    test("sets drawer open to true", () => {
+      machine.syncDrawerState(true)
+      // Verify by checking gridWall right behavior
+      const directive = machine.gridWall("right")
+      expect(directive).toEqual({ type: "focus_context", target: Context.DRAWER })
+    })
+
+    test("sets drawer open to false", () => {
+      machine.syncDrawerState(true)
+      machine.syncDrawerState(false)
+      machine.forceContext(Context.GRID)
+      const directive = machine.gridWall("right")
+      expect(directive).toEqual({ type: "none" })
+    })
+  })
+
+  describe("enterSidebarFromWall()", () => {
+    test("sets context to sidebar and returns enter_sidebar directive", () => {
+      machine.forceContext(Context.TOOLBAR)
+      const directive = machine.enterSidebarFromWall()
+      expect(directive).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe(Context.SIDEBAR)
+    })
+
+    test("works from zone tabs context", () => {
+      machine.forceContext(Context.ZONE_TABS)
+      const directive = machine.enterSidebarFromWall()
+      expect(directive).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe(Context.SIDEBAR)
     })
   })
 

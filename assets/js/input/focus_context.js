@@ -82,6 +82,35 @@ export class FocusContextMachine {
   }
 
   /**
+   * Force the machine into a specific context.
+   * Used by the orchestrator for sidebar resume, exit restore,
+   * and stay-in-sidebar fallback — replaces direct _context mutation.
+   * @param {string} context - One of the Context values
+   */
+  forceContext(context) {
+    this._context = context
+  }
+
+  /**
+   * Sync the drawer-open flag from the DOM.
+   * Replaces direct _drawerOpen mutation from the orchestrator.
+   * @param {boolean} isOpen
+   */
+  syncDrawerState(isOpen) {
+    this._drawerOpen = isOpen
+  }
+
+  /**
+   * Enter sidebar from a left-wall transition in zone tabs or toolbar.
+   * Sets context to SIDEBAR and returns the enter_sidebar directive.
+   * @returns {FocusDirective}
+   */
+  enterSidebarFromWall() {
+    this._context = Context.SIDEBAR
+    return { type: "enter_sidebar" }
+  }
+
+  /**
    * Notify that a modal/drawer has opened or closed.
    * @param {"modal"|"drawer"|null} presentation
    */
