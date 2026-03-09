@@ -230,3 +230,7 @@ SessionStorage bridge for resuming sidebar context across LiveView navigations:
 5. Add `data-page-behavior="<name>"` to the LiveView template's root element
 6. Write tests in `assets/js/input/__tests__/<name>_behavior.test.js` using mock DOM
 7. Keep page state in the URL (LiveView `handle_params`) — don't duplicate in sessionStorage
+
+## Design Rules
+
+- **Empty-context fallback.** The default focus context (GRID) may be empty — a filter with no results, a page with no content yet. The system must never leave the user with no focusable target. Both initial startup (`start()`) and live updates (`onViewChanged()`) call `_ensureViableContext()`, which walks a fallback chain (GRID → TOOLBAR → ZONE_TABS → SIDEBAR) until it finds a context with items. The same principle applies to zone transitions like `_executeExitSidebar()`. Any new context transition must account for the target being empty.

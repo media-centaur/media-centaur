@@ -39,6 +39,20 @@
         if (sidebarState === "true") {
           document.documentElement.setAttribute("data-sidebar", "collapsed");
         }
+        // Remember each page's full URL (with query string) for sidebar nav
+        document.addEventListener("click", (e) => {
+          const navLink = e.target.closest("[data-nav-item]");
+          if (!navLink) return;
+          // Save current page's URL before navigating away
+          sessionStorage.setItem("nav:" + location.pathname, location.pathname + location.search);
+          // Restore stored URL for links that opt in
+          if (navLink.hasAttribute("data-nav-remember")) {
+            const basePath = new URL(navLink.href, location.origin).pathname;
+            const stored = sessionStorage.getItem("nav:" + basePath);
+            if (stored) navLink.setAttribute("href", stored);
+          }
+        }, true);
+
         window.addEventListener("phx:toggle-sidebar", () => {
           const el = document.documentElement;
           const collapsed = el.getAttribute("data-sidebar") === "collapsed";
