@@ -424,6 +424,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded px-1 -mx-1"
         phx-click="toggle_episode_detail"
         phx-value-id={@episode.id}
+        data-nav-item
+        tabindex="0"
       >
         <span class="w-5 text-right text-base-content/50 flex-shrink-0 font-mono text-xs">
           {@episode.episode_number}
