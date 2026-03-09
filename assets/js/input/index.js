@@ -29,8 +29,10 @@ export class InputSystem {
     // Track the entity ID of the card that opened a modal/drawer,
     // so we can restore focus on dismiss.
     this._originEntityId = null
-    // Track the last focused grid entity ID so we can restore focus
-    // when returning to the grid from another context (e.g., drawer).
+    // Per-context focus memory: remembers the last focused index in each
+    // context so returning to it restores position instead of jumping to first.
+    this._contextMemory = {}
+    // Grid uses entity ID for memory (indices shift on stream updates).
     this._lastGridEntityId = null
     this._onKeyDown = this._onKeyDown.bind(this)
     this._onMouseMove = this._onMouseMove.bind(this)
@@ -75,6 +77,10 @@ export class InputSystem {
 
     if (zone !== this.focusMachine._zone) {
       this.focusMachine.zoneChanged(zone)
+      // Zone content changes — clear grid and toolbar memory (stale items)
+      delete this._contextMemory[Context.GRID]
+      delete this._contextMemory[Context.TOOLBAR]
+      this._lastGridEntityId = null
     }
 
     // Always sync drawer open state, regardless of current context.
@@ -152,16 +158,52 @@ export class InputSystem {
   }
 
   _handleAction(action) {
-    // Track last focused grid item before any context transition
-    if (this.focusMachine.context === Context.GRID) {
+    // Save focus position in current context before any transition
+    this._saveContextMemory()
+
+    const directive = this.focusMachine.transition(action)
+    this._executeDirective(directive)
+  }
+
+  /**
+   * Save the current focus position for the active context.
+   * Grid uses entity ID (stable across stream updates); others use index.
+   */
+  _saveContextMemory() {
+    const context = this.focusMachine.context
+    if (context === Context.GRID) {
       const focused = this.reader.getCurrentFocusedItem()
       if (focused?.dataset?.entityId) {
         this._lastGridEntityId = focused.dataset.entityId
       }
+    } else {
+      const index = this.reader.getFocusedIndex(context)
+      if (index >= 0) {
+        this._contextMemory[context] = index
+      }
     }
+  }
 
-    const directive = this.focusMachine.transition(action)
-    this._executeDirective(directive)
+  /**
+   * Restore focus to the remembered position in a context,
+   * falling back to the first item if no memory or index is stale.
+   */
+  _restoreContextFocus(context) {
+    if (context === Context.GRID) {
+      // Grid: restore by entity ID
+      if (this._lastGridEntityId) {
+        if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId)) return
+      }
+      this.writer.focusFirst(Context.GRID)
+    } else {
+      // Other contexts: restore by index
+      const savedIndex = this._contextMemory[context]
+      if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
+        this.writer.focusByIndex(context, savedIndex)
+      } else {
+        this.writer.focusFirst(context)
+      }
+    }
   }
 
   _executeDirective(directive) {
@@ -175,7 +217,7 @@ export class InputSystem {
         break
 
       case "focus_first":
-        this.writer.focusFirst(directive.context)
+        this._restoreContextFocus(directive.context)
         break
 
       case "activate":
@@ -292,15 +334,7 @@ export class InputSystem {
   }
 
   _executeFocusContext(target) {
-    if (target === Context.GRID) {
-      // Restore focus to the last known grid item (e.g., returning from drawer)
-      if (this._lastGridEntityId) {
-        if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId)) return
-      }
-      this.writer.focusFirst(Context.GRID)
-    } else {
-      this.writer.focusFirst(target)
-    }
+    this._restoreContextFocus(target)
   }
 
   /**
