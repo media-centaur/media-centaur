@@ -1,9 +1,8 @@
 defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
-
-  alias MediaCentaurWeb.Components.ModalShell
+  alias MediaCentaur.{DateUtil, LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
+  alias MediaCentaurWeb.Components.{DrawerShell, ModalShell}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,6 +18,13 @@ defmodule MediaCentaurWeb.LibraryLive do
        resume_targets: %{},
        playback: %{state: :idle, now_playing: nil},
        selected_entity_id: nil,
+       detail_presentation: nil,
+       active_tab: :all,
+       sort_order: :recent,
+       filter_text: "",
+       counts: %{all: 0, movies: 0, tv: 0},
+       grid_count: 0,
+       watch_dirs: [],
        reload_timer: nil,
        pending_entity_ids: MapSet.new()
      )}
@@ -26,8 +32,6 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    selected_id = params["selected"]
-
     socket =
       if connected?(socket) && socket.assigns.entries == [] do
         load_library(socket)
@@ -35,21 +39,83 @@ defmodule MediaCentaurWeb.LibraryLive do
         socket
       end
 
-    {:noreply, assign(socket, selected_entity_id: selected_id)}
+    tab = parse_tab(params["tab"])
+    sort = parse_sort(params["sort"])
+    filter_text = params["filter"] || ""
+    selected_id = params["selected"]
+
+    # Determine presentation based on context: CW entities use modal, library uses drawer
+    presentation =
+      if selected_id do
+        if Enum.any?(socket.assigns.continue_watching, &(&1.entity.id == selected_id)) do
+          :modal
+        else
+          :drawer
+        end
+      end
+
+    socket =
+      socket
+      |> assign(
+        active_tab: tab,
+        sort_order: sort,
+        filter_text: filter_text,
+        selected_entity_id: selected_id,
+        detail_presentation: presentation
+      )
+      |> reset_stream()
+
+    {:noreply, socket}
   end
 
   # --- Events ---
 
   @impl true
   def handle_event("select_cw_entity", %{"id" => id}, socket) do
-    {:noreply,
-     push_patch(socket,
-       to: ~p"/library?#{if id, do: %{selected: id}, else: %{}}"
-     )}
+    {:noreply, push_patch(socket, to: build_path(socket, %{selected: id}))}
+  end
+
+  def handle_event("select_entity", %{"id" => id}, socket) do
+    new_id = if socket.assigns.selected_entity_id == id, do: nil, else: id
+
+    socket =
+      if new_id != socket.assigns.selected_entity_id do
+        assign(socket, expanded_seasons: nil, expanded_episodes: MapSet.new())
+      else
+        socket
+      end
+
+    {:noreply, push_patch(socket, to: build_path(socket, %{selected: new_id}))}
   end
 
   def handle_event("close_detail", _params, socket) do
-    {:noreply, push_patch(socket, to: ~p"/library")}
+    {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil}))}
+  end
+
+  def handle_event("switch_tab", %{"tab" => tab}, socket) do
+    tab = String.to_existing_atom(tab)
+
+    {:noreply,
+     push_patch(socket,
+       to: build_path(%{socket | assigns: Map.put(socket.assigns, :active_tab, tab)}, %{})
+     )}
+  end
+
+  def handle_event("sort", %{"sort" => sort}, socket) do
+    sort = parse_sort(sort)
+
+    {:noreply,
+     push_patch(socket,
+       to: build_path(%{socket | assigns: Map.put(socket.assigns, :sort_order, sort)}, %{})
+     )}
+  end
+
+  def handle_event("filter", %{"filter_text" => text}, socket) do
+    {:noreply,
+     push_patch(socket,
+       to: build_path(%{socket | assigns: Map.put(socket.assigns, :filter_text, text)}, %{}),
+       replace: true
+     )}
   end
 
   def handle_event("play", %{"id" => id}, socket) do
@@ -62,11 +128,9 @@ defmodule MediaCentaurWeb.LibraryLive do
     expanded = socket.assigns[:expanded_seasons] || MapSet.new()
 
     expanded =
-      if MapSet.member?(expanded, season_number) do
-        MapSet.delete(expanded, season_number)
-      else
-        MapSet.put(expanded, season_number)
-      end
+      if MapSet.member?(expanded, season_number),
+        do: MapSet.delete(expanded, season_number),
+        else: MapSet.put(expanded, season_number)
 
     {:noreply, assign(socket, expanded_seasons: expanded)}
   end
@@ -75,11 +139,9 @@ defmodule MediaCentaurWeb.LibraryLive do
     expanded = socket.assigns[:expanded_episodes] || MapSet.new()
 
     expanded =
-      if MapSet.member?(expanded, id) do
-        MapSet.delete(expanded, id)
-      else
-        MapSet.put(expanded, id)
-      end
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
 
     {:noreply, assign(socket, expanded_episodes: expanded)}
   end
@@ -122,9 +184,18 @@ defmodule MediaCentaurWeb.LibraryLive do
       socket
       |> assign(entries: entries, reload_timer: nil, pending_entity_ids: MapSet.new())
       |> recompute_continue_watching()
+      |> recompute_counts()
+
+    # Structural changes need full stream reset
+    socket =
+      if MapSet.size(gone_ids) > 0 || new_entries != [] do
+        reset_stream(socket)
+      else
+        touch_stream_entries(socket, MapSet.to_list(changed_ids))
+      end
 
     if selection_deleted do
-      {:noreply, push_patch(socket, to: ~p"/library")}
+      {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil}))}
     else
       {:noreply, socket}
     end
@@ -141,11 +212,17 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply,
      socket
      |> assign(entries: entries, resume_targets: resume_targets)
-     |> recompute_continue_watching()}
+     |> recompute_continue_watching()
+     |> touch_stream_entries([entity_id])}
   end
 
   def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
-    {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
+    old_playing_id = playing_entity_id(socket.assigns.playback)
+    socket = assign(socket, playback: %{state: new_state, now_playing: now_playing})
+    new_playing_id = playing_entity_id(socket.assigns.playback)
+
+    ids_to_touch = [old_playing_id, new_playing_id] |> Enum.reject(&is_nil/1) |> Enum.uniq()
+    {:noreply, touch_stream_entries(socket, ids_to_touch)}
   end
 
   @impl true
@@ -185,27 +262,176 @@ defmodule MediaCentaurWeb.LibraryLive do
           ↓ Library · {length(@entries)} titles
         </div>
 
-        <%!-- Library Browse zone (placeholder for Phase 4) --%>
+        <%!-- Library Browse zone --%>
         <section id="browse">
-          <h2 class="text-lg font-semibold mb-2">Browse</h2>
-          <p class="text-base-content/50 text-sm">Coming in Phase 4.</p>
+          <.toolbar
+            active_tab={@active_tab}
+            counts={@counts}
+            sort_order={@sort_order}
+            filter_text={@filter_text}
+          />
+
+          <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center">
+            No entities found.
+          </div>
+
+          <div :if={@grid_count > 0} class="flex gap-4 mt-4">
+            <%!-- Poster grid --%>
+            <div class="flex-1 min-w-0">
+              <div
+                id="library-grid"
+                phx-update="stream"
+                class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
+              >
+                <.poster_card
+                  :for={{dom_id, entry} <- @streams.grid}
+                  id={dom_id}
+                  entry={entry}
+                  selected={@selected_entity_id == entry.entity.id}
+                  playing={playing_entity_id(@playback) == entry.entity.id}
+                />
+              </div>
+            </div>
+
+            <%!-- Drawer (library browse uses drawer presentation) --%>
+            <DrawerShell.drawer_shell
+              :if={@selected_entry && @detail_presentation == :drawer}
+              entity={@selected_entry.entity}
+              progress={@selected_entry.progress}
+              resume={Map.get(@resume_targets, @selected_entry.entity.id)}
+              progress_records={@selected_entry.progress_records}
+              watch_dirs={@watch_dirs}
+              expanded_seasons={assigns[:expanded_seasons]}
+              expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
+              on_play="play"
+              on_close="close_detail"
+            />
+          </div>
         </section>
       </div>
 
       <%!-- Detail modal (CW zone uses modal presentation) --%>
       <ModalShell.modal_shell
-        :if={@selected_entry}
+        :if={@selected_entry && @detail_presentation == :modal}
         entity={@selected_entry.entity}
         progress={@selected_entry.progress}
         resume={Map.get(@resume_targets, @selected_entry.entity.id)}
         progress_records={@selected_entry.progress_records}
-        watch_dirs={MediaCentaur.Config.get(:watch_dirs) || []}
+        watch_dirs={@watch_dirs}
         expanded_seasons={assigns[:expanded_seasons]}
         expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
         on_play="play"
         on_close="close_detail"
       />
     </Layouts.app>
+    """
+  end
+
+  # --- Toolbar ---
+
+  defp toolbar(assigns) do
+    ~H"""
+    <div class="flex items-center gap-4 flex-wrap">
+      <div role="tablist" class="tabs tabs-boxed w-fit">
+        <button
+          :for={{tab, label} <- [{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
+          role="tab"
+          class={["tab", @active_tab == tab && "tab-active"]}
+          phx-click="switch_tab"
+          phx-value-tab={tab}
+        >
+          {label}
+          <span class="badge badge-sm ml-1">{@counts[tab] || 0}</span>
+        </button>
+      </div>
+
+      <select
+        phx-change="sort"
+        name="sort"
+        class="select select-sm select-bordered w-auto"
+      >
+        <option value="recent" selected={@sort_order == :recent}>Recently Added</option>
+        <option value="alpha" selected={@sort_order == :alpha}>A–Z</option>
+        <option value="year" selected={@sort_order == :year}>Year</option>
+      </select>
+
+      <form phx-change="filter" class="ml-auto">
+        <input
+          id="library-filter"
+          type="text"
+          name="filter_text"
+          value={@filter_text}
+          placeholder="Filter by name…"
+          phx-debounce="150"
+          class="input input-sm input-bordered w-48"
+        />
+      </form>
+    </div>
+    """
+  end
+
+  # --- Poster Card ---
+
+  defp poster_card(assigns) do
+    entity = assigns.entry.entity
+    poster = image_url(entity, "poster")
+    assigns = assign(assigns, :poster, poster)
+
+    ~H"""
+    <div
+      id={@id}
+      phx-click="select_entity"
+      phx-value-id={@entry.entity.id}
+      class={[
+        "card glass-surface cursor-pointer overflow-hidden transition-all",
+        "hover:ring-1 hover:ring-base-content/20",
+        @selected && "ring-2 ring-primary",
+        @playing && "ring-2 ring-primary"
+      ]}
+    >
+      <%!-- Poster --%>
+      <div class="aspect-[2/3] glass-inset relative">
+        <img :if={@poster} src={@poster} class="w-full h-full object-cover" loading="lazy" />
+        <div :if={!@poster} class="w-full h-full flex items-center justify-center">
+          <.icon name="hero-film" class="size-8 text-base-content/20" />
+        </div>
+
+        <%!-- Now-playing pulse --%>
+        <div
+          :if={@playing}
+          class="absolute top-2 right-2 size-3 rounded-full bg-primary animate-pulse"
+        />
+
+        <%!-- Progress bar --%>
+        <.card_progress_bar progress={@entry.progress} />
+      </div>
+
+      <%!-- Card footer --%>
+      <div class="p-2">
+        <div class="text-sm font-medium leading-tight line-clamp-2">
+          {@entry.entity.name || "Untitled"}
+        </div>
+        <div class="mt-0.5 text-xs text-base-content/50">
+          {format_type(@entry.entity.type)}<span :if={@entry.entity.date_published}> · {extract_year(@entry.entity.date_published)}</span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp card_progress_bar(%{progress: nil} = assigns) do
+    ~H"""
+    """
+  end
+
+  defp card_progress_bar(%{progress: progress} = assigns) do
+    fraction = compute_progress_fraction(progress)
+    assigns = assign(assigns, :fraction, fraction)
+
+    ~H"""
+    <div :if={@fraction > 0} class="absolute bottom-0 left-0 right-0 h-[3px] bg-base-content/20">
+      <div class="h-full bg-primary" style={"width: #{@fraction}%"} />
+    </div>
     """
   end
 
@@ -237,7 +463,6 @@ defmodule MediaCentaurWeb.LibraryLive do
         @playing && "ring-2 ring-primary"
       ]}
     >
-      <%!-- Backdrop image --%>
       <div class="aspect-video glass-inset relative">
         <img
           :if={@background}
@@ -249,10 +474,8 @@ defmodule MediaCentaurWeb.LibraryLive do
           <.icon name="hero-film" class="size-12 text-base-content/20" />
         </div>
 
-        <%!-- Bottom gradient --%>
         <div class="absolute inset-0 bg-gradient-to-t from-black/88 via-black/40 via-40% to-transparent" />
 
-        <%!-- Logo or title (bottom-left) --%>
         <div class="absolute bottom-10 left-4 right-4">
           <img
             :if={@logo}
@@ -267,20 +490,17 @@ defmodule MediaCentaurWeb.LibraryLive do
           </h3>
         </div>
 
-        <%!-- Resume info (bottom-left, below logo) --%>
         <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between">
           <span :if={@resume_label} class="text-sm text-primary font-medium drop-shadow">
             {@resume_label}
           </span>
         </div>
 
-        <%!-- Now-playing pulse --%>
         <div
           :if={@playing}
           class="absolute top-3 right-3 size-3 rounded-full bg-primary animate-pulse"
         />
 
-        <%!-- Progress bar at bottom edge --%>
         <div
           :if={@progress_fraction > 0}
           class="absolute bottom-0 left-0 right-0 h-1 bg-base-content/20"
@@ -310,9 +530,11 @@ defmodule MediaCentaurWeb.LibraryLive do
     |> assign(
       entries: entries,
       resume_targets: resume_targets,
-      playback: MediaCentaur.Playback.Manager.current_state()
+      playback: MediaCentaur.Playback.Manager.current_state(),
+      watch_dirs: MediaCentaur.Config.get(:watch_dirs) || []
     )
     |> recompute_continue_watching()
+    |> recompute_counts()
   end
 
   defp recompute_continue_watching(socket) do
@@ -335,7 +557,152 @@ defmodule MediaCentaurWeb.LibraryLive do
     end)
   end
 
+  defp recompute_counts(socket) do
+    assign(socket, counts: tab_counts(socket.assigns.entries))
+  end
+
+  # --- Stream Management ---
+
+  defp reset_stream(socket) do
+    filtered = compute_filtered(socket)
+
+    socket
+    |> stream(:grid, filtered, reset: true, dom_id: &"entity-#{&1.entity.id}")
+    |> assign(grid_count: length(filtered))
+  end
+
+  defp touch_stream_entries(socket, entity_ids) do
+    filtered_ids = compute_filtered(socket) |> MapSet.new(& &1.entity.id)
+
+    Enum.reduce(entity_ids, socket, fn id, sock ->
+      entry = Enum.find(sock.assigns.entries, &(&1.entity.id == id))
+
+      cond do
+        entry == nil ->
+          stream_delete_by_dom_id(sock, :grid, "entity-#{id}")
+
+        MapSet.member?(filtered_ids, id) ->
+          stream_insert(sock, :grid, entry)
+
+        true ->
+          stream_delete_by_dom_id(sock, :grid, "entity-#{id}")
+      end
+    end)
+  end
+
+  defp compute_filtered(socket) do
+    socket.assigns.entries
+    |> filtered_by_tab(socket.assigns.active_tab)
+    |> filtered_by_text(socket.assigns.filter_text)
+    |> sorted_by(socket.assigns.sort_order)
+  end
+
+  # --- Filtering ---
+
+  defp filtered_by_tab(entries, :all), do: entries
+
+  defp filtered_by_tab(entries, :movies) do
+    Enum.filter(entries, fn %{entity: entity} ->
+      entity.type in [:movie, :movie_series, :video_object]
+    end)
+  end
+
+  defp filtered_by_tab(entries, :tv) do
+    Enum.filter(entries, fn %{entity: entity} -> entity.type == :tv_series end)
+  end
+
+  defp filtered_by_text(entries, ""), do: entries
+
+  defp filtered_by_text(entries, text) do
+    needle = String.downcase(text)
+
+    Enum.filter(entries, fn %{entity: entity} ->
+      name_matches?(entity.name, needle) || nested_matches?(entity, needle)
+    end)
+  end
+
+  defp name_matches?(nil, _needle), do: false
+  defp name_matches?(name, needle), do: String.contains?(String.downcase(name), needle)
+
+  defp nested_matches?(%{type: :tv_series, seasons: seasons}, needle) when is_list(seasons) do
+    Enum.any?(seasons, fn season ->
+      Enum.any?(season.episodes || [], fn episode -> name_matches?(episode.name, needle) end)
+    end)
+  end
+
+  defp nested_matches?(%{type: :movie_series, movies: movies}, needle) when is_list(movies) do
+    Enum.any?(movies, fn movie -> name_matches?(movie.name, needle) end)
+  end
+
+  defp nested_matches?(_entity, _needle), do: false
+
+  # --- Sorting ---
+
+  defp sorted_by(entries, :alpha) do
+    Enum.sort_by(entries, fn entry -> (entry.entity.name || "") |> String.downcase() end)
+  end
+
+  defp sorted_by(entries, :year) do
+    Enum.sort_by(
+      entries,
+      fn entry -> entry.entity.date_published || "" end,
+      :desc
+    )
+  end
+
+  defp sorted_by(entries, :recent) do
+    Enum.sort_by(
+      entries,
+      fn entry -> entry.entity.inserted_at || ~U[2000-01-01 00:00:00Z] end,
+      {:desc, DateTime}
+    )
+  end
+
+  # --- URL Params ---
+
+  defp parse_tab("movies"), do: :movies
+  defp parse_tab("tv"), do: :tv
+  defp parse_tab(_), do: :all
+
+  defp parse_sort("alpha"), do: :alpha
+  defp parse_sort("year"), do: :year
+  defp parse_sort(_), do: :recent
+
+  defp build_path(socket, overrides) do
+    assigns = socket.assigns
+
+    tab = Map.get(overrides, :tab, assigns.active_tab)
+    sort = Map.get(overrides, :sort, assigns.sort_order)
+    filter = Map.get(overrides, :filter, assigns.filter_text)
+    selected = Map.get(overrides, :selected, assigns.selected_entity_id)
+
+    params = %{}
+    params = if tab != :all, do: Map.put(params, :tab, tab), else: params
+    params = if sort != :recent, do: Map.put(params, :sort, sort), else: params
+    params = if filter != "", do: Map.put(params, :filter, filter), else: params
+    params = if selected, do: Map.put(params, :selected, selected), else: params
+
+    if params == %{}, do: ~p"/library", else: ~p"/library?#{params}"
+  end
+
   # --- Helpers ---
+
+  defp tab_counts(entries) do
+    Enum.reduce(entries, %{all: 0, movies: 0, tv: 0}, fn %{entity: entity}, counts ->
+      counts = %{counts | all: counts.all + 1}
+
+      cond do
+        entity.type in [:movie, :movie_series, :video_object] ->
+          %{counts | movies: counts.movies + 1}
+
+        entity.type == :tv_series ->
+          %{counts | tv: counts.tv + 1}
+
+        true ->
+          counts
+      end
+    end)
+  end
 
   defp find_entry(_entries, nil), do: nil
 
@@ -345,11 +712,8 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp update_entry_progress(entries, entity_id, summary) do
     Enum.map(entries, fn
-      %{entity: %{id: ^entity_id}} = entry ->
-        %{entry | progress: summary}
-
-      entry ->
-        entry
+      %{entity: %{id: ^entity_id}} = entry -> %{entry | progress: summary}
+      entry -> entry
     end)
   end
 
@@ -404,4 +768,12 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   defp format_resume_label(_resume, _entity), do: nil
+
+  defp format_type(:movie), do: "Movie"
+  defp format_type(:movie_series), do: "Movie Series"
+  defp format_type(:tv_series), do: "TV Series"
+  defp format_type(:video_object), do: "Video"
+  defp format_type(type), do: type |> to_string() |> String.capitalize()
+
+  defp extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
 end
