@@ -125,7 +125,7 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 ### What We Never Test
 
 - **GenServer internals** (Watcher, Config, MpvSession, PlaybackManager) — implementation details, not contracts.
-- **LiveView DOM** — LiveViews are thin presentation layers. Test the data contracts they consume, not the DOM they render.
+- **Rendered HTML** — LiveViews and function components are presentation layers. Never assert on HTML output (`render_component`, `=~` on markup). Instead, extract testable logic (variant selection, state classification, label computation) into pure public functions and test those directly. LiveView integration tests (mount, patch, event handling) are acceptable — they test navigation and data flow, not DOM structure.
 - **External API calls** in normal runs — tag `@tag :external` and exclude from default `mix test`.
 
 ### Pipeline Tests (Broadway)
