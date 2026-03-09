@@ -17,6 +17,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        continue_watching: [],
        resume_targets: %{},
        playback: %{state: :idle, now_playing: nil},
+       zone: :watching,
        selected_entity_id: nil,
        detail_presentation: nil,
        active_tab: :all,
@@ -39,24 +40,23 @@ defmodule MediaCentaurWeb.LibraryLive do
         socket
       end
 
+    zone = parse_zone(params["zone"])
     tab = parse_tab(params["tab"])
     sort = parse_sort(params["sort"])
     filter_text = params["filter"] || ""
     selected_id = params["selected"]
 
-    # Determine presentation based on context: CW entities use modal, library uses drawer
     presentation =
-      if selected_id do
-        if Enum.any?(socket.assigns.continue_watching, &(&1.entity.id == selected_id)) do
-          :modal
-        else
-          :drawer
-        end
+      case {selected_id, zone} do
+        {nil, _} -> nil
+        {_, :watching} -> :modal
+        {_, :library} -> :drawer
       end
 
     socket =
       socket
       |> assign(
+        zone: zone,
         active_tab: tab,
         sort_order: sort,
         filter_text: filter_text,
@@ -235,65 +235,82 @@ defmodule MediaCentaurWeb.LibraryLive do
   @impl true
   def render(assigns) do
     selected_entry = find_entry(assigns.entries, assigns.selected_entity_id)
-    assigns = assign(assigns, :selected_entry, selected_entry)
+
+    assigns =
+      assigns
+      |> assign(:selected_entry, selected_entry)
+      |> assign(:watching_path, ~p"/library")
+      |> assign(:library_path, ~p"/library?zone=library")
 
     ~H"""
     <Layouts.app flash={@flash} current_path="/library" full_width>
-      <div class="space-y-6">
-        <%!-- Continue Watching zone --%>
-        <section id="continue-watching">
-          <h2 class="text-lg font-semibold mb-3">Continue Watching</h2>
-          <.cw_empty :if={@continue_watching == []} />
-          <div
-            :if={@continue_watching != []}
-            class="grid grid-cols-[repeat(auto-fill,minmax(480px,1fr))] gap-4"
-          >
-            <.cw_card
-              :for={entry <- @continue_watching}
-              entry={entry}
-              resume={Map.get(@resume_targets, entry.entity.id)}
-              playing={playing_entity_id(@playback) == entry.entity.id}
-            />
-          </div>
-        </section>
+      <%!-- Zone tabs --%>
+      <div role="tablist" class="tabs tabs-boxed w-fit mb-6">
+        <.link
+          navigate={@watching_path}
+          role="tab"
+          class={["tab", @zone == :watching && "tab-active"]}
+        >
+          Continue Watching
+        </.link>
+        <.link
+          navigate={@library_path}
+          role="tab"
+          class={["tab", @zone == :library && "tab-active"]}
+        >
+          Library
+        </.link>
+      </div>
 
-        <%!-- Edge hint divider --%>
-        <div class="divider text-base-content/30 text-sm">
-          ↓ Library · {length(@entries)} titles
+      <%!-- Continue Watching zone --%>
+      <section :if={@zone == :watching} id="continue-watching">
+        <.cw_empty :if={@continue_watching == []} />
+        <div
+          :if={@continue_watching != []}
+          class="grid grid-cols-[repeat(auto-fill,minmax(480px,1fr))] gap-4"
+        >
+          <.cw_card
+            :for={entry <- @continue_watching}
+            entry={entry}
+            resume={Map.get(@resume_targets, entry.entity.id)}
+            playing={playing_entity_id(@playback) == entry.entity.id}
+          />
+        </div>
+      </section>
+
+      <%!-- Library Browse zone --%>
+      <section :if={@zone == :library} id="browse">
+        <.toolbar
+          active_tab={@active_tab}
+          counts={@counts}
+          sort_order={@sort_order}
+          filter_text={@filter_text}
+        />
+
+        <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center">
+          No entities found.
         </div>
 
-        <%!-- Library Browse zone --%>
-        <section id="browse">
-          <.toolbar
-            active_tab={@active_tab}
-            counts={@counts}
-            sort_order={@sort_order}
-            filter_text={@filter_text}
-          />
-
-          <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center">
-            No entities found.
+        <div :if={@grid_count > 0} class="flex gap-4 mt-4">
+          <%!-- Poster grid --%>
+          <div class="flex-1 min-w-0">
+            <div
+              id="library-grid"
+              phx-update="stream"
+              class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
+            >
+              <.poster_card
+                :for={{dom_id, entry} <- @streams.grid}
+                id={dom_id}
+                entry={entry}
+                selected={@selected_entity_id == entry.entity.id}
+                playing={playing_entity_id(@playback) == entry.entity.id}
+              />
+            </div>
           </div>
 
-          <div :if={@grid_count > 0} class="flex gap-4 mt-4">
-            <%!-- Poster grid --%>
-            <div class="flex-1 min-w-0">
-              <div
-                id="library-grid"
-                phx-update="stream"
-                class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
-              >
-                <.poster_card
-                  :for={{dom_id, entry} <- @streams.grid}
-                  id={dom_id}
-                  entry={entry}
-                  selected={@selected_entity_id == entry.entity.id}
-                  playing={playing_entity_id(@playback) == entry.entity.id}
-                />
-              </div>
-            </div>
-
-            <%!-- Drawer (library browse uses drawer presentation) --%>
+          <%!-- Drawer column — always reserved to prevent grid reflow --%>
+          <div class="w-[480px] flex-shrink-0 hidden lg:block">
             <DrawerShell.drawer_shell
               :if={@selected_entry && @detail_presentation == :drawer}
               entity={@selected_entry.entity}
@@ -307,10 +324,10 @@ defmodule MediaCentaurWeb.LibraryLive do
               on_close="close_detail"
             />
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
-      <%!-- Detail modal (CW zone uses modal presentation) --%>
+      <%!-- Detail modal (CW uses modal presentation) --%>
       <ModalShell.modal_shell
         :if={@selected_entry && @detail_presentation == :modal}
         entity={@selected_entry.entity}
@@ -348,11 +365,12 @@ defmodule MediaCentaurWeb.LibraryLive do
       <select
         phx-change="sort"
         name="sort"
+        value={to_string(@sort_order)}
         class="select select-sm select-bordered w-auto"
       >
-        <option value="recent" selected={@sort_order == :recent}>Recently Added</option>
-        <option value="alpha" selected={@sort_order == :alpha}>A–Z</option>
-        <option value="year" selected={@sort_order == :year}>Year</option>
+        <option value="recent">Recently Added</option>
+        <option value="alpha">A–Z</option>
+        <option value="year">Year</option>
       </select>
 
       <form phx-change="filter" class="ml-auto">
@@ -539,13 +557,15 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp recompute_continue_watching(socket) do
     continue_watching =
-      socket.assigns.entries
-      |> Enum.filter(fn entry ->
-        case Resume.resolve(entry.entity, entry.progress_records) do
-          {:resume, _, _} -> true
-          {:play_next, _, _} -> true
-          _ -> false
-        end
+      Enum.filter(socket.assigns.entries, fn entry ->
+        # Must have actual watch history — excludes the entire unwatched library
+        # (Resume.resolve returns :play_next for entities with zero progress)
+        entry.progress_records != [] &&
+          case Resume.resolve(entry.entity, entry.progress_records) do
+            {:resume, _, _} -> true
+            {:play_next, _, _} -> true
+            _ -> false
+          end
       end)
 
     assign(socket, continue_watching: continue_watching)
@@ -660,6 +680,9 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   # --- URL Params ---
 
+  defp parse_zone("library"), do: :library
+  defp parse_zone(_), do: :watching
+
   defp parse_tab("movies"), do: :movies
   defp parse_tab("tv"), do: :tv
   defp parse_tab(_), do: :all
@@ -668,15 +691,18 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp parse_sort("year"), do: :year
   defp parse_sort(_), do: :recent
 
+  # Build a URL path preserving current socket state with overrides
   defp build_path(socket, overrides) do
     assigns = socket.assigns
 
+    zone = Map.get(overrides, :zone, assigns.zone)
     tab = Map.get(overrides, :tab, assigns.active_tab)
     sort = Map.get(overrides, :sort, assigns.sort_order)
     filter = Map.get(overrides, :filter, assigns.filter_text)
     selected = Map.get(overrides, :selected, assigns.selected_entity_id)
 
     params = %{}
+    params = if zone == :library, do: Map.put(params, :zone, :library), else: params
     params = if tab != :all, do: Map.put(params, :tab, tab), else: params
     params = if sort != :recent, do: Map.put(params, :sort, sort), else: params
     params = if filter != "", do: Map.put(params, :filter, filter), else: params
