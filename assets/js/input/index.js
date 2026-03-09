@@ -52,12 +52,28 @@ export class InputSystem {
 
     // Sync initial state
     this._syncState()
+
+    // Resume sidebar context after navigation (sessionStorage bridge)
+    if (sessionStorage.getItem("inputSystem:resumeSidebar") === "true") {
+      sessionStorage.removeItem("inputSystem:resumeSidebar")
+      this.focusMachine._context = Context.SIDEBAR
+      const activeIndex = this.reader.getActiveSidebarIndex()
+      if (activeIndex >= 0) {
+        this.writer.focusByIndex(Context.SIDEBAR, activeIndex)
+      } else {
+        this.writer.focusFirst(Context.SIDEBAR)
+      }
+    }
   }
 
   /**
    * Stop the input system. Called from the LiveView hook's destroyed().
    */
   destroy() {
+    // If we're in the sidebar, persist so the new page resumes there
+    if (this.focusMachine.context === Context.SIDEBAR) {
+      sessionStorage.setItem("inputSystem:resumeSidebar", "true")
+    }
     document.removeEventListener("keydown", this._onKeyDown)
     document.removeEventListener("mousemove", this._onMouseMove)
     this._hookEl = null
@@ -485,10 +501,21 @@ export class InputSystem {
 
   _executeEnterSidebar() {
     this.writer.setSidebarState(false)
-    this.writer.focusFirst(Context.SIDEBAR)
+    const activeIndex = this.reader.getActiveSidebarIndex()
+    if (activeIndex >= 0) {
+      this.writer.focusByIndex(Context.SIDEBAR, activeIndex)
+    } else {
+      this.writer.focusFirst(Context.SIDEBAR)
+    }
   }
 
   _executeExitSidebar() {
+    const gridCount = this.reader.getItemCount(Context.GRID)
+    if (gridCount === 0) {
+      // No grid content on this page — stay in sidebar
+      this.focusMachine._context = Context.SIDEBAR
+      return
+    }
     const wasCollapsed = this.reader.getSidebarCollapsed()
     this.writer.setSidebarState(wasCollapsed)
     this.writer.focusFirst(Context.GRID)
