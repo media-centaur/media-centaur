@@ -253,10 +253,10 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_info(
         {:entity_progress_updated, entity_id, summary, resume_target, _child_targets_delta,
-         _last_activity_at},
+         progress_records, _last_activity_at},
         socket
       ) do
-    entries = update_entry_progress(socket.assigns.entries, entity_id, summary)
+    entries = update_entry_progress(socket.assigns.entries, entity_id, summary, progress_records)
     resume_targets = Map.put(socket.assigns.resume_targets, entity_id, resume_target)
 
     {:noreply,
@@ -861,10 +861,15 @@ defmodule MediaCentaurWeb.LibraryLive do
     end)
   end
 
-  defp update_entry_progress(entries, entity_id, summary) do
+  defp update_entry_progress(entries, entity_id, summary, progress_records) do
+    sorted_records = Enum.sort_by(progress_records, &{&1.season_number, &1.episode_number})
+
     Enum.map(entries, fn
-      %{entity: %{id: ^entity_id}} = entry -> %{entry | progress: summary}
-      entry -> entry
+      %{entity: %{id: ^entity_id}} = entry ->
+        %{entry | progress: summary, progress_records: sorted_records}
+
+      entry ->
+        entry
     end)
   end
 

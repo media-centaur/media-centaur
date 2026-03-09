@@ -349,7 +349,7 @@ body {
 /* Modal panel — centered, rounded, max-width constrained */
 .modal-panel {
   position: relative;
-  width: min(600px, 92vw);
+  width: min(700px, 92vw);
   max-height: 90vh;
   border-radius: 0.75rem;
   overflow: hidden;
