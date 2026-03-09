@@ -262,7 +262,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     ~H"""
     <Layouts.app flash={@flash} current_path="/library" full_width>
-      <div id="library-input" phx-hook="InputSystem">
+      <div>
         <%!-- Zone tabs --%>
         <div role="tablist" class="tabs tabs-boxed library-tabs w-fit mb-6" data-nav-zone="zone-tabs">
           <.link

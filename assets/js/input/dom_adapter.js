@@ -144,6 +144,18 @@ export const DomReader = {
   },
 
   /**
+   * Find the index of the active sidebar nav item (has sidebar-link-active class).
+   * Returns -1 if none is active.
+   */
+  getActiveSidebarIndex() {
+    const items = document.querySelectorAll(CONTEXT_SELECTORS[Context.SIDEBAR])
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].classList.contains("sidebar-link-active")) return i
+    }
+    return -1
+  },
+
+  /**
    * Get the sidebar collapsed preference from localStorage.
    */
   getSidebarCollapsed() {
