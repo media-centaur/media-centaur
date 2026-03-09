@@ -33,15 +33,13 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
     })
 
-    test("right with drawer open switches to drawer context", () => {
+    test("right always navigates spatially (drawer transition handled by gridWall)", () => {
       machine.presentationChanged("drawer")
-      // presentationChanged("drawer") switches context to DRAWER
-      // Reset to GRID to test the grid→drawer transition
       machine._context = Context.GRID
 
       const directive = machine.transition(Action.NAVIGATE_RIGHT)
-      expect(directive).toEqual({ type: "focus_context", target: Context.DRAWER })
-      expect(machine.context).toBe(Context.DRAWER)
+      expect(directive).toEqual({ type: "navigate", direction: "right" })
+      expect(machine.context).toBe(Context.GRID)
     })
 
     test("zone cycling produces zone_cycle directive", () => {
@@ -71,12 +69,20 @@ describe("FocusContextMachine", () => {
       expect(machine.context).toBe(Context.SIDEBAR)
     })
 
-    test("down wall is no-op", () => {
-      expect(machine.gridWall("down")).toEqual({ type: "none" })
+    test("right wall with drawer open switches to drawer", () => {
+      machine.presentationChanged("drawer")
+      machine._context = Context.GRID
+      const directive = machine.gridWall("right")
+      expect(directive).toEqual({ type: "focus_context", target: Context.DRAWER })
+      expect(machine.context).toBe(Context.DRAWER)
     })
 
-    test("right wall is no-op", () => {
+    test("right wall without drawer is no-op", () => {
       expect(machine.gridWall("right")).toEqual({ type: "none" })
+    })
+
+    test("down wall is no-op", () => {
+      expect(machine.gridWall("down")).toEqual({ type: "none" })
     })
   })
 
@@ -131,9 +137,9 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
     })
 
-    test("left switches to grid context", () => {
+    test("left switches to grid at row edge", () => {
       const directive = machine.transition(Action.NAVIGATE_LEFT)
-      expect(directive).toEqual({ type: "focus_context", target: Context.GRID })
+      expect(directive).toEqual({ type: "grid_row_edge", side: "right" })
       expect(machine.context).toBe(Context.GRID)
     })
 
