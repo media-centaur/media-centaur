@@ -136,6 +136,29 @@ All tests that need test data use the factory. Never inline `Ash.Changeset.for_c
 - **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`.
 - **NEVER delete or weaken pipeline tests.** See [ADR-027](decisions/architecture/2026-03-07-027-regression-tests-append-only.md). Each test represents a real scenario — fix the pipeline, not the test.
 
+### JavaScript Tests (Input System)
+
+All input system JavaScript lives in `assets/js/input/`. Tests are in `assets/js/input/__tests__/` and run with **bun** (not vitest/npx):
+
+```bash
+bun test assets/js/input/                              # all input tests
+bun test assets/js/input/__tests__/nav_graph.test.js   # single file
+```
+
+Tests use `bun:test` imports (`describe`, `expect`, `test`, `beforeEach`, `mock`).
+
+**Test patterns:**
+
+- **Pure modules** (`nav_graph.js`, `spatial.js`, `actions.js`, `input_method.js`) — test directly, no mocks needed.
+- **State machine** (`focus_context.js`) — construct a `FocusContextMachine`, set nav graph via `setNavGraph(buildNavGraph(...))`, then assert on `transition()` / `gridWall()` return values and `machine.context`.
+- **Orchestrator** (`index.js`) — full mock injection:
+  - `createMockReader(overrides)` — returns controllable values for all reader methods. Override per-test with `getItemCount: (ctx) => ...`.
+  - `createMockWriter()` — proxy that records all calls to `calls` array. Assert with `calls.filter(c => c.method === "focusByIndex")`.
+  - `createMockGlobals()` — mock document/sessionStorage/rAF. Has `_dispatchKeyDown(key, opts)`, `_flushRAF()` helpers.
+- **Page behaviors** — inject mock DOM interface, test return values.
+
+**Mock writer returns:** The mock writer's proxy returns `undefined` from all calls. The real `DomWriter.focusFirst()` and `focusByIndex()` return `boolean` (defense-in-depth), but orchestrator tests don't depend on these return values.
+
 ## Parser
 
 `lib/media_centaur/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.

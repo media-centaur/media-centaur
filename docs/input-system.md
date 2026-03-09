@@ -40,6 +40,7 @@ All code lives in `assets/js/input/`. Tests in `assets/js/input/__tests__/` run 
 |--------|-------|------|
 | `actions.js` | Yes | Action vocabulary, key/button → action mapping |
 | `spatial.js` | Yes | Grid index arithmetic (fast path for uniform grids) |
+| `nav_graph.js` | Yes | Navigation graph builder + cursor start priority |
 | `focus_context.js` | Yes | State machine: context × action → directive |
 | `input_method.js` | Yes | Tracks mouse/keyboard/gamepad transitions |
 | `dom_adapter.js` | No | DomReader reads layout, DomWriter applies changes |
@@ -231,6 +232,29 @@ SessionStorage bridge for resuming sidebar context across LiveView navigations:
 6. Write tests in `assets/js/input/__tests__/<name>_behavior.test.js` using mock DOM
 7. Keep page state in the URL (LiveView `handle_params`) — don't duplicate in sessionStorage
 
+## Navigation Graph
+
+Cross-context transitions (e.g., DOWN from toolbar → grid) are driven by a **navigation graph** — an adjacency map rebuilt from DOM state whenever the page updates. The graph is defined in `nav_graph.js` and consumed by the state machine.
+
+Two mechanisms handle empty contexts:
+
+### Candidate fallback lists (arrow key transitions)
+
+Each edge in the static layout is an ordered array of candidate targets. The graph builder picks the first populated candidate. This makes fallback behavior explicit — no implicit directional chaining.
+
+Example: library zone, sidebar `right` has candidates `["grid", "toolbar", "zone_tabs"]`. If grid is empty, it falls through to toolbar. If both are empty, zone_tabs. Toolbar `down` has only `["grid"]` — if grid is empty, DOWN from toolbar is blocked (no fallback makes spatial sense).
+
+### Cursor start priority (page entry / zone change)
+
+A per-zone priority list determines the initial focus context. Walked in order; first populated context wins. Independent of the graph — no directional logic.
+
+```
+watching: grid → zone_tabs → sidebar
+library:  grid → toolbar → zone_tabs → sidebar
+```
+
+Sidebar is always populated (static content), guaranteeing a viable terminal.
+
 ## Design Rules
 
-- **Empty-context fallback.** The default focus context (GRID) may be empty — a filter with no results, a page with no content yet. The system must never leave the user with no focusable target. Both initial startup (`start()`) and live updates (`onViewChanged()`) call `_ensureViableContext()`, which walks a fallback chain (GRID → TOOLBAR → ZONE_TABS → SIDEBAR) until it finds a context with items. The same principle applies to zone transitions like `_executeExitSidebar()`. Any new context transition must account for the target being empty.
+- **Empty-context safety.** The navigation graph and cursor start priority together ensure the user always has a focusable target. The graph prevents directional transitions into empty contexts. The priority list handles initial placement. Any new zone layout must define both a layout in `LAYOUTS` and an entry in `CURSOR_START_PRIORITY`.
