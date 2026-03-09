@@ -423,6 +423,97 @@ describe("InputSystem orchestrator", () => {
 
       expect(system.focusMachine.context).toBe(Context.SIDEBAR)
     })
+
+    test("exit sidebar goes to toolbar when grid is empty", () => {
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
+        getSidebarCollapsed: () => false,
+        getActiveToolbarTabIndex: () => 0,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.SIDEBAR)
+      system._preSidebarContext = null
+      calls.length = 0
+
+      system._executeExitSidebar()
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+    })
+  })
+
+  describe("empty context safety", () => {
+    test("start with empty grid falls back to toolbar in library zone", () => {
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
+      })
+      system.start({})
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+    })
+
+    test("start with empty grid falls back to zone_tabs in watching zone", () => {
+      const { system } = setup({
+        getZone: () => "watching",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
+      })
+      system.start({})
+
+      expect(system.focusMachine.context).toBe(Context.ZONE_TABS)
+    })
+
+    test("down from toolbar blocked when grid is empty", () => {
+      const { system, calls, globals } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
+        getFocusedIndex: () => 0,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.TOOLBAR)
+      calls.length = 0
+
+      globals._dispatchKeyDown("ArrowDown")
+
+      // Should stay in toolbar — no focus calls to grid
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+      const gridFocusCalls = calls.filter(c =>
+        (c.method === "focusFirst" && c.args[0] === Context.GRID) ||
+        (c.method === "focusByIndex" && c.args[0] === Context.GRID)
+      )
+      expect(gridFocusCalls.length).toBe(0)
+    })
+
+    test("down from zone_tabs blocked when grid is empty in watching zone", () => {
+      const { system, calls, globals } = setup({
+        getZone: () => "watching",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
+        getFocusedIndex: () => 0,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.ZONE_TABS)
+      calls.length = 0
+
+      globals._dispatchKeyDown("ArrowDown")
+
+      expect(system.focusMachine.context).toBe(Context.ZONE_TABS)
+    })
+
+    test("onViewChanged with newly empty grid falls back", () => {
+      const itemCounts = { grid: 8, toolbar: 3, zone_tabs: 2, sidebar: 4 }
+      const { system, reader } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => itemCounts[ctx] ?? 0,
+      })
+      system.start({})
+      expect(system.focusMachine.context).toBe(Context.GRID)
+
+      // Simulate grid becoming empty (e.g., filter applied)
+      itemCounts.grid = 0
+      system.onViewChanged()
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+    })
   })
 
   describe("left wall enters sidebar from zone tabs/toolbar", () => {

@@ -14,6 +14,7 @@ import { FocusContextMachine, Context } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { DomReader, DomWriter } from "./dom_adapter"
 import { createPageBehavior } from "./page_behavior"
+import { buildNavGraph, resolveCursorStart } from "./nav_graph"
 
 const TEXT_INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
 
@@ -57,6 +58,8 @@ export class InputSystem {
     // When true, a text input has been activated for typing.
     // Arrow keys pass through; only Escape exits back to nav.
     this._inputEditing = false
+    // Cached item counts per context, rebuilt in _syncState
+    this._counts = {}
     // Active page behavior (detected from data-page-behavior attribute)
     this._behavior = null
     this._behaviorName = null
@@ -92,25 +95,21 @@ export class InputSystem {
     }
 
     // If the initial context (GRID) is empty, fall back to a non-empty context
-    this._ensureViableContext()
+    this._ensureCursorStart()
   }
 
   /**
-   * If the current context has no focusable items, fall through to the
-   * first non-empty context. Prevents a dead cursor on pages where the
-   * default context (GRID) is empty (e.g., no search results).
+   * If the current context has no focusable items, resolve the first
+   * viable context from the cursor start priority list.
    */
-  _ensureViableContext() {
+  _ensureCursorStart() {
     const context = this.focusMachine.context
     if (this.reader.getItemCount(context) > 0) return
 
-    const fallbacks = [Context.GRID, Context.TOOLBAR, Context.ZONE_TABS, Context.SIDEBAR]
-    for (const candidate of fallbacks) {
-      if (this.reader.getItemCount(candidate) > 0) {
-        this.focusMachine.forceContext(candidate)
-        this._restoreContextFocus(candidate)
-        return
-      }
+    const target = resolveCursorStart(this.reader.getZone(), this._counts)
+    if (target) {
+      this.focusMachine.forceContext(target)
+      this._restoreContextFocus(target)
     }
   }
 
@@ -134,7 +133,7 @@ export class InputSystem {
    */
   onViewChanged() {
     this._syncState()
-    this._ensureViableContext()
+    this._ensureCursorStart()
   }
 
   // --- Internal ---
@@ -179,6 +178,23 @@ export class InputSystem {
       this.focusMachine.presentationChanged(null)
       // Restore focus to the originating card after modal/drawer closes
       this._restoreOriginFocus()
+    }
+
+    // Build navigation graph from current DOM state
+    this._counts = this._buildCounts()
+    const navGraph = buildNavGraph(this.reader.getZone(), this._counts, {
+      drawerOpen: this.reader.isDrawerOpen(),
+    })
+    this.focusMachine.setNavGraph(navGraph)
+  }
+
+  _buildCounts() {
+    return {
+      grid: this.reader.getItemCount(Context.GRID),
+      toolbar: this.reader.getItemCount(Context.TOOLBAR),
+      zone_tabs: this.reader.getItemCount(Context.ZONE_TABS),
+      sidebar: this.reader.getItemCount(Context.SIDEBAR),
+      drawer: this.reader.getItemCount(Context.DRAWER),
     }
   }
 
@@ -615,18 +631,14 @@ export class InputSystem {
   }
 
   _executeExitSidebar() {
-    const target = this._preSidebarContext || Context.GRID
+    const preferred = this._preSidebarContext
     this._preSidebarContext = null
 
-    // Check if the target context has items; fall back to GRID, then TOOLBAR
-    const targetCount = this.reader.getItemCount(target)
-    const gridCount = this.reader.getItemCount(Context.GRID)
-    const toolbarCount = this.reader.getItemCount(Context.TOOLBAR)
-
+    // Use pre-sidebar context if still populated, otherwise consult graph
+    const graphTarget = this.focusMachine._navGraph?.sidebar?.right
     const restoreTo =
-      targetCount > 0 ? target :
-      gridCount > 0 ? Context.GRID :
-      toolbarCount > 0 ? Context.TOOLBAR : null
+      (preferred && this.reader.getItemCount(preferred) > 0) ? preferred :
+      graphTarget ?? null
 
     if (!restoreTo) {
       // No content on this page — stay in sidebar

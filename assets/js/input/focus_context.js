@@ -45,6 +45,7 @@ export class FocusContextMachine {
     this._context = initialContext
     this._drawerOpen = false
     this._zone = "watching"
+    this._navGraph = null
   }
 
   get context() {
@@ -101,6 +102,15 @@ export class FocusContextMachine {
   }
 
   /**
+   * Set the navigation graph for cross-context transitions.
+   * Built by the orchestrator from live DOM state.
+   * @param {Object} graph - Adjacency map from buildNavGraph()
+   */
+  setNavGraph(graph) {
+    this._navGraph = graph
+  }
+
+  /**
    * Enter sidebar from a left-wall transition in zone tabs or toolbar.
    * Sets context to SIDEBAR and returns the enter_sidebar directive.
    * @returns {FocusDirective}
@@ -151,9 +161,12 @@ export class FocusContextMachine {
     switch (action) {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
-      case Action.NAVIGATE_LEFT:
+      case Action.NAVIGATE_LEFT: {
+        const target = this._navGraph?.drawer?.left
+        if (!target) return NONE
         this._context = Context.GRID
         return { type: "grid_row_edge", side: "right" }
+      }
       case Action.NAVIGATE_RIGHT: return NONE
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return DISMISS
@@ -180,17 +193,23 @@ export class FocusContextMachine {
     }
   }
 
-  /** Toolbar: left/right between controls. Down → grid. Up → zone tabs. */
+  /** Toolbar: left/right between controls. Down/Up consult nav graph. */
   _toolbarTransition(action) {
     switch (action) {
       case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: return navigate("right")
-      case Action.NAVIGATE_DOWN:
-        this._context = Context.GRID
-        return focusFirst(Context.GRID)
-      case Action.NAVIGATE_UP:
-        this._context = Context.ZONE_TABS
-        return focusFirst(Context.ZONE_TABS)
+      case Action.NAVIGATE_DOWN: {
+        const target = this._navGraph?.toolbar?.down
+        if (!target) return NONE
+        this._context = target
+        return focusFirst(target)
+      }
+      case Action.NAVIGATE_UP: {
+        const target = this._navGraph?.toolbar?.up
+        if (!target) return NONE
+        this._context = target
+        return focusFirst(target)
+      }
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return NONE
       case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
@@ -215,14 +234,17 @@ export class FocusContextMachine {
     }
   }
 
-  /** Zone tabs: left/right between tabs. Enter activates. Down → zone content. Up → wall. */
+  /** Zone tabs: left/right between tabs. Enter activates. Down consults nav graph. */
   _zoneTabsTransition(action) {
     switch (action) {
       case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: return navigate("right")
-      case Action.NAVIGATE_DOWN:
-        this._context = this._zone === "library" ? Context.TOOLBAR : Context.GRID
-        return focusFirst(this._context)
+      case Action.NAVIGATE_DOWN: {
+        const target = this._navGraph?.zone_tabs?.down
+        if (!target) return NONE
+        this._context = target
+        return focusFirst(target)
+      }
       case Action.NAVIGATE_UP:    return NONE
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return NONE
@@ -240,24 +262,23 @@ export class FocusContextMachine {
    */
   gridWall(direction) {
     switch (direction) {
-      case "up":
-        if (this._zone === "library") {
-          this._context = Context.TOOLBAR
-          return focusFirst(Context.TOOLBAR)
-        }
-        this._context = Context.ZONE_TABS
-        return focusFirst(Context.ZONE_TABS)
+      case "up": {
+        const target = this._navGraph?.grid?.up
+        if (!target) return NONE
+        this._context = target
+        return focusFirst(target)
+      }
 
       case "left":
         this._context = Context.SIDEBAR
         return { type: "enter_sidebar" }
 
-      case "right":
-        if (this._drawerOpen) {
-          this._context = Context.DRAWER
-          return focusContext(Context.DRAWER)
-        }
-        return NONE
+      case "right": {
+        const target = this._navGraph?.grid?.right
+        if (!target) return NONE
+        this._context = Context.DRAWER
+        return focusContext(Context.DRAWER)
+      }
 
       default:
         return NONE

@@ -186,25 +186,31 @@ export const DomWriter = {
 
   /**
    * Focus the item at a given index within a context.
+   * Returns true if the element was found and focused, false otherwise.
    */
   focusByIndex(context, index) {
     const selector = CONTEXT_SELECTORS[context]
-    if (!selector) return
+    if (!selector) return false
 
     const items = document.querySelectorAll(selector)
     const target = items[index]
-    if (target) target.focus({ preventScroll: false })
+    if (!target) return false
+    target.focus({ preventScroll: false })
+    return document.activeElement === target
   },
 
   /**
    * Focus the first focusable item in a context.
+   * Returns true if the element was found and focused, false otherwise.
    */
   focusFirst(context) {
     const selector = CONTEXT_SELECTORS[context]
-    if (!selector) return
+    if (!selector) return false
 
     const first = document.querySelector(selector)
-    if (first) first.focus({ preventScroll: false })
+    if (!first) return false
+    first.focus({ preventScroll: false })
+    return document.activeElement === first
   },
 
   /**
