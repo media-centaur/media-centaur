@@ -1,11 +1,17 @@
 # Library View Redesign: Input System
 
-**Status:** planned
+**Status:** Phase 5a complete, Phase 5b (gamepad) pending
 **Area:** frontend input / navigation
+**Architecture doc:** `docs/input-system.md` (patterns, anti-patterns, DOM contract)
 **Related plans:**
 - Continue Watching mode: `003-continue-watching-design.md`
 - Library Browse mode: `004-library-browse-design.md`
 - Unified detail system: `006-unified-detail-system.md`
+
+> **Implementation notes (divergences from original design):**
+> - Decision #4 reversed: per-context focus memory **was** implemented — switching zones/contexts restores the last position. The "always focus first" behavior felt broken in practice.
+> - Decision #8 adapted: grid index arithmetic is the fast path (O(1), no rects needed for uniform grids). The bounding-rect algorithm exists in `spatial.js` but is unused — reserved for future non-uniform layouts.
+> - Plan assumed CW and Library as one scrollable space. Actual implementation uses **tab-based zone switching** (`?zone=watching` / `?zone=library`), which simplified the focus model.
 
 ---
 

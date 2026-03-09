@@ -56,6 +56,9 @@ The current drawer and card rendering in `library_live.ex` lines ~306–822 will
 
 ## Implementation Phases
 
+> **Progress:** Phases 1–4 complete. Phase 5a (keyboard spatial nav) complete.
+> Phase 5b (gamepad) pending. See `docs/input-system.md` for Phase 5 architecture.
+
 ### Phase 1: DetailPanel Component (shared foundation)
 
 **Why first:** Both zones depend on this. It's a pure function component with no shell dependency — testable in isolation.
