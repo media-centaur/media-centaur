@@ -77,6 +77,7 @@ defmodule MediaCentaurWeb.Router do
     live "/settings", SettingsLive, :index
     live "/review", ReviewLive, :index
     live "/library", LibraryLive, :index
+    live "/old-library", OldLibraryLive, :index
   end
 
   # Other scopes may use custom stacks.
