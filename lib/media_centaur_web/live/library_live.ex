@@ -36,6 +36,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        detail_presentation: nil,
        active_tab: :all,
        sort_order: :recent,
+       sort_open: false,
+       sort_highlight: 0,
        filter_text: "",
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
@@ -117,8 +119,29 @@ defmodule MediaCentaurWeb.LibraryLive do
      )}
   end
 
+  @sort_options [:recent, :alpha, :year]
+
+  def handle_event("toggle_sort", _params, socket) do
+    if socket.assigns.sort_open do
+      {:noreply, assign(socket, sort_open: false)}
+    else
+      highlight = Enum.find_index(@sort_options, &(&1 == socket.assigns.sort_order)) || 0
+      {:noreply, assign(socket, sort_open: true, sort_highlight: highlight)}
+    end
+  end
+
+  def handle_event("close_sort", _params, socket) do
+    {:noreply, assign(socket, sort_open: false)}
+  end
+
+  def handle_event("sort_key", %{"key" => key}, socket) do
+    sort_key(key, socket)
+  end
+
   def handle_event("sort", %{"sort" => sort}, socket) do
     sort = parse_sort(sort)
+
+    socket = assign(socket, sort_open: false)
 
     {:noreply,
      push_patch(socket,
@@ -310,6 +333,8 @@ defmodule MediaCentaurWeb.LibraryLive do
             active_tab={@active_tab}
             counts={@counts}
             sort_order={@sort_order}
+            sort_open={@sort_open}
+            sort_highlight={@sort_highlight}
             filter_text={@filter_text}
           />
 
@@ -373,18 +398,37 @@ defmodule MediaCentaurWeb.LibraryLive do
         </button>
       </div>
 
-      <select
-        phx-change="sort"
-        name="sort"
-        value={to_string(@sort_order)}
-        class="select library-sort w-auto"
+      <div
+        class="sort-dropdown"
+        phx-click-away="close_sort"
+        phx-keydown="sort_key"
         data-nav-item
+        data-sort={@sort_order}
+        data-captures-keys={@sort_open}
         tabindex="0"
       >
-        <option value="recent">Recently Added</option>
-        <option value="alpha">A–Z</option>
-        <option value="year">Year</option>
-      </select>
+        <div class="sort-dropdown-trigger" phx-click="toggle_sort">
+          {sort_label(@sort_order)}
+          <.icon name="hero-chevron-down-mini" class="sort-dropdown-chevron" />
+        </div>
+        <ul :if={@sort_open} class="sort-dropdown-menu glass-surface">
+          <li
+            :for={
+              {{value, label}, index} <-
+                Enum.with_index([{:recent, "Recently Added"}, {:alpha, "A–Z"}, {:year, "Year"}])
+            }
+            class={[
+              "sort-dropdown-item",
+              @sort_order == value && "sort-dropdown-item-active",
+              @sort_highlight == index && "sort-dropdown-item-highlight"
+            ]}
+            phx-click="sort"
+            phx-value-sort={value}
+          >
+            {label}
+          </li>
+        </ul>
+      </div>
 
       <form phx-change="filter" class="ml-auto">
         <input
@@ -709,6 +753,48 @@ defmodule MediaCentaurWeb.LibraryLive do
     )
   end
 
+  # --- Sort Dropdown Keyboard ---
+
+  defp sort_key("Enter", socket) do
+    if socket.assigns.sort_open do
+      selected = Enum.at(@sort_options, socket.assigns.sort_highlight)
+      socket = assign(socket, sort_open: false)
+
+      {:noreply,
+       push_patch(socket,
+         to: build_path(%{socket | assigns: Map.put(socket.assigns, :sort_order, selected)}, %{})
+       )}
+    else
+      highlight = Enum.find_index(@sort_options, &(&1 == socket.assigns.sort_order)) || 0
+      {:noreply, assign(socket, sort_open: true, sort_highlight: highlight)}
+    end
+  end
+
+  defp sort_key("Escape", socket) do
+    {:noreply, assign(socket, sort_open: false)}
+  end
+
+  defp sort_key("ArrowDown", socket) do
+    if socket.assigns.sort_open do
+      max = length(@sort_options) - 1
+      highlight = min(socket.assigns.sort_highlight + 1, max)
+      {:noreply, assign(socket, sort_highlight: highlight)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp sort_key("ArrowUp", socket) do
+    if socket.assigns.sort_open do
+      highlight = max(socket.assigns.sort_highlight - 1, 0)
+      {:noreply, assign(socket, sort_highlight: highlight)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp sort_key(_key, socket), do: {:noreply, socket}
+
   # --- URL Params ---
 
   defp parse_zone("library"), do: :library
@@ -721,6 +807,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp parse_sort("alpha"), do: :alpha
   defp parse_sort("year"), do: :year
   defp parse_sort(_), do: :recent
+
+  defp sort_label(:recent), do: "Recently Added"
+  defp sort_label(:alpha), do: "A–Z"
+  defp sort_label(:year), do: "Year"
 
   # Build a URL path preserving current socket state with overrides
   defp build_path(socket, overrides) do
