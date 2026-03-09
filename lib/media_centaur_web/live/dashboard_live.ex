@@ -541,16 +541,17 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   defp playback_summary_card(assigns) do
-    np = assigns.playback.now_playing
+    now_playing = assigns.playback.now_playing
 
     assigns =
       assigns
-      |> assign(:np, np)
-      |> assign(:title, np && now_playing_title(np))
-      |> assign(:detail, np && now_playing_detail(np))
+      |> assign(:now_playing, now_playing)
+      |> assign(:title, now_playing && now_playing_title(now_playing))
+      |> assign(:detail, now_playing && now_playing_detail(now_playing))
       |> assign(
         :has_progress,
-        np != nil && np[:duration_seconds] != nil && np[:duration_seconds] > 0
+        now_playing != nil && now_playing[:duration_seconds] != nil &&
+          now_playing[:duration_seconds] > 0
       )
 
     ~H"""
@@ -566,24 +567,26 @@ defmodule MediaCentaurWeb.DashboardLive do
           </span>
         </div>
 
-        <div :if={@np} class="mt-1">
+        <div :if={@now_playing} class="mt-1">
           <div class="text-base font-medium truncate">{@title}</div>
           <div :if={@detail} class="text-sm text-base-content/60 truncate">{@detail}</div>
 
           <div :if={@has_progress} class="flex items-center gap-2 mt-2">
             <progress
               class={["progress h-1.5 flex-1", playback_progress_class(@playback.state)]}
-              value={@np[:position_seconds] || 0}
-              max={@np.duration_seconds}
+              value={@now_playing[:position_seconds] || 0}
+              max={@now_playing.duration_seconds}
             >
             </progress>
             <span class="text-xs text-base-content/50 whitespace-nowrap">
-              {format_seconds(@np[:position_seconds] || 0)} / {format_seconds(@np.duration_seconds)}
+              {format_seconds(@now_playing[:position_seconds] || 0)} / {format_seconds(
+                @now_playing.duration_seconds
+              )}
             </span>
           </div>
         </div>
 
-        <div :if={!@np} class="mt-1 text-sm text-base-content/60">Idle</div>
+        <div :if={!@now_playing} class="mt-1 text-sm text-base-content/60">Idle</div>
       </div>
     </div>
     """
@@ -668,14 +671,16 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp playback_text_class(:paused), do: "text-warning"
   defp playback_text_class(_), do: "text-info"
 
-  defp now_playing_title(%{episode_name: _} = np), do: np[:entity_name] || np.entity_id
+  defp now_playing_title(%{episode_name: _} = now_playing),
+    do: now_playing[:entity_name] || now_playing.entity_id
+
   defp now_playing_title(%{movie_name: name}) when is_binary(name), do: name
   defp now_playing_title(%{entity_name: name}) when is_binary(name), do: name
-  defp now_playing_title(np), do: np.entity_id
+  defp now_playing_title(now_playing), do: now_playing.entity_id
 
-  defp now_playing_detail(%{episode_name: name} = np) when is_binary(name) do
-    if np[:season_number] do
-      "S#{np[:season_number]}E#{np[:episode_number] || "?"} · #{name}"
+  defp now_playing_detail(%{episode_name: name} = now_playing) when is_binary(name) do
+    if now_playing[:season_number] do
+      "S#{now_playing[:season_number]}E#{now_playing[:episode_number] || "?"} · #{name}"
     else
       name
     end
