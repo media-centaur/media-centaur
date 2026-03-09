@@ -64,6 +64,14 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="sidebar-label">Library</span>
           </.link>
           <.link
+            navigate="/old-library"
+            class={sidebar_link_class(@current_path, "/old-library")}
+            data-tip="Old Library"
+          >
+            <.icon name="hero-book-open" class="size-5 flex-shrink-0 opacity-50" />
+            <span class="sidebar-label">Old Library</span>
+          </.link>
+          <.link
             navigate="/settings"
             class={sidebar_link_class(@current_path, "/settings")}
             data-tip="Settings"
