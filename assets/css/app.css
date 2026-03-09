@@ -208,17 +208,22 @@ body {
 
 .sidebar {
   width: 200px;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
   height: 100vh;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   padding: 1rem;
   gap: 0.25rem;
   overflow-x: hidden;
   overflow-y: auto;
-  flex-shrink: 0;
   transition: width 0.25s ease, padding 0.25s ease;
+}
+
+#input-system > main {
+  margin-left: 52px;
 }
 
 [data-sidebar=collapsed] .sidebar {
