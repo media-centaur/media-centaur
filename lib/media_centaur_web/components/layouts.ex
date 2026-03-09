@@ -27,6 +27,7 @@ defmodule MediaCentaurWeb.Layouts do
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_path, :string, default: nil, doc: "the current request path for nav highlighting"
+  attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
   slot :inner_block, required: true
 
@@ -114,7 +115,7 @@ defmodule MediaCentaurWeb.Layouts do
       </aside>
 
       <main class="flex-1 min-w-0 px-6 py-6">
-        <div class="max-w-7xl space-y-4">
+        <div class={["space-y-4", !@full_width && "max-w-7xl"]}>
           {render_slot(@inner_block)}
         </div>
       </main>
