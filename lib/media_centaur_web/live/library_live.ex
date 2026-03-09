@@ -1,4 +1,17 @@
 defmodule MediaCentaurWeb.LibraryLive do
+  @moduledoc """
+  Two-zone library page with Continue Watching and Library Browse.
+
+  **Continue Watching** shows in-progress entities as backdrop cards. Selecting
+  one opens a ModalShell detail overlay.
+
+  **Library Browse** shows the full entity catalog as a poster grid with
+  type tabs, sort, and text filter. Selecting an entity opens a DrawerShell
+  detail sidebar (space is always reserved to prevent grid reflow).
+
+  Zone switching uses URL params (`?zone=library`) via `push_patch` so data
+  stays loaded across tab changes.
+  """
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.{DateUtil, LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
@@ -14,6 +27,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:ok,
      assign(socket,
        entries: [],
+       entries_by_id: %{},
        continue_watching: [],
        resume_targets: %{},
        playback: %{state: :idle, now_playing: nil},
@@ -93,11 +107,13 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
-    tab = String.to_existing_atom(tab)
-
     {:noreply,
      push_patch(socket,
-       to: build_path(%{socket | assigns: Map.put(socket.assigns, :active_tab, tab)}, %{})
+       to:
+         build_path(
+           %{socket | assigns: Map.put(socket.assigns, :active_tab, parse_tab(tab))},
+           %{}
+         )
      )}
   end
 
@@ -174,7 +190,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     new_entries =
       Enum.reject(updated_entries, fn entry -> MapSet.member?(existing_ids, entry.entity.id) end)
 
-    entries = Enum.sort_by(entries ++ new_entries, fn entry -> entry.entity.name || "" end)
+    entries = entries ++ new_entries
 
     selection_deleted =
       socket.assigns.selected_entity_id != nil &&
@@ -182,7 +198,8 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     socket =
       socket
-      |> assign(entries: entries, reload_timer: nil, pending_entity_ids: MapSet.new())
+      |> assign_entries(entries)
+      |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
       |> recompute_continue_watching()
       |> recompute_counts()
 
@@ -211,7 +228,8 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     {:noreply,
      socket
-     |> assign(entries: entries, resume_targets: resume_targets)
+     |> assign_entries(entries)
+     |> assign(resume_targets: resume_targets)
      |> recompute_continue_watching()
      |> touch_stream_entries([entity_id])}
   end
@@ -234,7 +252,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   @impl true
   def render(assigns) do
-    selected_entry = find_entry(assigns.entries, assigns.selected_entity_id)
+    selected_entry = assigns.entries_by_id[assigns.selected_entity_id]
 
     assigns =
       assigns
@@ -247,14 +265,14 @@ defmodule MediaCentaurWeb.LibraryLive do
       <%!-- Zone tabs --%>
       <div role="tablist" class="tabs tabs-boxed w-fit mb-6">
         <.link
-          navigate={@watching_path}
+          patch={@watching_path}
           role="tab"
           class={["tab", @zone == :watching && "tab-active"]}
         >
           Continue Watching
         </.link>
         <.link
-          navigate={@library_path}
+          patch={@library_path}
           role="tab"
           class={["tab", @zone == :library && "tab-active"]}
         >
@@ -533,7 +551,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp cw_empty(assigns) do
     ~H"""
     <div class="text-base-content/50 py-6 text-center text-sm">
-      Nothing in progress. Browse the library below to start watching.
+      Nothing in progress. Switch to the Library tab to start watching.
     </div>
     """
   end
@@ -545,8 +563,8 @@ defmodule MediaCentaurWeb.LibraryLive do
     resume_targets = compute_resume_targets(entries)
 
     socket
+    |> assign_entries(entries)
     |> assign(
-      entries: entries,
       resume_targets: resume_targets,
       playback: MediaCentaur.Playback.Manager.current_state(),
       watch_dirs: MediaCentaur.Config.get(:watch_dirs) || []
@@ -581,6 +599,15 @@ defmodule MediaCentaurWeb.LibraryLive do
     assign(socket, counts: tab_counts(socket.assigns.entries))
   end
 
+  # --- Entry Index ---
+
+  defp assign_entries(socket, entries) do
+    assign(socket,
+      entries: entries,
+      entries_by_id: Map.new(entries, fn entry -> {entry.entity.id, entry} end)
+    )
+  end
+
   # --- Stream Management ---
 
   defp reset_stream(socket) do
@@ -593,9 +620,10 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp touch_stream_entries(socket, entity_ids) do
     filtered_ids = compute_filtered(socket) |> MapSet.new(& &1.entity.id)
+    by_id = socket.assigns.entries_by_id
 
     Enum.reduce(entity_ids, socket, fn id, sock ->
-      entry = Enum.find(sock.assigns.entries, &(&1.entity.id == id))
+      entry = by_id[id]
 
       cond do
         entry == nil ->
@@ -730,12 +758,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     end)
   end
 
-  defp find_entry(_entries, nil), do: nil
-
-  defp find_entry(entries, id) do
-    Enum.find(entries, fn entry -> entry.entity.id == id end)
-  end
-
   defp update_entry_progress(entries, entity_id, summary) do
     Enum.map(entries, fn
       %{entity: %{id: ^entity_id}} = entry -> %{entry | progress: summary}
@@ -745,16 +767,6 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id
   defp playing_entity_id(_), do: nil
-
-  defp image_url(entity, role) do
-    image = Enum.find(entity.images || [], &(&1.role == role))
-
-    cond do
-      image && image.content_url -> "/media-images/#{image.content_url}"
-      image && image.url -> image.url
-      true -> nil
-    end
-  end
 
   defp compute_progress_fraction(nil), do: 0
 
