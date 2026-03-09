@@ -11,7 +11,7 @@ import { FocusContextMachine, Context } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { DomReader, DomWriter } from "./dom_adapter"
 
-const INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
+const TEXT_INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
 const SELECT_ELEMENT = "SELECT"
 
 // After keyboard input, ignore mousemove for this many ms.
@@ -34,6 +34,9 @@ export class InputSystem {
     this._contextMemory = {}
     // Grid uses entity ID for memory (indices shift on stream updates).
     this._lastGridEntityId = null
+    // When true, a text input has been activated for typing.
+    // Arrow keys pass through; only Escape exits back to nav.
+    this._inputEditing = false
     this._onKeyDown = this._onKeyDown.bind(this)
     this._onMouseMove = this._onMouseMove.bind(this)
   }
@@ -124,7 +127,7 @@ export class InputSystem {
     }
     this._lastKeyboardTime = Date.now()
 
-    const targetIsInput = INPUT_ELEMENTS.has(event.target?.tagName)
+    const isTextInput = TEXT_INPUT_ELEMENTS.has(event.target?.tagName)
 
     // SELECT elements: let browser handle up/down for option cycling,
     // but intercept left/right/escape to exit back to toolbar navigation.
@@ -139,7 +142,54 @@ export class InputSystem {
       return
     }
 
-    const action = keyToAction(event.key, { targetIsInput })
+    // Text inputs have two modes:
+    // 1. Focused (not editing): arrow keys navigate, Enter activates edit mode,
+    //    printable characters activate edit mode and pass through to the input.
+    // 2. Editing: all keys pass through to the input, Escape exits edit mode.
+    if (isTextInput) {
+      // Escape on a text input: clear value, exit edit mode
+      if (event.key === "Escape") {
+        if (event.target.value) {
+          event.target.value = ""
+          event.target.dispatchEvent(new Event("input", { bubbles: true }))
+        }
+        this._inputEditing = false
+        event.preventDefault()
+        return
+      }
+
+      if (this._inputEditing) {
+        // Enter exits edit mode back to navigation
+        if (event.key === "Enter") {
+          this._inputEditing = false
+          event.preventDefault()
+        }
+        // All other keys pass through to the input
+        return
+      }
+
+      // Focused but not editing — nav keys still work
+      if (event.key === "Enter") {
+        this._inputEditing = true
+        event.preventDefault()
+        return
+      }
+
+      // Printable character → activate edit mode and let it type
+      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        this._inputEditing = true
+        return
+      }
+
+      // Arrow keys / Escape / other nav keys — handle as normal navigation
+      const action = keyToAction(event.key, { targetIsInput: false })
+      if (!action) return
+      event.preventDefault()
+      this._handleAction(action)
+      return
+    }
+
+    const action = keyToAction(event.key, { targetIsInput: false })
     if (!action) return
 
     event.preventDefault()
@@ -158,6 +208,9 @@ export class InputSystem {
   }
 
   _handleAction(action) {
+    // Navigating away from a text input exits edit mode
+    this._inputEditing = false
+
     // Save focus position in current context before any transition
     this._saveContextMemory()
 
@@ -185,8 +238,10 @@ export class InputSystem {
   }
 
   /**
-   * Restore focus to the remembered position in a context,
-   * falling back to the first item if no memory or index is stale.
+   * Restore focus to the appropriate item in a context.
+   * Zone tabs and toolbar: focus the active/selected item (not memory).
+   * Grid: restore by entity ID memory.
+   * Other contexts: restore by index memory.
    */
   _restoreContextFocus(context) {
     if (context === Context.GRID) {
@@ -195,6 +250,22 @@ export class InputSystem {
         if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId)) return
       }
       this.writer.focusFirst(Context.GRID)
+    } else if (context === Context.ZONE_TABS) {
+      // Zone tabs: focus the active tab
+      const activeIndex = this.reader.getActiveZoneTabIndex()
+      if (activeIndex >= 0) {
+        this.writer.focusByIndex(Context.ZONE_TABS, activeIndex)
+      } else {
+        this.writer.focusFirst(Context.ZONE_TABS)
+      }
+    } else if (context === Context.TOOLBAR) {
+      // Toolbar: focus the active type tab
+      const activeIndex = this.reader.getActiveToolbarTabIndex()
+      if (activeIndex >= 0) {
+        this.writer.focusByIndex(Context.TOOLBAR, activeIndex)
+      } else {
+        this.writer.focusFirst(Context.TOOLBAR)
+      }
     } else {
       // Other contexts: restore by index
       const savedIndex = this._contextMemory[context]

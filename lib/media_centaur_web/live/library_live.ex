@@ -6,8 +6,8 @@ defmodule MediaCentaurWeb.LibraryLive do
   one opens a ModalShell detail overlay.
 
   **Library Browse** shows the full entity catalog as a poster grid with
-  type tabs, sort, and text filter. Selecting an entity opens a DrawerShell
-  detail sidebar (space is always reserved to prevent grid reflow).
+  type tabs, sort, and text filter. Selecting an entity opens a ModalShell
+  detail overlay (same as Continue Watching).
 
   Zone switching uses URL params (`?zone=library`) via `push_patch` so data
   stays loaded across tab changes.
@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.{DateUtil, LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
-  alias MediaCentaurWeb.Components.{DrawerShell, ModalShell}
+  alias MediaCentaurWeb.Components.ModalShell
 
   @impl true
   def mount(_params, _session, socket) do
@@ -64,7 +64,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       case {selected_id, zone} do
         {nil, _} -> nil
         {_, :watching} -> :modal
-        {_, :library} -> :drawer
+        {_, :library} -> :modal
       end
 
     socket =
@@ -264,7 +264,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     <Layouts.app flash={@flash} current_path="/library" full_width>
       <div id="library-input" phx-hook="InputSystem">
         <%!-- Zone tabs --%>
-        <div role="tablist" class="tabs tabs-boxed w-fit mb-6" data-nav-zone="zone-tabs">
+        <div role="tablist" class="tabs tabs-boxed library-tabs w-fit mb-6" data-nav-zone="zone-tabs">
           <.link
             patch={@watching_path}
             role="tab"
@@ -317,44 +317,25 @@ defmodule MediaCentaurWeb.LibraryLive do
             No entities found.
           </div>
 
-          <div :if={@grid_count > 0} class="flex gap-4 mt-4">
-            <%!-- Poster grid --%>
-            <div class="flex-1 min-w-0" data-nav-zone="grid">
-              <div
-                id="library-grid"
-                phx-update="stream"
-                class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
-                data-nav-grid
-              >
-                <.poster_card
-                  :for={{dom_id, entry} <- @streams.grid}
-                  id={dom_id}
-                  entry={entry}
-                  selected={@selected_entity_id == entry.entity.id}
-                  playing={playing_entity_id(@playback) == entry.entity.id}
-                />
-              </div>
-            </div>
-
-            <%!-- Drawer column — always reserved to prevent grid reflow --%>
-            <div class="w-[480px] flex-shrink-0 hidden lg:block">
-              <DrawerShell.drawer_shell
-                :if={@selected_entry && @detail_presentation == :drawer}
-                entity={@selected_entry.entity}
-                progress={@selected_entry.progress}
-                resume={Map.get(@resume_targets, @selected_entry.entity.id)}
-                progress_records={@selected_entry.progress_records}
-                watch_dirs={@watch_dirs}
-                expanded_seasons={assigns[:expanded_seasons]}
-                expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
-                on_play="play"
-                on_close="close_detail"
+          <div :if={@grid_count > 0} data-nav-zone="grid" class="mt-4">
+            <div
+              id="library-grid"
+              phx-update="stream"
+              class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
+              data-nav-grid
+            >
+              <.poster_card
+                :for={{dom_id, entry} <- @streams.grid}
+                id={dom_id}
+                entry={entry}
+                selected={@selected_entity_id == entry.entity.id}
+                playing={playing_entity_id(@playback) == entry.entity.id}
               />
             </div>
           </div>
         </section>
 
-        <%!-- Detail modal (CW uses modal presentation) --%>
+        <%!-- Detail modal (both zones use modal) --%>
         <ModalShell.modal_shell
           :if={@selected_entry && @detail_presentation == :modal}
           entity={@selected_entry.entity}
@@ -377,7 +358,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp toolbar(assigns) do
     ~H"""
     <div class="flex items-center gap-4 flex-wrap" data-nav-zone="toolbar">
-      <div role="tablist" class="tabs tabs-boxed w-fit">
+      <div role="tablist" class="tabs tabs-boxed library-tabs w-fit">
         <button
           :for={{tab, label} <- [{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
           role="tab"
@@ -396,7 +377,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         phx-change="sort"
         name="sort"
         value={to_string(@sort_order)}
-        class="select select-sm select-bordered w-auto"
+        class="select library-sort w-auto"
         data-nav-item
         tabindex="0"
       >
@@ -413,7 +394,9 @@ defmodule MediaCentaurWeb.LibraryLive do
           value={@filter_text}
           placeholder="Filter by name…"
           phx-debounce="150"
-          class="input input-sm input-bordered w-48"
+          class="input library-filter w-48"
+          data-nav-item
+          tabindex="0"
         />
       </form>
     </div>

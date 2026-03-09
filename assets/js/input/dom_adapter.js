@@ -85,7 +85,7 @@ export const DomReader = {
    */
   getZone() {
     const tabGroup = document.querySelector("[data-nav-zone='zone-tabs']")
-    const activeTab = tabGroup?.querySelector(".tab-active")
+    const activeTab = tabGroup?.querySelector(".tab-active, .zone-tab-active")
     return activeTab?.dataset?.navZoneValue || "watching"
   },
 
@@ -120,7 +120,18 @@ export const DomReader = {
   getActiveZoneTabIndex() {
     const tabs = document.querySelectorAll(CONTEXT_SELECTORS[Context.ZONE_TABS])
     for (let i = 0; i < tabs.length; i++) {
-      if (tabs[i].classList.contains("tab-active")) return i
+      if (tabs[i].classList.contains("tab-active") || tabs[i].classList.contains("zone-tab-active")) return i
+    }
+    return -1
+  },
+
+  /**
+   * Find the active toolbar tab index (by tab-active class).
+   */
+  getActiveToolbarTabIndex() {
+    const items = document.querySelectorAll(CONTEXT_SELECTORS[Context.TOOLBAR])
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].classList.contains("tab-active")) return i
     }
     return -1
   },
