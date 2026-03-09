@@ -32,6 +32,9 @@ export class InputSystem {
     // Per-context focus memory: remembers the last focused index in each
     // context so returning to it restores position instead of jumping to first.
     this._contextMemory = {}
+    // Which context the user was in before entering the sidebar,
+    // so exiting restores to zone tabs / toolbar / grid as appropriate.
+    this._preSidebarContext = null
     // Grid uses entity ID for memory (indices shift on stream updates).
     this._lastGridEntityId = null
     // When true, a text input has been activated for typing.
@@ -52,6 +55,12 @@ export class InputSystem {
 
     // Sync initial state
     this._syncState()
+
+    // Restore Library sidebar link to the last-used zone
+    const savedZone = sessionStorage.getItem("inputSystem:libraryZone")
+    if (savedZone) {
+      this.writer.updateLibrarySidebarLink(savedZone)
+    }
 
     // Resume sidebar context after navigation (sessionStorage bridge)
     if (sessionStorage.getItem("inputSystem:resumeSidebar") === "true") {
@@ -100,6 +109,9 @@ export class InputSystem {
       delete this._contextMemory[Context.GRID]
       delete this._contextMemory[Context.TOOLBAR]
       this._lastGridEntityId = null
+      // Persist zone so sidebar link remembers it across navigations
+      sessionStorage.setItem("inputSystem:libraryZone", zone)
+      this.writer.updateLibrarySidebarLink(zone)
     }
 
     // Always sync drawer open state, regardless of current context.
@@ -230,7 +242,17 @@ export class InputSystem {
     // Save focus position in current context before any transition
     this._saveContextMemory()
 
+    // Remember which context we're in before the state machine transitions,
+    // so exiting sidebar can restore to zone tabs / toolbar / grid.
+    const contextBefore = this.focusMachine.context
+
     const directive = this.focusMachine.transition(action)
+
+    // If we just entered the sidebar, record where we came from
+    if (directive.type === "enter_sidebar" && contextBefore !== Context.SIDEBAR) {
+      this._preSidebarContext = contextBefore
+    }
+
     this._executeDirective(directive)
   }
 
@@ -404,9 +426,16 @@ export class InputSystem {
     if (context === Context.MODAL) {
       if (nextIndex < 0) nextIndex = totalCount - 1
       else if (nextIndex >= totalCount) nextIndex = 0
-    } else {
-      // Clamp for other contexts
-      if (nextIndex < 0 || nextIndex >= totalCount) return
+    } else if (nextIndex < 0 || nextIndex >= totalCount) {
+      // Left wall on horizontal rows → enter sidebar
+      if (nextIndex < 0 && direction === "left" &&
+          (context === Context.ZONE_TABS || context === Context.TOOLBAR)) {
+        this._saveContextMemory()
+        this._preSidebarContext = context
+        this.focusMachine._context = Context.SIDEBAR
+        this._executeEnterSidebar()
+      }
+      return
     }
 
     this.writer.focusByIndex(context, nextIndex)
@@ -510,15 +539,25 @@ export class InputSystem {
   }
 
   _executeExitSidebar() {
+    const target = this._preSidebarContext || Context.GRID
+    this._preSidebarContext = null
+
+    // Check if the target context has items; fall back to GRID
+    const targetCount = this.reader.getItemCount(target)
     const gridCount = this.reader.getItemCount(Context.GRID)
-    if (gridCount === 0) {
-      // No grid content on this page — stay in sidebar
+
+    if (targetCount === 0 && gridCount === 0) {
+      // No content on this page — stay in sidebar
       this.focusMachine._context = Context.SIDEBAR
       return
     }
+
     const wasCollapsed = this.reader.getSidebarCollapsed()
     this.writer.setSidebarState(wasCollapsed)
-    this.writer.focusFirst(Context.GRID)
+
+    const restoreTo = targetCount > 0 ? target : Context.GRID
+    this.focusMachine._context = restoreTo
+    this._restoreContextFocus(restoreTo)
   }
 }
 
