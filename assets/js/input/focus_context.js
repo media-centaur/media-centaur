@@ -117,14 +117,14 @@ export class FocusContextMachine {
     }
   }
 
-  /** Drawer: split focus. Left → grid. Escape → dismiss. */
+  /** Drawer: split focus. Left → grid (rightmost col, same row). Escape → dismiss. */
   _drawerTransition(action) {
     switch (action) {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
       case Action.NAVIGATE_LEFT:
         this._context = Context.GRID
-        return focusContext(Context.GRID)
+        return { type: "grid_row_edge", side: "right" }
       case Action.NAVIGATE_RIGHT: return NONE
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return DISMISS
@@ -135,18 +135,13 @@ export class FocusContextMachine {
     }
   }
 
-  /** Grid: arrows navigate. Right with drawer → drawer. Left at edge → sidebar. Up at top → toolbar/zone tabs. */
+  /** Grid: arrows navigate spatially. Wall transitions handled by gridWall(). */
   _gridTransition(action) {
     switch (action) {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
       case Action.NAVIGATE_LEFT:  return navigate("left")
-      case Action.NAVIGATE_RIGHT:
-        if (this._drawerOpen) {
-          this._context = Context.DRAWER
-          return focusContext(Context.DRAWER)
-        }
-        return navigate("right")
+      case Action.NAVIGATE_RIGHT: return navigate("right")
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return NONE
       case Action.PLAY:           return { type: "play" }
@@ -228,6 +223,13 @@ export class FocusContextMachine {
       case "left":
         this._context = Context.SIDEBAR
         return { type: "enter_sidebar" }
+
+      case "right":
+        if (this._drawerOpen) {
+          this._context = Context.DRAWER
+          return focusContext(Context.DRAWER)
+        }
+        return NONE
 
       default:
         return NONE

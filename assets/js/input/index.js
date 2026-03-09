@@ -194,6 +194,10 @@ export class InputSystem {
         this._executeZoneCycle(directive.direction)
         break
 
+      case "grid_row_edge":
+        this._executeGridRowEdge(directive.side)
+        break
+
       case "enter_sidebar":
         this._executeEnterSidebar()
         break
@@ -296,6 +300,38 @@ export class InputSystem {
       this.writer.focusFirst(Context.GRID)
     } else {
       this.writer.focusFirst(target)
+    }
+  }
+
+  /**
+   * Focus the edge item (leftmost or rightmost) in the same grid row
+   * as the last focused grid item. Used when crossing from drawer to grid.
+   */
+  _executeGridRowEdge(side) {
+    const columnCount = this.reader.getGridColumnCount(Context.GRID)
+    const totalCount = this.reader.getItemCount(Context.GRID)
+
+    // Find the row of the last focused grid item
+    let anchorIndex = -1
+    if (this._lastGridEntityId) {
+      anchorIndex = this.reader.getEntityIndex(Context.GRID, this._lastGridEntityId)
+    }
+
+    if (anchorIndex < 0) {
+      this.writer.focusFirst(Context.GRID)
+      return
+    }
+
+    const row = Math.floor(anchorIndex / columnCount)
+
+    if (side === "right") {
+      // Rightmost item in this row: min of (row end, last item)
+      const rowEnd = (row + 1) * columnCount - 1
+      const targetIndex = Math.min(rowEnd, totalCount - 1)
+      this.writer.focusByIndex(Context.GRID, targetIndex)
+    } else {
+      // Leftmost item in this row
+      this.writer.focusByIndex(Context.GRID, row * columnCount)
     }
   }
 

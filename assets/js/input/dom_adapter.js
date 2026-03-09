@@ -99,6 +99,22 @@ export const DomReader = {
   },
 
   /**
+   * Get the index of a nav item by its entity ID within a context.
+   */
+  getEntityIndex(context, entityId) {
+    if (!entityId) return -1
+
+    const selector = CONTEXT_SELECTORS[context]
+    if (!selector) return -1
+
+    const items = document.querySelectorAll(selector)
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].dataset.entityId === entityId) return i
+    }
+    return -1
+  },
+
+  /**
    * Find the active zone tab index (by tab-active class).
    */
   getActiveZoneTabIndex() {
