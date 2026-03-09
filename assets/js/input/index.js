@@ -90,6 +90,28 @@ export class InputSystem {
         this.writer.focusFirst(Context.SIDEBAR)
       }
     }
+
+    // If the initial context (GRID) is empty, fall back to a non-empty context
+    this._ensureViableContext()
+  }
+
+  /**
+   * If the current context has no focusable items, fall through to the
+   * first non-empty context. Prevents a dead cursor on pages where the
+   * default context (GRID) is empty (e.g., no search results).
+   */
+  _ensureViableContext() {
+    const context = this.focusMachine.context
+    if (this.reader.getItemCount(context) > 0) return
+
+    const fallbacks = [Context.GRID, Context.TOOLBAR, Context.ZONE_TABS, Context.SIDEBAR]
+    for (const candidate of fallbacks) {
+      if (this.reader.getItemCount(candidate) > 0) {
+        this.focusMachine.forceContext(candidate)
+        this._restoreContextFocus(candidate)
+        return
+      }
+    }
   }
 
   /**
@@ -112,6 +134,7 @@ export class InputSystem {
    */
   onViewChanged() {
     this._syncState()
+    this._ensureViableContext()
   }
 
   // --- Internal ---
@@ -595,11 +618,17 @@ export class InputSystem {
     const target = this._preSidebarContext || Context.GRID
     this._preSidebarContext = null
 
-    // Check if the target context has items; fall back to GRID
+    // Check if the target context has items; fall back to GRID, then TOOLBAR
     const targetCount = this.reader.getItemCount(target)
     const gridCount = this.reader.getItemCount(Context.GRID)
+    const toolbarCount = this.reader.getItemCount(Context.TOOLBAR)
 
-    if (targetCount === 0 && gridCount === 0) {
+    const restoreTo =
+      targetCount > 0 ? target :
+      gridCount > 0 ? Context.GRID :
+      toolbarCount > 0 ? Context.TOOLBAR : null
+
+    if (!restoreTo) {
       // No content on this page — stay in sidebar
       this.focusMachine.forceContext(Context.SIDEBAR)
       return
@@ -608,7 +637,6 @@ export class InputSystem {
     const wasCollapsed = this.reader.getSidebarCollapsed()
     this.writer.setSidebarState(wasCollapsed)
 
-    const restoreTo = targetCount > 0 ? target : Context.GRID
     this.focusMachine.forceContext(restoreTo)
     this._restoreContextFocus(restoreTo)
   }

@@ -824,8 +824,8 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     params = %{}
     params = if zone == :library, do: Map.put(params, :zone, :library), else: params
-    params = if tab != :all, do: Map.put(params, :tab, tab), else: params
-    params = if sort != :recent, do: Map.put(params, :sort, sort), else: params
+    params = if zone == :library, do: Map.put(params, :tab, tab), else: params
+    params = if zone == :library, do: Map.put(params, :sort, sort), else: params
     params = if filter != "", do: Map.put(params, :filter, filter), else: params
     params = if selected, do: Map.put(params, :selected, selected), else: params
 

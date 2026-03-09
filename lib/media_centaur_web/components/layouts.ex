@@ -61,6 +61,7 @@ defmodule MediaCentaurWeb.Layouts do
             class={sidebar_link_class(@current_path, "/library")}
             data-tip="Library"
             data-nav-item
+            data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
