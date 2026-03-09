@@ -262,102 +262,112 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     ~H"""
     <Layouts.app flash={@flash} current_path="/library" full_width>
-      <%!-- Zone tabs --%>
-      <div role="tablist" class="tabs tabs-boxed w-fit mb-6">
-        <.link
-          patch={@watching_path}
-          role="tab"
-          class={["tab", @zone == :watching && "tab-active"]}
-        >
-          Continue Watching
-        </.link>
-        <.link
-          patch={@library_path}
-          role="tab"
-          class={["tab", @zone == :library && "tab-active"]}
-        >
-          Library
-        </.link>
-      </div>
+      <div id="library-input" phx-hook="InputSystem">
+        <%!-- Zone tabs --%>
+        <div role="tablist" class="tabs tabs-boxed w-fit mb-6" data-nav-zone="zone-tabs">
+          <.link
+            patch={@watching_path}
+            role="tab"
+            class={["tab", @zone == :watching && "tab-active"]}
+            data-nav-item
+            data-nav-zone-value="watching"
+            tabindex="0"
+          >
+            Continue Watching
+          </.link>
+          <.link
+            patch={@library_path}
+            role="tab"
+            class={["tab", @zone == :library && "tab-active"]}
+            data-nav-item
+            data-nav-zone-value="library"
+            tabindex="0"
+          >
+            Library
+          </.link>
+        </div>
 
-      <%!-- Continue Watching zone --%>
-      <section :if={@zone == :watching} id="continue-watching">
-        <.cw_empty :if={@continue_watching == []} />
-        <div
-          :if={@continue_watching != []}
-          class="grid grid-cols-[repeat(auto-fill,minmax(480px,1fr))] gap-4"
-        >
-          <.cw_card
-            :for={entry <- @continue_watching}
-            entry={entry}
-            resume={Map.get(@resume_targets, entry.entity.id)}
-            playing={playing_entity_id(@playback) == entry.entity.id}
+        <%!-- Continue Watching zone --%>
+        <section :if={@zone == :watching} id="continue-watching" data-nav-zone="grid">
+          <.cw_empty :if={@continue_watching == []} />
+          <div
+            :if={@continue_watching != []}
+            class="grid grid-cols-[repeat(auto-fill,minmax(480px,1fr))] gap-4"
+            data-nav-grid
+          >
+            <.cw_card
+              :for={entry <- @continue_watching}
+              entry={entry}
+              resume={Map.get(@resume_targets, entry.entity.id)}
+              playing={playing_entity_id(@playback) == entry.entity.id}
+            />
+          </div>
+        </section>
+
+        <%!-- Library Browse zone --%>
+        <section :if={@zone == :library} id="browse">
+          <.toolbar
+            active_tab={@active_tab}
+            counts={@counts}
+            sort_order={@sort_order}
+            filter_text={@filter_text}
           />
-        </div>
-      </section>
 
-      <%!-- Library Browse zone --%>
-      <section :if={@zone == :library} id="browse">
-        <.toolbar
-          active_tab={@active_tab}
-          counts={@counts}
-          sort_order={@sort_order}
-          filter_text={@filter_text}
-        />
+          <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center">
+            No entities found.
+          </div>
 
-        <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center">
-          No entities found.
-        </div>
+          <div :if={@grid_count > 0} class="flex gap-4 mt-4">
+            <%!-- Poster grid --%>
+            <div class="flex-1 min-w-0" data-nav-zone="grid">
+              <div
+                id="library-grid"
+                phx-update="stream"
+                class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
+                data-nav-grid
+              >
+                <.poster_card
+                  :for={{dom_id, entry} <- @streams.grid}
+                  id={dom_id}
+                  entry={entry}
+                  selected={@selected_entity_id == entry.entity.id}
+                  playing={playing_entity_id(@playback) == entry.entity.id}
+                />
+              </div>
+            </div>
 
-        <div :if={@grid_count > 0} class="flex gap-4 mt-4">
-          <%!-- Poster grid --%>
-          <div class="flex-1 min-w-0">
-            <div
-              id="library-grid"
-              phx-update="stream"
-              class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
-            >
-              <.poster_card
-                :for={{dom_id, entry} <- @streams.grid}
-                id={dom_id}
-                entry={entry}
-                selected={@selected_entity_id == entry.entity.id}
-                playing={playing_entity_id(@playback) == entry.entity.id}
+            <%!-- Drawer column — always reserved to prevent grid reflow --%>
+            <div class="w-[480px] flex-shrink-0 hidden lg:block">
+              <DrawerShell.drawer_shell
+                :if={@selected_entry && @detail_presentation == :drawer}
+                entity={@selected_entry.entity}
+                progress={@selected_entry.progress}
+                resume={Map.get(@resume_targets, @selected_entry.entity.id)}
+                progress_records={@selected_entry.progress_records}
+                watch_dirs={@watch_dirs}
+                expanded_seasons={assigns[:expanded_seasons]}
+                expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
+                on_play="play"
+                on_close="close_detail"
               />
             </div>
           </div>
+        </section>
 
-          <%!-- Drawer column — always reserved to prevent grid reflow --%>
-          <div class="w-[480px] flex-shrink-0 hidden lg:block">
-            <DrawerShell.drawer_shell
-              :if={@selected_entry && @detail_presentation == :drawer}
-              entity={@selected_entry.entity}
-              progress={@selected_entry.progress}
-              resume={Map.get(@resume_targets, @selected_entry.entity.id)}
-              progress_records={@selected_entry.progress_records}
-              watch_dirs={@watch_dirs}
-              expanded_seasons={assigns[:expanded_seasons]}
-              expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
-              on_play="play"
-              on_close="close_detail"
-            />
-          </div>
-        </div>
-      </section>
-
-      <%!-- Detail modal (CW uses modal presentation) --%>
-      <ModalShell.modal_shell
-        :if={@selected_entry && @detail_presentation == :modal}
-        entity={@selected_entry.entity}
-        progress={@selected_entry.progress}
-        resume={Map.get(@resume_targets, @selected_entry.entity.id)}
-        progress_records={@selected_entry.progress_records}
-        watch_dirs={@watch_dirs}
-        expanded_seasons={assigns[:expanded_seasons]}
-        expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
-        on_play="play"
-        on_close="close_detail"
-      />
+        <%!-- Detail modal (CW uses modal presentation) --%>
+        <ModalShell.modal_shell
+          :if={@selected_entry && @detail_presentation == :modal}
+          entity={@selected_entry.entity}
+          progress={@selected_entry.progress}
+          resume={Map.get(@resume_targets, @selected_entry.entity.id)}
+          progress_records={@selected_entry.progress_records}
+          watch_dirs={@watch_dirs}
+          expanded_seasons={assigns[:expanded_seasons]}
+          expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
+          on_play="play"
+          on_close="close_detail"
+        />
+      </div>
     </Layouts.app>
     """
   end
@@ -366,7 +376,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp toolbar(assigns) do
     ~H"""
-    <div class="flex items-center gap-4 flex-wrap">
+    <div class="flex items-center gap-4 flex-wrap" data-nav-zone="toolbar">
       <div role="tablist" class="tabs tabs-boxed w-fit">
         <button
           :for={{tab, label} <- [{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
@@ -374,6 +384,8 @@ defmodule MediaCentaurWeb.LibraryLive do
           class={["tab", @active_tab == tab && "tab-active"]}
           phx-click="switch_tab"
           phx-value-tab={tab}
+          data-nav-item
+          tabindex="0"
         >
           {label}
           <span class="badge badge-sm ml-1">{@counts[tab] || 0}</span>
@@ -385,6 +397,8 @@ defmodule MediaCentaurWeb.LibraryLive do
         name="sort"
         value={to_string(@sort_order)}
         class="select select-sm select-bordered w-auto"
+        data-nav-item
+        tabindex="0"
       >
         <option value="recent">Recently Added</option>
         <option value="alpha">A–Z</option>
@@ -418,6 +432,9 @@ defmodule MediaCentaurWeb.LibraryLive do
       id={@id}
       phx-click="select_entity"
       phx-value-id={@entry.entity.id}
+      data-nav-item
+      data-entity-id={@entry.entity.id}
+      tabindex="0"
       class={[
         "card glass-surface cursor-pointer overflow-hidden transition-all",
         "hover:ring-1 hover:ring-base-content/20",
@@ -493,6 +510,9 @@ defmodule MediaCentaurWeb.LibraryLive do
     <div
       phx-click="select_cw_entity"
       phx-value-id={@entry.entity.id}
+      data-nav-item
+      data-entity-id={@entry.entity.id}
+      tabindex="0"
       class={[
         "relative rounded-lg overflow-hidden cursor-pointer group",
         "hover:scale-[1.02] hover:shadow-xl transition-transform",
