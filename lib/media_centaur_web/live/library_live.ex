@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.{DateUtil, LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
-  alias MediaCentaurWeb.Components.ModalShell
+  alias MediaCentaurWeb.Components.{DetailPanel, ModalShell}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -96,7 +96,17 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     socket =
       if new_id != socket.assigns.selected_entity_id do
-        assign(socket, expanded_seasons: nil, expanded_episodes: MapSet.new())
+        entry = socket.assigns.entries_by_id[new_id]
+
+        expanded_seasons =
+          if entry,
+            do: DetailPanel.auto_expand_season(entry.entity, entry.progress),
+            else: MapSet.new()
+
+        assign(socket,
+          expanded_seasons: expanded_seasons,
+          expanded_episodes: MapSet.new()
+        )
       else
         socket
       end
