@@ -35,10 +35,6 @@ defmodule MediaCentaurWeb.Layouts do
     ~H"""
     <div id="input-system" class="flex min-h-screen" phx-hook="InputSystem">
       <aside id="sidebar" class="sidebar glass-sidebar" data-nav-zone="sidebar">
-        <div class="sidebar-brand mb-4 px-0.5">
-          <span class="sidebar-brand-text text-sm font-semibold">Media Centaur</span>
-        </div>
-
         <nav class="flex flex-col gap-0.5">
           <.link
             navigate="/"
