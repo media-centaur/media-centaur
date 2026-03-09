@@ -12,7 +12,6 @@ import { InputMethodDetector } from "./input_method"
 import { DomReader, DomWriter } from "./dom_adapter"
 
 const TEXT_INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
-const SELECT_ELEMENT = "SELECT"
 
 // After keyboard input, ignore mousemove for this many ms.
 // Prevents scroll-triggered synthetic mouse events from stealing focus rings.
@@ -37,6 +36,8 @@ export class InputSystem {
     this._preSidebarContext = null
     // Grid uses entity ID for memory (indices shift on stream updates).
     this._lastGridEntityId = null
+    // Track sort order to reset grid memory when it changes.
+    this._lastSortOrder = null
     // When true, a text input has been activated for typing.
     // Arrow keys pass through; only Escape exits back to nav.
     this._inputEditing = false
@@ -103,6 +104,13 @@ export class InputSystem {
     const presentation = this.reader.getPresentation()
     const drawerOpen = this.reader.isDrawerOpen()
 
+    const sortOrder = this.reader.getSortOrder()
+    if (sortOrder && sortOrder !== this._lastSortOrder) {
+      this._lastSortOrder = sortOrder
+      delete this._contextMemory[Context.GRID]
+      this._lastGridEntityId = null
+    }
+
     if (zone !== this.focusMachine._zone) {
       this.focusMachine.zoneChanged(zone)
       // Zone content changes — clear grid and toolbar memory (stale items)
@@ -155,20 +163,14 @@ export class InputSystem {
     }
     this._lastKeyboardTime = Date.now()
 
-    const isTextInput = TEXT_INPUT_ELEMENTS.has(event.target?.tagName)
-
-    // SELECT elements: let browser handle up/down for option cycling,
-    // but intercept left/right/escape to exit back to toolbar navigation.
-    // We must keep focus on the element (not blur) so that linear nav can
-    // find its index and move to the correct neighbor.
-    if (event.target?.tagName === SELECT_ELEMENT) {
-      if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "Escape") {
-        event.preventDefault()
-        const action = keyToAction(event.key, { targetIsInput: false })
-        if (action) this._handleAction(action)
-      }
+    // Elements with data-captures-keys are handling their own keyboard interaction
+    // (e.g. an open dropdown menu). Let the event reach LiveView, skip input system nav.
+    if (event.target?.closest("[data-captures-keys]")) {
+      event.preventDefault()
       return
     }
+
+    const isTextInput = TEXT_INPUT_ELEMENTS.has(event.target?.tagName)
 
     // Text inputs have two modes:
     // 1. Focused (not editing): arrow keys navigate, Enter activates edit mode,
@@ -215,6 +217,17 @@ export class InputSystem {
       event.preventDefault()
       this._handleAction(action)
       return
+    }
+
+    // Escape clears the text filter from any context if it has content
+    if (event.key === "Escape") {
+      const filter = document.getElementById("library-filter")
+      if (filter && filter.value) {
+        filter.value = ""
+        filter.dispatchEvent(new Event("input", { bubbles: true }))
+        event.preventDefault()
+        return
+      }
     }
 
     const action = keyToAction(event.key, { targetIsInput: false })

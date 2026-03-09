@@ -89,6 +89,10 @@ export const DomReader = {
     return activeTab?.dataset?.navZoneValue || "watching"
   },
 
+  getSortOrder() {
+    return document.querySelector("[data-sort]")?.dataset?.sort || null
+  },
+
   /**
    * Get the current presentation mode.
    */
