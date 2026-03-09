@@ -130,16 +130,24 @@ defmodule MediaCentaur.Library.FileTracker do
   @impl true
   def handle_info({:files_removed, file_paths}, state) do
     Log.info(:library, "processing removal of #{length(file_paths)} files")
-    entity_ids = cleanup_removed_files(file_paths)
-    Helpers.broadcast_entities_changed(entity_ids)
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      entity_ids = cleanup_removed_files(file_paths)
+      Helpers.broadcast_entities_changed(entity_ids)
+    end)
+
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:watcher_state_changed, dir, :unavailable}, state) do
     Log.info(:library, "drive unavailable, marking files absent for #{dir}")
-    entity_ids = mark_absent_for_watch_dir(dir)
-    Helpers.broadcast_entities_changed(entity_ids)
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      entity_ids = mark_absent_for_watch_dir(dir)
+      Helpers.broadcast_entities_changed(entity_ids)
+    end)
+
     {:noreply, state}
   end
 
@@ -221,11 +229,11 @@ defmodule MediaCentaur.Library.FileTracker do
     Library.list_seasons_for_entity!(entity_id)
     |> Enum.each(fn season ->
       matched_episodes =
-        Library.list_episodes_for_season!(season.id)
+        Library.list_episodes_for_season!(season.id, load: [:images])
         |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
 
       Enum.each(matched_episodes, fn episode ->
-        delete_images(Library.list_images_for_episode!(episode.id))
+        delete_images(episode.images || [])
       end)
 
       bulk_destroy(matched_episodes, Library.Episode)
@@ -233,11 +241,11 @@ defmodule MediaCentaur.Library.FileTracker do
 
     # Delete child movies whose content_url matches
     matched_movies =
-      Library.list_movies_for_entity!(entity_id)
+      Library.list_movies_for_entity!(entity_id, load: [:images])
       |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
 
     Enum.each(matched_movies, fn movie ->
-      delete_images(Library.list_images_for_movie!(movie.id))
+      delete_images(movie.images || [])
     end)
 
     bulk_destroy(matched_movies, Library.Movie)
@@ -271,7 +279,7 @@ defmodule MediaCentaur.Library.FileTracker do
       episodes = season.episodes || []
 
       Enum.each(episodes, fn episode ->
-        delete_images(Library.list_images_for_episode!(episode.id))
+        delete_images(episode.images || [])
       end)
 
       bulk_destroy(episodes, Library.Episode)
@@ -282,12 +290,12 @@ defmodule MediaCentaur.Library.FileTracker do
     movies = entity.movies || []
 
     Enum.each(movies, fn movie ->
-      delete_images(Library.list_images_for_movie!(movie.id))
+      delete_images(movie.images || [])
     end)
 
     bulk_destroy(movies, Library.Movie)
 
-    delete_images(Library.list_images_for_entity!(entity_id))
+    delete_images(entity.images || [])
     delete_image_dirs(entity)
 
     bulk_destroy(entity.identifiers || [], Library.Identifier)
