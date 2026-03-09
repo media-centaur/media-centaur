@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
           <.icon name="hero-x-mark-mini" class="size-5" />
         </button>
 
-        <div class="overflow-y-auto max-h-[90vh]">
+        <div class="overflow-y-auto max-h-[90vh] overscroll-contain">
           <DetailPanel.detail_panel
             entity={@entity}
             progress={@progress}
