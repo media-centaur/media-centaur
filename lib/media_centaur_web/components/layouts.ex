@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Layouts do
   def app(assigns) do
     ~H"""
     <div class="flex min-h-screen">
-      <aside id="sidebar" class="sidebar glass-sidebar">
+      <aside id="sidebar" class="sidebar glass-sidebar" data-nav-zone="sidebar">
         <div class="sidebar-brand mb-4 px-0.5">
           <span class="sidebar-brand-text text-sm font-semibold">Media Centaur</span>
         </div>
@@ -44,6 +44,8 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/"
             class={sidebar_link_class(@current_path, "/")}
             data-tip="Dashboard"
+            data-nav-item
+            tabindex="0"
           >
             <.icon name="hero-squares-2x2" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Dashboard</span>
@@ -52,6 +54,8 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/review"
             class={sidebar_link_class(@current_path, "/review")}
             data-tip="Review"
+            data-nav-item
+            tabindex="0"
           >
             <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Review</span>
@@ -60,6 +64,8 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/library"
             class={sidebar_link_class(@current_path, "/library")}
             data-tip="Library"
+            data-nav-item
+            tabindex="0"
           >
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
@@ -68,6 +74,8 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/old-library"
             class={sidebar_link_class(@current_path, "/old-library")}
             data-tip="Old Library"
+            data-nav-item
+            tabindex="0"
           >
             <.icon name="hero-book-open" class="size-5 flex-shrink-0 opacity-50" />
             <span class="sidebar-label">Old Library</span>
@@ -76,6 +84,8 @@ defmodule MediaCentaurWeb.Layouts do
             navigate="/settings"
             class={sidebar_link_class(@current_path, "/settings")}
             data-tip="Settings"
+            data-nav-item
+            tabindex="0"
           >
             <.icon name="hero-cog-6-tooth" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Settings</span>

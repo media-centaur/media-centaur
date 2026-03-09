@@ -409,3 +409,35 @@ body {
 
 [data-theme=dark] .theme-icon-system { display: none; }
 [data-theme=dark] .theme-icon-dark { display: block; }
+
+/* ── Input System: Focus Rings ──
+   Focus rings only visible in keyboard/gamepad mode. Hidden for mouse. */
+
+/* Hide browser default focus ring for nav items in mouse mode */
+[data-input=mouse] [data-nav-item]:focus {
+  outline: none;
+}
+
+/* Keyboard/gamepad focus ring — primary color glow */
+[data-input=keyboard] [data-nav-item]:focus,
+[data-input=gamepad] [data-nav-item]:focus {
+  outline: 2px solid oklch(62% 0.16 250);
+  outline-offset: 2px;
+  border-radius: var(--radius-box, 0.5rem);
+}
+
+/* Light theme focus ring — darker primary */
+[data-theme=light][data-input=keyboard] [data-nav-item]:focus,
+[data-theme=light][data-input=gamepad] [data-nav-item]:focus {
+  outline-color: oklch(50% 0.18 250);
+}
+
+/* Smart play flash — green pulse on the card */
+.nav-play-flash {
+  animation: play-flash 300ms ease-out;
+}
+
+@keyframes play-flash {
+  0% { box-shadow: 0 0 0 0 oklch(72% 0.13 158 / 0.6); }
+  100% { box-shadow: 0 0 0 8px oklch(72% 0.13 158 / 0); }
+}

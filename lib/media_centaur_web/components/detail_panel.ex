@@ -219,6 +219,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       phx-click={@on_play}
       phx-value-id={@resume["targetId"] || @entity.id}
       class="btn btn-soft btn-success btn-sm"
+      data-nav-item
+      data-entity-id={@resume["targetId"] || @entity.id}
+      tabindex="0"
     >
       <.icon name="hero-play-mini" class="size-4" /> {@label}
     </button>
@@ -233,6 +236,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       phx-click={@on_play}
       phx-value-id={@target_id}
       class="btn btn-soft btn-primary btn-sm"
+      data-nav-item
+      data-entity-id={@target_id}
+      tabindex="0"
     >
       <.icon name="hero-play-mini" class="size-4" /> Play
     </button>
@@ -249,6 +255,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       phx-click={@on_play}
       phx-value-id={@entity.id}
       class="btn btn-soft btn-primary btn-sm"
+      data-nav-item
+      data-entity-id={@entity.id}
+      tabindex="0"
       disabled={!@has_content}
     >
       <.icon name="hero-play-mini" class="size-4" /> Play
@@ -370,6 +379,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         phx-click="toggle_season"
         phx-value-season={@season.season_number}
         class="flex items-center gap-2 w-full text-sm font-medium text-base-content/70 hover:text-base-content"
+        data-nav-item
+        tabindex="0"
       >
         <.icon
           name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
