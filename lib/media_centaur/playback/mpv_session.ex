@@ -373,7 +373,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           MediaCentaur.PubSub,
           "playback:events",
           {:entity_progress_updated, entity_id, summary, resume_target, child_targets_delta,
-           DateTime.utc_now()}
+           progress_records, DateTime.utc_now()}
         )
 
       {:error, _} ->

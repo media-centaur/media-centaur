@@ -98,7 +98,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           progress_by_key={@progress_by_key}
           on_play={@on_play}
         />
-        <.more_details entity={@entity} watch_dirs={@watch_dirs} />
       </div>
     </div>
     """
@@ -366,12 +365,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     episodes = assigns.season.episodes || []
     watched_count = count_watched_episodes(assigns.season, assigns.progress_by_key)
     total_count = length(episodes)
+    season_status = season_status(assigns.season, assigns.progress_by_key)
 
     assigns =
       assigns
       |> assign(:episodes, episodes)
       |> assign(:watched_count, watched_count)
       |> assign(:total_count, total_count)
+      |> assign(:season_status, season_status)
 
     ~H"""
     <div>
@@ -387,7 +388,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           class="size-4"
         />
         <span>{@season.name || "Season #{@season.season_number}"}</span>
-        <span class="text-xs text-base-content/40 ml-auto">{@watched_count}/{@total_count}</span>
+        <span class="text-xs text-base-content/40">
+          {@watched_count}/{@total_count} watched{season_status_label(@season_status)}
+        </span>
       </button>
 
       <div :if={@expanded} class="mt-1 divide-y divide-base-300/30">
@@ -430,26 +433,27 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <span class="w-5 text-right text-base-content/50 flex-shrink-0 font-mono text-xs">
           {@episode.episode_number}
         </span>
-        <span class="truncate flex-1">{@episode.name || "—"}</span>
-        <.episode_status_badge state={@state} progress={@progress} />
-        <button
-          :if={@episode.content_url}
-          phx-click={@on_play}
-          phx-value-id={@episode.id}
-          class="btn btn-ghost btn-xs flex-shrink-0"
-        >
-          <.icon name="hero-play-mini" class="size-3" />
-        </button>
+        <span class="truncate flex-1 text-base-content/90">{@episode.name || "—"}</span>
+        <.episode_right_info
+          state={@state}
+          progress={@progress}
+          duration={@episode.duration}
+        />
+      </div>
+      <div
+        :if={@state == :current}
+        class="ml-7 mt-0.5 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
+      >
+        <div
+          class="h-full bg-info rounded-full"
+          style={"width: #{progress_percent(@progress)}%"}
+        />
       </div>
 
       <div :if={@expanded} class="ml-7 mt-1 space-y-1 text-xs text-base-content/50">
         <p :if={@episode.description} class="line-clamp-3 text-base-content/60">
           {@episode.description}
         </p>
-        <div :if={@episode.duration} class="flex items-center gap-1">
-          <.icon name="hero-clock-mini" class="size-3" />
-          {format_iso_duration(@episode.duration)}
-        </div>
         <div :if={@episode.content_url} title={strip_watch_dir(@episode.content_url, @watch_dirs)}>
           <span class="font-mono truncate-left inline-block max-w-full">
             {strip_watch_dir(@episode.content_url, @watch_dirs)}
@@ -475,29 +479,43 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp episode_row_class(:current), do: "bg-info/5 rounded"
   defp episode_row_class(:unwatched), do: ""
 
-  defp episode_status_badge(%{state: :watched} = assigns) do
+  defp episode_right_info(%{state: :watched} = assigns) do
     ~H"""
-    <span class="text-success text-xs">
+    <span class="text-success text-xs flex-shrink-0">
       <.icon name="hero-check-mini" class="size-3.5" />
     </span>
     """
   end
 
-  defp episode_status_badge(%{state: :current, progress: progress} = assigns) do
+  defp episode_right_info(%{state: :current, progress: progress} = assigns) do
     assigns = assign(assigns, :progress, progress)
 
     ~H"""
-    <span class="text-info text-xs font-mono">
-      {format_seconds(@progress.position_seconds)}
+    <span class="text-info text-xs font-mono flex-shrink-0">
+      {format_seconds(@progress.position_seconds)} / {format_seconds(@progress.duration_seconds)}
     </span>
     """
   end
 
-  defp episode_status_badge(assigns) do
+  defp episode_right_info(%{duration: duration} = assigns) when is_binary(duration) do
     ~H"""
-    <span class="text-base-content/40 text-xs">—</span>
+    <span class="text-base-content/40 text-xs flex-shrink-0">
+      {format_iso_duration(@duration)}
+    </span>
     """
   end
+
+  defp episode_right_info(assigns) do
+    ~H"""
+    """
+  end
+
+  defp progress_percent(%{position_seconds: pos, duration_seconds: dur})
+       when is_number(pos) and is_number(dur) and dur > 0 do
+    min(round(pos / dur * 100), 100)
+  end
+
+  defp progress_percent(_), do: 0
 
   # --- Movie Row ---
 
@@ -514,7 +532,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         phx-click="toggle_episode_detail"
         phx-value-id={@movie.id}
       >
-        <span class="truncate flex-1">
+        <span class="truncate flex-1 text-base-content/90">
           {@movie.name || "—"}
           <span :if={@movie.date_published} class="text-base-content/50 ml-1">
             ({extract_year(@movie.date_published)})
@@ -551,56 +569,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- More Details (collapsible) ---
 
-  defp more_details(assigns) do
-    tmdb_id = find_identifier(assigns.entity, "tmdb")
-    has_poster = image_url(assigns.entity, "poster") != nil
-
-    assigns =
-      assigns
-      |> assign(:tmdb_id, tmdb_id)
-      |> assign(:has_poster, has_poster)
-
-    ~H"""
-    <div class="border-t border-base-300/50 pt-3 space-y-2">
-      <div class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
-        More details
-      </div>
-
-      <div class="space-y-1 text-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-base-content/60">TMDB</span>
-          <span :if={@tmdb_id} class="text-success">Matched</span>
-          <span :if={!@tmdb_id} class="text-warning">Unmatched</span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="text-base-content/60">Poster</span>
-          <span :if={@has_poster} class="text-success">Available</span>
-          <span :if={!@has_poster} class="text-error">Missing</span>
-        </div>
-      </div>
-
-      <div :if={@entity.content_url} class="flex items-center justify-between gap-2">
-        <span class="text-base-content/60 flex-shrink-0 text-sm">File</span>
-        <span
-          title={strip_watch_dir(@entity.content_url, @watch_dirs)}
-          class="font-mono text-xs text-base-content/50 truncate-left"
-        >
-          {strip_watch_dir(@entity.content_url, @watch_dirs)}
-        </span>
-      </div>
-
-      <div class="pt-1">
-        <span class="font-mono text-xs text-base-content/30 select-all">{@entity.id}</span>
-      </div>
-    </div>
-    """
-  end
-
   # --- Helpers ---
-
-  defp find_identifier(entity, property_id) do
-    Enum.find(entity.identifiers || [], fn id -> id.property_id == property_id end)
-  end
 
   defp strip_watch_dir(nil, _watch_dirs), do: "—"
 
@@ -628,4 +597,36 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       end
     end)
   end
+
+  defp season_status(season, progress_by_key) do
+    episodes = season.episodes || []
+    total = length(episodes)
+
+    has_in_progress =
+      Enum.any?(episodes, fn episode ->
+        case Map.get(progress_by_key, {season.season_number, episode.episode_number}) do
+          %{completed: false, position_seconds: pos} when is_number(pos) and pos > 0 -> true
+          _ -> false
+        end
+      end)
+
+    watched =
+      Enum.count(episodes, fn episode ->
+        match?(
+          %{completed: true},
+          Map.get(progress_by_key, {season.season_number, episode.episode_number})
+        )
+      end)
+
+    cond do
+      watched == total and total > 0 -> :watched
+      has_in_progress -> :in_progress
+      watched > 0 -> :in_progress
+      true -> :unwatched
+    end
+  end
+
+  defp season_status_label(:in_progress), do: " · In progress"
+  defp season_status_label(:watched), do: " · Watched"
+  defp season_status_label(:unwatched), do: ""
 end
