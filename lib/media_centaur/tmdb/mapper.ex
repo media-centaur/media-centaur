@@ -195,10 +195,13 @@ defmodule MediaCentaur.TMDB.Mapper do
   def extract_us_rating(nil), do: nil
 
   def extract_us_rating(%{"results" => results}) do
-    us = Enum.find(results, &(&1["iso_3166_1"] == "US"))
+    release_dates =
+      case Enum.find(results, &(&1["iso_3166_1"] == "US")) do
+        %{"release_dates" => dates} -> dates
+        _ -> []
+      end
 
-    ((us && us["release_dates"]) || [])
-    |> Enum.find_value(fn release_date ->
+    Enum.find_value(release_dates, fn release_date ->
       release_date["certification"] != "" && release_date["certification"]
     end)
   end
