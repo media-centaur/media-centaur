@@ -101,27 +101,27 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
       # Group images by entity for broadcast
       entity_ids_to_broadcast = MapSet.new()
 
-      {retries, entity_ids_to_broadcast} =
-        Enum.reduce(pending_images, {retries, entity_ids_to_broadcast}, fn image,
-                                                                           {retries_acc,
-                                                                            entities_acc} ->
+      {retries, entity_ids_to_broadcast, exhausted_images} =
+        Enum.reduce(pending_images, {retries, entity_ids_to_broadcast, []}, fn image,
+                                                                               {retries_acc,
+                                                                                entities_acc,
+                                                                                exhausted_acc} ->
           case Map.get(retries_acc, image.id) do
             nil ->
               # First attempt — broadcast immediately
               entities_acc = maybe_add_entity(entities_acc, image)
-              {retries_acc, entities_acc}
+              {retries_acc, entities_acc, exhausted_acc}
 
             {count, _last} when count >= @max_retries ->
-              # Give up — destroy the image record
+              # Give up — collect for bulk destroy
               Log.info(
                 :pipeline,
                 "retry scheduler: giving up on image #{image.id} (#{image.role}) after #{count} attempts"
               )
 
-              Ash.destroy!(image)
               retries_acc = Map.delete(retries_acc, image.id)
               entities_acc = maybe_add_entity(entities_acc, image)
-              {retries_acc, entities_acc}
+              {retries_acc, entities_acc, [image | exhausted_acc]}
 
             {count, last_attempted} ->
               backoff = backoff_ms(count)
@@ -129,13 +129,30 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
               if now - last_attempted >= backoff do
                 # Backoff elapsed — retry
                 entities_acc = maybe_add_entity(entities_acc, image)
-                {retries_acc, entities_acc}
+                {retries_acc, entities_acc, exhausted_acc}
               else
                 # Still in backoff — skip
-                {retries_acc, entities_acc}
+                {retries_acc, entities_acc, exhausted_acc}
               end
           end
         end)
+
+      # Bulk destroy all exhausted images in a single query
+      if exhausted_images != [] do
+        result =
+          Ash.bulk_destroy(exhausted_images, :destroy, %{},
+            resource: Library.Image,
+            strategy: :stream,
+            return_errors?: true
+          )
+
+        if result.error_count > 0 do
+          Log.warning(
+            :pipeline,
+            "retry scheduler: bulk destroy errors: #{inspect(result.errors)}"
+          )
+        end
+      end
 
       # Resolve entity IDs to watch dirs and broadcast
       broadcast_retries(entity_ids_to_broadcast)
