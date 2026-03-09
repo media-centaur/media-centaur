@@ -254,6 +254,15 @@ export const DomWriter = {
   },
 
   /**
+   * Update the Library sidebar link's href to include the given zone param.
+   */
+  updateLibrarySidebarLink(zone) {
+    const link = document.querySelector("[data-nav-zone='sidebar'] [href='/library'], [data-nav-zone='sidebar'] [href^='/library?']")
+    if (!link) return
+    link.setAttribute("href", zone === "library" ? "/library?zone=library" : "/library")
+  },
+
+  /**
    * Set sidebar expanded/collapsed state on <html>.
    */
   setSidebarState(collapsed) {

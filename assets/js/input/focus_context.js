@@ -176,12 +176,11 @@ export class FocusContextMachine {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
       case Action.NAVIGATE_RIGHT:
-        this._context = Context.GRID
+        // Context is set by _executeExitSidebar (restores pre-sidebar context)
         return { type: "exit_sidebar" }
       case Action.NAVIGATE_LEFT:  return NONE
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:
-        this._context = Context.GRID
         return { type: "exit_sidebar" }
       default: return NONE
     }
