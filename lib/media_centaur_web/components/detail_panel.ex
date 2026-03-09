@@ -585,16 +585,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- Helpers ---
 
-  defp image_url(entity, role) do
-    image = Enum.find(entity.images || [], &(&1.role == role))
-
-    cond do
-      image && image.content_url -> "/media-images/#{image.content_url}"
-      image && image.url -> image.url
-      true -> nil
-    end
-  end
-
   defp find_identifier(entity, property_id) do
     Enum.find(entity.identifiers || [], fn id -> id.property_id == property_id end)
   end

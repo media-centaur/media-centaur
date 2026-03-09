@@ -920,21 +920,6 @@ defmodule MediaCentaurWeb.OldLibraryLive do
 
   defp poster_url(entity), do: image_url(entity, "poster")
 
-  defp image_url(entity, role) do
-    image = Enum.find(entity.images || [], &(&1.role == role))
-
-    cond do
-      image && image.content_url ->
-        "/media-images/#{image.content_url}"
-
-      image && image.url ->
-        image.url
-
-      true ->
-        nil
-    end
-  end
-
   defp filtered_entries(entries, :all), do: entries
 
   defp filtered_entries(entries, :movies) do

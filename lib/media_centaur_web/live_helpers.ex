@@ -62,4 +62,20 @@ defmodule MediaCentaurWeb.LiveHelpers do
     timer = Process.send_after(self(), :refresh_stats, 1_000)
     assign(socket, stats_timer: timer)
   end
+
+  @doc """
+  Resolves an entity image URL for a given role (e.g. "poster", "backdrop", "logo").
+
+  Returns a path like `/media-images/<content_url>` for local images, the remote
+  URL for external images, or `nil` if no image exists for that role.
+  """
+  def image_url(entity, role) do
+    image = Enum.find(entity.images || [], &(&1.role == role))
+
+    cond do
+      image && image.content_url -> "/media-images/#{image.content_url}"
+      image && image.url -> image.url
+      true -> nil
+    end
+  end
 end
