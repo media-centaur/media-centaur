@@ -1,150 +1,232 @@
 # Input System Architecture
 
-Unified keyboard, mouse, and gamepad navigation for the library page. Implemented in two phases: **5a** (keyboard + spatial nav — complete) and **5b** (gamepad — pending).
+Unified keyboard, mouse, and gamepad navigation for the media center UI. Implemented in two phases: **5a** (keyboard + spatial nav — complete) and **5b** (gamepad — pending).
 
-## Status
+## Layered Design
 
-**Phase 5a complete.** Keyboard spatial navigation works across all contexts: grid, toolbar, zone tabs, sidebar, modal, and drawer. Focus memory preserves position across context switches. Input method detection shows/hides focus rings appropriately.
+```
+  Key/Mouse Event
+       │
+  ┌────▼────┐    ┌───────────┐
+  │ actions  │───>│  focus     │──> FocusDirective
+  │ (mapping)│    │  context   │    (pure data)
+  └──────────┘    │  (machine) │
+                  └───────────┘
+                       │
+  ┌────────────────────▼──────────────────┐
+  │         orchestrator (index.js)        │
+  │  routes directives, manages memory,    │
+  │  delegates to page behaviors           │
+  ├──────────────┬────────────┬───────────┤
+  │  DomReader   │  DomWriter │  Globals  │
+  │  (reads DOM) │  (writes)  │  (inject) │
+  └──────────────┴────────────┴───────────┘
+       │                │
+  ┌────▼────┐     ┌─────▼─────┐
+  │  page   │     │   DOM     │
+  │ behavior│     │ mutations │
+  └─────────┘     └───────────┘
+```
 
-**Phase 5b pending.** Gamepad support: `gamepad.js` module (pure state interpretation), gamepad polling loop in DOM adapter, hint bar UI, controller-type icon detection.
+**Data flow:** keydown event → semantic action → state machine directive → orchestrator execution → DOM mutation.
 
-## Module Structure
+All external dependencies (document, sessionStorage, requestAnimationFrame) are injected via the constructor, making every layer testable with mocks.
 
-All input system code lives in `assets/js/input/`. Tests in `assets/js/input/__tests__/` run via `bun test` (config: `assets/bunfig.toml`).
+## Module Reference
 
-### Logic/DOM Segregation (Core Principle)
-
-Pure modules have **zero DOM dependency**. They operate on abstract data and return data. Only `dom_adapter.js` touches the DOM. The orchestrator (`index.js`) bridges them.
-
-Pure modules are unit-tested with synthetic data. DOM interactions are integration-tested manually in-browser.
-
-### Module Responsibilities
+All code lives in `assets/js/input/`. Tests in `assets/js/input/__tests__/` run via `bun test`.
 
 | Module | Pure? | Role |
 |--------|-------|------|
-| `actions.js` | Yes | Action enum, key/button → action mapping |
+| `actions.js` | Yes | Action vocabulary, key/button → action mapping |
 | `spatial.js` | Yes | Grid index arithmetic (fast path for uniform grids) |
 | `focus_context.js` | Yes | State machine: context × action → directive |
 | `input_method.js` | Yes | Tracks mouse/keyboard/gamepad transitions |
-| `dom_adapter.js` | No | Reads layout, writes focus, sets attributes |
+| `dom_adapter.js` | No | DomReader reads layout, DomWriter applies changes |
+| `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
+| `library_behavior.js` | Yes* | Library-specific concerns (filter, zone memory, sort) |
 | `index.js` | No | Orchestrator + LiveView hook factory |
 
-### DOM Adapter Discipline
+*Library behavior is pure when injected with mock DOM/storage.
 
-**All DOM access goes through `DomReader` and `DomWriter`.** The orchestrator must never call `document.*`, `localStorage`, or `classList` directly. This keeps the orchestrator testable with mock reader/writer and prevents DOM coupling from spreading.
+### actions.js
 
-## Focus Context Model
+Defines the `Action` enum and maps keyboard keys / gamepad buttons to semantic actions. Custom keymaps supported via `keyToAction(key, modifiers, keyMap)`.
 
-The state machine tracks which **navigation context** is active. Each context has its own rules for how actions translate to directives.
+### spatial.js
 
-### Contexts
+`gridNavigate(currentIndex, columnCount, totalCount, direction)` — returns the next index or `null` (wall). Pure arithmetic, no DOM access.
 
-`GRID` · `DRAWER` · `MODAL` · `TOOLBAR` · `SIDEBAR` · `ZONE_TABS`
+### focus_context.js — State Machine
 
-### Directives
+The `FocusContextMachine` tracks which navigation context is active and returns `FocusDirective` data objects. Never touches DOM.
 
-The state machine returns plain data objects (directives), never performs side effects:
-- `navigate` — spatial/linear nav within current context
-- `focus_context` — switch active context, restore remembered position
-- `focus_first` — restore remembered position in a context (or first item if no memory)
-- `grid_row_edge` — focus the edge item in the same grid row as the last focused item
-- `activate` — click the focused element
-- `dismiss` — close modal/drawer, restore focus to originating card
-- `play` — trigger playback on focused entity
-- `zone_cycle` — cycle zone tabs via bracket keys or bumpers
-- `enter_sidebar` / `exit_sidebar` — sidebar expand/collapse transitions
-- `none` — wall / no-op
+**Contexts:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `SIDEBAR` · `MODAL` · `DRAWER`
 
-### Context Transition Rules
+**Public API:**
 
-All cross-context transitions happen at **walls** — when spatial/linear navigation reaches the edge of the current context. The state machine never short-circuits navigation within a context.
+| Method | Purpose |
+|--------|---------|
+| `transition(action)` | Process action in current context → directive |
+| `gridWall(direction)` | Called when grid nav hits edge → cross-context directive |
+| `zoneChanged(zone)` | Zone tab switched — resets context, clears drawer |
+| `presentationChanged(p)` | Modal/drawer opened/closed |
+| `forceContext(context)` | Set context directly (sidebar resume, exit restore) |
+| `syncDrawerState(isOpen)` | Sync drawer flag from DOM |
+| `enterSidebarFromWall()` | Left-wall transition from zone tabs/toolbar |
 
-- **Zone tabs → down**: TOOLBAR (if zone has one) or GRID (if no toolbar)
-- **Grid → up wall**: TOOLBAR (library zone) or ZONE_TABS (watching zone)
-- **Grid → left wall**: SIDEBAR
-- **Grid → right wall**: DRAWER (if open), otherwise wall
-- **Drawer → left**: GRID (rightmost column, same row as last focused card)
-- **Toolbar → down**: GRID
-- **Toolbar → up**: ZONE_TABS
-- **Modal**: focus trapped, vertical nav wraps, escape dismisses
+### dom_adapter.js
 
-## Focus Memory
+**DomReader** — reads layout state (zone, presentation, focused item, counts, sort order, page behavior). **DomWriter** — applies mutations (focus, sidebar state, input method, flash animation).
 
-The orchestrator maintains **per-context focus memory** so returning to a context restores the last position instead of jumping to the first item.
+All DOM access is confined here. The orchestrator and behaviors never call `document.*` directly.
 
-- **Grid**: remembers by entity ID (stable across stream DOM updates that reorder/replace elements)
-- **All other contexts**: remembers by index
-- **Zone changes**: clear grid and toolbar memory (content changes between zones)
-- **Modal/drawer dismiss**: restores focus to the originating card (tracked by entity ID)
+### index.js — Orchestrator
 
-## Key Patterns
+Bridges all modules. Receives `reader`, `writer`, and `globals` via constructor (dependency injection for testability).
 
-### Wall-Based Cross-Context Navigation
+**Responsibilities:**
+- Lifecycle: `start(hookEl)`, `destroy()`, `onViewChanged()`
+- Event routing: keydown → action → state machine → directive → execution
+- Text input mode (focused vs editing)
+- `data-captures-keys` bypass
+- Context memory (grid entity ID, per-context index)
+- Modal/drawer focus restoration (origin entity tracking)
+- Sidebar persistence (sessionStorage bridge)
+- Page behavior lifecycle (detect, create, delegate, destroy)
 
-Navigation within a context is always spatial/linear. Cross-context transitions only happen when navigation hits a wall (returns null). The orchestrator calls `gridWall(direction)` on the state machine, which decides the target context. This two-step approach keeps spatial logic and context logic separate.
+### page_behavior.js — Behavior Registry
 
-**Anti-pattern:** Checking drawer/sidebar state inside the grid transition and short-circuiting navigation.
-**Pattern:** Let grid navigation run. Only on wall (null result), ask the state machine where to go.
+Maps `data-page-behavior` attribute values to behavior factories. Each factory receives the orchestrator's `globals` for dependency injection.
 
-### Zone Changes Preserve Tab Context
+### library_behavior.js — Library Page Behavior
 
-When a zone tab is activated, the view re-renders with new content. The `zoneChanged()` method must **not** reset context to GRID if the user is currently in ZONE_TABS — they may want to continue navigating between tabs.
+Extracts library-specific concerns from the orchestrator. Receives a `dom` interface (injected, never global). Zone, filter, and sort state live in the URL (managed by LiveView `handle_params`) — the input system doesn't persist these.
 
-**Anti-pattern:** Unconditionally resetting context on zone change.
-**Pattern:** Check if current context is ZONE_TABS and preserve it.
+| Hook | Purpose |
+|------|---------|
+| `onEscape()` | Clear filter input if non-empty, return true to consume |
+| `onSyncState(reader)` | Detect sort order change → signal grid memory clear |
 
-### Native Form Controls Need Special Handling
+## Context Navigation Rules
 
-`<select>`, `<input>`, `<textarea>` capture keyboard events natively. The input system must not intercept keys that the browser needs for these elements.
+Actions in each context:
 
-**Pattern for `<select>`:** Let the browser handle up/down (option cycling). Intercept left/right/escape to return control to the nav system. Do **not** blur the select before dispatching the action — the element must retain focus so the linear navigator can find its index and move to the correct neighbor.
+| Action | GRID | TOOLBAR | ZONE_TABS | SIDEBAR | MODAL | DRAWER |
+|--------|------|---------|-----------|---------|-------|--------|
+| Up | navigate | → ZONE_TABS | wall | navigate | navigate (wrap) | navigate |
+| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate (wrap) | navigate |
+| Left | navigate | navigate | navigate | wall | wall | → GRID (row edge) |
+| Right | navigate | navigate | navigate | exit sidebar | wall | wall |
+| Select | activate | activate | activate | activate | activate | activate |
+| Back | — | — | — | exit sidebar | dismiss | dismiss |
+| Play | play | — | — | — | play | play |
+| Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | zone_cycle |
 
-**Pattern for `<input>`/`<textarea>`:** Ignore all mapped keys (`targetIsInput` flag). The user is typing.
+**Wall transitions** (when navigation reaches the edge):
+- Grid up → TOOLBAR (library zone) or ZONE_TABS (watching zone)
+- Grid left → SIDEBAR
+- Grid right → DRAWER (if open)
+- Zone tabs/toolbar left at index 0 → SIDEBAR
+- Drawer left → GRID (rightmost column, same row)
 
-### Keyboard-to-Mouse Cooldown
+## Directive Reference
 
-When keyboard navigation triggers focus changes, the browser may scroll the newly focused element into view. Some browsers fire synthetic `mousemove` events during scroll. Without protection, these flip the input method back to MOUSE, hiding the keyboard focus ring immediately after it appears.
+| Directive | Data | Executor action |
+|-----------|------|-----------------|
+| `navigate` | `direction` | Spatial (grid) or linear (other) nav within context |
+| `focus_context` | `target` | Restore focus memory in target context |
+| `focus_first` | `context` | Restore focus memory (or first item) in context |
+| `grid_row_edge` | `side` | Focus leftmost/rightmost item in same grid row |
+| `activate` | — | Click the focused element |
+| `dismiss` | — | Push `close_detail` event to LiveView |
+| `play` | — | Push `play` event with entity ID, flash animation |
+| `zone_cycle` | `direction` | Click next/prev zone tab |
+| `enter_sidebar` | — | Expand sidebar, focus active item |
+| `exit_sidebar` | — | Restore pre-sidebar context and sidebar state |
+| `none` | — | No-op (wall) |
 
-**Pattern:** After any keyboard event, suppress `mousemove` input method transitions for a brief cooldown (~400ms). Only intentional mouse movement after the cooldown triggers the switch.
+## DOM Contract
 
-### Drawer State Sync
+| Attribute | Purpose | Values |
+|-----------|---------|--------|
+| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `zone-tabs` |
+| `data-nav-item` | Focusable element (needs `tabindex="0"`) | — |
+| `data-nav-grid` | CSS grid container (column count detection) | — |
+| `data-entity-id` | Stable entity identifier on cards | UUID |
+| `data-detail-mode` | Presentation shell type | `modal`, `drawer` |
+| `data-captures-keys` | Element handles own keyboard events | — |
+| `data-sort` | Current sort order value | string |
+| `data-page-behavior` | Page behavior to activate | `library` |
+| `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
+| `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
+| `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library` |
 
-The orchestrator always syncs `_drawerOpen` from the DOM on every view update, regardless of current focus context. Without this, navigating from drawer to grid (leaving context as GRID) and then the drawer closing via LiveView would leave stale state.
+**Nav zone containers must not nest.** Descendant selectors cross-contaminate.
 
-### Presentation State Sync
+## Page Behavior System
 
-The orchestrator syncs focus context with DOM state on every view update callback. When a modal/drawer appears or disappears in the DOM, the focus context must match. On modal open, focus moves to the first nav item inside it. On close, focus restores to the originating card.
+Page behaviors extract page-specific concerns from the global orchestrator. The orchestrator detects `data-page-behavior` on the page and delegates to the matching behavior at the right lifecycle points.
 
-## Data Attributes (DOM Contract)
+**Interface** (duck-typed, all methods optional):
 
-| Attribute | Purpose | Where |
-|-----------|---------|-------|
-| `data-nav-zone="..."` | Identifies navigation zone (grid, toolbar, sidebar, zone-tabs) | Container elements |
-| `data-nav-item` | Marks an element as focusable by the nav system | Cards, buttons, links, selects |
-| `data-nav-grid` | Marks the CSS grid container (for column count detection) | Grid wrapper div |
-| `data-entity-id="..."` | Entity ID for play/focus-restore actions | Cards, play buttons |
-| `data-detail-mode="modal\|drawer"` | Identifies presentation shell | Modal/drawer root elements |
-| `data-input="mouse\|keyboard\|gamepad"` | Current input method (set on `<html>`) | Root element |
+```javascript
+/** @typedef {Object} PageBehavior
+ *  @property {function(): void} [onAttach]
+ *  @property {function(): void} [onDetach]
+ *  @property {function(): boolean} [onEscape]
+ *  @property {function(string): void} [onZoneChanged]
+ *  @property {function(Object): {clearGridMemory: boolean}} [onSyncState]
+ */
+```
 
-All `data-nav-item` elements should have `tabindex="0"` for browser focusability.
+**Lifecycle:**
+1. `_syncState()` calls `_detectBehavior()` — reads `data-page-behavior` from DOM
+2. If behavior name changed, detach old behavior, create new one via registry
+3. `onAttach()` called on creation
+4. `onSyncState(reader)` called every sync cycle
+5. `onZoneChanged(zone)` called when zone changes
+6. `onEscape()` called before normal Escape handling — return `true` to consume
+7. `onDetach()` called on `destroy()` or behavior change
 
-### Nav Zone Selectors Must Not Nest
+**Dependency injection:** Behavior factories receive their DOM interface at creation time. No global scope access — keeps behaviors testable with mocks.
 
-`data-nav-zone` containers must **never** be ancestors of other `data-nav-zone` containers. The descendant selectors (`[data-nav-zone='X'] [data-nav-item]`) will match items in nested zones, causing cross-context contamination.
+## Focus Memory Model
 
-**Anti-pattern:** Putting `data-nav-zone` on a wrapper that contains another `data-nav-zone` child.
-**Pattern:** Place `data-nav-zone` on the narrowest container that holds only that context's items.
+- **Grid:** Remembers by entity ID (stable across stream DOM reorders)
+- **Zone tabs / toolbar:** Restores to the active tab (DOM state, not memory)
+- **Other contexts:** Remembers by index
+- **Zone change:** Clears grid + toolbar memory (content is new)
+- **Sort change:** Clears grid memory (order changed, positions meaningless)
+- **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
+
+## Text Input Handling
+
+Two modes for `<input>` and `<textarea>` elements:
+
+1. **Focused, not editing:** Arrow keys still navigate. Enter → edit mode. Printable chars → edit mode + pass through.
+2. **Editing:** All keys pass through. Enter → exit edit mode. Escape → clear value + exit edit mode.
+
+## Sidebar Persistence
+
+SessionStorage bridge for resuming sidebar context across LiveView navigations:
+
+- `destroy()`: if in sidebar context → save `inputSystem:resumeSidebar = true`
+- `start()`: if flag set → remove flag, force sidebar context, focus active item
 
 ## CSS Integration
 
-Focus rings are conditional on input method via `[data-input=keyboard]` and `[data-input=gamepad]` selectors. Mouse mode hides focus outlines. This prevents visual clutter during mouse interaction while maintaining keyboard accessibility.
+- `[data-input=keyboard]` / `[data-input=gamepad]` — focus ring visibility
+- Mouse mode hides focus outlines
+- `nav-play-flash` — green ring animation (300ms) on play action
+- Keyboard-to-mouse cooldown (400ms) prevents synthetic mousemove during scroll
 
-Play action feedback uses a green ring flash animation (`nav-play-flash` class, 300ms).
+## Adding a New Page Behavior
 
-Drawer uses fade-in only (no translateX slide) since the container space is always reserved.
-
-## Hook Wiring
-
-The InputSystem is registered as a LiveView hook via `createInputHook()` in `app.js`. The hook element (`phx-hook="InputSystem"`) should wrap the navigable content area. The hook's `mounted`/`updated`/`destroyed` callbacks manage the system lifecycle.
-
-Event pushing (dismiss, play) uses `this._hookEl.pushEvent()` directly on the hook context — this is a LiveView hook API, not a DOM operation, so it stays in the orchestrator rather than the DOM adapter.
+1. Create `assets/js/input/<name>_behavior.js` — export a `create<Name>Behavior(dom)` factory
+2. Accept all external dependencies as parameters (no global scope access)
+3. Return an object implementing the `PageBehavior` interface (all methods optional)
+4. Register in `page_behavior.js` — add entry to `BEHAVIOR_REGISTRY` mapping name → factory
+5. Add `data-page-behavior="<name>"` to the LiveView template's root element
+6. Write tests in `assets/js/input/__tests__/<name>_behavior.test.js` using mock DOM
+7. Keep page state in the URL (LiveView `handle_params`) — don't duplicate in sessionStorage

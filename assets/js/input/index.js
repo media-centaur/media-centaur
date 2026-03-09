@@ -3,6 +3,9 @@
  *
  * Creates instances, attaches event listeners, routes actions through
  * the state machine, and executes directives via the DOM adapter.
+ *
+ * All external dependencies (reader, writer, globals) are injected via
+ * the constructor, making the orchestrator fully testable with mocks.
  */
 
 import { keyToAction } from "./actions"
@@ -10,6 +13,7 @@ import { gridNavigate } from "./spatial"
 import { FocusContextMachine, Context } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { DomReader, DomWriter } from "./dom_adapter"
+import { createPageBehavior } from "./page_behavior"
 
 const TEXT_INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
 
@@ -17,12 +21,26 @@ const TEXT_INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
 // Prevents scroll-triggered synthetic mouse events from stealing focus rings.
 const KEYBOARD_COOLDOWN_MS = 400
 
+/**
+ * @typedef {Object} Globals
+ * @property {EventTarget} document - For addEventListener/removeEventListener
+ * @property {Storage} sessionStorage - For sidebar persistence
+ * @property {function(function): void} requestAnimationFrame
+ */
+
+const BROWSER_GLOBALS = {
+  get document() { return document },
+  get sessionStorage() { return sessionStorage },
+  get requestAnimationFrame() { return requestAnimationFrame.bind(window) },
+}
+
 export class InputSystem {
-  constructor(reader = DomReader, writer = DomWriter) {
+  constructor(reader = DomReader, writer = DomWriter, globals = BROWSER_GLOBALS) {
     this.focusMachine = new FocusContextMachine()
     this.inputDetector = new InputMethodDetector()
     this.reader = reader
     this.writer = writer
+    this._globals = globals
     this._hookEl = null
     this._lastKeyboardTime = 0
     // Track the entity ID of the card that opened a modal/drawer,
@@ -36,11 +54,12 @@ export class InputSystem {
     this._preSidebarContext = null
     // Grid uses entity ID for memory (indices shift on stream updates).
     this._lastGridEntityId = null
-    // Track sort order to reset grid memory when it changes.
-    this._lastSortOrder = null
     // When true, a text input has been activated for typing.
     // Arrow keys pass through; only Escape exits back to nav.
     this._inputEditing = false
+    // Active page behavior (detected from data-page-behavior attribute)
+    this._behavior = null
+    this._behaviorName = null
     this._onKeyDown = this._onKeyDown.bind(this)
     this._onMouseMove = this._onMouseMove.bind(this)
   }
@@ -51,22 +70,19 @@ export class InputSystem {
    */
   start(hookEl) {
     this._hookEl = hookEl
-    document.addEventListener("keydown", this._onKeyDown)
-    document.addEventListener("mousemove", this._onMouseMove)
+    this._globals.document.addEventListener("keydown", this._onKeyDown)
+    this._globals.document.addEventListener("mousemove", this._onMouseMove)
 
-    // Sync initial state
+    // Sync initial state (also detects and attaches page behavior)
     this._syncState()
 
-    // Restore Library sidebar link to the last-used zone
-    const savedZone = sessionStorage.getItem("inputSystem:libraryZone")
-    if (savedZone) {
-      this.writer.updateLibrarySidebarLink(savedZone)
-    }
+    // Let the page behavior restore its state on attach
+    this._behavior?.onAttach()
 
     // Resume sidebar context after navigation (sessionStorage bridge)
-    if (sessionStorage.getItem("inputSystem:resumeSidebar") === "true") {
-      sessionStorage.removeItem("inputSystem:resumeSidebar")
-      this.focusMachine._context = Context.SIDEBAR
+    if (this._globals.sessionStorage.getItem("inputSystem:resumeSidebar") === "true") {
+      this._globals.sessionStorage.removeItem("inputSystem:resumeSidebar")
+      this.focusMachine.forceContext(Context.SIDEBAR)
       const activeIndex = this.reader.getActiveSidebarIndex()
       if (activeIndex >= 0) {
         this.writer.focusByIndex(Context.SIDEBAR, activeIndex)
@@ -82,10 +98,11 @@ export class InputSystem {
   destroy() {
     // If we're in the sidebar, persist so the new page resumes there
     if (this.focusMachine.context === Context.SIDEBAR) {
-      sessionStorage.setItem("inputSystem:resumeSidebar", "true")
+      this._globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
     }
-    document.removeEventListener("keydown", this._onKeyDown)
-    document.removeEventListener("mousemove", this._onMouseMove)
+    this._globals.document.removeEventListener("keydown", this._onKeyDown)
+    this._globals.document.removeEventListener("mousemove", this._onMouseMove)
+    this._detachBehavior()
     this._hookEl = null
   }
 
@@ -104,11 +121,16 @@ export class InputSystem {
     const presentation = this.reader.getPresentation()
     const drawerOpen = this.reader.isDrawerOpen()
 
-    const sortOrder = this.reader.getSortOrder()
-    if (sortOrder && sortOrder !== this._lastSortOrder) {
-      this._lastSortOrder = sortOrder
-      delete this._contextMemory[Context.GRID]
-      this._lastGridEntityId = null
+    // Detect and attach page behavior from data-page-behavior attribute
+    this._detectBehavior()
+
+    // Let page behavior check for state changes (e.g. sort order)
+    if (this._behavior?.onSyncState) {
+      const result = this._behavior.onSyncState(this.reader)
+      if (result?.clearGridMemory) {
+        delete this._contextMemory[Context.GRID]
+        this._lastGridEntityId = null
+      }
     }
 
     if (zone !== this.focusMachine._zone) {
@@ -117,26 +139,47 @@ export class InputSystem {
       delete this._contextMemory[Context.GRID]
       delete this._contextMemory[Context.TOOLBAR]
       this._lastGridEntityId = null
-      // Persist zone so sidebar link remembers it across navigations
-      sessionStorage.setItem("inputSystem:libraryZone", zone)
-      this.writer.updateLibrarySidebarLink(zone)
     }
 
     // Always sync drawer open state, regardless of current context.
     // The user may have navigated to GRID while drawer was open, then
     // the drawer closed via LiveView — we need to clear _drawerOpen.
-    this.focusMachine._drawerOpen = drawerOpen
+    this.focusMachine.syncDrawerState(drawerOpen)
 
     if (presentation === "modal" && this.focusMachine.context !== Context.MODAL) {
       this.focusMachine.presentationChanged("modal")
-      requestAnimationFrame(() => this.writer.focusFirst(Context.MODAL))
+      this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.MODAL))
     } else if (presentation === "drawer" && this.focusMachine.context !== Context.DRAWER) {
       this.focusMachine.presentationChanged("drawer")
-      requestAnimationFrame(() => this.writer.focusFirst(Context.DRAWER))
+      this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.DRAWER))
     } else if (!presentation && (this.focusMachine.context === Context.MODAL || this.focusMachine.context === Context.DRAWER)) {
       this.focusMachine.presentationChanged(null)
       // Restore focus to the originating card after modal/drawer closes
       this._restoreOriginFocus()
+    }
+  }
+
+  /**
+   * Detect data-page-behavior on the page and attach/detach as needed.
+   */
+  _detectBehavior() {
+    const behaviorName = this.reader.getPageBehavior?.() ?? null
+    if (behaviorName === this._behaviorName) return
+
+    this._detachBehavior()
+    this._behaviorName = behaviorName
+
+    if (behaviorName) {
+      this._behavior = createPageBehavior(behaviorName)
+      this._behavior?.onAttach?.()
+    }
+  }
+
+  _detachBehavior() {
+    if (this._behavior) {
+      this._behavior.onDetach?.()
+      this._behavior = null
+      this._behaviorName = null
     }
   }
 
@@ -147,7 +190,7 @@ export class InputSystem {
     if (this._originEntityId) {
       const entityId = this._originEntityId
       this._originEntityId = null
-      requestAnimationFrame(() => {
+      this._globals.requestAnimationFrame(() => {
         if (!this.writer.focusByEntityId(Context.GRID, entityId)) {
           this.writer.focusFirst(Context.GRID)
         }
@@ -219,12 +262,9 @@ export class InputSystem {
       return
     }
 
-    // Escape clears the text filter from any context if it has content
-    if (event.key === "Escape") {
-      const filter = document.getElementById("library-filter")
-      if (filter && filter.value) {
-        filter.value = ""
-        filter.dispatchEvent(new Event("input", { bubbles: true }))
+    // Escape: let page behavior try first, then fall through to normal handling
+    if (event.key === "Escape" && this._behavior?.onEscape) {
+      if (this._behavior.onEscape()) {
         event.preventDefault()
         return
       }
@@ -445,7 +485,7 @@ export class InputSystem {
           (context === Context.ZONE_TABS || context === Context.TOOLBAR)) {
         this._saveContextMemory()
         this._preSidebarContext = context
-        this.focusMachine._context = Context.SIDEBAR
+        this.focusMachine.enterSidebarFromWall()
         this._executeEnterSidebar()
       }
       return
@@ -455,7 +495,7 @@ export class InputSystem {
 
     // Sidebar: activate on focus
     if (context === Context.SIDEBAR) {
-      requestAnimationFrame(() => {
+      this._globals.requestAnimationFrame(() => {
         const focused = this.reader.getCurrentFocusedItem()
         if (focused) focused.click()
       })
@@ -561,7 +601,7 @@ export class InputSystem {
 
     if (targetCount === 0 && gridCount === 0) {
       // No content on this page — stay in sidebar
-      this.focusMachine._context = Context.SIDEBAR
+      this.focusMachine.forceContext(Context.SIDEBAR)
       return
     }
 
@@ -569,7 +609,7 @@ export class InputSystem {
     this.writer.setSidebarState(wasCollapsed)
 
     const restoreTo = targetCount > 0 ? target : Context.GRID
-    this.focusMachine._context = restoreTo
+    this.focusMachine.forceContext(restoreTo)
     this._restoreContextFocus(restoreTo)
   }
 }
