@@ -376,6 +376,7 @@ body {
 #detail-content {
   scrollbar-width: thin;
   scrollbar-color: oklch(from currentColor l c h / 0.25) transparent;
+  scroll-padding: 1rem;
 }
 
 /* Show only the active theme icon */
