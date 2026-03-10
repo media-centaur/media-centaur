@@ -112,8 +112,8 @@ defmodule MediaCentaurWeb.Layouts do
         </button>
       </aside>
 
-      <main class="flex-1 min-w-0 px-6 py-6">
-        <div class={["space-y-4", !@full_width && "max-w-7xl"]}>
+      <main class="flex-1 min-w-0 px-6 py-6 flex flex-col">
+        <div class={["flex-1 min-h-0 space-y-4", !@full_width && "max-w-7xl"]}>
           {render_slot(@inner_block)}
         </div>
       </main>
