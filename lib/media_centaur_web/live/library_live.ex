@@ -325,7 +325,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           <.cw_empty :if={@continue_watching == []} />
           <div
             :if={@continue_watching != []}
-            class="grid grid-cols-[repeat(auto-fill,minmax(480px,1fr))] gap-4"
+            class="grid grid-cols-[repeat(auto-fill,minmax(360px,520px))] gap-4"
             data-nav-grid
           >
             <.cw_card
