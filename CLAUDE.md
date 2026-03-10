@@ -160,6 +160,12 @@ Tests use `bun:test` imports (`describe`, `expect`, `test`, `beforeEach`, `mock`
 
 **Mock writer returns:** The mock writer's proxy returns `undefined` from all calls. The real `DomWriter.focusFirst()` and `focusByIndex()` return `boolean` (defense-in-depth), but orchestrator tests don't depend on these return values.
 
+### Import Boundaries
+
+The input system enforces a strict dependency rule: `core/` never imports from the app layer. This is validated by dependency-cruiser via `mix boundaries` (included in `mix precommit`).
+
+Config: `.dependency-cruiser.cjs`
+
 ## Parser
 
 `lib/media_centaur/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.

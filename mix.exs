@@ -103,7 +103,13 @@ defmodule MediaCentaur.MixProject do
         "esbuild media_centaur --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"],
+      precommit: [
+        "compile --warning-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "boundaries",
+        "test"
+      ],
       "ash.setup": ["ash.setup", "run priv/repo/seeds.exs"]
     ]
   end
