@@ -34,20 +34,34 @@ All external dependencies (document, sessionStorage, requestAnimationFrame) are 
 
 ## Module Reference
 
-All code lives in `assets/js/input/`. Tests in `assets/js/input/__tests__/` run via `bun test`.
+The input system is split into a reusable **framework** (`core/`) and **app-specific** code. Framework modules are parameterized by config and never import from the app layer.
+
+### Framework (`assets/js/input/core/`)
+
+Tests in `core/__tests__/` run via `bun test assets/js/input/core/`.
 
 | Module | Pure? | Role |
 |--------|-------|------|
 | `actions.js` | Yes | Action vocabulary, key/button → action mapping |
 | `spatial.js` | Yes | Grid index arithmetic (fast path for uniform grids) |
-| `nav_graph.js` | Yes | Navigation graph builder + cursor start priority |
-| `focus_context.js` | Yes | State machine: context × action → directive, instance→type resolver |
+| `nav_graph.js` | Yes | Navigation graph builder + cursor start priority (parameterized by layouts) |
+| `focus_context.js` | Yes | State machine: context × action → directive (parameterized by instanceTypes, primaryMenu) |
 | `input_method.js` | Yes | Tracks mouse/keyboard/gamepad transitions |
-| `dom_adapter.js` | No | DomReader reads layout, DomWriter applies changes |
+| `dom_adapter.js` | No | Factory functions `createDomReader(config)` / `createDomWriter(config)` (parameterized by selectors) |
+| `orchestrator.js` | No | Core event loop, memory, directive execution (parameterized by full config) |
+| `index.js` | — | Public API — re-exports everything from core modules |
+
+### App Layer (`assets/js/input/`)
+
+Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
+
+| Module | Pure? | Role |
+|--------|-------|------|
+| `config.js` | Yes | All app-specific config: selectors, layouts, instance types, behaviors |
+| `index.js` | No | LiveView hook factory — imports core + config, exports `createInputHook()` |
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
 | `library_behavior.js` | Yes* | Library-specific concerns (filter, zone memory, sort) |
 | `settings_behavior.js` | Yes | Settings page behavior (minimal stub) |
-| `index.js` | No | Orchestrator + LiveView hook factory |
 
 *Library behavior is pure when injected with mock DOM/storage.
 
@@ -65,7 +79,7 @@ The `FocusContextMachine` tracks which navigation context is active and returns 
 
 **Context types:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `MENU` · `MODAL` · `DRAWER`
 
-**Instance → type mapping:** The `contextType()` resolver maps instance names to behavior types. Multiple instances can share the same behavior type — for example, both `"sidebar"` and `"sections"` resolve to `MENU`. Instance names not in the `INSTANCE_TYPES` map are their own type (e.g., `"grid"` → `GRID`).
+**Instance → type mapping:** The `contextType(instance, instanceTypes)` resolver maps instance names to behavior types. Multiple instances can share the same behavior type — for example, both `"sidebar"` and `"sections"` resolve to `MENU`. Instance names not in the map are their own type (e.g., `"grid"` → `GRID`). The map is provided via config, not hardcoded in the framework.
 
 **Public API:**
 
@@ -81,13 +95,11 @@ The `FocusContextMachine` tracks which navigation context is active and returns 
 
 ### dom_adapter.js
 
-**DomReader** — reads layout state (zone, presentation, focused item, counts, sort order, page behavior). **DomWriter** — applies mutations (focus, sidebar state, input method, flash animation).
+Factory functions `createDomReader(config)` and `createDomWriter(config)` produce reader/writer instances parameterized by `config.contextSelectors` and `config.activeClassNames`. All DOM access is confined here. The orchestrator and behaviors never call `document.*` directly.
 
-All DOM access is confined here. The orchestrator and behaviors never call `document.*` directly.
+### orchestrator.js
 
-### index.js — Orchestrator
-
-Bridges all modules. Receives `reader`, `writer`, and `globals` via constructor (dependency injection for testability).
+Bridges all modules. Receives full config object including `reader`, `writer`, `globals`, and all app-specific settings (dependency injection for testability). Replaces the former `InputSystem` class in `index.js`.
 
 **Responsibilities:**
 - Lifecycle: `start(hookEl)`, `destroy()`, `onViewChanged()`
@@ -207,7 +219,7 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
 
-**Active item detection:** `DomReader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class (`sidebar-link-active`, `tab-active`, `zone-tab-active`, `menu-item-active`). This single generic method replaces per-context finders. When adding a new context with an active-item visual, add the class to this method's check list.
+**Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class from `config.activeClassNames`. When adding a new context with an active-item visual, add the class to the `activeClassNames` array in `config.js`.
 
 ## Text Input Handling
 
@@ -255,13 +267,14 @@ This means pages that use query params for state (like `/settings?section=loggin
 
 ### Navigation zone layout (required for keyboard nav)
 
-1. Add a zone layout in `nav_graph.js` `LAYOUTS` — defines directional edges between contexts
-2. Add a cursor start priority in `CURSOR_START_PRIORITY` — ordered fallback for initial focus
+All app-specific config lives in `config.js`:
+
+1. Add a zone layout in `config.js` `layouts` — defines directional edges between contexts
+2. Add a cursor start priority in `config.js` `cursorStartPriority` — ordered fallback for initial focus
 3. If the page has custom context instances (like `"sections"`):
-   - Add the instance → type mapping in `focus_context.js` `INSTANCE_TYPES`
-   - Add a selector in `dom_adapter.js` `CONTEXT_SELECTORS`
-   - Add the count in `index.js` `_buildCounts()`
-   - If always populated (static content), add to `isPopulated()` in `nav_graph.js`
+   - Add the instance → type mapping in `config.js` `instanceTypes`
+   - Add a selector in `config.js` `contextSelectors`
+   - If always populated (static content), add to `config.js` `alwaysPopulated`
 4. If the page has no zone tabs, add `data-nav-default-zone="<zone>"` to the template
 5. For sidebar URL persistence, add `data-nav-remember` to the sidebar link in `layouts.ex`
 6. Write nav graph tests and focus context tests for the new zone
@@ -292,4 +305,4 @@ Sidebar and sections are always populated (static content), guaranteeing a viabl
 
 ## Design Rules
 
-- **Empty-context safety.** The navigation graph and cursor start priority together ensure the user always has a focusable target. The graph prevents directional transitions into empty contexts. The priority list handles initial placement. Any new zone layout must define both a layout in `LAYOUTS` and an entry in `CURSOR_START_PRIORITY`.
+- **Empty-context safety.** The navigation graph and cursor start priority together ensure the user always has a focusable target. The graph prevents directional transitions into empty contexts. The priority list handles initial placement. Any new zone layout must define both a layout in `config.js` `layouts` and an entry in `cursorStartPriority`.

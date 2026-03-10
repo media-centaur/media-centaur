@@ -3,6 +3,9 @@
  *
  * Manages which navigation zone is active and what rules apply.
  * Returns FocusDirective data objects — never touches DOM.
+ *
+ * Parameterized by config: instanceTypes maps instance names to context
+ * behavior types, primaryMenu identifies the menu with enter/exit behavior.
  */
 
 import { Action } from "./actions"
@@ -17,22 +20,13 @@ export const Context = Object.freeze({
 })
 
 /**
- * Map instance names to context behavior types.
- * Multiple instances can share the same behavior (e.g. "sidebar" and "sections"
- * both use MENU behavior). Instance names not in this map are their own type.
- */
-const INSTANCE_TYPES = {
-  sidebar: Context.MENU,
-  sections: Context.MENU,
-}
-
-/**
  * Resolve an instance name to its context behavior type.
  * @param {string} instance - The context instance name
+ * @param {Object} [instanceTypes={}] - Map of instance names to context types
  * @returns {string} The context type for transition logic
  */
-export function contextType(instance) {
-  return INSTANCE_TYPES[instance] ?? instance
+export function contextType(instance, instanceTypes = {}) {
+  return instanceTypes[instance] ?? instance
 }
 
 /**
@@ -60,8 +54,18 @@ function focusFirst(context) {
 }
 
 export class FocusContextMachine {
-  constructor(initialContext = Context.GRID) {
-    this._context = initialContext
+  /**
+   * @param {Object} [config={}]
+   * @param {Object} [config.instanceTypes={}] - Map instance names to context types
+   * @param {string} [config.primaryMenu] - Instance name with enter/exit behavior
+   * @param {string} [config.initialContext] - Starting context (default: GRID)
+   */
+  constructor(config = {}) {
+    this._config = {
+      instanceTypes: config.instanceTypes ?? {},
+      primaryMenu: config.primaryMenu ?? null,
+    }
+    this._context = config.initialContext ?? Context.GRID
     this._drawerOpen = false
     this._zone = "watching"
     this._navGraph = null
@@ -77,7 +81,7 @@ export class FocusContextMachine {
    * @returns {FocusDirective}
    */
   transition(action) {
-    const type = contextType(this._context)
+    const type = contextType(this._context, this._config.instanceTypes)
     switch (type) {
       case Context.MODAL:    return this._modalTransition(action)
       case Context.DRAWER:   return this._drawerTransition(action)
@@ -131,12 +135,12 @@ export class FocusContextMachine {
   }
 
   /**
-   * Enter sidebar from a left-wall transition in zone tabs or toolbar.
-   * Sets context to SIDEBAR and returns the enter_sidebar directive.
+   * Enter primary menu from a left-wall transition in zone tabs or toolbar.
+   * Sets context to primaryMenu and returns the enter_sidebar directive.
    * @returns {FocusDirective}
    */
   enterSidebarFromWall() {
-    this._context = "sidebar"
+    this._context = this._config.primaryMenu
     return { type: "enter_sidebar" }
   }
 
@@ -240,24 +244,24 @@ export class FocusContextMachine {
 
   /** Menu: up/down between items. Right/Back exits. Generalizes sidebar and section nav. */
   _menuTransition(action) {
-    const isSidebar = this._context === "sidebar"
+    const isPrimaryMenu = this._context === this._config.primaryMenu
 
     switch (action) {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
       case Action.NAVIGATE_RIGHT: {
-        if (isSidebar) return { type: "exit_sidebar" }
+        if (isPrimaryMenu) return { type: "exit_sidebar" }
         const target = this._navGraph?.[this._context]?.right
         if (!target) return NONE
         this._context = target
         return focusFirst(target)
       }
       case Action.NAVIGATE_LEFT: {
-        if (isSidebar) return NONE
+        if (isPrimaryMenu) return NONE
         const target = this._navGraph?.[this._context]?.left
         if (!target) return NONE
-        if (target === "sidebar") {
-          this._context = "sidebar"
+        if (target === this._config.primaryMenu) {
+          this._context = this._config.primaryMenu
           return { type: "enter_sidebar" }
         }
         this._context = target
@@ -265,11 +269,11 @@ export class FocusContextMachine {
       }
       case Action.SELECT:         return ACTIVATE
       case Action.BACK: {
-        if (isSidebar) return { type: "exit_sidebar" }
+        if (isPrimaryMenu) return { type: "exit_sidebar" }
         const target = this._navGraph?.[this._context]?.left
         if (!target) return NONE
-        if (target === "sidebar") {
-          this._context = "sidebar"
+        if (target === this._config.primaryMenu) {
+          this._context = this._config.primaryMenu
           return { type: "enter_sidebar" }
         }
         this._context = target
@@ -317,8 +321,8 @@ export class FocusContextMachine {
       case "left": {
         const target = this._navGraph?.grid?.left
         if (!target) return NONE
-        if (target === "sidebar") {
-          this._context = "sidebar"
+        if (target === this._config.primaryMenu) {
+          this._context = this._config.primaryMenu
           return { type: "enter_sidebar" }
         }
         this._context = target

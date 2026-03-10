@@ -7,36 +7,44 @@ Read the full architecture doc at `docs/input-system.md` before making changes.
 
 ## Architecture at a Glance
 
-All code lives in `assets/js/input/`. Tests in `assets/js/input/__tests__/` run via `bun test`.
+The input system is split into a reusable **framework** (`assets/js/input/core/`) and **app-specific** code (`assets/js/input/`). Framework modules are parameterized by config and never import from the app layer.
+
+- **Framework tests:** `bun test assets/js/input/core/`
+- **App tests:** `bun test assets/js/input/__tests__/`
+- **All tests:** `bun test assets/js/input/`
 
 **Data flow:** keydown → semantic action → state machine directive → orchestrator → DOM mutation.
 
-All external dependencies injected via constructors — every layer testable with mocks.
+All external dependencies injected via config object — every layer testable with mocks.
 
 ## Key Concepts
 
+### Configuration-Driven Framework
+
+All app-specific knowledge lives in `config.js`. The framework core is parameterized:
+
+- **`contextSelectors`** — maps context keys to CSS selectors
+- **`instanceTypes`** — maps instance names to context behavior types (e.g., sidebar → MENU)
+- **`layouts`** — spatial zone layouts for the nav graph
+- **`cursorStartPriority`** — ordered fallback for initial focus per zone
+- **`alwaysPopulated`** — contexts that skip item count checks
+- **`activeClassNames`** — CSS classes indicating active state
+- **`primaryMenu`** — the menu instance with enter/exit behavior (e.g., "sidebar")
+- **`createBehavior`** — factory function for page behaviors
+
 ### Context Types vs Instance Names
 
-The `Context` enum defines behavior types (`GRID`, `MENU`, `TOOLBAR`, etc.). The `_context` field stores instance names (`"grid"`, `"sidebar"`, `"sections"`). The `contextType()` resolver maps instance names to behavior types:
-
-```js
-const INSTANCE_TYPES = {
-  sidebar: Context.MENU,
-  sections: Context.MENU,
-}
-```
+The `Context` enum defines behavior types (`GRID`, `MENU`, `TOOLBAR`, etc.). The `_context` field stores instance names (`"grid"`, `"sidebar"`, `"sections"`). The `contextType(instance, instanceTypes)` resolver maps instance names to behavior types.
 
 This lets multiple instances share behavior (sidebar and sections both use MENU navigation rules) while having distinct DOM selectors and nav graph entries.
 
 ### Navigation Graph
 
-Cross-context transitions are driven by an adjacency map in `nav_graph.js`. Each zone (watching, library, settings) defines edges between contexts with ordered fallback candidates. The graph is rebuilt from DOM state on every sync.
-
-**Always-populated contexts:** `sidebar` and `sections` are treated as always populated (static content). Add to `isPopulated()` if you add another static context.
+Cross-context transitions are driven by an adjacency map in `core/nav_graph.js`. Each zone defines edges between contexts with ordered fallback candidates. The graph is rebuilt from DOM state on every sync. Layouts and alwaysPopulated lists come from config.
 
 ### MENU Behavior
 
-The `_menuTransition()` handles all MENU instances. Sidebar gets special treatment (exit_sidebar on right/back, wall on left). Non-sidebar MENU instances use the nav graph for left/right/back transitions.
+The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right/back transitions.
 
 ### Page Behaviors
 
@@ -48,8 +56,10 @@ Sidebar links with `data-nav-remember` preserve the target page's query params a
 
 ## Checklist: Adding Input Nav to a New Page
 
-1. **Nav graph:** Add zone layout in `LAYOUTS` and `CURSOR_START_PRIORITY` in `nav_graph.js`
-2. **Custom contexts:** If needed, add to `INSTANCE_TYPES` (focus_context.js), `CONTEXT_SELECTORS` (dom_adapter.js), `_buildCounts()` (index.js), and `isPopulated()` (nav_graph.js)
+All config changes go in `config.js`:
+
+1. **Nav graph:** Add zone layout in `layouts` and `cursorStartPriority`
+2. **Custom contexts:** If needed, add to `instanceTypes`, `contextSelectors`, and `alwaysPopulated`
 3. **Page behavior:** Create `<name>_behavior.js`, register in `page_behavior.js`
 4. **Template:** Add `data-page-behavior`, `data-nav-default-zone` (if no zone tabs), `data-nav-zone`, `data-nav-item`, `data-nav-grid` attributes
 5. **Sidebar link:** Add `data-nav-remember` to the sidebar link in `layouts.ex` if the page uses query params
@@ -72,7 +82,7 @@ Sidebar links with `data-nav-remember` preserve the target page's query params a
 
 ## Test Patterns
 
-Tests use `bun:test`. Three mock factories in `__tests__/index.test.js`:
+Tests use `bun:test`. Three mock factories in `core/__tests__/orchestrator.test.js`:
 
 - **`createMockReader(overrides)`** — controllable reader values
 - **`createMockWriter()`** — proxy recording all calls to `calls` array
@@ -85,4 +95,5 @@ Pure modules (focus_context, nav_graph, spatial, actions) test directly — no m
 - **Nav zone containers must not nest.** Descendant selectors cross-contaminate.
 - **Empty-context safety.** Every zone must define both a layout and cursor start priority. The graph prevents transitions into empty contexts; the priority list handles initial placement.
 - **Page state lives in the URL.** Use `handle_params` + `live_patch`. Don't duplicate in sessionStorage.
-- **DOM access confined to `dom_adapter.js`.** Orchestrator and behaviors never call `document.*` directly.
+- **DOM access confined to `core/dom_adapter.js`.** Orchestrator and behaviors never call `document.*` directly.
+- **Dependency directionality.** Core never imports from app layer. App imports from `core/index.js`.
