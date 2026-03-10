@@ -916,13 +916,12 @@ body {
   transition: width 300ms ease-out;
 }
 
-/* 3. Poster card hover lift */
+/* 3. Poster card hover shadow */
 .poster-card {
-  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+  transition: box-shadow 150ms ease-out;
 }
 
 .poster-card:hover:not(:active) {
-  transform: translateY(-2px);
   box-shadow: 0 6px 20px oklch(0% 0 0 / 0.15);
 }
 
