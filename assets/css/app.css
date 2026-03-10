@@ -795,12 +795,6 @@ body {
   transition: background 0.15s, opacity 0.15s;
   border: 1px solid transparent;
   position: relative;
-  animation: review-fade-in 200ms ease-out;
-}
-
-@keyframes review-fade-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .review-list-item:hover {
@@ -873,12 +867,6 @@ body {
   max-height: 100%;
   scrollbar-width: thin;
   scrollbar-color: oklch(from currentColor l c h / 0.25) transparent;
-  animation: review-detail-in 200ms ease-out;
-}
-
-@keyframes review-detail-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .review-comparison-label {
