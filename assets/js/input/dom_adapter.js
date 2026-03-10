@@ -181,7 +181,8 @@ export const DomWriter = {
    */
   focusElement(element) {
     if (!element) return
-    element.focus({ preventScroll: false })
+    element.focus({ preventScroll: true })
+    element.scrollIntoView({ block: "nearest", behavior: "instant" })
   },
 
   /**
@@ -195,7 +196,8 @@ export const DomWriter = {
     const items = document.querySelectorAll(selector)
     const target = items[index]
     if (!target) return false
-    target.focus({ preventScroll: false })
+    target.focus({ preventScroll: true })
+    target.scrollIntoView({ block: "nearest", behavior: "instant" })
     return document.activeElement === target
   },
 
@@ -209,7 +211,8 @@ export const DomWriter = {
 
     const first = document.querySelector(selector)
     if (!first) return false
-    first.focus({ preventScroll: false })
+    first.focus({ preventScroll: true })
+    first.scrollIntoView({ block: "nearest", behavior: "instant" })
     return document.activeElement === first
   },
 
@@ -226,7 +229,8 @@ export const DomWriter = {
     const items = document.querySelectorAll(selector)
     for (const item of items) {
       if (item.dataset.entityId === entityId) {
-        item.focus({ preventScroll: false })
+        item.focus({ preventScroll: true })
+        item.scrollIntoView({ block: "nearest", behavior: "instant" })
         return true
       }
     }
