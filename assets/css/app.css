@@ -373,6 +373,11 @@ body {
   }
 }
 
+#detail-content {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(from currentColor l c h / 0.25) transparent;
+}
+
 /* Show only the active theme icon */
 .theme-icon { display: none; }
 .theme-icon-system { display: block; }
