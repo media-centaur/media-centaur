@@ -115,29 +115,45 @@ defmodule MediaCentaurWeb.DashboardLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_path="/">
-      <div class="space-y-6">
+      <div data-page-behavior="dashboard" data-nav-default-zone="dashboard" class="space-y-6">
         <h1 class="text-2xl font-bold">Dashboard</h1>
 
-        <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
+        <div data-nav-zone="sections">
+          <.link navigate="/library" data-nav-item tabindex="0" class="block">
+            <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
+          </.link>
 
-        <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
-          <.pipeline_card
-            content_stats={@pipeline_stats}
-            image_stats={@image_pipeline_stats}
-            retry_status={@retry_status}
-            pipeline_concurrency={@pipeline_concurrency}
-            image_concurrency={@image_pipeline_concurrency}
-          />
+          <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
+            <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
+              <.pipeline_card
+                content_stats={@pipeline_stats}
+                image_stats={@image_pipeline_stats}
+                retry_status={@retry_status}
+                pipeline_concurrency={@pipeline_concurrency}
+                image_concurrency={@image_pipeline_concurrency}
+              />
 
-          <div class="flex flex-col gap-6">
-            <.playback_summary_card playback={@playback} />
-            <.watcher_health statuses={@watcher_statuses} />
-            <.external_integrations rate_limiter={@rate_limiter} config={@config} />
-          </div>
+              <div class="flex flex-col gap-6">
+                <.playback_summary_card playback={@playback} />
+                <.watcher_health statuses={@watcher_statuses} />
+                <.external_integrations rate_limiter={@rate_limiter} config={@config} />
+              </div>
+            </div>
+          </.link>
+
+          <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
+            <.recent_errors_table files={@recent_errors} />
+          </.link>
+
+          <.link
+            navigate="/settings?section=configuration"
+            data-nav-item
+            tabindex="0"
+            class="block mt-6"
+          >
+            <.storage_health drives={@storage_drives} />
+          </.link>
         </div>
-
-        <.recent_errors_table files={@recent_errors} />
-        <.storage_health drives={@storage_drives} />
       </div>
     </Layouts.app>
     """
@@ -172,16 +188,13 @@ defmodule MediaCentaurWeb.DashboardLive do
         <div class="text-2xl font-bold">{@stats.images}</div>
         <div class="text-sm text-base-content/60">Images Cached</div>
       </div>
-      <.link
-        navigate="/review"
-        class={[
-          "p-4 rounded-lg glass-surface hover:shadow-md transition-shadow",
-          if(@pending_review_count > 0, do: "border-l-3 border-warning")
-        ]}
-      >
+      <div class={[
+        "p-4 rounded-lg glass-surface",
+        if(@pending_review_count > 0, do: "border-l-3 border-warning")
+      ]}>
         <div class="text-2xl font-bold">{@pending_review_count}</div>
         <div class="text-sm text-base-content/60">Pending Review</div>
-      </.link>
+      </div>
     </div>
     """
   end
