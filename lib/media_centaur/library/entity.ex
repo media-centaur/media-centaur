@@ -50,7 +50,7 @@ defmodule MediaCentaur.Library.Entity do
               )
     end
 
-    create :create_from_tmdb do
+    create :create do
       accept [
         :type,
         :name,

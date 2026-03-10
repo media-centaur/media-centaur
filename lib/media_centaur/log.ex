@@ -283,7 +283,7 @@ defmodule MediaCentaur.Log do
   defp broadcast_change do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
-      "logging:updates",
+      MediaCentaur.Topics.logging_updates(),
       :log_settings_changed
     )
   end

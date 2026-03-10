@@ -95,7 +95,7 @@ defmodule MediaCentaur.Pipeline do
     |> Enum.each(fn message ->
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
-        "pipeline:images",
+        MediaCentaur.Topics.pipeline_images(),
         {:images_pending,
          %{entity_id: message.data.entity_id, watch_dir: message.data.watch_directory}}
       )
@@ -226,7 +226,7 @@ defmodule MediaCentaur.Pipeline do
 
           Phoenix.PubSub.broadcast(
             MediaCentaur.PubSub,
-            "review:updates",
+            MediaCentaur.Topics.review_updates(),
             {:file_reviewed, payload.pending_file_id}
           )
 

@@ -6,7 +6,7 @@ defmodule MediaCentaur.Review do
   The ReviewLive UI reads PendingFile records for display and uses these
   functions for approve, dismiss, search, and match-selection workflows.
 
-  Approval broadcasts a `{:review_resolved, ...}` event to `"pipeline:input"`,
+  Approval broadcasts a `{:review_resolved, ...}` event to `MediaCentaur.Topics.pipeline_input()`,
   which the Pipeline Producer picks up for async processing via Broadway.
   """
   use Ash.Domain, extensions: [AshAi]
@@ -139,7 +139,7 @@ defmodule MediaCentaur.Review do
     with {:ok, pending_file} <- __MODULE__.approve_pending_file(pending_file) do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
-        "pipeline:input",
+        MediaCentaur.Topics.pipeline_input(),
         {:review_resolved,
          %{
            path: pending_file.file_path,
@@ -220,6 +220,10 @@ defmodule MediaCentaur.Review do
   end
 
   defp broadcast_reviewed(file_id) do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, "review:updates", {:file_reviewed, file_id})
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      MediaCentaur.Topics.review_updates(),
+      {:file_reviewed, file_id}
+    )
   end
 end

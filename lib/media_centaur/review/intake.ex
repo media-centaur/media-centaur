@@ -19,7 +19,7 @@ defmodule MediaCentaur.Review.Intake do
     with {:ok, pending_file} <- Review.find_or_create_pending_file(attrs) do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
-        "review:updates",
+        MediaCentaur.Topics.review_updates(),
         {:file_added, pending_file.id}
       )
 

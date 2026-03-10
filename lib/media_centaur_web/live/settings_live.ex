@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "logging:updates")
+        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.logging_updates())
 
         {enabled, all} = Log.status()
 

@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "review:updates")
+        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.review_updates())
         groups = Review.fetch_pending_groups()
 
         socket
@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         if errors > 0 do
           Phoenix.PubSub.broadcast(
             MediaCentaur.PubSub,
-            "review:updates",
+            MediaCentaur.Topics.review_updates(),
             {:group_error, group_key, "#{errors} file(s) failed to approve"}
           )
         end
@@ -69,7 +69,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         if approved > 0 do
           Phoenix.PubSub.broadcast(
             MediaCentaur.PubSub,
-            "review:updates",
+            MediaCentaur.Topics.review_updates(),
             {:group_approved, group_key, approved}
           )
         end

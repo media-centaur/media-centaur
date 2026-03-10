@@ -5,19 +5,14 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
   alias MediaCentaur.Library
 
   describe "transient_failure tracking" do
-    test "records a failure in state" do
+    test "records a failure and tracks the image" do
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler)
 
       image_id = Ash.UUID.generate()
       RetryScheduler.record_failure(image_id, pid)
 
-      # Give the cast time to process
-      :sys.get_state(pid)
-
-      state = :sys.get_state(pid)
-      assert Map.has_key?(state.retries, image_id)
-      {count, _last} = state.retries[image_id]
-      assert count == 1
+      # Sync with the GenServer to ensure the cast has been processed
+      assert RetryScheduler.retry_count(image_id, pid) == 1
 
       GenServer.stop(pid)
     end
@@ -27,13 +22,9 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
 
       image_id = Ash.UUID.generate()
       RetryScheduler.record_failure(image_id, pid)
-      :sys.get_state(pid)
       RetryScheduler.record_failure(image_id, pid)
-      :sys.get_state(pid)
 
-      state = :sys.get_state(pid)
-      {count, _last} = state.retries[image_id]
-      assert count == 2
+      assert RetryScheduler.retry_count(image_id, pid) == 2
 
       GenServer.stop(pid)
     end
@@ -59,16 +50,14 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
 
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_destroy)
 
-      # Simulate 5 failures — set retry count to max
-      long_ago = System.monotonic_time(:millisecond) - 600_000
+      # Record 5 failures via public API to hit max retries
+      for _ <- 1..5, do: RetryScheduler.record_failure(image.id, pid)
+      assert RetryScheduler.retry_count(image.id, pid) == 5
 
-      :sys.replace_state(pid, fn state ->
-        %{state | retries: %{image.id => {5, long_ago}}}
-      end)
-
-      # Trigger tick manually
+      # Trigger tick manually — backoff will have elapsed since monotonic
+      # time advances between the record_failure calls and the tick
       send(pid, :tick)
-      :sys.get_state(pid)
+      _ = RetryScheduler.status(pid)
 
       # Image should be destroyed
       assert [] = Library.list_pending_downloads!()
@@ -79,18 +68,16 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
     test "prunes state for images that were downloaded" do
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_prune)
 
+      # Record a failure for an image ID that doesn't exist in the DB
       old_id = Ash.UUID.generate()
-
-      :sys.replace_state(pid, fn state ->
-        %{state | retries: %{old_id => {2, System.monotonic_time(:millisecond)}}}
-      end)
+      RetryScheduler.record_failure(old_id, pid)
+      assert RetryScheduler.retry_count(old_id, pid) == 1
 
       # No pending images in DB — tick should prune the stale entry
       send(pid, :tick)
-      :sys.get_state(pid)
+      _ = RetryScheduler.status(pid)
 
-      state = :sys.get_state(pid)
-      assert state.retries == %{}
+      assert RetryScheduler.tracked_ids(pid) == []
 
       GenServer.stop(pid)
     end

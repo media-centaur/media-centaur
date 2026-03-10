@@ -90,7 +90,7 @@ defmodule MediaCentaur.Admin do
       if watch_dir = first_watch_dir(entity) do
         Phoenix.PubSub.broadcast(
           MediaCentaur.PubSub,
-          "pipeline:images",
+          MediaCentaur.Topics.pipeline_images(),
           {:images_pending, %{entity_id: entity.id, watch_dir: watch_dir}}
         )
       end

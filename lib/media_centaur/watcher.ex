@@ -8,7 +8,7 @@ defmodule MediaCentaur.Watcher do
   ## Event-driven pipeline integration
 
   Instead of creating database records, the watcher broadcasts PubSub events
-  to `"pipeline:input"`. The Pipeline Producer subscribes to this topic and
+  to `MediaCentaur.Topics.pipeline_input()`. The Pipeline Producer subscribes to this topic and
   converts events into Payloads for Broadway processing.
 
   - `detect_file/2` broadcasts `{:file_detected, %{path, watch_dir}}`
@@ -221,7 +221,7 @@ defmodule MediaCentaur.Watcher do
 
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
-        "library:file_events",
+        MediaCentaur.Topics.library_file_events(),
         {:files_removed, paths}
       )
     end
@@ -237,7 +237,7 @@ defmodule MediaCentaur.Watcher do
 
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
-        "library:file_events",
+        MediaCentaur.Topics.library_file_events(),
         {:files_removed, paths}
       )
     end
@@ -334,7 +334,7 @@ defmodule MediaCentaur.Watcher do
 
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
-      "pipeline:input",
+      MediaCentaur.Topics.pipeline_input(),
       {:file_detected, %{path: path, watch_dir: watch_dir}}
     )
 
@@ -396,7 +396,7 @@ defmodule MediaCentaur.Watcher do
   defp broadcast_state(dir, new_state) do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
-      "watcher:state",
+      MediaCentaur.Topics.watcher_state(),
       {:watcher_state_changed, dir, new_state}
     )
   end

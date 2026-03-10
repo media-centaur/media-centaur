@@ -115,8 +115,8 @@ defmodule MediaCentaur.Library.FileTracker do
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "library:file_events")
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "watcher:state")
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_file_events())
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.watcher_state())
     schedule_ttl_check()
     {:ok, %{}, {:continue, :initial_ttl_check}}
   end

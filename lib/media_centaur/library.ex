@@ -30,7 +30,7 @@ defmodule MediaCentaur.Library do
       description "List images that have a remote URL but haven't been downloaded yet"
     end
 
-    tool :find_by_tmdb_id, MediaCentaur.Library.Identifier, :find_by_tmdb_id do
+    tool :find_by_tmdb_id, MediaCentaur.Library.Identifier, :by_tmdb_id do
       description "Find an entity by its TMDB ID"
     end
 
@@ -47,7 +47,7 @@ defmodule MediaCentaur.Library do
     end
 
     # Entity writes
-    tool :create_entity, MediaCentaur.Library.Entity, :create_from_tmdb do
+    tool :create_entity, MediaCentaur.Library.Entity, :create do
       description "Create a new entity from TMDB data (type, name, description, date_published, genres, etc.)"
     end
 
@@ -180,7 +180,7 @@ defmodule MediaCentaur.Library do
       define :get_entity_with_images, action: :with_images, get_by: [:id]
       define :list_entities_by_ids, action: :by_ids, args: [:ids]
       define :list_entities_all_files_absent, action: :all_files_absent
-      define :create_entity, action: :create_from_tmdb
+      define :create_entity, action: :create
       define :set_entity_content_url, action: :set_content_url
       define :destroy_entity, action: :destroy
     end
@@ -218,13 +218,13 @@ defmodule MediaCentaur.Library do
       define :find_or_create_identifier, action: :find_or_create
 
       define :find_by_tmdb_id,
-        action: :find_by_tmdb_id,
+        action: :by_tmdb_id,
         args: [:tmdb_id],
         get?: true,
         not_found_error?: false
 
       define :find_by_tmdb_collection,
-        action: :find_by_tmdb_collection,
+        action: :by_tmdb_collection,
         args: [:collection_id],
         get?: true,
         not_found_error?: false

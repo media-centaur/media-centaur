@@ -2,7 +2,7 @@ defmodule MediaCentaur.ImagePipeline.Producer do
   @moduledoc """
   GenStage producer for the image pipeline.
 
-  Subscribes to `"pipeline:images"` PubSub topic, receives
+  Subscribes to `MediaCentaur.Topics.pipeline_images()` PubSub topic, receives
   `{:images_pending, %{entity_id: uuid, watch_dir: string}}` messages,
   queries the DB for Image records with `url` set and `content_url` nil
   for that entity (including child movies and episodes), and dispatches
@@ -17,7 +17,7 @@ defmodule MediaCentaur.ImagePipeline.Producer do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "pipeline:images")
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_images())
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
 
