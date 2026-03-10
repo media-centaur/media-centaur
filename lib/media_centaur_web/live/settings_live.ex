@@ -43,6 +43,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:ok,
      assign(socket,
        sections: @sections,
+       scanning: false,
        clearing_database: false,
        refreshing_images: false
      )}
@@ -57,6 +58,25 @@ defmodule MediaCentaurWeb.SettingsLive do
   # --- Events ---
 
   @impl true
+  def handle_event("scan", _params, socket) do
+    socket = assign(socket, scanning: true)
+
+    case MediaCentaur.Watcher.Supervisor.scan() do
+      {:ok, count} ->
+        message =
+          case count do
+            0 -> "Scan complete — no new files found"
+            1 -> "Scan complete — 1 new file detected"
+            n -> "Scan complete — #{n} new files detected"
+          end
+
+        {:noreply,
+         socket
+         |> put_flash(:info, message)
+         |> assign(scanning: false)}
+    end
+  end
+
   def handle_event("clear_database", _params, socket) do
     liveview = self()
 
@@ -204,6 +224,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             watchers_running={@watchers_running}
             pipeline_running={@pipeline_running}
             image_pipeline_running={@image_pipeline_running}
+            scanning={@scanning}
             enabled_components={@enabled_components}
             all_components={@all_components}
             suppressed_frameworks={@suppressed_frameworks}
@@ -248,6 +269,21 @@ defmodule MediaCentaurWeb.SettingsLive do
         event="toggle_image_pipeline"
         color="info"
       />
+
+      <div class="mt-4 pt-4 border-t border-base-content/10">
+        <button
+          phx-click="scan"
+          disabled={@scanning}
+          data-nav-item
+          tabindex="0"
+          class="btn btn-soft btn-info btn-sm"
+        >
+          {if @scanning, do: "Scanning…", else: "Scan directories"}
+        </button>
+        <p class="text-xs text-base-content/50 mt-1">
+          Manually scan all watch directories for new media files.
+        </p>
+      </div>
     </div>
     """
   end
