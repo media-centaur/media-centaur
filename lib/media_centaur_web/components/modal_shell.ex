@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
       data-detail-mode="modal"
     >
       <div class="modal-panel bg-base-100" phx-click-away={@open && @on_close}>
-        <div :if={@entity}>
+        <div :if={@entity} class="flex flex-col flex-1 min-h-0">
           <button
             phx-click={@on_close}
             class="absolute top-3 right-3 z-10 btn btn-ghost btn-circle btn-sm"
