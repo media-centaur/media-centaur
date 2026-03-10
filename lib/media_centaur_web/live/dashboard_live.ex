@@ -104,6 +104,39 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
   end
 
+  def handle_info(
+        {:entity_progress_updated, entity_id, _summary, _resume_target, _child_targets_delta,
+         progress_records, _last_activity_at},
+        socket
+      ) do
+    now_playing = socket.assigns.playback.now_playing
+
+    socket =
+      if now_playing && now_playing.entity_id == entity_id do
+        record =
+          Enum.find(progress_records, fn record ->
+            record.season_number == (now_playing[:season_number] || 0) &&
+              record.episode_number == (now_playing[:episode_number] || 0)
+          end)
+
+        if record do
+          updated =
+            Map.merge(now_playing, %{
+              position_seconds: record.position_seconds,
+              duration_seconds: record.duration_seconds
+            })
+
+          assign(socket, playback: %{socket.assigns.playback | now_playing: updated})
+        else
+          socket
+        end
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
