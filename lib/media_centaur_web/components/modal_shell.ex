@@ -2,14 +2,16 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   @moduledoc """
   Centered overlay shell for the DetailPanel.
 
-  Used by Continue Watching zone. Provides backdrop blur, focus trap (grid inert),
-  entrance animation, and dismiss via Escape / click-outside / close button.
+  Always present in the DOM so the browser keeps the `backdrop-filter`
+  compositing layer warm. Toggled via `data-state="open"/"closed"` +
+  CSS visibility/opacity — no first-frame blur jank on open.
   """
   use MediaCentaurWeb, :html
 
   alias MediaCentaurWeb.Components.DetailPanel
 
-  attr :entity, :map, required: true
+  attr :open, :boolean, default: false
+  attr :entity, :map, default: nil
   attr :progress, :map, default: nil
   attr :resume, :map, default: nil
   attr :progress_records, :list, default: []
@@ -24,31 +26,34 @@ defmodule MediaCentaurWeb.Components.ModalShell do
     <div
       id="detail-modal"
       class="modal-backdrop"
-      phx-click={@on_close}
-      phx-window-keydown={@on_close}
+      data-state={if @open, do: "open", else: "closed"}
+      phx-click={@open && @on_close}
+      phx-window-keydown={@open && @on_close}
       phx-key="Escape"
       data-detail-mode="modal"
     >
-      <div class="modal-panel bg-base-100" phx-click-away={@on_close}>
-        <button
-          phx-click={@on_close}
-          class="absolute top-3 right-3 z-10 btn btn-ghost btn-circle btn-sm"
-          aria-label="Close"
-        >
-          <.icon name="hero-x-mark-mini" class="size-5" />
-        </button>
+      <div class="modal-panel bg-base-100" phx-click-away={@open && @on_close}>
+        <div :if={@entity}>
+          <button
+            phx-click={@on_close}
+            class="absolute top-3 right-3 z-10 btn btn-ghost btn-circle btn-sm"
+            aria-label="Close"
+          >
+            <.icon name="hero-x-mark-mini" class="size-5" />
+          </button>
 
-        <DetailPanel.detail_panel
-          entity={@entity}
-          progress={@progress}
-          resume={@resume}
-          progress_records={@progress_records}
-          watch_dirs={@watch_dirs}
-          expanded_seasons={@expanded_seasons}
-          expanded_episodes={@expanded_episodes}
-          on_play={@on_play}
-          on_close={@on_close}
-        />
+          <DetailPanel.detail_panel
+            entity={@entity}
+            progress={@progress}
+            resume={@resume}
+            progress_records={@progress_records}
+            watch_dirs={@watch_dirs}
+            expanded_seasons={@expanded_seasons}
+            expanded_episodes={@expanded_episodes}
+            on_play={@on_play}
+            on_close={@on_close}
+          />
+        </div>
       </div>
     </div>
     """

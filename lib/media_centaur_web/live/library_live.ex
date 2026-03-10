@@ -348,7 +348,7 @@ defmodule MediaCentaurWeb.LibraryLive do
             filter_text={@filter_text}
           />
 
-          <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center">
+          <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center empty-state-enter">
             No entities found.
           </div>
 
@@ -370,13 +370,13 @@ defmodule MediaCentaurWeb.LibraryLive do
           </div>
         </section>
 
-        <%!-- Detail modal (both zones use modal) --%>
+        <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
         <ModalShell.modal_shell
-          :if={@selected_entry && @detail_presentation == :modal}
-          entity={@selected_entry.entity}
-          progress={@selected_entry.progress}
-          resume={Map.get(@resume_targets, @selected_entry.entity.id)}
-          progress_records={@selected_entry.progress_records}
+          open={@selected_entry != nil && @detail_presentation == :modal}
+          entity={(@selected_entry && @selected_entry.entity) || nil}
+          progress={@selected_entry && @selected_entry.progress}
+          resume={@selected_entry && Map.get(@resume_targets, @selected_entry.entity.id)}
+          progress_records={(@selected_entry && @selected_entry.progress_records) || []}
           watch_dirs={@watch_dirs}
           expanded_seasons={assigns[:expanded_seasons]}
           expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
@@ -419,7 +419,9 @@ defmodule MediaCentaurWeb.LibraryLive do
       >
         <div class="sort-dropdown-trigger" phx-click="toggle_sort">
           {sort_label(@sort_order)}
-          <.icon name="hero-chevron-down-mini" class="sort-dropdown-chevron" />
+          <span class={["sort-dropdown-chevron", @sort_open && "rotate-180"]}>
+            <.icon name="hero-chevron-down-mini" class="size-4" />
+          </span>
         </div>
         <ul :if={@sort_open} class="sort-dropdown-menu glass-surface">
           <li
@@ -473,7 +475,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       data-entity-id={@entry.entity.id}
       tabindex="0"
       class={[
-        "card glass-surface cursor-pointer overflow-hidden transition-all",
+        "card glass-surface cursor-pointer overflow-hidden poster-card",
         "hover:ring-1 hover:ring-base-content/20",
         @selected && "ring-2 ring-primary",
         @playing && "ring-2 ring-primary"
@@ -481,7 +483,12 @@ defmodule MediaCentaurWeb.LibraryLive do
     >
       <%!-- Poster --%>
       <div class="aspect-[2/3] glass-inset relative">
-        <img :if={@poster} src={@poster} class="w-full h-full object-cover" loading="lazy" />
+        <img
+          :if={@poster}
+          src={@poster}
+          class="w-full h-full object-cover"
+          loading="lazy"
+        />
         <div :if={!@poster} class="w-full h-full flex items-center justify-center">
           <.icon name="hero-film" class="size-8 text-base-content/20" />
         </div>
@@ -520,7 +527,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     ~H"""
     <div :if={@fraction > 0} class="absolute bottom-0 left-0 right-0 h-[3px] bg-base-content/20">
-      <div class="h-full bg-primary" style={"width: #{@fraction}%"} />
+      <div class="h-full bg-primary progress-fill" style={"width: #{@fraction}%"} />
     </div>
     """
   end
@@ -598,7 +605,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           :if={@progress_fraction > 0}
           class="absolute bottom-0 left-0 right-0 h-1 bg-base-content/20"
         >
-          <div class="h-full bg-primary" style={"width: #{@progress_fraction}%"} />
+          <div class="h-full bg-primary progress-fill" style={"width: #{@progress_fraction}%"} />
         </div>
       </div>
     </div>
@@ -607,7 +614,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp cw_empty(assigns) do
     ~H"""
-    <div class="text-base-content/50 py-6 text-center text-sm">
+    <div class="text-base-content/50 py-6 text-center text-sm empty-state-enter">
       Nothing in progress. Switch to the Library tab to start watching.
     </div>
     """
