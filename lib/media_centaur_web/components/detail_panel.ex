@@ -355,14 +355,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     episodes = assigns.season.episodes || []
     watched_count = count_watched_episodes(assigns.season, assigns.progress_by_key)
     total_count = length(episodes)
-    season_status = season_status(assigns.season, assigns.progress_by_key)
 
     assigns =
       assigns
       |> assign(:episodes, episodes)
       |> assign(:watched_count, watched_count)
       |> assign(:total_count, total_count)
-      |> assign(:season_status, season_status)
 
     ~H"""
     <div>
@@ -379,7 +377,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         />
         <span>{@season.name || "Season #{@season.season_number}"}</span>
         <span class="text-xs text-base-content/40">
-          {@watched_count}/{@total_count} watched{season_status_label(@season_status)}
+          {season_progress_label(@watched_count, @total_count)}
         </span>
       </button>
 
@@ -411,19 +409,35 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     state = episode_state(assigns.progress)
     assigns = assign(assigns, :state, state)
 
+    thumbnail = image_url(assigns.episode, "thumb")
+    assigns = assign(assigns, :thumbnail, thumbnail)
+
     ~H"""
-    <div class={["py-1.5 pr-3", episode_row_class(@state)]} data-role="episode-row">
+    <div class={["py-2.5 pr-3", episode_row_class(@state)]} data-role="episode-row">
       <div
-        class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded px-1 -mx-1"
+        class="flex items-start gap-3 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2"
         phx-click="toggle_episode_detail"
         phx-value-id={@episode.id}
         data-nav-item
         tabindex="0"
       >
-        <span class="w-5 text-right text-base-content/50 flex-shrink-0 font-mono text-xs">
-          {@episode.episode_number}
-        </span>
-        <span class="truncate flex-1 text-base-content/90">{@episode.name || "—"}</span>
+        <div class="w-20 flex-shrink-0">
+          <img
+            :if={@thumbnail}
+            src={@thumbnail}
+            class="w-20 aspect-video rounded object-cover"
+          />
+          <div :if={!@thumbnail} class="w-20 aspect-video rounded bg-base-300/30" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="truncate block text-base-content/90">
+            <span class="text-base-content/50 font-mono text-xs">{@episode.episode_number}.</span>
+            {@episode.name || "—"}
+          </span>
+          <p :if={@episode.description} class="line-clamp-2 text-xs text-base-content/50">
+            {@episode.description}
+          </p>
+        </div>
         <.episode_right_info
           state={@state}
           progress={@progress}
@@ -432,7 +446,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       </div>
       <div
         :if={@state == :current}
-        class="ml-7 mt-0.5 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
+        class="ml-22 mt-0.5 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
       >
         <div
           class="h-full bg-info rounded-full"
@@ -440,10 +454,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         />
       </div>
 
-      <div :if={@expanded} class="ml-7 mt-1 space-y-1 text-xs text-base-content/50">
-        <p :if={@episode.description} class="line-clamp-3 text-base-content/60">
-          {@episode.description}
-        </p>
+      <div :if={@expanded} class="ml-22 mt-1 space-y-1 text-xs text-base-content/50">
         <div :if={@episode.content_url} title={strip_watch_dir(@episode.content_url, @watch_dirs)}>
           <span class="font-mono truncate-left inline-block max-w-full">
             {strip_watch_dir(@episode.content_url, @watch_dirs)}
@@ -601,35 +612,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end)
   end
 
-  defp season_status(season, progress_by_key) do
-    episodes = season.episodes || []
-    total = length(episodes)
-
-    has_in_progress =
-      Enum.any?(episodes, fn episode ->
-        case Map.get(progress_by_key, {season.season_number, episode.episode_number}) do
-          %{completed: false, position_seconds: pos} when is_number(pos) and pos > 0 -> true
-          _ -> false
-        end
-      end)
-
-    watched =
-      Enum.count(episodes, fn episode ->
-        match?(
-          %{completed: true},
-          Map.get(progress_by_key, {season.season_number, episode.episode_number})
-        )
-      end)
-
-    cond do
-      watched == total and total > 0 -> :watched
-      has_in_progress -> :in_progress
-      watched > 0 -> :in_progress
-      true -> :unwatched
-    end
-  end
-
-  defp season_status_label(:in_progress), do: " · In progress"
-  defp season_status_label(:watched), do: " · Watched"
-  defp season_status_label(:unwatched), do: ""
+  defp season_progress_label(watched, total) when watched == total and total > 0, do: "watched"
+  defp season_progress_label(watched, total), do: "#{total - watched} remaining"
 end
