@@ -21,6 +21,10 @@ const TEST_LAYOUTS = {
     grid:      { left: ["sections"] },
     sidebar:   { right: ["sections", "grid"] },
   },
+  dashboard: {
+    sections:  { left: ["sidebar"] },
+    sidebar:   { right: ["sections"] },
+  },
 }
 
 const TEST_ALWAYS_POPULATED = ["sidebar", "sections"]
@@ -29,6 +33,7 @@ const TEST_CURSOR_START_PRIORITY = {
   watching:  ["grid", "zone_tabs", "sidebar"],
   library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
   settings:  ["sections", "grid", "sidebar"],
+  dashboard: ["sections", "sidebar"],
 }
 
 const CONFIG = { layouts: TEST_LAYOUTS, alwaysPopulated: TEST_ALWAYS_POPULATED }
@@ -267,6 +272,25 @@ describe("buildNavGraph", () => {
     })
   })
 
+  describe("dashboard zone, all populated", () => {
+    const counts = { sections: 4, sidebar: 4 }
+    const graph = buildNavGraph("dashboard", counts, CONFIG)
+
+    test("sections left goes to sidebar", () => {
+      expect(graph.sections.left).toBe("sidebar")
+    })
+
+    test("sidebar right goes to sections", () => {
+      expect(graph.sidebar.right).toBe("sections")
+    })
+
+    test("no grid, zone_tabs, or toolbar in dashboard layout", () => {
+      expect(graph.grid).toBeUndefined()
+      expect(graph.zone_tabs).toBeUndefined()
+      expect(graph.toolbar).toBeUndefined()
+    })
+  })
+
   describe("edge cases", () => {
     test("unknown zone returns empty graph", () => {
       expect(buildNavGraph("unknown", fullCounts(), CONFIG)).toEqual({})
@@ -309,6 +333,10 @@ describe("resolveCursorStart", () => {
 
   test("settings zone always starts at sections (always populated)", () => {
     expect(resolveCursorStart("settings", { sections: 0, grid: 6, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  })
+
+  test("dashboard zone returns sections (always populated)", () => {
+    expect(resolveCursorStart("dashboard", { sections: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
   })
 
   test("unknown zone returns null", () => {

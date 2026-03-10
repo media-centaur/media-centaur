@@ -47,6 +47,10 @@ export const inputConfig = {
       grid:      { left: ["sections"] },
       sidebar:   { right: ["sections", "grid"] },
     },
+    dashboard: {
+      sections:  { left: ["sidebar"] },
+      sidebar:   { right: ["sections"] },
+    },
   },
 
   // Cursor start priority per zone
@@ -54,6 +58,7 @@ export const inputConfig = {
     watching:  ["grid", "zone_tabs", "sidebar"],
     library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
+    dashboard: ["sections", "sidebar"],
   },
 
   // Always-populated contexts (skip item count check)

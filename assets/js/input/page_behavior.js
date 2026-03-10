@@ -12,10 +12,12 @@
  * @property {function(Object): {clearGridMemory: boolean}} [onSyncState] — state sync
  */
 
+import { createDashboardBehavior } from "./dashboard_behavior"
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 
 const BEHAVIOR_REGISTRY = {
+  dashboard: () => createDashboardBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   settings: () => createSettingsBehavior(),
 }
