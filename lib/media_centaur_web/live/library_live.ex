@@ -632,9 +632,8 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp recompute_continue_watching(socket) do
     continue_watching =
-      Enum.filter(socket.assigns.entries, fn entry ->
-        # Must have actual watch history — excludes the entire unwatched library
-        # (Resume.resolve returns :play_next for entities with zero progress)
+      socket.assigns.entries
+      |> Enum.filter(fn entry ->
         entry.progress_records != [] &&
           case Resume.resolve(entry.entity, entry.progress_records) do
             {:resume, _, _} -> true
@@ -642,8 +641,13 @@ defmodule MediaCentaurWeb.LibraryLive do
             _ -> false
           end
       end)
+      |> Enum.sort_by(&max_last_watched_at/1, {:desc, DateTime})
 
     assign(socket, continue_watching: continue_watching)
+  end
+
+  defp max_last_watched_at(entry) do
+    Enum.max_by(entry.progress_records, & &1.last_watched_at, DateTime, fn -> nil end).last_watched_at
   end
 
   defp compute_resume_targets(entries) do
