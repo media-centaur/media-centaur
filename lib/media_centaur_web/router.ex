@@ -75,6 +75,7 @@ defmodule MediaCentaurWeb.Router do
 
     live "/", DashboardLive, :index
     live "/settings", SettingsLive, :index
+    live "/settings/old", OldSettingsLive, :index
     live "/review", ReviewLive, :index
     live "/library", LibraryLive, :index
   end
