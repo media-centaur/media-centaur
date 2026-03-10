@@ -40,6 +40,7 @@ mix setup              # install deps, create DB, run migrations, build assets
 mix phx.server         # start dev server (http://localhost:4000)
 mix test               # run tests (creates and migrates test DB automatically)
 mix precommit          # compile --warning-as-errors, unlock unused deps, format, test
+mix seed.review        # populate review UI with all visual cases (idempotent)
 ```
 
 ### Release
