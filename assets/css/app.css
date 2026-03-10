@@ -331,7 +331,11 @@ body {
 /* ── Detail Shell ──
    ModalShell (centered overlay) wraps the shared DetailPanel component. */
 
-/* Modal backdrop — fixed overlay with blur */
+/* Modal backdrop — always in DOM, toggled via data-state.
+   The backdrop-filter layer stays alive so the browser doesn't
+   pay the first-frame compositing cost on every open. */
+/* Modal backdrop — always in DOM, toggled via data-state.
+   Uses transitions for both open and close. */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -342,7 +346,17 @@ body {
   background: oklch(0% 0 0 / 0.7);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  animation: modal-fade-in 200ms ease-out;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 200ms ease-in, visibility 0s 200ms;
+}
+
+.modal-backdrop[data-state="open"] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 250ms ease-out, visibility 0s;
 }
 
 /* Modal panel — centered, rounded, max-width constrained */
@@ -354,23 +368,15 @@ body {
   max-height: 90vh;
   border-radius: 0.75rem;
   overflow: hidden;
-  animation: modal-scale-in 200ms ease-out;
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+  transition: opacity 200ms ease-in, transform 200ms ease-in;
 }
 
-@keyframes modal-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes modal-scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+.modal-backdrop[data-state="open"] .modal-panel {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition: opacity 250ms ease-out, transform 250ms ease-out;
 }
 
 #detail-content {
@@ -391,14 +397,26 @@ body {
 
 /* ── Zone Tabs (plain text, no container) ── */
 
+/* 7. Zone tab underline slide — expands from center on active */
 .zone-tab {
   font-size: 1.125rem;
   font-weight: 500;
   color: oklch(55% 0.01 264);
   text-decoration: none;
   padding-bottom: 0.25rem;
-  border-bottom: 2px solid transparent;
-  transition: color 150ms, border-color 150ms;
+  position: relative;
+  transition: color 150ms;
+}
+
+.zone-tab::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  right: 50%;
+  height: 2px;
+  background: oklch(62% 0.16 250);
+  transition: left 150ms ease-out, right 150ms ease-out;
 }
 
 .zone-tab:hover {
@@ -408,7 +426,11 @@ body {
 .zone-tab-active {
   color: oklch(96% 0.008 264);
   font-weight: 600;
-  border-bottom-color: oklch(62% 0.16 250);
+}
+
+.zone-tab-active::after {
+  left: 0;
+  right: 0;
 }
 
 [data-theme=light] .zone-tab {
@@ -419,7 +441,9 @@ body {
 }
 [data-theme=light] .zone-tab-active {
   color: oklch(15% 0.02 264);
-  border-bottom-color: oklch(50% 0.18 250);
+}
+[data-theme=light] .zone-tab-active::after {
+  background: oklch(50% 0.18 250);
 }
 
 
@@ -490,10 +514,13 @@ body {
   border-color: oklch(62% 0.16 250 / 0.4);
 }
 
+/* 6. Sort chevron rotation */
 .sort-dropdown-chevron {
+  display: inline-flex;
   width: 1rem;
   height: 1rem;
   opacity: 0.6;
+  transition: transform 150ms ease-out;
 }
 
 .sort-dropdown-menu {
@@ -578,7 +605,13 @@ body {
 
 .library-filter:focus {
   border-color: oklch(62% 0.16 250 / 0.5);
+  box-shadow: 0 0 0 3px oklch(62% 0.16 250 / 0.1);
   outline: none;
+}
+
+/* 5. Filter input focus glow transition */
+.library-filter {
+  transition: border-color 200ms, box-shadow 200ms;
 }
 
 /* Light theme */
@@ -883,6 +916,46 @@ body {
 .review-stat-low-conf {
   background: oklch(from var(--color-warning) l c h / 0.12);
   color: var(--color-warning);
+}
+
+/* ── Library Micro-Animations ──
+   Subtle GPU-composited transitions (transform/opacity only) for polish. */
+
+/* 1. Poster image fade-in — removed, replays on LiveView re-render */
+
+/* 2. Progress bar smooth width transition */
+.progress-fill {
+  transition: width 300ms ease-out;
+}
+
+/* 3. Poster card hover lift */
+.poster-card {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.poster-card:hover:not(:active) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px oklch(0% 0 0 / 0.15);
+}
+
+.poster-card:active {
+  transition: none;
+}
+
+/* 4. Empty state fade-in */
+.empty-state-enter {
+  animation: empty-state-in 300ms ease-out;
+}
+
+@keyframes empty-state-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Smart play flash — green pulse on the card */
