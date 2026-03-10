@@ -44,7 +44,9 @@ defmodule MediaCentaurWeb.LibraryLive do
        watch_dirs: [],
        reload_timer: nil,
        pending_entity_ids: MapSet.new()
-     )}
+     )
+     |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
+     |> stream(:grid, [])}
   end
 
   @impl true
@@ -549,14 +551,15 @@ defmodule MediaCentaurWeb.LibraryLive do
     background = backdrop || image_url(entity, "poster")
     logo = image_url(entity, "logo")
     progress_fraction = compute_progress_fraction(assigns.entry.progress)
-    resume_label = format_resume_label(assigns.resume, entity)
+    {resume_label, time_remaining} = format_resume_parts(assigns.resume, entity)
 
     assigns =
       assign(assigns,
         background: background,
         logo: logo,
         progress_fraction: progress_fraction,
-        resume_label: resume_label
+        resume_label: resume_label,
+        time_remaining: time_remaining
       )
 
     ~H"""
@@ -588,24 +591,30 @@ defmodule MediaCentaurWeb.LibraryLive do
 
         <div class="absolute inset-0 bg-gradient-to-t from-black/88 via-black/40 via-40% to-transparent" />
 
-        <div class="absolute bottom-10 left-4 right-4">
+        <div class="absolute bottom-4 left-4 right-4">
           <img
             :if={@logo}
             src={@logo}
-            class="max-h-12 max-w-[60%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]"
+            class="max-h-12 max-w-[60%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)] mb-2"
           />
           <h3
             :if={!@logo}
-            class="text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+            class="text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] mb-2"
           >
             {@entry.entity.name}
           </h3>
-        </div>
 
-        <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-          <span :if={@resume_label} class="text-sm text-primary font-medium drop-shadow">
-            {@resume_label}
-          </span>
+          <div class="flex items-center justify-between">
+            <span :if={@resume_label} class="text-sm text-primary font-medium drop-shadow">
+              {@resume_label}
+            </span>
+            <span
+              :if={@time_remaining}
+              class="text-sm text-base-content/70 font-medium drop-shadow ml-auto"
+            >
+              {@time_remaining}
+            </span>
+          </div>
         </div>
 
         <div
@@ -694,7 +703,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     filtered = compute_filtered(socket)
 
     socket
-    |> stream(:grid, filtered, reset: true, dom_id: &"entity-#{&1.entity.id}")
+    |> stream(:grid, filtered, reset: true)
     |> assign(grid_count: length(filtered))
   end
 
@@ -911,32 +920,61 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp compute_progress_fraction(_), do: 0
 
-  defp format_resume_label(nil, _entity), do: nil
+  defp format_resume_parts(nil, _entity), do: {nil, nil}
 
-  defp format_resume_label(%{"action" => "resume"} = resume, _entity) do
-    case resume do
-      %{"seasonNumber" => season, "episodeNumber" => episode, "positionSeconds" => position} ->
-        "Resume S#{season} E#{episode} at #{format_seconds(position)}"
+  defp format_resume_parts(%{"action" => "resume"} = resume, _entity) do
+    label =
+      case resume do
+        %{"seasonNumber" => season, "episodeNumber" => episode} ->
+          "Season #{season} episode #{episode}"
 
-      %{"positionSeconds" => position} ->
-        "Resume at #{format_seconds(position)}"
+        _ ->
+          nil
+      end
 
-      _ ->
-        "Resume"
-    end
+    time_remaining =
+      case resume do
+        %{"positionSeconds" => position, "durationSeconds" => duration}
+        when is_number(duration) and duration > 0 ->
+          remaining = max(trunc(duration - position), 0)
+          format_human_duration(remaining) <> " remaining"
+
+        _ ->
+          nil
+      end
+
+    {label, time_remaining}
   end
 
-  defp format_resume_label(%{"action" => "begin"} = resume, _entity) do
-    case resume do
-      %{"seasonNumber" => season, "episodeNumber" => episode} ->
-        "Play S#{season} E#{episode}"
+  defp format_resume_parts(%{"action" => "begin"} = resume, _entity) do
+    label =
+      case resume do
+        %{"seasonNumber" => season, "episodeNumber" => episode} ->
+          "Play season #{season} episode #{episode}"
 
-      _ ->
-        "Play"
-    end
+        _ ->
+          "Play"
+      end
+
+    {label, nil}
   end
 
-  defp format_resume_label(_resume, _entity), do: nil
+  defp format_resume_parts(_resume, _entity), do: {nil, nil}
+
+  defp format_human_duration(seconds) when seconds >= 3600 do
+    hours = div(seconds, 3600)
+    minutes = div(rem(seconds, 3600), 60)
+
+    if minutes > 0,
+      do: "#{hours}h #{minutes}m",
+      else: "#{hours}h"
+  end
+
+  defp format_human_duration(seconds) when seconds >= 60 do
+    "#{div(seconds, 60)}m"
+  end
+
+  defp format_human_duration(_seconds), do: "< 1m"
 
   defp format_type(:movie), do: "Movie"
   defp format_type(:movie_series), do: "Movie Series"
