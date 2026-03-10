@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.DashboardLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Admin, Dashboard, Storage}
+  alias MediaCentaur.{Dashboard, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
 
@@ -51,8 +51,6 @@ defmodule MediaCentaurWeb.DashboardLive do
 
     {:ok,
      assign(socket,
-       scanning: false,
-       clearing_database: false,
        stats_timer: nil,
        pipeline_concurrency: MediaCentaur.Pipeline.processor_concurrency(),
        image_pipeline_concurrency: 4
@@ -60,37 +58,6 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   # --- Events ---
-
-  @impl true
-  def handle_event("scan", _params, socket) do
-    socket = assign(socket, scanning: true)
-
-    case MediaCentaur.Watcher.Supervisor.scan() do
-      {:ok, count} ->
-        message =
-          case count do
-            0 -> "Scan complete — no new files found"
-            1 -> "Scan complete — 1 new file detected"
-            n -> "Scan complete — #{n} new files detected"
-          end
-
-        {:noreply,
-         socket
-         |> put_flash(:info, message)
-         |> assign(scanning: false)}
-    end
-  end
-
-  def handle_event("clear_database", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      Admin.clear_database()
-      send(liveview, :database_cleared)
-    end)
-
-    {:noreply, assign(socket, clearing_database: true)}
-  end
 
   # --- Info handlers ---
 
@@ -137,13 +104,6 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
   end
 
-  def handle_info(:database_cleared, socket) do
-    {:noreply,
-     socket
-     |> assign(clearing_database: false)
-     |> put_flash(:info, "Database cleared successfully")}
-  end
-
   @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
@@ -167,8 +127,6 @@ defmodule MediaCentaurWeb.DashboardLive do
             retry_status={@retry_status}
             pipeline_concurrency={@pipeline_concurrency}
             image_concurrency={@image_pipeline_concurrency}
-            scanning={@scanning}
-            clearing_database={@clearing_database}
           />
 
           <div class="flex flex-col gap-6">
@@ -249,21 +207,6 @@ defmodule MediaCentaurWeb.DashboardLive do
             <span :if={@content_stats.total_failed > 0} class="text-error text-xs">
               {@content_stats.total_failed} failed
             </span>
-            <button
-              phx-click="clear_database"
-              disabled={@clearing_database}
-              data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
-              class="btn btn-soft btn-error btn-xs"
-            >
-              {if @clearing_database, do: "Clearing…", else: "Clear database"}
-            </button>
-            <button
-              phx-click="scan"
-              disabled={@scanning}
-              class="btn btn-primary btn-xs"
-            >
-              {if @scanning, do: "Scanning…", else: "Scan directories"}
-            </button>
           </div>
         </div>
 
