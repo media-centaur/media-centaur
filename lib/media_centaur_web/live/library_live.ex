@@ -69,6 +69,12 @@ defmodule MediaCentaurWeb.LibraryLive do
         {_, :library} -> :modal
       end
 
+    grid_changed =
+      zone != socket.assigns.zone ||
+        tab != socket.assigns.active_tab ||
+        sort != socket.assigns.sort_order ||
+        filter_text != socket.assigns.filter_text
+
     socket =
       socket
       |> assign(
@@ -79,7 +85,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         selected_entity_id: selected_id,
         detail_presentation: presentation
       )
-      |> reset_stream()
+      |> then(fn s -> if grid_changed, do: reset_stream(s), else: s end)
 
     {:noreply, socket}
   end
@@ -471,6 +477,9 @@ defmodule MediaCentaurWeb.LibraryLive do
       id={@id}
       phx-click="select_entity"
       phx-value-id={@entry.entity.id}
+      phx-mounted={
+        JS.transition({"", "opacity-0 translate-y-1", "opacity-100 translate-y-0"}, time: 200)
+      }
       data-nav-item
       data-entity-id={@entry.entity.id}
       tabindex="0"
@@ -554,6 +563,9 @@ defmodule MediaCentaurWeb.LibraryLive do
     <div
       phx-click="select_cw_entity"
       phx-value-id={@entry.entity.id}
+      phx-mounted={
+        JS.transition({"", "opacity-0 translate-y-1", "opacity-100 translate-y-0"}, time: 200)
+      }
       data-nav-item
       data-entity-id={@entry.entity.id}
       tabindex="0"
