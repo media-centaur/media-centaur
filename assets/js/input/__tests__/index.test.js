@@ -31,6 +31,11 @@ describe("App config", () => {
     expect(inputConfig.primaryMenu).toBe("sidebar")
   })
 
+  test("settings behavior has activateOnFocus for sections", () => {
+    const behavior = inputConfig.createBehavior("settings")
+    expect(behavior.activateOnFocus).toContain("sections")
+  })
+
   test("has instanceTypes for sidebar and sections", () => {
     expect(inputConfig.instanceTypes.sidebar).toBe(Context.MENU)
     expect(inputConfig.instanceTypes.sections).toBe(Context.MENU)

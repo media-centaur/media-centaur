@@ -61,7 +61,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `index.js` | No | LiveView hook factory — imports core + config, exports `createInputHook()` |
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
 | `library_behavior.js` | Yes* | Library-specific concerns (filter, zone memory, sort) |
-| `settings_behavior.js` | Yes | Settings page behavior (minimal stub) |
+| `settings_behavior.js` | Yes | Settings page behavior (activates sections on focus) |
 
 *Library behavior is pure when injected with mock DOM/storage.
 
@@ -110,6 +110,8 @@ Bridges all modules. Receives full config object including `reader`, `writer`, `
 - Modal/drawer focus restoration (origin entity tracking)
 - Sidebar persistence (sessionStorage bridge)
 - Page behavior lifecycle (detect, create, delegate, destroy)
+
+**Activate on focus.** The `primaryMenu` (sidebar) always clicks items on focus during up/down navigation, triggering page navigation. Page behaviors can declare `activateOnFocus: ["sections"]` to add the same behavior for other menu contexts on that page only. This is page-scoped to avoid unintended navigation — e.g., the dashboard and settings pages both use a `sections` zone, but only settings should auto-navigate between sub-pages.
 
 ### page_behavior.js — Behavior Registry
 
@@ -192,6 +194,7 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 
 ```javascript
 /** @typedef {Object} PageBehavior
+ *  @property {string[]} [activateOnFocus] - Menu contexts that click on focus during up/down nav
  *  @property {function(): void} [onAttach]
  *  @property {function(): void} [onDetach]
  *  @property {function(): boolean} [onEscape]

@@ -528,8 +528,11 @@ export class Orchestrator {
 
     this.writer.focusByIndex(context, nextIndex)
 
-    // Primary menu: activate on focus
-    if (this._config.primaryMenu && context === this._config.primaryMenu) {
+    // Activate on focus: click item when navigating up/down
+    const isPrimaryMenu = this._config.primaryMenu && context === this._config.primaryMenu
+    const behaviorActivate = this._behavior?.activateOnFocus
+    const isBehaviorActivate = behaviorActivate && behaviorActivate.includes(context)
+    if (isPrimaryMenu || isBehaviorActivate) {
       this._globals.requestAnimationFrame(() => {
         const focused = this.reader.getCurrentFocusedItem()
         if (focused) focused.click()
