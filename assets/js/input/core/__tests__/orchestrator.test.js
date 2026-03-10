@@ -334,7 +334,7 @@ describe("Orchestrator", () => {
   })
 
   describe("data-captures-keys bypass", () => {
-    test("prevents default when target has data-captures-keys ancestor", () => {
+    test("skips navigation when target has data-captures-keys ancestor", () => {
       const { system, calls, globals } = setup()
       system.start({})
       calls.length = 0
@@ -342,7 +342,8 @@ describe("Orchestrator", () => {
       const capturer = { closest: (sel) => sel === "[data-captures-keys]" ? capturer : null, tagName: "DIV" }
       const event = globals._dispatchKeyDown("ArrowDown", { target: capturer })
 
-      expect(event.preventDefault).toHaveBeenCalled()
+      // Does NOT preventDefault — allows normal browser behavior (typing, etc.)
+      expect(event.preventDefault).not.toHaveBeenCalled()
       // No navigation calls should have been made
       const navCalls = calls.filter(c => c.method === "focusByIndex")
       expect(navCalls.length).toBe(0)

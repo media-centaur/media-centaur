@@ -14,11 +14,13 @@
 
 import { createDashboardBehavior } from "./dashboard_behavior"
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
+import { createReviewBehavior } from "./review_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 
 const BEHAVIOR_REGISTRY = {
   dashboard: () => createDashboardBehavior(),
   library: () => createLibraryBehavior(libraryDom),
+  review: () => createReviewBehavior(),
   settings: () => createSettingsBehavior(),
 }
 
