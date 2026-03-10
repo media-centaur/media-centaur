@@ -319,6 +319,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         progress_by_key={@progress_by_key}
         on_play={@on_play}
       />
+      <.extras_section entity={@entity} on_play={@on_play} />
     </div>
     """
   end
@@ -328,20 +329,24 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :movies, movies)
 
     ~H"""
-    <div :if={@movies != []} class="pt-3">
-      <.movie_row
-        :for={movie <- @movies}
-        movie={movie}
-        watch_dirs={@watch_dirs}
-        expanded={MapSet.member?(@expanded_episodes, movie.id)}
-        on_play={@on_play}
-      />
+    <div class="pt-3">
+      <div :if={@movies != []}>
+        <.movie_row
+          :for={movie <- @movies}
+          movie={movie}
+          watch_dirs={@watch_dirs}
+          expanded={MapSet.member?(@expanded_episodes, movie.id)}
+          on_play={@on_play}
+        />
+      </div>
+      <.extras_section entity={@entity} on_play={@on_play} />
     </div>
     """
   end
 
   defp content_list(assigns) do
     ~H"""
+    <.extras_section entity={@entity} on_play={@on_play} />
     """
   end
 
@@ -394,6 +399,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           progress={Map.get(@progress_by_key, {@season.season_number, episode.episode_number})}
           on_play={@on_play}
         />
+        <.season_extras extras={@season.extras} on_play={@on_play} />
       </div>
     </div>
     """
@@ -583,6 +589,65 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </div>
         <div class="font-mono text-base-content/30 select-all">{@movie.id}</div>
       </div>
+    </div>
+    """
+  end
+
+  # --- Extra Row ---
+
+  attr :extra, :map, required: true
+  attr :on_play, :string, required: true
+
+  defp extra_row(assigns) do
+    ~H"""
+    <div class="py-0.5 pr-3" data-role="extra-row">
+      <div
+        class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2"
+        phx-click={@on_play}
+        phx-value-id={@extra.id}
+        data-nav-item
+        tabindex="0"
+      >
+        <.icon name="hero-film-mini" class="size-4 text-base-content/40 flex-shrink-0" />
+        <span class="flex-1 min-w-0 truncate text-base-content/70">{@extra.name || "—"}</span>
+      </div>
+    </div>
+    """
+  end
+
+  defp extras_section(assigns) do
+    extras = entity_extras(assigns.entity)
+    assigns = assign(assigns, :extras, extras)
+
+    ~H"""
+    <div :if={@extras != []} class="pt-3">
+      <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
+      <.extra_row :for={extra <- @extras} extra={extra} on_play={@on_play} />
+    </div>
+    """
+  end
+
+  defp entity_extras(%{extras: extras}) when is_list(extras) do
+    Enum.filter(extras, &is_nil(&1.season_id))
+  end
+
+  defp entity_extras(_), do: []
+
+  defp season_extras(%{extras: nil} = assigns) do
+    ~H"""
+    """
+  end
+
+  defp season_extras(%{extras: []} = assigns) do
+    ~H"""
+    """
+  end
+
+  defp season_extras(assigns) do
+    ~H"""
+    <div class="pt-2">
+      <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
+      <.extra_row :for={extra <- @extras} extra={extra} on_play={@on_play} />
     </div>
     """
   end
