@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.DetailPanel do
   @moduledoc """
-  Shared entity detail content component, rendered inside ModalShell or DrawerShell.
+  Shared entity detail content component, rendered inside ModalShell.
 
   Displays hero (21:9 backdrop), progress, resume button, metadata, description,
   and type-specific content lists (episodes for TV, movies for movie series).
@@ -80,16 +80,20 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:progress_by_key, progress_by_key)
 
     ~H"""
-    <div class="detail-panel">
-      <.hero
-        entity={@entity}
-        progress={@progress}
-        resume={@resume}
-        on_play={@on_play}
-      />
-      <div class="p-4 space-y-4">
-        <.metadata_row entity={@entity} />
-        <.description entity={@entity} />
+    <div class="detail-panel flex flex-col flex-1 min-h-0">
+      <div class="flex-shrink-0">
+        <.hero
+          entity={@entity}
+          progress={@progress}
+          resume={@resume}
+          on_play={@on_play}
+        />
+        <div class="p-4 space-y-4">
+          <.metadata_row entity={@entity} />
+          <.description entity={@entity} />
+        </div>
+      </div>
+      <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
         <.content_list
           entity={@entity}
           watch_dirs={@watch_dirs}
