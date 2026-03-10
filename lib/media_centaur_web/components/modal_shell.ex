@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
       phx-key="Escape"
       data-detail-mode="modal"
     >
-      <div class="modal-panel glass-surface" phx-click-away={@on_close}>
+      <div class="modal-panel bg-base-100" phx-click-away={@on_close}>
         <button
           phx-click={@on_close}
           class="absolute top-3 right-3 z-10 btn btn-ghost btn-circle btn-sm"
