@@ -1,13 +1,14 @@
 /**
  * Settings page behavior.
  *
- * Minimal stub — the settings page has no special behavior beyond
- * the MENU context navigation provided by the focus context machine.
+ * Activates section links on focus so up/down navigation
+ * switches between settings sub-pages.
  *
  * @returns {import("./page_behavior").PageBehavior}
  */
 export function createSettingsBehavior() {
   return {
+    activateOnFocus: ["sections"],
     onAttach() {},
     onDetach() {},
   }

@@ -48,7 +48,7 @@ The `_menuTransition()` handles all MENU instances. The primaryMenu gets special
 
 ### Page Behaviors
 
-Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `onAttach`, `onDetach`, `onEscape`, `onSyncState`, `onZoneChanged` — all optional.
+Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `activateOnFocus`, `onAttach`, `onDetach`, `onEscape`, `onSyncState`, `onZoneChanged` — all optional. The `activateOnFocus` property is a string array of menu context names that should click items on focus during up/down nav (page-scoped — the primaryMenu always activates globally).
 
 ### URL Persistence (data-nav-remember)
 
