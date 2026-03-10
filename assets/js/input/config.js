@@ -19,12 +19,16 @@ export const inputConfig = {
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
+    "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
+    "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
   },
 
   // Instance → context type mapping
   instanceTypes: {
     sidebar: Context.MENU,
     sections: Context.MENU,
+    "review-list": Context.MENU,
+    "review-detail": Context.MENU,
   },
 
   // Zone layouts for nav graph
@@ -51,6 +55,11 @@ export const inputConfig = {
       sections:  { left: ["sidebar"] },
       sidebar:   { right: ["sections"] },
     },
+    review: {
+      "review-list":   { right: ["review-detail"], left: ["sidebar"] },
+      "review-detail": { left: ["review-list"] },
+      sidebar:         { right: ["review-list", "review-detail"] },
+    },
   },
 
   // Cursor start priority per zone
@@ -59,6 +68,7 @@ export const inputConfig = {
     library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
     dashboard: ["sections", "sidebar"],
+    review:    ["review-list", "review-detail", "sidebar"],
   },
 
   // Always-populated contexts (skip item count check)

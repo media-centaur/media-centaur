@@ -257,7 +257,6 @@ export class Orchestrator {
     // Elements with data-captures-keys are handling their own keyboard interaction
     // (e.g. an open dropdown menu). Let the event reach LiveView, skip input system nav.
     if (event.target?.closest("[data-captures-keys]")) {
-      event.preventDefault()
       return
     }
 
