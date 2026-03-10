@@ -72,6 +72,7 @@ defmodule MediaCentaurWeb.Layouts do
             class={sidebar_link_class(@current_path, "/settings")}
             data-tip="Settings"
             data-nav-item
+            data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-cog-6-tooth" class="size-5 flex-shrink-0" />

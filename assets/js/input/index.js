@@ -85,12 +85,12 @@ export class InputSystem {
     // Resume sidebar context after navigation (sessionStorage bridge)
     if (this._globals.sessionStorage.getItem("inputSystem:resumeSidebar") === "true") {
       this._globals.sessionStorage.removeItem("inputSystem:resumeSidebar")
-      this.focusMachine.forceContext(Context.SIDEBAR)
-      const activeIndex = this.reader.getActiveSidebarIndex()
+      this.focusMachine.forceContext("sidebar")
+      const activeIndex = this.reader.getActiveItemIndex("sidebar")
       if (activeIndex >= 0) {
-        this.writer.focusByIndex(Context.SIDEBAR, activeIndex)
+        this.writer.focusByIndex("sidebar", activeIndex)
       } else {
-        this.writer.focusFirst(Context.SIDEBAR)
+        this.writer.focusFirst("sidebar")
       }
     }
 
@@ -118,7 +118,7 @@ export class InputSystem {
    */
   destroy() {
     // If we're in the sidebar, persist so the new page resumes there
-    if (this.focusMachine.context === Context.SIDEBAR) {
+    if (this.focusMachine.context === "sidebar") {
       this._globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
     }
     this._globals.document.removeEventListener("keydown", this._onKeyDown)
@@ -193,7 +193,8 @@ export class InputSystem {
       grid: this.reader.getItemCount(Context.GRID),
       toolbar: this.reader.getItemCount(Context.TOOLBAR),
       zone_tabs: this.reader.getItemCount(Context.ZONE_TABS),
-      sidebar: this.reader.getItemCount(Context.SIDEBAR),
+      sidebar: this.reader.getItemCount("sidebar"),
+      sections: this.reader.getItemCount("sections"),
       drawer: this.reader.getItemCount(Context.DRAWER),
     }
   }
@@ -341,7 +342,7 @@ export class InputSystem {
     const directive = this.focusMachine.transition(action)
 
     // If we just entered the sidebar, record where we came from
-    if (directive.type === "enter_sidebar" && contextBefore !== Context.SIDEBAR) {
+    if (directive.type === "enter_sidebar" && contextBefore !== "sidebar") {
       this._preSidebarContext = contextBefore
     }
 
@@ -369,35 +370,23 @@ export class InputSystem {
 
   /**
    * Restore focus to the appropriate item in a context.
-   * Zone tabs and toolbar: focus the active/selected item (not memory).
    * Grid: restore by entity ID memory.
-   * Other contexts: restore by index memory.
+   * All others: active item (DOM marker) → index memory → first item.
    */
   _restoreContextFocus(context) {
     if (context === Context.GRID) {
-      // Grid: restore by entity ID
       if (this._lastGridEntityId) {
         if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId)) return
       }
       this.writer.focusFirst(Context.GRID)
-    } else if (context === Context.ZONE_TABS) {
-      // Zone tabs: focus the active tab
-      const activeIndex = this.reader.getActiveZoneTabIndex()
-      if (activeIndex >= 0) {
-        this.writer.focusByIndex(Context.ZONE_TABS, activeIndex)
-      } else {
-        this.writer.focusFirst(Context.ZONE_TABS)
-      }
-    } else if (context === Context.TOOLBAR) {
-      // Toolbar: focus the active type tab
-      const activeIndex = this.reader.getActiveToolbarTabIndex()
-      if (activeIndex >= 0) {
-        this.writer.focusByIndex(Context.TOOLBAR, activeIndex)
-      } else {
-        this.writer.focusFirst(Context.TOOLBAR)
-      }
     } else {
-      // Other contexts: restore by index
+      // Try DOM-marked active item first (tab-active, menu-item-active, etc.)
+      const activeIndex = this.reader.getActiveItemIndex(context)
+      if (activeIndex >= 0) {
+        this.writer.focusByIndex(context, activeIndex)
+        return
+      }
+      // Fall back to saved memory position
       const savedIndex = this._contextMemory[context]
       if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
         this.writer.focusByIndex(context, savedIndex)
@@ -533,7 +522,7 @@ export class InputSystem {
     this.writer.focusByIndex(context, nextIndex)
 
     // Sidebar: activate on focus
-    if (context === Context.SIDEBAR) {
+    if (context === "sidebar") {
       this._globals.requestAnimationFrame(() => {
         const focused = this.reader.getCurrentFocusedItem()
         if (focused) focused.click()
@@ -622,11 +611,11 @@ export class InputSystem {
 
   _executeEnterSidebar() {
     this.writer.setSidebarState(false)
-    const activeIndex = this.reader.getActiveSidebarIndex()
+    const activeIndex = this.reader.getActiveItemIndex("sidebar")
     if (activeIndex >= 0) {
-      this.writer.focusByIndex(Context.SIDEBAR, activeIndex)
+      this.writer.focusByIndex("sidebar", activeIndex)
     } else {
-      this.writer.focusFirst(Context.SIDEBAR)
+      this.writer.focusFirst("sidebar")
     }
   }
 
@@ -642,7 +631,7 @@ export class InputSystem {
 
     if (!restoreTo) {
       // No content on this page — stay in sidebar
-      this.focusMachine.forceContext(Context.SIDEBAR)
+      this.focusMachine.forceContext("sidebar")
       return
     }
 

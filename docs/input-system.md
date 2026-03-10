@@ -41,11 +41,12 @@ All code lives in `assets/js/input/`. Tests in `assets/js/input/__tests__/` run 
 | `actions.js` | Yes | Action vocabulary, key/button → action mapping |
 | `spatial.js` | Yes | Grid index arithmetic (fast path for uniform grids) |
 | `nav_graph.js` | Yes | Navigation graph builder + cursor start priority |
-| `focus_context.js` | Yes | State machine: context × action → directive |
+| `focus_context.js` | Yes | State machine: context × action → directive, instance→type resolver |
 | `input_method.js` | Yes | Tracks mouse/keyboard/gamepad transitions |
 | `dom_adapter.js` | No | DomReader reads layout, DomWriter applies changes |
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
 | `library_behavior.js` | Yes* | Library-specific concerns (filter, zone memory, sort) |
+| `settings_behavior.js` | Yes | Settings page behavior (minimal stub) |
 | `index.js` | No | Orchestrator + LiveView hook factory |
 
 *Library behavior is pure when injected with mock DOM/storage.
@@ -62,7 +63,9 @@ Defines the `Action` enum and maps keyboard keys / gamepad buttons to semantic a
 
 The `FocusContextMachine` tracks which navigation context is active and returns `FocusDirective` data objects. Never touches DOM.
 
-**Contexts:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `SIDEBAR` · `MODAL` · `DRAWER`
+**Context types:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `MENU` · `MODAL` · `DRAWER`
+
+**Instance → type mapping:** The `contextType()` resolver maps instance names to behavior types. Multiple instances can share the same behavior type — for example, both `"sidebar"` and `"sections"` resolve to `MENU`. Instance names not in the `INSTANCE_TYPES` map are their own type (e.g., `"grid"` → `GRID`).
 
 **Public API:**
 
@@ -113,20 +116,22 @@ Extracts library-specific concerns from the orchestrator. Receives a `dom` inter
 
 Actions in each context:
 
-| Action | GRID | TOOLBAR | ZONE_TABS | SIDEBAR | MODAL | DRAWER |
-|--------|------|---------|-----------|---------|-------|--------|
-| Up | navigate | → ZONE_TABS | wall | navigate | navigate (wrap) | navigate |
-| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate (wrap) | navigate |
-| Left | navigate | navigate | navigate | wall | wall | → GRID (row edge) |
-| Right | navigate | navigate | navigate | exit sidebar | wall | wall |
-| Select | activate | activate | activate | activate | activate | activate |
-| Back | — | — | — | exit sidebar | dismiss | dismiss |
-| Play | play | — | — | — | play | play |
-| Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | zone_cycle |
+| Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | MODAL | DRAWER |
+|--------|------|---------|-----------|----------------|--------------|-------|--------|
+| Up | navigate | → ZONE_TABS | wall | navigate | navigate | navigate (wrap) | navigate |
+| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate | navigate (wrap) | navigate |
+| Left | navigate | navigate | navigate | wall | nav graph left | wall | → GRID (row edge) |
+| Right | navigate | navigate | navigate | exit sidebar | nav graph right | wall | wall |
+| Select | activate | activate | activate | activate | activate | activate | activate |
+| Back | — | — | — | exit sidebar | nav graph left | dismiss | dismiss |
+| Play | play | — | — | — | — | play | play |
+| Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | — | zone_cycle |
+
+**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`) use the navigation graph for left/right/back — if the graph points to `"sidebar"`, it produces `enter_sidebar`.
 
 **Wall transitions** (when navigation reaches the edge):
 - Grid up → TOOLBAR (library zone) or ZONE_TABS (watching zone)
-- Grid left → SIDEBAR
+- Grid left → nav graph target (sidebar in library/watching zones, sections in settings zone)
 - Grid right → DRAWER (if open)
 - Zone tabs/toolbar left at index 0 → SIDEBAR
 - Drawer left → GRID (rightmost column, same row)
@@ -151,14 +156,16 @@ Actions in each context:
 
 | Attribute | Purpose | Values |
 |-----------|---------|--------|
-| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `zone-tabs` |
+| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs` |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) | — |
 | `data-nav-grid` | CSS grid container (column count detection) | — |
 | `data-entity-id` | Stable entity identifier on cards | UUID |
 | `data-detail-mode` | Presentation shell type | `modal`, `drawer` |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
-| `data-page-behavior` | Page behavior to activate | `library` |
+| `data-page-behavior` | Page behavior to activate | `library`, `settings` |
+| `data-nav-default-zone` | Default zone for pages without zone tabs | `settings` |
+| `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
 | `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library` |
@@ -195,11 +202,12 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 ## Focus Memory Model
 
 - **Grid:** Remembers by entity ID (stable across stream DOM reorders)
-- **Zone tabs / toolbar:** Restores to the active tab (DOM state, not memory)
-- **Other contexts:** Remembers by index
+- **All other contexts:** Active item (DOM marker) → saved index memory → first item
 - **Zone change:** Clears grid + toolbar memory (content is new)
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
+
+**Active item detection:** `DomReader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class (`sidebar-link-active`, `tab-active`, `zone-tab-active`, `menu-item-active`). This single generic method replaces per-context finders. When adding a new context with an active-item visual, add the class to this method's check list.
 
 ## Text Input Handling
 
@@ -215,6 +223,17 @@ SessionStorage bridge for resuming sidebar context across LiveView navigations:
 - `destroy()`: if in sidebar context → save `inputSystem:resumeSidebar = true`
 - `start()`: if flag set → remove flag, force sidebar context, focus active item
 
+## URL Persistence for Sidebar Navigation
+
+The `data-nav-remember` attribute on sidebar links preserves query params across page navigation. Implemented in `root.html.heex` via a global click handler:
+
+1. **On any nav item click:** Saves `sessionStorage["nav:" + currentPath]` → `currentPath + queryString`
+2. **On clicks to links with `data-nav-remember`:** Looks up `sessionStorage["nav:" + targetPath]` and rewrites the `href` before navigation
+
+This means pages that use query params for state (like `/settings?section=logging` or `/library?zone=library&type=movie`) automatically resume at the last-visited section when the user navigates back via the sidebar.
+
+**To opt in:** Add `data-nav-remember` to the sidebar link in `layouts.ex`. The page must use query params (via `live_patch` / `handle_params`) for any state it wants to persist.
+
 ## CSS Integration
 
 - `[data-input=keyboard]` / `[data-input=gamepad]` — focus ring visibility
@@ -222,7 +241,9 @@ SessionStorage bridge for resuming sidebar context across LiveView navigations:
 - `nav-play-flash` — green ring animation (300ms) on play action
 - Keyboard-to-mouse cooldown (400ms) prevents synthetic mousemove during scroll
 
-## Adding a New Page Behavior
+## Adding a New Page
+
+### Page behavior (optional)
 
 1. Create `assets/js/input/<name>_behavior.js` — export a `create<Name>Behavior(dom)` factory
 2. Accept all external dependencies as parameters (no global scope access)
@@ -231,6 +252,19 @@ SessionStorage bridge for resuming sidebar context across LiveView navigations:
 5. Add `data-page-behavior="<name>"` to the LiveView template's root element
 6. Write tests in `assets/js/input/__tests__/<name>_behavior.test.js` using mock DOM
 7. Keep page state in the URL (LiveView `handle_params`) — don't duplicate in sessionStorage
+
+### Navigation zone layout (required for keyboard nav)
+
+1. Add a zone layout in `nav_graph.js` `LAYOUTS` — defines directional edges between contexts
+2. Add a cursor start priority in `CURSOR_START_PRIORITY` — ordered fallback for initial focus
+3. If the page has custom context instances (like `"sections"`):
+   - Add the instance → type mapping in `focus_context.js` `INSTANCE_TYPES`
+   - Add a selector in `dom_adapter.js` `CONTEXT_SELECTORS`
+   - Add the count in `index.js` `_buildCounts()`
+   - If always populated (static content), add to `isPopulated()` in `nav_graph.js`
+4. If the page has no zone tabs, add `data-nav-default-zone="<zone>"` to the template
+5. For sidebar URL persistence, add `data-nav-remember` to the sidebar link in `layouts.ex`
+6. Write nav graph tests and focus context tests for the new zone
 
 ## Navigation Graph
 
@@ -249,11 +283,12 @@ Example: library zone, sidebar `right` has candidates `["grid", "toolbar", "zone
 A per-zone priority list determines the initial focus context. Walked in order; first populated context wins. Independent of the graph — no directional logic.
 
 ```
-watching: grid → zone_tabs → sidebar
-library:  grid → toolbar → zone_tabs → sidebar
+watching:  grid → zone_tabs → sidebar
+library:   grid → toolbar → zone_tabs → sidebar
+settings:  sections → grid → sidebar
 ```
 
-Sidebar is always populated (static content), guaranteeing a viable terminal.
+Sidebar and sections are always populated (static content), guaranteeing a viable terminal.
 
 ## Design Rules
 

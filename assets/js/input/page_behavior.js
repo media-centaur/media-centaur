@@ -13,9 +13,11 @@
  */
 
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
+import { createSettingsBehavior } from "./settings_behavior"
 
 const BEHAVIOR_REGISTRY = {
   library: () => createLibraryBehavior(libraryDom),
+  settings: () => createSettingsBehavior(),
 }
 
 /**

@@ -12,9 +12,28 @@ export const Context = Object.freeze({
   DRAWER: "drawer",
   MODAL: "modal",
   TOOLBAR: "toolbar",
-  SIDEBAR: "sidebar",
+  MENU: "menu",
   ZONE_TABS: "zone_tabs",
 })
+
+/**
+ * Map instance names to context behavior types.
+ * Multiple instances can share the same behavior (e.g. "sidebar" and "sections"
+ * both use MENU behavior). Instance names not in this map are their own type.
+ */
+const INSTANCE_TYPES = {
+  sidebar: Context.MENU,
+  sections: Context.MENU,
+}
+
+/**
+ * Resolve an instance name to its context behavior type.
+ * @param {string} instance - The context instance name
+ * @returns {string} The context type for transition logic
+ */
+export function contextType(instance) {
+  return INSTANCE_TYPES[instance] ?? instance
+}
 
 /**
  * @typedef {Object} FocusDirective
@@ -58,12 +77,13 @@ export class FocusContextMachine {
    * @returns {FocusDirective}
    */
   transition(action) {
-    switch (this._context) {
+    const type = contextType(this._context)
+    switch (type) {
       case Context.MODAL:    return this._modalTransition(action)
       case Context.DRAWER:   return this._drawerTransition(action)
       case Context.GRID:     return this._gridTransition(action)
       case Context.TOOLBAR:  return this._toolbarTransition(action)
-      case Context.SIDEBAR:  return this._sidebarTransition(action)
+      case Context.MENU:     return this._menuTransition(action)
       case Context.ZONE_TABS: return this._zoneTabsTransition(action)
       default: return NONE
     }
@@ -116,7 +136,7 @@ export class FocusContextMachine {
    * @returns {FocusDirective}
    */
   enterSidebarFromWall() {
-    this._context = Context.SIDEBAR
+    this._context = "sidebar"
     return { type: "enter_sidebar" }
   }
 
@@ -218,18 +238,43 @@ export class FocusContextMachine {
     }
   }
 
-  /** Sidebar: up/down between items, activate on focus. Right → exit sidebar. */
-  _sidebarTransition(action) {
+  /** Menu: up/down between items. Right/Back exits. Generalizes sidebar and section nav. */
+  _menuTransition(action) {
+    const isSidebar = this._context === "sidebar"
+
     switch (action) {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
-      case Action.NAVIGATE_RIGHT:
-        // Context is set by _executeExitSidebar (restores pre-sidebar context)
-        return { type: "exit_sidebar" }
-      case Action.NAVIGATE_LEFT:  return NONE
+      case Action.NAVIGATE_RIGHT: {
+        if (isSidebar) return { type: "exit_sidebar" }
+        const target = this._navGraph?.[this._context]?.right
+        if (!target) return NONE
+        this._context = target
+        return focusFirst(target)
+      }
+      case Action.NAVIGATE_LEFT: {
+        if (isSidebar) return NONE
+        const target = this._navGraph?.[this._context]?.left
+        if (!target) return NONE
+        if (target === "sidebar") {
+          this._context = "sidebar"
+          return { type: "enter_sidebar" }
+        }
+        this._context = target
+        return focusFirst(target)
+      }
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK:
-        return { type: "exit_sidebar" }
+      case Action.BACK: {
+        if (isSidebar) return { type: "exit_sidebar" }
+        const target = this._navGraph?.[this._context]?.left
+        if (!target) return NONE
+        if (target === "sidebar") {
+          this._context = "sidebar"
+          return { type: "enter_sidebar" }
+        }
+        this._context = target
+        return focusFirst(target)
+      }
       default: return NONE
     }
   }
@@ -269,9 +314,16 @@ export class FocusContextMachine {
         return focusFirst(target)
       }
 
-      case "left":
-        this._context = Context.SIDEBAR
-        return { type: "enter_sidebar" }
+      case "left": {
+        const target = this._navGraph?.grid?.left
+        if (!target) return NONE
+        if (target === "sidebar") {
+          this._context = "sidebar"
+          return { type: "enter_sidebar" }
+        }
+        this._context = target
+        return focusFirst(target)
+      }
 
       case "right": {
         const target = this._navGraph?.grid?.right
