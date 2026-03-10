@@ -161,9 +161,11 @@ Two-zone layout with top-level tab switching. Both zones share the same LiveView
 
 **Continue Watching** (default zone): Backdrop cards (16:9 aspect) for entities with active watch progress. Each card shows the backdrop/poster image with a gradient overlay, logo or title text, resume label ("Resume S2 E5 at 12:34"), and a progress bar. Selecting a card opens a **ModalShell** — centered overlay with backdrop blur.
 
-**Library Browse** (tab): Full entity catalog as a poster grid with toolbar controls (type tabs: All/Movies/TV, sort: Recently Added/A–Z/Year, text filter). Selecting a poster opens a **DrawerShell** — right-docked sidebar. The drawer column (480px) is always reserved in the flex layout to prevent grid reflow when the drawer opens or closes.
+**Library Browse** (tab): Full entity catalog as a poster grid with toolbar controls (type tabs: All/Movies/TV, sort: Recently Added/A–Z/Year, text filter). Selecting a poster opens a **ModalShell**.
 
-**DetailPanel** is a shared function component rendered inside both shells. It displays a 21:9 hero section (backdrop + logo/title + progress + resume button), metadata row, description, and type-specific content lists (season/episode tree for TV, movie list for movie series, file details for single items).
+**DetailPanel** is a shared function component rendered inside ModalShell. It displays a 21:9 hero section (backdrop + logo/title + progress + resume button), metadata row, description, and type-specific content lists (season/episode tree for TV, movie list for movie series, file details for single items).
+
+**Detail panel scroll behavior:** The hero, metadata, and description form a fixed (non-scrolling) header. Only the content list below (seasons/episodes, movie list) scrolls. Mouse wheel and keyboard navigation scroll the content list independently — the header stays pinned. This keeps the entity identity and context always visible while browsing long episode lists.
 
 See [UIDR-006](decisions/user-interface/2026-03-09-006-library-zone-architecture.md) for the zone architecture decision.
 
