@@ -757,6 +757,7 @@ body {
   gap: 1.5rem;
   flex: 1;
   min-height: 0;
+  overflow-x: auto;
 }
 
 .review-list {
@@ -857,7 +858,7 @@ body {
 
 .review-detail {
   flex: 1;
-  min-width: 0;
+  min-width: 360px;
   min-height: 0;
 }
 

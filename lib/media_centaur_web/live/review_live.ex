@@ -499,7 +499,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         </div>
 
         <%!-- Parsed info (compact row) --%>
-        <div class="glass-inset rounded-lg px-4 py-3 flex items-center gap-3">
+        <div class="glass-inset rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
           <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-base-content/40 shrink-0">
             Parsed
           </span>
@@ -619,7 +619,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         </div>
 
         <%!-- Action buttons --%>
-        <div class="flex gap-2 pt-3 border-t border-base-content/6">
+        <div class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6">
           <button
             :if={@file.tmdb_id && !@tied}
             phx-click="approve"
