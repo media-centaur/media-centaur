@@ -595,7 +595,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           <img
             :if={@logo}
             src={@logo}
-            class="max-h-12 max-w-[60%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)] mb-2"
+            class="max-h-14 max-w-[70%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)] mb-2"
           />
           <h3
             :if={!@logo}
