@@ -147,7 +147,7 @@ defmodule MediaCentaur.Review.IntakeTest do
     end
 
     test "broadcasts {:file_added, id} to review:updates on create" do
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "review:updates")
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.review_updates())
 
       payload = build_payload()
       assert {:ok, pending_file} = Intake.create_from_payload(payload)

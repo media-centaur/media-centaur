@@ -11,9 +11,9 @@ defmodule MediaCentaurWeb.DashboardLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "watcher:state")
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "library:updates")
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "playback:events")
+        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.watcher_state())
+        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
         Process.send_after(self(), :tick_pipeline, 1_000)
         Process.send_after(self(), :refresh_storage, @storage_refresh_ms)

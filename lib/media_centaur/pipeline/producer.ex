@@ -4,7 +4,7 @@ defmodule MediaCentaur.Pipeline.Producer do
 
   Receives `{:file_detected, %{path, watch_dir}}` and
   `{:review_resolved, %{path, watch_dir, tmdb_id, tmdb_type, pending_file_id}}`
-  messages via PubSub on the `"pipeline:input"` topic, converts them to
+  messages via PubSub on the `MediaCentaur.Topics.pipeline_input()` topic, converts them to
   `%Payload{}` structs, and dispatches to Broadway processors on demand.
   """
   use GenStage
@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.Producer do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "pipeline:input")
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_input())
     send(self(), :reconcile)
     {:producer, %{queue: :queue.new(), demand: 0}}
   end

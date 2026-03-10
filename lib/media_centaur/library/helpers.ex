@@ -2,6 +2,7 @@ defmodule MediaCentaur.Library.Helpers do
   @moduledoc false
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Topics
 
   @doc """
   Loads an entity with all associations. Returns `{:ok, entity}` or `{:error, :not_found}`.
@@ -51,7 +52,7 @@ defmodule MediaCentaur.Library.Helpers do
   def broadcast_entities_changed(entity_ids) do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
-      "library:updates",
+      Topics.library_updates(),
       {:entities_changed, entity_ids}
     )
   end

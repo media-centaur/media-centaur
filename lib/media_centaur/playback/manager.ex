@@ -29,7 +29,7 @@ defmodule MediaCentaur.Playback.Manager do
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "playback:events")
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
     state =
       case DynamicSupervisor.which_children(SessionSupervisor) do

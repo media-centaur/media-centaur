@@ -21,8 +21,8 @@ defmodule MediaCentaurWeb.LibraryLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "library:updates")
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "playback:events")
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
     end
 
     {:ok,

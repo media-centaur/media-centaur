@@ -101,7 +101,7 @@ Root media object. All other resources belong to an entity.
 **Key attributes:** `type`, `name`, `description`, `date_published`, `genres`, `content_url` (standalone movies only), `duration`, `director`, `content_rating`, `number_of_seasons`, `aggregate_rating_value`
 
 **Key actions:**
-- `:create_from_tmdb` — create from pipeline metadata
+- `:create` — create from pipeline metadata
 - `:with_associations` — load full relationship tree
 - `:with_progress` — load progress and season/episode structure
 - `:set_content_url` — update video file path

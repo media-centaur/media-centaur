@@ -3,7 +3,7 @@ defmodule MediaCentaur.Library.EntityTest do
 
   alias MediaCentaur.Library
 
-  describe "create_from_tmdb" do
+  describe "create" do
     test "id is a UUID and survives a round-trip read" do
       entity = create_entity(%{type: :movie, name: "Round Trip"})
 

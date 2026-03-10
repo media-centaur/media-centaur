@@ -48,6 +48,20 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
     GenServer.call(server, :status)
   end
 
+  @doc """
+  Returns the retry count for a specific image, or nil if not tracked.
+  """
+  def retry_count(image_id, server \\ __MODULE__) do
+    GenServer.call(server, {:retry_count, image_id})
+  end
+
+  @doc """
+  Returns the set of image IDs currently tracked for retry.
+  """
+  def tracked_ids(server \\ __MODULE__) do
+    GenServer.call(server, :tracked_ids)
+  end
+
   @impl true
   def init(_opts) do
     schedule_tick()
@@ -57,6 +71,20 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
   @impl true
   def handle_call(:status, _from, state) do
     {:reply, %{retrying_count: map_size(state.retries)}, state}
+  end
+
+  def handle_call({:retry_count, image_id}, _from, state) do
+    count =
+      case Map.get(state.retries, image_id) do
+        {count, _last} -> count
+        nil -> nil
+      end
+
+    {:reply, count, state}
+  end
+
+  def handle_call(:tracked_ids, _from, state) do
+    {:reply, Map.keys(state.retries), state}
   end
 
   @impl true
@@ -184,7 +212,7 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
           [first | _] ->
             Phoenix.PubSub.broadcast(
               MediaCentaur.PubSub,
-              "pipeline:images",
+              MediaCentaur.Topics.pipeline_images(),
               {:images_pending, %{entity_id: entity.id, watch_dir: first.watch_dir}}
             )
 
