@@ -2,8 +2,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   @moduledoc """
   Shared entity detail content component, rendered inside ModalShell.
 
-  Displays hero (21:9 backdrop), progress, resume button, metadata, description,
-  and type-specific content lists (episodes for TV, movies for movie series).
+  Displays hero (21:9 backdrop), identity (logo/title), metadata, description,
+  playback actions (Play/Resume button + progress bar), and type-specific content
+  lists (episodes for TV, movies for movie series).
   """
   use MediaCentaurWeb, :html
 
@@ -82,15 +83,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <div class="detail-panel flex flex-col flex-1 min-h-0">
       <div class="flex-shrink-0">
-        <.hero
-          entity={@entity}
-          progress={@progress}
-          resume={@resume}
-          on_play={@on_play}
-        />
+        <.hero entity={@entity} />
         <div class="p-4 space-y-4">
           <.metadata_row entity={@entity} />
           <.description entity={@entity} />
+          <.playback_actions
+            entity={@entity}
+            progress={@progress}
+            resume={@resume}
+            on_play={@on_play}
+          />
         </div>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
@@ -121,7 +123,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     ~H"""
     <div class="detail-hero relative overflow-hidden">
-      <%!-- Backdrop image --%>
       <div class="aspect-[21/9] glass-inset relative">
         <img
           :if={@background}
@@ -131,12 +132,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <div :if={!@background} class="w-full h-full flex items-center justify-center">
           <.icon name="hero-film" class="size-12 text-base-content/20" />
         </div>
-
-        <%!-- Bottom gradient --%>
-        <div class="absolute inset-0 bg-gradient-to-t from-base-200 via-base-200/80 via-40% to-transparent" />
-
-        <%!-- Logo or title fallback (bottom-left) --%>
-        <div class="absolute bottom-4 left-4 right-[200px]">
+        <div class="absolute inset-0 bg-gradient-to-t from-base-100 via-base-100/60 via-30% to-transparent" />
+        <div class="absolute bottom-4 left-4 right-4">
           <img
             :if={@logo}
             src={@logo}
@@ -149,134 +146,108 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             {@entity.name}
           </h2>
         </div>
-
-        <%!-- Progress + Resume button (bottom-right) --%>
-        <div class="absolute bottom-4 right-4 text-right space-y-1">
-          <.hero_progress progress={@progress} type={@entity.type} />
-          <.resume_button resume={@resume} entity={@entity} on_play={@on_play} />
-        </div>
       </div>
     </div>
     """
   end
 
-  # --- Hero Progress ---
+  # --- Playback Actions (button + progress bar) ---
 
-  defp hero_progress(%{progress: nil} = assigns) do
+  defp playback_actions(assigns) do
+    {label, color, target_id} = playback_button_props(assigns)
+    percent = overall_progress_percent(assigns.progress, assigns.entity)
+    has_progress = percent > 0
+    remaining = progress_remaining_text(assigns.progress, assigns.entity)
+
+    assigns =
+      assigns
+      |> assign(:label, label)
+      |> assign(:color, color)
+      |> assign(:target_id, target_id)
+      |> assign(:percent, percent)
+      |> assign(:has_progress, has_progress)
+      |> assign(:remaining, remaining)
+
     ~H"""
-    <div class="text-sm text-base-content/40">Unwatched</div>
-    """
-  end
-
-  defp hero_progress(%{type: :tv_series, progress: progress} = assigns) do
-    assigns = assign(assigns, :progress, progress)
-
-    ~H"""
-    <div class="text-sm">
-      <span
-        :if={@progress.episodes_completed == @progress.episodes_total && @progress.episodes_total > 0}
-        class="text-success"
+    <div class="space-y-2">
+      <div :if={@has_progress} class="space-y-1">
+        <div class="h-1 rounded-full bg-base-content/10 overflow-hidden">
+          <div
+            class={"h-full rounded-full #{if @percent >= 100, do: "bg-success", else: "bg-info"}"}
+            style={"width: #{@percent}%"}
+          />
+        </div>
+        <div :if={@remaining} class="text-xs text-base-content/50 text-right">{@remaining}</div>
+      </div>
+      <button
+        phx-click={@on_play}
+        phx-value-id={@target_id}
+        class={"btn btn-soft btn-sm btn-#{@color}"}
+        data-nav-item
+        data-entity-id={@target_id}
+        tabindex="0"
       >
-        Watched
-      </span>
-      <span
-        :if={@progress.episodes_completed < @progress.episodes_total || @progress.episodes_total == 0}
-        class="text-info"
-      >
-        {@progress.episodes_completed}/{@progress.episodes_total} episodes
-      </span>
+        <.icon name="hero-play-mini" class="size-4" /> {@label}
+      </button>
     </div>
     """
   end
 
-  defp hero_progress(%{progress: progress} = assigns) do
-    completed = progress.episodes_completed > 0
-    assigns = assign(assigns, progress: progress, completed: completed)
-
-    ~H"""
-    <div class="text-sm">
-      <span :if={@completed} class="text-success">Watched</span>
-      <span :if={!@completed && @progress.episode_duration_seconds > 0} class="text-info">
-        {format_seconds(@progress.episode_position_seconds)} / {format_seconds(
-          @progress.episode_duration_seconds
-        )}
-      </span>
-      <span
-        :if={!@completed && @progress.episode_duration_seconds == 0}
-        class="text-base-content/40"
-      >
-        Unwatched
-      </span>
-    </div>
-    """
+  defp playback_button_props(%{resume: %{"action" => "resume"} = resume, entity: entity}) do
+    {"Resume", "success", resume["targetId"] || entity.id}
   end
 
-  # --- Resume Button ---
-
-  defp resume_button(%{resume: %{"action" => "resume"} = resume} = assigns) do
-    label = resume_label(resume)
-    assigns = assign(assigns, :label, label)
-
-    ~H"""
-    <button
-      phx-click={@on_play}
-      phx-value-id={@resume["targetId"] || @entity.id}
-      class="btn btn-soft btn-success btn-sm"
-      data-nav-item
-      data-entity-id={@resume["targetId"] || @entity.id}
-      tabindex="0"
-    >
-      <.icon name="hero-play-mini" class="size-4" /> {@label}
-    </button>
-    """
+  defp playback_button_props(%{resume: %{"action" => "begin"} = resume, entity: entity}) do
+    {"Play", "primary", resume["targetId"] || entity.id}
   end
 
-  defp resume_button(%{resume: %{"action" => "begin"} = resume} = assigns) do
-    assigns = assign(assigns, :target_id, resume["targetId"] || assigns.entity.id)
-
-    ~H"""
-    <button
-      phx-click={@on_play}
-      phx-value-id={@target_id}
-      class="btn btn-soft btn-primary btn-sm"
-      data-nav-item
-      data-entity-id={@target_id}
-      tabindex="0"
-    >
-      <.icon name="hero-play-mini" class="size-4" /> Play
-    </button>
-    """
+  defp playback_button_props(%{entity: entity}) do
+    {"Play", "primary", entity.id}
   end
 
-  defp resume_button(assigns) do
-    has_content = assigns.entity.content_url != nil
+  defp overall_progress_percent(nil, _entity), do: 0
 
-    assigns = assign(assigns, :has_content, has_content)
-
-    ~H"""
-    <button
-      phx-click={@on_play}
-      phx-value-id={@entity.id}
-      class="btn btn-soft btn-primary btn-sm"
-      data-nav-item
-      data-entity-id={@entity.id}
-      tabindex="0"
-      disabled={!@has_content}
-    >
-      <.icon name="hero-play-mini" class="size-4" /> Play
-    </button>
-    """
+  defp overall_progress_percent(progress, %{type: :tv_series}) do
+    if progress.episodes_total > 0 do
+      min(round(progress.episodes_completed / progress.episodes_total * 100), 100)
+    else
+      0
+    end
   end
 
-  defp resume_label(%{"seasonNumber" => season, "episodeNumber" => episode}) do
-    "Resume S#{season} E#{episode}"
+  defp overall_progress_percent(progress, _entity) do
+    if progress.episode_duration_seconds > 0 do
+      min(round(progress.episode_position_seconds / progress.episode_duration_seconds * 100), 100)
+    else
+      if progress.episodes_completed > 0, do: 100, else: 0
+    end
   end
 
-  defp resume_label(%{"positionSeconds" => position}) when is_number(position) do
-    "Resume at #{format_seconds(position)}"
+  defp progress_remaining_text(nil, _entity), do: nil
+
+  defp progress_remaining_text(progress, %{type: :tv_series}) do
+    remaining = progress.episodes_total - progress.episodes_completed
+
+    cond do
+      remaining <= 0 -> "Watched"
+      remaining == 1 -> "1 episode left"
+      true -> "#{remaining} episodes left"
+    end
   end
 
-  defp resume_label(_resume), do: "Resume"
+  defp progress_remaining_text(progress, _entity) do
+    cond do
+      progress.episodes_completed > 0 ->
+        "Watched"
+
+      progress.episode_duration_seconds > 0 && progress.episode_position_seconds > 0 ->
+        remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
+        "#{format_duration_human(remaining_seconds)} remaining"
+
+      true ->
+        nil
+    end
+  end
 
   # --- Metadata Row ---
 
@@ -591,6 +562,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp format_type(type), do: type |> to_string() |> String.capitalize()
 
   defp extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
+
+  defp format_duration_human(seconds) when is_number(seconds) and seconds >= 0 do
+    hours = div(trunc(seconds), 3600)
+    minutes = div(rem(trunc(seconds), 3600), 60)
+
+    cond do
+      hours > 0 && minutes > 0 -> "#{hours}h #{minutes}m"
+      hours > 0 -> "#{hours}h"
+      minutes > 0 -> "#{minutes}m"
+      true -> "<1m"
+    end
+  end
 
   defp count_watched_episodes(season, progress_by_key) do
     (season.episodes || [])
