@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.{DateUtil, LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
+  alias MediaCentaur.Playback.{EpisodeList, MovieList}
   alias MediaCentaurWeb.Components.{DetailPanel, ModalShell}
 
   @impl true
@@ -551,7 +552,8 @@ defmodule MediaCentaurWeb.LibraryLive do
     background = backdrop || image_url(entity, "poster")
     logo = image_url(entity, "logo")
     progress_fraction = compute_progress_fraction(assigns.entry.progress)
-    {resume_label, time_remaining} = format_resume_parts(assigns.resume, entity)
+    entry = assigns.entry
+    {resume_label, time_remaining} = format_resume_parts(assigns.resume, entry)
 
     assigns =
       assign(assigns,
@@ -920,9 +922,9 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp compute_progress_fraction(_), do: 0
 
-  defp format_resume_parts(nil, _entity), do: {nil, nil}
+  defp format_resume_parts(nil, _entry), do: {nil, nil}
 
-  defp format_resume_parts(%{"action" => "resume"} = resume, _entity) do
+  defp format_resume_parts(%{"action" => "resume"} = resume, entry) do
     label =
       case resume do
         %{"seasonNumber" => season, "episodeNumber" => episode} ->
@@ -940,13 +942,13 @@ defmodule MediaCentaurWeb.LibraryLive do
           format_human_duration(remaining) <> " remaining"
 
         _ ->
-          nil
+          episodes_remaining_label(entry.entity, entry.progress_records)
       end
 
     {label, time_remaining}
   end
 
-  defp format_resume_parts(%{"action" => "begin"} = resume, _entity) do
+  defp format_resume_parts(%{"action" => "begin"} = resume, entry) do
     label =
       case resume do
         %{"seasonNumber" => season, "episodeNumber" => episode} ->
@@ -956,10 +958,28 @@ defmodule MediaCentaurWeb.LibraryLive do
           "Play"
       end
 
-    {label, nil}
+    {label, episodes_remaining_label(entry.entity, entry.progress_records)}
   end
 
-  defp format_resume_parts(_resume, _entity), do: {nil, nil}
+  defp format_resume_parts(_resume, _entry), do: {nil, nil}
+
+  defp episodes_remaining_label(entity, progress_records) do
+    total =
+      case entity.type do
+        :tv_series -> length(EpisodeList.list_available(entity))
+        :movie_series -> length(MovieList.list_available(entity))
+        _ -> 0
+      end
+
+    completed = Enum.count(progress_records, & &1.completed)
+    remaining = total - completed
+
+    case remaining do
+      n when n > 1 -> "#{n} episodes remaining"
+      1 -> "1 episode remaining"
+      _ -> nil
+    end
+  end
 
   defp format_human_duration(seconds) when seconds >= 3600 do
     hours = div(seconds, 3600)
