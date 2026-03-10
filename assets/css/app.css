@@ -627,6 +627,89 @@ body {
 }
 
 
+/* Settings page — two-pane layout */
+.settings-layout {
+  display: flex;
+  gap: 2rem;
+  max-width: 780px;
+}
+
+.section-nav {
+  width: 160px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 1.5rem;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.section-nav-item {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-box, 0.5rem);
+  font-size: 0.875rem;
+  color: var(--color-base-content);
+  opacity: 0.7;
+  transition: opacity 150ms, background-color 150ms;
+}
+
+.section-nav-item:hover {
+  opacity: 1;
+  background-color: oklch(from var(--color-base-content) l c h / 0.06);
+}
+
+.section-nav-item.menu-item-active {
+  opacity: 1;
+  color: var(--color-primary);
+  background-color: oklch(from var(--color-primary) l c h / 0.1);
+  font-weight: 500;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-card {
+  padding: 1.25rem;
+  border-radius: var(--radius-box, 0.5rem);
+}
+
+.settings-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.settings-section-desc {
+  font-size: 0.875rem;
+  opacity: 0.5;
+  margin-top: 0.125rem;
+  margin-bottom: 0.5rem;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 0.875rem;
+  gap: 1rem;
+  border-radius: var(--radius-box, 0.5rem);
+  transition: background-color 150ms;
+  cursor: pointer;
+}
+
+.settings-row:hover {
+  background-color: oklch(from var(--color-base-content) l c h / 0.04);
+}
+
+.settings-config-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 /* Smart play flash — green pulse on the card */
 .nav-play-flash {
   animation: play-flash 300ms ease-out;

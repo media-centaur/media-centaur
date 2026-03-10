@@ -29,6 +29,11 @@ const LAYOUTS = {
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
     drawer:    { left: ["grid", "toolbar"] },
   },
+  settings: {
+    sections:  { right: ["grid"],            left: ["sidebar"] },
+    grid:      { left: ["sections"] },
+    sidebar:   { right: ["sections", "grid"] },
+  },
 }
 
 /**
@@ -37,8 +42,9 @@ const LAYOUTS = {
  * (guaranteed populated — static navigation links).
  */
 const CURSOR_START_PRIORITY = {
-  watching: ["grid", "zone_tabs", "sidebar"],
-  library:  ["grid", "toolbar", "zone_tabs", "sidebar"],
+  watching:  ["grid", "zone_tabs", "sidebar"],
+  library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
+  settings:  ["sections", "grid", "sidebar"],
 }
 
 /**
@@ -95,7 +101,7 @@ function resolveFirst(candidates, counts, drawerOpen) {
  * (static navigation links that are always present).
  */
 function isPopulated(context, counts) {
-  if (context === "sidebar") return true
+  if (context === "sidebar" || context === "sections") return true
   return (counts[context] ?? 0) > 0
 }
 

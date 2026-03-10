@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from "bun:test"
-import { FocusContextMachine, Context } from "../focus_context"
+import { FocusContextMachine, Context, contextType } from "../focus_context"
 import { Action } from "../actions"
 import { buildNavGraph } from "../nav_graph"
 
@@ -76,7 +76,7 @@ describe("FocusContextMachine", () => {
       machine.setNavGraph(fullGraph("watching"))
       const directive = machine.gridWall("left")
       expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe(Context.SIDEBAR)
+      expect(machine.context).toBe("sidebar")
     })
 
     test("right wall with drawer open switches to drawer", () => {
@@ -209,7 +209,7 @@ describe("FocusContextMachine", () => {
 
   describe("Sidebar context", () => {
     beforeEach(() => {
-      machine._context = Context.SIDEBAR
+      machine._context = "sidebar"
     })
 
     test("up/down navigate vertically", () => {
@@ -221,7 +221,7 @@ describe("FocusContextMachine", () => {
       const directive = machine.transition(Action.NAVIGATE_RIGHT)
       expect(directive).toEqual({ type: "exit_sidebar" })
       // Context stays SIDEBAR — orchestrator's _executeExitSidebar sets it
-      expect(machine.context).toBe(Context.SIDEBAR)
+      expect(machine.context).toBe("sidebar")
     })
 
     test("left is wall", () => {
@@ -231,7 +231,7 @@ describe("FocusContextMachine", () => {
     test("back produces exit_sidebar (context set by orchestrator)", () => {
       const directive = machine.transition(Action.BACK)
       expect(directive).toEqual({ type: "exit_sidebar" })
-      expect(machine.context).toBe(Context.SIDEBAR)
+      expect(machine.context).toBe("sidebar")
     })
 
     test("select activates", () => {
@@ -307,8 +307,8 @@ describe("FocusContextMachine", () => {
 
   describe("forceContext()", () => {
     test("sets context to the given value", () => {
-      machine.forceContext(Context.SIDEBAR)
-      expect(machine.context).toBe(Context.SIDEBAR)
+      machine.forceContext("sidebar")
+      expect(machine.context).toBe("sidebar")
     })
 
     test("can restore to any context", () => {
@@ -344,14 +344,14 @@ describe("FocusContextMachine", () => {
       machine.forceContext(Context.TOOLBAR)
       const directive = machine.enterSidebarFromWall()
       expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe(Context.SIDEBAR)
+      expect(machine.context).toBe("sidebar")
     })
 
     test("works from zone tabs context", () => {
       machine.forceContext(Context.ZONE_TABS)
       const directive = machine.enterSidebarFromWall()
       expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe(Context.SIDEBAR)
+      expect(machine.context).toBe("sidebar")
     })
   })
 
@@ -383,6 +383,105 @@ describe("FocusContextMachine", () => {
       machine._context = Context.TOOLBAR
       machine.presentationChanged(null)
       expect(machine.context).toBe(Context.TOOLBAR)
+    })
+  })
+
+  describe("MENU context type resolver", () => {
+    test("sidebar instance resolves to MENU type", () => {
+      expect(contextType("sidebar")).toBe(Context.MENU)
+    })
+
+    test("unknown instance resolves to itself", () => {
+      expect(contextType("grid")).toBe("grid")
+      expect(contextType("drawer")).toBe("drawer")
+    })
+
+    test("sidebar instance uses _menuTransition via transition()", () => {
+      machine._context = "sidebar"
+      const directive = machine.transition(Action.NAVIGATE_RIGHT)
+      expect(directive).toEqual({ type: "exit_sidebar" })
+    })
+
+    test("sidebar back exits sidebar via _menuTransition", () => {
+      machine._context = "sidebar"
+      const directive = machine.transition(Action.BACK)
+      expect(directive).toEqual({ type: "exit_sidebar" })
+    })
+
+    test("sidebar left is wall via _menuTransition", () => {
+      machine._context = "sidebar"
+      const directive = machine.transition(Action.NAVIGATE_LEFT)
+      expect(directive).toEqual({ type: "none" })
+    })
+  })
+
+  describe("sections MENU instance", () => {
+    test("sections resolves to MENU type", () => {
+      expect(contextType("sections")).toBe(Context.MENU)
+    })
+
+    test("sections right navigates to grid via nav graph", () => {
+      machine._context = "sections"
+      machine.setNavGraph({ sections: { right: "grid" } })
+      const directive = machine.transition(Action.NAVIGATE_RIGHT)
+      expect(directive).toEqual({ type: "focus_first", context: "grid" })
+      expect(machine.context).toBe("grid")
+    })
+
+    test("sections left navigates to sidebar via nav graph", () => {
+      machine._context = "sections"
+      machine.setNavGraph({ sections: { left: "sidebar" } })
+      const directive = machine.transition(Action.NAVIGATE_LEFT)
+      expect(directive).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe("sidebar")
+    })
+
+    test("sections back navigates to sidebar via nav graph", () => {
+      machine._context = "sections"
+      machine.setNavGraph({ sections: { left: "sidebar" } })
+      const directive = machine.transition(Action.BACK)
+      expect(directive).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe("sidebar")
+    })
+
+    test("sections left with no nav graph edge is no-op", () => {
+      machine._context = "sections"
+      machine.setNavGraph({ sections: {} })
+      const directive = machine.transition(Action.NAVIGATE_LEFT)
+      expect(directive).toEqual({ type: "none" })
+    })
+
+    test("sections up/down navigate linearly", () => {
+      machine._context = "sections"
+      expect(machine.transition(Action.NAVIGATE_UP)).toEqual({ type: "navigate", direction: "up" })
+      expect(machine.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
+    })
+
+    test("sections select activates", () => {
+      machine._context = "sections"
+      expect(machine.transition(Action.SELECT)).toEqual({ type: "activate" })
+    })
+  })
+
+  describe("gridWall left is nav-graph-driven", () => {
+    test("left wall goes to sidebar when nav graph points there", () => {
+      machine.setNavGraph(fullGraph("watching"))
+      const directive = machine.gridWall("left")
+      expect(directive).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe("sidebar")
+    })
+
+    test("left wall is no-op when nav graph has no left edge", () => {
+      machine.setNavGraph({ grid: {} })
+      const directive = machine.gridWall("left")
+      expect(directive).toEqual({ type: "none" })
+    })
+
+    test("left wall goes to non-sidebar target when nav graph points there", () => {
+      machine.setNavGraph({ grid: { left: "sections" } })
+      const directive = machine.gridWall("left")
+      expect(directive).toEqual({ type: "focus_first", context: "sections" })
+      expect(machine.context).toBe("sections")
     })
   })
 })

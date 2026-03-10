@@ -14,6 +14,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | Ash resources, domains, actions, changes | `ash-framework` |
 | Broadway pipeline, producers, processors, batchers | `broadway` |
 | Phoenix web layer, controllers, views, routing | `phoenix-framework` |
+| Keyboard/gamepad nav, focus context, nav graphs, page behaviors | `input-system` |
 | General coding standards, naming, structure | `coding-guidelines` |
 
 Invoke the skill **first**, then explore the codebase, then write code.

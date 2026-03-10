@@ -191,6 +191,45 @@ describe("buildNavGraph", () => {
     })
   })
 
+  describe("settings zone, all populated", () => {
+    const counts = { grid: 6, sections: 4, sidebar: 4 }
+    const graph = buildNavGraph("settings", counts)
+
+    test("sections right goes to grid", () => {
+      expect(graph.sections.right).toBe("grid")
+    })
+
+    test("sections left goes to sidebar", () => {
+      expect(graph.sections.left).toBe("sidebar")
+    })
+
+    test("grid left goes to sections", () => {
+      expect(graph.grid.left).toBe("sections")
+    })
+
+    test("sidebar right goes to sections (first candidate)", () => {
+      expect(graph.sidebar.right).toBe("sections")
+    })
+
+    test("no zone_tabs or toolbar in settings layout", () => {
+      expect(graph.zone_tabs).toBeUndefined()
+      expect(graph.toolbar).toBeUndefined()
+    })
+  })
+
+  describe("settings zone, empty grid", () => {
+    const counts = { grid: 0, sections: 4, sidebar: 4 }
+    const graph = buildNavGraph("settings", counts)
+
+    test("sections right blocked (grid is only candidate)", () => {
+      expect(graph.sections.right).toBeUndefined()
+    })
+
+    test("sidebar right goes to sections", () => {
+      expect(graph.sidebar.right).toBe("sections")
+    })
+  })
+
   describe("edge cases", () => {
     test("unknown zone returns empty graph", () => {
       expect(buildNavGraph("unknown", fullCounts())).toEqual({})
@@ -225,6 +264,14 @@ describe("resolveCursorStart", () => {
 
   test("watching zone with only sidebar returns sidebar", () => {
     expect(resolveCursorStart("watching", { grid: 0, zone_tabs: 0, sidebar: 4 })).toBe("sidebar")
+  })
+
+  test("settings zone with full counts returns sections", () => {
+    expect(resolveCursorStart("settings", { sections: 4, grid: 6, sidebar: 4 })).toBe("sections")
+  })
+
+  test("settings zone always starts at sections (always populated)", () => {
+    expect(resolveCursorStart("settings", { sections: 0, grid: 6, sidebar: 4 })).toBe("sections")
   })
 
   test("unknown zone returns null", () => {

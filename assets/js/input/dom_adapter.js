@@ -7,13 +7,17 @@
 
 import { Context } from "./focus_context"
 
-// Selector for focusable items within each context
+// Selector for focusable items within each context.
+// Context enum values are used for standard contexts; instance names
+// (like "sidebar") are used for MENU instances that share behavior
+// but have distinct DOM selectors.
 const CONTEXT_SELECTORS = {
   [Context.GRID]: "[data-nav-zone='grid'] [data-nav-item]",
   [Context.DRAWER]: "[data-detail-mode='drawer'] [data-nav-item]",
   [Context.MODAL]: "[data-detail-mode='modal'] [data-nav-item]",
   [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
-  [Context.SIDEBAR]: "[data-nav-zone='sidebar'] [data-nav-item]",
+  sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
+  sections: "[data-nav-zone='sections'] [data-nav-item]",
   [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
 }
 
@@ -86,7 +90,10 @@ export const DomReader = {
   getZone() {
     const tabGroup = document.querySelector("[data-nav-zone='zone-tabs']")
     const activeTab = tabGroup?.querySelector(".tab-active, .zone-tab-active")
-    return activeTab?.dataset?.navZoneValue || "watching"
+    if (activeTab?.dataset?.navZoneValue) return activeTab.dataset.navZoneValue
+
+    const defaultZone = document.querySelector("[data-nav-default-zone]")
+    return defaultZone?.dataset?.navDefaultZone ?? "watching"
   },
 
   getSortOrder() {
@@ -130,17 +137,6 @@ export const DomReader = {
   },
 
   /**
-   * Find the active toolbar tab index (by tab-active class).
-   */
-  getActiveToolbarTabIndex() {
-    const items = document.querySelectorAll(CONTEXT_SELECTORS[Context.TOOLBAR])
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].classList.contains("tab-active")) return i
-    }
-    return -1
-  },
-
-  /**
    * Get the total number of zone tabs.
    */
   getZoneTabCount() {
@@ -148,13 +144,21 @@ export const DomReader = {
   },
 
   /**
-   * Find the index of the active sidebar nav item (has sidebar-link-active class).
+   * Find the index of the item marked active in any context.
+   * Checks a standard set of "active" class names used across the app.
+   * Replaces per-context active-item finders with a single generic method.
    * Returns -1 if none is active.
    */
-  getActiveSidebarIndex() {
-    const items = document.querySelectorAll(CONTEXT_SELECTORS[Context.SIDEBAR])
+  getActiveItemIndex(context) {
+    const selector = CONTEXT_SELECTORS[context]
+    if (!selector) return -1
+    const items = document.querySelectorAll(selector)
     for (let i = 0; i < items.length; i++) {
-      if (items[i].classList.contains("sidebar-link-active")) return i
+      const cl = items[i].classList
+      if (cl.contains("sidebar-link-active") ||
+          cl.contains("tab-active") ||
+          cl.contains("zone-tab-active") ||
+          cl.contains("menu-item-active")) return i
     }
     return -1
   },

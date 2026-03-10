@@ -17,9 +17,8 @@ function createMockReader(overrides = {}) {
     getFocusedIndex: () => 0,
     getCurrentFocusedItem: () => null,
     getActiveZoneTabIndex: () => 0,
-    getActiveToolbarTabIndex: () => 0,
+    getActiveItemIndex: () => -1,
     getZoneTabCount: () => 2,
-    getActiveSidebarIndex: () => -1,
     getEntityIndex: () => -1,
     getSidebarCollapsed: () => false,
     getPageBehavior: () => null,
@@ -193,7 +192,7 @@ describe("InputSystem orchestrator", () => {
     test("destroy persists sidebar context to sessionStorage", () => {
       const { system, globals } = setup()
       system.start({})
-      system.focusMachine.forceContext(Context.SIDEBAR)
+      system.focusMachine.forceContext("sidebar")
       system.destroy()
 
       expect(globals._storage["inputSystem:resumeSidebar"]).toBe("true")
@@ -201,17 +200,17 @@ describe("InputSystem orchestrator", () => {
 
     test("start resumes sidebar context from sessionStorage", () => {
       const { system, calls, globals } = setup({
-        getActiveSidebarIndex: () => 1,
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 1 : -1,
       })
       globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
 
       system.start({})
 
-      expect(system.focusMachine.context).toBe(Context.SIDEBAR)
+      expect(system.focusMachine.context).toBe("sidebar")
       expect(globals.sessionStorage.getItem("inputSystem:resumeSidebar")).toBe(null)
 
       const focusCalls = calls.filter(c => c.method === "focusByIndex")
-      expect(focusCalls.some(c => c.args[0] === Context.SIDEBAR && c.args[1] === 1)).toBe(true)
+      expect(focusCalls.some(c => c.args[0] === "sidebar" && c.args[1] === 1)).toBe(true)
     })
 
     test("destroy does not persist when not in sidebar", () => {
@@ -396,12 +395,12 @@ describe("InputSystem orchestrator", () => {
       const { system, reader, calls } = setup({
         getItemCount: (ctx) => ctx === Context.TOOLBAR ? 5 : 8,
         getSidebarCollapsed: () => true,
-        getActiveToolbarTabIndex: () => 2,
+        getActiveItemIndex: (ctx) => ctx === Context.TOOLBAR ? 2 : -1,
       })
       system.start({})
 
       // Set up: currently in sidebar, came from toolbar
-      system.focusMachine.forceContext(Context.SIDEBAR)
+      system.focusMachine.forceContext("sidebar")
       system._preSidebarContext = Context.TOOLBAR
       calls.length = 0
 
@@ -417,11 +416,11 @@ describe("InputSystem orchestrator", () => {
         getItemCount: () => 0,
       })
       system.start({})
-      system.focusMachine.forceContext(Context.SIDEBAR)
+      system.focusMachine.forceContext("sidebar")
 
       system._executeExitSidebar()
 
-      expect(system.focusMachine.context).toBe(Context.SIDEBAR)
+      expect(system.focusMachine.context).toBe("sidebar")
     })
 
     test("exit sidebar goes to toolbar when grid is empty", () => {
@@ -429,10 +428,10 @@ describe("InputSystem orchestrator", () => {
         getZone: () => "library",
         getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
         getSidebarCollapsed: () => false,
-        getActiveToolbarTabIndex: () => 0,
+        getActiveItemIndex: (ctx) => ctx === Context.TOOLBAR ? 0 : -1,
       })
       system.start({})
-      system.focusMachine.forceContext(Context.SIDEBAR)
+      system.focusMachine.forceContext("sidebar")
       system._preSidebarContext = null
       calls.length = 0
 
@@ -521,7 +520,7 @@ describe("InputSystem orchestrator", () => {
       const { system, reader, calls, globals } = setup({
         getFocusedIndex: () => 0,
         getItemCount: () => 3,
-        getActiveSidebarIndex: () => 0,
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 0 : -1,
       })
       system.start({})
       system.focusMachine.forceContext(Context.ZONE_TABS)
@@ -530,7 +529,7 @@ describe("InputSystem orchestrator", () => {
       // Trigger left navigation from zone tabs
       system._handleAction(Action.NAVIGATE_LEFT)
 
-      expect(system.focusMachine.context).toBe(Context.SIDEBAR)
+      expect(system.focusMachine.context).toBe("sidebar")
       expect(system._preSidebarContext).toBe(Context.ZONE_TABS)
     })
   })

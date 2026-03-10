@@ -6,6 +6,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Pipeline
   alias MediaCentaur.ImagePipeline
 
+  @sections [
+    %{id: "services", label: "Services"},
+    %{id: "logging", label: "Logging"},
+    %{id: "configuration", label: "Configuration"},
+    %{id: "danger", label: "Danger Zone"}
+  ]
+
   @impl true
   def mount(_params, _session, socket) do
     socket =
@@ -35,9 +42,16 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     {:ok,
      assign(socket,
+       sections: @sections,
        clearing_database: false,
        refreshing_images: false
      )}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    section = params["section"] || "services"
+    {:noreply, assign(socket, active_section: section)}
   end
 
   # --- Events ---
@@ -166,238 +180,247 @@ defmodule MediaCentaurWeb.SettingsLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_path="/settings">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <h1 class="text-2xl font-bold sm:col-span-2">Settings</h1>
+      <div
+        data-page-behavior="settings"
+        data-nav-default-zone="settings"
+        class="settings-layout"
+      >
+        <nav data-nav-zone="sections" class="section-nav">
+          <h1 class="text-xl font-bold mb-4">Settings</h1>
+          <.link
+            :for={section <- @sections}
+            patch={~p"/settings?section=#{section.id}"}
+            data-nav-item
+            tabindex="0"
+            class={["section-nav-item", @active_section == section.id && "menu-item-active"]}
+          >
+            {section.label}
+          </.link>
+        </nav>
 
-        <div class="sm:col-span-2">
-          <.services_card
+        <div data-nav-zone="grid" class="settings-content">
+          <.section_content
+            active_section={@active_section}
             watchers_running={@watchers_running}
             pipeline_running={@pipeline_running}
             image_pipeline_running={@image_pipeline_running}
+            enabled_components={@enabled_components}
+            all_components={@all_components}
+            suppressed_frameworks={@suppressed_frameworks}
+            config={@config}
+            clearing_database={@clearing_database}
+            refreshing_images={@refreshing_images}
           />
         </div>
-
-        <div class="sm:col-span-2">
-          <.component_logs_card enabled={@enabled_components} all={@all_components} />
-        </div>
-
-        <div class="sm:col-span-2">
-          <.framework_logs_card suppressed={@suppressed_frameworks} />
-        </div>
-
-        <.config_overview config={@config} />
-        <.danger_zone
-          clearing_database={@clearing_database}
-          refreshing_images={@refreshing_images}
-        />
       </div>
     </Layouts.app>
     """
   end
 
-  # --- Section Components ---
+  # --- Section router ---
 
-  defp services_card(assigns) do
+  defp section_content(%{active_section: "services"} = assigns) do
     ~H"""
-    <div class="card glass-surface">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Services</h2>
+    <div data-nav-grid class="settings-card glass-surface">
+      <h2 class="settings-section-title">Services</h2>
+      <p class="settings-section-desc">
+        Start or stop background services. State is saved per environment.
+      </p>
 
-        <p class="text-sm text-base-content/50">
-          Start or stop background services. State is saved per environment.
-        </p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
-          <div class="flex items-center justify-between p-4 rounded-lg glass-inset">
-            <div>
-              <span class="font-medium">Watchers</span>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                File system monitoring for media directories
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              class="toggle toggle-sm toggle-info"
-              checked={@watchers_running}
-              phx-click="toggle_watchers"
-            />
-          </div>
-          <div class="flex items-center justify-between p-4 rounded-lg glass-inset">
-            <div>
-              <span class="font-medium">Pipeline</span>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Metadata search and entity ingestion
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              class="toggle toggle-sm toggle-info"
-              checked={@pipeline_running}
-              phx-click="toggle_pipeline"
-            />
-          </div>
-          <div class="flex items-center justify-between p-4 rounded-lg glass-inset">
-            <div>
-              <span class="font-medium">Image Pipeline</span>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Artwork downloading and processing
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              class="toggle toggle-sm toggle-info"
-              checked={@image_pipeline_running}
-              phx-click="toggle_image_pipeline"
-            />
-          </div>
-        </div>
-      </div>
+      <.settings_row
+        label="Watchers"
+        description="File system monitoring for media directories"
+        checked={@watchers_running}
+        event="toggle_watchers"
+        color="info"
+      />
+      <.settings_row
+        label="Pipeline"
+        description="Metadata search and entity ingestion"
+        checked={@pipeline_running}
+        event="toggle_pipeline"
+        color="info"
+      />
+      <.settings_row
+        label="Image Pipeline"
+        description="Artwork downloading and processing"
+        checked={@image_pipeline_running}
+        event="toggle_image_pipeline"
+        color="info"
+      />
     </div>
     """
   end
 
-  defp component_logs_card(assigns) do
+  defp section_content(%{active_section: "logging"} = assigns) do
     ~H"""
-    <div class="card glass-surface">
-      <div class="card-body">
-        <div class="flex items-center justify-between">
-          <h2 class="card-title text-lg">Component Logs</h2>
-          <div class="flex gap-2">
-            <button phx-click="enable_all" class="btn btn-xs btn-soft btn-success">
-              Enable all
-            </button>
-            <button phx-click="disable_all" class="btn btn-xs btn-outline">
-              Disable all
-            </button>
-          </div>
-        </div>
-
-        <p class="text-sm text-base-content/50">
-          Per-component decision logs. Enable to see thinking in the terminal.
-        </p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-          <div
-            :for={component <- @all}
-            class="flex items-center justify-between p-4 rounded-lg glass-inset"
+    <div data-nav-grid class="settings-card glass-surface">
+      <div class="flex items-center justify-between">
+        <h2 class="settings-section-title">Component Logs</h2>
+        <div class="flex gap-2">
+          <button
+            phx-click="enable_all"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-xs btn-soft btn-success"
           >
-            <div>
-              <span class="font-medium">{component}</span>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                {component_description(component)}
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              class="toggle toggle-sm toggle-success"
-              checked={component in @enabled}
-              phx-click="toggle_component"
-              phx-value-component={component}
-            />
-          </div>
+            Enable all
+          </button>
+          <button
+            phx-click="disable_all"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-xs btn-outline"
+          >
+            Disable all
+          </button>
         </div>
       </div>
-    </div>
-    """
-  end
+      <p class="settings-section-desc">
+        Per-component decision logs. Enable to see thinking in the terminal.
+      </p>
 
-  defp framework_logs_card(assigns) do
-    ~H"""
-    <div class="card glass-surface">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Framework Logs</h2>
+      <.settings_row
+        :for={component <- @all_components}
+        label={component}
+        description={component_description(component)}
+        checked={component in @enabled_components}
+        event="toggle_component"
+        event_value={%{component: component}}
+        color="success"
+      />
 
-        <p class="text-sm text-base-content/50">
+      <div class="mt-6">
+        <h2 class="settings-section-title">Framework Logs</h2>
+        <p class="settings-section-desc">
           Suppress noisy library output at runtime. Suppressed modules only emit warning and above.
         </p>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
-          <div
-            :for={{key, _mod} <- Log.framework_modules()}
-            class="flex items-center justify-between p-4 rounded-lg glass-inset"
-          >
-            <div>
-              <span class="font-medium">{framework_label(key)}</span>
-              <p class="text-xs text-base-content/50 mt-0.5">{framework_description(key)}</p>
-            </div>
-            <input
-              type="checkbox"
-              class="toggle toggle-sm toggle-warning"
-              checked={key in @suppressed}
-              phx-click="toggle_framework"
-              phx-value-key={key}
-            />
-          </div>
+        <.settings_row
+          :for={{key, _mod} <- Log.framework_modules()}
+          label={framework_label(key)}
+          description={framework_description(key)}
+          checked={key in @suppressed_frameworks}
+          event="toggle_framework"
+          event_value={%{key: key}}
+          color="warning"
+        />
+      </div>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "configuration"} = assigns) do
+    ~H"""
+    <div class="settings-card glass-surface">
+      <h2 class="settings-section-title">Configuration</h2>
+      <p class="settings-section-desc">
+        Read-only view of the current configuration.
+      </p>
+
+      <div :if={@config == %{}} class="text-base-content/60 py-4">Loading...</div>
+
+      <div :if={@config != %{}} class="space-y-3 text-sm mt-3">
+        <div class="settings-config-row">
+          <span class="text-base-content/60">Auto-approve threshold</span>
+          <span class="font-mono">{@config[:auto_approve_threshold] || "—"}</span>
+        </div>
+        <div class="settings-config-row min-w-0">
+          <span class="text-base-content/60 shrink-0">MPV path</span>
+          <span class="font-mono truncate-left" title={@config[:mpv_path]}>
+            {@config[:mpv_path] || "—"}
+          </span>
+        </div>
+        <div class="settings-config-row min-w-0">
+          <span class="text-base-content/60 shrink-0">Database path</span>
+          <span class="font-mono text-xs truncate-left" title={@config[:database_path]}>
+            {@config[:database_path] || "—"}
+          </span>
+        </div>
+        <div class="settings-config-row">
+          <span class="text-base-content/60">Watch directories</span>
+          <span class="font-mono">{@config[:watch_dirs_count] || 0}</span>
         </div>
       </div>
     </div>
     """
   end
 
-  defp config_overview(assigns) do
+  defp section_content(%{active_section: "danger"} = assigns) do
     ~H"""
-    <div class="card glass-surface">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Configuration</h2>
+    <div data-nav-grid class="settings-card glass-surface border border-error/20">
+      <h2 class="settings-section-title text-error">Danger Zone</h2>
+      <p class="settings-section-desc">
+        Destructive actions that cannot be undone.
+      </p>
 
-        <div :if={@config == %{}} class="text-base-content/60">Loading...</div>
-
-        <div :if={@config != %{}} class="space-y-3 text-sm mt-1">
-          <div class="flex justify-between gap-4">
-            <span class="text-base-content/60">Auto-approve threshold</span>
-            <span class="font-mono">{@config[:auto_approve_threshold] || "—"}</span>
-          </div>
-          <div class="flex justify-between gap-4 min-w-0">
-            <span class="text-base-content/60 shrink-0">MPV path</span>
-            <span class="font-mono truncate-left" title={@config[:mpv_path]}>
-              {@config[:mpv_path] || "—"}
-            </span>
-          </div>
-          <div class="flex justify-between gap-4 min-w-0">
-            <span class="text-base-content/60 shrink-0">Database path</span>
-            <span class="font-mono text-xs truncate-left" title={@config[:database_path]}>
-              {@config[:database_path] || "—"}
-            </span>
-          </div>
-          <div class="flex justify-between gap-4">
-            <span class="text-base-content/60">Watch directories</span>
-            <span class="font-mono">{@config[:watch_dirs_count] || 0}</span>
-          </div>
-        </div>
+      <div class="flex flex-wrap gap-3 mt-3">
+        <button
+          phx-click="clear_database"
+          disabled={@clearing_database}
+          data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
+          data-nav-item
+          tabindex="0"
+          class="btn btn-soft btn-error btn-sm"
+        >
+          {if @clearing_database, do: "Clearing...", else: "Clear database"}
+        </button>
+        <button
+          phx-click="refresh_image_cache"
+          disabled={@refreshing_images}
+          data-confirm="This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
+          data-nav-item
+          tabindex="0"
+          class="btn btn-soft btn-warning btn-sm"
+        >
+          {if @refreshing_images, do: "Refreshing...", else: "Clear & refresh image cache"}
+        </button>
       </div>
     </div>
     """
   end
 
-  defp danger_zone(assigns) do
+  defp section_content(assigns) do
     ~H"""
-    <div class="card glass-surface border border-error/20">
-      <div class="card-body">
-        <h2 class="card-title text-lg text-error">Danger Zone</h2>
-        <div class="flex flex-wrap gap-3">
-          <button
-            phx-click="clear_database"
-            disabled={@clearing_database}
-            data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
-            class="btn btn-soft btn-error btn-sm"
-          >
-            {if @clearing_database, do: "Clearing...", else: "Clear database"}
-          </button>
-          <button
-            phx-click="refresh_image_cache"
-            disabled={@refreshing_images}
-            data-confirm="This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
-            class="btn btn-soft btn-warning btn-sm"
-          >
-            {if @refreshing_images, do: "Refreshing...", else: "Clear & refresh image cache"}
-          </button>
-        </div>
+    <div class="settings-card glass-surface">
+      <p class="text-base-content/60">Unknown section.</p>
+    </div>
+    """
+  end
+
+  # --- Shared components ---
+
+  attr :label, :any, required: true
+  attr :description, :string, required: true
+  attr :checked, :boolean, required: true
+  attr :event, :string, required: true
+  attr :event_value, :map, default: %{}
+  attr :color, :string, default: "info"
+
+  defp settings_row(assigns) do
+    ~H"""
+    <div class="settings-row" data-nav-item tabindex="0" phx-click={@event} {phx_values(@event_value)}>
+      <div>
+        <span class="font-medium">{@label}</span>
+        <p class="text-xs text-base-content/50 mt-0.5">{@description}</p>
       </div>
+      <input
+        type="checkbox"
+        class={"toggle toggle-sm toggle-#{@color}"}
+        checked={@checked}
+        tabindex="-1"
+      />
     </div>
     """
   end
 
   # --- Private helpers ---
+
+  defp phx_values(map) when map_size(map) == 0, do: %{}
+
+  defp phx_values(map) do
+    Map.new(map, fn {key, value} -> {:"phx-value-#{key}", value} end)
+  end
 
   defp assign_log_state(socket) do
     {enabled, all} = Log.status()
