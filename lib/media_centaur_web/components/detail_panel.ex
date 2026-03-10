@@ -169,15 +169,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:remaining, remaining)
 
     ~H"""
-    <div class="space-y-2">
+    <div class="space-y-3 pt-1">
       <div :if={@has_progress} class="space-y-1">
-        <div class="h-1 rounded-full bg-base-content/10 overflow-hidden">
-          <div
-            class={"h-full rounded-full #{if @percent >= 100, do: "bg-success", else: "bg-info"}"}
-            style={"width: #{@percent}%"}
-          />
+        <div class="flex items-center gap-3">
+          <div class="flex-1 h-1 rounded-full bg-base-content/10 overflow-hidden">
+            <div
+              class={"h-full rounded-full #{if @percent >= 100, do: "bg-success", else: "bg-info"}"}
+              style={"width: #{@percent}%"}
+            />
+          </div>
+          <span :if={@remaining} class="text-xs text-base-content/40 flex-shrink-0">
+            {@remaining}
+          </span>
         </div>
-        <div :if={@remaining} class="text-xs text-base-content/50 text-right">{@remaining}</div>
       </div>
       <button
         phx-click={@on_play}
