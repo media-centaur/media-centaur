@@ -211,7 +211,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp overall_progress_percent(nil, _entity), do: 0
 
-  defp overall_progress_percent(progress, %{type: :tv_series}) do
+  defp overall_progress_percent(progress, %{type: type})
+       when type in [:tv_series, :movie_series] do
     if progress.episodes_total > 0 do
       min(round(progress.episodes_completed / progress.episodes_total * 100), 100)
     else
@@ -236,6 +237,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       remaining <= 0 -> "Watched"
       remaining == 1 -> "1 episode left"
       true -> "#{remaining} episodes left"
+    end
+  end
+
+  defp progress_remaining_text(progress, %{type: :movie_series}) do
+    remaining = progress.episodes_total - progress.episodes_completed
+
+    cond do
+      remaining <= 0 -> "Watched"
+      remaining == 1 -> "1 movie left"
+      true -> "#{remaining} movies left"
     end
   end
 
@@ -401,7 +412,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :state, state)
 
     ~H"""
-    <div class={["py-1.5", episode_row_class(@state)]} data-role="episode-row">
+    <div class={["py-1.5 pr-3", episode_row_class(@state)]} data-role="episode-row">
       <div
         class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded px-1 -mx-1"
         phx-click="toggle_episode_detail"
@@ -467,11 +478,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp episode_right_info(%{state: :current, progress: progress} = assigns) do
-    assigns = assign(assigns, :progress, progress)
+    remaining = max(progress.duration_seconds - progress.position_seconds, 0)
+    assigns = assign(assigns, :remaining, remaining)
 
     ~H"""
-    <span class="text-info text-xs font-mono flex-shrink-0">
-      {format_seconds(@progress.position_seconds)} / {format_seconds(@progress.duration_seconds)}
+    <span class="text-info text-xs flex-shrink-0">
+      {format_duration_human(@remaining)} remaining
     </span>
     """
   end
@@ -572,10 +584,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     minutes = div(rem(trunc(seconds), 3600), 60)
 
     cond do
-      hours > 0 && minutes > 0 -> "#{hours}h #{minutes}m"
-      hours > 0 -> "#{hours}h"
-      minutes > 0 -> "#{minutes}m"
-      true -> "<1m"
+      hours > 0 && minutes > 0 -> "#{hours} hr #{minutes} mins"
+      hours > 0 -> "#{hours} hr"
+      minutes > 0 -> "#{minutes} mins"
+      true -> "<1 min"
     end
   end
 
