@@ -82,7 +82,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     ~H"""
     <div class="detail-panel flex flex-col flex-1 min-h-0">
-      <div class="flex-shrink-0">
+      <div
+        class="flex-shrink-0"
+        id="detail-header"
+        phx-hook="ScrollForward"
+        data-target="detail-content"
+      >
         <.hero entity={@entity} />
         <div class="p-4 space-y-4">
           <.metadata_row entity={@entity} />
@@ -95,7 +100,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           />
         </div>
       </div>
-      <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
+      <div id="detail-content" class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
         <.content_list
           entity={@entity}
           watch_dirs={@watch_dirs}
@@ -304,7 +309,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :seasons, seasons)
 
     ~H"""
-    <div :if={@seasons != []} class="border-t border-base-300/50 pt-3 space-y-3">
+    <div :if={@seasons != []} class="pt-3 space-y-3">
       <.season_section
         :for={season <- @seasons}
         season={season}
@@ -323,16 +328,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :movies, movies)
 
     ~H"""
-    <div :if={@movies != []} class="border-t border-base-300/50 pt-3">
-      <div class="divide-y divide-base-300/30">
-        <.movie_row
-          :for={movie <- @movies}
-          movie={movie}
-          watch_dirs={@watch_dirs}
-          expanded={MapSet.member?(@expanded_episodes, movie.id)}
-          on_play={@on_play}
-        />
-      </div>
+    <div :if={@movies != []} class="pt-3">
+      <.movie_row
+        :for={movie <- @movies}
+        movie={movie}
+        watch_dirs={@watch_dirs}
+        expanded={MapSet.member?(@expanded_episodes, movie.id)}
+        on_play={@on_play}
+      />
     </div>
     """
   end
@@ -381,7 +384,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </span>
       </button>
 
-      <div :if={@expanded} class="mt-1 divide-y divide-base-300/30">
+      <div :if={@expanded} class="mt-1">
         <.episode_row
           :for={episode <- @episodes}
           episode={episode}
@@ -413,7 +416,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :thumbnail, thumbnail)
 
     ~H"""
-    <div class={["py-2.5 pr-3", episode_row_class(@state)]} data-role="episode-row">
+    <div class={["py-1 pr-3", episode_row_class(@state)]} data-role="episode-row">
       <div
         class="flex items-start gap-3 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2"
         phx-click="toggle_episode_detail"
@@ -527,19 +530,37 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :on_play, :string, required: true
 
   defp movie_row(assigns) do
+    thumbnail = image_url(assigns.movie, "poster")
+    assigns = assign(assigns, :thumbnail, thumbnail)
+
     ~H"""
-    <div class="py-1.5">
+    <div class="py-1 pr-3" data-role="movie-row">
       <div
-        class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded px-1 -mx-1"
+        class="flex items-start gap-3 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2"
         phx-click="toggle_episode_detail"
         phx-value-id={@movie.id}
+        data-nav-item
+        tabindex="0"
       >
-        <span class="truncate flex-1 text-base-content/90">
-          {@movie.name || "—"}
-          <span :if={@movie.date_published} class="text-base-content/50 ml-1">
-            ({extract_year(@movie.date_published)})
+        <div class="w-12 flex-shrink-0">
+          <img
+            :if={@thumbnail}
+            src={@thumbnail}
+            class="w-12 aspect-[2/3] rounded object-cover"
+          />
+          <div :if={!@thumbnail} class="w-12 aspect-[2/3] rounded bg-base-300/30" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="truncate block text-base-content/90">
+            {@movie.name || "—"}
+            <span :if={@movie.date_published} class="text-base-content/50 ml-1">
+              ({extract_year(@movie.date_published)})
+            </span>
           </span>
-        </span>
+          <p :if={@movie.description} class="line-clamp-2 text-xs text-base-content/50">
+            {@movie.description}
+          </p>
+        </div>
         <button
           :if={@movie.content_url}
           phx-click={@on_play}
@@ -550,10 +571,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </button>
       </div>
 
-      <div :if={@expanded} class="ml-2 mt-1 space-y-1 text-xs text-base-content/50">
-        <p :if={@movie.description} class="line-clamp-3 text-base-content/60">
-          {@movie.description}
-        </p>
+      <div :if={@expanded} class="ml-16 mt-1 space-y-1 text-xs text-base-content/50">
         <div :if={@movie.duration} class="flex items-center gap-1">
           <.icon name="hero-clock-mini" class="size-3" />
           {format_iso_duration(@movie.duration)}

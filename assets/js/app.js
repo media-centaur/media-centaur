@@ -30,7 +30,19 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, InputSystem: createInputHook()},
+  hooks: {
+    ...colocatedHooks,
+    InputSystem: createInputHook(),
+    ScrollForward: {
+      mounted() {
+        const target = document.getElementById(this.el.dataset.target)
+        this.el.addEventListener("wheel", (e) => {
+          e.preventDefault()
+          target.scrollBy({top: e.deltaY, left: e.deltaX})
+        }, {passive: false})
+      }
+    },
+  },
 })
 
 // Show progress bar on live navigation and form submits
