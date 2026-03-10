@@ -3,17 +3,56 @@ import { FocusContextMachine, Context, contextType } from "../focus_context"
 import { Action } from "../actions"
 import { buildNavGraph } from "../nav_graph"
 
+// Test config — matches the app's config for realistic testing
+const TEST_INSTANCE_TYPES = {
+  sidebar: Context.MENU,
+  sections: Context.MENU,
+}
+
+const TEST_LAYOUTS = {
+  watching: {
+    zone_tabs: { down: ["grid"],             left: ["sidebar"] },
+    grid:      { up: ["zone_tabs"],          left: ["sidebar"], right: ["drawer"] },
+    sidebar:   { right: ["grid", "zone_tabs"] },
+    drawer:    { left: ["grid"] },
+  },
+  library: {
+    zone_tabs: { down: ["toolbar", "grid"],  left: ["sidebar"] },
+    toolbar:   { up: ["zone_tabs"],          down: ["grid"],   left: ["sidebar"] },
+    grid:      { up: ["toolbar", "zone_tabs"], left: ["sidebar"], right: ["drawer"] },
+    sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
+    drawer:    { left: ["grid", "toolbar"] },
+  },
+  settings: {
+    sections:  { right: ["grid"],            left: ["sidebar"] },
+    grid:      { left: ["sections"] },
+    sidebar:   { right: ["sections", "grid"] },
+  },
+}
+
+const TEST_ALWAYS_POPULATED = ["sidebar", "sections"]
+
+const GRAPH_CONFIG = { layouts: TEST_LAYOUTS, alwaysPopulated: TEST_ALWAYS_POPULATED }
+
 /** Build a nav graph with all contexts populated */
 function fullGraph(zone, options = {}) {
   const counts = { grid: 12, toolbar: 3, zone_tabs: 2, sidebar: 4, drawer: 5 }
-  return buildNavGraph(zone, counts, options)
+  return buildNavGraph(zone, counts, { ...options, ...GRAPH_CONFIG })
+}
+
+function createMachine(overrides = {}) {
+  return new FocusContextMachine({
+    instanceTypes: TEST_INSTANCE_TYPES,
+    primaryMenu: "sidebar",
+    ...overrides,
+  })
 }
 
 describe("FocusContextMachine", () => {
   let machine
 
   beforeEach(() => {
-    machine = new FocusContextMachine()
+    machine = createMachine()
   })
 
   test("starts in GRID context", () => {
@@ -195,7 +234,7 @@ describe("FocusContextMachine", () => {
     })
 
     test("down blocked when grid is empty", () => {
-      const emptyGridGraph = buildNavGraph("library", { grid: 0, toolbar: 3, zone_tabs: 2, sidebar: 4 })
+      const emptyGridGraph = buildNavGraph("library", { grid: 0, toolbar: 3, zone_tabs: 2, sidebar: 4 }, GRAPH_CONFIG)
       machine.setNavGraph(emptyGridGraph)
       const directive = machine.transition(Action.NAVIGATE_DOWN)
       expect(directive).toEqual({ type: "none" })
@@ -270,7 +309,7 @@ describe("FocusContextMachine", () => {
     test("down blocked when target is empty", () => {
       machine.zoneChanged("watching")
       machine._context = Context.ZONE_TABS
-      machine.setNavGraph(buildNavGraph("watching", { grid: 0, zone_tabs: 2, sidebar: 4 }))
+      machine.setNavGraph(buildNavGraph("watching", { grid: 0, zone_tabs: 2, sidebar: 4 }, GRAPH_CONFIG))
       const directive = machine.transition(Action.NAVIGATE_DOWN)
       expect(directive).toEqual({ type: "none" })
       expect(machine.context).toBe(Context.ZONE_TABS)
@@ -388,12 +427,12 @@ describe("FocusContextMachine", () => {
 
   describe("MENU context type resolver", () => {
     test("sidebar instance resolves to MENU type", () => {
-      expect(contextType("sidebar")).toBe(Context.MENU)
+      expect(contextType("sidebar", TEST_INSTANCE_TYPES)).toBe(Context.MENU)
     })
 
     test("unknown instance resolves to itself", () => {
-      expect(contextType("grid")).toBe("grid")
-      expect(contextType("drawer")).toBe("drawer")
+      expect(contextType("grid", TEST_INSTANCE_TYPES)).toBe("grid")
+      expect(contextType("drawer", TEST_INSTANCE_TYPES)).toBe("drawer")
     })
 
     test("sidebar instance uses _menuTransition via transition()", () => {
@@ -417,7 +456,7 @@ describe("FocusContextMachine", () => {
 
   describe("sections MENU instance", () => {
     test("sections resolves to MENU type", () => {
-      expect(contextType("sections")).toBe(Context.MENU)
+      expect(contextType("sections", TEST_INSTANCE_TYPES)).toBe(Context.MENU)
     })
 
     test("sections right navigates to grid via nav graph", () => {
