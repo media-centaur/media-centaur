@@ -864,6 +864,91 @@ describe("Orchestrator", () => {
     })
   })
 
+  describe("SELECT on menu activates and exits", () => {
+    test("SELECT on primary menu exits sidebar without clicking (already activated on focus)", () => {
+      const clicked = mock(() => {})
+      const mockItem = { click: clicked, dataset: {} }
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getCurrentFocusedItem: () => mockItem,
+        getItemCount: () => 8,
+        getSidebarCollapsed: () => true,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+      calls.length = 0
+
+      onActionCallback(Action.SELECT)
+
+      // Primary menu items activate on focus — no redundant click
+      expect(clicked).not.toHaveBeenCalled()
+      // Should have exited the sidebar (same as pressing RIGHT)
+      expect(system.focusMachine.context).not.toBe("sidebar")
+    })
+
+    test("SELECT on non-primary menu clicks item and moves to right neighbor", () => {
+      const clicked = mock(() => {})
+      const mockItem = { click: clicked, dataset: {} }
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "settings",
+        getCurrentFocusedItem: () => mockItem,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sections")
+      calls.length = 0
+
+      onActionCallback(Action.SELECT)
+
+      expect(clicked).toHaveBeenCalled()
+      // Should move to the right neighbor (grid, per settings layout)
+      expect(system.focusMachine.context).toBe(Context.GRID)
+    })
+
+    test("SELECT on grid still activates without exit behavior", () => {
+      const clicked = mock(() => {})
+      const mockItem = { click: clicked, dataset: {} }
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getCurrentFocusedItem: () => mockItem,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      expect(system.focusMachine.context).toBe(Context.GRID)
+
+      onActionCallback(Action.SELECT)
+
+      expect(clicked).toHaveBeenCalled()
+      // Should stay in grid — no menu exit behavior
+      expect(system.focusMachine.context).toBe(Context.GRID)
+    })
+  })
+
   describe("non-mouse input time tracking", () => {
     test("source input detection suppresses mouse method switch", () => {
       let onInputCallback = null
