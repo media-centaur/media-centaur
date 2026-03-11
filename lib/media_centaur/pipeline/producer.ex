@@ -115,7 +115,7 @@ defmodule MediaCentaur.Pipeline.Producer do
       watch_directory: watch_dir,
       entry_point: :review_resolved,
       tmdb_id: tmdb_id,
-      tmdb_type: String.to_existing_atom(tmdb_type),
+      tmdb_type: validated_tmdb_type(tmdb_type),
       pending_file_id: pending_file_id
     }
   end
@@ -140,6 +140,13 @@ defmodule MediaCentaur.Pipeline.Producer do
       {{:value, payload}, queue} -> dequeue(queue, remaining - 1, [payload | acc])
       {:empty, queue} -> {Enum.reverse(acc), queue, remaining}
     end
+  end
+
+  defp validated_tmdb_type("movie"), do: :movie
+  defp validated_tmdb_type("tv"), do: :tv
+
+  defp validated_tmdb_type(other) do
+    raise ArgumentError, "invalid tmdb_type: #{inspect(other)}, expected \"movie\" or \"tv\""
   end
 
   defp emit_queue_depth(queue) do

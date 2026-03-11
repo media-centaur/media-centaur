@@ -179,7 +179,6 @@ defmodule MediaCentaur.Library do
       define :list_entities_with_images, action: :with_images
       define :get_entity_with_images, action: :with_images, get_by: [:id]
       define :list_entities_by_ids, action: :by_ids, args: [:ids]
-      define :list_entities_all_files_absent, action: :all_files_absent
       define :create_entity, action: :create
       define :set_entity_content_url, action: :set_content_url
       define :destroy_entity, action: :destroy
@@ -205,16 +204,12 @@ defmodule MediaCentaur.Library do
       define :list_images_for_movie, action: :by_movie, args: [:movie_id]
       define :list_pending_downloads, action: :pending_download
       define :create_image, action: :create
-      define :find_or_create_image, action: :find_or_create
-      define :find_or_create_movie_image, action: :find_or_create_for_movie
-      define :find_or_create_episode_image, action: :find_or_create_for_episode
       define :update_image, action: :update
       define :clear_image_content_url, action: :clear_content_url
       define :destroy_image, action: :destroy
     end
 
     resource MediaCentaur.Library.Identifier do
-      define :list_identifiers, action: :read
       define :find_or_create_identifier, action: :find_or_create
 
       define :find_by_tmdb_id,
@@ -244,7 +239,6 @@ defmodule MediaCentaur.Library do
     end
 
     resource MediaCentaur.Library.Extra do
-      define :list_extras, action: :read
       define :list_extras_for_entity, action: :by_entity, args: [:entity_id]
       define :list_extras_for_season, action: :by_season, args: [:season_id]
       define :get_extra, action: :read, get_by: [:id]
