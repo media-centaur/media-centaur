@@ -268,6 +268,17 @@ defmodule MediaCentaur.Library.FileTracker do
   end
 
   defp delete_entity_cascade(entity_id) do
+    # Re-check for new files before committing to the cascade.
+    # A file may have been linked between the caller's check and now.
+    if Library.list_watched_files_for_entity!(entity_id) != [] do
+      Log.info(:library, "entity #{entity_id} gained files during cleanup, skipping cascade")
+      :ok
+    else
+      do_delete_entity_cascade(entity_id)
+    end
+  end
+
+  defp do_delete_entity_cascade(entity_id) do
     entity = Library.get_entity_with_associations!(entity_id)
 
     # Delete in FK-safe order

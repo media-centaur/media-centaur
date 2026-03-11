@@ -15,26 +15,6 @@ defmodule MediaCentaur.Library.Helpers do
   end
 
   @doc """
-  Returns a MapSet of entity IDs that have WatchedFiles but all are absent.
-  These entities should be excluded from the library view.
-  """
-  def entity_ids_all_absent do
-    Library.list_entities_all_files_absent!()
-    |> MapSet.new(& &1.id)
-  end
-
-  @doc """
-  Returns a MapSet of entity IDs (from the given list) where every WatchedFile is absent.
-  Only queries watched files for the specified entity IDs.
-  """
-  def entity_ids_all_absent_for([]), do: MapSet.new()
-
-  def entity_ids_all_absent_for(entity_ids) do
-    Library.list_entities_all_files_absent!(query: [filter: [id: [in: entity_ids]]])
-    |> MapSet.new(& &1.id)
-  end
-
-  @doc """
   Extracts unique non-nil entity IDs from a list of records with an `entity_id` field.
   """
   def unique_entity_ids(records) do

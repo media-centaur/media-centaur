@@ -7,7 +7,6 @@ defmodule MediaCentaur.LibraryBrowser do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Playback.{EpisodeList, Manager, MovieList, ProgressSummary, Resolver}
 
   @doc """
@@ -16,11 +15,19 @@ defmodule MediaCentaur.LibraryBrowser do
   Returns a list of `%{entity: entity, progress: summary, progress_records: records}`.
   """
   def fetch_entities do
-    excluded = Helpers.entity_ids_all_absent()
+    import Ash.Expr
 
     entities =
-      Library.list_entities_with_associations!(query: [sort: [name: :asc]])
-      |> Enum.reject(fn entity -> MapSet.member?(excluded, entity.id) end)
+      Library.list_entities_with_associations!(
+        query: [
+          sort: [name: :asc],
+          filter:
+            expr(
+              not (exists(watched_files, true) and
+                     not exists(watched_files, state == :complete))
+            )
+        ]
+      )
 
     Log.info(:library, "loaded #{length(entities)} entities for browser")
 
@@ -44,18 +51,25 @@ defmodule MediaCentaur.LibraryBrowser do
   that no longer exist or have all files absent.
   """
   def fetch_entries_by_ids(entity_ids) do
-    entities = Library.list_entities_by_ids!(entity_ids)
-    found_ids = MapSet.new(entities, & &1.id)
+    import Ash.Expr
 
+    entities =
+      Library.list_entities_by_ids!(entity_ids,
+        query: [
+          filter:
+            expr(
+              not (exists(watched_files, true) and
+                     not exists(watched_files, state == :complete))
+            )
+        ]
+      )
+
+    present_ids = MapSet.new(entities, & &1.id)
     requested = MapSet.new(entity_ids)
-    destroyed_ids = MapSet.difference(requested, found_ids)
-    absent_ids = Helpers.entity_ids_all_absent_for(MapSet.to_list(found_ids))
-    gone_ids = MapSet.union(destroyed_ids, absent_ids)
+    gone_ids = MapSet.difference(requested, present_ids)
 
     entries =
-      entities
-      |> Enum.reject(fn entity -> MapSet.member?(absent_ids, entity.id) end)
-      |> Enum.map(fn entity ->
+      Enum.map(entities, fn entity ->
         entity = pre_sort_children(entity)
 
         progress_records =
