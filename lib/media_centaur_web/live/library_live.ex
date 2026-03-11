@@ -104,6 +104,14 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   @impl true
   def handle_event("select_cw_entity", %{"id" => id}, socket) do
+    entry = socket.assigns.entries_by_id[id]
+
+    expanded_seasons =
+      if entry,
+        do: DetailPanel.auto_expand_season(entry.entity, entry.progress),
+        else: MapSet.new()
+
+    socket = assign(socket, expanded_seasons: expanded_seasons)
     {:noreply, push_patch(socket, to: build_path(socket, %{selected: id}))}
   end
 
