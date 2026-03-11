@@ -1,0 +1,45 @@
+defmodule MediaCentaur.Playback.ProgressBroadcaster do
+  @moduledoc """
+  Broadcasts entity progress updates to the playback PubSub topic.
+
+  Loads the entity with progress, computes summary/resume/child targets,
+  and broadcasts to `"playback:events"`. Used by MpvSession (after persisting
+  progress) and LibraryLive (after toggling watched status).
+  """
+  require MediaCentaur.Log, as: Log
+
+  @doc """
+  Loads entity progress and broadcasts an `:entity_progress_updated` message.
+
+  `season_number` and `episode_number` identify the specific item that changed,
+  used for computing the child targets delta.
+  """
+  def broadcast(entity_id, season_number, episode_number) do
+    case MediaCentaur.Library.get_entity_with_progress(entity_id) do
+      {:ok, entity} ->
+        progress_records = entity.watch_progress || []
+        summary = MediaCentaur.Playback.ProgressSummary.compute(entity, progress_records)
+        resume_target = MediaCentaur.Playback.ResumeTarget.compute(entity, progress_records)
+
+        child_targets_delta =
+          MediaCentaur.Playback.ResumeTarget.compute_child_target_delta(
+            entity,
+            progress_records,
+            season_number,
+            episode_number
+          )
+
+        Log.info(:playback, "broadcasting progress for #{entity_id}")
+
+        Phoenix.PubSub.broadcast(
+          MediaCentaur.PubSub,
+          MediaCentaur.Topics.playback_events(),
+          {:entity_progress_updated, entity_id, summary, resume_target, child_targets_delta,
+           progress_records, DateTime.utc_now()}
+        )
+
+      {:error, _} ->
+        :ok
+    end
+  end
+end

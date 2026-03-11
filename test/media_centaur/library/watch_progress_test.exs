@@ -203,6 +203,45 @@ defmodule MediaCentaur.Library.WatchProgressTest do
     end
   end
 
+  describe "mark_incomplete" do
+    test "transitions completed from true to false" do
+      entity = create_entity(%{type: :tv_series, name: "Unwatch Show"})
+
+      progress =
+        create_watch_progress(%{
+          entity_id: entity.id,
+          season_number: 1,
+          episode_number: 1,
+          position_seconds: 2400.0,
+          duration_seconds: 2400.0
+        })
+
+      {:ok, completed} = Library.mark_watch_completed(progress)
+      assert completed.completed == true
+
+      {:ok, incomplete} = Library.mark_watch_incomplete(completed)
+      assert incomplete.completed == false
+      assert incomplete.last_watched_at != nil
+    end
+
+    test "updates last_watched_at" do
+      entity = create_entity(%{type: :movie, name: "Unwatch Timestamp"})
+
+      progress =
+        create_watch_progress(%{
+          entity_id: entity.id,
+          position_seconds: 100.0,
+          duration_seconds: 7200.0
+        })
+
+      {:ok, completed} = Library.mark_watch_completed(progress)
+      Process.sleep(1100)
+
+      {:ok, incomplete} = Library.mark_watch_incomplete(completed)
+      assert DateTime.compare(incomplete.last_watched_at, completed.last_watched_at) in [:gt, :eq]
+    end
+  end
+
   describe "for_entity" do
     test "returns records sorted by season then episode" do
       entity = create_entity(%{type: :tv_series, name: "Sorted Show"})

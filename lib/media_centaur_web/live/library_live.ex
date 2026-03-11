@@ -14,7 +14,14 @@ defmodule MediaCentaurWeb.LibraryLive do
   """
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
+  alias MediaCentaur.{
+    Library,
+    LibraryBrowser,
+    Playback.ProgressBroadcaster,
+    Playback.Resume,
+    Playback.ResumeTarget
+  }
+
   alias MediaCentaurWeb.Components.{DetailPanel, LibraryCards, ModalShell}
 
   import MediaCentaurWeb.LibraryHelpers
@@ -175,6 +182,21 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_event("play", %{"id" => id}, socket) do
     LibraryBrowser.play(id)
+    {:noreply, socket}
+  end
+
+  def handle_event(
+        "toggle_watched",
+        %{"entity-id" => entity_id, "season" => season_str, "episode" => episode_str},
+        socket
+      ) do
+    season_number = String.to_integer(season_str)
+    episode_number = String.to_integer(episode_str)
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      toggle_watched(entity_id, season_number, episode_number)
+    end)
+
     {:noreply, socket}
   end
 
@@ -564,4 +586,32 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id
   defp playing_entity_id(_), do: nil
+
+  defp toggle_watched(entity_id, season_number, episode_number) do
+    progress =
+      Library.list_watch_progress_for_entity!(entity_id)
+      |> Enum.find(&(&1.season_number == season_number && &1.episode_number == episode_number))
+
+    case progress do
+      %{completed: true} ->
+        Library.mark_watch_incomplete!(progress)
+
+      %{completed: false} ->
+        Library.mark_watch_completed!(progress)
+
+      nil ->
+        params = %{
+          entity_id: entity_id,
+          season_number: season_number,
+          episode_number: episode_number,
+          position_seconds: 0.0,
+          duration_seconds: 0.0
+        }
+
+        {:ok, record} = Library.upsert_watch_progress(params)
+        Library.mark_watch_completed!(record)
+    end
+
+    ProgressBroadcaster.broadcast(entity_id, season_number, episode_number)
+  end
 end

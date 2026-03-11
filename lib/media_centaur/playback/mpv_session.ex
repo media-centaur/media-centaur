@@ -6,7 +6,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Playback.WatchingTracker
+  alias MediaCentaur.Playback.{ProgressBroadcaster, WatchingTracker}
 
   @db_write_interval_ms 10_000
   @socket_retry_interval_ms 200
@@ -353,32 +353,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   # --- Entity Progress Broadcasting ---
 
   defp broadcast_entity_progress_by_id(entity_id, season_number, episode_number) do
-    case MediaCentaur.Library.get_entity_with_progress(entity_id) do
-      {:ok, entity} ->
-        progress_records = entity.watch_progress || []
-        summary = MediaCentaur.Playback.ProgressSummary.compute(entity, progress_records)
-        resume_target = MediaCentaur.Playback.ResumeTarget.compute(entity, progress_records)
-
-        child_targets_delta =
-          MediaCentaur.Playback.ResumeTarget.compute_child_target_delta(
-            entity,
-            progress_records,
-            season_number,
-            episode_number
-          )
-
-        Log.info(:playback, "broadcasting progress for #{entity_id}")
-
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
-          MediaCentaur.Topics.playback_events(),
-          {:entity_progress_updated, entity_id, summary, resume_target, child_targets_delta,
-           progress_records, DateTime.utc_now()}
-        )
-
-      {:error, _} ->
-        :ok
-    end
+    ProgressBroadcaster.broadcast(entity_id, season_number, episode_number)
   end
 
   # --- Progress Persistence ---
