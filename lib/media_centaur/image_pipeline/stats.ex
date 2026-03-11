@@ -55,6 +55,22 @@ defmodule MediaCentaur.ImagePipeline.Stats do
     GenServer.call(server, :get_snapshot)
   end
 
+  def download_start(server \\ __MODULE__, role, entity_id) do
+    GenServer.cast(server, {:download_start, role, entity_id})
+  end
+
+  def download_stop(server \\ __MODULE__, duration, result, role, entity_id, error_reason \\ nil) do
+    GenServer.cast(server, {:download_stop, duration, result, role, entity_id, error_reason})
+  end
+
+  def download_exception(server \\ __MODULE__, duration, reason, role, entity_id) do
+    GenServer.cast(server, {:download_exception, duration, reason, role, entity_id})
+  end
+
+  def queue_depth(server \\ __MODULE__, depth) do
+    GenServer.cast(server, {:queue_depth, depth})
+  end
+
   @doc """
   Returns an empty snapshot for use before the GenServer starts
   (e.g., in disconnected LiveView mount).
@@ -218,7 +234,7 @@ defmodule MediaCentaur.ImagePipeline.Stats do
         metadata,
         config
       ) do
-    GenServer.cast(config.stats, {:download_start, metadata.role, metadata.entity_id})
+    download_start(config.stats, metadata.role, metadata.entity_id)
   end
 
   def handle_telemetry(
@@ -227,10 +243,13 @@ defmodule MediaCentaur.ImagePipeline.Stats do
         metadata,
         config
       ) do
-    GenServer.cast(
+    download_stop(
       config.stats,
-      {:download_stop, measurements.duration, metadata.result, metadata.role, metadata.entity_id,
-       metadata[:error_reason]}
+      measurements.duration,
+      metadata.result,
+      metadata.role,
+      metadata.entity_id,
+      metadata[:error_reason]
     )
   end
 
@@ -240,10 +259,12 @@ defmodule MediaCentaur.ImagePipeline.Stats do
         metadata,
         config
       ) do
-    GenServer.cast(
+    download_exception(
       config.stats,
-      {:download_exception, measurements.duration, metadata.reason, metadata.role,
-       metadata.entity_id}
+      measurements.duration,
+      metadata.reason,
+      metadata.role,
+      metadata.entity_id
     )
   end
 
@@ -253,6 +274,6 @@ defmodule MediaCentaur.ImagePipeline.Stats do
         _metadata,
         config
       ) do
-    GenServer.cast(config.stats, {:queue_depth, measurements.depth})
+    queue_depth(config.stats, measurements.depth)
   end
 end

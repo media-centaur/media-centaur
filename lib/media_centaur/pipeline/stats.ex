@@ -54,6 +54,33 @@ defmodule MediaCentaur.Pipeline.Stats do
     GenServer.call(server, :get_snapshot)
   end
 
+  def stage_start(server \\ __MODULE__, stage, file_path) do
+    GenServer.cast(server, {:stage_start, stage, file_path})
+  end
+
+  def stage_stop(server \\ __MODULE__, stage, duration, result, file_path, error_reason \\ nil) do
+    GenServer.cast(server, {:stage_stop, stage, duration, result, file_path, error_reason})
+  end
+
+  def stage_stop_at(server, stage, duration, result, timestamp, file_path, error_reason \\ nil) do
+    GenServer.cast(
+      server,
+      {:stage_stop_at, stage, duration, result, timestamp, file_path, error_reason}
+    )
+  end
+
+  def stage_exception(server \\ __MODULE__, stage, duration, reason, file_path) do
+    GenServer.cast(server, {:stage_exception, stage, duration, reason, file_path})
+  end
+
+  def needs_review(server \\ __MODULE__, file_path) do
+    GenServer.cast(server, {:needs_review, file_path})
+  end
+
+  def queue_depth(server \\ __MODULE__, depth) do
+    GenServer.cast(server, {:queue_depth, depth})
+  end
+
   @doc """
   Returns an empty snapshot for use before the GenServer starts
   (e.g., in disconnected LiveView mount).
@@ -283,14 +310,17 @@ defmodule MediaCentaur.Pipeline.Stats do
         metadata,
         config
       ) do
-    GenServer.cast(config.stats, {:stage_start, metadata.stage, metadata.file_path})
+    stage_start(config.stats, metadata.stage, metadata.file_path)
   end
 
   def handle_telemetry([:media_centaur, :pipeline, :stage, :stop], measurements, metadata, config) do
-    GenServer.cast(
+    stage_stop(
       config.stats,
-      {:stage_stop, metadata.stage, measurements.duration, metadata.result, metadata.file_path,
-       metadata[:error_reason]}
+      metadata.stage,
+      measurements.duration,
+      metadata.result,
+      metadata.file_path,
+      metadata[:error_reason]
     )
   end
 
@@ -300,10 +330,12 @@ defmodule MediaCentaur.Pipeline.Stats do
         metadata,
         config
       ) do
-    GenServer.cast(
+    stage_exception(
       config.stats,
-      {:stage_exception, metadata.stage, measurements.duration, metadata.reason,
-       metadata.file_path}
+      metadata.stage,
+      measurements.duration,
+      metadata.reason,
+      metadata.file_path
     )
   end
 
@@ -313,10 +345,10 @@ defmodule MediaCentaur.Pipeline.Stats do
         metadata,
         config
       ) do
-    GenServer.cast(config.stats, {:needs_review, metadata.file_path})
+    needs_review(config.stats, metadata.file_path)
   end
 
   def handle_telemetry([:media_centaur, :pipeline, :queue_depth], measurements, _metadata, config) do
-    GenServer.cast(config.stats, {:queue_depth, measurements.depth})
+    queue_depth(config.stats, measurements.depth)
   end
 end
