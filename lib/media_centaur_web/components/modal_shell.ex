@@ -15,9 +15,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   attr :progress, :map, default: nil
   attr :resume, :map, default: nil
   attr :progress_records, :list, default: []
-  attr :watch_dirs, :list, default: []
   attr :expanded_seasons, :any, default: nil
-  attr :expanded_episodes, :any, default: nil
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_detail"
 
@@ -47,9 +45,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
             progress={@progress}
             resume={@resume}
             progress_records={@progress_records}
-            watch_dirs={@watch_dirs}
             expanded_seasons={@expanded_seasons}
-            expanded_episodes={@expanded_episodes}
             on_play={@on_play}
             on_close={@on_close}
           />

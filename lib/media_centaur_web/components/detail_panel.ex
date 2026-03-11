@@ -56,17 +56,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :progress, :map, default: nil
   attr :resume, :map, default: nil
   attr :progress_records, :list, default: []
-  attr :watch_dirs, :list, default: []
   attr :expanded_seasons, :any, default: nil
-  attr :expanded_episodes, :any, default: nil
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
 
   def detail_panel(assigns) do
     expanded_seasons =
       assigns.expanded_seasons || auto_expand_season(assigns.entity, assigns.progress)
-
-    expanded_episodes = assigns.expanded_episodes || MapSet.new()
 
     progress_by_key =
       if assigns.entity.type == :tv_series do
@@ -78,7 +74,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
-      |> assign(:expanded_episodes, expanded_episodes)
       |> assign(:progress_by_key, progress_by_key)
 
     ~H"""
@@ -107,9 +102,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       >
         <.content_list
           entity={@entity}
-          watch_dirs={@watch_dirs}
           expanded_seasons={@expanded_seasons}
-          expanded_episodes={@expanded_episodes}
           progress_by_key={@progress_by_key}
           on_play={@on_play}
         />
@@ -317,9 +310,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <.season_section
         :for={season <- @seasons}
         season={season}
-        watch_dirs={@watch_dirs}
         expanded={MapSet.member?(@expanded_seasons, season.season_number)}
-        expanded_episodes={@expanded_episodes}
         progress_by_key={@progress_by_key}
         on_play={@on_play}
       />
@@ -338,8 +329,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <.movie_row
           :for={movie <- @movies}
           movie={movie}
-          watch_dirs={@watch_dirs}
-          expanded={MapSet.member?(@expanded_episodes, movie.id)}
           on_play={@on_play}
         />
       </div>
@@ -357,9 +346,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # --- Season Section ---
 
   attr :season, :map, required: true
-  attr :watch_dirs, :list, required: true
   attr :expanded, :boolean, required: true
-  attr :expanded_episodes, :any, required: true
   attr :progress_by_key, :map, required: true
   attr :on_play, :string, required: true
 
@@ -398,8 +385,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           :for={episode <- @episodes}
           episode={episode}
           season_number={@season.season_number}
-          watch_dirs={@watch_dirs}
-          expanded={MapSet.member?(@expanded_episodes, episode.id)}
           progress={Map.get(@progress_by_key, {@season.season_number, episode.episode_number})}
           on_play={@on_play}
         />
@@ -413,8 +398,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :episode, :map, required: true
   attr :season_number, :integer, required: true
-  attr :watch_dirs, :list, required: true
-  attr :expanded, :boolean, required: true
   attr :progress, :map, default: nil
   attr :on_play, :string, required: true
 
@@ -426,14 +409,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :thumbnail, thumbnail)
 
     ~H"""
-    <div class={["py-1 pr-3", episode_row_class(@state)]} data-role="episode-row">
-      <div
-        class="flex items-start gap-3 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2"
-        phx-click="toggle_episode_detail"
-        phx-value-id={@episode.id}
-        data-nav-item
-        tabindex="0"
-      >
+    <div
+      class={["p-2 rounded cursor-pointer hover:bg-base-content/5", episode_row_class(@state)]}
+      data-role="episode-row"
+      phx-click={@on_play}
+      phx-value-id={@episode.id}
+      data-nav-item
+      tabindex="0"
+    >
+      <div class="flex items-start gap-3 text-sm">
         <div class="w-20 flex-shrink-0">
           <img
             :if={@thumbnail}
@@ -459,21 +443,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       </div>
       <div
         :if={@state == :current}
-        class="ml-22 mt-0.5 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
+        class="mt-1 ml-[calc(5rem+0.75rem)] h-0.5 rounded-full bg-base-content/10 overflow-hidden"
       >
         <div
           class="h-full bg-info rounded-full"
           style={"width: #{progress_percent(@progress)}%"}
         />
-      </div>
-
-      <div :if={@expanded} class="ml-22 mt-1 space-y-1 text-xs text-base-content/50">
-        <div :if={@episode.content_url} title={strip_watch_dir(@episode.content_url, @watch_dirs)}>
-          <span class="font-mono truncate-left inline-block max-w-full">
-            {strip_watch_dir(@episode.content_url, @watch_dirs)}
-          </span>
-        </div>
-        <div class="font-mono text-base-content/30 select-all">{@episode.id}</div>
       </div>
     </div>
     """
@@ -535,8 +510,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # --- Movie Row ---
 
   attr :movie, :map, required: true
-  attr :watch_dirs, :list, required: true
-  attr :expanded, :boolean, required: true
   attr :on_play, :string, required: true
 
   defp movie_row(assigns) do
@@ -544,14 +517,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :thumbnail, thumbnail)
 
     ~H"""
-    <div class="py-1 pr-3" data-role="movie-row">
-      <div
-        class="flex items-start gap-3 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2"
-        phx-click="toggle_episode_detail"
-        phx-value-id={@movie.id}
-        data-nav-item
-        tabindex="0"
-      >
+    <div
+      class="p-2 rounded cursor-pointer hover:bg-base-content/5"
+      data-role="movie-row"
+      phx-click={@on_play}
+      phx-value-id={@movie.id}
+      data-nav-item
+      tabindex="0"
+    >
+      <div class="flex items-start gap-3 text-sm">
         <div class="w-12 flex-shrink-0">
           <img
             :if={@thumbnail}
@@ -571,27 +545,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             {@movie.description}
           </p>
         </div>
-        <button
-          :if={@movie.content_url}
-          phx-click={@on_play}
-          phx-value-id={@movie.id}
-          class="btn btn-ghost btn-xs flex-shrink-0"
-        >
-          <.icon name="hero-play-mini" class="size-3" />
-        </button>
-      </div>
-
-      <div :if={@expanded} class="ml-16 mt-1 space-y-1 text-xs text-base-content/50">
-        <div :if={@movie.duration} class="flex items-center gap-1">
-          <.icon name="hero-clock-mini" class="size-3" />
-          {format_iso_duration(@movie.duration)}
-        </div>
-        <div :if={@movie.content_url} title={strip_watch_dir(@movie.content_url, @watch_dirs)}>
-          <span class="font-mono truncate-left inline-block max-w-full">
-            {strip_watch_dir(@movie.content_url, @watch_dirs)}
-          </span>
-        </div>
-        <div class="font-mono text-base-content/30 select-all">{@movie.id}</div>
       </div>
     </div>
     """
@@ -659,15 +612,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # --- More Details (collapsible) ---
 
   # --- Helpers ---
-
-  defp strip_watch_dir(nil, _watch_dirs), do: "—"
-
-  defp strip_watch_dir(path, watch_dirs) do
-    case Enum.find(watch_dirs, &String.starts_with?(path, &1)) do
-      nil -> Path.basename(path)
-      dir -> String.trim_leading(path, dir) |> String.trim_leading("/")
-    end
-  end
 
   defp format_duration_human(seconds) when is_number(seconds) and seconds >= 0 do
     hours = div(trunc(seconds), 3600)

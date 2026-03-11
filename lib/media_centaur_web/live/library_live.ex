@@ -43,7 +43,6 @@ defmodule MediaCentaurWeb.LibraryLive do
        filter_text: "",
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
-       watch_dirs: [],
        reload_timer: nil,
        pending_entity_ids: MapSet.new()
      )
@@ -113,10 +112,7 @@ defmodule MediaCentaurWeb.LibraryLive do
             do: DetailPanel.auto_expand_season(entry.entity, entry.progress),
             else: MapSet.new()
 
-        assign(socket,
-          expanded_seasons: expanded_seasons,
-          expanded_episodes: MapSet.new()
-        )
+        assign(socket, expanded_seasons: expanded_seasons)
       else
         socket
       end
@@ -192,17 +188,6 @@ defmodule MediaCentaurWeb.LibraryLive do
         else: MapSet.put(expanded, season_number)
 
     {:noreply, assign(socket, expanded_seasons: expanded)}
-  end
-
-  def handle_event("toggle_episode_detail", %{"id" => id}, socket) do
-    expanded = socket.assigns[:expanded_episodes] || MapSet.new()
-
-    expanded =
-      if MapSet.member?(expanded, id),
-        do: MapSet.delete(expanded, id),
-        else: MapSet.put(expanded, id)
-
-    {:noreply, assign(socket, expanded_episodes: expanded)}
   end
 
   # --- PubSub Handlers ---
@@ -387,9 +372,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           progress={@selected_entry && @selected_entry.progress}
           resume={@selected_entry && Map.get(@resume_targets, @selected_entry.entity.id)}
           progress_records={(@selected_entry && @selected_entry.progress_records) || []}
-          watch_dirs={@watch_dirs}
           expanded_seasons={assigns[:expanded_seasons]}
-          expanded_episodes={assigns[:expanded_episodes] || MapSet.new()}
           on_play="play"
           on_close="close_detail"
         />
@@ -408,8 +391,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     |> assign_entries(entries)
     |> assign(
       resume_targets: resume_targets,
-      playback: MediaCentaur.Playback.Manager.current_state(),
-      watch_dirs: MediaCentaur.Config.get(:watch_dirs) || []
+      playback: MediaCentaur.Playback.Manager.current_state()
     )
     |> recompute_continue_watching()
     |> recompute_counts()
