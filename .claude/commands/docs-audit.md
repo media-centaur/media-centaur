@@ -23,7 +23,7 @@ against actual source files, not against other documentation. Documents can be w
 about each other — only the source code and the filesystem are ground truth.
 
 Before beginning, identify the project's documentation files by globbing for `*.md`
-files in the project root, `plans/`, `decisions/`, and `specs/`. Read `CLAUDE.md` to
+files in the project root, `decisions/`, and `specs/`. Read `CLAUDE.md` to
 understand the project's stated architecture and conventions.
 
 ---
@@ -60,9 +60,6 @@ categories:
 
 Find documentation that has gone stale:
 
-- **Completed plans still marked as planned:** Check `plans/` directory — are any plans
-  for features that have already been implemented? Are features listed as "planned" in
-  CLAUDE.md that are actually done?
 - **Removed files still referenced:** Are there references to files, modules, or
   dependencies that no longer exist?
 - **Dead TODOs:** Are there TODO comments in documentation that reference completed

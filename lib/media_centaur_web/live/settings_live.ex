@@ -148,11 +148,13 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_event("enable_all", _params, socket) do
     Log.all()
+    Enum.each(Log.framework_modules(), fn {key, _mod} -> Log.unsuppress_framework(key) end)
     {:noreply, assign_log_state(socket)}
   end
 
   def handle_event("disable_all", _params, socket) do
     Log.none()
+    Enum.each(Log.framework_modules(), fn {key, _mod} -> Log.suppress_framework(key) end)
     {:noreply, assign_log_state(socket)}
   end
 
@@ -291,8 +293,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp section_content(%{active_section: "logging"} = assigns) do
     ~H"""
     <div data-nav-grid class="settings-card glass-surface">
-      <div class="flex items-center justify-between">
-        <h2 class="settings-section-title">Component Logs</h2>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="settings-section-title">Logging</h2>
         <div class="flex gap-2">
           <button
             phx-click="enable_all"
@@ -312,6 +314,8 @@ defmodule MediaCentaurWeb.SettingsLive do
           </button>
         </div>
       </div>
+
+      <h3 class="text-sm font-medium text-base-content/70 mt-2">Components</h3>
       <p class="settings-section-desc">
         Per-component decision logs. Enable to see thinking in the terminal.
       </p>
@@ -327,19 +331,19 @@ defmodule MediaCentaurWeb.SettingsLive do
       />
 
       <div class="mt-6">
-        <h2 class="settings-section-title">Framework Logs</h2>
+        <h3 class="text-sm font-medium text-base-content/70">Frameworks</h3>
         <p class="settings-section-desc">
-          Suppress noisy library output at runtime. Suppressed modules only emit warning and above.
+          Per-framework verbose output. Disabled frameworks only emit warning and above.
         </p>
 
         <.settings_row
           :for={{key, _mod} <- Log.framework_modules()}
           label={framework_label(key)}
           description={framework_description(key)}
-          checked={key in @suppressed_frameworks}
+          checked={key not in @suppressed_frameworks}
           event="toggle_framework"
           event_value={%{key: key}}
-          color="warning"
+          color="success"
         />
       </div>
     </div>
