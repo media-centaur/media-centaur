@@ -76,6 +76,7 @@ defmodule MediaCentaur.Config do
         "Bonus",
         "Deleted Scenes"
       ],
+      skip_dirs: ["Sample"],
       file_absence_ttl_days: 30
     }
 
@@ -125,6 +126,7 @@ defmodule MediaCentaur.Config do
       mpv_socket_timeout_ms:
         get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms,
       extras_dirs: get_in(toml, ["pipeline", "extras_dirs"]) || defaults.extras_dirs,
+      skip_dirs: get_in(toml, ["pipeline", "skip_dirs"]) || defaults.skip_dirs,
       file_absence_ttl_days:
         get_in(toml, ["file_absence_ttl_days"]) || defaults.file_absence_ttl_days
     }

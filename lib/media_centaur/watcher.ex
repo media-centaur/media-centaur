@@ -47,7 +47,8 @@ defmodule MediaCentaur.Watcher do
     was_unavailable: false,
     pending_files: %{},
     deletion_buffer: %{},
-    exclude_dirs: []
+    exclude_dirs: [],
+    skip_dirs: []
   ]
 
   def start_link(dir) do
@@ -69,7 +70,9 @@ defmodule MediaCentaur.Watcher do
   def init(dir) do
     Process.flag(:trap_exit, true)
     send(self(), :start_watching)
-    {:ok, %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs(dir)}}
+
+    {:ok,
+     %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs(dir), skip_dirs: load_skip_dirs()}}
   end
 
   @impl true
@@ -131,12 +134,14 @@ defmodule MediaCentaur.Watcher do
         {:noreply, %{state | state: :unavailable, was_unavailable: true}}
 
       (:created in events or :modified in events) and video_file?(path) and
-          not excluded?(path, state.exclude_dirs) ->
+        not excluded?(path, state.exclude_dirs) and
+          not in_skip_dir?(path, state.skip_dirs) ->
         Log.info(:watcher, "file event for #{Path.basename(path)}, starting size checks")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
-      :deleted in events and video_file?(path) and not excluded?(path, state.exclude_dirs) ->
+      :deleted in events and video_file?(path) and not excluded?(path, state.exclude_dirs) and
+          not in_skip_dir?(path, state.skip_dirs) ->
         {:noreply, buffer_deletion(state, path)}
 
       true ->
@@ -272,10 +277,11 @@ defmodule MediaCentaur.Watcher do
   defp scan_directory_with_paths(dir, known_paths, opts) do
     start_time = System.monotonic_time()
     exclude_dirs = load_exclude_dirs(dir)
+    skip_dirs = load_skip_dirs()
 
     video_files =
       dir
-      |> walk_files(exclude_dirs)
+      |> walk_files(exclude_dirs, skip_dirs)
       |> Enum.filter(&video_file?/1)
 
     new_files = Enum.reject(video_files, fn path -> MapSet.member?(known_paths, path) end)
@@ -357,6 +363,18 @@ defmodule MediaCentaur.Watcher do
     Process.send_after(self(), :health_check, @health_check_interval)
   end
 
+  defp load_skip_dirs do
+    (MediaCentaur.Config.get(:skip_dirs) || [])
+    |> Enum.map(&String.downcase/1)
+  end
+
+  defp in_skip_dir?(path, skip_dirs) do
+    path
+    |> Path.split()
+    |> Enum.drop(-1)
+    |> Enum.any?(fn component -> String.downcase(component) in skip_dirs end)
+  end
+
   defp load_exclude_dirs(watch_dir) do
     configured = MediaCentaur.Config.get(:exclude_dirs) || []
     images_dir = MediaCentaur.Config.images_dir_for(watch_dir)
@@ -369,7 +387,7 @@ defmodule MediaCentaur.Watcher do
     Enum.uniq(configured ++ auto_excludes)
   end
 
-  defp walk_files(dir, exclude_dirs) do
+  defp walk_files(dir, exclude_dirs, skip_dirs) do
     case File.ls(dir) do
       {:ok, entries} ->
         Enum.flat_map(entries, fn entry ->
@@ -377,7 +395,8 @@ defmodule MediaCentaur.Watcher do
 
           cond do
             excluded?(path, exclude_dirs) -> []
-            File.dir?(path) -> walk_files(path, exclude_dirs)
+            File.dir?(path) and String.downcase(entry) in skip_dirs -> []
+            File.dir?(path) -> walk_files(path, exclude_dirs, skip_dirs)
             true -> [path]
           end
         end)
