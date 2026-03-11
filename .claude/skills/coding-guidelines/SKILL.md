@@ -33,7 +33,7 @@ description: "Use this skill for any implementation task — adding features, fi
 
 ### What NOT to Test
 
-- GenServer internals (Watcher, Config, MpvSession, PlaybackManager).
+- GenServer internals (Watcher, Config, MpvSession).
 - LiveView DOM — test the data contracts they consume.
 - External API calls in normal runs — tag `@tag :external` and exclude.
 

@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        entries_by_id: %{},
        continue_watching: [],
        resume_targets: %{},
-       playback: %{state: :idle, now_playing: nil},
+       playback: %{},
        zone: :watching,
        selected_entity_id: nil,
        detail_presentation: nil,
@@ -292,13 +292,26 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> touch_stream_entries([entity_id])}
   end
 
-  def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
-    old_playing_id = playing_entity_id(socket.assigns.playback)
-    socket = assign(socket, playback: %{state: new_state, now_playing: now_playing})
-    new_playing_id = playing_entity_id(socket.assigns.playback)
+  def handle_info(
+        {:playback_state_changed, entity_id, new_state, now_playing, _started_at},
+        socket
+      ) do
+    playback =
+      case new_state do
+        :stopped ->
+          Map.delete(socket.assigns.playback, entity_id)
 
-    ids_to_touch = [old_playing_id, new_playing_id] |> Enum.reject(&is_nil/1) |> Enum.uniq()
-    {:noreply, touch_stream_entries(socket, ids_to_touch)}
+        _ ->
+          Map.put(socket.assigns.playback, entity_id, %{
+            state: new_state,
+            now_playing: now_playing
+          })
+      end
+
+    {:noreply,
+     socket
+     |> assign(playback: playback)
+     |> touch_stream_entries([entity_id])}
   end
 
   @impl true
@@ -357,7 +370,7 @@ defmodule MediaCentaurWeb.LibraryLive do
               :for={entry <- @continue_watching}
               entry={entry}
               resume={Map.get(@resume_targets, entry.entity.id)}
-              playing={playing_entity_id(@playback) == entry.entity.id}
+              playing={playing?(@playback, entry.entity.id)}
             />
           </div>
         </section>
@@ -389,7 +402,7 @@ defmodule MediaCentaurWeb.LibraryLive do
                 id={dom_id}
                 entry={entry}
                 selected={@selected_entity_id == entry.entity.id}
-                playing={playing_entity_id(@playback) == entry.entity.id}
+                playing={playing?(@playback, entry.entity.id)}
               />
             </div>
           </div>
@@ -417,11 +430,15 @@ defmodule MediaCentaurWeb.LibraryLive do
     entries = LibraryBrowser.fetch_entities()
     resume_targets = compute_resume_targets(entries)
 
+    playback =
+      MediaCentaur.Playback.Sessions.list()
+      |> Map.new(fn session -> {session.entity_id, session} end)
+
     socket
     |> assign_entries(entries)
     |> assign(
       resume_targets: resume_targets,
-      playback: MediaCentaur.Playback.Manager.current_state()
+      playback: playback
     )
     |> recompute_continue_watching()
     |> recompute_counts()
@@ -592,8 +609,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     end)
   end
 
-  defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id
-  defp playing_entity_id(_), do: nil
+  defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
 
   defp toggle_watched(entity_id, season_number, episode_number) do
     progress =

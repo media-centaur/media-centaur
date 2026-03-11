@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Playback.SessionSupervisor do
   @moduledoc """
   DynamicSupervisor for MpvSession processes.
-  At most one session runs at a time, started on demand by the Playback Manager.
+  Multiple sessions may run concurrently, one per entity.
   """
   use DynamicSupervisor
 

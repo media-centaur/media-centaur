@@ -5,7 +5,7 @@ defmodule MediaCentaur.Playback.Resolver do
   The UUID can identify any playable thing: a top-level Entity, an Episode,
   a child Movie, or an Extra. The resolver figures out what the UUID refers to,
   loads the necessary context, applies smart resume logic, and returns a
-  `play_params` map suitable for `Manager.play/1`.
+  `play_params` map suitable for `Sessions.play/1`.
 
   UUID resolution order:
   1. Entity — if series, run `Resume.resolve`; if single item, check progress

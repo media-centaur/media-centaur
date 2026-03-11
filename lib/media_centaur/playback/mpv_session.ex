@@ -1,16 +1,22 @@
 defmodule MediaCentaur.Playback.MpvSession do
   @moduledoc """
   Per-session GenServer managing one MPV process via Port + Unix domain socket IPC.
-  Launched by the Playback Manager for each play command.
+
+  Each session tracks a single entity's playback, identified by entity_id.
+  The socket path is `media-centaur-{entity_id}.sock` in the configured socket dir.
+  Sessions register in `SessionRegistry` by entity_id for lookup and enumeration.
+
+  This is an observation-only tracker — the user controls mpv directly.
+  The session observes position/duration/pause/eof via IPC, persists watch
+  progress, and broadcasts state changes via PubSub.
   """
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Playback.{ProgressBroadcaster, WatchingTracker}
+  alias MediaCentaur.Playback.{ProgressBroadcaster, SessionRegistry, WatchingTracker}
 
   @db_write_interval_ms 10_000
   @socket_retry_interval_ms 200
-  @well_known_socket_name "media-centaur-mpv.sock"
 
   defstruct [
     :session_id,
@@ -30,26 +36,31 @@ defmodule MediaCentaur.Playback.MpvSession do
     :last_db_write_at,
     :socket_retries,
     :tracker,
+    :started_at,
     state: :starting
   ]
 
   # --- Public API ---
 
   def start_link(params) do
-    GenServer.start_link(__MODULE__, params)
+    GenServer.start_link(__MODULE__, params, name: SessionRegistry.via(params.entity_id))
   end
 
   def child_spec(params) do
     %{
-      id: __MODULE__,
+      id: {__MODULE__, params.entity_id},
       start: {__MODULE__, :start_link, [params]},
       restart: :temporary
     }
   end
 
-  def pause(pid), do: GenServer.call(pid, :pause)
-  def stop(pid), do: GenServer.call(pid, :stop)
-  def seek(pid, position), do: GenServer.call(pid, {:seek, position})
+  @doc "Returns a read-only snapshot of the session's current state."
+  def get_state(entity_id) do
+    case SessionRegistry.lookup(entity_id) do
+      nil -> nil
+      pid -> GenServer.call(pid, :get_state)
+    end
+  end
 
   # --- Callbacks ---
 
@@ -59,7 +70,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     session_id = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
     socket_dir = MediaCentaur.Config.get(:mpv_socket_dir)
-    socket_path = Path.join(socket_dir, @well_known_socket_name)
+    socket_path = Path.join(socket_dir, "media-centaur-#{params.entity_id}.sock")
     timeout_ms = MediaCentaur.Config.get(:mpv_socket_timeout_ms)
     max_retries = div(timeout_ms, @socket_retry_interval_ms)
 
@@ -78,7 +89,8 @@ defmodule MediaCentaur.Playback.MpvSession do
       paused: false,
       last_db_write_at: System.monotonic_time(:millisecond),
       socket_retries: max_retries,
-      tracker: WatchingTracker.new()
+      tracker: WatchingTracker.new(),
+      started_at: System.monotonic_time(:millisecond)
     }
 
     Log.info(:playback, "session #{session_id} init for #{Path.basename(params.content_url)}")
@@ -87,42 +99,19 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   @impl true
-  def handle_call(:pause, _from, %{state: session_state} = state)
-      when session_state in [:playing, :paused] do
-    toggle = not state.paused
-    send_mpv_command(state.socket, ["set_property", "pause", toggle])
-    {:reply, :ok, state}
+  def handle_call(:get_state, _from, state) do
+    reply = %{
+      state: state.state,
+      now_playing: build_now_playing(state),
+      started_at: state.started_at
+    }
+
+    {:reply, reply, state}
   end
 
-  def handle_call(:pause, _from, state) do
-    {:reply, {:error, :not_playing}, state}
-  end
-
-  @impl true
-  def handle_call(:stop, _from, %{state: session_state} = state)
-      when session_state in [:playing, :paused] do
-    send_mpv_command(state.socket, ["quit"])
-    {:reply, :ok, state}
-  end
-
-  def handle_call(:stop, _from, state) do
-    {:reply, {:error, :not_playing}, state}
-  end
-
-  @impl true
-  def handle_call({:seek, position}, _from, %{state: session_state} = state)
-      when session_state in [:playing, :paused] do
-    send_mpv_command(state.socket, ["seek", position, "absolute"])
-    {:reply, :ok, state}
-  end
-
-  def handle_call({:seek, _position}, _from, state) do
-    {:reply, {:error, :not_playing}, state}
-  end
-
-  # ADR-023: Try to reconnect to an existing mpv process via the well-known socket
+  # Try to reconnect to an existing mpv process via the entity-scoped socket
   # before launching a new one. This handles the case where the backend restarts
-  # while mpv is still running.
+  # while mpv is still running (ADR-023).
   @impl true
   def handle_info(:try_reconnect, state) do
     socket_charlist = to_charlist(state.socket_path)
@@ -136,14 +125,10 @@ defmodule MediaCentaur.Playback.MpvSession do
       {:ok, socket} ->
         Log.info(
           :playback,
-          "session #{state.session_id} reconnected to existing mpv via #{@well_known_socket_name}"
+          "session #{state.session_id} reconnected to existing mpv via #{Path.basename(state.socket_path)}"
         )
 
-        send_mpv_command(socket, ["observe_property", 1, "time-pos"])
-        send_mpv_command(socket, ["observe_property", 2, "duration"])
-        send_mpv_command(socket, ["observe_property", 3, "pause"])
-        send_mpv_command(socket, ["observe_property", 4, "eof-reached"])
-
+        observe_properties(socket)
         broadcast_state_changed(:playing, state)
         {:noreply, %{state | socket: socket, state: :playing}}
 
@@ -188,10 +173,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     case :gen_tcp.connect({:local, socket_path}, 0, [:binary, packet: :line, active: true]) do
       {:ok, socket} ->
         Log.info(:playback, "session #{state.session_id} connected to IPC socket")
-        send_mpv_command(socket, ["observe_property", 1, "time-pos"])
-        send_mpv_command(socket, ["observe_property", 2, "duration"])
-        send_mpv_command(socket, ["observe_property", 3, "pause"])
-        send_mpv_command(socket, ["observe_property", 4, "eof-reached"])
+        observe_properties(socket)
 
         if state.start_position > 0 do
           Log.info(:playback, "session #{state.session_id} resuming at #{state.start_position}s")
@@ -418,27 +400,33 @@ defmodule MediaCentaur.Playback.MpvSession do
   # --- PubSub Broadcasting ---
 
   defp broadcast_state_changed(new_state, session) do
-    now_playing =
-      if new_state in [:playing, :paused] do
-        %{
-          entity_id: session.entity_id,
-          entity_name: session.entity_name,
-          season_number: session.season_number,
-          episode_number: session.episode_number,
-          episode_name: session.episode_name,
-          content_url: session.content_url,
-          position_seconds: session.position,
-          duration_seconds: session.duration
-        }
-      else
-        nil
-      end
+    now_playing = build_now_playing_for_broadcast(new_state, session)
 
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.playback_events(),
-      {:playback_state_changed, new_state, now_playing}
+      {:playback_state_changed, session.entity_id, new_state, now_playing, session.started_at}
     )
+  end
+
+  defp build_now_playing_for_broadcast(new_state, session)
+       when new_state in [:playing, :paused] do
+    build_now_playing(session)
+  end
+
+  defp build_now_playing_for_broadcast(_new_state, _session), do: nil
+
+  defp build_now_playing(session) do
+    %{
+      entity_id: session.entity_id,
+      entity_name: session.entity_name,
+      season_number: session.season_number,
+      episode_number: session.episode_number,
+      episode_name: session.episode_name,
+      content_url: session.content_url,
+      position_seconds: session.position,
+      duration_seconds: session.duration
+    }
   end
 
   # --- Cleanup ---
@@ -450,10 +438,17 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     # Only delete the socket file if mpv has already exited.
     # If mpv is still running (backend shutting down), leave the socket
-    # so SessionRecovery can reconnect on next startup (ADR-023).
+    # so recovery can reconnect on next startup (ADR-023).
     if state.state == :stopped do
       File.rm(state.socket_path)
     end
+  end
+
+  defp observe_properties(socket) do
+    send_mpv_command(socket, ["observe_property", 1, "time-pos"])
+    send_mpv_command(socket, ["observe_property", 2, "duration"])
+    send_mpv_command(socket, ["observe_property", 3, "pause"])
+    send_mpv_command(socket, ["observe_property", 4, "eof-reached"])
   end
 
   defp send_mpv_command(nil, _command), do: :ok

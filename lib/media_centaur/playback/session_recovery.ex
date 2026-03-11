@@ -1,31 +1,58 @@
 defmodule MediaCentaur.Playback.SessionRecovery do
   @moduledoc """
-  Recovers playback session params from an orphaned mpv process (ADR-023).
+  Recovers playback sessions from orphaned mpv processes (ADR-023).
 
-  On backend restart, mpv may still be running with the well-known socket.
-  This module probes the socket, queries mpv for the current file path and
+  On backend restart, mpv instances may still be running with entity-scoped
+  sockets (`media-centaur-{entity_id}.sock`). This module scans the socket
+  directory, probes each socket, queries mpv for the current file path and
   position, then resolves the entity so a new MpvSession can reconnect.
   """
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
 
-  @well_known_socket_name "media-centaur-mpv.sock"
+  @socket_prefix "media-centaur-"
+  @socket_suffix ".sock"
   @connect_timeout_ms 500
 
-  @spec recover_params() :: {:ok, map()} | :skip
-  def recover_params do
-    socket_dir = MediaCentaur.Config.get(:mpv_socket_dir)
-    socket_path = Path.join(socket_dir, @well_known_socket_name)
+  @doc """
+  Scans the socket directory for orphaned mpv sockets and returns
+  a list of play_params maps for each live session found.
 
-    if File.exists?(socket_path) do
-      recover_from_socket(socket_path)
-    else
-      :skip
-    end
+  Dead socket files are cleaned up automatically.
+  """
+  @spec recover_all() :: [map()]
+  def recover_all do
+    socket_dir = MediaCentaur.Config.get(:mpv_socket_dir)
+    pattern = Path.join(socket_dir, "#{@socket_prefix}*#{@socket_suffix}")
+
+    Path.wildcard(pattern)
+    |> Enum.flat_map(fn socket_path ->
+      entity_id = extract_entity_id(socket_path)
+
+      case recover_from_socket(socket_path, entity_id) do
+        {:ok, params} ->
+          Log.info(
+            :playback,
+            "recovery: found live session for #{params[:entity_name] || entity_id}"
+          )
+
+          [params]
+
+        :skip ->
+          []
+      end
+    end)
   end
 
-  defp recover_from_socket(socket_path) do
+  defp extract_entity_id(socket_path) do
+    socket_path
+    |> Path.basename()
+    |> String.trim_leading(@socket_prefix)
+    |> String.trim_trailing(@socket_suffix)
+  end
+
+  defp recover_from_socket(socket_path, entity_id) do
     socket_charlist = to_charlist(socket_path)
 
     case :gen_tcp.connect(
@@ -35,25 +62,29 @@ defmodule MediaCentaur.Playback.SessionRecovery do
            @connect_timeout_ms
          ) do
       {:ok, socket} ->
-        result = query_and_resolve(socket)
+        result = query_and_resolve(socket, entity_id)
         :gen_tcp.close(socket)
         result
 
       {:error, reason} ->
-        Log.info(:playback, "session recovery: no mpv at socket (#{reason})")
+        Log.info(:playback, "recovery: no mpv at socket for #{entity_id} (#{reason})")
         File.rm(socket_path)
         :skip
     end
   end
 
-  defp query_and_resolve(socket) do
+  defp query_and_resolve(socket, entity_id) do
     with {:ok, path} <- get_property(socket, "path"),
          {:ok, position} <- get_property(socket, "time-pos"),
-         {:ok, params} <- resolve_entity_from_path(path, position) do
+         {:ok, params} <- build_params(entity_id, path, position) do
       {:ok, params}
     else
       {:error, reason} ->
-        Log.info(:playback, "session recovery: could not resolve entity (#{inspect(reason)})")
+        Log.info(
+          :playback,
+          "recovery: could not resolve entity #{entity_id} (#{inspect(reason)})"
+        )
+
         :skip
     end
   end
@@ -81,19 +112,25 @@ defmodule MediaCentaur.Playback.SessionRecovery do
     end
   end
 
-  defp resolve_entity_from_path(content_url, position) when is_binary(content_url) do
+  defp build_params(entity_id, content_url, position) when is_binary(content_url) do
     case Library.list_files_by_paths([content_url]) do
-      {:ok, [watched_file | _]} ->
-        build_params(watched_file.entity_id, content_url, position)
+      {:ok, [_watched_file | _]} ->
+        resolve_entity(entity_id, content_url, position)
 
       _ ->
-        {:error, :no_watched_file}
+        # File not in library but mpv is running — provide minimal params
+        {:ok,
+         %{
+           entity_id: entity_id,
+           content_url: content_url,
+           start_position: position
+         }}
     end
   end
 
-  defp resolve_entity_from_path(_path, _position), do: {:error, :invalid_path}
+  defp build_params(_entity_id, _path, _position), do: {:error, :invalid_path}
 
-  defp build_params(entity_id, content_url, position) do
+  defp resolve_entity(entity_id, content_url, position) do
     case Library.get_entity_with_progress(entity_id) do
       {:ok, entity} ->
         {season_number, episode_number, episode_name} =

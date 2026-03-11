@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(config: load_config())
         |> assign(rate_limiter: fetch_rate_limiter())
         |> assign(retry_status: fetch_retry_status())
-        |> assign(playback: MediaCentaur.Playback.Manager.current_state())
+        |> assign(playback: build_playback_state())
       else
         socket
         |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(config: %{})
         |> assign(rate_limiter: nil)
         |> assign(retry_status: nil)
-        |> assign(playback: %{state: :idle, now_playing: nil})
+        |> assign(playback: %{state: :idle, now_playing: nil, sessions: %{}})
       end
 
     {:ok,
@@ -100,8 +100,29 @@ defmodule MediaCentaurWeb.DashboardLive do
      |> assign(recent_errors: stats.recent_errors)}
   end
 
-  def handle_info({:playback_state_changed, new_state, now_playing}, socket) do
-    {:noreply, assign(socket, playback: %{state: new_state, now_playing: now_playing})}
+  def handle_info(
+        {:playback_state_changed, entity_id, new_state, now_playing, started_at},
+        socket
+      ) do
+    sessions = socket.assigns.playback.sessions
+
+    sessions =
+      case new_state do
+        :stopped ->
+          Map.delete(sessions, entity_id)
+
+        _ ->
+          existing = Map.get(sessions, entity_id)
+          kept_started_at = (existing && existing[:started_at]) || started_at
+
+          Map.put(sessions, entity_id, %{
+            state: new_state,
+            now_playing: now_playing,
+            started_at: kept_started_at
+          })
+      end
+
+    {:noreply, assign(socket, playback: derive_playback(sessions))}
   end
 
   def handle_info(
@@ -109,29 +130,34 @@ defmodule MediaCentaurWeb.DashboardLive do
          progress_records, _last_activity_at},
         socket
       ) do
-    now_playing = socket.assigns.playback.now_playing
+    sessions = socket.assigns.playback.sessions
 
     socket =
-      if now_playing && now_playing.entity_id == entity_id do
-        record =
-          Enum.find(progress_records, fn record ->
-            record.season_number == (now_playing[:season_number] || 0) &&
-              record.episode_number == (now_playing[:episode_number] || 0)
-          end)
+      case Map.get(sessions, entity_id) do
+        %{now_playing: now_playing} = session when not is_nil(now_playing) ->
+          record =
+            Enum.find(progress_records, fn record ->
+              record.season_number == (now_playing[:season_number] || 0) &&
+                record.episode_number == (now_playing[:episode_number] || 0)
+            end)
 
-        if record do
-          updated =
-            Map.merge(now_playing, %{
-              position_seconds: record.position_seconds,
-              duration_seconds: record.duration_seconds
-            })
+          if record do
+            updated =
+              Map.merge(now_playing, %{
+                position_seconds: record.position_seconds,
+                duration_seconds: record.duration_seconds
+              })
 
-          assign(socket, playback: %{socket.assigns.playback | now_playing: updated})
-        else
+            updated_sessions =
+              Map.put(sessions, entity_id, %{session | now_playing: updated})
+
+            assign(socket, playback: derive_playback(updated_sessions))
+          else
+            socket
+          end
+
+        _ ->
           socket
-        end
-      else
-        socket
       end
 
     {:noreply, socket}
@@ -530,18 +556,12 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   defp playback_summary_card(assigns) do
-    now_playing = assigns.playback.now_playing
+    sessions =
+      assigns.playback.sessions
+      |> Enum.map(fn {_id, session} -> session end)
+      |> Enum.sort_by(fn s -> s[:started_at] || 0 end)
 
-    assigns =
-      assigns
-      |> assign(:now_playing, now_playing)
-      |> assign(:title, now_playing && now_playing_title(now_playing))
-      |> assign(:detail, now_playing && now_playing_detail(now_playing))
-      |> assign(
-        :has_progress,
-        now_playing != nil && now_playing[:duration_seconds] != nil &&
-          now_playing[:duration_seconds] > 0
-      )
+    assigns = assign(assigns, :sessions, sessions)
 
     ~H"""
     <div class={[
@@ -551,34 +571,86 @@ defmodule MediaCentaurWeb.DashboardLive do
       <div class="card-body">
         <div class="flex justify-between items-center">
           <h2 class="card-title text-lg">Playback</h2>
-          <span class={["text-sm", playback_text_class(@playback.state)]}>
-            {@playback.state}
+          <span :if={@sessions == []} class="text-sm text-base-content/60">idle</span>
+          <span :if={@sessions != []} class="text-sm text-base-content/60">
+            {length(@sessions)} active
           </span>
         </div>
 
-        <div :if={@now_playing} class="mt-1">
-          <div class="text-base font-medium truncate">{@title}</div>
-          <div :if={@detail} class="text-sm text-base-content/60 truncate">{@detail}</div>
+        <div :if={@sessions == []} class="mt-1 text-sm text-base-content/60">Idle</div>
 
-          <div :if={@has_progress} class="flex items-center gap-2 mt-2">
+        <div :for={session <- @sessions} class="mt-2">
+          <div class="flex items-center gap-2">
+            <span class={["text-xs", playback_text_class(session.state)]}>
+              {session.state}
+            </span>
+            <span class="text-base font-medium truncate">
+              {now_playing_title(session.now_playing)}
+            </span>
+          </div>
+          <div
+            :if={now_playing_detail(session.now_playing)}
+            class="text-sm text-base-content/60 truncate"
+          >
+            {now_playing_detail(session.now_playing)}
+          </div>
+          <div
+            :if={
+              session.now_playing[:duration_seconds] != nil &&
+                session.now_playing[:duration_seconds] > 0
+            }
+            class="flex items-center gap-2 mt-1"
+          >
             <progress
-              class={["progress h-1.5 flex-1", playback_progress_class(@playback.state)]}
-              value={@now_playing[:position_seconds] || 0}
-              max={@now_playing.duration_seconds}
+              class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
+              value={session.now_playing[:position_seconds] || 0}
+              max={session.now_playing.duration_seconds}
             >
             </progress>
             <span class="text-xs text-base-content/50 whitespace-nowrap">
-              {format_seconds(@now_playing[:position_seconds] || 0)} / {format_seconds(
-                @now_playing.duration_seconds
+              {format_remaining(
+                session.now_playing.duration_seconds -
+                  (session.now_playing[:position_seconds] || 0)
               )}
             </span>
           </div>
         </div>
-
-        <div :if={!@now_playing} class="mt-1 text-sm text-base-content/60">Idle</div>
       </div>
     </div>
     """
+  end
+
+  # --- Playback State ---
+
+  defp build_playback_state do
+    sessions =
+      MediaCentaur.Playback.Sessions.list()
+      |> Map.new(fn session ->
+        {session.entity_id,
+         %{
+           state: session.state,
+           now_playing: session.now_playing,
+           started_at: session.started_at
+         }}
+      end)
+
+    derive_playback(sessions)
+  end
+
+  # Derives the dashboard's single-card playback view from the sessions map.
+  # Shows the most recently active session (playing > paused).
+  defp derive_playback(sessions) when sessions == %{} do
+    %{state: :idle, now_playing: nil, sessions: sessions}
+  end
+
+  defp derive_playback(sessions) do
+    # Prefer playing sessions, then paused
+    {_entity_id, primary} =
+      sessions
+      |> Enum.sort_by(fn {_id, s} -> if s.state == :playing, do: 0, else: 1 end)
+      |> hd()
+
+    %{state: primary.state, now_playing: primary.now_playing, sessions: sessions}
   end
 
   # --- Helpers ---
@@ -622,6 +694,11 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp format_datetime(datetime) do
     Calendar.strftime(datetime, "%Y-%m-%d %H:%M")
   end
+
+  defp format_remaining(seconds) when seconds <= 0, do: "finished"
+  defp format_remaining(seconds) when seconds < 60, do: "#{round(seconds)}s remaining"
+  defp format_remaining(seconds) when seconds < 3600, do: "#{round(seconds / 60)}m remaining"
+  defp format_remaining(seconds), do: "#{Float.round(seconds / 3600, 1)}h remaining"
 
   defp format_throughput(rate) when rate == 0.0, do: "—"
   defp format_throughput(rate), do: "#{rate}/s"

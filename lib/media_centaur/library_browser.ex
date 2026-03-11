@@ -7,7 +7,7 @@ defmodule MediaCentaur.LibraryBrowser do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Playback.{EpisodeList, Manager, MovieList, ProgressSummary, Resolver}
+  alias MediaCentaur.Playback.{EpisodeList, MovieList, ProgressSummary, Resolver, Sessions}
 
   @doc """
   Loads all entities with associations, computes progress summaries.
@@ -91,7 +91,7 @@ defmodule MediaCentaur.LibraryBrowser do
     Log.info(:library, "play #{uuid}")
 
     case Resolver.resolve(uuid) do
-      {:ok, play_params} -> Manager.play(play_params)
+      {:ok, play_params} -> Sessions.play(play_params)
       {:error, reason} -> {:error, reason}
     end
   end
