@@ -135,6 +135,13 @@ function createMockGlobals() {
       }
       return event
     },
+    _dispatchMouseMove(x, y) {
+      const event = { clientX: x, clientY: y }
+      for (const fn of (listeners.mousemove || [])) {
+        fn(event)
+      }
+      return event
+    },
   }
 }
 
@@ -144,12 +151,16 @@ function mockCreateBehavior(name) {
     return {
       onAttach() {},
       onDetach() {},
-      onEscape: () => false,
+      onEscape: () => "sidebar",
+      onClear: () => {},
       onSyncState: () => ({ clearGridMemory: false }),
     }
   }
   if (name === "settings") {
-    return { onAttach() {}, onDetach() {} }
+    return { onAttach() {}, onDetach() {}, onEscape: () => "sections" }
+  }
+  if (name === "dashboard" || name === "review") {
+    return { onAttach() {}, onDetach() {}, onEscape: () => "sidebar" }
   }
   return null
 }
@@ -770,6 +781,103 @@ describe("Orchestrator", () => {
       expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
     })
 
+    test("BACK navigates to context returned by onEscape string", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "settings",
+        getPageBehavior: () => "settings",
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+        getActiveItemIndex: (ctx) => ctx === "sections" ? 1 : -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      // Start in grid context
+      system.focusMachine.forceContext(Context.GRID)
+      calls.length = 0
+
+      onActionCallback(Action.BACK)
+
+      // Should navigate to "sections" (returned by settings onEscape)
+      expect(system.focusMachine.context).toBe("sections")
+      // Should restore focus in sections
+      const focusCalls = calls.filter(c => c.method === "focusByIndex")
+      expect(focusCalls.some(c => c.args[0] === "sections")).toBe(true)
+    })
+
+    test("BACK to sidebar via onEscape expands sidebar and records pre-sidebar context", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getPageBehavior: () => "library",
+        getItemCount: () => 8,
+        getFocusedIndex: () => 0,
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 2 : -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+      calls.length = 0
+
+      onActionCallback(Action.BACK)
+
+      // Should enter sidebar
+      expect(system.focusMachine.context).toBe("sidebar")
+      // Should expand sidebar (setSidebarState(false))
+      const sidebarCalls = calls.filter(c => c.method === "setSidebarState")
+      expect(sidebarCalls.some(c => c.args[0] === false)).toBe(true)
+      // Should record pre-sidebar context for exit restoration
+      expect(system._preSidebarContext).toBe(Context.GRID)
+    })
+
+    test("BACK in non-primary menu bypasses onEscape and follows nav graph", () => {
+      let escapeCalled = false
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "settings",
+        getPageBehavior: () => "settings",
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 0 : -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sections")
+
+      system._behavior = {
+        onEscape: () => { escapeCalled = true; return "sections" },
+      }
+      calls.length = 0
+
+      onActionCallback(Action.BACK)
+
+      // onEscape must NOT be called when in a menu context
+      expect(escapeCalled).toBe(false)
+      // Should follow nav graph left edge → sidebar
+      expect(system.focusMachine.context).toBe("sidebar")
+    })
+
     test("BACK in sidebar bypasses onEscape and exits", () => {
       let escapeCalled = false
       let onActionCallback = null
@@ -864,6 +972,66 @@ describe("Orchestrator", () => {
     })
   })
 
+  describe("CLEAR action delegates to behavior onClear", () => {
+    test("CLEAR calls behavior onClear", () => {
+      let clearCalled = false
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPageBehavior: () => "library",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      system._behavior = {
+        onClear: () => { clearCalled = true },
+      }
+
+      onActionCallback(Action.CLEAR)
+      expect(clearCalled).toBe(true)
+    })
+
+    test("CLEAR is a no-op when behavior has no onClear", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({}, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      // No behavior — CLEAR should not throw
+      system._behavior = null
+      onActionCallback(Action.CLEAR)
+      // If we get here without error, the test passes
+    })
+
+    test("Backspace key fires CLEAR action", () => {
+      let clearCalled = false
+      const { system, globals } = setup({
+        getPageBehavior: () => "library",
+      })
+      system.start({})
+
+      system._behavior = {
+        onClear: () => { clearCalled = true },
+      }
+
+      globals._dispatchKeyDown("Backspace")
+      expect(clearCalled).toBe(true)
+    })
+  })
+
   describe("SELECT on menu activates and exits", () => {
     test("SELECT on primary menu exits sidebar without clicking (already activated on focus)", () => {
       const clicked = mock(() => {})
@@ -949,11 +1117,11 @@ describe("Orchestrator", () => {
     })
   })
 
-  describe("non-mouse input time tracking", () => {
-    test("source input detection suppresses mouse method switch", () => {
+  describe("mouse position tracking", () => {
+    test("first mousemove only primes position, does not switch method", () => {
       let onInputCallback = null
       const mockSource = { start() {}, stop() {} }
-      const { system } = setup({}, {
+      const { system, calls, globals } = setup({}, {
         sources: [
           (callbacks) => {
             onInputCallback = callbacks.onInputDetected
@@ -963,8 +1131,92 @@ describe("Orchestrator", () => {
       })
       system.start({})
 
+      // Switch to gamepad
       onInputCallback("gamepadbutton")
-      expect(system._lastNonMouseInputTime).toBeGreaterThan(0)
+      calls.length = 0
+
+      // First mousemove — should only prime, not switch
+      globals._dispatchMouseMove(100, 200)
+
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.length).toBe(0)
+    })
+
+    test("mousemove at same position does not switch to mouse", () => {
+      let onInputCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls, globals } = setup({}, {
+        sources: [
+          (callbacks) => {
+            onInputCallback = callbacks.onInputDetected
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      // Prime mouse position, then switch to gamepad
+      globals._dispatchMouseMove(100, 200)
+      onInputCallback("gamepadbutton")
+      calls.length = 0
+
+      // Mousemove at same position (layout shift) — should not switch
+      globals._dispatchMouseMove(100, 200)
+
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.length).toBe(0)
+    })
+
+    test("mousemove at new position switches to mouse", () => {
+      let onInputCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls, globals } = setup({}, {
+        sources: [
+          (callbacks) => {
+            onInputCallback = callbacks.onInputDetected
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      // Switch to gamepad
+      onInputCallback("gamepadbutton")
+      calls.length = 0
+
+      // Prime position, then move
+      globals._dispatchMouseMove(100, 200)
+      globals._dispatchMouseMove(105, 200)
+
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.length).toBe(1)
+      expect(methodCalls[0].args).toEqual(["mouse"])
+    })
+
+    test("layout shift mousemove after LiveView patch is ignored", () => {
+      let onInputCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls, globals } = setup({}, {
+        sources: [
+          (callbacks) => {
+            onInputCallback = callbacks.onInputDetected
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      // Switch to gamepad, prime mouse position
+      onInputCallback("gamepadbutton")
+      globals._dispatchMouseMove(100, 200)
+      calls.length = 0
+
+      // LiveView patch triggers view update + layout shift mousemove
+      system.onViewChanged()
+      globals._dispatchMouseMove(100, 200) // same position
+
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.length).toBe(0)
     })
   })
 })

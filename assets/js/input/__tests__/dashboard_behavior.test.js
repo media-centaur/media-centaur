@@ -7,4 +7,9 @@ describe("createDashboardBehavior", () => {
     expect(typeof behavior.onAttach).toBe("function")
     expect(typeof behavior.onDetach).toBe("function")
   })
+
+  test("onEscape returns sidebar", () => {
+    const behavior = createDashboardBehavior()
+    expect(behavior.onEscape()).toBe("sidebar")
+  })
 })

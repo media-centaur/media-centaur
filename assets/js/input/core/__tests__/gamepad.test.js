@@ -129,6 +129,8 @@ describe("GamepadSource", () => {
 
       // Should detect the already-connected gamepad and start polling
       expect(env._rafCallbacks.length).toBe(1)
+      // Should signal gamepad presence for input method detection
+      expect(inputDetections).toEqual(["gamepadbutton"])
     })
 
     test("buttons held during start do not fire false rising edge", () => {
@@ -219,8 +221,8 @@ describe("GamepadSource", () => {
 
       env._tickRAF() // initial state
 
-      // Button 3 (Y) is not in default map
-      gamepad.buttons[3] = { pressed: true }
+      // Button 2 (X) is not in default map
+      gamepad.buttons[2] = { pressed: true }
       env._tickRAF()
       expect(actions).toEqual([])
     })

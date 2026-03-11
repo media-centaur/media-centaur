@@ -25,21 +25,32 @@ function mockDom({ filterValue = "" } = {}) {
 
 describe("Library behavior", () => {
   describe("onEscape()", () => {
-    test("clears filter and returns true when filter has content", () => {
+    test("returns sidebar to navigate back", () => {
+      const behavior = createLibraryBehavior(mockDom())
+      expect(behavior.onEscape()).toBe("sidebar")
+    })
+  })
+
+  describe("onClear()", () => {
+    test("clears filter when filter has content", () => {
       const dom = mockDom({ filterValue: "some search" })
       const behavior = createLibraryBehavior(dom)
-      expect(behavior.onEscape()).toBe(true)
+      behavior.onClear()
       expect(dom.cleared).toBe(true)
     })
 
-    test("returns false when filter is empty", () => {
-      const behavior = createLibraryBehavior(mockDom({ filterValue: "" }))
-      expect(behavior.onEscape()).toBe(false)
+    test("does nothing when filter is empty", () => {
+      const dom = mockDom({ filterValue: "" })
+      const behavior = createLibraryBehavior(dom)
+      behavior.onClear()
+      expect(dom.cleared).toBe(false)
     })
 
-    test("returns false when filter element does not exist", () => {
-      const behavior = createLibraryBehavior(mockDom({ filterValue: null }))
-      expect(behavior.onEscape()).toBe(false)
+    test("does nothing when filter element does not exist", () => {
+      const dom = mockDom({ filterValue: null })
+      const behavior = createLibraryBehavior(dom)
+      behavior.onClear()
+      expect(dom.cleared).toBe(false)
     })
   })
 

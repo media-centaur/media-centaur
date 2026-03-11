@@ -5,30 +5,30 @@ Unified keyboard, mouse, and gamepad navigation for the media center UI. Impleme
 ## Layered Design
 
 ```
-  Key/Mouse Event
-       │
-  ┌────▼────┐    ┌───────────┐
-  │ actions  │───>│  focus     │──> FocusDirective
-  │ (mapping)│    │  context   │    (pure data)
-  └──────────┘    │  (machine) │
-                  └───────────┘
-                       │
-  ┌────────────────────▼──────────────────┐
-  │         orchestrator (index.js)        │
-  │  routes directives, manages memory,    │
-  │  delegates to page behaviors           │
-  ├──────────────┬────────────┬───────────┤
-  │  DomReader   │  DomWriter │  Globals  │
-  │  (reads DOM) │  (writes)  │  (inject) │
-  └──────────────┴────────────┴───────────┘
-       │                │
-  ┌────▼────┐     ┌─────▼─────┐
-  │  page   │     │   DOM     │
-  │ behavior│     │ mutations │
-  └─────────┘     └───────────┘
+  KeyboardSource ──┐
+                   ├── onAction(action) ──┐
+  GamepadSource  ──┤                      │
+                   └── onInputDetected ───┤
+                                          │
+  ┌───────────────────────────────────────▼──┐
+  │           orchestrator.js                 │
+  │  source-agnostic action router            │
+  │  manages memory, delegates to behaviors   │
+  ├──────────┬──────────┬──────────┬─────────┤
+  │ actions  │ focus    │ DomReader│DomWriter │
+  │ (mapping)│ context  │ (reads)  │(writes)  │
+  │          │ (machine)│          │          │
+  └──────────┴──────────┴──────────┴─────────┘
+       │          │          │          │
+       │     FocusDirective  │     DOM mutations
+       │     (pure data)     │          │
+       │                ┌────▼────┐┌────▼────┐
+       │                │  page   ││  hint   │
+       │                │ behavior││  bar    │
+       │                └─────────┘└─────────┘
 ```
 
-**Data flow:** input event (keyboard/gamepad) → input source → semantic action → state machine directive → orchestrator execution → DOM mutation.
+**Data flow:** raw input event → input source → semantic action → orchestrator → state machine directive → directive execution → DOM mutation.
 
 All external dependencies (document, sessionStorage, requestAnimationFrame) are injected via the constructor, making every layer testable with mocks.
 
@@ -62,10 +62,73 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `config.js` | Yes | All app-specific config: selectors, layouts, instance types, behaviors |
 | `index.js` | No | LiveView hook factory — imports core + config, exports `createInputHook()` |
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
-| `library_behavior.js` | Yes* | Library-specific concerns (filter, zone memory, sort) |
-| `settings_behavior.js` | Yes | Settings page behavior (activates sections on focus) |
+| `dashboard_behavior.js` | Yes | Dashboard: BACK → sidebar |
+| `library_behavior.js` | Yes* | Library: BACK → sidebar, CLEAR → filter, sort tracking |
+| `review_behavior.js` | Yes | Review: BACK → sidebar |
+| `settings_behavior.js` | Yes | Settings: BACK → sections, activateOnFocus for sections |
 
-*Library behavior is pure when injected with mock DOM/storage.
+*Library behavior is pure when injected with mock DOM.
+
+## Input Source Contract
+
+Input sources are decoupled peers behind a common duck-typed interface. The orchestrator is source-agnostic — it never knows which source produced an action.
+
+**Interface:**
+```javascript
+// Constructor receives config including two callbacks:
+//   onAction(action)        — semantic action produced (from Action enum)
+//   onInputDetected(type)   — raw input detected ("keydown", "gamepadbutton", "gamepadaxis")
+// Methods:
+//   start()  — begin listening/polling
+//   stop()   — clean up all listeners/timers
+```
+
+**Wiring:** Sources are provided as factory functions in config. Each factory receives `(callbacks, globals)` and returns a source instance. The orchestrator calls `start()` on mount and `stop()` on destroy.
+
+```javascript
+sources: [
+  (callbacks, globals) => new KeyboardSource({ document: globals.document, ...callbacks }),
+  (callbacks, globals) => new GamepadSource({ getGamepads: globals.getGamepads, ...callbacks }),
+]
+```
+
+**Adding a new input source:** Create a module implementing `start()`/`stop()` that calls `onAction()` with values from the `Action` enum. Add a factory to the `sources` array in `index.js`. No orchestrator changes needed.
+
+## Action Vocabulary
+
+The `Action` enum defines all semantic actions. Sources map raw input events to these actions.
+
+| Action | Keyboard | Gamepad | Purpose |
+|--------|----------|---------|---------|
+| `NAVIGATE_UP` | Arrow Up | D-pad Up / Left Stick Up | Move focus up |
+| `NAVIGATE_DOWN` | Arrow Down | D-pad Down / Left Stick Down | Move focus down |
+| `NAVIGATE_LEFT` | Arrow Left | D-pad Left / Left Stick Left | Move focus left |
+| `NAVIGATE_RIGHT` | Arrow Right | D-pad Right / Left Stick Right | Move focus right |
+| `SELECT` | Enter | A (Xbox) / Cross (PS) | Activate focused item |
+| `BACK` | Escape | B (Xbox) / Circle (PS) | Dismiss / go back |
+| `CLEAR` | Backspace | Y (Xbox) / Triangle (PS) | Clear page state (e.g. filter) |
+| `PLAY` | P | Start/Menu (button 9) | Play focused media |
+| `ZONE_NEXT` | ] | RB (button 5) | Next zone tab |
+| `ZONE_PREV` | [ | LB (button 4) | Previous zone tab |
+
+### Gamepad Button Map
+
+Standard gamepad button indices (Gamepad API):
+
+| Index | Xbox | PlayStation | Action |
+|-------|------|-------------|--------|
+| 0 | A | Cross | SELECT |
+| 1 | B | Circle | BACK |
+| 3 | Y | Triangle | CLEAR |
+| 4 | LB | L1 | ZONE_PREV |
+| 5 | RB | R1 | ZONE_NEXT |
+| 9 | Menu/Start | Options | PLAY |
+| 12 | D-pad Up | D-pad Up | NAVIGATE_UP |
+| 13 | D-pad Down | D-pad Down | NAVIGATE_DOWN |
+| 14 | D-pad Left | D-pad Left | NAVIGATE_LEFT |
+| 15 | D-pad Right | D-pad Right | NAVIGATE_RIGHT |
+
+Unmapped buttons (2, 6, 7, 8, 10, 11, 16) are ignored.
 
 ### actions.js
 
@@ -112,14 +175,23 @@ Implements the **input source contract**: `constructor(config)`, `start()`, `sto
 
 ### gamepad.js
 
-`GamepadSource` — translates gamepad input into semantic actions. Idle-until-connected architecture:
-- Passive `gamepadconnected`/`gamepaddisconnected` listeners (zero CPU when no gamepad)
-- rAF polling loop only runs when a gamepad is connected
-- Button edge detection (rising edge — press fires once, hold doesn't repeat)
-- Analog stick deadzone filtering + cardinal direction snapping
-- Axis repeat timing (initial delay, then interval)
-- Controller type detection (`detectControllerType(id)` → `"xbox"`, `"playstation"`, `"generic"`)
-- Pre-allocated state arrays (no per-frame allocations)
+`GamepadSource` — translates gamepad input into semantic actions. Idle-until-connected architecture with zero CPU cost when no gamepad is plugged in.
+
+**Lifecycle:**
+- `start()` registers passive `gamepadconnected`/`gamepaddisconnected` listeners. Also checks if a gamepad is already connected (handles page reload or hook remount with controller plugged in). When an already-connected gamepad is found, `onInputDetected` is fired so the orchestrator sets the correct input method immediately — this prevents the mouse position priming from stealing focus on the first mousemove.
+- On connect → detect controller type, prime button state, start rAF polling loop.
+- On disconnect → if no gamepads remain, stop rAF loop and reset all state.
+- `stop()` removes event listeners, stops polling, resets state.
+
+**Button edge detection:** Compares `gamepad.buttons[i].pressed` against previous frame. Rising edge (false→true) fires the mapped action once. Navigation actions (D-pad: up/down/left/right) get **repeat timing** — after `repeatDelay` (400ms), the action repeats every `repeatInterval` (180ms) while held. Non-navigation buttons (SELECT, BACK, PLAY) fire once on press with no repeat.
+
+**Analog stick:** Deadzone filtering (default 0.3). Values above the threshold snap to cardinal directions. Same repeat timing as D-pad buttons — initial delay, then interval while held. Direction change resets the repeat timer.
+
+**Button priming:** On start, if a gamepad is already connected, `_primeButtons()` reads the current button state without firing any actions. This prevents false rising edges when buttons are held during a hook remount (e.g., navigating the sidebar with D-pad causes LiveView navigation → hook destroy + mount → new GamepadSource sees held button as "just pressed").
+
+**Controller type detection:** `detectControllerType(id)` parses the `Gamepad.id` string to identify `"xbox"`, `"playstation"`, or `"generic"`. Used by the hint bar to show correct button labels.
+
+**Per-frame cost when active:** ~17 boolean comparisons + 2 float comparisons + 2 timestamp checks. No allocations — `_prevButtons` array and `_axisState` objects are pre-allocated and mutated in place. No gamepad references held across frames (read-and-discard pattern).
 
 Implements the **input source contract**: `constructor(config)`, `start()`, `stop()`.
 
@@ -130,12 +202,24 @@ Source-agnostic action router. Receives full config object including `reader`, `
 **Responsibilities:**
 - Lifecycle: `start(hookEl)`, `destroy()`, `onViewChanged()`
 - Input source management: create, start, and stop sources from factory functions
-- Action routing: source → `_onSourceAction()` → behavior `onEscape` check → `_handleAction()` → state machine → directive → execution
+- Action routing: source → `_onSourceAction()` → behavior hooks (`onClear`, `onEscape`) → `_handleAction()` → state machine → directive → execution
 - Input method detection via source `onInputDetected` callbacks
 - Context memory (grid entity ID, per-context index)
 - Modal/drawer focus restoration (origin entity tracking)
 - Sidebar persistence (sessionStorage bridge)
 - Page behavior lifecycle (detect, create, delegate, destroy)
+- Hint bar context updates (`setNavContext`, `setControllerType`)
+
+**SELECT on MENU.** When SELECT is pressed in any MENU context, the orchestrator remaps it to NAVIGATE_RIGHT (exit the menu into the content area). For the primary menu (sidebar), no click is needed — items are already activated on focus during up/down navigation. For non-primary menus (like settings sections), the focused item is clicked after the transition completes. This means A/Enter on a menu item "confirms" the selection and moves focus into the page.
+
+**CLEAR routing.** The `CLEAR` action (Y / Backspace) is routed to the page behavior's `onClear()` hook before any other handling. If the behavior has no `onClear`, the action is a no-op. This separates "reset page state" (clear filter) from "go back" (navigate toward sidebar).
+
+**BACK context gating.** The orchestrator's `_onSourceAction()` lets page behavior `onEscape()` intercept BACK, but only in content contexts (grid, toolbar, zone_tabs). BACK in overlays (modal, drawer) and menus (sidebar, sections, or any MENU-type instance) bypasses `onEscape()` entirely — these contexts have their own BACK semantics (dismiss, exit, nav graph left).
+
+**onEscape return values.** `onEscape()` supports three return types:
+- **`false`** — not consumed, falls through to normal BACK handling
+- **`true`** — consumed by behavior (action stops)
+- **`string`** — navigate to the named context. If the target is the primary menu, the full enter-sidebar flow runs (expand sidebar, record pre-sidebar context). Otherwise, `forceContext` + `restoreContextFocus`.
 
 **Activate on focus.** The `primaryMenu` (sidebar) always clicks items on focus during up/down navigation, triggering page navigation. Page behaviors can declare `activateOnFocus: ["sections"]` to add the same behavior for other menu contexts on that page only. This is page-scoped to avoid unintended navigation — e.g., the dashboard and settings pages both use a `sections` zone, but only settings should auto-navigate between sub-pages.
 
@@ -149,7 +233,8 @@ Extracts library-specific concerns from the orchestrator. Receives a `dom` inter
 
 | Hook | Purpose |
 |------|---------|
-| `onEscape()` | Clear filter input if non-empty, return true to consume |
+| `onEscape()` | Returns `"sidebar"` — BACK navigates to the main nav |
+| `onClear()` | Clear filter input if non-empty |
 | `onSyncState(reader)` | Detect sort order change → signal grid memory clear |
 
 ## Context Navigation Rules
@@ -162,10 +247,17 @@ Actions in each context:
 | Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate | navigate (wrap) | navigate |
 | Left | navigate | navigate | navigate | wall | nav graph left | wall | → GRID (row edge) |
 | Right | navigate | navigate | navigate | exit sidebar | nav graph right | wall | wall |
-| Select | activate | activate | activate | activate | activate | activate | activate |
-| Back | — | — | — | exit sidebar | nav graph left | dismiss | dismiss |
+| Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate |
+| Back | onEscape | onEscape | onEscape | exit sidebar | nav graph left | dismiss | dismiss |
+| Clear | onClear | onClear | onClear | — | — | — | — |
 | Play | play | — | — | — | — | play | play |
 | Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | — | zone_cycle |
+
+\* Primary menu items are already activated on focus — SELECT just exits without clicking.
+
+**BACK behavior:** In content contexts (grid/toolbar/zone_tabs), BACK delegates to the page behavior's `onEscape()`. String returns navigate to the named context (all current behaviors return `"sidebar"`). Boolean `true` consumes the action. `false` falls through to the normal handler (no-op for content contexts). In modal/drawer, BACK always dismisses. In any MENU context (sidebar, sections), BACK bypasses `onEscape()` and uses the state machine's own semantics (exit sidebar, or nav graph left for non-primary menus).
+
+**CLEAR behavior:** In any context, CLEAR delegates to the page behavior's `onClear()` hook. Currently only the library behavior implements this (clears the filter input). If no `onClear` exists, the action is silently dropped.
 
 **MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`) use the navigation graph for left/right/back — if the graph points to `"sidebar"`, it produces `enter_sidebar`.
 
@@ -203,7 +295,7 @@ Actions in each context:
 | `data-detail-mode` | Presentation shell type | `modal`, `drawer` |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
-| `data-page-behavior` | Page behavior to activate | `library`, `settings` |
+| `data-page-behavior` | Page behavior to activate | `dashboard`, `library`, `review`, `settings` |
 | `data-nav-default-zone` | Default zone for pages without zone tabs | `settings` |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
@@ -225,7 +317,8 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
  *  @property {string[]} [activateOnFocus] - Menu contexts that click on focus during up/down nav
  *  @property {function(): void} [onAttach]
  *  @property {function(): void} [onDetach]
- *  @property {function(): boolean} [onEscape]
+ *  @property {function(): boolean|string} [onEscape] - true to consume, string to navigate
+ *  @property {function(): void} [onClear]  - CLEAR action (Y / Backspace)
  *  @property {function(string): void} [onZoneChanged]
  *  @property {function(Object): {clearGridMemory: boolean}} [onSyncState]
  */
@@ -237,8 +330,9 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 3. `onAttach()` called on creation
 4. `onSyncState(reader)` called every sync cycle
 5. `onZoneChanged(zone)` called when zone changes
-6. `onEscape()` called before normal Escape handling — return `true` to consume
-7. `onDetach()` called on `destroy()` or behavior change
+6. `onClear()` called on CLEAR action — reset page state (e.g. clear filter)
+7. `onEscape()` called before normal BACK handling in content contexts — return `true` to consume, string to navigate to context
+8. `onDetach()` called on `destroy()` or behavior change
 
 **Dependency injection:** Behavior factories receive their DOM interface at creation time. No global scope access — keeps behaviors testable with mocks.
 
@@ -277,12 +371,41 @@ This means pages that use query params for state (like `/settings?section=loggin
 
 **To opt in:** Add `data-nav-remember` to the sidebar link in `layouts.ex`. The page must use query params (via `live_patch` / `handle_params`) for any state it wants to persist.
 
+## Gamepad Hint Bar
+
+A contextual button legend fixed at the bottom center of the viewport. Shows relevant gamepad controls for the current navigation context.
+
+**Always in DOM.** Follows the backdrop-filter rule — never conditionally rendered with `:if`. Visibility is pure CSS, driven by `[data-input=gamepad]` on `<html>`.
+
+**Context-driven groups.** Multiple `.hint-group` divs with `data-hint-context` attributes. CSS selectors like `[data-nav-context=grid] [data-hint-context=grid]` show the appropriate group. The orchestrator updates `data-nav-context` on `<html>` whenever the focus context changes.
+
+**Controller-aware labels.** Button labels use `::before` pseudo-elements driven by `[data-gamepad-type]` on `<html>`. Xbox labels shown by default (and for generic controllers). PlayStation controllers show Cross/Circle/L1/R1 instead of A/B/LB/RB. The `GamepadSource` detects controller type from `Gamepad.id` and calls `writer.setControllerType()`.
+
+**Markup:** Lives inside the `#input-system` div in `layouts.ex`, after `</main>`.
+
+**Contexts and their hints:**
+
+| Context | Hints shown |
+|---------|-------------|
+| `grid` | D-pad Navigate, A Select, B Back, Y Clear, Start Play, LB/RB Zone |
+| `modal` | D-pad Navigate, A Select, B Close, Start Play |
+| `drawer` | D-pad Navigate, A Select, B Close, Start Play |
+| `sidebar` | D-pad Navigate, A Select, B Exit, LB/RB Zone |
+
 ## CSS Integration
 
 - `[data-input=keyboard]` / `[data-input=gamepad]` — focus ring visibility
-- Mouse mode hides focus outlines
+- `[data-input=mouse]` — hides focus outlines
 - `nav-play-flash` — green ring animation (300ms) on play action
-- Keyboard-to-mouse cooldown (400ms) prevents synthetic mousemove during scroll
+- `.gamepad-hint-bar` — fixed bottom-center, glass-nav background, fade+translateY entrance
+
+## Input Method Detection
+
+Three methods: `mouse`, `keyboard`, `gamepad`. Switched by detecting raw input events. The `InputMethodDetector` (pure state machine) tracks the current method; the orchestrator writes it to `data-input` on `<html>`.
+
+**Mouse detection uses position tracking, not event counting.** Layout shifts from LiveView patches fire synthetic `mousemove` events at the same coordinates (the OS controls cursor position, not the page). The orchestrator only switches to mouse when `clientX`/`clientY` actually change (≥1px delta). The first `mousemove` after a fresh orchestrator primes the baseline position without switching — this prevents false switches during full-page navigations where the initial position is unknown.
+
+**Gamepad presence signaling.** When `GamepadSource.start()` detects an already-connected gamepad (e.g., after a hook remount from sidebar navigation), it fires `onInputDetected("gamepadbutton")` so the orchestrator immediately sets gamepad mode. Without this, the input method would default to mouse until the user presses a button.
 
 ## Adding a New Page
 
@@ -308,7 +431,8 @@ All app-specific config lives in `config.js`:
    - If always populated (static content), add to `config.js` `alwaysPopulated`
 4. If the page has no zone tabs, add `data-nav-default-zone="<zone>"` to the template
 5. For sidebar URL persistence, add `data-nav-remember` to the sidebar link in `layouts.ex`
-6. Write nav graph tests and focus context tests for the new zone
+6. If the page has unique navigation contexts (not grid/modal/drawer/sidebar), add a `hint-group` with the appropriate `data-hint-context` in `layouts.ex` and show/hide CSS in `app.css`
+7. Write nav graph tests and focus context tests for the new zone
 
 ## Navigation Graph
 

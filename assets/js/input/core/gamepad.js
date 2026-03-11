@@ -94,6 +94,10 @@ export class GamepadSource {
     for (const gp of gamepads) {
       if (gp?.connected) {
         this._detectController(gp)
+        // Signal gamepad presence so the orchestrator sets input method
+        // and starts the mousemove cooldown. Without this, a layout-shift
+        // mousemove after hook remount would immediately reset to mouse.
+        this._onInputDetected("gamepadbutton")
         // Prime button state so held buttons don't fire a false rising edge
         this._primeButtons(gp)
         this._startPolling()
