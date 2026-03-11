@@ -14,9 +14,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   """
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{DateUtil, LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
-  alias MediaCentaur.Playback.{EpisodeList, MovieList}
+  alias MediaCentaur.{LibraryBrowser, Playback.Resume, Playback.ResumeTarget}
   alias MediaCentaurWeb.Components.{DetailPanel, ModalShell}
+
+  import MediaCentaurWeb.LibraryHelpers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -736,67 +737,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     |> sorted_by(socket.assigns.sort_order)
   end
 
-  # --- Filtering ---
-
-  defp filtered_by_tab(entries, :all), do: entries
-
-  defp filtered_by_tab(entries, :movies) do
-    Enum.filter(entries, fn %{entity: entity} ->
-      entity.type in [:movie, :movie_series, :video_object]
-    end)
-  end
-
-  defp filtered_by_tab(entries, :tv) do
-    Enum.filter(entries, fn %{entity: entity} -> entity.type == :tv_series end)
-  end
-
-  defp filtered_by_text(entries, ""), do: entries
-
-  defp filtered_by_text(entries, text) do
-    needle = String.downcase(text)
-
-    Enum.filter(entries, fn %{entity: entity} ->
-      name_matches?(entity.name, needle) || nested_matches?(entity, needle)
-    end)
-  end
-
-  defp name_matches?(nil, _needle), do: false
-  defp name_matches?(name, needle), do: String.contains?(String.downcase(name), needle)
-
-  defp nested_matches?(%{type: :tv_series, seasons: seasons}, needle) when is_list(seasons) do
-    Enum.any?(seasons, fn season ->
-      Enum.any?(season.episodes || [], fn episode -> name_matches?(episode.name, needle) end)
-    end)
-  end
-
-  defp nested_matches?(%{type: :movie_series, movies: movies}, needle) when is_list(movies) do
-    Enum.any?(movies, fn movie -> name_matches?(movie.name, needle) end)
-  end
-
-  defp nested_matches?(_entity, _needle), do: false
-
-  # --- Sorting ---
-
-  defp sorted_by(entries, :alpha) do
-    Enum.sort_by(entries, fn entry -> (entry.entity.name || "") |> String.downcase() end)
-  end
-
-  defp sorted_by(entries, :year) do
-    Enum.sort_by(
-      entries,
-      fn entry -> entry.entity.date_published || "" end,
-      :desc
-    )
-  end
-
-  defp sorted_by(entries, :recent) do
-    Enum.sort_by(
-      entries,
-      fn entry -> entry.entity.inserted_at || ~U[2000-01-01 00:00:00Z] end,
-      {:desc, DateTime}
-    )
-  end
-
   # --- Sort Dropdown Keyboard ---
 
   defp sort_key("Enter", socket) do
@@ -878,23 +818,6 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   # --- Helpers ---
 
-  defp tab_counts(entries) do
-    Enum.reduce(entries, %{all: 0, movies: 0, tv: 0}, fn %{entity: entity}, counts ->
-      counts = %{counts | all: counts.all + 1}
-
-      cond do
-        entity.type in [:movie, :movie_series, :video_object] ->
-          %{counts | movies: counts.movies + 1}
-
-        entity.type == :tv_series ->
-          %{counts | tv: counts.tv + 1}
-
-        true ->
-          counts
-      end
-    end)
-  end
-
   defp update_entry_progress(entries, entity_id, summary, progress_records) do
     sorted_records = Enum.sort_by(progress_records, &{&1.season_number, &1.episode_number})
 
@@ -909,98 +832,4 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp playing_entity_id(%{now_playing: %{entity_id: id}}), do: id
   defp playing_entity_id(_), do: nil
-
-  defp compute_progress_fraction(nil), do: 0
-
-  defp compute_progress_fraction(%{
-         episode_position_seconds: position,
-         episode_duration_seconds: duration
-       })
-       when duration > 0 do
-    Float.round(position / duration * 100, 1)
-  end
-
-  defp compute_progress_fraction(_), do: 0
-
-  defp format_resume_parts(nil, _entry), do: {nil, nil}
-
-  defp format_resume_parts(%{"action" => "resume"} = resume, entry) do
-    label =
-      case resume do
-        %{"seasonNumber" => season, "episodeNumber" => episode} ->
-          "Season #{season} episode #{episode}"
-
-        _ ->
-          nil
-      end
-
-    time_remaining =
-      case resume do
-        %{"positionSeconds" => position, "durationSeconds" => duration}
-        when is_number(duration) and duration > 0 ->
-          remaining = max(trunc(duration - position), 0)
-          format_human_duration(remaining) <> " remaining"
-
-        _ ->
-          episodes_remaining_label(entry.entity, entry.progress_records)
-      end
-
-    {label, time_remaining}
-  end
-
-  defp format_resume_parts(%{"action" => "begin"} = resume, entry) do
-    label =
-      case resume do
-        %{"seasonNumber" => season, "episodeNumber" => episode} ->
-          "Play season #{season} episode #{episode}"
-
-        _ ->
-          "Play"
-      end
-
-    {label, episodes_remaining_label(entry.entity, entry.progress_records)}
-  end
-
-  defp format_resume_parts(_resume, _entry), do: {nil, nil}
-
-  defp episodes_remaining_label(entity, progress_records) do
-    total =
-      case entity.type do
-        :tv_series -> length(EpisodeList.list_available(entity))
-        :movie_series -> length(MovieList.list_available(entity))
-        _ -> 0
-      end
-
-    completed = Enum.count(progress_records, & &1.completed)
-    remaining = total - completed
-
-    case remaining do
-      n when n > 1 -> "#{n} episodes remaining"
-      1 -> "1 episode remaining"
-      _ -> nil
-    end
-  end
-
-  defp format_human_duration(seconds) when seconds >= 3600 do
-    hours = div(seconds, 3600)
-    minutes = div(rem(seconds, 3600), 60)
-
-    if minutes > 0,
-      do: "#{hours}h #{minutes}m",
-      else: "#{hours}h"
-  end
-
-  defp format_human_duration(seconds) when seconds >= 60 do
-    "#{div(seconds, 60)}m"
-  end
-
-  defp format_human_duration(_seconds), do: "< 1m"
-
-  defp format_type(:movie), do: "Movie"
-  defp format_type(:movie_series), do: "Movie Series"
-  defp format_type(:tv_series), do: "TV Series"
-  defp format_type(:video_object), do: "Video"
-  defp format_type(type), do: type |> to_string() |> String.capitalize()
-
-  defp extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
 end
