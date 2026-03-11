@@ -41,46 +41,42 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
   describe "active count tracking" do
     test "start increments active count, stop decrements it", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
+      Stats.download_start(stats, :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.active_count == 1
       assert snapshot.status == :active
 
-      GenServer.cast(stats, {:download_stop, 100_000, :ok, :poster, "entity-123", nil})
+      Stats.download_stop(stats, 100_000, :ok, :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.active_count == 0
     end
 
     test "multiple concurrent starts track correctly", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-1"})
-      GenServer.cast(stats, {:download_start, :backdrop, "entity-1"})
-      GenServer.cast(stats, {:download_start, :logo, "entity-2"})
+      Stats.download_start(stats, :poster, "entity-1")
+      Stats.download_start(stats, :backdrop, "entity-1")
+      Stats.download_start(stats, :logo, "entity-2")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.active_count == 3
 
-      GenServer.cast(stats, {:download_stop, 100_000, :ok, :poster, "entity-1", nil})
+      Stats.download_stop(stats, 100_000, :ok, :poster, "entity-1")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.active_count == 2
     end
 
     test "exception decrements active count", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-      GenServer.cast(
-        stats,
-        {:download_exception, 50_000, "connection reset", :poster, "entity-123"}
-      )
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_exception(stats, 50_000, "connection reset", :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.active_count == 0
     end
 
     test "active count never goes below zero", %{stats: stats} do
-      GenServer.cast(stats, {:download_stop, 100_000, :ok, :poster, "entity-123", nil})
+      Stats.download_stop(stats, 100_000, :ok, :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.active_count == 0
@@ -90,7 +86,7 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
   describe "throughput window" do
     test "completions within window contribute to throughput", %{stats: stats} do
       for _ <- 1..5 do
-        GenServer.cast(stats, {:download_stop, 100_000, :ok, :poster, "entity-123", nil})
+        Stats.download_stop(stats, 100_000, :ok, :poster, "entity-123")
       end
 
       snapshot = Stats.get_snapshot(stats)
@@ -100,12 +96,8 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
   describe "error tracking" do
     test "exception increments error count and sets last_error", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-      GenServer.cast(
-        stats,
-        {:download_exception, 50_000, "TMDB CDN timeout", :poster, "entity-123"}
-      )
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_exception(stats, 50_000, "TMDB CDN timeout", :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.error_count == 1
@@ -115,12 +107,8 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
     end
 
     test "error result on stop increments total_failed", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-      GenServer.cast(
-        stats,
-        {:download_stop, 100_000, :error, :poster, "entity-123", "404 not found"}
-      )
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_stop(stats, 100_000, :error, :poster, "entity-123", "404 not found")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.total_failed == 1
@@ -128,12 +116,8 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
     test "multiple errors accumulate", %{stats: stats} do
       for _ <- 1..3 do
-        GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-        GenServer.cast(
-          stats,
-          {:download_exception, 50_000, "network error", :poster, "entity-123"}
-        )
+        Stats.download_start(stats, :poster, "entity-123")
+        Stats.download_exception(stats, 50_000, "network error", :poster, "entity-123")
       end
 
       snapshot = Stats.get_snapshot(stats)
@@ -143,12 +127,8 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
   describe "recent_errors ring buffer" do
     test "exceptions are recorded in recent_errors", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-      GenServer.cast(
-        stats,
-        {:download_exception, 50_000, "TMDB timeout", :poster, "entity-123"}
-      )
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_exception(stats, 50_000, "TMDB timeout", :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert length(snapshot.recent_errors) == 1
@@ -160,10 +140,7 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
     end
 
     test "error stop results are recorded in recent_errors", %{stats: stats} do
-      GenServer.cast(
-        stats,
-        {:download_stop, 100_000, :error, :backdrop, "entity-456", "CDN 503"}
-      )
+      Stats.download_stop(stats, 100_000, :error, :backdrop, "entity-456", "CDN 503")
 
       snapshot = Stats.get_snapshot(stats)
       assert length(snapshot.recent_errors) == 1
@@ -174,10 +151,7 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
     test "recent_errors are bounded to 20 entries", %{stats: stats} do
       for i <- 1..25 do
-        GenServer.cast(
-          stats,
-          {:download_exception, 50_000, "error #{i}", :poster, "entity-#{i}"}
-        )
+        Stats.download_exception(stats, 50_000, "error #{i}", :poster, "entity-#{i}")
       end
 
       snapshot = Stats.get_snapshot(stats)
@@ -186,7 +160,7 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
     end
 
     test "successful stops do not create error entries", %{stats: stats} do
-      GenServer.cast(stats, {:download_stop, 100_000, :ok, :poster, "entity-123", nil})
+      Stats.download_stop(stats, 100_000, :ok, :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.recent_errors == []
@@ -195,12 +169,12 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
   describe "queue depth" do
     test "queue_depth updates to latest value", %{stats: stats} do
-      GenServer.cast(stats, {:queue_depth, 5})
+      Stats.queue_depth(stats, 5)
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.queue_depth == 5
 
-      GenServer.cast(stats, {:queue_depth, 2})
+      Stats.queue_depth(stats, 2)
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.queue_depth == 2
@@ -209,32 +183,24 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
   describe "lifetime counters" do
     test "total_downloaded increments on successful stop", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-      GenServer.cast(stats, {:download_stop, 100_000, :ok, :poster, "entity-123", nil})
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_stop(stats, 100_000, :ok, :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.total_downloaded == 1
     end
 
     test "total_failed increments on exception", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-      GenServer.cast(
-        stats,
-        {:download_exception, 50_000, "connection refused", :poster, "entity-123"}
-      )
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_exception(stats, 50_000, "connection refused", :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.total_failed == 1
     end
 
     test "total_failed increments on error stop", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-      GenServer.cast(
-        stats,
-        {:download_stop, 100_000, :error, :poster, "entity-123", "404 not found"}
-      )
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_stop(stats, 100_000, :error, :poster, "entity-123", "404 not found")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.total_failed == 1
@@ -248,7 +214,7 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
     end
 
     test "active when active_count > 0", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
+      Stats.download_start(stats, :poster, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.status == :active
@@ -256,7 +222,7 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
 
     test "saturated when active_count >= 3", %{stats: stats} do
       for i <- 1..3 do
-        GenServer.cast(stats, {:download_start, :poster, "entity-#{i}"})
+        Stats.download_start(stats, :poster, "entity-#{i}")
       end
 
       snapshot = Stats.get_snapshot(stats)
@@ -264,14 +230,9 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
     end
 
     test "erroring when active and recent errors", %{stats: stats} do
-      GenServer.cast(stats, {:download_start, :poster, "entity-123"})
-
-      GenServer.cast(
-        stats,
-        {:download_exception, 50_000, "fail", :poster, "entity-123"}
-      )
-
-      GenServer.cast(stats, {:download_start, :backdrop, "entity-123"})
+      Stats.download_start(stats, :poster, "entity-123")
+      Stats.download_exception(stats, 50_000, "fail", :poster, "entity-123")
+      Stats.download_start(stats, :backdrop, "entity-123")
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.status == :erroring
@@ -281,7 +242,7 @@ defmodule MediaCentaur.ImagePipeline.StatsTest do
   describe "average duration" do
     test "calculates average duration from window completions", %{stats: stats} do
       for duration <- [1_000_000, 2_000_000, 3_000_000] do
-        GenServer.cast(stats, {:download_stop, duration, :ok, :poster, "entity-123", nil})
+        Stats.download_stop(stats, duration, :ok, :poster, "entity-123")
       end
 
       snapshot = Stats.get_snapshot(stats)
