@@ -15,7 +15,7 @@
 
 import { Action } from "./actions"
 import { gridNavigate } from "./spatial"
-import { FocusContextMachine, Context } from "./focus_context"
+import { FocusContextMachine, Context, contextType } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { buildNavGraph, resolveCursorStart } from "./nav_graph"
 
@@ -315,6 +315,22 @@ export class Orchestrator {
   }
 
   _handleAction(action) {
+    // SELECT on a MENU = confirm selection + exit the menu.
+    // Primary menu: activate-on-focus already clicked the item during up/down
+    // navigation, so just exit (no redundant click that would trigger remount).
+    // Non-primary menus: click after the transition to avoid race conditions.
+    let pendingMenuClick = null
+    if (action === Action.SELECT) {
+      const type = contextType(this.focusMachine.context, this._config.instanceTypes)
+      if (type === Context.MENU) {
+        const isPrimary = this.focusMachine.context === this._config.primaryMenu
+        if (!isPrimary) {
+          pendingMenuClick = this.reader.getCurrentFocusedItem()
+        }
+        action = Action.NAVIGATE_RIGHT
+      }
+    }
+
     // Save focus position in current context before any transition
     this._saveContextMemory()
 
@@ -330,6 +346,9 @@ export class Orchestrator {
     }
 
     this._executeDirective(directive)
+
+    // Click non-primary menu item after transition completes
+    if (pendingMenuClick) pendingMenuClick.click()
   }
 
   /**
