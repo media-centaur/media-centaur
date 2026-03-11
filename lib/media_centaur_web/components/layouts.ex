@@ -39,16 +39,6 @@ defmodule MediaCentaurWeb.Layouts do
           <.link
             navigate="/"
             class={sidebar_link_class(@current_path, "/")}
-            data-tip="Dashboard"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-squares-2x2" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Dashboard</span>
-          </.link>
-          <.link
-            navigate="/library"
-            class={sidebar_link_class(@current_path, "/library")}
             data-tip="Library"
             data-nav-item
             data-nav-remember
@@ -56,6 +46,16 @@ defmodule MediaCentaurWeb.Layouts do
           >
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
+          </.link>
+          <.link
+            navigate="/dashboard"
+            class={sidebar_link_class(@current_path, "/dashboard")}
+            data-tip="Dashboard"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-squares-2x2" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Dashboard</span>
           </.link>
           <.link
             navigate="/review"

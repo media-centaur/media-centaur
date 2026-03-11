@@ -147,12 +147,12 @@ defmodule MediaCentaurWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_path="/">
+    <Layouts.app flash={@flash} current_path="/dashboard">
       <div data-page-behavior="dashboard" data-nav-default-zone="dashboard" class="space-y-6">
         <h1 class="text-2xl font-bold">Dashboard</h1>
 
         <div data-nav-zone="sections">
-          <.link navigate="/library" data-nav-item tabindex="0" class="block">
+          <.link navigate="/" data-nav-item tabindex="0" class="block">
             <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
           </.link>
 
