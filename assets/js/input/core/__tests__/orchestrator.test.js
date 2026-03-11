@@ -1,5 +1,6 @@
 import { describe, expect, test, beforeEach, mock } from "bun:test"
 import { Orchestrator } from "../orchestrator"
+import { KeyboardSource } from "../keyboard"
 import { Context } from "../focus_context"
 import { Action } from "../actions"
 
@@ -153,6 +154,16 @@ function mockCreateBehavior(name) {
   return null
 }
 
+/**
+ * Default source factory: creates a KeyboardSource wired to the orchestrator.
+ * This mirrors the real app wiring — keyboard source driven by globals.document.
+ */
+function defaultSources() {
+  return [
+    (callbacks, globals) => new KeyboardSource({ document: globals.document, ...callbacks }),
+  ]
+}
+
 function setup(readerOverrides = {}, configOverrides = {}) {
   const reader = createMockReader(readerOverrides)
   const { writer, calls } = createMockWriter()
@@ -161,6 +172,7 @@ function setup(readerOverrides = {}, configOverrides = {}) {
     reader,
     writer,
     globals,
+    sources: defaultSources(),
     ...TEST_CONFIG,
     createBehavior: mockCreateBehavior,
     ...configOverrides,
@@ -212,7 +224,7 @@ describe("Orchestrator", () => {
   })
 
   describe("text input mode", () => {
-    test("Enter on text input activates edit mode", () => {
+    test("Enter on text input activates edit mode in keyboard source", () => {
       const { system, globals } = setup()
       system.start({})
 
@@ -220,7 +232,8 @@ describe("Orchestrator", () => {
       const event = globals._dispatchKeyDown("Enter", { target: input })
 
       expect(event.preventDefault).toHaveBeenCalled()
-      expect(system._inputEditing).toBe(true)
+      // Edit state is now in the keyboard source
+      expect(system._sources[0]._inputEditing).toBe(true)
     })
 
     test("Escape on text input with value clears it", () => {
@@ -599,6 +612,274 @@ describe("Orchestrator", () => {
 
       expect(system.focusMachine.context).toBe("sidebar")
       expect(system._preSidebarContext).toBe(Context.ZONE_TABS)
+    })
+  })
+
+  describe("source lifecycle", () => {
+    test("sources are started when orchestrator starts", () => {
+      let started = false
+      const mockSource = {
+        start() { started = true },
+        stop() {},
+      }
+      const { system } = setup({}, {
+        sources: [() => mockSource],
+      })
+      system.start({})
+      expect(started).toBe(true)
+    })
+
+    test("sources are stopped when orchestrator is destroyed", () => {
+      let stopped = false
+      const mockSource = {
+        start() {},
+        stop() { stopped = true },
+      }
+      const { system } = setup({}, {
+        sources: [() => mockSource],
+      })
+      system.start({})
+      system.destroy()
+      expect(stopped).toBe(true)
+    })
+
+    test("multiple sources are all started and stopped", () => {
+      const lifecycle = []
+      const makeSource = (name) => ({
+        start() { lifecycle.push(`${name}:start`) },
+        stop() { lifecycle.push(`${name}:stop`) },
+      })
+      const { system } = setup({}, {
+        sources: [
+          () => makeSource("keyboard"),
+          () => makeSource("gamepad"),
+        ],
+      })
+      system.start({})
+      system.destroy()
+      expect(lifecycle).toEqual([
+        "keyboard:start", "gamepad:start",
+        "keyboard:stop", "gamepad:stop",
+      ])
+    })
+  })
+
+  describe("source-agnostic action routing", () => {
+    test("actions from any source route through _handleAction", () => {
+      let onActionCallback = null
+      const mockSource = {
+        start() {},
+        stop() {},
+      }
+      const { system, calls } = setup({
+        getFocusedIndex: () => 0,
+        getItemCount: () => 8,
+        getGridColumnCount: () => 4,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      calls.length = 0
+
+      // Simulate an action from the source (like a gamepad would produce)
+      onActionCallback(Action.NAVIGATE_DOWN)
+
+      const focusCalls = calls.filter(c => c.method === "focusByIndex")
+      expect(focusCalls.length).toBe(1)
+      expect(focusCalls[0].args).toEqual([Context.GRID, 4])
+    })
+
+    test("input method updates from source callbacks", () => {
+      let onInputCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({}, {
+        sources: [
+          (callbacks) => {
+            onInputCallback = callbacks.onInputDetected
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      calls.length = 0
+
+      onInputCallback("gamepadbutton")
+
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.length).toBe(1)
+      expect(methodCalls[0].args).toEqual(["gamepad"])
+    })
+  })
+
+  describe("BACK action triggers behavior onEscape", () => {
+    test("BACK in grid triggers behavior onEscape", () => {
+      let escapeCalled = false
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPageBehavior: () => "library",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      // Ensure we're in grid context (not sidebar)
+      expect(system.focusMachine.context).toBe(Context.GRID)
+
+      system._behavior = {
+        onEscape: () => { escapeCalled = true; return true },
+        onSyncState: () => ({ clearGridMemory: false }),
+      }
+
+      onActionCallback(Action.BACK)
+      expect(escapeCalled).toBe(true)
+    })
+
+    test("BACK falls through to dismiss when behavior does not consume", () => {
+      let onActionCallback = null
+      const hookEl = { pushEvent: mock(() => {}) }
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPageBehavior: () => "library",
+        getPresentation: () => "modal",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start(hookEl)
+
+      system._behavior = {
+        onEscape: () => false,
+        onSyncState: () => ({ clearGridMemory: false }),
+      }
+
+      onActionCallback(Action.BACK)
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+    })
+
+    test("BACK in sidebar bypasses onEscape and exits", () => {
+      let escapeCalled = false
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getPageBehavior: () => "library",
+        getItemCount: () => 8,
+        getSidebarCollapsed: () => true,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+
+      system._behavior = {
+        onEscape: () => { escapeCalled = true; return true },
+        onSyncState: () => ({ clearGridMemory: false }),
+      }
+
+      onActionCallback(Action.BACK)
+
+      // onEscape must NOT be called when in sidebar
+      expect(escapeCalled).toBe(false)
+      // Should have exited the sidebar
+      expect(system.focusMachine.context).not.toBe("sidebar")
+    })
+
+    test("BACK in modal bypasses onEscape and dismisses", () => {
+      let escapeCalled = false
+      let onActionCallback = null
+      const hookEl = { pushEvent: mock(() => {}) }
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPageBehavior: () => "library",
+        getPresentation: () => "modal",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start(hookEl)
+
+      system._behavior = {
+        onEscape: () => { escapeCalled = true; return true },
+        onSyncState: () => ({ clearGridMemory: false }),
+      }
+
+      onActionCallback(Action.BACK)
+
+      // onEscape must NOT be called when in modal
+      expect(escapeCalled).toBe(false)
+      // Should dismiss the modal
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+    })
+
+    test("BACK in drawer bypasses onEscape and dismisses", () => {
+      let escapeCalled = false
+      let onActionCallback = null
+      const hookEl = { pushEvent: mock(() => {}) }
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPageBehavior: () => "library",
+        getPresentation: () => "drawer",
+        isDrawerOpen: () => true,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start(hookEl)
+
+      system._behavior = {
+        onEscape: () => { escapeCalled = true; return true },
+        onSyncState: () => ({ clearGridMemory: false }),
+      }
+
+      onActionCallback(Action.BACK)
+
+      expect(escapeCalled).toBe(false)
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+    })
+  })
+
+  describe("non-mouse input time tracking", () => {
+    test("source input detection suppresses mouse method switch", () => {
+      let onInputCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({}, {
+        sources: [
+          (callbacks) => {
+            onInputCallback = callbacks.onInputDetected
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      onInputCallback("gamepadbutton")
+      expect(system._lastNonMouseInputTime).toBeGreaterThan(0)
     })
   })
 })

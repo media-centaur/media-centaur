@@ -955,3 +955,97 @@ body {
   0% { box-shadow: 0 0 0 0 oklch(72% 0.13 158 / 0.6); }
   100% { box-shadow: 0 0 0 8px oklch(72% 0.13 158 / 0); }
 }
+
+/* --- Gamepad hint bar --- */
+
+.gamepad-hint-bar {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(1rem);
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  background: oklch(20% 0 0 / 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid oklch(100% 0 0 / 0.08);
+  z-index: 40;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 200ms ease, transform 200ms ease;
+  pointer-events: none;
+}
+
+/* Show when gamepad is the active input method */
+[data-input="gamepad"] .gamepad-hint-bar {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Hint groups: only show the one matching the current nav context */
+.hint-group {
+  display: none;
+  gap: 1.25rem;
+}
+
+/* Show the hint group matching the nav context */
+[data-nav-context="grid"] .hint-group[data-hint-context="grid"],
+[data-nav-context="zone_tabs"] .hint-group[data-hint-context="grid"],
+[data-nav-context="toolbar"] .hint-group[data-hint-context="grid"] {
+  display: flex;
+}
+
+[data-nav-context="modal"] .hint-group[data-hint-context="modal"] {
+  display: flex;
+}
+
+[data-nav-context="drawer"] .hint-group[data-hint-context="drawer"] {
+  display: flex;
+}
+
+[data-nav-context="sidebar"] .hint-group[data-hint-context="sidebar"],
+[data-nav-context="sections"] .hint-group[data-hint-context="sidebar"] {
+  display: flex;
+}
+
+/* Individual hint */
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: oklch(80% 0 0);
+  white-space: nowrap;
+}
+
+/* Button label pill */
+.hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  background: oklch(30% 0 0 / 0.6);
+  border: 1px solid oklch(100% 0 0 / 0.12);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: oklch(90% 0 0);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Xbox labels (default for generic controllers too) */
+.hint-btn[data-btn="a"]::before { content: "A"; }
+.hint-btn[data-btn="b"]::before { content: "B"; }
+.hint-btn[data-btn="start"]::before { content: "☰"; }
+.hint-btn[data-btn="dpad"]::before { content: "D-Pad"; }
+.hint-btn[data-btn="lb-rb"]::before { content: "LB/RB"; }
+
+/* PlayStation labels */
+[data-gamepad-type="playstation"] .hint-btn[data-btn="a"]::before { content: "✕"; }
+[data-gamepad-type="playstation"] .hint-btn[data-btn="b"]::before { content: "○"; }
+[data-gamepad-type="playstation"] .hint-btn[data-btn="start"]::before { content: "⏸"; }
+[data-gamepad-type="playstation"] .hint-btn[data-btn="lb-rb"]::before { content: "L1/R1"; }

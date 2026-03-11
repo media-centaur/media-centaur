@@ -298,5 +298,19 @@ export function createDomWriter(config = {}) {
         delete document.documentElement.dataset.sidebar
       }
     },
+
+    /**
+     * Set the current nav context on <html> for hint bar CSS.
+     */
+    setNavContext(context) {
+      document.documentElement.dataset.navContext = context
+    },
+
+    /**
+     * Set the controller type on <html> for hint bar button labels.
+     */
+    setControllerType(type) {
+      document.documentElement.dataset.gamepadType = type
+    },
   }
 }

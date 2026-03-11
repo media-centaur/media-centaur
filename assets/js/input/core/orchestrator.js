@@ -1,23 +1,25 @@
 /**
  * Orchestrator — wires all framework modules together.
  *
- * Creates instances, attaches event listeners, routes actions through
+ * Creates instances, manages input sources, routes actions through
  * the state machine, and executes directives via the DOM adapter.
+ *
+ * Input sources (keyboard, gamepad) are decoupled peers that produce
+ * semantic actions. The orchestrator is source-agnostic — it never
+ * knows which source produced an action.
  *
  * All external dependencies (reader, writer, globals) and app-specific
  * configuration are injected via a config object, making the orchestrator
  * fully testable with mocks and free of app-specific imports.
  */
 
-import { keyToAction } from "./actions"
+import { Action } from "./actions"
 import { gridNavigate } from "./spatial"
 import { FocusContextMachine, Context } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { buildNavGraph, resolveCursorStart } from "./nav_graph"
 
-const TEXT_INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
-
-// After keyboard input, ignore mousemove for this many ms.
+// After non-mouse input, ignore mousemove for this many ms.
 // Prevents scroll-triggered synthetic mouse events from stealing focus rings.
 const KEYBOARD_COOLDOWN_MS = 400
 
@@ -26,7 +28,8 @@ export class Orchestrator {
    * @param {Object} config
    * @param {Object} config.reader - DomReader interface
    * @param {Object} config.writer - DomWriter interface
-   * @param {Object} config.globals - { document, sessionStorage, requestAnimationFrame }
+   * @param {Object} config.globals - { document, sessionStorage, requestAnimationFrame, ... }
+   * @param {Array} [config.sources] - Source factory functions: (callbacks, globals) => source
    * @param {Object} config.contextSelectors - Maps context keys to CSS selectors
    * @param {Object} [config.instanceTypes] - Maps instance names to context types
    * @param {string} [config.primaryMenu] - Instance name with enter/exit behavior
@@ -46,7 +49,7 @@ export class Orchestrator {
     this.writer = config.writer
     this._globals = config.globals ?? {}
     this._hookEl = null
-    this._lastKeyboardTime = 0
+    this._lastNonMouseInputTime = 0
     // Track the entity ID of the card that opened a modal/drawer,
     // so we can restore focus on dismiss.
     this._originEntityId = null
@@ -58,15 +61,14 @@ export class Orchestrator {
     this._preSidebarContext = null
     // Grid uses entity ID for memory (indices shift on stream updates).
     this._lastGridEntityId = null
-    // When true, a text input has been activated for typing.
-    // Arrow keys pass through; only Escape exits back to nav.
-    this._inputEditing = false
     // Cached item counts per context, rebuilt in _syncState
     this._counts = {}
     // Active page behavior (detected from data-page-behavior attribute)
     this._behavior = null
     this._behaviorName = null
-    this._onKeyDown = this._onKeyDown.bind(this)
+    // Input sources (created in start())
+    this._sources = []
+    this._sourceFactories = config.sources ?? []
     this._onMouseMove = this._onMouseMove.bind(this)
   }
 
@@ -76,7 +78,18 @@ export class Orchestrator {
    */
   start(hookEl) {
     this._hookEl = hookEl
-    this._globals.document.addEventListener("keydown", this._onKeyDown)
+
+    // Create and start input sources
+    const callbacks = {
+      onAction: (action) => this._onSourceAction(action),
+      onInputDetected: (type) => this._onInputDetected(type),
+    }
+    this._sources = this._sourceFactories.map(factory => {
+      const source = factory(callbacks, this._globals)
+      source.start()
+      return source
+    })
+
     this._globals.document.addEventListener("mousemove", this._onMouseMove)
 
     // Sync initial state (also detects and attaches page behavior)
@@ -129,7 +142,13 @@ export class Orchestrator {
     if (primaryMenu && this.focusMachine.context === primaryMenu) {
       this._globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
     }
-    this._globals.document.removeEventListener("keydown", this._onKeyDown)
+
+    // Stop all input sources
+    for (const source of this._sources) {
+      source.stop()
+    }
+    this._sources = []
+
     this._globals.document.removeEventListener("mousemove", this._onMouseMove)
     this._detachBehavior()
     this._hookEl = null
@@ -142,6 +161,44 @@ export class Orchestrator {
   onViewChanged() {
     this._syncState()
     this._ensureCursorStart()
+  }
+
+  // --- Source callbacks ---
+
+  /**
+   * Shared callback from any input source when a semantic action is produced.
+   * Handles behavior onEscape for BACK action, then delegates to _handleAction.
+   */
+  _onSourceAction(action) {
+    // BACK action: let page behavior try onEscape first (e.g. clear filter),
+    // but only in normal page contexts. Modal, drawer, and sidebar have their
+    // own BACK semantics (dismiss, exit) that must not be intercepted.
+    if (action === Action.BACK && this._behavior?.onEscape) {
+      const context = this.focusMachine.context
+      const isOverlay = context === Context.MODAL || context === Context.DRAWER
+      const isSidebar = context === this._config.primaryMenu
+      if (!isOverlay && !isSidebar) {
+        if (this._behavior.onEscape()) {
+          return // consumed by behavior
+        }
+      }
+    }
+
+    this._handleAction(action)
+  }
+
+  /**
+   * Shared callback from any input source when raw input is detected.
+   * Updates input method and tracks non-mouse input time.
+   */
+  _onInputDetected(type) {
+    const methodChange = this.inputDetector.observe(type)
+    if (methodChange) {
+      this.writer.setInputMethod(methodChange)
+    }
+    this._lastNonMouseInputTime = Date.now()
+    // Keep hint bar nav context in sync
+    this.writer.setNavContext?.(this.focusMachine.context)
   }
 
   // --- Internal ---
@@ -246,88 +303,10 @@ export class Orchestrator {
     }
   }
 
-  _onKeyDown(event) {
-    // Track input method
-    const methodChange = this.inputDetector.observe("keydown")
-    if (methodChange) {
-      this.writer.setInputMethod(methodChange)
-    }
-    this._lastKeyboardTime = Date.now()
-
-    // Elements with data-captures-keys are handling their own keyboard interaction
-    // (e.g. an open dropdown menu). Let the event reach LiveView, skip input system nav.
-    if (event.target?.closest("[data-captures-keys]")) {
-      return
-    }
-
-    const isTextInput = TEXT_INPUT_ELEMENTS.has(event.target?.tagName)
-
-    // Text inputs have two modes:
-    // 1. Focused (not editing): arrow keys navigate, Enter activates edit mode,
-    //    printable characters activate edit mode and pass through to the input.
-    // 2. Editing: all keys pass through to the input, Escape exits edit mode.
-    if (isTextInput) {
-      // Escape on a text input: clear value, exit edit mode
-      if (event.key === "Escape") {
-        if (event.target.value) {
-          event.target.value = ""
-          event.target.dispatchEvent(new Event("input", { bubbles: true }))
-        }
-        this._inputEditing = false
-        event.preventDefault()
-        return
-      }
-
-      if (this._inputEditing) {
-        // Enter exits edit mode back to navigation
-        if (event.key === "Enter") {
-          this._inputEditing = false
-          event.preventDefault()
-        }
-        // All other keys pass through to the input
-        return
-      }
-
-      // Focused but not editing — nav keys still work
-      if (event.key === "Enter") {
-        this._inputEditing = true
-        event.preventDefault()
-        return
-      }
-
-      // Printable character → activate edit mode and let it type
-      if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        this._inputEditing = true
-        return
-      }
-
-      // Arrow keys / Escape / other nav keys — handle as normal navigation
-      const action = keyToAction(event.key, { targetIsInput: false })
-      if (!action) return
-      event.preventDefault()
-      this._handleAction(action)
-      return
-    }
-
-    // Escape: let page behavior try first, then fall through to normal handling
-    if (event.key === "Escape" && this._behavior?.onEscape) {
-      if (this._behavior.onEscape()) {
-        event.preventDefault()
-        return
-      }
-    }
-
-    const action = keyToAction(event.key, { targetIsInput: false })
-    if (!action) return
-
-    event.preventDefault()
-    this._handleAction(action)
-  }
-
   _onMouseMove() {
-    // Ignore mouse events shortly after keyboard input — focus changes
+    // Ignore mouse events shortly after non-mouse input — focus changes
     // can trigger scroll, which fires synthetic mousemove in some browsers
-    if (Date.now() - this._lastKeyboardTime < KEYBOARD_COOLDOWN_MS) return
+    if (Date.now() - this._lastNonMouseInputTime < KEYBOARD_COOLDOWN_MS) return
 
     const methodChange = this.inputDetector.observe("mousemove")
     if (methodChange) {
@@ -336,9 +315,6 @@ export class Orchestrator {
   }
 
   _handleAction(action) {
-    // Navigating away from a text input exits edit mode
-    this._inputEditing = false
-
     // Save focus position in current context before any transition
     this._saveContextMemory()
 

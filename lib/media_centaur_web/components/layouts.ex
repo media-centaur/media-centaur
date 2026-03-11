@@ -117,6 +117,32 @@ defmodule MediaCentaurWeb.Layouts do
           {render_slot(@inner_block)}
         </div>
       </main>
+
+      <%!-- Gamepad hint bar — always in DOM, visibility controlled by CSS --%>
+      <div class="gamepad-hint-bar" aria-hidden="true">
+        <div class="hint-group" data-hint-context="grid">
+          <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+          <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+          <span class="hint"><span class="hint-btn" data-btn="b"></span> Back</span>
+          <span class="hint"><span class="hint-btn" data-btn="start"></span> Play</span>
+          <span class="hint"><span class="hint-btn" data-btn="lb-rb"></span> Zone</span>
+        </div>
+        <div class="hint-group" data-hint-context="modal">
+          <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+          <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+          <span class="hint"><span class="hint-btn" data-btn="b"></span> Close</span>
+        </div>
+        <div class="hint-group" data-hint-context="drawer">
+          <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+          <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+          <span class="hint"><span class="hint-btn" data-btn="b"></span> Close</span>
+        </div>
+        <div class="hint-group" data-hint-context="sidebar">
+          <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+          <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+          <span class="hint"><span class="hint-btn" data-btn="b"></span> Back</span>
+        </div>
+      </div>
     </div>
 
     <.flash_group flash={@flash} />

@@ -1,6 +1,6 @@
 # Input System Architecture
 
-Unified keyboard, mouse, and gamepad navigation for the media center UI. Implemented in two phases: **5a** (keyboard + spatial nav — complete) and **5b** (gamepad — pending).
+Unified keyboard, mouse, and gamepad navigation for the media center UI. Implemented in two phases: **5a** (keyboard + spatial nav — complete) and **5b** (gamepad — complete).
 
 ## Layered Design
 
@@ -28,7 +28,7 @@ Unified keyboard, mouse, and gamepad navigation for the media center UI. Impleme
   └─────────┘     └───────────┘
 ```
 
-**Data flow:** keydown event → semantic action → state machine directive → orchestrator execution → DOM mutation.
+**Data flow:** input event (keyboard/gamepad) → input source → semantic action → state machine directive → orchestrator execution → DOM mutation.
 
 All external dependencies (document, sessionStorage, requestAnimationFrame) are injected via the constructor, making every layer testable with mocks.
 
@@ -47,8 +47,10 @@ Tests in `core/__tests__/` run via `bun test assets/js/input/core/`.
 | `nav_graph.js` | Yes | Navigation graph builder + cursor start priority (parameterized by layouts) |
 | `focus_context.js` | Yes | State machine: context × action → directive (parameterized by instanceTypes, primaryMenu) |
 | `input_method.js` | Yes | Tracks mouse/keyboard/gamepad transitions |
+| `keyboard.js` | No | KeyboardSource — keydown listener, text input two-mode handling, key-to-action mapping |
+| `gamepad.js` | No | GamepadSource — idle-until-connected rAF polling, button edge detection, analog deadzone + repeat |
 | `dom_adapter.js` | No | Factory functions `createDomReader(config)` / `createDomWriter(config)` (parameterized by selectors) |
-| `orchestrator.js` | No | Core event loop, memory, directive execution (parameterized by full config) |
+| `orchestrator.js` | No | Source-agnostic action router, memory, directive execution (parameterized by full config) |
 | `index.js` | — | Public API — re-exports everything from core modules |
 
 ### App Layer (`assets/js/input/`)
@@ -97,15 +99,39 @@ The `FocusContextMachine` tracks which navigation context is active and returns 
 
 Factory functions `createDomReader(config)` and `createDomWriter(config)` produce reader/writer instances parameterized by `config.contextSelectors` and `config.activeClassNames`. All DOM access is confined here. The orchestrator and behaviors never call `document.*` directly.
 
+### keyboard.js
+
+`KeyboardSource` — translates keyboard events into semantic actions. Owns keyboard-specific concerns:
+- `keydown` event listener on document
+- `data-captures-keys` bypass (reads `event.target`)
+- Text input two-mode handling (`_inputEditing` state)
+- Key-to-action mapping via `keyToAction()`
+- `event.preventDefault()` for handled keys
+
+Implements the **input source contract**: `constructor(config)`, `start()`, `stop()`.
+
+### gamepad.js
+
+`GamepadSource` — translates gamepad input into semantic actions. Idle-until-connected architecture:
+- Passive `gamepadconnected`/`gamepaddisconnected` listeners (zero CPU when no gamepad)
+- rAF polling loop only runs when a gamepad is connected
+- Button edge detection (rising edge — press fires once, hold doesn't repeat)
+- Analog stick deadzone filtering + cardinal direction snapping
+- Axis repeat timing (initial delay, then interval)
+- Controller type detection (`detectControllerType(id)` → `"xbox"`, `"playstation"`, `"generic"`)
+- Pre-allocated state arrays (no per-frame allocations)
+
+Implements the **input source contract**: `constructor(config)`, `start()`, `stop()`.
+
 ### orchestrator.js
 
-Bridges all modules. Receives full config object including `reader`, `writer`, `globals`, and all app-specific settings (dependency injection for testability). Replaces the former `InputSystem` class in `index.js`.
+Source-agnostic action router. Receives full config object including `reader`, `writer`, `globals`, `sources`, and all app-specific settings (dependency injection for testability).
 
 **Responsibilities:**
 - Lifecycle: `start(hookEl)`, `destroy()`, `onViewChanged()`
-- Event routing: keydown → action → state machine → directive → execution
-- Text input mode (focused vs editing)
-- `data-captures-keys` bypass
+- Input source management: create, start, and stop sources from factory functions
+- Action routing: source → `_onSourceAction()` → behavior `onEscape` check → `_handleAction()` → state machine → directive → execution
+- Input method detection via source `onInputDetected` callbacks
 - Context memory (grid entity ID, per-context index)
 - Modal/drawer focus restoration (origin entity tracking)
 - Sidebar persistence (sessionStorage bridge)
@@ -183,6 +209,8 @@ Actions in each context:
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
 | `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library` |
+| `data-nav-context` | Current focus context for hint bar (set on `<html>`) | `grid`, `sidebar`, `modal`, etc. |
+| `data-gamepad-type` | Controller type for hint bar labels (set on `<html>`) | `xbox`, `playstation`, `generic` |
 
 **Nav zone containers must not nest.** Descendant selectors cross-contaminate.
 
