@@ -84,7 +84,7 @@ graph TD
     App --> Stats[Pipeline.Stats]
     App --> Pipeline[Pipeline<br/>Broadway]
     App --> FileTracker[FileTracker]
-    App --> PlaybackSup[Playback.Supervisor<br/>rest_for_one]
+    App --> PlaybackSup[Playback.Supervisor<br/>one_for_one]
     App --> Endpoint[Phoenix Endpoint]
 
     WatcherSup --> Registry[Watcher.Registry]
@@ -92,9 +92,10 @@ graph TD
     DynSup --> W1[Watcher /dir1]
     DynSup --> W2[Watcher /dir2]
 
+    PlaybackSup --> SessionRegistry[SessionRegistry]
     PlaybackSup --> SessionSup[SessionSupervisor<br/>DynamicSupervisor]
-    PlaybackSup --> Manager[Manager]
-    SessionSup --> MpvSession[MpvSession]
+    PlaybackSup --> RecoveryTask[Recovery Task]
+    SessionSup --> MpvSession[MpvSession per entity]
 ```
 
 Children start in order. Watcher and Pipeline are conditionally disabled in test environment.
@@ -109,7 +110,7 @@ All inter-component communication flows through Phoenix PubSub:
 | `library:updates` | `entities_changed` | Pipeline batcher, FileTracker | DashboardLive, LibraryLive |
 | `library:file_events` | `files_removed` | Watcher | FileTracker |
 | `watcher:state` | `watcher_state_changed` | Watcher | FileTracker |
-| `playback:events` | `playback_state_changed`, `entity_progress_updated` | MpvSession | DashboardLive, Manager |
+| `playback:events` | `playback_state_changed`, `entity_progress_updated` | MpvSession | DashboardLive, LibraryLive |
 | `review:updates` | `file_reviewed` | Pipeline | Review LiveView |
 
 ## Key Principles

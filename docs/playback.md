@@ -14,23 +14,28 @@ The playback subsystem manages video playback through mpv, tracks watch progress
 
 ```mermaid
 graph TD
-    subgraph "Playback.Supervisor (rest_for_one)"
+    subgraph "Playback.Supervisor (one_for_one)"
+        Registry[SessionRegistry<br/>Registry]
         SessionSup[SessionSupervisor<br/>DynamicSupervisor]
-        Manager[Manager<br/>singleton GenServer]
+        Recovery[Recovery Task<br/>one-shot]
     end
 
-    LiveView[LiveView / MCP] -->|play, pause, stop, seek| Manager
-    Manager -->|start_session| SessionSup
-    SessionSup --> Session[MpvSession<br/>GenServer]
-    Session -->|Port + Unix socket| MPV[mpv process]
-    Session -->|PubSub: playback_state_changed| LiveView
-    Session -->|PubSub: entity_progress_updated| LiveView
-    Session -->|WatchProgress.upsert_progress| DB[(SQLite)]
+    LiveView[LiveView] -->|Sessions.play| SessionSup
+    SessionSup --> SessionA[MpvSession A<br/>entity-abc]
+    SessionSup --> SessionB[MpvSession B<br/>entity-def]
+    SessionA -->|Port + Unix socket| MPVA[mpv process A]
+    SessionB -->|Port + Unix socket| MPVB[mpv process B]
+    SessionA -->|PubSub: playback_state_changed| LiveView
+    SessionB -->|PubSub: playback_state_changed| LiveView
+    SessionA -->|WatchProgress.upsert_progress| DB[(SQLite)]
+    SessionB -->|WatchProgress.upsert_progress| DB
 ```
 
 ## Key Concepts
 
-**Single active session:** Only one mpv process runs at a time. Starting a new playback stops the current session first.
+**Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centaur-{entity_id}.sock`).
+
+**Observation, not control:** The backend is a tracking system. The user controls mpv directly (keyboard, remote, gamepad). Each MpvSession observes position/duration/pause/eof via IPC, persists watch progress, and broadcasts state via PubSub.
 
 **Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (20+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
 
@@ -73,10 +78,11 @@ See [configuration.md](configuration.md) for the full config reference.
 
 ### Play Command
 
-1. UI sends `play` with an entity UUID via the Playback Manager API
+1. UI calls `Sessions.play/1` with an entity UUID
 2. `Resolver.resolve/1` loads the entity and progress, then runs `Resume.resolve/2`
-3. Manager stops any active session, starts a new `MpvSession` via `SessionSupervisor`
-4. MpvSession launches mpv with `--input-ipc-server`, `--fullscreen`, and optional `--start=position`
+3. Sessions checks Registry for duplicates, then starts a new `MpvSession` via `SessionSupervisor`
+4. MpvSession registers in `SessionRegistry` by entity_id
+5. MpvSession launches mpv with `--input-ipc-server`, `--fullscreen`, and optional `--start=position`
 
 ### MPV IPC Protocol
 
@@ -87,9 +93,7 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 - `["observe_property", 2, "duration"]` — total duration
 - `["observe_property", 3, "pause"]` — pause state
 - `["observe_property", 4, "eof-reached"]` — end of file
-- `["set_property", "pause", bool]` — toggle pause
-- `["seek", position, "absolute"]` — seek to position
-- `["quit"]` — close player
+- `["quit"]` — close player on EOF
 
 **Events received:**
 - `property-change` for `time-pos`, `duration`, `pause`, `eof-reached`
@@ -115,7 +119,17 @@ Every save broadcasts to `"playback:events"`:
 {:entity_progress_updated, entity_id, progress_summary, resume_target, child_targets_delta}
 ```
 
-LiveView subscribers receive this via PubSub.
+State changes broadcast with entity_id:
+
+```elixir
+{:playback_state_changed, entity_id, state, now_playing}
+```
+
+LiveView subscribers receive both via PubSub.
+
+### Session Recovery (ADR-023)
+
+On startup, a one-shot Task scans the socket directory for `media-centaur-*.sock` files. For each socket found, it probes mpv for the current path and position, resolves the entity, and starts a reconnecting MpvSession. Dead socket files are cleaned up.
 
 ### WatchingTracker
 
@@ -144,10 +158,12 @@ After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Playback.Manager` | Singleton, one-session-at-a-time API | `lib/media_centaur/playback/manager.ex` |
-| `MediaCentaur.Playback.MpvSession` | Per-session GenServer, MPV IPC | `lib/media_centaur/playback/mpv_session.ex` |
+| `MediaCentaur.Playback.Sessions` | Public API facade (stateless) | `lib/media_centaur/playback/sessions.ex` |
+| `MediaCentaur.Playback.SessionRegistry` | Registry wrapper, entity_id lookup | `lib/media_centaur/playback/session_registry.ex` |
+| `MediaCentaur.Playback.MpvSession` | Per-session GenServer, MPV IPC observer | `lib/media_centaur/playback/mpv_session.ex` |
 | `MediaCentaur.Playback.SessionSupervisor` | DynamicSupervisor for sessions | `lib/media_centaur/playback/session_supervisor.ex` |
-| `MediaCentaur.Playback.Supervisor` | Groups SessionSupervisor + Manager | `lib/media_centaur/playback/supervisor.ex` |
+| `MediaCentaur.Playback.SessionRecovery` | Multi-socket orphan recovery | `lib/media_centaur/playback/session_recovery.ex` |
+| `MediaCentaur.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centaur/playback/supervisor.ex` |
 | `MediaCentaur.Playback.Resume` | Resume/next algorithm | `lib/media_centaur/playback/resume.ex` |
 | `MediaCentaur.Playback.Resolver` | UUID → play params | `lib/media_centaur/playback/resolver.ex` |
 | `MediaCentaur.Playback.EpisodeList` | TV episode walking helpers | `lib/media_centaur/playback/episode_list.ex` |

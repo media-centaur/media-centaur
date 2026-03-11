@@ -6,7 +6,7 @@ date: 2026-03-07
 
 ## Context and Problem Statement
 
-Several GenServers in this application (Watcher, Config, MpvSession, PlaybackManager) are called from multiple modules. When callers use `GenServer.call/2` or `GenServer.cast/2` directly, the message protocol leaks across module boundaries. This couples callers to the message format, the registered name, and the fact that the module is a GenServer at all. Refactoring the process requires updating every call site.
+Several GenServers in this application (Watcher, Config, MpvSession) are called from multiple modules. When callers use `GenServer.call/2` or `GenServer.cast/2` directly, the message protocol leaks across module boundaries. This couples callers to the message format, the registered name, and the fact that the module is a GenServer at all. Refactoring the process requires updating every call site.
 
 ## Decision Outcome
 
