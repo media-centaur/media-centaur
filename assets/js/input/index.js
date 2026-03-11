@@ -3,13 +3,15 @@
  * creates the LiveView hook for the input system.
  */
 
-import { Orchestrator, createDomReader, createDomWriter } from "./core/index.js"
+import { Orchestrator, createDomReader, createDomWriter, KeyboardSource, GamepadSource } from "./core/index.js"
 import { inputConfig } from "./config.js"
 
 const BROWSER_GLOBALS = {
   get document() { return document },
   get sessionStorage() { return sessionStorage },
   get requestAnimationFrame() { return requestAnimationFrame.bind(window) },
+  get cancelAnimationFrame() { return cancelAnimationFrame.bind(window) },
+  get getGamepads() { return navigator.getGamepads?.bind(navigator) ?? (() => []) },
 }
 
 /**
@@ -27,9 +29,24 @@ export function createInputHook() {
         reader,
         writer,
         globals: BROWSER_GLOBALS,
+        sources: [
+          (callbacks, globals) => new KeyboardSource({
+            document: globals.document,
+            ...callbacks,
+          }),
+          (callbacks, globals) => new GamepadSource({
+            getGamepads: globals.getGamepads,
+            requestAnimationFrame: globals.requestAnimationFrame,
+            cancelAnimationFrame: globals.cancelAnimationFrame,
+            addEventListener: window.addEventListener.bind(window),
+            removeEventListener: window.removeEventListener.bind(window),
+            onControllerChanged: (type) => writer.setControllerType(type),
+            ...callbacks,
+          }),
+        ],
         ...inputConfig,
       })
-      orchestrator.start(this.el)
+      orchestrator.start(this)
     },
 
     updated() {
