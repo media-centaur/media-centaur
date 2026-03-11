@@ -285,11 +285,11 @@ defmodule MediaCentaurWeb.LibraryLive do
     assigns =
       assigns
       |> assign(:selected_entry, selected_entry)
-      |> assign(:watching_path, ~p"/library")
-      |> assign(:library_path, ~p"/library?zone=library")
+      |> assign(:watching_path, ~p"/")
+      |> assign(:library_path, ~p"/?zone=library")
 
     ~H"""
-    <Layouts.app flash={@flash} current_path="/library" full_width>
+    <Layouts.app flash={@flash} current_path="/" full_width>
       <div data-page-behavior="library">
         <%!-- Zone tabs --%>
         <div role="tablist" class="tabs tabs-boxed library-tabs w-fit mb-6" data-nav-zone="zone-tabs">
@@ -545,7 +545,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     params = if filter != "", do: Map.put(params, :filter, filter), else: params
     params = if selected, do: Map.put(params, :selected, selected), else: params
 
-    if params == %{}, do: ~p"/library", else: ~p"/library?#{params}"
+    if params == %{}, do: ~p"/", else: ~p"/?#{params}"
   end
 
   # --- Helpers ---
