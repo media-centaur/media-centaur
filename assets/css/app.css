@@ -146,7 +146,7 @@
   --glass-border: oklch(23% 0.020 264 / 0.06);
   --glass-shadow: oklch(0% 0 0 / 0.05);
   --glass-inset-bg: oklch(91% 0.010 264 / 0.4);
-  --glass-nav-bg: oklch(95.5% 0.006 264 / 0.7);
+  --glass-nav-bg: oklch(95.5% 0.006 264 / 0.82);
   --glass-gradient-a: oklch(70% 0.06 250 / 0.10);
   --glass-gradient-b: oklch(70% 0.06 300 / 0.08);
 }
@@ -158,7 +158,7 @@
     --glass-border: oklch(23% 0.020 264 / 0.06);
     --glass-shadow: oklch(0% 0 0 / 0.05);
     --glass-inset-bg: oklch(91% 0.010 264 / 0.4);
-    --glass-nav-bg: oklch(95.5% 0.006 264 / 0.7);
+    --glass-nav-bg: oklch(95.5% 0.006 264 / 0.82);
     --glass-gradient-a: oklch(70% 0.06 250 / 0.10);
     --glass-gradient-b: oklch(70% 0.06 300 / 0.08);
   }
@@ -197,8 +197,8 @@ body {
 /* Glass sidebar — same treatment as navbar, vertical orientation */
 .glass-sidebar {
   background: var(--glass-nav-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
   border-right: 1px solid var(--glass-border);
 }
 
