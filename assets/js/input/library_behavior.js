@@ -3,7 +3,8 @@
  *
  * Extracts library-specific concerns from the orchestrator:
  * - Sort order tracking → signals grid memory clear
- * - Escape clears the filter input
+ * - CLEAR action clears the filter input
+ * - BACK navigates to the sidebar
  *
  * All external dependencies are injected via the `dom` parameter,
  * following the same DI pattern as the orchestrator itself.
@@ -46,16 +47,20 @@ export function createLibraryBehavior(dom) {
     onDetach() {},
 
     /**
-     * Escape clears the library filter if it has content.
-     * Returns true if consumed, false to let the orchestrator handle it.
+     * BACK navigates to the sidebar from content contexts.
      */
     onEscape() {
+      return "sidebar"
+    },
+
+    /**
+     * CLEAR clears the library filter if it has content.
+     */
+    onClear() {
       const filter = dom.getFilter()
       if (filter && filter.value) {
         filter.clear()
-        return true
       }
-      return false
     },
 
     /**

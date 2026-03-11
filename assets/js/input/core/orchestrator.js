@@ -19,9 +19,11 @@ import { FocusContextMachine, Context, contextType } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { buildNavGraph, resolveCursorStart } from "./nav_graph"
 
-// After non-mouse input, ignore mousemove for this many ms.
-// Prevents scroll-triggered synthetic mouse events from stealing focus rings.
-const KEYBOARD_COOLDOWN_MS = 400
+// Minimum mouse movement (px) to switch to mouse input method.
+// Layout shifts fire mousemove at the same coordinates — real mouse
+// movement always changes position. This eliminates race conditions
+// that plagued the old time-based cooldown approach.
+const MOUSE_MOVE_THRESHOLD = 1
 
 export class Orchestrator {
   /**
@@ -49,7 +51,12 @@ export class Orchestrator {
     this.writer = config.writer
     this._globals = config.globals ?? {}
     this._hookEl = null
-    this._lastNonMouseInputTime = 0
+    // Last known mouse position — synthetic mousemove from layout shifts
+    // has the same coordinates, so we only switch to mouse on real movement.
+    // Starts null: the first mousemove only records the baseline position
+    // (we can't know the delta without a prior reading).
+    this._lastMouseX = null
+    this._lastMouseY = null
     // Track the entity ID of the card that opened a modal/drawer,
     // so we can restore focus on dismiss.
     this._originEntityId = null
@@ -170,15 +177,35 @@ export class Orchestrator {
    * Handles behavior onEscape for BACK action, then delegates to _handleAction.
    */
   _onSourceAction(action) {
-    // BACK action: let page behavior try onEscape first (e.g. clear filter),
-    // but only in normal page contexts. Modal, drawer, and sidebar have their
-    // own BACK semantics (dismiss, exit) that must not be intercepted.
+    // CLEAR action: delegate to page behavior's onClear hook.
+    // Behaviors use this for resetting page-specific state (e.g. clearing a filter).
+    if (action === Action.CLEAR && this._behavior?.onClear) {
+      this._behavior.onClear()
+      return
+    }
+
+    // BACK action: let page behavior try onEscape first (e.g. navigate to subnav),
+    // but only in content contexts. Overlays (modal/drawer) and menus
+    // (sidebar/sections) have their own BACK semantics that must not be intercepted.
     if (action === Action.BACK && this._behavior?.onEscape) {
       const context = this.focusMachine.context
       const isOverlay = context === Context.MODAL || context === Context.DRAWER
-      const isSidebar = context === this._config.primaryMenu
-      if (!isOverlay && !isSidebar) {
-        if (this._behavior.onEscape()) {
+      const isMenu = contextType(context, this._config.instanceTypes) === Context.MENU
+      if (!isOverlay && !isMenu) {
+        const result = this._behavior.onEscape()
+        if (typeof result === "string") {
+          this._saveContextMemory()
+          if (result === this._config.primaryMenu) {
+            this._preSidebarContext = context
+            this.focusMachine.forceContext(result)
+            this._executeEnterSidebar()
+          } else {
+            this.focusMachine.forceContext(result)
+            this._restoreContextFocus(result)
+          }
+          return
+        }
+        if (result) {
           return // consumed by behavior
         }
       }
@@ -189,14 +216,13 @@ export class Orchestrator {
 
   /**
    * Shared callback from any input source when raw input is detected.
-   * Updates input method and tracks non-mouse input time.
+   * Updates input method.
    */
   _onInputDetected(type) {
     const methodChange = this.inputDetector.observe(type)
     if (methodChange) {
       this.writer.setInputMethod(methodChange)
     }
-    this._lastNonMouseInputTime = Date.now()
     // Keep hint bar nav context in sync
     this.writer.setNavContext?.(this.focusMachine.context)
   }
@@ -303,10 +329,28 @@ export class Orchestrator {
     }
   }
 
-  _onMouseMove() {
-    // Ignore mouse events shortly after non-mouse input — focus changes
-    // can trigger scroll, which fires synthetic mousemove in some browsers
-    if (Date.now() - this._lastNonMouseInputTime < KEYBOARD_COOLDOWN_MS) return
+  _onMouseMove(event) {
+    const x = event.clientX
+    const y = event.clientY
+
+    // First mousemove: record baseline position only. We can't compute
+    // a delta without a prior reading, so we never switch on the first event.
+    // This prevents full-page navigations from triggering a false switch
+    // (initial position is unknown → any coordinate looks like movement).
+    if (this._lastMouseX === null) {
+      this._lastMouseX = x
+      this._lastMouseY = y
+      return
+    }
+
+    // Layout shifts fire mousemove at the same coordinates.
+    // Only switch to mouse when the pointer has actually moved.
+    const dx = Math.abs(x - this._lastMouseX)
+    const dy = Math.abs(y - this._lastMouseY)
+    this._lastMouseX = x
+    this._lastMouseY = y
+
+    if (dx < MOUSE_MOVE_THRESHOLD && dy < MOUSE_MOVE_THRESHOLD) return
 
     const methodChange = this.inputDetector.observe("mousemove")
     if (methodChange) {

@@ -14,6 +14,7 @@ export const Action = Object.freeze({
   SELECT: "SELECT",
   BACK: "BACK",
   PLAY: "PLAY",
+  CLEAR: "CLEAR",
   ZONE_NEXT: "ZONE_NEXT",
   ZONE_PREV: "ZONE_PREV",
 })
@@ -30,6 +31,7 @@ export const DEFAULT_KEY_MAP = Object.freeze({
   ArrowRight: Action.NAVIGATE_RIGHT,
   Enter: Action.SELECT,
   Escape: Action.BACK,
+  Backspace: Action.CLEAR,
   p: Action.PLAY,
   P: Action.PLAY,
 })
@@ -37,6 +39,7 @@ export const DEFAULT_KEY_MAP = Object.freeze({
 export const DEFAULT_BUTTON_MAP = Object.freeze({
   0: Action.SELECT,
   1: Action.BACK,
+  3: Action.CLEAR,
   4: Action.ZONE_PREV,
   5: Action.ZONE_NEXT,
   9: Action.PLAY,

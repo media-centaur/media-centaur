@@ -7,7 +7,8 @@
  * @typedef {Object} PageBehavior
  * @property {function(): void} [onAttach]          — behavior activates
  * @property {function(): void} [onDetach]          — behavior deactivates
- * @property {function(): boolean} [onEscape]       — return true to consume
+ * @property {function(): boolean|string} [onEscape] — true to consume, string to navigate
+ * @property {function(): void} [onClear]            — CLEAR action (Y / Backspace)
  * @property {function(string): void} [onZoneChanged] — zone switched
  * @property {function(Object): {clearGridMemory: boolean}} [onSyncState] — state sync
  */

@@ -9,7 +9,7 @@ describe("Action enum", () => {
   test("contains all expected actions", () => {
     const expected = [
       "NAVIGATE_UP", "NAVIGATE_DOWN", "NAVIGATE_LEFT", "NAVIGATE_RIGHT",
-      "SELECT", "BACK", "PLAY", "ZONE_NEXT", "ZONE_PREV",
+      "SELECT", "BACK", "PLAY", "CLEAR", "ZONE_NEXT", "ZONE_PREV",
     ]
     for (const name of expected) {
       expect(Action[name]).toBeDefined()
@@ -31,6 +31,10 @@ describe("keyToAction", () => {
 
   test("maps Escape to back", () => {
     expect(keyToAction("Escape")).toBe(Action.BACK)
+  })
+
+  test("maps Backspace to clear", () => {
+    expect(keyToAction("Backspace")).toBe(Action.CLEAR)
   })
 
   test("maps p/P to play", () => {
@@ -68,6 +72,7 @@ describe("buttonToAction", () => {
   test("maps standard gamepad buttons", () => {
     expect(buttonToAction(0)).toBe(Action.SELECT)
     expect(buttonToAction(1)).toBe(Action.BACK)
+    expect(buttonToAction(3)).toBe(Action.CLEAR)
     expect(buttonToAction(9)).toBe(Action.PLAY)
   })
 
@@ -85,7 +90,6 @@ describe("buttonToAction", () => {
 
   test("returns null for unmapped buttons", () => {
     expect(buttonToAction(2)).toBe(null)
-    expect(buttonToAction(3)).toBe(null)
     expect(buttonToAction(99)).toBe(null)
   })
 

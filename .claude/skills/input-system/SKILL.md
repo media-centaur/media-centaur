@@ -13,7 +13,7 @@ The input system is split into a reusable **framework** (`assets/js/input/core/`
 - **App tests:** `bun test assets/js/input/__tests__/`
 - **All tests:** `bun test assets/js/input/`
 
-**Data flow:** keydown → semantic action → state machine directive → orchestrator → DOM mutation.
+**Data flow:** raw input event → input source → semantic action → orchestrator → state machine directive → directive execution → DOM mutation.
 
 All external dependencies injected via config object — every layer testable with mocks.
 
@@ -42,13 +42,27 @@ This lets multiple instances share behavior (sidebar and sections both use MENU 
 
 Cross-context transitions are driven by an adjacency map in `core/nav_graph.js`. Each zone defines edges between contexts with ordered fallback candidates. The graph is rebuilt from DOM state on every sync. Layouts and alwaysPopulated lists come from config.
 
+### Input Sources
+
+Keyboard and gamepad are decoupled peers behind a duck-typed contract: `start()`, `stop()`, `onAction(action)`, `onInputDetected(type)`. The orchestrator is source-agnostic. Sources are wired as factory functions in config.
+
 ### MENU Behavior
 
-The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right/back transitions.
+The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right/back transitions. SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning).
+
+### BACK and CLEAR Context Gating
+
+BACK delegates to page behavior `onEscape()` only in content contexts (grid, toolbar, zone_tabs). Overlays (modal, drawer) and all MENU-type instances (sidebar, sections) have their own BACK semantics (dismiss, exit, nav graph left) that bypass `onEscape()` entirely.
+
+`onEscape()` supports three return types: `false` (not consumed → fall through), `true` (consumed → stop), or a **string** (navigate to that context). All current behaviors return `"sidebar"` or `"sections"`. When the target is the primary menu, the full enter-sidebar flow runs (expand, record pre-sidebar context).
+
+CLEAR delegates to page behavior `onClear()` in any context. Currently only library implements this (clears filter). If no `onClear` exists, the action is silently dropped.
 
 ### Page Behaviors
 
-Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `activateOnFocus`, `onAttach`, `onDetach`, `onEscape`, `onSyncState`, `onZoneChanged` — all optional. The `activateOnFocus` property is a string array of menu context names that should click items on focus during up/down nav (page-scoped — the primaryMenu always activates globally).
+Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `activateOnFocus`, `onAttach`, `onDetach`, `onEscape`, `onClear`, `onSyncState`, `onZoneChanged` — all optional. The `activateOnFocus` property is a string array of menu context names that should click items on focus during up/down nav (page-scoped — the primaryMenu always activates globally).
+
+Every page behavior should implement `onEscape()` returning `"sidebar"` (or an intermediate context like `"sections"`) so BACK consistently navigates toward the main nav. Pages with clearable state (filters, search) should implement `onClear()`.
 
 ### URL Persistence (data-nav-remember)
 
@@ -73,12 +87,15 @@ All config changes go in `config.js`:
 | `data-nav-zone` | Navigation zone container (`grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs`) |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) |
 | `data-nav-grid` | CSS grid container (column count detection) |
-| `data-page-behavior` | Page behavior to activate (`library`, `settings`) |
+| `data-page-behavior` | Page behavior to activate (`dashboard`, `library`, `review`, `settings`) |
 | `data-nav-default-zone` | Default zone for pages without zone tabs |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation |
 | `data-entity-id` | Stable entity identifier on cards |
 | `data-detail-mode` | Presentation shell type (`modal`, `drawer`) |
 | `data-captures-keys` | Element handles own keyboard events |
+| `data-input` | Current input method on `<html>` (`mouse`, `keyboard`, `gamepad`) |
+| `data-nav-context` | Current focus context for hint bar on `<html>` |
+| `data-gamepad-type` | Controller type for hint bar labels on `<html>` (`xbox`, `playstation`, `generic`) |
 
 ## Test Patterns
 
@@ -86,7 +103,7 @@ Tests use `bun:test`. Three mock factories in `core/__tests__/orchestrator.test.
 
 - **`createMockReader(overrides)`** — controllable reader values
 - **`createMockWriter()`** — proxy recording all calls to `calls` array
-- **`createMockGlobals()`** — mock document/sessionStorage/rAF with `_dispatchKeyDown`, `_flushRAF` helpers
+- **`createMockGlobals()`** — mock document/sessionStorage/rAF with `_dispatchKeyDown`, `_dispatchMouseMove(x, y)`, `_flushRAF` helpers
 
 Pure modules (focus_context, nav_graph, spatial, actions) test directly — no mocks needed.
 
