@@ -45,6 +45,11 @@ auto_approve_threshold = 0.85
 # Files inside these directories are linked to the parent movie as extras.
 extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
 
+# Directory names (case-insensitive) whose video files are silently skipped.
+# Files inside these directories are never detected or processed.
+# Common use: "Sample" directories contain short encode-preview clips.
+skip_dirs = ["Sample"]
+
 [playback]
 # Absolute path to the mpv binary.
 mpv_path = "/usr/bin/mpv"
