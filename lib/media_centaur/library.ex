@@ -126,6 +126,10 @@ defmodule MediaCentaur.Library do
       description "Mark a watch progress record as completed"
     end
 
+    tool :mark_watch_incomplete, MediaCentaur.Library.WatchProgress, :mark_incomplete do
+      description "Mark a watch progress record as incomplete (unwatched)"
+    end
+
     # Setting writes
     tool :upsert_setting, MediaCentaur.Library.Setting, :upsert do
       description "Create or update a setting (upserts by key)"
@@ -271,6 +275,7 @@ defmodule MediaCentaur.Library do
       define :list_watch_progress_for_entity, action: :for_entity, args: [:entity_id]
       define :upsert_watch_progress, action: :upsert_progress
       define :mark_watch_completed, action: :mark_completed
+      define :mark_watch_incomplete, action: :mark_incomplete
       define :destroy_watch_progress, action: :destroy
     end
 

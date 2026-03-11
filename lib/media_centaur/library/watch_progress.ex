@@ -41,6 +41,12 @@ defmodule MediaCentaur.Library.WatchProgress do
       change set_attribute(:completed, true)
       change set_attribute(:last_watched_at, &DateTime.utc_now/0)
     end
+
+    update :mark_incomplete do
+      accept []
+      change set_attribute(:completed, false)
+      change set_attribute(:last_watched_at, &DateTime.utc_now/0)
+    end
   end
 
   attributes do

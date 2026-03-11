@@ -312,6 +312,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         season={season}
         expanded={MapSet.member?(@expanded_seasons, season.season_number)}
         progress_by_key={@progress_by_key}
+        entity_id={@entity.id}
         on_play={@on_play}
       />
       <.extras_section entity={@entity} on_play={@on_play} />
@@ -348,6 +349,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :season, :map, required: true
   attr :expanded, :boolean, required: true
   attr :progress_by_key, :map, required: true
+  attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
 
   defp season_section(assigns) do
@@ -386,6 +388,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           episode={episode}
           season_number={@season.season_number}
           progress={Map.get(@progress_by_key, {@season.season_number, episode.episode_number})}
+          entity_id={@entity_id}
           on_play={@on_play}
         />
         <.season_extras extras={@season.extras} on_play={@on_play} />
@@ -399,6 +402,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :episode, :map, required: true
   attr :season_number, :integer, required: true
   attr :progress, :map, default: nil
+  attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
 
   defp episode_row(assigns) do
@@ -435,11 +439,31 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             {@episode.description}
           </p>
         </div>
-        <.episode_right_info
-          state={@state}
-          progress={@progress}
-          duration={@episode.duration}
-        />
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <.episode_duration_text state={@state} progress={@progress} duration={@episode.duration} />
+          <button
+            phx-click="toggle_watched"
+            phx-value-entity-id={@entity_id}
+            phx-value-season={@season_number}
+            phx-value-episode={@episode.episode_number}
+            class={[
+              "size-5 rounded-full flex items-center justify-center transition-all",
+              watched_circle_class(@state)
+            ]}
+            aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
+          >
+            <.icon
+              :if={@state == :watched}
+              name="hero-check-mini"
+              class="size-3 text-success-content"
+            />
+            <.icon
+              :if={@state != :watched}
+              name="hero-check-mini"
+              class="size-3 opacity-0 group-hover/check:opacity-60 transition-opacity"
+            />
+          </button>
+        </div>
       </div>
       <div
         :if={@state == :current}
@@ -468,37 +492,40 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp episode_row_class(:current), do: "bg-info/5 rounded"
   defp episode_row_class(:unwatched), do: ""
 
-  defp episode_right_info(%{state: :watched} = assigns) do
+  defp episode_duration_text(%{state: :watched} = assigns) do
     ~H"""
-    <span class="text-success text-xs flex-shrink-0">
-      <.icon name="hero-check-mini" class="size-3.5" />
-    </span>
     """
   end
 
-  defp episode_right_info(%{state: :current, progress: progress} = assigns) do
+  defp episode_duration_text(%{state: :current, progress: progress} = assigns) do
     remaining = max(progress.duration_seconds - progress.position_seconds, 0)
     assigns = assign(assigns, :remaining, remaining)
 
     ~H"""
-    <span class="text-info text-xs flex-shrink-0">
+    <span class="text-info text-xs">
       {format_duration_human(@remaining)} remaining
     </span>
     """
   end
 
-  defp episode_right_info(%{duration: duration} = assigns) when is_binary(duration) do
+  defp episode_duration_text(%{duration: duration} = assigns) when is_binary(duration) do
     ~H"""
-    <span class="text-base-content/40 text-xs flex-shrink-0">
+    <span class="text-base-content/40 text-xs">
       {format_iso_duration(@duration)}
     </span>
     """
   end
 
-  defp episode_right_info(assigns) do
+  defp episode_duration_text(assigns) do
     ~H"""
     """
   end
+
+  defp watched_circle_class(:watched),
+    do: "bg-success hover:bg-success/70"
+
+  defp watched_circle_class(_),
+    do: "group/check border border-base-content/20 hover:border-base-content/50"
 
   defp progress_percent(%{position_seconds: pos, duration_seconds: dur})
        when is_number(pos) and is_number(dur) and dur > 0 do
