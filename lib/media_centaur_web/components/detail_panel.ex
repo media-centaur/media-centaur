@@ -9,8 +9,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.LiveHelpers
+  import MediaCentaurWeb.LibraryHelpers, only: [format_type: 1, extract_year: 1]
 
-  alias MediaCentaur.{DateUtil, Playback.EpisodeList}
+  alias MediaCentaur.Playback.EpisodeList
 
   # --- Public API ---
 
@@ -667,14 +668,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       dir -> String.trim_leading(path, dir) |> String.trim_leading("/")
     end
   end
-
-  defp format_type(:movie), do: "Movie"
-  defp format_type(:movie_series), do: "Movie Series"
-  defp format_type(:tv_series), do: "TV Series"
-  defp format_type(:video_object), do: "Video"
-  defp format_type(type), do: type |> to_string() |> String.capitalize()
-
-  defp extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
 
   defp format_duration_human(seconds) when is_number(seconds) and seconds >= 0 do
     hours = div(trunc(seconds), 3600)
