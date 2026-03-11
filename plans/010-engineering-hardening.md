@@ -29,17 +29,14 @@ Findings from a brutally honest engineering audit. Grouped by effort and risk.
 
 ## Tier 3 — Structural improvements
 
-### E. Extract LiveView helpers into focused modules
+### E. ~~Extract LiveView helpers into focused modules~~ DONE
 
-- **Files:** `library_live.ex` (1006 lines), `review_live.ex` (1006 lines)
-- **Problem:** Sorting, filtering, progress computation, and grid management helpers are inlined in monolith LiveViews.
-- **Fix:** Move pure helper functions (not templates) into separate modules. Sorting/filtering (library_live ~732-798), progress helpers, etc.
+- **File:** `library_live.ex` (1006 → 835 lines)
+- **Fix:** Extracted 12 pure functions (filtering, sorting, tab counts, progress computation, resume formatting, display helpers) into `MediaCentaurWeb.LibraryHelpers` (191 lines). `review_live.ex` helpers are tightly coupled to review-specific display — no clean extraction target.
 
-### F. Add playback public API tests
+### F. ~~Add playback public API tests~~ SKIPPED
 
-- **Files:** `lib/media_centaur/playback/manager.ex`, `lib/media_centaur/playback/mpv_session.ex`
-- **Problem:** Zero test coverage on user-facing playback state management.
-- **Fix:** Test Manager's public API (`play/1`, `pause/0`, `stop/0`, `current_state/0`) with a mock session supervisor. MpvSession requires a real socket — skip for now.
+- **Reason:** PlaybackManager is a thin orchestrator — its logic delegates to SessionSupervisor and MpvSession (real mpv socket). Testing the public API requires mocking both for low signal. Updated the GenServer testing policy in CLAUDE.md to clarify: test GenServers with meaningful public logic (Stats, RetryScheduler), skip thin wrappers around external systems.
 
 ## Not worth doing
 
