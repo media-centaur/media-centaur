@@ -167,6 +167,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     if group do
       match = %{
         tmdb_id: tmdb_id,
+        tmdb_type: to_string(socket.assigns.search_type),
         title: title,
         year: params["year"],
         poster_path: params["poster-path"]

@@ -162,6 +162,7 @@ defmodule MediaCentaur.Review do
 
   def set_tmdb_match(pending_file, %{
         tmdb_id: tmdb_id,
+        tmdb_type: tmdb_type,
         title: title,
         year: year,
         poster_path: poster_path
@@ -174,6 +175,7 @@ defmodule MediaCentaur.Review do
 
     __MODULE__.set_pending_file_match(pending_file, %{
       tmdb_id: tmdb_id_int,
+      tmdb_type: tmdb_type,
       match_title: title,
       match_year: year,
       match_poster_path: poster_path,
