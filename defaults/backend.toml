@@ -50,6 +50,10 @@ extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes",
 # Common use: "Sample" directories contain short encode-preview clips.
 skip_dirs = ["Sample"]
 
+[dashboard]
+# Number of days of recent library changes to show on the dashboard.
+recent_changes_days = 3
+
 [playback]
 # Absolute path to the mpv binary.
 mpv_path = "/usr/bin/mpv"

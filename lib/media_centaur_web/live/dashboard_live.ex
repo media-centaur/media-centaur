@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.DashboardLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Dashboard, Library, Storage}
+  alias MediaCentaur.{Dashboard, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
 
@@ -26,7 +26,6 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(library_stats: stats.library)
         |> assign(pending_review_count: length(stats.pending_review))
         |> assign(recent_changes: stats.recent_changes)
-        |> assign(recent_changes_days: Dashboard.recent_changes_days())
         |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
@@ -41,7 +40,6 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
         |> assign(pending_review_count: 0)
         |> assign(recent_changes: [])
-        |> assign(recent_changes_days: 3)
         |> assign(recent_errors: [])
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
@@ -62,21 +60,6 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   # --- Events ---
-
-  @impl true
-  def handle_event("set_recent_changes_days", %{"days" => days_str}, socket) do
-    days = String.to_integer(days_str)
-
-    Library.upsert_setting!(%{
-      key: "dashboard:recent_changes_days",
-      value: %{"days" => days}
-    })
-
-    {:noreply,
-     socket
-     |> assign(recent_changes_days: days)
-     |> assign(recent_changes: Dashboard.fetch_recent_changes())}
-  end
 
   # --- Info handlers ---
 
@@ -202,7 +185,7 @@ defmodule MediaCentaurWeb.DashboardLive do
             <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
           </.link>
 
-          <.recent_changes_card entries={@recent_changes} days={@recent_changes_days} />
+          <.recent_changes_card entries={@recent_changes} />
 
           <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
@@ -280,30 +263,13 @@ defmodule MediaCentaurWeb.DashboardLive do
     """
   end
 
-  @days_options [1, 3, 7, 14, 30]
-
   defp recent_changes_card(assigns) do
-    assigns = assign(assigns, :days_options, @days_options)
-
     ~H"""
     <div class="card glass-surface mt-6">
       <div class="card-body">
-        <div class="flex items-center justify-between">
-          <h2 class="card-title text-lg">Recent Changes</h2>
-          <select
-            phx-change="set_recent_changes_days"
-            name="days"
-            class="select select-xs select-ghost text-base-content/60"
-          >
-            <option :for={d <- @days_options} value={d} selected={d == @days}>
-              {d}d
-            </option>
-          </select>
-        </div>
+        <h2 class="card-title text-lg">Recent Changes</h2>
 
-        <p :if={@entries == []} class="text-base-content/60">
-          No changes in the last {@days} {if @days == 1, do: "day", else: "days"}.
-        </p>
+        <p :if={@entries == []} class="text-base-content/60">No changes yet.</p>
 
         <ul :if={@entries != []} class="space-y-1">
           <li :for={entry <- @entries}>
