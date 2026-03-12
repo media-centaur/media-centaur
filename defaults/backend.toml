@@ -53,6 +53,8 @@ skip_dirs = ["Sample"]
 [dashboard]
 # Number of days of recent library changes to show on the dashboard.
 recent_changes_days = 3
+# Number of recently watched items to show on the dashboard.
+recently_watched_count = 5
 
 [playback]
 # Absolute path to the mpv binary.
