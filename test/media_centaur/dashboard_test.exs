@@ -24,23 +24,37 @@ defmodule MediaCentaur.DashboardTest do
     end
   end
 
-  describe "fetch_recent_additions/0" do
-    test "returns entities ordered newest-first, limited to 10" do
-      entities =
-        for i <- 1..12 do
-          create_entity(%{name: "Entity #{i}"})
-        end
+  describe "fetch_recent_changes/0" do
+    test "returns change entries ordered newest-first" do
+      alias MediaCentaur.Library.ChangeLog
 
-      recent = Dashboard.fetch_recent_additions()
+      entity_a = create_entity(%{name: "First Movie"})
+      ChangeLog.record_addition(entity_a)
+      entity_b = create_entity(%{name: "Second Movie"})
+      ChangeLog.record_addition(entity_b)
 
-      assert length(recent) == 10
+      changes = Dashboard.fetch_recent_changes()
 
-      expected_names = entities |> Enum.reverse() |> Enum.take(10) |> Enum.map(& &1.name)
-      assert Enum.map(recent, & &1.name) == expected_names
+      assert length(changes) == 2
+      assert hd(changes).entity_name == "Second Movie"
     end
 
-    test "returns empty list when no entities exist" do
-      assert Dashboard.fetch_recent_additions() == []
+    test "includes both additions and removals" do
+      alias MediaCentaur.Library.ChangeLog
+
+      entity = create_entity(%{name: "Test Movie"})
+      ChangeLog.record_addition(entity)
+      ChangeLog.record_removal(entity)
+
+      changes = Dashboard.fetch_recent_changes()
+
+      kinds = Enum.map(changes, & &1.kind)
+      assert :added in kinds
+      assert :removed in kinds
+    end
+
+    test "returns empty list when no changes exist" do
+      assert Dashboard.fetch_recent_changes() == []
     end
   end
 end

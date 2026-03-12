@@ -14,12 +14,23 @@ defmodule MediaCentaur.Dashboard do
       library: fetch_library_stats(),
       pending_review: fetch_pending_review(),
       recent_errors: fetch_recent_errors(),
-      recent_additions: fetch_recent_additions()
+      recent_changes: fetch_recent_changes()
     }
   end
 
-  def fetch_recent_additions do
-    Library.list_recent_entities!()
+  @default_recent_changes_days 3
+
+  def fetch_recent_changes do
+    days = recent_changes_days()
+    since = DateTime.add(DateTime.utc_now(), -days, :day)
+    Library.list_recent_changes!(10, since)
+  end
+
+  def recent_changes_days do
+    case Library.get_setting_by_key("dashboard:recent_changes_days") do
+      {:ok, %{value: %{"days" => days}}} when is_integer(days) and days > 0 -> days
+      _ -> @default_recent_changes_days
+    end
   end
 
   def fetch_library_stats do

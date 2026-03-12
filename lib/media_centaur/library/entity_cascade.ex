@@ -11,7 +11,7 @@ defmodule MediaCentaur.Library.EntityCascade do
 
   alias MediaCentaur.Config
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Image
+  alias MediaCentaur.Library.{ChangeLog, Image}
 
   @doc """
   Destroys an entity and all its children in FK-safe order.
@@ -22,6 +22,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   """
   def destroy!(entity_id) do
     entity = Library.get_entity_with_associations!(entity_id)
+    ChangeLog.record_removal(entity)
 
     bulk_destroy(entity.watch_progress || [], Library.WatchProgress)
 
