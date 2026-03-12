@@ -4,6 +4,7 @@ defmodule MediaCentaur.Dashboard do
   Keeps the LiveView thin by centralizing all dashboard queries.
   """
 
+  alias MediaCentaur.Library
   alias MediaCentaur.Library.{Entity, Episode, WatchedFile, Image}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Review
@@ -12,8 +13,13 @@ defmodule MediaCentaur.Dashboard do
     %{
       library: fetch_library_stats(),
       pending_review: fetch_pending_review(),
-      recent_errors: fetch_recent_errors()
+      recent_errors: fetch_recent_errors(),
+      recent_additions: fetch_recent_additions()
     }
+  end
+
+  def fetch_recent_additions do
+    Library.list_recent_entities!()
   end
 
   def fetch_library_stats do

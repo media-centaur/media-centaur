@@ -85,6 +85,11 @@ defmodule MediaCentaur.Library.Entity do
               )
     end
 
+    read :recent do
+      argument :limit, :integer, default: 10
+      prepare build(sort: [inserted_at: :desc], limit: arg(:limit))
+    end
+
     read :all_files_absent do
       filter expr(
                exists(watched_files, true) and

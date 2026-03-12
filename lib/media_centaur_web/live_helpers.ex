@@ -64,6 +64,30 @@ defmodule MediaCentaurWeb.LiveHelpers do
   end
 
   @doc """
+  Formats a `DateTime` or `NaiveDateTime` as a relative time string.
+
+  Returns "just now" for < 1 minute, "Xm ago" for < 1 hour, "Xh ago" for < 1 day,
+  "Xd ago" for < 30 days, or a short date like "Mar 05" for older.
+  """
+  def time_ago(nil), do: ""
+
+  def time_ago(%NaiveDateTime{} = naive) do
+    naive |> DateTime.from_naive!("Etc/UTC") |> time_ago()
+  end
+
+  def time_ago(%DateTime{} = datetime) do
+    diff = DateTime.diff(DateTime.utc_now(), datetime, :second)
+
+    cond do
+      diff < 60 -> "just now"
+      diff < 3_600 -> "#{div(diff, 60)}m ago"
+      diff < 86_400 -> "#{div(diff, 3_600)}h ago"
+      diff < 30 * 86_400 -> "#{div(diff, 86_400)}d ago"
+      true -> Calendar.strftime(datetime, "%b %d")
+    end
+  end
+
+  @doc """
   Resolves an entity image URL for a given role (e.g. "poster", "backdrop", "logo").
 
   Returns a path like `/media-images/<content_url>` for local images, the remote

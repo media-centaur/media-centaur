@@ -25,6 +25,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         socket
         |> assign(library_stats: stats.library)
         |> assign(pending_review_count: length(stats.pending_review))
+        |> assign(recent_additions: stats.recent_additions)
         |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
@@ -38,6 +39,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         socket
         |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
         |> assign(pending_review_count: 0)
+        |> assign(recent_additions: [])
         |> assign(recent_errors: [])
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
@@ -97,6 +99,7 @@ defmodule MediaCentaurWeb.DashboardLive do
      |> assign(stats_timer: nil)
      |> assign(library_stats: stats.library)
      |> assign(pending_review_count: length(stats.pending_review))
+     |> assign(recent_additions: stats.recent_additions)
      |> assign(recent_errors: stats.recent_errors)}
   end
 
@@ -182,6 +185,8 @@ defmodule MediaCentaurWeb.DashboardLive do
             <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
           </.link>
 
+          <.recent_additions_card entities={@recent_additions} />
+
           <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
               <.pipeline_card
@@ -253,6 +258,35 @@ defmodule MediaCentaurWeb.DashboardLive do
       ]}>
         <div class="text-2xl font-bold">{@pending_review_count}</div>
         <div class="text-sm text-base-content/60">Pending Review</div>
+      </div>
+    </div>
+    """
+  end
+
+  defp recent_additions_card(assigns) do
+    ~H"""
+    <div class="card glass-surface mt-6">
+      <div class="card-body">
+        <h2 class="card-title text-lg">Recent Additions</h2>
+
+        <p :if={@entities == []} class="text-base-content/60">No entities yet.</p>
+
+        <ul :if={@entities != []} class="space-y-1">
+          <li :for={entity <- @entities}>
+            <.link
+              navigate={"/?zone=library&selected=#{entity.id}"}
+              class="flex items-center gap-3 py-1 hover:bg-base-content/5 rounded px-2 -mx-2"
+            >
+              <span class="text-sm truncate flex-1">{entity.name}</span>
+              <span class="text-xs text-base-content/50">
+                {MediaCentaurWeb.LibraryHelpers.format_type(entity.type)}
+              </span>
+              <span class="text-xs text-base-content/40 whitespace-nowrap">
+                {MediaCentaurWeb.LiveHelpers.time_ago(entity.inserted_at)}
+              </span>
+            </.link>
+          </li>
+        </ul>
       </div>
     </div>
     """

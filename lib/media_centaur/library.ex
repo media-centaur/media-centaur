@@ -182,6 +182,7 @@ defmodule MediaCentaur.Library do
       define :get_entity_with_progress, action: :with_progress, get_by: [:id]
       define :list_entities_with_images, action: :with_images
       define :get_entity_with_images, action: :with_images, get_by: [:id]
+      define :list_recent_entities, action: :recent
       define :list_entities_by_ids, action: :by_ids, args: [:ids]
       define :create_entity, action: :create
       define :set_entity_content_url, action: :set_content_url
