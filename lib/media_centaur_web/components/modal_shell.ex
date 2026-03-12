@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   attr :expanded_seasons, :any, default: nil
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_detail"
+  attr :rematch_confirm, :boolean, default: false
 
   def modal_shell(assigns) do
     ~H"""
@@ -48,6 +49,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
             expanded_seasons={@expanded_seasons}
             on_play={@on_play}
             on_close={@on_close}
+            rematch_confirm={@rematch_confirm}
           />
         </div>
       </div>

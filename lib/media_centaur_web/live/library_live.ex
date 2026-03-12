@@ -51,7 +51,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
        reload_timer: nil,
-       pending_entity_ids: MapSet.new()
+       pending_entity_ids: MapSet.new(),
+       rematch_confirm: nil
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -136,7 +137,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_event("close_detail", _params, socket) do
-    {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil}))}
+    {:noreply,
+     socket
+     |> assign(rematch_confirm: nil)
+     |> push_patch(to: build_path(socket, %{selected: nil}))}
   end
 
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
@@ -206,6 +210,21 @@ defmodule MediaCentaurWeb.LibraryLive do
     end)
 
     {:noreply, socket}
+  end
+
+  def handle_event("rematch", %{"id" => entity_id}, socket) do
+    if socket.assigns.rematch_confirm == entity_id do
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        MediaCentaur.Review.Rematch.rematch_entity(entity_id)
+      end)
+
+      {:noreply,
+       socket
+       |> assign(rematch_confirm: nil)
+       |> push_navigate(to: ~p"/review")}
+    else
+      {:noreply, assign(socket, rematch_confirm: entity_id)}
+    end
   end
 
   def handle_event("toggle_season", %{"season" => season_str}, socket) do
@@ -416,6 +435,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           resume={@selected_entry && Map.get(@resume_targets, @selected_entry.entity.id)}
           progress_records={(@selected_entry && @selected_entry.progress_records) || []}
           expanded_seasons={assigns[:expanded_seasons]}
+          rematch_confirm={@rematch_confirm == @selected_entity_id}
           on_play="play"
           on_close="close_detail"
         />

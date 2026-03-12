@@ -59,6 +59,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :expanded_seasons, :any, default: nil
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
+  attr :rematch_confirm, :boolean, default: false
 
   def detail_panel(assigns) do
     expanded_seasons =
@@ -93,6 +94,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             progress={@progress}
             resume={@resume}
             on_play={@on_play}
+            rematch_confirm={@rematch_confirm}
           />
         </div>
       </div>
@@ -185,16 +187,28 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           </span>
         </div>
       </div>
-      <button
-        phx-click={@on_play}
-        phx-value-id={@target_id}
-        class={"btn btn-soft btn-sm btn-#{@color}"}
-        data-nav-item
-        data-entity-id={@target_id}
-        tabindex="0"
-      >
-        <.icon name="hero-play-mini" class="size-4" /> {@label}
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          phx-click={@on_play}
+          phx-value-id={@target_id}
+          class={"btn btn-soft btn-sm btn-#{@color}"}
+          data-nav-item
+          data-entity-id={@target_id}
+          tabindex="0"
+        >
+          <.icon name="hero-play-mini" class="size-4" /> {@label}
+        </button>
+        <button
+          phx-click="rematch"
+          phx-value-id={@entity.id}
+          class={"btn btn-soft btn-sm #{if @rematch_confirm, do: "btn-error", else: "btn-warning"}"}
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-arrow-path-mini" class="size-4" />
+          {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
+        </button>
+      </div>
     </div>
     """
   end
