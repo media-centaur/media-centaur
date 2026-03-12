@@ -12,7 +12,7 @@ defmodule MediaCentaur.Library.Ingress do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{Entity, Image}
+  alias MediaCentaur.Library.{ChangeLog, Entity, Image}
   alias MediaCentaur.Pipeline.ImageProcessor
   alias MediaCentaur.Pipeline.Payload
 
@@ -59,6 +59,7 @@ defmodule MediaCentaur.Library.Ingress do
          :ok <- create_identifier_with_race_retry(entity, metadata.identifier),
          :ok <- create_images(entity.id, :entity_id, metadata.images, :find_or_create),
          :ok <- create_children(entity, metadata) do
+      ChangeLog.record_addition(entity)
       Log.info(:library, "created #{metadata.entity_type} entity #{entity.id}")
       {:ok, entity, :new}
     else

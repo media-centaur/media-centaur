@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.DashboardLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Dashboard, Storage}
+  alias MediaCentaur.{Dashboard, Library, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
 
@@ -25,7 +25,8 @@ defmodule MediaCentaurWeb.DashboardLive do
         socket
         |> assign(library_stats: stats.library)
         |> assign(pending_review_count: length(stats.pending_review))
-        |> assign(recent_additions: stats.recent_additions)
+        |> assign(recent_changes: stats.recent_changes)
+        |> assign(recent_changes_days: Dashboard.recent_changes_days())
         |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
@@ -39,7 +40,8 @@ defmodule MediaCentaurWeb.DashboardLive do
         socket
         |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
         |> assign(pending_review_count: 0)
-        |> assign(recent_additions: [])
+        |> assign(recent_changes: [])
+        |> assign(recent_changes_days: 3)
         |> assign(recent_errors: [])
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
@@ -60,6 +62,21 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   # --- Events ---
+
+  @impl true
+  def handle_event("set_recent_changes_days", %{"days" => days_str}, socket) do
+    days = String.to_integer(days_str)
+
+    Library.upsert_setting!(%{
+      key: "dashboard:recent_changes_days",
+      value: %{"days" => days}
+    })
+
+    {:noreply,
+     socket
+     |> assign(recent_changes_days: days)
+     |> assign(recent_changes: Dashboard.fetch_recent_changes())}
+  end
 
   # --- Info handlers ---
 
@@ -99,7 +116,7 @@ defmodule MediaCentaurWeb.DashboardLive do
      |> assign(stats_timer: nil)
      |> assign(library_stats: stats.library)
      |> assign(pending_review_count: length(stats.pending_review))
-     |> assign(recent_additions: stats.recent_additions)
+     |> assign(recent_changes: stats.recent_changes)
      |> assign(recent_errors: stats.recent_errors)}
   end
 
@@ -185,7 +202,7 @@ defmodule MediaCentaurWeb.DashboardLive do
             <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
           </.link>
 
-          <.recent_additions_card entities={@recent_additions} />
+          <.recent_changes_card entries={@recent_changes} days={@recent_changes_days} />
 
           <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
@@ -263,31 +280,70 @@ defmodule MediaCentaurWeb.DashboardLive do
     """
   end
 
-  defp recent_additions_card(assigns) do
+  @days_options [1, 3, 7, 14, 30]
+
+  defp recent_changes_card(assigns) do
+    assigns = assign(assigns, :days_options, @days_options)
+
     ~H"""
     <div class="card glass-surface mt-6">
       <div class="card-body">
-        <h2 class="card-title text-lg">Recent Additions</h2>
+        <div class="flex items-center justify-between">
+          <h2 class="card-title text-lg">Recent Changes</h2>
+          <select
+            phx-change="set_recent_changes_days"
+            name="days"
+            class="select select-xs select-ghost text-base-content/60"
+          >
+            <option :for={d <- @days_options} value={d} selected={d == @days}>
+              {d}d
+            </option>
+          </select>
+        </div>
 
-        <p :if={@entities == []} class="text-base-content/60">No entities yet.</p>
+        <p :if={@entries == []} class="text-base-content/60">
+          No changes in the last {@days} {if @days == 1, do: "day", else: "days"}.
+        </p>
 
-        <ul :if={@entities != []} class="space-y-1">
-          <li :for={entity <- @entities}>
-            <.link
-              navigate={"/?zone=library&selected=#{entity.id}"}
-              class="flex items-center gap-3 py-1 hover:bg-base-content/5 rounded px-2 -mx-2"
-            >
-              <span class="text-sm truncate flex-1">{entity.name}</span>
-              <span class="text-xs text-base-content/50">
-                {MediaCentaurWeb.LibraryHelpers.format_type(entity.type)}
-              </span>
-              <span class="text-xs text-base-content/40 whitespace-nowrap">
-                {MediaCentaurWeb.LiveHelpers.time_ago(entity.inserted_at)}
-              </span>
-            </.link>
+        <ul :if={@entries != []} class="space-y-1">
+          <li :for={entry <- @entries}>
+            <.change_entry_row entry={entry} />
           </li>
         </ul>
       </div>
+    </div>
+    """
+  end
+
+  defp change_entry_row(%{entry: %{kind: :added}} = assigns) do
+    ~H"""
+    <.link
+      navigate={"/?zone=library&selected=#{@entry.entity_id}"}
+      class="flex items-center gap-3 py-1 hover:bg-base-content/5 rounded px-2 -mx-2"
+    >
+      <span class="w-2 h-2 rounded-full bg-success shrink-0"></span>
+      <span class="text-sm truncate flex-1">{@entry.entity_name}</span>
+      <span class="text-xs text-base-content/50">
+        {MediaCentaurWeb.LibraryHelpers.format_type(@entry.entity_type)}
+      </span>
+      <span class="text-xs text-base-content/40 whitespace-nowrap">
+        {MediaCentaurWeb.LiveHelpers.time_ago(@entry.inserted_at)}
+      </span>
+    </.link>
+    """
+  end
+
+  defp change_entry_row(%{entry: %{kind: :removed}} = assigns) do
+    ~H"""
+    <div class="flex items-center gap-3 py-1 px-2 -mx-2">
+      <span class="w-2 h-2 rounded-full bg-error shrink-0"></span>
+      <span class="text-sm truncate flex-1 text-base-content/60">{@entry.entity_name}</span>
+      <span class="text-xs text-base-content/50">
+        {MediaCentaurWeb.LibraryHelpers.format_type(@entry.entity_type)}
+      </span>
+      <span class="text-xs text-base-content/40 whitespace-nowrap">
+        {MediaCentaurWeb.LiveHelpers.time_ago(@entry.inserted_at)}
+      </span>
     </div>
     """
   end
