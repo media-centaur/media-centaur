@@ -26,6 +26,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(library_stats: stats.library)
         |> assign(pending_review_count: length(stats.pending_review))
         |> assign(recent_changes: stats.recent_changes)
+        |> assign(recently_watched: stats.recently_watched)
         |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
@@ -40,6 +41,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
         |> assign(pending_review_count: 0)
         |> assign(recent_changes: [])
+        |> assign(recently_watched: [])
         |> assign(recent_errors: [])
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
@@ -100,6 +102,7 @@ defmodule MediaCentaurWeb.DashboardLive do
      |> assign(library_stats: stats.library)
      |> assign(pending_review_count: length(stats.pending_review))
      |> assign(recent_changes: stats.recent_changes)
+     |> assign(recently_watched: stats.recently_watched)
      |> assign(recent_errors: stats.recent_errors)}
   end
 
@@ -185,7 +188,10 @@ defmodule MediaCentaurWeb.DashboardLive do
             <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
           </.link>
 
-          <.recent_changes_card entries={@recent_changes} />
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <.recent_changes_card entries={@recent_changes} />
+            <.recently_watched_card entries={@recently_watched} />
+          </div>
 
           <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
@@ -265,7 +271,7 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   defp recent_changes_card(assigns) do
     ~H"""
-    <div class="card glass-surface mt-6">
+    <div class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Recent Changes</h2>
 
@@ -312,6 +318,64 @@ defmodule MediaCentaurWeb.DashboardLive do
       </span>
     </div>
     """
+  end
+
+  defp recently_watched_card(assigns) do
+    ~H"""
+    <div class="card glass-surface">
+      <div class="card-body">
+        <h2 class="card-title text-lg">Recently Watched</h2>
+
+        <p :if={@entries == []} class="text-base-content/60">Nothing watched yet.</p>
+
+        <ul :if={@entries != []} class="space-y-1">
+          <li :for={entry <- @entries}>
+            <.watched_entry_row entry={entry} />
+          </li>
+        </ul>
+      </div>
+    </div>
+    """
+  end
+
+  defp watched_entry_row(assigns) do
+    progress = watched_progress_percent(assigns.entry)
+    assigns = assign(assigns, :progress, progress)
+
+    ~H"""
+    <.link
+      navigate={"/?zone=library&selected=#{@entry.entity_id}"}
+      class="flex items-center gap-3 py-1 hover:bg-base-content/5 rounded px-2 -mx-2"
+    >
+      <span class="text-sm truncate flex-1">
+        {@entry.entity.name}
+        <span
+          :if={@entry.season_number > 0}
+          class="text-base-content/50"
+        >
+          S{@entry.season_number}E{@entry.episode_number}
+        </span>
+      </span>
+      <span
+        :if={@progress}
+        class={[
+          "text-xs font-mono",
+          if(@entry.completed, do: "text-success", else: "text-base-content/50")
+        ]}
+      >
+        {if @entry.completed, do: "done", else: "#{@progress}%"}
+      </span>
+      <span class="text-xs text-base-content/40 whitespace-nowrap">
+        {MediaCentaurWeb.LiveHelpers.time_ago(@entry.last_watched_at)}
+      </span>
+    </.link>
+    """
+  end
+
+  defp watched_progress_percent(%{duration_seconds: d}) when d == 0.0 or is_nil(d), do: nil
+
+  defp watched_progress_percent(%{position_seconds: p, duration_seconds: d}) do
+    round(p / d * 100)
   end
 
   @stage_grid_columns "grid-template-columns: 0.5rem 1fr 5rem 4.5rem 4.5rem 3rem"

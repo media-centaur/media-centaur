@@ -36,6 +36,12 @@ defmodule MediaCentaur.Library.WatchProgress do
       prepare build(sort: [season_number: :asc, episode_number: :asc])
     end
 
+    read :recently_watched do
+      argument :limit, :integer, default: 5
+      filter expr(not is_nil(last_watched_at))
+      prepare build(sort: [last_watched_at: :desc], limit: arg(:limit), load: [:entity])
+    end
+
     update :mark_completed do
       accept []
       change set_attribute(:completed, true)

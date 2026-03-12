@@ -14,7 +14,8 @@ defmodule MediaCentaur.Dashboard do
       library: fetch_library_stats(),
       pending_review: fetch_pending_review(),
       recent_errors: fetch_recent_errors(),
-      recent_changes: fetch_recent_changes()
+      recent_changes: fetch_recent_changes(),
+      recently_watched: fetch_recently_watched()
     }
   end
 
@@ -22,6 +23,11 @@ defmodule MediaCentaur.Dashboard do
     days = MediaCentaur.Config.get(:recent_changes_days) || 3
     since = DateTime.add(DateTime.utc_now(), -days, :day)
     Library.list_recent_changes!(10, since)
+  end
+
+  def fetch_recently_watched do
+    limit = MediaCentaur.Config.get(:recently_watched_count) || 5
+    Library.list_recently_watched!(limit)
   end
 
   def fetch_library_stats do
