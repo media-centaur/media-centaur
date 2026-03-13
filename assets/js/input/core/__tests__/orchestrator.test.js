@@ -128,6 +128,7 @@ function createMockGlobals() {
         metaKey: false,
         altKey: false,
         preventDefault: mock(() => {}),
+        stopPropagation: mock(() => {}),
         ...opts,
       }
       for (const fn of (listeners.keydown || [])) {
@@ -1114,6 +1115,121 @@ describe("Orchestrator", () => {
       expect(clicked).toHaveBeenCalled()
       // Should stay in grid — no menu exit behavior
       expect(system.focusMachine.context).toBe(Context.GRID)
+    })
+  })
+
+  describe("expected presentation guards dismiss focus restoration", () => {
+    test("_ensureCursorStart is a no-op when _expectedPresentation is set", () => {
+      const { system } = setup({
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
+        getZone: () => "library",
+      })
+      system.start({})
+      // Would normally fall back to toolbar since grid is empty
+      system.focusMachine.forceContext(Context.GRID)
+      system._expectedPresentation = null
+
+      system._ensureCursorStart()
+
+      // Guard prevented the fallback — still in GRID
+      expect(system.focusMachine.context).toBe(Context.GRID)
+    })
+
+    test("_syncState skips presentation re-entry when _expectedPresentation is set", () => {
+      const { system, reader } = setup({
+        getPresentation: () => "modal",
+      })
+      system.start({})
+      // Modal detected on start — context is now MODAL
+      expect(system.focusMachine.context).toBe(Context.MODAL)
+
+      // Dismiss sets expected presentation and restores to GRID
+      system.focusMachine.presentationChanged(null)
+      system._expectedPresentation = null
+
+      // DOM still shows modal (LiveView hasn't round-tripped)
+      system.onViewChanged()
+
+      // Should NOT re-enter MODAL — expected presentation guards it
+      expect(system.focusMachine.context).toBe(Context.GRID)
+    })
+
+    test("_expectedPresentation clears when DOM confirms expected state", () => {
+      const { system, reader } = setup({
+        getPresentation: () => "modal",
+      })
+      system.start({})
+
+      // Simulate dismiss
+      system.focusMachine.presentationChanged(null)
+      system._expectedPresentation = null
+
+      // DOM now confirms no presentation
+      reader.getPresentation = () => null
+      system.onViewChanged()
+
+      expect(system._expectedPresentation).toBe(undefined)
+    })
+
+    test("full dismiss → onViewChanged with empty grid stays in GRID context", () => {
+      const hookEl = { pushEvent: mock(() => {}) }
+      const itemCounts = { grid: 8, toolbar: 3, zone_tabs: 2, sidebar: 4, sections: 0, drawer: 0, modal: 3 }
+      let presentation = null
+      const { system, reader, globals } = setup({
+        getZone: () => "watching",
+        getPresentation: () => presentation,
+        getItemCount: (ctx) => itemCounts[ctx] ?? 0,
+      })
+      system.start(hookEl)
+
+      // Open modal
+      presentation = "modal"
+      system.onViewChanged()
+      expect(system.focusMachine.context).toBe(Context.MODAL)
+
+      // Dismiss via Escape
+      globals._dispatchKeyDown("Escape")
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+      expect(system.focusMachine.context).toBe(Context.GRID)
+
+      // LiveView round-trip: DOM still shows modal, grid transiently empty
+      itemCounts.grid = 0
+      system.onViewChanged()
+
+      // Must stay in GRID — _expectedPresentation guards both _syncState and _ensureCursorStart
+      expect(system.focusMachine.context).toBe(Context.GRID)
+
+      // DOM catches up: modal gone, grid repopulated
+      presentation = null
+      itemCounts.grid = 8
+      system.onViewChanged()
+
+      // _expectedPresentation cleared, back to normal
+      expect(system._expectedPresentation).toBe(undefined)
+      expect(system.focusMachine.context).toBe(Context.GRID)
+    })
+  })
+
+  describe("keyboard stopPropagation prevents dual Escape", () => {
+    test("keyboard source calls stopPropagation on handled keys", () => {
+      const { system, globals } = setup()
+      system.start({})
+
+      const stopPropagation = mock(() => {})
+      const event = globals._dispatchKeyDown("Escape", { stopPropagation })
+
+      expect(stopPropagation).toHaveBeenCalled()
+    })
+
+    test("keyboard source does not call stopPropagation for unhandled keys", () => {
+      const { system, globals } = setup()
+      system.start({})
+
+      const stopPropagation = mock(() => {})
+      // F5 is not mapped to any action
+      globals._dispatchKeyDown("F5", { stopPropagation })
+
+      expect(stopPropagation).not.toHaveBeenCalled()
     })
   })
 

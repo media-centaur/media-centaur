@@ -98,6 +98,9 @@ export class KeyboardSource {
     if (!action) return
 
     event.preventDefault()
+    // Stop bubbling so LiveView's phx-window-keydown (on window) never fires.
+    // The input system is the sole keyboard authority when active.
+    event.stopPropagation()
     this._onAction(action)
   }
 

@@ -76,6 +76,11 @@ export class Orchestrator {
     // Input sources (created in start())
     this._sources = []
     this._sourceFactories = config.sources ?? []
+    // Expected presentation state after an orchestrator-initiated transition.
+    // undefined = no expectation (trust DOM), null = expect no presentation.
+    // Prevents _syncState() from re-entering an overlay context during the
+    // LiveView round-trip after _executeDismiss().
+    this._expectedPresentation = undefined
     this._onMouseMove = this._onMouseMove.bind(this)
   }
 
@@ -127,8 +132,13 @@ export class Orchestrator {
    * viable context from the cursor start priority list.
    */
   _ensureCursorStart() {
+    // Don't override context while the orchestrator owns a presentation transition.
+    // The DOM may transiently show zero items during morphdom patching.
+    if (this._expectedPresentation !== undefined) return
+
     const context = this.focusMachine.context
-    if (this.reader.getItemCount(context) > 0) return
+    const count = this.reader.getItemCount(context)
+    if (count > 0) return
 
     const target = resolveCursorStart(this.reader.getZone(), this._counts, {
       cursorStartPriority: this._config.cursorStartPriority,
@@ -259,7 +269,13 @@ export class Orchestrator {
     // the drawer closed via LiveView — we need to clear _drawerOpen.
     this.focusMachine.syncDrawerState(drawerOpen)
 
-    if (presentation === "modal" && this.focusMachine.context !== Context.MODAL) {
+    // When the orchestrator has initiated a presentation transition (e.g. dismiss),
+    // skip DOM-based detection until the DOM confirms the expected state.
+    if (this._expectedPresentation !== undefined) {
+      if (presentation === this._expectedPresentation) {
+        this._expectedPresentation = undefined
+      }
+    } else if (presentation === "modal" && this.focusMachine.context !== Context.MODAL) {
       this.focusMachine.presentationChanged("modal")
       this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.MODAL))
     } else if (presentation === "drawer" && this.focusMachine.context !== Context.DRAWER) {
@@ -318,15 +334,12 @@ export class Orchestrator {
    * After modal/drawer dismissal, restore focus to the card that opened it.
    */
   _restoreOriginFocus() {
-    if (this._originEntityId) {
-      const entityId = this._originEntityId
-      this._originEntityId = null
-      this._globals.requestAnimationFrame(() => {
-        if (!this.writer.focusByEntityId(Context.GRID, entityId)) {
-          this.writer.focusFirst(Context.GRID)
-        }
-      })
-    }
+    const entityId = this._originEntityId
+    this._originEntityId = null
+    this._globals.requestAnimationFrame(() => {
+      if (entityId && this.writer.focusByEntityId(Context.GRID, entityId)) return
+      this._restoreContextFocus(Context.GRID)
+    })
   }
 
   _onMouseMove(event) {
@@ -630,7 +643,13 @@ export class Orchestrator {
   _executeDismiss() {
     if (!this._hookEl) return
     this._hookEl.pushEvent("close_detail", {})
-    // Focus restoration happens in _syncState when the presentation closes
+    // Proactively restore — don't wait for onViewChanged() which may not
+    // fire if the hook element isn't directly patched by morphdom.
+    this.focusMachine.presentationChanged(null)
+    this._restoreOriginFocus()
+    // Declare expected presentation state — _syncState() will skip DOM-based
+    // detection until the DOM confirms no overlay is present.
+    this._expectedPresentation = null
   }
 
   _executePlay() {

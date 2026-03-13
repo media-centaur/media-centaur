@@ -23,6 +23,7 @@ function createMockDocument() {
         metaKey: false,
         altKey: false,
         preventDefault: mock(() => {}),
+        stopPropagation: mock(() => {}),
         ...opts,
       }
       for (const fn of (listeners.keydown || [])) {
