@@ -72,10 +72,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         %{}
       end
 
+    resume_episode_key = resume_episode_key(assigns.resume)
+
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
       |> assign(:progress_by_key, progress_by_key)
+      |> assign(:resume_episode_key, resume_episode_key)
 
     ~H"""
     <div class="detail-panel flex flex-col flex-1 min-h-0">
@@ -106,6 +109,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           entity={@entity}
           expanded_seasons={@expanded_seasons}
           progress_by_key={@progress_by_key}
+          resume_episode_key={@resume_episode_key}
           on_play={@on_play}
         />
       </div>
@@ -326,6 +330,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         season={season}
         expanded={MapSet.member?(@expanded_seasons, season.season_number)}
         progress_by_key={@progress_by_key}
+        resume_episode_key={@resume_episode_key}
         entity_id={@entity.id}
         on_play={@on_play}
       />
@@ -363,6 +368,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :season, :map, required: true
   attr :expanded, :boolean, required: true
   attr :progress_by_key, :map, required: true
+  attr :resume_episode_key, :any, default: nil
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
 
@@ -402,6 +408,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           episode={episode}
           season_number={@season.season_number}
           progress={Map.get(@progress_by_key, {@season.season_number, episode.episode_number})}
+          resume_episode_key={@resume_episode_key}
           entity_id={@entity_id}
           on_play={@on_play}
         />
@@ -416,19 +423,29 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :episode, :map, required: true
   attr :season_number, :integer, required: true
   attr :progress, :map, default: nil
+  attr :resume_episode_key, :any, default: nil
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
 
   defp episode_row(assigns) do
     state = episode_state(assigns.progress)
-    assigns = assign(assigns, :state, state)
 
-    thumbnail = image_url(assigns.episode, "thumb")
-    assigns = assign(assigns, :thumbnail, thumbnail)
+    is_resume_target =
+      assigns.resume_episode_key != nil and
+        assigns.resume_episode_key == {assigns.season_number, assigns.episode.episode_number}
+
+    assigns =
+      assigns
+      |> assign(:state, state)
+      |> assign(:is_resume_target, is_resume_target)
+      |> assign(:thumbnail, image_url(assigns.episode, "thumb"))
 
     ~H"""
     <div
-      class={["p-2 rounded cursor-pointer hover:bg-base-content/5", episode_row_class(@state)]}
+      class={[
+        "p-2 rounded cursor-pointer hover:bg-base-content/5",
+        episode_row_class(@state, @is_resume_target)
+      ]}
       data-role="episode-row"
       phx-click={@on_play}
       phx-value-id={@episode.id}
@@ -502,9 +519,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  defp episode_row_class(:watched), do: "opacity-60"
-  defp episode_row_class(:current), do: "bg-info/5 rounded"
-  defp episode_row_class(:unwatched), do: ""
+  defp episode_row_class(_state, true = _is_resume_target),
+    do: "border-l-2 border-primary bg-primary/5"
+
+  defp episode_row_class(:watched, _), do: "opacity-60"
+  defp episode_row_class(:current, _), do: "bg-info/5"
+  defp episode_row_class(:unwatched, _), do: ""
 
   defp episode_duration_text(%{state: :watched} = assigns) do
     ~H"""
@@ -678,4 +698,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp season_progress_label(watched, total) when watched == total and total > 0, do: "watched"
   defp season_progress_label(watched, total), do: "#{total - watched} remaining"
+
+  defp resume_episode_key(%{"seasonNumber" => season, "episodeNumber" => episode})
+       when is_integer(season) and is_integer(episode) do
+    {season, episode}
+  end
+
+  defp resume_episode_key(_), do: nil
 end
