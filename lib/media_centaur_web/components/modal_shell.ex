@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
       phx-click={@open && @on_close}
       phx-window-keydown={@open && @on_close}
       phx-key="Escape"
-      data-detail-mode="modal"
+      data-detail-mode={@open && "modal"}
     >
       <div class="modal-panel bg-base-100" phx-click-away={@open && @on_close}>
         <div :if={@entity} class="flex flex-col flex-1 min-h-0">
