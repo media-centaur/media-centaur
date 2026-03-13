@@ -73,10 +73,29 @@ See [configuration.md](configuration.md) for all options.
 ## Run
 
 ```bash
-mix phx.server    # start dev server at http://localhost:4000
+mix phx.server    # start dev server at http://localhost:4001
 ```
 
-The admin UI is at `http://localhost:4000`. The frontend connects via WebSocket at `/socket`.
+The admin UI is at `http://localhost:4001`. The frontend connects via WebSocket at `/socket`.
+
+### Dev service (systemd)
+
+The dev server can run as a persistent background service instead of a terminal session:
+
+```bash
+scripts/install-dev                                  # install/update the systemd unit
+systemctl --user start media-centaur-backend-dev     # start
+systemctl --user stop media-centaur-backend-dev      # stop
+journalctl --user -u media-centaur-backend-dev -f    # view logs
+```
+
+The service runs `mix phx.server` via `mise exec` (so it picks up the correct Erlang/Elixir versions) and starts a named BEAM node. Connect a REPL to the running server with:
+
+```bash
+iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1
+```
+
+Disconnect with `Ctrl+\` — the server keeps running.
 
 ## Test
 

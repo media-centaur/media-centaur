@@ -37,11 +37,28 @@ All repositories use **JJ (Jujutsu)** — never use raw `git` commands.
 
 ```bash
 mix setup              # install deps, create DB, run migrations, build assets
-mix phx.server         # start dev server (http://localhost:4000)
+mix phx.server         # start dev server (http://localhost:4001)
 mix test               # run tests (creates and migrates test DB automatically)
 mix precommit          # compile --warning-as-errors, unlock unused deps, format, test
 mix seed.review        # populate review UI with all visual cases (idempotent)
 ```
+
+### Dev service
+
+```bash
+scripts/install-dev    # install systemd user service for dev server
+```
+
+The dev server can run as a persistent systemd user service. `scripts/install-dev` installs a unit that runs `mix phx.server` via `mise exec`, with a named BEAM node for remote shell access.
+
+```bash
+systemctl --user start media-centaur-backend-dev     # start
+systemctl --user stop media-centaur-backend-dev      # stop
+journalctl --user -u media-centaur-backend-dev -f    # logs
+iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1   # REPL
+```
+
+Disconnect the REPL with `Ctrl+\` (leaves the server running).
 
 ### Release
 
