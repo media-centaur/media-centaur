@@ -191,7 +191,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign_log_state(socket)}
   end
 
-  @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end

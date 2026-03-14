@@ -333,7 +333,6 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> touch_stream_entries([entity_id])}
   end
 
-  @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end

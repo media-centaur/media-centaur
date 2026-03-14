@@ -141,7 +141,6 @@ defmodule MediaCentaur.Library.FileTracker do
     {:noreply, state}
   end
 
-  @impl true
   def handle_info({:watcher_state_changed, dir, :unavailable}, state) do
     Log.info(:library, "drive unavailable, marking files absent for #{dir}")
 
@@ -153,19 +152,16 @@ defmodule MediaCentaur.Library.FileTracker do
     {:noreply, state}
   end
 
-  @impl true
   def handle_info({:watcher_state_changed, _dir, _state}, state) do
     {:noreply, state}
   end
 
-  @impl true
   def handle_info(:ttl_check, state) do
     check_ttl_expirations()
     schedule_ttl_check()
     {:noreply, state}
   end
 
-  @impl true
   def handle_info(_message, state), do: {:noreply, state}
 
   # ---------------------------------------------------------------------------
@@ -180,13 +176,11 @@ defmodule MediaCentaur.Library.FileTracker do
       watched_files
       |> Enum.group_by(& &1.entity_id)
 
-    entity_ids =
-      Enum.flat_map(by_entity, fn {entity_id, files} ->
-        cleanup_entity_files(entity_id, files, file_path_set)
-      end)
-      |> Enum.uniq()
-
-    entity_ids
+    by_entity
+    |> Enum.flat_map(fn {entity_id, files} ->
+      cleanup_entity_files(entity_id, files, file_path_set)
+    end)
+    |> Enum.uniq()
   end
 
   defp cleanup_entity_files(entity_id, watched_files, removed_paths) do

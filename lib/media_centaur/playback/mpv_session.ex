@@ -140,7 +140,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  @impl true
   def handle_info(:launch_mpv, state) do
     Log.info(:playback, "session #{state.session_id} launching mpv")
     mpv_path = MediaCentaur.Config.get(:mpv_path)
@@ -166,7 +165,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     {:noreply, %{state | port: port}}
   end
 
-  @impl true
   def handle_info(:connect_socket, state) do
     socket_path = to_charlist(state.socket_path)
 
@@ -194,7 +192,6 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   # MPV IPC data — discard late messages after finalization
-  @impl true
   def handle_info({:tcp, _socket, _data}, %{state: :stopped} = state) do
     {:noreply, state}
   end
@@ -213,25 +210,21 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   # MPV socket closed
-  @impl true
   def handle_info({:tcp_closed, _socket}, state) do
     Log.info(:playback, "session #{state.session_id} socket closed")
     {:stop, :normal, finalize(state)}
   end
 
   # MPV process exited
-  @impl true
   def handle_info({_port, {:exit_status, status}}, state) do
     Log.info(:playback, "session #{state.session_id} mpv exited with status #{status}")
     {:stop, :normal, finalize(state)}
   end
 
   # Ignore MPV stdout/stderr output
-  @impl true
   def handle_info({_port, {:data, _data}}, state), do: {:noreply, state}
 
   # Absorb EXIT messages from port link (required with trap_exit)
-  @impl true
   def handle_info(_message, state), do: {:noreply, state}
 
   @impl true

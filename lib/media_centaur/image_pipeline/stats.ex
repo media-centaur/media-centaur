@@ -11,7 +11,7 @@ defmodule MediaCentaur.ImagePipeline.Stats do
 
   - `active_count` — currently executing processors
   - `window_completions` — `[{monotonic_ms, duration_native}]` for rolling throughput
-  - `error_count` — errors in current window
+  - `error_count` — lifetime errors
   - `last_error` — `{message, monotonic_ms} | nil`
 
   ## Lifetime counters
