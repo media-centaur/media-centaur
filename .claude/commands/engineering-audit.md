@@ -9,12 +9,6 @@ You are performing a meticulous code review and quality analysis of an Elixir/Ph
 codebase. Your goal is to find real, actionable issues — not to generate noise. Every
 finding must be specific, cite the exact file and line, and explain *why* it matters.
 
-**Brutal honesty is mandatory.** Do not soften findings, hedge with qualifiers, or balance
-criticism with unearned praise. If the code has problems, say so directly. Never describe
-code as "well-structured", "clean", or "well-maintained" unless you have concrete evidence
-for that claim. The user wants to know what's wrong — they already know what's right. A
-sycophantic audit is worse than no audit at all.
-
 **Scope:** If `$ARGUMENTS` is provided, focus the analysis on that path or module.
 Otherwise, analyze the full `lib/` tree.
 
