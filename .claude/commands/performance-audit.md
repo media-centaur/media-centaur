@@ -11,11 +11,6 @@ Your goal is to find **concrete, evidence-based** performance issues — not spe
 optimizations. Every finding must cite the exact file and line number, explain the
 mechanism of waste, and propose a specific fix.
 
-**Brutal honesty is mandatory.** Do not soften findings, hedge with qualifiers, or
-balance criticism with unearned praise. If the architecture has performance problems,
-say so directly. The user wants to know what's slow and what wastes resources — they
-are not looking for reassurance. A sycophantic audit is worse than no audit at all.
-
 **Scope:** If `$ARGUMENTS` is provided, focus the analysis on that module or path only.
 Otherwise, analyze the full application.
 
