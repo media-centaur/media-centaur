@@ -104,6 +104,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <div
         id="detail-content"
         class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 bg-base-300/40"
+        phx-hook="ScrollToResume"
+        data-entity-id={@entity.id}
       >
         <.content_list
           entity={@entity}
@@ -447,6 +449,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         episode_row_class(@state, @is_resume_target)
       ]}
       data-role="episode-row"
+      data-resume-target={@is_resume_target || nil}
       phx-click={@on_play}
       phx-value-id={@episode.id}
       data-nav-item
