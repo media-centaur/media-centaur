@@ -15,7 +15,7 @@ defmodule MediaCentaur.ImagePipeline do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Helpers
+  alias MediaCentaur.Library.{EntityCascade, Helpers}
   alias MediaCentaur.Pipeline.ImageProcessor
 
   def start_link(_opts) do
@@ -111,26 +111,30 @@ defmodule MediaCentaur.ImagePipeline do
 
   @impl true
   def handle_failed(messages, _context) do
-    Enum.each(messages, fn
-      %{status: {:failed, {category, reason}}, data: %{image: image, owner_id: owner_id}} ->
+    {permanent, transient} =
+      messages
+      |> Enum.filter(&match?(%{status: {:failed, _}}, &1))
+      |> Enum.split_with(fn %{status: {:failed, {category, _}}} -> category == :permanent end)
+
+    Enum.each(permanent ++ transient, fn
+      %{status: {:failed, {category, reason}}, data: %{owner_id: owner_id, image: image}} ->
         Log.warning(
           :pipeline,
           "image failed (#{category}): #{image.role} for #{owner_id} — #{inspect(reason)}"
         )
-
-        case category do
-          :permanent ->
-            Ash.destroy!(image)
-
-          :transient ->
-            if GenServer.whereis(MediaCentaur.ImagePipeline.RetryScheduler) do
-              MediaCentaur.ImagePipeline.RetryScheduler.record_failure(image.id)
-            end
-        end
-
-      _ ->
-        :ok
     end)
+
+    permanent_images = Enum.map(permanent, fn %{data: %{image: image}} -> image end)
+
+    if permanent_images != [] do
+      EntityCascade.bulk_destroy(permanent_images, Library.Image)
+    end
+
+    if GenServer.whereis(MediaCentaur.ImagePipeline.RetryScheduler) do
+      Enum.each(transient, fn %{data: %{image: image}} ->
+        MediaCentaur.ImagePipeline.RetryScheduler.record_failure(image.id)
+      end)
+    end
 
     messages
   end

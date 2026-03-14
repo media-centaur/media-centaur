@@ -169,7 +169,6 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:noreply, socket}
   end
 
-  @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end

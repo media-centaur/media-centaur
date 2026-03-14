@@ -77,11 +77,8 @@ defmodule MediaCentaur.Watcher do
 
   @impl true
   def handle_call(:state, _from, state), do: {:reply, state.state, state}
-
-  @impl true
   def handle_call(:dir, _from, state), do: {:reply, state.dir, state}
 
-  @impl true
   def handle_call(:scan, from, state) do
     dir = state.dir
 
@@ -125,7 +122,6 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
-  @impl true
   def handle_info({:file_event, _pid, {path, events}}, state) do
     cond do
       Enum.member?(events, :unmounted) ->
@@ -149,13 +145,11 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
-  @impl true
   def handle_info({:file_event, _pid, :stop}, state) do
     Log.warning(:watcher, "file_system watcher stopped for #{state.dir}")
     {:noreply, state}
   end
 
-  @impl true
   def handle_info({:check_size, path, last_size, count}, state) do
     case File.stat(path) do
       {:ok, %{size: size}} when size == last_size and count >= @size_stability_checks - 1 ->
@@ -172,7 +166,6 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
-  @impl true
   def handle_info(:health_check, %{state: :watching} = state) do
     schedule_health_check()
     {:noreply, state}
@@ -202,7 +195,6 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
-  @impl true
   def handle_info({:auto_scan, opts}, state) do
     dir = state.dir
 
@@ -218,7 +210,6 @@ defmodule MediaCentaur.Watcher do
     {:noreply, state}
   end
 
-  @impl true
   def handle_info(:flush_deletions, state) do
     if map_size(state.deletion_buffer) > 0 do
       paths = Map.keys(state.deletion_buffer)
