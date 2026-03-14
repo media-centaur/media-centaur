@@ -33,6 +33,23 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     InputSystem: createInputHook(),
+    ScrollToResume: {
+      mounted() { this._scrollToTarget() },
+      updated() {
+        if (this.el.dataset.entityId !== this._lastEntityId) {
+          this._scrollToTarget()
+        }
+      },
+      _scrollToTarget() {
+        this._lastEntityId = this.el.dataset.entityId
+        const target = this.el.querySelector("[data-resume-target]")
+        if (target) {
+          requestAnimationFrame(() => {
+            target.scrollIntoView({ block: "center", behavior: "instant" })
+          })
+        }
+      }
+    },
     ScrollForward: {
       mounted() {
         const target = document.getElementById(this.el.dataset.target)
