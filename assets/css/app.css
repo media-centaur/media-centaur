@@ -114,12 +114,15 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* Reserve scrollbar space so fixed-position elements don't shift when
+   content toggles between scrollable and non-scrollable pages. */
+html { scrollbar-gutter: stable; }
+
 /* This file is for your main application CSS */
 
 /* Left-truncate long paths: ellipsis appears at the start instead of the end */
 .truncate-left {
   direction: rtl;
-  unicode-bidi: plaintext;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
@@ -693,7 +696,7 @@ body {
 .settings-layout {
   display: flex;
   gap: 2rem;
-  max-width: 780px;
+  max-width: 960px;
 }
 
 .section-nav {
@@ -769,6 +772,7 @@ body {
 .settings-config-row {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: 1rem;
 }
 
@@ -990,8 +994,12 @@ body {
 .gamepad-hint-bar {
   position: fixed;
   bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%) translateY(1rem);
+  left: 0;
+  right: 0;
+  width: fit-content;
+  interpolate-size: allow-keywords;
+  margin-inline: auto;
+  transform: translateY(1rem);
   display: flex;
   gap: 1.5rem;
   padding: 0.5rem 1.25rem;
@@ -1002,7 +1010,7 @@ body {
   z-index: 40;
   visibility: hidden;
   opacity: 0;
-  transition: opacity 200ms ease, transform 200ms ease;
+  transition: opacity 200ms ease, transform 200ms ease, width 200ms ease;
   pointer-events: none;
 }
 
@@ -1010,7 +1018,7 @@ body {
 [data-input="gamepad"] .gamepad-hint-bar {
   visibility: visible;
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
 }
 
 /* Hint groups: only show the one matching the current nav context */
@@ -1069,11 +1077,21 @@ body {
 /* Xbox labels (default for generic controllers too) */
 .hint-btn[data-btn="a"]::before { content: "A"; }
 .hint-btn[data-btn="b"]::before { content: "B"; }
+.hint-btn[data-btn="x"]::before { content: "X"; }
+.hint-btn[data-btn="y"]::before { content: "Y"; }
 .hint-btn[data-btn="start"]::before { content: "☰"; }
 .hint-btn[data-btn="dpad"]::before { content: "D-Pad"; }
 .hint-btn[data-btn="lb-rb"]::before { content: "LB/RB"; }
 
+/* Xbox face button colors */
+[data-gamepad-type="xbox"] .hint-btn[data-btn="a"]::before { color: #5dc21e; }
+[data-gamepad-type="xbox"] .hint-btn[data-btn="b"]::before { color: #e3263a; }
+[data-gamepad-type="xbox"] .hint-btn[data-btn="x"]::before { color: #0d7bdb; }
+[data-gamepad-type="xbox"] .hint-btn[data-btn="y"]::before { color: #f5a623; }
+
 /* PlayStation labels */
+[data-gamepad-type="playstation"] .hint-btn[data-btn="y"]::before { content: "△"; }
+[data-gamepad-type="playstation"] .hint-btn[data-btn="x"]::before { content: "□"; }
 [data-gamepad-type="playstation"] .hint-btn[data-btn="a"]::before { content: "✕"; }
 [data-gamepad-type="playstation"] .hint-btn[data-btn="b"]::before { content: "○"; }
 [data-gamepad-type="playstation"] .hint-btn[data-btn="start"]::before { content: "⏸"; }

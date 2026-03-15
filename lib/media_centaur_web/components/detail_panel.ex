@@ -750,19 +750,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             <span class="text-base-content/50 w-16 flex-shrink-0">Genres</span>
             <span class="text-base-content/80">{Enum.join(@genres, ", ")}</span>
           </div>
-          <div :if={@entity.director} class="flex items-center gap-2">
+          <div :if={@entity.director} class="flex items-baseline gap-2">
             <span class="text-base-content/50 w-16 flex-shrink-0">Director</span>
             <span class="text-base-content/80">{@entity.director}</span>
           </div>
-          <div :if={@entity.aggregate_rating_value} class="flex items-center gap-2">
+          <div :if={@entity.aggregate_rating_value} class="flex items-baseline gap-2">
             <span class="text-base-content/50 w-16 flex-shrink-0">Rating</span>
             <span class="text-base-content/80">{@entity.aggregate_rating_value}</span>
           </div>
-          <div :if={@entity.duration} class="flex items-center gap-2">
+          <div :if={@entity.duration} class="flex items-baseline gap-2">
             <span class="text-base-content/50 w-16 flex-shrink-0">Duration</span>
             <span class="text-base-content/80">{format_iso_duration(@entity.duration)}</span>
           </div>
-          <div :if={@entity.content_rating} class="flex items-center gap-2">
+          <div :if={@entity.content_rating} class="flex items-baseline gap-2">
             <span class="text-base-content/50 w-16 flex-shrink-0">Rated</span>
             <span class="text-base-content/80">{@entity.content_rating}</span>
           </div>
@@ -854,7 +854,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <span :if={@absent} class="text-xs text-warning flex-shrink-0">absent</span>
       </div>
       <div class="mt-0.5 ml-6 text-xs text-base-content/30 truncate-left" title={@directory}>
-        {@directory}
+        <bdo dir="ltr">{@directory}</bdo>
       </div>
     </div>
     """

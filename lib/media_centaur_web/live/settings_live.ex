@@ -367,18 +367,27 @@ defmodule MediaCentaurWeb.SettingsLive do
         <div class="settings-config-row min-w-0">
           <span class="text-base-content/60 shrink-0">MPV path</span>
           <span class="font-mono truncate-left" title={@config[:mpv_path]}>
-            {@config[:mpv_path] || "—"}
+            <bdo dir="ltr">{@config[:mpv_path] || "—"}</bdo>
           </span>
         </div>
         <div class="settings-config-row min-w-0">
           <span class="text-base-content/60 shrink-0">Database path</span>
-          <span class="font-mono text-xs truncate-left" title={@config[:database_path]}>
-            {@config[:database_path] || "—"}
+          <span class="font-mono text-xs min-w-0 truncate-left" title={@config[:database_path]}>
+            <bdo dir="ltr">{@config[:database_path] || "—"}</bdo>
           </span>
         </div>
-        <div class="settings-config-row">
+        <div :for={dir <- @config[:watch_dirs]} class="settings-config-row min-w-0">
+          <span :if={dir == List.first(@config[:watch_dirs])} class="text-base-content/60 shrink-0">
+            Watch directories
+          </span>
+          <span :if={dir != List.first(@config[:watch_dirs])} class="shrink-0"></span>
+          <span class="font-mono text-xs min-w-0 truncate-left" title={dir}>
+            <bdo dir="ltr">{dir}</bdo>
+          </span>
+        </div>
+        <div :if={@config[:watch_dirs] == []} class="settings-config-row">
           <span class="text-base-content/60">Watch directories</span>
-          <span class="font-mono">{@config[:watch_dirs_count] || 0}</span>
+          <span class="text-base-content/40 italic">None configured</span>
         </div>
       </div>
     </div>
@@ -478,7 +487,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       auto_approve_threshold: config.get(:auto_approve_threshold),
       mpv_path: config.get(:mpv_path),
       database_path: config.get(:database_path),
-      watch_dirs_count: length(config.get(:watch_dirs) || [])
+      watch_dirs: config.get(:watch_dirs) || []
     }
   end
 

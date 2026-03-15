@@ -301,13 +301,16 @@ defmodule MediaCentaurWeb.ReviewLive do
         </div>
 
         <%!-- Empty state --%>
-        <div
-          :if={@groups == []}
-          class="glass-surface rounded-2xl py-12 flex flex-col items-center justify-center gap-3"
-        >
-          <.icon name="hero-check-circle" class="size-16 text-success/30" />
-          <h2 class="text-xl font-semibold">All clear</h2>
-          <p class="text-base-content/60">No files awaiting review.</p>
+        <div :if={@groups == []} data-nav-zone="review-list">
+          <div
+            class="glass-surface rounded-2xl py-12 flex flex-col items-center justify-center gap-3"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-check-circle" class="size-16 text-success/30" />
+            <h2 class="text-xl font-semibold">All clear</h2>
+            <p class="text-base-content/60">No files awaiting review.</p>
+          </div>
         </div>
 
         <%!-- Master-detail layout --%>
@@ -491,7 +494,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               class="font-mono text-xs text-base-content/50 truncate-left mt-1"
               title={relative_file_path(@file)}
             >
-              {relative_file_path(@file)}
+              <bdo dir="ltr">{relative_file_path(@file)}</bdo>
             </p>
           </div>
           <span class={["text-sm shrink-0", reason_text_class(@reason)]}>
@@ -612,7 +615,7 @@ defmodule MediaCentaurWeb.ReviewLive do
                   class="font-mono text-xs text-base-content/70 truncate-left"
                   title={relative_file_path(file)}
                 >
-                  {relative_file_path(file)}
+                  <bdo dir="ltr">{relative_file_path(file)}</bdo>
                 </span>
               </li>
             </ul>

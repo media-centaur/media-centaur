@@ -18,10 +18,11 @@ All file paths in the UI must follow these rules:
 2. **Visible text:** The watch-dir-relative path (or full path if no watch dir applies).
 3. **Truncation direction:** From the start of the string — the directory prefix is elided, the filename stays visible.
 4. **CSS technique:** The `.truncate-left` utility class uses `direction: rtl` to place the ellipsis at the start instead of the end.
+5. **BiDi fix:** Text inside a `.truncate-left` container must be wrapped in `<bdo dir="ltr">` to prevent RTL from reordering neutral characters like `/`. Without this, the leading `/` visually moves to the end of the path. Copy/paste is unaffected (DOM order is preserved), but the visual is wrong.
 
 ### Consequences
 
 * Good, because the filename — the most useful identifier — is always visible
 * Good, because hovering any path reveals the complete location
-* Good, because the convention is consistent across all pages (library, review, operations)
-* Bad, because `direction: rtl` can cause minor visual quirks with certain punctuation; mitigated by `unicode-bidi: plaintext`
+* Good, because the convention is consistent across all pages (library, review, operations, settings)
+* Good, because `<bdo dir="ltr">` preserves correct visual character order while still allowing left-truncation
