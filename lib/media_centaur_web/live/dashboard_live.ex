@@ -600,7 +600,7 @@ defmodule MediaCentaurWeb.DashboardLive do
                   <span class="text-error text-xs">{error[:stage] || "—"}</span>
                 </td>
                 <td class="font-mono text-xs max-w-xs truncate-left" title={error.file_path}>
-                  {error.file_path || "—"}
+                  <bdo dir="ltr">{error.file_path || "—"}</bdo>
                 </td>
                 <td class="text-error text-xs max-w-md truncate">{error.error_message || "—"}</td>
                 <td class="text-xs">{format_datetime(error.updated_at)}</td>
@@ -657,7 +657,7 @@ defmodule MediaCentaurWeb.DashboardLive do
                   class="truncate-left text-base-content/70"
                   title={role.path}
                 >
-                  {role.path}
+                  <bdo dir="ltr">{role.path}</bdo>
                 </code>
               </div>
             </div>
