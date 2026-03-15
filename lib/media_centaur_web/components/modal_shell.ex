@@ -19,6 +19,8 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_detail"
   attr :rematch_confirm, :boolean, default: false
+  attr :detail_view, :atom, default: :main
+  attr :detail_files, :list, default: []
 
   def modal_shell(assigns) do
     ~H"""
@@ -50,6 +52,8 @@ defmodule MediaCentaurWeb.Components.ModalShell do
             on_play={@on_play}
             on_close={@on_close}
             rematch_confirm={@rematch_confirm}
+            detail_view={@detail_view}
+            detail_files={@detail_files}
           />
         </div>
       </div>

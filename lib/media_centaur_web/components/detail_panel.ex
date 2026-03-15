@@ -60,6 +60,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
   attr :rematch_confirm, :boolean, default: false
+  attr :detail_view, :atom, default: :main
+  attr :detail_files, :list, default: []
 
   def detail_panel(assigns) do
     expanded_seasons =
@@ -97,7 +99,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             progress={@progress}
             resume={@resume}
             on_play={@on_play}
-            rematch_confirm={@rematch_confirm}
+            detail_view={@detail_view}
           />
         </div>
       </div>
@@ -107,13 +109,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         phx-hook="ScrollToResume"
         data-entity-id={@entity.id}
       >
-        <.content_list
-          entity={@entity}
-          expanded_seasons={@expanded_seasons}
-          progress_by_key={@progress_by_key}
-          resume_episode_key={@resume_episode_key}
-          on_play={@on_play}
-        />
+        <%= if @detail_view == :main do %>
+          <.content_list
+            entity={@entity}
+            expanded_seasons={@expanded_seasons}
+            progress_by_key={@progress_by_key}
+            resume_episode_key={@resume_episode_key}
+            on_play={@on_play}
+          />
+        <% else %>
+          <.info_view entity={@entity} files={@detail_files} rematch_confirm={@rematch_confirm} />
+        <% end %>
       </div>
     </div>
     """
@@ -205,14 +211,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           <.icon name="hero-play-mini" class="size-4" /> {@label}
         </button>
         <button
-          phx-click="rematch"
-          phx-value-id={@entity.id}
-          class={"btn btn-soft btn-sm #{if @rematch_confirm, do: "btn-error", else: "btn-warning"}"}
+          phx-click="toggle_detail_view"
+          class={[
+            "btn btn-sm",
+            if(@detail_view == :info, do: "btn-soft btn-primary", else: "btn-ghost")
+          ]}
           data-nav-item
           tabindex="0"
         >
-          <.icon name="hero-arrow-path-mini" class="size-4" />
-          {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
+          <.icon name="hero-information-circle-mini" class="size-4" />
+          {if @detail_view == :info, do: "Back", else: "More"}
         </button>
       </div>
     </div>
@@ -673,7 +681,182 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     """
   end
 
-  # --- More Details (collapsible) ---
+  # --- Info View ---
+
+  attr :entity, :map, required: true
+  attr :files, :list, default: []
+  attr :rematch_confirm, :boolean, default: false
+
+  defp info_view(assigns) do
+    total_size = Enum.reduce(assigns.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
+    file_count = length(assigns.files)
+    genres = assigns.entity.genres || []
+    identifiers = if is_list(assigns.entity.identifiers), do: assigns.entity.identifiers, else: []
+
+    assigns =
+      assigns
+      |> assign(:total_size, total_size)
+      |> assign(:file_count, file_count)
+      |> assign(:genres, genres)
+      |> assign(:identifiers, identifiers)
+
+    ~H"""
+    <div class="pt-3 space-y-5">
+      <%!-- Files section --%>
+      <div :if={@files != []}>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
+            Files
+          </span>
+          <span class="text-xs text-base-content/40">
+            {file_summary(@file_count, @total_size)}
+          </span>
+        </div>
+        <div class="space-y-1.5">
+          <.file_row :for={file_info <- @files} file_info={file_info} />
+        </div>
+      </div>
+
+      <%!-- Metadata section --%>
+      <div :if={
+        @genres != [] || @entity.director || @entity.aggregate_rating_value || @entity.duration
+      }>
+        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
+          Metadata
+        </span>
+        <div class="mt-2 space-y-2 text-sm">
+          <div :if={@genres != []} class="flex items-start gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0">Genres</span>
+            <span class="text-base-content/80">{Enum.join(@genres, ", ")}</span>
+          </div>
+          <div :if={@entity.director} class="flex items-center gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0">Director</span>
+            <span class="text-base-content/80">{@entity.director}</span>
+          </div>
+          <div :if={@entity.aggregate_rating_value} class="flex items-center gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0">Rating</span>
+            <span class="text-base-content/80">{@entity.aggregate_rating_value}</span>
+          </div>
+          <div :if={@entity.duration} class="flex items-center gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0">Duration</span>
+            <span class="text-base-content/80">{format_iso_duration(@entity.duration)}</span>
+          </div>
+          <div :if={@entity.content_rating} class="flex items-center gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0">Rated</span>
+            <span class="text-base-content/80">{@entity.content_rating}</span>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Identifiers section --%>
+      <div>
+        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
+          Identifiers
+        </span>
+        <div class="mt-2 space-y-2 text-sm">
+          <div :if={@entity.url} class="flex items-start gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0">TMDB</span>
+            <a
+              href={@entity.url}
+              target="_blank"
+              rel="noopener"
+              class="link link-primary text-sm truncate"
+            >
+              {@entity.url}
+            </a>
+          </div>
+          <div :for={identifier <- @identifiers} class="flex items-start gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0 truncate">
+              {identifier.property_id}
+            </span>
+            <span class="text-base-content/80 font-mono text-xs">{identifier.value}</span>
+          </div>
+          <div class="flex items-start gap-2">
+            <span class="text-base-content/50 w-16 flex-shrink-0">UUID</span>
+            <span class="text-base-content/60 font-mono text-xs select-all">{@entity.id}</span>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Actions section --%>
+      <div>
+        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
+          Actions
+        </span>
+        <div class="mt-2 flex items-center gap-2">
+          <button
+            phx-click="rematch"
+            phx-value-id={@entity.id}
+            class={"btn btn-soft btn-sm #{if @rematch_confirm, do: "btn-error", else: "btn-warning"}"}
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-arrow-path-mini" class="size-4" />
+            {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  attr :file_info, :map, required: true
+
+  defp file_row(assigns) do
+    file = assigns.file_info.file
+    size = assigns.file_info.size
+    absent = file.state == :absent
+    filename = Path.basename(file.file_path)
+    directory = Path.dirname(file.file_path)
+
+    assigns =
+      assigns
+      |> assign(:file_path, file.file_path)
+      |> assign(:filename, filename)
+      |> assign(:directory, directory)
+      |> assign(:size, size)
+      |> assign(:absent, absent)
+
+    ~H"""
+    <div class={["text-sm rounded p-2 bg-base-content/5", @absent && "opacity-60"]}>
+      <div class="flex items-center gap-2">
+        <.icon
+          name={if @absent, do: "hero-exclamation-triangle-mini", else: "hero-document-mini"}
+          class={"size-3.5 flex-shrink-0 #{if @absent, do: "text-warning", else: "text-base-content/40"}"}
+        />
+        <span class="truncate font-mono text-xs text-base-content/80" title={@file_path}>
+          {@filename}
+        </span>
+        <span :if={@size} class="text-xs text-base-content/40 flex-shrink-0 ml-auto">
+          {format_file_size(@size)}
+        </span>
+        <span :if={@absent} class="text-xs text-warning flex-shrink-0">absent</span>
+      </div>
+      <div class="mt-0.5 ml-6 text-xs text-base-content/30 truncate-left" title={@directory}>
+        {@directory}
+      </div>
+    </div>
+    """
+  end
+
+  defp file_summary(count, total_size) do
+    size_str = format_file_size(total_size)
+    "#{count} #{if count == 1, do: "file", else: "files"}, #{size_str}"
+  end
+
+  defp format_file_size(bytes) when bytes >= 1_073_741_824 do
+    "#{Float.round(bytes / 1_073_741_824, 1)} GB"
+  end
+
+  defp format_file_size(bytes) when bytes >= 1_048_576 do
+    "#{Float.round(bytes / 1_048_576, 1)} MB"
+  end
+
+  defp format_file_size(bytes) when bytes >= 1024 do
+    "#{Float.round(bytes / 1024, 1)} KB"
+  end
+
+  defp format_file_size(bytes), do: "#{bytes} B"
 
   # --- Helpers ---
 
