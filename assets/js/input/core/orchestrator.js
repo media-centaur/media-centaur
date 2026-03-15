@@ -316,6 +316,14 @@ export class Orchestrator {
       alwaysPopulated: this._config.alwaysPopulated,
     })
     this.focusMachine.setNavGraph(navGraph)
+
+    // After a modal sub-view transition (e.g. info → main), the previously
+    // focused element was removed by morphdom. Refocus into the modal now
+    // that the DOM has been patched and the nav graph rebuilt.
+    if (this._pendingModalRefocus && this.focusMachine.context === Context.MODAL) {
+      this._pendingModalRefocus = false
+      this.writer.focusFirst(Context.MODAL)
+    }
   }
 
   _buildCounts() {
@@ -678,6 +686,19 @@ export class Orchestrator {
 
   _executeDismiss() {
     if (!this._hookEl) return
+
+    // If the modal has a sub-view (e.g. info), BACK returns to the main view
+    // without dismissing. Push the event and let LiveView handle it — keep
+    // focus context in the modal so the user stays in the overlay.
+    const detailView = this.reader.getDetailView?.()
+    if (detailView && detailView !== "main") {
+      this._hookEl.pushEvent("close_detail", {})
+      // The LiveView patch (info → main) will remove the focused element.
+      // Flag _syncState to refocus the modal after the DOM updates.
+      this._pendingModalRefocus = true
+      return
+    }
+
     this._hookEl.pushEvent("close_detail", {})
     // Proactively restore — don't wait for onViewChanged() which may not
     // fire if the hook element isn't directly patched by morphdom.

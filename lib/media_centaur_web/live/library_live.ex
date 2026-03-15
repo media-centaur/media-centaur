@@ -74,6 +74,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     sort = parse_sort(params["sort"])
     filter_text = params["filter"] || ""
     selected_id = params["selected"]
+    detail_view = parse_view(params["view"])
 
     presentation =
       case {selected_id, zone} do
@@ -90,6 +91,27 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     selection_changed = selected_id != socket.assigns.selected_entity_id
 
+    # Reset to main view when switching entities, but not on initial mount
+    # (nil → id) so the URL's view param is honored on reload.
+    entity_switched =
+      selection_changed && socket.assigns.selected_entity_id != nil
+
+    detail_view = if entity_switched, do: :main, else: detail_view
+
+    detail_files =
+      if selection_changed do
+        []
+      else
+        socket.assigns.detail_files
+      end
+
+    detail_files =
+      if detail_view == :info && detail_files == [] && selected_id do
+        load_entity_files(selected_id)
+      else
+        detail_files
+      end
+
     socket =
       socket
       |> assign(
@@ -98,11 +120,10 @@ defmodule MediaCentaurWeb.LibraryLive do
         sort_order: sort,
         filter_text: filter_text,
         selected_entity_id: selected_id,
-        detail_presentation: presentation
+        detail_presentation: presentation,
+        detail_view: detail_view,
+        detail_files: detail_files
       )
-      |> then(fn s ->
-        if selection_changed, do: assign(s, detail_view: :main, detail_files: []), else: s
-      end)
       |> then(fn s -> if grid_changed, do: reset_stream(s), else: s end)
 
     {:noreply, socket}
@@ -144,10 +165,14 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_event("close_detail", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(rematch_confirm: nil, detail_view: :main, detail_files: [])
-     |> push_patch(to: build_path(socket, %{selected: nil}))}
+    if socket.assigns.detail_view == :info do
+      {:noreply, push_patch(socket, to: build_path(socket, %{view: :main}))}
+    else
+      {:noreply,
+       socket
+       |> assign(rematch_confirm: nil)
+       |> push_patch(to: build_path(socket, %{selected: nil, view: :main}))}
+    end
   end
 
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
@@ -235,20 +260,8 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_event("toggle_detail_view", _params, socket) do
-    case socket.assigns.detail_view do
-      :main ->
-        files =
-          if socket.assigns.detail_files == [] && socket.assigns.selected_entity_id do
-            load_entity_files(socket.assigns.selected_entity_id)
-          else
-            socket.assigns.detail_files
-          end
-
-        {:noreply, assign(socket, detail_view: :info, detail_files: files)}
-
-      :info ->
-        {:noreply, assign(socket, detail_view: :main)}
-    end
+    new_view = if socket.assigns.detail_view == :main, do: :info, else: :main
+    {:noreply, push_patch(socket, to: build_path(socket, %{view: new_view}))}
   end
 
   def handle_event("toggle_season", %{"season" => season_str}, socket) do
@@ -633,6 +646,9 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp parse_sort("year"), do: :year
   defp parse_sort(_), do: :recent
 
+  defp parse_view("info"), do: :info
+  defp parse_view(_), do: :main
+
   # Build a URL path preserving current socket state with overrides
   defp build_path(socket, overrides) do
     assigns = socket.assigns
@@ -642,6 +658,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     sort = Map.get(overrides, :sort, assigns.sort_order)
     filter = Map.get(overrides, :filter, assigns.filter_text)
     selected = Map.get(overrides, :selected, assigns.selected_entity_id)
+    view = Map.get(overrides, :view, assigns.detail_view)
 
     params = %{}
     params = if zone == :library, do: Map.put(params, :zone, :library), else: params
@@ -649,6 +666,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     params = if zone == :library, do: Map.put(params, :sort, sort), else: params
     params = if filter != "", do: Map.put(params, :filter, filter), else: params
     params = if selected, do: Map.put(params, :selected, selected), else: params
+    params = if selected && view == :info, do: Map.put(params, :view, :info), else: params
 
     if params == %{}, do: ~p"/", else: ~p"/?#{params}"
   end
