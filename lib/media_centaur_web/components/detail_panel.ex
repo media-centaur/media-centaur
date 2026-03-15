@@ -93,7 +93,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <.hero entity={@entity} />
         <div class="p-4 space-y-4">
           <.metadata_row entity={@entity} />
-          <.description entity={@entity} />
+          <div class="space-y-1">
+            <.description entity={@entity} />
+            <.genres entity={@entity} />
+          </div>
           <.playback_actions
             entity={@entity}
             progress={@progress}
@@ -324,6 +327,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp description(assigns) do
     ~H"""
     <p class="text-sm text-base-content/70 line-clamp-4">{@entity.description}</p>
+    """
+  end
+
+  defp genres(%{entity: %{genres: genres}} = assigns) when is_list(genres) and genres != [] do
+    ~H"""
+    <p class="text-sm text-base-content/60">{Enum.join(@entity.genres, ", ")}</p>
+    """
+  end
+
+  defp genres(assigns) do
+    ~H"""
     """
   end
 
