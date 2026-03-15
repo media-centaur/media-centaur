@@ -82,22 +82,32 @@ defmodule MediaCentaurWeb.Layouts do
 
         <div class="flex-1" />
 
-        <div class="sidebar-theme-wrap mb-2">
-          <.theme_toggle />
-        </div>
-
-        <button
-          class="sidebar-theme-cycle sidebar-link tooltip tooltip-right"
-          phx-click={JS.dispatch("phx:cycle-theme")}
-          data-tip="Theme"
+        <div
+          class="sidebar-theme-nav"
+          data-nav-item
+          data-nav-focus-target
+          data-nav-defer-activate
+          data-nav-action="phx:cycle-theme"
+          tabindex="0"
         >
-          <.icon
-            name="hero-computer-desktop-micro"
-            class="size-5 flex-shrink-0 theme-icon theme-icon-system"
-          />
-          <.icon name="hero-sun-micro" class="size-5 flex-shrink-0 theme-icon theme-icon-light" />
-          <.icon name="hero-moon-micro" class="size-5 flex-shrink-0 theme-icon theme-icon-dark" />
-        </button>
+          <div class="sidebar-theme-wrap" data-nav-focus-ring>
+            <.theme_toggle />
+          </div>
+
+          <button
+            class="sidebar-theme-cycle sidebar-link tooltip tooltip-right"
+            phx-click={JS.dispatch("phx:cycle-theme")}
+            data-tip="Theme"
+            data-nav-focus-ring
+          >
+            <.icon
+              name="hero-computer-desktop-micro"
+              class="size-5 flex-shrink-0 theme-icon theme-icon-system"
+            />
+            <.icon name="hero-sun-micro" class="size-5 flex-shrink-0 theme-icon theme-icon-light" />
+            <.icon name="hero-moon-micro" class="size-5 flex-shrink-0 theme-icon theme-icon-dark" />
+          </button>
+        </div>
 
         <button
           class="sidebar-link"

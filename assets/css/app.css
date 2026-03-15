@@ -310,6 +310,14 @@ body {
   display: block !important;
 }
 
+/* Theme nav wrapper — single nav item containing both theme widgets.
+   Focus ring goes on whichever child is visible (pill when expanded, icon when collapsed). */
+.sidebar-theme-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+
 /* Theme toggle: full pill when expanded, hidden when collapsed */
 .sidebar-theme-wrap {
   overflow: hidden;
@@ -656,6 +664,27 @@ body {
 /* Light theme focus ring — darker primary */
 [data-theme=light][data-input=keyboard] [data-nav-item]:focus,
 [data-theme=light][data-input=gamepad] [data-nav-item]:focus {
+  outline-color: oklch(50% 0.18 250);
+}
+
+/* Delegated focus ring — when a nav item has data-nav-focus-target, the ring
+   appears on descendant [data-nav-focus-ring] elements instead of the item.
+   Use when a nav item is a container with multiple visual children (e.g. the
+   theme toggle shows a pill when expanded and an icon when collapsed). */
+[data-input=keyboard] [data-nav-item][data-nav-focus-target]:focus,
+[data-input=gamepad] [data-nav-item][data-nav-focus-target]:focus {
+  outline: none;
+}
+
+[data-input=keyboard] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring],
+[data-input=gamepad] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring] {
+  outline: 2px solid oklch(62% 0.16 250);
+  outline-offset: 2px;
+  border-radius: var(--radius-box, 0.5rem);
+}
+
+[data-theme=light][data-input=keyboard] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring],
+[data-theme=light][data-input=gamepad] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring] {
   outline-color: oklch(50% 0.18 250);
 }
 
