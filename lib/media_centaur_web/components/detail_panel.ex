@@ -76,11 +76,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     resume_episode_key = resume_episode_key(assigns.resume)
 
+    has_scrollable_content =
+      assigns.detail_view == :info ||
+        assigns.entity.type in [:tv_series, :movie_series] ||
+        entity_extras(assigns.entity) != []
+
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
       |> assign(:progress_by_key, progress_by_key)
       |> assign(:resume_episode_key, resume_episode_key)
+      |> assign(:has_scrollable_content, has_scrollable_content)
 
     ~H"""
     <div class="detail-panel flex flex-col flex-1 min-h-0">
@@ -107,6 +113,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </div>
       </div>
       <div
+        :if={@has_scrollable_content}
         id="detail-content"
         class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 bg-base-300/40"
         phx-hook="ScrollToResume"
