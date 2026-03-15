@@ -99,6 +99,14 @@ export function createDomReader(config = {}) {
     },
 
     /**
+     * Get the current detail view within an open modal.
+     * Returns "main" or "info", or null if no modal is open.
+     */
+    getDetailView() {
+      return document.querySelector("[data-detail-mode='modal']")?.dataset?.detailView ?? null
+    },
+
+    /**
      * Get the current presentation mode.
      */
     getPresentation() {

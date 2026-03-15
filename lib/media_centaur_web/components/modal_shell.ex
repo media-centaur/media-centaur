@@ -28,10 +28,10 @@ defmodule MediaCentaurWeb.Components.ModalShell do
       id="detail-modal"
       class="modal-backdrop"
       data-state={if @open, do: "open", else: "closed"}
-      phx-click={@open && @on_close}
       phx-window-keydown={@open && @on_close}
       phx-key="Escape"
       data-detail-mode={@open && "modal"}
+      data-detail-view={@open && to_string(@detail_view)}
     >
       <div class="modal-panel bg-base-100" phx-click-away={@open && @on_close}>
         <div :if={@entity} class="flex flex-col flex-1 min-h-0">
