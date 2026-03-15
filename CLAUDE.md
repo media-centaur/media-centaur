@@ -86,6 +86,14 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 See [ADR-024](decisions/architecture/2026-03-07-024-ash-driven-migrations.md). Generate migrations from Ash resources (`mix ash_sqlite.generate_migrations --name <short_name>`) — never hand-write or edit them. Custom SQL goes in separate manual migration files.
 
+## Observability for Debugging
+
+Every system — Elixir, JavaScript, or otherwise — must be designed so that Claude Code can get diagnostic feedback when something goes wrong at runtime. Tests passing while the app is broken means the observability gap is the first problem to solve.
+
+- **Elixir/OTP:** The thinking log system (`MediaCentaur.Log`) already covers this. Use it.
+- **JavaScript (browser):** The input system has built-in debug logging via `debug()` from `assets/js/input/core/debug.js`. Toggle at runtime: `window.__inputDebug = true`. All messages are prefixed `[input]` and silent by default. Use the Chrome DevTools MCP (`evaluate_script`) to enable/disable and `list_console_messages` to read output. When adding debug logging to other JS systems, follow the same pattern — a toggle-gated function, never bare `console.log`.
+- **New systems:** If it's not immediately obvious how to get runtime diagnostic output back to Claude Code, stop and consult with the user on how it should work before proceeding with the fix. Don't guess — the feedback loop is a prerequisite.
+
 ## Architecture Principles
 
 - **Ash is the only data interface.** Never write raw SQL queries, use `Ecto.Query`, call `Repo` directly, or use `execute()` with SQL strings in application code or migrations. All database reads and writes go through Ash actions — no exceptions. If Ash doesn't have the necessary action or capability for an operation, plan and implement the missing Ash action first — never bypass Ash with manual queries. This includes data migrations: use Ash actions in a `Mix.Task` or seed script, not raw SQL.

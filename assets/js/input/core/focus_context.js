@@ -9,6 +9,7 @@
  */
 
 import { Action } from "./actions"
+import { debug } from "./debug"
 
 export const Context = Object.freeze({
   GRID: "grid",
@@ -66,9 +67,23 @@ export class FocusContextMachine {
       primaryMenu: config.primaryMenu ?? null,
     }
     this._context = config.initialContext ?? Context.GRID
+    this._onContextChanged = config.onContextChanged ?? null
     this._drawerOpen = false
     this._zone = "watching"
     this._navGraph = null
+  }
+
+  /**
+   * Set context with change notification. All internal context mutations
+   * go through this method so the onContextChanged callback fires exactly
+   * once per actual state change.
+   */
+  _setContext(value) {
+    if (value === this._context) return
+    const prev = this._context
+    this._context = value
+    debug("_setContext:", prev, "→", value, new Error().stack.split("\n")[2]?.trim())
+    this._onContextChanged?.(value)
   }
 
   get context() {
@@ -102,7 +117,7 @@ export class FocusContextMachine {
     this._drawerOpen = false
     // Preserve ZONE_TABS context — user is still navigating tabs
     if (this._context !== Context.ZONE_TABS) {
-      this._context = Context.GRID
+      this._setContext(Context.GRID)
     }
   }
 
@@ -113,7 +128,7 @@ export class FocusContextMachine {
    * @param {string} context - One of the Context values
    */
   forceContext(context) {
-    this._context = context
+    this._setContext(context)
   }
 
   /**
@@ -140,7 +155,7 @@ export class FocusContextMachine {
    * @returns {FocusDirective}
    */
   enterSidebarFromWall() {
-    this._context = this._config.primaryMenu
+    this._setContext(this._config.primaryMenu)
     return { type: "enter_sidebar" }
   }
 
@@ -150,14 +165,14 @@ export class FocusContextMachine {
    */
   presentationChanged(presentation) {
     if (presentation === "modal") {
-      this._context = Context.MODAL
+      this._setContext(Context.MODAL)
     } else if (presentation === "drawer") {
       this._drawerOpen = true
-      this._context = Context.DRAWER
+      this._setContext(Context.DRAWER)
     } else {
       this._drawerOpen = false
       if (this._context === Context.MODAL || this._context === Context.DRAWER) {
-        this._context = Context.GRID
+        this._setContext(Context.GRID)
       }
     }
   }
@@ -188,7 +203,7 @@ export class FocusContextMachine {
       case Action.NAVIGATE_LEFT: {
         const target = this._navGraph?.drawer?.left
         if (!target) return NONE
-        this._context = Context.GRID
+        this._setContext(Context.GRID)
         return { type: "grid_row_edge", side: "right" }
       }
       case Action.NAVIGATE_RIGHT: return NONE
@@ -225,13 +240,13 @@ export class FocusContextMachine {
       case Action.NAVIGATE_DOWN: {
         const target = this._navGraph?.toolbar?.down
         if (!target) return NONE
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
       case Action.NAVIGATE_UP: {
         const target = this._navGraph?.toolbar?.up
         if (!target) return NONE
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
       case Action.SELECT:         return ACTIVATE
@@ -253,7 +268,7 @@ export class FocusContextMachine {
         if (isPrimaryMenu) return { type: "exit_sidebar" }
         const target = this._navGraph?.[this._context]?.right
         if (!target) return NONE
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
       case Action.NAVIGATE_LEFT: {
@@ -261,10 +276,10 @@ export class FocusContextMachine {
         const target = this._navGraph?.[this._context]?.left
         if (!target) return NONE
         if (target === this._config.primaryMenu) {
-          this._context = this._config.primaryMenu
+          this._setContext(this._config.primaryMenu)
           return { type: "enter_sidebar" }
         }
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
       case Action.SELECT:         return ACTIVATE
@@ -273,10 +288,10 @@ export class FocusContextMachine {
         const target = this._navGraph?.[this._context]?.left
         if (!target) return NONE
         if (target === this._config.primaryMenu) {
-          this._context = this._config.primaryMenu
+          this._setContext(this._config.primaryMenu)
           return { type: "enter_sidebar" }
         }
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
       default: return NONE
@@ -291,7 +306,7 @@ export class FocusContextMachine {
       case Action.NAVIGATE_DOWN: {
         const target = this._navGraph?.zone_tabs?.down
         if (!target) return NONE
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
       case Action.NAVIGATE_UP:    return NONE
@@ -314,7 +329,7 @@ export class FocusContextMachine {
       case "up": {
         const target = this._navGraph?.grid?.up
         if (!target) return NONE
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
 
@@ -322,17 +337,17 @@ export class FocusContextMachine {
         const target = this._navGraph?.grid?.left
         if (!target) return NONE
         if (target === this._config.primaryMenu) {
-          this._context = this._config.primaryMenu
+          this._setContext(this._config.primaryMenu)
           return { type: "enter_sidebar" }
         }
-        this._context = target
+        this._setContext(target)
         return focusFirst(target)
       }
 
       case "right": {
         const target = this._navGraph?.grid?.right
         if (!target) return NONE
-        this._context = Context.DRAWER
+        this._setContext(Context.DRAWER)
         return focusContext(Context.DRAWER)
       }
 
