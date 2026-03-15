@@ -52,7 +52,9 @@ defmodule MediaCentaurWeb.LibraryLive do
        grid_count: 0,
        reload_timer: nil,
        pending_entity_ids: MapSet.new(),
-       rematch_confirm: nil
+       rematch_confirm: nil,
+       detail_view: :main,
+       detail_files: []
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -86,6 +88,8 @@ defmodule MediaCentaurWeb.LibraryLive do
         sort != socket.assigns.sort_order ||
         filter_text != socket.assigns.filter_text
 
+    selection_changed = selected_id != socket.assigns.selected_entity_id
+
     socket =
       socket
       |> assign(
@@ -96,6 +100,9 @@ defmodule MediaCentaurWeb.LibraryLive do
         selected_entity_id: selected_id,
         detail_presentation: presentation
       )
+      |> then(fn s ->
+        if selection_changed, do: assign(s, detail_view: :main, detail_files: []), else: s
+      end)
       |> then(fn s -> if grid_changed, do: reset_stream(s), else: s end)
 
     {:noreply, socket}
@@ -139,7 +146,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   def handle_event("close_detail", _params, socket) do
     {:noreply,
      socket
-     |> assign(rematch_confirm: nil)
+     |> assign(rematch_confirm: nil, detail_view: :main, detail_files: [])
      |> push_patch(to: build_path(socket, %{selected: nil}))}
   end
 
@@ -224,6 +231,23 @@ defmodule MediaCentaurWeb.LibraryLive do
        |> push_navigate(to: ~p"/review")}
     else
       {:noreply, assign(socket, rematch_confirm: entity_id)}
+    end
+  end
+
+  def handle_event("toggle_detail_view", _params, socket) do
+    case socket.assigns.detail_view do
+      :main ->
+        files =
+          if socket.assigns.detail_files == [] && socket.assigns.selected_entity_id do
+            load_entity_files(socket.assigns.selected_entity_id)
+          else
+            socket.assigns.detail_files
+          end
+
+        {:noreply, assign(socket, detail_view: :info, detail_files: files)}
+
+      :info ->
+        {:noreply, assign(socket, detail_view: :main)}
     end
   end
 
@@ -435,6 +459,8 @@ defmodule MediaCentaurWeb.LibraryLive do
           progress_records={(@selected_entry && @selected_entry.progress_records) || []}
           expanded_seasons={assigns[:expanded_seasons]}
           rematch_confirm={@rematch_confirm == @selected_entity_id}
+          detail_view={@detail_view}
+          detail_files={@detail_files}
           on_play="play"
           on_close="close_detail"
         />
@@ -444,6 +470,19 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   # --- Data Loading ---
+
+  defp load_entity_files(entity_id) do
+    Library.list_watched_files_for_entity!(entity_id)
+    |> Enum.map(fn file ->
+      size =
+        case File.stat(file.file_path) do
+          {:ok, %{size: size}} -> size
+          _ -> nil
+        end
+
+      %{file: file, size: size}
+    end)
+  end
 
   defp load_library(socket) do
     entries = LibraryBrowser.fetch_entities()
