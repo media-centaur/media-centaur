@@ -403,8 +403,14 @@ export class Orchestrator {
       const type = contextType(this.focusMachine.context, this._config.instanceTypes)
       if (type === Context.MENU) {
         const isPrimary = this.focusMachine.context === this._config.primaryMenu
+        const focused = this.reader.getCurrentFocusedItem()
+        if (isPrimary && focused?.hasAttribute("data-nav-defer-activate")) {
+          // Deferred items weren't activated on focus — explicit SELECT activates them
+          this._executeActivate()
+          return
+        }
         if (!isPrimary) {
-          pendingMenuClick = this.reader.getCurrentFocusedItem()
+          pendingMenuClick = focused
         }
         action = Action.NAVIGATE_RIGHT
       }
@@ -610,7 +616,7 @@ export class Orchestrator {
     if (isPrimaryMenu || isBehaviorActivate) {
       this._globals.requestAnimationFrame(() => {
         const focused = this.reader.getCurrentFocusedItem()
-        if (focused) focused.click()
+        if (focused && !focused.hasAttribute("data-nav-defer-activate")) focused.click()
       })
     }
   }
@@ -654,6 +660,13 @@ export class Orchestrator {
   _executeActivate() {
     const focused = this.reader.getCurrentFocusedItem()
     if (!focused) return
+
+    // Custom action: dispatch a named event instead of clicking
+    const action = focused.dataset.navAction
+    if (action) {
+      focused.dispatchEvent(new Event(action, { bubbles: true }))
+      return
+    }
 
     // Remember which card opened the modal/drawer for focus restoration
     if (this.focusMachine.context === Context.GRID && focused.dataset.entityId) {

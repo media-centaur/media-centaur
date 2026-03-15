@@ -311,6 +311,10 @@ Actions in each context:
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
 | `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library` |
+| `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
+| `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
+| `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |
+| `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused | — |
 | `data-nav-context` | Current focus context for hint bar (set on `<html>`) | `grid`, `sidebar`, `modal`, etc. |
 | `data-gamepad-type` | Controller type for hint bar labels (set on `<html>`) | `xbox`, `playstation`, `generic` |
 

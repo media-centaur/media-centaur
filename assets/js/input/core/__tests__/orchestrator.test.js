@@ -1123,7 +1123,7 @@ describe("Orchestrator", () => {
   describe("SELECT on menu activates and exits", () => {
     test("SELECT on primary menu exits sidebar without clicking (already activated on focus)", () => {
       const clicked = mock(() => {})
-      const mockItem = { click: clicked, dataset: {} }
+      const mockItem = { click: clicked, dataset: {}, hasAttribute: () => false }
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
@@ -1150,9 +1150,111 @@ describe("Orchestrator", () => {
       expect(system.focusMachine.context).not.toBe("sidebar")
     })
 
+    test("SELECT on primary menu with data-nav-defer-activate activates instead of exiting", () => {
+      const dispatchedEvents = []
+      const mockItem = {
+        click: mock(() => {}),
+        dataset: { navAction: "phx:cycle-theme" },
+        hasAttribute: (attr) => attr === "data-nav-defer-activate",
+        dispatchEvent(event) { dispatchedEvents.push(event) },
+      }
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getCurrentFocusedItem: () => mockItem,
+        getItemCount: () => 8,
+        getSidebarCollapsed: () => true,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+      calls.length = 0
+
+      onActionCallback(Action.SELECT)
+
+      // Should activate (dispatch custom event), not exit sidebar
+      expect(system.focusMachine.context).toBe("sidebar")
+      expect(dispatchedEvents.length).toBe(1)
+      expect(dispatchedEvents[0].type).toBe("phx:cycle-theme")
+      expect(mockItem.click).not.toHaveBeenCalled()
+    })
+
+    test("SELECT on primary menu with data-nav-defer-activate clicks when no nav-action", () => {
+      const clickMock = mock(() => {})
+      const mockItem = {
+        click: clickMock,
+        dataset: {},
+        hasAttribute: (attr) => attr === "data-nav-defer-activate",
+        dispatchEvent() {},
+      }
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getCurrentFocusedItem: () => mockItem,
+        getItemCount: () => 8,
+        getSidebarCollapsed: () => true,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+      calls.length = 0
+
+      onActionCallback(Action.SELECT)
+
+      // Should click (no nav-action to dispatch) and stay in sidebar
+      expect(system.focusMachine.context).toBe("sidebar")
+      expect(clickMock).toHaveBeenCalled()
+    })
+
+    test("SELECT on non-primary menu with data-nav-defer-activate still exits", () => {
+      const clickMock = mock(() => {})
+      const mockItem = {
+        click: clickMock,
+        dataset: {},
+        hasAttribute: (attr) => attr === "data-nav-defer-activate",
+        dispatchEvent() {},
+      }
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "settings",
+        getCurrentFocusedItem: () => mockItem,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sections")
+      calls.length = 0
+
+      onActionCallback(Action.SELECT)
+
+      // Non-primary menus always exit — defer-activate is primary-menu-only
+      expect(system.focusMachine.context).not.toBe("sections")
+      expect(clickMock).toHaveBeenCalled()
+    })
+
     test("SELECT on non-primary menu clicks item and moves to right neighbor", () => {
       const clicked = mock(() => {})
-      const mockItem = { click: clicked, dataset: {} }
+      const mockItem = { click: clicked, dataset: {}, hasAttribute: () => false }
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
@@ -1394,6 +1496,84 @@ describe("Orchestrator", () => {
       const methodCalls = calls.filter(c => c.method === "setInputMethod")
       expect(methodCalls.length).toBe(1)
       expect(methodCalls[0].args).toEqual(["mouse"])
+    })
+
+    test("data-nav-defer-activate skips auto-click on navigate in primary menu", () => {
+      const clickMock = mock(() => {})
+      const items = [
+        { dataset: {}, focus() {}, click: mock(() => {}), hasAttribute: () => false },
+        { dataset: {}, focus() {}, click: clickMock, hasAttribute: (attr) => attr === "data-nav-defer-activate" },
+      ]
+      let focusIndex = 0
+      const { system, calls, globals } = setup({
+        getItemCount: (ctx) => ctx === "sidebar" ? 2 : 8,
+        getFocusedIndex: (ctx) => ctx === "sidebar" ? focusIndex : 0,
+        getCurrentFocusedItem: () => items[focusIndex],
+        getActiveItemIndex: () => 0,
+      })
+      system.start({})
+      calls.length = 0
+
+      // Enter sidebar
+      globals._dispatchKeyDown("Escape")
+      globals._flushRAF()
+      calls.length = 0
+
+      // Navigate down to the defer-activate item
+      focusIndex = 0
+      globals._dispatchKeyDown("ArrowDown")
+      focusIndex = 1
+      globals._flushRAF()
+
+      // The item should NOT have been clicked
+      expect(clickMock).not.toHaveBeenCalled()
+    })
+
+    test("data-nav-action dispatches custom event on SELECT instead of click", () => {
+      const clickMock = mock(() => {})
+      const dispatchedEvents = []
+      const focusedItem = {
+        dataset: { navAction: "phx:cycle-theme" },
+        click: clickMock,
+        hasAttribute: () => false,
+        dispatchEvent(event) { dispatchedEvents.push(event) },
+      }
+      const { system, calls, globals } = setup({
+        getCurrentFocusedItem: () => focusedItem,
+        getFocusedIndex: () => 0,
+        getItemCount: () => 8,
+      })
+      system.start({})
+      calls.length = 0
+
+      // Press Enter (SELECT) — should dispatch custom event, not click
+      globals._dispatchKeyDown("Enter")
+
+      expect(clickMock).not.toHaveBeenCalled()
+      expect(dispatchedEvents.length).toBe(1)
+      expect(dispatchedEvents[0].type).toBe("phx:cycle-theme")
+      expect(dispatchedEvents[0].bubbles).toBe(true)
+    })
+
+    test("SELECT without data-nav-action still calls click", () => {
+      const clickMock = mock(() => {})
+      const focusedItem = {
+        dataset: {},
+        click: clickMock,
+        hasAttribute: () => false,
+        dispatchEvent: mock(() => {}),
+      }
+      const { system, calls, globals } = setup({
+        getCurrentFocusedItem: () => focusedItem,
+        getFocusedIndex: () => 0,
+        getItemCount: () => 8,
+      })
+      system.start({})
+      calls.length = 0
+
+      globals._dispatchKeyDown("Enter")
+
+      expect(clickMock).toHaveBeenCalledTimes(1)
     })
 
     test("layout shift mousemove after LiveView patch is ignored", () => {
