@@ -562,12 +562,6 @@ defmodule MediaCentaurWeb.DashboardLive do
               <span class="font-mono text-base-content/60">
                 {@rate_limiter.used}/{@rate_limiter.total} used
               </span>
-              <span class={[
-                "font-mono",
-                if(@rate_limiter.available == 0, do: "text-warning", else: "text-success")
-              ]}>
-                {@rate_limiter.available} available
-              </span>
             </div>
 
             <span :if={!@rate_limiter} class="text-sm text-base-content/40">
