@@ -193,6 +193,10 @@ defmodule MediaCentaurWeb.DashboardLive do
           </div>
 
           <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
+            <.recent_errors_table files={@recent_errors} />
+          </.link>
+
+          <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
               <.pipeline_card
                 content_stats={@pipeline_stats}
@@ -208,10 +212,6 @@ defmodule MediaCentaurWeb.DashboardLive do
                 <.external_integrations rate_limiter={@rate_limiter} config={@config} />
               </div>
             </div>
-          </.link>
-
-          <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
-            <.recent_errors_table files={@recent_errors} />
           </.link>
 
           <.link
@@ -270,7 +270,7 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   defp recent_changes_card(assigns) do
     ~H"""
-    <div class="card glass-surface">
+    <div data-nav-item tabindex="0" class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Recent Changes</h2>
 
@@ -321,7 +321,7 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   defp recently_watched_card(assigns) do
     ~H"""
-    <div class="card glass-surface">
+    <div data-nav-item tabindex="0" class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Recently Watched</h2>
 
