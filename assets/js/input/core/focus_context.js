@@ -82,7 +82,7 @@ export class FocusContextMachine {
     if (value === this._context) return
     const prev = this._context
     this._context = value
-    debug("_setContext:", prev, "→", value, new Error().stack.split("\n")[2]?.trim())
+    debug(() => ["_setContext:", prev, "→", value, new Error().stack.split("\n")[2]?.trim()])
     this._onContextChanged?.(value)
   }
 

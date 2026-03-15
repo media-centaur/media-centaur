@@ -260,7 +260,7 @@ export class Orchestrator {
   // --- Internal ---
 
   _syncState() {
-    debug("_syncState called, context:", this.focusMachine.context, new Error().stack.split("\n")[2]?.trim())
+    debug(() => ["_syncState called, context:", this.focusMachine.context, new Error().stack.split("\n")[2]?.trim()])
     const zone = this.reader.getZone()
     const presentation = this.reader.getPresentation()
     const drawerOpen = this.reader.isDrawerOpen()
