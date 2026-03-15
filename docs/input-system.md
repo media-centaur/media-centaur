@@ -303,6 +303,7 @@ Actions in each context:
 | `data-nav-grid` | CSS grid container (column count detection) | — |
 | `data-entity-id` | Stable entity identifier on cards | UUID |
 | `data-detail-mode` | Presentation shell type | `modal`, `drawer` |
+| `data-detail-view` | Sub-view within modal (read by orchestrator for layered BACK) | `main`, `info` |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
 | `data-page-behavior` | Page behavior to activate | `dashboard`, `library`, `review`, `settings` |
@@ -357,6 +358,7 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 - **Zone change:** Clears grid + toolbar memory (content is new)
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
+- **Modal sub-view transition:** When BACK fires in a modal with `data-detail-view != "main"`, the orchestrator pushes `close_detail` without dismissing focus context. Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the first modal item after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
 
 **Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class from `config.activeClassNames`. When adding a new context with an active-item visual, add the class to the `activeClassNames` array in `config.js`.
 
