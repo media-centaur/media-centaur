@@ -502,6 +502,40 @@ describe("FocusContextMachine", () => {
     })
   })
 
+  describe("onContextChanged callback", () => {
+    test("fires on context change", () => {
+      const calls = []
+      const machine = createMachine({ onContextChanged: (ctx) => calls.push(ctx) })
+      machine.forceContext("sidebar")
+      expect(calls).toEqual(["sidebar"])
+    })
+
+    test("does not fire when context unchanged", () => {
+      const calls = []
+      const machine = createMachine({ onContextChanged: (ctx) => calls.push(ctx) })
+      // Machine starts in GRID — forcing to GRID should not fire
+      machine.forceContext(Context.GRID)
+      expect(calls).toEqual([])
+    })
+
+    test("fires from transition", () => {
+      const calls = []
+      const machine = createMachine({ onContextChanged: (ctx) => calls.push(ctx) })
+      machine.zoneChanged("watching")
+      machine.setNavGraph(fullGraph("watching"))
+      // Grid wall up → zone_tabs
+      machine.gridWall("up")
+      expect(calls).toContain(Context.ZONE_TABS)
+    })
+
+    test("fires from presentationChanged", () => {
+      const calls = []
+      const machine = createMachine({ onContextChanged: (ctx) => calls.push(ctx) })
+      machine.presentationChanged("modal")
+      expect(calls).toEqual([Context.MODAL])
+    })
+  })
+
   describe("gridWall left is nav-graph-driven", () => {
     test("left wall goes to sidebar when nav graph points there", () => {
       machine.setNavGraph(fullGraph("watching"))

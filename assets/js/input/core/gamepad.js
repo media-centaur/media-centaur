@@ -12,6 +12,7 @@
  */
 
 import { buttonToAction, DEFAULT_BUTTON_MAP, Action } from "./actions"
+import { debug } from "./debug"
 
 // Navigation actions that get repeat timing on D-pad buttons
 const NAVIGATION_ACTIONS = new Set([
@@ -258,6 +259,7 @@ export class GamepadSource {
 
     if (magnitude < this._deadzone) {
       // Below deadzone — reset
+      if (state.direction) debug("gamepad axis", axis, "returned to center")
       state.direction = null
       return
     }
@@ -267,6 +269,7 @@ export class GamepadSource {
 
     if (direction !== state.direction) {
       // New direction — fire immediately, start repeat timer
+      debug("gamepad axis", axis, "new direction:", direction, "value:", value.toFixed(3), "action:", action)
       state.direction = direction
       state.startTime = now
       state.lastFireTime = now

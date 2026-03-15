@@ -18,6 +18,7 @@ import { gridNavigate } from "./spatial"
 import { FocusContextMachine, Context, contextType } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { buildNavGraph, resolveCursorStart } from "./nav_graph"
+import { debug } from "./debug"
 
 // Minimum mouse movement (px) to switch to mouse input method.
 // Layout shifts fire mousemove at the same coordinates — real mouse
@@ -45,6 +46,7 @@ export class Orchestrator {
     this.focusMachine = new FocusContextMachine({
       instanceTypes: config.instanceTypes,
       primaryMenu: config.primaryMenu,
+      onContextChanged: (context) => this.writer?.setNavContext?.(context),
     })
     this.inputDetector = new InputMethodDetector()
     this.reader = config.reader
@@ -91,6 +93,14 @@ export class Orchestrator {
   start(hookEl) {
     this._hookEl = hookEl
 
+    // Restore input method from previous mount (survives cross-LiveView navigation)
+    const savedMethod = this._globals.sessionStorage.getItem("inputSystem:inputMethod")
+    if (savedMethod) {
+      this._globals.sessionStorage.removeItem("inputSystem:inputMethod")
+      this.inputDetector = new InputMethodDetector(savedMethod)
+      this.writer.setInputMethod(savedMethod)
+    }
+
     // Create and start input sources
     const callbacks = {
       onAction: (action) => this._onSourceAction(action),
@@ -106,6 +116,10 @@ export class Orchestrator {
 
     // Sync initial state (also detects and attaches page behavior)
     this._syncState()
+
+    // Project initial nav context to DOM (the callback only fires on changes,
+    // so the constructor's initial value needs an explicit write)
+    this.writer.setNavContext?.(this.focusMachine.context)
 
     // Let the page behavior restore its state on attach
     this._behavior?.onAttach()
@@ -160,6 +174,12 @@ export class Orchestrator {
       this._globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
     }
 
+    // Persist input method so the next mount starts with the correct mode
+    this._globals.sessionStorage.setItem(
+      "inputSystem:inputMethod",
+      this.inputDetector.current
+    )
+
     // Stop all input sources
     for (const source of this._sources) {
       source.stop()
@@ -176,6 +196,7 @@ export class Orchestrator {
    * Syncs focus machine state with current DOM state.
    */
   onViewChanged() {
+    debug("onViewChanged")
     this._syncState()
     this._ensureCursorStart()
   }
@@ -187,6 +208,7 @@ export class Orchestrator {
    * Handles behavior onEscape for BACK action, then delegates to _handleAction.
    */
   _onSourceAction(action) {
+    debug("action:", action, "context:", this.focusMachine.context, "method:", this.inputDetector.current)
     // CLEAR action: delegate to page behavior's onClear hook.
     // Behaviors use this for resetting page-specific state (e.g. clearing a filter).
     if (action === Action.CLEAR && this._behavior?.onClear) {
@@ -233,13 +255,12 @@ export class Orchestrator {
     if (methodChange) {
       this.writer.setInputMethod(methodChange)
     }
-    // Keep hint bar nav context in sync
-    this.writer.setNavContext?.(this.focusMachine.context)
   }
 
   // --- Internal ---
 
   _syncState() {
+    debug("_syncState called, context:", this.focusMachine.context, new Error().stack.split("\n")[2]?.trim())
     const zone = this.reader.getZone()
     const presentation = this.reader.getPresentation()
     const drawerOpen = this.reader.isDrawerOpen()
@@ -365,6 +386,7 @@ export class Orchestrator {
 
     if (dx < MOUSE_MOVE_THRESHOLD && dy < MOUSE_MOVE_THRESHOLD) return
 
+    debug("mousemove delta:", dx, dy, "method:", this.inputDetector.current)
     const methodChange = this.inputDetector.observe("mousemove")
     if (methodChange) {
       this.writer.setInputMethod(methodChange)
@@ -526,6 +548,7 @@ export class Orchestrator {
     const currentIndex = this.reader.getFocusedIndex(Context.GRID)
     const totalCount = this.reader.getItemCount(Context.GRID)
     const columnCount = this.reader.getGridColumnCount(Context.GRID)
+    debug("_gridNavigate:", direction, "idx:", currentIndex, "cols:", columnCount, "total:", totalCount)
 
     if (currentIndex < 0) {
       // Nothing focused in grid — focus first

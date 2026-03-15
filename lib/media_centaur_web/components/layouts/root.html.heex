@@ -69,5 +69,32 @@
   </head>
   <body>
     {@inner_content}
+
+    <%!-- Gamepad hint bar — outside LiveView so it persists across navigations.
+          Pure CSS visibility: driven by data-input and data-nav-context on <html>. --%>
+    <div class="gamepad-hint-bar" aria-hidden="true">
+      <div class="hint-group" data-hint-context="grid">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Back</span>
+        <span class="hint"><span class="hint-btn" data-btn="start"></span> Play</span>
+        <span class="hint"><span class="hint-btn" data-btn="lb-rb"></span> Zone</span>
+      </div>
+      <div class="hint-group" data-hint-context="modal">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Close</span>
+      </div>
+      <div class="hint-group" data-hint-context="drawer">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Close</span>
+      </div>
+      <div class="hint-group" data-hint-context="sidebar">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Back</span>
+      </div>
+    </div>
   </body>
 </html>

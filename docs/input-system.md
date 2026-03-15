@@ -158,6 +158,15 @@ The `FocusContextMachine` tracks which navigation context is active and returns 
 | `syncDrawerState(isOpen)` | Sync drawer flag from DOM |
 | `enterSidebarFromWall()` | Left-wall transition from zone tabs/toolbar |
 
+**Config options:**
+
+| Option | Purpose |
+|--------|---------|
+| `instanceTypes` | Map instance names to context behavior types |
+| `primaryMenu` | Instance name with enter/exit sidebar behavior |
+| `initialContext` | Starting context (default: `GRID`) |
+| `onContextChanged` | Callback `(context) => void` — fires on every actual context change |
+
 ### dom_adapter.js
 
 Factory functions `createDomReader(config)` and `createDomWriter(config)` produce reader/writer instances parameterized by `config.contextSelectors` and `config.activeClassNames`. All DOM access is confined here. The orchestrator and behaviors never call `document.*` directly.
@@ -204,11 +213,12 @@ Source-agnostic action router. Receives full config object including `reader`, `
 - Input source management: create, start, and stop sources from factory functions
 - Action routing: source → `_onSourceAction()` → behavior hooks (`onClear`, `onEscape`) → `_handleAction()` → state machine → directive → execution
 - Input method detection via source `onInputDetected` callbacks
+- Nav context projection via `onContextChanged` callback → `setNavContext`
 - Context memory (grid entity ID, per-context index)
 - Modal/drawer focus restoration (origin entity tracking)
 - Sidebar persistence (sessionStorage bridge)
 - Page behavior lifecycle (detect, create, delegate, destroy)
-- Hint bar context updates (`setNavContext`, `setControllerType`)
+- Hint bar controller type updates (`setControllerType`)
 
 **SELECT on MENU.** When SELECT is pressed in any MENU context, the orchestrator remaps it to NAVIGATE_RIGHT (exit the menu into the content area). For the primary menu (sidebar), no click is needed — items are already activated on focus during up/down navigation. For non-primary menus (like settings sections), the focused item is clicked after the transition completes. This means A/Enter on a menu item "confirms" the selection and moves focus into the page.
 
@@ -360,6 +370,15 @@ SessionStorage bridge for resuming sidebar context across LiveView navigations:
 - `destroy()`: if in sidebar context → save `inputSystem:resumeSidebar = true`
 - `start()`: if flag set → remove flag, force sidebar context, focus active item
 
+## Input Method Persistence
+
+SessionStorage bridge for preserving the active input method (mouse/keyboard/gamepad) across LiveView navigations:
+
+- `destroy()`: save `inputSystem:inputMethod = <current method>`
+- `start()`: if saved → remove key, create `InputMethodDetector` with saved value, write `data-input` immediately
+
+Without this, navigating between pages (each a separate LiveView) would reset input method to mouse. Combined with the hint bar living in `root.html.heex` (outside the LiveView boundary), this ensures zero flicker when using a gamepad across page transitions.
+
 ## URL Persistence for Sidebar Navigation
 
 The `data-nav-remember` attribute on sidebar links preserves query params across page navigation. Implemented in `root.html.heex` via a global click handler:
@@ -377,11 +396,11 @@ A contextual button legend fixed at the bottom center of the viewport. Shows rel
 
 **Always in DOM.** Follows the backdrop-filter rule — never conditionally rendered with `:if`. Visibility is pure CSS, driven by `[data-input=gamepad]` on `<html>`.
 
-**Context-driven groups.** Multiple `.hint-group` divs with `data-hint-context` attributes. CSS selectors like `[data-nav-context=grid] [data-hint-context=grid]` show the appropriate group. The orchestrator updates `data-nav-context` on `<html>` whenever the focus context changes.
+**Context-driven groups.** Multiple `.hint-group` divs with `data-hint-context` attributes. CSS selectors like `[data-nav-context=grid] [data-hint-context=grid]` show the appropriate group. The `FocusContextMachine` fires its `onContextChanged` callback on every context transition; the orchestrator wires this to `writer.setNavContext()` which updates `data-nav-context` on `<html>`.
 
 **Controller-aware labels.** Button labels use `::before` pseudo-elements driven by `[data-gamepad-type]` on `<html>`. Xbox labels shown by default (and for generic controllers). PlayStation controllers show Cross/Circle/L1/R1 instead of A/B/LB/RB. The `GamepadSource` detects controller type from `Gamepad.id` and calls `writer.setControllerType()`.
 
-**Markup:** Lives inside the `#input-system` div in `layouts.ex`, after `</main>`.
+**Markup:** Lives in `root.html.heex`, outside the LiveView boundary. This ensures the hint bar DOM persists across cross-LiveView navigations (sidebar page changes) without being destroyed and recreated.
 
 **Contexts and their hints:**
 
@@ -407,6 +426,23 @@ Three methods: `mouse`, `keyboard`, `gamepad`. Switched by detecting raw input e
 
 **Gamepad presence signaling.** When `GamepadSource.start()` detects an already-connected gamepad (e.g., after a hook remount from sidebar navigation), it fires `onInputDetected("gamepadbutton")` so the orchestrator immediately sets gamepad mode. Without this, the input method would default to mouse until the user presses a button.
 
+## Single-Owner DOM Projection
+
+Each `data-*` attribute on `<html>` is a **projection** of exactly one piece of internal state, synced by a direct callback from the state owner — never piggybacked on an unrelated event.
+
+| Attribute | State Owner | Sync Mechanism |
+|-----------|------------|----------------|
+| `data-input` | `InputMethodDetector.current` | `_onInputDetected` → `setInputMethod` |
+| `data-nav-context` | `FocusContextMachine.context` | `onContextChanged` callback → `setNavContext` |
+| `data-gamepad-type` | `GamepadSource` controller detection | `setControllerType` on connect |
+| `data-sidebar` | `localStorage` | Inline script in `root.html.heex` |
+
+**Design rules:**
+
+1. **Single-owner projection** — each DOM attribute has one state owner and one sync path.
+2. **Framework notifies, app reacts** — state machines expose change callbacks; app wiring connects them to DOM writes.
+3. **Coincidental coupling is a bug** — if two events "always happen together" during normal use, they will diverge in edge cases (startup, teardown, testing).
+
 ## Adding a New Page
 
 ### Page behavior (optional)
@@ -431,7 +467,7 @@ All app-specific config lives in `config.js`:
    - If always populated (static content), add to `config.js` `alwaysPopulated`
 4. If the page has no zone tabs, add `data-nav-default-zone="<zone>"` to the template
 5. For sidebar URL persistence, add `data-nav-remember` to the sidebar link in `layouts.ex`
-6. If the page has unique navigation contexts (not grid/modal/drawer/sidebar), add a `hint-group` with the appropriate `data-hint-context` in `layouts.ex` and show/hide CSS in `app.css`
+6. If the page has unique navigation contexts (not grid/modal/drawer/sidebar), add a `hint-group` with the appropriate `data-hint-context` in `root.html.heex` and show/hide CSS in `app.css`
 7. Write nav graph tests and focus context tests for the new zone
 
 ## Navigation Graph
@@ -461,3 +497,9 @@ Sidebar and sections are always populated (static content), guaranteeing a viabl
 ## Design Rules
 
 - **Empty-context safety.** The navigation graph and cursor start priority together ensure the user always has a focusable target. The graph prevents directional transitions into empty contexts. The priority list handles initial placement. Any new zone layout must define both a layout in `config.js` `layouts` and an entry in `cursorStartPriority`.
+
+## Debug Logging
+
+All core modules use `debug()` from `core/debug.js` for structured runtime tracing. Silent by default — enable with `window.__inputDebug = true` in the browser console or via the Chrome DevTools MCP. All messages are prefixed `[input]`.
+
+Coverage: context transitions (with caller), actions received, grid navigation state, mouse movement, gamepad axis events, sync state calls. Never use bare `console.log` in core modules — always go through `debug()`.

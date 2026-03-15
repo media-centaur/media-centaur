@@ -311,6 +311,93 @@ describe("Orchestrator", () => {
       system.destroy()
       expect(globals._storage["inputSystem:resumeSidebar"]).toBeUndefined()
     })
+
+    test("destroy persists input method to sessionStorage", () => {
+      let onInputCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, globals } = setup({}, {
+        sources: [
+          (callbacks) => {
+            onInputCallback = callbacks.onInputDetected
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      onInputCallback("gamepadbutton")
+      system.destroy()
+
+      expect(globals._storage["inputSystem:inputMethod"]).toBe("gamepad")
+    })
+
+    test("start restores input method from sessionStorage", () => {
+      const { system, calls, globals } = setup()
+      globals.sessionStorage.setItem("inputSystem:inputMethod", "gamepad")
+
+      system.start({})
+
+      expect(system.inputDetector.current).toBe("gamepad")
+      expect(globals.sessionStorage.getItem("inputSystem:inputMethod")).toBe(null)
+
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.some(c => c.args[0] === "gamepad")).toBe(true)
+    })
+
+    test("start with sidebar resume writes correct nav context", () => {
+      const { system, calls, globals } = setup({
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 1 : -1,
+      })
+      globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
+      system.start({})
+
+      // The last setNavContext call should be "sidebar", not "grid"
+      const navCalls = calls.filter(c => c.method === "setNavContext")
+      expect(navCalls.length).toBeGreaterThan(0)
+      expect(navCalls[navCalls.length - 1].args[0]).toBe("sidebar")
+    })
+
+    test("gamepad detection during start does not write stale nav context", () => {
+      let onInputCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls, globals } = setup({
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 1 : -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onInputCallback = callbacks.onInputDetected
+            return mockSource
+          },
+        ],
+      })
+      globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
+      system.start({})
+
+      // Simulate gamepad input detected after start (should not write stale "grid")
+      onInputCallback("gamepadbutton")
+
+      const navCalls = calls.filter(c => c.method === "setNavContext")
+      // No setNavContext("grid") should appear after the final "sidebar"
+      const lastSidebarIdx = navCalls.findLastIndex(c => c.args[0] === "sidebar")
+      const staleGridAfter = navCalls.slice(lastSidebarIdx + 1).some(c => c.args[0] === "grid")
+      expect(staleGridAfter).toBe(false)
+    })
+
+    test("context change from action syncs nav context", () => {
+      const { system, calls, globals } = setup()
+      system.start({})
+
+      // Clear calls from start
+      calls.length = 0
+
+      // Create a behavior that returns "sidebar" on escape
+      system._behavior = { onEscape: () => "sidebar" }
+      system._behaviorName = "test"
+
+      globals._dispatchKeyDown("Escape")
+
+      const navCalls = calls.filter(c => c.method === "setNavContext")
+      expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(true)
+    })
   })
 
   describe("modal/drawer lifecycle", () => {

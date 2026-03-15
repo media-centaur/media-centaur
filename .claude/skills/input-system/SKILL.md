@@ -107,10 +107,44 @@ Tests use `bun:test`. Three mock factories in `core/__tests__/orchestrator.test.
 
 Pure modules (focus_context, nav_graph, spatial, actions) test directly — no mocks needed.
 
+## Runtime Debugging via Chrome DevTools MCP
+
+The input system has built-in debug logging that is silent by default. Toggle it at runtime through the Chrome DevTools MCP — no rebuild needed.
+
+**Enable/disable:**
+```
+evaluate_script: () => { window.__inputDebug = true; return "enabled" }
+evaluate_script: () => { window.__inputDebug = false; return "disabled" }
+```
+
+**Read logs:** `list_console_messages` with `types: ["log"]`. All input debug messages are prefixed `[input]`.
+
+**Simulate input:** `press_key` sends keyboard events (e.g., `ArrowDown`, `ArrowUp`, `Enter`, `Escape`). This triggers the full input pipeline — key source → action → state machine → directive → DOM.
+
+**Visual verification:** `take_screenshot` captures the current viewport. Use to confirm focus rings, scroll position, and layout state after navigation.
+
+**Typical debug workflow:**
+1. `select_page` — pick the Media Centaur tab
+2. `evaluate_script` — enable `window.__inputDebug`
+3. `press_key` — simulate the failing input sequence
+4. `list_console_messages` — read the `[input]` trace
+5. `take_screenshot` — verify visual state
+
+**What the logs cover:**
+- Context transitions (`_setContext`) with caller stack trace
+- Actions received with current context and input method
+- Grid navigation details (index, columns, total, direction)
+- Mouse movement deltas and method transitions
+- Gamepad axis direction changes and center returns
+- `_syncState` / `onViewChanged` calls with caller info
+
+**Implementation:** `debug()` from `assets/js/input/core/debug.js`. Import and use in any core module. Never use bare `console.log` — always go through `debug()`.
+
 ## Design Rules
 
 - **Nav zone containers must not nest.** Descendant selectors cross-contaminate.
 - **Empty-context safety.** Every zone must define both a layout and cursor start priority. The graph prevents transitions into empty contexts; the priority list handles initial placement.
 - **Page state lives in the URL.** Use `handle_params` + `live_patch`. Don't duplicate in sessionStorage.
 - **DOM access confined to `core/dom_adapter.js`.** Orchestrator and behaviors never call `document.*` directly.
+- **Single-owner DOM projection.** Each `data-*` attribute on `<html>` has one state owner and one sync path (state change → callback → DOM write). Never piggyback DOM syncs on unrelated events. See "Single-Owner DOM Projection" in `docs/input-system.md`.
 - **Dependency directionality.** Core never imports from app layer. App imports from `core/index.js`.
