@@ -5,7 +5,7 @@ description: "Use this skill for any implementation task — adding features, fi
 
 ## Workflow
 
-1. **Write tests first.** The test is the executable specification. If you can't write the test, the requirements aren't clear enough — stop and clarify before writing any implementation code.
+1. **Write tests first.** The test is the executable specification. If you can't write the test, the requirements aren't clear enough — stop and clarify before writing any implementation code. Load the `automated-testing` skill for patterns and policies.
 2. **Implement the minimum change** to make the tests pass.
 3. **Run `mix precommit`** before finishing. Fix all warnings and failures — zero warnings policy.
 
@@ -39,7 +39,7 @@ description: "Use this skill for any implementation task — adding features, fi
 
 ## Factory
 
-All tests use `MediaManager.TestFactory`. Never inline `Ash.Changeset.for_create` boilerplate.
+All tests use `MediaCentaur.TestFactory`. Never inline `Ash.Changeset.for_create` boilerplate.
 
 - `build_*` — pure structs for async tests (fast, no I/O).
 - `create_*` — persisted via Ash actions for DataCase tests.

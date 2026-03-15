@@ -44,6 +44,12 @@ npm-debug.log
 # Serena IDE plugin
 /.serena/
 
+# Playwright E2E tests
+/test/e2e/node_modules/
+/test/e2e/test-results/
+/test-results/
+/playwright-report/
+
 # sqlite stuff
 /media_centaur_dev*
 /priv/repo/media_centaur_test*.db*

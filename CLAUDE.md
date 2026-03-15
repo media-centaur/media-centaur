@@ -15,6 +15,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | Broadway pipeline, producers, processors, batchers | `broadway` |
 | Phoenix web layer, controllers, views, routing | `phoenix-framework` |
 | Keyboard/gamepad nav, focus context, nav graphs, page behaviors | `input-system` |
+| Writing tests — Elixir, JavaScript, or Playwright E2E | `automated-testing` |
 | General coding standards, naming, structure | `coding-guidelines` |
 
 Invoke the skill **first**, then explore the codebase, then write code.
@@ -132,6 +133,8 @@ The `defaults/` directory contains git-tracked starter config files — seed val
 
 ## Testing Strategy
 
+Load the `automated-testing` skill before writing any test — Elixir, JavaScript, or Playwright E2E. It covers test-first workflow, factory patterns, stub strategies, E2E parameterization, and all project testing policies.
+
 **Test-first.** Write tests before implementation for all new features and bug fixes. Tests are the executable specification — if you can't write the test, the requirements aren't clear enough.
 
 **Zero tolerance for flaky tests.** Every test must pass deterministically, every time. A flaky test is a bug — diagnose and fix the root cause before moving on. Never ignore, skip, or retry a flaky test.
@@ -185,6 +188,20 @@ Tests use `bun:test` imports (`describe`, `expect`, `test`, `beforeEach`, `mock`
 - **Page behaviors** — inject mock DOM interface, test return values.
 
 **Mock writer returns:** The mock writer's proxy returns `undefined` from all calls. The real `DomWriter.focusFirst()` and `focusByIndex()` return `boolean` (defense-in-depth), but orchestrator tests don't depend on these return values.
+
+### E2E Tests (Playwright)
+
+The input system has E2E tests in `test/e2e/` that exercise real browser interactions. Every navigation test runs twice — once with keyboard, once with gamepad — via Playwright projects. Tests use a parameterized `inputAction` fixture that abstracts input method.
+
+```bash
+scripts/input-test                        # all tests, both input methods
+scripts/input-test --project=keyboard     # keyboard only
+scripts/input-test --project=gamepad      # gamepad only
+scripts/input-test library                # library page, both methods
+scripts/input-test --debug                # headed browser, step through
+```
+
+Requires the dev server running (`mix phx.server`). See the `automated-testing` skill for helpers, fixtures, and gamepad mock strategy.
 
 ### Import Boundaries
 
