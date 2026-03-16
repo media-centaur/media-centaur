@@ -33,6 +33,26 @@ defmodule MediaCentaur.Config do
       default_images_dir(watch_directory)
   end
 
+  @doc """
+  Returns `{watch_dir, image_dir}` pairs where the image directory is NOT
+  a subdirectory of its watch directory and therefore needs independent
+  health monitoring.
+  """
+  @spec image_dirs_needing_monitoring() :: [{String.t(), String.t()}]
+  def image_dirs_needing_monitoring do
+    watch_dirs = get(:watch_dirs) || []
+
+    Enum.flat_map(watch_dirs, fn watch_dir ->
+      image_dir = images_dir_for(watch_dir)
+
+      if String.starts_with?(image_dir, watch_dir <> "/") do
+        []
+      else
+        [{watch_dir, image_dir}]
+      end
+    end)
+  end
+
   @doc "Returns the staging base directory for in-progress image downloads."
   @spec staging_base_for(String.t()) :: String.t()
   def staging_base_for(watch_directory) do

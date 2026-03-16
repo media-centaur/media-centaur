@@ -16,7 +16,9 @@ defmodule MediaCentaur.Watcher.Supervisor do
   def init(_opts) do
     children = [
       {Registry, keys: :unique, name: MediaCentaur.Watcher.Registry},
-      {DynamicSupervisor, name: MediaCentaur.Watcher.DynamicSupervisor, strategy: :one_for_one}
+      {Registry, keys: :unique, name: MediaCentaur.DirMonitor.Registry},
+      {DynamicSupervisor, name: MediaCentaur.Watcher.DynamicSupervisor, strategy: :one_for_one},
+      {DynamicSupervisor, name: MediaCentaur.DirMonitor.DynamicSupervisor, strategy: :one_for_one}
     ]
 
     Supervisor.init(children, strategy: :one_for_all, max_restarts: 5, max_seconds: 60)
@@ -43,6 +45,54 @@ defmodule MediaCentaur.Watcher.Supervisor do
           Log.warning(:watcher, "failed to start watcher for #{dir}: #{inspect(reason)}")
       end
     end)
+  end
+
+  @doc """
+  Starts a DirMonitor for each image directory that needs independent monitoring.
+  """
+  def start_image_dir_monitors do
+    pairs = MediaCentaur.Config.image_dirs_needing_monitoring()
+
+    Enum.each(pairs, fn {watch_dir, image_dir} ->
+      case DynamicSupervisor.start_child(
+             MediaCentaur.DirMonitor.DynamicSupervisor,
+             {MediaCentaur.DirMonitor, {image_dir, watch_dir}}
+           ) do
+        {:ok, _pid} ->
+          Log.info(:watcher, "started image dir monitor for #{image_dir}")
+
+        {:error, {:already_started, _pid}} ->
+          Log.info(:watcher, "image dir monitor already running for #{image_dir}")
+
+        {:error, reason} ->
+          Log.warning(
+            :watcher,
+            "failed to start image dir monitor for #{image_dir}: #{inspect(reason)}"
+          )
+      end
+    end)
+  end
+
+  @doc """
+  Returns a list of `%{dir: path, watch_dir: path, state: atom}` for all running DirMonitors.
+  """
+  def image_dir_statuses do
+    MediaCentaur.DirMonitor.Registry
+    |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+    |> Enum.flat_map(fn {dir, pid} ->
+      try do
+        [
+          %{
+            dir: dir,
+            watch_dir: MediaCentaur.DirMonitor.watch_dir(pid),
+            state: MediaCentaur.DirMonitor.state(pid)
+          }
+        ]
+      catch
+        :exit, _ -> []
+      end
+    end)
+    |> Enum.sort_by(& &1.dir)
   end
 
   @doc """

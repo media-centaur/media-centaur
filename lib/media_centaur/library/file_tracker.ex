@@ -118,7 +118,7 @@ defmodule MediaCentaur.Library.FileTracker do
   @impl true
   def init(_) do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_file_events())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.watcher_state())
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.dir_state())
     schedule_ttl_check()
     {:ok, %{}, {:continue, :initial_ttl_check}}
   end
@@ -141,7 +141,7 @@ defmodule MediaCentaur.Library.FileTracker do
     {:noreply, state}
   end
 
-  def handle_info({:watcher_state_changed, dir, :unavailable}, state) do
+  def handle_info({:dir_state_changed, dir, :watch_dir, :unavailable}, state) do
     Log.info(:library, "drive unavailable, marking files absent for #{dir}")
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
@@ -152,7 +152,7 @@ defmodule MediaCentaur.Library.FileTracker do
     {:noreply, state}
   end
 
-  def handle_info({:watcher_state_changed, _dir, _state}, state) do
+  def handle_info({:dir_state_changed, _dir, _role, _state}, state) do
     {:noreply, state}
   end
 

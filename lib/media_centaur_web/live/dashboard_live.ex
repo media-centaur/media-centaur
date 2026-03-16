@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.watcher_state())
+        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.dir_state())
         Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
         Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
@@ -31,6 +31,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
+        |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
         |> assign(storage_drives: Storage.measure_all())
         |> assign(config: load_config())
         |> assign(rate_limiter: fetch_rate_limiter())
@@ -46,6 +47,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
         |> assign(watcher_statuses: [])
+        |> assign(image_dir_statuses: [])
         |> assign(storage_drives: [])
         |> assign(config: %{})
         |> assign(rate_limiter: nil)
@@ -85,8 +87,11 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:noreply, assign(socket, storage_drives: Storage.measure_all())}
   end
 
-  def handle_info({:watcher_state_changed, _dir, _new_state}, socket) do
-    {:noreply, assign(socket, watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())}
+  def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
+    {:noreply,
+     socket
+     |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
+     |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())}
   end
 
   def handle_info({:entities_changed, _entity_ids}, socket) do
@@ -208,7 +213,10 @@ defmodule MediaCentaurWeb.DashboardLive do
 
               <div class="flex flex-col gap-6">
                 <.playback_summary_card playback={@playback} />
-                <.watcher_health statuses={@watcher_statuses} />
+                <.watcher_health
+                  statuses={@watcher_statuses}
+                  image_dir_statuses={@image_dir_statuses}
+                />
                 <.external_integrations rate_limiter={@rate_limiter} config={@config} />
               </div>
             </div>
@@ -525,7 +533,9 @@ defmodule MediaCentaurWeb.DashboardLive do
       <div class="card-body">
         <h2 class="card-title text-lg">Watcher Health</h2>
 
-        <p :if={@statuses == []} class="text-base-content/60">No watch directories configured.</p>
+        <p :if={@statuses == [] and @image_dir_statuses == []} class="text-base-content/60">
+          No watch directories configured.
+        </p>
 
         <ul :if={@statuses != []} class="space-y-2">
           <li :for={status <- @statuses} class="flex items-center gap-3">
@@ -535,6 +545,18 @@ defmodule MediaCentaurWeb.DashboardLive do
             <code class="text-sm">{status.dir}</code>
           </li>
         </ul>
+
+        <div :if={@image_dir_statuses != []} class="mt-3">
+          <h3 class="text-xs text-base-content/50 uppercase tracking-wide mb-2">Image Directories</h3>
+          <ul class="space-y-2">
+            <li :for={status <- @image_dir_statuses} class="flex items-center gap-3">
+              <span class={["text-sm", dir_state_text_class(status.state)]}>
+                {status.state}
+              </span>
+              <code class="text-sm">{status.dir}</code>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
     """
@@ -844,6 +866,10 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp watcher_text_class(:watching), do: "text-success"
   defp watcher_text_class(:initializing), do: "text-warning"
   defp watcher_text_class(_), do: "text-error"
+
+  defp dir_state_text_class(:available), do: "text-success"
+  defp dir_state_text_class(:checking), do: "text-warning"
+  defp dir_state_text_class(_), do: "text-error"
 
   defp playback_text_class(:idle), do: "text-base-content/60"
   defp playback_text_class(:playing), do: "text-success"

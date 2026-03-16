@@ -68,6 +68,7 @@ defmodule MediaCentaur.Application do
 
     if should_start?(env, :start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
+      MediaCentaur.Watcher.Supervisor.start_image_dir_monitors()
     end
 
     unless should_start?(env, :start_pipeline) do
