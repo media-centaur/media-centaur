@@ -105,6 +105,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       persist_service_flag(:start_watchers, false)
     else
       Watcher.Supervisor.start_watchers()
+      Watcher.Supervisor.start_image_dir_monitors()
       persist_service_flag(:start_watchers, true)
     end
 

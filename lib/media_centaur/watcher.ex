@@ -403,11 +403,13 @@ defmodule MediaCentaur.Watcher do
     end)
   end
 
-  defp broadcast_state(dir, new_state) do
+  defp broadcast_state(dir, internal_state) do
+    state = if internal_state == :watching, do: :available, else: :unavailable
+
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
-      MediaCentaur.Topics.watcher_state(),
-      {:watcher_state_changed, dir, new_state}
+      MediaCentaur.Topics.dir_state(),
+      {:dir_state_changed, dir, :watch_dir, state}
     )
   end
 end
