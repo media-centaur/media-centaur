@@ -15,7 +15,7 @@ defmodule MediaCentaur.Library.WatchProgress do
   actions do
     defaults [:read, :destroy]
 
-    create :upsert_progress do
+    create :find_or_create do
       accept [:entity_id, :season_number, :episode_number, :position_seconds, :duration_seconds]
       upsert? true
       upsert_identity :unique_playable_item

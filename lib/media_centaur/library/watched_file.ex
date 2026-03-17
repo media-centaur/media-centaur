@@ -52,7 +52,7 @@ defmodule MediaCentaur.Library.WatchedFile do
       filter expr(watch_dir == ^arg(:watch_dir) and state == ^arg(:state))
     end
 
-    read :by_entity do
+    read :for_entity do
       argument :entity_id, :uuid, allow_nil?: false
       filter expr(entity_id == ^arg(:entity_id))
     end

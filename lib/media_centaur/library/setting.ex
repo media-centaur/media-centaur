@@ -30,7 +30,7 @@ defmodule MediaCentaur.Library.Setting do
       filter expr(key == ^arg(:key))
     end
 
-    create :upsert do
+    create :find_or_create do
       accept [:key, :value]
       upsert? true
       upsert_identity :unique_key

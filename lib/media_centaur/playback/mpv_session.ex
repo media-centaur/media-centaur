@@ -352,7 +352,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     entity_id = state.entity_id
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case MediaCentaur.Library.upsert_watch_progress(params) do
+      case MediaCentaur.Library.find_or_create_watch_progress(params) do
         {:ok, record} ->
           Log.info(
             :playback,

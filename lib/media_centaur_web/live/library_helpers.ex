@@ -9,13 +9,15 @@ defmodule MediaCentaurWeb.LibraryHelpers do
 
   alias MediaCentaur.{DateUtil, Playback.EpisodeList, Playback.MovieList}
 
+  @movie_types [:movie, :movie_series, :video_object]
+
   # --- Filtering ---
 
   def filtered_by_tab(entries, :all), do: entries
 
   def filtered_by_tab(entries, :movies) do
     Enum.filter(entries, fn %{entity: entity} ->
-      entity.type in [:movie, :movie_series, :video_object]
+      entity.type in @movie_types
     end)
   end
 
@@ -77,7 +79,7 @@ defmodule MediaCentaurWeb.LibraryHelpers do
       counts = %{counts | all: counts.all + 1}
 
       cond do
-        entity.type in [:movie, :movie_series, :video_object] ->
+        entity.type in @movie_types ->
           %{counts | movies: counts.movies + 1}
 
         entity.type == :tv_series ->

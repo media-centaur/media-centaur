@@ -226,6 +226,6 @@ defmodule MediaCentaur.TestFactory do
 
   def create_watch_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
-    Library.upsert_watch_progress!(Map.merge(defaults, attrs))
+    Library.find_or_create_watch_progress!(Map.merge(defaults, attrs))
   end
 end

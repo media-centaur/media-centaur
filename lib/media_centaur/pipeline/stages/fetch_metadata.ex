@@ -27,12 +27,17 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Pipeline.Payload
+  alias MediaCentaur.{Parser, Pipeline.Payload}
   alias MediaCentaur.TMDB.{Client, Mapper}
 
   @spec run(Payload.t()) :: {:ok, Payload.t()} | {:error, term()}
   def run(%Payload{tmdb_type: tmdb_type, parsed: parsed} = payload) do
-    case fetch_metadata(payload, effective_type(tmdb_type, parsed)) do
+    # Extras resolve media type from the parsed season; everything else uses
+    # the search-determined tmdb_type (which handles :unknown → :movie/:tv).
+    fetch_type =
+      if parsed.type == :extra, do: Parser.effective_media_type(parsed), else: tmdb_type
+
+    case fetch_metadata(payload, fetch_type) do
       {:ok, metadata} ->
         {:ok, %{payload | metadata: metadata}}
 
@@ -40,12 +45,6 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
         {:error, reason}
     end
   end
-
-  defp effective_type(_tmdb_type, %{type: :extra, season: season}) when is_integer(season),
-    do: :tv
-
-  defp effective_type(_tmdb_type, %{type: :extra}), do: :movie
-  defp effective_type(tmdb_type, _parsed), do: tmdb_type
 
   # ---------------------------------------------------------------------------
   # Movie
@@ -96,41 +95,22 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   # ---------------------------------------------------------------------------
 
   defp fetch_movie_in_collection(tmdb_id, movie_data, parsed, collection_id) do
-    case Client.get_collection(collection_id) do
-      {:ok, collection_data} ->
-        position = determine_position(collection_data["parts"], tmdb_id)
+    {collection_attrs, collection_images, position} =
+      case Client.get_collection(collection_id) do
+        {:ok, collection_data} ->
+          {
+            Mapper.movie_series_attrs(collection_id, collection_data),
+            build_images(collection_data),
+            determine_position(collection_data["parts"], tmdb_id)
+          }
 
-        build_movie_in_collection(
-          tmdb_id,
-          movie_data,
-          parsed,
-          collection_id,
-          collection_data,
-          position
-        )
-
-      {:error, _reason} ->
-        # Collection fetch failed — still create it with what we have
-        build_movie_in_collection(tmdb_id, movie_data, parsed, collection_id, nil, 0)
-    end
-  end
-
-  defp build_movie_in_collection(
-         tmdb_id,
-         movie_data,
-         parsed,
-         collection_id,
-         collection_data,
-         position
-       ) do
-    collection_attrs =
-      if collection_data do
-        Mapper.movie_series_attrs(collection_id, collection_data)
-      else
-        %{type: :movie_series, name: movie_data["belongs_to_collection"]["name"]}
+        {:error, _reason} ->
+          {
+            %{type: :movie_series, name: movie_data["belongs_to_collection"]["name"]},
+            [],
+            0
+          }
       end
-
-    collection_images = if collection_data, do: build_images(collection_data), else: []
 
     child_attrs = %{
       tmdb_id: to_string(tmdb_id),

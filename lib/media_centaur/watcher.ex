@@ -57,7 +57,7 @@ defmodule MediaCentaur.Watcher do
     )
   end
 
-  def state(pid), do: GenServer.call(pid, :state)
+  def status(pid), do: GenServer.call(pid, :status)
   def dir(pid), do: GenServer.call(pid, :dir)
 
   @doc """
@@ -76,7 +76,7 @@ defmodule MediaCentaur.Watcher do
   end
 
   @impl true
-  def handle_call(:state, _from, state), do: {:reply, state.state, state}
+  def handle_call(:status, _from, state), do: {:reply, state.state, state}
   def handle_call(:dir, _from, state), do: {:reply, state.dir, state}
 
   def handle_call(:scan, from, state) do

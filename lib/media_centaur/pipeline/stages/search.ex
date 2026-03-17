@@ -9,7 +9,7 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.DateUtil
+  alias MediaCentaur.{DateUtil, Parser}
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.TMDB.{Client, Confidence}
 
@@ -20,7 +20,7 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
     if is_nil(search_title) do
       {:error, :no_title}
     else
-      search_type = effective_search_type(parsed)
+      search_type = Parser.effective_media_type(parsed)
       Log.info(:pipeline, "searching TMDB for #{inspect(search_title)}, type: #{search_type}")
 
       case search(search_title, search_year, search_type) do
@@ -43,11 +43,6 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   defp search_params(%{title: title, year: year}) do
     {title, year}
   end
-
-  defp effective_search_type(%{type: :extra, season: season}) when not is_nil(season), do: :tv
-  defp effective_search_type(%{type: :extra}), do: :movie
-  defp effective_search_type(%{type: :unknown}), do: :unknown
-  defp effective_search_type(%{type: type}), do: type
 
   defp apply_match(payload, {result, score, title_key}, top_matches) do
     tmdb_id = result["id"]

@@ -3,7 +3,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
 
   alias MediaCentaur.Library
 
-  describe "upsert_progress" do
+  describe "find_or_create" do
     test "create and read back via :for_entity" do
       entity = create_entity(%{type: :movie, name: "Progress Movie"})
 

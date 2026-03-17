@@ -184,10 +184,7 @@ defmodule MediaCentaur.Library.Ingress do
 
     case Library.find_or_create_episode(episode_attrs) do
       {:ok, episode} ->
-        # Set content_url if the upsert returned an existing record without it
-        if is_nil(episode.content_url) && episode_attrs[:content_url] do
-          Library.set_episode_content_url(episode, %{content_url: episode_attrs[:content_url]})
-        end
+        ensure_content_url(episode, episode_attrs, &Library.set_episode_content_url/2)
 
         create_images(
           episode.id,
@@ -210,10 +207,7 @@ defmodule MediaCentaur.Library.Ingress do
 
     case Library.find_or_create_movie(movie_attrs) do
       {:ok, movie} ->
-        # Set content_url if the upsert returned an existing record without it
-        if is_nil(movie.content_url) && movie_attrs[:content_url] do
-          Library.set_movie_content_url(movie, %{content_url: movie_attrs[:content_url]})
-        end
+        ensure_content_url(movie, movie_attrs, &Library.set_movie_content_url/2)
 
         create_images(
           movie.id,
@@ -352,4 +346,11 @@ defmodule MediaCentaur.Library.Ingress do
   end
 
   defp strip_child_content_url_if_extra(child_movie, _metadata), do: child_movie
+
+  # Set content_url when the upsert returned an existing record without one
+  defp ensure_content_url(record, attrs, set_fn) do
+    if is_nil(record.content_url) && attrs[:content_url] do
+      set_fn.(record, %{content_url: attrs[:content_url]})
+    end
+  end
 end
