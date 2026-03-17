@@ -34,8 +34,15 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
         Phoenix.PubSub.broadcast(
           MediaCentaur.PubSub,
           MediaCentaur.Topics.playback_events(),
-          {:entity_progress_updated, entity_id, summary, resume_target, child_targets_delta,
-           progress_records, DateTime.utc_now()}
+          {:entity_progress_updated,
+           %{
+             entity_id: entity_id,
+             summary: summary,
+             resume_target: resume_target,
+             child_targets_delta: child_targets_delta,
+             progress_records: progress_records,
+             last_activity_at: DateTime.utc_now()
+           }}
         )
 
       {:error, _} ->

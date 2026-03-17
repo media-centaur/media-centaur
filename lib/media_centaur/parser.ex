@@ -71,6 +71,17 @@ defmodule MediaCentaur.Parser do
           }
   end
 
+  @doc """
+  Resolves the effective media type for extras.
+
+  Extras with a season number are TV extras; extras without are movie extras.
+  Non-extra types pass through unchanged.
+  """
+  @spec effective_media_type(Result.t()) :: :movie | :tv | :extra | :unknown
+  def effective_media_type(%Result{type: :extra, season: season}) when is_integer(season), do: :tv
+  def effective_media_type(%Result{type: :extra}), do: :movie
+  def effective_media_type(%Result{type: type}), do: type
+
   @default_extras_dirs ~w(extras featurettes bonus)
   @default_extras_dirs_multi_word ["special features", "behind the scenes", "deleted scenes"]
 

@@ -19,8 +19,12 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
       ProgressBroadcaster.broadcast(entity.id, 1, 1)
 
-      assert_receive {:entity_progress_updated, entity_id, summary, _resume, _delta,
-                      progress_records, _timestamp}
+      assert_receive {:entity_progress_updated,
+                      %{
+                        entity_id: entity_id,
+                        summary: summary,
+                        progress_records: progress_records
+                      }}
 
       assert entity_id == entity.id
       assert is_map(summary)

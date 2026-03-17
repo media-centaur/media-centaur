@@ -494,7 +494,11 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp persist_service_flag(service, value) do
     env = Application.get_env(:media_centaur, :environment, :dev)
-    Library.upsert_setting!(%{key: "services:#{env}:#{service}", value: %{"enabled" => value}})
+
+    Library.find_or_create_setting!(%{
+      key: "services:#{env}:#{service}",
+      value: %{"enabled" => value}
+    })
   end
 
   defp component_description(:watcher), do: "file events, size checks, detection"

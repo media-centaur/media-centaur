@@ -44,21 +44,13 @@ defmodule MediaCentaur.Playback.EpisodeList do
   Returns `{:ok, url}` or `{:error, :invalid_episode}`.
   """
   def find_content_url(entity, season_number, episode_number) do
-    result =
-      (entity.seasons || [])
-      |> Enum.find(&(&1.season_number == season_number))
-      |> case do
-        nil -> nil
-        season -> Enum.find(season.episodes || [], &(&1.episode_number == episode_number))
-      end
-      |> case do
-        nil -> nil
-        episode -> episode.content_url
-      end
-
-    case result do
-      nil -> {:error, :invalid_episode}
-      url -> {:ok, url}
+    with %{} = season <- Enum.find(entity.seasons || [], &(&1.season_number == season_number)),
+         %{} = episode <-
+           Enum.find(season.episodes || [], &(&1.episode_number == episode_number)),
+         url when not is_nil(url) <- episode.content_url do
+      {:ok, url}
+    else
+      _ -> {:error, :invalid_episode}
     end
   end
 

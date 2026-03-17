@@ -45,9 +45,9 @@ defmodule MediaCentaurWeb.Router do
         :destroy_season,
         :create_episode,
         :destroy_episode,
-        :upsert_watch_progress,
+        :find_or_create_watch_progress,
         :mark_watch_completed,
-        :upsert_setting,
+        :find_or_create_setting,
         :destroy_setting,
         # Review
         :read_pending_files,

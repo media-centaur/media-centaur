@@ -15,7 +15,7 @@ defmodule MediaCentaur.Library.Season do
   actions do
     defaults [:read, :destroy]
 
-    read :by_entity do
+    read :for_entity do
       argument :entity_id, :uuid, allow_nil?: false
       filter expr(entity_id == ^arg(:entity_id))
     end

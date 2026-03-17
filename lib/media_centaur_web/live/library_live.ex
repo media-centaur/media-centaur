@@ -333,8 +333,13 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_info(
-        {:entity_progress_updated, entity_id, summary, resume_target, _child_targets_delta,
-         progress_records, _last_activity_at},
+        {:entity_progress_updated,
+         %{
+           entity_id: entity_id,
+           summary: summary,
+           resume_target: resume_target,
+           progress_records: progress_records
+         }},
         socket
       ) do
     entries = update_entry_progress(socket.assigns.entries, entity_id, summary, progress_records)
@@ -708,7 +713,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           duration_seconds: 0.0
         }
 
-        {:ok, record} = Library.upsert_watch_progress(params)
+        {:ok, record} = Library.find_or_create_watch_progress(params)
         Library.mark_watch_completed!(record)
     end
 

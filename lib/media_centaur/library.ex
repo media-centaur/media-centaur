@@ -118,7 +118,7 @@ defmodule MediaCentaur.Library do
     end
 
     # WatchProgress writes
-    tool :upsert_watch_progress, MediaCentaur.Library.WatchProgress, :upsert_progress do
+    tool :find_or_create_watch_progress, MediaCentaur.Library.WatchProgress, :find_or_create do
       description "Create or update watch progress for an entity (position, duration, season/episode)"
     end
 
@@ -131,7 +131,7 @@ defmodule MediaCentaur.Library do
     end
 
     # Setting writes
-    tool :upsert_setting, MediaCentaur.Library.Setting, :upsert do
+    tool :find_or_create_setting, MediaCentaur.Library.Setting, :find_or_create do
       description "Create or update a setting (upserts by key)"
     end
 
@@ -190,7 +190,7 @@ defmodule MediaCentaur.Library do
 
     resource MediaCentaur.Library.WatchedFile do
       define :list_watched_files, action: :read
-      define :list_watched_files_for_entity, action: :by_entity, args: [:entity_id]
+      define :list_watched_files_for_entity, action: :for_entity, args: [:entity_id]
       define :link_file, action: :link_file
       define :mark_file_absent, action: :mark_absent
       define :mark_file_present, action: :mark_present
@@ -203,7 +203,7 @@ defmodule MediaCentaur.Library do
 
     resource MediaCentaur.Library.Image do
       define :list_images, action: :read
-      define :list_images_for_entity, action: :by_entity, args: [:entity_id]
+      define :list_images_for_entity, action: :for_entity, args: [:entity_id]
       define :list_images_for_episode, action: :by_episode, args: [:episode_id]
       define :list_images_for_movie, action: :by_movie, args: [:movie_id]
       define :list_pending_downloads, action: :pending_download
@@ -234,7 +234,7 @@ defmodule MediaCentaur.Library do
 
     resource MediaCentaur.Library.Movie do
       define :list_movies, action: :read
-      define :list_movies_for_entity, action: :by_entity, args: [:entity_id]
+      define :list_movies_for_entity, action: :for_entity, args: [:entity_id]
       define :get_movie, action: :read, get_by: [:id]
       define :find_or_create_movie, action: :find_or_create
       define :set_movie_content_url, action: :set_content_url
@@ -243,7 +243,7 @@ defmodule MediaCentaur.Library do
     end
 
     resource MediaCentaur.Library.Extra do
-      define :list_extras_for_entity, action: :by_entity, args: [:entity_id]
+      define :list_extras_for_entity, action: :for_entity, args: [:entity_id]
       define :list_extras_for_season, action: :by_season, args: [:season_id]
       define :get_extra, action: :read, get_by: [:id]
       define :find_or_create_extra, action: :find_or_create
@@ -253,7 +253,7 @@ defmodule MediaCentaur.Library do
 
     resource MediaCentaur.Library.Season do
       define :list_seasons, action: :read
-      define :list_seasons_for_entity, action: :by_entity, args: [:entity_id]
+      define :list_seasons_for_entity, action: :for_entity, args: [:entity_id]
       define :get_season, action: :read, get_by: [:id]
       define :find_or_create_season, action: :find_or_create
       define :create_season, action: :create
@@ -274,7 +274,7 @@ defmodule MediaCentaur.Library do
       define :list_watch_progress, action: :read
       define :list_watch_progress_for_entity, action: :for_entity, args: [:entity_id]
       define :list_recently_watched, action: :recently_watched, args: [:limit]
-      define :upsert_watch_progress, action: :upsert_progress
+      define :find_or_create_watch_progress, action: :find_or_create
       define :mark_watch_completed, action: :mark_completed
       define :mark_watch_incomplete, action: :mark_incomplete
       define :destroy_watch_progress, action: :destroy
@@ -288,7 +288,7 @@ defmodule MediaCentaur.Library do
     resource MediaCentaur.Library.Setting do
       define :list_settings, action: :read
       define :get_setting_by_key, action: :by_key, args: [:key], get?: true
-      define :upsert_setting, action: :upsert
+      define :find_or_create_setting, action: :find_or_create
       define :create_setting, action: :create
       define :update_setting, action: :update
       define :destroy_setting, action: :destroy

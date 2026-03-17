@@ -137,8 +137,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   def handle_info(
-        {:entity_progress_updated, entity_id, _summary, _resume_target, _child_targets_delta,
-         progress_records, _last_activity_at},
+        {:entity_progress_updated, %{entity_id: entity_id, progress_records: progress_records}},
         socket
       ) do
     sessions = socket.assigns.playback.sessions

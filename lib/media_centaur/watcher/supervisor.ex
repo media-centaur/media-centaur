@@ -85,7 +85,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
           %{
             dir: dir,
             watch_dir: MediaCentaur.DirMonitor.watch_dir(pid),
-            state: MediaCentaur.DirMonitor.state(pid)
+            state: MediaCentaur.DirMonitor.status(pid)
           }
         ]
       catch
@@ -116,9 +116,9 @@ defmodule MediaCentaur.Watcher.Supervisor do
   end
 
   @doc """
-  Aggregate state: `:watching` if any child is watching, `:unavailable` if all are down.
+  Aggregate status: `:watching` if any child is watching, `:unavailable` if all are down.
   """
-  def state do
+  def status do
     statuses = statuses()
 
     cond do
@@ -136,7 +136,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
     |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
     |> Enum.flat_map(fn {dir, pid} ->
       try do
-        [%{dir: dir, state: MediaCentaur.Watcher.state(pid)}]
+        [%{dir: dir, state: MediaCentaur.Watcher.status(pid)}]
       catch
         :exit, _ -> []
       end
@@ -166,7 +166,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   Returns true if any watcher is in a healthy state.
   """
   def media_dir_healthy? do
-    state() == :watching
+    status() == :watching
   end
 
   @doc "Returns true if any watcher children are currently running."

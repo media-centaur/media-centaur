@@ -8,18 +8,18 @@ defmodule MediaCentaur.TMDB.Mapper do
   @doc """
   Extracts domain attributes for a movie entity from TMDB movie data.
   """
-  def movie_attrs(tmdb_id, data, file_path) do
+  def movie_attrs(tmdb_id, movie, file_path) do
     %{
       type: :movie,
-      name: data["title"],
-      description: data["overview"],
-      date_published: data["release_date"],
-      genres: extract_genre_names(data["genres"]),
+      name: movie["title"],
+      description: movie["overview"],
+      date_published: movie["release_date"],
+      genres: extract_genre_names(movie["genres"]),
       url: tmdb_url(:movie, tmdb_id),
-      duration: minutes_to_iso8601(data["runtime"]),
-      director: extract_director(data["credits"]),
-      content_rating: extract_us_rating(data["release_dates"]),
-      aggregate_rating_value: data["vote_average"],
+      duration: minutes_to_iso8601(movie["runtime"]),
+      director: extract_director(movie["credits"]),
+      content_rating: extract_us_rating(movie["release_dates"]),
+      aggregate_rating_value: movie["vote_average"],
       content_url: file_path
     }
   end
@@ -27,16 +27,16 @@ defmodule MediaCentaur.TMDB.Mapper do
   @doc """
   Extracts domain attributes for a TV series entity from TMDB TV data.
   """
-  def tv_attrs(tmdb_id, data) do
+  def tv_attrs(tmdb_id, show) do
     %{
       type: :tv_series,
-      name: data["name"],
-      description: data["overview"],
-      date_published: data["first_air_date"],
-      genres: extract_genre_names(data["genres"]),
+      name: show["name"],
+      description: show["overview"],
+      date_published: show["first_air_date"],
+      genres: extract_genre_names(show["genres"]),
       url: tmdb_url(:tv, tmdb_id),
-      number_of_seasons: data["number_of_seasons"],
-      aggregate_rating_value: data["vote_average"]
+      number_of_seasons: show["number_of_seasons"],
+      aggregate_rating_value: show["vote_average"]
     }
   end
 
@@ -74,16 +74,16 @@ defmodule MediaCentaur.TMDB.Mapper do
   @doc """
   Builds a list of image attribute maps from TMDB entity data (poster, backdrop, logo).
   """
-  def image_attrs(entity_id, data), do: build_image_attrs(:entity_id, entity_id, data)
+  def image_attrs(entity_id, tmdb_data), do: build_image_attrs(:entity_id, entity_id, tmdb_data)
 
   @doc """
   Extracts domain attributes for a MovieSeries entity from TMDB collection data.
   """
-  def movie_series_attrs(collection_id, data) do
+  def movie_series_attrs(collection_id, collection) do
     %{
       type: :movie_series,
-      name: data["name"],
-      description: data["overview"],
+      name: collection["name"],
+      description: collection["overview"],
       url: tmdb_url(:collection, collection_id)
     }
   end
@@ -91,18 +91,18 @@ defmodule MediaCentaur.TMDB.Mapper do
   @doc """
   Extracts domain attributes for a child Movie from TMDB movie data.
   """
-  def child_movie_attrs(entity_id, tmdb_id, data, file_path, position) do
+  def child_movie_attrs(entity_id, tmdb_id, movie, file_path, position) do
     %{
       entity_id: entity_id,
       tmdb_id: to_string(tmdb_id),
-      name: data["title"],
-      description: data["overview"],
-      date_published: data["release_date"],
+      name: movie["title"],
+      description: movie["overview"],
+      date_published: movie["release_date"],
       url: tmdb_url(:movie, tmdb_id),
-      duration: minutes_to_iso8601(data["runtime"]),
-      director: extract_director(data["credits"]),
-      content_rating: extract_us_rating(data["release_dates"]),
-      aggregate_rating_value: data["vote_average"],
+      duration: minutes_to_iso8601(movie["runtime"]),
+      director: extract_director(movie["credits"]),
+      content_rating: extract_us_rating(movie["release_dates"]),
+      aggregate_rating_value: movie["vote_average"],
       content_url: file_path,
       position: position
     }
@@ -112,7 +112,8 @@ defmodule MediaCentaur.TMDB.Mapper do
   Builds image attribute maps for a child Movie (poster, backdrop, logo).
   Uses `movie_id` instead of `entity_id`.
   """
-  def movie_image_attrs(movie_id, data), do: build_image_attrs(:movie_id, movie_id, data)
+  def movie_image_attrs(movie_id, tmdb_data),
+    do: build_image_attrs(:movie_id, movie_id, tmdb_data)
 
   @doc """
   Builds a thumb image attribute map for an episode from TMDB episode data.
@@ -138,12 +139,13 @@ defmodule MediaCentaur.TMDB.Mapper do
   @doc """
   Builds image attribute maps for a MovieSeries entity from collection data.
   """
-  def collection_image_attrs(entity_id, data), do: build_image_attrs(:entity_id, entity_id, data)
+  def collection_image_attrs(entity_id, tmdb_data),
+    do: build_image_attrs(:entity_id, entity_id, tmdb_data)
 
-  defp build_image_attrs(owner_key, owner_id, data) do
-    poster_path = data["poster_path"]
-    backdrop_path = data["backdrop_path"]
-    logo_path = find_logo_path(data)
+  defp build_image_attrs(owner_key, owner_id, tmdb_data) do
+    poster_path = tmdb_data["poster_path"]
+    backdrop_path = tmdb_data["backdrop_path"]
+    logo_path = find_logo_path(tmdb_data)
 
     [
       poster_path &&
@@ -166,8 +168,8 @@ defmodule MediaCentaur.TMDB.Mapper do
     |> Enum.reject(&is_nil/1)
   end
 
-  defp find_logo_path(data) do
-    logos = get_in(data, ["images", "logos"]) || []
+  defp find_logo_path(tmdb_data) do
+    logos = get_in(tmdb_data, ["images", "logos"]) || []
     logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
     logo && logo["file_path"]
   end
