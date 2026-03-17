@@ -36,8 +36,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       class={[
         "card glass-surface cursor-pointer overflow-hidden poster-card",
         "hover:ring-1 hover:ring-base-content/20",
-        @selected && "ring-2 ring-primary",
-        @playing && "ring-2 ring-primary"
+        @selected && "ring-2 ring-primary"
       ]}
     >
       <%!-- Poster --%>
@@ -127,8 +126,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       tabindex="0"
       class={[
         "relative rounded-lg overflow-hidden cursor-pointer group",
-        "hover:scale-[1.02] hover:shadow-xl transition-transform",
-        @playing && "ring-2 ring-primary"
+        "hover:scale-[1.02] hover:shadow-xl transition-transform"
       ]}
     >
       <div class="aspect-video glass-inset relative">
