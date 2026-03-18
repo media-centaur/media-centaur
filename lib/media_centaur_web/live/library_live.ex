@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     Library,
     LibraryBrowser,
     Playback.ProgressBroadcaster,
-    Playback.Resume,
     Playback.ResumeTarget
   }
 
@@ -338,11 +337,11 @@ defmodule MediaCentaurWeb.LibraryLive do
            entity_id: entity_id,
            summary: summary,
            resume_target: resume_target,
-           progress_records: progress_records
+           changed_record: changed_record
          }},
         socket
       ) do
-    entries = update_entry_progress(socket.assigns.entries, entity_id, summary, progress_records)
+    entries = update_entry_progress(socket.assigns.entries, entity_id, summary, changed_record)
     resume_targets = Map.put(socket.assigns.resume_targets, entity_id, resume_target)
 
     {:noreply,
@@ -523,17 +522,16 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp recompute_continue_watching(socket) do
     continue_watching =
       socket.assigns.entries
-      |> Enum.filter(fn entry ->
-        entry.progress_records != [] &&
-          case Resume.resolve(entry.entity, entry.progress_records) do
-            {:resume, _, _} -> true
-            {:play_next, _, _} -> true
-            _ -> false
-          end
-      end)
+      |> Enum.filter(&in_progress?/1)
       |> Enum.sort_by(&max_last_watched_at/1, {:desc, DateTime})
 
     assign(socket, continue_watching: continue_watching)
+  end
+
+  defp in_progress?(%{progress: nil}), do: false
+
+  defp in_progress?(%{progress: summary}) do
+    summary.episodes_completed < summary.episodes_total
   end
 
   defp max_last_watched_at(entry) do
@@ -570,7 +568,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   defp touch_stream_entries(socket, entity_ids) do
-    filtered_ids = compute_filtered(socket) |> MapSet.new(& &1.entity.id)
+    filtered_ids = compute_visible_ids(socket)
     by_id = socket.assigns.entries_by_id
 
     Enum.reduce(entity_ids, socket, fn id, sock ->
@@ -594,6 +592,13 @@ defmodule MediaCentaurWeb.LibraryLive do
     |> filtered_by_tab(socket.assigns.active_tab)
     |> filtered_by_text(socket.assigns.filter_text)
     |> sorted_by(socket.assigns.sort_order)
+  end
+
+  defp compute_visible_ids(socket) do
+    socket.assigns.entries
+    |> filtered_by_tab(socket.assigns.active_tab)
+    |> filtered_by_text(socket.assigns.filter_text)
+    |> MapSet.new(& &1.entity.id)
   end
 
   # --- Sort Dropdown Keyboard ---
@@ -678,16 +683,29 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   # --- Helpers ---
 
-  defp update_entry_progress(entries, entity_id, summary, progress_records) do
-    sorted_records = Enum.sort_by(progress_records, &{&1.season_number, &1.episode_number})
-
+  defp update_entry_progress(entries, entity_id, summary, changed_record) do
     Enum.map(entries, fn
       %{entity: %{id: ^entity_id}} = entry ->
-        %{entry | progress: summary, progress_records: sorted_records}
+        records = merge_progress_record(entry.progress_records, changed_record)
+        %{entry | progress: summary, progress_records: records}
 
       entry ->
         entry
     end)
+  end
+
+  defp merge_progress_record(records, nil), do: records
+
+  defp merge_progress_record(records, changed) do
+    key = {changed.season_number, changed.episode_number}
+
+    case Enum.find_index(records, &({&1.season_number, &1.episode_number} == key)) do
+      nil ->
+        Enum.sort_by([changed | records], &{&1.season_number, &1.episode_number})
+
+      index ->
+        List.replace_at(records, index, changed)
+    end
   end
 
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
