@@ -29,6 +29,11 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
             episode_number
           )
 
+        changed_record =
+          Enum.find(progress_records, fn record ->
+            record.season_number == season_number && record.episode_number == episode_number
+          end)
+
         Log.info(:playback, "broadcasting progress for #{entity_id}")
 
         Phoenix.PubSub.broadcast(
@@ -40,7 +45,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
              summary: summary,
              resume_target: resume_target,
              child_targets_delta: child_targets_delta,
-             progress_records: progress_records,
+             changed_record: changed_record,
              last_activity_at: DateTime.utc_now()
            }}
         )

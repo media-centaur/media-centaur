@@ -137,37 +137,30 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   def handle_info(
-        {:entity_progress_updated, %{entity_id: entity_id, progress_records: progress_records}},
+        {:entity_progress_updated, %{entity_id: entity_id, changed_record: changed_record}},
         socket
       ) do
     sessions = socket.assigns.playback.sessions
 
     socket =
-      case Map.get(sessions, entity_id) do
-        %{now_playing: now_playing} = session when not is_nil(now_playing) ->
-          record =
-            Enum.find(progress_records, fn record ->
-              record.season_number == (now_playing[:season_number] || 0) &&
-                record.episode_number == (now_playing[:episode_number] || 0)
-            end)
+      with %{now_playing: now_playing} = session when not is_nil(now_playing) <-
+             Map.get(sessions, entity_id),
+           %{} = record <- changed_record,
+           true <-
+             record.season_number == (now_playing[:season_number] || 0) &&
+               record.episode_number == (now_playing[:episode_number] || 0) do
+        updated =
+          Map.merge(now_playing, %{
+            position_seconds: record.position_seconds,
+            duration_seconds: record.duration_seconds
+          })
 
-          if record do
-            updated =
-              Map.merge(now_playing, %{
-                position_seconds: record.position_seconds,
-                duration_seconds: record.duration_seconds
-              })
+        updated_sessions =
+          Map.put(sessions, entity_id, %{session | now_playing: updated})
 
-            updated_sessions =
-              Map.put(sessions, entity_id, %{session | now_playing: updated})
-
-            assign(socket, playback: derive_playback(updated_sessions))
-          else
-            socket
-          end
-
-        _ ->
-          socket
+        assign(socket, playback: derive_playback(updated_sessions))
+      else
+        _ -> socket
       end
 
     {:noreply, socket}

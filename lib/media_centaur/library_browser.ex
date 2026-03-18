@@ -31,17 +31,7 @@ defmodule MediaCentaur.LibraryBrowser do
 
     Log.info(:library, "loaded #{length(entities)} entities for browser")
 
-    Enum.map(entities, fn entity ->
-      entity = pre_sort_children(entity)
-
-      progress_records =
-        Enum.sort_by(entity.watch_progress, &{&1.season_number, &1.episode_number})
-
-      summary = ProgressSummary.compute(entity, progress_records)
-
-      %{entity: entity, progress: summary, progress_records: progress_records}
-      |> maybe_unwrap_single_movie()
-    end)
+    Enum.map(entities, &build_entry/1)
   end
 
   @doc """
@@ -68,18 +58,7 @@ defmodule MediaCentaur.LibraryBrowser do
     requested = MapSet.new(entity_ids)
     gone_ids = MapSet.difference(requested, present_ids)
 
-    entries =
-      Enum.map(entities, fn entity ->
-        entity = pre_sort_children(entity)
-
-        progress_records =
-          Enum.sort_by(entity.watch_progress, &{&1.season_number, &1.episode_number})
-
-        summary = ProgressSummary.compute(entity, progress_records)
-
-        %{entity: entity, progress: summary, progress_records: progress_records}
-        |> maybe_unwrap_single_movie()
-      end)
+    entries = Enum.map(entities, &build_entry/1)
 
     {entries, gone_ids}
   end
@@ -98,22 +77,29 @@ defmodule MediaCentaur.LibraryBrowser do
 
   # --- Private Helpers ---
 
-  defp maybe_unwrap_single_movie(%{entity: %{type: :movie_series, movies: [movie]}} = entry) do
-    entity =
-      %{
-        entry.entity
-        | type: :movie,
-          name: movie.name || entry.entity.name,
-          date_published: movie.date_published || entry.entity.date_published,
-          content_url: movie.content_url,
-          movies: []
-      }
+  defp build_entry(entity) do
+    entity = entity |> pre_sort_children() |> maybe_unwrap_single_movie()
 
-    progress = ProgressSummary.compute(entity, entry.progress_records)
-    %{entry | entity: entity, progress: progress}
+    progress_records =
+      Enum.sort_by(entity.watch_progress, &{&1.season_number, &1.episode_number})
+
+    summary = ProgressSummary.compute(entity, progress_records)
+
+    %{entity: entity, progress: summary, progress_records: progress_records}
   end
 
-  defp maybe_unwrap_single_movie(entry), do: entry
+  defp maybe_unwrap_single_movie(%{type: :movie_series, movies: [movie]} = entity) do
+    %{
+      entity
+      | type: :movie,
+        name: movie.name || entity.name,
+        date_published: movie.date_published || entity.date_published,
+        content_url: movie.content_url,
+        movies: []
+    }
+  end
+
+  defp maybe_unwrap_single_movie(entity), do: entity
 
   defp pre_sort_children(entity) do
     seasons =

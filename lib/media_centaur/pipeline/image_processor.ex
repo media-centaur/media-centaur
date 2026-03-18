@@ -86,9 +86,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
     end
   end
 
-  defp http_client do
-    Application.get_env(:media_centaur, :image_http_client, Req)
-  end
+  defp http_client, do: Application.get_env(:media_centaur, :image_http_client, Req)
 
   # ---------------------------------------------------------------------------
   # Image operations

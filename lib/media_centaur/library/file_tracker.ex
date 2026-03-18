@@ -190,7 +190,7 @@ defmodule MediaCentaur.Library.FileTracker do
       |> MapSet.new()
       |> MapSet.intersection(removed_paths)
 
-    delete_children_for_paths(entity_id, removed_file_paths)
+    seasons = delete_children_for_paths(entity_id, removed_file_paths)
 
     # WatchedFile records cleaned up after children to avoid FK violations
     files_to_delete = Enum.filter(watched_files, &MapSet.member?(removed_paths, &1.file_path))
@@ -214,16 +214,18 @@ defmodule MediaCentaur.Library.FileTracker do
     if remaining_files == [] do
       delete_entity_cascade(entity_id)
     else
-      cleanup_empty_seasons(entity_id)
+      cleanup_empty_seasons(seasons)
     end
 
     [entity_id]
   end
 
+  # Returns the list of seasons (loaded once, reused by cleanup_empty_seasons).
   defp delete_children_for_paths(entity_id, removed_paths) do
+    seasons = Library.list_seasons_for_entity!(entity_id)
+
     # Delete episodes whose content_url matches a removed path
-    Library.list_seasons_for_entity!(entity_id)
-    |> Enum.each(fn season ->
+    Enum.each(seasons, fn season ->
       matched_episodes =
         Library.list_episodes_for_season!(season.id, load: [:images])
         |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
@@ -252,10 +254,12 @@ defmodule MediaCentaur.Library.FileTracker do
       |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
 
     bulk_destroy(matched_extras, Library.Extra)
+
+    seasons
   end
 
-  defp cleanup_empty_seasons(entity_id) do
-    Enum.each(Library.list_seasons_for_entity!(entity_id), fn season ->
+  defp cleanup_empty_seasons(seasons) do
+    Enum.each(seasons, fn season ->
       if Library.list_episodes_for_season!(season.id) == [] do
         bulk_destroy(Library.list_extras_for_season!(season.id), Library.Extra)
         Library.destroy_season!(season)

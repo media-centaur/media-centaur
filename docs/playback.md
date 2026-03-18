@@ -116,7 +116,14 @@ Each save calls `WatchProgress.upsert_progress` with the tracker's `saveable_pos
 Every save broadcasts to `"playback:events"`:
 
 ```elixir
-{:entity_progress_updated, entity_id, progress_summary, resume_target, child_targets_delta}
+{:entity_progress_updated, %{
+  entity_id: entity_id,
+  summary: summary,
+  resume_target: resume_target,
+  child_targets_delta: child_targets_delta,
+  changed_record: changed_record,
+  last_activity_at: last_activity_at
+}}
 ```
 
 State changes broadcast with entity_id:
