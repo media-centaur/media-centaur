@@ -23,13 +23,13 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
                       %{
                         entity_id: entity_id,
                         summary: summary,
-                        progress_records: progress_records
+                        changed_record: changed_record
                       }}
 
       assert entity_id == entity.id
       assert is_map(summary)
-      assert is_list(progress_records)
-      assert length(progress_records) == 1
+      assert changed_record.season_number == 1
+      assert changed_record.episode_number == 1
     end
 
     test "returns :ok for nonexistent entity" do
