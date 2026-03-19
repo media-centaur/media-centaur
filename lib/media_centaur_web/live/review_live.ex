@@ -274,7 +274,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     ~H"""
     <Layouts.app flash={@flash} current_path="/review">
       <div
-        class="review-page"
+        class="flex flex-col h-full gap-4"
         data-page-behavior="review"
         data-nav-default-zone="review"
       >
@@ -282,18 +282,24 @@ defmodule MediaCentaurWeb.ReviewLive do
         <div class="flex items-center justify-between">
           <h1 class="text-2xl font-bold">Review</h1>
           <div :if={@total_files > 0} class="flex items-center gap-2">
-            <span class="review-stat-chip review-stat-total">
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning">
               {@total_files} pending
             </span>
-            <span :if={@reason_counts.no_results > 0} class="review-stat-chip review-stat-no-results">
+            <span
+              :if={@reason_counts.no_results > 0}
+              class="px-3 py-1 rounded-full text-xs font-semibold bg-error/12 text-error"
+            >
               {@reason_counts.no_results} no results
             </span>
-            <span :if={@reason_counts.tied > 0} class="review-stat-chip review-stat-tied">
+            <span
+              :if={@reason_counts.tied > 0}
+              class="px-3 py-1 rounded-full text-xs font-semibold bg-info/12 text-info"
+            >
               {@reason_counts.tied} tied
             </span>
             <span
               :if={@reason_counts.low_confidence > 0}
-              class="review-stat-chip review-stat-low-conf"
+              class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/12 text-warning"
             >
               {@reason_counts.low_confidence} low confidence
             </span>
@@ -314,9 +320,12 @@ defmodule MediaCentaurWeb.ReviewLive do
         </div>
 
         <%!-- Master-detail layout --%>
-        <div :if={@groups != []} class="review-layout">
+        <div :if={@groups != []} class="flex gap-6 flex-1 min-h-0 overflow-x-auto">
           <%!-- Left: scrollable list --%>
-          <div class="review-list glass-surface rounded-lg" data-nav-zone="review-list">
+          <div
+            class="w-[340px] shrink-0 overflow-hidden flex flex-col h-full glass-surface rounded-lg"
+            data-nav-zone="review-list"
+          >
             <.list_section
               groups={@sorted_groups}
               selected_key={@selected_key}
@@ -325,7 +334,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           </div>
 
           <%!-- Right: detail panel --%>
-          <div class="review-detail" data-nav-zone="review-detail">
+          <div class="flex-1 min-w-[360px] min-h-0" data-nav-zone="review-detail">
             <.detail_panel
               :if={@selected_key && @groups_by_key[@selected_key]}
               group={@groups_by_key[@selected_key]}
@@ -366,15 +375,25 @@ defmodule MediaCentaurWeb.ReviewLive do
       |> assign(tv: tv)
 
     ~H"""
-    <div class="review-list-scroll">
-      <div :if={@movies != []} class="review-section-label">Movies</div>
+    <div class="flex-1 overflow-y-auto p-2 thin-scrollbar">
+      <div
+        :if={@movies != []}
+        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/30 px-3 pt-3 pb-1.5"
+      >
+        Movies
+      </div>
       <.list_item
         :for={group <- @movies}
         group={group}
         selected={group.key == @selected_key}
         processing={MapSet.member?(@processing, group.key)}
       />
-      <div :if={@tv != []} class="review-section-label mt-2">TV Series</div>
+      <div
+        :if={@tv != []}
+        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/30 px-3 pt-3 pb-1.5 mt-2"
+      >
+        TV Series
+      </div>
       <.list_item
         :for={group <- @tv}
         group={group}
@@ -399,36 +418,45 @@ defmodule MediaCentaurWeb.ReviewLive do
 
     ~H"""
     <div
-      class={["review-list-item", @selected && "selected"]}
+      class={[
+        "flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-[background,opacity] duration-150 border border-transparent relative hover:bg-base-content/6",
+        @selected && "bg-primary/12 !border-primary/25"
+      ]}
       phx-click="select_item"
       phx-focus="select_item"
       phx-value-key={@encoded_key}
       data-nav-item
       tabindex="0"
     >
-      <div :if={@processing} class="review-list-item-spinner">
+      <div
+        :if={@processing}
+        class="absolute inset-0 flex items-center justify-center bg-base-300/60 rounded-md z-[1]"
+      >
         <span class="loading loading-spinner loading-xs"></span>
       </div>
       <img
         :if={@file.match_poster_path}
         src={"https://image.tmdb.org/t/p/w92#{@file.match_poster_path}"}
         alt=""
-        class="review-list-poster"
+        class="w-10 h-[60px] rounded object-cover shrink-0"
       />
       <div
         :if={!@file.match_poster_path}
-        class="review-list-poster-placeholder glass-inset"
+        class="w-10 h-[60px] rounded flex items-center justify-center shrink-0 glass-inset"
       >
         <.icon name="hero-film" class="size-4 opacity-30" />
       </div>
       <div class="flex-1 min-w-0">
-        <div class="review-list-title">
+        <div class="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
           {display_title(@group)}
         </div>
-        <div :if={@file_count > 1} class="review-list-episodes">
+        <div
+          :if={@file_count > 1}
+          class="text-[0.6875rem] text-base-content/40 mt-0.5"
+        >
           {@file_count} episodes{if @file.season_number, do: " · S#{zero_pad(@file.season_number)}"}
         </div>
-        <div :if={@file_count == 1} class="review-list-meta">
+        <div :if={@file_count == 1} class="text-xs text-base-content/50 mt-0.5">
           {if @file.parsed_year, do: "#{@file.parsed_year} · "}{format_type(@file.parsed_type)}
         </div>
       </div>
@@ -476,7 +504,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       |> assign(encoded_key: encode_key(assigns.group.key))
 
     ~H"""
-    <div class="glass-surface rounded-lg review-detail-scroll relative">
+    <div class="glass-surface rounded-lg overflow-y-auto h-full max-h-full thin-scrollbar relative">
       <div
         :if={@processing}
         class="absolute inset-0 bg-base-300/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg"
@@ -522,7 +550,9 @@ defmodule MediaCentaurWeb.ReviewLive do
 
         <%!-- TMDB match --%>
         <div class="glass-inset rounded-lg p-4">
-          <p class="review-comparison-label">TMDB Match</p>
+          <p class="text-[0.625rem] font-semibold uppercase tracking-[0.05em] text-base-content/40 mb-3">
+            TMDB Match
+          </p>
           <%= if @file.tmdb_id && !@tied do %>
             <div class="flex gap-4">
               <img

@@ -205,22 +205,29 @@ defmodule MediaCentaurWeb.SettingsLive do
       <div
         data-page-behavior="settings"
         data-nav-default-zone="settings"
-        class="settings-layout"
+        class="flex gap-8 max-w-[960px]"
       >
-        <nav data-nav-zone="sections" class="section-nav">
+        <nav
+          data-nav-zone="sections"
+          class="w-40 shrink-0 sticky top-6 self-start flex flex-col gap-0.5"
+        >
           <h1 class="text-xl font-bold mb-4">Settings</h1>
           <.link
             :for={section <- @sections}
             patch={~p"/settings?section=#{section.id}"}
             data-nav-item
             tabindex="0"
-            class={["section-nav-item", @active_section == section.id && "menu-item-active"]}
+            class={[
+              "block py-2 px-3 rounded-lg text-sm text-base-content/70 transition-[opacity,background-color] duration-150 hover:opacity-100 hover:bg-base-content/6",
+              @active_section == section.id &&
+                "!opacity-100 text-primary bg-primary/10 font-medium"
+            ]}
           >
             {section.label}
           </.link>
         </nav>
 
-        <div data-nav-zone="grid" class="settings-content">
+        <div data-nav-zone="grid" class="flex-1 min-w-0">
           <.section_content
             active_section={@active_section}
             watchers_running={@watchers_running}
@@ -244,9 +251,9 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "services"} = assigns) do
     ~H"""
-    <div data-nav-grid class="settings-card glass-surface">
-      <h2 class="settings-section-title">Services</h2>
-      <p class="settings-section-desc">
+    <div data-nav-grid class="p-5 rounded-lg glass-surface">
+      <h2 class="text-lg font-semibold">Services</h2>
+      <p class="text-sm opacity-50 mt-0.5 mb-2">
         Start or stop background services. State is saved per environment.
       </p>
 
@@ -292,9 +299,9 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "logging"} = assigns) do
     ~H"""
-    <div data-nav-grid class="settings-card glass-surface">
+    <div data-nav-grid class="p-5 rounded-lg glass-surface">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="settings-section-title">Logging</h2>
+        <h2 class="text-lg font-semibold">Logging</h2>
         <div class="flex gap-2">
           <button
             phx-click="enable_all"
@@ -316,7 +323,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       </div>
 
       <h3 class="text-sm font-medium text-base-content/70 mt-2">Components</h3>
-      <p class="settings-section-desc">
+      <p class="text-sm opacity-50 mt-0.5 mb-2">
         Per-component decision logs. Enable to see thinking in the terminal.
       </p>
 
@@ -332,7 +339,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       <div class="mt-6">
         <h3 class="text-sm font-medium text-base-content/70">Frameworks</h3>
-        <p class="settings-section-desc">
+        <p class="text-sm opacity-50 mt-0.5 mb-2">
           Per-framework verbose output. Disabled frameworks only emit warning and above.
         </p>
 
@@ -352,32 +359,35 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "configuration"} = assigns) do
     ~H"""
-    <div class="settings-card glass-surface">
-      <h2 class="settings-section-title">Configuration</h2>
-      <p class="settings-section-desc">
+    <div class="p-5 rounded-lg glass-surface">
+      <h2 class="text-lg font-semibold">Configuration</h2>
+      <p class="text-sm opacity-50 mt-0.5 mb-2">
         Read-only view of the current configuration.
       </p>
 
       <div :if={@config == %{}} class="text-base-content/60 py-4">Loading...</div>
 
       <div :if={@config != %{}} class="space-y-3 text-sm mt-3">
-        <div class="settings-config-row">
+        <div class="flex justify-between items-baseline gap-4">
           <span class="text-base-content/60">Auto-approve threshold</span>
           <span class="font-mono">{@config[:auto_approve_threshold] || "—"}</span>
         </div>
-        <div class="settings-config-row min-w-0">
+        <div class="flex justify-between items-baseline gap-4 min-w-0">
           <span class="text-base-content/60 shrink-0">MPV path</span>
           <span class="font-mono truncate-left" title={@config[:mpv_path]}>
             <bdo dir="ltr">{@config[:mpv_path] || "—"}</bdo>
           </span>
         </div>
-        <div class="settings-config-row min-w-0">
+        <div class="flex justify-between items-baseline gap-4 min-w-0">
           <span class="text-base-content/60 shrink-0">Database path</span>
           <span class="font-mono text-xs min-w-0 truncate-left" title={@config[:database_path]}>
             <bdo dir="ltr">{@config[:database_path] || "—"}</bdo>
           </span>
         </div>
-        <div :for={dir <- @config[:watch_dirs]} class="settings-config-row min-w-0">
+        <div
+          :for={dir <- @config[:watch_dirs]}
+          class="flex justify-between items-baseline gap-4 min-w-0"
+        >
           <span :if={dir == List.first(@config[:watch_dirs])} class="text-base-content/60 shrink-0">
             Watch directories
           </span>
@@ -386,7 +396,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             <bdo dir="ltr">{dir}</bdo>
           </span>
         </div>
-        <div :if={@config[:watch_dirs] == []} class="settings-config-row">
+        <div :if={@config[:watch_dirs] == []} class="flex justify-between items-baseline gap-4">
           <span class="text-base-content/60">Watch directories</span>
           <span class="text-base-content/40 italic">None configured</span>
         </div>
@@ -397,9 +407,9 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "danger"} = assigns) do
     ~H"""
-    <div data-nav-grid class="settings-card glass-surface border border-error/20">
-      <h2 class="settings-section-title text-error">Danger Zone</h2>
-      <p class="settings-section-desc">
+    <div data-nav-grid class="p-5 rounded-lg glass-surface border border-error/20">
+      <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
+      <p class="text-sm opacity-50 mt-0.5 mb-2">
         Destructive actions that cannot be undone.
       </p>
 
@@ -431,7 +441,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(assigns) do
     ~H"""
-    <div class="settings-card glass-surface">
+    <div class="p-5 rounded-lg glass-surface">
       <p class="text-base-content/60">Unknown section.</p>
     </div>
     """
@@ -448,7 +458,13 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp settings_row(assigns) do
     ~H"""
-    <div class="settings-row" data-nav-item tabindex="0" phx-click={@event} {phx_values(@event_value)}>
+    <div
+      class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg transition-colors duration-150 cursor-pointer hover:bg-base-content/[0.04]"
+      data-nav-item
+      tabindex="0"
+      phx-click={@event}
+      {phx_values(@event_value)}
+    >
       <div>
         <span class="font-medium">{@label}</span>
         <p class="text-xs text-base-content/50 mt-0.5">{@description}</p>
