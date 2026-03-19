@@ -128,6 +128,13 @@ html { scrollbar-gutter: stable; }
   white-space: nowrap;
 }
 
+/* Thin scrollbar — reusable utility for scrollable panels */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(from currentColor l c h / 0.25) transparent;
+  scroll-padding: 1rem;
+}
+
 /* ── Glassmorphism ──
    Translucent frosted-glass surfaces over gradient backdrops.
    Three tiers: .glass-nav (navbar), .glass-surface (cards), .glass-inset (inner panels). */
@@ -234,7 +241,7 @@ body {
   padding: 1rem 0.5rem;
 }
 
-/* Sidebar navigation links */
+/* Sidebar navigation links — colors use theme variables */
 .sidebar-link {
   display: flex;
   align-items: center;
@@ -244,43 +251,23 @@ body {
   position: relative;
   overflow: hidden;
   white-space: nowrap;
-  color: oklch(75% 0.005 264);
+  color: oklch(from var(--color-base-content) l c h / 0.7);
   transition: background 0.15s, color 0.15s;
 }
 
 .sidebar-link:hover {
-  background: oklch(90% 0.005 264 / 0.08);
-  color: oklch(90% 0.005 264);
+  background: oklch(from var(--color-base-content) l c h / 0.08);
+  color: oklch(from var(--color-base-content) l c h / 0.9);
 }
 
 .sidebar-link-active {
-  background: oklch(62% 0.16 250 / 0.1);
-  color: oklch(70% 0.14 250);
+  background: oklch(from var(--color-primary) l c h / 0.1);
+  color: var(--color-primary);
 }
 
 .sidebar-link-active:hover {
-  background: oklch(62% 0.16 250 / 0.15);
-  color: oklch(75% 0.14 250);
-}
-
-/* Light theme sidebar link overrides */
-[data-theme=light] .sidebar-link {
-  color: oklch(45% 0.015 264);
-}
-
-[data-theme=light] .sidebar-link:hover {
-  background: oklch(23% 0.020 264 / 0.06);
-  color: oklch(23% 0.020 264);
-}
-
-[data-theme=light] .sidebar-link-active {
-  background: oklch(50% 0.18 250 / 0.1);
-  color: oklch(45% 0.18 250);
-}
-
-[data-theme=light] .sidebar-link-active:hover {
-  background: oklch(50% 0.18 250 / 0.15);
-  color: oklch(40% 0.18 250);
+  background: oklch(from var(--color-primary) l c h / 0.15);
+  color: oklch(from var(--color-primary) l c h / 0.8);
 }
 
 /* Label text fades out when collapsed */
@@ -343,9 +330,6 @@ body {
    ModalShell (centered overlay) wraps the shared DetailPanel component. */
 
 /* Modal backdrop — always in DOM, toggled via data-state.
-   The backdrop-filter layer stays alive so the browser doesn't
-   pay the first-frame compositing cost on every open. */
-/* Modal backdrop — always in DOM, toggled via data-state.
    Uses transitions for both open and close. */
 .modal-backdrop {
   position: fixed;
@@ -379,6 +363,8 @@ body {
   max-height: 90vh;
   border-radius: 0.75rem;
   overflow: hidden;
+  background-color: var(--color-base-100);
+  box-shadow: 0 25px 50px -12px oklch(0% 0 0 / 0.25);
   opacity: 0;
   transform: scale(0.96) translateY(8px);
   transition: opacity 200ms ease-in, transform 200ms ease-in;
@@ -390,10 +376,11 @@ body {
   transition: opacity 250ms ease-out, transform 250ms ease-out;
 }
 
-#detail-content {
-  scrollbar-width: thin;
-  scrollbar-color: oklch(from currentColor l c h / 0.25) transparent;
-  scroll-padding: 1rem;
+/* Small modal panel — delete confirmations, alerts */
+.modal-panel-sm {
+  width: min(480px, 92vw);
+  max-height: none;
+  overflow: visible;
 }
 
 /* Show only the active theme icon */
@@ -408,11 +395,11 @@ body {
 
 /* ── Zone Tabs (plain text, no container) ── */
 
-/* 7. Zone tab underline slide — expands from center on active */
+/* Zone tab underline slide — expands from center on active */
 .zone-tab {
   font-size: 1.125rem;
   font-weight: 500;
-  color: oklch(55% 0.01 264);
+  color: oklch(from var(--color-base-content) l c h / 0.5);
   text-decoration: none;
   padding-bottom: 0.25rem;
   position: relative;
@@ -426,35 +413,22 @@ body {
   left: 50%;
   right: 50%;
   height: 2px;
-  background: oklch(62% 0.16 250);
+  background: var(--color-primary);
   transition: left 150ms ease-out, right 150ms ease-out;
 }
 
 .zone-tab:hover {
-  color: oklch(75% 0.01 264);
+  color: oklch(from var(--color-base-content) l c h / 0.7);
 }
 
 .zone-tab-active {
-  color: oklch(96% 0.008 264);
+  color: var(--color-base-content);
   font-weight: 600;
 }
 
 .zone-tab-active::after {
   left: 0;
   right: 0;
-}
-
-[data-theme=light] .zone-tab {
-  color: oklch(55% 0.02 264);
-}
-[data-theme=light] .zone-tab:hover {
-  color: oklch(35% 0.02 264);
-}
-[data-theme=light] .zone-tab-active {
-  color: oklch(15% 0.02 264);
-}
-[data-theme=light] .zone-tab-active::after {
-  background: oklch(50% 0.18 250);
 }
 
 
@@ -472,33 +446,33 @@ body {
 
 .library-tabs .tab {
   border-radius: 1.5rem;
-  color: oklch(65% 0.01 264);
+  color: oklch(from var(--color-base-content) l c h / 0.6);
   font-weight: 500;
   --tab-bg: transparent;
   transition: color 150ms, background 150ms;
 }
 
 .library-tabs .tab:hover {
-  color: oklch(82% 0.01 264);
+  color: oklch(from var(--color-base-content) l c h / 0.8);
 }
 
 .library-tabs .tab-active,
 .library-tabs .tab[aria-selected=true] {
-  color: oklch(96% 0.008 264) !important;
-  background: oklch(32% 0.025 264 / 0.8) !important;
-  --tab-bg: oklch(32% 0.025 264 / 0.8);
+  color: var(--color-base-content) !important;
+  background: oklch(from var(--color-neutral) l c h / 0.8) !important;
+  --tab-bg: oklch(from var(--color-neutral) l c h / 0.8);
 }
 
 /* Count badges inside type tabs */
 .library-tabs .badge {
-  background: oklch(22% 0.017 264 / 0.7);
-  color: oklch(68% 0.01 264);
+  background: oklch(from var(--color-base-200) l c h / 0.7);
+  color: oklch(from var(--color-base-content) l c h / 0.6);
   border: none;
 }
 
 .library-tabs .tab-active .badge {
-  background: oklch(20% 0.015 264 / 0.8);
-  color: oklch(80% 0.01 264);
+  background: oklch(from var(--color-base-300) l c h / 0.8);
+  color: oklch(from var(--color-base-content) l c h / 0.8);
 }
 
 /* Sort dropdown — custom replacement for native <select> */
@@ -513,7 +487,7 @@ body {
   border-radius: 2rem;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  color: oklch(82% 0.01 264);
+  color: oklch(from var(--color-base-content) l c h / 0.8);
   font-weight: 500;
   padding: 0.375rem 0.75rem;
   font-size: 0.875rem;
@@ -522,10 +496,10 @@ body {
 }
 
 .sort-dropdown-trigger:hover {
-  border-color: oklch(62% 0.16 250 / 0.4);
+  border-color: oklch(from var(--color-primary) l c h / 0.4);
 }
 
-/* 6. Sort chevron rotation */
+/* Sort chevron rotation */
 .sort-dropdown-chevron {
   display: inline-flex;
   width: 1rem;
@@ -558,44 +532,22 @@ body {
   font-size: 0.875rem;
   cursor: pointer;
   white-space: nowrap;
-  color: oklch(75% 0.01 264);
+  color: oklch(from var(--color-base-content) l c h / 0.7);
   transition: background 0.1s, color 0.1s;
 }
 
 .sort-dropdown-item:hover {
-  background: oklch(90% 0.005 264 / 0.1);
-  color: oklch(90% 0.01 264);
+  background: oklch(from var(--color-base-content) l c h / 0.1);
+  color: oklch(from var(--color-base-content) l c h / 0.9);
 }
 
 .sort-dropdown-item-active {
-  color: oklch(75% 0.14 250);
+  color: var(--color-primary);
 }
 
 .sort-dropdown-item-highlight {
-  background: oklch(90% 0.005 264 / 0.1);
-  color: oklch(90% 0.01 264);
-}
-
-[data-theme=light] .sort-dropdown-trigger {
-  color: oklch(35% 0.02 264);
-}
-
-[data-theme=light] .sort-dropdown-item {
-  color: oklch(45% 0.02 264);
-}
-
-[data-theme=light] .sort-dropdown-item:hover {
-  background: oklch(23% 0.02 264 / 0.06);
-  color: oklch(23% 0.02 264);
-}
-
-[data-theme=light] .sort-dropdown-item-active {
-  color: oklch(45% 0.18 250);
-}
-
-[data-theme=light] .sort-dropdown-item-highlight {
-  background: oklch(23% 0.02 264 / 0.06);
-  color: oklch(23% 0.02 264);
+  background: oklch(from var(--color-base-content) l c h / 0.1);
+  color: oklch(from var(--color-base-content) l c h / 0.9);
 }
 
 /* Filter input — subtle border, matched height */
@@ -603,49 +555,22 @@ body {
   border-radius: 2rem;
   background: transparent;
   border: 1px solid var(--glass-border);
-  color: oklch(82% 0.01 264);
+  color: oklch(from var(--color-base-content) l c h / 0.8);
   height: auto;
   min-height: 0;
   padding: 0.375rem 1rem;
   font-size: 0.875rem;
-}
-
-.library-filter::placeholder {
-  color: oklch(55% 0.01 264);
-}
-
-.library-filter:focus {
-  border-color: oklch(62% 0.16 250 / 0.5);
-  box-shadow: 0 0 0 3px oklch(62% 0.16 250 / 0.1);
-  outline: none;
-}
-
-/* 5. Filter input focus glow transition */
-.library-filter {
   transition: border-color 200ms, box-shadow 200ms;
 }
 
-/* Light theme */
-[data-theme=light] .library-tabs .tab {
-  color: oklch(50% 0.02 264);
+.library-filter::placeholder {
+  color: oklch(from var(--color-base-content) l c h / 0.5);
 }
-[data-theme=light] .library-tabs .tab:hover {
-  color: oklch(30% 0.02 264);
-}
-[data-theme=light] .library-tabs .tab-active,
-[data-theme=light] .library-tabs .tab[aria-selected=true] {
-  color: oklch(15% 0.02 264) !important;
-  background: oklch(85% 0.008 264 / 0.6) !important;
-}
-[data-theme=light] .library-tabs .badge {
-  background: oklch(88% 0.006 264 / 0.7);
-  color: oklch(40% 0.02 264);
-}
-[data-theme=light] .library-filter {
-  color: oklch(25% 0.02 264);
-}
-[data-theme=light] .library-filter::placeholder {
-  color: oklch(55% 0.02 264);
+
+.library-filter:focus {
+  border-color: oklch(from var(--color-primary) l c h / 0.5);
+  box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.1);
+  outline: none;
 }
 
 /* ── Input System: Focus Rings ──
@@ -659,15 +584,9 @@ body {
 /* Keyboard/gamepad focus ring — primary color glow */
 [data-input=keyboard] [data-nav-item]:focus,
 [data-input=gamepad] [data-nav-item]:focus {
-  outline: 2px solid oklch(62% 0.16 250);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-box, 0.5rem);
-}
-
-/* Light theme focus ring — darker primary */
-[data-theme=light][data-input=keyboard] [data-nav-item]:focus,
-[data-theme=light][data-input=gamepad] [data-nav-item]:focus {
-  outline-color: oklch(50% 0.18 250);
 }
 
 /* Delegated focus ring — when a nav item has data-nav-focus-target, the ring
@@ -681,263 +600,9 @@ body {
 
 [data-input=keyboard] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring],
 [data-input=gamepad] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring] {
-  outline: 2px solid oklch(62% 0.16 250);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: var(--radius-box, 0.5rem);
-}
-
-[data-theme=light][data-input=keyboard] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring],
-[data-theme=light][data-input=gamepad] [data-nav-item][data-nav-focus-target]:focus [data-nav-focus-ring] {
-  outline-color: oklch(50% 0.18 250);
-}
-
-
-/* Settings page — two-pane layout */
-.settings-layout {
-  display: flex;
-  gap: 2rem;
-  max-width: 960px;
-}
-
-.section-nav {
-  width: 160px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 1.5rem;
-  align-self: flex-start;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.section-nav-item {
-  display: block;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-box, 0.5rem);
-  font-size: 0.875rem;
-  color: var(--color-base-content);
-  opacity: 0.7;
-  transition: opacity 150ms, background-color 150ms;
-}
-
-.section-nav-item:hover {
-  opacity: 1;
-  background-color: oklch(from var(--color-base-content) l c h / 0.06);
-}
-
-.section-nav-item.menu-item-active {
-  opacity: 1;
-  color: var(--color-primary);
-  background-color: oklch(from var(--color-primary) l c h / 0.1);
-  font-weight: 500;
-}
-
-.settings-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.settings-card {
-  padding: 1.25rem;
-  border-radius: var(--radius-box, 0.5rem);
-}
-
-.settings-section-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-.settings-section-desc {
-  font-size: 0.875rem;
-  opacity: 0.5;
-  margin-top: 0.125rem;
-  margin-bottom: 0.5rem;
-}
-
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.625rem 0.875rem;
-  gap: 1rem;
-  border-radius: var(--radius-box, 0.5rem);
-  transition: background-color 150ms;
-  cursor: pointer;
-}
-
-.settings-row:hover {
-  background-color: oklch(from var(--color-base-content) l c h / 0.04);
-}
-
-.settings-config-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-}
-
-/* ── Review: Master-Detail Layout ── */
-
-.review-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 1rem;
-}
-
-.review-layout {
-  display: flex;
-  gap: 1.5rem;
-  flex: 1;
-  min-height: 0;
-  overflow-x: auto;
-}
-
-.review-list {
-  width: 340px;
-  flex-shrink: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.review-list-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.5rem;
-  scrollbar-width: thin;
-  scrollbar-color: oklch(from currentColor l c h / 0.25) transparent;
-}
-
-.review-section-label {
-  font-size: 0.5625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: oklch(from var(--color-base-content) l c h / 0.3);
-  padding: 0.75rem 0.75rem 0.375rem;
-}
-
-.review-list-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
-  border: 1px solid transparent;
-  position: relative;
-}
-
-.review-list-item:hover {
-  background: oklch(from var(--color-base-content) l c h / 0.06);
-}
-
-.review-list-item.selected {
-  background: oklch(from var(--color-primary) l c h / 0.12);
-  border-color: oklch(from var(--color-primary) l c h / 0.25);
-}
-
-.review-list-item-spinner {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: oklch(from var(--color-base-300) l c h / 0.6);
-  border-radius: 0.375rem;
-  z-index: 1;
-}
-
-.review-list-poster {
-  width: 40px;
-  height: 60px;
-  border-radius: 0.25rem;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.review-list-poster-placeholder {
-  width: 40px;
-  height: 60px;
-  border-radius: 0.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.review-list-title {
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.review-list-meta {
-  font-size: 0.75rem;
-  color: oklch(from var(--color-base-content) l c h / 0.5);
-  margin-top: 0.125rem;
-}
-
-.review-list-episodes {
-  font-size: 0.6875rem;
-  color: oklch(from var(--color-base-content) l c h / 0.4);
-  margin-top: 0.125rem;
-}
-
-.review-detail {
-  flex: 1;
-  min-width: 360px;
-  min-height: 0;
-}
-
-.review-detail-scroll {
-  overflow-y: auto;
-  height: 100%;
-  max-height: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: oklch(from currentColor l c h / 0.25) transparent;
-}
-
-.review-comparison-label {
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: oklch(from var(--color-base-content) l c h / 0.4);
-  margin-bottom: 0.75rem;
-}
-
-/* Stat chips in header */
-.review-stat-chip {
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.review-stat-total {
-  background: oklch(from var(--color-warning) l c h / 0.15);
-  color: var(--color-warning);
-}
-
-.review-stat-no-results {
-  background: oklch(from var(--color-error) l c h / 0.12);
-  color: var(--color-error);
-}
-
-.review-stat-tied {
-  background: oklch(from var(--color-info) l c h / 0.12);
-  color: var(--color-info);
-}
-
-.review-stat-low-conf {
-  background: oklch(from var(--color-warning) l c h / 0.12);
-  color: var(--color-warning);
 }
 
 /* ── Library Micro-Animations ──
@@ -985,8 +650,8 @@ body {
 }
 
 @keyframes play-flash {
-  0% { box-shadow: 0 0 0 0 oklch(72% 0.13 158 / 0.6); }
-  100% { box-shadow: 0 0 0 8px oklch(72% 0.13 158 / 0); }
+  0% { box-shadow: 0 0 0 0 oklch(from var(--color-success) l c h / 0.6); }
+  100% { box-shadow: 0 0 0 8px oklch(from var(--color-success) l c h / 0); }
 }
 
 /* --- Gamepad hint bar --- */

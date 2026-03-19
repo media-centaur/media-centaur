@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
       data-detail-mode={@open && "modal"}
       data-detail-view={@open && to_string(@detail_view)}
     >
-      <div class="modal-panel bg-base-100" phx-click-away={@open && @on_close}>
+      <div class="modal-panel" phx-click-away={@open && @on_close}>
         <div :if={@entity} class="flex flex-col flex-1 min-h-0">
           <button
             phx-click={@on_close}

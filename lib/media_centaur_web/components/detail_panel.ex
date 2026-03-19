@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <div
         :if={@has_scrollable_content}
         id="detail-content"
-        class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 bg-base-300/40"
+        class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 bg-base-300/40 thin-scrollbar"
         phx-hook="ScrollToResume"
         data-entity-id={@entity.id}
       >
@@ -936,10 +936,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     ~H"""
     <div class="modal-backdrop" data-state="open" style="z-index: 60;">
-      <div
-        class="bg-base-100 rounded-xl p-6 max-w-lg mx-auto shadow-xl"
-        phx-click-away="delete_cancel"
-      >
+      <div class="modal-panel modal-panel-sm p-6" phx-click-away="delete_cancel">
         <h3 class="text-lg font-bold text-error">Delete file?</h3>
         <div class="mt-3 rounded-lg bg-base-content/5 p-3">
           <div class="flex items-center gap-2">
@@ -969,10 +966,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     ~H"""
     <div class="modal-backdrop" data-state="open" style="z-index: 60;">
-      <div
-        class="bg-base-100 rounded-xl p-6 max-w-lg mx-auto shadow-xl"
-        phx-click-away="delete_cancel"
-      >
+      <div class="modal-panel modal-panel-sm p-6" phx-click-away="delete_cancel">
         <h3 class="text-lg font-bold text-error">Delete folder?</h3>
         <div class="mt-3 rounded-lg bg-base-content/5 p-3">
           <div class="flex items-center gap-2">

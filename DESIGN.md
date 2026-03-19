@@ -84,6 +84,30 @@ Design principles, page structure, and visual standards for the Phoenix LiveView
 
 ---
 
+## CSS & Styling
+
+### When to use custom CSS vs Tailwind
+
+**Custom CSS** is for **coordinated multi-element visual systems** — where multiple elements share state, transitions, or theme-specific behavior that crosses component boundaries:
+- Glass morphism (custom properties, backdrop-filter, theme overrides)
+- Modal system (backdrop + panel with data-state transitions, scale animation)
+- Sidebar (collapsed/expanded states with coordinated transitions)
+- Input system focus rings (data-attribute selectors across parent/child)
+- Gamepad hint bar (data-attribute conditional display)
+- Keyframe animations
+- Scrollbar styling
+- `truncate-left` (direction: rtl trick)
+
+**Tailwind utilities** for everything else — layout, spacing, sizing, colors, typography, one-off component styling. HEEx components handle reuse at the template level.
+
+### Colors always use DaisyUI theme variables
+
+Never hardcode oklch values for colors that should respond to the theme. Use DaisyUI semantic colors (`text-base-content/60`, `bg-primary/10`) in Tailwind, or relative color syntax in CSS: `oklch(from var(--color-base-content) l c h / 0.6)`. This eliminates manual `[data-theme=light]` overrides — the theme system handles both modes automatically.
+
+Achromatic overlays (`oklch(0% 0 0 / 0.7)` for modal backdrops) and intentionally theme-independent elements (gamepad HUD) may use raw values.
+
+---
+
 ## Component Guidelines
 
 ### Badges
