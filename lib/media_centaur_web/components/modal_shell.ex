@@ -21,6 +21,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   attr :rematch_confirm, :boolean, default: false
   attr :detail_view, :atom, default: :main
   attr :detail_files, :list, default: []
+  attr :delete_confirm, :any, default: nil
 
   def modal_shell(assigns) do
     ~H"""
@@ -54,6 +55,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
             rematch_confirm={@rematch_confirm}
             detail_view={@detail_view}
             detail_files={@detail_files}
+            delete_confirm={@delete_confirm}
           />
         </div>
       </div>

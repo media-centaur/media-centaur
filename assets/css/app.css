@@ -375,7 +375,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: min(700px, 92vw);
+  width: min(760px, 92vw);
   max-height: 90vh;
   border-radius: 0.75rem;
   overflow: hidden;
