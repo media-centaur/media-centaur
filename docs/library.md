@@ -10,6 +10,7 @@ The library is the core data domain. It stores all media entities, their relatio
 - [Resources](#resources)
 - [Ingress API](#ingress-api)
 - [File Tracking](#file-tracking)
+- [Deletion](#deletion)
 - [Review Domain](#review-domain)
 - [Module Reference](#module-reference)
 
@@ -191,6 +192,27 @@ Returns `{:ok, entity, :new | :new_child | :existing}` or `{:error, reason}`.
 2. Periodic TTL check (every 24 hours)
 3. After `file_absence_ttl_days`, run full cleanup
 
+## Deletion
+
+`Library.Removal` provides UI-initiated file and folder deletion from the detail modal's info page.
+
+**Per-file deletion:**
+1. `File.rm(path)` — `:enoent` (already absent) treated as success
+2. `FileTracker.cleanup_removed_files([path])` — removes WatchedFile, child records (episode/movie/extra matched by `content_url`), cascades entity deletion if orphaned
+3. Broadcasts `{:entities_changed, entity_ids}`
+
+**Folder deletion:**
+1. Pre-collect all WatchedFile paths under the folder (prefix match) — critical because `rm -rf` does not generate per-file inotify events
+2. `File.rm_rf(folder_path)` — removes entire directory tree
+3. `FileTracker.cleanup_removed_files(collected_paths)` — explicit cleanup with pre-collected paths
+4. Broadcasts `{:entities_changed, entity_ids}`
+
+**Cascade deletion:** When the last file for an entity is removed, `EntityCascade.destroy!/1` runs the FK-safe deletion order: watch progress → extras → episodes → seasons → movies → images → image directories → identifiers → entity.
+
+**Watcher race condition:** `cleanup_removed_files/1` is idempotent — if the watcher also detects the deletion (for single-file deletes via inotify), it calls the same function. The second cleanup finds no WatchedFile records and returns `[]` (no-op). The watcher's 3-second debounce means the UI's explicit cleanup always completes first.
+
+**Playback guard:** Deletion is blocked if the entity has an active playback session. The UI shows an error flash instead of the confirmation dialog.
+
 ## Review Domain
 
 Separate Ash domain for files awaiting human review.
@@ -219,6 +241,7 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.Ingress` | Pipeline → library inbound API | `lib/media_centaur/library/ingress.ex` |
 | `MediaCentaur.Library.Helpers` | Entity loading, PubSub broadcast | `lib/media_centaur/library/helpers.ex` |
 | `MediaCentaur.Library.FileTracker` | File presence tracking, cleanup | `lib/media_centaur/library/file_tracker.ex` |
+| `MediaCentaur.Library.Removal` | UI-initiated file/folder deletion | `lib/media_centaur/library/removal.ex` |
 | `MediaCentaur.Review` | Review Ash domain | `lib/media_centaur/review.ex` |
 | `MediaCentaur.Review.PendingFile` | Pending review resource | `lib/media_centaur/review/pending_file.ex` |
 | `MediaCentaur.Review.Intake` | Payload → PendingFile mapper | `lib/media_centaur/review/intake.ex` |
