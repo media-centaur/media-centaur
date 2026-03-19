@@ -81,6 +81,8 @@ Each watcher also auto-excludes its own images directory and staging directory.
 4. Broadcasts `{:files_removed, [paths]}` to `"library:file_events"`
 5. FileTracker handles cleanup
 
+**UI-initiated deletions** bypass inotify entirely. `Library.Removal` calls `File.rm`/`File.rm_rf` and then invokes `FileTracker.cleanup_removed_files/1` directly. If the watcher's inotify also fires for the same paths (single-file deletes), the second cleanup is a no-op because `cleanup_removed_files` is idempotent. For folder deletions, `rm -rf` typically only generates a directory-level inotify event (not per-file), which the watcher ignores.
+
 ### Mount Recovery
 
 1. Health check runs every 30 seconds
