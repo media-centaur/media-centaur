@@ -411,12 +411,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp season_section(assigns) do
     episodes = assigns.season.episodes || []
+    episode_list = build_episode_list(episodes, assigns.season.number_of_episodes)
     watched_count = count_watched_episodes(assigns.season, assigns.progress_by_key)
-    total_count = length(episodes)
+    total_count = max(length(episodes), assigns.season.number_of_episodes || 0)
 
     assigns =
       assigns
-      |> assign(:episodes, episodes)
+      |> assign(:episode_list, episode_list)
       |> assign(:watched_count, watched_count)
       |> assign(:total_count, total_count)
 
@@ -440,15 +441,24 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       </button>
 
       <div :if={@expanded} class="mt-1">
-        <.episode_row
-          :for={episode <- @episodes}
-          episode={episode}
-          season_number={@season.season_number}
-          progress={Map.get(@progress_by_key, {@season.season_number, episode.episode_number})}
-          resume_episode_key={@resume_episode_key}
-          entity_id={@entity_id}
-          on_play={@on_play}
-        />
+        <%= for item <- @episode_list do %>
+          <%= case item do %>
+            <% {:episode, episode} -> %>
+              <.episode_row
+                episode={episode}
+                season_number={@season.season_number}
+                progress={Map.get(@progress_by_key, {@season.season_number, episode.episode_number})}
+                resume_episode_key={@resume_episode_key}
+                entity_id={@entity_id}
+                on_play={@on_play}
+              />
+            <% {:missing, episode_number} -> %>
+              <.missing_episode_row
+                episode_number={episode_number}
+                season_number={@season.season_number}
+              />
+          <% end %>
+        <% end %>
         <.season_extras extras={@season.extras} on_play={@on_play} />
       </div>
     </div>
@@ -542,6 +552,34 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           class="h-full bg-info rounded-full"
           style={"width: #{progress_percent(@progress)}%"}
         />
+      </div>
+    </div>
+    """
+  end
+
+  # --- Missing Episode Row ---
+
+  attr :episode_number, :integer, required: true
+  attr :season_number, :integer, required: true
+
+  defp missing_episode_row(assigns) do
+    ~H"""
+    <div
+      class="p-2 rounded opacity-30"
+      data-role="missing-episode-row"
+      data-nav-item
+      tabindex="0"
+    >
+      <div class="flex items-start gap-3 text-sm">
+        <div class="w-20 flex-shrink-0">
+          <div class="w-20 aspect-video rounded bg-base-content/5 border border-dashed border-base-content/10" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="truncate block text-base-content/70 italic">
+            <span class="text-base-content/40 font-mono text-xs">{@episode_number}.</span>
+            Episode {@episode_number}
+          </span>
+        </div>
       </div>
     </div>
     """
@@ -1007,6 +1045,26 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       </div>
     </div>
     """
+  end
+
+  # --- Episode List Builder ---
+
+  defp build_episode_list(episodes, number_of_episodes) do
+    episode_map = Map.new(episodes, &{&1.episode_number, &1})
+    max_known = Enum.max_by(episodes, & &1.episode_number, fn -> nil end)
+
+    upper = max(number_of_episodes || 0, if(max_known, do: max_known.episode_number, else: 0))
+
+    if upper == 0 do
+      []
+    else
+      for n <- 1..upper do
+        case Map.get(episode_map, n) do
+          nil -> {:missing, n}
+          episode -> {:episode, episode}
+        end
+      end
+    end
   end
 
   # --- Helpers ---
