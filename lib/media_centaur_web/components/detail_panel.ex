@@ -62,6 +62,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :rematch_confirm, :boolean, default: false
   attr :detail_view, :atom, default: :main
   attr :detail_files, :list, default: []
+  attr :delete_confirm, :any, default: nil
 
   def detail_panel(assigns) do
     expanded_seasons =
@@ -128,7 +129,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             on_play={@on_play}
           />
         <% else %>
-          <.info_view entity={@entity} files={@detail_files} rematch_confirm={@rematch_confirm} />
+          <.info_view
+            entity={@entity}
+            files={@detail_files}
+            rematch_confirm={@rematch_confirm}
+            delete_confirm={@delete_confirm}
+          />
         <% end %>
       </div>
     </div>
@@ -707,6 +713,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :entity, :map, required: true
   attr :files, :list, default: []
   attr :rematch_confirm, :boolean, default: false
+  attr :delete_confirm, :any, default: nil
 
   defp info_view(assigns) do
     total_size = Enum.reduce(assigns.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
@@ -714,12 +721,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     genres = assigns.entity.genres || []
     identifiers = if is_list(assigns.entity.identifiers), do: assigns.entity.identifiers, else: []
 
+    file_groups =
+      assigns.files
+      |> Enum.group_by(fn %{file: file} -> Path.dirname(file.file_path) end)
+      |> Enum.sort_by(fn {dir, _files} -> dir end)
+      |> Enum.map(fn {dir, files} -> %{dir: dir, name: Path.basename(dir), files: files} end)
+
     assigns =
       assigns
       |> assign(:total_size, total_size)
       |> assign(:file_count, file_count)
       |> assign(:genres, genres)
       |> assign(:identifiers, identifiers)
+      |> assign(:file_groups, file_groups)
 
     ~H"""
     <div class="pt-3 space-y-5">
@@ -733,10 +747,36 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             {file_summary(@file_count, @total_size)}
           </span>
         </div>
-        <div class="space-y-1.5">
-          <.file_row :for={file_info <- @files} file_info={file_info} />
+        <div class="space-y-3">
+          <div :for={group <- @file_groups}>
+            <div class="flex items-center gap-1.5 mb-1.5">
+              <.icon name="hero-folder-mini" class="size-3.5 text-base-content/40 flex-shrink-0" />
+              <span
+                class="text-xs font-medium text-base-content/60 truncate"
+                title={group.dir}
+              >
+                {group.name}
+              </span>
+              <button
+                phx-click="delete_folder_prompt"
+                phx-value-path={group.dir}
+                phx-value-count={length(group.files)}
+                class="btn btn-ghost btn-xs text-error/60 hover:text-error ml-auto flex-shrink-0"
+              >
+                <.icon name="hero-folder-minus-mini" class="size-3.5" />
+                Delete ({length(group.files)} {if length(group.files) == 1,
+                  do: "file",
+                  else: "files"})
+              </button>
+            </div>
+            <div class="space-y-1.5">
+              <.file_row :for={file_info <- group.files} file_info={file_info} />
+            </div>
+          </div>
         </div>
       </div>
+      <%!-- Delete confirmation modal --%>
+      <.delete_confirmation delete_confirm={@delete_confirm} />
 
       <%!-- Metadata section --%>
       <div :if={
@@ -828,13 +868,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     size = assigns.file_info.size
     absent = file.state == :absent
     filename = Path.basename(file.file_path)
-    directory = Path.dirname(file.file_path)
 
     assigns =
       assigns
       |> assign(:file_path, file.file_path)
       |> assign(:filename, filename)
-      |> assign(:directory, directory)
       |> assign(:size, size)
       |> assign(:absent, absent)
 
@@ -852,9 +890,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           {format_file_size(@size)}
         </span>
         <span :if={@absent} class="text-xs text-warning flex-shrink-0">absent</span>
-      </div>
-      <div class="mt-0.5 ml-6 text-xs text-base-content/30 truncate-left" title={@directory}>
-        <bdo dir="ltr">{@directory}</bdo>
+        <button
+          phx-click="delete_file_prompt"
+          phx-value-path={@file_path}
+          class="btn btn-ghost btn-xs size-6 min-h-0 p-0 text-base-content/30 hover:text-error flex-shrink-0"
+          aria-label="Delete file"
+        >
+          <.icon name="hero-trash-mini" class="size-3.5" />
+        </button>
       </div>
     </div>
     """
@@ -878,6 +921,99 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp format_file_size(bytes), do: "#{bytes} B"
+
+  # --- Delete Confirmation ---
+
+  attr :delete_confirm, :any, default: nil
+
+  defp delete_confirmation(%{delete_confirm: nil} = assigns) do
+    ~H"""
+    """
+  end
+
+  defp delete_confirmation(%{delete_confirm: {:file, file}} = assigns) do
+    assigns = assign(assigns, :file, file)
+
+    ~H"""
+    <div class="modal-backdrop" data-state="open" style="z-index: 60;">
+      <div
+        class="bg-base-100 rounded-xl p-6 max-w-lg mx-auto shadow-xl"
+        phx-click-away="delete_cancel"
+      >
+        <h3 class="text-lg font-bold text-error">Delete file?</h3>
+        <div class="mt-3 rounded-lg bg-base-content/5 p-3">
+          <div class="flex items-center gap-2">
+            <.icon name="hero-document-mini" class="size-4 text-base-content/40 flex-shrink-0" />
+            <span class="font-mono text-xs text-base-content/80 truncate">{@file.name}</span>
+            <span :if={@file.size} class="text-xs text-base-content/40 flex-shrink-0 ml-auto">
+              {format_file_size(@file.size)}
+            </span>
+          </div>
+          <p class="mt-1 ml-6 text-xs text-base-content/30 truncate-left" title={@file.path}>
+            <bdo dir="ltr">{@file.path}</bdo>
+          </p>
+        </div>
+        <p class="mt-3 text-sm text-warning">This file will be permanently deleted from disk.</p>
+        <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm">Cancel</button>
+          <button phx-click="delete_confirm" class="btn btn-soft btn-error btn-sm">Delete</button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp delete_confirmation(%{delete_confirm: {:folder, folder}} = assigns) do
+    assigns = assign(assigns, :folder, folder)
+
+    ~H"""
+    <div class="modal-backdrop" data-state="open" style="z-index: 60;">
+      <div
+        class="bg-base-100 rounded-xl p-6 max-w-lg mx-auto shadow-xl"
+        phx-click-away="delete_cancel"
+      >
+        <h3 class="text-lg font-bold text-error">Delete folder?</h3>
+        <div class="mt-3 rounded-lg bg-base-content/5 p-3">
+          <div class="flex items-center gap-2">
+            <.icon name="hero-folder-mini" class="size-4 text-base-content/40 flex-shrink-0" />
+            <span class="font-medium text-sm text-base-content/80">{@folder.name}</span>
+            <span class="text-xs text-base-content/40 flex-shrink-0 ml-auto">
+              {format_file_size(@folder.total_size)}
+            </span>
+          </div>
+          <p class="mt-1 ml-6 text-xs text-base-content/30 truncate-left" title={@folder.path}>
+            <bdo dir="ltr">{@folder.path}</bdo>
+          </p>
+          <div class="mt-2 ml-6 space-y-0.5">
+            <div
+              :for={file <- @folder.files}
+              class="flex items-center gap-2 text-xs text-base-content/60"
+            >
+              <.icon name="hero-document-mini" class="size-3 text-base-content/30 flex-shrink-0" />
+              <span class="truncate font-mono">{file.name}</span>
+              <span :if={file.size} class="text-base-content/30 flex-shrink-0 ml-auto">
+                {format_file_size(file.size)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <p class="mt-3 text-sm text-warning">
+          The entire folder including {length(@folder.files)} media {if length(@folder.files) == 1,
+            do: "file",
+            else: "files"} and all other contents will be permanently deleted.
+        </p>
+        <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm">Cancel</button>
+          <button phx-click="delete_confirm" class="btn btn-soft btn-error btn-sm">
+            Delete folder
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
 
   # --- Helpers ---
 

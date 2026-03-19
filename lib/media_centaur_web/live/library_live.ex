@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   alias MediaCentaur.{
     Library,
+    Library.Removal,
     LibraryBrowser,
     Playback.ProgressBroadcaster,
     Playback.ResumeTarget
@@ -52,6 +53,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        reload_timer: nil,
        pending_entity_ids: MapSet.new(),
        rematch_confirm: nil,
+       delete_confirm: nil,
        detail_view: :main,
        detail_files: []
      )
@@ -261,6 +263,93 @@ defmodule MediaCentaurWeb.LibraryLive do
   def handle_event("toggle_detail_view", _params, socket) do
     new_view = if socket.assigns.detail_view == :main, do: :info, else: :main
     {:noreply, push_patch(socket, to: build_path(socket, %{view: new_view}))}
+  end
+
+  def handle_event("delete_file_prompt", %{"path" => file_path}, socket) do
+    if playing?(socket.assigns.playback, socket.assigns.selected_entity_id) do
+      {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
+    else
+      file_info =
+        Enum.find(socket.assigns.detail_files, fn %{file: f} -> f.file_path == file_path end)
+
+      size = if file_info, do: file_info.size
+
+      {:noreply,
+       assign(socket,
+         delete_confirm: {:file, %{path: file_path, name: Path.basename(file_path), size: size}}
+       )}
+    end
+  end
+
+  def handle_event("delete_folder_prompt", %{"path" => folder_path, "count" => _count}, socket) do
+    if playing?(socket.assigns.playback, socket.assigns.selected_entity_id) do
+      {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
+    else
+      folder_files =
+        socket.assigns.detail_files
+        |> Enum.filter(fn %{file: f} -> Path.dirname(f.file_path) == folder_path end)
+        |> Enum.map(fn %{file: f, size: size} ->
+          %{name: Path.basename(f.file_path), size: size}
+        end)
+
+      total_size = Enum.reduce(folder_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
+
+      {:noreply,
+       assign(socket,
+         delete_confirm:
+           {:folder,
+            %{
+              path: folder_path,
+              name: Path.basename(folder_path),
+              files: folder_files,
+              total_size: total_size
+            }}
+       )}
+    end
+  end
+
+  def handle_event("delete_confirm", _params, socket) do
+    entity_id = socket.assigns.selected_entity_id
+
+    result =
+      case socket.assigns.delete_confirm do
+        {:file, %{path: file_path}} ->
+          Removal.delete_file(file_path)
+
+        {:folder, %{path: folder_path}} ->
+          file_paths =
+            socket.assigns.detail_files
+            |> Enum.map(& &1.file.file_path)
+            |> Enum.filter(&String.starts_with?(&1, folder_path <> "/"))
+
+          Removal.delete_folder(folder_path, file_paths)
+
+        nil ->
+          {:ok, []}
+      end
+
+    socket = assign(socket, delete_confirm: nil)
+
+    case result do
+      {:ok, _entity_ids} ->
+        # Check if entity still exists (cascade may have deleted it)
+        case Library.get_entity_with_associations(entity_id) do
+          {:ok, _entity} ->
+            detail_files = load_entity_files(entity_id)
+            {:noreply, assign(socket, detail_files: detail_files)}
+
+          {:error, _} ->
+            # Entity was cascade-deleted — close modal
+            {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil, view: :main}))}
+        end
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Delete failed: #{reason}")}
+    end
+  end
+
+  def handle_event("delete_cancel", _params, socket) do
+    {:noreply, assign(socket, delete_confirm: nil)}
   end
 
   def handle_event("toggle_season", %{"season" => season_str}, socket) do
@@ -478,6 +567,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           rematch_confirm={@rematch_confirm == @selected_entity_id}
           detail_view={@detail_view}
           detail_files={@detail_files}
+          delete_confirm={@delete_confirm}
           on_play="play"
           on_close="close_detail"
         />
