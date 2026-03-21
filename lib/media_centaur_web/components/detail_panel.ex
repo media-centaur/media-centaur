@@ -63,6 +63,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :detail_view, :atom, default: :main
   attr :detail_files, :list, default: []
   attr :delete_confirm, :any, default: nil
+  attr :spoiler_free, :boolean, default: false
 
   def detail_panel(assigns) do
     expanded_seasons =
@@ -127,6 +128,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             progress_by_key={@progress_by_key}
             resume_episode_key={@resume_episode_key}
             on_play={@on_play}
+            spoiler_free={@spoiler_free}
           />
         <% else %>
           <.info_view
@@ -370,6 +372,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         resume_episode_key={@resume_episode_key}
         entity_id={@entity.id}
         on_play={@on_play}
+        spoiler_free={@spoiler_free}
       />
       <.extras_section entity={@entity} on_play={@on_play} />
     </div>
@@ -408,6 +411,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :resume_episode_key, :any, default: nil
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
+  attr :spoiler_free, :boolean, default: false
 
   defp season_section(assigns) do
     episodes = assigns.season.episodes || []
@@ -451,6 +455,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 resume_episode_key={@resume_episode_key}
                 entity_id={@entity_id}
                 on_play={@on_play}
+                spoiler_free={@spoiler_free}
               />
             <% {:missing, episode_number} -> %>
               <.missing_episode_row
@@ -473,6 +478,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :resume_episode_key, :any, default: nil
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
+  attr :spoiler_free, :boolean, default: false
 
   defp episode_row(assigns) do
     state = episode_state(assigns.progress)
@@ -514,7 +520,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             <span class="text-base-content/50 font-mono text-xs">{@episode.episode_number}.</span>
             {@episode.name || "—"}
           </span>
-          <p :if={@episode.description} class="line-clamp-2 text-xs text-base-content/50">
+          <p
+            :if={@episode.description}
+            class={[
+              "line-clamp-2 text-xs text-base-content/50",
+              @spoiler_free && @state != :watched && "spoiler-blur"
+            ]}
+          >
             {@episode.description}
           </p>
         </div>

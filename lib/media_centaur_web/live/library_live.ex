@@ -31,6 +31,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.settings_updates())
     end
 
     {:ok,
@@ -55,7 +56,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        rematch_confirm: nil,
        delete_confirm: nil,
        detail_view: :main,
-       detail_files: []
+       detail_files: [],
+       spoiler_free: load_spoiler_free_setting()
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -463,6 +465,10 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> touch_stream_entries([entity_id])}
   end
 
+  def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
+    {:noreply, assign(socket, spoiler_free: enabled)}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -568,6 +574,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           detail_view={@detail_view}
           detail_files={@detail_files}
           delete_confirm={@delete_confirm}
+          spoiler_free={@spoiler_free}
           on_play="play"
           on_close="close_detail"
         />
@@ -799,6 +806,13 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
+
+  defp load_spoiler_free_setting do
+    case Library.get_setting_by_key("spoiler_free_mode") do
+      {:ok, setting} -> setting.value["enabled"] == true
+      _ -> false
+    end
+  end
 
   defp toggle_watched(entity_id, season_number, episode_number) do
     progress =

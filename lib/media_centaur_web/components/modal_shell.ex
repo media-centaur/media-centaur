@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   attr :detail_view, :atom, default: :main
   attr :detail_files, :list, default: []
   attr :delete_confirm, :any, default: nil
+  attr :spoiler_free, :boolean, default: false
 
   def modal_shell(assigns) do
     ~H"""
@@ -56,6 +57,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
             detail_view={@detail_view}
             detail_files={@detail_files}
             delete_confirm={@delete_confirm}
+            spoiler_free={@spoiler_free}
           />
         </div>
       </div>
