@@ -33,6 +33,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
         |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
         |> assign(storage_drives: Storage.measure_all())
+        |> assign(dir_health: check_dir_health())
         |> assign(config: load_config())
         |> assign(rate_limiter: fetch_rate_limiter())
         |> assign(retry_status: fetch_retry_status())
@@ -49,6 +50,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         |> assign(watcher_statuses: [])
         |> assign(image_dir_statuses: [])
         |> assign(storage_drives: [])
+        |> assign(dir_health: [])
         |> assign(config: %{})
         |> assign(rate_limiter: nil)
         |> assign(retry_status: nil)
@@ -79,7 +81,8 @@ defmodule MediaCentaurWeb.DashboardLive do
      |> assign(image_pipeline_stats: image_stats)
      |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
      |> assign(rate_limiter: fetch_rate_limiter())
-     |> assign(retry_status: fetch_retry_status())}
+     |> assign(retry_status: fetch_retry_status())
+     |> assign(dir_health: check_dir_health())}
   end
 
   def handle_info(:refresh_storage, socket) do
@@ -205,10 +208,6 @@ defmodule MediaCentaurWeb.DashboardLive do
 
               <div class="flex flex-col gap-6">
                 <.playback_summary_card playback={@playback} />
-                <.watcher_health
-                  statuses={@watcher_statuses}
-                  image_dir_statuses={@image_dir_statuses}
-                />
                 <.external_integrations rate_limiter={@rate_limiter} config={@config} />
               </div>
             </div>
@@ -220,7 +219,11 @@ defmodule MediaCentaurWeb.DashboardLive do
             tabindex="0"
             class="block mt-6"
           >
-            <.storage_health drives={@storage_drives} />
+            <.directories
+              dir_health={@dir_health}
+              watcher_statuses={@watcher_statuses}
+              storage_drives={@storage_drives}
+            />
           </.link>
         </div>
       </div>
@@ -519,35 +522,107 @@ defmodule MediaCentaurWeb.DashboardLive do
     """
   end
 
-  defp watcher_health(assigns) do
+  defp directories(assigns) do
+    db_drive =
+      Enum.find(assigns.storage_drives, fn drive ->
+        Enum.any?(drive.roles, &(&1.label == "Database"))
+      end)
+
+    assigns = assign(assigns, :db_drive, db_drive)
+
     ~H"""
     <div class="card glass-surface">
       <div class="card-body">
-        <h2 class="card-title text-lg">Watcher Health</h2>
+        <h2 class="card-title text-lg">Directories</h2>
 
-        <p :if={@statuses == [] and @image_dir_statuses == []} class="text-base-content/60">
+        <p :if={@dir_health == []} class="text-base-content/60">
           No watch directories configured.
         </p>
 
-        <ul :if={@statuses != []} class="space-y-2">
-          <li :for={status <- @statuses} class="flex items-center gap-3">
-            <span class={["text-sm", watcher_text_class(status.state)]}>
-              {status.state}
-            </span>
-            <code class="text-sm">{status.dir}</code>
-          </li>
-        </ul>
+        <div :if={@dir_health != []} class="space-y-4">
+          <div :for={health <- @dir_health}>
+            <% status = resolve_dir_status(health, @watcher_statuses) %>
+            <% drive = find_drive_for_dir(@storage_drives, health.dir) %>
 
-        <div :if={@image_dir_statuses != []} class="mt-3">
-          <h3 class="text-xs text-base-content/50 uppercase tracking-wide mb-2">Image Directories</h3>
-          <ul class="space-y-2">
-            <li :for={status <- @image_dir_statuses} class="flex items-center gap-3">
-              <span class={["text-sm", dir_state_text_class(status.state)]}>
-                {status.state}
+            <div class="flex items-center gap-3 mb-1">
+              <span
+                :if={health.image_dir_exists}
+                class="text-xs text-success whitespace-nowrap shrink-0"
+              >
+                images: ok
               </span>
-              <code class="text-sm">{status.dir}</code>
-            </li>
-          </ul>
+              <span
+                :if={!health.image_dir_exists}
+                class="text-xs text-error whitespace-nowrap shrink-0"
+              >
+                images: missing
+              </span>
+              <code
+                class="text-sm truncate-left flex-1"
+                title={health.dir}
+              >
+                <bdo dir="ltr">{health.dir}</bdo>
+              </code>
+              <span
+                :if={health.dir_exists && drive}
+                class="text-xs font-mono text-base-content/60 shrink-0"
+              >
+                {format_bytes(drive.used_bytes)} / {format_bytes(drive.total_bytes)}
+              </span>
+              <span :if={!health.dir_exists} class="text-xs text-base-content/40 shrink-0">
+                —
+              </span>
+              <span class={["text-xs shrink-0", dir_status_text_class(status)]}>
+                {dir_status_label(status)}
+              </span>
+            </div>
+
+            <div :if={health.dir_exists && drive} class="flex items-center gap-3 mt-1">
+              <progress
+                class={["progress h-1.5 flex-1", usage_progress_class(drive.usage_percent)]}
+                value={drive.usage_percent}
+                max="100"
+              >
+              </progress>
+              <span class={[
+                "text-xs font-mono w-10 text-right shrink-0",
+                usage_text_class(drive.usage_percent)
+              ]}>
+                {drive.usage_percent}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div :if={@db_drive} class="mt-4 pt-4 border-t border-base-content/10">
+          <div class="flex items-baseline justify-between mb-1">
+            <span class="text-sm font-medium">Database</span>
+            <span class="text-xs text-base-content/60 font-mono">
+              {format_bytes(@db_drive.used_bytes)} / {format_bytes(@db_drive.total_bytes)}
+            </span>
+          </div>
+          <div class="flex items-center gap-3">
+            <progress
+              class={["progress h-1.5 flex-1", usage_progress_class(@db_drive.usage_percent)]}
+              value={@db_drive.usage_percent}
+              max="100"
+            >
+            </progress>
+            <span class={[
+              "text-xs font-mono w-10 text-right",
+              usage_text_class(@db_drive.usage_percent)
+            ]}>
+              {@db_drive.usage_percent}%
+            </span>
+          </div>
+          <% db_role = Enum.find(@db_drive.roles, &(&1.label == "Database")) %>
+          <code
+            :if={db_role}
+            class="text-xs truncate-left text-base-content/50 mt-1 block ml-2"
+            title={db_role.path}
+          >
+            <bdo dir="ltr">{db_role.path}</bdo>
+          </code>
         </div>
       </div>
     </div>
@@ -621,61 +696,6 @@ defmodule MediaCentaurWeb.DashboardLive do
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp storage_health(assigns) do
-    ~H"""
-    <div class="card glass-surface">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Storage</h2>
-
-        <p :if={@drives == []} class="text-base-content/60">No directories configured.</p>
-
-        <div :if={@drives != []} class="space-y-6">
-          <div :for={drive <- @drives}>
-            <div class="flex items-baseline justify-between mb-1">
-              <span class="text-sm font-medium">
-                {drive.mount_point}
-                <span class="text-base-content/40 font-normal">({drive.device})</span>
-              </span>
-              <span class="text-xs text-base-content/60 font-mono">
-                {format_bytes(drive.used_bytes)} / {format_bytes(drive.total_bytes)}
-              </span>
-            </div>
-            <div class="flex items-center gap-3 mb-3">
-              <progress
-                class={["progress flex-1", usage_progress_class(drive.usage_percent)]}
-                value={drive.usage_percent}
-                max="100"
-              >
-              </progress>
-              <span class={[
-                "text-sm font-mono w-10 text-right",
-                usage_text_class(drive.usage_percent)
-              ]}>
-                {drive.usage_percent}%
-              </span>
-            </div>
-            <div class="space-y-1 ml-2">
-              <div
-                :for={role <- drive.roles}
-                class="grid gap-3 text-xs"
-                style="grid-template-columns: 6rem 1fr"
-              >
-                <span class="text-base-content/50">{role.label}</span>
-                <code
-                  class="truncate-left text-base-content/70"
-                  title={role.path}
-                >
-                  <bdo dir="ltr">{role.path}</bdo>
-                </code>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -855,13 +875,46 @@ defmodule MediaCentaurWeb.DashboardLive do
   defp stage_display_name(:fetch_metadata), do: "Enrich Metadata"
   defp stage_display_name(:ingest), do: "Add to Library"
 
-  defp watcher_text_class(:watching), do: "text-success"
-  defp watcher_text_class(:initializing), do: "text-warning"
-  defp watcher_text_class(_), do: "text-error"
+  defp check_dir_health do
+    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
 
-  defp dir_state_text_class(:available), do: "text-success"
-  defp dir_state_text_class(:checking), do: "text-warning"
-  defp dir_state_text_class(_), do: "text-error"
+    Enum.map(watch_dirs, fn dir ->
+      image_dir = MediaCentaur.Config.images_dir_for(dir)
+
+      %{
+        dir: dir,
+        dir_exists: File.dir?(dir),
+        image_dir: image_dir,
+        image_dir_exists: File.dir?(image_dir)
+      }
+    end)
+  end
+
+  defp resolve_dir_status(health, watcher_statuses) do
+    cond do
+      not health.dir_exists -> :missing
+      watcher = Enum.find(watcher_statuses, &(&1.dir == health.dir)) -> watcher.state
+      true -> :stopped
+    end
+  end
+
+  defp find_drive_for_dir(drives, dir) do
+    Enum.find(drives, fn drive ->
+      Enum.any?(drive.roles, &(&1.path == dir))
+    end)
+  end
+
+  defp dir_status_label(:missing), do: "missing"
+  defp dir_status_label(:stopped), do: "not watched"
+  defp dir_status_label(:watching), do: "watching"
+  defp dir_status_label(:initializing), do: "initializing"
+  defp dir_status_label(_), do: "unavailable"
+
+  defp dir_status_text_class(:missing), do: "text-error"
+  defp dir_status_text_class(:stopped), do: "text-warning"
+  defp dir_status_text_class(:watching), do: "text-success"
+  defp dir_status_text_class(:initializing), do: "text-warning"
+  defp dir_status_text_class(_), do: "text-error"
 
   defp playback_text_class(:idle), do: "text-base-content/60"
   defp playback_text_class(:playing), do: "text-success"
