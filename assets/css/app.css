@@ -359,7 +359,7 @@ body {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: min(760px, 92vw);
+  width: min(700px, 92vw);
   max-height: 90vh;
   border-radius: 0.75rem;
   overflow: hidden;
@@ -571,6 +571,31 @@ body {
   border-color: oklch(from var(--color-primary) l c h / 0.5);
   box-shadow: 0 0 0 3px oklch(from var(--color-primary) l c h / 0.1);
   outline: none;
+}
+
+/* ── Spoiler Free Mode ──
+   Blur episode descriptions for unwatched episodes, reveal on hover/focus. */
+
+.spoiler-blur {
+  filter: blur(4px);
+  opacity: 0.4;
+  user-select: none;
+  transition: filter 200ms ease, opacity 200ms ease;
+}
+
+/* Reveal on hover (mouse) */
+[data-role="episode-row"]:hover .spoiler-blur {
+  filter: blur(0);
+  opacity: 1;
+  user-select: auto;
+}
+
+/* Reveal on focus (keyboard/gamepad) */
+[data-role="episode-row"]:focus .spoiler-blur,
+[data-role="episode-row"]:focus-within .spoiler-blur {
+  filter: blur(0);
+  opacity: 1;
+  user-select: auto;
 }
 
 /* ── Input System: Focus Rings ──

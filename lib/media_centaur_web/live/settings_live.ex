@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   @sections [
     %{id: "services", label: "Services"},
+    %{id: "preferences", label: "Preferences"},
     %{id: "logging", label: "Logging"},
     %{id: "configuration", label: "Configuration"},
     %{id: "danger", label: "Danger Zone"}
@@ -40,12 +41,15 @@ defmodule MediaCentaurWeb.SettingsLive do
         |> assign(image_pipeline_running: false)
       end
 
+    spoiler_free = load_spoiler_free_setting()
+
     {:ok,
      assign(socket,
        sections: @sections,
        scanning: false,
        clearing_database: false,
-       refreshing_images: false
+       refreshing_images: false,
+       spoiler_free: spoiler_free
      )}
   end
 
@@ -133,6 +137,23 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     {:noreply,
      assign(socket, image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
+  end
+
+  def handle_event("toggle_spoiler_free", _params, socket) do
+    enabled = !socket.assigns.spoiler_free
+
+    Library.find_or_create_setting!(%{
+      key: "spoiler_free_mode",
+      value: %{"enabled" => enabled}
+    })
+
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      MediaCentaur.Topics.settings_updates(),
+      {:setting_changed, "spoiler_free_mode", enabled}
+    )
+
+    {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
   def handle_event("toggle_component", %{"component" => component}, socket) do
@@ -240,6 +261,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             config={@config}
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
+            spoiler_free={@spoiler_free}
           />
         </div>
       </div>
@@ -293,6 +315,25 @@ defmodule MediaCentaurWeb.SettingsLive do
           Manually scan all watch directories for new media files.
         </p>
       </div>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "preferences"} = assigns) do
+    ~H"""
+    <div data-nav-grid class="p-5 rounded-lg glass-surface">
+      <h2 class="text-lg font-semibold">Preferences</h2>
+      <p class="text-sm opacity-50 mt-0.5 mb-2">
+        Customize your browsing experience.
+      </p>
+
+      <.settings_row
+        label="Spoiler Free Mode"
+        description="Blur episode descriptions until you hover over them"
+        checked={@spoiler_free}
+        event="toggle_spoiler_free"
+        color="info"
+      />
     </div>
     """
   end
@@ -515,6 +556,13 @@ defmodule MediaCentaurWeb.SettingsLive do
       key: "services:#{env}:#{service}",
       value: %{"enabled" => value}
     })
+  end
+
+  defp load_spoiler_free_setting do
+    case Library.get_setting_by_key("spoiler_free_mode") do
+      {:ok, setting} -> setting.value["enabled"] == true
+      _ -> false
+    end
   end
 
   defp component_description(:watcher), do: "file events, size checks, detection"
