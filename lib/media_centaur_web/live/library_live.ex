@@ -287,29 +287,36 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_event("delete_folder_prompt", %{"path" => folder_path, "count" => _count}, socket) do
-    if playing?(socket.assigns.playback, socket.assigns.selected_entity_id) do
-      {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
-    else
-      folder_files =
-        socket.assigns.detail_files
-        |> Enum.filter(fn %{file: f} -> Path.dirname(f.file_path) == folder_path end)
-        |> Enum.map(fn %{file: f, size: size} ->
-          %{name: Path.basename(f.file_path), size: size}
-        end)
+    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
 
-      total_size = Enum.reduce(folder_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
+    cond do
+      playing?(socket.assigns.playback, socket.assigns.selected_entity_id) ->
+        {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
 
-      {:noreply,
-       assign(socket,
-         delete_confirm:
-           {:folder,
-            %{
-              path: folder_path,
-              name: Path.basename(folder_path),
-              files: folder_files,
-              total_size: total_size
-            }}
-       )}
+      folder_path in watch_dirs ->
+        {:noreply, put_flash(socket, :error, "Cannot delete a watch directory")}
+
+      true ->
+        folder_files =
+          socket.assigns.detail_files
+          |> Enum.filter(fn %{file: f} -> Path.dirname(f.file_path) == folder_path end)
+          |> Enum.map(fn %{file: f, size: size} ->
+            %{name: Path.basename(f.file_path), size: size}
+          end)
+
+        total_size = Enum.reduce(folder_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
+
+        {:noreply,
+         assign(socket,
+           delete_confirm:
+             {:folder,
+              %{
+                path: folder_path,
+                name: Path.basename(folder_path),
+                files: folder_files,
+                total_size: total_size
+              }}
+         )}
     end
   end
 

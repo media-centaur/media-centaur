@@ -49,6 +49,17 @@ defmodule MediaCentaur.Library.Removal do
   """
   @spec delete_folder(String.t(), [String.t()]) :: {:ok, [String.t()]} | {:error, any()}
   def delete_folder(folder_path, file_paths) do
+    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+
+    if folder_path in watch_dirs do
+      Log.warning(:library, "refused to delete watch directory — #{folder_path}")
+      {:error, :watch_directory}
+    else
+      delete_folder_unsafe(folder_path, file_paths)
+    end
+  end
+
+  defp delete_folder_unsafe(folder_path, file_paths) do
     case File.rm_rf(folder_path) do
       {:ok, _removed} ->
         Log.info(:library, "deleted folder — #{folder_path}")
