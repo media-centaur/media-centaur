@@ -25,7 +25,7 @@ defmodule MediaCentaur.TMDB.RateLimiter do
         :ok
 
       {:retry_after, ms} ->
-        Log.info(:tmdb, "rate limited, waiting #{ms}ms")
+        Log.info(:tmdb, "waiting #{ms}ms — rate limited")
         Process.sleep(ms)
         wait()
     end

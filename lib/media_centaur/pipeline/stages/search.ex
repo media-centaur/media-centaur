@@ -21,7 +21,7 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
       {:error, :no_title}
     else
       search_type = Parser.effective_media_type(parsed)
-      Log.info(:pipeline, "searching TMDB for #{inspect(search_title)}, type: #{search_type}")
+      Log.info(:pipeline, "searching TMDB — #{search_title} (#{search_type})")
 
       case search(search_title, search_year, search_type) do
         {:ok, []} ->
@@ -65,9 +65,8 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
           true -> "needs_review"
         end
 
-      "#{status}, confidence #{Float.round(score, 2)} " <>
-        "(threshold #{threshold}), " <>
-        "matched #{inspect(match_title)} (tmdb:#{tmdb_id})"
+      "matched #{Float.round(score, 2)} for tmdb:#{tmdb_id} — #{status}, " <>
+        "threshold #{threshold}, #{inspect(match_title)}"
     end)
 
     updated =

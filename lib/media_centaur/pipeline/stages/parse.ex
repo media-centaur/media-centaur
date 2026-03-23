@@ -15,7 +15,7 @@ defmodule MediaCentaur.Pipeline.Stages.Parse do
     result = MediaCentaur.Parser.parse(file_path, extras_dirs: extras_dirs)
 
     Log.info(:pipeline, fn ->
-      "parsed #{Path.basename(file_path)}: " <>
+      "parsed #{Path.basename(file_path)} — " <>
         "title=#{inspect(result.title)}, type=#{result.type}" <>
         if(result.season, do: ", S#{result.season}E#{result.episode}", else: "") <>
         if(result.year, do: ", year=#{result.year}", else: "")

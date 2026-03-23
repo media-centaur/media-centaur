@@ -11,6 +11,7 @@ defmodule MediaCentaur.ImagePipeline.Producer do
   use GenStage
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Format
   alias MediaCentaur.Library
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
@@ -30,7 +31,7 @@ defmodule MediaCentaur.ImagePipeline.Producer do
 
   @impl true
   def handle_info({:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}, state) do
-    Log.info(:pipeline, "image producer received images_pending for entity #{entity_id}")
+    Log.info(:pipeline, "queued images — entity #{Format.short_id(entity_id)}")
 
     work_items = build_work_items(entity_id, watch_dir)
 
@@ -79,13 +80,13 @@ defmodule MediaCentaur.ImagePipeline.Producer do
 
         Log.info(
           :pipeline,
-          "image producer queued #{length(items)} images for entity #{entity_id}"
+          "queued #{length(items)} images — entity #{Format.short_id(entity_id)}"
         )
 
         items
 
       {:error, _} ->
-        Log.warning(:pipeline, "image producer: entity #{entity_id} not found")
+        Log.warning(:pipeline, "skipped images — entity #{Format.short_id(entity_id)} not found")
         []
     end
   end

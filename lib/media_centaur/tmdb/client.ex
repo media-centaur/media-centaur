@@ -46,11 +46,11 @@ defmodule MediaCentaur.TMDB.Client do
           {:ok, list(map())} | {:error, any()}
   def search_movie(title, year \\ nil, client \\ default_client()) do
     params = [query: title] ++ if(year, do: [year: year], else: [])
-    Log.info(:tmdb, "search movie: #{inspect(title)}, year: #{inspect(year)}")
+    Log.info(:tmdb, "searched movies — #{title}#{if year, do: " (#{year})", else: ""}")
 
     with {:ok, body} <- get(client, url: "/search/movie", params: params) do
       results = body["results"] || []
-      Log.info(:tmdb, "search movie: #{length(results)} results")
+      Log.info(:tmdb, "found #{length(results)} movie results")
       {:ok, results}
     end
   end
@@ -59,18 +59,18 @@ defmodule MediaCentaur.TMDB.Client do
           {:ok, list(map())} | {:error, any()}
   def search_tv(title, year \\ nil, client \\ default_client()) do
     params = [query: title] ++ if(year, do: [first_air_date_year: year], else: [])
-    Log.info(:tmdb, "search tv: #{inspect(title)}, year: #{inspect(year)}")
+    Log.info(:tmdb, "searched TV — #{title}#{if year, do: " (#{year})", else: ""}")
 
     with {:ok, body} <- get(client, url: "/search/tv", params: params) do
       results = body["results"] || []
-      Log.info(:tmdb, "search tv: #{length(results)} results")
+      Log.info(:tmdb, "found #{length(results)} TV results")
       {:ok, results}
     end
   end
 
   @spec get_movie(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_movie(tmdb_id, client \\ default_client()) do
-    Log.info(:tmdb, "get movie tmdb:#{tmdb_id}")
+    Log.info(:tmdb, "fetched movie tmdb:#{tmdb_id}")
 
     get(client,
       url: "/movie/#{tmdb_id}",
@@ -83,7 +83,7 @@ defmodule MediaCentaur.TMDB.Client do
 
   @spec get_tv(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_tv(tmdb_id, client \\ default_client()) do
-    Log.info(:tmdb, "get tv tmdb:#{tmdb_id}")
+    Log.info(:tmdb, "fetched TV tmdb:#{tmdb_id}")
 
     get(client,
       url: "/tv/#{tmdb_id}",
@@ -93,7 +93,7 @@ defmodule MediaCentaur.TMDB.Client do
 
   @spec get_collection(String.t() | integer(), Req.Request.t()) :: {:ok, map()} | {:error, any()}
   def get_collection(collection_id, client \\ default_client()) do
-    Log.info(:tmdb, "get collection tmdb:#{collection_id}")
+    Log.info(:tmdb, "fetched collection tmdb:#{collection_id}")
 
     get(client,
       url: "/collection/#{collection_id}",
@@ -104,7 +104,7 @@ defmodule MediaCentaur.TMDB.Client do
   @spec get_season(String.t() | integer(), integer(), Req.Request.t()) ::
           {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, client \\ default_client()) do
-    Log.info(:tmdb, "get season tmdb:#{tmdb_id} S#{season_number}")
+    Log.info(:tmdb, "fetched season tmdb:#{tmdb_id} S#{season_number}")
     get(client, url: "/tv/#{tmdb_id}/season/#{season_number}")
   end
 

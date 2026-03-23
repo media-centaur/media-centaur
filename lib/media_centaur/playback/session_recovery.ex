@@ -67,7 +67,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
         result
 
       {:error, reason} ->
-        Log.info(:playback, "recovery: no mpv at socket for #{entity_id} (#{reason})")
+        Log.info(:playback, "no mpv at socket — #{entity_id} (#{reason})")
         File.rm(socket_path)
         :skip
     end

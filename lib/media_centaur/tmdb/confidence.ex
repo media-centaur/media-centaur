@@ -46,14 +46,13 @@ defmodule MediaCentaur.TMDB.Confidence do
     total = quality + position_bonus
 
     Log.info(:tmdb, fn ->
-      "confidence: #{Float.round(base, 2)} base" <>
+      "scored #{Float.round(total, 2)} for #{inspect(result_title)} — #{Float.round(base, 2)} base" <>
         cond do
           year_adjustment > 0 -> " + #{year_adjustment} year"
           year_adjustment < 0 -> " #{year_adjustment} year"
           true -> ""
         end <>
-        if(position_bonus > 0, do: " + #{position_bonus} top", else: "") <>
-        " = #{Float.round(total, 2)} for #{inspect(result_title)}"
+        if(position_bonus > 0, do: " + #{position_bonus} top", else: "")
     end)
 
     total

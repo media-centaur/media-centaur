@@ -134,7 +134,10 @@ defmodule MediaCentaur.Review do
   end
 
   def approve_and_process(pending_file) do
-    Log.info(:library, "approving #{pending_file.id}")
+    Log.info(
+      :library,
+      "approved \"#{Path.basename(pending_file.file_path)}\" — tmdb:#{pending_file.tmdb_id} (#{pending_file.tmdb_type})"
+    )
 
     with {:ok, pending_file} <- __MODULE__.approve_pending_file(pending_file) do
       Phoenix.PubSub.broadcast(
@@ -156,7 +159,12 @@ defmodule MediaCentaur.Review do
 
   def dismiss(pending_file) do
     result = __MODULE__.dismiss_pending_file(pending_file)
-    if match?({:ok, _}, result), do: broadcast_reviewed(pending_file.id)
+
+    if match?({:ok, _}, result) do
+      Log.info(:library, "dismissed \"#{Path.basename(pending_file.file_path)}\"")
+      broadcast_reviewed(pending_file.id)
+    end
+
     result
   end
 
@@ -184,7 +192,7 @@ defmodule MediaCentaur.Review do
   end
 
   def search_tmdb(query, type) do
-    Log.info(:library, "manual search: #{inspect(query)} type: #{type}")
+    Log.info(:library, "manual search — #{query} (#{type})")
     search_fn = if type == :tv, do: &Client.search_tv/2, else: &Client.search_movie/2
     title_key = if type == :tv, do: "name", else: "title"
     year_key = if type == :tv, do: "first_air_date", else: "release_date"

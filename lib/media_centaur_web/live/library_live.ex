@@ -14,7 +14,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   """
   use MediaCentaurWeb, :live_view
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.{
+    Format,
     Library,
     Library.Removal,
     LibraryBrowser,
@@ -821,12 +824,29 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     case progress do
       %{completed: true} ->
+        Log.info(
+          :library,
+          "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
+        )
+
         Library.mark_watch_incomplete!(progress)
 
       %{completed: false} ->
+        Log.info(:library, fn ->
+          pct =
+            if progress.duration_seconds > 0,
+              do:
+                "#{Float.round(progress.position_seconds / progress.duration_seconds * 100, 0)}%",
+              else: "unknown"
+
+          "toggled completed — was #{pct} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
+        end)
+
         Library.mark_watch_completed!(progress)
 
       nil ->
+        Log.info(:library, "toggled completed — no prior progress, created fresh record")
+
         params = %{
           entity_id: entity_id,
           season_number: season_number,

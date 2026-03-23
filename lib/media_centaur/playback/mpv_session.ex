@@ -13,6 +13,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   use GenServer
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Format
   alias MediaCentaur.Playback.{ProgressBroadcaster, SessionRegistry, WatchingTracker}
 
   @db_write_interval_ms 10_000
@@ -93,7 +94,7 @@ defmodule MediaCentaur.Playback.MpvSession do
       started_at: System.monotonic_time(:millisecond)
     }
 
-    Log.info(:playback, "session #{session_id} init for #{Path.basename(params.content_url)}")
+    Log.info(:playback, "session started — #{Path.basename(params.content_url)}")
     send(self(), :try_reconnect)
     {:ok, state}
   end
@@ -141,7 +142,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   def handle_info(:launch_mpv, state) do
-    Log.info(:playback, "session #{state.session_id} launching mpv")
+    Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
     mpv_path = MediaCentaur.Config.get(:mpv_path)
 
     flags =
@@ -170,11 +171,11 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     case :gen_tcp.connect({:local, socket_path}, 0, [:binary, packet: :line, active: true]) do
       {:ok, socket} ->
-        Log.info(:playback, "session #{state.session_id} connected to IPC socket")
+        Log.info(:playback, "connected to IPC socket")
         observe_properties(socket)
 
         if state.start_position > 0 do
-          Log.info(:playback, "session #{state.session_id} resuming at #{state.start_position}s")
+          Log.info(:playback, "resuming at #{Format.format_seconds(state.start_position)}")
         end
 
         broadcast_state_changed(:playing, state)
@@ -185,7 +186,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
           {:noreply, %{state | socket_retries: state.socket_retries - 1}}
         else
-          Log.error(:playback, "session #{state.session_id}: socket connect timeout")
+          Log.error(:playback, "socket connect timed out")
           {:stop, :normal, %{state | state: :stopped}}
         end
     end
@@ -211,13 +212,13 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # MPV socket closed
   def handle_info({:tcp_closed, _socket}, state) do
-    Log.info(:playback, "session #{state.session_id} socket closed")
+    Log.info(:playback, "socket closed")
     {:stop, :normal, finalize(state)}
   end
 
   # MPV process exited
   def handle_info({_port, {:exit_status, status}}, state) do
-    Log.info(:playback, "session #{state.session_id} mpv exited with status #{status}")
+    Log.info(:playback, "mpv exited — status #{status}")
     {:stop, :normal, finalize(state)}
   end
 
@@ -266,7 +267,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     tracker = WatchingTracker.update(state.tracker, position, now)
 
     if tracker.actively_watching and not state.tracker.actively_watching do
-      Log.info(:playback, "session #{state.session_id} actively watching")
+      Log.info(:playback, "actively watching")
     end
 
     state = %{state | position: position, tracker: tracker}
@@ -287,7 +288,7 @@ defmodule MediaCentaur.Playback.MpvSession do
        )
        when is_boolean(paused) do
     new_state = if paused, do: :paused, else: :playing
-    Log.info(:playback, "session #{state.session_id} #{if paused, do: "paused", else: "resumed"}")
+    Log.info(:playback, if(paused, do: "paused", else: "resumed"))
     state = %{state | paused: paused, state: new_state}
 
     if paused and state.tracker.actively_watching, do: persist_progress(state)
@@ -300,7 +301,7 @@ defmodule MediaCentaur.Playback.MpvSession do
          %{"event" => "property-change", "name" => "eof-reached", "data" => true},
          state
        ) do
-    Log.info(:playback, "session #{state.session_id} eof reached")
+    Log.info(:playback, "reached end of file")
     state = finalize(state)
     send_mpv_command(state.socket, ["quit"])
     state
@@ -335,7 +336,6 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp persist_progress(state) do
     saveable = state.tracker.saveable_position || state.position
-    session_id = state.session_id
     duration = state.duration
 
     season_number = state.season_number || 0
@@ -356,14 +356,14 @@ defmodule MediaCentaur.Playback.MpvSession do
         {:ok, record} ->
           Log.info(
             :playback,
-            "session #{session_id} progress saved at #{Float.round(saveable, 1)}s"
+            "saved progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
           )
 
           maybe_mark_completed(record, saveable, duration)
           broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
 
         {:error, reason} ->
-          Log.warning(:playback, "progress write failed: #{inspect(reason)}")
+          Log.warning(:playback, "failed to save progress — #{inspect(reason)}")
       end
     end)
   end
@@ -373,7 +373,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     if not record.completed and position / duration >= 0.90 do
       Log.info(
         :playback,
-        "marking episode completed at #{Float.round(position / duration * 100, 0)}%"
+        "marked completed — #{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
       )
 
       case MediaCentaur.Library.mark_watch_completed(record) do
@@ -381,7 +381,7 @@ defmodule MediaCentaur.Playback.MpvSession do
           :ok
 
         {:error, reason} ->
-          Log.warning(:playback, "mark_completed failed: #{inspect(reason)}")
+          Log.warning(:playback, "failed to mark completed — #{inspect(reason)}")
       end
     end
 

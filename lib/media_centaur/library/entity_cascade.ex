@@ -9,7 +9,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.{Config, Format}
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{ChangeLog, Image}
 
@@ -54,7 +54,11 @@ defmodule MediaCentaur.Library.EntityCascade do
     bulk_destroy(entity.identifiers || [], Library.Identifier)
 
     Library.destroy_entity!(entity)
-    Log.info(:library, "cascade-deleted entity #{entity_id}")
+
+    Log.info(
+      :library,
+      "cascade-deleted #{entity.type} \"#{entity.name}\" (#{Format.short_id(entity_id)})"
+    )
   end
 
   @doc false
@@ -69,7 +73,10 @@ defmodule MediaCentaur.Library.EntityCascade do
       )
 
     if result.error_count > 0 do
-      Log.warning(:library, "bulk destroy #{inspect(resource)} errors: #{inspect(result.errors)}")
+      Log.warning(
+        :library,
+        "bulk destroy failed — #{inspect(resource)}: #{inspect(result.errors)}"
+      )
     end
   end
 

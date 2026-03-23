@@ -52,7 +52,7 @@ defmodule MediaCentaur.ImagePipeline do
     case ImageProcessor.download_and_resize(image.url, image.role, dest_path) do
       :ok ->
         duration = System.monotonic_time() - start_time
-        Log.info(:pipeline, "image downloaded: #{relative_path}")
+        Log.info(:pipeline, "downloaded image — #{relative_path}")
 
         :telemetry.execute(
           [:media_centaur, :image_pipeline, :download, :stop],

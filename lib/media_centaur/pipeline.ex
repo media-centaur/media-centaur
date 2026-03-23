@@ -85,7 +85,7 @@ defmodule MediaCentaur.Pipeline do
       |> MapSet.to_list()
 
     if entity_ids != [] do
-      Log.info(:pipeline, "batch complete, broadcasting #{length(entity_ids)} entity changes")
+      Log.info(:pipeline, "batch completed — broadcasting #{length(entity_ids)} entity changes")
       Helpers.broadcast_entities_changed(entity_ids)
     end
 
@@ -111,7 +111,7 @@ defmodule MediaCentaur.Pipeline do
   @doc false
   def process_payload(%Payload{entry_point: :file_detected} = payload) do
     if already_linked?(payload.file_path) do
-      Log.info(:pipeline, "skipping already-linked file: #{Path.basename(payload.file_path)}")
+      Log.info(:pipeline, "skipped #{Path.basename(payload.file_path)} — already linked")
       {:ok, payload}
     else
       case run_pipeline(payload) do
@@ -248,7 +248,7 @@ defmodule MediaCentaur.Pipeline do
         :ok
 
       {:error, reason} ->
-        Log.warning(:pipeline, "failed to create pending file: #{inspect(reason)}")
+        Log.warning(:pipeline, "failed to create pending file — #{inspect(reason)}")
     end
 
     {:ok, payload}

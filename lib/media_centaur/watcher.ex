@@ -115,7 +115,7 @@ defmodule MediaCentaur.Watcher do
         {:noreply, %{state | state: :unavailable, was_unavailable: true}}
 
       :ignore ->
-        Log.warning(:watcher, "file_system watcher not available (inotify-tools missing?)")
+        Log.warning(:watcher, "watcher unavailable — inotify-tools missing?")
         schedule_health_check()
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable, was_unavailable: true}}
@@ -125,14 +125,14 @@ defmodule MediaCentaur.Watcher do
   def handle_info({:file_event, _pid, {path, events}}, state) do
     cond do
       Enum.member?(events, :unmounted) ->
-        Log.warning(:watcher, "directory unmounted: #{state.dir}")
+        Log.warning(:watcher, "directory unmounted — #{state.dir}")
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable, was_unavailable: true}}
 
       (:created in events or :modified in events) and video_file?(path) and
         not excluded?(path, state.exclude_dirs) and
           not in_skip_dir?(path, state.skip_dirs) ->
-        Log.info(:watcher, "file event for #{Path.basename(path)}, starting size checks")
+        Log.info(:watcher, "detected file event — #{Path.basename(path)}, checking size")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
@@ -146,14 +146,14 @@ defmodule MediaCentaur.Watcher do
   end
 
   def handle_info({:file_event, _pid, :stop}, state) do
-    Log.warning(:watcher, "file_system watcher stopped for #{state.dir}")
+    Log.warning(:watcher, "watcher stopped — #{state.dir}")
     {:noreply, state}
   end
 
   def handle_info({:check_size, path, last_size, count}, state) do
     case File.stat(path) do
       {:ok, %{size: size}} when size == last_size and count >= @size_stability_checks - 1 ->
-        Log.info(:watcher, "size stable for #{Path.basename(path)}, detecting")
+        Log.info(:watcher, "size stabilized — #{Path.basename(path)}")
         detect_file(path, state.dir)
         {:noreply, state}
 
@@ -175,7 +175,7 @@ defmodule MediaCentaur.Watcher do
     case File.stat(state.dir) do
       {:ok, _} ->
         if state.state == :unavailable do
-          Log.info(:watcher, "directory accessible again, re-watching #{state.dir}")
+          Log.info(:watcher, "directory restored — re-watching #{state.dir}")
           send(self(), :start_watching)
           {:noreply, %{state | state: :initializing}}
         else
@@ -185,7 +185,7 @@ defmodule MediaCentaur.Watcher do
 
       {:error, _} ->
         if state.state != :unavailable do
-          Log.warning(:watcher, "directory is not accessible: #{state.dir}")
+          Log.warning(:watcher, "directory inaccessible — #{state.dir}")
           broadcast_state(state.dir, :unavailable)
           {:noreply, %{state | state: :unavailable, was_unavailable: true}}
         else
@@ -213,7 +213,7 @@ defmodule MediaCentaur.Watcher do
   def handle_info(:flush_deletions, state) do
     if map_size(state.deletion_buffer) > 0 do
       paths = Map.keys(state.deletion_buffer)
-      Log.info(:watcher, "flushing #{length(paths)} deletion events")
+      Log.info(:watcher, "flushed #{length(paths)} deletion events")
 
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
@@ -229,7 +229,7 @@ defmodule MediaCentaur.Watcher do
   def terminate(_reason, state) do
     if map_size(state.deletion_buffer) > 0 do
       paths = Map.keys(state.deletion_buffer)
-      Log.info(:watcher, "flushing #{length(paths)} buffered deletions on shutdown")
+      Log.info(:watcher, "flushed #{length(paths)} buffered deletions — shutdown")
 
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
@@ -260,7 +260,7 @@ defmodule MediaCentaur.Watcher do
         scan_directory_with_paths(dir, known_paths, recovery: recovery)
 
       {:error, _reason} ->
-        Log.info(:watcher, "scan skipped, database not available")
+        Log.info(:watcher, "skipped scan — database unavailable")
         0
     end
   end
@@ -297,7 +297,7 @@ defmodule MediaCentaur.Watcher do
       if additional_ids != [] do
         Log.info(
           :watcher,
-          "recovery: re-pushing #{length(additional_ids)} entities for image re-resolution"
+          "re-pushed #{length(additional_ids)} entities — recovery image re-resolution"
         )
 
         Helpers.broadcast_entities_changed(additional_ids)
@@ -320,7 +320,7 @@ defmodule MediaCentaur.Watcher do
 
     Log.info(
       :watcher,
-      "scan complete: #{dispatched} new, #{length(restored_entity_ids)} restored, #{length(video_files)} total"
+      "scan completed — #{dispatched} new, #{length(restored_entity_ids)} restored, #{length(video_files)} total"
     )
 
     dispatched
