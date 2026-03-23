@@ -6,8 +6,8 @@ defmodule MediaCentaur.Log do
   ## Usage
 
       require MediaCentaur.Log, as: Log
-      Log.info(:pipeline, "claimed 3 files")
-      Log.info(:tmdb, fn -> "response: \#{inspect(data, limit: 5)}" end)
+      Log.info(:pipeline, "completed batch — 3 files processed")
+      Log.info(:tmdb, fn -> "fetched movie tmdb:\#{id}" end)
 
   ## IEx Helpers
 

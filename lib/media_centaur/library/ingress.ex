@@ -11,6 +11,7 @@ defmodule MediaCentaur.Library.Ingress do
   """
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{ChangeLog, Entity, Image}
   alias MediaCentaur.Pipeline.ImageProcessor
@@ -21,11 +22,11 @@ defmodule MediaCentaur.Library.Ingress do
   def ingest(%Payload{metadata: metadata}) do
     case find_existing_entity(metadata.identifier) do
       {:ok, entity} ->
-        Log.info(:library, "found existing entity #{entity.id}")
+        Log.info(:library, "found existing entity — #{Format.short_id(entity.id)}")
         link_to_existing(entity, metadata)
 
       :not_found ->
-        Log.info(:library, "no existing entity, creating new")
+        Log.info(:library, "creating new entity")
         create_new(metadata)
     end
   end
@@ -60,11 +61,11 @@ defmodule MediaCentaur.Library.Ingress do
          :ok <- create_images(entity.id, :entity_id, metadata.images, :find_or_create),
          :ok <- create_children(entity, metadata) do
       ChangeLog.record_addition(entity)
-      Log.info(:library, "created #{metadata.entity_type} entity #{entity.id}")
+      Log.info(:library, "created #{metadata.entity_type} entity — #{Format.short_id(entity.id)}")
       {:ok, entity, :new}
     else
       {:race_lost, winner_entity_id} ->
-        Log.info(:library, "race lost, using winner #{winner_entity_id}")
+        Log.info(:library, "race lost — using winner #{Format.short_id(winner_entity_id)}")
         winner = Library.get_entity!(winner_entity_id)
         link_to_existing(winner, metadata)
 
@@ -169,7 +170,10 @@ defmodule MediaCentaur.Library.Ingress do
     }
 
     with {:ok, season} <- Library.find_or_create_season(season_attrs) do
-      Log.info(:library, "season S#{season_data.season_number} for entity #{entity.id}")
+      Log.info(
+        :library,
+        "created season S#{season_data.season_number} — entity #{Format.short_id(entity.id)}"
+      )
 
       if season_data[:episode] do
         create_episode(season, season_data.episode)

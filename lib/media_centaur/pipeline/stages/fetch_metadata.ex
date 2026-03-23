@@ -86,7 +86,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       extra: build_extra(parsed)
     }
 
-    Log.info(:pipeline, "fetched movie metadata for tmdb:#{tmdb_id}: #{data["title"]}")
+    Log.info(:pipeline, "fetched movie metadata — tmdb:#{tmdb_id} \"#{data["title"]}\"")
     {:ok, metadata}
   end
 
@@ -173,7 +173,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       extra: build_extra(parsed)
     }
 
-    Log.info(:pipeline, "fetched TV metadata for tmdb:#{tmdb_id}: #{data["name"]}")
+    Log.info(:pipeline, "fetched TV metadata — tmdb:#{tmdb_id} \"#{data["name"]}\"")
     {:ok, metadata}
   end
 

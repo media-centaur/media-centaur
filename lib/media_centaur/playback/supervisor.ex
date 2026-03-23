@@ -31,10 +31,13 @@ defmodule MediaCentaur.Playback.Supervisor do
     for params <- SessionRecovery.recover_all() do
       case SessionSupervisor.start_session(params) do
         {:ok, _pid} ->
-          Log.info(:playback, "recovered session for #{params[:entity_name] || params.entity_id}")
+          Log.info(:playback, "recovered session — #{params[:entity_name] || params.entity_id}")
 
         {:error, reason} ->
-          Log.info(:playback, "recovery start failed for #{params.entity_id}: #{inspect(reason)}")
+          Log.warning(
+            :playback,
+            "failed to recover session — #{params.entity_id}: #{inspect(reason)}"
+          )
       end
     end
   end

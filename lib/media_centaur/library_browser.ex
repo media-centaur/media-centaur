@@ -6,6 +6,7 @@ defmodule MediaCentaur.LibraryBrowser do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Playback.{EpisodeList, MovieList, ProgressSummary, Resolver, Sessions}
 
@@ -67,7 +68,7 @@ defmodule MediaCentaur.LibraryBrowser do
   Smart play for any UUID — resolves the target and starts playback.
   """
   def play(uuid) do
-    Log.info(:library, "play #{uuid}")
+    Log.info(:library, "play requested — #{Format.short_id(uuid)}")
 
     case Resolver.resolve(uuid) do
       {:ok, play_params} -> Sessions.play(play_params)

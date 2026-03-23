@@ -48,7 +48,7 @@ defmodule MediaCentaur.DirMonitor do
       end
 
     if new_state != state.state do
-      Log.info(:watcher, "image dir #{state.image_dir} is now #{new_state}")
+      Log.info(:watcher, "image dir changed — #{state.image_dir} is now #{new_state}")
       broadcast_state(state.image_dir, new_state)
     end
 

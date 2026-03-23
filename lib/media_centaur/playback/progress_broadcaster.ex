@@ -8,6 +8,8 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   """
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Format
+
   @doc """
   Loads entity progress and broadcasts an `:entity_progress_updated` message.
 
@@ -34,7 +36,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
             record.season_number == season_number && record.episode_number == episode_number
           end)
 
-        Log.info(:playback, "broadcasting progress for #{entity_id}")
+        Log.info(:playback, "broadcast progress — #{Format.short_id(entity_id)}")
 
         Phoenix.PubSub.broadcast(
           MediaCentaur.PubSub,

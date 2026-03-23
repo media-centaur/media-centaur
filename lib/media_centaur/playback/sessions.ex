@@ -20,7 +20,7 @@ defmodule MediaCentaur.Playback.Sessions do
     if SessionRegistry.active?(entity_id) do
       {:error, :already_playing}
     else
-      Log.info(:playback, "play #{params[:entity_name] || entity_id}")
+      Log.info(:playback, "play requested — #{params[:entity_name] || entity_id}")
 
       case SessionSupervisor.start_session(params) do
         {:ok, _pid} -> :ok

@@ -42,7 +42,10 @@ defmodule MediaCentaur.Admin do
           )
 
         if result.error_count > 0 do
-          Log.error(:library, "#{inspect(resource)} had #{result.error_count} destroy errors")
+          Log.error(
+            :library,
+            "destroy errors — #{inspect(resource)}: #{result.error_count} failures"
+          )
         end
       end)
 
@@ -81,7 +84,7 @@ defmodule MediaCentaur.Admin do
       )
 
     if result.error_count > 0 do
-      Log.error(:library, "#{result.error_count} images failed to clear content_url")
+      Log.error(:library, "failed to clear image URLs — #{result.error_count} errors")
     end
 
     entities = Library.list_entities_with_images!(load: [:watched_files])
@@ -99,7 +102,7 @@ defmodule MediaCentaur.Admin do
     entity_ids = Enum.map(entities, & &1.id)
     Helpers.broadcast_entities_changed(entity_ids)
 
-    Log.info(:library, "image cache refreshed for #{length(entities)} entities")
+    Log.info(:library, "image cache refreshed — #{length(entities)} entities")
     {:ok, length(entities)}
   end
 

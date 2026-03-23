@@ -24,15 +24,15 @@ defmodule MediaCentaur.Library.Removal do
   def delete_file(file_path) do
     case File.rm(file_path) do
       :ok ->
-        Log.info(:library, "deleted file: #{file_path}")
+        Log.info(:library, "deleted file — #{file_path}")
         cleanup_and_broadcast([file_path])
 
       {:error, :enoent} ->
-        Log.info(:library, "file already absent, cleaning up records: #{file_path}")
+        Log.info(:library, "cleaned up records — file already absent: #{file_path}")
         cleanup_and_broadcast([file_path])
 
       {:error, reason} ->
-        Log.warning(:library, "failed to delete file #{file_path}: #{reason}")
+        Log.warning(:library, "failed to delete file — #{file_path}: #{reason}")
         {:error, reason}
     end
   end
@@ -51,13 +51,13 @@ defmodule MediaCentaur.Library.Removal do
   def delete_folder(folder_path, file_paths) do
     case File.rm_rf(folder_path) do
       {:ok, _removed} ->
-        Log.info(:library, "deleted folder: #{folder_path}")
+        Log.info(:library, "deleted folder — #{folder_path}")
         cleanup_and_broadcast(file_paths)
 
-      {:error, reason, failed_path} ->
+      {:error, reason, _failed_path} ->
         Log.warning(
           :library,
-          "failed to delete folder #{folder_path}: #{reason} (#{failed_path})"
+          "failed to delete folder — #{folder_path}: #{reason}"
         )
 
         {:error, reason}

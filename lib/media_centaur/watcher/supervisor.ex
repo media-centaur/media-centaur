@@ -36,13 +36,13 @@ defmodule MediaCentaur.Watcher.Supervisor do
              {MediaCentaur.Watcher, dir}
            ) do
         {:ok, _pid} ->
-          Log.info(:watcher, "started watcher for #{dir}")
+          Log.info(:watcher, "started watcher — #{dir}")
 
         {:error, {:already_started, _pid}} ->
-          Log.info(:watcher, "watcher already running for #{dir}")
+          Log.info(:watcher, "watcher already running — #{dir}")
 
         {:error, reason} ->
-          Log.warning(:watcher, "failed to start watcher for #{dir}: #{inspect(reason)}")
+          Log.warning(:watcher, "failed to start watcher — #{dir}: #{inspect(reason)}")
       end
     end)
   end
@@ -59,10 +59,10 @@ defmodule MediaCentaur.Watcher.Supervisor do
              {MediaCentaur.DirMonitor, {image_dir, watch_dir}}
            ) do
         {:ok, _pid} ->
-          Log.info(:watcher, "started image dir monitor for #{image_dir}")
+          Log.info(:watcher, "started image dir monitor — #{image_dir}")
 
         {:error, {:already_started, _pid}} ->
-          Log.info(:watcher, "image dir monitor already running for #{image_dir}")
+          Log.info(:watcher, "image dir monitor already running — #{image_dir}")
 
         {:error, reason} ->
           Log.warning(

@@ -15,7 +15,7 @@ defmodule MediaCentaur.Library.FileTracker do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.{Config, Format}
   alias MediaCentaur.Library
   alias MediaCentaur.Library.EntityCascade
   alias MediaCentaur.Library.Helpers
@@ -68,7 +68,7 @@ defmodule MediaCentaur.Library.FileTracker do
       end)
 
     if restored != [] do
-      Log.info(:library, "restoring #{length(restored)} absent files for #{watch_dir}")
+      Log.info(:library, "restored #{length(restored)} absent files — #{watch_dir}")
 
       result =
         Ash.bulk_update(restored, :mark_present, %{},
@@ -78,7 +78,7 @@ defmodule MediaCentaur.Library.FileTracker do
         )
 
       if result.error_count > 0 do
-        Log.warning(:library, "mark_present bulk errors: #{inspect(result.errors)}")
+        Log.warning(:library, "failed to mark present — #{inspect(result.errors)}")
       end
     end
 
@@ -104,7 +104,7 @@ defmodule MediaCentaur.Library.FileTracker do
         )
 
       if result.error_count > 0 do
-        Log.warning(:library, "mark_absent bulk errors: #{inspect(result.errors)}")
+        Log.warning(:library, "failed to mark absent — #{inspect(result.errors)}")
       end
 
       Helpers.unique_entity_ids(files)
@@ -131,7 +131,7 @@ defmodule MediaCentaur.Library.FileTracker do
 
   @impl true
   def handle_info({:files_removed, file_paths}, state) do
-    Log.info(:library, "processing removal of #{length(file_paths)} files")
+    Log.info(:library, "processing removal — #{length(file_paths)} files")
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       entity_ids = cleanup_removed_files(file_paths)
@@ -142,7 +142,7 @@ defmodule MediaCentaur.Library.FileTracker do
   end
 
   def handle_info({:dir_state_changed, dir, :watch_dir, :unavailable}, state) do
-    Log.info(:library, "drive unavailable, marking files absent for #{dir}")
+    Log.info(:library, "marked files absent — drive unavailable for #{dir}")
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       entity_ids = mark_absent_for_watch_dir(dir)
@@ -204,7 +204,7 @@ defmodule MediaCentaur.Library.FileTracker do
         )
 
       if result.error_count > 0 do
-        Log.warning(:library, "bulk destroy watched files errors: #{inspect(result.errors)}")
+        Log.warning(:library, "failed to destroy watched files — #{inspect(result.errors)}")
       end
     end
 
@@ -271,7 +271,11 @@ defmodule MediaCentaur.Library.FileTracker do
     # Re-check for new files before committing to the cascade.
     # A file may have been linked between the caller's check and now.
     if Library.list_watched_files_for_entity!(entity_id) != [] do
-      Log.info(:library, "entity #{entity_id} gained files during cleanup, skipping cascade")
+      Log.info(
+        :library,
+        "skipped cascade — entity #{Format.short_id(entity_id)} gained files during cleanup"
+      )
+
       :ok
     else
       do_delete_entity_cascade(entity_id)
@@ -293,7 +297,7 @@ defmodule MediaCentaur.Library.FileTracker do
     expired = Library.list_expired_absent_files!(cutoff)
 
     if expired != [] do
-      Log.info(:library, "TTL expiration: cleaning up #{length(expired)} absent files")
+      Log.info(:library, "TTL expired — cleaning up #{length(expired)} absent files")
       file_paths = Enum.map(expired, & &1.file_path)
       entity_ids = cleanup_removed_files(file_paths)
       Helpers.broadcast_entities_changed(entity_ids)

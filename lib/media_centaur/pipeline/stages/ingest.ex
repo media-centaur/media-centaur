@@ -8,6 +8,7 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
   """
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Format
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Library.Ingress
 
@@ -17,7 +18,7 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
 
     case Ingress.ingest(payload) do
       {:ok, entity, status} ->
-        Log.info(:pipeline, "ingested entity #{entity.id} (#{status})")
+        Log.info(:pipeline, "ingested entity #{Format.short_id(entity.id)} — #{status}")
 
         {:ok,
          %{

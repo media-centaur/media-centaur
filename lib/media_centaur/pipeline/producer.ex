@@ -33,7 +33,7 @@ defmodule MediaCentaur.Pipeline.Producer do
   def handle_info({:file_detected, %{path: path, watch_dir: watch_dir}}, state) do
     payload = build_payload(:file_detected, %{path: path, watch_dir: watch_dir})
 
-    Log.info(:pipeline, "producer received file_detected: #{Path.basename(path)}")
+    Log.info(:pipeline, "queued #{Path.basename(path)} — file detected")
 
     state = %{state | queue: :queue.in(payload, state.queue)}
     {messages, state} = dispatch(state)
@@ -61,7 +61,7 @@ defmodule MediaCentaur.Pipeline.Producer do
         pending_file_id: pending_file_id
       })
 
-    Log.info(:pipeline, "producer received review_resolved: #{Path.basename(path)}")
+    Log.info(:pipeline, "queued #{Path.basename(path)} — review approved")
 
     state = %{state | queue: :queue.in(payload, state.queue)}
     {messages, state} = dispatch(state)
@@ -73,7 +73,7 @@ defmodule MediaCentaur.Pipeline.Producer do
   # files that were missed while the pipeline was down.
   def handle_info(:reconcile, state) do
     if MediaCentaur.Watcher.Supervisor.running?() do
-      Log.info(:pipeline, "producer startup reconciliation: triggering watcher rescan")
+      Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
 
       Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
         MediaCentaur.Watcher.Supervisor.scan()
