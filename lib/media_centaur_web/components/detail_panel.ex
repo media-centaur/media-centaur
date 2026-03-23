@@ -771,11 +771,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     genres = assigns.entity.genres || []
     identifiers = if is_list(assigns.entity.identifiers), do: assigns.entity.identifiers, else: []
 
+    watch_dirs = MapSet.new(MediaCentaur.Config.get(:watch_dirs) || [])
+
     file_groups =
       assigns.files
       |> Enum.group_by(fn %{file: file} -> Path.dirname(file.file_path) end)
       |> Enum.sort_by(fn {dir, _files} -> dir end)
-      |> Enum.map(fn {dir, files} -> %{dir: dir, name: Path.basename(dir), files: files} end)
+      |> Enum.map(fn {dir, files} ->
+        %{dir: dir, name: Path.basename(dir), files: files, is_watch_dir: dir in watch_dirs}
+      end)
 
     assigns =
       assigns
@@ -808,6 +812,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 {group.name}
               </span>
               <button
+                :if={!group.is_watch_dir}
                 phx-click="delete_folder_prompt"
                 phx-value-path={group.dir}
                 phx-value-count={length(group.files)}
