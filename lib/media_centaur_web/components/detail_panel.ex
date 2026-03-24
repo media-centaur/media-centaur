@@ -76,7 +76,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         %{}
       end
 
-    resume_episode_key = resume_episode_key(assigns.resume)
+    resume_episode_key =
+      resume_episode_key(assigns.resume) || progress_episode_key(assigns.progress)
 
     has_scrollable_content =
       assigns.detail_view == :info ||
@@ -1117,4 +1118,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp resume_episode_key(_), do: nil
+
+  defp progress_episode_key(%{current_episode: %{season: s, episode: e}})
+       when is_integer(s) and is_integer(e),
+       do: {s, e}
+
+  defp progress_episode_key(_), do: nil
 end
