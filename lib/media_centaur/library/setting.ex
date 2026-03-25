@@ -12,7 +12,7 @@ defmodule MediaCentaur.Library.Setting do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "settings" do
+  schema "settings_entries" do
     field :key, :string
     field :value, :map
 

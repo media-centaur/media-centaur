@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.ExtraProgress do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "extra_progress" do
+  schema "library_extra_progress" do
     field :position_seconds, :float, default: 0.0
     field :duration_seconds, :float, default: 0.0
     field :completed, :boolean, default: false

@@ -10,7 +10,7 @@ defmodule MediaCentaur.Library.WatchProgress do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "watch_progress" do
+  schema "library_watch_progress" do
     field :season_number, :integer, default: 0
     field :episode_number, :integer, default: 0
     field :position_seconds, :float, default: 0.0
