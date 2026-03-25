@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   import MediaCentaurWeb.LibraryHelpers, only: [format_type: 1, extract_year: 1]
 
   alias MediaCentaur.Playback.EpisodeList
+  alias MediaCentaur.Playback.MovieList
 
   # --- Public API ---
 
@@ -70,10 +71,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       assigns.expanded_seasons || auto_expand_season(assigns.entity, assigns.progress)
 
     progress_by_key =
-      if assigns.entity.type == :tv_series do
-        EpisodeList.index_progress_by_key(assigns.progress_records)
-      else
-        %{}
+      case assigns.entity.type do
+        :tv_series ->
+          EpisodeList.index_progress_by_key(assigns.progress_records)
+
+        :movie_series ->
+          assigns.progress_records
+          |> MovieList.index_progress_by_ordinal()
+          |> Map.new(fn {ordinal, record} -> {{0, ordinal}, record} end)
+
+        _ ->
+          %{}
       end
 
     resume_episode_key =
@@ -381,16 +389,26 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp content_list(%{entity: %{type: :movie_series}} = assigns) do
-    movies = assigns.entity.movies || []
-    assigns = assign(assigns, :movies, movies)
+    movies_with_ordinals =
+      (assigns.entity.movies || [])
+      |> MovieList.sort_movies()
+      |> Enum.filter(& &1.content_url)
+      |> Enum.with_index(1)
+
+    assigns = assign(assigns, :movies_with_ordinals, movies_with_ordinals)
 
     ~H"""
     <div class="pt-3">
-      <div :if={@movies != []}>
+      <div :if={@movies_with_ordinals != []}>
         <.movie_row
-          :for={movie <- @movies}
+          :for={{movie, ordinal} <- @movies_with_ordinals}
           movie={movie}
+          ordinal={ordinal}
+          progress={Map.get(@progress_by_key, {0, ordinal})}
+          resume_episode_key={@resume_episode_key}
+          entity_id={@entity.id}
           on_play={@on_play}
+          spoiler_free={@spoiler_free}
         />
       </div>
       <.extras_section entity={@entity} on_play={@on_play} />
@@ -660,16 +678,34 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # --- Movie Row ---
 
   attr :movie, :map, required: true
+  attr :ordinal, :integer, required: true
+  attr :progress, :map, default: nil
+  attr :resume_episode_key, :any, default: nil
+  attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
+  attr :spoiler_free, :boolean, default: false
 
   defp movie_row(assigns) do
-    thumbnail = image_url(assigns.movie, "poster")
-    assigns = assign(assigns, :thumbnail, thumbnail)
+    state = episode_state(assigns.progress)
+
+    is_resume_target =
+      assigns.resume_episode_key != nil and
+        assigns.resume_episode_key == {0, assigns.ordinal}
+
+    assigns =
+      assigns
+      |> assign(:state, state)
+      |> assign(:is_resume_target, is_resume_target)
+      |> assign(:thumbnail, image_url(assigns.movie, "poster"))
 
     ~H"""
     <div
-      class="p-2 rounded cursor-pointer hover:bg-base-content/5"
+      class={[
+        "p-2 rounded cursor-pointer hover:bg-base-content/5",
+        episode_row_class(@state, @is_resume_target)
+      ]}
       data-role="movie-row"
+      data-resume-target={@is_resume_target || nil}
       phx-click={@on_play}
       phx-value-id={@movie.id}
       data-nav-item
@@ -691,10 +727,50 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               ({extract_year(@movie.date_published)})
             </span>
           </span>
-          <p :if={@movie.description} class="line-clamp-2 text-xs text-base-content/50">
+          <p
+            :if={@movie.description}
+            class={[
+              "line-clamp-2 text-xs text-base-content/50",
+              @spoiler_free && @state != :watched && "spoiler-blur"
+            ]}
+          >
             {@movie.description}
           </p>
         </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <.episode_duration_text state={@state} progress={@progress} duration={@movie.duration} />
+          <button
+            phx-click="toggle_watched"
+            phx-value-entity-id={@entity_id}
+            phx-value-season="0"
+            phx-value-episode={@ordinal}
+            class={[
+              "size-5 rounded-full flex items-center justify-center transition-all",
+              watched_circle_class(@state)
+            ]}
+            aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
+          >
+            <.icon
+              :if={@state == :watched}
+              name="hero-check-mini"
+              class="size-3 text-success-content"
+            />
+            <.icon
+              :if={@state != :watched}
+              name="hero-check-mini"
+              class="size-3 opacity-0 group-hover/check:opacity-60 transition-opacity"
+            />
+          </button>
+        </div>
+      </div>
+      <div
+        :if={@state == :current}
+        class="mt-1 ml-[calc(3rem+0.75rem)] h-0.5 rounded-full bg-base-content/10 overflow-hidden"
+      >
+        <div
+          class="h-full bg-info rounded-full"
+          style={"width: #{progress_percent(@progress)}%"}
+        />
       </div>
     </div>
     """
