@@ -37,7 +37,8 @@ defmodule MediaCentaur.TestFactory do
       extras: [],
       seasons: [],
       watched_files: [],
-      watch_progress: []
+      watch_progress: [],
+      extra_progress: []
     }
 
     struct(Entity, Map.merge(defaults, overrides))
@@ -227,5 +228,10 @@ defmodule MediaCentaur.TestFactory do
   def create_watch_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
     Library.find_or_create_watch_progress!(Map.merge(defaults, attrs))
+  end
+
+  def create_extra_progress(attrs) do
+    defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
+    Library.find_or_create_extra_progress!(Map.merge(defaults, attrs))
   end
 end

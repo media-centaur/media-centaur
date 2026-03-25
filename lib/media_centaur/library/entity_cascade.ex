@@ -17,7 +17,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   Destroys an entity and all its children in FK-safe order.
 
   Loads the entity with full associations, then deletes:
-  WatchProgress → Extras → (Episode images → Episodes → Season extras → Seasons) →
+  WatchProgress → ExtraProgress → Extras → (Episode images → Episodes → Season extras → Seasons) →
   (Movie images → Movies) → Entity images → Image dirs → Identifiers → Entity
   """
   def destroy!(entity_id) do
@@ -25,6 +25,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     ChangeLog.record_removal(entity)
 
     bulk_destroy(entity.watch_progress || [], Library.WatchProgress)
+    bulk_destroy(entity.extra_progress || [], Library.ExtraProgress)
 
     bulk_destroy(entity.extras || [], Library.Extra)
 

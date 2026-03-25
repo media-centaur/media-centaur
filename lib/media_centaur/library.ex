@@ -280,6 +280,21 @@ defmodule MediaCentaur.Library do
       define :destroy_watch_progress, action: :destroy
     end
 
+    resource MediaCentaur.Library.ExtraProgress do
+      define :list_extra_progress_for_entity, action: :for_entity, args: [:entity_id]
+
+      define :get_extra_progress_by_extra,
+        action: :by_extra,
+        args: [:extra_id],
+        get?: true,
+        not_found_error?: false
+
+      define :find_or_create_extra_progress, action: :find_or_create
+      define :mark_extra_completed, action: :mark_completed
+      define :mark_extra_incomplete, action: :mark_incomplete
+      define :destroy_extra_progress, action: :destroy
+    end
+
     resource MediaCentaur.Library.ChangeEntry do
       define :create_change_entry, action: :create
       define :list_recent_changes, action: :recent, args: [:limit, :since]

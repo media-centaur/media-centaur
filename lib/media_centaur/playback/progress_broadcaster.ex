@@ -56,4 +56,31 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
         :ok
     end
   end
+
+  @doc """
+  Broadcasts an `:extra_progress_updated` message for a specific extra.
+
+  Simpler than entity broadcast — no summary/resume recomputation needed.
+  Loads the current ExtraProgress record and broadcasts it.
+  """
+  def broadcast_extra(entity_id, extra_id) do
+    progress =
+      case MediaCentaur.Library.get_extra_progress_by_extra(extra_id) do
+        {:ok, record} -> record
+        _ -> nil
+      end
+
+    Log.info(:playback, "broadcast extra progress — #{Format.short_id(extra_id)}")
+
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      MediaCentaur.Topics.playback_events(),
+      {:extra_progress_updated,
+       %{
+         entity_id: entity_id,
+         extra_id: extra_id,
+         progress: progress
+       }}
+    )
+  end
 end

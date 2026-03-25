@@ -87,6 +87,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     resume_episode_key =
       resume_episode_key(assigns.resume) || progress_episode_key(assigns.progress)
 
+    extra_progress_by_id = index_extra_progress(assigns.entity)
+
     has_scrollable_content =
       assigns.detail_view == :info ||
         assigns.entity.type in [:tv_series, :movie_series] ||
@@ -97,6 +99,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:expanded_seasons, expanded_seasons)
       |> assign(:progress_by_key, progress_by_key)
       |> assign(:resume_episode_key, resume_episode_key)
+      |> assign(:extra_progress_by_id, extra_progress_by_id)
       |> assign(:has_scrollable_content, has_scrollable_content)
 
     ~H"""
@@ -136,6 +139,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             expanded_seasons={@expanded_seasons}
             progress_by_key={@progress_by_key}
             resume_episode_key={@resume_episode_key}
+            extra_progress_by_id={@extra_progress_by_id}
             on_play={@on_play}
             spoiler_free={@spoiler_free}
           />
@@ -379,11 +383,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         expanded={MapSet.member?(@expanded_seasons, season.season_number)}
         progress_by_key={@progress_by_key}
         resume_episode_key={@resume_episode_key}
+        extra_progress_by_id={@extra_progress_by_id}
         entity_id={@entity.id}
         on_play={@on_play}
         spoiler_free={@spoiler_free}
       />
-      <.extras_section entity={@entity} on_play={@on_play} />
+      <.extras_section
+        entity={@entity}
+        extra_progress_by_id={@extra_progress_by_id}
+        on_play={@on_play}
+      />
     </div>
     """
   end
@@ -411,14 +420,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           spoiler_free={@spoiler_free}
         />
       </div>
-      <.extras_section entity={@entity} on_play={@on_play} />
+      <.extras_section
+        entity={@entity}
+        extra_progress_by_id={@extra_progress_by_id}
+        on_play={@on_play}
+      />
     </div>
     """
   end
 
   defp content_list(assigns) do
     ~H"""
-    <.extras_section entity={@entity} on_play={@on_play} />
+    <.extras_section entity={@entity} extra_progress_by_id={@extra_progress_by_id} on_play={@on_play} />
     """
   end
 
@@ -428,6 +441,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :expanded, :boolean, required: true
   attr :progress_by_key, :map, required: true
   attr :resume_episode_key, :any, default: nil
+  attr :extra_progress_by_id, :map, default: %{}
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
@@ -483,7 +497,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               />
           <% end %>
         <% end %>
-        <.season_extras extras={@season.extras} on_play={@on_play} />
+        <.season_extras
+          extras={@season.extras}
+          extra_progress_by_id={@extra_progress_by_id}
+          entity_id={@entity_id}
+          on_play={@on_play}
+        />
       </div>
     </div>
     """
@@ -781,13 +800,21 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # --- Extra Row ---
 
   attr :extra, :map, required: true
+  attr :progress, :map, default: nil
+  attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
 
   defp extra_row(assigns) do
+    state = episode_state(assigns.progress)
+    assigns = assign(assigns, :state, state)
+
     ~H"""
     <div class="py-0.5 pr-3" data-role="extra-row">
       <div
-        class="flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2"
+        class={[
+          "flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2",
+          @state == :watched && "opacity-60"
+        ]}
         phx-click={@on_play}
         phx-value-id={@extra.id}
         data-nav-item
@@ -795,6 +822,40 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       >
         <.icon name="hero-film-mini" class="size-4 text-base-content/40 flex-shrink-0" />
         <span class="flex-1 min-w-0 truncate text-base-content/70">{@extra.name || "—"}</span>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <.episode_duration_text state={@state} progress={@progress} duration={nil} />
+          <button
+            phx-click="toggle_extra_watched"
+            phx-value-extra-id={@extra.id}
+            phx-value-entity-id={@entity_id}
+            data-nav-sub-item
+            class={[
+              "size-5 rounded-full flex items-center justify-center transition-all",
+              watched_circle_class(@state)
+            ]}
+            aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
+          >
+            <.icon
+              :if={@state == :watched}
+              name="hero-check-mini"
+              class="size-3 text-success-content"
+            />
+            <.icon
+              :if={@state != :watched}
+              name="hero-check-mini"
+              class="size-3 opacity-0 group-hover/check:opacity-60 transition-opacity"
+            />
+          </button>
+        </div>
+      </div>
+      <div
+        :if={@state == :current}
+        class="mt-1 ml-6 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
+      >
+        <div
+          class="h-full bg-info rounded-full"
+          style={"width: #{progress_percent(@progress)}%"}
+        />
       </div>
     </div>
     """
@@ -807,7 +868,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <div :if={@extras != []} class="pt-3">
       <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
-      <.extra_row :for={extra <- @extras} extra={extra} on_play={@on_play} />
+      <.extra_row
+        :for={extra <- @extras}
+        extra={extra}
+        progress={Map.get(@extra_progress_by_id, extra.id)}
+        entity_id={@entity.id}
+        on_play={@on_play}
+      />
     </div>
     """
   end
@@ -817,6 +884,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp entity_extras(_), do: []
+
+  defp index_extra_progress(%{extra_progress: progress}) when is_list(progress) do
+    Map.new(progress, fn record -> {record.extra_id, record} end)
+  end
+
+  defp index_extra_progress(_), do: %{}
 
   defp season_extras(%{extras: nil} = assigns) do
     ~H"""
@@ -832,7 +905,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <div class="pt-2">
       <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
-      <.extra_row :for={extra <- @extras} extra={extra} on_play={@on_play} />
+      <.extra_row
+        :for={extra <- @extras}
+        extra={extra}
+        progress={Map.get(@extra_progress_by_id, extra.id)}
+        entity_id={@entity_id}
+        on_play={@on_play}
+      />
     </div>
     """
   end

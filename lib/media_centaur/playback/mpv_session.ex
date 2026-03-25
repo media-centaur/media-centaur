@@ -26,6 +26,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     :season_number,
     :episode_number,
     :episode_name,
+    :extra_id,
     :content_url,
     :start_position,
     :socket_path,
@@ -82,6 +83,7 @@ defmodule MediaCentaur.Playback.MpvSession do
       season_number: params[:season_number],
       episode_number: params[:episode_number],
       episode_name: params[:episode_name],
+      extra_id: params[:extra_id],
       content_url: params.content_url,
       start_position: params[:start_position] || 0.0,
       socket_path: socket_path,
@@ -241,16 +243,29 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
     if session.tracker.actively_watching, do: persist_progress(session)
 
-    # Spawn entity progress broadcast to avoid blocking shutdown with DB queries.
-    # Skip for extras (episode_number nil) — no progress record to broadcast.
-    if session.episode_number do
-      entity_id = session.entity_id
-      season_number = session.season_number
-      episode_number = session.episode_number
+    cond do
+      # Extra playback — broadcast extra progress update
+      session.extra_id ->
+        entity_id = session.entity_id
+        extra_id = session.extra_id
 
-      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-        broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
-      end)
+        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
+        end)
+
+      # Entity/episode/movie playback — broadcast entity progress update
+      session.episode_number ->
+        entity_id = session.entity_id
+        season_number = session.season_number
+        episode_number = session.episode_number
+
+        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
+        end)
+
+      # No progress tracking (shouldn't happen, but safe fallback)
+      true ->
+        :ok
     end
 
     broadcast_state_changed(:stopped, session)
@@ -337,9 +352,48 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # --- Progress Persistence ---
 
+  defp persist_progress(%{extra_id: extra_id} = state) when not is_nil(extra_id) do
+    persist_extra_progress(state)
+  end
+
   defp persist_progress(%{episode_number: nil}), do: :ok
 
   defp persist_progress(state) do
+    persist_entity_progress(state)
+  end
+
+  defp persist_extra_progress(state) do
+    saveable = state.tracker.saveable_position || state.position
+    duration = state.duration
+
+    params = %{
+      extra_id: state.extra_id,
+      entity_id: state.entity_id,
+      position_seconds: saveable,
+      duration_seconds: duration
+    }
+
+    entity_id = state.entity_id
+    extra_id = state.extra_id
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      case MediaCentaur.Library.find_or_create_extra_progress(params) do
+        {:ok, record} ->
+          Log.info(
+            :playback,
+            "saved extra progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
+          )
+
+          maybe_mark_extra_completed(record, saveable, duration)
+          ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
+
+        {:error, reason} ->
+          Log.warning(:playback, "failed to save extra progress — #{inspect(reason)}")
+      end
+    end)
+  end
+
+  defp persist_entity_progress(state) do
     saveable = state.tracker.saveable_position || state.position
     duration = state.duration
 
@@ -394,6 +448,28 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp maybe_mark_completed(_record, _position, _duration), do: :ok
+
+  defp maybe_mark_extra_completed(record, position, duration)
+       when is_number(position) and is_number(duration) and duration > 0 do
+    if not record.completed and position / duration >= 0.90 do
+      Log.info(
+        :playback,
+        "extra marked completed — #{Float.round(position / duration * 100, 0)}%"
+      )
+
+      case MediaCentaur.Library.mark_extra_completed(record) do
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
+          Log.warning(:playback, "failed to mark extra completed — #{inspect(reason)}")
+      end
+    end
+
+    :ok
+  end
+
+  defp maybe_mark_extra_completed(_record, _position, _duration), do: :ok
 
   # --- PubSub Broadcasting ---
 
