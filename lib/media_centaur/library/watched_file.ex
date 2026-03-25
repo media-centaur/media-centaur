@@ -9,7 +9,7 @@ defmodule MediaCentaur.Library.WatchedFile do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "watched_files" do
+  schema "library_watched_files" do
     field :file_path, :string
     field :state, Ecto.Enum, values: [:complete, :absent], default: :complete
     field :watch_dir, :string

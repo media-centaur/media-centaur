@@ -11,7 +11,7 @@ defmodule MediaCentaur.Library.Extra do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "extras" do
+  schema "library_extras" do
     field :name, :string
     field :content_url, :string
     field :position, :integer

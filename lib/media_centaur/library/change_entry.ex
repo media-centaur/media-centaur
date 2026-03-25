@@ -13,7 +13,7 @@ defmodule MediaCentaur.Library.ChangeEntry do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "change_entries" do
+  schema "library_change_entries" do
     field :entity_id, Ecto.UUID
     field :entity_name, :string
     field :entity_type, Ecto.Enum, values: [:movie, :movie_series, :tv_series, :video_object]

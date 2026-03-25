@@ -12,7 +12,7 @@ defmodule MediaCentaur.Library.Entity do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "entities" do
+  schema "library_entities" do
     field :type, Ecto.Enum, values: [:movie, :movie_series, :tv_series, :video_object]
     field :name, :string
     field :description, :string

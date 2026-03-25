@@ -12,7 +12,7 @@ defmodule MediaCentaur.Library.Image do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "images" do
+  schema "library_images" do
     field :role, :string
     field :url, :string
     field :content_url, :string

@@ -10,7 +10,7 @@ defmodule MediaCentaur.Library.Identifier do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "identifiers" do
+  schema "library_identifiers" do
     field :property_id, :string
     field :value, :string
 
