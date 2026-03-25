@@ -116,7 +116,7 @@ defmodule MediaCentaur.Review.RematchTest do
     end
 
     test "returns {:error, :not_found} when entity does not exist" do
-      assert {:error, :not_found} = Rematch.rematch_entity(Ash.UUID.generate())
+      assert {:error, :not_found} = Rematch.rematch_entity(Ecto.UUID.generate())
     end
   end
 end

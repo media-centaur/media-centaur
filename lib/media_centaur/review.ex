@@ -9,55 +9,94 @@ defmodule MediaCentaur.Review do
   Approval broadcasts a `{:review_resolved, ...}` event to `MediaCentaur.Topics.pipeline_input()`,
   which the Pipeline Producer picks up for async processing via Broadway.
   """
-  use Ash.Domain, extensions: [AshAi]
+  import Ecto.Query
 
-  tools do
-    tool :read_pending_files, MediaCentaur.Review.PendingFile, :pending do
-      description "List files pending human review before library ingestion"
-    end
-
-    tool :approve_pending_file, MediaCentaur.Review.PendingFile, :approve do
-      description "Approve a pending file for library ingestion"
-    end
-
-    tool :dismiss_pending_file, MediaCentaur.Review.PendingFile, :dismiss do
-      description "Dismiss a pending file (skip ingestion)"
-    end
-
-    tool :set_pending_file_match, MediaCentaur.Review.PendingFile, :set_tmdb_match do
-      description "Set the TMDB match on a pending file (tmdb_id, confidence, match_title, match_year, match_poster_path)"
-    end
-
-    tool :destroy_pending_file, MediaCentaur.Review.PendingFile, :destroy do
-      description "Delete a pending file record"
-    end
-
-    tool :search_tmdb, MediaCentaur.Review.PendingFile, :search_tmdb do
-      description "Search TMDB for a movie or TV show by title"
-    end
-  end
-
-  resources do
-    resource MediaCentaur.Review.PendingFile do
-      define :list_pending_files, action: :read
-      define :get_pending_file, action: :read, get_by: [:id]
-      define :list_pending_files_for_review, action: :pending
-      define :create_pending_file, action: :create
-      define :find_or_create_pending_file, action: :find_or_create
-      define :approve_pending_file, action: :approve
-      define :dismiss_pending_file, action: :dismiss
-      define :set_pending_file_match, action: :set_tmdb_match
-      define :destroy_pending_file, action: :destroy
-    end
-  end
+  alias MediaCentaur.Repo
+  alias MediaCentaur.Review.PendingFile
 
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.DateUtil
 
+  # ---------------------------------------------------------------------------
+  # PendingFile CRUD
+  # ---------------------------------------------------------------------------
+
+  def list_pending_files, do: {:ok, Repo.all(PendingFile)}
+  def list_pending_files!, do: Repo.all(PendingFile)
+
+  def get_pending_file(id) do
+    case Repo.get(PendingFile, id) do
+      nil -> {:error, :not_found}
+      file -> {:ok, file}
+    end
+  end
+
+  def get_pending_file!(id), do: Repo.get!(PendingFile, id)
+
+  def list_pending_files_for_review do
+    query =
+      from(p in PendingFile,
+        where: p.status == :pending,
+        order_by: [asc: p.inserted_at]
+      )
+
+    {:ok, Repo.all(query)}
+  end
+
+  def list_pending_files_for_review!, do: bang!(list_pending_files_for_review())
+
+  def create_pending_file(attrs) do
+    PendingFile.create_changeset(attrs) |> Repo.insert()
+  end
+
+  def create_pending_file!(attrs), do: bang!(create_pending_file(attrs))
+
+  def find_or_create_pending_file(attrs) do
+    file_path = attrs[:file_path] || attrs["file_path"]
+
+    case Repo.get_by(PendingFile, file_path: file_path) do
+      nil -> PendingFile.create_changeset(attrs) |> Repo.insert()
+      existing -> {:ok, existing}
+    end
+  end
+
+  def find_or_create_pending_file!(attrs), do: bang!(find_or_create_pending_file(attrs))
+
+  def approve_pending_file(pending_file) do
+    PendingFile.approve_changeset(pending_file) |> Repo.update()
+  end
+
+  def approve_pending_file!(pending_file), do: bang!(approve_pending_file(pending_file))
+
+  def dismiss_pending_file(pending_file) do
+    PendingFile.dismiss_changeset(pending_file) |> Repo.update()
+  end
+
+  def dismiss_pending_file!(pending_file), do: bang!(dismiss_pending_file(pending_file))
+
+  def set_pending_file_match(pending_file, attrs) do
+    PendingFile.set_tmdb_match_changeset(pending_file, attrs) |> Repo.update()
+  end
+
+  def set_pending_file_match!(pending_file, attrs) do
+    bang!(set_pending_file_match(pending_file, attrs))
+  end
+
+  def destroy_pending_file(pending_file), do: Repo.delete(pending_file)
+
+  def destroy_pending_file!(pending_file) do
+    bang!(Repo.delete(pending_file))
+    :ok
+  end
+
+  # ---------------------------------------------------------------------------
+  # Business logic
+  # ---------------------------------------------------------------------------
+
   def fetch_pending_files do
-    __MODULE__.list_pending_files_for_review!()
+    list_pending_files_for_review!()
   end
 
   @doc """
@@ -86,8 +125,8 @@ defmodule MediaCentaur.Review do
 
   Examples:
 
-      /media/tv/Sample Show One (2001)/Season 1/ep.mkv  →  "Sample Show One (2001)"
-      /media/movies/movie.mkv                   →  "movie.mkv"
+      /media/tv/Sample Show One (2001)/Season 1/ep.mkv  ->  "Sample Show One (2001)"
+      /media/movies/movie.mkv                   ->  "movie.mkv"
   """
   def series_root(%{file_path: file_path, watch_directory: nil}), do: file_path
 
@@ -139,7 +178,7 @@ defmodule MediaCentaur.Review do
       "approved \"#{Path.basename(pending_file.file_path)}\" — tmdb:#{pending_file.tmdb_id} (#{pending_file.tmdb_type})"
     )
 
-    with {:ok, pending_file} <- __MODULE__.approve_pending_file(pending_file) do
+    with {:ok, pending_file} <- approve_pending_file(pending_file) do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         MediaCentaur.Topics.pipeline_input(),
@@ -158,7 +197,7 @@ defmodule MediaCentaur.Review do
   end
 
   def dismiss(pending_file) do
-    result = __MODULE__.dismiss_pending_file(pending_file)
+    result = dismiss_pending_file(pending_file)
 
     if match?({:ok, _}, result) do
       Log.info(:library, "dismissed \"#{Path.basename(pending_file.file_path)}\"")
@@ -181,7 +220,7 @@ defmodule MediaCentaur.Review do
         id when is_binary(id) -> String.to_integer(id)
       end
 
-    __MODULE__.set_pending_file_match(pending_file, %{
+    set_pending_file_match(pending_file, %{
       tmdb_id: tmdb_id_int,
       tmdb_type: tmdb_type,
       match_title: title,
@@ -236,4 +275,12 @@ defmodule MediaCentaur.Review do
       {:file_reviewed, file_id}
     )
   end
+
+  defp bang!({:ok, result}), do: result
+
+  defp bang!({:error, %Ecto.Changeset{} = changeset}) do
+    raise Ecto.InvalidChangesetError, changeset: changeset, action: changeset.action
+  end
+
+  defp bang!({:error, reason}), do: raise("operation failed: #{inspect(reason)}")
 end

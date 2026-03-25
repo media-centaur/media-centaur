@@ -87,7 +87,7 @@ defmodule MediaCentaur.LibraryBrowserTest do
     end
 
     test "returns gone_ids for destroyed entities" do
-      missing_id = Ash.UUID.generate()
+      missing_id = Ecto.UUID.generate()
 
       {entries, gone_ids} = LibraryBrowser.fetch_entries_by_ids([missing_id])
 

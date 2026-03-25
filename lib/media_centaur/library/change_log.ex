@@ -5,8 +5,11 @@ defmodule MediaCentaur.Library.ChangeLog do
   Called from orchestrators (Ingress, EntityCascade), not from Ash changes.
   Prunes to the most recent 100 entries after each insert.
   """
+  import Ecto.Query
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.ChangeEntry
+  alias MediaCentaur.Repo
 
   @max_entries 100
 
@@ -32,11 +35,8 @@ defmodule MediaCentaur.Library.ChangeLog do
     overflow = Enum.drop(all_entries, @max_entries)
 
     if overflow != [] do
-      Ash.bulk_destroy(overflow, :destroy, %{},
-        resource: Library.ChangeEntry,
-        strategy: :stream,
-        return_errors?: true
-      )
+      ids = Enum.map(overflow, & &1.id)
+      from(c in ChangeEntry, where: c.id in ^ids) |> Repo.delete_all()
     end
 
     :ok

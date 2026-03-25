@@ -18,7 +18,7 @@ defmodule MediaCentaur.PipelineTest do
 
     # Register watch_dir_images for paths used in test payloads.
     # Images go to a temp dir that gets cleaned up after each test.
-    images_dir = Path.join(System.tmp_dir!(), "pipeline_test_#{Ash.UUID.generate()}")
+    images_dir = Path.join(System.tmp_dir!(), "pipeline_test_#{Ecto.UUID.generate()}")
     File.mkdir_p!(images_dir)
 
     config = :persistent_term.get({MediaCentaur.Config, :config})

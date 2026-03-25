@@ -80,7 +80,7 @@ defmodule MediaCentaur.ConfigTest do
 
   describe "resolve_image_path/1" do
     setup do
-      tmp_dir = Path.join(System.tmp_dir!(), "config_resolve_#{Ash.UUID.generate()}")
+      tmp_dir = Path.join(System.tmp_dir!(), "config_resolve_#{Ecto.UUID.generate()}")
       images_dir = Path.join(tmp_dir, ".media-centaur/images")
       File.mkdir_p!(images_dir)
 
@@ -97,7 +97,7 @@ defmodule MediaCentaur.ConfigTest do
       tmp_dir: tmp_dir,
       images_dir: images_dir
     } do
-      uuid = Ash.UUID.generate()
+      uuid = Ecto.UUID.generate()
       entity_dir = Path.join(images_dir, uuid)
       File.mkdir_p!(entity_dir)
       image_path = Path.join(entity_dir, "poster.jpg")
@@ -125,11 +125,11 @@ defmodule MediaCentaur.ConfigTest do
     end
 
     test "finds file in correct watch dir among multiple", %{images_dir: images_dir} do
-      second_dir = Path.join(System.tmp_dir!(), "config_resolve_second_#{Ash.UUID.generate()}")
+      second_dir = Path.join(System.tmp_dir!(), "config_resolve_second_#{Ecto.UUID.generate()}")
       second_images = Path.join(second_dir, ".media-centaur/images")
       File.mkdir_p!(second_images)
 
-      uuid = Ash.UUID.generate()
+      uuid = Ecto.UUID.generate()
       entity_dir = Path.join(second_images, uuid)
       File.mkdir_p!(entity_dir)
       image_path = Path.join(entity_dir, "backdrop.jpg")
@@ -157,7 +157,7 @@ defmodule MediaCentaur.ConfigTest do
 
   describe "TOML parsing" do
     setup do
-      toml_dir = Path.join(System.tmp_dir!(), "config_test_#{Ash.UUID.generate()}")
+      toml_dir = Path.join(System.tmp_dir!(), "config_test_#{Ecto.UUID.generate()}")
       File.mkdir_p!(toml_dir)
       toml_path = Path.join(toml_dir, "backend.toml")
 

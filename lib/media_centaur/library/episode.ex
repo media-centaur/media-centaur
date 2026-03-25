@@ -3,59 +3,33 @@ defmodule MediaCentaur.Library.Episode do
   A TV episode belonging to a `Season`. Stores per-episode metadata from TMDB
   and the local `content_url` linking to the video file.
   """
-  use Ash.Resource,
-    domain: MediaCentaur.Library,
-    data_layer: AshSqlite.DataLayer
+  use Ecto.Schema
+  import Ecto.Changeset
 
-  sqlite do
-    table "episodes"
-    repo MediaCentaur.Repo
-  end
+  @primary_key {:id, Ecto.UUID, autogenerate: true}
+  @foreign_key_type Ecto.UUID
+  @timestamps_opts [type: :utc_datetime]
 
-  actions do
-    defaults [:read, :destroy]
+  schema "episodes" do
+    field :episode_number, :integer
+    field :name, :string
+    field :description, :string
+    field :duration, :string
+    field :content_url, :string
 
-    read :by_season do
-      argument :season_id, :uuid, allow_nil?: false
-      filter expr(season_id == ^arg(:season_id))
-    end
-
-    create :create do
-      primary? true
-      accept [:episode_number, :name, :description, :duration, :content_url, :season_id]
-    end
-
-    create :find_or_create do
-      accept [:episode_number, :name, :description, :duration, :content_url, :season_id]
-      upsert? true
-      upsert_identity :unique_season_episode
-      upsert_fields []
-    end
-
-    update :set_content_url do
-      accept [:content_url]
-    end
-  end
-
-  attributes do
-    uuid_primary_key :id
-
-    attribute :episode_number, :integer
-    attribute :name, :string
-    attribute :description, :string
-    attribute :duration, :string
-    attribute :content_url, :string
-
-    create_timestamp :inserted_at
-    update_timestamp :updated_at
-  end
-
-  relationships do
     belongs_to :season, MediaCentaur.Library.Season
     has_many :images, MediaCentaur.Library.Image
+
+    timestamps()
   end
 
-  identities do
-    identity :unique_season_episode, [:season_id, :episode_number]
+  def create_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:episode_number, :name, :description, :duration, :content_url, :season_id])
+  end
+
+  def set_content_url_changeset(episode, attrs) do
+    episode
+    |> cast(attrs, [:content_url])
   end
 end

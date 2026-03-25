@@ -3,10 +3,12 @@ defmodule MediaCentaur.Dashboard do
   Data-fetching module for the admin dashboard.
   Keeps the LiveView thin by centralizing all dashboard queries.
   """
+  import Ecto.Query
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{Entity, Episode, WatchedFile, Image}
   alias MediaCentaur.Pipeline.Stats
+  alias MediaCentaur.Repo
   alias MediaCentaur.Review
 
   def fetch_stats do
@@ -59,12 +61,14 @@ defmodule MediaCentaur.Dashboard do
     Stats.get_snapshot().recent_errors
   end
 
-  defp count(queryable, filter \\ []) do
-    opts = if filter == [], do: [], else: [query: [filter: filter]]
+  defp count(schema, filter \\ []) do
+    query = from(r in schema, select: count(r.id))
 
-    case Ash.count(queryable, opts) do
-      {:ok, n} -> n
-      _ -> 0
-    end
+    query =
+      Enum.reduce(filter, query, fn {key, value}, q ->
+        from(r in q, where: field(r, ^key) == ^value)
+      end)
+
+    Repo.one(query)
   end
 end

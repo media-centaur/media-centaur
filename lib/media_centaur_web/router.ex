@@ -14,62 +14,6 @@ defmodule MediaCentaurWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/mcp" do
-    forward "/", AshAi.Mcp.Router,
-      tools: [
-        # Library reads
-        :read_entities,
-        :read_entity_details,
-        :read_entity_progress,
-        :read_watched_files,
-        :read_images,
-        :read_pending_downloads,
-        :find_by_tmdb_id,
-        :read_watch_progress,
-        :read_entity_watch_progress,
-        :read_settings,
-        # Library writes
-        :create_entity,
-        :set_entity_content_url,
-        :destroy_entity,
-        :link_file,
-        :destroy_watched_file,
-        :create_image,
-        :clear_image_content_url,
-        :destroy_image,
-        :create_identifier,
-        :destroy_identifier,
-        :create_movie,
-        :destroy_movie,
-        :create_season,
-        :destroy_season,
-        :create_episode,
-        :destroy_episode,
-        :find_or_create_watch_progress,
-        :mark_watch_completed,
-        :find_or_create_setting,
-        :destroy_setting,
-        # Review
-        :read_pending_files,
-        :approve_pending_file,
-        :dismiss_pending_file,
-        :set_pending_file_match,
-        :destroy_pending_file,
-        :search_tmdb,
-        # Generic actions (operations)
-        :parse_filename,
-        :resolve_playback,
-        :trigger_scan,
-        :measure_storage,
-        :watcher_statuses,
-        :serialize_entity,
-        :clear_database,
-        :refresh_cache
-      ],
-      protocol_version_statement: "2024-11-05",
-      otp_app: :media_centaur
-  end
-
   scope "/", MediaCentaurWeb do
     pipe_through :browser
 

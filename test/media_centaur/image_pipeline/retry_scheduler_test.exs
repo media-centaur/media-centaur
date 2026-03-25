@@ -8,7 +8,7 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
     test "records a failure and tracks the image" do
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler)
 
-      image_id = Ash.UUID.generate()
+      image_id = Ecto.UUID.generate()
       RetryScheduler.record_failure(image_id, pid)
 
       # Sync with the GenServer to ensure the cast has been processed
@@ -20,7 +20,7 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
     test "increments retry count on repeated failures" do
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_inc)
 
-      image_id = Ash.UUID.generate()
+      image_id = Ecto.UUID.generate()
       RetryScheduler.record_failure(image_id, pid)
       RetryScheduler.record_failure(image_id, pid)
 
@@ -69,7 +69,7 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_prune)
 
       # Record a failure for an image ID that doesn't exist in the DB
-      old_id = Ash.UUID.generate()
+      old_id = Ecto.UUID.generate()
       RetryScheduler.record_failure(old_id, pid)
       assert RetryScheduler.retry_count(old_id, pid) == 1
 

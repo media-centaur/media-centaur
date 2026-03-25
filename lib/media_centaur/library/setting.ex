@@ -5,50 +5,34 @@ defmodule MediaCentaur.Library.Setting do
   Used by the logging system to persist enabled component toggles and
   framework log suppression across restarts.
   """
-  use Ash.Resource,
-    domain: MediaCentaur.Library,
-    data_layer: AshSqlite.DataLayer
+  use Ecto.Schema
+  import Ecto.Changeset
 
-  sqlite do
-    table "settings"
-    repo MediaCentaur.Repo
+  @primary_key {:id, Ecto.UUID, autogenerate: true}
+  @foreign_key_type Ecto.UUID
+  @timestamps_opts [type: :utc_datetime]
+
+  schema "settings" do
+    field :key, :string
+    field :value, :map
+
+    timestamps()
   end
 
-  actions do
-    defaults [:read, :destroy]
-
-    create :create do
-      accept [:key, :value]
-    end
-
-    update :update do
-      accept [:value]
-    end
-
-    read :by_key do
-      argument :key, :string, allow_nil?: false
-      filter expr(key == ^arg(:key))
-    end
-
-    create :find_or_create do
-      accept [:key, :value]
-      upsert? true
-      upsert_identity :unique_key
-      upsert_fields [:value]
-    end
+  def create_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:key, :value])
+    |> validate_required([:key])
   end
 
-  attributes do
-    uuid_primary_key :id
-
-    attribute :key, :string, allow_nil?: false
-    attribute :value, :map
-
-    create_timestamp :inserted_at
-    update_timestamp :updated_at
+  def update_changeset(setting, attrs) do
+    setting
+    |> cast(attrs, [:value])
   end
 
-  identities do
-    identity :unique_key, [:key]
+  def upsert_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:key, :value])
+    |> validate_required([:key])
   end
 end

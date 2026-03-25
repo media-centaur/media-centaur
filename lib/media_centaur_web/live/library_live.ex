@@ -844,7 +844,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp load_spoiler_free_setting do
     case Library.get_setting_by_key("spoiler_free_mode") do
-      {:ok, setting} -> setting.value["enabled"] == true
+      {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
       _ -> false
     end
   end

@@ -20,8 +20,11 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
   """
   use GenServer
   require MediaCentaur.Log, as: Log
+  import Ecto.Query
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.Image
+  alias MediaCentaur.Repo
 
   @retry_interval_ms 2 * 60 * 1_000
   @max_retries 5
@@ -167,19 +170,8 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
 
       # Bulk destroy all exhausted images in a single query
       if exhausted_images != [] do
-        result =
-          Ash.bulk_destroy(exhausted_images, :destroy, %{},
-            resource: Library.Image,
-            strategy: :stream,
-            return_errors?: true
-          )
-
-        if result.error_count > 0 do
-          Log.warning(
-            :pipeline,
-            "retry scheduler: bulk destroy errors: #{inspect(result.errors)}"
-          )
-        end
+        ids = Enum.map(exhausted_images, & &1.id)
+        from(i in Image, where: i.id in ^ids) |> Repo.delete_all()
       end
 
       # Resolve entity IDs to watch dirs and broadcast
@@ -201,11 +193,7 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
     if MapSet.size(entity_ids) > 0 do
       ids = MapSet.to_list(entity_ids)
 
-      entities =
-        Library.list_entities_with_images!(
-          query: [filter: [id: [in: ids]]],
-          load: [:watched_files]
-        )
+      entities = Library.list_entities_with_images!(ids: ids, load: [:watched_files])
 
       Enum.each(entities, fn entity ->
         case entity.watched_files do

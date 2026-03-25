@@ -3,11 +3,11 @@ defmodule MediaCentaur.Admin do
   Destructive admin operations for development and testing.
 
   Provides `clear_database/0` and `refresh_image_cache/0` — used by the
-  developer dashboard Danger Zone buttons. All bulk operations use Ash bulk
-  APIs to execute single queries instead of per-record loops.
+  developer dashboard Danger Zone buttons.
   """
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Repo
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{Helpers, Image}
 
@@ -33,20 +33,8 @@ defmodule MediaCentaur.Admin do
       Log.info(:library, "clearing database")
       entity_ids = Library.list_entities!() |> Enum.map(& &1.id)
 
-      resources_in_delete_order()
-      |> Enum.each(fn resource ->
-        result =
-          Ash.bulk_destroy!(resource, :destroy, %{},
-            strategy: :stream,
-            return_errors?: true
-          )
-
-        if result.error_count > 0 do
-          Log.error(
-            :library,
-            "destroy errors — #{inspect(resource)}: #{result.error_count} failures"
-          )
-        end
+      Enum.each(resources_in_delete_order(), fn schema ->
+        Repo.delete_all(schema)
       end)
 
       watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
@@ -77,15 +65,8 @@ defmodule MediaCentaur.Admin do
       clear_directory(MediaCentaur.Config.images_dir_for(dir))
     end)
 
-    result =
-      Ash.bulk_update!(Image, :clear_content_url, %{},
-        strategy: :stream,
-        return_errors?: true
-      )
-
-    if result.error_count > 0 do
-      Log.error(:library, "failed to clear image URLs — #{result.error_count} errors")
-    end
+    now = DateTime.utc_now()
+    Repo.update_all(Image, set: [content_url: nil, updated_at: now])
 
     entities = Library.list_entities_with_images!(load: [:watched_files])
 

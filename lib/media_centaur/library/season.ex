@@ -3,54 +3,27 @@ defmodule MediaCentaur.Library.Season do
   A TV season belonging to a `TVSeries` entity. Created from TMDB season data
   when a file for that season is first ingested.
   """
-  use Ash.Resource,
-    domain: MediaCentaur.Library,
-    data_layer: AshSqlite.DataLayer
+  use Ecto.Schema
+  import Ecto.Changeset
 
-  sqlite do
-    table "seasons"
-    repo MediaCentaur.Repo
-  end
+  @primary_key {:id, Ecto.UUID, autogenerate: true}
+  @foreign_key_type Ecto.UUID
+  @timestamps_opts [type: :utc_datetime]
 
-  actions do
-    defaults [:read, :destroy]
+  schema "seasons" do
+    field :season_number, :integer
+    field :number_of_episodes, :integer
+    field :name, :string
 
-    read :for_entity do
-      argument :entity_id, :uuid, allow_nil?: false
-      filter expr(entity_id == ^arg(:entity_id))
-    end
-
-    create :create do
-      primary? true
-      accept [:season_number, :number_of_episodes, :name, :entity_id]
-    end
-
-    create :find_or_create do
-      accept [:season_number, :number_of_episodes, :name, :entity_id]
-      upsert? true
-      upsert_identity :unique_entity_season
-      upsert_fields []
-    end
-  end
-
-  attributes do
-    uuid_primary_key :id
-
-    attribute :season_number, :integer
-    attribute :number_of_episodes, :integer
-    attribute :name, :string
-
-    create_timestamp :inserted_at
-    update_timestamp :updated_at
-  end
-
-  relationships do
     belongs_to :entity, MediaCentaur.Library.Entity
     has_many :episodes, MediaCentaur.Library.Episode
     has_many :extras, MediaCentaur.Library.Extra
+
+    timestamps()
   end
 
-  identities do
-    identity :unique_entity_season, [:entity_id, :season_number]
+  def create_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:season_number, :number_of_episodes, :name, :entity_id])
   end
 end

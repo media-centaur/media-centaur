@@ -26,7 +26,7 @@ defmodule MediaCentaur.Playback.ResumeTest do
 
   defp child_movie(url, position) do
     %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       name: "Movie #{position + 1}",
       content_url: url,
       position: position,

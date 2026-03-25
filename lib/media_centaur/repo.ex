@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Repo do
-  use AshSqlite.Repo,
-    otp_app: :media_centaur
+  use Ecto.Repo,
+    otp_app: :media_centaur,
+    adapter: Ecto.Adapters.SQLite3
 
   @toml_path "~/.config/media-centaur/backend.toml"
 

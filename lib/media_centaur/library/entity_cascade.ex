@@ -8,8 +8,9 @@ defmodule MediaCentaur.Library.EntityCascade do
   (FileTracker deletes them; Rematch converts them to PendingFiles first).
   """
   require MediaCentaur.Log, as: Log
+  import Ecto.Query
 
-  alias MediaCentaur.{Config, Format}
+  alias MediaCentaur.{Config, Format, Repo}
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{ChangeLog, Image}
 
@@ -17,8 +18,8 @@ defmodule MediaCentaur.Library.EntityCascade do
   Destroys an entity and all its children in FK-safe order.
 
   Loads the entity with full associations, then deletes:
-  WatchProgress → ExtraProgress → Extras → (Episode images → Episodes → Season extras → Seasons) →
-  (Movie images → Movies) → Entity images → Image dirs → Identifiers → Entity
+  WatchProgress -> ExtraProgress -> Extras -> (Episode images -> Episodes -> Season extras -> Seasons) ->
+  (Movie images -> Movies) -> Entity images -> Image dirs -> Identifiers -> Entity
   """
   def destroy!(entity_id) do
     entity = Library.get_entity_with_associations!(entity_id)
@@ -63,22 +64,11 @@ defmodule MediaCentaur.Library.EntityCascade do
   end
 
   @doc false
-  def bulk_destroy([], _resource), do: :ok
+  def bulk_destroy([], _schema), do: :ok
 
-  def bulk_destroy(records, resource) do
-    result =
-      Ash.bulk_destroy(records, :destroy, %{},
-        resource: resource,
-        strategy: :stream,
-        return_errors?: true
-      )
-
-    if result.error_count > 0 do
-      Log.warning(
-        :library,
-        "bulk destroy failed — #{inspect(resource)}: #{inspect(result.errors)}"
-      )
-    end
+  def bulk_destroy(records, schema) do
+    ids = Enum.map(records, & &1.id)
+    from(r in schema, where: r.id in ^ids) |> Repo.delete_all()
   end
 
   @doc false

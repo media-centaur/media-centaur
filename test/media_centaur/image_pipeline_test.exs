@@ -12,7 +12,7 @@ defmodule MediaCentaur.ImagePipelineTest do
   @watch_directory "/tmp/image_pipeline_test"
 
   setup do
-    images_dir = Path.join(System.tmp_dir!(), "image_pipeline_test_#{Ash.UUID.generate()}")
+    images_dir = Path.join(System.tmp_dir!(), "image_pipeline_test_#{Ecto.UUID.generate()}")
     File.mkdir_p!(images_dir)
 
     config = :persistent_term.get({MediaCentaur.Config, :config})

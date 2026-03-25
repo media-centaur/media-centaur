@@ -5,118 +5,39 @@ defmodule MediaCentaur.Library.Image do
   Each entity has at most one image per role, enforced by the `unique_entity_role`
   identity and the `find_or_create` upsert action.
   """
-  use Ash.Resource,
-    domain: MediaCentaur.Library,
-    data_layer: AshSqlite.DataLayer
+  use Ecto.Schema
+  import Ecto.Changeset
 
-  sqlite do
-    table "images"
-    repo MediaCentaur.Repo
+  @primary_key {:id, Ecto.UUID, autogenerate: true}
+  @foreign_key_type Ecto.UUID
+  @timestamps_opts [type: :utc_datetime]
+
+  schema "images" do
+    field :role, :string
+    field :url, :string
+    field :content_url, :string
+    field :extension, :string
+
+    belongs_to :entity, MediaCentaur.Library.Entity
+    belongs_to :movie, MediaCentaur.Library.Movie
+    belongs_to :episode, MediaCentaur.Library.Episode
+
+    timestamps()
   end
 
-  actions do
-    defaults [:read, :destroy]
-
-    read :for_entity do
-      argument :entity_id, :uuid, allow_nil?: false
-      filter expr(entity_id == ^arg(:entity_id))
-    end
-
-    read :by_episode do
-      argument :episode_id, :uuid, allow_nil?: false
-      filter expr(episode_id == ^arg(:episode_id))
-    end
-
-    read :by_movie do
-      argument :movie_id, :uuid, allow_nil?: false
-      filter expr(movie_id == ^arg(:movie_id))
-    end
-
-    read :pending_download do
-      filter expr(not is_nil(url) and is_nil(content_url))
-      prepare build(load: [:entity])
-    end
-
-    update :update do
-      primary? true
-      accept [:content_url, :extension]
-    end
-
-    update :clear_content_url do
-      change set_attribute(:content_url, nil)
-    end
-
-    create :create do
-      primary? true
-      accept [:role, :url, :content_url, :extension, :entity_id, :movie_id, :episode_id]
-
-      validate present([:role])
-    end
-
-    create :find_or_create do
-      accept [:role, :url, :content_url, :extension, :entity_id]
-      upsert? true
-      upsert_identity :unique_entity_role
-      upsert_fields []
-    end
-
-    create :find_or_create_for_movie do
-      accept [:role, :url, :content_url, :extension, :movie_id]
-      upsert? true
-      upsert_identity :unique_movie_role
-      upsert_fields []
-    end
-
-    create :find_or_create_for_episode do
-      accept [:role, :url, :content_url, :extension, :episode_id]
-      upsert? true
-      upsert_identity :unique_episode_role
-      upsert_fields []
-    end
-
-    # --- Generic actions (MCP tools) ---
-
-    action :refresh_cache, :map do
-      description "Clear all cached artwork from disk and re-download images for all entities"
-
-      run fn _input, _context ->
-        case MediaCentaur.Admin.refresh_image_cache() do
-          {:ok, count} -> {:ok, %{status: :refreshed, entity_count: count}}
-          {:error, _} = error -> error
-        end
-      end
-    end
+  def create_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [:role, :url, :content_url, :extension, :entity_id, :movie_id, :episode_id])
+    |> validate_required([:role])
   end
 
-  attributes do
-    uuid_primary_key :id
-
-    attribute :role, :string
-    attribute :url, :string
-    attribute :content_url, :string
-    attribute :extension, :string
-
-    create_timestamp :inserted_at
-    update_timestamp :updated_at
+  def update_changeset(image, attrs) do
+    image
+    |> cast(attrs, [:content_url, :extension])
   end
 
-  relationships do
-    belongs_to :entity, MediaCentaur.Library.Entity do
-      allow_nil? true
-    end
-
-    belongs_to :movie, MediaCentaur.Library.Movie do
-      allow_nil? true
-    end
-
-    belongs_to :episode, MediaCentaur.Library.Episode do
-      allow_nil? true
-    end
-  end
-
-  identities do
-    identity :unique_entity_role, [:entity_id, :role]
-    identity :unique_movie_role, [:movie_id, :role]
-    identity :unique_episode_role, [:episode_id, :role]
+  def clear_content_url_changeset(image) do
+    image
+    |> change(content_url: nil)
   end
 end

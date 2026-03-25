@@ -254,7 +254,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
 
   describe "resolve/1 with unknown UUID" do
     test "returns not_found" do
-      assert {:error, :not_found} = Resolver.resolve(Ash.UUID.generate())
+      assert {:error, :not_found} = Resolver.resolve(Ecto.UUID.generate())
     end
   end
 end
