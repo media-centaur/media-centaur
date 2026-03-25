@@ -152,9 +152,12 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
     })
 
-    test("left/right are blocked", () => {
+    test("left is blocked", () => {
       expect(machine.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "none" })
-      expect(machine.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "none" })
+    })
+
+    test("right enters sub-focus", () => {
+      expect(machine.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "enter_sub_focus" })
     })
 
     test("back dismisses", () => {
@@ -499,6 +502,76 @@ describe("FocusContextMachine", () => {
     test("sections select activates", () => {
       machine._context = "sections"
       expect(machine.transition(Action.SELECT)).toEqual({ type: "activate" })
+    })
+  })
+
+  describe("Sub-focus in modal", () => {
+    beforeEach(() => {
+      machine.presentationChanged("modal")
+    })
+
+    test("RIGHT returns enter_sub_focus and sets subFocus", () => {
+      const directive = machine.transition(Action.NAVIGATE_RIGHT)
+      expect(directive).toEqual({ type: "enter_sub_focus" })
+      expect(machine.subFocus).toBe(true)
+    })
+
+    test("in sub-focus: LEFT returns exit_sub_focus and clears subFocus", () => {
+      machine.transition(Action.NAVIGATE_RIGHT) // enter sub-focus
+      const directive = machine.transition(Action.NAVIGATE_LEFT)
+      expect(directive).toEqual({ type: "exit_sub_focus" })
+      expect(machine.subFocus).toBe(false)
+    })
+
+    test("in sub-focus: BACK returns exit_sub_focus and clears subFocus", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      const directive = machine.transition(Action.BACK)
+      expect(directive).toEqual({ type: "exit_sub_focus" })
+      expect(machine.subFocus).toBe(false)
+    })
+
+    test("in sub-focus: SELECT returns activate", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      expect(machine.transition(Action.SELECT)).toEqual({ type: "activate" })
+    })
+
+    test("in sub-focus: UP returns navigate up and clears subFocus", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      const directive = machine.transition(Action.NAVIGATE_UP)
+      expect(directive).toEqual({ type: "navigate", direction: "up" })
+      expect(machine.subFocus).toBe(false)
+    })
+
+    test("in sub-focus: DOWN returns navigate down and clears subFocus", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      const directive = machine.transition(Action.NAVIGATE_DOWN)
+      expect(directive).toEqual({ type: "navigate", direction: "down" })
+      expect(machine.subFocus).toBe(false)
+    })
+
+    test("presentationChanged(null) clears subFocus", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      expect(machine.subFocus).toBe(true)
+      machine.presentationChanged(null)
+      expect(machine.subFocus).toBe(false)
+    })
+
+    test("clearSubFocus() resets flag without directive", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      expect(machine.subFocus).toBe(true)
+      machine.clearSubFocus()
+      expect(machine.subFocus).toBe(false)
+    })
+
+    test("in sub-focus: RIGHT is no-op (already at sub-item)", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      expect(machine.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "none" })
+      expect(machine.subFocus).toBe(true)
+    })
+
+    test("in sub-focus: PLAY produces play", () => {
+      machine.transition(Action.NAVIGATE_RIGHT)
+      expect(machine.transition(Action.PLAY)).toEqual({ type: "play" })
     })
   })
 

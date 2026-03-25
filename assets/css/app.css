@@ -630,6 +630,18 @@ body {
   border-radius: var(--radius-box, 0.5rem);
 }
 
+/* Sub-item focus ring — checkmark buttons within rows */
+[data-input=mouse] [data-nav-sub-item]:focus {
+  outline: none;
+}
+
+[data-input=keyboard] [data-nav-sub-item]:focus,
+[data-input=gamepad] [data-nav-sub-item]:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 9999px;
+}
+
 /* ── Library Micro-Animations ──
    Subtle GPU-composited transitions (transform/opacity only) for polish. */
 

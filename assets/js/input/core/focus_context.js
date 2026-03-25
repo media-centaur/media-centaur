@@ -54,6 +54,14 @@ function focusFirst(context) {
   return { type: "focus_first", context }
 }
 
+function enterSubFocus() {
+  return { type: "enter_sub_focus" }
+}
+
+function exitSubFocus() {
+  return { type: "exit_sub_focus" }
+}
+
 export class FocusContextMachine {
   /**
    * @param {Object} [config={}]
@@ -69,6 +77,7 @@ export class FocusContextMachine {
     this._context = config.initialContext ?? Context.GRID
     this._onContextChanged = config.onContextChanged ?? null
     this._drawerOpen = false
+    this._subFocus = false
     this._zone = "watching"
     this._navGraph = null
   }
@@ -150,6 +159,21 @@ export class FocusContextMachine {
   }
 
   /**
+   * Whether the machine is in sub-focus mode (e.g. checkmark within a row).
+   */
+  get subFocus() {
+    return this._subFocus
+  }
+
+  /**
+   * Clear sub-focus without emitting a directive.
+   * Called by the orchestrator when the focused item has no sub-item.
+   */
+  clearSubFocus() {
+    this._subFocus = false
+  }
+
+  /**
    * Enter primary menu from a left-wall transition in zone tabs or toolbar.
    * Sets context to primaryMenu and returns the enter_sidebar directive.
    * @returns {FocusDirective}
@@ -164,6 +188,7 @@ export class FocusContextMachine {
    * @param {"modal"|"drawer"|null} presentation
    */
   presentationChanged(presentation) {
+    this._subFocus = false
     if (presentation === "modal") {
       this._setContext(Context.MODAL)
     } else if (presentation === "drawer") {
@@ -179,13 +204,27 @@ export class FocusContextMachine {
 
   // --- Context-specific transition rules ---
 
-  /** Modal: focus trapped. Navigate vertically. Escape dismisses. */
+  /** Modal: focus trapped. Navigate vertically. Escape dismisses.
+   *  Sub-focus: RIGHT enters sub-item, LEFT/BACK exits, UP/DOWN exit then navigate. */
   _modalTransition(action) {
+    if (this._subFocus) {
+      switch (action) {
+        case Action.NAVIGATE_LEFT:  this._subFocus = false; return exitSubFocus()
+        case Action.NAVIGATE_RIGHT: return NONE
+        case Action.SELECT:         return ACTIVATE
+        case Action.NAVIGATE_UP:    this._subFocus = false; return navigate("up")
+        case Action.NAVIGATE_DOWN:  this._subFocus = false; return navigate("down")
+        case Action.BACK:           this._subFocus = false; return exitSubFocus()
+        case Action.PLAY:           return { type: "play" }
+        default: return NONE
+      }
+    }
+
     switch (action) {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
       case Action.NAVIGATE_LEFT:  return NONE
-      case Action.NAVIGATE_RIGHT: return NONE
+      case Action.NAVIGATE_RIGHT: this._subFocus = true; return enterSubFocus()
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return DISMISS
       case Action.PLAY:           return { type: "play" }

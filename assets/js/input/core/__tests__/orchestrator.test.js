@@ -67,6 +67,8 @@ function createMockReader(overrides = {}) {
     getEntityIndex: () => -1,
     getSidebarCollapsed: () => false,
     getPageBehavior: () => null,
+    getCurrentFocusedSubItem: () => null,
+    getItemAt: () => null,
     ...overrides,
   }
 }
@@ -1600,6 +1602,216 @@ describe("Orchestrator", () => {
 
       const methodCalls = calls.filter(c => c.method === "setInputMethod")
       expect(methodCalls.length).toBe(0)
+    })
+  })
+
+  describe("Sub-focus", () => {
+    test("RIGHT in modal with sub-item focuses the sub-item element", () => {
+      const subItemFocus = mock(() => {})
+      const subItem = {
+        focus: subItemFocus,
+        hasAttribute(attr) { return attr === "data-nav-sub-item" },
+      }
+      const parentRow = {
+        hasAttribute(attr) { return attr === "data-nav-item" },
+        dataset: {},
+        querySelector(sel) {
+          return sel === "[data-nav-sub-item]" ? subItem : null
+        },
+      }
+
+      const { system, globals } = setup({
+        getPresentation: () => "modal",
+        getCurrentFocusedItem: () => parentRow,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+      })
+      system.start({})
+
+      globals._dispatchKeyDown("ArrowRight")
+
+      expect(subItemFocus).toHaveBeenCalled()
+      expect(system._subFocusIndex).toBe(0)
+    })
+
+    test("RIGHT in modal without sub-item is noop and clears subFocus", () => {
+      const parentRow = {
+        hasAttribute(attr) { return attr === "data-nav-item" },
+        dataset: {},
+        querySelector() { return null },
+      }
+
+      const { system, globals } = setup({
+        getPresentation: () => "modal",
+        getCurrentFocusedItem: () => parentRow,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+      })
+      system.start({})
+
+      globals._dispatchKeyDown("ArrowRight")
+
+      expect(system.focusMachine.subFocus).toBe(false)
+      expect(system._subFocusIndex).toBeNull()
+    })
+
+    test("LEFT in sub-focus refocuses the parent row via writer", () => {
+      const subItemFocus = mock(() => {})
+      const subItem = {
+        focus: subItemFocus,
+        hasAttribute(attr) { return attr === "data-nav-sub-item" },
+      }
+      const parentRow = {
+        hasAttribute(attr) { return attr === "data-nav-item" },
+        dataset: {},
+        querySelector(sel) {
+          return sel === "[data-nav-sub-item]" ? subItem : null
+        },
+      }
+
+      const { system, calls, globals } = setup({
+        getPresentation: () => "modal",
+        getCurrentFocusedItem: () => parentRow,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+      })
+      system.start({})
+
+      // Enter sub-focus
+      globals._dispatchKeyDown("ArrowRight")
+      expect(system._subFocusIndex).toBe(0)
+      calls.length = 0
+
+      // Exit sub-focus
+      globals._dispatchKeyDown("ArrowLeft")
+      const focusCalls = calls.filter(c => c.method === "focusByIndex")
+      expect(focusCalls.length).toBe(1)
+      expect(focusCalls[0].args).toEqual(["modal", 0])
+      expect(system._subFocusIndex).toBeNull()
+    })
+
+    test("UP/DOWN in sub-focus navigates to adjacent row", () => {
+      const subItemFocus = mock(() => {})
+      const subItem = {
+        focus: subItemFocus,
+        hasAttribute(attr) { return attr === "data-nav-sub-item" },
+      }
+      const parentRow = {
+        hasAttribute(attr) { return attr === "data-nav-item" },
+        dataset: {},
+        querySelector(sel) {
+          return sel === "[data-nav-sub-item]" ? subItem : null
+        },
+      }
+
+      const { system, calls, globals } = setup({
+        getPresentation: () => "modal",
+        getCurrentFocusedItem: () => parentRow,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+      })
+      system.start({})
+
+      // Enter sub-focus
+      globals._dispatchKeyDown("ArrowRight")
+      calls.length = 0
+
+      // DOWN exits sub-focus and navigates
+      globals._dispatchKeyDown("ArrowDown")
+
+      // Writer refocuses parent by index first, then navigates to next row
+      expect(system._subFocusIndex).toBeNull()
+      const focusCalls = calls.filter(c => c.method === "focusByIndex")
+      expect(focusCalls.length).toBe(2) // restore parent + navigate
+      expect(focusCalls[0].args).toEqual(["modal", 0]) // restore parent
+      expect(focusCalls[1].args[1]).toBe(1) // next index
+    })
+
+    test("SELECT in sub-focus clicks the sub-item", () => {
+      const subItemClick = mock(() => {})
+      const subItemFocus = mock(() => {})
+      const subItem = {
+        click: subItemClick,
+        focus: subItemFocus,
+        hasAttribute(attr) { return attr === "data-nav-sub-item" },
+        dataset: {},
+      }
+      const parentRow = {
+        hasAttribute(attr) { return attr === "data-nav-item" },
+        dataset: {},
+        querySelector(sel) {
+          return sel === "[data-nav-sub-item]" ? subItem : null
+        },
+      }
+
+      // After entering sub-focus, getCurrentFocusedItem returns null
+      // (sub-item has no data-nav-item), and getCurrentFocusedSubItem returns the sub-item
+      let inSubFocus = false
+      const { system, globals } = setup({
+        getPresentation: () => "modal",
+        getCurrentFocusedItem: () => inSubFocus ? null : parentRow,
+        getCurrentFocusedSubItem: () => inSubFocus ? subItem : null,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 0,
+      })
+      system.start({})
+
+      // Enter sub-focus
+      globals._dispatchKeyDown("ArrowRight")
+      inSubFocus = true
+
+      // SELECT activates the sub-item
+      globals._dispatchKeyDown("Enter")
+      expect(subItemClick).toHaveBeenCalled()
+    })
+
+    test("onViewChanged re-acquires sub-focus after morphdom patch", () => {
+      const subItemFocus = mock(() => {})
+      const subItem = {
+        focus: subItemFocus,
+        hasAttribute(attr) { return attr === "data-nav-sub-item" },
+      }
+      const parentRow = {
+        hasAttribute(attr) { return attr === "data-nav-item" },
+        dataset: {},
+        querySelector(sel) {
+          return sel === "[data-nav-sub-item]" ? subItem : null
+        },
+      }
+
+      // After morphdom, getItemAt returns a fresh row with a fresh sub-item
+      const freshSubItemFocus = mock(() => {})
+      const freshSubItem = {
+        focus: freshSubItemFocus,
+        hasAttribute(attr) { return attr === "data-nav-sub-item" },
+      }
+      const freshRow = {
+        hasAttribute(attr) { return attr === "data-nav-item" },
+        dataset: {},
+        querySelector(sel) {
+          return sel === "[data-nav-sub-item]" ? freshSubItem : null
+        },
+      }
+
+      const { system, globals } = setup({
+        getPresentation: () => "modal",
+        getCurrentFocusedItem: () => parentRow,
+        getItemCount: () => 3,
+        getFocusedIndex: () => 1,
+        getItemAt: (context, index) => index === 1 ? freshRow : null,
+      })
+      system.start({})
+
+      // Enter sub-focus on row at index 1
+      globals._dispatchKeyDown("ArrowRight")
+      expect(system._subFocusIndex).toBe(1)
+
+      // Simulate LiveView patch
+      system.onViewChanged()
+
+      // Should have re-acquired: sub-item refocused from fresh DOM
+      expect(system._subFocusIndex).toBe(1)
+      expect(freshSubItemFocus).toHaveBeenCalled()
     })
   })
 })
