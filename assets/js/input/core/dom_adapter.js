@@ -46,6 +46,24 @@ export function createDomReader(config = {}) {
     },
 
     /**
+     * Get the currently focused element if it's a nav sub-item.
+     */
+    getCurrentFocusedSubItem() {
+      const active = document.activeElement
+      return active?.hasAttribute("data-nav-sub-item") ? active : null
+    },
+
+    /**
+     * Get the nav item at a given index within a context.
+     */
+    getItemAt(context, index) {
+      const selector = selectors[context]
+      if (!selector) return null
+      const items = document.querySelectorAll(selector)
+      return items[index] ?? null
+    },
+
+    /**
      * Get the index of the currently focused item within its context.
      */
     getFocusedIndex(context) {

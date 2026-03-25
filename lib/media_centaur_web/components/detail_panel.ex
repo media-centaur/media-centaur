@@ -556,6 +556,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             phx-value-entity-id={@entity_id}
             phx-value-season={@season_number}
             phx-value-episode={@episode.episode_number}
+            data-nav-sub-item
             class={[
               "size-5 rounded-full flex items-center justify-center transition-all",
               watched_circle_class(@state)
@@ -744,6 +745,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             phx-value-entity-id={@entity_id}
             phx-value-season="0"
             phx-value-episode={@ordinal}
+            data-nav-sub-item
             class={[
               "size-5 rounded-full flex items-center justify-center transition-all",
               watched_circle_class(@state)

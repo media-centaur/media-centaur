@@ -72,6 +72,10 @@ export class Orchestrator {
     this._lastGridEntityId = null
     // Cached item counts per context, rebuilt in _syncState
     this._counts = {}
+    // Sub-focus: the index of the parent nav-item when focus is on a child
+    // sub-item. Stored as an index (not a DOM ref) so morphdom patches don't
+    // create stale references — every DOM access re-queries from the index.
+    this._subFocusIndex = null
     // Active page behavior (detected from data-page-behavior attribute)
     this._behavior = null
     this._behaviorName = null
@@ -324,6 +328,21 @@ export class Orchestrator {
       this._pendingModalRefocus = false
       this.writer.focusFirst(Context.MODAL)
     }
+
+    // After a LiveView patch while in sub-focus, morphdom may have replaced
+    // the row and sub-item elements (e.g. watched state toggle changes classes).
+    // Re-query the sub-item from the fresh DOM using the saved index.
+    if (this.focusMachine.subFocus && this._subFocusIndex != null) {
+      const parent = this.reader.getItemAt?.(this.focusMachine.context, this._subFocusIndex)
+      const subItem = parent?.querySelector?.("[data-nav-sub-item]")
+      if (subItem) {
+        subItem.focus({ preventScroll: true })
+      } else {
+        this.focusMachine.clearSubFocus()
+        this._subFocusIndex = null
+        if (parent) parent.focus({ preventScroll: true })
+      }
+    }
   }
 
   _buildCounts() {
@@ -533,12 +552,27 @@ export class Orchestrator {
         this._executeExitSidebar()
         break
 
+      case "enter_sub_focus":
+        this._executeEnterSubFocus()
+        break
+
+      case "exit_sub_focus":
+        this._executeExitSubFocus()
+        break
+
       case "none":
         break
     }
   }
 
   _executeNavigate(direction) {
+    // If in sub-focus, restore parent focus before navigating
+    // so _linearNavigate starts from the correct index.
+    if (this._subFocusIndex != null) {
+      this.writer.focusByIndex(this.focusMachine.context, this._subFocusIndex)
+      this._subFocusIndex = null
+    }
+
     const context = this.focusMachine.context
 
     // For grid contexts, try fast-path grid arithmetic first
@@ -667,6 +701,7 @@ export class Orchestrator {
 
   _executeActivate() {
     const focused = this.reader.getCurrentFocusedItem()
+      ?? this.reader.getCurrentFocusedSubItem?.()
     if (!focused) return
 
     // Custom action: dispatch a named event instead of clicking
@@ -707,6 +742,27 @@ export class Orchestrator {
     // Declare expected presentation state — _syncState() will skip DOM-based
     // detection until the DOM confirms no overlay is present.
     this._expectedPresentation = null
+  }
+
+  _executeEnterSubFocus() {
+    const context = this.focusMachine.context
+    const parent = this.reader.getCurrentFocusedItem()
+    if (!parent) return
+
+    const subItem = parent.querySelector?.("[data-nav-sub-item]")
+    if (subItem) {
+      this._subFocusIndex = this.reader.getFocusedIndex(context)
+      subItem.focus({ preventScroll: true })
+    } else {
+      this.focusMachine.clearSubFocus()
+    }
+  }
+
+  _executeExitSubFocus() {
+    if (this._subFocusIndex != null) {
+      this.writer.focusByIndex(this.focusMachine.context, this._subFocusIndex)
+      this._subFocusIndex = null
+    }
   }
 
   _executePlay() {
