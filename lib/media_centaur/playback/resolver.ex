@@ -11,7 +11,7 @@ defmodule MediaCentaur.Playback.Resolver do
   1. Entity — if series, run `Resume.resolve`; if single item, check progress
   2. Episode — load parent entity, check WatchProgress, resume if partial
   3. Movie (child) — load parent entity, check WatchProgress, resume if partial
-  4. Extra — play from 0 (no progress tracking)
+  4. Extra — check ExtraProgress, resume if partial
   """
 
   alias MediaCentaur.Library
@@ -26,7 +26,8 @@ defmodule MediaCentaur.Playback.Resolver do
           episode_number: integer() | nil,
           episode_name: String.t() | nil,
           content_url: String.t(),
-          start_position: float()
+          start_position: float(),
+          extra_id: String.t() | nil
         }
 
   @doc """
@@ -195,17 +196,30 @@ defmodule MediaCentaur.Playback.Resolver do
         _ -> nil
       end
 
+    position = extra_resume_position(extra.id)
+    action = if position > 0.0, do: :resume, else: :play_extra
+
     {:ok,
      %{
-       action: :play_extra,
+       action: action,
        entity_id: extra.entity_id,
        entity_name: entity_name,
        season_number: nil,
        episode_number: nil,
        episode_name: extra.name,
        content_url: extra.content_url,
-       start_position: 0.0
+       start_position: position,
+       extra_id: extra.id
      }}
+  end
+
+  defp extra_resume_position(extra_id) do
+    case Library.get_extra_progress_by_extra(extra_id) do
+      {:ok, nil} -> 0.0
+      {:ok, %{completed: true}} -> 0.0
+      {:ok, %{position_seconds: pos}} when is_number(pos) -> pos
+      _ -> 0.0
+    end
   end
 
   # --- Shared helpers ---

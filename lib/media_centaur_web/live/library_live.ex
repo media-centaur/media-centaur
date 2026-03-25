@@ -250,6 +250,18 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, socket}
   end
 
+  def handle_event(
+        "toggle_extra_watched",
+        %{"extra-id" => extra_id, "entity-id" => entity_id},
+        socket
+      ) do
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      toggle_extra_watched(entity_id, extra_id)
+    end)
+
+    {:noreply, socket}
+  end
+
   def handle_event("rematch", %{"id" => entity_id}, socket) do
     if socket.assigns.rematch_confirm == entity_id do
       Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
@@ -472,6 +484,19 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply,
      socket
      |> assign(playback: playback)
+     |> touch_stream_entries([entity_id])}
+  end
+
+  def handle_info(
+        {:extra_progress_updated,
+         %{entity_id: entity_id, extra_id: _extra_id, progress: progress}},
+        socket
+      ) do
+    entries = update_entry_extra_progress(socket.assigns.entries, entity_id, progress)
+
+    {:noreply,
+     socket
+     |> assign_entries(entries)
      |> touch_stream_entries([entity_id])}
   end
 
@@ -867,5 +892,58 @@ defmodule MediaCentaurWeb.LibraryLive do
     end
 
     ProgressBroadcaster.broadcast(entity_id, season_number, episode_number)
+  end
+
+  defp toggle_extra_watched(entity_id, extra_id) do
+    progress =
+      case Library.get_extra_progress_by_extra(extra_id) do
+        {:ok, record} -> record
+        _ -> nil
+      end
+
+    case progress do
+      %{completed: true} ->
+        Log.info(:library, "extra toggled incomplete")
+        Library.mark_extra_incomplete!(progress)
+
+      %{completed: false} ->
+        Log.info(:library, "extra toggled completed")
+        Library.mark_extra_completed!(progress)
+
+      nil ->
+        Log.info(:library, "extra toggled completed — no prior progress, created fresh record")
+
+        {:ok, record} =
+          Library.find_or_create_extra_progress(%{
+            extra_id: extra_id,
+            entity_id: entity_id,
+            position_seconds: 0.0,
+            duration_seconds: 0.0
+          })
+
+        Library.mark_extra_completed!(record)
+    end
+
+    ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
+  end
+
+  defp update_entry_extra_progress(entries, entity_id, progress) do
+    Enum.map(entries, fn
+      %{entity: %{id: ^entity_id} = entity} = entry ->
+        extra_progress = merge_extra_progress(entity.extra_progress || [], progress)
+        %{entry | entity: %{entity | extra_progress: extra_progress}}
+
+      entry ->
+        entry
+    end)
+  end
+
+  defp merge_extra_progress(records, nil), do: records
+
+  defp merge_extra_progress(records, changed) do
+    case Enum.find_index(records, &(&1.extra_id == changed.extra_id)) do
+      nil -> [changed | records]
+      index -> List.replace_at(records, index, changed)
+    end
   end
 end

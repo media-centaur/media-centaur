@@ -24,6 +24,7 @@ defmodule MediaCentaur.Library.Entity do
                   :identifiers,
                   :watch_progress,
                   :extras,
+                  :extra_progress,
                   seasons: [:extras, episodes: [:images]],
                   movies: [:images]
                 ]
@@ -79,6 +80,7 @@ defmodule MediaCentaur.Library.Entity do
                   :identifiers,
                   :watch_progress,
                   :extras,
+                  :extra_progress,
                   seasons: [:extras, episodes: [:images]],
                   movies: [:images]
                 ]
@@ -201,5 +203,6 @@ defmodule MediaCentaur.Library.Entity do
     has_many :seasons, MediaCentaur.Library.Season
     has_many :watched_files, MediaCentaur.Library.WatchedFile
     has_many :watch_progress, MediaCentaur.Library.WatchProgress
+    has_many :extra_progress, MediaCentaur.Library.ExtraProgress
   end
 end
