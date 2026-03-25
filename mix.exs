@@ -51,10 +51,7 @@ defmodule MediaCentaur.MixProject do
     [
       {:sourceror, "~> 1.8", only: [:dev, :test]},
       {:usage_rules, "~> 1.0", only: [:dev]},
-      {:ash_ai, "~> 0.5"},
-      {:ash_sqlite, "~> 0.2"},
-      {:ash_phoenix, "~> 2.0"},
-      {:ash, "~> 3.0"},
+      {:ecto_sqlite3, "~> 0.18"},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
@@ -75,7 +72,6 @@ defmodule MediaCentaur.MixProject do
       {:gettext, "~> 0.26"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
-      {:igniter, "~> 0.6", only: [:dev, :test]},
       {:file_system, "~> 1.0"},
       {:broadway, "~> 1.1"},
       {:image, "~> 0.54"},
@@ -95,7 +91,7 @@ defmodule MediaCentaur.MixProject do
       setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ash.setup --quiet", "test"],
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind media_centaur", "esbuild media_centaur"],
       "assets.deploy": [
@@ -109,41 +105,23 @@ defmodule MediaCentaur.MixProject do
         "format",
         "boundaries",
         "test"
-      ],
-      "ash.setup": ["ash.setup", "run priv/repo/seeds.exs"]
+      ]
     ]
   end
 
   defp usage_rules do
-    # Example for those using claude.
     [
       file: "CLAUDE.md",
-      # rules to include directly in CLAUDE.md
-      # use a regex to match multiple deps, or atoms/strings for specific ones
       usage_rules: [
-        {:ash, link: :markdown},
-        {~r/^ash_/, link: :markdown},
         {:elixir, link: :markdown},
         {:otp, link: :markdown}
       ],
-      # If your CLAUDE.md is getting too big, link instead of inlining:
-      usage_rules: [:ash, {~r/^ash_/, link: :markdown}],
-      # or use skills
       skills: [
         location: ".claude/skills",
-        # build skills that combine multiple usage rules
         build: [
-          "ash-framework": [
-            # The description tells people how to use this skill.
-            description:
-              "Use this skill working with Ash Framework or any of its extensions. Always consult this when making any domain changes, features or fixes.",
-            # Include all Ash dependencies
-            usage_rules: [:ash, ~r/^ash_/]
-          ],
           "phoenix-framework": [
             description:
               "Use this skill working with Phoenix Framework. Consult this when working with the web layer, controllers, views, liveviews etc.",
-            # Include all Phoenix dependencies
             usage_rules: [:phoenix, ~r/^phoenix_/]
           ],
           "elixir-otp": [

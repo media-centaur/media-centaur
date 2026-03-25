@@ -14,10 +14,11 @@ defmodule MediaCentaur.Library.FileTracker do
   """
   use GenServer
   require MediaCentaur.Log, as: Log
+  import Ecto.Query
 
-  alias MediaCentaur.{Config, Format}
+  alias MediaCentaur.{Config, Format, Repo}
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.EntityCascade
+  alias MediaCentaur.Library.{EntityCascade, WatchedFile}
   alias MediaCentaur.Library.Helpers
 
   import EntityCascade, only: [bulk_destroy: 2, delete_images: 1]
@@ -70,16 +71,11 @@ defmodule MediaCentaur.Library.FileTracker do
     if restored != [] do
       Log.info(:library, "restored #{length(restored)} absent files — #{watch_dir}")
 
-      result =
-        Ash.bulk_update(restored, :mark_present, %{},
-          resource: Library.WatchedFile,
-          strategy: :stream,
-          return_errors?: true
-        )
+      ids = Enum.map(restored, & &1.id)
+      now = DateTime.utc_now()
 
-      if result.error_count > 0 do
-        Log.warning(:library, "failed to mark present — #{inspect(result.errors)}")
-      end
+      from(w in WatchedFile, where: w.id in ^ids)
+      |> Repo.update_all(set: [state: :complete, absent_since: nil, updated_at: now])
     end
 
     Helpers.unique_entity_ids(restored)
@@ -96,16 +92,11 @@ defmodule MediaCentaur.Library.FileTracker do
     if files == [] do
       []
     else
-      result =
-        Ash.bulk_update(files, :mark_absent, %{},
-          resource: Library.WatchedFile,
-          strategy: :stream,
-          return_errors?: true
-        )
+      ids = Enum.map(files, & &1.id)
+      now = DateTime.utc_now()
 
-      if result.error_count > 0 do
-        Log.warning(:library, "failed to mark absent — #{inspect(result.errors)}")
-      end
+      from(w in WatchedFile, where: w.id in ^ids)
+      |> Repo.update_all(set: [state: :absent, absent_since: now, updated_at: now])
 
       Helpers.unique_entity_ids(files)
     end
@@ -196,16 +187,8 @@ defmodule MediaCentaur.Library.FileTracker do
     files_to_delete = Enum.filter(watched_files, &MapSet.member?(removed_paths, &1.file_path))
 
     if files_to_delete != [] do
-      result =
-        Ash.bulk_destroy(files_to_delete, :destroy, %{},
-          resource: Library.WatchedFile,
-          strategy: :stream,
-          return_errors?: true
-        )
-
-      if result.error_count > 0 do
-        Log.warning(:library, "failed to destroy watched files — #{inspect(result.errors)}")
-      end
+      ids = Enum.map(files_to_delete, & &1.id)
+      from(w in WatchedFile, where: w.id in ^ids) |> Repo.delete_all()
     end
 
     # Check if entity is now orphaned (no remaining WatchedFiles)

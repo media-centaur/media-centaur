@@ -4,7 +4,7 @@ defmodule MediaCentaur.TestFactory do
 
   - `build_*` functions return plain structs with sensible defaults (no DB).
     Use for pure-function tests (Serializer, Mapper, ProgressSummary, etc.).
-  - `create_*` functions persist via Ash actions and return loaded records.
+  - `create_*` functions persist via context functions and return loaded records.
     Use for resource tests and channel tests.
   """
 
@@ -18,7 +18,7 @@ defmodule MediaCentaur.TestFactory do
 
   def build_entity(overrides \\ %{}) do
     defaults = %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       type: :movie,
       name: "Test Movie",
       description: nil,
@@ -46,7 +46,7 @@ defmodule MediaCentaur.TestFactory do
 
   def build_image(overrides \\ %{}) do
     defaults = %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       role: "poster",
       url: "https://image.tmdb.org/t/p/original/test.jpg",
       content_url: nil,
@@ -61,7 +61,7 @@ defmodule MediaCentaur.TestFactory do
 
   def build_identifier(overrides \\ %{}) do
     defaults = %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       property_id: "tmdb",
       value: "12345",
       entity_id: nil
@@ -72,7 +72,7 @@ defmodule MediaCentaur.TestFactory do
 
   def build_movie(overrides \\ %{}) do
     defaults = %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       name: "Child Movie",
       description: nil,
       date_published: nil,
@@ -93,7 +93,7 @@ defmodule MediaCentaur.TestFactory do
 
   def build_extra(overrides \\ %{}) do
     defaults = %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       name: "Behind the Scenes",
       content_url: "/path/to/extra.mkv",
       position: 0,
@@ -106,7 +106,7 @@ defmodule MediaCentaur.TestFactory do
 
   def build_season(overrides \\ %{}) do
     defaults = %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       season_number: 1,
       number_of_episodes: 0,
       name: "Season 1",
@@ -120,7 +120,7 @@ defmodule MediaCentaur.TestFactory do
 
   def build_episode(overrides \\ %{}) do
     defaults = %{
-      id: Ash.UUID.generate(),
+      id: Ecto.UUID.generate(),
       episode_number: 1,
       name: "Pilot",
       description: nil,
@@ -147,7 +147,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   # ---------------------------------------------------------------------------
-  # create_* — persisted via Ash, returns loaded records
+  # create_* — persisted via context functions, returns loaded records
   # ---------------------------------------------------------------------------
 
   def create_entity(attrs \\ %{}) do
@@ -203,7 +203,7 @@ defmodule MediaCentaur.TestFactory do
     entity = attrs[:entity] || create_entity()
 
     defaults = %{
-      file_path: "/media/test/#{Ash.UUID.generate()}.mkv",
+      file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",
       watch_dir: "/media/test",
       entity_id: entity.id
     }
@@ -213,7 +213,7 @@ defmodule MediaCentaur.TestFactory do
 
   def create_pending_file(attrs \\ %{}) do
     defaults = %{
-      file_path: "/media/test/#{Ash.UUID.generate()}.mkv",
+      file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",
       watch_directory: "/media/test",
       parsed_title: "Test File",
       confidence: 0.5,

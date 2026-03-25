@@ -3,12 +3,24 @@ defmodule MediaCentaur.LibraryBrowser do
   Data-fetching module for the library browser LiveView.
   Keeps the LiveView thin by centralizing all library queries and playback actions.
   """
+  import Ecto.Query
 
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Library
+  alias MediaCentaur.Library.Entity
   alias MediaCentaur.Playback.{EpisodeList, MovieList, ProgressSummary, Resolver, Sessions}
+  alias MediaCentaur.Repo
+
+  @full_preloads [
+    :images,
+    :identifiers,
+    :watch_progress,
+    :extras,
+    :extra_progress,
+    seasons: [:extras, episodes: :images],
+    movies: :images
+  ]
 
   @doc """
   Loads all entities with associations, computes progress summaries.
@@ -16,19 +28,12 @@ defmodule MediaCentaur.LibraryBrowser do
   Returns a list of `%{entity: entity, progress: summary, progress_records: records}`.
   """
   def fetch_entities do
-    import Ash.Expr
-
     entities =
-      Library.list_entities_with_associations!(
-        query: [
-          sort: [name: :asc],
-          filter:
-            expr(
-              not (exists(watched_files, true) and
-                     not exists(watched_files, state == :complete))
-            )
-        ]
-      )
+      Entity
+      |> with_present_files()
+      |> order_by(asc: :name)
+      |> Repo.all()
+      |> Repo.preload(@full_preloads)
 
     Log.info(:library, "loaded #{length(entities)} entities for browser")
 
@@ -42,18 +47,11 @@ defmodule MediaCentaur.LibraryBrowser do
   that no longer exist or have all files absent.
   """
   def fetch_entries_by_ids(entity_ids) do
-    import Ash.Expr
-
     entities =
-      Library.list_entities_by_ids!(entity_ids,
-        query: [
-          filter:
-            expr(
-              not (exists(watched_files, true) and
-                     not exists(watched_files, state == :complete))
-            )
-        ]
-      )
+      from(e in Entity, where: e.id in ^entity_ids)
+      |> with_present_files()
+      |> Repo.all()
+      |> Repo.preload(@full_preloads)
 
     present_ids = MapSet.new(entities, & &1.id)
     requested = MapSet.new(entity_ids)
@@ -77,6 +75,17 @@ defmodule MediaCentaur.LibraryBrowser do
   end
 
   # --- Private Helpers ---
+
+  defp with_present_files(query) do
+    from(e in query,
+      where:
+        fragment(
+          "NOT EXISTS(SELECT 1 FROM watched_files WHERE entity_id = ?) OR EXISTS(SELECT 1 FROM watched_files WHERE entity_id = ? AND state = 'complete')",
+          e.id,
+          e.id
+        )
+    )
+  end
 
   defp build_entry(entity) do
     entity = entity |> pre_sort_children() |> maybe_unwrap_single_movie()

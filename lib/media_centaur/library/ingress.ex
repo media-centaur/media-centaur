@@ -11,7 +11,7 @@ defmodule MediaCentaur.Library.Ingress do
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Format
+  alias MediaCentaur.{Format, Repo}
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{ChangeLog, Entity, Image}
   alias MediaCentaur.Pipeline.ImageProcessor
@@ -131,7 +131,7 @@ defmodule MediaCentaur.Library.Ingress do
     end
   end
 
-  # Movie series — ensure child movie → :new_child
+  # Movie series — ensure child movie -> :new_child
   defp link_to_existing(%{type: :movie_series} = entity, metadata) do
     if metadata.child_movie do
       with {:ok, _movie} <- create_child_movie(entity, metadata.child_movie),
@@ -277,7 +277,7 @@ defmodule MediaCentaur.Library.Ingress do
   end
 
   # ---------------------------------------------------------------------------
-  # Images — create records and move staged files
+  # Images — create records via individual inserts with find-or-create
   # ---------------------------------------------------------------------------
 
   defp create_images(_owner_id, _owner_key, [], _action), do: :ok
@@ -293,18 +293,36 @@ defmodule MediaCentaur.Library.Ingress do
         |> Map.put(owner_key, owner_id)
       end)
 
-    bulk_create_images(image_attrs, action)
+    create_images_individually(image_attrs, action)
   end
 
-  defp bulk_create_images([], _action), do: :ok
+  defp create_images_individually([], _action), do: :ok
 
-  defp bulk_create_images(image_attrs, action) do
-    result = Ash.bulk_create(image_attrs, Image, action, return_errors?: true)
+  defp create_images_individually(image_attrs_list, action) do
+    conflict_target =
+      case action do
+        :find_or_create -> [:entity_id, :role]
+        :find_or_create_for_movie -> [:movie_id, :role]
+        :find_or_create_for_episode -> [:episode_id, :role]
+      end
 
-    if result.error_count > 0 do
-      {:error, result.errors}
-    else
+    errors =
+      Enum.reduce(image_attrs_list, [], fn attrs, errors ->
+        changeset = Image.create_changeset(attrs)
+
+        case Repo.insert(changeset,
+               on_conflict: :nothing,
+               conflict_target: conflict_target
+             ) do
+          {:ok, _} -> errors
+          {:error, reason} -> [reason | errors]
+        end
+      end)
+
+    if errors == [] do
       :ok
+    else
+      {:error, errors}
     end
   end
 

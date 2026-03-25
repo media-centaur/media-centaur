@@ -22,7 +22,7 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
     end
 
     test ":review_resolved builds payload with tmdb_id, tmdb_type, and pending_file_id" do
-      pending_id = Ash.UUID.generate()
+      pending_id = Ecto.UUID.generate()
 
       payload =
         Producer.build_payload(:review_resolved, %{
@@ -49,7 +49,7 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
           watch_dir: "/media/tv",
           tmdb_id: 1399,
           tmdb_type: "tv",
-          pending_file_id: Ash.UUID.generate()
+          pending_file_id: Ecto.UUID.generate()
         })
 
       assert payload.tmdb_type == :tv

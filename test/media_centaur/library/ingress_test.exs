@@ -182,7 +182,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert movie_id.entity_id == entity.id
 
       # Child movie
-      entity = Ash.load!(entity, [:movies])
+      entity = MediaCentaur.Repo.preload(entity, [:movies])
       assert length(entity.movies) == 1
       movie = hd(entity.movies)
       assert movie.name == "The Shadowy Sentinel"
@@ -216,7 +216,7 @@ defmodule MediaCentaur.Library.IngressTest do
       assert {:ok, entity, :new_child} = Ingress.ingest(payload)
       assert entity.id == series.id
 
-      entity = Ash.load!(entity, [:movies])
+      entity = MediaCentaur.Repo.preload(entity, [:movies])
       assert length(entity.movies) == 1
       movie = hd(entity.movies)
       assert movie.name == "The Shadowy Sentinel Rises"

@@ -255,14 +255,8 @@ defmodule MediaCentaur.Watcher do
     recovery = Keyword.get(opts, :recovery, false)
     Log.info(:watcher, "scanning #{dir}#{if recovery, do: " (recovery)", else: ""}")
 
-    case fetch_known_file_paths() do
-      {:ok, known_paths} ->
-        scan_directory_with_paths(dir, known_paths, recovery: recovery)
-
-      {:error, _reason} ->
-        Log.info(:watcher, "skipped scan — database unavailable")
-        0
-    end
+    {:ok, known_paths} = fetch_known_file_paths()
+    scan_directory_with_paths(dir, known_paths, recovery: recovery)
   end
 
   defp scan_directory_with_paths(dir, known_paths, opts) do
@@ -339,10 +333,8 @@ defmodule MediaCentaur.Watcher do
   end
 
   defp fetch_known_file_paths do
-    case Library.list_watched_files() do
-      {:ok, files} -> {:ok, MapSet.new(files, & &1.file_path)}
-      {:error, reason} -> {:error, reason}
-    end
+    {:ok, files} = Library.list_watched_files()
+    {:ok, MapSet.new(files, & &1.file_path)}
   end
 
   defp video_file?(path) do

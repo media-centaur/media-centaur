@@ -11,6 +11,7 @@ defmodule Mix.Tasks.Seed.Review do
   """
   use Mix.Task
 
+  alias MediaCentaur.Repo
   alias MediaCentaur.Review
   alias MediaCentaur.Review.PendingFile
 
@@ -19,7 +20,7 @@ defmodule Mix.Tasks.Seed.Review do
     Mix.Task.run("app.start")
 
     # Step 1: Clear all pending files
-    Ash.bulk_destroy!(PendingFile, :destroy, %{}, strategy: :stream, return_errors?: true)
+    Repo.delete_all(PendingFile)
 
     # Step 2: Insert seed data
     records = Enum.map(seed_data(), &Review.create_pending_file!/1)

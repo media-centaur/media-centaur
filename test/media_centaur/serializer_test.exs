@@ -9,7 +9,7 @@ defmodule MediaCentaur.SerializerTest do
   setup do
     original_config = :persistent_term.get({Config, :config})
 
-    tmp_dir = Path.join(System.tmp_dir!(), "serializer_test_#{Ash.UUID.generate()}")
+    tmp_dir = Path.join(System.tmp_dir!(), "serializer_test_#{Ecto.UUID.generate()}")
     images_dir = Path.join(tmp_dir, ".media-centaur/images")
     File.mkdir_p!(images_dir)
 
@@ -38,7 +38,7 @@ defmodule MediaCentaur.SerializerTest do
 
   describe "Movie" do
     test "all fields present produces correct JSON-LD structure", %{images_dir: images_dir} do
-      entity_id = Ash.UUID.generate()
+      entity_id = Ecto.UUID.generate()
       expected_path = create_image_file!(images_dir, "#{entity_id}/poster.jpg")
 
       entity =
@@ -178,7 +178,7 @@ defmodule MediaCentaur.SerializerTest do
     end
 
     test "episode images are serialized", %{images_dir: images_dir} do
-      episode_id = Ash.UUID.generate()
+      episode_id = Ecto.UUID.generate()
       expected_path = create_image_file!(images_dir, "#{episode_id}/thumb.jpg")
 
       episode =
@@ -213,8 +213,8 @@ defmodule MediaCentaur.SerializerTest do
 
   describe "MovieSeries — 1 child" do
     test "exports as @type Movie using child's data", %{images_dir: images_dir} do
-      entity_id = Ash.UUID.generate()
-      movie_id = Ash.UUID.generate()
+      entity_id = Ecto.UUID.generate()
+      movie_id = Ecto.UUID.generate()
       create_image_file!(images_dir, "#{movie_id}/poster.jpg")
 
       movie =
@@ -277,7 +277,7 @@ defmodule MediaCentaur.SerializerTest do
     test "exports as @type MovieSeries with hasPart array, children sorted by position", %{
       images_dir: images_dir
     } do
-      entity_id = Ash.UUID.generate()
+      entity_id = Ecto.UUID.generate()
       expected_series_path = create_image_file!(images_dir, "#{entity_id}/poster.jpg")
       create_image_file!(images_dir, "a/poster.jpg")
       create_image_file!(images_dir, "b/poster.jpg")
@@ -410,7 +410,7 @@ defmodule MediaCentaur.SerializerTest do
 
   describe "TVSeries with season extras" do
     test "season extras serialize as hasPart on the season object" do
-      season_id = Ash.UUID.generate()
+      season_id = Ecto.UUID.generate()
 
       season =
         build_season(%{
@@ -452,7 +452,7 @@ defmodule MediaCentaur.SerializerTest do
     end
 
     test "season-linked extras do NOT appear in entity-level hasPart" do
-      season_id = Ash.UUID.generate()
+      season_id = Ecto.UUID.generate()
 
       season =
         build_season(%{
@@ -493,7 +493,7 @@ defmodule MediaCentaur.SerializerTest do
     end
 
     test "entity-level extras and season extras coexist without duplication" do
-      season_id = Ash.UUID.generate()
+      season_id = Ecto.UUID.generate()
 
       season =
         build_season(%{

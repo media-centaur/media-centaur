@@ -33,7 +33,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
     end
 
     test "returns :ok for nonexistent entity" do
-      assert :ok == ProgressBroadcaster.broadcast(Ash.UUID.generate(), 0, 0)
+      assert :ok == ProgressBroadcaster.broadcast(Ecto.UUID.generate(), 0, 0)
     end
   end
 end
