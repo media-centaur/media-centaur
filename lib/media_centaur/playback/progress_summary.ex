@@ -70,7 +70,13 @@ defmodule MediaCentaur.Playback.ProgressSummary do
       |> Enum.map(fn {ordinal, _movie_id, _url} -> {0, ordinal} end)
 
     episodes_total = length(items)
-    episodes_completed = Enum.count(progress_records, & &1.completed)
+    valid_keys = MapSet.new(items)
+
+    episodes_completed =
+      Enum.count(progress_records, fn record ->
+        record.completed and
+          MapSet.member?(valid_keys, {record.season_number, record.episode_number})
+      end)
 
     {current_episode, current_progress} = find_current_episode(items, progress_records)
 

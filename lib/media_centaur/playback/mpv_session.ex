@@ -241,14 +241,17 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp finalize(%{state: session_state} = session) when session_state in [:playing, :paused] do
     if session.tracker.actively_watching, do: persist_progress(session)
 
-    # Spawn entity progress broadcast to avoid blocking shutdown with DB queries
-    entity_id = session.entity_id
-    season_number = session.season_number
-    episode_number = session.episode_number
+    # Spawn entity progress broadcast to avoid blocking shutdown with DB queries.
+    # Skip for extras (episode_number nil) — no progress record to broadcast.
+    if session.episode_number do
+      entity_id = session.entity_id
+      season_number = session.season_number
+      episode_number = session.episode_number
 
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
-    end)
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
+      end)
+    end
 
     broadcast_state_changed(:stopped, session)
     %{session | state: :stopped}
@@ -333,6 +336,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   # --- Progress Persistence ---
+
+  defp persist_progress(%{episode_number: nil}), do: :ok
 
   defp persist_progress(state) do
     saveable = state.tracker.saveable_position || state.position
