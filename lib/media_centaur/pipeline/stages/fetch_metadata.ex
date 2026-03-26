@@ -3,9 +3,9 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   Pipeline stage 3: fetches full TMDB details for the matched entity and
   assembles a structured metadata map using `TMDB.Mapper`.
 
-  The metadata map contains everything the Ingress needs to create entities,
-  images, identifiers, and TV hierarchy — but does not itself touch the
-  database.
+  The metadata map contains everything Library.Inbound needs to create
+  entities, images, identifiers, and TV hierarchy — but does not itself
+  touch the database.
 
   ## Metadata structure
 

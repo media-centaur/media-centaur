@@ -1,14 +1,34 @@
 defmodule MediaCentaur.Pipeline.Stages.IngestTest do
   @moduledoc """
-  Tests for the Ingest stage wrapper that delegates to Library.Ingress.
+  Tests for the Ingest stage — broadcasts entity events to pipeline:publish.
 
-  No TMDB stubs needed: Ingress consumes pre-built metadata, not TMDB data.
+  No TMDB stubs needed: Ingest consumes pre-built metadata, not TMDB data.
+  Entity creation is tested in Library.InboundTest — these tests verify the
+  broadcast event format and payload passthrough.
   """
   use MediaCentaur.DataCase
 
-  alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Pipeline.Stages.Ingest
+
+  # Library.Inbound subscribes to the same topic. Remove it from the
+  # supervisor for this module so its async DB writes don't conflict
+  # with the test sandbox (SQLite single-writer).
+  setup_all do
+    Supervisor.terminate_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+    Supervisor.delete_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+
+    on_exit(fn ->
+      Supervisor.start_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+    end)
+
+    :ok
+  end
+
+  setup do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_publish())
+    :ok
+  end
 
   defp movie_payload(overrides \\ %{}) do
     metadata =
@@ -24,7 +44,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
             url: "https://www.themoviedb.org/movie/550"
           },
           images: [
-            %{role: "poster", url: "https://image.tmdb.org/poster.jpg", extension: "jpg"}
+            %{role: "poster", url: "https://image.tmdb.org/poster.jpg"}
           ],
           identifier: %{property_id: "tmdb", value: "550"},
           child_movie: nil,
@@ -44,51 +64,29 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Movie
+  # Broadcast format
   # ---------------------------------------------------------------------------
 
-  describe "movie ingestion" do
-    test "creates a movie entity via Ingress" do
+  describe "entity publication" do
+    test "broadcasts entity_published event with correct format" do
       payload = movie_payload()
 
       assert {:ok, result} = Ingest.run(payload)
-      assert result.entity_id != nil
-      assert result.ingest_status == :new
-      assert [%{role: "poster", owner_type: "entity"}] = result.pending_images
+      assert result.file_path == payload.file_path
 
-      entity = Library.get_entity!(result.entity_id)
-      assert entity.type == :movie
-      assert entity.name == "Fight Club"
+      assert_receive {:entity_published, event}
+      assert event.entity_type == :movie
+      assert event.entity_attrs.name == "Fight Club"
+      assert event.identifier == %{property_id: "tmdb", value: "550"}
+      assert event.file_path == "/media/Fight.Club.1999.mkv"
+      assert event.watch_dir == "/media"
+      assert [%{role: "poster"}] = event.images
+      assert event.child_movie == nil
+      assert event.season == nil
+      assert event.extra == nil
     end
 
-    test "reuses existing entity on second ingest" do
-      payload = movie_payload()
-      assert {:ok, first} = Ingest.run(payload)
-
-      # Second ingest for same TMDB ID — uses different file path
-      second_payload =
-        movie_payload(
-          metadata: %{
-            entity_attrs: %{
-              type: :movie,
-              name: "Fight Club",
-              content_url: "/media/Fight.Club.1999.other.mkv"
-            }
-          }
-        )
-
-      assert {:ok, second} = Ingest.run(second_payload)
-      assert second.entity_id == first.entity_id
-      assert second.ingest_status == :existing
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Movie in collection
-  # ---------------------------------------------------------------------------
-
-  describe "movie in collection" do
-    test "creates movie series entity with child movie" do
+    test "broadcasts collection event with child_movie" do
       payload = %Payload{
         file_path: "/media/The.Shadowy.Sentinel.2008.mkv",
         watch_directory: "/media",
@@ -117,22 +115,15 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
         }
       }
 
-      assert {:ok, result} = Ingest.run(payload)
-      assert result.entity_id != nil
+      assert {:ok, _result} = Ingest.run(payload)
 
-      entity = Library.get_entity_with_associations!(result.entity_id)
-      assert entity.type == :movie_series
-      assert entity.name == "The Shadowy Sentinel Collection"
-      assert length(entity.movies) == 1
+      assert_receive {:entity_published, event}
+      assert event.entity_type == :movie_series
+      assert event.child_movie.attrs.name == "The Shadowy Sentinel"
+      assert event.watch_dir == "/media"
     end
-  end
 
-  # ---------------------------------------------------------------------------
-  # TV
-  # ---------------------------------------------------------------------------
-
-  describe "TV ingestion" do
-    test "creates TV entity with season and episode" do
+    test "broadcasts TV event with season and episode" do
       payload = %Payload{
         file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv",
         watch_directory: "/media/TV",
@@ -165,15 +156,13 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
         }
       }
 
-      assert {:ok, result} = Ingest.run(payload)
-      assert result.entity_id != nil
-      assert result.ingest_status == :new
+      assert {:ok, _result} = Ingest.run(payload)
 
-      entity = Library.get_entity_with_associations!(result.entity_id)
-      assert entity.type == :tv_series
-      assert entity.name == "Sample Show Eight"
-      assert length(entity.seasons) == 1
-      assert length(hd(entity.seasons).episodes) == 1
+      assert_receive {:entity_published, event}
+      assert event.entity_type == :tv_series
+      assert event.season.season_number == 1
+      assert event.season.episode.attrs.name == "Pilot"
+      assert event.watch_dir == "/media/TV"
     end
   end
 

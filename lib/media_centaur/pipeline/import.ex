@@ -6,24 +6,24 @@ defmodule MediaCentaur.Pipeline.Import do
   Consumes `{:file_matched, ...}` events from both the Discovery pipeline
   (auto-matches) and Review (approved matches).
 
-  Processing flow: parse → check disk space → fetch_metadata → ingest.
+  Processing flow: parse → check disk space → fetch_metadata → publish.
 
-  On completion, links the file via `Library.link_file!/1`, destroys
-  any associated PendingFile, and broadcasts entity changes.
+  The Ingest stage broadcasts `{:entity_published, event}` to
+  `"pipeline:publish"`. `Library.Inbound` subscribes and creates all
+  library records, links files, and queues images.
+
+  On completion, destroys any associated PendingFile from Review.
 
   Broadway config: 1 producer (PubSub subscriber), 5 processors (partitioned
-  by file path), 1 batcher (serialises PubSub broadcasts, batch size 10,
-  timeout 5s).
+  by file path), 1 batcher (batch size 10, timeout 5s).
 
   See `PIPELINE.md` for full architecture details.
   """
   use Broadway
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library
-  alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Parser
-  alias MediaCentaur.Pipeline.{ImageQueue, Payload, Stage}
+  alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{FetchMetadata, Ingest}
   alias MediaCentaur.Review
   alias MediaCentaur.Storage
@@ -67,55 +67,6 @@ defmodule MediaCentaur.Pipeline.Import do
 
   @impl true
   def handle_batch(:default, messages, _batch_info, _context) do
-    completed =
-      Enum.filter(messages, fn message ->
-        message.data.entity_id != nil and message.data.watch_directory != nil
-      end)
-
-    # Create image queue entries from pending_images
-    entities_with_images =
-      Enum.flat_map(completed, fn message ->
-        payload = message.data
-
-        (payload.pending_images || [])
-        |> Enum.each(fn image ->
-          ImageQueue.create(%{
-            owner_id: image.owner_id,
-            owner_type: image.owner_type,
-            role: image.role,
-            source_url: image.source_url,
-            entity_id: payload.entity_id,
-            watch_dir: payload.watch_directory
-          })
-        end)
-
-        if (payload.pending_images || []) != [] do
-          [{payload.entity_id, payload.watch_directory}]
-        else
-          []
-        end
-      end)
-      |> Enum.uniq_by(fn {entity_id, _} -> entity_id end)
-
-    entity_ids =
-      completed
-      |> MapSet.new(fn message -> message.data.entity_id end)
-      |> MapSet.to_list()
-
-    if entity_ids != [] do
-      Log.info(:pipeline, "import batch — broadcasting #{length(entity_ids)} entity changes")
-      Helpers.broadcast_entities_changed(entity_ids)
-    end
-
-    # Trigger image pipeline for entities that have queued images
-    Enum.each(entities_with_images, fn {entity_id, watch_dir} ->
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
-        MediaCentaur.Topics.pipeline_images(),
-        {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}
-      )
-    end)
-
     messages
   end
 
@@ -161,12 +112,6 @@ defmodule MediaCentaur.Pipeline.Import do
   end
 
   defp handle_complete(payload) do
-    Library.link_file!(%{
-      file_path: payload.file_path,
-      watch_dir: payload.watch_directory,
-      entity_id: payload.entity_id
-    })
-
     if payload.pending_file_id do
       case Review.get_pending_file(payload.pending_file_id) do
         {:ok, pending_file} ->

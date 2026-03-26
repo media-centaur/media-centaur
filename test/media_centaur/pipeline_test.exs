@@ -2,11 +2,16 @@ defmodule MediaCentaur.PipelineTest do
   @moduledoc """
   End-to-end pipeline flow tests. Calls `Discovery.process/1` and
   `Import.process/1` directly (without Broadway) to verify the full
-  parse → search → fetch_metadata → ingest lifecycle.
+  parse → search → fetch_metadata → publish lifecycle.
+
+  After Import publishes the entity event, the test subscribes and calls
+  `Library.Inbound.ingest/1` directly (in the test process) to verify
+  entity creation within the sandbox.
   """
   use MediaCentaur.DataCase
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.Inbound
   alias MediaCentaur.Pipeline.{Discovery, Import}
   alias MediaCentaur.Pipeline.Import.Producer, as: ImportProducer
   alias MediaCentaur.Pipeline.Payload
@@ -14,8 +19,24 @@ defmodule MediaCentaur.PipelineTest do
 
   import MediaCentaur.TmdbStubs
 
+  # Library.Inbound subscribes to the same topic. Remove it from the
+  # supervisor so its async DB writes don't conflict with the sandbox.
+  setup_all do
+    Supervisor.terminate_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+    Supervisor.delete_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+
+    on_exit(fn ->
+      Supervisor.start_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+    end)
+
+    :ok
+  end
+
   setup do
     setup_tmdb_client()
+
+    # Subscribe to receive entity_published events from the Import pipeline
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_publish())
 
     # Register watch_dir_images for paths used in test payloads.
     # Images go to a temp dir that gets cleaned up after each test.
@@ -78,18 +99,20 @@ defmodule MediaCentaur.PipelineTest do
           pending_file_id: nil
         })
 
-      assert {:ok, result} = Import.process(import_payload)
-      assert result.entity_id != nil
+      assert {:ok, _result} = Import.process(import_payload)
 
-      entity = Library.get_entity!(result.entity_id)
+      # Entity creation is async via PubSub — process in-test for sandbox
+      assert_receive {:entity_published, event}
+      assert {:ok, entity, :new, _images} = Inbound.ingest(event)
+
       assert entity.type == :movie
       assert entity.name == "Fight Club"
 
-      # WatchedFile created via :link_file
+      # WatchedFile created by Inbound.ingest
       files = Library.list_watched_files!()
       assert length(files) == 1
       file = hd(files)
-      assert file.entity_id == result.entity_id
+      assert file.entity_id == entity.id
       assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
     end
 
@@ -126,10 +149,12 @@ defmodule MediaCentaur.PipelineTest do
           pending_file_id: nil
         })
 
-      assert {:ok, result} = Import.process(import_payload)
-      assert result.entity_id != nil
+      assert {:ok, _result} = Import.process(import_payload)
 
-      entity = Library.get_entity_with_associations!(result.entity_id)
+      assert_receive {:entity_published, event}
+      assert {:ok, entity, :new, _images} = Inbound.ingest(event)
+
+      entity = Library.get_entity_with_associations!(entity.id)
       assert entity.type == :tv_series
       assert entity.name == "Sample Show Eight"
       assert length(entity.seasons) == 1
@@ -168,9 +193,12 @@ defmodule MediaCentaur.PipelineTest do
           pending_file_id: nil
         })
 
-      assert {:ok, result} = Import.process(import_payload)
+      assert {:ok, _result} = Import.process(import_payload)
 
-      entity = Library.get_entity_with_associations!(result.entity_id)
+      assert_receive {:entity_published, event}
+      assert {:ok, entity, :new, _images} = Inbound.ingest(event)
+
+      entity = Library.get_entity_with_associations!(entity.id)
       assert entity.type == :movie_series
       assert entity.name == "The Shadowy Sentinel Collection"
       assert length(entity.movies) == 1
@@ -295,19 +323,20 @@ defmodule MediaCentaur.PipelineTest do
           pending_file_id: pending.id
         })
 
-      assert {:ok, result} = Import.process(import_payload)
-      assert result.entity_id != nil
+      assert {:ok, _result} = Import.process(import_payload)
 
-      entity = Library.get_entity!(result.entity_id)
+      assert_receive {:entity_published, event}
+      assert {:ok, entity, :new, _images} = Inbound.ingest(event)
+
       assert entity.type == :movie
       assert entity.name == "Fight Club"
 
-      # WatchedFile created
+      # WatchedFile created by Inbound.ingest
       files = Library.list_watched_files!()
       assert length(files) == 1
-      assert hd(files).entity_id == result.entity_id
+      assert hd(files).entity_id == entity.id
 
-      # PendingFile destroyed
+      # PendingFile destroyed by Import pipeline
       assert Review.list_pending_files!() == []
     end
   end

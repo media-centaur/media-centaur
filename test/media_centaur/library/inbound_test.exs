@@ -1,25 +1,24 @@
-defmodule MediaCentaur.Library.IngressTest do
+defmodule MediaCentaur.Library.InboundTest do
   @moduledoc """
-  Tests for Library.Ingress — the pipeline's persistence layer.
+  Tests for Library.Inbound — the library's inbound API for the pipeline.
 
-  No TMDB stubs needed: Ingress doesn't call TMDB. Tests construct
-  metadata maps directly.
+  No TMDB stubs needed: Inbound consumes pre-built metadata maps, not
+  TMDB data. Tests construct event maps directly and call `ingest/1`.
 
-  In the decoupled model, Ingress no longer creates Image records —
-  it collects pending image metadata and returns them for the image
-  pipeline queue. Tests verify the returned `pending_images` list.
+  Inbound also creates WatchedFile records, queues images for download,
+  and broadcasts entity changes — but those are integration concerns
+  tested via the pipeline end-to-end, not here.
   """
   use MediaCentaur.DataCase
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Ingress
-  alias MediaCentaur.Pipeline.Payload
+  alias MediaCentaur.Library.Inbound
 
   # ---------------------------------------------------------------------------
-  # Metadata builders
+  # Event builders
   # ---------------------------------------------------------------------------
 
-  defp movie_metadata(overrides \\ %{}) do
+  defp movie_event(overrides \\ %{}) do
     defaults = %{
       entity_type: :movie,
       entity_attrs: %{
@@ -31,19 +30,21 @@ defmodule MediaCentaur.Library.IngressTest do
         url: "https://www.themoviedb.org/movie/550"
       },
       images: [
-        %{role: "poster", url: "https://image.tmdb.org/poster.jpg", extension: "jpg"},
-        %{role: "backdrop", url: "https://image.tmdb.org/backdrop.jpg", extension: "jpg"}
+        %{role: "poster", url: "https://image.tmdb.org/poster.jpg"},
+        %{role: "backdrop", url: "https://image.tmdb.org/backdrop.jpg"}
       ],
       identifier: %{property_id: "tmdb", value: "550"},
       child_movie: nil,
       season: nil,
-      extra: nil
+      extra: nil,
+      file_path: "/media/Fight.Club.1999.mkv",
+      watch_dir: "/media"
     }
 
     Map.merge(defaults, Enum.into(overrides, %{}))
   end
 
-  defp collection_metadata(overrides \\ %{}) do
+  defp collection_event(overrides \\ %{}) do
     defaults = %{
       entity_type: :movie_series,
       entity_attrs: %{
@@ -51,7 +52,7 @@ defmodule MediaCentaur.Library.IngressTest do
         name: "The Shadowy Sentinel Collection"
       },
       images: [
-        %{role: "poster", url: "https://image.tmdb.org/coll_poster.jpg", extension: "jpg"}
+        %{role: "poster", url: "https://image.tmdb.org/coll_poster.jpg"}
       ],
       identifier: %{property_id: "tmdb_collection", value: "263"},
       child_movie: %{
@@ -65,18 +66,20 @@ defmodule MediaCentaur.Library.IngressTest do
           position: 1
         },
         images: [
-          %{role: "poster", url: "https://image.tmdb.org/dk_poster.jpg", extension: "jpg"}
+          %{role: "poster", url: "https://image.tmdb.org/dk_poster.jpg"}
         ],
         identifier: %{property_id: "tmdb", value: "155"}
       },
       season: nil,
-      extra: nil
+      extra: nil,
+      file_path: "/media/The.Shadowy.Sentinel.2008.mkv",
+      watch_dir: "/media"
     }
 
     Map.merge(defaults, Enum.into(overrides, %{}))
   end
 
-  defp tv_metadata(overrides \\ %{}) do
+  defp tv_event(overrides \\ %{}) do
     defaults = %{
       entity_type: :tv_series,
       entity_attrs: %{
@@ -87,7 +90,7 @@ defmodule MediaCentaur.Library.IngressTest do
         url: "https://www.themoviedb.org/tv/1396"
       },
       images: [
-        %{role: "poster", url: "https://image.tmdb.org/bb_poster.jpg", extension: "jpg"}
+        %{role: "poster", url: "https://image.tmdb.org/bb_poster.jpg"}
       ],
       identifier: %{property_id: "tmdb", value: "1396"},
       child_movie: nil,
@@ -104,18 +107,16 @@ defmodule MediaCentaur.Library.IngressTest do
             content_url: "/media/TV/Sample.Show.Eight.S01E01.mkv"
           },
           images: [
-            %{role: "thumb", url: "https://image.tmdb.org/ep_thumb.jpg", extension: "jpg"}
+            %{role: "thumb", url: "https://image.tmdb.org/ep_thumb.jpg"}
           ]
         }
       },
-      extra: nil
+      extra: nil,
+      file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv",
+      watch_dir: "/media/TV"
     }
 
     Map.merge(defaults, Enum.into(overrides, %{}))
-  end
-
-  defp payload_with(metadata) do
-    %Payload{metadata: metadata}
   end
 
   # ---------------------------------------------------------------------------
@@ -124,9 +125,7 @@ defmodule MediaCentaur.Library.IngressTest do
 
   describe "standalone movie" do
     test "creates entity and identifier, returns pending images" do
-      payload = payload_with(movie_metadata())
-
-      assert {:ok, entity, :new, pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new, pending_images} = Inbound.ingest(movie_event())
 
       assert entity.type == :movie
       assert entity.name == "Fight Club"
@@ -146,17 +145,15 @@ defmodule MediaCentaur.Library.IngressTest do
              end)
     end
 
-    test "pending images carry source_url from metadata" do
-      metadata =
-        movie_metadata(
+    test "pending images carry source_url from event" do
+      event =
+        movie_event(
           images: [
-            %{role: "poster", url: "https://image.tmdb.org/poster.jpg", extension: "jpg"}
+            %{role: "poster", url: "https://image.tmdb.org/poster.jpg"}
           ]
         )
 
-      payload = payload_with(metadata)
-
-      assert {:ok, entity, :new, pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new, pending_images} = Inbound.ingest(event)
 
       assert [image] = pending_images
       assert image.source_url == "https://image.tmdb.org/poster.jpg"
@@ -173,9 +170,7 @@ defmodule MediaCentaur.Library.IngressTest do
 
   describe "movie in collection" do
     test "creates movie_series + child movie + identifiers, returns pending images" do
-      payload = payload_with(collection_metadata())
-
-      assert {:ok, entity, :new, pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new, pending_images} = Inbound.ingest(collection_event())
 
       assert entity.type == :movie_series
       assert entity.name == "The Shadowy Sentinel Collection"
@@ -210,8 +205,8 @@ defmodule MediaCentaur.Library.IngressTest do
       series = create_entity(%{type: :movie_series, name: "The Shadowy Sentinel Collection"})
       create_identifier(%{entity_id: series.id, property_id: "tmdb_collection", value: "263"})
 
-      metadata =
-        collection_metadata(
+      event =
+        collection_event(
           child_movie: %{
             attrs: %{
               tmdb_id: "49026",
@@ -226,9 +221,7 @@ defmodule MediaCentaur.Library.IngressTest do
           }
         )
 
-      payload = payload_with(metadata)
-
-      assert {:ok, entity, :new_child, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new_child, _pending_images} = Inbound.ingest(event)
       assert entity.id == series.id
 
       entity = MediaCentaur.Repo.preload(entity, [:movies])
@@ -245,9 +238,7 @@ defmodule MediaCentaur.Library.IngressTest do
 
   describe "TV series" do
     test "creates entity, season, episode, returns pending images" do
-      payload = payload_with(tv_metadata())
-
-      assert {:ok, entity, :new, pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new, pending_images} = Inbound.ingest(tv_event())
 
       assert entity.type == :tv_series
       assert entity.name == "Sample Show Eight"
@@ -280,8 +271,8 @@ defmodule MediaCentaur.Library.IngressTest do
       existing = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
       create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "1396"})
 
-      metadata =
-        tv_metadata(
+      event =
+        tv_event(
           season: %{
             season_number: 1,
             name: "Season 1",
@@ -299,9 +290,7 @@ defmodule MediaCentaur.Library.IngressTest do
           }
         )
 
-      payload = payload_with(metadata)
-
-      assert {:ok, entity, :existing, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(event)
       assert entity.id == existing.id
 
       entity = Library.get_entity_with_associations!(entity.id)
@@ -312,10 +301,9 @@ defmodule MediaCentaur.Library.IngressTest do
     end
 
     test "TV without season/episode — no-op" do
-      metadata = tv_metadata(season: nil)
-      payload = payload_with(metadata)
+      event = tv_event(season: nil)
 
-      assert {:ok, entity, :new, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new, _pending_images} = Inbound.ingest(event)
       assert entity.type == :tv_series
 
       entity = Library.get_entity_with_associations!(entity.id)
@@ -332,9 +320,7 @@ defmodule MediaCentaur.Library.IngressTest do
       existing = create_entity(%{type: :movie, name: "Fight Club"})
       create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "550"})
 
-      payload = payload_with(movie_metadata())
-
-      assert {:ok, entity, :existing, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
       reloaded = Library.get_entity!(entity.id)
@@ -347,9 +333,7 @@ defmodule MediaCentaur.Library.IngressTest do
 
       create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "550"})
 
-      payload = payload_with(movie_metadata())
-
-      assert {:ok, entity, :existing, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
       reloaded = Library.get_entity!(entity.id)
@@ -363,8 +347,8 @@ defmodule MediaCentaur.Library.IngressTest do
 
   describe "extras" do
     test "extra without season — creates movie entity + extra" do
-      metadata =
-        movie_metadata(
+      event =
+        movie_event(
           extra: %{
             name: "Behind the Scenes",
             content_url: "/media/extras/bts.mkv",
@@ -372,9 +356,7 @@ defmodule MediaCentaur.Library.IngressTest do
           }
         )
 
-      payload = payload_with(metadata)
-
-      assert {:ok, entity, :new, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new, _pending_images} = Inbound.ingest(event)
       assert entity.type == :movie
 
       # Entity should NOT get the extra's file path as content_url
@@ -388,8 +370,8 @@ defmodule MediaCentaur.Library.IngressTest do
     end
 
     test "extra with season — creates TV entity + season + extra" do
-      metadata =
-        tv_metadata(
+      event =
+        tv_event(
           season: %{
             season_number: 1,
             name: "Season 1",
@@ -403,9 +385,7 @@ defmodule MediaCentaur.Library.IngressTest do
           }
         )
 
-      payload = payload_with(metadata)
-
-      assert {:ok, entity, :new, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :new, _pending_images} = Inbound.ingest(event)
       assert entity.type == :tv_series
 
       entity = Library.get_entity_with_associations!(entity.id)
@@ -421,8 +401,8 @@ defmodule MediaCentaur.Library.IngressTest do
       existing = create_entity(%{type: :movie, name: "Fight Club"})
       create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "550"})
 
-      metadata =
-        movie_metadata(
+      event =
+        movie_event(
           extra: %{
             name: "Deleted Scenes",
             content_url: "/media/extras/deleted.mkv",
@@ -430,9 +410,7 @@ defmodule MediaCentaur.Library.IngressTest do
           }
         )
 
-      payload = payload_with(metadata)
-
-      assert {:ok, entity, :existing, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(event)
       assert entity.id == existing.id
 
       entity = Library.get_entity_with_associations!(entity.id)
@@ -451,12 +429,10 @@ defmodule MediaCentaur.Library.IngressTest do
       winner = create_entity(%{type: :movie, name: "Fight Club (Winner)"})
       create_identifier(%{entity_id: winner.id, property_id: "tmdb", value: "550"})
 
-      payload = payload_with(movie_metadata())
-
-      # The ingress will create a new entity, then when creating the identifier
+      # Inbound will create a new entity, then when creating the identifier
       # it'll find the existing one belongs to winner. It destroys the duplicate
       # and returns the winner via link_to_existing.
-      assert {:ok, entity, :existing, _pending_images} = Ingress.ingest(payload)
+      assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == winner.id
 
       # The duplicate entity was destroyed — only the winner remains
@@ -467,15 +443,139 @@ defmodule MediaCentaur.Library.IngressTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Post-ingest side effects
+  # ---------------------------------------------------------------------------
+
+  describe "post-ingest side effects" do
+    test "creates WatchedFile linking file to entity" do
+      assert {:ok, entity, :new, _images} = Inbound.ingest(movie_event())
+
+      files = Library.list_watched_files_for_entity!(entity.id)
+      assert [file] = files
+      assert file.file_path == "/media/Fight.Club.1999.mkv"
+      assert file.watch_dir == "/media"
+      assert file.entity_id == entity.id
+    end
+
+    test "creates ImageQueue entries for pending images" do
+      assert {:ok, entity, :new, pending_images} = Inbound.ingest(movie_event())
+      assert length(pending_images) == 2
+
+      queue_entries = MediaCentaur.Pipeline.ImageQueue.list_pending(entity.id)
+      assert length(queue_entries) == 2
+
+      roles = Enum.map(queue_entries, & &1.role) |> Enum.sort()
+      assert roles == ["backdrop", "poster"]
+
+      assert Enum.all?(queue_entries, &(&1.entity_id == entity.id))
+      assert Enum.all?(queue_entries, &(&1.status == "pending"))
+    end
+
+    test "broadcasts entities_changed to library:updates" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+
+      assert {:ok, entity, :new, _images} = Inbound.ingest(movie_event())
+
+      assert_receive {:entities_changed, entity_ids}
+      assert entity.id in entity_ids
+    end
+
+    test "broadcasts images_pending to pipeline:images" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_images())
+
+      assert {:ok, entity, :new, _images} = Inbound.ingest(movie_event())
+
+      assert_receive {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}
+      assert entity_id == entity.id
+      assert watch_dir == "/media"
+    end
+
+    test "skips image queue and broadcast when no images" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_images())
+
+      event = movie_event(images: [])
+      assert {:ok, _entity, :new, []} = Inbound.ingest(event)
+
+      refute_receive {:images_pending, _}
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Image ready (from image pipeline)
+  # ---------------------------------------------------------------------------
+
+  describe "image_ready" do
+    test "creates image record for entity owner" do
+      entity = create_entity(%{type: :movie, name: "Test Movie"})
+
+      send_image_ready(%{
+        owner_id: entity.id,
+        owner_type: "entity",
+        role: "poster",
+        content_url: "images/#{entity.id}/poster.jpg",
+        extension: "jpg",
+        entity_id: entity.id
+      })
+
+      {:ok, images} = Library.list_images_for_entity(entity.id)
+      assert [image] = images
+      assert image.role == "poster"
+      assert image.content_url == "images/#{entity.id}/poster.jpg"
+      assert image.entity_id == entity.id
+    end
+
+    test "creates image record for movie owner" do
+      entity = create_entity(%{type: :movie_series, name: "Collection"})
+
+      {:ok, movie} =
+        Library.find_or_create_movie(%{
+          entity_id: entity.id,
+          tmdb_id: "155",
+          name: "Movie",
+          position: 1
+        })
+
+      send_image_ready(%{
+        owner_id: movie.id,
+        owner_type: "movie",
+        role: "poster",
+        content_url: "images/#{entity.id}/movie_poster.jpg",
+        extension: "jpg",
+        entity_id: entity.id
+      })
+
+      movie = MediaCentaur.Repo.preload(movie, :images)
+      assert [image] = movie.images
+      assert image.role == "poster"
+      assert image.movie_id == movie.id
+    end
+
+    test "broadcasts entities_changed after image creation" do
+      entity = create_entity(%{type: :movie, name: "Test Movie"})
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+
+      send_image_ready(%{
+        owner_id: entity.id,
+        owner_type: "entity",
+        role: "backdrop",
+        content_url: "images/#{entity.id}/backdrop.jpg",
+        extension: "jpg",
+        entity_id: entity.id
+      })
+
+      assert_receive {:entities_changed, entity_ids}
+      assert entity.id in entity_ids
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Error handling
   # ---------------------------------------------------------------------------
 
   describe "error handling" do
-    test "missing metadata raises" do
-      payload = %Payload{metadata: nil}
-
+    test "nil event raises" do
       assert_raise BadMapError, fn ->
-        Ingress.ingest(payload)
+        Inbound.ingest(nil)
       end
     end
   end
@@ -489,5 +589,9 @@ defmodule MediaCentaur.Library.IngressTest do
       "tmdb_collection" -> Library.find_by_tmdb_collection(value)
       _ -> Library.find_by_tmdb_id(value)
     end
+  end
+
+  defp send_image_ready(attrs) do
+    Inbound.process_image_ready(attrs)
   end
 end
