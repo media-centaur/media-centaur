@@ -6,8 +6,8 @@ defmodule MediaCentaur.Review do
   The ReviewLive UI reads PendingFile records for display and uses these
   functions for approve, dismiss, search, and match-selection workflows.
 
-  Approval broadcasts a `{:review_resolved, ...}` event to `MediaCentaur.Topics.pipeline_input()`,
-  which the Pipeline Producer picks up for async processing via Broadway.
+  Approval broadcasts a `{:file_matched, ...}` event to `MediaCentaur.Topics.pipeline_matched()`,
+  which the Import Pipeline Producer picks up for async processing via Broadway.
   """
   import Ecto.Query
 
@@ -181,10 +181,10 @@ defmodule MediaCentaur.Review do
     with {:ok, pending_file} <- approve_pending_file(pending_file) do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
-        MediaCentaur.Topics.pipeline_input(),
-        {:review_resolved,
+        MediaCentaur.Topics.pipeline_matched(),
+        {:file_matched,
          %{
-           path: pending_file.file_path,
+           file_path: pending_file.file_path,
            watch_dir: pending_file.watch_directory,
            tmdb_id: pending_file.tmdb_id,
            tmdb_type: pending_file.tmdb_type,

@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.DashboardLive do
     {:ok,
      assign(socket,
        stats_timer: nil,
-       pipeline_concurrency: MediaCentaur.Pipeline.processor_concurrency(),
+       pipeline_concurrency: MediaCentaur.Pipeline.Discovery.processor_concurrency(),
        image_pipeline_concurrency: 4
      )}
   end

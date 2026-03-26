@@ -25,6 +25,8 @@ defmodule MediaCentaur.Pipeline.StatsTest do
       end
 
       assert snapshot.queue_depth == 0
+      assert snapshot.discovery_queue_depth == 0
+      assert snapshot.import_queue_depth == 0
       assert snapshot.total_processed == 0
       assert snapshot.total_failed == 0
       assert snapshot.needs_review_count == 0
@@ -42,6 +44,8 @@ defmodule MediaCentaur.Pipeline.StatsTest do
       end
 
       assert snapshot.queue_depth == 0
+      assert snapshot.discovery_queue_depth == 0
+      assert snapshot.import_queue_depth == 0
       assert snapshot.recent_errors == []
     end
   end
@@ -195,16 +199,40 @@ defmodule MediaCentaur.Pipeline.StatsTest do
   end
 
   describe "queue depth" do
-    test "queue_depth updates to latest value", %{stats: stats} do
-      Stats.queue_depth(stats, 5)
+    test "discovery queue_depth updates independently", %{stats: stats} do
+      Stats.queue_depth(stats, :discovery, 5)
 
       snapshot = Stats.get_snapshot(stats)
+      assert snapshot.discovery_queue_depth == 5
+      assert snapshot.import_queue_depth == 0
       assert snapshot.queue_depth == 5
+    end
 
-      Stats.queue_depth(stats, 2)
+    test "import queue_depth updates independently", %{stats: stats} do
+      Stats.queue_depth(stats, :import, 3)
 
       snapshot = Stats.get_snapshot(stats)
-      assert snapshot.queue_depth == 2
+      assert snapshot.discovery_queue_depth == 0
+      assert snapshot.import_queue_depth == 3
+      assert snapshot.queue_depth == 3
+    end
+
+    test "combined queue_depth sums both pipelines", %{stats: stats} do
+      Stats.queue_depth(stats, :discovery, 5)
+      Stats.queue_depth(stats, :import, 3)
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.queue_depth == 8
+      assert snapshot.discovery_queue_depth == 5
+      assert snapshot.import_queue_depth == 3
+    end
+
+    test "queue_depth updates to latest value per pipeline", %{stats: stats} do
+      Stats.queue_depth(stats, :discovery, 5)
+      Stats.queue_depth(stats, :discovery, 2)
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.discovery_queue_depth == 2
     end
   end
 

@@ -1,11 +1,12 @@
-defmodule MediaCentaur.Pipeline.Producer do
+defmodule MediaCentaur.Pipeline.Discovery.Producer do
   @moduledoc """
-  GenStage producer that subscribes to PubSub for pipeline input events.
+  GenStage producer for the Discovery pipeline.
 
-  Receives `{:file_detected, %{path, watch_dir}}` and
-  `{:review_resolved, %{path, watch_dir, tmdb_id, tmdb_type, pending_file_id}}`
-  messages via PubSub on the `MediaCentaur.Topics.pipeline_input()` topic, converts them to
-  `%Payload{}` structs, and dispatches to Broadway processors on demand.
+  Subscribes to `MediaCentaur.Topics.pipeline_input()` for `{:file_detected}`
+  events from the Watcher, converts them to `%Payload{}` structs, and dispatches
+  to Broadway processors on demand.
+
+  On startup, sends `:reconcile` to trigger watcher rescan (ADR-023).
   """
   use GenStage
   require MediaCentaur.Log, as: Log
@@ -31,37 +32,9 @@ defmodule MediaCentaur.Pipeline.Producer do
 
   @impl true
   def handle_info({:file_detected, %{path: path, watch_dir: watch_dir}}, state) do
-    payload = build_payload(:file_detected, %{path: path, watch_dir: watch_dir})
+    payload = build_payload(%{path: path, watch_dir: watch_dir})
 
     Log.info(:pipeline, "queued #{Path.basename(path)} — file detected")
-
-    state = %{state | queue: :queue.in(payload, state.queue)}
-    {messages, state} = dispatch(state)
-    emit_queue_depth(state.queue)
-    {:noreply, messages, state}
-  end
-
-  def handle_info(
-        {:review_resolved,
-         %{
-           path: path,
-           watch_dir: watch_dir,
-           tmdb_id: tmdb_id,
-           tmdb_type: tmdb_type,
-           pending_file_id: pending_file_id
-         }},
-        state
-      ) do
-    payload =
-      build_payload(:review_resolved, %{
-        path: path,
-        watch_dir: watch_dir,
-        tmdb_id: tmdb_id,
-        tmdb_type: tmdb_type,
-        pending_file_id: pending_file_id
-      })
-
-    Log.info(:pipeline, "queued #{Path.basename(path)} — review approved")
 
     state = %{state | queue: :queue.in(payload, state.queue)}
     {messages, state} = dispatch(state)
@@ -90,33 +63,15 @@ defmodule MediaCentaur.Pipeline.Producer do
   def ack(:ack_id, _successful, _failed), do: :ok
 
   @doc """
-  Builds a `%Payload{}` from a PubSub event.
+  Builds a `%Payload{}` from a file-detected event.
 
   Exposed as a public function for testing.
   """
-  @spec build_payload(atom(), map()) :: Payload.t()
-  def build_payload(:file_detected, %{path: path, watch_dir: watch_dir}) do
+  @spec build_payload(map()) :: Payload.t()
+  def build_payload(%{path: path, watch_dir: watch_dir}) do
     %Payload{
       file_path: path,
-      watch_directory: watch_dir,
-      entry_point: :file_detected
-    }
-  end
-
-  def build_payload(:review_resolved, %{
-        path: path,
-        watch_dir: watch_dir,
-        tmdb_id: tmdb_id,
-        tmdb_type: tmdb_type,
-        pending_file_id: pending_file_id
-      }) do
-    %Payload{
-      file_path: path,
-      watch_directory: watch_dir,
-      entry_point: :review_resolved,
-      tmdb_id: tmdb_id,
-      tmdb_type: validated_tmdb_type(tmdb_type),
-      pending_file_id: pending_file_id
+      watch_directory: watch_dir
     }
   end
 
@@ -142,18 +97,11 @@ defmodule MediaCentaur.Pipeline.Producer do
     end
   end
 
-  defp validated_tmdb_type("movie"), do: :movie
-  defp validated_tmdb_type("tv"), do: :tv
-
-  defp validated_tmdb_type(other) do
-    raise ArgumentError, "invalid tmdb_type: #{inspect(other)}, expected \"movie\" or \"tv\""
-  end
-
   defp emit_queue_depth(queue) do
     :telemetry.execute(
       [:media_centaur, :pipeline, :queue_depth],
       %{depth: :queue.len(queue)},
-      %{}
+      %{pipeline: :discovery}
     )
   end
 end

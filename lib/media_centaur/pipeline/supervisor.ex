@@ -1,11 +1,11 @@
 defmodule MediaCentaur.Pipeline.Supervisor do
   @moduledoc """
-  Groups Pipeline.Stats and Pipeline under a single supervisor.
+  Groups Pipeline.Stats, Discovery, and Import under a single supervisor.
 
-  Uses `:rest_for_one` strategy: if Stats crashes, Pipeline restarts (clean
-  telemetry re-attach). Pipeline crash does not affect Stats — counters
-  continue to reflect the last known state until the restarted Pipeline
-  emits new telemetry events.
+  Uses `:rest_for_one` strategy: if Stats crashes, both pipelines restart
+  (clean telemetry re-attach). Pipeline crashes do not affect Stats —
+  counters continue to reflect the last known state until the restarted
+  pipeline emits new telemetry events.
   """
   use Supervisor
 
@@ -17,26 +17,34 @@ defmodule MediaCentaur.Pipeline.Supervisor do
   def init(_opts) do
     children = [
       MediaCentaur.Pipeline.Stats,
-      MediaCentaur.Pipeline
+      MediaCentaur.Pipeline.Discovery,
+      MediaCentaur.Pipeline.Import
     ]
 
     Supervisor.init(children, strategy: :rest_for_one, max_restarts: 5, max_seconds: 30)
   end
 
-  @doc "Starts the Pipeline Broadway process (no-op if already running)."
+  @doc "Starts both pipeline Broadway processes (no-op if already running)."
   def start_pipeline do
-    Supervisor.restart_child(__MODULE__, MediaCentaur.Pipeline)
+    Supervisor.restart_child(__MODULE__, MediaCentaur.Pipeline.Discovery)
+    Supervisor.restart_child(__MODULE__, MediaCentaur.Pipeline.Import)
   end
 
-  @doc "Stops the Pipeline Broadway process (no-op if already stopped)."
+  @doc "Stops both pipeline Broadway processes (no-op if already stopped)."
   def stop_pipeline do
-    Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline)
+    Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline.Import)
+    Supervisor.terminate_child(__MODULE__, MediaCentaur.Pipeline.Discovery)
   end
 
-  @doc "Returns true if the Pipeline Broadway process is running."
+  @doc "Returns true if both pipeline Broadway processes are running."
   def pipeline_running? do
-    __MODULE__
-    |> Supervisor.which_children()
-    |> Enum.any?(fn {id, pid, _, _} -> id == MediaCentaur.Pipeline and is_pid(pid) end)
+    children = Supervisor.which_children(__MODULE__)
+
+    Enum.all?(
+      [MediaCentaur.Pipeline.Discovery, MediaCentaur.Pipeline.Import],
+      fn id ->
+        Enum.any?(children, fn {child_id, pid, _, _} -> child_id == id and is_pid(pid) end)
+      end
+    )
   end
 end
