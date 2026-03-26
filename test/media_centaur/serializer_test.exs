@@ -57,7 +57,6 @@ defmodule MediaCentaur.SerializerTest do
           images: [
             build_image(%{
               role: "poster",
-              url: "https://example.com/poster.jpg",
               content_url: "#{entity_id}/poster.jpg"
             })
           ],
@@ -85,7 +84,7 @@ defmodule MediaCentaur.SerializerTest do
       [image] = inner["image"]
       assert image["@type"] == "ImageObject"
       assert image["name"] == "poster"
-      assert image["url"] == "https://example.com/poster.jpg"
+      refute Map.has_key?(image, "url")
       assert image["contentUrl"] == expected_path
 
       [identifier] = inner["identifier"]
@@ -189,7 +188,6 @@ defmodule MediaCentaur.SerializerTest do
           images: [
             build_image(%{
               role: "thumb",
-              url: "https://image.tmdb.org/t/p/original/still.jpg",
               content_url: "#{episode_id}/thumb.jpg"
             })
           ]
@@ -206,7 +204,7 @@ defmodule MediaCentaur.SerializerTest do
       [image] = serialized_episode["image"]
       assert image["@type"] == "ImageObject"
       assert image["name"] == "thumb"
-      assert image["url"] == "https://image.tmdb.org/t/p/original/still.jpg"
+      refute Map.has_key?(image, "url")
       assert image["contentUrl"] == expected_path
     end
   end
@@ -233,7 +231,6 @@ defmodule MediaCentaur.SerializerTest do
           images: [
             build_image(%{
               role: "poster",
-              url: "https://example.com/poster.jpg",
               content_url: "#{movie_id}/poster.jpg"
             })
           ]
@@ -294,7 +291,6 @@ defmodule MediaCentaur.SerializerTest do
           images: [
             build_image(%{
               role: "poster",
-              url: "https://example.com/a-poster.jpg",
               content_url: "a/poster.jpg"
             })
           ]
@@ -312,7 +308,6 @@ defmodule MediaCentaur.SerializerTest do
           images: [
             build_image(%{
               role: "poster",
-              url: "https://example.com/b-poster.jpg",
               content_url: "b/poster.jpg"
             })
           ]
@@ -326,7 +321,6 @@ defmodule MediaCentaur.SerializerTest do
           images: [
             build_image(%{
               role: "poster",
-              url: "https://example.com/series-poster.jpg",
               content_url: "#{entity_id}/poster.jpg"
             })
           ],
@@ -634,7 +628,6 @@ defmodule MediaCentaur.SerializerTest do
           images: [
             build_image(%{
               role: "backdrop",
-              url: "https://example.com/backdrop.jpg",
               content_url: "test/backdrop.jpg"
             })
           ]
@@ -645,7 +638,7 @@ defmodule MediaCentaur.SerializerTest do
 
       assert image["@type"] == "ImageObject"
       assert image["name"] == "backdrop"
-      assert image["url"] == "https://example.com/backdrop.jpg"
+      refute Map.has_key?(image, "url")
       assert image["contentUrl"] == expected_path
     end
   end

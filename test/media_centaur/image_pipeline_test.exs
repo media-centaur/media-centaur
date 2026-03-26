@@ -2,12 +2,14 @@ defmodule MediaCentaur.ImagePipelineTest do
   @moduledoc """
   Integration tests for the ImagePipeline Broadway.
 
-  Verifies that the producer queries pending images, the processor downloads
-  and resizes them, and the batcher updates Image records and broadcasts changes.
+  Verifies that the producer queries pending queue entries, the processor
+  downloads and resizes them, and the batcher updates queue status and
+  broadcasts {:image_ready, ...} events.
   """
   use MediaCentaur.DataCase
 
   alias MediaCentaur.ImagePipeline
+  alias MediaCentaur.Pipeline.ImageQueue
 
   @watch_directory "/tmp/image_pipeline_test"
 
@@ -35,72 +37,77 @@ defmodule MediaCentaur.ImagePipelineTest do
   end
 
   describe "producer work item building" do
-    test "builds work items for entity with pending images" do
-      entity = create_entity(%{type: :movie, name: "Test Movie"})
+    test "builds work items from pending queue entries" do
+      entity_id = Ecto.UUID.generate()
 
-      create_image(%{
-        entity_id: entity.id,
-        role: "poster",
-        url: "https://image.tmdb.org/poster.jpg",
-        extension: "jpg"
-      })
+      {:ok, _entry} =
+        ImageQueue.create(%{
+          owner_id: entity_id,
+          owner_type: "entity",
+          role: "poster",
+          source_url: "https://image.tmdb.org/poster.jpg",
+          entity_id: entity_id,
+          watch_dir: @watch_directory
+        })
 
-      work_items = ImagePipeline.Producer.build_work_items(entity.id, @watch_directory)
+      work_items = ImagePipeline.Producer.build_work_items(entity_id)
 
       assert length(work_items) == 1
       item = hd(work_items)
-      assert item.image.role == "poster"
-      assert item.owner_id == entity.id
-      assert item.entity_id == entity.id
+      assert item.queue_entry.role == "poster"
+      assert item.owner_id == entity_id
+      assert item.entity_id == entity_id
       assert item.watch_dir == @watch_directory
     end
 
-    test "skips images that already have content_url" do
-      entity = create_entity(%{type: :movie, name: "Test Movie"})
+    test "skips completed queue entries" do
+      entity_id = Ecto.UUID.generate()
 
-      create_image(%{
-        entity_id: entity.id,
-        role: "poster",
-        url: "https://image.tmdb.org/poster.jpg",
-        extension: "jpg",
-        content_url: "#{entity.id}/poster.jpg"
-      })
+      {:ok, entry} =
+        ImageQueue.create(%{
+          owner_id: entity_id,
+          owner_type: "entity",
+          role: "poster",
+          source_url: "https://image.tmdb.org/poster.jpg",
+          entity_id: entity_id,
+          watch_dir: @watch_directory
+        })
 
-      work_items = ImagePipeline.Producer.build_work_items(entity.id, @watch_directory)
+      ImageQueue.update_status(entry, :complete)
+
+      work_items = ImagePipeline.Producer.build_work_items(entity_id)
 
       assert work_items == []
     end
 
-    test "includes child movie and episode images" do
-      entity = create_entity(%{type: :tv_series, name: "Test Show"})
-      season = create_season(%{entity_id: entity.id, season_number: 1, name: "Season 1"})
+    test "includes entries for different owner types" do
+      entity_id = Ecto.UUID.generate()
+      episode_id = Ecto.UUID.generate()
 
-      episode =
-        create_episode(%{
-          season_id: season.id,
-          episode_number: 1,
-          name: "Pilot",
-          content_url: "/media/test.mkv"
+      {:ok, _} =
+        ImageQueue.create(%{
+          owner_id: entity_id,
+          owner_type: "entity",
+          role: "poster",
+          source_url: "https://image.tmdb.org/poster.jpg",
+          entity_id: entity_id,
+          watch_dir: @watch_directory
         })
 
-      create_image(%{
-        entity_id: entity.id,
-        role: "poster",
-        url: "https://image.tmdb.org/poster.jpg",
-        extension: "jpg"
-      })
+      {:ok, _} =
+        ImageQueue.create(%{
+          owner_id: episode_id,
+          owner_type: "episode",
+          role: "thumb",
+          source_url: "https://image.tmdb.org/thumb.jpg",
+          entity_id: entity_id,
+          watch_dir: @watch_directory
+        })
 
-      create_image(%{
-        episode_id: episode.id,
-        role: "thumb",
-        url: "https://image.tmdb.org/thumb.jpg",
-        extension: "jpg"
-      })
-
-      work_items = ImagePipeline.Producer.build_work_items(entity.id, @watch_directory)
+      work_items = ImagePipeline.Producer.build_work_items(entity_id)
 
       assert length(work_items) == 2
-      roles = Enum.map(work_items, & &1.image.role) |> Enum.sort()
+      roles = Enum.map(work_items, & &1.queue_entry.role) |> Enum.sort()
       assert roles == ["poster", "thumb"]
     end
   end

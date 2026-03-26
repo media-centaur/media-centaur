@@ -23,7 +23,7 @@ defmodule MediaCentaur.Pipeline.Import do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Parser
-  alias MediaCentaur.Pipeline.{Payload, Stage}
+  alias MediaCentaur.Pipeline.{ImageQueue, Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{FetchMetadata, Ingest}
   alias MediaCentaur.Review
   alias MediaCentaur.Storage
@@ -72,6 +72,31 @@ defmodule MediaCentaur.Pipeline.Import do
         message.data.entity_id != nil and message.data.watch_directory != nil
       end)
 
+    # Create image queue entries from pending_images
+    entities_with_images =
+      Enum.flat_map(completed, fn message ->
+        payload = message.data
+
+        (payload.pending_images || [])
+        |> Enum.each(fn image ->
+          ImageQueue.create(%{
+            owner_id: image.owner_id,
+            owner_type: image.owner_type,
+            role: image.role,
+            source_url: image.source_url,
+            entity_id: payload.entity_id,
+            watch_dir: payload.watch_directory
+          })
+        end)
+
+        if (payload.pending_images || []) != [] do
+          [{payload.entity_id, payload.watch_directory}]
+        else
+          []
+        end
+      end)
+      |> Enum.uniq_by(fn {entity_id, _} -> entity_id end)
+
     entity_ids =
       completed
       |> MapSet.new(fn message -> message.data.entity_id end)
@@ -82,15 +107,12 @@ defmodule MediaCentaur.Pipeline.Import do
       Helpers.broadcast_entities_changed(entity_ids)
     end
 
-    # Trigger image pipeline for entities that need images
-    completed
-    |> Enum.uniq_by(fn message -> message.data.entity_id end)
-    |> Enum.each(fn message ->
+    # Trigger image pipeline for entities that have queued images
+    Enum.each(entities_with_images, fn {entity_id, watch_dir} ->
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         MediaCentaur.Topics.pipeline_images(),
-        {:images_pending,
-         %{entity_id: message.data.entity_id, watch_dir: message.data.watch_directory}}
+        {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}
       )
     end)
 

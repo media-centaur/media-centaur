@@ -229,23 +229,19 @@ defmodule MediaCentaur.Library do
 
   def list_images_for_movie!(movie_id), do: bang!(list_images_for_movie(movie_id))
 
-  def list_pending_downloads do
-    query =
-      from(i in Image,
-        where: not is_nil(i.url) and is_nil(i.content_url),
-        preload: [:entity]
-      )
-
-    {:ok, Repo.all(query)}
-  end
-
-  def list_pending_downloads!, do: bang!(list_pending_downloads())
-
   def create_image(attrs) do
     Image.create_changeset(attrs) |> Repo.insert()
   end
 
   def create_image!(attrs), do: bang!(create_image(attrs))
+
+  def upsert_image(attrs, conflict_target) do
+    Image.create_changeset(attrs)
+    |> Repo.insert(
+      on_conflict: {:replace, [:content_url, :extension, :updated_at]},
+      conflict_target: conflict_target
+    )
+  end
 
   def update_image(image, attrs) do
     Image.update_changeset(image, attrs) |> Repo.update()

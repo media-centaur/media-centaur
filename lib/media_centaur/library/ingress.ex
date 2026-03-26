@@ -4,21 +4,25 @@ defmodule MediaCentaur.Library.Ingress do
   and staged images to create or update all library records — without
   any TMDB calls.
 
-  Returns `{:ok, entity, status}` where status is:
+  Returns `{:ok, entity, status, pending_images}` where status is:
   - `:new` — entity was just created
   - `:new_child` — entity existed (movie series), new child movie added
   - `:existing` — entity already existed, linked file/extra/episode
+
+  `pending_images` is a list of image maps to be queued for download
+  by the image pipeline. Image records are NOT created here — they are
+  created by `Library.Inbound` after successful download.
   """
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.{Format, Repo}
+  alias MediaCentaur.Format
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{ChangeLog, Entity, Image}
+  alias MediaCentaur.Library.{ChangeLog, Entity}
   alias MediaCentaur.Pipeline.ImageProcessor
   alias MediaCentaur.Pipeline.Payload
 
   @spec ingest(Payload.t()) ::
-          {:ok, Entity.t(), :new | :new_child | :existing} | {:error, term()}
+          {:ok, Entity.t(), :new | :new_child | :existing, list()} | {:error, term()}
   def ingest(%Payload{metadata: metadata}) do
     case find_existing_entity(metadata.identifier) do
       {:ok, entity} ->
@@ -57,12 +61,23 @@ defmodule MediaCentaur.Library.Ingress do
     entity_attrs = strip_content_url_if_extra(metadata.entity_attrs, metadata)
 
     with {:ok, entity} <- Library.create_entity(entity_attrs),
-         :ok <- create_identifier_with_race_retry(entity, metadata.identifier),
-         :ok <- create_images(entity.id, :entity_id, metadata.images, :find_or_create),
-         :ok <- create_children(entity, metadata) do
-      ChangeLog.record_addition(entity)
-      Log.info(:library, "created #{metadata.entity_type} entity — #{Format.short_id(entity.id)}")
-      {:ok, entity, :new}
+         :ok <- create_identifier_with_race_retry(entity, metadata.identifier) do
+      entity_images = collect_images(entity.id, "entity", metadata.images)
+
+      case create_children(entity, metadata) do
+        {:ok, child_images} ->
+          ChangeLog.record_addition(entity)
+
+          Log.info(
+            :library,
+            "created #{metadata.entity_type} entity — #{Format.short_id(entity.id)}"
+          )
+
+          {:ok, entity, :new, entity_images ++ child_images}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     else
       {:race_lost, winner_entity_id} ->
         Log.info(:library, "race lost — using winner #{Format.short_id(winner_entity_id)}")
@@ -76,28 +91,29 @@ defmodule MediaCentaur.Library.Ingress do
 
   # Creates type-specific child records (season/episode, child movie, extra).
   # Order matters: season before extra (extra may link to the season).
+  # Returns {:ok, pending_images} | {:error, reason}
   defp create_children(entity, metadata) do
-    with :ok <- maybe_create_season(entity, metadata),
-         :ok <- maybe_create_child_movie(entity, metadata),
+    with {:ok, season_images} <- maybe_create_season(entity, metadata),
+         {:ok, movie_images} <- maybe_create_child_movie(entity, metadata),
          :ok <- maybe_create_extra(entity, metadata) do
-      :ok
+      {:ok, season_images ++ movie_images}
     end
   end
 
-  defp maybe_create_season(_entity, %{season: nil}), do: :ok
+  defp maybe_create_season(_entity, %{season: nil}), do: {:ok, []}
 
   defp maybe_create_season(entity, %{season: season}) do
     create_season_and_episode(entity, season)
   end
 
-  defp maybe_create_child_movie(_entity, %{child_movie: nil}), do: :ok
+  defp maybe_create_child_movie(_entity, %{child_movie: nil}), do: {:ok, []}
 
   defp maybe_create_child_movie(entity, %{child_movie: child_movie} = metadata) do
     child_movie = strip_child_content_url_if_extra(child_movie, metadata)
 
-    with {:ok, _movie} <- create_child_movie(entity, child_movie),
+    with {:ok, _movie, images} <- create_child_movie(entity, child_movie),
          :ok <- create_child_movie_identifier(entity, child_movie) do
-      :ok
+      {:ok, images}
     end
   end
 
@@ -110,36 +126,42 @@ defmodule MediaCentaur.Library.Ingress do
 
   # Extra on existing entity — always handled first (regardless of entity type)
   defp link_to_existing(entity, %{extra: %{} = extra} = metadata) do
-    # For TV extras, ensure the season exists first
-    if metadata.season do
-      create_season_and_episode(entity, metadata.season)
-    end
+    season_images =
+      if metadata.season do
+        case create_season_and_episode(entity, metadata.season) do
+          {:ok, images} -> images
+          {:error, _} -> []
+        end
+      else
+        []
+      end
 
     with :ok <- create_extra(entity, extra) do
-      {:ok, entity, :existing}
+      {:ok, entity, :existing, season_images}
     end
   end
 
   # TV series — ensure season + episode
   defp link_to_existing(entity, %{entity_type: :tv_series} = metadata) do
     if metadata.season do
-      with :ok <- create_season_and_episode(entity, metadata.season) do
-        {:ok, entity, :existing}
+      case create_season_and_episode(entity, metadata.season) do
+        {:ok, images} -> {:ok, entity, :existing, images}
+        {:error, reason} -> {:error, reason}
       end
     else
-      {:ok, entity, :existing}
+      {:ok, entity, :existing, []}
     end
   end
 
   # Movie series — ensure child movie -> :new_child
   defp link_to_existing(%{type: :movie_series} = entity, metadata) do
     if metadata.child_movie do
-      with {:ok, _movie} <- create_child_movie(entity, metadata.child_movie),
+      with {:ok, _movie, images} <- create_child_movie(entity, metadata.child_movie),
            :ok <- create_child_movie_identifier(entity, metadata.child_movie) do
-        {:ok, entity, :new_child}
+        {:ok, entity, :new_child, images}
       end
     else
-      {:ok, entity, :existing}
+      {:ok, entity, :existing, []}
     end
   end
 
@@ -149,11 +171,11 @@ defmodule MediaCentaur.Library.Ingress do
 
     if is_nil(entity.content_url) && content_url do
       case Library.set_entity_content_url(entity, %{content_url: content_url}) do
-        {:ok, updated} -> {:ok, updated, :existing}
+        {:ok, updated} -> {:ok, updated, :existing, []}
         {:error, reason} -> {:error, reason}
       end
     else
-      {:ok, entity, :existing}
+      {:ok, entity, :existing, []}
     end
   end
 
@@ -178,7 +200,7 @@ defmodule MediaCentaur.Library.Ingress do
       if season_data[:episode] do
         create_episode(season, season_data.episode)
       else
-        :ok
+        {:ok, []}
       end
     end
   end
@@ -189,13 +211,8 @@ defmodule MediaCentaur.Library.Ingress do
     case Library.find_or_create_episode(episode_attrs) do
       {:ok, episode} ->
         ensure_content_url(episode, episode_attrs, &Library.set_episode_content_url/2)
-
-        create_images(
-          episode.id,
-          :episode_id,
-          episode_data[:images] || [],
-          :find_or_create_for_episode
-        )
+        images = collect_images(episode.id, "episode", episode_data[:images] || [])
+        {:ok, images}
 
       {:error, reason} ->
         {:error, reason}
@@ -212,15 +229,8 @@ defmodule MediaCentaur.Library.Ingress do
     case Library.find_or_create_movie(movie_attrs) do
       {:ok, movie} ->
         ensure_content_url(movie, movie_attrs, &Library.set_movie_content_url/2)
-
-        create_images(
-          movie.id,
-          :movie_id,
-          child_movie_data[:images] || [],
-          :find_or_create_for_movie
-        )
-
-        {:ok, movie}
+        images = collect_images(movie.id, "movie", child_movie_data[:images] || [])
+        {:ok, movie, images}
 
       {:error, reason} ->
         {:error, reason}
@@ -277,53 +287,21 @@ defmodule MediaCentaur.Library.Ingress do
   end
 
   # ---------------------------------------------------------------------------
-  # Images — create records via individual inserts with find-or-create
+  # Images — collect pending image metadata (no DB inserts)
   # ---------------------------------------------------------------------------
 
-  defp create_images(_owner_id, _owner_key, [], _action), do: :ok
+  defp collect_images(_owner_id, _owner_type, []), do: []
 
-  defp create_images(owner_id, owner_key, images, action) do
-    image_attrs =
-      Enum.map(images, fn image ->
-        %{
-          role: image.role,
-          url: image.url,
-          extension: ImageProcessor.output_extension(image.role)
-        }
-        |> Map.put(owner_key, owner_id)
-      end)
-
-    create_images_individually(image_attrs, action)
-  end
-
-  defp create_images_individually([], _action), do: :ok
-
-  defp create_images_individually(image_attrs_list, action) do
-    conflict_target =
-      case action do
-        :find_or_create -> [:entity_id, :role]
-        :find_or_create_for_movie -> [:movie_id, :role]
-        :find_or_create_for_episode -> [:episode_id, :role]
-      end
-
-    errors =
-      Enum.reduce(image_attrs_list, [], fn attrs, errors ->
-        changeset = Image.create_changeset(attrs)
-
-        case Repo.insert(changeset,
-               on_conflict: :nothing,
-               conflict_target: conflict_target
-             ) do
-          {:ok, _} -> errors
-          {:error, reason} -> [reason | errors]
-        end
-      end)
-
-    if errors == [] do
-      :ok
-    else
-      {:error, errors}
-    end
+  defp collect_images(owner_id, owner_type, images) do
+    Enum.map(images, fn image ->
+      %{
+        owner_id: owner_id,
+        owner_type: owner_type,
+        role: image.role,
+        source_url: image.url,
+        extension: ImageProcessor.output_extension(image.role)
+      }
+    end)
   end
 
   # ---------------------------------------------------------------------------

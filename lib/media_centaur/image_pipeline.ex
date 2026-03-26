@@ -3,9 +3,10 @@ defmodule MediaCentaur.ImagePipeline do
   Broadway pipeline that downloads and resizes images asynchronously.
 
   Listens for `{:images_pending, %{entity_id, watch_dir}}` events on the
-  `"pipeline:images"` PubSub topic, queries pending Image records (url set,
-  content_url nil), downloads from TMDB CDN, resizes to spec, writes to disk,
-  and updates Image records with the local content_url.
+  `"pipeline:images"` PubSub topic, queries pending queue entries,
+  downloads from TMDB CDN, resizes to spec, writes to disk, marks queue
+  entries complete, and broadcasts `{:image_ready, ...}` on the
+  `"pipeline:publish"` topic for `Library.Inbound` to create Image records.
 
   Broadway config: 1 producer (PubSub subscriber), 4 processors (moderate
   concurrency to avoid hammering TMDB CDN), 1 batcher (collects entity IDs
@@ -14,9 +15,9 @@ defmodule MediaCentaur.ImagePipeline do
   use Broadway
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library
-  alias MediaCentaur.Library.{EntityCascade, Helpers}
-  alias MediaCentaur.Pipeline.ImageProcessor
+  alias MediaCentaur.Library.Helpers
+  alias MediaCentaur.Pipeline.{ImageQueue, ImageProcessor}
+  alias MediaCentaur.Topics
 
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
@@ -32,15 +33,15 @@ defmodule MediaCentaur.ImagePipeline do
 
   @impl true
   def handle_message(:default, message, _context) do
-    %{image: image, owner_id: owner_id, entity_id: entity_id, watch_dir: watch_dir} =
+    %{queue_entry: entry, owner_id: owner_id, entity_id: entity_id, watch_dir: watch_dir} =
       message.data
 
-    extension = ImageProcessor.output_extension(image.role)
-    relative_path = "#{owner_id}/#{image.role}.#{extension}"
+    extension = ImageProcessor.output_extension(entry.role)
+    relative_path = "#{owner_id}/#{entry.role}.#{extension}"
     images_dir = MediaCentaur.Config.images_dir_for(watch_dir)
     dest_path = Path.join(images_dir, relative_path)
 
-    telemetry_metadata = %{role: image.role, entity_id: entity_id}
+    telemetry_metadata = %{role: entry.role, entity_id: entity_id}
     start_time = System.monotonic_time()
 
     :telemetry.execute(
@@ -49,7 +50,7 @@ defmodule MediaCentaur.ImagePipeline do
       telemetry_metadata
     )
 
-    case ImageProcessor.download_and_resize(image.url, image.role, dest_path) do
+    case ImageProcessor.download_and_resize(entry.source_url, entry.role, dest_path) do
       :ok ->
         duration = System.monotonic_time() - start_time
         Log.info(:pipeline, "downloaded image — #{relative_path}")
@@ -70,7 +71,7 @@ defmodule MediaCentaur.ImagePipeline do
 
         Log.warning(
           :pipeline,
-          "image download failed (#{category}) #{image.role} for #{owner_id}: #{inspect(reason)}"
+          "image download failed (#{category}) #{entry.role} for #{owner_id}: #{inspect(reason)}"
         )
 
         :telemetry.execute(
@@ -86,9 +87,29 @@ defmodule MediaCentaur.ImagePipeline do
   @impl true
   def handle_batch(:default, messages, _batch_info, _context) do
     Enum.each(messages, fn message ->
-      %{image: image, relative_path: relative_path, extension: extension} = message.data
+      %{
+        queue_entry: entry,
+        relative_path: relative_path,
+        extension: extension,
+        owner_id: owner_id,
+        entity_id: entity_id
+      } = message.data
 
-      Library.update_image!(image, %{content_url: relative_path, extension: extension})
+      ImageQueue.update_status(entry, :complete)
+
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        Topics.pipeline_publish(),
+        {:image_ready,
+         %{
+           owner_id: owner_id,
+           owner_type: entry.owner_type,
+           role: entry.role,
+           content_url: relative_path,
+           extension: extension,
+           entity_id: entity_id
+         }}
+      )
     end)
 
     entity_ids =
@@ -117,24 +138,20 @@ defmodule MediaCentaur.ImagePipeline do
       |> Enum.split_with(fn %{status: {:failed, {category, _}}} -> category == :permanent end)
 
     Enum.each(permanent ++ transient, fn
-      %{status: {:failed, {category, reason}}, data: %{owner_id: owner_id, image: image}} ->
+      %{status: {:failed, {category, reason}}, data: %{owner_id: owner_id, queue_entry: entry}} ->
         Log.warning(
           :pipeline,
-          "image failed (#{category}): #{image.role} for #{owner_id} — #{inspect(reason)}"
+          "image failed (#{category}): #{entry.role} for #{owner_id} — #{inspect(reason)}"
         )
     end)
 
-    permanent_images = Enum.map(permanent, fn %{data: %{image: image}} -> image end)
+    Enum.each(permanent, fn %{data: %{queue_entry: entry}} ->
+      ImageQueue.update_status(entry, :permanent)
+    end)
 
-    if permanent_images != [] do
-      EntityCascade.bulk_destroy(permanent_images, Library.Image)
-    end
-
-    if GenServer.whereis(MediaCentaur.ImagePipeline.RetryScheduler) do
-      Enum.each(transient, fn %{data: %{image: image}} ->
-        MediaCentaur.ImagePipeline.RetryScheduler.record_failure(image.id)
-      end)
-    end
+    Enum.each(transient, fn %{data: %{queue_entry: entry}} ->
+      ImageQueue.mark_failed(entry)
+    end)
 
     messages
   end

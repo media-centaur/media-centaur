@@ -41,6 +41,7 @@ defmodule MediaCentaur.Application do
       },
       MediaCentaur.Watcher.FilePresence,
       MediaCentaur.Library.FileEventHandler,
+      MediaCentaur.Library.Inbound,
       MediaCentaur.Playback.Supervisor,
       MediaCentaurWeb.Endpoint
     ]

@@ -14,7 +14,6 @@ defmodule MediaCentaur.Library.Image do
 
   schema "library_images" do
     field :role, :string
-    field :url, :string
     field :content_url, :string
     field :extension, :string
 
@@ -27,7 +26,7 @@ defmodule MediaCentaur.Library.Image do
 
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:role, :url, :content_url, :extension, :entity_id, :movie_id, :episode_id])
+    |> cast(attrs, [:role, :content_url, :extension, :entity_id, :movie_id, :episode_id])
     |> validate_required([:role])
   end
 
