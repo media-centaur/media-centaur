@@ -188,46 +188,12 @@ defmodule MediaCentaur.Library do
 
   def link_file!(attrs), do: bang!(link_file(attrs))
 
-  def mark_file_absent(file) do
-    WatchedFile.mark_absent_changeset(file) |> Repo.update()
-  end
-
-  def mark_file_absent!(file), do: bang!(mark_file_absent(file))
-
-  def mark_file_present(file) do
-    WatchedFile.mark_present_changeset(file) |> Repo.update()
-  end
-
-  def mark_file_present!(file), do: bang!(mark_file_present(file))
-
-  def set_file_absent_since(file, attrs) do
-    WatchedFile.set_absent_since_changeset(file, attrs) |> Repo.update()
-  end
-
-  def set_file_absent_since!(file, attrs), do: bang!(set_file_absent_since(file, attrs))
-
-  def list_expired_absent_files(cutoff) do
-    query =
-      from(w in WatchedFile,
-        where: w.state == :absent and w.absent_since < ^cutoff
-      )
-
+  def list_files_by_watch_dir(watch_dir) do
+    query = from(w in WatchedFile, where: w.watch_dir == ^watch_dir)
     {:ok, Repo.all(query)}
   end
 
-  def list_expired_absent_files!(cutoff), do: bang!(list_expired_absent_files(cutoff))
-
-  def list_files_by_watch_dir(watch_dir, state) do
-    query =
-      from(w in WatchedFile,
-        where: w.watch_dir == ^watch_dir and w.state == ^state
-      )
-
-    {:ok, Repo.all(query)}
-  end
-
-  def list_files_by_watch_dir!(watch_dir, state),
-    do: bang!(list_files_by_watch_dir(watch_dir, state))
+  def list_files_by_watch_dir!(watch_dir), do: bang!(list_files_by_watch_dir(watch_dir))
 
   def list_files_by_paths(file_paths) do
     {:ok, from(w in WatchedFile, where: w.file_path in ^file_paths) |> Repo.all()}

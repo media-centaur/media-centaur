@@ -32,7 +32,8 @@ defmodule MediaCentaur.Watcher do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{FileTracker, Helpers}
+  alias MediaCentaur.Library.Helpers
+  alias MediaCentaur.Watcher.FilePresence
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
   @health_check_interval 30_000
@@ -215,6 +216,8 @@ defmodule MediaCentaur.Watcher do
       paths = Map.keys(state.deletion_buffer)
       Log.info(:watcher, "flushed #{length(paths)} deletion events")
 
+      FilePresence.mark_files_absent(paths)
+
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         MediaCentaur.Topics.library_file_events(),
@@ -230,6 +233,8 @@ defmodule MediaCentaur.Watcher do
     if map_size(state.deletion_buffer) > 0 do
       paths = Map.keys(state.deletion_buffer)
       Log.info(:watcher, "flushed #{length(paths)} buffered deletions — shutdown")
+
+      FilePresence.mark_files_absent(paths)
 
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
@@ -255,7 +260,7 @@ defmodule MediaCentaur.Watcher do
     recovery = Keyword.get(opts, :recovery, false)
     Log.info(:watcher, "scanning #{dir}#{if recovery, do: " (recovery)", else: ""}")
 
-    {:ok, known_paths} = fetch_known_file_paths()
+    known_paths = FilePresence.known_file_paths(dir)
     scan_directory_with_paths(dir, known_paths, recovery: recovery)
   end
 
@@ -278,14 +283,22 @@ defmodule MediaCentaur.Watcher do
       end)
 
     # Restore any absent files that are now present on disk
-    restored_entity_ids = FileTracker.restore_present_files(dir, video_files)
+    restored_paths = FilePresence.restore_present_files(dir, video_files)
+
+    restored_entity_ids =
+      if restored_paths != [] do
+        Library.list_files_by_paths!(restored_paths) |> Helpers.unique_entity_ids()
+      else
+        []
+      end
+
     Helpers.broadcast_entities_changed(restored_entity_ids)
 
     # On recovery from :unavailable, re-push ALL entities for this watch dir
     # so the channel re-serializes with now-available image paths
     if Keyword.get(opts, :recovery, false) do
-      complete_files = Library.list_files_by_watch_dir!(dir, :complete)
-      all_entity_ids = Helpers.unique_entity_ids(complete_files)
+      all_files = Library.list_files_by_watch_dir!(dir)
+      all_entity_ids = Helpers.unique_entity_ids(all_files)
       additional_ids = all_entity_ids -- restored_entity_ids
 
       if additional_ids != [] do
@@ -322,6 +335,7 @@ defmodule MediaCentaur.Watcher do
 
   defp detect_file(path, watch_dir) do
     Log.info(:watcher, "detected #{Path.basename(path)}")
+    FilePresence.record_file(path, watch_dir)
 
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
@@ -330,11 +344,6 @@ defmodule MediaCentaur.Watcher do
     )
 
     :ok
-  end
-
-  defp fetch_known_file_paths do
-    {:ok, files} = Library.list_watched_files()
-    {:ok, MapSet.new(files, & &1.file_path)}
   end
 
   defp video_file?(path) do

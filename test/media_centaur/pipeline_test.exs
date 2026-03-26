@@ -76,7 +76,6 @@ defmodule MediaCentaur.PipelineTest do
       files = Library.list_watched_files!()
       assert length(files) == 1
       file = hd(files)
-      assert file.state == :complete
       assert file.entity_id == result.entity_id
       assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
     end

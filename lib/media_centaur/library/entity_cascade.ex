@@ -5,7 +5,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   in the correct order to avoid foreign key violations.
 
   Does NOT delete WatchedFiles — the caller handles those per use case
-  (FileTracker deletes them; Rematch converts them to PendingFiles first).
+  (FileEventHandler deletes them; Rematch converts them to PendingFiles first).
   """
   require MediaCentaur.Log, as: Log
   import Ecto.Query

@@ -2,6 +2,7 @@ defmodule MediaCentaur.LibraryBrowserTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.LibraryBrowser
+  alias MediaCentaur.Watcher.FilePresence
 
   describe "fetch_entities/0" do
     test "includes a standalone movie with a linked file" do
@@ -65,7 +66,10 @@ defmodule MediaCentaur.LibraryBrowserTest do
     test "excludes entities where all watched files are absent" do
       entity = create_entity(%{type: :movie, name: "Gone Movie"})
       file = create_linked_file(%{entity: entity})
-      MediaCentaur.Library.mark_file_absent!(file)
+
+      # Record in watcher_files and mark absent
+      FilePresence.record_file(file.file_path, file.watch_dir)
+      FilePresence.mark_files_absent([file.file_path])
 
       assert [] = LibraryBrowser.fetch_entities()
     end
@@ -98,7 +102,10 @@ defmodule MediaCentaur.LibraryBrowserTest do
     test "excludes absent entities and includes them in gone_ids" do
       entity = create_entity(%{type: :movie, name: "Absent Movie"})
       file = create_linked_file(%{entity: entity})
-      MediaCentaur.Library.mark_file_absent!(file)
+
+      # Record in watcher_files and mark absent
+      FilePresence.record_file(file.file_path, file.watch_dir)
+      FilePresence.mark_files_absent([file.file_path])
 
       {entries, gone_ids} = LibraryBrowser.fetch_entries_by_ids([entity.id])
 

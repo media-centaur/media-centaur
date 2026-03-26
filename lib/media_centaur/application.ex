@@ -39,7 +39,8 @@ defmodule MediaCentaur.Application do
         start: {Task, :start_link, [fn -> init_services() end]},
         restart: :temporary
       },
-      MediaCentaur.Library.FileTracker,
+      MediaCentaur.Watcher.FilePresence,
+      MediaCentaur.Library.FileEventHandler,
       MediaCentaur.Playback.Supervisor,
       MediaCentaurWeb.Endpoint
     ]
