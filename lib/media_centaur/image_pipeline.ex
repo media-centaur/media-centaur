@@ -15,7 +15,7 @@ defmodule MediaCentaur.ImagePipeline do
   use Broadway
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library.Helpers
+  alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.{ImageQueue, ImageProcessor}
   alias MediaCentaur.Topics
 
@@ -124,7 +124,7 @@ defmodule MediaCentaur.ImagePipeline do
         "image batch complete, broadcasting #{length(entity_ids)} entity changes"
       )
 
-      Helpers.broadcast_entities_changed(entity_ids)
+      Library.broadcast_entities_changed(entity_ids)
     end
 
     messages

@@ -629,6 +629,15 @@ defmodule MediaCentaur.Library do
   def list_recent_changes!(limit, since), do: bang!(list_recent_changes(limit, since))
 
   # ---------------------------------------------------------------------------
+  # PubSub
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Broadcasts `{:entities_changed, entity_ids}` to the `"library:updates"` PubSub topic.
+  """
+  defdelegate broadcast_entities_changed(entity_ids), to: MediaCentaur.Library.Helpers
+
+  # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
 
