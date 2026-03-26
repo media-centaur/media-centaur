@@ -11,7 +11,6 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | Ecto, schemas, changesets, contexts, migrations | `ecto-thinking` |
 | GenServer, Supervisor, Task, ETS, concurrency | `otp-thinking` |
 | Oban, background jobs, workflows, scheduling | `oban-thinking` |
-| Ash resources, domains, actions, changes | `ash-framework` |
 | Broadway pipeline, producers, processors, batchers | `broadway` |
 | Phoenix web layer, controllers, views, routing | `phoenix-framework` |
 | Keyboard/gamepad nav, focus context, nav graphs, page behaviors | `input-system` |
@@ -83,10 +82,6 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 **Zero warnings policy.** Application code and tests must compile and run with zero warnings. This includes unused variables, unused aliases, unused imports, and any log output during tests that indicates misconfiguration (e.g., HTTP requests hitting real endpoints instead of stubs). Treat every warning as a bug — fix it before moving on.
 
-## Ash-Driven Migrations
-
-See [ADR-024](decisions/architecture/2026-03-07-024-ash-driven-migrations.md). Generate migrations from Ash resources (`mix ash_sqlite.generate_migrations --name <short_name>`) — never hand-write or edit them. Custom SQL goes in separate manual migration files.
-
 ## Observability for Debugging
 
 Every system — Elixir, JavaScript, or otherwise — must be designed so that Claude Code can get diagnostic feedback when something goes wrong at runtime. Tests passing while the app is broken means the observability gap is the first problem to solve.
@@ -97,15 +92,11 @@ Every system — Elixir, JavaScript, or otherwise — must be designed so that C
 
 ## Architecture Principles
 
-- **Ash is the only data interface.** Never write raw SQL queries, use `Ecto.Query`, call `Repo` directly, or use `execute()` with SQL strings in application code or migrations. All database reads and writes go through Ash actions — no exceptions. If Ash doesn't have the necessary action or capability for an operation, plan and implement the missing Ash action first — never bypass Ash with manual queries. This includes data migrations: use Ash actions in a `Mix.Task` or seed script, not raw SQL.
-- **Use bulk APIs for bulk operations.** When operating on multiple records (destroy, update, create), always use `Ash.bulk_destroy/3`, `Ash.bulk_update/4`, or `Ash.bulk_create/4` — never loop `Ash.destroy!/1` or `Ash.update!/2` over individual records. If a resource lacks the necessary action for a bulk operation, add it first. Bulk APIs let the data layer execute a single query instead of N+1.
 - **This app owns all writes.** See [ADR-028](decisions/architecture/2026-03-07-028-backend-write-ownership.md). Only the backend writes to `images/` and mutates entities.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
 - **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals.
-- **Bulk operation safety.** See [ADR-025](decisions/architecture/2026-03-07-025-ash-bulk-operation-safety.md). Always pass `return_errors?: true`, check `error_count`, and use `strategy: :stream` for non-atomic actions.
-- **Ash changes are for intrinsic data operations only.** See [ADR-003](decisions/architecture/2026-02-20-003-ash-as-exclusive-data-interface.md). Changes handle validation and transformation — never external integrations or cross-context calls.
 - **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes.
 
 ## Pipeline
@@ -142,15 +133,15 @@ Load the `automated-testing` skill before writing any test — Elixir, JavaScrip
 ### Pure Function Tests vs Resource Tests
 
 - **Pure function modules** (Parser, Serializer, Mapper, Confidence, Resume, ProgressSummary) use `async: true` and build struct literals via factory — no database.
-- **Ash resource tests** (Entity, WatchedFile, WatchProgress) use `DataCase` and exercise Ash actions against the real database.
+- **Resource tests** (Entity, WatchedFile, WatchProgress) use `DataCase` and exercise against the real database.
 ### Shared Test Factory
 
 `test/support/factory.ex` provides `MediaCentaur.TestFactory`:
 
 - `build_*` functions return plain structs with sensible defaults (no DB). Use for pure function tests.
-- `create_*` functions persist via Ash actions and return loaded records. Use for resource tests.
+- `create_*` functions persist records and return loaded records. Use for resource tests.
 
-All tests that need test data use the factory. Never inline `Ash.Changeset.for_create` boilerplate in tests.
+All tests that need test data use the factory.
 
 ### What We Never Test
 
@@ -268,27 +259,9 @@ Write code for humans to read first, compilers second.
 - Name the variable what the value *is*, not what type it came from. If you created a
   `WatchedFile` that represents a video file the user dropped in, call it `file` or
   `video_file`, not `watched_file` or `wf`.
-- This rule applies everywhere: tests, GenServers, LiveViews, Ash changes.
+- This rule applies everywhere: tests, GenServers, LiveViews, changesets.
 
 <!-- usage-rules-start -->
-<!-- ash-start -->
-## ash usage
-_A declarative, extensible framework for building Elixir applications._
-
-[ash usage rules](deps/ash/usage-rules.md)
-<!-- ash-end -->
-<!-- ash_ai-start -->
-## ash_ai usage
-_Integrated LLM features for your Ash application._
-
-[ash_ai usage rules](deps/ash_ai/usage-rules.md)
-<!-- ash_ai-end -->
-<!-- ash_phoenix-start -->
-## ash_phoenix usage
-_Utilities for integrating Ash and Phoenix_
-
-[ash_phoenix usage rules](deps/ash_phoenix/usage-rules.md)
-<!-- ash_phoenix-end -->
 <!-- usage_rules-start -->
 ## usage_rules usage
 _A config-driven dev tool for Elixir projects to manage AGENTS.md files and agent skills from dependencies_
