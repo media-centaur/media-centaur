@@ -17,7 +17,6 @@ defmodule MediaCentaur.Library do
     Image,
     Movie,
     Season,
-    Setting,
     WatchProgress,
     WatchedFile
   }
@@ -700,43 +699,6 @@ defmodule MediaCentaur.Library do
   end
 
   def list_recent_changes!(limit, since), do: bang!(list_recent_changes(limit, since))
-
-  # ---------------------------------------------------------------------------
-  # Setting
-  # ---------------------------------------------------------------------------
-
-  def list_settings, do: {:ok, Repo.all(Setting)}
-  def list_settings!, do: Repo.all(Setting)
-
-  def get_setting_by_key(key) do
-    {:ok, Repo.get_by(Setting, key: key)}
-  end
-
-  def find_or_create_setting(attrs) do
-    key = attrs[:key] || attrs["key"]
-
-    case Repo.get_by(Setting, key: key) do
-      nil -> Setting.upsert_changeset(attrs) |> Repo.insert()
-      existing -> Setting.update_changeset(existing, attrs) |> Repo.update()
-    end
-  end
-
-  def find_or_create_setting!(attrs), do: bang!(find_or_create_setting(attrs))
-
-  def create_setting(attrs) do
-    Setting.create_changeset(attrs) |> Repo.insert()
-  end
-
-  def create_setting!(attrs), do: bang!(create_setting(attrs))
-
-  def update_setting(setting, attrs) do
-    Setting.update_changeset(setting, attrs) |> Repo.update()
-  end
-
-  def update_setting!(setting, attrs), do: bang!(update_setting(setting, attrs))
-
-  def destroy_setting(setting), do: Repo.delete(setting)
-  def destroy_setting!(setting), do: destroy_bang!(setting)
 
   # ---------------------------------------------------------------------------
   # Helpers
