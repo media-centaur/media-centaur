@@ -16,10 +16,10 @@ defmodule MediaCentaur.Pipeline.Discovery do
   use Broadway
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.DateUtil
   alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{Parse, Search}
-  alias MediaCentaur.Review.Intake
 
   @processor_concurrency 10
 
@@ -133,15 +133,63 @@ defmodule MediaCentaur.Pipeline.Discovery do
       file_path: payload.file_path
     })
 
-    case Intake.create_from_payload(payload) do
-      {:ok, _} ->
-        :ok
+    attrs = build_review_attrs(payload)
 
-      {:error, reason} ->
-        Log.warning(:pipeline, "failed to create pending file — #{inspect(reason)}")
-    end
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      MediaCentaur.Topics.review_intake(),
+      {:needs_review, attrs}
+    )
 
     {:needs_review, payload}
+  end
+
+  defp build_review_attrs(payload) do
+    {search_title, search_year} = search_params(payload.parsed)
+
+    %{
+      file_path: payload.file_path,
+      watch_directory: payload.watch_directory,
+      parsed_title: search_title,
+      parsed_year: search_year,
+      parsed_type: type_to_string(payload.parsed.type),
+      season_number: payload.parsed.season,
+      episode_number: payload.parsed.episode,
+      tmdb_id: payload.tmdb_id,
+      tmdb_type: type_to_string(payload.tmdb_type),
+      confidence: payload.confidence,
+      match_title: payload.match_title,
+      match_year: payload.match_year,
+      match_poster_path: payload.match_poster_path,
+      candidates: normalize_candidates(payload.candidates)
+    }
+  end
+
+  defp search_params(%{type: :extra, parent_title: title, parent_year: year}), do: {title, year}
+  defp search_params(%{title: title, year: year}), do: {title, year}
+
+  defp type_to_string(nil), do: nil
+  defp type_to_string(type) when is_atom(type), do: Atom.to_string(type)
+  defp type_to_string(type) when is_binary(type), do: type
+
+  defp normalize_candidates(nil), do: []
+  defp normalize_candidates([]), do: []
+
+  defp normalize_candidates(candidates) do
+    Enum.map(candidates, &normalize_candidate/1)
+  end
+
+  defp normalize_candidate({raw_result, score, title_key}) do
+    year_key = if title_key == "title", do: "release_date", else: "first_air_date"
+
+    %{
+      "tmdb_id" => raw_result["id"],
+      "title" => raw_result[title_key],
+      "year" => DateUtil.extract_year(raw_result[year_key]),
+      "score" => score,
+      "poster_path" => raw_result["poster_path"],
+      "overview" => raw_result["overview"]
+    }
   end
 
   defp already_linked?(file_path) do

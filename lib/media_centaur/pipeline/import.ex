@@ -12,7 +12,8 @@ defmodule MediaCentaur.Pipeline.Import do
   `"pipeline:publish"`. `Library.Inbound` subscribes and creates all
   library records, links files, and queues images.
 
-  On completion, destroys any associated PendingFile from Review.
+  On completion, broadcasts `{:review_completed, pending_file_id}` to
+  `"review:intake"` if the file came from a review approval.
 
   Broadway config: 1 producer (PubSub subscriber), 5 processors (partitioned
   by file path), 1 batcher (batch size 10, timeout 5s).
@@ -25,7 +26,6 @@ defmodule MediaCentaur.Pipeline.Import do
   alias MediaCentaur.Parser
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{FetchMetadata, Ingest}
-  alias MediaCentaur.Review
   alias MediaCentaur.Storage
 
   @processor_concurrency 5
@@ -113,19 +113,11 @@ defmodule MediaCentaur.Pipeline.Import do
 
   defp handle_complete(payload) do
     if payload.pending_file_id do
-      case Review.get_pending_file(payload.pending_file_id) do
-        {:ok, pending_file} ->
-          Review.destroy_pending_file!(pending_file)
-
-          Phoenix.PubSub.broadcast(
-            MediaCentaur.PubSub,
-            MediaCentaur.Topics.review_updates(),
-            {:file_reviewed, payload.pending_file_id}
-          )
-
-        {:error, _} ->
-          :ok
-      end
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        MediaCentaur.Topics.review_intake(),
+        {:review_completed, payload.pending_file_id}
+      )
     end
 
     {:ok, payload}

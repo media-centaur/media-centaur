@@ -1,25 +1,45 @@
 defmodule MediaCentaur.Review.Intake do
   @moduledoc """
-  Creates `PendingFile` records from pipeline data.
+  Subscribes to `"review:intake"` and manages PendingFile lifecycle.
 
-  This is the Review context's inbound API. When the pipeline's Search stage
-  returns `{:needs_review, payload}`, this module maps the payload fields into
-  a PendingFile record for human review.
+  Handles two event types:
+
+  - `{:needs_review, attrs}` — creates a PendingFile for human review
+  - `{:review_completed, id}` — destroys a PendingFile after import finishes
   """
+  use GenServer
+  require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.DateUtil
-  alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Review
-  alias MediaCentaur.Review.PendingFile
+  alias MediaCentaur.Topics
 
-  @spec create_from_payload(Payload.t()) :: {:ok, PendingFile.t()} | {:error, term()}
-  def create_from_payload(%Payload{} = payload) do
-    attrs = build_attrs(payload)
+  def start_link(_opts) do
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
 
+  @impl true
+  def init(_) do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_intake())
+    {:ok, %{}}
+  end
+
+  # ---------------------------------------------------------------------------
+  # Public API
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Creates a PendingFile from a plain map of pre-normalized attributes.
+
+  Uses find_or_create for idempotency — a second call with the same file_path
+  returns the existing record. Broadcasts `{:file_added, id}` to
+  `"review:updates"` on success.
+  """
+  @spec create_pending_file(map()) :: {:ok, struct()} | {:error, term()}
+  def create_pending_file(attrs) do
     with {:ok, pending_file} <- Review.find_or_create_pending_file(attrs) do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
-        MediaCentaur.Topics.review_updates(),
+        Topics.review_updates(),
         {:file_added, pending_file.id}
       )
 
@@ -27,51 +47,51 @@ defmodule MediaCentaur.Review.Intake do
     end
   end
 
-  defp build_attrs(payload) do
-    {search_title, search_year} = search_params(payload.parsed)
+  @doc """
+  Destroys a PendingFile by ID and broadcasts `{:file_reviewed, id}` to
+  `"review:updates"`. Returns `:ok` even if the record was already removed.
+  """
+  @spec complete_review(Ecto.UUID.t()) :: :ok
+  def complete_review(pending_file_id) do
+    case Review.get_pending_file(pending_file_id) do
+      {:ok, pending_file} ->
+        Review.destroy_pending_file!(pending_file)
 
-    %{
-      file_path: payload.file_path,
-      watch_directory: payload.watch_directory,
-      parsed_title: search_title,
-      parsed_year: search_year,
-      parsed_type: type_to_string(payload.parsed.type),
-      season_number: payload.parsed.season,
-      episode_number: payload.parsed.episode,
-      tmdb_id: payload.tmdb_id,
-      tmdb_type: type_to_string(payload.tmdb_type),
-      confidence: payload.confidence,
-      match_title: payload.match_title,
-      match_year: payload.match_year,
-      match_poster_path: payload.match_poster_path,
-      candidates: normalize_candidates(payload.candidates)
-    }
+        Phoenix.PubSub.broadcast(
+          MediaCentaur.PubSub,
+          Topics.review_updates(),
+          {:file_reviewed, pending_file_id}
+        )
+
+      {:error, :not_found} ->
+        :ok
+    end
+
+    :ok
   end
 
-  defp search_params(%{type: :extra, parent_title: title, parent_year: year}), do: {title, year}
-  defp search_params(%{title: title, year: year}), do: {title, year}
+  # ---------------------------------------------------------------------------
+  # Callbacks
+  # ---------------------------------------------------------------------------
 
-  defp type_to_string(nil), do: nil
-  defp type_to_string(type) when is_atom(type), do: Atom.to_string(type)
-  defp type_to_string(type) when is_binary(type), do: type
+  @impl true
+  def handle_info({:needs_review, attrs}, state) do
+    case create_pending_file(attrs) do
+      {:ok, _} ->
+        :ok
 
-  defp normalize_candidates(nil), do: []
-  defp normalize_candidates([]), do: []
+      {:error, reason} ->
+        Log.warning(:library, "failed to create pending file — #{inspect(reason)}")
+    end
 
-  defp normalize_candidates(candidates) do
-    Enum.map(candidates, &normalize_candidate/1)
+    {:noreply, state}
   end
 
-  defp normalize_candidate({raw_result, score, title_key}) do
-    year_key = if title_key == "title", do: "release_date", else: "first_air_date"
-
-    %{
-      "tmdb_id" => raw_result["id"],
-      "title" => raw_result[title_key],
-      "year" => DateUtil.extract_year(raw_result[year_key]),
-      "score" => score,
-      "poster_path" => raw_result["poster_path"],
-      "overview" => raw_result["overview"]
-    }
+  @impl true
+  def handle_info({:review_completed, pending_file_id}, state) do
+    complete_review(pending_file_id)
+    {:noreply, state}
   end
+
+  def handle_info(_msg, state), do: {:noreply, state}
 end
