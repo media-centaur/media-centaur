@@ -1,20 +1,23 @@
 defmodule MediaCentaur.Library.Inbound do
   @moduledoc """
-  Subscribes to `"pipeline:publish"` and creates library records from
-  pipeline events.
+  Subscribes to `"pipeline:publish"` and `"library:commands"` and handles
+  inbound events for the Library context.
 
-  Handles two event types:
+  Handles three event types:
 
   - `{:entity_published, event}` — creates/links Entity, children, Identifier,
     WatchedFile, queues images for download, and broadcasts `:entities_changed`
   - `{:image_ready, attrs}` — upserts a Library.Image after successful download
+  - `{:rematch_requested, entity_id}` — destroys an entity and its WatchedFiles,
+    then sends the file list to `"review:intake"` for re-review
   """
   use GenServer
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{ChangeLog, Entity, Helpers}
+  alias MediaCentaur.Library.{ChangeLog, Entity, EntityCascade, Helpers}
+  alias MediaCentaur.Library.WatchedFile
   alias MediaCentaur.Pipeline.ImageQueue
 
   def start_link(_opts) do
@@ -24,6 +27,7 @@ defmodule MediaCentaur.Library.Inbound do
   @impl true
   def init(_) do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_publish())
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_commands())
     {:ok, %{}}
   end
 
@@ -106,6 +110,51 @@ defmodule MediaCentaur.Library.Inbound do
     :ok
   end
 
+  @doc """
+  Handles a rematch request for an entity.
+
+  Loads the entity and its WatchedFiles, collects file info, destroys
+  the WatchedFiles and entity cascade, then broadcasts the file list
+  to `"review:intake"` for re-review.
+
+  Logs a warning and returns `:ok` if the entity doesn't exist or has
+  no watched files — the caller (GenServer callback) doesn't act on errors.
+  """
+  @spec handle_rematch(String.t()) :: :ok
+  def handle_rematch(entity_id) do
+    with {:ok, _entity} <- Library.get_entity_with_associations(entity_id),
+         files when files != [] <- Library.list_watched_files_for_entity!(entity_id) do
+      file_list = Enum.map(files, &%{file_path: &1.file_path, watch_dir: &1.watch_dir})
+
+      EntityCascade.bulk_destroy(files, WatchedFile)
+      EntityCascade.destroy!(entity_id)
+
+      Helpers.broadcast_entities_changed([entity_id])
+
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        MediaCentaur.Topics.review_intake(),
+        {:files_for_review, file_list}
+      )
+
+      Log.info(
+        :library,
+        "rematch — destroyed #{Format.short_id(entity_id)}, sent #{length(file_list)} files to review"
+      )
+    else
+      {:error, :not_found} ->
+        Log.warning(:library, "rematch — entity #{Format.short_id(entity_id)} not found")
+
+      [] ->
+        Log.warning(
+          :library,
+          "rematch — entity #{Format.short_id(entity_id)} has no watched files"
+        )
+    end
+
+    :ok
+  end
+
   # ---------------------------------------------------------------------------
   # Callbacks
   # ---------------------------------------------------------------------------
@@ -119,6 +168,12 @@ defmodule MediaCentaur.Library.Inbound do
   @impl true
   def handle_info({:image_ready, attrs}, state) do
     process_image_ready(attrs)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:rematch_requested, entity_id}, state) do
+    handle_rematch(entity_id)
     {:noreply, state}
   end
 

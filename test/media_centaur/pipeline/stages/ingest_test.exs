@@ -11,19 +11,8 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Pipeline.Stages.Ingest
 
-  # Library.Inbound subscribes to the same topic. Remove it from the
-  # supervisor for this module so its async DB writes don't conflict
-  # with the test sandbox (SQLite single-writer).
-  setup_all do
-    Supervisor.terminate_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
-    Supervisor.delete_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
-
-    on_exit(fn ->
-      Supervisor.start_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
-    end)
-
-    :ok
-  end
+  # Library.Inbound and Review.Intake don't start in test mode, so no
+  # async DB conflicts from PubSub-triggered GenServer processing.
 
   setup do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_publish())

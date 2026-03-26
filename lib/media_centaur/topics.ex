@@ -5,6 +5,7 @@ defmodule MediaCentaur.Topics do
   """
 
   def library_updates, do: "library:updates"
+  def library_commands, do: "library:commands"
   def library_file_events, do: "library:file_events"
   def pipeline_input, do: "pipeline:input"
   def pipeline_matched, do: "pipeline:matched"

@@ -19,14 +19,15 @@ defmodule MediaCentaur.PipelineTest do
 
   import MediaCentaur.TmdbStubs
 
-  # Library.Inbound subscribes to the same topic. Remove it from the
-  # supervisor so its async DB writes don't conflict with the sandbox.
+  # PubSub listener GenServers don't start in test mode (no sandbox access).
+  # Start Review.Intake here — this integration test needs it to process
+  # {:needs_review, ...} and {:review_completed, ...} events via PubSub.
   setup_all do
-    Supervisor.terminate_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
-    Supervisor.delete_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+    Supervisor.start_child(MediaCentaur.Supervisor, MediaCentaur.Review.Intake)
 
     on_exit(fn ->
-      Supervisor.start_child(MediaCentaur.Supervisor, MediaCentaur.Library.Inbound)
+      Supervisor.terminate_child(MediaCentaur.Supervisor, MediaCentaur.Review.Intake)
+      Supervisor.delete_child(MediaCentaur.Supervisor, MediaCentaur.Review.Intake)
     end)
 
     :ok

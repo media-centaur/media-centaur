@@ -569,6 +569,100 @@ defmodule MediaCentaur.Library.InboundTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Rematch
+  # ---------------------------------------------------------------------------
+
+  describe "handle_rematch/1" do
+    test "destroys entity and watched files, sends file list to review:intake" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.review_intake())
+
+      entity =
+        create_entity(%{
+          type: :movie,
+          name: "Wrong Movie",
+          content_url: "/media/movies/Sample Movie (2017).mkv"
+        })
+
+      create_linked_file(%{
+        entity: entity,
+        file_path: "/media/movies/Sample Movie (2017).mkv",
+        watch_dir: "/media/movies"
+      })
+
+      assert :ok = Inbound.handle_rematch(entity.id)
+
+      # Entity destroyed
+      assert {:error, _} = Library.get_entity(entity.id)
+
+      # WatchedFiles destroyed
+      assert Library.list_watched_files_for_entity!(entity.id) == []
+
+      # Broadcasts entities_changed
+      assert_received {:entities_changed, [_entity_id]}
+
+      # Sends file list to review:intake
+      assert_received {:files_for_review,
+                       [
+                         %{
+                           file_path: "/media/movies/Sample Movie (2017).mkv",
+                           watch_dir: "/media/movies"
+                         }
+                       ]}
+    end
+
+    test "sends multiple files for TV series with multiple watched files" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.review_intake())
+
+      entity = create_entity(%{type: :tv_series, name: "Wrong Show"})
+      season = create_season(%{entity_id: entity.id, season_number: 1, number_of_episodes: 2})
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv"
+      })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 2,
+        name: "Second",
+        content_url: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv"
+      })
+
+      create_identifier(%{entity_id: entity.id, property_id: "tmdb", value: "wrong"})
+
+      create_linked_file(%{
+        entity: entity,
+        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",
+        watch_dir: "/media/tv"
+      })
+
+      create_linked_file(%{
+        entity: entity,
+        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv",
+        watch_dir: "/media/tv"
+      })
+
+      assert :ok = Inbound.handle_rematch(entity.id)
+
+      # Entity fully destroyed
+      assert {:error, _} = Library.get_entity(entity.id)
+
+      # Both files sent to review
+      assert_received {:files_for_review, files}
+      assert length(files) == 2
+      paths = Enum.map(files, & &1.file_path) |> Enum.sort()
+
+      assert paths == [
+               "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",
+               "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv"
+             ]
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Error handling
   # ---------------------------------------------------------------------------
 

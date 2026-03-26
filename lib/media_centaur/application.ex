@@ -20,32 +20,34 @@ defmodule MediaCentaur.Application do
        end, []}
     )
 
-    children = [
-      MediaCentaurWeb.Telemetry,
-      MediaCentaur.Repo,
-      %{
-        id: :init_logging,
-        start: {__MODULE__, :init_logging, []},
-        restart: :temporary
-      },
-      {Phoenix.PubSub, name: MediaCentaur.PubSub},
-      {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
-      MediaCentaur.TMDB.RateLimiter,
-      MediaCentaur.Watcher.Supervisor,
-      MediaCentaur.Pipeline.Supervisor,
-      MediaCentaur.ImagePipeline.Supervisor,
-      %{
-        id: :init_services,
-        start: {Task, :start_link, [fn -> init_services() end]},
-        restart: :temporary
-      },
-      MediaCentaur.Watcher.FilePresence,
-      MediaCentaur.Library.FileEventHandler,
-      MediaCentaur.Library.Inbound,
-      MediaCentaur.Review.Intake,
-      MediaCentaur.Playback.Supervisor,
-      MediaCentaurWeb.Endpoint
-    ]
+    children =
+      [
+        MediaCentaurWeb.Telemetry,
+        MediaCentaur.Repo,
+        %{
+          id: :init_logging,
+          start: {__MODULE__, :init_logging, []},
+          restart: :temporary
+        },
+        {Phoenix.PubSub, name: MediaCentaur.PubSub},
+        {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
+        MediaCentaur.TMDB.RateLimiter,
+        MediaCentaur.Watcher.Supervisor,
+        MediaCentaur.Pipeline.Supervisor,
+        MediaCentaur.ImagePipeline.Supervisor,
+        %{
+          id: :init_services,
+          start: {Task, :start_link, [fn -> init_services() end]},
+          restart: :temporary
+        },
+        MediaCentaur.Watcher.FilePresence,
+        MediaCentaur.Library.FileEventHandler
+      ] ++
+        pubsub_listeners(Application.get_env(:media_centaur, :environment)) ++
+        [
+          MediaCentaur.Playback.Supervisor,
+          MediaCentaurWeb.Endpoint
+        ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -78,6 +80,18 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Pipeline.Supervisor.stop_pipeline()
       MediaCentaur.ImagePipeline.Supervisor.stop_pipeline()
     end
+  end
+
+  # PubSub listener GenServers — thin wrappers that route messages to public
+  # API functions. Not started in test mode because tests call the public
+  # functions directly and PubSub broadcasts would cause sandbox errors.
+  defp pubsub_listeners(:test), do: []
+
+  defp pubsub_listeners(_env) do
+    [
+      MediaCentaur.Library.Inbound,
+      MediaCentaur.Review.Intake
+    ]
   end
 
   defp should_start?(env, service) do
