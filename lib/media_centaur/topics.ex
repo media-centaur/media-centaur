@@ -12,6 +12,7 @@ defmodule MediaCentaur.Topics do
   def pipeline_publish, do: "pipeline:publish"
   def playback_events, do: "playback:events"
   def dir_state, do: "watcher:state"
+  def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"
   def logging_updates, do: "logging:updates"
   def settings_updates, do: "settings:updates"

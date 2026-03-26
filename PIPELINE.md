@@ -171,15 +171,17 @@ Movie extras (featurettes, behind-the-scenes, deleted scenes) are video files in
 
 ## Review Flow
 
-Files with low-confidence TMDB matches (or zero results) stop at `needs_review`. The Pipeline creates a `PendingFile` record via `Review.Intake` and does not process the file further.
+Files with low-confidence TMDB matches (or zero results) stop at `needs_review`. Discovery broadcasts `{:needs_review, attrs}` to `"review:intake"`. The `Review.Intake` GenServer subscribes and creates a `PendingFile` record for human review.
 
 The `/review` admin UI surfaces these PendingFile records. The reviewer can:
 
-1. **Approve** — Accepts the TMDB match. Broadcasts `{:review_resolved, ...}` to `"pipeline:input"`, which re-enters the pipeline at the FetchMetadata stage (skipping search).
+1. **Approve** — Accepts the TMDB match. Broadcasts `{:file_matched, ...}` to `"pipeline:matched"`, which the Import pipeline picks up.
 2. **Search** — Opens an inline TMDB search panel for manual matching, then approves with the selected result.
 3. **Dismiss** — Rejects the file. The PendingFile is destroyed.
 
-PendingFile records are managed by the `Review` domain (`lib/media_centaur/review/`), separate from the `Library` domain.
+After Import finishes processing an approved file, it broadcasts `{:review_completed, pending_file_id}` to `"review:intake"`. The `Review.Intake` GenServer destroys the PendingFile and broadcasts `{:file_reviewed, id}` to `"review:updates"` so the Review UI updates.
+
+All Pipeline ↔ Review communication uses PubSub — no direct cross-boundary function calls. PendingFile records are managed by the `Review` domain (`lib/media_centaur/review/`), separate from the `Library` domain.
 
 ---
 
