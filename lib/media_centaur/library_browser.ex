@@ -80,7 +80,17 @@ defmodule MediaCentaur.LibraryBrowser do
     from(e in query,
       where:
         fragment(
-          "NOT EXISTS(SELECT 1 FROM library_watched_files WHERE entity_id = ?) OR EXISTS(SELECT 1 FROM library_watched_files WHERE entity_id = ? AND state = 'complete')",
+          """
+          NOT EXISTS(SELECT 1 FROM library_watched_files WHERE entity_id = ?)
+          OR EXISTS(
+            SELECT 1 FROM library_watched_files lw
+            WHERE lw.entity_id = ?
+            AND NOT EXISTS(
+              SELECT 1 FROM watcher_files wf
+              WHERE wf.file_path = lw.file_path AND wf.state = 'absent'
+            )
+          )
+          """,
           e.id,
           e.id
         )

@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.{
     Format,
     Library,
-    Library.Removal,
+    Library.FileEventHandler,
     LibraryBrowser,
     Playback.ProgressBroadcaster,
     Playback.ResumeTarget,
@@ -339,7 +339,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     result =
       case socket.assigns.delete_confirm do
         {:file, %{path: file_path}} ->
-          Removal.delete_file(file_path)
+          FileEventHandler.delete_file(file_path)
 
         {:folder, %{path: folder_path}} ->
           file_paths =
@@ -347,7 +347,7 @@ defmodule MediaCentaurWeb.LibraryLive do
             |> Enum.map(& &1.file.file_path)
             |> Enum.filter(&String.starts_with?(&1, folder_path <> "/"))
 
-          Removal.delete_folder(folder_path, file_paths)
+          FileEventHandler.delete_folder(folder_path, file_paths)
 
         nil ->
           {:ok, []}
