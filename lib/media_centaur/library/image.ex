@@ -34,9 +34,4 @@ defmodule MediaCentaur.Library.Image do
     image
     |> cast(attrs, [:content_url, :extension])
   end
-
-  def clear_content_url_changeset(image) do
-    image
-    |> change(content_url: nil)
-  end
 end

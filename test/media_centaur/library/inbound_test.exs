@@ -517,8 +517,8 @@ defmodule MediaCentaur.Library.InboundTest do
         entity_id: entity.id
       })
 
-      {:ok, images} = Library.list_images_for_entity(entity.id)
-      assert [image] = images
+      entity = MediaCentaur.Repo.preload(entity, :images)
+      assert [image] = entity.images
       assert image.role == "poster"
       assert image.content_url == "images/#{entity.id}/poster.jpg"
       assert image.entity_id == entity.id

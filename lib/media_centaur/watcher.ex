@@ -31,8 +31,11 @@ defmodule MediaCentaur.Watcher do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library
-  alias MediaCentaur.Library.Helpers
+  import Ecto.Query
+
+  alias MediaCentaur.Library.WatchedFile
+  alias MediaCentaur.Repo
+  alias MediaCentaur.Topics
   alias MediaCentaur.Watcher.FilePresence
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
@@ -287,18 +290,18 @@ defmodule MediaCentaur.Watcher do
 
     restored_entity_ids =
       if restored_paths != [] do
-        Library.list_files_by_paths!(restored_paths) |> Helpers.unique_entity_ids()
+        files_by_paths(restored_paths) |> unique_entity_ids()
       else
         []
       end
 
-    Helpers.broadcast_entities_changed(restored_entity_ids)
+    broadcast_entities_changed(restored_entity_ids)
 
     # On recovery from :unavailable, re-push ALL entities for this watch dir
     # so the channel re-serializes with now-available image paths
     if Keyword.get(opts, :recovery, false) do
-      all_files = Library.list_files_by_watch_dir!(dir)
-      all_entity_ids = Helpers.unique_entity_ids(all_files)
+      all_files = files_by_watch_dir(dir)
+      all_entity_ids = unique_entity_ids(all_files)
       additional_ids = all_entity_ids -- restored_entity_ids
 
       if additional_ids != [] do
@@ -307,7 +310,7 @@ defmodule MediaCentaur.Watcher do
           "re-pushed #{length(additional_ids)} entities — recovery image re-resolution"
         )
 
-        Helpers.broadcast_entities_changed(additional_ids)
+        broadcast_entities_changed(additional_ids)
       end
     end
 
@@ -411,6 +414,32 @@ defmodule MediaCentaur.Watcher do
       MediaCentaur.PubSub,
       MediaCentaur.Topics.dir_state(),
       {:dir_state_changed, dir, :watch_dir, state}
+    )
+  end
+
+  # ---------------------------------------------------------------------------
+  # Library table reads (direct Repo queries, no context coupling)
+  # ---------------------------------------------------------------------------
+
+  defp files_by_paths(paths) do
+    from(w in WatchedFile, where: w.file_path in ^paths) |> Repo.all()
+  end
+
+  defp files_by_watch_dir(watch_dir) do
+    from(w in WatchedFile, where: w.watch_dir == ^watch_dir) |> Repo.all()
+  end
+
+  defp unique_entity_ids(records) do
+    records |> MapSet.new(& &1.entity_id) |> MapSet.delete(nil) |> MapSet.to_list()
+  end
+
+  defp broadcast_entities_changed([]), do: :ok
+
+  defp broadcast_entities_changed(entity_ids) do
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      Topics.library_updates(),
+      {:entities_changed, entity_ids}
     )
   end
 end
