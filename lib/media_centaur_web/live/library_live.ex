@@ -22,7 +22,8 @@ defmodule MediaCentaurWeb.LibraryLive do
     Library.Removal,
     LibraryBrowser,
     Playback.ProgressBroadcaster,
-    Playback.ResumeTarget
+    Playback.ResumeTarget,
+    Settings
   }
 
   alias MediaCentaurWeb.Components.{DetailPanel, LibraryCards, ModalShell}
@@ -843,7 +844,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
 
   defp load_spoiler_free_setting do
-    case Library.get_setting_by_key("spoiler_free_mode") do
+    case Settings.get_by_key("spoiler_free_mode") do
       {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
       _ -> false
     end

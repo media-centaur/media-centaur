@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Library.Setting do
+defmodule MediaCentaur.Settings.Entry do
   @moduledoc """
   Key/value settings store persisted in SQLite.
 

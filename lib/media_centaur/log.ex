@@ -233,7 +233,7 @@ defmodule MediaCentaur.Log do
   defp persist_setting(set) do
     names = Enum.map(set, &to_string/1)
 
-    MediaCentaur.Library.find_or_create_setting!(%{
+    MediaCentaur.Settings.find_or_create_entry!(%{
       key: "log_components",
       value: %{"enabled" => names}
     })
@@ -242,7 +242,7 @@ defmodule MediaCentaur.Log do
   end
 
   defp read_setting do
-    case MediaCentaur.Library.get_setting_by_key("log_components") do
+    case MediaCentaur.Settings.get_by_key("log_components") do
       {:ok, %{value: %{"enabled" => names}}} -> names
       _ -> nil
     end
@@ -258,7 +258,7 @@ defmodule MediaCentaur.Log do
     new_set = fun.(current)
     names = Enum.map(new_set, &to_string/1)
 
-    MediaCentaur.Library.find_or_create_setting!(%{
+    MediaCentaur.Settings.find_or_create_entry!(%{
       key: "log_framework_suppressed",
       value: %{"suppressed" => names}
     })
@@ -268,7 +268,7 @@ defmodule MediaCentaur.Log do
   end
 
   defp read_framework_setting do
-    case MediaCentaur.Library.get_setting_by_key("log_framework_suppressed") do
+    case MediaCentaur.Settings.get_by_key("log_framework_suppressed") do
       {:ok, %{value: %{"suppressed" => names}}} -> names
       _ -> nil
     end

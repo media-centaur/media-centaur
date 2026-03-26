@@ -81,7 +81,7 @@ defmodule MediaCentaur.Application do
     config_default = Application.get_env(:media_centaur, service, true)
     key = "services:#{env}:#{service}"
 
-    case MediaCentaur.Library.get_setting_by_key(key) do
+    case MediaCentaur.Settings.get_by_key(key) do
       {:ok, %{value: %{"enabled" => true}}} -> true
       {:ok, %{value: %{"enabled" => false}}} -> false
       _ -> config_default

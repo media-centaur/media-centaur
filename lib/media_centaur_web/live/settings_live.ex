@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Admin, Library, Log}
+  alias MediaCentaur.{Admin, Log, Settings}
   alias MediaCentaur.Watcher
   alias MediaCentaur.Pipeline
   alias MediaCentaur.ImagePipeline
@@ -142,7 +142,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("toggle_spoiler_free", _params, socket) do
     enabled = !socket.assigns.spoiler_free
 
-    Library.find_or_create_setting!(%{
+    Settings.find_or_create_entry!(%{
       key: "spoiler_free_mode",
       value: %{"enabled" => enabled}
     })
@@ -552,14 +552,14 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp persist_service_flag(service, value) do
     env = Application.get_env(:media_centaur, :environment, :dev)
 
-    Library.find_or_create_setting!(%{
+    Settings.find_or_create_entry!(%{
       key: "services:#{env}:#{service}",
       value: %{"enabled" => value}
     })
   end
 
   defp load_spoiler_free_setting do
-    case Library.get_setting_by_key("spoiler_free_mode") do
+    case Settings.get_by_key("spoiler_free_mode") do
       {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
       _ -> false
     end
