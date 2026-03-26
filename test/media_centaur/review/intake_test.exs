@@ -179,6 +179,64 @@ defmodule MediaCentaur.Review.IntakeTest do
     end
   end
 
+  describe "receive_files_for_review/1" do
+    test "parses file paths and creates PendingFiles with metadata" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
+
+      files = [
+        %{file_path: "/media/movies/Sample Movie (2017).mkv", watch_dir: "/media/movies"}
+      ]
+
+      assert {:ok, 1} = Intake.receive_files_for_review(files)
+
+      [pending] = MediaCentaur.Review.fetch_pending_files()
+      assert pending.file_path == "/media/movies/Sample Movie (2017).mkv"
+      assert pending.watch_directory == "/media/movies"
+      assert pending.parsed_title == "Sample Movie"
+      assert pending.parsed_year == 2049
+      assert pending.parsed_type == "movie"
+
+      assert_received {:file_added, _}
+    end
+
+    test "handles multiple files from a TV series rematch" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
+
+      files = [
+        %{
+          file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",
+          watch_dir: "/media/tv"
+        },
+        %{file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv", watch_dir: "/media/tv"}
+      ]
+
+      assert {:ok, 2} = Intake.receive_files_for_review(files)
+
+      pending_files = MediaCentaur.Review.fetch_pending_files()
+      assert length(pending_files) == 2
+
+      Enum.each(pending_files, fn file ->
+        assert file.parsed_type == "tv"
+        assert file.season_number == 1
+      end)
+
+      assert_received {:file_added, _}
+      assert_received {:file_added, _}
+    end
+
+    test "idempotent — same file path returns same record" do
+      files = [
+        %{file_path: "/media/movies/Inception (2010).mkv", watch_dir: "/media/movies"}
+      ]
+
+      assert {:ok, 1} = Intake.receive_files_for_review(files)
+      assert {:ok, 1} = Intake.receive_files_for_review(files)
+
+      # Still only one PendingFile
+      assert length(MediaCentaur.Review.fetch_pending_files()) == 1
+    end
+  end
+
   describe "complete_review/1" do
     test "destroys PendingFile and broadcasts {:file_reviewed, id}" do
       pending_file = TestFactory.create_pending_file()
