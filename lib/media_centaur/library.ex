@@ -188,21 +188,11 @@ defmodule MediaCentaur.Library do
 
   def link_file!(attrs), do: bang!(link_file(attrs))
 
-  def list_files_by_watch_dir(watch_dir) do
-    query = from(w in WatchedFile, where: w.watch_dir == ^watch_dir)
-    {:ok, Repo.all(query)}
-  end
-
-  def list_files_by_watch_dir!(watch_dir), do: bang!(list_files_by_watch_dir(watch_dir))
-
   def list_files_by_paths(file_paths) do
     {:ok, from(w in WatchedFile, where: w.file_path in ^file_paths) |> Repo.all()}
   end
 
   def list_files_by_paths!(file_paths), do: bang!(list_files_by_paths(file_paths))
-
-  def destroy_watched_file(file), do: Repo.delete(file)
-  def destroy_watched_file!(file), do: destroy_bang!(file)
 
   # ---------------------------------------------------------------------------
   # Image
@@ -210,24 +200,6 @@ defmodule MediaCentaur.Library do
 
   def list_images, do: {:ok, Repo.all(Image)}
   def list_images!, do: Repo.all(Image)
-
-  def list_images_for_entity(entity_id) do
-    {:ok, from(i in Image, where: i.entity_id == ^entity_id) |> Repo.all()}
-  end
-
-  def list_images_for_entity!(entity_id), do: bang!(list_images_for_entity(entity_id))
-
-  def list_images_for_episode(episode_id) do
-    {:ok, from(i in Image, where: i.episode_id == ^episode_id) |> Repo.all()}
-  end
-
-  def list_images_for_episode!(episode_id), do: bang!(list_images_for_episode(episode_id))
-
-  def list_images_for_movie(movie_id) do
-    {:ok, from(i in Image, where: i.movie_id == ^movie_id) |> Repo.all()}
-  end
-
-  def list_images_for_movie!(movie_id), do: bang!(list_images_for_movie(movie_id))
 
   def create_image(attrs) do
     Image.create_changeset(attrs) |> Repo.insert()
@@ -248,12 +220,6 @@ defmodule MediaCentaur.Library do
   end
 
   def update_image!(image, attrs), do: bang!(update_image(image, attrs))
-
-  def clear_image_content_url(image) do
-    Image.clear_content_url_changeset(image) |> Repo.update()
-  end
-
-  def clear_image_content_url!(image), do: bang!(clear_image_content_url(image))
 
   def destroy_image(image), do: Repo.delete(image)
   def destroy_image!(image), do: destroy_bang!(image)

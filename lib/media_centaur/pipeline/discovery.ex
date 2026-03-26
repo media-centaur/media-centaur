@@ -16,10 +16,13 @@ defmodule MediaCentaur.Pipeline.Discovery do
   use Broadway
   require MediaCentaur.Log, as: Log
 
+  import Ecto.Query
+
   alias MediaCentaur.DateUtil
-  alias MediaCentaur.Library
+  alias MediaCentaur.Library.WatchedFile
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{Parse, Search}
+  alias MediaCentaur.Repo
 
   @processor_concurrency 10
 
@@ -193,9 +196,10 @@ defmodule MediaCentaur.Pipeline.Discovery do
   end
 
   defp already_linked?(file_path) do
-    case Library.list_files_by_paths!([file_path]) do
-      [%{entity_id: entity_id}] when not is_nil(entity_id) -> true
-      _ -> false
-    end
+    from(w in WatchedFile,
+      where: w.file_path == ^file_path and not is_nil(w.entity_id),
+      limit: 1
+    )
+    |> Repo.exists?()
   end
 end
