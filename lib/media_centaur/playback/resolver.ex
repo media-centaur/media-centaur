@@ -15,7 +15,6 @@ defmodule MediaCentaur.Playback.Resolver do
   """
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Playback.{EpisodeList, MovieList, Resume}
 
   @type play_params :: %{
@@ -48,7 +47,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Entity resolution ---
 
   defp resolve_entity(uuid) do
-    case Helpers.load_entity(uuid) do
+    case Library.get_entity_with_associations(uuid) do
       {:ok, entity} ->
         progress_records = load_progress(entity.id)
         resolve_entity_playback(entity, progress_records)
@@ -97,7 +96,7 @@ defmodule MediaCentaur.Playback.Resolver do
 
   defp resolve_episode_playback(episode) do
     with {:ok, season} <- Library.get_season(episode.season_id),
-         {:ok, entity} <- Helpers.load_entity(season.entity_id) do
+         {:ok, entity} <- Library.get_entity_with_associations(season.entity_id) do
       progress_records = load_progress(entity.id)
 
       progress_by_key = EpisodeList.index_progress_by_key(progress_records)
@@ -137,7 +136,7 @@ defmodule MediaCentaur.Playback.Resolver do
   defp resolve_movie_playback(%{content_url: nil}), do: {:error, :no_playable_content}
 
   defp resolve_movie_playback(movie) do
-    case Helpers.load_entity(movie.entity_id) do
+    case Library.get_entity_with_associations(movie.entity_id) do
       {:ok, entity} ->
         progress_records = load_progress(entity.id)
         available = MovieList.list_available(entity)
@@ -191,7 +190,7 @@ defmodule MediaCentaur.Playback.Resolver do
 
   defp resolve_extra_playback(extra) do
     entity_name =
-      case Helpers.load_entity(extra.entity_id) do
+      case Library.get_entity_with_associations(extra.entity_id) do
         {:ok, entity} -> entity.name
         _ -> nil
       end

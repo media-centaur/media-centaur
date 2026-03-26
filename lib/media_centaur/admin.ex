@@ -9,7 +9,7 @@ defmodule MediaCentaur.Admin do
 
   alias MediaCentaur.Repo
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{Helpers, Image}
+  alias MediaCentaur.Library.Image
 
   alias MediaCentaur.Library.{
     Entity,
@@ -43,7 +43,7 @@ defmodule MediaCentaur.Admin do
         clear_directory(MediaCentaur.Config.images_dir_for(dir))
       end)
 
-      Helpers.broadcast_entities_changed(entity_ids)
+      Library.broadcast_entities_changed(entity_ids)
 
       Log.info(:library, "database cleared")
       :ok
@@ -81,7 +81,7 @@ defmodule MediaCentaur.Admin do
     end)
 
     entity_ids = Enum.map(entities, & &1.id)
-    Helpers.broadcast_entities_changed(entity_ids)
+    Library.broadcast_entities_changed(entity_ids)
 
     Log.info(:library, "image cache refreshed — #{length(entities)} entities")
     {:ok, length(entities)}
