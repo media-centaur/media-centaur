@@ -82,7 +82,7 @@ defmodule MediaCentaur.Library.EntityTest do
       create_image(%{
         entity_id: entity.id,
         role: "poster",
-        url: "https://image.tmdb.org/t/p/original/poster.jpg",
+        content_url: "#{entity.id}/poster.jpg",
         extension: "jpg"
       })
 

@@ -76,10 +76,8 @@ defmodule MediaCentaurWeb.LiveHelpers do
   def image_url(entity, role) do
     image = Enum.find(entity.images || [], &(&1.role == role))
 
-    cond do
-      image && image.content_url -> "/media-images/#{image.content_url}"
-      image && image.url -> image.url
-      true -> nil
+    if image && image.content_url do
+      "/media-images/#{image.content_url}"
     end
   end
 end

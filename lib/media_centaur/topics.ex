@@ -9,6 +9,7 @@ defmodule MediaCentaur.Topics do
   def pipeline_input, do: "pipeline:input"
   def pipeline_matched, do: "pipeline:matched"
   def pipeline_images, do: "pipeline:images"
+  def pipeline_publish, do: "pipeline:publish"
   def playback_events, do: "playback:events"
   def dir_state, do: "watcher:state"
   def review_updates, do: "review:updates"

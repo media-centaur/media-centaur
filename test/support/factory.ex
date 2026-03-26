@@ -48,7 +48,6 @@ defmodule MediaCentaur.TestFactory do
     defaults = %{
       id: Ecto.UUID.generate(),
       role: "poster",
-      url: "https://image.tmdb.org/t/p/original/test.jpg",
       content_url: nil,
       extension: "jpg",
       entity_id: nil,
@@ -185,7 +184,7 @@ defmodule MediaCentaur.TestFactory do
     create_image(%{
       entity_id: entity.id,
       role: "poster",
-      url: "https://image.tmdb.org/t/p/original/poster.jpg",
+      content_url: "#{entity.id}/poster.jpg",
       extension: "jpg"
     })
 

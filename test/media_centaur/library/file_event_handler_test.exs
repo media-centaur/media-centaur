@@ -364,7 +364,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_image(%{
           episode_id: ep1.id,
           role: "thumb",
-          url: "https://image.tmdb.org/t/p/original/thumb.jpg",
+          content_url: "#{ep1.id}/thumb.jpg",
           extension: "jpg"
         })
 

@@ -817,7 +817,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   defp fetch_retry_status do
-    MediaCentaur.ImagePipeline.RetryScheduler.status()
+    %{retrying_count: MediaCentaur.Pipeline.ImageQueue.retrying_count()}
   rescue
     _ -> nil
   catch

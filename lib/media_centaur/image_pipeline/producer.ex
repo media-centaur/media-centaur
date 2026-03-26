@@ -4,15 +4,14 @@ defmodule MediaCentaur.ImagePipeline.Producer do
 
   Subscribes to `MediaCentaur.Topics.pipeline_images()` PubSub topic, receives
   `{:images_pending, %{entity_id: uuid, watch_dir: string}}` messages,
-  queries the DB for Image records with `url` set and `content_url` nil
-  for that entity (including child movies and episodes), and dispatches
-  one work item per image.
+  queries the `pipeline_image_queue` for pending entries for that entity,
+  and dispatches one work item per entry.
   """
   use GenStage
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Library
+  alias MediaCentaur.Pipeline.ImageQueue
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
@@ -30,10 +29,10 @@ defmodule MediaCentaur.ImagePipeline.Producer do
   end
 
   @impl true
-  def handle_info({:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}, state) do
+  def handle_info({:images_pending, %{entity_id: entity_id, watch_dir: _watch_dir}}, state) do
     Log.info(:pipeline, "queued images — entity #{Format.short_id(entity_id)}")
 
-    work_items = build_work_items(entity_id, watch_dir)
+    work_items = build_work_items(entity_id)
 
     queue =
       Enum.reduce(work_items, state.queue, fn item, queue ->
@@ -56,47 +55,27 @@ defmodule MediaCentaur.ImagePipeline.Producer do
   # ---------------------------------------------------------------------------
 
   @doc false
-  def build_work_items(entity_id, watch_dir) do
-    case Library.get_entity_with_images(entity_id) do
-      {:ok, entity} ->
-        entity_items = pending_items(entity.images, entity.id, entity_id, watch_dir)
+  def build_work_items(entity_id) do
+    entries = ImageQueue.list_pending(entity_id)
 
-        movie_items =
-          (entity.movies || [])
-          |> Enum.flat_map(fn movie ->
-            pending_items(movie.images, movie.id, entity_id, watch_dir)
-          end)
+    items =
+      Enum.map(entries, fn entry ->
+        %{
+          queue_entry: entry,
+          owner_id: entry.owner_id,
+          entity_id: entry.entity_id,
+          watch_dir: entry.watch_dir
+        }
+      end)
 
-        episode_items =
-          (entity.seasons || [])
-          |> Enum.flat_map(fn season ->
-            (season.episodes || [])
-            |> Enum.flat_map(fn episode ->
-              pending_items(episode.images, episode.id, entity_id, watch_dir)
-            end)
-          end)
-
-        items = entity_items ++ movie_items ++ episode_items
-
-        Log.info(
-          :pipeline,
-          "queued #{length(items)} images — entity #{Format.short_id(entity_id)}"
-        )
-
-        items
-
-      {:error, _} ->
-        Log.warning(:pipeline, "skipped images — entity #{Format.short_id(entity_id)} not found")
-        []
+    if items != [] do
+      Log.info(
+        :pipeline,
+        "queued #{length(items)} images — entity #{Format.short_id(entity_id)}"
+      )
     end
-  end
 
-  defp pending_items(images, owner_id, entity_id, watch_dir) do
-    images
-    |> Enum.filter(fn image -> image.url && !image.content_url end)
-    |> Enum.map(fn image ->
-      %{image: image, owner_id: owner_id, entity_id: entity_id, watch_dir: watch_dir}
-    end)
+    items
   end
 
   # ---------------------------------------------------------------------------

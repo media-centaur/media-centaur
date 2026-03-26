@@ -2,17 +2,12 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
   @moduledoc """
   Automatically retries transient image download failures with exponential backoff.
 
-  Replaces the manual "Retry all" / "Dismiss all" buttons from the operations page.
-  Queries images with `url != nil AND content_url == nil` every 2 minutes, applies
-  per-image retry tracking with exponential backoff, and gives up after 5 attempts
-  by destroying the Image record.
+  Queries `pipeline_image_queue` for entries with status `failed`, applies
+  exponential backoff based on `retry_count` and `updated_at`, and gives up
+  after 5 attempts by marking the entry as `permanent`.
 
-  ## State
-
-  In-memory map of `%{image_id => {retry_count, last_attempted_at}}`. On restart
-  the state is empty, giving all pending images a fresh round of retries — this
-  is desirable since the underlying problem (network, disk, rate limit) may have
-  been resolved.
+  All retry state lives in the database — the GenServer itself is stateless,
+  running a simple tick loop every 2 minutes.
 
   ## Backoff
 
@@ -20,11 +15,8 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
   """
   use GenServer
   require MediaCentaur.Log, as: Log
-  import Ecto.Query
 
-  alias MediaCentaur.Library
-  alias MediaCentaur.Library.Image
-  alias MediaCentaur.Repo
+  alias MediaCentaur.Pipeline.ImageQueue
 
   @retry_interval_ms 2 * 60 * 1_000
   @max_retries 5
@@ -34,78 +26,16 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
-  @doc """
-  Records a transient download failure for the given image ID.
-
-  The scheduler will retry this image on its next tick, subject to
-  exponential backoff and the max retry limit.
-  """
-  def record_failure(image_id, server \\ __MODULE__) do
-    GenServer.cast(server, {:transient_failure, image_id})
-  end
-
-  @doc """
-  Returns the current retry status: how many images are tracked for retry.
-  """
-  def status(server \\ __MODULE__) do
-    GenServer.call(server, :status)
-  end
-
-  @doc """
-  Returns the retry count for a specific image, or nil if not tracked.
-  """
-  def retry_count(image_id, server \\ __MODULE__) do
-    GenServer.call(server, {:retry_count, image_id})
-  end
-
-  @doc """
-  Returns the set of image IDs currently tracked for retry.
-  """
-  def tracked_ids(server \\ __MODULE__) do
-    GenServer.call(server, :tracked_ids)
-  end
-
   @impl true
   def init(_opts) do
     schedule_tick()
-    {:ok, %{retries: %{}}}
-  end
-
-  @impl true
-  def handle_call(:status, _from, state) do
-    {:reply, %{retrying_count: map_size(state.retries)}, state}
-  end
-
-  def handle_call({:retry_count, image_id}, _from, state) do
-    count =
-      case Map.get(state.retries, image_id) do
-        {count, _last} -> count
-        nil -> nil
-      end
-
-    {:reply, count, state}
-  end
-
-  def handle_call(:tracked_ids, _from, state) do
-    {:reply, Map.keys(state.retries), state}
-  end
-
-  @impl true
-  def handle_cast({:transient_failure, image_id}, state) do
-    now = System.monotonic_time(:millisecond)
-
-    retries =
-      Map.update(state.retries, image_id, {1, now}, fn {count, _last} ->
-        {count + 1, now}
-      end)
-
-    {:noreply, %{state | retries: retries}}
+    {:ok, %{}}
   end
 
   @impl true
   def handle_info(:tick, state) do
     schedule_tick()
-    state = process_pending(state)
+    process_pending()
     {:noreply, state}
   end
 
@@ -117,97 +47,53 @@ defmodule MediaCentaur.ImagePipeline.RetryScheduler do
   # Core logic
   # ---------------------------------------------------------------------------
 
-  defp process_pending(state) do
-    pending_images = Library.list_pending_downloads!()
+  defp process_pending do
+    entries = ImageQueue.list_retryable()
 
-    if pending_images == [] do
-      %{state | retries: %{}}
+    if entries == [] do
+      :ok
     else
-      now = System.monotonic_time(:millisecond)
-      pending_ids = MapSet.new(pending_images, & &1.id)
+      now = DateTime.utc_now()
 
-      # Prune state entries for images no longer pending (downloaded or deleted)
-      retries = Map.filter(state.retries, fn {id, _} -> MapSet.member?(pending_ids, id) end)
-
-      # Group images by entity for broadcast
-      entity_ids_to_broadcast = MapSet.new()
-
-      {retries, entity_ids_to_broadcast, exhausted_images} =
-        Enum.reduce(pending_images, {retries, entity_ids_to_broadcast, []}, fn image,
-                                                                               {retries_acc,
-                                                                                entities_acc,
-                                                                                exhausted_acc} ->
-          case Map.get(retries_acc, image.id) do
-            nil ->
-              # First attempt — broadcast immediately
-              entities_acc = maybe_add_entity(entities_acc, image)
-              {retries_acc, entities_acc, exhausted_acc}
-
-            {count, _last} when count >= @max_retries ->
-              # Give up — collect for bulk destroy
-              Log.info(
-                :pipeline,
-                "retry scheduler: giving up on image #{image.id} (#{image.role}) after #{count} attempts"
-              )
-
-              retries_acc = Map.delete(retries_acc, image.id)
-              entities_acc = maybe_add_entity(entities_acc, image)
-              {retries_acc, entities_acc, [image | exhausted_acc]}
-
-            {count, last_attempted} ->
-              backoff = backoff_ms(count)
-
-              if now - last_attempted >= backoff do
-                # Backoff elapsed — retry
-                entities_acc = maybe_add_entity(entities_acc, image)
-                {retries_acc, entities_acc, exhausted_acc}
-              else
-                # Still in backoff — skip
-                {retries_acc, entities_acc, exhausted_acc}
-              end
-          end
+      {exhausted, retryable} =
+        Enum.split_with(entries, fn entry ->
+          entry.retry_count >= @max_retries
         end)
 
-      # Bulk destroy all exhausted images in a single query
-      if exhausted_images != [] do
-        ids = Enum.map(exhausted_images, & &1.id)
-        from(i in Image, where: i.id in ^ids) |> Repo.delete_all()
-      end
+      # Mark exhausted entries as permanent
+      Enum.each(exhausted, fn entry ->
+        Log.info(
+          :pipeline,
+          "retry scheduler: giving up on #{entry.role} for #{entry.owner_id} after #{entry.retry_count} attempts"
+        )
 
-      # Resolve entity IDs to watch dirs and broadcast
-      broadcast_retries(entity_ids_to_broadcast)
-
-      %{state | retries: retries}
-    end
-  end
-
-  defp maybe_add_entity(entity_ids, image) do
-    if image.entity_id do
-      MapSet.put(entity_ids, image.entity_id)
-    else
-      entity_ids
-    end
-  end
-
-  defp broadcast_retries(entity_ids) do
-    if MapSet.size(entity_ids) > 0 do
-      ids = MapSet.to_list(entity_ids)
-
-      entities = Library.list_entities_with_images!(ids: ids, load: [:watched_files])
-
-      Enum.each(entities, fn entity ->
-        case entity.watched_files do
-          [first | _] ->
-            Phoenix.PubSub.broadcast(
-              MediaCentaur.PubSub,
-              MediaCentaur.Topics.pipeline_images(),
-              {:images_pending, %{entity_id: entity.id, watch_dir: first.watch_dir}}
-            )
-
-          _ ->
-            :ok
-        end
+        ImageQueue.update_status(entry, :permanent)
       end)
+
+      # Filter retryable entries by backoff elapsed
+      ready =
+        Enum.filter(retryable, fn entry ->
+          backoff = backoff_ms(entry.retry_count)
+          elapsed = DateTime.diff(now, entry.updated_at, :millisecond)
+          elapsed >= backoff
+        end)
+
+      # Reset to pending and broadcast per entity
+      if ready != [] do
+        Enum.each(ready, fn entry ->
+          ImageQueue.reset_to_pending(entry)
+        end)
+
+        ready
+        |> Enum.uniq_by(fn entry -> entry.entity_id end)
+        |> Enum.each(fn entry ->
+          Phoenix.PubSub.broadcast(
+            MediaCentaur.PubSub,
+            MediaCentaur.Topics.pipeline_images(),
+            {:images_pending, %{entity_id: entry.entity_id, watch_dir: entry.watch_dir}}
+          )
+        end)
+      end
     end
   end
 

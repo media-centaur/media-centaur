@@ -2,82 +2,76 @@ defmodule MediaCentaur.ImagePipeline.RetrySchedulerTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.ImagePipeline.RetryScheduler
-  alias MediaCentaur.Library
+  alias MediaCentaur.Pipeline.ImageQueue
 
-  describe "transient_failure tracking" do
-    test "records a failure and tracks the image" do
-      {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler)
-
-      image_id = Ecto.UUID.generate()
-      RetryScheduler.record_failure(image_id, pid)
-
-      # Sync with the GenServer to ensure the cast has been processed
-      assert RetryScheduler.retry_count(image_id, pid) == 1
-
-      GenServer.stop(pid)
-    end
-
-    test "increments retry count on repeated failures" do
-      {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_inc)
-
-      image_id = Ecto.UUID.generate()
-      RetryScheduler.record_failure(image_id, pid)
-      RetryScheduler.record_failure(image_id, pid)
-
-      assert RetryScheduler.retry_count(image_id, pid) == 2
-
-      GenServer.stop(pid)
-    end
-  end
+  @watch_directory "/tmp/retry_test"
 
   describe "tick processing" do
-    test "destroys images that exceed max retries" do
-      entity = create_entity(%{type: :movie, name: "Retry Test"})
+    test "marks entries as permanent when retry_count exceeds max" do
+      entity_id = Ecto.UUID.generate()
 
-      create_linked_file(%{
-        entity: entity,
-        file_path: "/tmp/test/movie.mkv",
-        watch_dir: "/tmp/test"
-      })
-
-      image =
-        create_image(%{
-          entity_id: entity.id,
+      {:ok, entry} =
+        ImageQueue.create(%{
+          owner_id: entity_id,
+          owner_type: "entity",
           role: "poster",
-          url: "https://image.tmdb.org/poster.jpg",
-          extension: "jpg"
+          source_url: "https://image.tmdb.org/poster.jpg",
+          entity_id: entity_id,
+          watch_dir: @watch_directory
         })
+
+      # Simulate 5 failures by marking as failed with incremented retry_count
+      Enum.reduce(1..5, entry, fn _i, current ->
+        {:ok, updated} = ImageQueue.mark_failed(current)
+        updated
+      end)
 
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_destroy)
 
-      # Record 5 failures via public API to hit max retries
-      for _ <- 1..5, do: RetryScheduler.record_failure(image.id, pid)
-      assert RetryScheduler.retry_count(image.id, pid) == 5
-
-      # Trigger tick manually — backoff will have elapsed since monotonic
-      # time advances between the record_failure calls and the tick
+      # Trigger tick manually
       send(pid, :tick)
-      _ = RetryScheduler.status(pid)
+      # Sync with the GenServer
+      :sys.get_state(pid)
 
-      # Image should be destroyed
-      assert [] = Library.list_pending_downloads!()
+      # Entry should be marked permanent
+      [entry] = MediaCentaur.Repo.all(MediaCentaur.Pipeline.ImageQueueEntry)
+      assert entry.status == "permanent"
 
       GenServer.stop(pid)
     end
 
-    test "prunes state for images that were downloaded" do
-      {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_prune)
+    test "resets failed entries to pending after backoff elapsed" do
+      entity_id = Ecto.UUID.generate()
 
-      # Record a failure for an image ID that doesn't exist in the DB
-      old_id = Ecto.UUID.generate()
-      RetryScheduler.record_failure(old_id, pid)
-      assert RetryScheduler.retry_count(old_id, pid) == 1
+      {:ok, entry} =
+        ImageQueue.create(%{
+          owner_id: entity_id,
+          owner_type: "entity",
+          role: "poster",
+          source_url: "https://image.tmdb.org/poster.jpg",
+          entity_id: entity_id,
+          watch_dir: @watch_directory
+        })
 
-      # No pending images in DB — tick should prune the stale entry
+      # Mark as failed once (retry_count = 1)
+      {:ok, failed_entry} = ImageQueue.mark_failed(entry)
+      assert failed_entry.status == "failed"
+      assert failed_entry.retry_count == 1
+
+      # Backdate updated_at to ensure backoff has elapsed
+      MediaCentaur.Repo.update_all(
+        MediaCentaur.Pipeline.ImageQueueEntry,
+        set: [updated_at: ~U[2020-01-01 00:00:00Z]]
+      )
+
+      {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_retry)
+
       send(pid, :tick)
-      _ = RetryScheduler.status(pid)
+      :sys.get_state(pid)
 
-      assert RetryScheduler.tracked_ids(pid) == []
+      # Entry should be reset to pending
+      [entry] = MediaCentaur.Repo.all(MediaCentaur.Pipeline.ImageQueueEntry)
+      assert entry.status == "pending"
 
       GenServer.stop(pid)
     end

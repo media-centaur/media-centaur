@@ -54,6 +54,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert {:ok, result} = Ingest.run(payload)
       assert result.entity_id != nil
       assert result.ingest_status == :new
+      assert [%{role: "poster", owner_type: "entity"}] = result.pending_images
 
       entity = Library.get_entity!(result.entity_id)
       assert entity.type == :movie

@@ -244,7 +244,6 @@ defmodule MediaCentaur.Serializer do
     %{
       "@type" => "ImageObject",
       "name" => image.role,
-      "url" => image.url,
       "contentUrl" => Config.resolve_image_path(image.content_url)
     }
     |> compact()

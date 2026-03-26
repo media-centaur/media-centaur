@@ -3,69 +3,43 @@ defmodule MediaCentaur.Library.ImageTest do
 
   alias MediaCentaur.Library
 
-  describe "pending_download action" do
-    test "returns images with url but no content_url" do
-      entity = create_entity(%{type: :movie, name: "Missing Poster"})
+  describe "image CRUD" do
+    test "creates an image with content_url" do
+      entity = create_entity(%{type: :movie, name: "Test Movie"})
 
-      create_image(%{
-        entity_id: entity.id,
-        role: "poster",
-        url: "https://image.tmdb.org/t/p/original/poster.jpg",
-        extension: "jpg"
-      })
+      image =
+        Library.create_image!(%{
+          entity_id: entity.id,
+          role: "poster",
+          content_url: "#{entity.id}/poster.jpg",
+          extension: "jpg"
+        })
 
-      pending = Library.list_pending_downloads!()
-
-      assert length(pending) == 1
-      assert hd(pending).role == "poster"
-      assert hd(pending).url != nil
-      assert hd(pending).content_url == nil
+      assert image.role == "poster"
+      assert image.content_url == "#{entity.id}/poster.jpg"
+      assert image.extension == "jpg"
     end
 
-    test "excludes images that have been downloaded" do
-      entity = create_entity(%{type: :movie, name: "Complete Images"})
+    test "upserts image on conflict" do
+      entity = create_entity(%{type: :movie, name: "Test Movie"})
 
-      create_image(%{
-        entity_id: entity.id,
-        role: "poster",
-        url: "https://image.tmdb.org/t/p/original/poster.jpg",
-        content_url: "#{entity.id}/poster.jpg",
-        extension: "jpg"
-      })
+      {:ok, first} =
+        Library.upsert_image(
+          %{entity_id: entity.id, role: "poster", content_url: "old.jpg", extension: "jpg"},
+          [:entity_id, :role]
+        )
 
-      pending = Library.list_pending_downloads!()
+      {:ok, second} =
+        Library.upsert_image(
+          %{entity_id: entity.id, role: "poster", content_url: "new.jpg", extension: "jpg"},
+          [:entity_id, :role]
+        )
 
-      assert pending == []
-    end
-
-    test "excludes images with no url" do
-      entity = create_entity(%{type: :movie, name: "No URL"})
-
-      create_image(%{
-        entity_id: entity.id,
-        role: "poster",
-        extension: "jpg"
-      })
-
-      pending = Library.list_pending_downloads!()
-
-      assert pending == []
-    end
-
-    test "preloads the parent entity" do
-      entity = create_entity(%{type: :movie, name: "With Entity"})
-
-      create_image(%{
-        entity_id: entity.id,
-        role: "backdrop",
-        url: "https://image.tmdb.org/t/p/original/backdrop.jpg",
-        extension: "jpg"
-      })
-
-      [image] = Library.list_pending_downloads!()
-
-      assert image.entity != nil
-      assert image.entity.name == "With Entity"
+      # Same image, updated content_url
+      assert first.id == second.id || first.entity_id == second.entity_id
+      images = Library.list_images!()
+      entity_images = Enum.filter(images, &(&1.entity_id == entity.id && &1.role == "poster"))
+      assert length(entity_images) == 1
     end
   end
 end

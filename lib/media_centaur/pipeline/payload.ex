@@ -30,6 +30,7 @@ defmodule MediaCentaur.Pipeline.Payload do
   **Ingest stage:**
   - `entity_id` — UUID of the created/found entity
   - `ingest_status` — `:new`, `:new_child`, or `:existing`
+  - `pending_images` — list of image maps to queue for download
 
   **Import (set by Import Producer for review-resolved files):**
   - `pending_file_id` — UUID of the PendingFile being resolved
@@ -60,6 +61,7 @@ defmodule MediaCentaur.Pipeline.Payload do
     # Ingest stage
     :entity_id,
     :ingest_status,
+    :pending_images,
 
     # Import (review-resolved)
     :pending_file_id

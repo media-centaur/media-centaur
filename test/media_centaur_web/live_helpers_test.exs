@@ -25,20 +25,18 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
 
   describe "image_url/2" do
     test "returns local path for content_url" do
-      entity = %{images: [%{role: "poster", content_url: "abc/poster.jpg", url: nil}]}
+      entity = %{images: [%{role: "poster", content_url: "abc/poster.jpg"}]}
       assert image_url(entity, "poster") == "/media-images/abc/poster.jpg"
     end
 
-    test "returns remote url when no content_url" do
-      entity = %{
-        images: [%{role: "backdrop", content_url: nil, url: "https://img.example.com/bd.jpg"}]
-      }
+    test "returns nil when no content_url" do
+      entity = %{images: [%{role: "backdrop", content_url: nil}]}
 
-      assert image_url(entity, "backdrop") == "https://img.example.com/bd.jpg"
+      assert image_url(entity, "backdrop") == nil
     end
 
     test "returns nil when no image for role" do
-      entity = %{images: [%{role: "poster", content_url: "x.jpg", url: nil}]}
+      entity = %{images: [%{role: "poster", content_url: "x.jpg"}]}
       assert image_url(entity, "backdrop") == nil
     end
 

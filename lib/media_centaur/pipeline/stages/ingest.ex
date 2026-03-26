@@ -17,14 +17,15 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
     Log.info(:pipeline, "ingesting tmdb:#{payload.tmdb_id}")
 
     case Ingress.ingest(payload) do
-      {:ok, entity, status} ->
+      {:ok, entity, status, pending_images} ->
         Log.info(:pipeline, "ingested entity #{Format.short_id(entity.id)} — #{status}")
 
         {:ok,
          %{
            payload
            | entity_id: entity.id,
-             ingest_status: status
+             ingest_status: status,
+             pending_images: pending_images
          }}
 
       {:error, reason} ->
