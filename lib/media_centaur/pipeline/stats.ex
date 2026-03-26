@@ -2,10 +2,14 @@ defmodule MediaCentaur.Pipeline.Stats do
   @moduledoc """
   Tracks pipeline stage activity for dashboard visualization.
 
-  Attaches to telemetry events emitted by `Pipeline` and `Producer`,
-  receives updates via `GenServer.cast`, and serves snapshots via
-  `GenServer.call`. Each telemetry handler runs in the caller's process
+  Attaches to telemetry events emitted by Discovery, Import, and their
+  producers, receives updates via `GenServer.cast`, and serves snapshots
+  via `GenServer.call`. Each telemetry handler runs in the caller's process
   (a Broadway processor) and sends a cast to avoid blocking.
+
+  Tracks stages across both pipelines (Discovery owns `:parse` and `:search`,
+  Import owns `:fetch_metadata` and `:ingest`). Queue depths are tracked
+  per-pipeline.
 
   ## Per-stage state
 
@@ -24,7 +28,7 @@ defmodule MediaCentaur.Pipeline.Stats do
   ## Status derivation (computed at snapshot time)
 
   - `:erroring` — active and recent errors in window
-  - `:saturated` — active_count >= 10 (of 15 processors)
+  - `:saturated` — active_count >= saturated threshold
   - `:active` — active_count > 0
   - `:idle` — active_count == 0
   """
@@ -48,7 +52,7 @@ defmodule MediaCentaur.Pipeline.Stats do
   Returns a snapshot of current pipeline statistics.
 
   Includes per-stage status, throughput, active counts, lifetime counters,
-  and recent errors.
+  and recent errors. `queue_depth` is the sum of both pipeline queue depths.
   """
   def get_snapshot(server \\ __MODULE__) do
     GenServer.call(server, :get_snapshot)
@@ -77,8 +81,8 @@ defmodule MediaCentaur.Pipeline.Stats do
     GenServer.cast(server, {:needs_review, file_path})
   end
 
-  def queue_depth(server \\ __MODULE__, depth) do
-    GenServer.cast(server, {:queue_depth, depth})
+  def queue_depth(server \\ __MODULE__, pipeline, depth) do
+    GenServer.cast(server, {:queue_depth, pipeline, depth})
   end
 
   @doc """
@@ -102,6 +106,8 @@ defmodule MediaCentaur.Pipeline.Stats do
     %{
       stages: stages,
       queue_depth: 0,
+      discovery_queue_depth: 0,
+      import_queue_depth: 0,
       total_processed: 0,
       total_failed: 0,
       needs_review_count: 0,
@@ -126,7 +132,8 @@ defmodule MediaCentaur.Pipeline.Stats do
 
     state = %{
       stages: stage_state,
-      queue_depth: 0,
+      discovery_queue_depth: 0,
+      import_queue_depth: 0,
       total_processed: 0,
       total_failed: 0,
       needs_review_count: 0,
@@ -180,7 +187,9 @@ defmodule MediaCentaur.Pipeline.Stats do
 
     snapshot = %{
       stages: stages,
-      queue_depth: state.queue_depth,
+      queue_depth: state.discovery_queue_depth + state.import_queue_depth,
+      discovery_queue_depth: state.discovery_queue_depth,
+      import_queue_depth: state.import_queue_depth,
       total_processed: state.total_processed,
       total_failed: state.total_failed,
       needs_review_count: state.needs_review_count,
@@ -235,8 +244,12 @@ defmodule MediaCentaur.Pipeline.Stats do
     {:noreply, %{state | needs_review_count: state.needs_review_count + 1}}
   end
 
-  def handle_cast({:queue_depth, depth}, state) do
-    {:noreply, %{state | queue_depth: depth}}
+  def handle_cast({:queue_depth, :discovery, depth}, state) do
+    {:noreply, %{state | discovery_queue_depth: depth}}
+  end
+
+  def handle_cast({:queue_depth, :import, depth}, state) do
+    {:noreply, %{state | import_queue_depth: depth}}
   end
 
   # --- Private ---
@@ -348,7 +361,7 @@ defmodule MediaCentaur.Pipeline.Stats do
     needs_review(config.stats, metadata.file_path)
   end
 
-  def handle_telemetry([:media_centaur, :pipeline, :queue_depth], measurements, _metadata, config) do
-    queue_depth(config.stats, measurements.depth)
+  def handle_telemetry([:media_centaur, :pipeline, :queue_depth], measurements, metadata, config) do
+    queue_depth(config.stats, metadata.pipeline, measurements.depth)
   end
 end

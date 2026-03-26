@@ -1,13 +1,14 @@
 defmodule MediaCentaur.PipelineTest do
   @moduledoc """
-  End-to-end pipeline flow tests. Calls `Pipeline.process_payload/1` directly
-  (without Broadway) to verify the full parse → search → fetch_metadata →
-  download_images → ingest lifecycle using Payload-based stage functions.
+  End-to-end pipeline flow tests. Calls `Discovery.process/1` and
+  `Import.process/1` directly (without Broadway) to verify the full
+  parse → search → fetch_metadata → ingest lifecycle.
   """
   use MediaCentaur.DataCase
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Pipeline
+  alias MediaCentaur.Pipeline.{Discovery, Import}
+  alias MediaCentaur.Pipeline.Import.Producer, as: ImportProducer
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Review
 
@@ -40,11 +41,11 @@ defmodule MediaCentaur.PipelineTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Full lifecycle
+  # Discovery → Import full lifecycle
   # ---------------------------------------------------------------------------
 
   describe "full lifecycle" do
-    test "movie: parse → search → fetch → download → ingest → complete + WatchedFile linked" do
+    test "movie: discovery matches → import fetches metadata and creates entity" do
       stub_routes([
         {"/search/movie",
          %{
@@ -61,11 +62,23 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
-        watch_directory: "/media/pipeline",
-        entry_point: :file_detected
+        watch_directory: "/media/pipeline"
       }
 
-      assert {:ok, result} = Pipeline.process_payload(payload)
+      assert {:matched, discovered} = Discovery.process(payload)
+      assert discovered.tmdb_id == 550
+      assert discovered.tmdb_type == :movie
+
+      import_payload =
+        ImportProducer.build_payload(%{
+          file_path: discovered.file_path,
+          watch_dir: discovered.watch_directory,
+          tmdb_id: discovered.tmdb_id,
+          tmdb_type: discovered.tmdb_type,
+          pending_file_id: nil
+        })
+
+      assert {:ok, result} = Import.process(import_payload)
       assert result.entity_id != nil
 
       entity = Library.get_entity!(result.entity_id)
@@ -80,7 +93,7 @@ defmodule MediaCentaur.PipelineTest do
       assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
     end
 
-    test "TV episode: parse → search → fetch → download → ingest → complete" do
+    test "TV episode: discovery matches → import creates series with season and episode" do
       stub_routes([
         {"/search/tv",
          %{
@@ -99,11 +112,21 @@ defmodule MediaCentaur.PipelineTest do
       payload = %Payload{
         file_path:
           "/media/pipeline/TV/Sample.Show.Eight/Season.01/Sample.Show.Eight.S01E01.1080p.BluRay.mkv",
-        watch_directory: "/media/pipeline/TV",
-        entry_point: :file_detected
+        watch_directory: "/media/pipeline/TV"
       }
 
-      assert {:ok, result} = Pipeline.process_payload(payload)
+      assert {:matched, discovered} = Discovery.process(payload)
+
+      import_payload =
+        ImportProducer.build_payload(%{
+          file_path: discovered.file_path,
+          watch_dir: discovered.watch_directory,
+          tmdb_id: discovered.tmdb_id,
+          tmdb_type: discovered.tmdb_type,
+          pending_file_id: nil
+        })
+
+      assert {:ok, result} = Import.process(import_payload)
       assert result.entity_id != nil
 
       entity = Library.get_entity_with_associations!(result.entity_id)
@@ -131,11 +154,21 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/The.Shadowy.Sentinel.2008.BluRay.mkv",
-        watch_directory: "/media/pipeline",
-        entry_point: :file_detected
+        watch_directory: "/media/pipeline"
       }
 
-      assert {:ok, result} = Pipeline.process_payload(payload)
+      assert {:matched, discovered} = Discovery.process(payload)
+
+      import_payload =
+        ImportProducer.build_payload(%{
+          file_path: discovered.file_path,
+          watch_dir: discovered.watch_directory,
+          tmdb_id: discovered.tmdb_id,
+          tmdb_type: discovered.tmdb_type,
+          pending_file_id: nil
+        })
+
+      assert {:ok, result} = Import.process(import_payload)
 
       entity = Library.get_entity_with_associations!(result.entity_id)
       assert entity.type == :movie_series
@@ -146,10 +179,10 @@ defmodule MediaCentaur.PipelineTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Stops at pending_review
+  # Discovery stops at pending_review
   # ---------------------------------------------------------------------------
 
-  describe "low confidence stops processing" do
+  describe "low confidence stops at discovery" do
     test "low confidence: search → needs_review + PendingFile created, no WatchedFile" do
       stub_routes([
         {"/search/movie",
@@ -166,11 +199,10 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
-        watch_directory: "/media/pipeline",
-        entry_point: :file_detected
+        watch_directory: "/media/pipeline"
       }
 
-      assert {:ok, result} = Pipeline.process_payload(payload)
+      assert {:needs_review, result} = Discovery.process(payload)
       assert result.entity_id == nil
 
       # PendingFile created
@@ -190,16 +222,15 @@ defmodule MediaCentaur.PipelineTest do
   # ---------------------------------------------------------------------------
 
   describe "error handling" do
-    test "search error: returns error, no WatchedFile, no PendingFile" do
+    test "discovery search error: returns error, no WatchedFile, no PendingFile" do
       stub_tmdb_error("/search/movie", 500)
 
       payload = %Payload{
         file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
-        watch_directory: "/media/pipeline",
-        entry_point: :file_detected
+        watch_directory: "/media/pipeline"
       }
 
-      assert {:error, _reason} = Pipeline.process_payload(payload)
+      assert {:error, _reason} = Discovery.process(payload)
 
       # No WatchedFile or PendingFile created
       assert Library.list_watched_files!() == []
@@ -212,7 +243,7 @@ defmodule MediaCentaur.PipelineTest do
   # ---------------------------------------------------------------------------
 
   describe "dedup" do
-    test "skips already-linked file" do
+    test "discovery skips already-linked file" do
       entity = create_entity(%{type: :movie, name: "Already Ingested"})
 
       Library.link_file!(%{
@@ -223,11 +254,10 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/Already.Ingested.mkv",
-        watch_directory: "/media/pipeline",
-        entry_point: :file_detected
+        watch_directory: "/media/pipeline"
       }
 
-      assert {:ok, _result} = Pipeline.process_payload(payload)
+      assert :skipped = Discovery.process(payload)
 
       # Still only one WatchedFile
       assert length(Library.list_watched_files!()) == 1
@@ -235,11 +265,11 @@ defmodule MediaCentaur.PipelineTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Review resolved
+  # Review resolved (Import pipeline directly)
   # ---------------------------------------------------------------------------
 
   describe "review resolved" do
-    test "processes with tmdb_id, creates entity, destroys PendingFile" do
+    test "import processes with tmdb_id, creates entity, destroys PendingFile" do
       stub_routes([
         {"/movie/550", movie_detail()}
       ])
@@ -256,18 +286,16 @@ defmodule MediaCentaur.PipelineTest do
           match_title: "Fight Club"
         })
 
-      payload = %Payload{
-        file_path: "/media/pipeline/Review.Resolved.mkv",
-        watch_directory: "/media/pipeline",
-        entry_point: :review_resolved,
-        tmdb_id: 550,
-        tmdb_type: :movie,
-        confidence: 1.0,
-        match_title: "Fight Club",
-        pending_file_id: pending.id
-      }
+      import_payload =
+        ImportProducer.build_payload(%{
+          file_path: "/media/pipeline/Review.Resolved.mkv",
+          watch_dir: "/media/pipeline",
+          tmdb_id: 550,
+          tmdb_type: :movie,
+          pending_file_id: pending.id
+        })
 
-      assert {:ok, result} = Pipeline.process_payload(payload)
+      assert {:ok, result} = Import.process(import_payload)
       assert result.entity_id != nil
 
       entity = Library.get_entity!(result.entity_id)

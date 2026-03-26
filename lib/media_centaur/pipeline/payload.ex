@@ -11,7 +11,6 @@ defmodule MediaCentaur.Pipeline.Payload do
   **Input (set by producer):**
   - `file_path` — absolute path to the video file
   - `watch_directory` — the watch directory it was detected in
-  - `entry_point` — `:file_detected` or `:review_resolved`
 
   **Parse stage:**
   - `parsed` — `%Parser.Result{}` with title, year, type, season, episode
@@ -32,7 +31,7 @@ defmodule MediaCentaur.Pipeline.Payload do
   - `entity_id` — UUID of the created/found entity
   - `ingest_status` — `:new`, `:new_child`, or `:existing`
 
-  **Review resolution (set by Producer for `:review_resolved` entry point):**
+  **Import (set by Import Producer for review-resolved files):**
   - `pending_file_id` — UUID of the PendingFile being resolved
   """
 
@@ -42,7 +41,6 @@ defmodule MediaCentaur.Pipeline.Payload do
     # Input
     :file_path,
     :watch_directory,
-    :entry_point,
 
     # Parse stage
     :parsed,
@@ -63,7 +61,7 @@ defmodule MediaCentaur.Pipeline.Payload do
     :entity_id,
     :ingest_status,
 
-    # Review resolution
+    # Import (review-resolved)
     :pending_file_id
   ]
 end
