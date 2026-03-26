@@ -2,7 +2,7 @@ defmodule MediaCentaur.Library.ChangeLog do
   @moduledoc """
   Records library additions and removals as `ChangeEntry` records.
 
-  Called from orchestrators (Ingress, EntityCascade), not from Ash changes.
+  Called from orchestrators (Inbound, EntityCascade), not from Ash changes.
   Prunes to the most recent 100 entries after each insert.
   """
   import Ecto.Query
