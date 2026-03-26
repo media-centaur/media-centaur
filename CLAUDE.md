@@ -99,6 +99,20 @@ Every system — Elixir, JavaScript, or otherwise — must be designed so that C
 - **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals.
 - **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes.
 
+## Bounded Contexts
+
+Five contexts own their tables and communicate only via PubSub events. No context aliases another context's modules. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md).
+
+| Context | Prefix | Owns | PubSub role |
+|---------|--------|------|-------------|
+| **Library** | `library_` | Entities, seasons, episodes, movies, extras, images, identifiers, watched files, watch progress | Subscribes to `pipeline:publish` and `library:commands`; broadcasts `library:updates` |
+| **Pipeline** | `pipeline_` | Image queue | Discovery subscribes to `pipeline:input`; Import subscribes to `pipeline:matched`; broadcasts `pipeline:publish` |
+| **Review** | `review_` | Pending files | Intake subscribes to `review:intake`; broadcasts `review:updates` and `pipeline:matched` |
+| **Watcher** | `watcher_` | File presence | Broadcasts `pipeline:input` and `library:file_events` |
+| **Settings** | `settings_` | Configuration entries | Broadcasts `settings:updates` |
+
+**Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Dashboard, Admin, Playback, Serializer) read Library freely — they are not bounded contexts.
+
 ## Pipeline
 
 See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — PubSub-driven event flow, processing stages, idempotency guarantees, and extras handling.
