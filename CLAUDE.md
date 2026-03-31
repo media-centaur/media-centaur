@@ -17,6 +17,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | Writing tests — Elixir, JavaScript, or Playwright E2E | `automated-testing` |
 | General coding standards, naming, structure | `coding-guidelines` |
 | Production debugging, service health, runtime logs | `troubleshoot` |
+| mpv Lua scripts, overlays, key bindings, playback UI | `mpv-extensions` |
 
 Invoke the skill **first**, then explore the codebase, then write code.
 
