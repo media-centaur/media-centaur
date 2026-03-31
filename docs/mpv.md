@@ -19,6 +19,7 @@ cp -r contrib/mpv/scripts/ ~/.config/mpv/scripts/
 | `contrib/mpv/mpv.conf` | Player settings — rendering, subtitles, audio, OSD |
 | `contrib/mpv/input.conf` | Key bindings |
 | `contrib/mpv/scripts/track-menu.lua` | Two-column audio/subtitle track selector overlay |
+| `contrib/mpv/scripts/skip-intro.lua` | Chapter-based intro skip button |
 
 ## mpv.conf
 
@@ -139,3 +140,37 @@ This outputs detailed logs for script loading, track discovery, rendering, overl
 - **OSD overlay resolution:** `mp.create_osd_overlay("ass-events")` defaults to a 720p virtual coordinate system. The plugin sets `overlay.res_x` and `overlay.res_y` to match `mp.get_osd_size()` so that pixel coordinates work correctly at any resolution.
 - **Resolution scaling:** All layout values (font sizes, padding, column widths) are defined at a 1080p baseline and multiplied by `osd_height / 1080` at render time.
 - **Forward declaration:** Lua requires `close_menu` to be forward-declared as a local before `open_menu` since `open_menu`'s closures reference it.
+
+## skip-intro Plugin
+
+`scripts/skip-intro.lua` detects intro/opening chapters and shows a "Skip Intro" pill button in the bottom-right corner. Press **Enter** to skip to the next chapter.
+
+### How It Works
+
+The script observes mpv's `chapter` property. When a chapter change occurs, it checks the chapter title (case-insensitive) against these patterns:
+
+- `Intro`, `Intro Credits`, etc.
+- `Opening`, `Opening Theme`, etc.
+- `OP`, `OP 1`, `OP2`, etc.
+- `Prologue`
+
+If the title matches and there is a next chapter to skip to, a glassmorphism pill appears in the bottom-right corner with `ENTER  Skip Intro  ▶▶`. The button auto-dismisses when playback leaves the intro chapter.
+
+### Behavior
+
+- **No key binding needed** — the script activates automatically via chapter observation
+- ENTER is force-bound to "skip to next chapter" while the button is visible, overriding the global fullscreen toggle. The global binding is restored when the button disappears.
+- Files without chapters or with untitled chapters are unaffected
+- If the intro is the last chapter (no next chapter), the button is suppressed
+
+### Visual Style
+
+Same glassmorphism aesthetic as track-menu: dark semi-transparent pill with subtle border, dim "ENTER" key hint, bold white "Skip Intro" label, and orange accent arrow.
+
+### Debugging
+
+```bash
+mpv --msg-level=skip_intro=trace /path/to/video.mkv
+```
+
+This outputs chapter change events, pattern matching results, overlay rendering, and skip actions.
