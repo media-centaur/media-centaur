@@ -99,7 +99,9 @@ defmodule MediaCentaur.Config do
       skip_dirs: ["Sample"],
       file_absence_ttl_days: 30,
       recent_changes_days: 3,
-      recently_watched_count: 5
+      recently_watched_count: 5,
+      logging_components: [],
+      logging_suppress_framework: ["ecto", "phoenix", "live_view"]
     }
 
     if Application.get_env(:media_centaur, :skip_user_config, false) do
@@ -154,7 +156,10 @@ defmodule MediaCentaur.Config do
       recent_changes_days:
         get_in(toml, ["dashboard", "recent_changes_days"]) || defaults.recent_changes_days,
       recently_watched_count:
-        get_in(toml, ["dashboard", "recently_watched_count"]) || defaults.recently_watched_count
+        get_in(toml, ["dashboard", "recently_watched_count"]) || defaults.recently_watched_count,
+      logging_components: get_in(toml, ["logging", "components"]) || defaults.logging_components,
+      logging_suppress_framework:
+        get_in(toml, ["logging", "suppress_framework"]) || defaults.logging_suppress_framework
     }
   end
 

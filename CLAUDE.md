@@ -16,6 +16,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | Keyboard/gamepad nav, focus context, nav graphs, page behaviors | `input-system` |
 | Writing tests — Elixir, JavaScript, or Playwright E2E | `automated-testing` |
 | General coding standards, naming, structure | `coding-guidelines` |
+| Production debugging, service health, runtime logs | `troubleshoot` |
 
 Invoke the skill **first**, then explore the codebase, then write code.
 

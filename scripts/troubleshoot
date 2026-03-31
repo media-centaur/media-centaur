@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Troubleshoot a running Media Centaur production instance.
+# All Elixir-side logic lives in MediaCentaur.Diagnostics — this script
+# is a thin dispatcher that calls named functions, never inline code.
+# Usage: scripts/troubleshoot [command] [args...]
+
+service="media-centaur-backend"
+install_dir="$HOME/.local/lib/media-centaur"
+bin="$install_dir/bin/media_centaur"
+port=4000
+
+bold="\033[1m"
+dim="\033[2m"
+red="\033[31m"
+green="\033[32m"
+yellow="\033[33m"
+reset="\033[0m"
+
+banner() { printf "\n${bold}── %s${reset}\n" "$1"; }
+ok()     { printf "  ${green}✓${reset} %s\n" "$1"; }
+warn()   { printf "  ${yellow}!${reset} %s\n" "$1"; }
+fail()   { printf "  ${red}✗${reset} %s\n" "$1"; }
+info()   { printf "  ${dim}%s${reset}\n" "$1"; }
+
+# --- Helpers ---
+
+require_release() {
+  if [ ! -x "$bin" ]; then
+    echo "Error: Release not found at $bin"
+    echo "Run 'scripts/release && scripts/install' first."
+    exit 1
+  fi
+}
+
+require_running() {
+  if ! systemctl --user is-active --quiet "$service" 2>/dev/null; then
+    echo "Error: Service $service is not running."
+    echo "Start with: systemctl --user start $service"
+    exit 1
+  fi
+}
+
+diag() {
+  "$bin" rpc "MediaCentaur.Diagnostics.$1"
+}
+
+# --- Commands ---
+
+cmd_status() {
+  banner "Service"
+  if systemctl --user is-active --quiet "$service" 2>/dev/null; then
+    ok "Running"
+    pid=$("$bin" pid 2>/dev/null || echo "unknown")
+    info "PID: $pid"
+    info "Version: $("$bin" version 2>/dev/null || echo "unknown")"
+
+    started=$(systemctl --user show "$service" --property=ActiveEnterTimestamp --value 2>/dev/null || true)
+    if [ -n "$started" ]; then
+      info "Started: $started"
+    fi
+  else
+    fail "Not running"
+    info "Start with: systemctl --user start $service"
+  fi
+
+  banner "Port $port"
+  if ss -tlnp 2>/dev/null | grep -q ":$port "; then
+    ok "Listening on 127.0.0.1:$port"
+  else
+    fail "Nothing listening on port $port"
+  fi
+
+  banner "HTTP"
+  if http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$port/" --max-time 3 2>/dev/null); then
+    if [ "$http_code" = "200" ]; then
+      ok "GET / → $http_code"
+    else
+      warn "GET / → $http_code"
+    fi
+  else
+    fail "Could not connect"
+  fi
+
+  banner "Database"
+  if [ -f "$HOME/.local/share/media-centaur/media_library.db" ]; then
+    db_size=$(du -h "$HOME/.local/share/media-centaur/media_library.db" 2>/dev/null | cut -f1)
+    ok "Exists ($db_size)"
+  else
+    fail "Database file not found"
+  fi
+
+  if systemctl --user is-active --quiet "$service" 2>/dev/null; then
+    banner "Supervision"
+    diag "status()"
+
+    banner "Thinking Logs"
+    diag "log_status()"
+
+    banner "Services"
+    diag "services()"
+
+    banner "Playback"
+    diag "playback()"
+
+    banner "Recent Errors (last 5 min)"
+    journalctl --user -u "$service" --no-pager --since "5 min ago" -p err 2>/dev/null | tail -20 || info "None"
+  fi
+}
+
+cmd_logs() {
+  local lines="${1:-100}"
+  exec journalctl --user -u "$service" --no-pager -n "$lines" -f
+}
+
+cmd_errors() {
+  local since="${1:-1h}"
+  banner "Errors (last $since)"
+  journalctl --user -u "$service" --no-pager --since "$since ago" -p err 2>/dev/null || info "None"
+}
+
+cmd_remote() {
+  require_release
+  require_running
+  echo "Connecting to production node... (Ctrl+\\ to disconnect)"
+  exec "$bin" remote
+}
+
+cmd_log() {
+  require_release
+  require_running
+
+  local subcmd="${1:-status}"
+  shift 2>/dev/null || true
+
+  case "$subcmd" in
+    status)
+      diag "log_status()"
+      ;;
+    enable)
+      if [ $# -eq 0 ]; then
+        echo "Usage: scripts/troubleshoot log enable <component>"
+        echo "Components: watcher, pipeline, tmdb, playback, library"
+        exit 1
+      fi
+      diag "log_enable(:$1)"
+      echo "Tail logs with: scripts/troubleshoot logs"
+      ;;
+    disable)
+      if [ $# -eq 0 ]; then
+        echo "Usage: scripts/troubleshoot log disable <component>"
+        exit 1
+      fi
+      diag "log_disable(:$1)"
+      ;;
+    all)
+      diag "log_all()"
+      echo "Tail logs with: scripts/troubleshoot logs"
+      ;;
+    none)
+      diag "log_none()"
+      ;;
+    solo)
+      if [ $# -eq 0 ]; then
+        echo "Usage: scripts/troubleshoot log solo <component>"
+        exit 1
+      fi
+      diag "log_solo(:$1)"
+      echo "Tail logs with: scripts/troubleshoot logs"
+      ;;
+    *)
+      echo "Unknown log command: $subcmd"
+      echo "Available: status, enable, disable, all, none, solo"
+      exit 1
+      ;;
+  esac
+}
+
+cmd_help() {
+  cat <<EOF
+Usage: scripts/troubleshoot [command] [args...]
+
+Commands:
+  (none)              Status dashboard — service, port, HTTP, DB, supervision tree
+  logs [N]            Tail journal logs (default: last 100, follows)
+  errors [PERIOD]     Show error-level logs (default: 1h)
+  remote              Open remote IEx shell (Ctrl+\\ to disconnect)
+  log status          Show thinking log component status
+  log enable NAME     Enable a thinking log component
+  log disable NAME    Disable a thinking log component
+  log all             Enable all thinking log components
+  log none            Disable all thinking log components
+  log solo NAME       Enable only the named component
+  help                This message
+
+Components: watcher, pipeline, tmdb, playback, library
+
+Examples:
+  scripts/troubleshoot                        # quick health check
+  scripts/troubleshoot log enable pipeline    # turn on pipeline logs
+  scripts/troubleshoot logs                   # watch the output
+  scripts/troubleshoot log none               # clean up when done
+EOF
+}
+
+# --- Dispatch ---
+
+require_release
+
+cmd="${1:-}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+  ""|-s|status)   cmd_status ;;
+  logs|log-tail)  cmd_logs "$@" ;;
+  errors)         cmd_errors "$@" ;;
+  remote)         cmd_remote ;;
+  log)            cmd_log "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *)
+    echo "Unknown command: $cmd"
+    cmd_help
+    exit 1
+    ;;
+esac

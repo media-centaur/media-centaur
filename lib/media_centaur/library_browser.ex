@@ -69,8 +69,12 @@ defmodule MediaCentaur.LibraryBrowser do
     Log.info(:library, "play requested — #{Format.short_id(uuid)}")
 
     case Resolver.resolve(uuid) do
-      {:ok, play_params} -> Sessions.play(play_params)
-      {:error, reason} -> {:error, reason}
+      {:ok, play_params} ->
+        Sessions.play(play_params)
+
+      {:error, reason} ->
+        Log.info(:playback, "play failed — #{Format.short_id(uuid)}, #{reason}")
+        {:error, reason}
     end
   end
 
