@@ -136,7 +136,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         {:noreply, %{state | socket: socket, state: :playing}}
 
       {:error, _reason} ->
-        # No existing mpv — clean up stale socket file and launch fresh
+        Log.info(:playback, "reconnect failed, cleaning stale socket, launching fresh")
         File.rm(state.socket_path)
         send(self(), :launch_mpv)
         {:noreply, state}
@@ -185,6 +185,13 @@ defmodule MediaCentaur.Playback.MpvSession do
 
       {:error, _reason} ->
         if state.socket_retries > 0 do
+          timeout_ms = MediaCentaur.Config.get(:mpv_socket_timeout_ms)
+          max_retries = div(timeout_ms, @socket_retry_interval_ms)
+
+          if state.socket_retries == max_retries do
+            Log.info(:playback, "waiting for IPC socket (#{max_retries} retries)")
+          end
+
           Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
           {:noreply, %{state | socket_retries: state.socket_retries - 1}}
         else
@@ -205,8 +212,12 @@ defmodule MediaCentaur.Playback.MpvSession do
       |> String.trim()
       |> Jason.decode()
       |> case do
-        {:ok, message} -> handle_mpv_message(message, state)
-        {:error, _} -> state
+        {:ok, message} ->
+          handle_mpv_message(message, state)
+
+        {:error, error} ->
+          Log.warning(:playback, "IPC JSON decode failed — #{inspect(error)}")
+          state
       end
 
     {:noreply, state}

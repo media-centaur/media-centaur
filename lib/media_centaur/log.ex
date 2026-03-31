@@ -101,12 +101,16 @@ defmodule MediaCentaur.Log do
 
   # --- State Management ---
 
-  @doc "Initialize from DB on application boot."
+  @doc "Initialize from DB on application boot, falling back to TOML config defaults."
   def init do
     enabled =
       case read_setting() do
-        nil -> MapSet.new()
-        names -> MapSet.new(names, &String.to_existing_atom/1)
+        nil ->
+          config_components = MediaCentaur.Config.get(:logging_components) || []
+          MapSet.new(config_components, &String.to_existing_atom/1)
+
+        names ->
+          MapSet.new(names, &String.to_existing_atom/1)
       end
 
     :persistent_term.put(@pt_key, enabled)
@@ -169,23 +173,27 @@ defmodule MediaCentaur.Log do
   @doc "Returns the known framework module map for the LiveView UI."
   def framework_modules, do: @framework_modules
 
-  @doc "Initialize framework log suppression from DB on boot."
+  @doc "Initialize framework log suppression from DB on boot, falling back to TOML config defaults."
   def init_framework_levels do
-    case read_framework_setting() do
-      nil ->
-        suppress_all_framework_modules()
+    suppressed_keys =
+      case read_framework_setting() do
+        nil ->
+          config_suppress = MediaCentaur.Config.get(:logging_suppress_framework) || []
+          config_suppress
 
-      suppressed_keys ->
-        keys = MapSet.new(suppressed_keys, &String.to_existing_atom/1)
+        keys ->
+          keys
+      end
 
-        Enum.each(@framework_modules, fn {key, mod} ->
-          if MapSet.member?(keys, key) do
-            Logger.put_module_level(mod, :warning)
-          else
-            Logger.delete_module_level(mod)
-          end
-        end)
-    end
+    key_set = MapSet.new(suppressed_keys, &String.to_existing_atom/1)
+
+    Enum.each(@framework_modules, fn {key, mod} ->
+      if MapSet.member?(key_set, key) do
+        Logger.put_module_level(mod, :warning)
+      else
+        Logger.delete_module_level(mod)
+      end
+    end)
   end
 
   @doc "Suppress a framework module's info/debug logs."
@@ -272,12 +280,6 @@ defmodule MediaCentaur.Log do
       {:ok, %{value: %{"suppressed" => names}}} -> names
       _ -> nil
     end
-  end
-
-  defp suppress_all_framework_modules do
-    Enum.each(@framework_modules, fn {_key, mod} ->
-      Logger.put_module_level(mod, :warning)
-    end)
   end
 
   defp broadcast_change do

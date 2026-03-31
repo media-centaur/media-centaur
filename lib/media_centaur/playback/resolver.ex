@@ -14,7 +14,9 @@ defmodule MediaCentaur.Playback.Resolver do
   4. Extra — check ExtraProgress, resume if partial
   """
 
-  alias MediaCentaur.Library
+  require MediaCentaur.Log, as: Log
+
+  alias MediaCentaur.{Format, Library}
   alias MediaCentaur.Playback.{EpisodeList, MovieList, Resume}
 
   @type play_params :: %{
@@ -36,10 +38,17 @@ defmodule MediaCentaur.Playback.Resolver do
   """
   @spec resolve(String.t()) :: {:ok, play_params()} | {:error, atom()}
   def resolve(uuid) do
+    Log.info(:playback, "resolving #{Format.short_id(uuid)}")
+
     with {:error, :not_found} <- resolve_entity(uuid),
          {:error, :not_found} <- resolve_episode(uuid),
          {:error, :not_found} <- resolve_movie(uuid),
          {:error, :not_found} <- resolve_extra(uuid) do
+      Log.info(
+        :playback,
+        "resolve failed — #{Format.short_id(uuid)} not found as entity/episode/movie/extra"
+      )
+
       {:error, :not_found}
     end
   end
@@ -60,11 +69,17 @@ defmodule MediaCentaur.Playback.Resolver do
   defp resolve_entity_playback(entity, progress_records) do
     case Resume.resolve(entity, progress_records) do
       {:no_playable_content} ->
+        Log.info(:playback, "no playable content for entity #{entity.name}")
         {:error, :no_playable_content}
 
       {action, content_url, position} ->
         {season, episode, episode_name} =
           episode_context(action, entity, content_url, progress_records)
+
+        Log.info(:playback, fn ->
+          "resolved entity #{entity.name} — #{action}, #{Path.basename(content_url)}" <>
+            if(position > 0, do: ", resume at #{position}s", else: "")
+        end)
 
         {:ok,
          %{
@@ -92,7 +107,10 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp resolve_episode_playback(%{content_url: nil}), do: {:error, :no_playable_content}
+  defp resolve_episode_playback(%{content_url: nil} = episode) do
+    Log.info(:playback, "episode #{Format.short_id(episode.id)} has no content_url")
+    {:error, :no_playable_content}
+  end
 
   defp resolve_episode_playback(episode) do
     with {:ok, season} <- Library.get_season(episode.season_id),
@@ -104,6 +122,11 @@ defmodule MediaCentaur.Playback.Resolver do
       position = resume_position(progress_by_key, key)
 
       action = if position > 0.0, do: :resume, else: :play_episode
+
+      Log.info(:playback, fn ->
+        "resolved episode S#{season.season_number}E#{episode.episode_number} of #{entity.name} — #{action}" <>
+          if(position > 0, do: ", resume at #{position}s", else: "")
+      end)
 
       {:ok,
        %{
@@ -117,7 +140,13 @@ defmodule MediaCentaur.Playback.Resolver do
          start_position: position
        }}
     else
-      {:error, _} -> {:error, :not_found}
+      {:error, _} ->
+        Log.info(
+          :playback,
+          "episode #{Format.short_id(episode.id)} — parent season or entity not found"
+        )
+
+        {:error, :not_found}
     end
   end
 
@@ -133,7 +162,10 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp resolve_movie_playback(%{content_url: nil}), do: {:error, :no_playable_content}
+  defp resolve_movie_playback(%{content_url: nil} = movie) do
+    Log.info(:playback, "movie #{Format.short_id(movie.id)} has no content_url")
+    {:error, :no_playable_content}
+  end
 
   defp resolve_movie_playback(movie) do
     case Library.get_entity_with_associations(movie.entity_id) do
@@ -154,6 +186,11 @@ defmodule MediaCentaur.Playback.Resolver do
 
           action = if position > 0.0, do: :resume, else: :play_movie
 
+          Log.info(:playback, fn ->
+            "resolved movie #{movie.name} (##{ordinal}) of #{entity.name} — #{action}" <>
+              if(position > 0, do: ", resume at #{position}s", else: "")
+          end)
+
           {:ok,
            %{
              action: action,
@@ -166,10 +203,16 @@ defmodule MediaCentaur.Playback.Resolver do
              start_position: position
            }}
         else
+          Log.info(
+            :playback,
+            "movie #{movie.name} not found in available list for #{entity.name}"
+          )
+
           {:error, :no_playable_content}
         end
 
       {:error, :not_found} ->
+        Log.info(:playback, "movie #{Format.short_id(movie.id)} — parent entity not found")
         {:error, :not_found}
     end
   end
@@ -186,7 +229,10 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp resolve_extra_playback(%{content_url: nil}), do: {:error, :no_playable_content}
+  defp resolve_extra_playback(%{content_url: nil} = extra) do
+    Log.info(:playback, "extra #{Format.short_id(extra.id)} has no content_url")
+    {:error, :no_playable_content}
+  end
 
   defp resolve_extra_playback(extra) do
     entity_name =
