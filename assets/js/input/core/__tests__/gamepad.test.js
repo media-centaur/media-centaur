@@ -532,6 +532,177 @@ describe("GamepadSource", () => {
     })
   })
 
+  describe("pause/resume", () => {
+    test("pause stops polling loop", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+      expect(env._rafCallbacks.length).toBe(1)
+
+      source.pause()
+      expect(source._rafId).toBe(null)
+      expect(env._rafCallbacks.length).toBe(0)
+    })
+
+    test("pause keeps gamepad connect/disconnect listeners active", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+
+      source.pause()
+
+      expect(env._listeners.gamepadconnected?.length).toBe(1)
+      expect(env._listeners.gamepaddisconnected?.length).toBe(1)
+    })
+
+    test("resume restarts polling when gamepad still connected", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+
+      source.pause()
+      expect(source._rafId).toBe(null)
+
+      source.resume()
+      expect(env._rafCallbacks.length).toBe(1)
+    })
+
+    test("resume does not start polling when no gamepad connected", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+
+      source.pause()
+      env._clearGamepads()
+
+      source.resume()
+      expect(env._rafCallbacks.length).toBe(0)
+    })
+
+    test("resume primes buttons to prevent false rising edge", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+      env._tickRAF() // initial poll
+
+      source.pause()
+
+      // Button pressed while paused
+      gamepad.buttons[0] = { pressed: true }
+
+      source.resume()
+
+      // First poll after resume — button already held, should NOT fire
+      actions.length = 0
+      env._tickRAF()
+      expect(actions).toEqual([])
+    })
+
+    test("pause clears repeat timers", () => {
+      const now = Date.now()
+      let currentTime = now
+      source._now = () => currentTime
+
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+      env._tickRAF() // initial
+
+      // Press D-pad down and accumulate time toward repeat
+      gamepad.buttons[13] = { pressed: true }
+      env._tickRAF()
+      expect(actions).toEqual([Action.NAVIGATE_DOWN])
+
+      // Advance 300ms (close to repeatDelay of 400ms)
+      currentTime = now + 300
+
+      source.pause()
+      source.resume()
+
+      // After resume, the repeat timer is reset — 300ms does not carry over
+      // Need another full 400ms from resume to get a repeat
+      actions.length = 0
+      currentTime = now + 350 // only 50ms since resume
+      env._tickRAF()
+      expect(actions).toEqual([])
+    })
+
+    test("pause clears axis state", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+      env._tickRAF() // initial
+
+      // Push stick right
+      gamepad.axes[0] = 0.8
+      env._tickRAF()
+      expect(actions).toContain(Action.NAVIGATE_RIGHT)
+
+      source.pause()
+      source.resume()
+
+      // Stick still held right — fires as new direction (axis state was cleared)
+      actions.length = 0
+      env._tickRAF()
+      expect(actions).toContain(Action.NAVIGATE_RIGHT)
+    })
+
+    test("resume is a no-op after stop", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+
+      source.stop()
+      source.resume()
+
+      expect(env._rafCallbacks.length).toBe(0)
+      expect(source._rafId).toBe(null)
+    })
+
+    test("gamepad connected while paused is picked up on resume", () => {
+      source.start()
+      // No gamepad initially — no polling
+      expect(env._rafCallbacks.length).toBe(0)
+
+      source.pause()
+
+      // Gamepad connects while paused (listener still active)
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+
+      // _onConnected starts polling even during pause — that's fine,
+      // but let's verify resume works correctly
+      source.pause() // ensure paused again
+      source.resume()
+      expect(env._rafCallbacks.length).toBe(1)
+    })
+
+    test("gamepad disconnected while paused — resume does not poll", () => {
+      source.start()
+      const gamepad = makeGamepad()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+
+      source.pause()
+
+      // Gamepad disconnects while paused
+      env._clearGamepads()
+      env._dispatchEvent("gamepaddisconnected", { gamepad })
+
+      source.resume()
+      expect(env._rafCallbacks.length).toBe(0)
+    })
+  })
+
   describe("no actions after stop", () => {
     test("button presses ignored after stop", () => {
       source.start()

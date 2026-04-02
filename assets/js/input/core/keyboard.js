@@ -40,6 +40,22 @@ export class KeyboardSource {
     this._inputEditing = false
   }
 
+  /**
+   * Pause keyboard listening without resetting editing state.
+   * Used when the document becomes hidden (workspace switch, tab change).
+   */
+  pause() {
+    this._document.removeEventListener("keydown", this._handleKeyDown)
+  }
+
+  /**
+   * Resume keyboard listening after a pause.
+   * Preserves editing state across visibility changes.
+   */
+  resume() {
+    this._document.addEventListener("keydown", this._handleKeyDown)
+  }
+
   _handleKeyDown(event) {
     this._onInputDetected("keydown")
 

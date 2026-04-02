@@ -115,6 +115,35 @@ export class GamepadSource {
     this._resetState()
   }
 
+  /**
+   * Pause polling without tearing down connect/disconnect listeners.
+   * Used when the document becomes hidden (workspace switch, tab change).
+   * Clears repeat and axis state so no stale timers carry over on resume.
+   */
+  pause() {
+    this._stopPolling()
+    this._buttonRepeat.fill(null)
+    this._axisState.x.direction = null
+    this._axisState.y.direction = null
+  }
+
+  /**
+   * Resume polling after a pause. Primes button state from the current
+   * gamepad snapshot to prevent false rising edges from buttons that
+   * changed state while the document was hidden.
+   */
+  resume() {
+    if (!this._running) return
+    const gamepads = this._getGamepads()
+    for (const gp of gamepads) {
+      if (gp?.connected) {
+        this._primeButtons(gp)
+        this._startPolling()
+        return
+      }
+    }
+  }
+
   _onConnected(event) {
     this._detectController(event.gamepad)
     if (!this._rafId) {
