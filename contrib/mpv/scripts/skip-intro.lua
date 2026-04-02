@@ -20,12 +20,16 @@ local cfg = {
     label_size    = 30,
     hint_size     = 22,
     -- Colors (ASS BGR format) — matches track-menu.lua
-    bg_color      = "40302A",  bg_alpha      = "0A",  -- ~96% opaque
+    bg_color      = "40302A",  bg_alpha      = "00",  -- fully opaque
     text_color    = "ECE8E8",                          -- normal text
     bright_color  = "FFFFFF",                          -- label text
     header_color  = "FF9F4B",                          -- accent (arrow)
-    border_color  = "ECE8E8",  border_alpha  = "80",  -- ~50% opaque
+    border_color  = "ECE8E8",  border_alpha  = "40",  -- ~75% opaque
     dim_color     = "808080",                          -- key hint text
+    -- Timing
+    delay         = 1.0,       -- seconds after chapter change before showing
+    fade_in       = 0.3,       -- fade-in duration in seconds
+    fade_out      = 0.2,       -- fade-out duration in seconds
 }
 
 -- Chapter title patterns that trigger the skip button (matched case-insensitive)
@@ -38,9 +42,13 @@ local intro_patterns = {
 
 -- ── State ───────────────────────────────────────────────────────────
 local state = {
-    visible   = false,
-    overlay   = nil,
-    skip_time = nil,   -- absolute time to seek to (start of next chapter)
+    visible     = false,
+    overlay     = nil,
+    skip_time   = nil,     -- absolute time to seek to (start of next chapter)
+    fade        = 0,       -- current fade level (0 = invisible, 1 = fully visible)
+    fade_target = 0,       -- target fade level
+    fade_timer  = nil,     -- periodic timer for fade animation
+    delay_timer = nil,     -- one-shot timer for initial delay
 }
 
 local bindings = {}
@@ -61,6 +69,13 @@ end
 
 local function ass_border_alpha(a)
     return "\\3a&H" .. a .. "&"
+end
+
+-- Interpolate alpha from fully transparent (FF) toward target based on fade
+local function faded(target_hex)
+    local target = tonumber(target_hex, 16)
+    local alpha = math.floor(0xFF - (0xFF - target) * state.fade)
+    return string.format("%02X", alpha)
 end
 
 -- ── Chapter Detection ───────────────────────────────────────────────
@@ -96,8 +111,8 @@ end
 -- ── Render ──────────────────────────────────────────────────────────
 
 local function render()
-    msg.trace("render: called, visible=" .. tostring(state.visible))
-    if not state.visible then return end
+    msg.trace("render: called, visible=" .. tostring(state.visible) .. " fade=" .. string.format("%.2f", state.fade))
+    if not state.visible or state.fade <= 0 then return end
 
     local w, h = mp.get_osd_size()
     msg.trace("render: osd size " .. tostring(w) .. "x" .. tostring(h))
@@ -121,13 +136,18 @@ local function render()
     local py = h - pill_h - margin_b
     local center_y = py + pill_h / 2
 
+    -- Fade-adjusted alphas
+    local bg_a = faded(cfg.bg_alpha)
+    local border_a = faded(cfg.border_alpha)
+    local text_a = faded("00")
+
     local ass = assdraw.ass_new()
 
     -- Background pill
     ass:new_event()
     ass:pos(0, 0)
     ass:append("{\\an7\\bord0\\shad0" ..
-        ass_color(cfg.bg_color) .. ass_alpha(cfg.bg_alpha) ..
+        ass_color(cfg.bg_color) .. ass_alpha(bg_a) ..
         "\\p1}")
     ass:draw_start()
     ass:round_rect_cw(px, py, px + pill_w, py + pill_h, corner_r)
@@ -138,7 +158,7 @@ local function render()
     ass:pos(0, 0)
     ass:append("{\\an7\\bord" .. border_w .. "\\shad0" ..
         "\\1a&HFF&" ..
-        ass_border_color(cfg.border_color) .. ass_border_alpha(cfg.border_alpha) ..
+        ass_border_color(cfg.border_color) .. ass_border_alpha(border_a) ..
         "\\p1}")
     ass:draw_start()
     ass:round_rect_cw(px, py, px + pill_w, py + pill_h, corner_r)
@@ -153,15 +173,15 @@ local function render()
     ass:pos(px + pad, center_y)
     ass:append("{\\an4\\bord0\\shad0\\fs" .. hint_sz ..
         "\\fnsans-serif" ..
-        ass_color(cfg.dim_color) .. "}ENTER")
+        ass_color(cfg.dim_color) .. ass_alpha(text_a) .. "}ENTER")
 
     -- "Skip Intro" label (bright, bold)
-    local hint_width = math.floor(58 * scale)  -- approximate width of "ENTER" text
+    local hint_width = math.floor(58 * scale)
     ass:new_event()
     ass:pos(px + pad + hint_width + gap, center_y)
     ass:append("{\\an4\\bord0\\shad0\\fs" .. label_sz ..
         "\\fnsans-serif\\b1" ..
-        ass_color(cfg.bright_color) .. "}Skip Intro")
+        ass_color(cfg.bright_color) .. ass_alpha(text_a) .. "}Skip Intro")
 
     -- "▶▶" arrow (accent color)
     local arrow_pad = math.floor(14 * scale)
@@ -169,7 +189,7 @@ local function render()
     ass:pos(px + pill_w - pad - arrow_pad, center_y)
     ass:append("{\\an6\\bord0\\shad0\\fs" .. label_sz ..
         "\\fnsans-serif" ..
-        ass_color(cfg.header_color) .. "}\226\150\182\226\150\182")
+        ass_color(cfg.header_color) .. ass_alpha(text_a) .. "}\226\150\182\226\150\182")
 
     -- Apply overlay
     if not state.overlay then
@@ -179,8 +199,7 @@ local function render()
     state.overlay.res_x = w
     state.overlay.res_y = h
     state.overlay.data = ass.text
-    local ok, err = state.overlay:update()
-    msg.debug("render: overlay update result=" .. tostring(ok) .. " err=" .. tostring(err))
+    state.overlay:update()
 end
 
 -- ── Skip Action ─────────────────────────────────────────────────────
@@ -191,13 +210,14 @@ local function skip()
     mp.commandv("seek", tostring(state.skip_time), "absolute")
 end
 
--- ── Show / Hide Lifecycle ───────────────────────────────────────────
+-- ── Overlay Cleanup ────────────────────────────────────────────────
 
-local function hide()
-    if not state.visible then return end
-    msg.info("hide")
+local function cleanup_overlay()
+    msg.debug("cleanup_overlay")
     state.visible = false
     state.skip_time = nil
+    state.fade = 0
+    state.fade_target = 0
 
     for _, name in ipairs(bindings) do
         mp.remove_key_binding(name)
@@ -210,19 +230,86 @@ local function hide()
     end
 end
 
+-- ── Fade Animation ─────────────────────────────────────────────────
+
+local function ensure_fade_timer()
+    if state.fade_timer then return end
+    if state.fade == state.fade_target then return end
+
+    state.fade_timer = mp.add_periodic_timer(1 / 60, function()
+        local dt = 1 / 60
+        if state.fade < state.fade_target then
+            state.fade = math.min(state.fade + dt / cfg.fade_in, state.fade_target)
+        elseif state.fade > state.fade_target then
+            state.fade = math.max(state.fade - dt / cfg.fade_out, state.fade_target)
+        end
+
+        render()
+
+        if state.fade == state.fade_target then
+            state.fade_timer:kill()
+            state.fade_timer = nil
+            if state.fade <= 0 then
+                cleanup_overlay()
+            end
+        end
+    end)
+end
+
+local function animate_to(target)
+    state.fade_target = target
+    ensure_fade_timer()
+end
+
+-- ── Show / Hide Lifecycle ───────────────────────────────────────────
+
+local function cancel_delay()
+    if state.delay_timer then
+        state.delay_timer:kill()
+        state.delay_timer = nil
+    end
+end
+
 local function bind(key, name, fn)
     bindings[#bindings + 1] = name
     mp.add_forced_key_binding(key, name, fn)
 end
 
-local function show(next_time)
-    msg.info("show: skip target=" .. tostring(next_time) .. "s")
+local function begin_show()
+    state.delay_timer = nil
+    msg.info("show: skip target=" .. tostring(state.skip_time) .. "s")
     state.visible = true
+    bind("enter", "skip-intro-enter", skip)
+    animate_to(1)
+end
+
+local function schedule_show(next_time)
+    cancel_delay()
     state.skip_time = next_time
 
-    bind("enter", "skip-intro-enter", skip)
+    if state.visible then
+        animate_to(1)
+        return
+    end
 
-    render()
+    state.delay_timer = mp.add_timeout(cfg.delay, begin_show)
+    msg.debug("schedule_show: delay timer started (" .. cfg.delay .. "s)")
+end
+
+local function hide()
+    cancel_delay()
+    if not state.visible then return end
+    msg.info("hide: fading out")
+    animate_to(0)
+end
+
+local function force_hide()
+    cancel_delay()
+    if state.fade_timer then
+        state.fade_timer:kill()
+        state.fade_timer = nil
+    end
+    cleanup_overlay()
 end
 
 -- ── Chapter Change Observer ─────────────────────────────────────────
@@ -249,7 +336,7 @@ local function on_chapter_change(_, chapter)
     if is_intro(title) then
         local next_time = get_next_chapter_time()
         if next_time then
-            show(next_time)
+            schedule_show(next_time)
         else
             hide()  -- intro is last chapter, nowhere to skip
         end
@@ -271,7 +358,7 @@ end)
 
 mp.register_event("end-file", function()
     msg.trace("end-file: cleaning up")
-    hide()
+    force_hide()
 end)
 
 -- ── Register ───────────────────────────────────────────────────────
