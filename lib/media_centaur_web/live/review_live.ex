@@ -1,6 +1,8 @@
 defmodule MediaCentaurWeb.ReviewLive do
   use MediaCentaurWeb, :live_view
 
+  import MediaCentaurWeb.ReviewHelpers
+
   alias MediaCentaur.Review
 
   @impl true
@@ -931,27 +933,6 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   # --- Helpers ---
 
-  defp sort_groups(groups) do
-    Enum.sort_by(groups, fn %{representative: file} ->
-      {if(file.tmdb_id, do: 1, else: 0), file.confidence || 0}
-    end)
-  end
-
-  defp review_reason(file) do
-    cond do
-      is_nil(file.tmdb_id) -> :no_results
-      tied_candidates?(file) -> :tied
-      true -> :low_confidence
-    end
-  end
-
-  defp count_by_reason(groups) do
-    Enum.reduce(groups, %{no_results: 0, tied: 0, low_confidence: 0}, fn group, acc ->
-      reason = review_reason(group.representative)
-      Map.update!(acc, reason, &(&1 + 1))
-    end)
-  end
-
   defp display_title(%{representative: file} = group) do
     file_count = length(group.files)
 
@@ -962,62 +943,13 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  defp reason_label(:no_results), do: "No TMDB results"
-
-  defp reason_label(:low_confidence), do: "Low confidence"
-
-  defp reason_label(:tied), do: "Tied match"
-
-  defp reason_text_class(:no_results), do: "text-error"
-  defp reason_text_class(:low_confidence), do: "text-warning"
-  defp reason_text_class(:tied), do: "text-info"
-
-  defp tied_candidates?(%{candidates: candidates}) when is_list(candidates) do
-    case candidates do
-      [_, _ | _] ->
-        scores = Enum.map(candidates, & &1["score"])
-        length(Enum.uniq(scores)) == 1
-
-      _ ->
-        false
-    end
-  end
-
-  defp tied_candidates?(_), do: false
-
   defp series_root_name(%{key: {_watch_dir, root}}), do: root
 
   defp tmdb_url("tv", id), do: "https://www.themoviedb.org/tv/#{id}"
   defp tmdb_url(_, id), do: "https://www.themoviedb.org/movie/#{id}"
 
-  defp sort_candidates_by_year(candidates) do
-    Enum.sort_by(candidates, fn c ->
-      case c["year"] do
-        nil -> 9999
-        y when is_binary(y) -> String.to_integer(y)
-        y when is_integer(y) -> y
-      end
-    end)
-  end
-
-  defp format_type("movie"), do: "Movie"
-  defp format_type("tv"), do: "TV"
-  defp format_type("extra"), do: "Extra"
-  defp format_type("unknown"), do: "Unknown"
-  defp format_type(nil), do: "Unknown"
-  defp format_type(type) when is_atom(type), do: type |> Atom.to_string() |> String.capitalize()
-  defp format_type(type), do: type |> to_string() |> String.capitalize()
-
   defp zero_pad(number) when number < 10, do: "0#{number}"
   defp zero_pad(number), do: "#{number}"
-
-  defp confidence_text_class(score) when score >= 0.8, do: "text-success"
-  defp confidence_text_class(score) when score >= 0.5, do: "text-warning"
-  defp confidence_text_class(_), do: "text-error"
-
-  defp confidence_bar_class(score) when score >= 0.8, do: "bg-success"
-  defp confidence_bar_class(score) when score >= 0.5, do: "bg-warning"
-  defp confidence_bar_class(_), do: "bg-error"
 
   defp relative_file_path(file) do
     case file.watch_directory do

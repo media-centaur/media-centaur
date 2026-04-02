@@ -270,10 +270,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     {"Play", "primary", entity.id}
   end
 
-  defp overall_progress_percent(nil, _entity), do: 0
+  def overall_progress_percent(nil, _entity), do: 0
 
-  defp overall_progress_percent(progress, %{type: type})
-       when type in [:tv_series, :movie_series] do
+  def overall_progress_percent(progress, %{type: type})
+      when type in [:tv_series, :movie_series] do
     if progress.episodes_total > 0 do
       min(round(progress.episodes_completed / progress.episodes_total * 100), 100)
     else
@@ -281,7 +281,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  defp overall_progress_percent(progress, _entity) do
+  def overall_progress_percent(progress, _entity) do
     if progress.episode_duration_seconds > 0 do
       min(round(progress.episode_position_seconds / progress.episode_duration_seconds * 100), 100)
     else
@@ -289,9 +289,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  defp progress_remaining_text(nil, _entity), do: nil
+  def progress_remaining_text(nil, _entity), do: nil
 
-  defp progress_remaining_text(progress, %{type: :tv_series}) do
+  def progress_remaining_text(progress, %{type: :tv_series}) do
     remaining = progress.episodes_total - progress.episodes_completed
 
     cond do
@@ -301,7 +301,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  defp progress_remaining_text(progress, %{type: :movie_series}) do
+  def progress_remaining_text(progress, %{type: :movie_series}) do
     remaining = progress.episodes_total - progress.episodes_completed
 
     cond do
@@ -311,7 +311,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  defp progress_remaining_text(progress, _entity) do
+  def progress_remaining_text(progress, _entity) do
     cond do
       progress.episodes_completed > 0 ->
         "Watched"
@@ -636,9 +636,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     """
   end
 
-  defp episode_state(nil), do: :unwatched
+  def episode_state(nil), do: :unwatched
 
-  defp episode_state(progress) do
+  def episode_state(progress) do
     cond do
       progress.completed -> :watched
       (progress.position_seconds || 0.0) > 0.0 -> :current
@@ -646,12 +646,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  defp episode_row_class(_state, true = _is_resume_target),
+  def episode_row_class(_state, true = _is_resume_target),
     do: "border-l-2 border-primary bg-primary/5"
 
-  defp episode_row_class(:watched, _), do: "opacity-60"
-  defp episode_row_class(:current, _), do: "bg-info/5"
-  defp episode_row_class(:unwatched, _), do: ""
+  def episode_row_class(:watched, _), do: "opacity-60"
+  def episode_row_class(:current, _), do: "bg-info/5"
+  def episode_row_class(:unwatched, _), do: ""
 
   defp episode_duration_text(%{state: :watched} = assigns) do
     ~H"""
@@ -688,12 +688,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp watched_circle_class(_),
     do: "group/check border border-base-content/20 hover:border-base-content/50"
 
-  defp progress_percent(%{position_seconds: pos, duration_seconds: dur})
-       when is_number(pos) and is_number(dur) and dur > 0 do
+  def progress_percent(%{position_seconds: pos, duration_seconds: dur})
+      when is_number(pos) and is_number(dur) and dur > 0 do
     min(round(pos / dur * 100), 100)
   end
 
-  defp progress_percent(_), do: 0
+  def progress_percent(_), do: 0
 
   # --- Movie Row ---
 
@@ -1116,24 +1116,24 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     """
   end
 
-  defp file_summary(count, total_size) do
+  def file_summary(count, total_size) do
     size_str = format_file_size(total_size)
     "#{count} #{if count == 1, do: "file", else: "files"}, #{size_str}"
   end
 
-  defp format_file_size(bytes) when bytes >= 1_073_741_824 do
+  def format_file_size(bytes) when bytes >= 1_073_741_824 do
     "#{Float.round(bytes / 1_073_741_824, 1)} GB"
   end
 
-  defp format_file_size(bytes) when bytes >= 1_048_576 do
+  def format_file_size(bytes) when bytes >= 1_048_576 do
     "#{Float.round(bytes / 1_048_576, 1)} MB"
   end
 
-  defp format_file_size(bytes) when bytes >= 1024 do
+  def format_file_size(bytes) when bytes >= 1024 do
     "#{Float.round(bytes / 1024, 1)} KB"
   end
 
-  defp format_file_size(bytes), do: "#{bytes} B"
+  def format_file_size(bytes), do: "#{bytes} B"
 
   # --- Delete Confirmation ---
 
@@ -1224,7 +1224,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- Episode List Builder ---
 
-  defp build_episode_list(episodes, number_of_episodes) do
+  def build_episode_list(episodes, number_of_episodes) do
     episode_map = Map.new(episodes, &{&1.episode_number, &1})
     max_known = Enum.max_by(episodes, & &1.episode_number, fn -> nil end)
 
@@ -1244,7 +1244,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- Helpers ---
 
-  defp format_duration_human(seconds) when is_number(seconds) and seconds >= 0 do
+  def format_duration_human(seconds) when is_number(seconds) and seconds >= 0 do
     hours = div(trunc(seconds), 3600)
     minutes = div(rem(trunc(seconds), 3600), 60)
 
@@ -1256,7 +1256,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  defp count_watched_episodes(season, progress_by_key) do
+  def count_watched_episodes(season, progress_by_key) do
     (season.episodes || [])
     |> Enum.count(fn episode ->
       case Map.get(progress_by_key, {season.season_number, episode.episode_number}) do

@@ -1,6 +1,8 @@
 defmodule MediaCentaurWeb.DashboardLive do
   use MediaCentaurWeb, :live_view
 
+  import MediaCentaurWeb.DashboardHelpers
+
   alias MediaCentaur.{Dashboard, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
@@ -786,27 +788,6 @@ defmodule MediaCentaurWeb.DashboardLive do
 
   # Derives the dashboard's single-card playback view from the sessions map.
   # Shows the most recently active session (playing > paused).
-  defp derive_playback(sessions) when sessions == %{} do
-    %{state: :idle, now_playing: nil, sessions: sessions}
-  end
-
-  defp derive_playback(sessions) do
-    # Prefer playing sessions, then paused
-    {_entity_id, primary} =
-      sessions
-      |> Enum.sort_by(fn {_id, s} -> if s.state == :playing, do: 0, else: 1 end)
-      |> hd()
-
-    %{state: primary.state, now_playing: primary.now_playing, sessions: sessions}
-  end
-
-  # --- Helpers ---
-
-  defp merge_recent_errors(content_stats, image_stats) do
-    (content_stats.recent_errors ++ image_stats.recent_errors)
-    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
-    |> Enum.take(50)
-  end
 
   defp fetch_rate_limiter do
     MediaCentaur.TMDB.RateLimiter.status()
@@ -836,45 +817,6 @@ defmodule MediaCentaurWeb.DashboardLive do
     }
   end
 
-  defp format_datetime(nil), do: "—"
-
-  defp format_datetime(datetime) do
-    Calendar.strftime(datetime, "%Y-%m-%d %H:%M")
-  end
-
-  defp format_remaining(seconds) when seconds <= 0, do: "finished"
-  defp format_remaining(seconds) when seconds < 60, do: "#{round(seconds)}s remaining"
-  defp format_remaining(seconds) when seconds < 3600, do: "#{round(seconds / 60)}m remaining"
-  defp format_remaining(seconds), do: "#{Float.round(seconds / 3600, 1)}h remaining"
-
-  defp format_throughput(rate) when rate == 0.0, do: "—"
-  defp format_throughput(rate), do: "#{rate}/s"
-
-  defp format_duration(nil), do: "—"
-  defp format_duration(ms) when ms < 1_000, do: "#{round(ms)}ms"
-  defp format_duration(ms) when ms < 60_000, do: "#{Float.round(ms / 1_000, 1)}s"
-  defp format_duration(ms), do: "#{Float.round(ms / 60_000, 1)}m"
-
-  defp stage_dot_class(:idle), do: "bg-base-content/20"
-  defp stage_dot_class(:active), do: "bg-success"
-  defp stage_dot_class(:saturated), do: "bg-warning"
-  defp stage_dot_class(:erroring), do: "bg-error"
-
-  defp stage_text_class(:idle), do: "text-base-content/60"
-  defp stage_text_class(:active), do: "text-success"
-  defp stage_text_class(:saturated), do: "text-warning"
-  defp stage_text_class(:erroring), do: "text-error"
-
-  defp stage_status_label(:idle), do: "idle"
-  defp stage_status_label(:active), do: "active"
-  defp stage_status_label(:saturated), do: "saturated"
-  defp stage_status_label(:erroring), do: "erroring"
-
-  defp stage_display_name(:parse), do: "Parse Media Path"
-  defp stage_display_name(:search), do: "Match on TMDB"
-  defp stage_display_name(:fetch_metadata), do: "Enrich Metadata"
-  defp stage_display_name(:ingest), do: "Add to Library"
-
   defp check_dir_health do
     watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
 
@@ -890,36 +832,11 @@ defmodule MediaCentaurWeb.DashboardLive do
     end)
   end
 
-  defp resolve_dir_status(health, watcher_statuses) do
-    cond do
-      not health.dir_exists -> :missing
-      watcher = Enum.find(watcher_statuses, &(&1.dir == health.dir)) -> watcher.state
-      true -> :stopped
-    end
-  end
-
   defp find_drive_for_dir(drives, dir) do
     Enum.find(drives, fn drive ->
       Enum.any?(drive.roles, &(&1.path == dir))
     end)
   end
-
-  defp dir_status_label(:missing), do: "missing"
-  defp dir_status_label(:stopped), do: "not watched"
-  defp dir_status_label(:watching), do: "watching"
-  defp dir_status_label(:initializing), do: "initializing"
-  defp dir_status_label(_), do: "unavailable"
-
-  defp dir_status_text_class(:missing), do: "text-error"
-  defp dir_status_text_class(:stopped), do: "text-warning"
-  defp dir_status_text_class(:watching), do: "text-success"
-  defp dir_status_text_class(:initializing), do: "text-warning"
-  defp dir_status_text_class(_), do: "text-error"
-
-  defp playback_text_class(:idle), do: "text-base-content/60"
-  defp playback_text_class(:playing), do: "text-success"
-  defp playback_text_class(:paused), do: "text-warning"
-  defp playback_text_class(_), do: "text-info"
 
   defp now_playing_title(%{episode_name: _} = now_playing),
     do: now_playing[:entity_name] || now_playing.entity_id
@@ -937,31 +854,4 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   defp now_playing_detail(_), do: nil
-
-  defp playback_progress_class(:playing), do: "progress-success"
-  defp playback_progress_class(:paused), do: "progress-warning"
-  defp playback_progress_class(_), do: "progress-info"
-
-  defp playback_border_class(:playing), do: "border-success"
-  defp playback_border_class(:paused), do: "border-warning"
-  defp playback_border_class(_), do: "border-base-content/20"
-
-  @gib Float.pow(1024.0, 3)
-  @tib Float.pow(1024.0, 4)
-
-  defp format_bytes(bytes) when bytes >= @tib do
-    "#{Float.round(bytes / @tib, 1)} TiB"
-  end
-
-  defp format_bytes(bytes) do
-    "#{Float.round(bytes / @gib, 1)} GiB"
-  end
-
-  defp usage_progress_class(percent) when percent >= 90, do: "progress-error"
-  defp usage_progress_class(percent) when percent >= 75, do: "progress-warning"
-  defp usage_progress_class(_percent), do: "progress-success"
-
-  defp usage_text_class(percent) when percent >= 90, do: "text-error"
-  defp usage_text_class(percent) when percent >= 75, do: "text-warning"
-  defp usage_text_class(_percent), do: "text-success"
 end
