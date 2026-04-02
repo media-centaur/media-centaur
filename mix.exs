@@ -36,7 +36,7 @@ defmodule MediaCentaur.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "test.all": :test]
     ]
   end
 
@@ -106,6 +106,10 @@ defmodule MediaCentaur.MixProject do
         "format",
         "boundaries",
         "test"
+      ],
+      "test.all": [
+        "test",
+        "cmd bun test assets/js/input/"
       ]
     ]
   end
