@@ -88,6 +88,7 @@ export class Orchestrator {
     // LiveView round-trip after _executeDismiss().
     this._expectedPresentation = undefined
     this._onMouseMove = this._onMouseMove.bind(this)
+    this._onVisibilityChange = this._onVisibilityChange.bind(this)
   }
 
   /**
@@ -117,6 +118,7 @@ export class Orchestrator {
     })
 
     this._globals.document.addEventListener("mousemove", this._onMouseMove)
+    this._globals.document.addEventListener("visibilitychange", this._onVisibilityChange)
 
     // Sync initial state (also detects and attaches page behavior)
     this._syncState()
@@ -191,6 +193,7 @@ export class Orchestrator {
     this._sources = []
 
     this._globals.document.removeEventListener("mousemove", this._onMouseMove)
+    this._globals.document.removeEventListener("visibilitychange", this._onVisibilityChange)
     this._detachBehavior()
     this._hookEl = null
   }
@@ -388,6 +391,18 @@ export class Orchestrator {
       if (entityId && this.writer.focusByEntityId(Context.GRID, entityId)) return
       this._restoreContextFocus(Context.GRID)
     })
+  }
+
+  _onVisibilityChange() {
+    if (this._globals.document.hidden) {
+      for (const source of this._sources) {
+        source.pause?.()
+      }
+    } else {
+      for (const source of this._sources) {
+        source.resume?.()
+      }
+    }
   }
 
   _onMouseMove(event) {

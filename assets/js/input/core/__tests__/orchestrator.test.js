@@ -98,6 +98,7 @@ function createMockGlobals() {
 
   return {
     document: {
+      hidden: false,
       addEventListener(type, fn) {
         listeners[type] = listeners[type] || []
         listeners[type].push(fn)
@@ -144,6 +145,11 @@ function createMockGlobals() {
         fn(event)
       }
       return event
+    },
+    _dispatchVisibilityChange() {
+      for (const fn of (listeners.visibilitychange || [])) {
+        fn()
+      }
     },
   }
 }
@@ -1812,6 +1818,142 @@ describe("Orchestrator", () => {
       // Should have re-acquired: sub-item refocused from fresh DOM
       expect(system._subFocusIndex).toBe(1)
       expect(freshSubItemFocus).toHaveBeenCalled()
+    })
+  })
+
+  describe("visibility change", () => {
+    test("visibilitychange listener registered on start", () => {
+      const reader = createMockReader()
+      const { writer } = createMockWriter()
+      const globals = createMockGlobals()
+
+      const system = new Orchestrator({ ...TEST_CONFIG, reader, writer, globals })
+      system.start({})
+
+      expect(globals._listeners.visibilitychange?.length).toBe(1)
+    })
+
+    test("visibilitychange listener removed on destroy", () => {
+      const reader = createMockReader()
+      const { writer } = createMockWriter()
+      const globals = createMockGlobals()
+
+      const system = new Orchestrator({ ...TEST_CONFIG, reader, writer, globals })
+      system.start({})
+      system.destroy()
+
+      expect(globals._listeners.visibilitychange?.length ?? 0).toBe(0)
+    })
+
+    test("sources are paused when document becomes hidden", () => {
+      const reader = createMockReader()
+      const { writer } = createMockWriter()
+      const globals = createMockGlobals()
+
+      const pauseCalls = []
+      const mockSource = {
+        start() {},
+        stop() {},
+        pause() { pauseCalls.push("paused") },
+        resume() {},
+      }
+
+      const system = new Orchestrator({
+        ...TEST_CONFIG,
+        reader,
+        writer,
+        globals,
+        sources: [() => mockSource],
+      })
+      system.start({})
+
+      globals.document.hidden = true
+      globals._dispatchVisibilityChange()
+
+      expect(pauseCalls).toEqual(["paused"])
+    })
+
+    test("sources are resumed when document becomes visible", () => {
+      const reader = createMockReader()
+      const { writer } = createMockWriter()
+      const globals = createMockGlobals()
+
+      const resumeCalls = []
+      const mockSource = {
+        start() {},
+        stop() {},
+        pause() {},
+        resume() { resumeCalls.push("resumed") },
+      }
+
+      const system = new Orchestrator({
+        ...TEST_CONFIG,
+        reader,
+        writer,
+        globals,
+        sources: [() => mockSource],
+      })
+      system.start({})
+
+      globals.document.hidden = false
+      globals._dispatchVisibilityChange()
+
+      expect(resumeCalls).toEqual(["resumed"])
+    })
+
+    test("sources without pause/resume are not affected", () => {
+      const reader = createMockReader()
+      const { writer } = createMockWriter()
+      const globals = createMockGlobals()
+
+      const minimalSource = {
+        start() {},
+        stop() {},
+      }
+
+      const system = new Orchestrator({
+        ...TEST_CONFIG,
+        reader,
+        writer,
+        globals,
+        sources: [() => minimalSource],
+      })
+      system.start({})
+
+      // Should not throw
+      globals.document.hidden = true
+      globals._dispatchVisibilityChange()
+      globals.document.hidden = false
+      globals._dispatchVisibilityChange()
+    })
+
+    test("keyboard actions suppressed while document is hidden", () => {
+      const reader = createMockReader({ getItemCount: () => 8 })
+      const { writer, calls } = createMockWriter()
+      const globals = createMockGlobals()
+
+      const system = new Orchestrator({
+        ...TEST_CONFIG,
+        reader,
+        writer,
+        globals,
+        sources: [(callbacks, g) => new KeyboardSource({
+          document: g.document,
+          onAction: callbacks.onAction,
+          onInputDetected: callbacks.onInputDetected,
+        })],
+      })
+      system.start({})
+
+      // Hide document — keyboard listener should be removed
+      globals.document.hidden = true
+      globals._dispatchVisibilityChange()
+
+      // Key events should not produce actions
+      const focusCallsBefore = calls.filter(c => c.method === "focusByIndex").length
+      globals._dispatchKeyDown("ArrowDown")
+      const focusCallsAfter = calls.filter(c => c.method === "focusByIndex").length
+      expect(focusCallsAfter).toBe(focusCallsBefore)
     })
   })
 })
