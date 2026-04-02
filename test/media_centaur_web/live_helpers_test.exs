@@ -45,4 +45,40 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       assert image_url(entity, "poster") == nil
     end
   end
+
+  describe "time_ago/1" do
+    test "returns empty string for nil" do
+      assert time_ago(nil) == ""
+    end
+
+    test "returns just now for recent timestamps" do
+      now = DateTime.utc_now()
+      assert time_ago(now) == "just now"
+    end
+
+    test "returns minutes ago" do
+      minutes_ago = DateTime.add(DateTime.utc_now(), -180, :second)
+      assert time_ago(minutes_ago) == "3m ago"
+    end
+
+    test "returns hours ago" do
+      hours_ago = DateTime.add(DateTime.utc_now(), -7200, :second)
+      assert time_ago(hours_ago) == "2h ago"
+    end
+
+    test "returns days ago" do
+      days_ago = DateTime.add(DateTime.utc_now(), -3 * 86_400, :second)
+      assert time_ago(days_ago) == "3d ago"
+    end
+
+    test "returns formatted date for old timestamps" do
+      old = DateTime.new!(~D[2025-01-15], ~T[12:00:00], "Etc/UTC")
+      assert time_ago(old) == "Jan 15"
+    end
+
+    test "handles NaiveDateTime by converting to UTC" do
+      naive = NaiveDateTime.utc_now()
+      assert time_ago(naive) == "just now"
+    end
+  end
 end

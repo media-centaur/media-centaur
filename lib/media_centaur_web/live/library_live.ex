@@ -661,12 +661,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     assign(socket, continue_watching: continue_watching)
   end
 
-  defp in_progress?(%{progress: nil}), do: false
-
-  defp in_progress?(%{progress: summary}) do
-    summary.episodes_completed < summary.episodes_total
-  end
-
   defp max_last_watched_at(entry) do
     Enum.max_by(entry.progress_records, & &1.last_watched_at, DateTime, fn -> nil end).last_watched_at
   end
@@ -827,20 +821,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     end)
   end
 
-  defp merge_progress_record(records, nil), do: records
-
-  defp merge_progress_record(records, changed) do
-    key = {changed.season_number, changed.episode_number}
-
-    case Enum.find_index(records, &({&1.season_number, &1.episode_number} == key)) do
-      nil ->
-        Enum.sort_by([changed | records], &{&1.season_number, &1.episode_number})
-
-      index ->
-        List.replace_at(records, index, changed)
-    end
-  end
-
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
 
   defp load_spoiler_free_setting do
@@ -937,14 +917,5 @@ defmodule MediaCentaurWeb.LibraryLive do
       entry ->
         entry
     end)
-  end
-
-  defp merge_extra_progress(records, nil), do: records
-
-  defp merge_extra_progress(records, changed) do
-    case Enum.find_index(records, &(&1.extra_id == changed.extra_id)) do
-      nil -> [changed | records]
-      index -> List.replace_at(records, index, changed)
-    end
   end
 end

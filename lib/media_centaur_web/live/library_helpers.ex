@@ -190,4 +190,37 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   def format_type(type), do: type |> to_string() |> String.capitalize()
 
   def extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
+
+  # --- Progress Record Merging ---
+
+  def merge_progress_record(records, nil), do: records
+
+  def merge_progress_record(records, changed) do
+    key = {changed.season_number, changed.episode_number}
+
+    case Enum.find_index(records, &({&1.season_number, &1.episode_number} == key)) do
+      nil ->
+        Enum.sort_by([changed | records], &{&1.season_number, &1.episode_number})
+
+      index ->
+        List.replace_at(records, index, changed)
+    end
+  end
+
+  def merge_extra_progress(records, nil), do: records
+
+  def merge_extra_progress(records, changed) do
+    case Enum.find_index(records, &(&1.extra_id == changed.extra_id)) do
+      nil -> [changed | records]
+      index -> List.replace_at(records, index, changed)
+    end
+  end
+
+  # --- Entry Status ---
+
+  def in_progress?(%{progress: nil}), do: false
+
+  def in_progress?(%{progress: summary}) do
+    summary.episodes_completed < summary.episodes_total
+  end
 end
