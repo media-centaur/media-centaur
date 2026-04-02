@@ -18,6 +18,18 @@ Read the [mpv Lua API reference](references/mpv-lua-api.md) before writing any s
 
 Scripts auto-load from `scripts/` — no registration needed. mpv converts hyphens in filenames to underscores internally (`skip-intro.lua` becomes `skip_intro` in `input.conf` bindings and `--msg-level`).
 
+## Deployment
+
+The repo files in `contrib/mpv/` are the source of truth. mpv reads from `~/.config/mpv/` at runtime. After creating or modifying any script, config, or key binding, **copy the changed files to the runtime directory**:
+
+```bash
+cp contrib/mpv/scripts/*.lua ~/.config/mpv/scripts/
+cp contrib/mpv/mpv.conf ~/.config/mpv/mpv.conf
+cp contrib/mpv/input.conf ~/.config/mpv/input.conf
+```
+
+There is no automatic sync — forgetting to copy means mpv runs stale or missing scripts. Always deploy after changes.
+
 ## Project Visual Style
 
 All overlay scripts share a **glassmorphism** aesthetic — dark semi-transparent panels with subtle borders and blue-orange accents. The canonical color palette (ASS BGR format):
@@ -183,7 +195,8 @@ When adding or modifying a script, update `docs/mpv.md`:
 6. **Re-render** on `osd-width`/`osd-height` property changes
 7. **Add** `input.conf` entry if the script has a user-toggled binding
 8. **Update** `docs/mpv.md` with documentation
-9. **Test** with `--msg-level={script_name}=trace` to verify logging and behavior
+9. **Deploy** to `~/.config/mpv/scripts/` (see Deployment section)
+10. **Test** with `--msg-level={script_name}=trace` to verify logging and behavior
 
 ## Media-Center Features to Consider
 
