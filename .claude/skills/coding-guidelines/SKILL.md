@@ -31,10 +31,14 @@ description: "Use this skill for any implementation task — adding features, fi
 - Use `async: true` with `ExUnit.Case`.
 - Use `build_*` factory helpers — plain structs, no database.
 
+### LiveView Logic Extraction (Mandatory)
+
+Extract all non-trivial LiveView/component logic into public pure functions and unit test them ([ADR-030]). LiveViews are thin wiring. Any `if`/`case`/`cond` on domain data → extracted function with a test.
+
 ### What NOT to Test
 
 - GenServer internals (Watcher, Config, MpvSession).
-- LiveView DOM — test the data contracts they consume.
+- Rendered HTML — no `render_component`, no `=~` on markup. Integration tests (mount, patch, events) are fine.
 - External API calls in normal runs — tag `@tag :external` and exclude.
 
 ## Factory
