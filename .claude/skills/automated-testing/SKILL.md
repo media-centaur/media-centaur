@@ -17,10 +17,18 @@ description: "Use this skill before writing any test — Elixir, JavaScript, or 
 
 **Variable naming applies in tests.** Never abbreviate — `file` not `wf`, `movie` not `e`, `result` not `res`.
 
+## LiveView Logic Extraction (Mandatory)
+
+All non-trivial logic in LiveViews and function components must be extracted into public pure functions and unit tested ([ADR-030]). LiveViews are thin wiring — mount, event dispatch, template rendering. Any `if`, `case`, `cond`, or `Enum` pipeline on domain data belongs in an extracted function.
+
+- **Extract into** the same module (1–3 small helpers) or a dedicated helper module (larger clusters).
+- **Test with** `async: true` and `build_*` factory helpers — no database, no rendering.
+- **Examples:** `file_absent?(file_info)`, `episode_status(episode, progress)`, `progress_label(progress)`, `icon_for_state(state)`, `group_episodes_by_season(episodes)`.
+
 ## What We Never Test
 
 - **GenServer internals** — no `:sys.get_state`, no direct `call/cast`. Test public API only. Thin wrappers around external systems (MpvSession, Watcher) are not worth mocking.
-- **Rendered HTML** — never assert on HTML output. Extract logic into pure functions and test those. LiveView integration tests (mount, patch, event handling) are fine — they test data flow, not DOM.
+- **Rendered HTML** — never assert on HTML output (`render_component`, `=~` on markup). LiveView integration tests (mount, patch, event handling) are fine — they test data flow, not DOM.
 - **External API calls** in normal runs — tag `@tag :external`, excluded from default `mix test`.
 
 ## Running Tests

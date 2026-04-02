@@ -159,10 +159,16 @@ Load the `automated-testing` skill before writing any test — Elixir, JavaScrip
 
 All tests that need test data use the factory.
 
+### LiveView Logic Extraction (Mandatory)
+
+All non-trivial logic in LiveViews and function components must be extracted into public pure functions and unit tested ([ADR-030](decisions/architecture/2026-04-02-030-liveview-logic-extraction.md)). LiveViews should be thin wiring — mount, event dispatch, and template rendering. Any `if`, `case`, `cond`, or `Enum` pipeline on domain data belongs in an extracted function. Extract into the same module (small helpers) or a dedicated helper module (larger clusters). Test with `async: true` and `build_*` factory helpers.
+
+Examples: `file_absent?(file_info)`, `episode_status(episode, progress)`, `progress_label(progress)`, `icon_for_state(state)`, `group_episodes_by_season(episodes)`.
+
 ### What We Never Test
 
 - **GenServer message protocols** — never use `:sys.get_state`, `:sys.replace_state`, or direct `GenServer.call/cast` in tests. Always test through the module's public API ([ADR-026](decisions/architecture/2026-03-07-026-genserver-api-encapsulation.md)). GenServers with testable public logic (Stats, RetryScheduler) should be tested. GenServers that are thin wrappers around external systems requiring real connections (MpvSession → mpv socket, Watcher → inotify) are not worth mocking.
-- **Rendered HTML** — LiveViews and function components are presentation layers. Never assert on HTML output (`render_component`, `=~` on markup). Instead, extract testable logic (variant selection, state classification, label computation) into pure public functions and test those directly. LiveView integration tests (mount, patch, event handling) are acceptable — they test navigation and data flow, not DOM structure.
+- **Rendered HTML** — never assert on HTML output (`render_component`, `=~` on markup). LiveView integration tests (mount, patch, event handling) are acceptable — they test navigation and data flow, not DOM structure.
 - **External API calls** in normal runs — tag `@tag :external` and exclude from default `mix test`.
 
 ### Pipeline Tests (Broadway)
