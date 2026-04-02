@@ -1079,7 +1079,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp file_row(assigns) do
     file = assigns.file_info.file
     size = assigns.file_info.size
-    absent = file.state == :absent
+    absent = is_nil(size)
     filename = Path.basename(file.file_path)
 
     assigns =
