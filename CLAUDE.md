@@ -323,4 +323,22 @@ _A config-driven dev tool for Elixir projects to manage AGENTS.md files and agen
 ## usage_rules:otp usage
 [usage_rules:otp usage rules](deps/usage_rules/usage-rules/otp.md)
 <!-- usage_rules:otp-end -->
+<!-- visualizer-start -->
+## visualizer usage
+_Interactive code visualizations for Elixir projects_
+
+[visualizer usage rules](deps/visualizer/usage-rules.md)
+<!-- visualizer-end -->
+<!-- visualizer:schema-extractors-start -->
+## visualizer:schema-extractors usage
+[visualizer:schema-extractors usage rules](deps/visualizer/usage-rules/schema-extractors.md)
+<!-- visualizer:schema-extractors-end -->
+<!-- visualizer:viewer-js-start -->
+## visualizer:viewer-js usage
+[visualizer:viewer-js usage rules](deps/visualizer/usage-rules/viewer-js.md)
+<!-- visualizer:viewer-js-end -->
+<!-- visualizer:views-start -->
+## visualizer:views usage
+[visualizer:views usage rules](deps/visualizer/usage-rules/views.md)
+<!-- visualizer:views-end -->
 <!-- usage-rules-end -->
