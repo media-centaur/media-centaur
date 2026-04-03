@@ -20,13 +20,26 @@ defmodule MediaCentaur.Library.Image do
     belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :movie, MediaCentaur.Library.Movie
     belongs_to :episode, MediaCentaur.Library.Episode
+    belongs_to :tv_series, MediaCentaur.Library.TVSeries
+    belongs_to :movie_series, MediaCentaur.Library.MovieSeries
+    belongs_to :video_object, MediaCentaur.Library.VideoObject
 
     timestamps()
   end
 
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:role, :content_url, :extension, :entity_id, :movie_id, :episode_id])
+    |> cast(attrs, [
+      :role,
+      :content_url,
+      :extension,
+      :entity_id,
+      :movie_id,
+      :episode_id,
+      :tv_series_id,
+      :movie_series_id,
+      :video_object_id
+    ])
     |> validate_required([:role])
   end
 

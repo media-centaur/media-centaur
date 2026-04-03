@@ -16,7 +16,10 @@ defmodule MediaCentaur.Library do
     Identifier,
     Image,
     Movie,
+    MovieSeries,
     Season,
+    TVSeries,
+    VideoObject,
     WatchProgress,
     WatchedFile
   }
@@ -41,6 +44,37 @@ defmodule MediaCentaur.Library do
     :images,
     seasons: [episodes: :images],
     movies: :images
+  ]
+
+  @tv_series_full_preloads [
+    :images,
+    :identifiers,
+    :extras,
+    :watched_files,
+    seasons: [:extras, episodes: [:images, :watch_progress]]
+  ]
+
+  @movie_series_full_preloads [
+    :images,
+    :identifiers,
+    :extras,
+    :watched_files,
+    movies: [:images, :watch_progress]
+  ]
+
+  @movie_full_preloads [
+    :images,
+    :identifiers,
+    :extras,
+    :watched_files,
+    :watch_progress
+  ]
+
+  @video_object_full_preloads [
+    :images,
+    :identifiers,
+    :watched_files,
+    :watch_progress
   ]
 
   # ---------------------------------------------------------------------------
@@ -163,6 +197,125 @@ defmodule MediaCentaur.Library do
   def destroy_entity!(entity), do: destroy_bang!(entity)
 
   # ---------------------------------------------------------------------------
+  # TVSeries
+  # ---------------------------------------------------------------------------
+
+  def get_tv_series(id) do
+    case Repo.get(TVSeries, id) do
+      nil -> {:error, :not_found}
+      tv_series -> {:ok, tv_series}
+    end
+  end
+
+  def get_tv_series!(id), do: Repo.get!(TVSeries, id)
+
+  def get_tv_series_with_associations(id) do
+    case Repo.get(TVSeries, id) do
+      nil -> {:error, :not_found}
+      tv_series -> {:ok, Repo.preload(tv_series, @tv_series_full_preloads)}
+    end
+  end
+
+  def get_tv_series_with_associations!(id) do
+    Repo.get!(TVSeries, id) |> Repo.preload(@tv_series_full_preloads)
+  end
+
+  def create_tv_series(attrs) do
+    TVSeries.create_changeset(attrs) |> Repo.insert()
+  end
+
+  def create_tv_series!(attrs), do: bang!(create_tv_series(attrs))
+
+  def update_tv_series(tv_series, attrs) do
+    TVSeries.update_changeset(tv_series, attrs) |> Repo.update()
+  end
+
+  def update_tv_series!(tv_series, attrs), do: bang!(update_tv_series(tv_series, attrs))
+
+  def destroy_tv_series(tv_series), do: Repo.delete(tv_series)
+  def destroy_tv_series!(tv_series), do: destroy_bang!(tv_series)
+
+  # ---------------------------------------------------------------------------
+  # MovieSeries
+  # ---------------------------------------------------------------------------
+
+  def get_movie_series(id) do
+    case Repo.get(MovieSeries, id) do
+      nil -> {:error, :not_found}
+      movie_series -> {:ok, movie_series}
+    end
+  end
+
+  def get_movie_series!(id), do: Repo.get!(MovieSeries, id)
+
+  def get_movie_series_with_associations(id) do
+    case Repo.get(MovieSeries, id) do
+      nil -> {:error, :not_found}
+      movie_series -> {:ok, Repo.preload(movie_series, @movie_series_full_preloads)}
+    end
+  end
+
+  def get_movie_series_with_associations!(id) do
+    Repo.get!(MovieSeries, id) |> Repo.preload(@movie_series_full_preloads)
+  end
+
+  def create_movie_series(attrs) do
+    MovieSeries.create_changeset(attrs) |> Repo.insert()
+  end
+
+  def create_movie_series!(attrs), do: bang!(create_movie_series(attrs))
+
+  def update_movie_series(movie_series, attrs) do
+    MovieSeries.update_changeset(movie_series, attrs) |> Repo.update()
+  end
+
+  def update_movie_series!(movie_series, attrs),
+    do: bang!(update_movie_series(movie_series, attrs))
+
+  def destroy_movie_series(movie_series), do: Repo.delete(movie_series)
+  def destroy_movie_series!(movie_series), do: destroy_bang!(movie_series)
+
+  # ---------------------------------------------------------------------------
+  # VideoObject
+  # ---------------------------------------------------------------------------
+
+  def get_video_object(id) do
+    case Repo.get(VideoObject, id) do
+      nil -> {:error, :not_found}
+      video_object -> {:ok, video_object}
+    end
+  end
+
+  def get_video_object!(id), do: Repo.get!(VideoObject, id)
+
+  def get_video_object_with_associations(id) do
+    case Repo.get(VideoObject, id) do
+      nil -> {:error, :not_found}
+      video_object -> {:ok, Repo.preload(video_object, @video_object_full_preloads)}
+    end
+  end
+
+  def get_video_object_with_associations!(id) do
+    Repo.get!(VideoObject, id) |> Repo.preload(@video_object_full_preloads)
+  end
+
+  def create_video_object(attrs) do
+    VideoObject.create_changeset(attrs) |> Repo.insert()
+  end
+
+  def create_video_object!(attrs), do: bang!(create_video_object(attrs))
+
+  def update_video_object(video_object, attrs) do
+    VideoObject.update_changeset(video_object, attrs) |> Repo.update()
+  end
+
+  def update_video_object!(video_object, attrs),
+    do: bang!(update_video_object(video_object, attrs))
+
+  def destroy_video_object(video_object), do: Repo.delete(video_object)
+  def destroy_video_object!(video_object), do: destroy_bang!(video_object)
+
+  # ---------------------------------------------------------------------------
   # WatchedFile
   # ---------------------------------------------------------------------------
 
@@ -273,6 +426,38 @@ defmodule MediaCentaur.Library do
   def destroy_identifier(identifier), do: Repo.delete(identifier)
   def destroy_identifier!(identifier), do: destroy_bang!(identifier)
 
+  def find_by_tmdb_id_for_movie(tmdb_id) do
+    {:ok,
+     Repo.one(
+       from(i in Identifier,
+         where: i.property_id == "tmdb" and i.value == ^tmdb_id and not is_nil(i.movie_id),
+         limit: 1
+       )
+     )}
+  end
+
+  def find_by_tmdb_id_for_tv_series(tmdb_id) do
+    {:ok,
+     Repo.one(
+       from(i in Identifier,
+         where: i.property_id == "tmdb" and i.value == ^tmdb_id and not is_nil(i.tv_series_id),
+         limit: 1
+       )
+     )}
+  end
+
+  def find_by_tmdb_collection_for_movie_series(collection_id) do
+    {:ok,
+     Repo.one(
+       from(i in Identifier,
+         where:
+           i.property_id == "tmdb_collection" and i.value == ^collection_id and
+             not is_nil(i.movie_series_id),
+         limit: 1
+       )
+     )}
+  end
+
   # ---------------------------------------------------------------------------
   # Movie
   # ---------------------------------------------------------------------------
@@ -329,6 +514,38 @@ defmodule MediaCentaur.Library do
 
   def destroy_movie(movie), do: Repo.delete(movie)
   def destroy_movie!(movie), do: destroy_bang!(movie)
+
+  def get_movie_with_associations(id) do
+    case Repo.get(Movie, id) do
+      nil -> {:error, :not_found}
+      movie -> {:ok, Repo.preload(movie, @movie_full_preloads)}
+    end
+  end
+
+  def get_movie_with_associations!(id) do
+    Repo.get!(Movie, id) |> Repo.preload(@movie_full_preloads)
+  end
+
+  def find_or_create_movie_for_series(attrs) do
+    movie_series_id = attrs[:movie_series_id] || attrs["movie_series_id"]
+    tmdb_id = attrs[:tmdb_id] || attrs["tmdb_id"]
+
+    case Repo.get_by(Movie, movie_series_id: movie_series_id, tmdb_id: tmdb_id) do
+      nil -> Movie.create_changeset(attrs) |> Repo.insert()
+      existing -> {:ok, existing}
+    end
+  end
+
+  def list_movies_for_series(movie_series_id, opts \\ []) do
+    preloads = Keyword.get(opts, :load, [])
+
+    result =
+      from(m in Movie, where: m.movie_series_id == ^movie_series_id)
+      |> Repo.all()
+      |> maybe_preload(preloads)
+
+    {:ok, result}
+  end
 
   # ---------------------------------------------------------------------------
   # Extra
@@ -423,6 +640,25 @@ defmodule MediaCentaur.Library do
 
   def destroy_season(season), do: Repo.delete(season)
   def destroy_season!(season), do: destroy_bang!(season)
+
+  def find_or_create_season_for_tv_series(attrs) do
+    tv_series_id = attrs[:tv_series_id] || attrs["tv_series_id"]
+    season_number = attrs[:season_number] || attrs["season_number"]
+
+    existing =
+      if tv_series_id && season_number do
+        Repo.get_by(Season, tv_series_id: tv_series_id, season_number: season_number)
+      end
+
+    case existing do
+      nil -> Season.create_changeset(attrs) |> Repo.insert()
+      record -> {:ok, record}
+    end
+  end
+
+  def list_seasons_for_tv_series(tv_series_id) do
+    {:ok, from(s in Season, where: s.tv_series_id == ^tv_series_id) |> Repo.all()}
+  end
 
   # ---------------------------------------------------------------------------
   # Episode
@@ -553,6 +789,33 @@ defmodule MediaCentaur.Library do
 
   def destroy_watch_progress(progress), do: Repo.delete(progress)
   def destroy_watch_progress!(progress), do: destroy_bang!(progress)
+
+  def find_or_create_watch_progress_for_movie(attrs) do
+    movie_id = attrs[:movie_id] || attrs["movie_id"]
+
+    case Repo.get_by(WatchProgress, movie_id: movie_id) do
+      nil -> WatchProgress.upsert_changeset(attrs) |> Repo.insert()
+      existing -> WatchProgress.upsert_changeset(existing, attrs) |> Repo.update()
+    end
+  end
+
+  def find_or_create_watch_progress_for_episode(attrs) do
+    episode_id = attrs[:episode_id] || attrs["episode_id"]
+
+    case Repo.get_by(WatchProgress, episode_id: episode_id) do
+      nil -> WatchProgress.upsert_changeset(attrs) |> Repo.insert()
+      existing -> WatchProgress.upsert_changeset(existing, attrs) |> Repo.update()
+    end
+  end
+
+  def find_or_create_watch_progress_for_video_object(attrs) do
+    video_object_id = attrs[:video_object_id] || attrs["video_object_id"]
+
+    case Repo.get_by(WatchProgress, video_object_id: video_object_id) do
+      nil -> WatchProgress.upsert_changeset(attrs) |> Repo.insert()
+      existing -> WatchProgress.upsert_changeset(existing, attrs) |> Repo.update()
+    end
+  end
 
   # ---------------------------------------------------------------------------
   # ExtraProgress

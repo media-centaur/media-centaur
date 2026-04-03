@@ -5,11 +5,21 @@ defmodule MediaCentaur.Library.Inbound do
 
   Handles three event types:
 
-  - `{:entity_published, event}` — creates/links Entity, children, Identifier,
-    WatchedFile, queues images for download, and broadcasts `:entities_changed`
+  - `{:entity_published, event}` — creates/links Entity + type-specific record,
+    children, Identifier, WatchedFile, queues images for download, and broadcasts
+    `:entities_changed`
   - `{:image_ready, attrs}` — upserts a Library.Image after successful download
   - `{:rematch_requested, entity_id}` — destroys an entity and its WatchedFiles,
     then sends the file list to `"review:intake"` for re-review
+
+  ## Transition: Dual-Write
+
+  During the transition from a single Entity table to type-specific tables
+  (TVSeries, MovieSeries, Movie, VideoObject), this module **dual-writes** both
+  an Entity record and a type-specific record with the same UUID. All child records
+  (Season, Episode, Extra, WatchedFile, Identifier, Image) receive both `entity_id`
+  and the type-specific FK. This ensures both old code (Entity-based queries) and
+  new code (type-table queries) can discover the data.
   """
   use GenServer
   require MediaCentaur.Log, as: Log
@@ -38,8 +48,8 @@ defmodule MediaCentaur.Library.Inbound do
   @doc """
   Ingests a published entity event into the library.
 
-  Creates or links the Entity, children, Identifier, and WatchedFile.
-  Queues images for download and broadcasts `:entities_changed`.
+  Creates or links the Entity + type-specific record, children, Identifier,
+  and WatchedFile. Queues images for download and broadcasts `:entities_changed`.
 
   The event is a plain map with keys: `entity_type`, `entity_attrs`,
   `identifier`, `images`, `season`, `child_movie`, `extra`, `file_path`,
@@ -210,15 +220,20 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   # ---------------------------------------------------------------------------
-  # Create new entity
+  # Create new entity + type-specific record (dual-write)
   # ---------------------------------------------------------------------------
 
   defp create_new(event) do
     entity_attrs = strip_content_url_if_extra(event.entity_attrs, event)
 
-    with {:ok, entity} <- Library.create_entity(entity_attrs),
-         :ok <- create_identifier_with_race_retry(entity, event.identifier) do
-      entity_images = collect_images(entity.id, "entity", event.images)
+    # Generate a shared UUID for both Entity and type-specific record
+    shared_id = Ecto.UUID.generate()
+
+    with {:ok, entity} <- Library.create_entity(Map.put(entity_attrs, :id, shared_id)),
+         {:ok, _type_record} <- create_type_record(event.entity_type, entity_attrs, shared_id),
+         :ok <- create_identifier_with_race_retry(entity, event) do
+      owner_type = owner_type_for(event.entity_type)
+      entity_images = collect_images(entity.id, owner_type, event.images)
 
       case create_children(entity, event) do
         {:ok, child_images} ->
@@ -238,6 +253,86 @@ defmodule MediaCentaur.Library.Inbound do
         {:error, reason}
     end
   end
+
+  defp create_type_record(:tv_series, attrs, shared_id) do
+    Library.create_tv_series(Map.put(attrs, :id, shared_id))
+  end
+
+  defp create_type_record(:movie_series, attrs, shared_id) do
+    Library.create_movie_series(Map.put(attrs, :id, shared_id))
+  end
+
+  defp create_type_record(:movie, attrs, shared_id) do
+    Library.create_movie(Map.put(attrs, :id, shared_id))
+  end
+
+  defp create_type_record(:video_object, attrs, shared_id) do
+    Library.create_video_object(Map.put(attrs, :id, shared_id))
+  end
+
+  # Ensures a type-specific record exists for an entity. Creates one from the
+  # entity's data if missing (backfill for entities created before dual-write).
+  defp ensure_type_record_exists(entity) do
+    case entity.type do
+      :tv_series ->
+        case Library.get_tv_series(entity.id) do
+          {:ok, _} -> :ok
+          {:error, :not_found} -> create_type_record_from_entity(entity)
+        end
+
+      :movie_series ->
+        case Library.get_movie_series(entity.id) do
+          {:ok, _} -> :ok
+          {:error, :not_found} -> create_type_record_from_entity(entity)
+        end
+
+      :movie ->
+        case Library.get_movie(entity.id) do
+          {:ok, _} -> :ok
+          {:error, :not_found} -> create_type_record_from_entity(entity)
+        end
+
+      :video_object ->
+        case Library.get_video_object(entity.id) do
+          {:ok, _} -> :ok
+          {:error, :not_found} -> create_type_record_from_entity(entity)
+        end
+    end
+  end
+
+  defp create_type_record_from_entity(entity) do
+    attrs =
+      Map.take(entity, [
+        :name,
+        :description,
+        :date_published,
+        :genres,
+        :url,
+        :content_url,
+        :duration,
+        :director,
+        :content_rating,
+        :number_of_seasons,
+        :aggregate_rating_value
+      ])
+
+    case create_type_record(entity.type, attrs, entity.id) do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Maps entity_type atom to the owner_type string used in image metadata
+  defp owner_type_for(:tv_series), do: "tv_series"
+  defp owner_type_for(:movie_series), do: "movie_series"
+  defp owner_type_for(:movie), do: "movie"
+  defp owner_type_for(:video_object), do: "video_object"
+
+  # Maps entity_type atom to the FK key used in child records
+  defp type_fk_for(:tv_series), do: :tv_series_id
+  defp type_fk_for(:movie_series), do: :movie_series_id
+  defp type_fk_for(:movie), do: :movie_id
+  defp type_fk_for(:video_object), do: :video_object_id
 
   defp create_children(entity, event) do
     with {:ok, season_images} <- maybe_create_season(entity, event),
@@ -271,8 +366,14 @@ defmodule MediaCentaur.Library.Inbound do
   # Link to existing entity
   # ---------------------------------------------------------------------------
 
+  # Ensure the type-specific record exists before linking children with type FKs.
+  defp link_to_existing(entity, event) do
+    ensure_type_record_exists(entity)
+    do_link_to_existing(entity, event)
+  end
+
   # Extra on existing entity — always handled first (regardless of entity type)
-  defp link_to_existing(entity, %{extra: %{} = extra} = event) do
+  defp do_link_to_existing(entity, %{extra: %{} = extra} = event) do
     season_images =
       if event.season do
         case create_season_and_episode(entity, event.season) do
@@ -289,7 +390,7 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   # TV series — ensure season + episode
-  defp link_to_existing(entity, %{entity_type: :tv_series} = event) do
+  defp do_link_to_existing(entity, %{entity_type: :tv_series} = event) do
     if event.season do
       case create_season_and_episode(entity, event.season) do
         {:ok, images} -> {:ok, entity, :existing, images}
@@ -301,7 +402,7 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   # Movie series — ensure child movie -> :new_child
-  defp link_to_existing(%{type: :movie_series} = entity, event) do
+  defp do_link_to_existing(%{type: :movie_series} = entity, event) do
     if event.child_movie do
       with {:ok, _movie, images} <- create_child_movie(entity, event.child_movie),
            :ok <- create_child_movie_identifier(entity, event.child_movie) do
@@ -313,7 +414,7 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   # Standalone movie — set content_url if nil
-  defp link_to_existing(entity, event) do
+  defp do_link_to_existing(entity, event) do
     content_url = event.entity_attrs[:content_url]
 
     if is_nil(entity.content_url) && content_url do
@@ -331,12 +432,14 @@ defmodule MediaCentaur.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp create_season_and_episode(entity, season_data) do
-    season_attrs = %{
-      season_number: season_data.season_number,
-      name: season_data.name,
-      number_of_episodes: season_data.number_of_episodes,
-      entity_id: entity.id
-    }
+    season_attrs =
+      %{
+        season_number: season_data.season_number,
+        name: season_data.name,
+        number_of_episodes: season_data.number_of_episodes,
+        entity_id: entity.id
+      }
+      |> maybe_put_type_fk(entity)
 
     with {:ok, season} <- Library.find_or_create_season(season_attrs) do
       Log.info(
@@ -371,7 +474,10 @@ defmodule MediaCentaur.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp create_child_movie(entity, child_movie_data) do
-    movie_attrs = Map.put(child_movie_data.attrs, :entity_id, entity.id)
+    movie_attrs =
+      child_movie_data.attrs
+      |> Map.put(:entity_id, entity.id)
+      |> maybe_put(:movie_series_id, entity.id, entity.type == :movie_series)
 
     case Library.find_or_create_movie(movie_attrs) do
       {:ok, movie} ->
@@ -387,11 +493,13 @@ defmodule MediaCentaur.Library.Inbound do
   defp create_child_movie_identifier(_entity, %{identifier: nil}), do: :ok
 
   defp create_child_movie_identifier(entity, %{identifier: identifier}) do
-    attrs = %{
-      property_id: identifier.property_id,
-      value: identifier.value,
-      entity_id: entity.id
-    }
+    attrs =
+      %{
+        property_id: identifier.property_id,
+        value: identifier.value,
+        entity_id: entity.id
+      }
+      |> maybe_put_type_fk(entity)
 
     case Library.find_or_create_identifier(attrs) do
       {:ok, _} -> :ok
@@ -406,12 +514,14 @@ defmodule MediaCentaur.Library.Inbound do
   defp create_extra(entity, extra_data) do
     season =
       if extra_data.season_number do
-        season_attrs = %{
-          season_number: extra_data.season_number,
-          name: "Season #{extra_data.season_number}",
-          number_of_episodes: 0,
-          entity_id: entity.id
-        }
+        season_attrs =
+          %{
+            season_number: extra_data.season_number,
+            name: "Season #{extra_data.season_number}",
+            number_of_episodes: 0,
+            entity_id: entity.id
+          }
+          |> maybe_put_type_fk(entity)
 
         case Library.find_or_create_season(season_attrs) do
           {:ok, season} -> season
@@ -419,13 +529,15 @@ defmodule MediaCentaur.Library.Inbound do
         end
       end
 
-    extra_attrs = %{
-      name: extra_data.name,
-      content_url: extra_data.content_url,
-      position: 0,
-      entity_id: entity.id,
-      season_id: if(season, do: season.id)
-    }
+    extra_attrs =
+      %{
+        name: extra_data.name,
+        content_url: extra_data.content_url,
+        position: 0,
+        entity_id: entity.id,
+        season_id: if(season, do: season.id)
+      }
+      |> maybe_put_type_fk(entity)
 
     case Library.find_or_create_extra(extra_attrs) do
       {:ok, _extra} -> :ok
@@ -458,12 +570,14 @@ defmodule MediaCentaur.Library.Inbound do
   # Identifier with race-loss recovery
   # ---------------------------------------------------------------------------
 
-  defp create_identifier_with_race_retry(entity, identifier) do
-    attrs = %{
-      property_id: identifier.property_id,
-      value: identifier.value,
-      entity_id: entity.id
-    }
+  defp create_identifier_with_race_retry(entity, event) do
+    attrs =
+      %{
+        property_id: event.identifier.property_id,
+        value: event.identifier.value,
+        entity_id: entity.id
+      }
+      |> maybe_put_type_fk_for(event.entity_type, entity.id)
 
     case Library.find_or_create_identifier(attrs) do
       {:ok, created_identifier} ->
@@ -506,11 +620,15 @@ defmodule MediaCentaur.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp link_file(entity, event) do
-    Library.link_file!(%{
-      file_path: event.file_path,
-      watch_dir: event.watch_dir,
-      entity_id: entity.id
-    })
+    attrs =
+      %{
+        file_path: event.file_path,
+        watch_dir: event.watch_dir,
+        entity_id: entity.id
+      }
+      |> maybe_put_type_fk_for(event.entity_type, entity.id)
+
+    Library.link_file!(attrs)
   end
 
   defp queue_images(_entity, [], _event), do: :ok
@@ -535,14 +653,43 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   # ---------------------------------------------------------------------------
+  # Type FK helpers (dual-write transition)
+  # ---------------------------------------------------------------------------
+
+  # Adds the type-specific FK to attrs based on the entity's type.
+  # Used when the entity record is available.
+  defp maybe_put_type_fk(attrs, %{type: entity_type, id: entity_id}) do
+    Map.put(attrs, type_fk_for(entity_type), entity_id)
+  end
+
+  # Adds the type-specific FK to attrs when entity_type and id are known separately.
+  defp maybe_put_type_fk_for(attrs, entity_type, entity_id) do
+    Map.put(attrs, type_fk_for(entity_type), entity_id)
+  end
+
+  # Conditionally puts a key-value pair into a map.
+  defp maybe_put(map, _key, _value, false), do: map
+  defp maybe_put(map, key, value, true), do: Map.put(map, key, value)
+
+  # ---------------------------------------------------------------------------
   # Image record helpers (for :image_ready)
   # ---------------------------------------------------------------------------
 
   defp put_owner_fk(attrs, "entity", owner_id), do: Map.put(attrs, :entity_id, owner_id)
   defp put_owner_fk(attrs, "movie", owner_id), do: Map.put(attrs, :movie_id, owner_id)
   defp put_owner_fk(attrs, "episode", owner_id), do: Map.put(attrs, :episode_id, owner_id)
+  defp put_owner_fk(attrs, "tv_series", owner_id), do: Map.put(attrs, :tv_series_id, owner_id)
+
+  defp put_owner_fk(attrs, "movie_series", owner_id),
+    do: Map.put(attrs, :movie_series_id, owner_id)
+
+  defp put_owner_fk(attrs, "video_object", owner_id),
+    do: Map.put(attrs, :video_object_id, owner_id)
 
   defp conflict_target_for("entity"), do: [:entity_id, :role]
   defp conflict_target_for("movie"), do: [:movie_id, :role]
   defp conflict_target_for("episode"), do: [:episode_id, :role]
+  defp conflict_target_for("tv_series"), do: [:tv_series_id, :role]
+  defp conflict_target_for("movie_series"), do: [:movie_series_id, :role]
+  defp conflict_target_for("video_object"), do: [:video_object_id, :role]
 end

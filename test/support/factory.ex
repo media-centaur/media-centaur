@@ -9,7 +9,20 @@ defmodule MediaCentaur.TestFactory do
   """
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
+
+  alias MediaCentaur.Library.{
+    Entity,
+    Extra,
+    Image,
+    Identifier,
+    Movie,
+    MovieSeries,
+    Season,
+    Episode,
+    TVSeries,
+    VideoObject
+  }
+
   alias MediaCentaur.Review
 
   # ---------------------------------------------------------------------------
@@ -145,6 +158,89 @@ defmodule MediaCentaur.TestFactory do
     Map.merge(defaults, overrides)
   end
 
+  def build_tv_series(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      name: "Test TV Series",
+      description: nil,
+      date_published: nil,
+      genres: nil,
+      url: nil,
+      aggregate_rating_value: nil,
+      number_of_seasons: nil,
+      seasons: [],
+      images: [],
+      extras: [],
+      identifiers: [],
+      watched_files: []
+    }
+
+    struct(TVSeries, Map.merge(defaults, overrides))
+  end
+
+  def build_movie_series(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      name: "Test Movie Series",
+      description: nil,
+      date_published: nil,
+      genres: nil,
+      url: nil,
+      aggregate_rating_value: nil,
+      movies: [],
+      images: [],
+      extras: [],
+      identifiers: [],
+      watched_files: []
+    }
+
+    struct(MovieSeries, Map.merge(defaults, overrides))
+  end
+
+  def build_video_object(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      name: "Test Video",
+      description: nil,
+      date_published: nil,
+      content_url: nil,
+      url: nil,
+      images: [],
+      identifiers: [],
+      watched_files: [],
+      watch_progress: nil
+    }
+
+    struct(VideoObject, Map.merge(defaults, overrides))
+  end
+
+  def build_standalone_movie(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      name: "Test Standalone Movie",
+      description: nil,
+      date_published: nil,
+      duration: nil,
+      director: nil,
+      content_rating: nil,
+      content_url: nil,
+      url: nil,
+      aggregate_rating_value: nil,
+      tmdb_id: nil,
+      genres: nil,
+      position: 0,
+      entity_id: nil,
+      movie_series_id: nil,
+      images: [],
+      extras: [],
+      identifiers: [],
+      watched_files: [],
+      watch_progress: nil
+    }
+
+    struct(Movie, Map.merge(defaults, overrides))
+  end
+
   # ---------------------------------------------------------------------------
   # create_* — persisted via context functions, returns loaded records
   # ---------------------------------------------------------------------------
@@ -172,6 +268,26 @@ defmodule MediaCentaur.TestFactory do
 
   def create_movie(attrs) do
     Library.create_movie!(attrs)
+  end
+
+  def create_tv_series(attrs \\ %{}) do
+    defaults = %{name: "Test TV Series"}
+    Library.create_tv_series!(Map.merge(defaults, attrs))
+  end
+
+  def create_movie_series(attrs \\ %{}) do
+    defaults = %{name: "Test Movie Series"}
+    Library.create_movie_series!(Map.merge(defaults, attrs))
+  end
+
+  def create_video_object(attrs \\ %{}) do
+    defaults = %{name: "Test Video"}
+    Library.create_video_object!(Map.merge(defaults, attrs))
+  end
+
+  def create_standalone_movie(attrs \\ %{}) do
+    defaults = %{name: "Test Standalone Movie", position: 0}
+    Library.create_movie!(Map.merge(defaults, attrs))
   end
 
   def create_extra(attrs) do

@@ -31,7 +31,10 @@ defmodule MediaCentaur.Pipeline.ImageQueueEntry do
     %__MODULE__{}
     |> cast(attrs, @required ++ [:status, :retry_count])
     |> validate_required(@required)
-    |> validate_inclusion(:owner_type, ~w(entity movie episode))
+    |> validate_inclusion(
+      :owner_type,
+      ~w(entity movie episode tv_series movie_series video_object)
+    )
     |> validate_inclusion(:status, ~w(pending failed complete permanent))
     |> unique_constraint([:owner_id, :role])
   end

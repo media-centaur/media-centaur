@@ -18,12 +18,24 @@ defmodule MediaCentaur.Library.Extra do
 
     belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :season, MediaCentaur.Library.Season
+    belongs_to :movie, MediaCentaur.Library.Movie
+    belongs_to :tv_series, MediaCentaur.Library.TVSeries
+    belongs_to :movie_series, MediaCentaur.Library.MovieSeries
 
     timestamps()
   end
 
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:name, :content_url, :position, :entity_id, :season_id])
+    |> cast(attrs, [
+      :name,
+      :content_url,
+      :position,
+      :entity_id,
+      :season_id,
+      :movie_id,
+      :tv_series_id,
+      :movie_series_id
+    ])
   end
 end

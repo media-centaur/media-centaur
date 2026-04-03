@@ -27,6 +27,9 @@ defmodule MediaCentaur.Playback.MpvSession do
     :episode_number,
     :episode_name,
     :extra_id,
+    :movie_id,
+    :episode_id,
+    :video_object_id,
     :content_url,
     :start_position,
     :socket_path,
@@ -84,6 +87,9 @@ defmodule MediaCentaur.Playback.MpvSession do
       episode_number: params[:episode_number],
       episode_name: params[:episode_name],
       extra_id: params[:extra_id],
+      movie_id: params[:movie_id],
+      episode_id: params[:episode_id],
+      video_object_id: params[:video_object_id],
       content_url: params.content_url,
       start_position: params[:start_position] || 0.0,
       socket_path: socket_path,
@@ -411,13 +417,17 @@ defmodule MediaCentaur.Playback.MpvSession do
     season_number = state.season_number || 0
     episode_number = state.episode_number || 0
 
-    params = %{
-      entity_id: state.entity_id,
-      season_number: season_number,
-      episode_number: episode_number,
-      position_seconds: saveable,
-      duration_seconds: duration
-    }
+    params =
+      %{
+        entity_id: state.entity_id,
+        season_number: season_number,
+        episode_number: episode_number,
+        position_seconds: saveable,
+        duration_seconds: duration
+      }
+      |> maybe_put(:movie_id, state.movie_id)
+      |> maybe_put(:episode_id, state.episode_id)
+      |> maybe_put(:video_object_id, state.video_object_id)
 
     entity_id = state.entity_id
 
@@ -542,4 +552,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     json = Jason.encode!(%{"command" => command}) <> "\n"
     :gen_tcp.send(socket, json)
   end
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
 end

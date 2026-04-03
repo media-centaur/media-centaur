@@ -131,9 +131,19 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.name == "Fight Club"
       assert entity.content_url == "/media/Fight.Club.1999.mkv"
 
-      # Identifier created
+      # Dual-write: type-specific Movie record created with same UUID
+      assert {:ok, movie} = Library.get_movie(entity.id)
+      assert movie.name == "Fight Club"
+      assert movie.content_url == "/media/Fight.Club.1999.mkv"
+
+      # Identifier created with both entity_id and movie_id
       assert {:ok, identifier} = find_identifier("tmdb", "550")
       assert identifier.entity_id == entity.id
+      assert identifier.movie_id == entity.id
+
+      # WatchedFile linked with both entity_id and movie_id
+      [file] = Library.list_watched_files_for_entity!(entity.id)
+      assert file.movie_id == entity.id
 
       # Images collected for queue (not created in DB)
       assert length(pending_images) == 2
@@ -141,7 +151,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert roles == ["backdrop", "poster"]
 
       assert Enum.all?(pending_images, fn img ->
-               img.owner_id == entity.id and img.owner_type == "entity"
+               img.owner_id == entity.id and img.owner_type == "movie"
              end)
     end
 
@@ -158,7 +168,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert [image] = pending_images
       assert image.source_url == "https://image.tmdb.org/poster.jpg"
       assert image.owner_id == entity.id
-      assert image.owner_type == "entity"
+      assert image.owner_type == "movie"
       assert image.role == "poster"
       assert image.extension == "jpg"
     end
@@ -175,27 +185,34 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.type == :movie_series
       assert entity.name == "The Shadowy Sentinel Collection"
 
-      # Collection identifier
+      # Dual-write: type-specific MovieSeries record created with same UUID
+      assert {:ok, movie_series} = Library.get_movie_series(entity.id)
+      assert movie_series.name == "The Shadowy Sentinel Collection"
+
+      # Collection identifier with both entity_id and movie_series_id
       assert {:ok, collection_id} = find_identifier("tmdb_collection", "263")
       assert collection_id.entity_id == entity.id
+      assert collection_id.movie_series_id == entity.id
 
-      # Movie-level TMDB identifier
+      # Movie-level TMDB identifier with movie_series_id
       assert {:ok, movie_id} = find_identifier("tmdb", "155")
       assert movie_id.entity_id == entity.id
+      assert movie_id.movie_series_id == entity.id
 
-      # Child movie
+      # Child movie with movie_series_id FK
       entity = MediaCentaur.Repo.preload(entity, [:movies])
       assert length(entity.movies) == 1
       movie = hd(entity.movies)
       assert movie.name == "The Shadowy Sentinel"
       assert movie.content_url == "/media/The.Shadowy.Sentinel.2008.mkv"
       assert movie.position == 1
+      assert movie.movie_series_id == entity.id
 
-      # Pending images include entity + child movie images
+      # Pending images include movie_series + child movie images
       assert length(pending_images) == 2
-      entity_image = Enum.find(pending_images, &(&1.owner_type == "entity"))
+      series_image = Enum.find(pending_images, &(&1.owner_type == "movie_series"))
       movie_image = Enum.find(pending_images, &(&1.owner_type == "movie"))
-      assert entity_image.role == "poster"
+      assert series_image.role == "poster"
       assert movie_image.role == "poster"
       assert movie_image.owner_id == movie.id
     end
@@ -243,26 +260,33 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.type == :tv_series
       assert entity.name == "Sample Show Eight"
 
-      # Identifier
+      # Dual-write: type-specific TVSeries record created with same UUID
+      assert {:ok, tv_series} = Library.get_tv_series(entity.id)
+      assert tv_series.name == "Sample Show Eight"
+      assert tv_series.number_of_seasons == 5
+
+      # Identifier with both entity_id and tv_series_id
       assert {:ok, identifier} = find_identifier("tmdb", "1396")
       assert identifier.entity_id == entity.id
+      assert identifier.tv_series_id == entity.id
 
-      # Season + Episode
+      # Season + Episode (season has tv_series_id)
       entity = Library.get_entity_with_associations!(entity.id)
       assert length(entity.seasons) == 1
       season = hd(entity.seasons)
       assert season.season_number == 1
+      assert season.tv_series_id == entity.id
       assert length(season.episodes) == 1
       episode = hd(season.episodes)
       assert episode.episode_number == 1
       assert episode.name == "Pilot"
       assert episode.content_url == "/media/TV/Sample.Show.Eight.S01E01.mkv"
 
-      # Pending images: entity poster + episode thumb
+      # Pending images: tv_series poster + episode thumb
       assert length(pending_images) == 2
-      entity_image = Enum.find(pending_images, &(&1.owner_type == "entity"))
+      series_image = Enum.find(pending_images, &(&1.owner_type == "tv_series"))
       episode_image = Enum.find(pending_images, &(&1.owner_type == "episode"))
-      assert entity_image.role == "poster"
+      assert series_image.role == "poster"
       assert episode_image.role == "thumb"
       assert episode_image.owner_id == episode.id
     end

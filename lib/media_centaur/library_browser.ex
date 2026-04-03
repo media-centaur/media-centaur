@@ -8,9 +8,10 @@ defmodule MediaCentaur.LibraryBrowser do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Library.Entity
+  alias MediaCentaur.Library.{Entity, Movie, MovieSeries, TVSeries, VideoObject, WatchProgress}
   alias MediaCentaur.Playback.{EpisodeList, MovieList, ProgressSummary, Resolver, Sessions}
   alias MediaCentaur.Repo
+  alias MediaCentaur.Watcher.KnownFile
 
   @full_preloads [
     :images,
@@ -76,6 +77,193 @@ defmodule MediaCentaur.LibraryBrowser do
         Log.info(:playback, "play failed — #{Format.short_id(uuid)}, #{reason}")
         {:error, reason}
     end
+  end
+
+  @doc """
+  Alternative query path that fetches from the type-specific tables
+  (Movie, TVSeries, MovieSeries, VideoObject) instead of the Entity table.
+
+  Returns the same entry format as `fetch_entities/0` so it can serve as
+  a drop-in replacement once the transition is complete.
+
+  Not yet wired into the LiveView — call manually for verification.
+  """
+  def fetch_all_typed_entries do
+    standalone_movies = fetch_standalone_movies()
+    tv_series = fetch_all_tv_series()
+    movie_series = fetch_all_movie_series()
+    video_objects = fetch_all_video_objects()
+
+    entries =
+      standalone_movies ++ tv_series ++ movie_series ++ video_objects
+
+    Log.info(
+      :library,
+      "loaded #{length(entries)} typed entries for browser " <>
+        "(#{length(standalone_movies)} movies, #{length(tv_series)} tv, " <>
+        "#{length(movie_series)} movie series, #{length(video_objects)} video objects)"
+    )
+
+    entries
+    |> Enum.map(&build_typed_entry/1)
+    |> Enum.sort_by(fn entry -> (entry.entity.name || "") |> String.downcase() end)
+  end
+
+  # --- Type-Specific Fetchers ---
+
+  defp fetch_standalone_movies do
+    from(m in Movie,
+      as: :item,
+      where: is_nil(m.movie_series_id),
+      where:
+        exists(
+          from(wf in "library_watched_files",
+            join: kf in KnownFile,
+            on: kf.file_path == wf.file_path,
+            where: wf.movie_id == parent_as(:item).id and kf.state == :present,
+            select: 1
+          )
+        )
+    )
+    |> Repo.all()
+    |> Repo.preload([:images, :identifiers, :extras, :watched_files, :watch_progress])
+  end
+
+  defp fetch_all_tv_series do
+    from(t in TVSeries,
+      as: :item,
+      where:
+        exists(
+          from(wf in "library_watched_files",
+            join: kf in KnownFile,
+            on: kf.file_path == wf.file_path,
+            where: wf.tv_series_id == parent_as(:item).id and kf.state == :present,
+            select: 1
+          )
+        )
+    )
+    |> Repo.all()
+    |> Repo.preload([
+      :images,
+      :identifiers,
+      :extras,
+      :watched_files,
+      seasons: [:extras, episodes: :images]
+    ])
+  end
+
+  defp fetch_all_movie_series do
+    from(ms in MovieSeries,
+      as: :item,
+      where:
+        exists(
+          from(wf in "library_watched_files",
+            join: kf in KnownFile,
+            on: kf.file_path == wf.file_path,
+            where: wf.movie_series_id == parent_as(:item).id and kf.state == :present,
+            select: 1
+          )
+        )
+    )
+    |> Repo.all()
+    |> Repo.preload([:images, :identifiers, :extras, :watched_files, movies: :images])
+  end
+
+  defp fetch_all_video_objects do
+    from(v in VideoObject,
+      as: :item,
+      where:
+        exists(
+          from(wf in "library_watched_files",
+            join: kf in KnownFile,
+            on: kf.file_path == wf.file_path,
+            where: wf.video_object_id == parent_as(:item).id and kf.state == :present,
+            select: 1
+          )
+        )
+    )
+    |> Repo.all()
+    |> Repo.preload([:images, :identifiers, :watched_files, :watch_progress])
+  end
+
+  # --- Typed Entry Builder ---
+  #
+  # Converts a type-specific struct into the same `%{entity: ..., progress: ..., progress_records: ...}`
+  # format that `build_entry/1` produces from Entity records. This requires:
+  #
+  # 1. Fetching watch_progress through entity_id (since type table IDs == entity IDs)
+  # 2. Normalizing the struct to a map with :type, :seasons, :movies, :extras, :extra_progress
+  #    fields so ProgressSummary.compute and pre_sort_children work correctly.
+
+  defp build_typed_entry(%Movie{} = movie) do
+    progress_records = fetch_progress_for_id(movie.id)
+    normalized = normalize_to_entity_shape(movie, :movie)
+    build_entry_from_normalized(normalized, progress_records)
+  end
+
+  defp build_typed_entry(%TVSeries{} = series) do
+    progress_records = fetch_progress_for_id(series.id)
+    normalized = normalize_to_entity_shape(series, :tv_series)
+    build_entry_from_normalized(normalized, progress_records)
+  end
+
+  defp build_typed_entry(%MovieSeries{} = series) do
+    progress_records = fetch_progress_for_id(series.id)
+    normalized = normalize_to_entity_shape(series, :movie_series)
+    build_entry_from_normalized(normalized, progress_records)
+  end
+
+  defp build_typed_entry(%VideoObject{} = video) do
+    progress_records = fetch_progress_for_id(video.id)
+    normalized = normalize_to_entity_shape(video, :video_object)
+    build_entry_from_normalized(normalized, progress_records)
+  end
+
+  defp fetch_progress_for_id(id) do
+    from(wp in WatchProgress,
+      where: wp.entity_id == ^id,
+      order_by: [asc: :season_number, asc: :episode_number]
+    )
+    |> Repo.all()
+  end
+
+  defp normalize_to_entity_shape(record, type) do
+    # Build a map with the fields that build_entry/pre_sort_children/ProgressSummary expect.
+    # Missing associations default to empty lists to avoid nil access errors.
+    %{
+      __struct__: Entity,
+      id: record.id,
+      type: type,
+      name: record.name,
+      description: record.description,
+      date_published: record.date_published,
+      content_url: Map.get(record, :content_url),
+      url: record.url,
+      genres: Map.get(record, :genres),
+      duration: Map.get(record, :duration),
+      director: Map.get(record, :director),
+      content_rating: Map.get(record, :content_rating),
+      number_of_seasons: Map.get(record, :number_of_seasons),
+      aggregate_rating_value: Map.get(record, :aggregate_rating_value),
+      images: Map.get(record, :images, []),
+      identifiers: Map.get(record, :identifiers, []),
+      extras: Map.get(record, :extras, []),
+      seasons: Map.get(record, :seasons, []),
+      movies: Map.get(record, :movies, []),
+      watched_files: Map.get(record, :watched_files, []),
+      watch_progress: [],
+      extra_progress: [],
+      inserted_at: record.inserted_at,
+      updated_at: record.updated_at
+    }
+  end
+
+  defp build_entry_from_normalized(entity, progress_records) do
+    entity = entity |> pre_sort_children() |> maybe_unwrap_single_movie()
+
+    summary = ProgressSummary.compute(entity, progress_records)
+
+    %{entity: entity, progress: summary, progress_records: progress_records}
   end
 
   # --- Private Helpers ---

@@ -28,7 +28,10 @@ defmodule MediaCentaur.Playback.Resolver do
           episode_name: String.t() | nil,
           content_url: String.t(),
           start_position: float(),
-          extra_id: String.t() | nil
+          extra_id: String.t() | nil,
+          movie_id: String.t() | nil,
+          episode_id: String.t() | nil,
+          video_object_id: String.t() | nil
         }
 
   @doc """
@@ -76,6 +79,8 @@ defmodule MediaCentaur.Playback.Resolver do
         {season, episode, episode_name} =
           episode_context(action, entity, content_url, progress_records)
 
+        direct_fks = resolve_direct_fks(entity, content_url)
+
         Log.info(:playback, fn ->
           "resolved entity #{entity.name} — #{action}, #{Path.basename(content_url)}" <>
             if(position > 0, do: ", resume at #{position}s", else: "")
@@ -91,7 +96,8 @@ defmodule MediaCentaur.Playback.Resolver do
            episode_name: episode_name,
            content_url: content_url,
            start_position: position
-         }}
+         }
+         |> Map.merge(direct_fks)}
     end
   end
 
@@ -137,7 +143,8 @@ defmodule MediaCentaur.Playback.Resolver do
          episode_number: episode.episode_number,
          episode_name: episode.name,
          content_url: episode.content_url,
-         start_position: position
+         start_position: position,
+         episode_id: episode.id
        }}
     else
       {:error, _} ->
@@ -200,7 +207,8 @@ defmodule MediaCentaur.Playback.Resolver do
              episode_number: ordinal,
              episode_name: movie.name,
              content_url: movie.content_url,
-             start_position: position
+             start_position: position,
+             movie_id: movie.id
            }}
         else
           Log.info(
@@ -266,6 +274,43 @@ defmodule MediaCentaur.Playback.Resolver do
       _ -> 0.0
     end
   end
+
+  # --- Direct FK resolution ---
+
+  # For standalone movies, the Movie record has the same UUID as the entity.
+  defp resolve_direct_fks(%{type: :movie} = entity, _content_url) do
+    %{movie_id: entity.id}
+  end
+
+  # For video objects, the VideoObject record has the same UUID as the entity.
+  defp resolve_direct_fks(%{type: :video_object} = entity, _content_url) do
+    %{video_object_id: entity.id}
+  end
+
+  # For TV series, find the episode struct by content_url to get its id.
+  defp resolve_direct_fks(%{type: :tv_series} = entity, content_url) do
+    episode_id =
+      Enum.find_value(entity.seasons || [], fn season ->
+        Enum.find_value(season.episodes || [], fn episode ->
+          if episode.content_url == content_url, do: episode.id
+        end)
+      end)
+
+    %{episode_id: episode_id}
+  end
+
+  # For movie series, find the child movie by content_url to get its id.
+  defp resolve_direct_fks(%{type: :movie_series} = entity, content_url) do
+    movie_id =
+      case MovieList.find_by_content_url(entity, content_url) do
+        {_ordinal, id, _name} -> id
+        nil -> nil
+      end
+
+    %{movie_id: movie_id}
+  end
+
+  defp resolve_direct_fks(_entity, _content_url), do: %{}
 
   # --- Shared helpers ---
 
