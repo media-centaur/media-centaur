@@ -19,6 +19,7 @@ defmodule MediaCentaur.Library.Episode do
 
     belongs_to :season, MediaCentaur.Library.Season
     has_many :images, MediaCentaur.Library.Image
+    has_one :watch_progress, MediaCentaur.Library.WatchProgress
 
     timestamps()
   end

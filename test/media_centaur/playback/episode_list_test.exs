@@ -89,6 +89,41 @@ defmodule MediaCentaur.Playback.EpisodeListTest do
     end
   end
 
+  describe "index_progress_by_episode/1" do
+    test "indexes by episode_id from episodes with preloaded watch_progress" do
+      progress_a = build_progress(%{position_seconds: 30.0})
+      progress_b = build_progress(%{position_seconds: 60.0})
+
+      episode_a = build_episode(%{episode_number: 1, watch_progress: progress_a})
+      episode_b = build_episode(%{episode_number: 2, watch_progress: progress_b})
+
+      index = EpisodeList.index_progress_by_episode([episode_a, episode_b])
+
+      assert index[episode_a.id] == progress_a
+      assert index[episode_b.id] == progress_b
+      assert map_size(index) == 2
+    end
+
+    test "skips episodes without watch_progress" do
+      progress = build_progress(%{position_seconds: 30.0})
+      episode_a = build_episode(%{episode_number: 1, watch_progress: progress})
+      episode_b = build_episode(%{episode_number: 2, watch_progress: nil})
+
+      index = EpisodeList.index_progress_by_episode([episode_a, episode_b])
+
+      assert index[episode_a.id] == progress
+      assert map_size(index) == 1
+    end
+
+    test "returns empty map for empty list" do
+      assert EpisodeList.index_progress_by_episode([]) == %{}
+    end
+
+    test "returns empty map for non-list" do
+      assert EpisodeList.index_progress_by_episode(nil) == %{}
+    end
+  end
+
   describe "find_content_url/3" do
     setup do
       entity =

@@ -101,13 +101,32 @@ Every system — Elixir, JavaScript, or otherwise — must be designed so that C
 - **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals.
 - **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes.
 
+## Data Model (Entity Decomposition)
+
+The library uses **type-specific tables** instead of a single polymorphic Entity table. Each media type is a first-class Ecto schema with its own table, associations, and UUID identity.
+
+| Type | Table | Schema | Children |
+|------|-------|--------|----------|
+| Standalone Movie | `library_movies` (`movie_series_id` NULL) | `Library.Movie` | Extras |
+| TV Series | `library_tv_series` | `Library.TVSeries` | Seasons → Episodes, Extras |
+| Movie Series | `library_movie_series` | `Library.MovieSeries` | Movies (children), Extras |
+| Video Object | `library_video_objects` | `Library.VideoObject` | — |
+
+**Key patterns:**
+- Movie serves both standalone movies and MovieSeries children — distinguished by nullable `movie_series_id`
+- Images, identifiers, extras, and watched files use type-specific FKs (`movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id`)
+- WatchProgress tracks playable items directly via `movie_id`, `episode_id`, or `video_object_id`
+- Image directories use the type record's UUID: `data/images/{movie.id}/`, `data/images/{tv_series.id}/`
+
+**Transition state:** The old `library_entities` table still exists with dual-written data. New code should use type-specific tables. Entity will be dropped once all callers are fully migrated.
+
 ## Bounded Contexts
 
 Five contexts own their tables and communicate only via PubSub events. No context aliases another context's modules. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md).
 
 | Context | Prefix | Owns | PubSub role |
 |---------|--------|------|-------------|
-| **Library** | `library_` | Entities, seasons, episodes, movies, extras, images, identifiers, watched files, watch progress | Subscribes to `pipeline:publish` and `library:commands`; broadcasts `library:updates` |
+| **Library** | `library_` | Movies, TV series, movie series, video objects, seasons, episodes, extras, images, identifiers, watched files, watch progress | Subscribes to `pipeline:publish` and `library:commands`; broadcasts `library:updates` |
 | **Pipeline** | `pipeline_` | Image queue | Discovery subscribes to `pipeline:input`; Import subscribes to `pipeline:matched`; broadcasts `pipeline:publish` |
 | **Review** | `review_` | Pending files | Intake subscribes to `review:intake`; broadcasts `review:updates` and `pipeline:matched` |
 | **Watcher** | `watcher_` | File presence | Broadcasts `pipeline:input` and `library:file_events` |

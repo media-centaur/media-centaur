@@ -19,6 +19,9 @@ defmodule MediaCentaur.Library.WatchProgress do
     field :last_watched_at, :utc_datetime
 
     belongs_to :entity, MediaCentaur.Library.Entity
+    belongs_to :movie, MediaCentaur.Library.Movie
+    belongs_to :episode, MediaCentaur.Library.Episode
+    belongs_to :video_object, MediaCentaur.Library.VideoObject
 
     timestamps()
   end
@@ -27,6 +30,9 @@ defmodule MediaCentaur.Library.WatchProgress do
     %__MODULE__{}
     |> cast(attrs, [
       :entity_id,
+      :movie_id,
+      :episode_id,
+      :video_object_id,
       :season_number,
       :episode_number,
       :position_seconds,
@@ -38,7 +44,13 @@ defmodule MediaCentaur.Library.WatchProgress do
 
   def upsert_changeset(record, attrs) do
     record
-    |> cast(attrs, [:position_seconds, :duration_seconds])
+    |> cast(attrs, [
+      :position_seconds,
+      :duration_seconds,
+      :movie_id,
+      :episode_id,
+      :video_object_id
+    ])
     |> put_change(:last_watched_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 

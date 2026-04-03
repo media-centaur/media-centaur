@@ -8,14 +8,27 @@ defmodule MediaCentaur.Serializer do
   """
 
   alias MediaCentaur.Config
-  alias MediaCentaur.Library.{Entity, Extra, Image, Identifier, Movie, Season, Episode}
+
+  alias MediaCentaur.Library.{
+    Entity,
+    Extra,
+    Image,
+    Identifier,
+    Movie,
+    MovieSeries,
+    Season,
+    Episode,
+    TVSeries,
+    VideoObject
+  }
+
   alias MediaCentaur.Playback.{EpisodeList, MovieList}
 
   @doc """
   Serializes a single entity into a wrapped map: `%{"@id" => uuid, "entity" => %{...}}`.
   """
   def serialize_entity(%Entity{type: :movie_series} = entity) do
-    serialize_movie_series(entity)
+    serialize_entity_movie_series(entity)
   end
 
   def serialize_entity(%Entity{} = entity) do
@@ -23,6 +36,137 @@ defmodule MediaCentaur.Serializer do
       "@id" => entity.id,
       "entity" => entity_to_map(entity)
     }
+  end
+
+  # --- Type-specific struct serialization ---
+
+  @doc """
+  Serializes a standalone `%Movie{}` struct into a wrapped map.
+
+  Produces the same JSON-LD output as `serialize_entity/1` for an
+  `%Entity{type: :movie}`.
+  """
+  def serialize_movie(%Movie{} = movie) do
+    %{
+      "@id" => movie.id,
+      "entity" =>
+        %{
+          "@type" => "Movie",
+          "name" => movie.name,
+          "description" => movie.description,
+          "datePublished" => movie.date_published,
+          "genre" => movie.genres,
+          "contentUrl" => movie.content_url,
+          "url" => movie.url,
+          "duration" => movie.duration,
+          "director" => movie.director,
+          "contentRating" => movie.content_rating
+        }
+        |> maybe_add_extras(movie)
+        |> maybe_add_images(movie)
+        |> maybe_add_identifiers(movie)
+        |> maybe_add_rating(movie)
+        |> compact()
+    }
+  end
+
+  @doc """
+  Serializes a `%TVSeries{}` struct into a wrapped map.
+
+  Produces the same JSON-LD output as `serialize_entity/1` for an
+  `%Entity{type: :tv_series}`.
+  """
+  def serialize_tv_series(%TVSeries{} = tv_series) do
+    %{
+      "@id" => tv_series.id,
+      "entity" =>
+        %{
+          "@type" => "TVSeries",
+          "name" => tv_series.name,
+          "description" => tv_series.description,
+          "datePublished" => tv_series.date_published,
+          "genre" => tv_series.genres,
+          "url" => tv_series.url,
+          "numberOfSeasons" => tv_series.number_of_seasons,
+          "containsSeason" => serialize_seasons(tv_series.seasons)
+        }
+        |> maybe_add_extras(tv_series)
+        |> maybe_add_images(tv_series)
+        |> maybe_add_identifiers(tv_series)
+        |> maybe_add_rating(tv_series)
+        |> compact()
+    }
+  end
+
+  @doc """
+  Serializes a `%MovieSeries{}` struct into a wrapped map.
+
+  Applies the same single-movie collapse logic as the Entity-based
+  serialization: a movie series with exactly one child movie is exported
+  as a top-level Movie; two or more children produce a MovieSeries with
+  hasPart.
+  """
+  def serialize_movie_series(%MovieSeries{} = movie_series) do
+    movies = sorted_child_movies(movie_series.movies)
+
+    case movies do
+      [single_movie] ->
+        %{
+          "@id" => movie_series.id,
+          "entity" =>
+            serialize_child_movie(single_movie)
+            |> maybe_add_extras(movie_series)
+        }
+
+      _ ->
+        %{
+          "@id" => movie_series.id,
+          "entity" => serialize_as_typed_movie_series(movie_series, movies)
+        }
+    end
+  end
+
+  @doc """
+  Serializes a `%VideoObject{}` struct into a wrapped map.
+
+  Produces the same JSON-LD output as `serialize_entity/1` for an
+  `%Entity{type: :video_object}`.
+  """
+  def serialize_video_object(%VideoObject{} = video_object) do
+    %{
+      "@id" => video_object.id,
+      "entity" =>
+        %{
+          "@type" => "VideoObject",
+          "name" => video_object.name,
+          "description" => video_object.description,
+          "datePublished" => video_object.date_published,
+          "contentUrl" => video_object.content_url,
+          "url" => video_object.url
+        }
+        |> maybe_add_images(video_object)
+        |> maybe_add_identifiers(video_object)
+        |> compact()
+    }
+  end
+
+  defp serialize_as_typed_movie_series(%MovieSeries{} = movie_series, movies) do
+    child_movies = Enum.map(movies, &serialize_child_movie/1)
+    extras = serialize_top_level_extras(movie_series)
+
+    %{
+      "@type" => "MovieSeries",
+      "name" => movie_series.name,
+      "description" => movie_series.description,
+      "datePublished" => movie_series.date_published,
+      "genre" => movie_series.genres,
+      "url" => movie_series.url,
+      "hasPart" => child_movies ++ extras
+    }
+    |> maybe_add_images(movie_series)
+    |> maybe_add_identifiers(movie_series)
+    |> maybe_add_rating(movie_series)
+    |> compact()
   end
 
   defp entity_to_map(%Entity{} = entity) do
@@ -63,7 +207,7 @@ defmodule MediaCentaur.Serializer do
   end
 
   defp type_specific_fields(%Entity{type: :movie_series}) do
-    # MovieSeries uses custom serialization via serialize_movie_series/1
+    # MovieSeries uses custom serialization via serialize_entity_movie_series/1
     %{}
   end
 
@@ -126,22 +270,25 @@ defmodule MediaCentaur.Serializer do
 
   # --- Extras serialization ---
 
-  defp maybe_add_extras(map, %Entity{} = entity) do
-    case serialize_entity_extras(entity) do
+  defp maybe_add_extras(map, record) do
+    case serialize_top_level_extras(record) do
       [] -> map
       extras -> Map.put(map, "hasPart", extras)
     end
   end
 
-  defp serialize_entity_extras(%Entity{extras: extras})
-       when is_list(extras) and extras != [] do
-    extras
-    |> Enum.filter(fn extra -> is_nil(extra.season_id) end)
-    |> Enum.sort_by(&(&1.position || 0))
-    |> Enum.map(&serialize_extra/1)
-  end
+  defp serialize_top_level_extras(record) do
+    case Map.get(record, :extras) do
+      extras when is_list(extras) and extras != [] ->
+        extras
+        |> Enum.filter(fn extra -> is_nil(extra.season_id) end)
+        |> Enum.sort_by(&(&1.position || 0))
+        |> Enum.map(&serialize_extra/1)
 
-  defp serialize_entity_extras(_), do: []
+      _ ->
+        []
+    end
+  end
 
   defp serialize_extra(%Extra{} = extra) do
     %{
@@ -153,9 +300,9 @@ defmodule MediaCentaur.Serializer do
     |> compact()
   end
 
-  # --- MovieSeries serialization ---
+  # --- Entity MovieSeries serialization ---
 
-  defp serialize_movie_series(%Entity{} = entity) do
+  defp serialize_entity_movie_series(%Entity{} = entity) do
     movies = sorted_child_movies(entity.movies)
 
     case movies do
@@ -179,7 +326,7 @@ defmodule MediaCentaur.Serializer do
 
   defp serialize_as_movie_series(%Entity{} = entity, movies) do
     child_movies = Enum.map(movies, &serialize_child_movie/1)
-    extras = serialize_entity_extras(entity)
+    extras = serialize_top_level_extras(entity)
 
     base_fields(entity)
     |> Map.put("hasPart", child_movies ++ extras)
@@ -249,13 +396,15 @@ defmodule MediaCentaur.Serializer do
     |> compact()
   end
 
-  defp maybe_add_identifiers(map, %Entity{identifiers: identifiers})
-       when is_list(identifiers) do
-    serialized = Enum.map(identifiers, &serialize_identifier/1)
-    Map.put(map, "identifier", serialized)
-  end
+  defp maybe_add_identifiers(map, record) do
+    case Map.get(record, :identifiers) do
+      identifiers when is_list(identifiers) ->
+        Map.put(map, "identifier", Enum.map(identifiers, &serialize_identifier/1))
 
-  defp maybe_add_identifiers(map, _), do: map
+      _ ->
+        map
+    end
+  end
 
   defp serialize_identifier(%Identifier{} = identifier) do
     %{
@@ -266,12 +415,15 @@ defmodule MediaCentaur.Serializer do
     |> compact()
   end
 
-  defp maybe_add_rating(map, %Entity{aggregate_rating_value: value})
-       when is_number(value) do
-    Map.put(map, "aggregateRating", %{"ratingValue" => value})
-  end
+  defp maybe_add_rating(map, record) do
+    case Map.get(record, :aggregate_rating_value) do
+      value when is_number(value) ->
+        Map.put(map, "aggregateRating", %{"ratingValue" => value})
 
-  defp maybe_add_rating(map, _), do: map
+      _ ->
+        map
+    end
+  end
 
   defp type_string(:movie), do: "Movie"
   defp type_string(:movie_series), do: "MovieSeries"

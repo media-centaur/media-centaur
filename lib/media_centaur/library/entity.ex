@@ -41,6 +41,7 @@ defmodule MediaCentaur.Library.Entity do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
+      :id,
       :type,
       :name,
       :description,

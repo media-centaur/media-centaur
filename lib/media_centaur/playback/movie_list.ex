@@ -38,6 +38,20 @@ defmodule MediaCentaur.Playback.MovieList do
   end
 
   @doc """
+  Indexes progress by movie_id from movies with preloaded `watch_progress`.
+
+  Returns `%{movie_id => progress}` for movies that have progress records.
+  Expects a flat list of movie structs with `:watch_progress` preloaded.
+  """
+  def index_progress_by_movie(movies) when is_list(movies) do
+    movies
+    |> Enum.filter(&progress_loaded?/1)
+    |> Map.new(fn movie -> {movie.id, movie.watch_progress} end)
+  end
+
+  def index_progress_by_movie(_), do: %{}
+
+  @doc """
   Finds the `{ordinal, movie_id, movie_name}` for a movie matching a content_url.
 
   Returns the tuple or `nil`.
@@ -75,4 +89,9 @@ defmodule MediaCentaur.Playback.MovieList do
   def total_available(entity) do
     length(list_available(entity))
   end
+
+  defp progress_loaded?(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: false
+  defp progress_loaded?(%{watch_progress: nil}), do: false
+  defp progress_loaded?(%{watch_progress: _}), do: true
+  defp progress_loaded?(_), do: false
 end

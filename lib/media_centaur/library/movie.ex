@@ -24,8 +24,15 @@ defmodule MediaCentaur.Library.Movie do
     field :tmdb_id, :string
     field :position, :integer
 
+    field :genres, {:array, :string}
+
     belongs_to :entity, MediaCentaur.Library.Entity
+    belongs_to :movie_series, MediaCentaur.Library.MovieSeries
     has_many :images, MediaCentaur.Library.Image
+    has_many :extras, MediaCentaur.Library.Extra
+    has_many :identifiers, MediaCentaur.Library.Identifier
+    has_many :watched_files, MediaCentaur.Library.WatchedFile
+    has_one :watch_progress, MediaCentaur.Library.WatchProgress
 
     timestamps()
   end
@@ -33,6 +40,7 @@ defmodule MediaCentaur.Library.Movie do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
+      :id,
       :name,
       :description,
       :date_published,
@@ -43,8 +51,10 @@ defmodule MediaCentaur.Library.Movie do
       :url,
       :aggregate_rating_value,
       :tmdb_id,
+      :genres,
       :position,
-      :entity_id
+      :entity_id,
+      :movie_series_id
     ])
   end
 
