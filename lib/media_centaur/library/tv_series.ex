@@ -22,7 +22,7 @@ defmodule MediaCentaur.Library.TVSeries do
     has_many :seasons, MediaCentaur.Library.Season, foreign_key: :tv_series_id
     has_many :images, MediaCentaur.Library.Image, foreign_key: :tv_series_id
     has_many :extras, MediaCentaur.Library.Extra, foreign_key: :tv_series_id
-    has_many :identifiers, MediaCentaur.Library.Identifier, foreign_key: :tv_series_id
+    has_many :external_ids, MediaCentaur.Library.ExternalId, foreign_key: :tv_series_id
     has_many :watched_files, MediaCentaur.Library.WatchedFile, foreign_key: :tv_series_id
 
     timestamps()

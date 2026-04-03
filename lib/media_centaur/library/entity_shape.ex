@@ -29,7 +29,7 @@ defmodule MediaCentaur.Library.EntityShape do
       number_of_seasons: Map.get(record, :number_of_seasons),
       aggregate_rating_value: Map.get(record, :aggregate_rating_value),
       images: Map.get(record, :images, []),
-      identifiers: Map.get(record, :identifiers, []),
+      external_ids: Map.get(record, :external_ids, []),
       extras: Map.get(record, :extras, []),
       seasons: Map.get(record, :seasons, []),
       movies: Map.get(record, :movies, []),

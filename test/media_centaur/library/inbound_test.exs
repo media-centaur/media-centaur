@@ -36,7 +36,7 @@ defmodule MediaCentaur.Library.InboundTest do
         %{role: "poster", url: "https://image.tmdb.org/poster.jpg"},
         %{role: "backdrop", url: "https://image.tmdb.org/backdrop.jpg"}
       ],
-      identifier: %{property_id: "tmdb", value: "550"},
+      identifier: %{source: "tmdb", external_id: "550"},
       child_movie: nil,
       season: nil,
       extra: nil,
@@ -57,7 +57,7 @@ defmodule MediaCentaur.Library.InboundTest do
       images: [
         %{role: "poster", url: "https://image.tmdb.org/coll_poster.jpg"}
       ],
-      identifier: %{property_id: "tmdb_collection", value: "263"},
+      identifier: %{source: "tmdb_collection", external_id: "263"},
       child_movie: %{
         attrs: %{
           tmdb_id: "155",
@@ -71,7 +71,7 @@ defmodule MediaCentaur.Library.InboundTest do
         images: [
           %{role: "poster", url: "https://image.tmdb.org/dk_poster.jpg"}
         ],
-        identifier: %{property_id: "tmdb", value: "155"}
+        identifier: %{source: "tmdb", external_id: "155"}
       },
       season: nil,
       extra: nil,
@@ -95,7 +95,7 @@ defmodule MediaCentaur.Library.InboundTest do
       images: [
         %{role: "poster", url: "https://image.tmdb.org/bb_poster.jpg"}
       ],
-      identifier: %{property_id: "tmdb", value: "1396"},
+      identifier: %{source: "tmdb", external_id: "1396"},
       child_movie: nil,
       season: %{
         season_number: 1,
@@ -196,15 +196,15 @@ defmodule MediaCentaur.Library.InboundTest do
       assert collection_id.movie_series_id == series.id
 
       # Movie-level TMDB identifier created with movie_series_id FK
-      movie_tmdb_identifier =
+      movie_tmdb_external_id =
         MediaCentaur.Repo.one(
-          from(i in MediaCentaur.Library.Identifier,
-            where: i.property_id == "tmdb" and i.value == "155"
+          from(i in MediaCentaur.Library.ExternalId,
+            where: i.source == "tmdb" and i.external_id == "155"
           )
         )
 
-      assert movie_tmdb_identifier != nil
-      assert movie_tmdb_identifier.movie_series_id == series.id
+      assert movie_tmdb_external_id != nil
+      assert movie_tmdb_external_id.movie_series_id == series.id
 
       # Child movie with movie_series_id FK
       series = MediaCentaur.Repo.preload(series, [:movies])
@@ -228,10 +228,10 @@ defmodule MediaCentaur.Library.InboundTest do
       # Pre-create the series entity and collection identifier
       series = create_entity(%{type: :movie_series, name: "The Shadowy Sentinel Collection"})
 
-      create_identifier(%{
+      create_external_id(%{
         movie_series_id: series.id,
-        property_id: "tmdb_collection",
-        value: "263"
+        source: "tmdb_collection",
+        external_id: "263"
       })
 
       event =
@@ -246,7 +246,7 @@ defmodule MediaCentaur.Library.InboundTest do
               position: 2
             },
             images: [],
-            identifier: %{property_id: "tmdb", value: "49026"}
+            identifier: %{source: "tmdb", external_id: "49026"}
           }
         )
 
@@ -302,7 +302,7 @@ defmodule MediaCentaur.Library.InboundTest do
 
     test "existing TV series — adds new episode to existing season" do
       existing = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
-      create_identifier(%{tv_series_id: existing.id, property_id: "tmdb", value: "1396"})
+      create_external_id(%{tv_series_id: existing.id, source: "tmdb", external_id: "1396"})
 
       event =
         tv_event(
@@ -353,7 +353,7 @@ defmodule MediaCentaur.Library.InboundTest do
   describe "existing entity reuse" do
     test "existing movie sets content_url if nil" do
       existing = create_entity(%{type: :movie, name: "Fight Club"})
-      create_identifier(%{movie_id: existing.id, property_id: "tmdb", value: "550"})
+      create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
@@ -366,7 +366,7 @@ defmodule MediaCentaur.Library.InboundTest do
       existing =
         create_entity(%{type: :movie, name: "Fight Club", content_url: "/media/original.mkv"})
 
-      create_identifier(%{movie_id: existing.id, property_id: "tmdb", value: "550"})
+      create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
@@ -434,7 +434,7 @@ defmodule MediaCentaur.Library.InboundTest do
 
     test "extra on existing entity — reuses parent, creates extra only" do
       existing = create_entity(%{type: :movie, name: "Fight Club"})
-      create_identifier(%{movie_id: existing.id, property_id: "tmdb", value: "550"})
+      create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
 
       event =
         movie_event(
@@ -464,7 +464,7 @@ defmodule MediaCentaur.Library.InboundTest do
     test "detects race loss, destroys duplicate, returns winner" do
       # Pre-create a "winner" entity with the same TMDB identifier
       winner = create_entity(%{type: :movie, name: "Fight Club (Winner)"})
-      create_identifier(%{movie_id: winner.id, property_id: "tmdb", value: "550"})
+      create_external_id(%{movie_id: winner.id, source: "tmdb", external_id: "550"})
 
       # Inbound will create a new type record, then when creating the identifier
       # it'll find the existing one belongs to winner. It destroys the duplicate
@@ -673,7 +673,7 @@ defmodule MediaCentaur.Library.InboundTest do
         content_url: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv"
       })
 
-      create_identifier(%{tv_series_id: tv_series.id, property_id: "tmdb", value: "wrong"})
+      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "wrong"})
 
       create_linked_file(%{
         tv_series_id: tv_series.id,

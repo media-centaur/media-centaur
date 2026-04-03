@@ -13,7 +13,7 @@ defmodule MediaCentaur.Library.Inbound do
     then sends the file list to `"review:intake"` for re-review
 
   Entities are created as type-specific records (TVSeries, MovieSeries, Movie,
-  VideoObject). Existing entities are found by TMDB ID lookup on Identifier records.
+  VideoObject). Existing entities are found by TMDB ID lookup on ExternalId records.
   """
   use GenServer
   require MediaCentaur.Log, as: Log
@@ -43,7 +43,7 @@ defmodule MediaCentaur.Library.Inbound do
   Ingests a published entity event into the library.
 
   Creates a type-specific record (or links to an existing entity), children,
-  Identifier, and WatchedFile. Queues images for download and broadcasts
+  ExternalId, and WatchedFile. Queues images for download and broadcasts
   `:entities_changed`.
 
   The event is a plain map with keys: `entity_type`, `entity_attrs`,
@@ -197,7 +197,7 @@ defmodule MediaCentaur.Library.Inbound do
     end
   end
 
-  defp find_existing_entity(%{property_id: "tmdb_collection", value: value}) do
+  defp find_existing_entity(%{source: "tmdb_collection", external_id: value}) do
     case Library.find_by_tmdb_collection_for_movie_series(value) do
       {:ok, %{movie_series_id: id}} when not is_nil(id) ->
         {:ok, Library.get_movie_series!(id)}
@@ -207,7 +207,7 @@ defmodule MediaCentaur.Library.Inbound do
     end
   end
 
-  defp find_existing_entity(%{property_id: _property_id, value: value}) do
+  defp find_existing_entity(%{source: _source, external_id: value}) do
     case Library.find_by_tmdb_id_for_tv_series(value) do
       {:ok, %{tv_series_id: id}} when not is_nil(id) ->
         {:ok, Library.get_tv_series!(id)}
@@ -232,7 +232,7 @@ defmodule MediaCentaur.Library.Inbound do
     shared_id = Ecto.UUID.generate()
 
     with {:ok, type_record} <- create_type_record(event.entity_type, entity_attrs, shared_id),
-         :ok <- create_identifier_with_race_retry(type_record, event) do
+         :ok <- create_external_id_with_race_retry(type_record, event) do
       owner_type = owner_type_for(event.entity_type)
       entity_images = collect_images(type_record.id, owner_type, event.images)
 
@@ -470,12 +470,12 @@ defmodule MediaCentaur.Library.Inbound do
   defp create_child_movie_identifier(entity_type, entity_id, %{identifier: identifier}) do
     attrs =
       %{
-        property_id: identifier.property_id,
-        value: identifier.value
+        source: identifier.source,
+        external_id: identifier.external_id
       }
       |> put_type_fk(entity_type, entity_id)
 
-    case Library.find_or_create_identifier(attrs) do
+    case Library.find_or_create_external_id(attrs) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -541,24 +541,24 @@ defmodule MediaCentaur.Library.Inbound do
   defp output_extension(_role), do: "jpg"
 
   # ---------------------------------------------------------------------------
-  # Identifier with race-loss recovery
+  # ExternalId with race-loss recovery
   # ---------------------------------------------------------------------------
 
-  defp create_identifier_with_race_retry(type_record, event) do
+  defp create_external_id_with_race_retry(type_record, event) do
     type_fk = type_fk_for(event.entity_type)
 
     attrs =
       %{
-        property_id: event.identifier.property_id,
-        value: event.identifier.value
+        source: event.identifier.source,
+        external_id: event.identifier.external_id
       }
       |> put_type_fk(event.entity_type, type_record.id)
 
-    case Library.find_or_create_identifier(attrs) do
-      {:ok, created_identifier} ->
+    case Library.find_or_create_external_id(attrs) do
+      {:ok, created_external_id} ->
         # Check the type-specific FK to detect race loss. If the returned
-        # identifier belongs to a different entity, we lost the race.
-        owner_id = Map.get(created_identifier, type_fk)
+        # external ID belongs to a different entity, we lost the race.
+        owner_id = Map.get(created_external_id, type_fk)
 
         if owner_id == type_record.id do
           :ok

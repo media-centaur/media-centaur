@@ -60,8 +60,8 @@ defmodule MediaCentaur.SerializerTest do
               content_url: "#{entity_id}/poster.jpg"
             })
           ],
-          identifiers: [
-            build_identifier(%{property_id: "tmdb", value: "12345"})
+          external_ids: [
+            build_external_id(%{source: "tmdb", external_id: "12345"})
           ]
         })
 
@@ -324,8 +324,8 @@ defmodule MediaCentaur.SerializerTest do
               content_url: "#{entity_id}/poster.jpg"
             })
           ],
-          identifiers: [
-            build_identifier(%{property_id: "tmdb_collection", value: "999"})
+          external_ids: [
+            build_external_id(%{source: "tmdb_collection", external_id: "999"})
           ],
           movies: [movie_b, movie_a]
         })
@@ -649,8 +649,8 @@ defmodule MediaCentaur.SerializerTest do
         build_entity(%{
           type: :movie,
           name: "ID Test",
-          identifiers: [
-            build_identifier(%{property_id: "imdb", value: "tt1234567"})
+          external_ids: [
+            build_external_id(%{source: "imdb", external_id: "tt1234567"})
           ]
         })
 

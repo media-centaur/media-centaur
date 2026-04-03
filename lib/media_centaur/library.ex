@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Library do
   @moduledoc """
-  The media library context — entities, images, identifiers, seasons, episodes,
+  The media library context — entities, images, external IDs, seasons, episodes,
   and watched files that flow through the ingestion pipeline.
   """
   import Ecto.Query
@@ -12,7 +12,7 @@ defmodule MediaCentaur.Library do
     Episode,
     Extra,
     ExtraProgress,
-    Identifier,
+    ExternalId,
     Image,
     Movie,
     MovieSeries,
@@ -25,7 +25,7 @@ defmodule MediaCentaur.Library do
 
   @tv_series_full_preloads [
     :images,
-    :identifiers,
+    :external_ids,
     :extras,
     :watched_files,
     seasons: [:extras, episodes: [:images, :watch_progress]]
@@ -33,7 +33,7 @@ defmodule MediaCentaur.Library do
 
   @movie_series_full_preloads [
     :images,
-    :identifiers,
+    :external_ids,
     :extras,
     :watched_files,
     movies: [:images, :watch_progress]
@@ -41,7 +41,7 @@ defmodule MediaCentaur.Library do
 
   @movie_full_preloads [
     :images,
-    :identifiers,
+    :external_ids,
     :extras,
     :watched_files,
     :watch_progress
@@ -49,7 +49,7 @@ defmodule MediaCentaur.Library do
 
   @video_object_full_preloads [
     :images,
-    :identifiers,
+    :external_ids,
     :watched_files,
     :watch_progress
   ]
@@ -276,35 +276,35 @@ defmodule MediaCentaur.Library do
   def destroy_image!(image), do: destroy_bang!(image)
 
   # ---------------------------------------------------------------------------
-  # Identifier
+  # ExternalId
   # ---------------------------------------------------------------------------
 
-  def find_or_create_identifier(attrs) do
-    property_id = attrs[:property_id] || attrs["property_id"]
-    value = attrs[:value] || attrs["value"]
+  def find_or_create_external_id(attrs) do
+    source = attrs[:source] || attrs["source"]
+    external_id = attrs[:external_id] || attrs["external_id"]
 
-    case Repo.get_by(Identifier, property_id: property_id, value: value) do
-      nil -> Identifier.create_changeset(attrs) |> Repo.insert()
+    case Repo.get_by(ExternalId, source: source, external_id: external_id) do
+      nil -> ExternalId.create_changeset(attrs) |> Repo.insert()
       existing -> {:ok, existing}
     end
   end
 
-  def find_or_create_identifier!(attrs), do: bang!(find_or_create_identifier(attrs))
+  def find_or_create_external_id!(attrs), do: bang!(find_or_create_external_id(attrs))
 
-  def create_identifier(attrs) do
-    Identifier.create_changeset(attrs) |> Repo.insert()
+  def create_external_id(attrs) do
+    ExternalId.create_changeset(attrs) |> Repo.insert()
   end
 
-  def create_identifier!(attrs), do: bang!(create_identifier(attrs))
+  def create_external_id!(attrs), do: bang!(create_external_id(attrs))
 
-  def destroy_identifier(identifier), do: Repo.delete(identifier)
-  def destroy_identifier!(identifier), do: destroy_bang!(identifier)
+  def destroy_external_id(external_id), do: Repo.delete(external_id)
+  def destroy_external_id!(external_id), do: destroy_bang!(external_id)
 
   def find_by_tmdb_id_for_movie(tmdb_id) do
     {:ok,
      Repo.one(
-       from(i in Identifier,
-         where: i.property_id == "tmdb" and i.value == ^tmdb_id and not is_nil(i.movie_id),
+       from(i in ExternalId,
+         where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.movie_id),
          limit: 1
        )
      )}
@@ -313,8 +313,8 @@ defmodule MediaCentaur.Library do
   def find_by_tmdb_id_for_tv_series(tmdb_id) do
     {:ok,
      Repo.one(
-       from(i in Identifier,
-         where: i.property_id == "tmdb" and i.value == ^tmdb_id and not is_nil(i.tv_series_id),
+       from(i in ExternalId,
+         where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.tv_series_id),
          limit: 1
        )
      )}
@@ -323,9 +323,9 @@ defmodule MediaCentaur.Library do
   def find_by_tmdb_collection_for_movie_series(collection_id) do
     {:ok,
      Repo.one(
-       from(i in Identifier,
+       from(i in ExternalId,
          where:
-           i.property_id == "tmdb_collection" and i.value == ^collection_id and
+           i.source == "tmdb_collection" and i.external_id == ^collection_id and
              not is_nil(i.movie_series_id),
          limit: 1
        )

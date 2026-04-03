@@ -51,7 +51,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert metadata.entity_attrs.name == "Fight Club"
       assert metadata.entity_attrs.type == :movie
       assert metadata.entity_attrs.content_url == "/media/Fight.Club.1999.mkv"
-      assert metadata.identifier == %{property_id: "tmdb", value: "550"}
+      assert metadata.identifier == %{source: "tmdb", external_id: "550"}
       assert length(metadata.images) >= 1
       assert Enum.any?(metadata.images, &(&1.role == "poster"))
       assert is_nil(metadata.child_movie)
@@ -86,12 +86,12 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
 
       assert metadata.entity_type == :movie_series
       assert metadata.entity_attrs.name == "The Shadowy Sentinel Collection"
-      assert metadata.identifier == %{property_id: "tmdb_collection", value: "263"}
+      assert metadata.identifier == %{source: "tmdb_collection", external_id: "263"}
 
       child = metadata.child_movie
       assert child != nil
       assert child.attrs.name == "The Shadowy Sentinel"
-      assert child.identifier == %{property_id: "tmdb", value: "155"}
+      assert child.identifier == %{source: "tmdb", external_id: "155"}
       assert child.attrs.position == 1
     end
 
@@ -141,7 +141,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert metadata.entity_type == :tv_series
       assert metadata.entity_attrs.name == "Sample Show Eight"
       assert metadata.entity_attrs.number_of_seasons == 5
-      assert metadata.identifier == %{property_id: "tmdb", value: "1396"}
+      assert metadata.identifier == %{source: "tmdb", external_id: "1396"}
 
       season = metadata.season
       assert season.season_number == 1

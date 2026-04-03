@@ -19,7 +19,7 @@ defmodule MediaCentaur.Library.VideoObject do
     field :url, :string
 
     has_many :images, MediaCentaur.Library.Image, foreign_key: :video_object_id
-    has_many :identifiers, MediaCentaur.Library.Identifier, foreign_key: :video_object_id
+    has_many :external_ids, MediaCentaur.Library.ExternalId, foreign_key: :video_object_id
     has_many :watched_files, MediaCentaur.Library.WatchedFile, foreign_key: :video_object_id
     has_one :watch_progress, MediaCentaur.Library.WatchProgress, foreign_key: :video_object_id
 

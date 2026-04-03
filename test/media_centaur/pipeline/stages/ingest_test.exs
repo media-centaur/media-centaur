@@ -35,7 +35,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
           images: [
             %{role: "poster", url: "https://image.tmdb.org/poster.jpg"}
           ],
-          identifier: %{property_id: "tmdb", value: "550"},
+          identifier: %{source: "tmdb", external_id: "550"},
           child_movie: nil,
           season: nil,
           extra: nil
@@ -66,7 +66,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert_receive {:entity_published, event}
       assert event.entity_type == :movie
       assert event.entity_attrs.name == "Fight Club"
-      assert event.identifier == %{property_id: "tmdb", value: "550"}
+      assert event.identifier == %{source: "tmdb", external_id: "550"}
       assert event.file_path == "/media/Fight.Club.1999.mkv"
       assert event.watch_dir == "/media"
       assert [%{role: "poster"}] = event.images
@@ -88,7 +88,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
             name: "The Shadowy Sentinel Collection"
           },
           images: [],
-          identifier: %{property_id: "tmdb_collection", value: "263"},
+          identifier: %{source: "tmdb_collection", external_id: "263"},
           child_movie: %{
             attrs: %{
               tmdb_id: "155",
@@ -97,7 +97,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
               position: 1
             },
             images: [],
-            identifier: %{property_id: "tmdb", value: "155"}
+            identifier: %{source: "tmdb", external_id: "155"}
           },
           season: nil,
           extra: nil
@@ -126,7 +126,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
             number_of_seasons: 5
           },
           images: [],
-          identifier: %{property_id: "tmdb", value: "1396"},
+          identifier: %{source: "tmdb", external_id: "1396"},
           child_movie: nil,
           season: %{
             season_number: 1,

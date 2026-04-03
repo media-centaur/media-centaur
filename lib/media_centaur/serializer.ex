@@ -11,7 +11,7 @@ defmodule MediaCentaur.Serializer do
   alias MediaCentaur.Library.{
     Extra,
     Image,
-    Identifier,
+    ExternalId,
     Movie,
     Season,
     Episode
@@ -53,7 +53,7 @@ defmodule MediaCentaur.Serializer do
         }
         |> maybe_add_extras(movie)
         |> maybe_add_images(movie)
-        |> maybe_add_identifiers(movie)
+        |> maybe_add_external_ids(movie)
         |> maybe_add_rating(movie)
         |> compact()
     }
@@ -81,7 +81,7 @@ defmodule MediaCentaur.Serializer do
         }
         |> maybe_add_extras(tv_series)
         |> maybe_add_images(tv_series)
-        |> maybe_add_identifiers(tv_series)
+        |> maybe_add_external_ids(tv_series)
         |> maybe_add_rating(tv_series)
         |> compact()
     }
@@ -134,7 +134,7 @@ defmodule MediaCentaur.Serializer do
           "url" => video_object.url
         }
         |> maybe_add_images(video_object)
-        |> maybe_add_identifiers(video_object)
+        |> maybe_add_external_ids(video_object)
         |> compact()
     }
   end
@@ -153,7 +153,7 @@ defmodule MediaCentaur.Serializer do
       "hasPart" => child_movies ++ extras
     }
     |> maybe_add_images(movie_series)
-    |> maybe_add_identifiers(movie_series)
+    |> maybe_add_external_ids(movie_series)
     |> maybe_add_rating(movie_series)
     |> compact()
   end
@@ -303,21 +303,21 @@ defmodule MediaCentaur.Serializer do
     |> compact()
   end
 
-  defp maybe_add_identifiers(map, record) do
-    case Map.get(record, :identifiers) do
-      identifiers when is_list(identifiers) ->
-        Map.put(map, "identifier", Enum.map(identifiers, &serialize_identifier/1))
+  defp maybe_add_external_ids(map, record) do
+    case Map.get(record, :external_ids) do
+      external_ids when is_list(external_ids) ->
+        Map.put(map, "identifier", Enum.map(external_ids, &serialize_external_id/1))
 
       _ ->
         map
     end
   end
 
-  defp serialize_identifier(%Identifier{} = identifier) do
+  defp serialize_external_id(%ExternalId{} = ext_id) do
     %{
       "@type" => "PropertyValue",
-      "propertyID" => identifier.property_id,
-      "value" => identifier.value
+      "propertyID" => ext_id.source,
+      "value" => ext_id.external_id
     }
     |> compact()
   end

@@ -15,7 +15,7 @@ defmodule MediaCentaur.TestFactory do
   alias MediaCentaur.Library.{
     Extra,
     Image,
-    Identifier,
+    ExternalId,
     Movie,
     MovieSeries,
     Season,
@@ -46,7 +46,7 @@ defmodule MediaCentaur.TestFactory do
       number_of_seasons: nil,
       aggregate_rating_value: nil,
       images: [],
-      identifiers: [],
+      external_ids: [],
       movies: [],
       extras: [],
       seasons: [],
@@ -71,14 +71,14 @@ defmodule MediaCentaur.TestFactory do
     struct(Image, Map.merge(defaults, overrides))
   end
 
-  def build_identifier(overrides \\ %{}) do
+  def build_external_id(overrides \\ %{}) do
     defaults = %{
       id: Ecto.UUID.generate(),
-      property_id: "tmdb",
-      value: "12345"
+      source: "tmdb",
+      external_id: "12345"
     }
 
-    struct(Identifier, Map.merge(defaults, overrides))
+    struct(ExternalId, Map.merge(defaults, overrides))
   end
 
   def build_movie(overrides \\ %{}) do
@@ -167,7 +167,7 @@ defmodule MediaCentaur.TestFactory do
       seasons: [],
       images: [],
       extras: [],
-      identifiers: [],
+      external_ids: [],
       watched_files: []
     }
 
@@ -186,7 +186,7 @@ defmodule MediaCentaur.TestFactory do
       movies: [],
       images: [],
       extras: [],
-      identifiers: [],
+      external_ids: [],
       watched_files: []
     }
 
@@ -202,7 +202,7 @@ defmodule MediaCentaur.TestFactory do
       content_url: nil,
       url: nil,
       images: [],
-      identifiers: [],
+      external_ids: [],
       watched_files: [],
       watch_progress: nil
     }
@@ -228,7 +228,7 @@ defmodule MediaCentaur.TestFactory do
       movie_series_id: nil,
       images: [],
       extras: [],
-      identifiers: [],
+      external_ids: [],
       watched_files: [],
       watch_progress: nil
     }
@@ -257,8 +257,8 @@ defmodule MediaCentaur.TestFactory do
     Library.create_image!(attrs)
   end
 
-  def create_identifier(attrs) do
-    Library.create_identifier!(attrs)
+  def create_external_id(attrs) do
+    Library.create_external_id!(attrs)
   end
 
   def create_season(attrs) do
@@ -309,10 +309,10 @@ defmodule MediaCentaur.TestFactory do
       extension: "jpg"
     })
 
-    create_identifier(%{
+    create_external_id(%{
       fk => record.id,
-      property_id: "tmdb",
-      value: attrs[:tmdb_id] || "99999"
+      source: "tmdb",
+      external_id: attrs[:tmdb_id] || "99999"
     })
 
     # Reload with associations
