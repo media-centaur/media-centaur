@@ -28,16 +28,6 @@ defmodule MediaCentaur.Playback.MovieList do
   end
 
   @doc """
-  Indexes progress records by ordinal (episode_number) for records
-  with `season_number == 0`.
-  """
-  def index_progress_by_ordinal(progress_records) do
-    progress_records
-    |> Enum.filter(&(&1.season_number == 0))
-    |> Map.new(fn record -> {record.episode_number, record} end)
-  end
-
-  @doc """
   Indexes progress by movie_id from movies with preloaded `watch_progress`.
 
   Returns `%{movie_id => progress}` for movies that have progress records.

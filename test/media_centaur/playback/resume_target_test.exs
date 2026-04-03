@@ -71,8 +71,7 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
 
       progress = [
         build_progress(%{
-          season_number: 1,
-          episode_number: 2,
+          episode_id: Enum.at(episode_ids, 1),
           position_seconds: 1200.5,
           duration_seconds: 3600.0,
           completed: false,
@@ -98,8 +97,7 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
 
       progress = [
         build_progress(%{
-          season_number: 1,
-          episode_number: 1,
+          episode_id: Enum.at(episode_ids, 0),
           completed: true,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
         })
@@ -117,26 +115,23 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
     end
 
     test "all episodes completed → nil" do
-      {entity, _ids} = build_tv_entity()
+      {entity, episode_ids} = build_tv_entity()
 
       now = DateTime.utc_now()
 
       progress = [
         build_progress(%{
-          season_number: 1,
-          episode_number: 1,
+          episode_id: Enum.at(episode_ids, 0),
           completed: true,
           last_watched_at: DateTime.add(now, -120, :second)
         }),
         build_progress(%{
-          season_number: 1,
-          episode_number: 2,
+          episode_id: Enum.at(episode_ids, 1),
           completed: true,
           last_watched_at: DateTime.add(now, -60, :second)
         }),
         build_progress(%{
-          season_number: 1,
-          episode_number: 3,
+          episode_id: Enum.at(episode_ids, 2),
           completed: true,
           last_watched_at: now
         })
@@ -168,14 +163,12 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
 
       progress = [
         build_progress(%{
-          season_number: 0,
-          episode_number: 1,
+          movie_id: Enum.at(movie_ids, 0),
           completed: true,
           last_watched_at: ~U[2026-01-14 20:00:00Z]
         }),
         build_progress(%{
-          season_number: 0,
-          episode_number: 2,
+          movie_id: Enum.at(movie_ids, 1),
           position_seconds: 4500.0,
           duration_seconds: 9000.0,
           completed: false,
@@ -201,8 +194,7 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
 
       progress = [
         build_progress(%{
-          season_number: 0,
-          episode_number: 1,
+          movie_id: Enum.at(movie_ids, 0),
           completed: true,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
         })
@@ -220,26 +212,23 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
     end
 
     test "all completed → nil" do
-      {entity, _ids} = build_movie_series_entity()
+      {entity, movie_ids} = build_movie_series_entity()
 
       now = DateTime.utc_now()
 
       progress = [
         build_progress(%{
-          season_number: 0,
-          episode_number: 1,
+          movie_id: Enum.at(movie_ids, 0),
           completed: true,
           last_watched_at: DateTime.add(now, -120, :second)
         }),
         build_progress(%{
-          season_number: 0,
-          episode_number: 2,
+          movie_id: Enum.at(movie_ids, 1),
           completed: true,
           last_watched_at: DateTime.add(now, -60, :second)
         }),
         build_progress(%{
-          season_number: 0,
-          episode_number: 3,
+          movie_id: Enum.at(movie_ids, 2),
           completed: true,
           last_watched_at: now
         })
@@ -259,14 +248,12 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
 
       progress = [
         build_progress(%{
-          season_number: 1,
-          episode_number: 1,
+          episode_id: Enum.at(episode_ids, 0),
           completed: true,
           last_watched_at: DateTime.add(now, -60, :second)
         }),
         build_progress(%{
-          season_number: 1,
-          episode_number: 2,
+          episode_id: Enum.at(episode_ids, 1),
           position_seconds: 1200.0,
           duration_seconds: 3600.0,
           completed: false,
@@ -298,14 +285,12 @@ defmodule MediaCentaur.Playback.ResumeTargetTest do
 
       progress = [
         build_progress(%{
-          season_number: 0,
-          episode_number: 1,
+          movie_id: Enum.at(movie_ids, 0),
           completed: true,
           last_watched_at: DateTime.add(now, -60, :second)
         }),
         build_progress(%{
-          season_number: 0,
-          episode_number: 2,
+          movie_id: Enum.at(movie_ids, 1),
           position_seconds: 4500.0,
           duration_seconds: 9000.0,
           completed: false,

@@ -227,21 +227,25 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Library` | Ash domain declaration | `lib/media_centaur/library.ex` |
-| `MediaCentaur.Library.Entity` | Root entity resource | `lib/media_centaur/library/entity.ex` |
-| `MediaCentaur.Library.Season` | TV season resource | `lib/media_centaur/library/season.ex` |
-| `MediaCentaur.Library.Episode` | TV episode resource | `lib/media_centaur/library/episode.ex` |
-| `MediaCentaur.Library.Movie` | Child movie resource | `lib/media_centaur/library/movie.ex` |
-| `MediaCentaur.Library.Extra` | Bonus feature resource | `lib/media_centaur/library/extra.ex` |
-| `MediaCentaur.Library.Image` | Artwork resource | `lib/media_centaur/library/image.ex` |
-| `MediaCentaur.Library.Identifier` | External ID resource | `lib/media_centaur/library/identifier.ex` |
-| `MediaCentaur.Library.WatchedFile` | File tracking resource | `lib/media_centaur/library/watched_file.ex` |
-| `MediaCentaur.Library.WatchProgress` | Playback progress resource | `lib/media_centaur/library/watch_progress.ex` |
-| `MediaCentaur.Library.Setting` | Key/value settings resource | `lib/media_centaur/library/setting.ex` |
-| `MediaCentaur.Library.Ingress` | Pipeline → library inbound API | `lib/media_centaur/library/ingress.ex` |
-| `MediaCentaur.Library.Helpers` | Entity loading, PubSub broadcast | `lib/media_centaur/library/helpers.ex` |
-| `MediaCentaur.Library.FileTracker` | File presence tracking, cleanup | `lib/media_centaur/library/file_tracker.ex` |
-| `MediaCentaur.Library.Removal` | UI-initiated file/folder deletion | `lib/media_centaur/library/removal.ex` |
-| `MediaCentaur.Review` | Review Ash domain | `lib/media_centaur/review.ex` |
-| `MediaCentaur.Review.PendingFile` | Pending review resource | `lib/media_centaur/review/pending_file.ex` |
+| `MediaCentaur.Library` | Library context — CRUD for all types | `lib/media_centaur/library.ex` |
+| `MediaCentaur.Library.Movie` | Standalone or collection movie | `lib/media_centaur/library/movie.ex` |
+| `MediaCentaur.Library.TVSeries` | TV series with seasons/episodes | `lib/media_centaur/library/tv_series.ex` |
+| `MediaCentaur.Library.MovieSeries` | Movie collection/saga | `lib/media_centaur/library/movie_series.ex` |
+| `MediaCentaur.Library.VideoObject` | Standalone video | `lib/media_centaur/library/video_object.ex` |
+| `MediaCentaur.Library.Season` | TV season | `lib/media_centaur/library/season.ex` |
+| `MediaCentaur.Library.Episode` | TV episode | `lib/media_centaur/library/episode.ex` |
+| `MediaCentaur.Library.Extra` | Bonus feature | `lib/media_centaur/library/extra.ex` |
+| `MediaCentaur.Library.Image` | Artwork | `lib/media_centaur/library/image.ex` |
+| `MediaCentaur.Library.Identifier` | External ID (TMDB, IMDB) | `lib/media_centaur/library/identifier.ex` |
+| `MediaCentaur.Library.WatchedFile` | File-to-entity link | `lib/media_centaur/library/watched_file.ex` |
+| `MediaCentaur.Library.WatchProgress` | Playback progress | `lib/media_centaur/library/watch_progress.ex` |
+| `MediaCentaur.Library.TypeResolver` | UUID-to-type-record lookup | `lib/media_centaur/library/type_resolver.ex` |
+| `MediaCentaur.Library.EntityShape` | Normalize type records to common map shape | `lib/media_centaur/library/entity_shape.ex` |
+| `MediaCentaur.Library.EntityCascade` | Entity deletion cascade | `lib/media_centaur/library/entity_cascade.ex` |
+| `MediaCentaur.Library.Inbound` | Pipeline → library inbound handler | `lib/media_centaur/library/inbound.ex` |
+| `MediaCentaur.Library.Helpers` | PubSub broadcast helpers | `lib/media_centaur/library/helpers.ex` |
+| `MediaCentaur.Library.FileEventHandler` | File presence tracking, cleanup | `lib/media_centaur/library/file_event_handler.ex` |
+| `MediaCentaur.Library.ChangeLog` | Library change recording | `lib/media_centaur/library/change_log.ex` |
+| `MediaCentaur.Review` | Review context | `lib/media_centaur/review.ex` |
+| `MediaCentaur.Review.PendingFile` | Pending review file | `lib/media_centaur/review/pending_file.ex` |
 | `MediaCentaur.Review.Intake` | Payload → PendingFile mapper | `lib/media_centaur/review/intake.ex` |

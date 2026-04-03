@@ -6,7 +6,17 @@ defmodule MediaCentaur.Dashboard do
   import Ecto.Query
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{Entity, Episode, WatchedFile, Image}
+
+  alias MediaCentaur.Library.{
+    Episode,
+    Movie,
+    MovieSeries,
+    TVSeries,
+    VideoObject,
+    WatchedFile,
+    Image
+  }
+
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Repo
   alias MediaCentaur.Review
@@ -17,7 +27,7 @@ defmodule MediaCentaur.Dashboard do
       pending_review: fetch_pending_review(),
       recent_errors: fetch_recent_errors(),
       recent_changes: fetch_recent_changes(),
-      recently_watched: fetch_recently_watched()
+      recently_watched: []
     }
   end
 
@@ -27,21 +37,16 @@ defmodule MediaCentaur.Dashboard do
     Library.list_recent_changes!(10, since)
   end
 
-  def fetch_recently_watched do
-    limit = MediaCentaur.Config.get(:recently_watched_count) || 5
-    Library.list_recently_watched!(limit)
-  end
-
   def fetch_library_stats do
     episode_count = count(Episode)
     file_count = count(WatchedFile)
     image_count = count(Image)
 
     type_counts = %{
-      movie: count(Entity, type: :movie),
-      tv_series: count(Entity, type: :tv_series),
-      movie_series: count(Entity, type: :movie_series),
-      video_object: count(Entity, type: :video_object)
+      movie: Repo.one(from m in Movie, where: is_nil(m.movie_series_id), select: count(m.id)),
+      tv_series: count(TVSeries),
+      movie_series: count(MovieSeries),
+      video_object: count(VideoObject)
     }
 
     %{
@@ -61,14 +66,7 @@ defmodule MediaCentaur.Dashboard do
     Stats.get_snapshot().recent_errors
   end
 
-  defp count(schema, filter \\ []) do
-    query = from(r in schema, select: count(r.id))
-
-    query =
-      Enum.reduce(filter, query, fn {key, value}, q ->
-        from(r in q, where: field(r, ^key) == ^value)
-      end)
-
-    Repo.one(query)
+  defp count(schema) do
+    Repo.one(from(r in schema, select: count(r.id)))
   end
 end

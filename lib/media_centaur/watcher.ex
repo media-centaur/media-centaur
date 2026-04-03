@@ -430,7 +430,10 @@ defmodule MediaCentaur.Watcher do
   end
 
   defp unique_entity_ids(records) do
-    records |> MapSet.new(& &1.entity_id) |> MapSet.delete(nil) |> MapSet.to_list()
+    records
+    |> Enum.map(&(&1.tv_series_id || &1.movie_series_id || &1.movie_id || &1.video_object_id))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
   end
 
   defp broadcast_entities_changed([]), do: :ok

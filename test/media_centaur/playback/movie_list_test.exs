@@ -48,24 +48,20 @@ defmodule MediaCentaur.Playback.MovieListTest do
     end
   end
 
-  describe "index_progress_by_ordinal/1" do
-    test "indexes progress records with season_number=0 by episode_number (ordinal)" do
-      progress_a = build_progress(%{season_number: 0, episode_number: 1, position_seconds: 30.0})
-      progress_b = build_progress(%{season_number: 0, episode_number: 2, position_seconds: 60.0})
+  describe "index_progress_by_movie/1 (via EpisodeList.index_progress_by_key/1)" do
+    test "indexes progress records by movie_id FK" do
+      movie_id_a = Ecto.UUID.generate()
+      movie_id_b = Ecto.UUID.generate()
 
-      index = MovieList.index_progress_by_ordinal([progress_a, progress_b])
+      progress_a = build_progress(%{movie_id: movie_id_a, position_seconds: 30.0})
+      progress_b = build_progress(%{movie_id: movie_id_b, position_seconds: 60.0})
 
-      assert index[1] == progress_a
-      assert index[2] == progress_b
+      alias MediaCentaur.Playback.EpisodeList
+      index = EpisodeList.index_progress_by_key([progress_a, progress_b])
+
+      assert index[movie_id_a] == progress_a
+      assert index[movie_id_b] == progress_b
       assert map_size(index) == 2
-    end
-
-    test "ignores progress records with non-zero season_number" do
-      progress = build_progress(%{season_number: 1, episode_number: 1})
-
-      index = MovieList.index_progress_by_ordinal([progress])
-
-      assert index == %{}
     end
   end
 

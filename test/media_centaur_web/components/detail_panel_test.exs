@@ -337,9 +337,9 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       season = build_season(%{season_number: 1, episodes: [episode1, episode2, episode3]})
 
       progress_by_key = %{
-        {1, 1} => %{completed: true},
-        {1, 3} => %{completed: true},
-        {1, 2} => %{completed: false}
+        episode1.id => %{completed: true},
+        episode3.id => %{completed: true},
+        episode2.id => %{completed: false}
       }
 
       assert DetailPanel.count_watched_episodes(season, progress_by_key) == 2

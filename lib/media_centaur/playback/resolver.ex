@@ -17,6 +17,7 @@ defmodule MediaCentaur.Playback.Resolver do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.{Format, Library}
+  alias MediaCentaur.Library.{EntityShape, TypeResolver}
   alias MediaCentaur.Playback.{EpisodeList, MovieList, Resume}
 
   @type play_params :: %{
@@ -59,13 +60,30 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Entity resolution ---
 
   defp resolve_entity(uuid) do
-    case Library.get_entity_with_associations(uuid) do
-      {:ok, entity} ->
-        progress_records = load_progress(entity.id)
+    case resolve_typed_entity(uuid) do
+      {:ok, entity, progress_records} ->
         resolve_entity_playback(entity, progress_records)
 
-      {:error, :not_found} ->
+      :not_found ->
         {:error, :not_found}
+    end
+  end
+
+  @with_associations_preloads [
+    tv_series: Library.tv_series_full_preloads(),
+    movie_series: Library.movie_series_full_preloads(),
+    movie: Library.movie_full_preloads(),
+    video_object: Library.video_object_full_preloads()
+  ]
+
+  defp resolve_typed_entity(uuid) do
+    case TypeResolver.resolve(uuid, preload: @with_associations_preloads) do
+      {:ok, type, record} ->
+        progress = EntityShape.extract_progress(record, type)
+        {:ok, EntityShape.normalize(record, type), progress}
+
+      :not_found ->
+        :not_found
     end
   end
 
@@ -120,12 +138,12 @@ defmodule MediaCentaur.Playback.Resolver do
 
   defp resolve_episode_playback(episode) do
     with {:ok, season} <- Library.get_season(episode.season_id),
-         {:ok, entity} <- Library.get_entity_with_associations(season.entity_id) do
-      progress_records = load_progress(entity.id)
+         {:ok, tv_series} <- Library.get_tv_series_with_associations(season.tv_series_id) do
+      entity = EntityShape.normalize(tv_series, :tv_series)
+      progress_records = EntityShape.extract_progress(tv_series, :tv_series)
 
       progress_by_key = EpisodeList.index_progress_by_key(progress_records)
-      key = {season.season_number, episode.episode_number}
-      position = resume_position(progress_by_key, key)
+      position = resume_position(progress_by_key, episode.id)
 
       action = if position > 0.0, do: :resume, else: :play_episode
 
@@ -175,9 +193,8 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp resolve_movie_playback(movie) do
-    case Library.get_entity_with_associations(movie.entity_id) do
-      {:ok, entity} ->
-        progress_records = load_progress(entity.id)
+    case resolve_movie_parent(movie) do
+      {:ok, entity, progress_records} ->
         available = MovieList.list_available(entity)
 
         ordinal =
@@ -188,8 +205,7 @@ defmodule MediaCentaur.Playback.Resolver do
 
         if ordinal do
           progress_by_key = EpisodeList.index_progress_by_key(progress_records)
-          key = {0, ordinal}
-          position = resume_position(progress_by_key, key)
+          position = resume_position(progress_by_key, movie.id)
 
           action = if position > 0.0, do: :resume, else: :play_movie
 
@@ -219,9 +235,35 @@ defmodule MediaCentaur.Playback.Resolver do
           {:error, :no_playable_content}
         end
 
-      {:error, :not_found} ->
+      :not_found ->
         Log.info(:playback, "movie #{Format.short_id(movie.id)} — parent entity not found")
         {:error, :not_found}
+    end
+  end
+
+  defp resolve_movie_parent(movie) do
+    cond do
+      movie.movie_series_id ->
+        case Library.get_movie_series_with_associations(movie.movie_series_id) do
+          {:ok, ms} ->
+            entity = EntityShape.normalize(ms, :movie_series)
+            progress = EntityShape.extract_progress(ms, :movie_series)
+            {:ok, entity, progress}
+
+          _ ->
+            :not_found
+        end
+
+      true ->
+        # Standalone movie — resolve as its own entity
+        case Library.get_movie_with_associations(movie.id) do
+          {:ok, m} ->
+            progress = EntityShape.extract_progress(m, :movie)
+            {:ok, EntityShape.normalize(m, :movie), progress}
+
+          _ ->
+            :not_found
+        end
     end
   end
 
@@ -243,11 +285,7 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp resolve_extra_playback(extra) do
-    entity_name =
-      case Library.get_entity_with_associations(extra.entity_id) do
-        {:ok, entity} -> entity.name
-        _ -> nil
-      end
+    {entity_id, entity_name} = resolve_extra_parent(extra)
 
     position = extra_resume_position(extra.id)
     action = if position > 0.0, do: :resume, else: :play_extra
@@ -255,7 +293,7 @@ defmodule MediaCentaur.Playback.Resolver do
     {:ok,
      %{
        action: action,
-       entity_id: extra.entity_id,
+       entity_id: entity_id,
        entity_name: entity_name,
        season_number: nil,
        episode_number: nil,
@@ -264,6 +302,19 @@ defmodule MediaCentaur.Playback.Resolver do
        start_position: position,
        extra_id: extra.id
      }}
+  end
+
+  defp resolve_extra_parent(extra) do
+    parent_id = extra.tv_series_id || extra.movie_series_id || extra.movie_id
+
+    if parent_id do
+      case resolve_typed_entity(parent_id) do
+        {:ok, entity, _progress} -> {entity.id, entity.name}
+        :not_found -> {parent_id, nil}
+      end
+    else
+      {nil, nil}
+    end
   end
 
   defp extra_resume_position(extra_id) do
@@ -314,10 +365,6 @@ defmodule MediaCentaur.Playback.Resolver do
 
   # --- Shared helpers ---
 
-  defp load_progress(entity_id) do
-    Library.list_watch_progress_for_entity!(entity_id)
-  end
-
   defp resume_position(progress_by_key, key) do
     case Map.get(progress_by_key, key) do
       nil -> 0.0
@@ -335,9 +382,16 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp episode_context(:resume, entity, _url, progress_records) do
-    {season, episode} = most_recent_episode(progress_records)
-    episode_name = EpisodeList.find_episode_name(entity, season, episode)
-    {season, episode, episode_name}
+    most_recent =
+      Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
+
+    if most_recent do
+      {season, episode} = find_episode_location(entity, most_recent)
+      episode_name = EpisodeList.find_episode_name(entity, season, episode)
+      {season, episode, episode_name}
+    else
+      {nil, nil, nil}
+    end
   end
 
   defp episode_context(_action, entity, content_url, _progress_records) do
@@ -351,10 +405,15 @@ defmodule MediaCentaur.Playback.Resolver do
     end
   end
 
-  defp most_recent_episode([]), do: {nil, nil}
+  defp find_episode_location(entity, progress_record) do
+    episode_id = progress_record.episode_id
 
-  defp most_recent_episode(progress_records) do
-    most_recent = Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
-    if most_recent, do: {most_recent.season_number, most_recent.episode_number}, else: {nil, nil}
+    Enum.find_value(entity.seasons || [], {nil, nil}, fn season ->
+      Enum.find_value(season.episodes || [], fn episode ->
+        if episode.id == episode_id do
+          {season.season_number, episode.episode_number}
+        end
+      end)
+    end)
   end
 end

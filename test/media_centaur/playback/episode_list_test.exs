@@ -20,10 +20,9 @@ defmodule MediaCentaur.Playback.EpisodeListTest do
           ]
         })
 
-      assert EpisodeList.list_available(entity) == [
-               {1, 1, "/ep1.mkv"},
-               {1, 2, "/ep2.mkv"}
-             ]
+      result = EpisodeList.list_available(entity)
+
+      assert [{1, 1, "/ep1.mkv", _id1}, {1, 2, "/ep2.mkv", _id2}] = result
     end
 
     test "skips episodes without content_url" do
@@ -40,7 +39,7 @@ defmodule MediaCentaur.Playback.EpisodeListTest do
           ]
         })
 
-      assert EpisodeList.list_available(entity) == [{1, 1, "/ep1.mkv"}]
+      assert [{1, 1, "/ep1.mkv", _id}] = EpisodeList.list_available(entity)
     end
 
     test "handles empty seasons list" do
@@ -68,23 +67,31 @@ defmodule MediaCentaur.Playback.EpisodeListTest do
           ]
         })
 
-      assert EpisodeList.list_available(entity) == [
-               {1, 1, "/s1e1.mkv"},
-               {1, 3, "/s1e3.mkv"},
-               {2, 1, "/s2e1.mkv"}
-             ]
+      result = EpisodeList.list_available(entity)
+
+      assert [
+               {1, 1, "/s1e1.mkv", _id1},
+               {1, 3, "/s1e3.mkv", _id2},
+               {2, 1, "/s2e1.mkv", _id3}
+             ] = result
     end
   end
 
   describe "index_progress_by_key/1" do
-    test "indexes by {season_number, episode_number} tuple" do
-      progress_a = build_progress(%{season_number: 1, episode_number: 1, position_seconds: 30.0})
-      progress_b = build_progress(%{season_number: 1, episode_number: 2, position_seconds: 60.0})
+    test "indexes by episode_id FK" do
+      ep_id_a = Ecto.UUID.generate()
+      ep_id_b = Ecto.UUID.generate()
+
+      progress_a =
+        build_progress(%{episode_id: ep_id_a, position_seconds: 30.0})
+
+      progress_b =
+        build_progress(%{episode_id: ep_id_b, position_seconds: 60.0})
 
       index = EpisodeList.index_progress_by_key([progress_a, progress_b])
 
-      assert index[{1, 1}] == progress_a
-      assert index[{1, 2}] == progress_b
+      assert index[ep_id_a] == progress_a
+      assert index[ep_id_b] == progress_b
       assert map_size(index) == 2
     end
   end

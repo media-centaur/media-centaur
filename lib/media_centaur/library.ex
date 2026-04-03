@@ -9,7 +9,6 @@ defmodule MediaCentaur.Library do
 
   alias MediaCentaur.Library.{
     ChangeEntry,
-    Entity,
     Episode,
     Extra,
     ExtraProgress,
@@ -23,28 +22,6 @@ defmodule MediaCentaur.Library do
     WatchProgress,
     WatchedFile
   }
-
-  @full_preloads [
-    :images,
-    :identifiers,
-    :watch_progress,
-    :extras,
-    :extra_progress,
-    seasons: [:extras, episodes: :images],
-    movies: :images
-  ]
-
-  @progress_preloads [
-    :watch_progress,
-    seasons: :episodes,
-    movies: []
-  ]
-
-  @image_preloads [
-    :images,
-    seasons: [episodes: :images],
-    movies: :images
-  ]
 
   @tv_series_full_preloads [
     :images,
@@ -77,124 +54,10 @@ defmodule MediaCentaur.Library do
     :watch_progress
   ]
 
-  # ---------------------------------------------------------------------------
-  # Entity
-  # ---------------------------------------------------------------------------
-
-  def list_entities, do: {:ok, Repo.all(Entity)}
-  def list_entities!, do: Repo.all(Entity)
-
-  def get_entity(id) do
-    case Repo.get(Entity, id) do
-      nil -> {:error, :not_found}
-      entity -> {:ok, entity}
-    end
-  end
-
-  def get_entity!(id), do: Repo.get!(Entity, id)
-
-  def list_entities_with_associations(opts \\ []) do
-    query = Keyword.get(opts, :query, Entity)
-    sort = Keyword.get(opts, :sort, asc: :name)
-
-    entities =
-      query
-      |> order_by(^sort)
-      |> Repo.all()
-      |> Repo.preload(@full_preloads)
-
-    {:ok, entities}
-  end
-
-  def list_entities_with_associations!(opts \\ []) do
-    bang!(list_entities_with_associations(opts))
-  end
-
-  def get_entity_with_associations(id) do
-    case Repo.get(Entity, id) do
-      nil -> {:error, :not_found}
-      entity -> {:ok, Repo.preload(entity, @full_preloads)}
-    end
-  end
-
-  def get_entity_with_associations!(id) do
-    Repo.get!(Entity, id) |> Repo.preload(@full_preloads)
-  end
-
-  def get_entity_with_progress(id) do
-    case Repo.get(Entity, id) do
-      nil -> {:error, :not_found}
-      entity -> {:ok, Repo.preload(entity, @progress_preloads)}
-    end
-  end
-
-  def get_entity_with_progress!(id) do
-    Repo.get!(Entity, id) |> Repo.preload(@progress_preloads)
-  end
-
-  def list_entities_with_images(opts \\ []) do
-    extra = Keyword.get(opts, :load, [])
-
-    query =
-      case Keyword.get(opts, :ids) do
-        nil -> Entity
-        ids -> from(e in Entity, where: e.id in ^ids)
-      end
-
-    entities =
-      query
-      |> Repo.all()
-      |> Repo.preload(@image_preloads ++ extra)
-
-    {:ok, entities}
-  end
-
-  def list_entities_with_images!(opts \\ []), do: bang!(list_entities_with_images(opts))
-
-  def get_entity_with_images(id) do
-    case Repo.get(Entity, id) do
-      nil -> {:error, :not_found}
-      entity -> {:ok, Repo.preload(entity, @image_preloads)}
-    end
-  end
-
-  def get_entity_with_images!(id) do
-    Repo.get!(Entity, id) |> Repo.preload(@image_preloads)
-  end
-
-  def list_entities_by_ids(ids, opts \\ []) do
-    query = from(e in Entity, where: e.id in ^ids)
-
-    query =
-      case Keyword.get(opts, :filter_fn) do
-        nil -> query
-        filter_fn -> filter_fn.(query)
-      end
-
-    entities =
-      query
-      |> Repo.all()
-      |> Repo.preload(@full_preloads)
-
-    {:ok, entities}
-  end
-
-  def list_entities_by_ids!(ids, opts \\ []), do: bang!(list_entities_by_ids(ids, opts))
-
-  def create_entity(attrs) do
-    Entity.create_changeset(attrs) |> Repo.insert()
-  end
-
-  def create_entity!(attrs), do: bang!(create_entity(attrs))
-
-  def set_entity_content_url(entity, attrs) do
-    Entity.set_content_url_changeset(entity, attrs) |> Repo.update()
-  end
-
-  def set_entity_content_url!(entity, attrs), do: bang!(set_entity_content_url(entity, attrs))
-
-  def destroy_entity(entity), do: Repo.delete(entity)
-  def destroy_entity!(entity), do: destroy_bang!(entity)
+  def tv_series_full_preloads, do: @tv_series_full_preloads
+  def movie_series_full_preloads, do: @movie_series_full_preloads
+  def movie_full_preloads, do: @movie_full_preloads
+  def video_object_full_preloads, do: @video_object_full_preloads
 
   # ---------------------------------------------------------------------------
   # TVSeries
@@ -322,14 +185,6 @@ defmodule MediaCentaur.Library do
   def list_watched_files, do: {:ok, Repo.all(WatchedFile)}
   def list_watched_files!, do: Repo.all(WatchedFile)
 
-  def list_watched_files_for_entity(entity_id) do
-    {:ok, from(w in WatchedFile, where: w.entity_id == ^entity_id) |> Repo.all()}
-  end
-
-  def list_watched_files_for_entity!(entity_id) do
-    from(w in WatchedFile, where: w.entity_id == ^entity_id) |> Repo.all()
-  end
-
   def link_file(attrs) do
     file_path = attrs[:file_path] || attrs["file_path"]
 
@@ -346,6 +201,49 @@ defmodule MediaCentaur.Library do
   end
 
   def list_files_by_paths!(file_paths), do: bang!(list_files_by_paths(file_paths))
+
+  @doc """
+  Lists watched files where any type-specific FK matches the given ID.
+  Used when you have an entity UUID but don't know which type table it lives in.
+  """
+  def list_watched_files_by_entity_id(entity_id) do
+    from(w in WatchedFile,
+      where:
+        w.movie_id == ^entity_id or w.tv_series_id == ^entity_id or
+          w.movie_series_id == ^entity_id or w.video_object_id == ^entity_id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists seasons for a TV series by its ID.
+  """
+  def list_seasons_by_owner_id(owner_id) do
+    from(s in Season, where: s.tv_series_id == ^owner_id) |> Repo.all()
+  end
+
+  @doc """
+  Lists movies for a movie series or standalone by their FK.
+  """
+  def list_movies_by_owner_id(owner_id, opts \\ []) do
+    preloads = Keyword.get(opts, :load, [])
+
+    from(m in Movie, where: m.movie_series_id == ^owner_id)
+    |> Repo.all()
+    |> maybe_preload(preloads)
+  end
+
+  @doc """
+  Lists extras by any type-specific FK matching the given ID.
+  """
+  def list_extras_by_owner_id(owner_id) do
+    from(x in Extra,
+      where:
+        x.tv_series_id == ^owner_id or x.movie_series_id == ^owner_id or
+          x.movie_id == ^owner_id
+    )
+    |> Repo.all()
+  end
 
   # ---------------------------------------------------------------------------
   # Image
@@ -392,30 +290,6 @@ defmodule MediaCentaur.Library do
   end
 
   def find_or_create_identifier!(attrs), do: bang!(find_or_create_identifier(attrs))
-
-  def find_by_tmdb_id(tmdb_id) do
-    result =
-      from(i in Identifier,
-        where: i.property_id == "tmdb" and i.value == ^tmdb_id,
-        limit: 1,
-        preload: [:entity]
-      )
-      |> Repo.one()
-
-    {:ok, result}
-  end
-
-  def find_by_tmdb_collection(collection_id) do
-    result =
-      from(i in Identifier,
-        where: i.property_id == "tmdb_collection" and i.value == ^collection_id,
-        limit: 1,
-        preload: [:entity]
-      )
-      |> Repo.one()
-
-    {:ok, result}
-  end
 
   def create_identifier(attrs) do
     Identifier.create_changeset(attrs) |> Repo.insert()
@@ -465,20 +339,6 @@ defmodule MediaCentaur.Library do
   def list_movies, do: {:ok, Repo.all(Movie)}
   def list_movies!, do: Repo.all(Movie)
 
-  def list_movies_for_entity(entity_id, opts \\ []) do
-    preloads = Keyword.get(opts, :load, [])
-
-    result =
-      from(m in Movie, where: m.entity_id == ^entity_id)
-      |> Repo.all()
-      |> maybe_preload(preloads)
-
-    {:ok, result}
-  end
-
-  def list_movies_for_entity!(entity_id, opts \\ []),
-    do: bang!(list_movies_for_entity(entity_id, opts))
-
   def get_movie(id) do
     case Repo.get(Movie, id) do
       nil -> {:error, :not_found}
@@ -487,18 +347,6 @@ defmodule MediaCentaur.Library do
   end
 
   def get_movie!(id), do: Repo.get!(Movie, id)
-
-  def find_or_create_movie(attrs) do
-    entity_id = attrs[:entity_id] || attrs["entity_id"]
-    tmdb_id = attrs[:tmdb_id] || attrs["tmdb_id"]
-
-    case Repo.get_by(Movie, entity_id: entity_id, tmdb_id: tmdb_id) do
-      nil -> Movie.create_changeset(attrs) |> Repo.insert()
-      existing -> {:ok, existing}
-    end
-  end
-
-  def find_or_create_movie!(attrs), do: bang!(find_or_create_movie(attrs))
 
   def set_movie_content_url(movie, attrs) do
     Movie.set_content_url_changeset(movie, attrs) |> Repo.update()
@@ -551,12 +399,6 @@ defmodule MediaCentaur.Library do
   # Extra
   # ---------------------------------------------------------------------------
 
-  def list_extras_for_entity(entity_id) do
-    {:ok, from(x in Extra, where: x.entity_id == ^entity_id) |> Repo.all()}
-  end
-
-  def list_extras_for_entity!(entity_id), do: bang!(list_extras_for_entity(entity_id))
-
   def list_extras_for_season(season_id) do
     {:ok, from(x in Extra, where: x.season_id == ^season_id) |> Repo.all()}
   end
@@ -572,17 +414,24 @@ defmodule MediaCentaur.Library do
 
   def get_extra!(id), do: Repo.get!(Extra, id)
 
-  def find_or_create_extra(attrs) do
-    entity_id = attrs[:entity_id] || attrs["entity_id"]
+  @doc """
+  Find or create an extra by type-specific FK + content_url.
+  The `type_fk` is the FK key atom (e.g. `:movie_id`, `:tv_series_id`).
+  """
+  def find_or_create_extra_by_type(attrs, type_fk) do
+    owner_id = attrs[type_fk] || attrs[Atom.to_string(type_fk)]
     content_url = attrs[:content_url] || attrs["content_url"]
 
-    case Repo.get_by(Extra, entity_id: entity_id, content_url: content_url) do
+    existing =
+      if owner_id && content_url do
+        Repo.get_by(Extra, [{type_fk, owner_id}, {:content_url, content_url}])
+      end
+
+    case existing do
       nil -> Extra.create_changeset(attrs) |> Repo.insert()
-      existing -> {:ok, existing}
+      record -> {:ok, record}
     end
   end
-
-  def find_or_create_extra!(attrs), do: bang!(find_or_create_extra(attrs))
 
   def create_extra(attrs) do
     Extra.create_changeset(attrs) |> Repo.insert()
@@ -600,12 +449,6 @@ defmodule MediaCentaur.Library do
   def list_seasons, do: {:ok, Repo.all(Season)}
   def list_seasons!, do: Repo.all(Season)
 
-  def list_seasons_for_entity(entity_id) do
-    {:ok, from(s in Season, where: s.entity_id == ^entity_id) |> Repo.all()}
-  end
-
-  def list_seasons_for_entity!(entity_id), do: bang!(list_seasons_for_entity(entity_id))
-
   def get_season(id) do
     case Repo.get(Season, id) do
       nil -> {:error, :not_found}
@@ -614,23 +457,6 @@ defmodule MediaCentaur.Library do
   end
 
   def get_season!(id), do: Repo.get!(Season, id)
-
-  def find_or_create_season(attrs) do
-    entity_id = attrs[:entity_id] || attrs["entity_id"]
-    season_number = attrs[:season_number] || attrs["season_number"]
-
-    existing =
-      if entity_id && season_number do
-        Repo.get_by(Season, entity_id: entity_id, season_number: season_number)
-      end
-
-    case existing do
-      nil -> Season.create_changeset(attrs) |> Repo.insert()
-      record -> {:ok, record}
-    end
-  end
-
-  def find_or_create_season!(attrs), do: bang!(find_or_create_season(attrs))
 
   def create_season(attrs) do
     Season.create_changeset(attrs) |> Repo.insert()
@@ -727,54 +553,6 @@ defmodule MediaCentaur.Library do
   def list_watch_progress, do: {:ok, Repo.all(WatchProgress)}
   def list_watch_progress!, do: Repo.all(WatchProgress)
 
-  def list_watch_progress_for_entity(entity_id) do
-    query =
-      from(wp in WatchProgress,
-        where: wp.entity_id == ^entity_id,
-        order_by: [asc: wp.season_number, asc: wp.episode_number]
-      )
-
-    {:ok, Repo.all(query)}
-  end
-
-  def list_watch_progress_for_entity!(entity_id) do
-    bang!(list_watch_progress_for_entity(entity_id))
-  end
-
-  def list_recently_watched(limit) do
-    query =
-      from(wp in WatchProgress,
-        where: not is_nil(wp.last_watched_at),
-        order_by: [desc: wp.last_watched_at],
-        limit: ^limit,
-        preload: [:entity]
-      )
-
-    {:ok, Repo.all(query)}
-  end
-
-  def list_recently_watched!(limit), do: bang!(list_recently_watched(limit))
-
-  def find_or_create_watch_progress(attrs) do
-    entity_id = attrs[:entity_id] || attrs["entity_id"]
-    season_number = attrs[:season_number] || attrs["season_number"] || 0
-    episode_number = attrs[:episode_number] || attrs["episode_number"] || 0
-
-    case Repo.get_by(WatchProgress,
-           entity_id: entity_id,
-           season_number: season_number,
-           episode_number: episode_number
-         ) do
-      nil ->
-        WatchProgress.upsert_changeset(attrs) |> Repo.insert()
-
-      existing ->
-        WatchProgress.upsert_changeset(existing, attrs) |> Repo.update()
-    end
-  end
-
-  def find_or_create_watch_progress!(attrs), do: bang!(find_or_create_watch_progress(attrs))
-
   def mark_watch_completed(progress) do
     WatchProgress.mark_completed_changeset(progress) |> Repo.update()
   end
@@ -789,6 +567,16 @@ defmodule MediaCentaur.Library do
 
   def destroy_watch_progress(progress), do: Repo.delete(progress)
   def destroy_watch_progress!(progress), do: destroy_bang!(progress)
+
+  @doc """
+  Gets a watch progress record by a specific FK key and value.
+  """
+  def get_watch_progress_by_fk(fk_key, fk_id) do
+    case Repo.get_by(WatchProgress, [{fk_key, fk_id}]) do
+      nil -> {:error, :not_found}
+      record -> {:ok, record}
+    end
+  end
 
   def find_or_create_watch_progress_for_movie(attrs) do
     movie_id = attrs[:movie_id] || attrs["movie_id"]
@@ -820,14 +608,6 @@ defmodule MediaCentaur.Library do
   # ---------------------------------------------------------------------------
   # ExtraProgress
   # ---------------------------------------------------------------------------
-
-  def list_extra_progress_for_entity(entity_id) do
-    {:ok, from(ep in ExtraProgress, where: ep.entity_id == ^entity_id) |> Repo.all()}
-  end
-
-  def list_extra_progress_for_entity!(entity_id) do
-    bang!(list_extra_progress_for_entity(entity_id))
-  end
 
   def get_extra_progress_by_extra(extra_id) do
     {:ok, Repo.get_by(ExtraProgress, extra_id: extra_id)}

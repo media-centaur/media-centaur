@@ -15,7 +15,6 @@ defmodule MediaCentaur.Library.Season do
     field :number_of_episodes, :integer
     field :name, :string
 
-    belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :tv_series, MediaCentaur.Library.TVSeries
     has_many :episodes, MediaCentaur.Library.Episode
     has_many :extras, MediaCentaur.Library.Extra
@@ -25,6 +24,6 @@ defmodule MediaCentaur.Library.Season do
 
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:season_number, :number_of_episodes, :name, :entity_id, :tv_series_id])
+    |> cast(attrs, [:season_number, :number_of_episodes, :name, :tv_series_id])
   end
 end

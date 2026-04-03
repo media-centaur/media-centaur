@@ -12,12 +12,15 @@ defmodule MediaCentaur.Admin do
   alias MediaCentaur.Library.Image
 
   alias MediaCentaur.Library.{
-    Entity,
     Episode,
     Extra,
+    ExtraProgress,
     Identifier,
     Movie,
+    MovieSeries,
     Season,
+    TVSeries,
+    VideoObject,
     WatchProgress,
     WatchedFile
   }
@@ -31,7 +34,7 @@ defmodule MediaCentaur.Admin do
   def clear_database do
     MediaCentaur.Watcher.Supervisor.pause_during(fn ->
       Log.info(:library, "clearing database")
-      entity_ids = Library.list_entities!() |> Enum.map(& &1.id)
+      entity_ids = collect_all_entity_ids()
 
       Enum.each(resources_in_delete_order(), fn schema ->
         Repo.delete_all(schema)
@@ -68,7 +71,7 @@ defmodule MediaCentaur.Admin do
     now = DateTime.utc_now()
     Repo.update_all(Image, set: [content_url: nil, updated_at: now])
 
-    entities = Library.list_entities_with_images!(load: [:watched_files])
+    entities = collect_entities_with_images_and_files()
 
     Enum.each(entities, fn entity ->
       if watch_dir = first_watch_dir(entity) do
@@ -90,6 +93,7 @@ defmodule MediaCentaur.Admin do
   defp resources_in_delete_order do
     [
       PendingFile,
+      ExtraProgress,
       WatchProgress,
       Extra,
       Image,
@@ -98,8 +102,34 @@ defmodule MediaCentaur.Admin do
       Movie,
       Season,
       WatchedFile,
-      Entity
+      TVSeries,
+      MovieSeries,
+      VideoObject
     ]
+  end
+
+  defp collect_all_entity_ids do
+    import Ecto.Query
+
+    Repo.all(from(t in TVSeries, select: t.id)) ++
+      Repo.all(from(m in MovieSeries, select: m.id)) ++
+      Repo.all(from(m in Movie, where: is_nil(m.movie_series_id), select: m.id)) ++
+      Repo.all(from(v in VideoObject, select: v.id))
+  end
+
+  defp collect_entities_with_images_and_files do
+    import Ecto.Query
+
+    tv = Repo.all(TVSeries) |> Repo.preload([:images, :watched_files])
+    ms = Repo.all(MovieSeries) |> Repo.preload([:images, :watched_files])
+
+    standalone_movies =
+      Repo.all(from(m in Movie, where: is_nil(m.movie_series_id)))
+      |> Repo.preload([:images, :watched_files])
+
+    vo = Repo.all(VideoObject) |> Repo.preload([:images, :watched_files])
+
+    tv ++ ms ++ standalone_movies ++ vo
   end
 
   defp first_watch_dir(entity) do

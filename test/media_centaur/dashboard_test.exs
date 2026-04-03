@@ -7,8 +7,8 @@ defmodule MediaCentaur.DashboardTest do
 
   describe "fetch_library_stats/0" do
     test "counts episodes" do
-      entity = create_entity(%{type: :tv_series, name: "Test Show"})
-      season = create_season(%{season_number: 1, entity_id: entity.id})
+      tv_series = create_entity(%{type: :tv_series, name: "Test Show"})
+      season = create_season(%{season_number: 1, tv_series_id: tv_series.id})
       create_episode(%{episode_number: 1, season_id: season.id})
       create_episode(%{episode_number: 2, season_id: season.id})
 
@@ -28,10 +28,10 @@ defmodule MediaCentaur.DashboardTest do
     test "returns change entries ordered newest-first" do
       alias MediaCentaur.Library.ChangeLog
 
-      entity_a = create_entity(%{name: "First Movie"})
-      ChangeLog.record_addition(entity_a)
-      entity_b = create_entity(%{name: "Second Movie"})
-      ChangeLog.record_addition(entity_b)
+      movie_a = create_entity(%{name: "First Movie"})
+      ChangeLog.record_addition(movie_a, :movie)
+      movie_b = create_entity(%{name: "Second Movie"})
+      ChangeLog.record_addition(movie_b, :movie)
 
       changes = Dashboard.fetch_recent_changes()
 
@@ -42,9 +42,9 @@ defmodule MediaCentaur.DashboardTest do
     test "includes both additions and removals" do
       alias MediaCentaur.Library.ChangeLog
 
-      entity = create_entity(%{name: "Test Movie"})
-      ChangeLog.record_addition(entity)
-      ChangeLog.record_removal(entity)
+      movie = create_entity(%{name: "Test Movie"})
+      ChangeLog.record_addition(movie, :movie)
+      ChangeLog.record_removal(%{id: movie.id, name: movie.name, type: :movie})
 
       changes = Dashboard.fetch_recent_changes()
 

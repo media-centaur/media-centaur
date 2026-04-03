@@ -15,7 +15,7 @@ defmodule MediaCentaur.Playback.EpisodeList do
   def sort_episodes(_), do: []
 
   @doc """
-  Returns a flat list of `{season_number, episode_number, content_url}` tuples
+  Returns a flat list of `{season_number, episode_number, content_url, episode_id}` tuples
   for episodes that have a content_url, sorted by season then episode.
   """
   def list_available(entity) do
@@ -25,16 +25,17 @@ defmodule MediaCentaur.Playback.EpisodeList do
       (season.episodes || [])
       |> Enum.filter(& &1.content_url)
       |> sort_episodes()
-      |> Enum.map(&{season.season_number, &1.episode_number, &1.content_url})
+      |> Enum.map(&{season.season_number, &1.episode_number, &1.content_url, &1.id})
     end)
   end
 
   @doc """
-  Indexes progress records by `{season_number, episode_number}` key.
+  Indexes progress records by their FK — `episode_id` or `movie_id`.
   """
   def index_progress_by_key(progress_records) do
     Map.new(progress_records, fn record ->
-      {{record.season_number, record.episode_number}, record}
+      key = record.episode_id || record.movie_id
+      {key, record}
     end)
   end
 

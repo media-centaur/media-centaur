@@ -58,7 +58,7 @@ defmodule MediaCentaur.Playback.Resume do
     items =
       entity
       |> MovieList.list_available()
-      |> Enum.map(fn {ordinal, _movie_id, url} -> {0, ordinal, url} end)
+      |> Enum.map(fn {_ordinal, movie_id, url} -> {url, movie_id} end)
 
     progress_by_key = EpisodeList.index_progress_by_key(progress_records)
     walk_ordered_items(items, progress_records, progress_by_key)
@@ -66,19 +66,23 @@ defmodule MediaCentaur.Playback.Resume do
 
   # TVSeries — walk episodes in order, find resume point
   defp resolve_tv_series(entity, progress_records) do
-    items = EpisodeList.list_available(entity)
+    items =
+      entity
+      |> EpisodeList.list_available()
+      |> Enum.map(fn {_season, _episode, url, episode_id} -> {url, episode_id} end)
+
     progress_by_key = EpisodeList.index_progress_by_key(progress_records)
     walk_ordered_items(items, progress_records, progress_by_key)
   end
 
   # Shared walking logic for ordered item lists.
-  # Items are {key_a, key_b, url} tuples. Progress is indexed by {key_a, key_b}.
+  # Items are {url, fk_id} tuples. Progress is indexed by fk_id (episode_id or movie_id).
   defp walk_ordered_items([], _progress_records, _progress_by_key) do
     {:no_playable_content}
   end
 
   defp walk_ordered_items(items, [], _progress_by_key) do
-    {_a, _b, url} = List.first(items)
+    {url, _id} = List.first(items)
     {:play_next, url, 0.0}
   end
 
@@ -88,30 +92,26 @@ defmodule MediaCentaur.Playback.Resume do
 
     case most_recent do
       nil ->
-        {_a, _b, url} = List.first(items)
+        {url, _id} = List.first(items)
         {:play_next, url, 0.0}
 
       record ->
-        if record.completed do
-          advance_from(record, items, progress_by_key)
-        else
-          key = {record.season_number, record.episode_number}
+        record_key = record.episode_id || record.movie_id
 
-          case find_item_url(items, key) do
-            nil -> advance_from(record, items, progress_by_key)
+        if record.completed do
+          advance_from(record_key, items, progress_by_key)
+        else
+          case find_item_url(items, record_key) do
+            nil -> advance_from(record_key, items, progress_by_key)
             url -> {:resume, url, record.position_seconds || 0.0}
           end
         end
     end
   end
 
-  defp advance_from(record, items, progress_by_key) do
-    current_key = {record.season_number, record.episode_number}
-
+  defp advance_from(current_key, items, progress_by_key) do
     current_index =
-      Enum.find_index(items, fn {a, b, _url} ->
-        {a, b} == current_key
-      end)
+      Enum.find_index(items, fn {_url, id} -> id == current_key end)
 
     case current_index do
       nil ->
@@ -122,10 +122,10 @@ defmodule MediaCentaur.Playback.Resume do
 
         case remaining do
           [] ->
-            {_a, _b, first_url} = List.first(items)
+            {first_url, _id} = List.first(items)
             {:restart, first_url, 0.0}
 
-          [{_a, _b, url} | _] ->
+          [{url, _id} | _] ->
             {:play_next, url, 0.0}
         end
     end
@@ -133,23 +133,23 @@ defmodule MediaCentaur.Playback.Resume do
 
   defp find_next_unwatched(items, progress_by_key) do
     unwatched =
-      Enum.find(items, fn {a, b, _url} ->
-        not Map.has_key?(progress_by_key, {a, b})
+      Enum.find(items, fn {_url, id} ->
+        not Map.has_key?(progress_by_key, id)
       end)
 
     case unwatched do
-      {_a, _b, url} ->
+      {url, _id} ->
         {:play_next, url, 0.0}
 
       nil ->
-        {_a, _b, first_url} = List.first(items)
+        {first_url, _id} = List.first(items)
         {:restart, first_url, 0.0}
     end
   end
 
-  defp find_item_url(items, {key_a, key_b}) do
-    case Enum.find(items, fn {a, b, _url} -> {a, b} == {key_a, key_b} end) do
-      {_a, _b, url} -> url
+  defp find_item_url(items, key) do
+    case Enum.find(items, fn {_url, id} -> id == key end) do
+      {url, _id} -> url
       nil -> nil
     end
   end

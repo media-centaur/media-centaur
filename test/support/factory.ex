@@ -2,8 +2,10 @@ defmodule MediaCentaur.TestFactory do
   @moduledoc """
   Shared test data builders.
 
-  - `build_*` functions return plain structs with sensible defaults (no DB).
+  - `build_*` functions return structs or maps with sensible defaults (no DB).
     Use for pure-function tests (Serializer, Mapper, ProgressSummary, etc.).
+    Note: `build_entity` returns a plain map (normalized entity shape);
+    `build_tv_series`, `build_movie_series`, etc. return Ecto structs.
   - `create_*` functions persist via context functions and return loaded records.
     Use for resource tests and channel tests.
   """
@@ -11,7 +13,6 @@ defmodule MediaCentaur.TestFactory do
   alias MediaCentaur.Library
 
   alias MediaCentaur.Library.{
-    Entity,
     Extra,
     Image,
     Identifier,
@@ -54,7 +55,7 @@ defmodule MediaCentaur.TestFactory do
       extra_progress: []
     }
 
-    struct(Entity, Map.merge(defaults, overrides))
+    Map.merge(defaults, overrides)
   end
 
   def build_image(overrides \\ %{}) do
@@ -63,7 +64,6 @@ defmodule MediaCentaur.TestFactory do
       role: "poster",
       content_url: nil,
       extension: "jpg",
-      entity_id: nil,
       movie_id: nil,
       episode_id: nil
     }
@@ -75,8 +75,7 @@ defmodule MediaCentaur.TestFactory do
     defaults = %{
       id: Ecto.UUID.generate(),
       property_id: "tmdb",
-      value: "12345",
-      entity_id: nil
+      value: "12345"
     }
 
     struct(Identifier, Map.merge(defaults, overrides))
@@ -96,7 +95,6 @@ defmodule MediaCentaur.TestFactory do
       aggregate_rating_value: nil,
       tmdb_id: nil,
       position: 0,
-      entity_id: nil,
       images: []
     }
 
@@ -109,7 +107,6 @@ defmodule MediaCentaur.TestFactory do
       name: "Behind the Scenes",
       content_url: "/path/to/extra.mkv",
       position: 0,
-      entity_id: nil,
       season_id: nil
     }
 
@@ -122,7 +119,6 @@ defmodule MediaCentaur.TestFactory do
       season_number: 1,
       number_of_episodes: 0,
       name: "Season 1",
-      entity_id: nil,
       episodes: [],
       extras: []
     }
@@ -147,8 +143,8 @@ defmodule MediaCentaur.TestFactory do
 
   def build_progress(overrides \\ %{}) do
     defaults = %{
-      season_number: 0,
-      episode_number: 0,
+      episode_id: nil,
+      movie_id: nil,
       position_seconds: 0.0,
       duration_seconds: 0.0,
       completed: false,
@@ -229,7 +225,6 @@ defmodule MediaCentaur.TestFactory do
       tmdb_id: nil,
       genres: nil,
       position: 0,
-      entity_id: nil,
       movie_series_id: nil,
       images: [],
       extras: [],
@@ -246,8 +241,16 @@ defmodule MediaCentaur.TestFactory do
   # ---------------------------------------------------------------------------
 
   def create_entity(attrs \\ %{}) do
-    defaults = %{type: :movie, name: "Test Movie"}
-    Library.create_entity!(Map.merge(defaults, attrs))
+    type = attrs[:type] || :movie
+    defaults = %{name: "Test Movie"}
+    merged = Map.merge(defaults, Map.delete(attrs, :type))
+
+    case type do
+      :movie -> Library.create_movie!(merged)
+      :tv_series -> Library.create_tv_series!(merged)
+      :movie_series -> Library.create_movie_series!(merged)
+      :video_object -> Library.create_video_object!(merged)
+    end
   end
 
   def create_image(attrs) do
@@ -295,35 +298,44 @@ defmodule MediaCentaur.TestFactory do
   end
 
   def create_entity_with_associations(attrs \\ %{}) do
-    entity = create_entity(attrs)
+    type = attrs[:type] || :movie
+    record = create_entity(attrs)
+    fk = type_fk(type)
 
     create_image(%{
-      entity_id: entity.id,
+      fk => record.id,
       role: "poster",
-      content_url: "#{entity.id}/poster.jpg",
+      content_url: "#{record.id}/poster.jpg",
       extension: "jpg"
     })
 
     create_identifier(%{
-      entity_id: entity.id,
+      fk => record.id,
       property_id: "tmdb",
       value: attrs[:tmdb_id] || "99999"
     })
 
     # Reload with associations
-    Library.get_entity_with_associations!(entity.id)
+    case type do
+      :movie -> Library.get_movie_with_associations!(record.id)
+      :tv_series -> Library.get_tv_series_with_associations!(record.id)
+      :movie_series -> Library.get_movie_series_with_associations!(record.id)
+      :video_object -> Library.get_video_object_with_associations!(record.id)
+    end
   end
 
-  def create_linked_file(attrs \\ %{}) do
-    entity = attrs[:entity] || create_entity()
+  defp type_fk(:movie), do: :movie_id
+  defp type_fk(:tv_series), do: :tv_series_id
+  defp type_fk(:movie_series), do: :movie_series_id
+  defp type_fk(:video_object), do: :video_object_id
 
+  def create_linked_file(attrs \\ %{}) do
     defaults = %{
       file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",
-      watch_dir: "/media/test",
-      entity_id: entity.id
+      watch_dir: "/media/test"
     }
 
-    Library.link_file!(Map.merge(defaults, Map.delete(attrs, :entity)))
+    Library.link_file!(Map.merge(defaults, attrs))
   end
 
   def create_pending_file(attrs \\ %{}) do
@@ -342,7 +354,14 @@ defmodule MediaCentaur.TestFactory do
 
   def create_watch_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
-    Library.find_or_create_watch_progress!(Map.merge(defaults, attrs))
+    merged = Map.merge(defaults, attrs)
+
+    cond do
+      merged[:movie_id] -> Library.find_or_create_watch_progress_for_movie(merged)
+      merged[:episode_id] -> Library.find_or_create_watch_progress_for_episode(merged)
+      merged[:video_object_id] -> Library.find_or_create_watch_progress_for_video_object(merged)
+    end
+    |> then(fn {:ok, record} -> record end)
   end
 
   def create_extra_progress(attrs) do

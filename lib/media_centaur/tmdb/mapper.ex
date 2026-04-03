@@ -1,7 +1,7 @@
 defmodule MediaCentaur.TMDB.Mapper do
   @moduledoc """
   Maps raw TMDB API response data into domain-ready attribute maps
-  suitable for creating Ash resources. Isolates the TMDB JSON structure
+  suitable for creating library records. Isolates the TMDB JSON structure
   from the domain model.
   """
 

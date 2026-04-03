@@ -17,7 +17,7 @@ defmodule MediaCentaur.Playback.ResumeTest do
   end
 
   defp episode(number, url) do
-    %{episode_number: number, content_url: url}
+    %{id: Ecto.UUID.generate(), episode_number: number, content_url: url}
   end
 
   defp movie_series(movies) do
@@ -36,8 +36,8 @@ defmodule MediaCentaur.Playback.ResumeTest do
 
   defp progress(opts) do
     %{
-      season_number: Keyword.get(opts, :season),
-      episode_number: Keyword.get(opts, :episode),
+      episode_id: Keyword.get(opts, :episode_id),
+      movie_id: Keyword.get(opts, :movie_id),
       position_seconds: Keyword.get(opts, :position, 0.0),
       duration_seconds: Keyword.get(opts, :duration, 0.0),
       completed: Keyword.get(opts, :completed, false),
@@ -85,18 +85,13 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "partial episode → resume" do
-      entity =
-        tv_series([
-          season(1, [
-            episode(1, "/tv/show/S01E01.mkv"),
-            episode(2, "/tv/show/S01E02.mkv")
-          ])
-        ])
+      ep1 = episode(1, "/tv/show/S01E01.mkv")
+      ep2 = episode(2, "/tv/show/S01E02.mkv")
+      entity = tv_series([season(1, [ep1, ep2])])
 
       records = [
         progress(
-          season: 1,
-          episode: 1,
+          episode_id: ep1.id,
           position: 500.0,
           duration: 2800.0,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
@@ -107,25 +102,19 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "completed mid-season → play_next episode" do
-      entity =
-        tv_series([
-          season(1, [
-            episode(1, "/tv/show/S01E01.mkv"),
-            episode(2, "/tv/show/S01E02.mkv"),
-            episode(3, "/tv/show/S01E03.mkv")
-          ])
-        ])
+      ep1 = episode(1, "/tv/show/S01E01.mkv")
+      ep2 = episode(2, "/tv/show/S01E02.mkv")
+      ep3 = episode(3, "/tv/show/S01E03.mkv")
+      entity = tv_series([season(1, [ep1, ep2, ep3])])
 
       records = [
         progress(
-          season: 1,
-          episode: 1,
+          episode_id: ep1.id,
           completed: true,
           last_watched_at: ~U[2026-01-14 20:00:00Z]
         ),
         progress(
-          season: 1,
-          episode: 2,
+          episode_id: ep2.id,
           completed: true,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
         )
@@ -136,27 +125,19 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "season boundary → play_next first episode of next season" do
-      entity =
-        tv_series([
-          season(1, [
-            episode(1, "/tv/show/S01E01.mkv"),
-            episode(2, "/tv/show/S01E02.mkv")
-          ]),
-          season(2, [
-            episode(1, "/tv/show/S02E01.mkv")
-          ])
-        ])
+      s1e1 = episode(1, "/tv/show/S01E01.mkv")
+      s1e2 = episode(2, "/tv/show/S01E02.mkv")
+      s2e1 = episode(1, "/tv/show/S02E01.mkv")
+      entity = tv_series([season(1, [s1e1, s1e2]), season(2, [s2e1])])
 
       records = [
         progress(
-          season: 1,
-          episode: 1,
+          episode_id: s1e1.id,
           completed: true,
           last_watched_at: ~U[2026-01-14 20:00:00Z]
         ),
         progress(
-          season: 1,
-          episode: 2,
+          episode_id: s1e2.id,
           completed: true,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
         )
@@ -167,24 +148,18 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "all episodes completed → restart from first" do
-      entity =
-        tv_series([
-          season(1, [
-            episode(1, "/tv/show/S01E01.mkv"),
-            episode(2, "/tv/show/S01E02.mkv")
-          ])
-        ])
+      ep1 = episode(1, "/tv/show/S01E01.mkv")
+      ep2 = episode(2, "/tv/show/S01E02.mkv")
+      entity = tv_series([season(1, [ep1, ep2])])
 
       records = [
         progress(
-          season: 1,
-          episode: 1,
+          episode_id: ep1.id,
           completed: true,
           last_watched_at: ~U[2026-01-14 20:00:00Z]
         ),
         progress(
-          season: 1,
-          episode: 2,
+          episode_id: ep2.id,
           completed: true,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
         )
@@ -222,16 +197,13 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "partial progress on first movie → resume" do
-      entity =
-        movie_series([
-          child_movie("/movies/first.mkv", 0),
-          child_movie("/movies/second.mkv", 1)
-        ])
+      m1 = child_movie("/movies/first.mkv", 0)
+      m2 = child_movie("/movies/second.mkv", 1)
+      entity = movie_series([m1, m2])
 
       records = [
         progress(
-          season: 0,
-          episode: 1,
+          movie_id: m1.id,
           position: 1200.5,
           duration: 7200.0,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
@@ -242,17 +214,14 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "completed first movie → play_next second movie" do
-      entity =
-        movie_series([
-          child_movie("/movies/first.mkv", 0),
-          child_movie("/movies/second.mkv", 1),
-          child_movie("/movies/third.mkv", 2)
-        ])
+      m1 = child_movie("/movies/first.mkv", 0)
+      m2 = child_movie("/movies/second.mkv", 1)
+      m3 = child_movie("/movies/third.mkv", 2)
+      entity = movie_series([m1, m2, m3])
 
       records = [
         progress(
-          season: 0,
-          episode: 1,
+          movie_id: m1.id,
           completed: true,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
         )
@@ -263,22 +232,18 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "all movies completed → restart from first" do
-      entity =
-        movie_series([
-          child_movie("/movies/first.mkv", 0),
-          child_movie("/movies/second.mkv", 1)
-        ])
+      m1 = child_movie("/movies/first.mkv", 0)
+      m2 = child_movie("/movies/second.mkv", 1)
+      entity = movie_series([m1, m2])
 
       records = [
         progress(
-          season: 0,
-          episode: 1,
+          movie_id: m1.id,
           completed: true,
           last_watched_at: ~U[2026-01-14 20:00:00Z]
         ),
         progress(
-          season: 0,
-          episode: 2,
+          movie_id: m2.id,
           completed: true,
           last_watched_at: ~U[2026-01-15 20:00:00Z]
         )
@@ -310,10 +275,11 @@ defmodule MediaCentaur.Playback.ResumeTest do
     end
 
     test "single movie behaves like walking" do
-      entity = movie_series([child_movie("/movies/solo.mkv", 0)])
+      m1 = child_movie("/movies/solo.mkv", 0)
+      entity = movie_series([m1])
 
       records = [
-        progress(season: 0, episode: 1, position: 600.0, duration: 3600.0)
+        progress(movie_id: m1.id, position: 600.0, duration: 3600.0)
       ]
 
       assert {:resume, "/movies/solo.mkv", 600.0} = Resume.resolve(entity, records)

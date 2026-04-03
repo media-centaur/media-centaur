@@ -27,6 +27,7 @@ defmodule MediaCentaur.Library.Episode do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [:episode_number, :name, :description, :duration, :content_url, :season_id])
+    |> validate_required([:season_id, :episode_number])
   end
 
   def set_content_url_changeset(episode, attrs) do

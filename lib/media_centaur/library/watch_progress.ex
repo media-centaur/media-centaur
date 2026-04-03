@@ -11,14 +11,11 @@ defmodule MediaCentaur.Library.WatchProgress do
   @timestamps_opts [type: :utc_datetime]
 
   schema "library_watch_progress" do
-    field :season_number, :integer, default: 0
-    field :episode_number, :integer, default: 0
     field :position_seconds, :float, default: 0.0
     field :duration_seconds, :float, default: 0.0
     field :completed, :boolean, default: false
     field :last_watched_at, :utc_datetime
 
-    belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :movie, MediaCentaur.Library.Movie
     belongs_to :episode, MediaCentaur.Library.Episode
     belongs_to :video_object, MediaCentaur.Library.VideoObject
@@ -29,16 +26,12 @@ defmodule MediaCentaur.Library.WatchProgress do
   def upsert_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
-      :entity_id,
       :movie_id,
       :episode_id,
       :video_object_id,
-      :season_number,
-      :episode_number,
       :position_seconds,
       :duration_seconds
     ])
-    |> validate_required([:entity_id])
     |> put_change(:last_watched_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 

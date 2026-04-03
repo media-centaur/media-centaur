@@ -10,6 +10,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.{EntityShape, TypeResolver}
 
   @socket_prefix "media-centaur-"
   @socket_suffix ".sock"
@@ -131,7 +132,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   defp build_params(_entity_id, _path, _position), do: {:error, :invalid_path}
 
   defp resolve_entity(entity_id, content_url, position) do
-    case Library.get_entity_with_progress(entity_id) do
+    case resolve_typed_entity(entity_id) do
       {:ok, entity} ->
         {season_number, episode_number, episode_name} =
           resolve_episode_context(entity, content_url)
@@ -147,13 +148,30 @@ defmodule MediaCentaur.Playback.SessionRecovery do
            start_position: position
          }}
 
-      {:error, _} ->
+      :not_found ->
         {:ok,
          %{
            entity_id: entity_id,
            content_url: content_url,
            start_position: position
          }}
+    end
+  end
+
+  @with_associations_preloads [
+    tv_series: Library.tv_series_full_preloads(),
+    movie_series: Library.movie_series_full_preloads(),
+    movie: Library.movie_full_preloads(),
+    video_object: Library.video_object_full_preloads()
+  ]
+
+  defp resolve_typed_entity(id) do
+    case TypeResolver.resolve(id,
+           standalone_movie: false,
+           preload: @with_associations_preloads
+         ) do
+      {:ok, type, record} -> {:ok, EntityShape.normalize(record, type)}
+      :not_found -> :not_found
     end
   end
 
