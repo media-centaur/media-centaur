@@ -21,15 +21,14 @@ defmodule MediaCentaur.Library.ExtraProgress do
     field :last_watched_at, :utc_datetime
 
     belongs_to :extra, MediaCentaur.Library.Extra
-    belongs_to :entity, MediaCentaur.Library.Entity
 
     timestamps()
   end
 
   def upsert_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:extra_id, :entity_id, :position_seconds, :duration_seconds])
-    |> validate_required([:extra_id, :entity_id])
+    |> cast(attrs, [:extra_id, :position_seconds, :duration_seconds])
+    |> validate_required([:extra_id])
     |> put_change(:last_watched_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
 

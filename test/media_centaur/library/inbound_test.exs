@@ -11,8 +11,11 @@ defmodule MediaCentaur.Library.InboundTest do
   """
   use MediaCentaur.DataCase
 
+  import Ecto.Query
+
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Inbound
+  alias MediaCentaur.Library.WatchedFile
 
   # ---------------------------------------------------------------------------
   # Event builders
@@ -124,26 +127,25 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
 
   describe "standalone movie" do
-    test "creates entity and identifier, returns pending images" do
-      assert {:ok, entity, :new, pending_images} = Inbound.ingest(movie_event())
+    test "creates type record and identifier, returns pending images" do
+      assert {:ok, movie, :new, pending_images} = Inbound.ingest(movie_event())
 
-      assert entity.type == :movie
-      assert entity.name == "Fight Club"
-      assert entity.content_url == "/media/Fight.Club.1999.mkv"
-
-      # Dual-write: type-specific Movie record created with same UUID
-      assert {:ok, movie} = Library.get_movie(entity.id)
+      assert %Library.Movie{} = movie
       assert movie.name == "Fight Club"
       assert movie.content_url == "/media/Fight.Club.1999.mkv"
 
-      # Identifier created with both entity_id and movie_id
-      assert {:ok, identifier} = find_identifier("tmdb", "550")
-      assert identifier.entity_id == entity.id
-      assert identifier.movie_id == entity.id
+      # Type-specific Movie record created directly
+      assert {:ok, reloaded} = Library.get_movie(movie.id)
+      assert reloaded.name == "Fight Club"
+      assert reloaded.content_url == "/media/Fight.Club.1999.mkv"
 
-      # WatchedFile linked with both entity_id and movie_id
-      [file] = Library.list_watched_files_for_entity!(entity.id)
-      assert file.movie_id == entity.id
+      # Identifier created with movie_id
+      assert {:ok, identifier} = Library.find_by_tmdb_id_for_movie("550")
+      assert identifier.movie_id == movie.id
+
+      # WatchedFile linked with movie_id
+      [file] = MediaCentaur.Repo.all(WatchedFile)
+      assert file.movie_id == movie.id
 
       # Images collected for queue (not created in DB)
       assert length(pending_images) == 2
@@ -151,7 +153,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert roles == ["backdrop", "poster"]
 
       assert Enum.all?(pending_images, fn img ->
-               img.owner_id == entity.id and img.owner_type == "movie"
+               img.owner_id == movie.id and img.owner_type == "movie"
              end)
     end
 
@@ -163,11 +165,11 @@ defmodule MediaCentaur.Library.InboundTest do
           ]
         )
 
-      assert {:ok, entity, :new, pending_images} = Inbound.ingest(event)
+      assert {:ok, movie, :new, pending_images} = Inbound.ingest(event)
 
       assert [image] = pending_images
       assert image.source_url == "https://image.tmdb.org/poster.jpg"
-      assert image.owner_id == entity.id
+      assert image.owner_id == movie.id
       assert image.owner_type == "movie"
       assert image.role == "poster"
       assert image.extension == "jpg"
@@ -180,33 +182,38 @@ defmodule MediaCentaur.Library.InboundTest do
 
   describe "movie in collection" do
     test "creates movie_series + child movie + identifiers, returns pending images" do
-      assert {:ok, entity, :new, pending_images} = Inbound.ingest(collection_event())
+      assert {:ok, series, :new, pending_images} = Inbound.ingest(collection_event())
 
-      assert entity.type == :movie_series
-      assert entity.name == "The Shadowy Sentinel Collection"
+      assert %Library.MovieSeries{} = series
+      assert series.name == "The Shadowy Sentinel Collection"
 
-      # Dual-write: type-specific MovieSeries record created with same UUID
-      assert {:ok, movie_series} = Library.get_movie_series(entity.id)
-      assert movie_series.name == "The Shadowy Sentinel Collection"
+      # Type-specific MovieSeries record created directly
+      assert {:ok, reloaded} = Library.get_movie_series(series.id)
+      assert reloaded.name == "The Shadowy Sentinel Collection"
 
-      # Collection identifier with both entity_id and movie_series_id
-      assert {:ok, collection_id} = find_identifier("tmdb_collection", "263")
-      assert collection_id.entity_id == entity.id
-      assert collection_id.movie_series_id == entity.id
+      # Collection identifier with movie_series_id
+      assert {:ok, collection_id} = Library.find_by_tmdb_collection_for_movie_series("263")
+      assert collection_id.movie_series_id == series.id
 
-      # Movie-level TMDB identifier with movie_series_id
-      assert {:ok, movie_id} = find_identifier("tmdb", "155")
-      assert movie_id.entity_id == entity.id
-      assert movie_id.movie_series_id == entity.id
+      # Movie-level TMDB identifier created with movie_series_id FK
+      movie_tmdb_identifier =
+        MediaCentaur.Repo.one(
+          from(i in MediaCentaur.Library.Identifier,
+            where: i.property_id == "tmdb" and i.value == "155"
+          )
+        )
+
+      assert movie_tmdb_identifier != nil
+      assert movie_tmdb_identifier.movie_series_id == series.id
 
       # Child movie with movie_series_id FK
-      entity = MediaCentaur.Repo.preload(entity, [:movies])
-      assert length(entity.movies) == 1
-      movie = hd(entity.movies)
+      series = MediaCentaur.Repo.preload(series, [:movies])
+      assert length(series.movies) == 1
+      movie = hd(series.movies)
       assert movie.name == "The Shadowy Sentinel"
       assert movie.content_url == "/media/The.Shadowy.Sentinel.2008.mkv"
       assert movie.position == 1
-      assert movie.movie_series_id == entity.id
+      assert movie.movie_series_id == series.id
 
       # Pending images include movie_series + child movie images
       assert length(pending_images) == 2
@@ -220,7 +227,12 @@ defmodule MediaCentaur.Library.InboundTest do
     test "existing movie series — adds new child movie" do
       # Pre-create the series entity and collection identifier
       series = create_entity(%{type: :movie_series, name: "The Shadowy Sentinel Collection"})
-      create_identifier(%{entity_id: series.id, property_id: "tmdb_collection", value: "263"})
+
+      create_identifier(%{
+        movie_series_id: series.id,
+        property_id: "tmdb_collection",
+        value: "263"
+      })
 
       event =
         collection_event(
@@ -241,9 +253,11 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, entity, :new_child, _pending_images} = Inbound.ingest(event)
       assert entity.id == series.id
 
-      entity = MediaCentaur.Repo.preload(entity, [:movies])
-      assert length(entity.movies) == 1
-      movie = hd(entity.movies)
+      # Child movie created with movie_series_id FK, load via MovieSeries
+      assert {:ok, movie_series} = Library.get_movie_series(entity.id)
+      movie_series = MediaCentaur.Repo.preload(movie_series, :movies)
+      assert length(movie_series.movies) == 1
+      movie = hd(movie_series.movies)
       assert movie.name == "The Shadowy Sentinel Rises"
       assert movie.position == 2
     end
@@ -254,28 +268,23 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
 
   describe "TV series" do
-    test "creates entity, season, episode, returns pending images" do
-      assert {:ok, entity, :new, pending_images} = Inbound.ingest(tv_event())
+    test "creates type record, season, episode, returns pending images" do
+      assert {:ok, tv_series, :new, pending_images} = Inbound.ingest(tv_event())
 
-      assert entity.type == :tv_series
-      assert entity.name == "Sample Show Eight"
-
-      # Dual-write: type-specific TVSeries record created with same UUID
-      assert {:ok, tv_series} = Library.get_tv_series(entity.id)
+      assert %Library.TVSeries{} = tv_series
       assert tv_series.name == "Sample Show Eight"
       assert tv_series.number_of_seasons == 5
 
-      # Identifier with both entity_id and tv_series_id
-      assert {:ok, identifier} = find_identifier("tmdb", "1396")
-      assert identifier.entity_id == entity.id
-      assert identifier.tv_series_id == entity.id
+      # Identifier with tv_series_id
+      assert {:ok, identifier} = Library.find_by_tmdb_id_for_tv_series("1396")
+      assert identifier.tv_series_id == tv_series.id
 
-      # Season + Episode (season has tv_series_id)
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert length(entity.seasons) == 1
-      season = hd(entity.seasons)
+      # Season + Episode (via tv_series preload)
+      tv_series = MediaCentaur.Repo.preload(tv_series, seasons: :episodes)
+      assert length(tv_series.seasons) == 1
+      season = hd(tv_series.seasons)
       assert season.season_number == 1
-      assert season.tv_series_id == entity.id
+      assert season.tv_series_id == tv_series.id
       assert length(season.episodes) == 1
       episode = hd(season.episodes)
       assert episode.episode_number == 1
@@ -293,7 +302,7 @@ defmodule MediaCentaur.Library.InboundTest do
 
     test "existing TV series — adds new episode to existing season" do
       existing = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
-      create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "1396"})
+      create_identifier(%{tv_series_id: existing.id, property_id: "tmdb", value: "1396"})
 
       event =
         tv_event(
@@ -317,9 +326,11 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(event)
       assert entity.id == existing.id
 
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert length(entity.seasons) == 1
-      episode = hd(hd(entity.seasons).episodes)
+      # Season/Episode created with tv_series_id FK, load via TVSeries
+      assert {:ok, tv_series} = Library.get_tv_series(entity.id)
+      tv_series = MediaCentaur.Repo.preload(tv_series, seasons: :episodes)
+      assert length(tv_series.seasons) == 1
+      episode = hd(hd(tv_series.seasons).episodes)
       assert episode.episode_number == 2
       assert episode.content_url == "/media/TV/Sample.Show.Eight.S01E02.mkv"
     end
@@ -327,11 +338,11 @@ defmodule MediaCentaur.Library.InboundTest do
     test "TV without season/episode — no-op" do
       event = tv_event(season: nil)
 
-      assert {:ok, entity, :new, _pending_images} = Inbound.ingest(event)
-      assert entity.type == :tv_series
+      assert {:ok, tv_series, :new, _pending_images} = Inbound.ingest(event)
+      assert %Library.TVSeries{} = tv_series
 
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert entity.seasons == []
+      tv_series = MediaCentaur.Repo.preload(tv_series, :seasons)
+      assert tv_series.seasons == []
     end
   end
 
@@ -342,12 +353,12 @@ defmodule MediaCentaur.Library.InboundTest do
   describe "existing entity reuse" do
     test "existing movie sets content_url if nil" do
       existing = create_entity(%{type: :movie, name: "Fight Club"})
-      create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "550"})
+      create_identifier(%{movie_id: existing.id, property_id: "tmdb", value: "550"})
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
-      reloaded = Library.get_entity!(entity.id)
+      {:ok, reloaded} = Library.get_movie(entity.id)
       assert reloaded.content_url == "/media/Fight.Club.1999.mkv"
     end
 
@@ -355,12 +366,12 @@ defmodule MediaCentaur.Library.InboundTest do
       existing =
         create_entity(%{type: :movie, name: "Fight Club", content_url: "/media/original.mkv"})
 
-      create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "550"})
+      create_identifier(%{movie_id: existing.id, property_id: "tmdb", value: "550"})
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
-      reloaded = Library.get_entity!(entity.id)
+      {:ok, reloaded} = Library.get_movie(entity.id)
       assert reloaded.content_url == "/media/original.mkv"
     end
   end
@@ -370,7 +381,7 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
 
   describe "extras" do
-    test "extra without season — creates movie entity + extra" do
+    test "extra without season — creates movie + extra" do
       event =
         movie_event(
           extra: %{
@@ -380,20 +391,20 @@ defmodule MediaCentaur.Library.InboundTest do
           }
         )
 
-      assert {:ok, entity, :new, _pending_images} = Inbound.ingest(event)
-      assert entity.type == :movie
+      assert {:ok, movie, :new, _pending_images} = Inbound.ingest(event)
+      assert %Library.Movie{} = movie
 
-      # Entity should NOT get the extra's file path as content_url
-      assert is_nil(entity.content_url)
+      # Movie should NOT get the extra's file path as content_url
+      assert is_nil(movie.content_url)
 
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert length(entity.extras) == 1
-      extra = hd(entity.extras)
+      movie = MediaCentaur.Repo.preload(movie, :extras)
+      assert length(movie.extras) == 1
+      extra = hd(movie.extras)
       assert extra.name == "Behind the Scenes"
       assert extra.content_url == "/media/extras/bts.mkv"
     end
 
-    test "extra with season — creates TV entity + season + extra" do
+    test "extra with season — creates TV series + season + extra" do
       event =
         tv_event(
           season: %{
@@ -409,12 +420,12 @@ defmodule MediaCentaur.Library.InboundTest do
           }
         )
 
-      assert {:ok, entity, :new, _pending_images} = Inbound.ingest(event)
-      assert entity.type == :tv_series
+      assert {:ok, tv_series, :new, _pending_images} = Inbound.ingest(event)
+      assert %Library.TVSeries{} = tv_series
 
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert length(entity.seasons) == 1
-      season = hd(entity.seasons)
+      tv_series = MediaCentaur.Repo.preload(tv_series, seasons: :extras)
+      assert length(tv_series.seasons) == 1
+      season = hd(tv_series.seasons)
       assert length(season.extras) == 1
       extra = hd(season.extras)
       assert extra.name == "Making Of"
@@ -423,7 +434,7 @@ defmodule MediaCentaur.Library.InboundTest do
 
     test "extra on existing entity — reuses parent, creates extra only" do
       existing = create_entity(%{type: :movie, name: "Fight Club"})
-      create_identifier(%{entity_id: existing.id, property_id: "tmdb", value: "550"})
+      create_identifier(%{movie_id: existing.id, property_id: "tmdb", value: "550"})
 
       event =
         movie_event(
@@ -437,9 +448,11 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(event)
       assert entity.id == existing.id
 
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert length(entity.extras) == 1
-      assert hd(entity.extras).name == "Deleted Scenes"
+      # Extra created with movie_id FK, load via the Movie type record
+      assert {:ok, movie} = Library.get_movie(entity.id)
+      movie = MediaCentaur.Repo.preload(movie, :extras)
+      assert length(movie.extras) == 1
+      assert hd(movie.extras).name == "Deleted Scenes"
     end
   end
 
@@ -451,18 +464,18 @@ defmodule MediaCentaur.Library.InboundTest do
     test "detects race loss, destroys duplicate, returns winner" do
       # Pre-create a "winner" entity with the same TMDB identifier
       winner = create_entity(%{type: :movie, name: "Fight Club (Winner)"})
-      create_identifier(%{entity_id: winner.id, property_id: "tmdb", value: "550"})
+      create_identifier(%{movie_id: winner.id, property_id: "tmdb", value: "550"})
 
-      # Inbound will create a new entity, then when creating the identifier
+      # Inbound will create a new type record, then when creating the identifier
       # it'll find the existing one belongs to winner. It destroys the duplicate
       # and returns the winner via link_to_existing.
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == winner.id
 
       # The duplicate entity was destroyed — only the winner remains
-      {:ok, entities} = Library.list_entities()
-      assert length(entities) == 1
-      assert hd(entities).id == winner.id
+      movies = Library.list_movies!()
+      assert length(movies) == 1
+      assert hd(movies).id == winner.id
     end
   end
 
@@ -471,46 +484,45 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
 
   describe "post-ingest side effects" do
-    test "creates WatchedFile linking file to entity" do
-      assert {:ok, entity, :new, _images} = Inbound.ingest(movie_event())
+    test "creates WatchedFile linking file to type record" do
+      assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
 
-      files = Library.list_watched_files_for_entity!(entity.id)
-      assert [file] = files
+      [file] = MediaCentaur.Repo.all(WatchedFile)
       assert file.file_path == "/media/Fight.Club.1999.mkv"
       assert file.watch_dir == "/media"
-      assert file.entity_id == entity.id
+      assert file.movie_id == movie.id
     end
 
     test "creates ImageQueue entries for pending images" do
-      assert {:ok, entity, :new, pending_images} = Inbound.ingest(movie_event())
+      assert {:ok, movie, :new, pending_images} = Inbound.ingest(movie_event())
       assert length(pending_images) == 2
 
-      queue_entries = MediaCentaur.Pipeline.ImageQueue.list_pending(entity.id)
+      queue_entries = MediaCentaur.Pipeline.ImageQueue.list_pending(movie.id)
       assert length(queue_entries) == 2
 
       roles = Enum.map(queue_entries, & &1.role) |> Enum.sort()
       assert roles == ["backdrop", "poster"]
 
-      assert Enum.all?(queue_entries, &(&1.entity_id == entity.id))
+      assert Enum.all?(queue_entries, &(&1.entity_id == movie.id))
       assert Enum.all?(queue_entries, &(&1.status == "pending"))
     end
 
     test "broadcasts entities_changed to library:updates" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
 
-      assert {:ok, entity, :new, _images} = Inbound.ingest(movie_event())
+      assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
 
       assert_receive {:entities_changed, entity_ids}
-      assert entity.id in entity_ids
+      assert movie.id in entity_ids
     end
 
     test "broadcasts images_pending to pipeline:images" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_images())
 
-      assert {:ok, entity, :new, _images} = Inbound.ingest(movie_event())
+      assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
 
       assert_receive {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}
-      assert entity_id == entity.id
+      assert entity_id == movie.id
       assert watch_dir == "/media"
     end
 
@@ -518,7 +530,7 @@ defmodule MediaCentaur.Library.InboundTest do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_images())
 
       event = movie_event(images: [])
-      assert {:ok, _entity, :new, []} = Inbound.ingest(event)
+      assert {:ok, _movie, :new, []} = Inbound.ingest(event)
 
       refute_receive {:images_pending, _}
     end
@@ -529,31 +541,31 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
 
   describe "image_ready" do
-    test "creates image record for entity owner" do
-      entity = create_entity(%{type: :movie, name: "Test Movie"})
+    test "creates image record for movie owner" do
+      movie = create_entity(%{type: :movie, name: "Test Movie"})
 
       send_image_ready(%{
-        owner_id: entity.id,
-        owner_type: "entity",
+        owner_id: movie.id,
+        owner_type: "movie",
         role: "poster",
-        content_url: "images/#{entity.id}/poster.jpg",
+        content_url: "images/#{movie.id}/poster.jpg",
         extension: "jpg",
-        entity_id: entity.id
+        entity_id: movie.id
       })
 
-      entity = MediaCentaur.Repo.preload(entity, :images)
-      assert [image] = entity.images
+      movie = MediaCentaur.Repo.preload(movie, :images)
+      assert [image] = movie.images
       assert image.role == "poster"
-      assert image.content_url == "images/#{entity.id}/poster.jpg"
-      assert image.entity_id == entity.id
+      assert image.content_url == "images/#{movie.id}/poster.jpg"
+      assert image.movie_id == movie.id
     end
 
-    test "creates image record for movie owner" do
-      entity = create_entity(%{type: :movie_series, name: "Collection"})
+    test "creates image record for child movie owner" do
+      series = create_entity(%{type: :movie_series, name: "Collection"})
 
       {:ok, movie} =
-        Library.find_or_create_movie(%{
-          entity_id: entity.id,
+        Library.find_or_create_movie_for_series(%{
+          movie_series_id: series.id,
           tmdb_id: "155",
           name: "Movie",
           position: 1
@@ -563,9 +575,9 @@ defmodule MediaCentaur.Library.InboundTest do
         owner_id: movie.id,
         owner_type: "movie",
         role: "poster",
-        content_url: "images/#{entity.id}/movie_poster.jpg",
+        content_url: "images/#{series.id}/movie_poster.jpg",
         extension: "jpg",
-        entity_id: entity.id
+        entity_id: series.id
       })
 
       movie = MediaCentaur.Repo.preload(movie, :images)
@@ -575,20 +587,20 @@ defmodule MediaCentaur.Library.InboundTest do
     end
 
     test "broadcasts entities_changed after image creation" do
-      entity = create_entity(%{type: :movie, name: "Test Movie"})
+      movie = create_entity(%{type: :movie, name: "Test Movie"})
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
 
       send_image_ready(%{
-        owner_id: entity.id,
-        owner_type: "entity",
+        owner_id: movie.id,
+        owner_type: "movie",
         role: "backdrop",
-        content_url: "images/#{entity.id}/backdrop.jpg",
+        content_url: "images/#{movie.id}/backdrop.jpg",
         extension: "jpg",
-        entity_id: entity.id
+        entity_id: movie.id
       })
 
       assert_receive {:entities_changed, entity_ids}
-      assert entity.id in entity_ids
+      assert movie.id in entity_ids
     end
   end
 
@@ -601,7 +613,7 @@ defmodule MediaCentaur.Library.InboundTest do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.review_intake())
 
-      entity =
+      movie =
         create_entity(%{
           type: :movie,
           name: "Wrong Movie",
@@ -609,18 +621,18 @@ defmodule MediaCentaur.Library.InboundTest do
         })
 
       create_linked_file(%{
-        entity: entity,
+        movie_id: movie.id,
         file_path: "/media/movies/Sample Movie (2017).mkv",
         watch_dir: "/media/movies"
       })
 
-      assert :ok = Inbound.handle_rematch(entity.id)
+      assert :ok = Inbound.handle_rematch(movie.id)
 
       # Entity destroyed
-      assert {:error, _} = Library.get_entity(entity.id)
+      assert {:error, _} = Library.get_movie(movie.id)
 
       # WatchedFiles destroyed
-      assert Library.list_watched_files_for_entity!(entity.id) == []
+      assert Library.list_watched_files_by_entity_id(movie.id) == []
 
       # Broadcasts entities_changed
       assert_received {:entities_changed, [_entity_id]}
@@ -638,8 +650,14 @@ defmodule MediaCentaur.Library.InboundTest do
     test "sends multiple files for TV series with multiple watched files" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.review_intake())
 
-      entity = create_entity(%{type: :tv_series, name: "Wrong Show"})
-      season = create_season(%{entity_id: entity.id, season_number: 1, number_of_episodes: 2})
+      tv_series = create_entity(%{type: :tv_series, name: "Wrong Show"})
+
+      season =
+        create_season(%{
+          tv_series_id: tv_series.id,
+          season_number: 1,
+          number_of_episodes: 2
+        })
 
       create_episode(%{
         season_id: season.id,
@@ -655,24 +673,24 @@ defmodule MediaCentaur.Library.InboundTest do
         content_url: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv"
       })
 
-      create_identifier(%{entity_id: entity.id, property_id: "tmdb", value: "wrong"})
+      create_identifier(%{tv_series_id: tv_series.id, property_id: "tmdb", value: "wrong"})
 
       create_linked_file(%{
-        entity: entity,
+        tv_series_id: tv_series.id,
         file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",
         watch_dir: "/media/tv"
       })
 
       create_linked_file(%{
-        entity: entity,
+        tv_series_id: tv_series.id,
         file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv",
         watch_dir: "/media/tv"
       })
 
-      assert :ok = Inbound.handle_rematch(entity.id)
+      assert :ok = Inbound.handle_rematch(tv_series.id)
 
       # Entity fully destroyed
-      assert {:error, _} = Library.get_entity(entity.id)
+      assert {:error, _} = Library.get_tv_series(tv_series.id)
 
       # Both files sent to review
       assert_received {:files_for_review, files}
@@ -701,13 +719,6 @@ defmodule MediaCentaur.Library.InboundTest do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
-
-  defp find_identifier(property_id, value) do
-    case property_id do
-      "tmdb_collection" -> Library.find_by_tmdb_collection(value)
-      _ -> Library.find_by_tmdb_id(value)
-    end
-  end
 
   defp send_image_ready(attrs) do
     Inbound.process_image_ready(attrs)

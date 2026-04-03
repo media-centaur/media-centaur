@@ -55,67 +55,24 @@ defmodule MediaCentaur.Playback.ResumeTarget do
       |> EpisodeList.sort_episodes()
       |> Enum.filter(& &1.content_url)
       |> Enum.map(fn episode ->
-        key = {season.season_number, episode.episode_number}
-        {episode.id, child_hint(Map.get(progress_by_key, key))}
+        {episode.id, child_hint(Map.get(progress_by_key, episode.id))}
       end)
     end)
     |> Map.new()
   end
 
   def compute_child_targets(%{type: :movie_series} = entity, progress_records) do
-    progress_by_ordinal = MovieList.index_progress_by_ordinal(progress_records)
+    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
 
     entity
     |> MovieList.list_available()
-    |> Enum.map(fn {ordinal, movie_id, _url} ->
-      {movie_id, child_hint(Map.get(progress_by_ordinal, ordinal))}
+    |> Enum.map(fn {_ordinal, movie_id, _url} ->
+      {movie_id, child_hint(Map.get(progress_by_key, movie_id))}
     end)
     |> Map.new()
   end
 
   def compute_child_targets(_entity, _progress_records), do: nil
-
-  @doc """
-  Computes a single-key delta for the affected child during a progress save.
-
-  Returns a map with one entry `%{child_uuid => hint}`, or `nil` for standalone items.
-  """
-  @spec compute_child_target_delta(map(), [map()], integer() | nil, integer() | nil) ::
-          map() | nil
-  def compute_child_target_delta(
-        %{type: :tv_series} = entity,
-        progress_records,
-        season_number,
-        episode_number
-      ) do
-    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
-    episode = find_episode_struct(entity, season_number, episode_number)
-
-    if episode do
-      hint = child_hint(Map.get(progress_by_key, {season_number, episode_number}))
-      %{episode.id => hint}
-    end
-  end
-
-  def compute_child_target_delta(
-        %{type: :movie_series} = entity,
-        progress_records,
-        0,
-        ordinal
-      ) do
-    progress_by_ordinal = MovieList.index_progress_by_ordinal(progress_records)
-
-    case MovieList.find_movie_by_ordinal(entity, ordinal) do
-      {movie_id, _name} ->
-        hint = child_hint(Map.get(progress_by_ordinal, ordinal))
-        %{movie_id => hint}
-
-      nil ->
-        nil
-    end
-  end
-
-  def compute_child_target_delta(_entity, _progress_records, _season, _episode), do: nil
 
   # --- Private helpers ---
 
@@ -188,23 +145,17 @@ defmodule MediaCentaur.Playback.ResumeTarget do
   end
 
   defp find_progress_for_url(%{type: :tv_series} = entity, url, progress_records) do
-    case EpisodeList.find_by_content_url(entity, url) do
-      {season_number, episode_number} ->
-        Enum.find(progress_records, fn record ->
-          record.season_number == season_number and record.episode_number == episode_number
-        end)
+    episode_id = find_episode_id_by_url(entity, url)
 
-      nil ->
-        nil
+    if episode_id do
+      Enum.find(progress_records, fn record -> record.episode_id == episode_id end)
     end
   end
 
   defp find_progress_for_url(%{type: :movie_series} = entity, url, progress_records) do
     case MovieList.find_by_content_url(entity, url) do
-      {ordinal, _movie_id, _name} ->
-        Enum.find(progress_records, fn record ->
-          record.season_number == 0 and record.episode_number == ordinal
-        end)
+      {_ordinal, movie_id, _name} ->
+        Enum.find(progress_records, fn record -> record.movie_id == movie_id end)
 
       nil ->
         nil
@@ -213,6 +164,14 @@ defmodule MediaCentaur.Playback.ResumeTarget do
 
   defp find_progress_for_url(_entity, _url, progress_records) do
     List.first(progress_records)
+  end
+
+  defp find_episode_id_by_url(entity, url) do
+    Enum.find_value(entity.seasons || [], fn season ->
+      Enum.find_value(season.episodes || [], fn episode ->
+        if episode.content_url == url, do: episode.id
+      end)
+    end)
   end
 
   defp find_episode_struct(entity, season_number, episode_number) do

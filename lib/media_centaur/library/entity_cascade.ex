@@ -1,8 +1,8 @@
 defmodule MediaCentaur.Library.EntityCascade do
   @moduledoc """
-  FK-safe entity destruction. Deletes an entity and all its children
-  (watch progress, extras, seasons/episodes, movies, images, identifiers)
-  in the correct order to avoid foreign key violations.
+  FK-safe entity destruction. Deletes a type-specific record and all its
+  children (watch progress, extras, seasons/episodes, movies, images,
+  identifiers) in the correct order to avoid foreign key violations.
 
   Does NOT delete WatchedFiles — the caller handles those per use case
   (FileEventHandler deletes them; Rematch converts them to PendingFiles first).
@@ -12,28 +12,48 @@ defmodule MediaCentaur.Library.EntityCascade do
 
   alias MediaCentaur.{Config, Format, Repo}
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{ChangeLog, Image}
+  alias MediaCentaur.Library.{ChangeLog, Image, TypeResolver}
 
   @doc """
-  Destroys an entity and all its children in FK-safe order.
+  Destroys a type-specific record and all its children in FK-safe order.
 
-  Loads the entity with full associations, then deletes:
-  WatchProgress -> ExtraProgress -> Extras -> (Episode images -> Episodes -> Season extras -> Seasons) ->
-  (Movie images -> Movies) -> Entity images -> Image dirs -> Identifiers -> Entity
+  Resolves the UUID to a TVSeries, MovieSeries, Movie, or VideoObject,
+  loads full associations, then deletes children in FK-safe order.
   """
   def destroy!(entity_id) do
-    entity = Library.get_entity_with_associations!(entity_id)
-    ChangeLog.record_removal(entity)
+    {record, entity_type} = resolve_entity!(entity_id)
+    ChangeLog.record_removal(record, entity_type)
 
-    bulk_destroy(entity.watch_progress || [], Library.WatchProgress)
-    bulk_destroy(entity.extra_progress || [], Library.ExtraProgress)
+    destroy_children!(record, entity_type)
+    destroy_record!(record, entity_type)
 
-    bulk_destroy(entity.extras || [], Library.Extra)
+    Log.info(
+      :library,
+      "cascade-deleted #{entity_type} \"#{record.name}\" (#{Format.short_id(entity_id)})"
+    )
+  end
 
-    Enum.each(entity.seasons || [], fn season ->
+  defp resolve_entity!(id) do
+    case TypeResolver.resolve(id,
+           standalone_movie: false,
+           preload: [
+             tv_series: Library.tv_series_full_preloads(),
+             movie_series: Library.movie_series_full_preloads(),
+             movie: Library.movie_full_preloads(),
+             video_object: Library.video_object_full_preloads()
+           ]
+         ) do
+      {:ok, type, record} -> {record, type}
+      :not_found -> raise "entity #{id} not found in any type-specific table"
+    end
+  end
+
+  defp destroy_children!(record, :tv_series) do
+    Enum.each(record.seasons || [], fn season ->
       episodes = season.episodes || []
 
       Enum.each(episodes, fn episode ->
+        destroy_progress(episode)
         delete_images(episode.images || [])
       end)
 
@@ -42,26 +62,50 @@ defmodule MediaCentaur.Library.EntityCascade do
       Library.destroy_season!(season)
     end)
 
-    movies = entity.movies || []
+    bulk_destroy(record.extras || [], Library.Extra)
+    delete_images(record.images || [])
+    delete_image_dirs(record)
+    bulk_destroy(record.identifiers || [], Library.Identifier)
+  end
+
+  defp destroy_children!(record, :movie_series) do
+    movies = record.movies || []
 
     Enum.each(movies, fn movie ->
+      destroy_progress(movie)
       delete_images(movie.images || [])
     end)
 
     bulk_destroy(movies, Library.Movie)
-
-    delete_images(entity.images || [])
-    delete_image_dirs(entity)
-
-    bulk_destroy(entity.identifiers || [], Library.Identifier)
-
-    Library.destroy_entity!(entity)
-
-    Log.info(
-      :library,
-      "cascade-deleted #{entity.type} \"#{entity.name}\" (#{Format.short_id(entity_id)})"
-    )
+    bulk_destroy(record.extras || [], Library.Extra)
+    delete_images(record.images || [])
+    delete_image_dirs(record)
+    bulk_destroy(record.identifiers || [], Library.Identifier)
   end
+
+  defp destroy_children!(record, :movie) do
+    destroy_progress(record)
+    bulk_destroy(record.extras || [], Library.Extra)
+    delete_images(record.images || [])
+    delete_image_dirs(record)
+    bulk_destroy(record.identifiers || [], Library.Identifier)
+  end
+
+  defp destroy_children!(record, :video_object) do
+    destroy_progress(record)
+    delete_images(record.images || [])
+    delete_image_dirs(record)
+    bulk_destroy(record.identifiers || [], Library.Identifier)
+  end
+
+  defp destroy_record!(record, :tv_series), do: Library.destroy_tv_series!(record)
+  defp destroy_record!(record, :movie_series), do: Library.destroy_movie_series!(record)
+  defp destroy_record!(record, :movie), do: Library.destroy_movie!(record)
+  defp destroy_record!(record, :video_object), do: Library.destroy_video_object!(record)
+
+  defp destroy_progress(%{watch_progress: nil}), do: :ok
+  defp destroy_progress(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: :ok
+  defp destroy_progress(%{watch_progress: progress}), do: Library.destroy_watch_progress!(progress)
 
   @doc false
   def bulk_destroy([], _schema), do: :ok
@@ -88,13 +132,13 @@ defmodule MediaCentaur.Library.EntityCascade do
     end
   end
 
-  defp delete_image_dirs(entity) do
+  defp delete_image_dirs(record) do
     watch_dirs = Config.get(:watch_dirs) || []
 
     uuids =
-      [entity.id] ++
-        Enum.map(entity.movies || [], & &1.id) ++
-        Enum.flat_map(entity.seasons || [], fn season ->
+      [record.id] ++
+        Enum.map(Map.get(record, :movies, []), & &1.id) ++
+        Enum.flat_map(Map.get(record, :seasons, []), fn season ->
           Enum.map(season.episodes || [], & &1.id)
         end)
 

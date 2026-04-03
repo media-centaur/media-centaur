@@ -44,15 +44,17 @@ defmodule MediaCentaur.Playback.ProgressSummary do
   end
 
   defp compute_tv_series(entity, progress_records) do
-    episodes =
+    items =
       entity
       |> EpisodeList.list_available()
-      |> Enum.map(fn {season, episode, _url} -> {season, episode} end)
+      |> Enum.map(fn {season, episode, _url, episode_id} ->
+        {%{season: season, episode: episode}, episode_id}
+      end)
 
-    episodes_total = length(episodes)
+    episodes_total = length(items)
     episodes_completed = Enum.count(progress_records, & &1.completed)
 
-    {current_episode, current_progress} = find_current_episode(episodes, progress_records)
+    {current_episode, current_progress} = find_current_item(items, progress_records)
 
     %{
       current_episode: current_episode,
@@ -67,18 +69,19 @@ defmodule MediaCentaur.Playback.ProgressSummary do
     items =
       entity
       |> MovieList.list_available()
-      |> Enum.map(fn {ordinal, _movie_id, _url} -> {0, ordinal} end)
+      |> Enum.map(fn {ordinal, movie_id, _url} ->
+        {%{season: 0, episode: ordinal}, movie_id}
+      end)
 
     episodes_total = length(items)
-    valid_keys = MapSet.new(items)
+    valid_ids = MapSet.new(items, fn {_label, id} -> id end)
 
     episodes_completed =
       Enum.count(progress_records, fn record ->
-        record.completed and
-          MapSet.member?(valid_keys, {record.season_number, record.episode_number})
+        record.completed and MapSet.member?(valid_ids, record.movie_id)
       end)
 
-    {current_episode, current_progress} = find_current_episode(items, progress_records)
+    {current_episode, current_progress} = find_current_item(items, progress_records)
 
     %{
       current_episode: current_episode,
@@ -89,12 +92,14 @@ defmodule MediaCentaur.Playback.ProgressSummary do
     }
   end
 
-  # Finds the "current" episode to resume. Logic:
+  # Finds the "current" item to resume. Logic:
   # 1. Find the most recently watched progress record (by last_watched_at)
-  # 2. If it's completed, advance to the next episode in the available list
-  # 3. If it's partial, that's the current episode
-  # 4. If no next episode exists (series finished), return the last watched one
-  defp find_current_episode(episodes, progress_records) do
+  # 2. If it's completed, advance to the next item in the available list
+  # 3. If it's partial, that's the current item
+  # 4. If no next item exists (series finished), return the last watched one
+  #
+  # Items are {label, fk_id} tuples. Labels are %{season:, episode:} maps for display.
+  defp find_current_item(items, progress_records) do
     progress_by_key = EpisodeList.index_progress_by_key(progress_records)
 
     most_recent =
@@ -103,59 +108,67 @@ defmodule MediaCentaur.Playback.ProgressSummary do
 
     case most_recent do
       nil ->
-        first_episode_or_nil(episodes)
+        first_item_or_nil(items)
 
       record ->
+        record_key = record.episode_id || record.movie_id
+
         if record.completed do
-          advance_from(record, episodes, progress_by_key)
+          advance_from(record_key, items, progress_by_key)
         else
-          {%{season: record.season_number, episode: record.episode_number}, record}
+          label = find_label_for_key(items, record_key)
+          {label, record}
         end
     end
   end
 
-  defp advance_from(record, episodes, progress_by_key) do
-    current_key = {record.season_number, record.episode_number}
-    current_index = Enum.find_index(episodes, &(&1 == current_key))
+  defp advance_from(current_key, items, progress_by_key) do
+    current_index = Enum.find_index(items, fn {_label, id} -> id == current_key end)
 
     case current_index do
       nil ->
-        # The completed episode isn't in the available list — return first unwatched
-        first_unwatched_or_last(episodes, progress_by_key, record)
+        first_unwatched_or_last(items, progress_by_key, current_key)
 
       index ->
         next_index = index + 1
 
-        if next_index < length(episodes) do
-          {season, episode} = Enum.at(episodes, next_index)
-          next_progress = Map.get(progress_by_key, {season, episode})
-          {%{season: season, episode: episode}, next_progress}
+        if next_index < length(items) do
+          {label, fk_id} = Enum.at(items, next_index)
+          next_progress = Map.get(progress_by_key, fk_id)
+          {label, next_progress}
         else
-          # Series finished — stay on the last episode
-          {%{season: record.season_number, episode: record.episode_number}, record}
+          # Series finished — stay on the last item
+          {label, _id} = Enum.at(items, index)
+          fallback_progress = Map.get(progress_by_key, current_key)
+          {label, fallback_progress}
         end
     end
   end
 
-  defp first_unwatched_or_last(episodes, progress_by_key, fallback_record) do
+  defp first_unwatched_or_last(items, progress_by_key, fallback_key) do
     unwatched =
-      Enum.find(episodes, fn key -> not Map.has_key?(progress_by_key, key) end)
+      Enum.find(items, fn {_label, id} -> not Map.has_key?(progress_by_key, id) end)
 
     case unwatched do
-      {season, episode} ->
-        {%{season: season, episode: episode}, nil}
+      {label, _id} ->
+        {label, nil}
 
       nil ->
-        {%{season: fallback_record.season_number, episode: fallback_record.episode_number},
-         fallback_record}
+        fallback_label = find_label_for_key(items, fallback_key)
+        fallback_progress = Map.get(progress_by_key, fallback_key)
+        {fallback_label, fallback_progress}
     end
   end
 
-  defp first_episode_or_nil([{season, episode} | _]) do
-    {%{season: season, episode: episode}, nil}
-  end
+  defp first_item_or_nil([{label, _id} | _]), do: {label, nil}
+  defp first_item_or_nil([]), do: {nil, nil}
 
-  defp first_episode_or_nil([]), do: {nil, nil}
+  defp find_label_for_key(items, key) do
+    case Enum.find(items, fn {_label, id} -> id == key end) do
+      {label, _id} -> label
+      nil -> nil
+    end
+  end
 
   defp position_for(nil), do: 0.0
   defp position_for(progress), do: progress.position_seconds || 0.0

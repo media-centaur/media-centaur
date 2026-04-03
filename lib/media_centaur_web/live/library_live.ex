@@ -358,14 +358,14 @@ defmodule MediaCentaurWeb.LibraryLive do
     case result do
       {:ok, _entity_ids} ->
         # Check if entity still exists (cascade may have deleted it)
-        case Library.get_entity_with_associations(entity_id) do
-          {:ok, _entity} ->
-            detail_files = load_entity_files(entity_id)
-            {:noreply, assign(socket, detail_files: detail_files)}
+        files = Library.list_watched_files_by_entity_id(entity_id)
 
-          {:error, _} ->
-            # Entity was cascade-deleted — close modal
-            {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil, view: :main}))}
+        if files != [] do
+          detail_files = load_entity_files(entity_id)
+          {:noreply, assign(socket, detail_files: detail_files)}
+        else
+          # Entity was cascade-deleted — close modal
+          {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil, view: :main}))}
         end
 
       {:error, reason} ->
@@ -404,7 +404,10 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_info(:reload_entities, socket) do
     changed_ids = socket.assigns.pending_entity_ids
-    {updated_entries, gone_ids} = LibraryBrowser.fetch_entries_by_ids(MapSet.to_list(changed_ids))
+
+    {updated_entries, gone_ids} =
+      LibraryBrowser.fetch_typed_entries_by_ids(MapSet.to_list(changed_ids))
+
     updated_map = Map.new(updated_entries, fn entry -> {entry.entity.id, entry} end)
 
     entries =
@@ -622,7 +625,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   # --- Data Loading ---
 
   defp load_entity_files(entity_id) do
-    Library.list_watched_files_for_entity!(entity_id)
+    Library.list_watched_files_by_entity_id(entity_id)
     |> Enum.map(fn file ->
       size =
         case File.stat(file.file_path) do
@@ -635,7 +638,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   defp load_library(socket) do
-    entries = LibraryBrowser.fetch_entities()
+    entries = LibraryBrowser.fetch_all_typed_entries()
     resume_targets = compute_resume_targets(entries)
 
     playback =
@@ -831,9 +834,15 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   defp toggle_watched(entity_id, season_number, episode_number) do
+    {fk_key, fk_id} = resolve_progress_fk(entity_id, season_number, episode_number)
+
     progress =
-      Library.list_watch_progress_for_entity!(entity_id)
-      |> Enum.find(&(&1.season_number == season_number && &1.episode_number == episode_number))
+      if fk_id do
+        case Library.get_watch_progress_by_fk(fk_key, fk_id) do
+          {:ok, record} -> record
+          _ -> nil
+        end
+      end
 
     case progress do
       %{completed: true} ->
@@ -858,22 +867,66 @@ defmodule MediaCentaurWeb.LibraryLive do
         Library.mark_watch_completed!(progress)
 
       nil ->
-        Log.info(:library, "toggled completed — no prior progress, created fresh record")
+        if fk_id do
+          Log.info(:library, "toggled completed — no prior progress, created fresh record")
 
-        params = %{
-          entity_id: entity_id,
-          season_number: season_number,
-          episode_number: episode_number,
-          position_seconds: 0.0,
-          duration_seconds: 0.0
-        }
+          params = %{
+            fk_key => fk_id,
+            position_seconds: 0.0,
+            duration_seconds: 0.0
+          }
 
-        {:ok, record} = Library.find_or_create_watch_progress(params)
-        Library.mark_watch_completed!(record)
+          {:ok, record} = create_progress_by_fk(fk_key, params)
+          Library.mark_watch_completed!(record)
+        end
     end
 
     ProgressBroadcaster.broadcast(entity_id, season_number, episode_number)
   end
+
+  defp resolve_progress_fk(entity_id, 0, ordinal) do
+    # Movie series — find the movie by ordinal
+    case Library.get_movie_series_with_associations(entity_id) do
+      {:ok, ms} ->
+        alias MediaCentaur.Playback.MovieList
+        available = MovieList.list_available(%{movies: ms.movies})
+
+        case Enum.find(available, fn {ord, _id, _url} -> ord == ordinal end) do
+          {_ord, movie_id, _url} -> {:movie_id, movie_id}
+          nil -> {:movie_id, nil}
+        end
+
+      _ ->
+        # Standalone movie
+        {:movie_id, entity_id}
+    end
+  end
+
+  defp resolve_progress_fk(entity_id, season_number, episode_number) do
+    # TV series — find the episode by season/episode number
+    case Library.get_tv_series_with_associations(entity_id) do
+      {:ok, tv} ->
+        episode_id =
+          Enum.find_value(tv.seasons || [], fn season ->
+            if season.season_number == season_number do
+              Enum.find_value(season.episodes || [], fn episode ->
+                if episode.episode_number == episode_number, do: episode.id
+              end)
+            end
+          end)
+
+        {:episode_id, episode_id}
+
+      _ ->
+        {:episode_id, nil}
+    end
+  end
+
+  defp create_progress_by_fk(:movie_id, params),
+    do: Library.find_or_create_watch_progress_for_movie(params)
+
+  defp create_progress_by_fk(:episode_id, params),
+    do: Library.find_or_create_watch_progress_for_episode(params)
 
   defp toggle_extra_watched(entity_id, extra_id) do
     progress =

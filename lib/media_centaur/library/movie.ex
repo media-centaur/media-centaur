@@ -26,7 +26,6 @@ defmodule MediaCentaur.Library.Movie do
 
     field :genres, {:array, :string}
 
-    belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :movie_series, MediaCentaur.Library.MovieSeries
     has_many :images, MediaCentaur.Library.Image
     has_many :extras, MediaCentaur.Library.Extra
@@ -53,9 +52,9 @@ defmodule MediaCentaur.Library.Movie do
       :tmdb_id,
       :genres,
       :position,
-      :entity_id,
       :movie_series_id
     ])
+    |> validate_required([:name])
   end
 
   def set_content_url_changeset(movie, attrs) do

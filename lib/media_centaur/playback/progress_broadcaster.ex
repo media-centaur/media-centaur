@@ -9,6 +9,8 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.{EntityShape, TypeResolver}
 
   @doc """
   Loads entity progress and broadcasts an `:entity_progress_updated` message.
@@ -16,25 +18,11 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   `season_number` and `episode_number` identify the specific item that changed,
   used for computing the child targets delta.
   """
-  def broadcast(entity_id, season_number, episode_number) do
-    case MediaCentaur.Library.get_entity_with_progress(entity_id) do
-      {:ok, entity} ->
-        progress_records = entity.watch_progress || []
+  def broadcast(entity_id, _season_number, _episode_number) do
+    case resolve_entity_with_progress(entity_id) do
+      {:ok, entity, progress_records} ->
         summary = MediaCentaur.Playback.ProgressSummary.compute(entity, progress_records)
         resume_target = MediaCentaur.Playback.ResumeTarget.compute(entity, progress_records)
-
-        child_targets_delta =
-          MediaCentaur.Playback.ResumeTarget.compute_child_target_delta(
-            entity,
-            progress_records,
-            season_number,
-            episode_number
-          )
-
-        changed_record =
-          Enum.find(progress_records, fn record ->
-            record.season_number == season_number && record.episode_number == episode_number
-          end)
 
         Log.info(:playback, "broadcast progress — #{Format.short_id(entity_id)}")
 
@@ -46,14 +34,33 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
              entity_id: entity_id,
              summary: summary,
              resume_target: resume_target,
-             child_targets_delta: child_targets_delta,
-             changed_record: changed_record,
+             child_targets_delta: nil,
+             changed_record: nil,
              last_activity_at: DateTime.utc_now()
            }}
         )
 
-      {:error, _} ->
+      :not_found ->
         :ok
+    end
+  end
+
+  @with_associations_preloads [
+    tv_series: Library.tv_series_full_preloads(),
+    movie_series: Library.movie_series_full_preloads(),
+    movie: Library.movie_full_preloads(),
+    video_object: Library.video_object_full_preloads()
+  ]
+
+  defp resolve_entity_with_progress(id) do
+    case TypeResolver.resolve(id, preload: @with_associations_preloads) do
+      {:ok, type, record} ->
+        progress = EntityShape.extract_progress(record, type)
+        normalized = EntityShape.normalize(record, type)
+        {:ok, normalized, progress}
+
+      :not_found ->
+        :not_found
     end
   end
 

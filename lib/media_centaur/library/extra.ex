@@ -1,8 +1,9 @@
 defmodule MediaCentaur.Library.Extra do
   @moduledoc """
   A bonus feature (featurette, behind-the-scenes, deleted scene) belonging to
-  a movie `Entity`. Extras live in subdirectories like `Extras/` alongside
-  the main movie file and are serialized as `hasPart` -> `VideoObject` entries.
+  a movie, TV series, movie series, or season. Extras live in subdirectories
+  like `Extras/` alongside the main media files and are serialized as
+  `hasPart` -> `VideoObject` entries.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -16,7 +17,6 @@ defmodule MediaCentaur.Library.Extra do
     field :content_url, :string
     field :position, :integer
 
-    belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :season, MediaCentaur.Library.Season
     belongs_to :movie, MediaCentaur.Library.Movie
     belongs_to :tv_series, MediaCentaur.Library.TVSeries
@@ -31,7 +31,6 @@ defmodule MediaCentaur.Library.Extra do
       :name,
       :content_url,
       :position,
-      :entity_id,
       :season_id,
       :movie_id,
       :tv_series_id,

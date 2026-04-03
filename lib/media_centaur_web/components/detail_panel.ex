@@ -70,19 +70,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     expanded_seasons =
       assigns.expanded_seasons || auto_expand_season(assigns.entity, assigns.progress)
 
-    progress_by_key =
-      case assigns.entity.type do
-        :tv_series ->
-          EpisodeList.index_progress_by_key(assigns.progress_records)
-
-        :movie_series ->
-          assigns.progress_records
-          |> MovieList.index_progress_by_ordinal()
-          |> Map.new(fn {ordinal, record} -> {{0, ordinal}, record} end)
-
-        _ ->
-          %{}
-      end
+    progress_by_key = EpisodeList.index_progress_by_key(assigns.progress_records)
 
     resume_episode_key =
       resume_episode_key(assigns.resume) || progress_episode_key(assigns.progress)
@@ -413,7 +401,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           :for={{movie, ordinal} <- @movies_with_ordinals}
           movie={movie}
           ordinal={ordinal}
-          progress={Map.get(@progress_by_key, {0, ordinal})}
+          progress={Map.get(@progress_by_key, movie.id)}
           resume_episode_key={@resume_episode_key}
           entity_id={@entity.id}
           on_play={@on_play}
@@ -484,7 +472,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               <.episode_row
                 episode={episode}
                 season_number={@season.season_number}
-                progress={Map.get(@progress_by_key, {@season.season_number, episode.episode_number})}
+                progress={Map.get(@progress_by_key, episode.id)}
                 resume_episode_key={@resume_episode_key}
                 entity_id={@entity_id}
                 on_play={@on_play}
@@ -1259,7 +1247,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   def count_watched_episodes(season, progress_by_key) do
     (season.episodes || [])
     |> Enum.count(fn episode ->
-      case Map.get(progress_by_key, {season.season_number, episode.episode_number}) do
+      case Map.get(progress_by_key, episode.id) do
         %{completed: true} -> true
         _ -> false
       end

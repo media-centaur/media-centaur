@@ -197,7 +197,10 @@ defmodule MediaCentaur.Pipeline.Discovery do
 
   defp already_linked?(file_path) do
     from(w in WatchedFile,
-      where: w.file_path == ^file_path and not is_nil(w.entity_id),
+      where:
+        w.file_path == ^file_path and
+          (not is_nil(w.movie_id) or not is_nil(w.tv_series_id) or
+             not is_nil(w.movie_series_id) or not is_nil(w.video_object_id)),
       limit: 1
     )
     |> Repo.exists?()

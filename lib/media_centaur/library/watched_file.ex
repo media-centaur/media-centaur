@@ -17,7 +17,6 @@ defmodule MediaCentaur.Library.WatchedFile do
     field :file_path, :string
     field :watch_dir, :string
 
-    belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :movie, MediaCentaur.Library.Movie
     belongs_to :tv_series, MediaCentaur.Library.TVSeries
     belongs_to :movie_series, MediaCentaur.Library.MovieSeries
@@ -31,7 +30,6 @@ defmodule MediaCentaur.Library.WatchedFile do
     |> cast(attrs, [
       :file_path,
       :watch_dir,
-      :entity_id,
       :movie_id,
       :tv_series_id,
       :movie_series_id,
@@ -45,7 +43,6 @@ defmodule MediaCentaur.Library.WatchedFile do
     |> cast(attrs, [
       :file_path,
       :watch_dir,
-      :entity_id,
       :movie_id,
       :tv_series_id,
       :movie_series_id,

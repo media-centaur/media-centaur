@@ -106,14 +106,14 @@ defmodule MediaCentaur.PipelineTest do
       assert_receive {:entity_published, event}
       assert {:ok, entity, :new, _images} = Inbound.ingest(event)
 
-      assert entity.type == :movie
+      assert %Library.Movie{} = entity
       assert entity.name == "Fight Club"
 
       # WatchedFile created by Inbound.ingest
       files = Library.list_watched_files!()
       assert length(files) == 1
       file = hd(files)
-      assert file.entity_id == entity.id
+      assert file.movie_id == entity.id
       assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
     end
 
@@ -153,13 +153,13 @@ defmodule MediaCentaur.PipelineTest do
       assert {:ok, _result} = Import.process(import_payload)
 
       assert_receive {:entity_published, event}
-      assert {:ok, entity, :new, _images} = Inbound.ingest(event)
+      assert {:ok, tv_series, :new, _images} = Inbound.ingest(event)
 
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert entity.type == :tv_series
-      assert entity.name == "Sample Show Eight"
-      assert length(entity.seasons) == 1
-      assert length(hd(entity.seasons).episodes) == 1
+      assert %Library.TVSeries{} = tv_series
+      assert tv_series.name == "Sample Show Eight"
+      tv_series = MediaCentaur.Repo.preload(tv_series, seasons: :episodes)
+      assert length(tv_series.seasons) == 1
+      assert length(hd(tv_series.seasons).episodes) == 1
     end
 
     test "movie in collection: creates series + child movie" do
@@ -197,13 +197,13 @@ defmodule MediaCentaur.PipelineTest do
       assert {:ok, _result} = Import.process(import_payload)
 
       assert_receive {:entity_published, event}
-      assert {:ok, entity, :new, _images} = Inbound.ingest(event)
+      assert {:ok, movie_series, :new, _images} = Inbound.ingest(event)
 
-      entity = Library.get_entity_with_associations!(entity.id)
-      assert entity.type == :movie_series
-      assert entity.name == "The Shadowy Sentinel Collection"
-      assert length(entity.movies) == 1
-      assert hd(entity.movies).name == "The Shadowy Sentinel"
+      assert %Library.MovieSeries{} = movie_series
+      assert movie_series.name == "The Shadowy Sentinel Collection"
+      movie_series = MediaCentaur.Repo.preload(movie_series, :movies)
+      assert length(movie_series.movies) == 1
+      assert hd(movie_series.movies).name == "The Shadowy Sentinel"
     end
   end
 
@@ -284,7 +284,7 @@ defmodule MediaCentaur.PipelineTest do
       Library.link_file!(%{
         file_path: "/media/pipeline/Already.Ingested.mkv",
         watch_dir: "/media/pipeline",
-        entity_id: entity.id
+        movie_id: entity.id
       })
 
       payload = %Payload{
@@ -335,13 +335,13 @@ defmodule MediaCentaur.PipelineTest do
       assert_receive {:entity_published, event}
       assert {:ok, entity, :new, _images} = Inbound.ingest(event)
 
-      assert entity.type == :movie
+      assert %Library.Movie{} = entity
       assert entity.name == "Fight Club"
 
       # WatchedFile created by Inbound.ingest
       files = Library.list_watched_files!()
       assert length(files) == 1
-      assert hd(files).entity_id == entity.id
+      assert hd(files).movie_id == entity.id
 
       # PendingFile destroyed by Import pipeline
       assert Review.list_pending_files!() == []

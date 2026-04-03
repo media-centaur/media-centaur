@@ -14,7 +14,6 @@ defmodule MediaCentaur.Library.Identifier do
     field :property_id, :string
     field :value, :string
 
-    belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :movie, MediaCentaur.Library.Movie
     belongs_to :tv_series, MediaCentaur.Library.TVSeries
     belongs_to :movie_series, MediaCentaur.Library.MovieSeries
@@ -28,12 +27,11 @@ defmodule MediaCentaur.Library.Identifier do
     |> cast(attrs, [
       :property_id,
       :value,
-      :entity_id,
       :movie_id,
       :tv_series_id,
       :movie_series_id,
       :video_object_id
     ])
-    |> validate_required([:property_id, :value, :entity_id])
+    |> validate_required([:property_id, :value])
   end
 end

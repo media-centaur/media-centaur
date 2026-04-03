@@ -419,9 +419,6 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     params =
       %{
-        entity_id: state.entity_id,
-        season_number: season_number,
-        episode_number: episode_number,
         position_seconds: saveable,
         duration_seconds: duration
       }
@@ -432,7 +429,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     entity_id = state.entity_id
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case MediaCentaur.Library.find_or_create_watch_progress(params) do
+      case find_or_create_progress(params) do
         {:ok, record} ->
           Log.info(
             :playback,
@@ -491,6 +488,22 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp maybe_mark_extra_completed(_record, _position, _duration), do: :ok
+
+  defp find_or_create_progress(%{movie_id: movie_id} = params) when not is_nil(movie_id) do
+    MediaCentaur.Library.find_or_create_watch_progress_for_movie(params)
+  end
+
+  defp find_or_create_progress(%{episode_id: episode_id} = params) when not is_nil(episode_id) do
+    MediaCentaur.Library.find_or_create_watch_progress_for_episode(params)
+  end
+
+  defp find_or_create_progress(%{video_object_id: vo_id} = params) when not is_nil(vo_id) do
+    MediaCentaur.Library.find_or_create_watch_progress_for_video_object(params)
+  end
+
+  defp find_or_create_progress(_params) do
+    {:error, :no_fk_specified}
+  end
 
   # --- PubSub Broadcasting ---
 

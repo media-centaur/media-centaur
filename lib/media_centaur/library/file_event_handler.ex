@@ -128,11 +128,15 @@ defmodule MediaCentaur.Library.FileEventHandler do
     file_path_set = MapSet.new(file_paths)
 
     watched_files
-    |> Enum.group_by(& &1.entity_id)
+    |> Enum.group_by(&owner_id/1)
     |> Enum.flat_map(fn {entity_id, files} ->
       cleanup_entity_files(entity_id, files, file_path_set)
     end)
     |> Enum.uniq()
+  end
+
+  defp owner_id(file) do
+    file.tv_series_id || file.movie_series_id || file.movie_id || file.video_object_id
   end
 
   defp cleanup_entity_files(entity_id, watched_files, removed_paths) do
@@ -153,7 +157,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
     end
 
     # Check if entity is now orphaned (no remaining WatchedFiles)
-    remaining_files = Library.list_watched_files_for_entity!(entity_id)
+    remaining_files = Library.list_watched_files_by_entity_id(entity_id)
 
     if remaining_files == [] do
       delete_entity_cascade(entity_id)
@@ -165,7 +169,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
   end
 
   defp delete_children_for_paths(entity_id, removed_paths) do
-    seasons = Library.list_seasons_for_entity!(entity_id)
+    seasons = Library.list_seasons_by_owner_id(entity_id)
 
     Enum.each(seasons, fn season ->
       matched_episodes =
@@ -180,7 +184,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
     end)
 
     matched_movies =
-      Library.list_movies_for_entity!(entity_id, load: [:images])
+      Library.list_movies_by_owner_id(entity_id, load: [:images])
       |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
 
     Enum.each(matched_movies, fn movie ->
@@ -190,7 +194,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
     bulk_destroy(matched_movies, Library.Movie)
 
     matched_extras =
-      Library.list_extras_for_entity!(entity_id)
+      Library.list_extras_by_owner_id(entity_id)
       |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
 
     bulk_destroy(matched_extras, Library.Extra)
@@ -208,7 +212,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
   end
 
   defp delete_entity_cascade(entity_id) do
-    if Library.list_watched_files_for_entity!(entity_id) != [] do
+    if Library.list_watched_files_by_entity_id(entity_id) != [] do
       Log.info(
         :library,
         "skipped cascade — entity #{MediaCentaur.Format.short_id(entity_id)} gained files during cleanup"

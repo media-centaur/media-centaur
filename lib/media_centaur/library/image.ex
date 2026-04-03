@@ -17,7 +17,6 @@ defmodule MediaCentaur.Library.Image do
     field :content_url, :string
     field :extension, :string
 
-    belongs_to :entity, MediaCentaur.Library.Entity
     belongs_to :movie, MediaCentaur.Library.Movie
     belongs_to :episode, MediaCentaur.Library.Episode
     belongs_to :tv_series, MediaCentaur.Library.TVSeries
@@ -33,7 +32,6 @@ defmodule MediaCentaur.Library.Image do
       :role,
       :content_url,
       :extension,
-      :entity_id,
       :movie_id,
       :episode_id,
       :tv_series_id,
