@@ -915,7 +915,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     total_size = Enum.reduce(assigns.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
     file_count = length(assigns.files)
     genres = assigns.entity.genres || []
-    identifiers = if is_list(assigns.entity.identifiers), do: assigns.entity.identifiers, else: []
+
+    external_ids =
+      if is_list(assigns.entity.external_ids), do: assigns.entity.external_ids, else: []
 
     watch_dirs = MapSet.new(MediaCentaur.Config.get(:watch_dirs) || [])
 
@@ -932,7 +934,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:total_size, total_size)
       |> assign(:file_count, file_count)
       |> assign(:genres, genres)
-      |> assign(:identifiers, identifiers)
+      |> assign(:external_ids, external_ids)
       |> assign(:file_groups, file_groups)
 
     ~H"""
@@ -1010,10 +1012,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </div>
       </div>
 
-      <%!-- Identifiers section --%>
+      <%!-- External IDs section --%>
       <div>
         <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
-          Identifiers
+          External IDs
         </span>
         <div class="mt-2 space-y-2 text-sm">
           <div :if={@entity.url} class="flex items-start gap-2">
@@ -1027,11 +1029,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               {@entity.url}
             </a>
           </div>
-          <div :for={identifier <- @identifiers} class="flex items-start gap-2">
+          <div :for={ext_id <- @external_ids} class="flex items-start gap-2">
             <span class="text-base-content/50 w-16 flex-shrink-0 truncate">
-              {identifier.property_id}
+              {ext_id.source}
             </span>
-            <span class="text-base-content/80 font-mono text-xs">{identifier.value}</span>
+            <span class="text-base-content/80 font-mono text-xs">{ext_id.external_id}</span>
           </div>
           <div class="flex items-start gap-2">
             <span class="text-base-content/50 w-16 flex-shrink-0">UUID</span>

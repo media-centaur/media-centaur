@@ -29,7 +29,7 @@ defmodule MediaCentaur.Library.Movie do
     belongs_to :movie_series, MediaCentaur.Library.MovieSeries
     has_many :images, MediaCentaur.Library.Image
     has_many :extras, MediaCentaur.Library.Extra
-    has_many :identifiers, MediaCentaur.Library.Identifier
+    has_many :external_ids, MediaCentaur.Library.ExternalId
     has_many :watched_files, MediaCentaur.Library.WatchedFile
     has_one :watch_progress, MediaCentaur.Library.WatchProgress
 

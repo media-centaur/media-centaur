@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Library.Identifier do
+defmodule MediaCentaur.Library.ExternalId do
   @moduledoc """
   An external identifier linking an entity to a third-party service
   (TMDB, IMDB, etc.). Modelled as a schema.org `PropertyValue`.
@@ -10,9 +10,9 @@ defmodule MediaCentaur.Library.Identifier do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  schema "library_identifiers" do
-    field :property_id, :string
-    field :value, :string
+  schema "library_external_ids" do
+    field :source, :string
+    field :external_id, :string
 
     belongs_to :movie, MediaCentaur.Library.Movie
     belongs_to :tv_series, MediaCentaur.Library.TVSeries
@@ -25,13 +25,13 @@ defmodule MediaCentaur.Library.Identifier do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
-      :property_id,
-      :value,
+      :source,
+      :external_id,
       :movie_id,
       :tv_series_id,
       :movie_series_id,
       :video_object_id
     ])
-    |> validate_required([:property_id, :value])
+    |> validate_required([:source, :external_id])
   end
 end

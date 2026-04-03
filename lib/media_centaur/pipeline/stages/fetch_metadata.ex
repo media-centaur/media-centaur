@@ -13,7 +13,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   - `entity_type` — `:movie`, `:tv_series`, or `:movie_series`
   - `entity_attrs` — attribute map for the top-level entity
   - `images` — list of `%{role, url, extension}` maps (no owner IDs)
-  - `identifier` — `%{property_id, value}` for the entity's TMDB identifier
+  - `identifier` — `%{source, external_id}` for the entity's TMDB identifier
 
   Movie in collection adds:
   - `child_movie` — `%{attrs, images, identifier, position}`
@@ -80,7 +80,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       entity_type: :movie,
       entity_attrs: entity_attrs,
       images: images,
-      identifier: %{property_id: "tmdb", value: to_string(tmdb_id)},
+      identifier: %{source: "tmdb", external_id: to_string(tmdb_id)},
       child_movie: nil,
       season: nil,
       extra: build_extra(parsed)
@@ -130,11 +130,11 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       entity_type: :movie_series,
       entity_attrs: collection_attrs,
       images: collection_images,
-      identifier: %{property_id: "tmdb_collection", value: to_string(collection_id)},
+      identifier: %{source: "tmdb_collection", external_id: to_string(collection_id)},
       child_movie: %{
         attrs: child_attrs,
         images: build_images(movie_data),
-        identifier: %{property_id: "tmdb", value: to_string(tmdb_id)}
+        identifier: %{source: "tmdb", external_id: to_string(tmdb_id)}
       },
       season: nil,
       extra: build_extra(parsed)
@@ -167,7 +167,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       entity_type: :tv_series,
       entity_attrs: entity_attrs,
       images: images,
-      identifier: %{property_id: "tmdb", value: to_string(tmdb_id)},
+      identifier: %{source: "tmdb", external_id: to_string(tmdb_id)},
       child_movie: nil,
       season: season,
       extra: build_extra(parsed)

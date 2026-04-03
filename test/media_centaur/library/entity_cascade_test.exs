@@ -5,9 +5,9 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
   alias MediaCentaur.Library.EntityCascade
 
   describe "destroy!/1" do
-    test "cascade deletes a TV series with seasons, episodes, images, and identifiers" do
+    test "cascade deletes a TV series with seasons, episodes, images, and external IDs" do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show One"})
-      create_identifier(%{tv_series_id: tv_series.id, property_id: "tmdb", value: "4556"})
+      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "4556"})
 
       create_image(%{
         tv_series_id: tv_series.id,
@@ -55,7 +55,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       assert Library.list_images!() == []
     end
 
-    test "cascade deletes a movie with images and identifiers" do
+    test "cascade deletes a movie with images and external IDs" do
       movie =
         create_entity(%{
           type: :movie,
@@ -63,7 +63,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
           content_url: "/media/movies/blade.mkv"
         })
 
-      create_identifier(%{movie_id: movie.id, property_id: "tmdb", value: "78"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "78"})
 
       create_image(%{
         movie_id: movie.id,

@@ -20,7 +20,7 @@ The library is the core data domain. It stores all media entities, their relatio
 graph TD
     subgraph "Library Domain"
         Entity --> Image
-        Entity --> Identifier
+        Entity --> ExternalId
         Entity --> WatchedFile
         Entity --> WatchProgress
         Entity --> Season
@@ -56,7 +56,7 @@ graph TD
 
 **One image per role per owner.** Roles: `poster`, `backdrop`, `logo`, `thumb`. Enforced by unique identities.
 
-**External identifiers.** The `Identifier` resource links entities to TMDB IDs (and potentially IMDB, TVDB in the future). Modeled as schema.org `PropertyValue`.
+**External identifiers.** The `ExternalId` resource links entities to TMDB IDs (and potentially IMDB, TVDB in the future). Modeled as schema.org `PropertyValue`.
 
 **File tracking.** `WatchedFile` links a video file path to its resolved entity. Tracks presence state (`:complete` or `:absent`) for removable drive support.
 
@@ -139,11 +139,11 @@ Artwork file. One per role per owner (entity, movie, or episode).
 
 **Roles:** `poster`, `backdrop`, `logo`, `thumb`
 
-### Identifier
+### ExternalId
 
 External service ID linking entity to TMDB, IMDB, etc.
 
-**Key attributes:** `property_id` (e.g., `"tmdb"`, `"tmdb_collection"`), `value`
+**Key attributes:** `source` (e.g., `"tmdb"`, `"tmdb_collection"`), `external_id`
 
 ### WatchedFile
 
@@ -207,7 +207,7 @@ Returns `{:ok, entity, :new | :new_child | :existing}` or `{:error, reason}`.
 3. `FileTracker.cleanup_removed_files(collected_paths)` — explicit cleanup with pre-collected paths
 4. Broadcasts `{:entities_changed, entity_ids}`
 
-**Cascade deletion:** When the last file for an entity is removed, `EntityCascade.destroy!/1` runs the FK-safe deletion order: watch progress → extras → episodes → seasons → movies → images → image directories → identifiers → entity.
+**Cascade deletion:** When the last file for an entity is removed, `EntityCascade.destroy!/1` runs the FK-safe deletion order: watch progress → extras → episodes → seasons → movies → images → image directories → external IDs → entity.
 
 **Watcher race condition:** `cleanup_removed_files/1` is idempotent — if the watcher also detects the deletion (for single-file deletes via inotify), it calls the same function. The second cleanup finds no WatchedFile records and returns `[]` (no-op). The watcher's 3-second debounce means the UI's explicit cleanup always completes first.
 
@@ -236,7 +236,7 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.Episode` | TV episode | `lib/media_centaur/library/episode.ex` |
 | `MediaCentaur.Library.Extra` | Bonus feature | `lib/media_centaur/library/extra.ex` |
 | `MediaCentaur.Library.Image` | Artwork | `lib/media_centaur/library/image.ex` |
-| `MediaCentaur.Library.Identifier` | External ID (TMDB, IMDB) | `lib/media_centaur/library/identifier.ex` |
+| `MediaCentaur.Library.ExternalId` | External ID (TMDB, IMDB) | `lib/media_centaur/library/external_id.ex` |
 | `MediaCentaur.Library.WatchedFile` | File-to-entity link | `lib/media_centaur/library/watched_file.ex` |
 | `MediaCentaur.Library.WatchProgress` | Playback progress | `lib/media_centaur/library/watch_progress.ex` |
 | `MediaCentaur.Library.TypeResolver` | UUID-to-type-record lookup | `lib/media_centaur/library/type_resolver.ex` |

@@ -21,7 +21,7 @@ defmodule MediaCentaur.Library.MovieSeries do
     has_many :movies, MediaCentaur.Library.Movie, foreign_key: :movie_series_id
     has_many :images, MediaCentaur.Library.Image, foreign_key: :movie_series_id
     has_many :extras, MediaCentaur.Library.Extra, foreign_key: :movie_series_id
-    has_many :identifiers, MediaCentaur.Library.Identifier, foreign_key: :movie_series_id
+    has_many :external_ids, MediaCentaur.Library.ExternalId, foreign_key: :movie_series_id
     has_many :watched_files, MediaCentaur.Library.WatchedFile, foreign_key: :movie_series_id
 
     timestamps()

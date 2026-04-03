@@ -99,7 +99,7 @@ Fetches full metadata for a matched file and publishes the entity event for Libr
 2. **FetchMetadata** — fetch full TMDB details (movie, TV series, collection, season)
 3. **Ingest** — broadcast `{:entity_published, event}` to `"pipeline:publish"`
 
-After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), identifier creation, WatchedFile linking, and image queue population.
+After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), external ID creation, WatchedFile linking, and image queue population.
 
 If the file came from review approval, Import also broadcasts `{:review_completed, pending_file_id}` to `"review:intake"`.
 
@@ -162,8 +162,8 @@ Watchers and pipelines can be independently stopped/started via config (`start_w
 ## Idempotency & Concurrency Safety
 
 - **Already-linked check:** Discovery queries `library_watched_files` directly to skip files already linked to entities
-- **Entity deduplication:** `Library.Inbound` checks for existing entities by TMDB ID via the `Identifier` unique constraint on `(property_id, value)`
-- **Race-loss recovery:** If two processors create entities for the same TMDB ID, the `Identifier` insert detects the race; the loser destroys its orphan entity
+- **Entity deduplication:** `Library.Inbound` checks for existing entities by TMDB ID via the `ExternalId` unique constraint on `(source, external_id)`
+- **Race-loss recovery:** If two processors create entities for the same TMDB ID, the `ExternalId` insert detects the race; the loser destroys its orphan entity
 - **Find-or-create patterns:** Season, Episode, Movie, and Extra creation uses find-or-create — existing records are returned without modification
 - **DB-level constraints:** Season `(entity_id, season_number)`, Episode `(season_id, episode_number)`, Image `(entity_id, role)` — all have unique indexes
 - **Image queue dedup:** Queue entries track owner + role; duplicates are prevented at insert

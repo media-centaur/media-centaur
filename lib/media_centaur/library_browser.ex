@@ -96,7 +96,7 @@ defmodule MediaCentaur.LibraryBrowser do
         )
     )
     |> Repo.all()
-    |> Repo.preload([:images, :identifiers, :extras, :watched_files, :watch_progress])
+    |> Repo.preload([:images, :external_ids, :extras, :watched_files, :watch_progress])
   end
 
   defp fetch_all_tv_series do
@@ -115,7 +115,7 @@ defmodule MediaCentaur.LibraryBrowser do
     |> Repo.all()
     |> Repo.preload([
       :images,
-      :identifiers,
+      :external_ids,
       :extras,
       :watched_files,
       seasons: [:extras, episodes: [:images, :watch_progress]]
@@ -138,7 +138,7 @@ defmodule MediaCentaur.LibraryBrowser do
     |> Repo.all()
     |> Repo.preload([
       :images,
-      :identifiers,
+      :external_ids,
       :extras,
       :watched_files,
       movies: [:images, :watch_progress]
@@ -159,7 +159,7 @@ defmodule MediaCentaur.LibraryBrowser do
         )
     )
     |> Repo.all()
-    |> Repo.preload([:images, :identifiers, :watched_files, :watch_progress])
+    |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])
   end
 
   # --- Type-Specific Fetchers (by IDs) ---
@@ -180,7 +180,7 @@ defmodule MediaCentaur.LibraryBrowser do
       where: exists(present_file_subquery(:movie_id))
     )
     |> Repo.all()
-    |> Repo.preload([:images, :identifiers, :extras, :watched_files, :watch_progress])
+    |> Repo.preload([:images, :external_ids, :extras, :watched_files, :watch_progress])
   end
 
   defp fetch_tv_series_by_ids(ids) do
@@ -192,7 +192,7 @@ defmodule MediaCentaur.LibraryBrowser do
     |> Repo.all()
     |> Repo.preload([
       :images,
-      :identifiers,
+      :external_ids,
       :extras,
       :watched_files,
       seasons: [:extras, episodes: [:images, :watch_progress]]
@@ -208,7 +208,7 @@ defmodule MediaCentaur.LibraryBrowser do
     |> Repo.all()
     |> Repo.preload([
       :images,
-      :identifiers,
+      :external_ids,
       :extras,
       :watched_files,
       movies: [:images, :watch_progress]
@@ -222,7 +222,7 @@ defmodule MediaCentaur.LibraryBrowser do
       where: exists(present_file_subquery(:video_object_id))
     )
     |> Repo.all()
-    |> Repo.preload([:images, :identifiers, :watched_files, :watch_progress])
+    |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])
   end
 
   # --- Typed Entry Builder ---

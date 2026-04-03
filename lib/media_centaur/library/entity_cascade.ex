@@ -65,7 +65,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     bulk_destroy(record.extras || [], Library.Extra)
     delete_images(record.images || [])
     delete_image_dirs(record)
-    bulk_destroy(record.identifiers || [], Library.Identifier)
+    bulk_destroy(record.external_ids || [], Library.ExternalId)
   end
 
   defp destroy_children!(record, :movie_series) do
@@ -80,7 +80,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     bulk_destroy(record.extras || [], Library.Extra)
     delete_images(record.images || [])
     delete_image_dirs(record)
-    bulk_destroy(record.identifiers || [], Library.Identifier)
+    bulk_destroy(record.external_ids || [], Library.ExternalId)
   end
 
   defp destroy_children!(record, :movie) do
@@ -88,14 +88,14 @@ defmodule MediaCentaur.Library.EntityCascade do
     bulk_destroy(record.extras || [], Library.Extra)
     delete_images(record.images || [])
     delete_image_dirs(record)
-    bulk_destroy(record.identifiers || [], Library.Identifier)
+    bulk_destroy(record.external_ids || [], Library.ExternalId)
   end
 
   defp destroy_children!(record, :video_object) do
     destroy_progress(record)
     delete_images(record.images || [])
     delete_image_dirs(record)
-    bulk_destroy(record.identifiers || [], Library.Identifier)
+    bulk_destroy(record.external_ids || [], Library.ExternalId)
   end
 
   defp destroy_record!(record, :tv_series), do: Library.destroy_tv_series!(record)
@@ -105,7 +105,9 @@ defmodule MediaCentaur.Library.EntityCascade do
 
   defp destroy_progress(%{watch_progress: nil}), do: :ok
   defp destroy_progress(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: :ok
-  defp destroy_progress(%{watch_progress: progress}), do: Library.destroy_watch_progress!(progress)
+
+  defp destroy_progress(%{watch_progress: progress}),
+    do: Library.destroy_watch_progress!(progress)
 
   @doc false
   def bulk_destroy([], _schema), do: :ok

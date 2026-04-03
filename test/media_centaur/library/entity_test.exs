@@ -94,20 +94,20 @@ defmodule MediaCentaur.Library.EntityTest do
       assert hd(loaded.images).role == "poster"
     end
 
-    test "preloads identifiers" do
-      movie = create_entity(%{type: :movie, name: "With Identifiers"})
+    test "preloads external_ids" do
+      movie = create_entity(%{type: :movie, name: "With External IDs"})
 
-      create_identifier(%{
+      create_external_id(%{
         movie_id: movie.id,
-        property_id: "tmdb",
-        value: "335984"
+        source: "tmdb",
+        external_id: "335984"
       })
 
       {:ok, loaded} = Library.get_movie_with_associations(movie.id)
 
-      assert length(loaded.identifiers) == 1
-      assert hd(loaded.identifiers).property_id == "tmdb"
-      assert hd(loaded.identifiers).value == "335984"
+      assert length(loaded.external_ids) == 1
+      assert hd(loaded.external_ids).source == "tmdb"
+      assert hd(loaded.external_ids).external_id == "335984"
     end
 
     test "preloads seasons with episodes" do
