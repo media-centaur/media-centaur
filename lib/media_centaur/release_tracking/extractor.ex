@@ -31,27 +31,6 @@ defmodule MediaCentaur.ReleaseTracking.Extractor do
     end
   end
 
-  def extract_season_releases(season) do
-    today = Date.utc_today()
-    season_number = season["season_number"]
-
-    (season["episodes"] || [])
-    |> Enum.filter(fn episode ->
-      case parse_date(episode["air_date"]) do
-        nil -> true
-        date -> Date.after?(date, today)
-      end
-    end)
-    |> Enum.map(fn episode ->
-      %{
-        air_date: parse_date(episode["air_date"]),
-        season_number: season_number,
-        episode_number: episode["episode_number"],
-        title: episode["name"]
-      }
-    end)
-  end
-
   def extract_movie_status(response) do
     Map.get(@movie_status_map, response["status"], :unknown)
   end

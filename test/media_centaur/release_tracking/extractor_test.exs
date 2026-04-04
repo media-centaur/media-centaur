@@ -79,33 +79,6 @@ defmodule MediaCentaur.ReleaseTracking.ExtractorTest do
     end
   end
 
-  describe "extract_season_releases/1" do
-    test "extracts future episodes from season data" do
-      today = Date.utc_today()
-      future = Date.to_iso8601(Date.add(today, 7))
-      past = Date.to_iso8601(Date.add(today, -7))
-
-      season = %{
-        "season_number" => 2,
-        "episodes" => [
-          %{"episode_number" => 1, "name" => "Past Ep", "air_date" => past},
-          %{"episode_number" => 2, "name" => "Future Ep", "air_date" => future},
-          %{"episode_number" => 3, "name" => "No Date", "air_date" => nil}
-        ]
-      }
-
-      releases = Extractor.extract_season_releases(season)
-      assert length(releases) == 2
-
-      future_ep = Enum.find(releases, &(&1.episode_number == 2))
-      assert future_ep.title == "Future Ep"
-      assert future_ep.season_number == 2
-
-      no_date = Enum.find(releases, &(&1.episode_number == 3))
-      assert no_date.air_date == nil
-    end
-  end
-
   describe "extract_movie_status/1" do
     test "maps Released" do
       assert Extractor.extract_movie_status(%{"status" => "Released"}) == :released

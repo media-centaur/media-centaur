@@ -752,42 +752,53 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   defp load_tracking_images(%{upcoming: upcoming, released: released}) do
+    import Ecto.Query
+
     all_releases = upcoming ++ released
 
-    all_releases
-    |> Enum.map(& &1.item)
-    |> Enum.uniq_by(& &1.id)
-    |> Enum.filter(& &1.library_entity_id)
-    |> Enum.reduce(%{}, fn item, acc ->
-      case fetch_entity_images(item) do
+    # Group items by entity type to batch-query images
+    items =
+      all_releases
+      |> Enum.map(& &1.item)
+      |> Enum.uniq_by(& &1.id)
+      |> Enum.filter(& &1.library_entity_id)
+
+    tv_ids = for %{media_type: :tv_series, library_entity_id: id} <- items, do: id
+    movie_ids = for %{media_type: :movie, library_entity_id: id} <- items, do: id
+
+    # Single batch query for all images we need
+    images =
+      from(i in MediaCentaur.Library.Image,
+        where:
+          (i.tv_series_id in ^tv_ids or i.movie_series_id in ^movie_ids) and
+            i.role in ["backdrop", "logo", "poster"],
+        select: %{
+          tv_series_id: i.tv_series_id,
+          movie_series_id: i.movie_series_id,
+          role: i.role,
+          content_url: i.content_url
+        }
+      )
+      |> MediaCentaur.Repo.all()
+
+    # Index images by entity_id → %{backdrop: url, logo: url, poster: url}
+    images_by_entity =
+      Enum.reduce(images, %{}, fn image, acc ->
+        entity_id = image.tv_series_id || image.movie_series_id
+        url = if image.content_url, do: "/media-images/#{image.content_url}"
+
+        acc
+        |> Map.put_new(entity_id, %{})
+        |> update_in([entity_id, String.to_existing_atom(image.role)], fn _ -> url end)
+      end)
+
+    # Map tracking item IDs to their library entity's images
+    Enum.reduce(items, %{}, fn item, acc ->
+      case Map.get(images_by_entity, item.library_entity_id) do
         nil -> acc
-        images -> Map.put(acc, item.id, images)
+        entity_images -> Map.put(acc, item.id, entity_images)
       end
     end)
-  end
-
-  defp fetch_entity_images(%{media_type: :tv_series, library_entity_id: entity_id}) do
-    case MediaCentaur.Library.get_tv_series_with_associations(entity_id) do
-      {:ok, entity} -> extract_images(entity)
-      _ -> nil
-    end
-  end
-
-  defp fetch_entity_images(%{media_type: :movie, library_entity_id: entity_id}) do
-    case MediaCentaur.Library.get_movie_series_with_associations(entity_id) do
-      {:ok, entity} -> extract_images(entity)
-      _ -> nil
-    end
-  end
-
-  defp fetch_entity_images(_), do: nil
-
-  defp extract_images(entity) do
-    %{
-      backdrop: MediaCentaurWeb.LiveHelpers.image_url(entity, "backdrop"),
-      logo: MediaCentaurWeb.LiveHelpers.image_url(entity, "logo"),
-      poster: MediaCentaurWeb.LiveHelpers.image_url(entity, "poster")
-    }
   end
 
   defp load_tracking_status(entry) do
