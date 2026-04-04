@@ -55,3 +55,6 @@ npm-debug.log
 /priv/repo/media_centaur_test*.db*
 
 /todo/
+
+# Runtime image downloads
+/data/images/tracking/
