@@ -386,6 +386,8 @@ defmodule MediaCentaur.TestFactory do
       library_entity_id: nil,
       last_refreshed_at: nil,
       poster_path: nil,
+      last_library_season: 0,
+      last_library_episode: 0,
       releases: [],
       events: []
     }

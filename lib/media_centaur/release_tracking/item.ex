@@ -18,6 +18,8 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :library_entity_id, Ecto.UUID
     field :last_refreshed_at, :utc_datetime
     field :poster_path, :string
+    field :last_library_season, :integer, default: 0
+    field :last_library_episode, :integer, default: 0
 
     has_many :releases, MediaCentaur.ReleaseTracking.Release
     has_many :events, MediaCentaur.ReleaseTracking.Event
@@ -35,7 +37,9 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :source,
       :library_entity_id,
       :last_refreshed_at,
-      :poster_path
+      :poster_path,
+      :last_library_season,
+      :last_library_episode
     ])
     |> validate_required([:tmdb_id, :media_type, :name])
     |> unique_constraint([:tmdb_id, :media_type],
@@ -45,6 +49,13 @@ defmodule MediaCentaur.ReleaseTracking.Item do
 
   def update_changeset(item, attrs) do
     item
-    |> cast(attrs, [:name, :status, :last_refreshed_at, :poster_path])
+    |> cast(attrs, [
+      :name,
+      :status,
+      :last_refreshed_at,
+      :poster_path,
+      :last_library_season,
+      :last_library_episode
+    ])
   end
 end

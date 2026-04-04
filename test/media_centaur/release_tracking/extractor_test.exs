@@ -164,6 +164,65 @@ defmodule MediaCentaur.ReleaseTracking.ExtractorTest do
     end
   end
 
+  describe "extract_episodes_since/3" do
+    test "returns episodes after the given season/episode" do
+      season = %{
+        "season_number" => 2,
+        "episodes" => [
+          %{"episode_number" => 10, "name" => "Ep 10", "air_date" => "2026-03-01"},
+          %{"episode_number" => 11, "name" => "Ep 11", "air_date" => "2026-03-08"},
+          %{"episode_number" => 12, "name" => "Ep 12", "air_date" => "2026-03-15"},
+          %{"episode_number" => 13, "name" => "Ep 13", "air_date" => "2026-03-22"},
+          %{"episode_number" => 14, "name" => "Ep 14", "air_date" => "2026-04-09"}
+        ]
+      }
+
+      releases = Extractor.extract_episodes_since(season, 2, 12)
+      assert length(releases) == 2
+      assert Enum.map(releases, & &1.episode_number) == [13, 14]
+    end
+
+    test "returns all episodes when last is from a previous season" do
+      season = %{
+        "season_number" => 3,
+        "episodes" => [
+          %{"episode_number" => 1, "name" => "Premiere", "air_date" => "2026-06-01"},
+          %{"episode_number" => 2, "name" => "Second", "air_date" => "2026-06-08"}
+        ]
+      }
+
+      releases = Extractor.extract_episodes_since(season, 2, 12)
+      assert length(releases) == 2
+    end
+
+    test "returns empty when all episodes are before or at last" do
+      season = %{
+        "season_number" => 2,
+        "episodes" => [
+          %{"episode_number" => 10, "name" => "Ep 10", "air_date" => "2026-03-01"},
+          %{"episode_number" => 11, "name" => "Ep 11", "air_date" => "2026-03-08"},
+          %{"episode_number" => 12, "name" => "Ep 12", "air_date" => "2026-03-15"}
+        ]
+      }
+
+      releases = Extractor.extract_episodes_since(season, 2, 12)
+      assert releases == []
+    end
+
+    test "handles nil air_date" do
+      season = %{
+        "season_number" => 2,
+        "episodes" => [
+          %{"episode_number" => 13, "name" => "Ep 13", "air_date" => nil}
+        ]
+      }
+
+      releases = Extractor.extract_episodes_since(season, 2, 12)
+      assert length(releases) == 1
+      assert hd(releases).air_date == nil
+    end
+  end
+
   describe "extract_poster_path/1" do
     test "returns poster_path from response" do
       assert Extractor.extract_poster_path(%{"poster_path" => "/abc.jpg"}) == "/abc.jpg"

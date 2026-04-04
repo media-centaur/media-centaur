@@ -75,6 +75,30 @@ defmodule MediaCentaur.ReleaseTracking.Extractor do
     end)
   end
 
+  @doc """
+  Returns all episodes from a TMDB season response that come after the given
+  last_season/last_episode. Does NOT filter by date -- caller decides released vs upcoming.
+  """
+  def extract_episodes_since(season_data, last_season, last_episode) do
+    season_number = season_data["season_number"]
+
+    (season_data["episodes"] || [])
+    |> Enum.filter(fn ep ->
+      ep_num = ep["episode_number"]
+
+      season_number > last_season ||
+        (season_number == last_season && ep_num > last_episode)
+    end)
+    |> Enum.map(fn ep ->
+      %{
+        air_date: parse_date(ep["air_date"]),
+        season_number: season_number,
+        episode_number: ep["episode_number"],
+        title: ep["name"]
+      }
+    end)
+  end
+
   def extract_poster_path(response), do: response["poster_path"]
 
   defp parse_episode_release(episode) do
