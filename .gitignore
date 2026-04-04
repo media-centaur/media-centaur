@@ -56,5 +56,5 @@ npm-debug.log
 
 /todo/
 
-# Runtime image downloads
-/data/images/tracking/
+# Runtime data (downloaded images, etc.)
+/data/
