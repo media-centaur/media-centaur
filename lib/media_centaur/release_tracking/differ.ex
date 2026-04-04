@@ -30,23 +30,23 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
     Map.new(releases, fn release ->
       # Include title in key to distinguish multiple movie releases (both nil/nil)
       key = {
-        get_field(release, :season_number),
-        get_field(release, :episode_number),
-        get_field(release, :title)
+        field(release, :season_number),
+        field(release, :episode_number),
+        field(release, :title)
       }
 
       {key, release}
     end)
   end
 
-  defp get_field(%{} = map, field), do: Map.get(map, field)
+  defp field(%{} = map, key), do: Map.get(map, key)
 
   defp detect_date_changes(keys, old_by_key, new_by_key) do
     Enum.flat_map(keys, fn key ->
       old = old_by_key[key]
       new = new_by_key[key]
-      old_date = get_field(old, :air_date)
-      new_date = get_field(new, :air_date)
+      old_date = field(old, :air_date)
+      new_date = field(new, :air_date)
 
       if old_date != new_date do
         [
@@ -118,14 +118,14 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
         if elem(key, 0) do
           "S#{elem(key, 0)}E#{elem(key, 1)}"
         else
-          get_field(old, :title) || "Unknown"
+          field(old, :title) || "Unknown"
         end
 
       %{
         event_type: :date_changed,
         description: "#{label} removed from schedule",
         metadata: %{
-          old_date: get_field(old, :air_date),
+          old_date: field(old, :air_date),
           new_date: nil,
           season_number: elem(key, 0),
           episode_number: elem(key, 1),
