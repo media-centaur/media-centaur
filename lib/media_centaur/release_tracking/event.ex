@@ -12,11 +12,11 @@ defmodule MediaCentaur.ReleaseTracking.Event do
   schema "release_tracking_events" do
     field :event_type, Ecto.Enum,
       values: [
-        :date_changed,
+        :upcoming_release_date_changed,
         :new_season_announced,
         :new_episodes_announced,
-        :item_added,
-        :item_cancelled
+        :began_tracking,
+        :stopped_tracking
       ]
 
     field :description, :string

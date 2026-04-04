@@ -71,6 +71,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        upcoming_releases: %{upcoming: [], released: []},
        upcoming_events: [],
        upcoming_images: %{},
+       calendar_month: {Date.utc_today().year, Date.utc_today().month},
+       selected_day: nil,
        scanning: false,
        tracking_status: nil
      )
@@ -317,6 +319,39 @@ defmodule MediaCentaurWeb.LibraryLive do
     end)
 
     {:noreply, assign(socket, scanning: true)}
+  end
+
+  def handle_event("prev_month", _params, socket) do
+    {year, month} = socket.assigns.calendar_month
+    date = Date.new!(year, month, 1) |> Date.add(-1)
+    {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
+  end
+
+  def handle_event("next_month", _params, socket) do
+    {year, month} = socket.assigns.calendar_month
+    last_day = Date.new!(year, month, 1) |> Date.end_of_month()
+    date = Date.add(last_day, 1)
+    {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
+  end
+
+  def handle_event("jump_today", _params, socket) do
+    today = Date.utc_today()
+    {:noreply, assign(socket, calendar_month: {today.year, today.month}, selected_day: nil)}
+  end
+
+  def handle_event("select_day", %{"date" => ""}, socket) do
+    {:noreply, assign(socket, selected_day: nil)}
+  end
+
+  def handle_event("select_day", %{"date" => date_str}, socket) do
+    case Date.from_iso8601(date_str) do
+      {:ok, date} ->
+        selected = if socket.assigns.selected_day == date, do: nil, else: date
+        {:noreply, assign(socket, selected_day: selected)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event("toggle_tracking", _params, socket) do
@@ -680,6 +715,8 @@ defmodule MediaCentaurWeb.LibraryLive do
             releases={@upcoming_releases}
             events={@upcoming_events}
             images={@upcoming_images}
+            calendar_month={@calendar_month}
+            selected_day={@selected_day}
             scanning={@scanning}
           />
         </section>
@@ -782,14 +819,21 @@ defmodule MediaCentaurWeb.LibraryLive do
       |> MediaCentaur.Repo.all()
 
     # Index images by entity_id → %{backdrop: url, logo: url, poster: url}
+    role_atoms = %{"backdrop" => :backdrop, "logo" => :logo, "poster" => :poster}
+
     images_by_entity =
       Enum.reduce(images, %{}, fn image, acc ->
         entity_id = image.tv_series_id || image.movie_series_id
+        role = Map.get(role_atoms, image.role)
         url = if image.content_url, do: "/media-images/#{image.content_url}"
 
-        acc
-        |> Map.put_new(entity_id, %{})
-        |> update_in([entity_id, String.to_existing_atom(image.role)], fn _ -> url end)
+        if role && url do
+          acc
+          |> Map.put_new(entity_id, %{})
+          |> put_in([entity_id, role], url)
+        else
+          acc
+        end
       end)
 
     # Map tracking item IDs to their library entity's images

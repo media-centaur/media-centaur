@@ -412,8 +412,8 @@ defmodule MediaCentaur.TestFactory do
   def build_tracking_event(overrides \\ %{}) do
     defaults = %{
       id: Ecto.UUID.generate(),
-      event_type: :item_added,
-      description: "Now tracking Test Series",
+      event_type: :began_tracking,
+      description: "Began tracking Test Series",
       metadata: %{},
       item_id: nil
     }

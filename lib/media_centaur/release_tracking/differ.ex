@@ -51,7 +51,7 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
       if old_date != new_date do
         [
           %{
-            event_type: :date_changed,
+            event_type: :upcoming_release_date_changed,
             description: format_date_change(key, old_date, new_date),
             metadata: %{
               old_date: old_date,
@@ -122,7 +122,7 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
         end
 
       %{
-        event_type: :date_changed,
+        event_type: :upcoming_release_date_changed,
         description: "#{label} removed from schedule",
         metadata: %{
           old_date: field(old, :air_date),

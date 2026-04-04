@@ -41,7 +41,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       :ok = Refresher.refresh_item(item)
 
       events = ReleaseTracking.list_recent_events(10)
-      assert Enum.any?(events, &(&1.event_type == :date_changed))
+      assert Enum.any?(events, &(&1.event_type == :upcoming_release_date_changed))
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert hd(releases).air_date == ~D[2026-07-01]
@@ -77,7 +77,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       :ok = Refresher.refresh_item(item)
 
       events = ReleaseTracking.list_recent_events(10)
-      assert Enum.any?(events, &(&1.event_type == :date_changed))
+      assert Enum.any?(events, &(&1.event_type == :upcoming_release_date_changed))
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert length(releases) == 1
