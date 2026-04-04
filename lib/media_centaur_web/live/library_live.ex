@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     Settings
   }
 
-  alias MediaCentaurWeb.Components.{DetailPanel, LibraryCards, ModalShell}
+  alias MediaCentaurWeb.Components.{DetailPanel, LibraryCards, ModalShell, UpcomingCards}
 
   import MediaCentaurWeb.LibraryHelpers
 
@@ -36,6 +36,11 @@ defmodule MediaCentaurWeb.LibraryLive do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.settings_updates())
+
+      Phoenix.PubSub.subscribe(
+        MediaCentaur.PubSub,
+        MediaCentaur.Topics.release_tracking_updates()
+      )
     end
 
     {:ok,
@@ -61,7 +66,13 @@ defmodule MediaCentaurWeb.LibraryLive do
        delete_confirm: nil,
        detail_view: :main,
        detail_files: [],
-       spoiler_free: load_spoiler_free_setting()
+       spoiler_free: load_spoiler_free_setting(),
+       upcoming_path: ~p"/?zone=upcoming",
+       upcoming_releases: %{upcoming: [], released: []},
+       upcoming_events: [],
+       upcoming_images: %{},
+       scanning: false,
+       tracking_status: nil
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -88,6 +99,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         {nil, _} -> nil
         {_, :watching} -> :modal
         {_, :library} -> :modal
+        {_, :upcoming} -> nil
       end
 
     grid_changed =
@@ -119,6 +131,14 @@ defmodule MediaCentaurWeb.LibraryLive do
         detail_files
       end
 
+    tracking_status =
+      if selection_changed do
+        selected_entry = socket.assigns.entries_by_id[selected_id]
+        if selected_entry, do: load_tracking_status(selected_entry), else: nil
+      else
+        socket.assigns.tracking_status
+      end
+
     socket =
       socket
       |> assign(
@@ -129,9 +149,17 @@ defmodule MediaCentaurWeb.LibraryLive do
         selected_entity_id: selected_id,
         detail_presentation: presentation,
         detail_view: detail_view,
-        detail_files: detail_files
+        detail_files: detail_files,
+        tracking_status: tracking_status
       )
       |> then(fn s -> if grid_changed, do: reset_stream(s), else: s end)
+
+    socket =
+      if zone == :upcoming do
+        load_upcoming(socket)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
@@ -281,6 +309,33 @@ defmodule MediaCentaurWeb.LibraryLive do
   def handle_event("toggle_detail_view", _params, socket) do
     new_view = if socket.assigns.detail_view == :main, do: :info, else: :main
     {:noreply, push_patch(socket, to: build_path(socket, %{view: new_view}))}
+  end
+
+  def handle_event("scan_library", _params, socket) do
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      MediaCentaur.ReleaseTracking.Scanner.scan()
+    end)
+
+    {:noreply, assign(socket, scanning: true)}
+  end
+
+  def handle_event("toggle_tracking", _params, socket) do
+    selected_entry = socket.assigns.entries_by_id[socket.assigns.selected_entity_id]
+
+    case {socket.assigns.tracking_status, find_tmdb_id(selected_entry)} do
+      {:watching, {tmdb_id, media_type}} ->
+        item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
+        if item, do: MediaCentaur.ReleaseTracking.ignore_item(item)
+        {:noreply, assign(socket, tracking_status: :ignored)}
+
+      {:ignored, {tmdb_id, media_type}} ->
+        item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
+        if item, do: MediaCentaur.ReleaseTracking.watch_item(item)
+        {:noreply, assign(socket, tracking_status: :watching)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event("delete_file_prompt", %{"path" => file_path}, socket) do
@@ -508,6 +563,14 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
+  def handle_info({:releases_updated, _item_ids}, socket) do
+    if socket.assigns.zone == :upcoming do
+      {:noreply, load_upcoming(socket) |> assign(scanning: false)}
+    else
+      {:noreply, assign(socket, scanning: false)}
+    end
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -548,6 +611,16 @@ defmodule MediaCentaurWeb.LibraryLive do
             tabindex="0"
           >
             Library
+          </.link>
+          <.link
+            patch={@upcoming_path}
+            role="tab"
+            class={["tab", @zone == :upcoming && "tab-active"]}
+            data-nav-item
+            data-nav-zone-value="upcoming"
+            tabindex="0"
+          >
+            Upcoming
           </.link>
         </div>
 
@@ -601,6 +674,16 @@ defmodule MediaCentaurWeb.LibraryLive do
           </div>
         </section>
 
+        <%!-- Upcoming Releases zone --%>
+        <section :if={@zone == :upcoming} id="upcoming" class="space-y-6 pb-8">
+          <UpcomingCards.upcoming_zone
+            releases={@upcoming_releases}
+            events={@upcoming_events}
+            images={@upcoming_images}
+            scanning={@scanning}
+          />
+        </section>
+
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
         <ModalShell.modal_shell
           open={@selected_entry != nil && @detail_presentation == :modal}
@@ -614,6 +697,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           detail_files={@detail_files}
           delete_confirm={@delete_confirm}
           spoiler_free={@spoiler_free}
+          tracking_status={@tracking_status}
           on_play="play"
           on_close="close_detail"
         />
@@ -654,6 +738,83 @@ defmodule MediaCentaurWeb.LibraryLive do
     |> recompute_continue_watching()
     |> recompute_counts()
   end
+
+  defp load_upcoming(socket) do
+    releases = MediaCentaur.ReleaseTracking.list_releases()
+    events = MediaCentaur.ReleaseTracking.list_recent_events(10)
+    image_map = load_tracking_images(releases)
+
+    assign(socket,
+      upcoming_releases: releases,
+      upcoming_events: events,
+      upcoming_images: image_map
+    )
+  end
+
+  defp load_tracking_images(%{upcoming: upcoming, released: released}) do
+    all_releases = upcoming ++ released
+
+    all_releases
+    |> Enum.map(& &1.item)
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.filter(& &1.library_entity_id)
+    |> Enum.reduce(%{}, fn item, acc ->
+      case fetch_entity_images(item) do
+        nil -> acc
+        images -> Map.put(acc, item.id, images)
+      end
+    end)
+  end
+
+  defp fetch_entity_images(%{media_type: :tv_series, library_entity_id: entity_id}) do
+    case MediaCentaur.Library.get_tv_series_with_associations(entity_id) do
+      {:ok, entity} -> extract_images(entity)
+      _ -> nil
+    end
+  end
+
+  defp fetch_entity_images(%{media_type: :movie, library_entity_id: entity_id}) do
+    case MediaCentaur.Library.get_movie_series_with_associations(entity_id) do
+      {:ok, entity} -> extract_images(entity)
+      _ -> nil
+    end
+  end
+
+  defp fetch_entity_images(_), do: nil
+
+  defp extract_images(entity) do
+    %{
+      backdrop: MediaCentaurWeb.LiveHelpers.image_url(entity, "backdrop"),
+      logo: MediaCentaurWeb.LiveHelpers.image_url(entity, "logo"),
+      poster: MediaCentaurWeb.LiveHelpers.image_url(entity, "poster")
+    }
+  end
+
+  defp load_tracking_status(entry) do
+    case find_tmdb_id(entry) do
+      {tmdb_id, media_type} ->
+        MediaCentaur.ReleaseTracking.tracking_status({tmdb_id, media_type})
+
+      nil ->
+        nil
+    end
+  end
+
+  defp find_tmdb_id(%{entity: %{type: :tv_series} = entity}) do
+    case Enum.find(entity.external_ids, &(&1.source == "tmdb")) do
+      nil -> nil
+      ext_id -> {String.to_integer(ext_id.external_id), :tv_series}
+    end
+  end
+
+  defp find_tmdb_id(%{entity: %{type: :movie_series} = entity}) do
+    case Enum.find(entity.external_ids, &(&1.source == "tmdb_collection")) do
+      nil -> nil
+      ext_id -> {String.to_integer(ext_id.external_id), :movie}
+    end
+  end
+
+  defp find_tmdb_id(_), do: nil
 
   defp recompute_continue_watching(socket) do
     continue_watching =
@@ -776,6 +937,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   # --- URL Params ---
 
   defp parse_zone("library"), do: :library
+  defp parse_zone("upcoming"), do: :upcoming
   defp parse_zone(_), do: :watching
 
   defp parse_tab("movies"), do: :movies
@@ -802,6 +964,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     params = %{}
     params = if zone == :library, do: Map.put(params, :zone, :library), else: params
+    params = if zone == :upcoming, do: Map.put(params, :zone, :upcoming), else: params
     params = if zone == :library, do: Map.put(params, :tab, tab), else: params
     params = if zone == :library, do: Map.put(params, :sort, sort), else: params
     params = if filter != "", do: Map.put(params, :filter, filter), else: params

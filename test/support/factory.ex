@@ -368,4 +368,68 @@ defmodule MediaCentaur.TestFactory do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
     Library.find_or_create_extra_progress!(Map.merge(defaults, attrs))
   end
+
+  # ---------------------------------------------------------------------------
+  # Release Tracking
+  # ---------------------------------------------------------------------------
+
+  alias MediaCentaur.ReleaseTracking
+
+  def build_tracking_item(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      tmdb_id: :rand.uniform(999_999),
+      media_type: :tv_series,
+      name: "Test Tracked Series",
+      status: :watching,
+      source: :library,
+      library_entity_id: nil,
+      last_refreshed_at: nil,
+      poster_path: nil,
+      releases: [],
+      events: []
+    }
+
+    struct(ReleaseTracking.Item, Map.merge(defaults, overrides))
+  end
+
+  def build_tracking_release(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      air_date: Date.add(Date.utc_today(), 30),
+      title: "Episode 1",
+      season_number: 1,
+      episode_number: 1,
+      released: false,
+      item_id: nil
+    }
+
+    struct(ReleaseTracking.Release, Map.merge(defaults, overrides))
+  end
+
+  def build_tracking_event(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      event_type: :item_added,
+      description: "Now tracking Test Series",
+      metadata: %{},
+      item_id: nil
+    }
+
+    struct(ReleaseTracking.Event, Map.merge(defaults, overrides))
+  end
+
+  def create_tracking_item(attrs \\ %{}) do
+    defaults = %{
+      tmdb_id: :rand.uniform(999_999),
+      media_type: :tv_series,
+      name: "Test Tracked Series"
+    }
+
+    ReleaseTracking.track_item!(Map.merge(defaults, attrs))
+  end
+
+  def create_tracking_release(attrs) do
+    ReleaseTracking.create_release!(attrs)
+  end
 end

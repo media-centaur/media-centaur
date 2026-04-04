@@ -90,7 +90,8 @@ defmodule MediaCentaur.Application do
   defp pubsub_listeners(_env) do
     [
       MediaCentaur.Library.Inbound,
-      MediaCentaur.Review.Intake
+      MediaCentaur.Review.Intake,
+      MediaCentaur.ReleaseTracking.Refresher
     ]
   end
 

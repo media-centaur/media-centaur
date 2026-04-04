@@ -73,3 +73,7 @@ mpv_path = "/usr/bin/mpv"
 socket_dir = "/tmp"
 # Timeout in ms for connecting to the MPV IPC socket after launch.
 socket_timeout_ms = 5000
+
+[release_tracking]
+# How often to refresh TMDB data for tracked items (in hours)
+refresh_interval_hours = 24

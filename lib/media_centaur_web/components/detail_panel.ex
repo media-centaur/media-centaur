@@ -65,6 +65,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :detail_files, :list, default: []
   attr :delete_confirm, :any, default: nil
   attr :spoiler_free, :boolean, default: false
+  attr :tracking_status, :atom, default: nil
 
   def detail_panel(assigns) do
     expanded_seasons =
@@ -98,7 +99,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         phx-hook="ScrollForward"
         data-target="detail-content"
       >
-        <.hero entity={@entity} />
+        <.hero entity={@entity} tracking_status={@tracking_status} />
         <div class="p-4 space-y-4">
           <.metadata_row entity={@entity} />
           <div class="space-y-1">
@@ -168,6 +169,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           <.icon name="hero-film" class="size-12 text-base-content/20" />
         </div>
         <div class="absolute inset-0 bg-gradient-to-t from-base-100 via-base-100/60 via-30% to-transparent" />
+        <button
+          :if={@tracking_status}
+          phx-click="toggle_tracking"
+          class="absolute top-3 right-3 btn btn-circle btn-ghost btn-sm opacity-60 hover:opacity-100 transition-opacity"
+          title={tracking_title(@tracking_status)}
+        >
+          <.icon
+            name={tracking_icon(@tracking_status)}
+            class={"size-5 #{tracking_color(@tracking_status)}"}
+          />
+        </button>
         <div class="absolute bottom-4 left-4 right-4">
           <img
             :if={@logo}
@@ -185,6 +197,20 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     </div>
     """
   end
+
+  # --- Tracking Status Helpers ---
+
+  defp tracking_icon(:watching), do: "hero-bell-solid"
+  defp tracking_icon(:ignored), do: "hero-bell-slash"
+  defp tracking_icon(_), do: "hero-bell"
+
+  defp tracking_color(:watching), do: "text-info"
+  defp tracking_color(:ignored), do: "text-base-content/30"
+  defp tracking_color(_), do: "text-base-content/20"
+
+  defp tracking_title(:watching), do: "Tracking new releases — click to ignore"
+  defp tracking_title(:ignored), do: "Ignoring new releases — click to track"
+  defp tracking_title(_), do: "Not tracking"
 
   # --- Playback Actions (button + progress bar) ---
 
