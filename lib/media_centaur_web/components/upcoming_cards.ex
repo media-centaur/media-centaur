@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   attr :scanning, :boolean, default: false
   attr :calendar_month, :any, required: true
   attr :selected_day, :any, default: nil
+  attr :confirm_stop_item, :any, default: nil
 
   def upcoming_zone(assigns) do
     {year, month} = assigns.calendar_month
@@ -47,22 +48,129 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       |> assign(:weekdays, @weekdays)
 
     ~H"""
-    <div class="space-y-6">
-      <%!-- Header: month nav + scan button --%>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <button phx-click="prev_month" class="btn btn-ghost btn-sm btn-square">
-            <.icon name="hero-chevron-left-mini" class="size-5" />
-          </button>
-          <h2 class="text-lg font-semibold min-w-[10rem] text-center">{@month_label}</h2>
-          <button phx-click="next_month" class="btn btn-ghost btn-sm btn-square">
-            <.icon name="hero-chevron-right-mini" class="size-5" />
-          </button>
-          <button phx-click="jump_today" class="btn btn-ghost btn-xs ml-2 text-base-content/50">
-            Today
-          </button>
+    <div>
+      <%!-- Section navigation zone (uses > selector to avoid counting nested grid items) --%>
+      <div data-nav-zone="upcoming" class="space-y-6">
+        <%!-- Calendar section (nav item wraps header + grid — left/right changes month) --%>
+        <div
+          data-nav-item
+          data-section-type="calendar"
+          tabindex="0"
+          class="space-y-6 rounded-xl outline-none p-3"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <button phx-click="prev_month" class="btn btn-ghost btn-sm btn-square" tabindex="-1">
+                <.icon name="hero-chevron-left-mini" class="size-5" />
+              </button>
+              <h2 class="text-lg font-semibold min-w-[10rem] text-center">{@month_label}</h2>
+              <button phx-click="next_month" class="btn btn-ghost btn-sm btn-square" tabindex="-1">
+                <.icon name="hero-chevron-right-mini" class="size-5" />
+              </button>
+              <button
+                phx-click="jump_today"
+                class="btn btn-ghost btn-xs ml-2 text-base-content/50"
+                tabindex="-1"
+              >
+                Today
+              </button>
+            </div>
+          </div>
+
+          <div class="rounded-xl overflow-hidden border border-base-content/5">
+            <div class="grid grid-cols-7 bg-base-200/30">
+              <div
+                :for={day <- @weekdays}
+                class="py-2 text-center text-xs font-medium uppercase tracking-wider text-base-content/40"
+              >
+                {day}
+              </div>
+            </div>
+            <div :for={week <- @weeks} class="grid grid-cols-7 border-t border-base-content/5">
+              <.calendar_cell
+                :for={date <- week}
+                date={date}
+                month={@month}
+                today={@today}
+                releases={Map.get(@by_date, date, [])}
+                images={@images}
+                selected={@selected_day == date}
+              />
+            </div>
+          </div>
         </div>
+
+        <%!-- Selected day detail (not a nav item) --%>
+        <.day_detail
+          :if={@selected_releases}
+          day={@selected_day}
+          releases={@selected_releases}
+          images={@images}
+        />
+
+        <%!-- Released section (nav item) --%>
+        <div
+          :if={@released != []}
+          data-nav-item
+          data-section-type="released"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-3"
+        >
+          <h3 class="text-sm font-medium text-success uppercase tracking-wider">Released</h3>
+          <.released_content released={@released} upcoming={assigns.releases.upcoming} />
+        </div>
+
+        <%!-- Unscheduled section (nav item) --%>
+        <div
+          :if={@no_date != []}
+          data-nav-item
+          data-section-type="unscheduled"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-3"
+        >
+          <h3 class="text-sm font-medium text-base-content/40 uppercase tracking-wider">
+            Unscheduled
+          </h3>
+          <.unscheduled_content releases={@no_date} />
+        </div>
+
+        <%!-- Events section (nav item) --%>
+        <div
+          :if={@events != []}
+          data-nav-item
+          data-section-type="events"
+          tabindex="0"
+          class="rounded-xl outline-none p-3"
+        >
+          <.events_content events={@events} />
+        </div>
+
+        <%!-- Tracking section (nav item wraps heading + card grid — SELECT drills in) --%>
+        <div
+          :if={@tracked_items != []}
+          data-nav-item
+          data-section-type="tracking"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-3"
+        >
+          <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
+            Tracking
+          </h3>
+          <div data-nav-zone="grid">
+            <div
+              data-nav-grid
+              class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3"
+            >
+              <.tracked_item_card :for={item <- @tracked_items} item={item} images={@images} />
+            </div>
+          </div>
+        </div>
+
+        <%!-- Scan Library button --%>
         <button
+          data-nav-item
+          data-section-type="scan"
+          tabindex="0"
           phx-click="scan_library"
           class="btn btn-soft btn-primary btn-sm"
           disabled={@scanning}
@@ -71,60 +179,6 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           {if @scanning, do: "Scanning…", else: "Scan Library"}
         </button>
       </div>
-
-      <%!-- Calendar grid --%>
-      <div class="rounded-xl overflow-hidden border border-base-content/5">
-        <%!-- Weekday headers --%>
-        <div class="grid grid-cols-7 bg-base-200/30">
-          <div
-            :for={day <- @weekdays}
-            class="py-2 text-center text-xs font-medium uppercase tracking-wider text-base-content/40"
-          >
-            {day}
-          </div>
-        </div>
-
-        <%!-- Week rows --%>
-        <div :for={week <- @weeks} class="grid grid-cols-7 border-t border-base-content/5">
-          <.calendar_cell
-            :for={date <- week}
-            date={date}
-            month={@month}
-            today={@today}
-            releases={Map.get(@by_date, date, [])}
-            images={@images}
-            selected={@selected_day == date}
-          />
-        </div>
-      </div>
-
-      <%!-- Selected day detail --%>
-      <.day_detail
-        :if={@selected_releases}
-        day={@selected_day}
-        releases={@selected_releases}
-        images={@images}
-      />
-
-      <%!-- Released (aired but not in library) --%>
-      <.released_section
-        :if={@released != []}
-        released={@released}
-        upcoming={assigns.releases.upcoming}
-      />
-
-      <%!-- Unscheduled releases --%>
-      <.unscheduled :if={@no_date != []} releases={@no_date} images={@images} />
-
-      <%!-- Recent changes --%>
-      <.events_section :if={@events != []} events={@events} />
-
-      <%!-- All tracked items --%>
-      <.tracking_section
-        :if={@tracked_items != []}
-        items={@tracked_items}
-        images={@images}
-      />
 
       <%!-- Empty state --%>
       <div
@@ -135,6 +189,9 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         <p>No upcoming releases tracked</p>
         <p class="text-sm">Click "Scan Library" to find shows and movies with upcoming content</p>
       </div>
+
+      <%!-- Stop tracking confirmation modal --%>
+      <.stop_tracking_modal item={@confirm_stop_item} />
     </div>
     """
   end
@@ -337,65 +394,67 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     """
   end
 
-  # --- Released section (aired but not yet in library) ---
+  # --- Released section content ---
 
   attr :released, :list, required: true
   attr :upcoming, :list, required: true
 
-  defp released_section(assigns) do
+  defp released_content(assigns) do
     grouped = group_released_by_show(assigns.released, assigns.upcoming)
     assigns = assign(assigns, :grouped, grouped)
 
     ~H"""
-    <div class="space-y-3">
-      <h3 class="text-sm font-medium text-success uppercase tracking-wider">Released</h3>
-      <div class="space-y-1">
-        <p :for={{name, summary} <- @grouped} class="text-sm pl-3 py-0.5">
-          <span class="font-medium">{name}</span>
-          <span class="text-base-content/50"> —              {summary}</span>
-        </p>
-      </div>
+    <div class="space-y-1">
+      <p :for={{name, summary} <- @grouped} class="text-sm pl-3 py-0.5">
+        <span class="font-medium">{name}</span>
+        <span class="text-base-content/50"> —             {summary}</span>
+      </p>
     </div>
     """
   end
 
-  # --- Unscheduled section ---
+  # --- Unscheduled section content ---
 
   attr :releases, :list, required: true
-  attr :images, :map, default: %{}
 
-  defp unscheduled(assigns) do
+  defp unscheduled_content(assigns) do
     ~H"""
-    <div class="space-y-3">
-      <h3 class="text-sm font-medium text-base-content/40 uppercase tracking-wider">Unscheduled</h3>
-      <div class="space-y-1.5">
-        <div :for={release <- @releases} class="flex items-baseline gap-2 text-sm pl-3 py-0.5">
-          <span class="font-medium">{release.item.name}</span>
-          <span :if={release.season_number} class="text-base-content/50">
-            S{release.season_number}E{release.episode_number}
+    <div class="space-y-1.5">
+      <div :for={release <- @releases} class="flex items-baseline gap-2 text-sm pl-3 py-0.5">
+        <span class="font-medium">{release.item.name}</span>
+        <span :if={release.season_number} class="text-base-content/50">
+          S{release.season_number}E{release.episode_number}
+        </span>
+        <span :if={release.title} class="text-base-content/40">"{release.title}"</span>
+      </div>
+    </div>
+    """
+  end
+
+  # --- Events section content ---
+
+  attr :events, :list, required: true
+
+  defp events_content(assigns) do
+    ~H"""
+    <details open class="collapse collapse-arrow bg-base-200/30 rounded-box">
+      <summary class="collapse-title text-sm font-medium text-base-content/50">
+        Recent Changes
+      </summary>
+      <div class="collapse-content space-y-1.5 pt-1">
+        <p :for={event <- @events} class="text-sm text-base-content/60">
+          <span class="text-base-content/30">{format_datetime(event.inserted_at)}</span>
+          <span class="font-medium">{event.item_name}</span>
+          <span class="text-base-content/40">
+            — {event_label(event)}
           </span>
-          <span :if={release.title} class="text-base-content/40">"{release.title}"</span>
-        </div>
+        </p>
       </div>
-    </div>
+    </details>
     """
   end
 
-  # --- Tracking section (all tracked items as cards) ---
-
-  attr :items, :list, required: true
-  attr :images, :map, default: %{}
-
-  defp tracking_section(assigns) do
-    ~H"""
-    <div class="space-y-3">
-      <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">Tracking</h3>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-        <.tracked_item_card :for={item <- @items} item={item} images={@images} />
-      </div>
-    </div>
-    """
-  end
+  # --- Tracked item card ---
 
   attr :item, :map, required: true
   attr :images, :map, default: %{}
@@ -416,7 +475,14 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       |> assign(:status_text, assigns.item.status_text)
 
     ~H"""
-    <div class="relative rounded-lg overflow-hidden glass-inset group">
+    <div
+      data-nav-item
+      data-entity-id={@item_id}
+      tabindex="0"
+      phx-click="stop_tracking"
+      phx-value-item-id={@item_id}
+      class="relative rounded-lg overflow-hidden glass-inset group outline-none cursor-pointer"
+    >
       <div class="aspect-video relative">
         <img
           :if={@backdrop}
@@ -442,14 +508,6 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           </p>
           <p class="text-[11px] text-base-content/60 drop-shadow">{@status_text}</p>
         </div>
-        <button
-          phx-click="stop_tracking"
-          phx-value-item-id={@item_id}
-          class="absolute top-1.5 left-1.5 btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm text-error hover:text-error"
-          title="Stop tracking"
-        >
-          <.icon name="hero-x-mark-mini" class="size-3.5" /> Stop tracking
-        </button>
         <div class="absolute top-1.5 right-1.5">
           <span class={[
             "text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-black/40 backdrop-blur-sm",
@@ -464,26 +522,50 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     """
   end
 
-  # --- Events section ---
+  # --- Stop tracking confirmation modal ---
 
-  attr :events, :list, required: true
+  attr :item, :any, default: nil
 
-  defp events_section(assigns) do
+  defp stop_tracking_modal(%{item: nil} = assigns) do
     ~H"""
-    <details open class="collapse collapse-arrow bg-base-200/30 rounded-box">
-      <summary class="collapse-title text-sm font-medium text-base-content/50">
-        Recent Changes
-      </summary>
-      <div class="collapse-content space-y-1.5 pt-1">
-        <p :for={event <- @events} class="text-sm text-base-content/60">
-          <span class="text-base-content/30">{format_datetime(event.inserted_at)}</span>
-          <span class="font-medium">{event.item_name}</span>
-          <span class="text-base-content/40">
-             —                             {event_label(event)}
-          </span>
+    """
+  end
+
+  defp stop_tracking_modal(assigns) do
+    ~H"""
+    <div
+      class="modal-backdrop"
+      data-state="open"
+      data-detail-mode="modal"
+      data-dismiss-event="cancel_stop_tracking"
+      style="z-index: 60;"
+    >
+      <div class="modal-panel modal-panel-sm p-6" phx-click-away="cancel_stop_tracking">
+        <h3 class="text-lg font-bold text-error">Stop tracking?</h3>
+        <p class="mt-2 text-sm text-base-content/70">
+          Stop tracking <span class="font-semibold">{@item.name}</span>?
+          You won't see upcoming releases for this title anymore.
         </p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button
+            data-nav-item
+            tabindex="0"
+            phx-click="cancel_stop_tracking"
+            class="btn btn-ghost btn-sm"
+          >
+            Cancel
+          </button>
+          <button
+            data-nav-item
+            tabindex="0"
+            phx-click="confirm_stop_tracking"
+            class="btn btn-soft btn-error btn-sm"
+          >
+            Stop tracking
+          </button>
+        </div>
       </div>
-    </details>
+    </div>
     """
   end
 

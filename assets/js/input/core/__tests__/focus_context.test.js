@@ -147,13 +147,10 @@ describe("FocusContextMachine", () => {
       expect(machine.context).toBe(Context.MODAL)
     })
 
-    test("up/down navigate vertically", () => {
+    test("up/down/left navigate linearly", () => {
       expect(machine.transition(Action.NAVIGATE_UP)).toEqual({ type: "navigate", direction: "up" })
       expect(machine.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
-    })
-
-    test("left is blocked", () => {
-      expect(machine.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "none" })
+      expect(machine.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "navigate", direction: "left" })
     })
 
     test("right enters sub-focus", () => {

@@ -74,7 +74,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        calendar_month: {Date.utc_today().year, Date.utc_today().month},
        selected_day: nil,
        scanning: false,
-       tracking_status: nil
+       tracking_status: nil,
+       confirm_stop_item: nil
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -323,6 +324,13 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
     case MediaCentaur.ReleaseTracking.get_item(item_id) do
+      nil -> {:noreply, socket}
+      item -> {:noreply, assign(socket, confirm_stop_item: item)}
+    end
+  end
+
+  def handle_event("confirm_stop_tracking", _params, socket) do
+    case socket.assigns.confirm_stop_item do
       nil ->
         {:noreply, socket}
 
@@ -336,8 +344,15 @@ defmodule MediaCentaurWeb.LibraryLive do
 
         MediaCentaur.ReleaseTracking.delete_item(item)
 
-        {:noreply, load_upcoming(socket)}
+        {:noreply,
+         socket
+         |> assign(confirm_stop_item: nil)
+         |> load_upcoming()}
     end
+  end
+
+  def handle_event("cancel_stop_tracking", _params, socket) do
+    {:noreply, assign(socket, confirm_stop_item: nil)}
   end
 
   def handle_event("prev_month", _params, socket) do
@@ -737,6 +752,7 @@ defmodule MediaCentaurWeb.LibraryLive do
             calendar_month={@calendar_month}
             selected_day={@selected_day}
             scanning={@scanning}
+            confirm_stop_item={@confirm_stop_item}
           />
         </section>
 

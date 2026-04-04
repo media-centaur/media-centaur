@@ -16,6 +16,12 @@ const TEST_LAYOUTS = {
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
     drawer:    { left: ["grid", "toolbar"] },
   },
+  upcoming: {
+    zone_tabs: { down: ["upcoming"],           left: ["sidebar"] },
+    upcoming:  { up: ["zone_tabs"],            left: ["sidebar"] },
+    grid:      { up: ["upcoming", "zone_tabs"], left: ["upcoming", "sidebar"] },
+    sidebar:   { right: ["upcoming", "grid", "zone_tabs"] },
+  },
   settings: {
     sections:  { right: ["grid"],            left: ["sidebar"] },
     grid:      { left: ["sections"] },
@@ -32,6 +38,7 @@ const TEST_ALWAYS_POPULATED = ["sidebar", "sections"]
 const TEST_CURSOR_START_PRIORITY = {
   watching:  ["grid", "zone_tabs", "sidebar"],
   library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
+  upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
   settings:  ["sections", "grid", "sidebar"],
   dashboard: ["sections", "sidebar"],
 }
@@ -150,6 +157,61 @@ describe("buildNavGraph", () => {
 
     test("sidebar right blocked (all candidates empty)", () => {
       expect(graph.sidebar.right).toBeUndefined()
+    })
+  })
+
+  describe("upcoming zone, sections populated", () => {
+    const counts = { upcoming: 5, grid: 0, zone_tabs: 3, sidebar: 4 }
+    const graph = buildNavGraph("upcoming", counts, CONFIG)
+
+    test("zone_tabs down goes to upcoming", () => {
+      expect(graph.zone_tabs.down).toBe("upcoming")
+    })
+
+    test("upcoming up goes to zone_tabs", () => {
+      expect(graph.upcoming.up).toBe("zone_tabs")
+    })
+
+    test("upcoming left goes to sidebar", () => {
+      expect(graph.upcoming.left).toBe("sidebar")
+    })
+
+    test("upcoming has no right edge (not defined in layout)", () => {
+      expect(graph.upcoming.right).toBeUndefined()
+    })
+
+    test("sidebar right goes to upcoming (first populated candidate)", () => {
+      expect(graph.sidebar.right).toBe("upcoming")
+    })
+  })
+
+  describe("upcoming zone, with tracking grid", () => {
+    const counts = { upcoming: 5, grid: 8, zone_tabs: 3, sidebar: 4 }
+    const graph = buildNavGraph("upcoming", counts, CONFIG)
+
+    test("grid up goes to upcoming (first populated candidate)", () => {
+      expect(graph.grid.up).toBe("upcoming")
+    })
+
+    test("grid left goes to upcoming (first populated candidate)", () => {
+      expect(graph.grid.left).toBe("upcoming")
+    })
+
+    test("sidebar right goes to upcoming over grid", () => {
+      expect(graph.sidebar.right).toBe("upcoming")
+    })
+  })
+
+  describe("upcoming zone, sections empty", () => {
+    const counts = { upcoming: 0, grid: 0, zone_tabs: 3, sidebar: 4 }
+    const graph = buildNavGraph("upcoming", counts, CONFIG)
+
+    test("zone_tabs down blocked (upcoming is only candidate and empty)", () => {
+      expect(graph.zone_tabs.down).toBeUndefined()
+    })
+
+    test("sidebar right goes to zone_tabs (upcoming and grid empty)", () => {
+      expect(graph.sidebar.right).toBe("zone_tabs")
     })
   })
 
@@ -301,6 +363,14 @@ describe("buildNavGraph", () => {
 describe("resolveCursorStart", () => {
   test("library zone with full counts returns grid", () => {
     expect(resolveCursorStart("library", fullCounts(), CURSOR_CONFIG)).toBe("grid")
+  })
+
+  test("upcoming zone returns upcoming when populated", () => {
+    expect(resolveCursorStart("upcoming", { upcoming: 5, grid: 0, zone_tabs: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("upcoming")
+  })
+
+  test("upcoming zone falls back to grid when upcoming is empty", () => {
+    expect(resolveCursorStart("upcoming", { upcoming: 0, grid: 8, zone_tabs: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("grid")
   })
 
   test("library zone with empty grid returns toolbar", () => {

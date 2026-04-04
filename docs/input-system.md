@@ -243,8 +243,10 @@ Extracts library-specific concerns from the orchestrator. Receives a `dom` inter
 
 | Hook | Purpose |
 |------|---------|
-| `onEscape()` | Returns `"sidebar"` — BACK navigates to the main nav |
+| `onAction(action, context, focused)` | Calendar left/right → month nav; tracking SELECT → grid drill-in |
+| `onEscape()` | Returns `"upcoming"` from tracking grid, `"sidebar"` otherwise |
 | `onClear()` | Clear filter input if non-empty |
+| `onZoneChanged(context)` | Track tracking drill-in state (preserved through modal/drawer overlays) |
 | `onSyncState(reader)` | Detect sort order change → signal grid memory clear |
 
 ## Context Navigation Rules
@@ -253,10 +255,10 @@ Actions in each context:
 
 | Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | MODAL | DRAWER |
 |--------|------|---------|-----------|----------------|--------------|-------|--------|
-| Up | navigate | → ZONE_TABS | wall | navigate | navigate | navigate (wrap) | navigate |
-| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate | navigate (wrap) | navigate |
-| Left | navigate | navigate | navigate | wall | nav graph left | wall | → GRID (row edge) |
-| Right | navigate | navigate | navigate | exit sidebar | nav graph right | wall | wall |
+| Up | navigate | → ZONE_TABS | wall | navigate | navigate (wall → graph) | navigate (wrap) | navigate |
+| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate (wall → graph) | navigate (wrap) | navigate |
+| Left | navigate | navigate | navigate | wall | nav graph left | navigate (wrap) | → GRID (row edge) |
+| Right | navigate | navigate | navigate | exit sidebar | nav graph right | sub-focus / navigate | wall |
 | Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate |
 | Back | onEscape | onEscape | onEscape | exit sidebar | nav graph left | dismiss | dismiss |
 | Clear | onClear | onClear | onClear | — | — | — | — |
@@ -269,12 +271,15 @@ Actions in each context:
 
 **CLEAR behavior:** In any context, CLEAR delegates to the page behavior's `onClear()` hook. Currently only the library behavior implements this (clears the filter input). If no `onClear` exists, the action is silently dropped.
 
-**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`) use the navigation graph for left/right/back — if the graph points to `"sidebar"`, it produces `enter_sidebar`.
+**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"upcoming"`) use the navigation graph for left/right/back — if the graph points to `"sidebar"`, it produces `enter_sidebar`. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `upcoming` item transitions to `zone_tabs`).
+
+**Modal navigation:** UP/DOWN/LEFT navigate linearly with wrapping. RIGHT tries sub-focus first (entering a sub-item within the focused element); if no `[data-nav-sub-item]` exists, falls back to linear navigation. This makes both vertical item lists and horizontal button rows work without per-modal configuration.
 
 **Wall transitions** (when navigation reaches the edge):
 - Grid up → TOOLBAR (library zone) or ZONE_TABS (watching zone)
 - Grid left → nav graph target (sidebar in library/watching zones, sections in settings zone)
 - Grid right → DRAWER (if open)
+- MENU up/down → nav graph target for that direction (if defined)
 - Zone tabs/toolbar left at index 0 → SIDEBAR
 - Drawer left → GRID (rightmost column, same row)
 
@@ -287,7 +292,7 @@ Actions in each context:
 | `focus_first` | `context` | Restore focus memory (or first item) in context |
 | `grid_row_edge` | `side` | Focus leftmost/rightmost item in same grid row |
 | `activate` | — | Click the focused element |
-| `dismiss` | — | Push `close_detail` event to LiveView |
+| `dismiss` | — | Push dismiss event to LiveView (`data-dismiss-event` or `close_detail`) |
 | `play` | — | Push `play` event with entity ID, flash animation |
 | `zone_cycle` | `direction` | Click next/prev zone tab |
 | `enter_sidebar` | — | Expand sidebar, focus active item |
@@ -298,12 +303,14 @@ Actions in each context:
 
 | Attribute | Purpose | Values |
 |-----------|---------|--------|
-| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs` |
+| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `upcoming`, `zone-tabs` |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) | — |
 | `data-nav-grid` | CSS grid container (column count detection) | — |
 | `data-entity-id` | Stable entity identifier on cards | UUID |
 | `data-detail-mode` | Presentation shell type | `modal`, `drawer` |
 | `data-detail-view` | Sub-view within modal (read by orchestrator for layered BACK) | `main`, `info` |
+| `data-dismiss-event` | Custom event pushed on modal dismiss instead of `close_detail` | event name string |
+| `data-section-type` | Section identifier for page behavior `onAction` dispatch | `calendar`, `tracking`, `scan`, etc. |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
 | `data-page-behavior` | Page behavior to activate | `dashboard`, `library`, `review`, `settings` |
@@ -311,7 +318,7 @@ Actions in each context:
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
-| `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library` |
+| `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library`, `upcoming` |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |
@@ -319,7 +326,7 @@ Actions in each context:
 | `data-nav-context` | Current focus context for hint bar (set on `<html>`) | `grid`, `sidebar`, `modal`, etc. |
 | `data-gamepad-type` | Controller type for hint bar labels (set on `<html>`) | `xbox`, `playstation`, `generic` |
 
-**Nav zone containers must not nest.** Descendant selectors cross-contaminate.
+**Nav zone containers must not nest.** Descendant selectors cross-contaminate. Exception: a zone using a direct-child selector (`> [data-nav-item]`) can contain a nested zone without double-counting items. The `upcoming` zone uses this pattern — its tracking section nav item wraps a nested `grid` zone.
 
 ## Page Behavior System
 
@@ -332,6 +339,7 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
  *  @property {string[]} [activateOnFocus] - Menu contexts that click on focus during up/down nav
  *  @property {function(): void} [onAttach]
  *  @property {function(): void} [onDetach]
+ *  @property {function(string, string, Element): boolean|{transitionTo: string}} [onAction]
  *  @property {function(): boolean|string} [onEscape] - true to consume, string to navigate
  *  @property {function(): void} [onClear]  - CLEAR action (Y / Backspace)
  *  @property {function(string): void} [onZoneChanged]
@@ -344,10 +352,11 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 2. If behavior name changed, detach old behavior, create new one via registry
 3. `onAttach()` called on creation
 4. `onSyncState(reader)` called every sync cycle
-5. `onZoneChanged(zone)` called when zone changes
-6. `onClear()` called on CLEAR action — reset page state (e.g. clear filter)
-7. `onEscape()` called before normal BACK handling in content contexts — return `true` to consume, string to navigate to context
-8. `onDetach()` called on `destroy()` or behavior change
+5. `onZoneChanged(context)` called when focus context changes
+6. `onAction(action, context, focusedItem)` called at the start of `_handleAction`, before the state machine processes the action. Return `true` to consume, `{ transitionTo: "contextName" }` to transition focus, or `false`/`undefined` to pass through. Used for per-item directional overrides (e.g., calendar left/right → month nav) and custom drill-in transitions (e.g., tracking SELECT → grid).
+7. `onClear()` called on CLEAR action — reset page state (e.g. clear filter)
+8. `onEscape()` called before normal BACK handling in content contexts — return `true` to consume, string to navigate to context
+9. `onDetach()` called on `destroy()` or behavior change
 
 **Dependency injection:** Behavior factories receive their DOM interface at creation time. No global scope access — keeps behaviors testable with mocks.
 

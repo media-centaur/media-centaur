@@ -125,6 +125,14 @@ export function createDomReader(config = {}) {
     },
 
     /**
+     * Get the custom dismiss event name for the current modal, or null if not specified.
+     * The orchestrator falls back to "close_detail" when null.
+     */
+    getDismissEvent() {
+      return document.querySelector("[data-detail-mode='modal']")?.dataset?.dismissEvent ?? null
+    },
+
+    /**
      * Get the current presentation mode.
      */
     getPresentation() {
