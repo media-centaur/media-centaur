@@ -33,7 +33,7 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
       new = [%{season_number: 1, episode_number: 1, air_date: ~D[2026-07-01], title: "Pilot"}]
 
       assert [event] = Differ.diff(old, new)
-      assert event.event_type == :date_changed
+      assert event.event_type == :upcoming_release_date_changed
       assert event.metadata.old_date == ~D[2026-06-15]
       assert event.metadata.new_date == ~D[2026-07-01]
     end
@@ -95,7 +95,7 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
       new = [%{season_number: 1, episode_number: 1, air_date: ~D[2026-06-15], title: "Pilot"}]
 
       assert [event] = Differ.diff(old, new)
-      assert event.event_type == :date_changed
+      assert event.event_type == :upcoming_release_date_changed
       assert String.contains?(event.description, "removed")
     end
   end
