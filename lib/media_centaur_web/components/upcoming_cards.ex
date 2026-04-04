@@ -41,6 +41,8 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       |> assign(:weeks, weeks)
       |> assign(:by_date, by_date)
       |> assign(:no_date, no_date)
+      |> assign(:released, assigns.releases.released)
+      |> assign(:tracked_items, build_tracked_items(all_releases))
       |> assign(:selected_releases, selected_releases)
       |> assign(:weekdays, @weekdays)
 
@@ -104,11 +106,25 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         images={@images}
       />
 
+      <%!-- Released (aired but not in library) --%>
+      <.released_section
+        :if={@released != []}
+        released={@released}
+        upcoming={assigns.releases.upcoming}
+      />
+
       <%!-- Unscheduled releases --%>
       <.unscheduled :if={@no_date != []} releases={@no_date} images={@images} />
 
       <%!-- Recent changes --%>
       <.events_section :if={@events != []} events={@events} />
+
+      <%!-- All tracked items --%>
+      <.tracking_section
+        :if={@tracked_items != []}
+        items={@tracked_items}
+        images={@images}
+      />
 
       <%!-- Empty state --%>
       <div
@@ -321,6 +337,28 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     """
   end
 
+  # --- Released section (aired but not yet in library) ---
+
+  attr :released, :list, required: true
+  attr :upcoming, :list, required: true
+
+  defp released_section(assigns) do
+    grouped = group_released_by_show(assigns.released, assigns.upcoming)
+    assigns = assign(assigns, :grouped, grouped)
+
+    ~H"""
+    <div class="space-y-3">
+      <h3 class="text-sm font-medium text-success uppercase tracking-wider">Released</h3>
+      <div class="space-y-1">
+        <p :for={{name, summary} <- @grouped} class="text-sm pl-3 py-0.5">
+          <span class="font-medium">{name}</span>
+          <span class="text-base-content/50"> —             {summary}</span>
+        </p>
+      </div>
+    </div>
+    """
+  end
+
   # --- Unscheduled section ---
 
   attr :releases, :list, required: true
@@ -343,6 +381,89 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     """
   end
 
+  # --- Tracking section (all tracked items as cards) ---
+
+  attr :items, :list, required: true
+  attr :images, :map, default: %{}
+
+  defp tracking_section(assigns) do
+    ~H"""
+    <div class="space-y-3">
+      <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">Tracking</h3>
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+        <.tracked_item_card :for={item <- @items} item={item} images={@images} />
+      </div>
+    </div>
+    """
+  end
+
+  attr :item, :map, required: true
+  attr :images, :map, default: %{}
+
+  defp tracked_item_card(assigns) do
+    item_data = assigns.item.item
+    item_images = Map.get(assigns.images, item_data.id, %{})
+    backdrop = item_images[:backdrop] || item_images[:poster]
+    logo = item_images[:logo]
+
+    assigns =
+      assigns
+      |> assign(:item_id, item_data.id)
+      |> assign(:backdrop, backdrop)
+      |> assign(:logo, logo)
+      |> assign(:name, item_data.name)
+      |> assign(:media_type, item_data.media_type)
+      |> assign(:status_text, assigns.item.status_text)
+
+    ~H"""
+    <div class="relative rounded-lg overflow-hidden glass-inset group">
+      <div class="aspect-video relative">
+        <img
+          :if={@backdrop}
+          src={@backdrop}
+          class="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div :if={!@backdrop} class="w-full h-full flex items-center justify-center bg-base-300">
+          <.icon name="hero-film" class="size-8 text-base-content/15" />
+        </div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 via-40% to-transparent" />
+        <div class="absolute bottom-2 left-2 right-2 space-y-0.5">
+          <img
+            :if={@logo}
+            src={@logo}
+            class="max-h-8 max-w-[65%] object-contain drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)]"
+          />
+          <p
+            :if={!@logo}
+            class="text-sm font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] leading-tight truncate"
+          >
+            {@name}
+          </p>
+          <p class="text-[11px] text-base-content/60 drop-shadow">{@status_text}</p>
+        </div>
+        <button
+          phx-click="stop_tracking"
+          phx-value-item-id={@item_id}
+          class="absolute top-1.5 left-1.5 btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm text-error hover:text-error"
+          title="Stop tracking"
+        >
+          <.icon name="hero-x-mark-mini" class="size-3.5" /> Stop tracking
+        </button>
+        <div class="absolute top-1.5 right-1.5">
+          <span class={[
+            "text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-black/40 backdrop-blur-sm",
+            @media_type == :tv_series && "text-info",
+            @media_type == :movie && "text-warning"
+          ]}>
+            {if @media_type == :tv_series, do: "TV", else: "Movie"}
+          </span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   # --- Events section ---
 
   attr :events, :list, required: true
@@ -357,7 +478,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         <p :for={event <- @events} class="text-sm text-base-content/60">
           <span class="text-base-content/30">{format_datetime(event.inserted_at)}</span>
           <span class="font-medium">{event.item.name}</span>
-          <span class="text-base-content/40"> —       {event_label(event)}</span>
+          <span class="text-base-content/40"> —                            {event_label(event)}</span>
         </p>
       </div>
     </details>
@@ -382,10 +503,78 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     |> Enum.reject(fn week -> Enum.all?(week, &(&1.month != month)) end)
   end
 
+  # Build unique tracked items with a status summary for each
+  defp build_tracked_items(all_releases) do
+    all_releases
+    |> Enum.group_by(& &1.item_id)
+    |> Enum.map(fn {_item_id, releases} ->
+      item = hd(releases).item
+      upcoming_count = Enum.count(releases, &(not &1.released))
+      released_count = Enum.count(releases, & &1.released)
+
+      status_text =
+        case {upcoming_count, released_count} do
+          {0, 0} -> "tracking"
+          {u, 0} -> "#{u} upcoming"
+          {0, r} -> "#{r} released"
+          {u, r} -> "#{u} upcoming, #{r} released"
+        end
+
+      %{item: item, status_text: status_text}
+    end)
+    |> Enum.sort_by(& &1.item.name)
+  end
+
   defp releases_by_date(releases) do
     releases
     |> Enum.filter(& &1.air_date)
     |> Enum.group_by(& &1.air_date)
+  end
+
+  defp group_released_by_show(released, upcoming) do
+    # Build a set of {item_name, season_number} that still have upcoming episodes
+    seasons_with_upcoming =
+      upcoming
+      |> Enum.filter(& &1.season_number)
+      |> MapSet.new(&{&1.item.name, &1.season_number})
+
+    released
+    |> Enum.group_by(& &1.item.name)
+    |> Enum.map(fn {name, show_releases} ->
+      summary =
+        show_releases
+        |> Enum.sort_by(&{&1.season_number || 0, &1.episode_number || 0})
+        |> summarize_released(name, seasons_with_upcoming)
+
+      {name, summary}
+    end)
+    |> Enum.sort_by(&elem(&1, 0))
+  end
+
+  defp summarize_released([%{season_number: nil, title: title}], _name, _upcoming) do
+    title || "available"
+  end
+
+  defp summarize_released(episodes, name, seasons_with_upcoming) do
+    episodes
+    |> Enum.group_by(& &1.season_number)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Enum.map(fn {season, eps} ->
+      season_complete = not MapSet.member?(seasons_with_upcoming, {name, season})
+      ep_nums = Enum.map(eps, & &1.episode_number) |> Enum.sort()
+
+      cond do
+        season_complete && List.first(ep_nums) == 1 ->
+          "season #{season} available in full"
+
+        match?([_], ep_nums) ->
+          "season #{season} episode #{hd(ep_nums)} available"
+
+        true ->
+          "season #{season} episodes #{List.first(ep_nums)}–#{List.last(ep_nums)} available"
+      end
+    end)
+    |> Enum.join(", ")
   end
 
   defp event_label(%{event_type: :began_tracking}), do: "began tracking"
