@@ -327,7 +327,15 @@ defmodule MediaCentaurWeb.LibraryLive do
         {:noreply, socket}
 
       item ->
+        MediaCentaur.ReleaseTracking.create_event!(%{
+          item_id: item.id,
+          item_name: item.name,
+          event_type: :stopped_tracking,
+          description: "Stopped tracking #{item.name}"
+        })
+
         MediaCentaur.ReleaseTracking.delete_item(item)
+
         {:noreply, load_upcoming(socket)}
     end
   end

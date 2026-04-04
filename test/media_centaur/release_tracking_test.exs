@@ -123,6 +123,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert {:ok, event} =
                ReleaseTracking.create_event(%{
                  item_id: item.id,
+                 item_name: item.name,
                  event_type: :began_tracking,
                  description: "Now tracking #{item.name}"
                })
@@ -137,12 +138,14 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       ReleaseTracking.create_event!(%{
         item_id: item.id,
+        item_name: item.name,
         event_type: :began_tracking,
         description: "First"
       })
 
       ReleaseTracking.create_event!(%{
         item_id: item.id,
+        item_name: item.name,
         event_type: :new_season_announced,
         description: "Second"
       })

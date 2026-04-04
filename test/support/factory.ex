@@ -414,6 +414,7 @@ defmodule MediaCentaur.TestFactory do
       id: Ecto.UUID.generate(),
       event_type: :began_tracking,
       description: "Began tracking Test Series",
+      item_name: "Test Series",
       metadata: %{},
       item_id: nil
     }
