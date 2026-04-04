@@ -76,7 +76,30 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         status = Extractor.extract_tv_status(response)
 
         if status in [:returning, :in_production, :planned] do
-          releases = Extractor.extract_tv_releases(response)
+          {last_season, last_episode} = find_last_library_episode(library_entity_id)
+
+          seasons_to_fetch = seasons_to_fetch(response, last_season)
+
+          releases =
+            seasons_to_fetch
+            |> Enum.flat_map(fn season_num ->
+              case Client.get_season(tmdb_id, season_num) do
+                {:ok, season_data} ->
+                  Extractor.extract_episodes_since(season_data, last_season, last_episode)
+
+                {:error, _} ->
+                  []
+              end
+            end)
+            |> mark_released()
+
+          # Fall back to next_episode_to_air if no season data returned releases
+          releases =
+            if releases == [] do
+              Extractor.extract_tv_releases(response) |> mark_released()
+            else
+              releases
+            end
 
           create_tracked_item(
             tmdb_id,
@@ -84,7 +107,9 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
             response["name"],
             library_entity_id,
             releases,
-            response
+            response,
+            last_library_season: last_season,
+            last_library_episode: last_episode
           )
 
           :tracked
@@ -132,7 +157,15 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
     end
   end
 
-  defp create_tracked_item(tmdb_id, media_type, name, library_entity_id, releases, response) do
+  defp create_tracked_item(
+         tmdb_id,
+         media_type,
+         name,
+         library_entity_id,
+         releases,
+         response,
+         opts \\ []
+       ) do
     {:ok, item} =
       ReleaseTracking.track_item(%{
         tmdb_id: tmdb_id,
@@ -140,7 +173,9 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         name: name,
         source: :library,
         library_entity_id: library_entity_id,
-        last_refreshed_at: DateTime.utc_now()
+        last_refreshed_at: DateTime.utc_now(),
+        last_library_season: Keyword.get(opts, :last_library_season, 0),
+        last_library_episode: Keyword.get(opts, :last_library_episode, 0)
       })
 
     Enum.each(releases, fn release ->
@@ -149,7 +184,8 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         air_date: release[:air_date],
         title: release[:title],
         season_number: release[:season_number],
-        episode_number: release[:episode_number]
+        episode_number: release[:episode_number],
+        released: release[:released] || false
       })
     end)
 
@@ -182,4 +218,40 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
 
   defp parse_tmdb_id(id) when is_integer(id), do: id
   defp parse_tmdb_id(id) when is_binary(id), do: String.to_integer(id)
+
+  defp find_last_library_episode(nil), do: {0, 0}
+
+  defp find_last_library_episode(library_entity_id) do
+    result =
+      from(e in MediaCentaur.Library.Episode,
+        join: s in MediaCentaur.Library.Season,
+        on: e.season_id == s.id,
+        where: s.tv_series_id == ^library_entity_id,
+        select: {s.season_number, e.episode_number},
+        order_by: [desc: s.season_number, desc: e.episode_number],
+        limit: 1
+      )
+      |> Repo.one()
+
+    result || {0, 0}
+  end
+
+  defp seasons_to_fetch(response, last_season) do
+    total_seasons = response["number_of_seasons"] || 1
+    next_ep = response["next_episode_to_air"]
+    next_season = if next_ep, do: next_ep["season_number"], else: total_seasons
+
+    seasons = [max(last_season, 1)]
+    seasons = if next_season > hd(seasons), do: seasons ++ [next_season], else: seasons
+    Enum.uniq(seasons)
+  end
+
+  defp mark_released(releases) do
+    today = Date.utc_today()
+
+    Enum.map(releases, fn release ->
+      released = release.air_date != nil && Date.compare(release.air_date, today) != :gt
+      Map.put(release, :released, released)
+    end)
+  end
 end

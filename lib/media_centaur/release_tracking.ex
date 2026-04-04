@@ -38,6 +38,10 @@ defmodule MediaCentaur.ReleaseTracking do
     Repo.get_by(Item, tmdb_id: tmdb_id, media_type: media_type)
   end
 
+  def delete_item(%Item{} = item) do
+    Repo.delete(item)
+  end
+
   def list_watching_items do
     from(i in Item,
       where: i.status == :watching,
