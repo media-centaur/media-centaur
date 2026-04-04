@@ -58,3 +58,4 @@ npm-debug.log
 
 # Runtime data (downloaded images, etc.)
 /data/
+.superpowers/

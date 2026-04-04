@@ -46,7 +46,10 @@ export class Orchestrator {
     this.focusMachine = new FocusContextMachine({
       instanceTypes: config.instanceTypes,
       primaryMenu: config.primaryMenu,
-      onContextChanged: (context) => this.writer?.setNavContext?.(context),
+      onContextChanged: (context) => {
+        this.writer?.setNavContext?.(context)
+        this._behavior?.onZoneChanged?.(context)
+      },
     })
     this.inputDetector = new InputMethodDetector()
     this.reader = config.reader
@@ -436,6 +439,21 @@ export class Orchestrator {
   }
 
   _handleAction(action) {
+    // Let page behavior intercept actions before framework processing.
+    // Returns: false/undefined = passthrough, true = consumed,
+    // { transitionTo: string } = save memory + transition to context.
+    if (this._behavior?.onAction) {
+      const focused = this.reader.getCurrentFocusedItem()
+      const result = this._behavior.onAction(action, this.focusMachine.context, focused)
+      if (result === true) return
+      if (result?.transitionTo) {
+        this._saveContextMemory()
+        this.focusMachine.forceContext(result.transitionTo)
+        this._restoreContextFocus(result.transitionTo)
+        return
+      }
+    }
+
     // SELECT on a MENU = confirm selection + exit the menu.
     // Primary menu: activate-on-focus already clicked the item during up/down
     // navigation, so just exit (no redundant click that would trigger remount).
@@ -661,6 +679,16 @@ export class Orchestrator {
         this.focusMachine.enterSidebarFromWall()
         this._executeEnterSidebar()
       }
+      // Up/down wall on MENU → try nav graph neighbor
+      else if ((direction === "up" || direction === "down") &&
+               contextType(context, this._config.instanceTypes) === Context.MENU) {
+        this._saveContextMemory()
+        const wallDirective = this.focusMachine.contextWall(context, direction)
+        if (wallDirective.type === "enter_sidebar") {
+          this._preSidebarContext = context
+        }
+        this._executeDirective(wallDirective)
+      }
       return
     }
 
@@ -749,7 +777,8 @@ export class Orchestrator {
       return
     }
 
-    this._hookEl.pushEvent("close_detail", {})
+    const dismissEvent = this.reader.getDismissEvent?.() ?? "close_detail"
+    this._hookEl.pushEvent(dismissEvent, {})
     // Proactively restore — don't wait for onViewChanged() which may not
     // fire if the hook element isn't directly patched by morphdom.
     this.focusMachine.presentationChanged(null)
@@ -769,7 +798,9 @@ export class Orchestrator {
       this._subFocusIndex = this.reader.getFocusedIndex(context)
       subItem.focus({ preventScroll: true })
     } else {
+      // No sub-item — fall back to linear navigation (e.g. horizontal button row)
       this.focusMachine.clearSubFocus()
+      this._linearNavigate(context, "right")
     }
   }
 
@@ -823,7 +854,7 @@ export class Orchestrator {
     const primaryMenu = this._config.primaryMenu
 
     // Use pre-sidebar context if still populated, otherwise consult graph
-    const graphTarget = this.focusMachine._navGraph?.[primaryMenu]?.right
+    const graphTarget = this.focusMachine.getGraphTarget(primaryMenu, "right")
     const restoreTo =
       (preferred && this.reader.getItemCount(preferred) > 0) ? preferred :
       graphTarget ?? null

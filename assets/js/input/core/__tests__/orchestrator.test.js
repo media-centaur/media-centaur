@@ -19,6 +19,12 @@ const TEST_LAYOUTS = {
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
     drawer:    { left: ["grid", "toolbar"] },
   },
+  upcoming: {
+    zone_tabs: { down: ["upcoming"],           left: ["sidebar"] },
+    upcoming:  { up: ["zone_tabs"],            left: ["sidebar"] },
+    grid:      { up: ["upcoming", "zone_tabs"], left: ["upcoming", "sidebar"] },
+    sidebar:   { right: ["upcoming", "grid", "zone_tabs"] },
+  },
   settings: {
     sections:  { right: ["grid"],            left: ["sidebar"] },
     grid:      { left: ["sections"] },
@@ -33,15 +39,17 @@ const TEST_CONFIG = {
     zone_tabs: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
+    upcoming: "[data-nav-zone='upcoming'] > [data-nav-item]",
     drawer: "[data-detail-mode='drawer'] [data-nav-item]",
     modal: "[data-detail-mode='modal'] [data-nav-item]",
   },
-  instanceTypes: { sidebar: "menu", sections: "menu" },
+  instanceTypes: { sidebar: "menu", sections: "menu", upcoming: "menu" },
   primaryMenu: "sidebar",
   layouts: TEST_LAYOUTS,
   cursorStartPriority: {
     watching:  ["grid", "zone_tabs", "sidebar"],
     library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
+    upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
   },
   alwaysPopulated: ["sidebar", "sections"],
@@ -1037,6 +1045,28 @@ describe("Orchestrator", () => {
       expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
     })
 
+    test("BACK in modal uses custom dismiss event when getDismissEvent is set", () => {
+      let onActionCallback = null
+      const hookEl = { pushEvent: mock(() => {}) }
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPresentation: () => "modal",
+        getDismissEvent: () => "cancel_stop_tracking",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start(hookEl)
+
+      onActionCallback(Action.BACK)
+
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("cancel_stop_tracking", {})
+    })
+
     test("BACK in drawer bypasses onEscape and dismisses", () => {
       let escapeCalled = false
       let onActionCallback = null
@@ -1125,6 +1155,269 @@ describe("Orchestrator", () => {
 
       globals._dispatchKeyDown("Backspace")
       expect(clearCalled).toBe(true)
+    })
+  })
+
+  describe("onAction behavior hook", () => {
+    test("onAction returning true consumes the action", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getItemCount: () => 8,
+        getCurrentFocusedItem: () => ({ dataset: { sectionType: "calendar" } }),
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system._behavior = {
+        onAction: (action, context, focused) => {
+          if (focused?.dataset?.sectionType === "calendar") return true
+          return false
+        },
+      }
+      calls.length = 0
+
+      onActionCallback(Action.NAVIGATE_LEFT)
+
+      // Action was consumed — no focus changes
+      const focusCalls = calls.filter(c => c.method === "focusByIndex" || c.method === "focusFirst")
+      expect(focusCalls.length).toBe(0)
+    })
+
+    test("onAction returning false lets framework handle it", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getItemCount: () => 8,
+        getCurrentFocusedItem: () => ({ dataset: {} }),
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system._behavior = {
+        onAction: () => false,
+      }
+      calls.length = 0
+
+      onActionCallback(Action.NAVIGATE_DOWN)
+
+      // Action was NOT consumed — framework handles it (grid navigate)
+      const focusCalls = calls.filter(c => c.method === "focusByIndex")
+      expect(focusCalls.length).toBe(1)
+    })
+
+    test("onAction returning transitionTo changes context and focuses it", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getItemCount: (ctx) => ctx === "upcoming" ? 5 : 8,
+        getCurrentFocusedItem: () => ({ dataset: { sectionType: "tracking" } }),
+        getFocusedIndex: () => 0,
+        getActiveItemIndex: () => -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("upcoming")
+      system._behavior = {
+        onAction: (action) => {
+          if (action === Action.SELECT) return { transitionTo: "GRID" }
+          return false
+        },
+      }
+      calls.length = 0
+
+      onActionCallback(Action.SELECT)
+
+      // Should transition to GRID context
+      expect(system.focusMachine.context).toBe("GRID")
+      // Should attempt to focus the grid
+      const focusCalls = calls.filter(c => c.method === "focusFirst")
+      expect(focusCalls.length).toBe(1)
+      expect(focusCalls[0].args).toEqual(["GRID"])
+    })
+
+    test("onAction is not called when behavior has no onAction", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getItemCount: () => 8,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system._behavior = {
+        // no onAction defined
+      }
+      calls.length = 0
+
+      onActionCallback(Action.NAVIGATE_DOWN)
+
+      // Should fall through to normal handling
+      const focusCalls = calls.filter(c => c.method === "focusByIndex")
+      expect(focusCalls.length).toBe(1)
+    })
+  })
+
+  describe("onZoneChanged behavior callback", () => {
+    test("onZoneChanged fires when context changes", () => {
+      const zoneChanges = []
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getItemCount: (ctx) => ctx === "upcoming" ? 5 : 8,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system._behavior = {
+        onZoneChanged: (ctx) => zoneChanges.push(ctx),
+        onAction: (action) => {
+          if (action === Action.SELECT) return { transitionTo: "GRID" }
+          return false
+        },
+      }
+
+      system.focusMachine.forceContext("upcoming")
+      onActionCallback(Action.SELECT)
+
+      // Should have recorded the transitions
+      expect(zoneChanges).toContain("upcoming")
+      expect(zoneChanges).toContain("GRID")
+    })
+  })
+
+  describe("MENU up/down wall uses nav graph", () => {
+    test("UP at top of non-primary menu transitions to nav graph up neighbor", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "upcoming",
+        getItemCount: (ctx) => ctx === "upcoming" ? 5 : 3,
+        getFocusedIndex: (ctx) => ctx === "upcoming" ? 0 : -1,
+        getActiveItemIndex: () => -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("upcoming")
+      calls.length = 0
+
+      onActionCallback(Action.NAVIGATE_UP)
+
+      // Should transition to zone_tabs (upcoming.up in nav graph)
+      expect(system.focusMachine.context).toBe("zone_tabs")
+    })
+
+    test("DOWN at bottom of non-primary menu is a wall when no down edge", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getZone: () => "upcoming",
+        getItemCount: (ctx) => ctx === "upcoming" ? 5 : 3,
+        getFocusedIndex: (ctx) => ctx === "upcoming" ? 4 : -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("upcoming")
+      calls.length = 0
+
+      onActionCallback(Action.NAVIGATE_DOWN)
+
+      // No down edge for upcoming — should stay in upcoming
+      expect(system.focusMachine.context).toBe("upcoming")
+    })
+
+    test("UP wall on primary menu (sidebar) does NOT transition via nav graph", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getItemCount: () => 4,
+        getFocusedIndex: (ctx) => ctx === "sidebar" ? 0 : -1,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+      calls.length = 0
+
+      onActionCallback(Action.NAVIGATE_UP)
+
+      // Primary menu has no up edge — should stay in sidebar
+      expect(system.focusMachine.context).toBe("sidebar")
+    })
+  })
+
+  describe("sub-focus fallback", () => {
+    test("RIGHT in modal falls back to linear nav when no sub-item exists", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      // Mock items with no sub-items (querySelector returns null)
+      const mockItem = { querySelector: () => null, dataset: {} }
+      const { system, calls } = setup({
+        getPresentation: () => "modal",
+        getItemCount: () => 2,
+        getFocusedIndex: () => 0,
+        getCurrentFocusedItem: () => mockItem,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+      system.focusMachine.forceContext("modal")
+      calls.length = 0
+
+      onActionCallback(Action.NAVIGATE_RIGHT)
+
+      // Should fall back to linear navigation — focus next item (index 1)
+      const focusCalls = calls.filter(c => c.method === "focusByIndex")
+      expect(focusCalls.length).toBe(1)
+      expect(focusCalls[0].args).toEqual(["modal", 1])
     })
   })
 

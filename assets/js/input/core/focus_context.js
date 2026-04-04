@@ -223,7 +223,7 @@ export class FocusContextMachine {
     switch (action) {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
-      case Action.NAVIGATE_LEFT:  return NONE
+      case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: this._subFocus = true; return enterSubFocus()
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return DISMISS
@@ -358,40 +358,46 @@ export class FocusContextMachine {
   }
 
   /**
+   * Look up the nav graph neighbor for a context in a given direction.
+   * @param {string} context - The source context
+   * @param {"up"|"down"|"left"|"right"} direction
+   * @returns {string|undefined} The target context name, or undefined if no edge.
+   */
+  getGraphTarget(context, direction) {
+    return this._navGraph?.[context]?.[direction]
+  }
+
+  /**
+   * General wall handler: look up a nav graph edge for any context and direction.
+   * Handles sidebar entry when the target is the primary menu.
+   * @param {string} context - The source context
+   * @param {"up"|"down"|"left"|"right"} direction
+   * @returns {FocusDirective}
+   */
+  contextWall(context, direction) {
+    const target = this.getGraphTarget(context, direction)
+    if (!target) return NONE
+    if (target === this._config.primaryMenu) {
+      this._setContext(this._config.primaryMenu)
+      return { type: "enter_sidebar" }
+    }
+    this._setContext(target)
+    return focusFirst(target)
+  }
+
+  /**
    * Called by the orchestrator when grid navigation hits a wall.
-   * Returns a directive for cross-context navigation (e.g., up from top row → toolbar).
+   * Delegates to contextWall for up/left; handles right → drawer specially.
    * @param {"up"|"down"|"left"|"right"} direction
    * @returns {FocusDirective}
    */
   gridWall(direction) {
-    switch (direction) {
-      case "up": {
-        const target = this._navGraph?.grid?.up
-        if (!target) return NONE
-        this._setContext(target)
-        return focusFirst(target)
-      }
-
-      case "left": {
-        const target = this._navGraph?.grid?.left
-        if (!target) return NONE
-        if (target === this._config.primaryMenu) {
-          this._setContext(this._config.primaryMenu)
-          return { type: "enter_sidebar" }
-        }
-        this._setContext(target)
-        return focusFirst(target)
-      }
-
-      case "right": {
-        const target = this._navGraph?.grid?.right
-        if (!target) return NONE
-        this._setContext(Context.DRAWER)
-        return focusContext(Context.DRAWER)
-      }
-
-      default:
-        return NONE
+    if (direction === "right") {
+      const target = this.getGraphTarget(Context.GRID, "right")
+      if (!target) return NONE
+      this._setContext(Context.DRAWER)
+      return focusContext(Context.DRAWER)
     }
+    return this.contextWall(Context.GRID, direction)
   }
 }

@@ -9,8 +9,11 @@
  * @property {function(): void} [onDetach]          — behavior deactivates
  * @property {function(): boolean|string} [onEscape] — true to consume, string to navigate
  * @property {function(): void} [onClear]            — CLEAR action (Y / Backspace)
- * @property {function(string): void} [onZoneChanged] — zone switched
+ * @property {function(string): void} [onZoneChanged] — context changed
  * @property {function(Object): {clearGridMemory: boolean}} [onSyncState] — state sync
+ * @property {function(string, string, Element): boolean|{transitionTo: string}} [onAction]
+ *   — intercept action before framework processing (action, context, focusedItem).
+ *     Return true to consume, { transitionTo } to transition, false to pass through.
  */
 
 import { createDashboardBehavior } from "./dashboard_behavior"

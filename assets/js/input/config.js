@@ -18,6 +18,7 @@ export const inputConfig = {
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
+    upcoming: "[data-nav-zone='upcoming'] > [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
@@ -27,6 +28,7 @@ export const inputConfig = {
   instanceTypes: {
     sidebar: Context.MENU,
     sections: Context.MENU,
+    upcoming: Context.MENU,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
   },
@@ -45,6 +47,12 @@ export const inputConfig = {
       grid:      { up: ["toolbar", "zone_tabs"], left: ["sidebar"], right: ["drawer"] },
       sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
       drawer:    { left: ["grid", "toolbar"] },
+    },
+    upcoming: {
+      zone_tabs: { down: ["upcoming"],           left: ["sidebar"] },
+      upcoming:  { up: ["zone_tabs"],            left: ["sidebar"] },
+      grid:      { up: ["upcoming", "zone_tabs"], left: ["upcoming", "sidebar"] },
+      sidebar:   { right: ["upcoming", "grid", "zone_tabs"] },
     },
     settings: {
       sections:  { right: ["grid"],            left: ["sidebar"] },
@@ -66,6 +74,7 @@ export const inputConfig = {
   cursorStartPriority: {
     watching:  ["grid", "zone_tabs", "sidebar"],
     library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
+    upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
     dashboard: ["sections", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
