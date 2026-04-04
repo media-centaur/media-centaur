@@ -1,6 +1,7 @@
 defmodule MediaCentaur.ReleaseTracking.Event do
   @moduledoc """
-  A notable change detected during TMDB refresh — date moved, new season, etc.
+  A denormalized log entry for release tracking changes. Self-contained —
+  stores item_name directly so events survive item deletion.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -20,16 +21,16 @@ defmodule MediaCentaur.ReleaseTracking.Event do
       ]
 
     field :description, :string
+    field :item_name, :string
     field :metadata, :map, default: %{}
-
-    belongs_to :item, MediaCentaur.ReleaseTracking.Item
+    field :item_id, Ecto.UUID
 
     timestamps(updated_at: false)
   end
 
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:event_type, :description, :metadata, :item_id])
-    |> validate_required([:event_type, :description, :item_id])
+    |> cast(attrs, [:event_type, :description, :item_name, :metadata, :item_id])
+    |> validate_required([:event_type, :description, :item_name])
   end
 end

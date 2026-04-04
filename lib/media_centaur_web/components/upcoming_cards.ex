@@ -352,7 +352,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       <div class="space-y-1">
         <p :for={{name, summary} <- @grouped} class="text-sm pl-3 py-0.5">
           <span class="font-medium">{name}</span>
-          <span class="text-base-content/50"> —             {summary}</span>
+          <span class="text-base-content/50"> —              {summary}</span>
         </p>
       </div>
     </div>
@@ -477,8 +477,10 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       <div class="collapse-content space-y-1.5 pt-1">
         <p :for={event <- @events} class="text-sm text-base-content/60">
           <span class="text-base-content/30">{format_datetime(event.inserted_at)}</span>
-          <span class="font-medium">{event.item.name}</span>
-          <span class="text-base-content/40"> —                            {event_label(event)}</span>
+          <span class="font-medium">{event.item_name}</span>
+          <span class="text-base-content/40">
+             —                             {event_label(event)}
+          </span>
         </p>
       </div>
     </details>

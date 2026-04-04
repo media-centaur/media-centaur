@@ -183,6 +183,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
 
     ReleaseTracking.create_event!(%{
       item_id: item.id,
+      item_name: name,
       event_type: :began_tracking,
       description: "Now tracking #{name}"
     })

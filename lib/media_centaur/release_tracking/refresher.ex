@@ -152,6 +152,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     Enum.each(events, fn event ->
       ReleaseTracking.create_event!(%{
         item_id: item.id,
+        item_name: item.name,
         event_type: event.event_type,
         description: event.description,
         metadata: event.metadata

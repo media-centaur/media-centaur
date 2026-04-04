@@ -115,8 +115,7 @@ defmodule MediaCentaur.ReleaseTracking do
   def list_recent_events(limit \\ 20) do
     from(e in Event,
       order_by: [{:desc, e.inserted_at}, {:desc, fragment("rowid")}],
-      limit: ^limit,
-      preload: [:item]
+      limit: ^limit
     )
     |> Repo.all()
   end
