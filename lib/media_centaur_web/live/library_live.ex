@@ -321,6 +321,17 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, assign(socket, scanning: true)}
   end
 
+  def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
+    case MediaCentaur.ReleaseTracking.get_item(item_id) do
+      nil ->
+        {:noreply, socket}
+
+      item ->
+        MediaCentaur.ReleaseTracking.delete_item(item)
+        {:noreply, load_upcoming(socket)}
+    end
+  end
+
   def handle_event("prev_month", _params, socket) do
     {year, month} = socket.assigns.calendar_month
     date = Date.new!(year, month, 1) |> Date.add(-1)
