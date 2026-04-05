@@ -56,16 +56,6 @@ recent_changes_days = 3
 # Number of recently watched items to show on the dashboard.
 recently_watched_count = 5
 
-[logging]
-# Thinking log components enabled by default on fresh boot.
-# Available: watcher, pipeline, tmdb, playback, library
-# These are overridden once toggled at runtime (persisted to DB).
-components = []
-
-# Framework log modules suppressed by default.
-# Available: ecto, phoenix, live_view
-suppress_framework = ["ecto", "phoenix", "live_view"]
-
 [playback]
 # Absolute path to the mpv binary.
 mpv_path = "/usr/bin/mpv"

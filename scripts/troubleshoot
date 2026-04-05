@@ -95,8 +95,8 @@ cmd_status() {
     banner "Supervision"
     diag "status()"
 
-    banner "Thinking Logs"
-    diag "log_status()"
+    banner "Recent Console Entries"
+    diag "log_recent(20)"
 
     banner "Services"
     diag "services()"
@@ -131,47 +131,21 @@ cmd_log() {
   require_release
   require_running
 
-  local subcmd="${1:-status}"
+  local subcmd="${1:-recent}"
   shift 2>/dev/null || true
 
   case "$subcmd" in
-    status)
-      diag "log_status()"
-      ;;
-    enable)
-      if [ $# -eq 0 ]; then
-        echo "Usage: scripts/troubleshoot log enable <component>"
-        echo "Components: watcher, pipeline, tmdb, playback, library"
-        exit 1
-      fi
-      diag "log_enable(:$1)"
-      echo "Tail logs with: scripts/troubleshoot logs"
-      ;;
-    disable)
-      if [ $# -eq 0 ]; then
-        echo "Usage: scripts/troubleshoot log disable <component>"
-        exit 1
-      fi
-      diag "log_disable(:$1)"
-      ;;
-    all)
-      diag "log_all()"
-      echo "Tail logs with: scripts/troubleshoot logs"
-      ;;
-    none)
-      diag "log_none()"
-      ;;
-    solo)
-      if [ $# -eq 0 ]; then
-        echo "Usage: scripts/troubleshoot log solo <component>"
-        exit 1
-      fi
-      diag "log_solo(:$1)"
-      echo "Tail logs with: scripts/troubleshoot logs"
+    recent)
+      local count="${1:-20}"
+      diag "log_recent($count)"
       ;;
     *)
-      echo "Unknown log command: $subcmd"
-      echo "Available: status, enable, disable, all, none, solo"
+      echo "Log visibility is controlled from the browser console (press backtick)."
+      echo ""
+      echo "Available log subcommands:"
+      echo "  log recent [N]    Print the N most recent buffer entries (default: 20)"
+      echo ""
+      echo "To filter or search the live buffer, open http://127.0.0.1:$port/console"
       exit 1
       ;;
   esac
@@ -182,25 +156,21 @@ cmd_help() {
 Usage: scripts/troubleshoot [command] [args...]
 
 Commands:
-  (none)              Status dashboard — service, port, HTTP, DB, supervision tree
+  (none)              Status dashboard — service, port, HTTP, DB, supervision tree, recent console entries
   logs [N]            Tail journal logs (default: last 100, follows)
   errors [PERIOD]     Show error-level logs (default: 1h)
   remote              Open remote IEx shell (Ctrl+\\ to disconnect)
-  log status          Show thinking log component status
-  log enable NAME     Enable a thinking log component
-  log disable NAME    Disable a thinking log component
-  log all             Enable all thinking log components
-  log none            Disable all thinking log components
-  log solo NAME       Enable only the named component
+  log recent [N]      Print the N most recent console buffer entries (default: 20)
   help                This message
 
-Components: watcher, pipeline, tmdb, playback, library
+Log filtering and live tailing moved to the browser console (press backtick
+on any page, or navigate to http://127.0.0.1:$port/console).
 
 Examples:
-  scripts/troubleshoot                        # quick health check
-  scripts/troubleshoot log enable pipeline    # turn on pipeline logs
-  scripts/troubleshoot logs                   # watch the output
-  scripts/troubleshoot log none               # clean up when done
+  scripts/troubleshoot                        # quick health check + recent entries
+  scripts/troubleshoot log recent 50          # last 50 buffered log entries
+  scripts/troubleshoot logs                   # tail the raw systemd journal
+  scripts/troubleshoot errors 24h             # error-level logs from last 24h
 EOF
 }
 
