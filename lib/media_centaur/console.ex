@@ -3,6 +3,13 @@ defmodule MediaCentaur.Console do
   Bounded context for the in-browser log console: ring buffer, filter, rescan
   dispatch. All LiveViews and cross-context callers interact with the console
   through this module only — `Buffer` and `Handler` are internal.
+
+  ## Persistence
+
+  Console owns no database table. The filter state and buffer cap are
+  persisted via `MediaCentaur.Settings.Entry`, the sanctioned ADR-029
+  exception for shared key/value infrastructure (see the Bounded Contexts
+  section of `CLAUDE.md`). No per-console table is justified.
   """
 
   alias MediaCentaur.Console.{Buffer, Filter, View}

@@ -102,12 +102,12 @@ Every system — Elixir, JavaScript, or otherwise — must be designed so that C
 
 ## Architecture Principles
 
-- **This app owns all writes.** See [ADR-028](decisions/architecture/2026-03-07-028-backend-write-ownership.md). Only the backend writes to `images/` and mutates entities.
-- **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON.
-- **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID.
-- **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`.
-- **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals.
-- **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes.
+- **This app owns all writes.** See [ADR-028](decisions/architecture/2026-03-07-028-backend-write-ownership.md). Only the backend writes to `images/` and mutates entities. *Why:* concurrent writers would race on entity records and image files; concentrating writes here lets the pipeline sequence them without cross-process locks. The frontend is a pure consumer.
+- **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON. *Why:* an established public vocabulary avoids bespoke ontology debate, keeps the on-disk format legible to any external reader, and gives every type/field question an authoritative external answer.
+- **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID. *Why:* reassigning a UUID would orphan its `data/images/{uuid}/` directory and invalidate every external reference that had resolved it — caches, frontend state, log entries, existing PubSub IDs in flight.
+- **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`. *Why:* resizing is cheap at render time, disk is expensive, and storing multiple resolutions multiplies every invalidation path.
+- **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals. *Why:* PubSub is the only reload signal the UI ever gets; a missed broadcast leaves LiveViews stale until the next navigation, and a direct cross-context call silently couples the two contexts against ADR-029.
+- **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes. *Why:* implicit triggers fan out through hidden paths that are impossible to reason about; explicit orchestration keeps the call graph discoverable and the sequencing deterministic.
 
 ## Data Model (Entity Decomposition)
 
@@ -143,6 +143,8 @@ Seven contexts own their tables and communicate only via PubSub events. No conte
 | **Console** | _(none — in-memory ring buffer)_ | Log buffer, per-user filter state (persisted via `Settings.Entry`) | Broadcasts `console:logs` — `{:log_entry, entry}`, `:buffer_cleared`, `{:buffer_resized, n}`, `{:filter_changed, filter}` |
 
 **Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Dashboard, Admin, Playback, Serializer) read Library freely — they are not bounded contexts.
+
+**Settings as shared infrastructure:** `Settings` is treated as shared key/value infrastructure, not a peer bounded context. Any context that needs per-user or per-installation persistence without justifying its own table (Console's filter and buffer cap, for example) writes to `Settings.Entry` directly. This is the one sanctioned exception to ADR-029's "contexts own their data" rule — the coupling is one-directional (the context depends on Settings, not the other way around) and Settings carries no domain logic of its own.
 
 ## Pipeline
 
