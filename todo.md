@@ -18,38 +18,6 @@ here is blocking.
 
 ## Engineering
 
-### E1. Console LiveView duplication
-**Severity**: Medium — cosmetic, deferred intentionally
-**Files**:
-- `lib/media_centaur_web/live/console_live.ex`
-- `lib/media_centaur_web/live/console_page_live.ex`
-
-`ConsoleLive` (sticky drawer) and `ConsolePageLive` (full-page `/console`
-route) share ~100 lines of near-identical code: `safe_to_existing_atom/1`,
-`entry_dom_id/1`, all four `handle_info` clauses, and most of the eleven
-`handle_event` clauses. The original plan deferred extraction because the
-two modules could diverge over time — but they haven't, and a shared
-helper would prevent drift.
-
-**Fix options**:
-1. Extract a `MediaCentaurWeb.ConsoleLiveCommon` module with the shared
-   helpers and a macro that injects the `handle_info`/`handle_event`
-   clauses into both LVs
-2. Move the shared bodies into pure functions that both LVs call from
-   their own thin callback stubs
-3. Use Phoenix LiveView's `on_mount` + `attach_hook` to share event
-   handling — more invasive, probably overkill here
-
-Option 2 is cleanest. Each LV keeps its own `handle_info/handle_event`
-clauses but delegates to `ConsoleLiveCommon.handle_log_entry(socket, entry)`
-etc. Tests stay where they are; the shared module gets its own unit tests
-for the pure helpers.
-
-**Effort**: Medium. ~200 lines touched, clean refactor, no new tests
-required beyond verifying existing LV tests still pass.
-
----
-
 ### E2. `View.only_search_changed?` naming
 **Severity**: Minor — readability
 **File**: `lib/media_centaur/console/view.ex`
@@ -388,8 +356,6 @@ line `idx`, `acc`, `ctx` fall on.
 If picking a batch, these cluster cleanly by effort/risk:
 
 - **Quick wins (1 session, all low-effort)**: E2, P2, P3, P4, P6, P9, D1, D4 — each is <30 minutes, all low-risk, can be bundled into a single "chore: minor perf + docs polish" commit.
-
-- **One focused refactor (1 session, medium effort)**: E1 — console LiveView extraction. Clean scope, clear payoff, no cross-cutting concerns.
 
 - **Verification-first items (low effort but need measurement)**: P1, P10 — need Tidewave profiling before committing to a fix. Useful to scope before implementing.
 
