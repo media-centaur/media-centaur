@@ -1,13 +1,9 @@
 <div align="center">
 
-<!-- TODO: Add logo/banner image -->
-<!-- ![Media Centaur](docs/images/banner.png) -->
-
 # Media Centaur
 
 **A self-hosted media center for Linux that watches your library, identifies your media, and gets out of the way.**
 
-[![License: TBD](https://img.shields.io/badge/license-TBD-blue)](#license)
 [![Elixir](https://img.shields.io/badge/Elixir-1.15+-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org)
 [![Platform](https://img.shields.io/badge/platform-Linux-informational?logo=linux&logoColor=white)](https://kernel.org)
 
@@ -16,12 +12,6 @@ Point it at your video directories. It identifies your movies and TV shows via T
 Zero-config SQLite database. No Docker. No transcoding server. No accounts.
 
 </div>
-
----
-
-<!-- TODO: Full-width screenshot of the Library page (dark mode, Continue Watching + poster grid) -->
-<!-- ![Media Centaur Library](docs/images/screenshot-library.png) -->
-<!-- *The Library — Continue Watching cards and poster grid* -->
 
 ---
 
@@ -98,9 +88,6 @@ Zero-config SQLite database. No Docker. No transcoding server. No accounts.
 
 ### Library
 
-<!-- TODO: Screenshot of Library page with Continue Watching and poster grid -->
-<!-- ![Library](docs/images/screenshot-library-full.png) -->
-
 The default landing page. Two zones:
 
 - **Continue Watching** — backdrop cards for in-progress media with resume labels and progress bars
@@ -109,9 +96,6 @@ The default landing page. Two zones:
 - Scrollable episode lists with a pinned header so entity identity stays visible
 
 ### Dashboard
-
-<!-- TODO: Screenshot of Dashboard page -->
-<!-- ![Dashboard](docs/images/screenshot-dashboard.png) -->
 
 The operational hub — everything you need at a glance:
 
@@ -125,9 +109,6 @@ The operational hub — everything you need at a glance:
 
 ### Review
 
-<!-- TODO: Screenshot of Review page -->
-<!-- ![Review](docs/images/screenshot-review.png) -->
-
 Triage queue for low-confidence TMDB matches:
 
 - Side-by-side comparison of parsed filename info vs. TMDB result with images and descriptions
@@ -137,12 +118,9 @@ Triage queue for low-confidence TMDB matches:
 
 ### Settings
 
-<!-- TODO: Screenshot of Settings page -->
-<!-- ![Settings](docs/images/screenshot-settings.png) -->
-
-- Per-component logging toggles with framework log suppression
-- Read-only configuration reference showing all active settings
+- Service toggles (watcher, pipeline), preferences, and read-only configuration reference
 - Danger zone: scan directories, clear database, clear and refresh image cache
+- Log visibility is controlled from the **Console drawer** (press `` ` `` backtick on any page), not from Settings
 
 ---
 
@@ -247,7 +225,7 @@ The release binds to `127.0.0.1:4000`, runs migrations automatically, and manage
 |-----------|------------|-----|
 | Language | [Elixir](https://elixir-lang.org) | Fault-tolerant concurrency, hot code reloading, pattern matching |
 | Web framework | [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view) | Real-time server-rendered UI without a JS framework |
-| Data framework | [Ash](https://ash-hq.org) | Declarative resources, actions, and authorization |
+| Database library | [Ecto](https://github.com/elixir-ecto/ecto) | Type-safe schema, changeset validation, and query DSL |
 | Database | [SQLite](https://sqlite.org) | Zero-admin embedded database, single-file backups |
 | Pipeline | [Broadway](https://github.com/dashbitco/broadway) | Supervised concurrent processing with backpressure |
 | Video player | [mpv](https://mpv.io) | Best-in-class Linux video playback via JSON IPC |
@@ -319,9 +297,7 @@ Detailed documentation lives in the [`docs/`](docs/) directory:
 
 ## License
 
-<!-- TODO: Choose and add license -->
-
-TBD
+All rights reserved. A license will be chosen before this project opens to outside contributions.
 
 ---
 
@@ -333,4 +309,4 @@ TBD
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 
-Built with [Elixir](https://elixir-lang.org), [Phoenix](https://phoenixframework.org), [Ash](https://ash-hq.org), [Broadway](https://github.com/dashbitco/broadway), and [mpv](https://mpv.io).
+Built with [Elixir](https://elixir-lang.org), [Phoenix](https://phoenixframework.org), [Ecto](https://github.com/elixir-ecto/ecto), [Broadway](https://github.com/dashbitco/broadway), and [mpv](https://mpv.io).

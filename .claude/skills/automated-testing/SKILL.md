@@ -65,17 +65,17 @@ scripts/input-test --ui                               # Playwright UI mode
 | Template | When | Async? |
 |----------|------|--------|
 | `use ExUnit.Case, async: true` | Pure functions (Parser, Serializer, Mapper, Confidence) | Yes |
-| `use MediaCentaur.DataCase` | Ash resource tests, pipeline stages, anything touching DB | No (SQLite) |
+| `use MediaCentaur.DataCase` | Ecto schema tests, pipeline stages, anything touching DB | No (SQLite) |
 | `use MediaCentaurWeb.ConnCase` | HTTP/LiveView connection tests | No |
 
 ### Factory — `MediaCentaur.TestFactory`
 
-All tests use the shared factory. Never inline `Ash.Changeset.for_create` boilerplate.
+All tests use the shared factory. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
 
 - **`build_*`** — pure structs with sensible defaults, no DB. For async pure function tests.
-  - `build_entity/1`, `build_movie/1`, `build_season/1`, `build_episode/1`, `build_extra/1`, `build_image/1`, `build_identifier/1`, `build_progress/1`
-- **`create_*`** — persisted via Ash actions, returns loaded records. For DataCase tests.
-  - `create_entity/1`, `create_movie/1`, `create_season/1`, `create_episode/1`, `create_extra/1`, `create_image/1`, `create_identifier/1`, `create_linked_file/1`, `create_pending_file/1`, `create_watch_progress/1`, `create_entity_with_associations/1`
+  - `build_movie/1`, `build_tv_series/1`, `build_movie_series/1`, `build_video_object/1`, `build_season/1`, `build_episode/1`, `build_extra/1`, `build_image/1`, `build_identifier/1`, `build_progress/1`
+- **`create_*`** — persisted via context modules, returns loaded records. For DataCase tests.
+  - `create_movie/1`, `create_tv_series/1`, `create_movie_series/1`, `create_video_object/1`, `create_season/1`, `create_episode/1`, `create_extra/1`, `create_image/1`, `create_identifier/1`, `create_linked_file/1`, `create_pending_file/1`, `create_watch_progress/1`
 
 ### TMDB Stubbing — `TmdbStubs`
 
@@ -122,11 +122,12 @@ Fixtures: `movie_search_result/1`, `tv_search_result/1`, `movie_detail/1`, `tv_d
 - One test per filename convention
 - Append-only — never delete parser tests ([ADR-027])
 
-### Ash Resource Tests
+### Ecto Schema Tests
 
 - Use `DataCase` with `create_*` factory helpers
-- Test Ash actions against the real database — never stub the data layer
-- Bulk operations: always `return_errors?: true` and assert `error_count` ([ADR-025])
+- Test through context-module public APIs against the real database — never
+  stub the data layer, never call `Repo` directly from tests
+- For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result
 
 ---
 
@@ -299,7 +300,6 @@ const msgs = filterDebugMessages(logs)   // filter for [input] prefix
 
 | ADR | Policy |
 |-----|--------|
-| [ADR-003] | Ash is the only data interface — test via Ash actions, never raw SQL |
 | [ADR-012] | Test-first, spec-first, zero warnings |
 | [ADR-016] | Test environment never reads user config or real filesystem paths |
 | [ADR-020] | Test through public interface — extract pure functions for testability |

@@ -5,191 +5,174 @@ description: "Triggers when user asks about their media library — searching ti
 
 ## Rules
 
-1. **All queries via `project_eval`** — never `execute_sql_query`, `Ecto.Query`, or `Repo`
-2. **Always `require Ash.Query`** in eval blocks — `filter` is a macro
-3. **Standard alias block** — paste at the top of every eval:
+1. **All queries via `mcp__tidewave__project_eval`** — never `execute_sql_query`, never raw SQL
+2. **Standard alias block** — paste at the top of every eval:
    ```elixir
-   alias MediaCentaur.Library.{Entity, Image, Identifier, Movie, Season, Episode, Extra, WatchedFile, WatchProgress}
+   alias MediaCentaur.Repo
+   alias MediaCentaur.Library.{Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchedFile, WatchProgress}
    alias MediaCentaur.Review.PendingFile
-   require Ash.Query
+   import Ecto.Query
    ```
+3. **Prefer context functions** — `MediaCentaur.Library.get_tv_series_with_associations/1`, `get_movie_series_with_associations/1`, etc. are already preloaded correctly. Reach for `Repo` directly only when a context function doesn't fit.
 
 ## Data Model Quick Reference
 
-### Entity Types and Their Children
+The library uses **type-specific tables** — there is NO single `Entity` table. Each media type is its own Ecto schema with its own UUID.
 
-| Entity Type | Children | Description |
+| Schema | Children | Description |
 |---|---|---|
-| `:movie` | — | Standalone movie |
-| `:movie_series` | `movies` | Film collection (e.g. trilogy) |
-| `:tv_series` | `seasons` → `episodes` | TV show |
-| `:video_object` | — | Standalone video (concert, documentary) |
+| `Movie` | `extras` (and belongs to MovieSeries when `movie_series_id` set) | Standalone movie OR child of a MovieSeries |
+| `MovieSeries` | `movies`, `extras` | Film collection (trilogy, anthology) |
+| `TVSeries` | `seasons` → `episodes`, `extras` | TV show with seasons and episodes |
+| `VideoObject` | — | Standalone video (concert, documentary, single file) |
 
-Any entity type can have `extras` (bonus features) and `images`.
+Any type can have `images`, `identifiers`, and `watched_files`. Each of those join-like schemas has **type-specific FKs**: `movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id` — exactly one is populated per row.
 
-### Key Fields by Resource
+### Key Fields by Schema
 
-| Resource | Key Fields |
+| Schema | Key Fields |
 |---|---|
-| **Entity** | `id`, `type`, `name`, `description`, `date_published`, `genres`, `content_url`, `url`, `duration`, `director`, `content_rating`, `number_of_seasons`, `aggregate_rating_value` |
-| **Movie** | `id`, `name`, `description`, `date_published`, `duration`, `director`, `content_rating`, `content_url`, `url`, `aggregate_rating_value`, `tmdb_id`, `position`, `entity_id` |
-| **Season** | `id`, `season_number`, `number_of_episodes`, `name`, `entity_id` |
+| **Movie** | `id`, `name`, `description`, `date_published`, `duration`, `director`, `content_rating`, `content_url`, `url`, `aggregate_rating_value`, `tmdb_id`, `movie_series_id` (nullable — set for collection children), `position` |
+| **TVSeries** | `id`, `name`, `description`, `date_published`, `genres`, `number_of_seasons`, `director`, `content_rating`, `aggregate_rating_value` |
+| **MovieSeries** | `id`, `name`, `description`, `date_published`, `genres`, `director` |
+| **VideoObject** | `id`, `name`, `description`, `date_published`, `duration`, `director`, `content_url`, `url` |
+| **Season** | `id`, `season_number`, `number_of_episodes`, `name`, `tv_series_id` |
 | **Episode** | `id`, `episode_number`, `name`, `description`, `duration`, `content_url`, `season_id` |
-| **Extra** | `id`, `name`, `content_url`, `position`, `entity_id`, `season_id` |
-| **Image** | `id`, `role` ("poster"/"backdrop"/"logo"/"thumb"), `url` (remote), `content_url` (local path), `extension`, `entity_id`/`movie_id`/`episode_id` |
-| **Identifier** | `id`, `property_id` ("tmdb"/"tmdb_collection"/"imdb"), `value`, `entity_id` |
-| **WatchedFile** | `id`, `file_path`, `state` (:complete), `watch_dir`, `entity_id` |
-| **WatchProgress** | `id`, `season_number`, `episode_number`, `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `entity_id` |
-| **PendingFile** | `id`, `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `tmdb_id`, `confidence`, `match_title`, `status` (:pending/:approved/:dismissed), `candidates`, `error_message` |
+| **Extra** | `id`, `name`, `content_url`, `position`, `movie_id`/`tv_series_id`/`movie_series_id`, `season_id` |
+| **Image** | `id`, `role` ("poster"/"backdrop"/"logo"/"thumb"), `url` (remote), `content_url` (local path), `extension`, `movie_id`/`tv_series_id`/`movie_series_id`/`video_object_id`/`episode_id` |
+| **Identifier** | `id`, `source` ("tmdb"/"imdb"), `external_id`, `movie_id`/`tv_series_id`/`movie_series_id`/`video_object_id` |
+| **WatchedFile** | `id`, `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `season_number`, `episode_number`, `state`, `watch_dir`, `movie_id`/`tv_series_id`/`movie_series_id`/`video_object_id` |
+| **WatchProgress** | `id`, `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `movie_id`/`episode_id`/`video_object_id` |
+| **PendingFile** | `id`, `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `tmdb_id`, `confidence`, `match_title`, `status`, `candidates`, `error_message` |
 
-### Pre-Built Read Actions
+### Pre-built Context Functions
 
-| Resource | Action | What It Does |
+Prefer these over raw `Repo` calls — they load the canonical preloads for each entity type:
+
+| Function | Returns | Preloads |
 |---|---|---|
-| Entity | `:with_associations` | Loads images, identifiers, watch_progress, extras, seasons (with extras + episodes with images), movies (with images). **Does NOT load `watched_files`** — chain `Ash.load!` if needed. |
-| Entity | `:with_progress` | Loads watch_progress, seasons (with episodes), movies |
-| Entity | `:with_images` | Loads images, seasons (with episodes+images), movies (with images) |
-| Identifier | `:find_by_tmdb_id` | Arg: `tmdb_id` (string). Filters `property_id == "tmdb"`, loads `:entity`, limit 1 |
-| Identifier | `:find_by_tmdb_collection` | Arg: `collection_id` (string). Filters `property_id == "tmdb_collection"`, loads `:entity`, limit 1 |
-| Image | `:incomplete` | Filters images with `url` set but no `content_url` (not yet downloaded). Loads `:entity` |
-| WatchProgress | `:for_entity` | Arg: `entity_id`. Sorted by season_number, episode_number ascending |
-| PendingFile | `:pending` | Filters `status == :pending`, sorted by `inserted_at` ascending |
+| `Library.get_tv_series_with_associations/1` | `{:ok, %TVSeries{}}` or `{:error, :not_found}` | images, external_ids, extras, watched_files, seasons → (extras, episodes → (images, watch_progress)) |
+| `Library.get_movie_series_with_associations/1` | `{:ok, %MovieSeries{}}` or `{:error, :not_found}` | images, external_ids, extras, watched_files, movies → (images, watch_progress) |
+| `Library.get_watch_progress_by_fk/2` | `{:ok, %WatchProgress{}}` or `{:error, :not_found}` | — |
+| `LibraryBrowser.fetch_all_typed_entries/0` | `[%{entity, progress, progress_records}]` | Everything. Returns all entities wrapped with progress summary. |
 
 ## Query Patterns
 
-### Search by Name
+### Search by name (across all types)
 
 ```elixir
-alias MediaCentaur.Library.Entity
-require Ash.Query
+alias MediaCentaur.Repo
+alias MediaCentaur.Library.{Movie, TVSeries, MovieSeries, VideoObject}
+import Ecto.Query
 
-Entity
-|> Ash.Query.filter(contains(name, "search term"))
-|> Ash.read!(action: :with_associations)
+pattern = "%" <> String.downcase("search term") <> "%"
+
+movies = from(m in Movie, where: fragment("lower(?) LIKE ?", m.name, ^pattern)) |> Repo.all()
+tv_series = from(t in TVSeries, where: fragment("lower(?) LIKE ?", t.name, ^pattern)) |> Repo.all()
+movie_series = from(s in MovieSeries, where: fragment("lower(?) LIKE ?", s.name, ^pattern)) |> Repo.all()
+videos = from(v in VideoObject, where: fragment("lower(?) LIKE ?", v.name, ^pattern)) |> Repo.all()
+
+{movies, tv_series, movie_series, videos}
 ```
 
-`contains/2` is case-insensitive on SQLite.
+SQLite `LIKE` is case-insensitive on ASCII by default; the `lower(...)` wrapper makes it explicit.
 
-### Get Entity by ID
+### Get a TV series by UUID with full preloads
 
 ```elixir
-entity = Ash.get!(Entity, "uuid-here", action: :with_associations)
-# To also load watched_files (not included in :with_associations):
-entity = Ash.load!(entity, [:watched_files])
+{:ok, tv} = MediaCentaur.Library.get_tv_series_with_associations("uuid-here")
+# tv.seasons → [%Season{episodes: [%Episode{images: [...], watch_progress: %WatchProgress{}}]}]
 ```
 
-### Filter by Type
+### Get a movie series (collection) by UUID
 
 ```elixir
-Entity
-|> Ash.Query.filter(type == :tv_series)
-|> Ash.read!(action: :with_associations)
+{:ok, ms} = MediaCentaur.Library.get_movie_series_with_associations("uuid-here")
+# ms.movies → [%Movie{images: [...], watch_progress: %WatchProgress{}}]
 ```
 
-### Combined Filters
+### Filter by type (all TV series)
 
 ```elixir
-Entity
-|> Ash.Query.filter(type == :movie and contains(name, "alien"))
-|> Ash.read!(action: :with_associations)
+from(t in TVSeries, order_by: [asc: t.name]) |> Repo.all()
 ```
 
-### Sort Results
+### Combined filter (movies with "alien" in the title)
 
 ```elixir
-Entity
-|> Ash.Query.sort(name: :asc)
-|> Ash.read!()
+pattern = "%alien%"
+
+from(m in Movie,
+  where: fragment("lower(?) LIKE ?", m.name, ^pattern) and is_nil(m.movie_series_id),
+  order_by: [asc: m.name]
+)
+|> Repo.all()
 ```
+
+`is_nil(m.movie_series_id)` filters to STANDALONE movies (not collection children).
 
 ### Find by TMDB ID
 
 ```elixir
-alias MediaCentaur.Library.Identifier
-require Ash.Query
-
-# Returns list — take first element
-[identifier] = Identifier |> Ash.Query.for_read(:find_by_tmdb_id, %{tmdb_id: "12345"}) |> Ash.read!()
-entity = identifier.entity
+from(i in Identifier,
+  where: i.source == "tmdb" and i.external_id == "12345",
+  preload: [:movie, :tv_series, :movie_series, :video_object]
+)
+|> Repo.one()
 ```
 
-### Find by TMDB Collection ID
+Exactly one of the four belongs_to associations will be non-nil on the result.
+
+### Library statistics
 
 ```elixir
-[identifier] = Identifier |> Ash.Query.for_read(:find_by_tmdb_collection, %{collection_id: "8091"}) |> Ash.read!()
-entity = identifier.entity
+%{
+  movies: Repo.aggregate(from(m in Movie, where: is_nil(m.movie_series_id)), :count),
+  movie_children: Repo.aggregate(from(m in Movie, where: not is_nil(m.movie_series_id)), :count),
+  tv_series: Repo.aggregate(TVSeries, :count),
+  movie_series: Repo.aggregate(MovieSeries, :count),
+  video_objects: Repo.aggregate(VideoObject, :count),
+  watched_files: Repo.aggregate(WatchedFile, :count),
+  images: Repo.aggregate(Image, :count),
+  pending_review: Repo.aggregate(PendingFile, :count)
+}
 ```
 
-### List All Entities (Names + Types)
+### Watch progress for a TV series
 
 ```elixir
-Entity
-|> Ash.Query.sort(name: :asc)
-|> Ash.read!()
-|> Enum.map(fn e -> "#{e.name} (#{e.type})" end)
+{:ok, tv} = MediaCentaur.Library.get_tv_series_with_associations("uuid-here")
+
+# Already preloaded through seasons → episodes → watch_progress.
+for season <- tv.seasons, episode <- season.episodes, episode.watch_progress do
+  {season.season_number, episode.episode_number, episode.watch_progress}
+end
 ```
 
-### Library Statistics
+### Pending review files
 
 ```elixir
-alias MediaCentaur.Library.{Entity, WatchedFile, Image}
-require Ash.Query
-
-total = Ash.count!(Entity)
-movies = Entity |> Ash.Query.filter(type == :movie) |> Ash.count!()
-tv = Entity |> Ash.Query.filter(type == :tv_series) |> Ash.count!()
-collections = Entity |> Ash.Query.filter(type == :movie_series) |> Ash.count!()
-videos = Entity |> Ash.Query.filter(type == :video_object) |> Ash.count!()
-files = Ash.count!(WatchedFile)
-images = Ash.count!(Image)
-
-"#{total} entities (#{movies} movies, #{tv} TV series, #{collections} collections, #{videos} videos), #{files} files, #{images} images"
+from(p in PendingFile, where: p.status == :pending, order_by: [asc: p.inserted_at])
+|> Repo.all()
 ```
 
-### Watch Progress for an Entity
+### Incomplete images (remote URL set, no local download)
 
 ```elixir
-alias MediaCentaur.Library.WatchProgress
-require Ash.Query
-
-WatchProgress
-|> Ash.Query.for_read(:for_entity, %{entity_id: "uuid-here"})
-|> Ash.read!()
+from(i in Image, where: not is_nil(i.url) and is_nil(i.content_url))
+|> Repo.all()
 ```
 
-### Pending Review Files
+### Files linked to a TV series
 
 ```elixir
-alias MediaCentaur.Review.PendingFile
-require Ash.Query
-
-PendingFile
-|> Ash.Query.for_read(:pending)
-|> Ash.read!()
-```
-
-### Incomplete Images (Missing Downloads)
-
-```elixir
-alias MediaCentaur.Library.Image
-require Ash.Query
-
-Image
-|> Ash.Query.for_read(:incomplete)
-|> Ash.read!()
-```
-
-### Files Linked to an Entity
-
-```elixir
-entity = Ash.get!(Entity, "uuid-here")
-entity = Ash.load!(entity, [:watched_files])
-entity.watched_files
+from(w in WatchedFile, where: w.tv_series_id == ^"uuid-here")
+|> Repo.all()
 ```
 
 ## Display Guidelines
 
-### Type-Specific Formatting
+### Type-specific formatting
 
 **Movie:**
 ```
@@ -243,21 +226,22 @@ Description text here.
 Files: /path/to/video.mkv
 ```
 
-### Watch Progress Formatting
+### Watch progress formatting
 
+For TV series — show per-episode progress:
 ```
 Watch Progress:
-  S01E03 - 45:30 / 52:00 (87%) — last watched 2026-02-28
-  S01E01 - completed
-  S01E02 - completed
+  S01E03 — 45:30 / 52:00 (87%) — last watched 2026-02-28
+  S01E01 — completed
+  S01E02 — completed
 ```
 
-For movies/videos (season_number=0, episode_number=0):
+For standalone movies / video objects:
 ```
 Watch Progress: 1:23:45 / 2:01:30 (69%) — last watched 2026-02-28
 ```
 
-### Section Order
+### Section order
 
 1. Title line with year
 2. Key metadata (rating, duration, genres, director)
@@ -271,37 +255,31 @@ Watch Progress: 1:23:45 / 2:01:30 (69%) — last watched 2026-02-28
 
 ## Workflow: "Show Me Everything About X"
 
-1. **Search:** `Ash.Query.filter(contains(name, "search term"))` with `:with_associations`
+1. **Search across all four types** using the pattern at the top of Query Patterns.
 2. **Handle results:**
    - 0 results → try broader search, suggest checking pending review files
    - 1 result → proceed to display
-   - Multiple → list matches with types, ask user which one
-3. **Load fully:**
-   ```elixir
-   entity = Ash.load!(entity, [:watched_files])
-   ```
-4. **Extract identifiers:** find TMDB ID from `entity.identifiers` where `property_id == "tmdb"`
-5. **Display** using the type-specific template above
+   - Multiple → list matches with type badges, ask user which one
+3. **Load fully:** reach for the appropriate `Library.get_*_with_associations/1` function based on type, or use the preload shape from the function for direct `Repo.get/2` calls.
+4. **Extract identifiers:** the Identifier schema has a `source` field (`"tmdb"`/`"imdb"`) and an `external_id` field. TMDB ID = `Enum.find(entity.identifiers, &(&1.source == "tmdb")).external_id`.
+5. **Display** using the type-specific template above.
 6. **Offer follow-ups:**
    - "Want to see the full episode list?"
    - "Want to check watch progress?"
    - "Want to see image details?"
    - "Want to see the raw data?"
 
-## Suggesting Improvements
+## Suggesting improvements
 
-When you encounter friction while querying the library, suggest improvements:
+When you hit friction while querying the library, suggest improvements:
 
-### Skill Improvements
-If a query pattern is missing, awkward, or could be better formatted — suggest adding it to this skill. Examples:
-- New display templates for edge cases
-- Additional search patterns (by genre, by year range, etc.)
-- Better formatting for specific data shapes
+### Skill improvements
+Missing query patterns, awkward examples, bad formatting — propose adding to this skill. Examples: search by genre, date-range filters, better display for edge cases.
 
-### Ash Resource Improvements
-If a query would be easier with a new read action, relationship, or attribute — suggest adding it. Examples:
-- Entity lacks a `:search_by_name` read action — currently done inline with `Ash.Query.filter(contains(name, ...))`
-- `:with_associations` doesn't load `watched_files` — could be added to the prepare block
-- Any query pattern the user repeats should become a named read action
+### Context function improvements
+If a raw `Repo.all` pattern keeps coming up, suggest adding a named function to `MediaCentaur.Library`. Examples:
+- `search_all_types/1` — cross-type name search with a unified result shape
+- `count_by_type/0` — library statistics as a single call
+- `find_by_tmdb_id/1` — single-call TMDB lookup across all four types
 
-Frame these as "consider adding" suggestions — the user decides whether it's worth the change.
+Frame as "consider adding" suggestions — the user decides.

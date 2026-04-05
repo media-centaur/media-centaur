@@ -234,12 +234,12 @@ Child movies are ordered by `(position, datePublished)`. The algorithm walks the
 
 The `play` command accepts a single `entity_id` that can identify any playable thing. The backend resolves the UUID by trying lookups in this order:
 
-1. **Entity** — `Ash.get(Entity, uuid)`. If found:
-   - Series (TV or Movie): runs the full resume algorithm above
-   - Single item (Movie, VideoObject): checks progress for resume/play
-2. **Episode** — `Ash.get(Episode, uuid)`. If found: loads the parent entity via Season, checks WatchProgress for `(entity_id, season_number, episode_number)`, resumes if partially watched, otherwise plays from 0.
-3. **Movie (child)** — `Ash.get(Movie, uuid)`. If found: loads the parent MovieSeries entity, finds the movie's ordinal, checks WatchProgress for `(entity_id, 0, ordinal)`, resumes if partially watched, otherwise plays from 0.
-4. **Extra** — `Ash.get(Extra, uuid)`. If found: plays `content_url` from 0 (no progress tracking for extras).
+1. **Type-specific parent** — try `Repo.get(TVSeries, uuid)`, then `Repo.get(MovieSeries, uuid)`, then `Repo.get(Movie, uuid)` with `movie_series_id == nil` (standalone movie), then `Repo.get(VideoObject, uuid)`. The first hit wins:
+   - Series (TVSeries, MovieSeries): runs the full resume algorithm above
+   - Single item (standalone Movie, VideoObject): checks `WatchProgress` for resume/play via the type-specific FK
+2. **Episode** — `Repo.get(Episode, uuid)`. If found: loads the parent TVSeries via Season, checks `WatchProgress` for `episode_id == uuid`, resumes if partially watched, otherwise plays from 0.
+3. **Child Movie** — `Repo.get(Movie, uuid)` with `movie_series_id != nil`. If found: loads the parent MovieSeries, checks `WatchProgress` for `movie_id == uuid`, resumes if partially watched, otherwise plays from 0.
+4. **Extra** — `Repo.get(Extra, uuid)`. If found: plays `content_url` from 0 (no progress tracking for extras).
 5. **None found** → `{:error, :not_found}`
 
 Items with `nil` content_url return `{:error, :no_playable_content}`.

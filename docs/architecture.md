@@ -25,7 +25,7 @@ graph TB
             Watcher[Watcher<br/>inotify per directory]
             Pipeline[Broadway Pipeline<br/>15 concurrent processors]
             TMDB[TMDB Client<br/>rate-limited]
-            Library[Library<br/>Ash domain + SQLite]
+            Library[Library<br/>Ecto + SQLite]
             Playback[Playback<br/>MPV IPC]
             Review[Review<br/>pending files]
         end
@@ -115,7 +115,7 @@ All inter-component communication flows through Phoenix PubSub:
 
 ## Key Principles
 
-- **Ash is the only data interface.** All reads and writes go through Ash actions — no raw SQL, no `Ecto.Query`, no `Repo` calls.
+- **Ecto is the data interface.** All persistence goes through type-specific context modules (Library, ReleaseTracking, Settings) that wrap `Ecto.Repo` and broadcast `{:entities_changed, ids}` on PubSub for every mutation. Raw SQL is reserved for SQLite-specific features (e.g. `json_extract`).
 - **Schema.org vocabulary.** Entity fields use schema.org property names.
 - **UUIDs are permanent.** Entity IDs never change once assigned.
 - **PubSub for cross-context communication.** Contexts don't call into each other's internals.

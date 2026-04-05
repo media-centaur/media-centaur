@@ -202,7 +202,7 @@ Features requiring new backend tracking or computation:
 | Feature | Location | Status | Implementation notes |
 |---------|----------|--------|---------------------|
 | Recent event feed | Dashboard | Planned | In-memory event buffer (like Stats.recent_errors pattern) |
-| Library completeness | Dashboard | Planned | Ash queries: entities missing images, entities without identifiers |
+| Library completeness | Dashboard | Planned | Ecto queries: entities missing images, entities without identifiers |
 | Auto-approve rate | Dashboard | Planned | Counter in Pipeline.Stats: auto_approved vs needs_review |
 | Storage metrics | Operations | Done | `Storage.measure_all/0` — disk usage per watch dir, images dir, database |
 | Last scan timestamp | Operations | Planned | Track in Watcher.Supervisor state or Stats |

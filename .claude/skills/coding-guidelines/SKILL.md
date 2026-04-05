@@ -11,12 +11,15 @@ description: "Use this skill for any implementation task — adding features, fi
 
 ## Test Patterns by Domain
 
-### Ash Resources (Entity, WatchedFile, WatchProgress, Image)
+### Ecto Schemas (Movie, TVSeries, MovieSeries, VideoObject, WatchedFile, WatchProgress, Image)
 
 - Use `DataCase` (not async — SQLite limitation).
-- Use `create_*` factory helpers to persist via Ash actions.
-- Test Ash actions against the real database — never stub the data layer.
-- Bulk operations: always pass `return_errors?: true` and assert `error_count`.
+- Use `create_*` factory helpers to persist via the relevant context module
+  (`MediaCentaur.Library`, `MediaCentaur.Review`, `MediaCentaur.ReleaseTracking`,
+  `MediaCentaur.Settings`).
+- Test through the context's public API against the real database — never stub
+  the data layer, never call `Repo` directly from tests.
+- For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result.
 
 ### Pipeline Stages (Parse, Search, FetchMetadata, DownloadImages, Ingest)
 
@@ -43,7 +46,7 @@ Extract all non-trivial LiveView/component logic into public pure functions and 
 
 ## Factory
 
-All tests use `MediaCentaur.TestFactory`. Never inline `Ash.Changeset.for_create` boilerplate.
+All tests use `MediaCentaur.TestFactory`. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
 
 - `build_*` — pure structs for async tests (fast, no I/O).
-- `create_*` — persisted via Ash actions for DataCase tests.
+- `create_*` — persisted via context-module functions for DataCase tests.

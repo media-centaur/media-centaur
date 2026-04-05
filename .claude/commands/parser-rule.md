@@ -10,23 +10,29 @@ The user says: $ARGUMENTS
 
 ## Step 1: Look up the entity and its files
 
-1. Use `mcp__tidewave__project_eval` to query the database via Ash. Find the Entity whose name matches the user's input (case-insensitive partial match is fine — use `Ash.read!` with a filter):
+1. Use `mcp__tidewave__project_eval` to query the database via Ecto. Find `WatchedFile` rows whose parsed title matches the user's input (case-insensitive substring match):
 
    ```elixir
-   require Ash.Query
-   MediaManager.Library.WatchedFile
-   |> Ash.Query.filter(contains(entity.name, "<user input>"))
-   |> Ash.Query.load(:entity)
-   |> Ash.read!()
+   import Ecto.Query
+   alias MediaCentaur.{Repo, Library.WatchedFile}
+
+   pattern = "%" <> String.downcase("<user input>") <> "%"
+
+   from(w in WatchedFile,
+     where: fragment("lower(?) LIKE ?", w.parsed_title, ^pattern),
+     order_by: [asc: w.parsed_title, asc: w.parsed_year]
+   )
+   |> Repo.all()
    ```
 
 2. Show the user a summary of what was found:
-   - Entity name, type, year (`date_published`), and any other relevant entity fields
-   - Every `WatchedFile` associated with this entity — show `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `season_number`, `episode_number`, and `state`
+   - Distinct parsed titles grouped across the returned files
+   - Every `WatchedFile` row — show `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `season_number`, `episode_number`, and `state`
+   - If a row has a type-specific FK populated (`movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id`), fetch and display the associated entity's name for context.
 
-3. Read `lib/media_manager/parser.ex` and `test/media_manager/parser_test.exs` for context.
+3. Read `lib/media_centaur/parser.ex` and `test/media_centaur/parser_test.exs` for context.
 
-4. For each watched file, evaluate `MediaManager.Parser.parse(file_path)` to show what the parser currently produces.
+4. For each watched file, evaluate `MediaCentaur.Parser.parse(file_path)` to show what the parser currently produces.
 
 5. Present the results clearly so the user can compare entity data vs. parse results and identify which files are misparsed.
 
@@ -41,7 +47,7 @@ Ask the user: which file(s) are misparsed, and what should the correct parse res
    - A descriptive test name explaining what makes this pattern unique
    - The exact real file path from the database
    - Assertions for all expected fields (title, year, type, season, episode) based on the user's instructions
-3. Run `mix test test/media_manager/parser_test.exs` — confirm the new test(s) **fail** and all existing tests still pass.
+3. Run `mix test test/media_centaur/parser_test.exs` — confirm the new test(s) **fail** and all existing tests still pass.
 4. Show the user the failure output.
 
 ## Step 4: Fix the parser
@@ -53,6 +59,6 @@ Ask the user: which file(s) are misparsed, and what should the correct parse res
 
 ## Step 5: Verify
 
-1. Run `mix test test/media_manager/parser_test.exs` — all tests must pass.
+1. Run `mix test test/media_centaur/parser_test.exs` — all tests must pass.
 2. Run `mix precommit` — no warnings, no failures.
-3. For each fixed file, evaluate `MediaManager.Parser.parse(file_path)` again and show the user the corrected result.
+3. For each fixed file, evaluate `MediaCentaur.Parser.parse(file_path)` again and show the user the corrected result.

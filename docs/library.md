@@ -1,6 +1,6 @@
 # Library
 
-The library is the core data domain. It stores all media entities, their relationships, watch progress, and file tracking. Built entirely on [Ash Framework](https://ash-hq.org/) with SQLite.
+The library is the core data domain. It stores all media entities, their relationships, watch progress, and file tracking. Built on [Ecto](https://github.com/elixir-ecto/ecto) with SQLite, organized as type-specific schemas (Movie, TVSeries, MovieSeries, VideoObject) wrapped by the `MediaCentaur.Library` context module.
 
 > [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · **Library**
 
@@ -215,7 +215,7 @@ Returns `{:ok, entity, :new | :new_child | :existing}` or `{:error, reason}`.
 
 ## Review Domain
 
-Separate Ash domain for files awaiting human review.
+Separate bounded context (`MediaCentaur.Review`) for files awaiting human review.
 
 **PendingFile** stores: file path, parsed metadata, best TMDB match with confidence, all scored candidates, status (`:pending` / `:approved` / `:dismissed`).
 

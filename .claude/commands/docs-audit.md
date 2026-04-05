@@ -45,10 +45,12 @@ categories:
   exist in the config source (`MediaCentaur.Config`). Every config field in the source
   should be documented. Check defaults match `defaults/backend.toml`.
 - **Entity tables:** Any entity type tables in CLAUDE.md must match what actually
-  exists in the Ash resources under `lib/media_centaur/library/`.
-- **Architecture claims:** Statements about how components interact (e.g. "Ash is the
-  only data interface", "the pipeline is a mediator") should be spot-checked against
-  actual code. Are the stated principles being followed?
+  exists in the Ecto schemas under `lib/media_centaur/library/` (Movie, TVSeries,
+  MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress,
+  WatchedFile).
+- **Architecture claims:** Statements about how components interact (e.g. "Ecto is
+  the data interface", "the pipeline is a mediator", "this app owns all writes")
+  should be spot-checked against actual code. Are the stated principles being followed?
 - **Build commands:** Verify that documented build/run/test commands (`mix setup`,
   `mix phx.server`, `mix test`, `mix precommit`) work as described.
 - **Decision records:** Check that ADR references in CLAUDE.md point to files that
