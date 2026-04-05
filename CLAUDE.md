@@ -14,7 +14,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | Broadway pipeline, producers, processors, batchers | `broadway` |
 | Phoenix web layer, controllers, views, routing | `phoenix-framework` |
 | Keyboard/gamepad nav, focus context, nav graphs, page behaviors | `input-system` |
-| Writing tests — Elixir, JavaScript, or Playwright E2E | `automated-testing` |
+| **ANY implementation** — features, bug fixes, refactors (test-first is mandatory) | `automated-testing` |
 | General coding standards, naming, structure | `coding-guidelines` |
 | Production debugging, service health, runtime logs | `troubleshoot` |
 | mpv Lua scripts, overlays, key bindings, playback UI | `mpv-extensions` |

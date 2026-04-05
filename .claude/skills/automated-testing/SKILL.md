@@ -1,11 +1,19 @@
 ---
 name: automated-testing
-description: "Use this skill before writing any test — Elixir, JavaScript, or Playwright E2E. Covers test-first workflow, factory patterns, stub strategies, E2E parameterization, and all project testing policies."
+description: "Use this skill at the START of ANY implementation task — new features, bug fixes, refactors, or any code change, not just when writing tests. This repo is strictly test-first: the test is written before the implementation, so this skill must load before you touch code, not after. Also use before writing standalone tests — Elixir, JavaScript, or Playwright E2E. Covers the test-first-for-bugfixes sequence (red → fix → green), factory patterns, stub strategies, E2E parameterization, and all project testing policies."
 ---
 
 ## Core Policies
 
 **Test-first.** Write tests before implementation. The test is the executable specification — if you can't write the test, the requirements aren't clear enough. Stop and clarify.
+
+**Test-first applies to bug fixes too — especially bug fixes.** The sequence is non-negotiable:
+
+1. **Reproduce the bug in a failing test** against the unmodified buggy code. Run it and confirm it fails with the same error the user reported (same exception, same stack frame). If the failure mode differs from production, the test isn't reproducing the bug — fix the test before touching the code.
+2. **Apply the fix.**
+3. **Run the test and confirm it passes.** Green after red is how you *know* the fix works. Without the red step, you only know the code compiles and the test is consistent with the new code — you do not know the bug is fixed.
+
+Never apply a fix first and write the test after. A test authored against already-fixed code can silently pass against the broken code too (wrong assertion, wrong setup, wrong path exercised) — you lose the proof that the test actually catches the regression. If you already applied a fix before remembering this rule, revert it, write the failing test, re-apply the fix, and verify red → green. The extra minute is the cost of the guarantee.
 
 **Zero tolerance for flaky tests.** Every test must pass deterministically, every time. A flaky test is a bug. Diagnose the root cause. Never skip, retry, or mark as expected failure.
 
