@@ -93,7 +93,7 @@ defmodule MediaCentaurWeb.ConsolePageLive do
   end
 
   def handle_info({:filter_changed, filter}, socket) do
-    if View.only_search_changed?(socket.assigns.filter, filter) do
+    if View.only_search_query_differs?(socket.assigns.filter, filter) do
       # Text search is handled by the client-side hook via data-message
       # attributes — no server-side re-stream needed. Just update the
       # assign so cross-tab sync works without the cursor jump that a

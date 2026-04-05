@@ -151,7 +151,12 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       <button type="button" class="btn btn-xs" phx-click="copy_visible">copy</button>
       <button type="button" class="btn btn-xs" phx-click="download_buffer">download</button>
       <.link :if={@show_fullpage_link} navigate={~p"/console"} class="btn btn-xs">full page</.link>
-      <button type="button" class="btn btn-xs btn-primary" phx-click="rescan_library">
+      <button
+        type="button"
+        class="btn btn-xs btn-primary"
+        phx-click="rescan_library"
+        phx-disable-with="scanning…"
+      >
         rescan
       </button>
       <div class="console-buffer-size">

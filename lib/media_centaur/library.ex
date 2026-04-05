@@ -249,8 +249,8 @@ defmodule MediaCentaur.Library do
   # Image
   # ---------------------------------------------------------------------------
 
-  def list_images, do: {:ok, Repo.all(Image)}
-  def list_images!, do: Repo.all(Image)
+  def list_all_images, do: {:ok, Repo.all(Image)}
+  def list_all_images!, do: Repo.all(Image)
 
   def create_image(attrs) do
     Image.create_changeset(attrs) |> Repo.insert()

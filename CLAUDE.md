@@ -42,8 +42,16 @@ mix setup              # install deps, create DB, run migrations, build assets
 mix phx.server         # start dev server (http://localhost:4001)
 mix test               # run tests (creates and migrates test DB automatically)
 mix precommit          # compile --warning-as-errors, unlock unused deps, format, test
-mix seed.review        # populate review UI with all visual cases (idempotent)
 ```
+
+### Seeding
+
+```bash
+mix seed.review        # populate the review UI with all visual test cases
+```
+
+One-shot utility for the review UI's visual test cases. Run once after
+initial setup. Idempotent — safe to re-run.
 
 ### Dev service
 
@@ -320,6 +328,12 @@ Write code for humans to read first, compilers second.
   `WatchedFile` that represents a video file the user dropped in, call it `file` or
   `video_file`, not `watched_file` or `wf`.
 - This rule applies everywhere: tests, GenServers, LiveViews, changesets.
+
+Short names that are universally understood Elixir/OTP idioms are fine: `id`, `ok`,
+`msg`, `pid`, `ref`, `fn`, `acc` (in reducers). Forbidden are domain abbreviations
+that require mental expansion: `wf` (watched_file), `e` (entity), `res` (result),
+`s` (season), `ep` (episode). Rule of thumb: if you can't say the name aloud and
+have it be clear without context, it's too short.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->
