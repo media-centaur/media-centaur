@@ -196,15 +196,29 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   def merge_progress_record(records, nil), do: records
 
   def merge_progress_record(records, changed) do
-    key = {changed.season_number, changed.episode_number}
+    key = progress_record_key(changed)
 
-    case Enum.find_index(records, &({&1.season_number, &1.episode_number} == key)) do
-      nil ->
-        Enum.sort_by([changed | records], &{&1.season_number, &1.episode_number})
-
-      index ->
-        List.replace_at(records, index, changed)
+    case Enum.find_index(records, &(progress_record_key(&1) == key)) do
+      nil -> records ++ [changed]
+      index -> List.replace_at(records, index, changed)
     end
+  end
+
+  defp progress_record_key(record) do
+    {Map.get(record, :episode_id), Map.get(record, :movie_id), Map.get(record, :video_object_id)}
+  end
+
+  @doc """
+  Returns the most recent `last_watched_at` across an entry's progress records,
+  or `nil` if the entry has none. Used to sort the Continue Watching list.
+  """
+  def max_last_watched_at(%{progress_records: []}), do: nil
+
+  def max_last_watched_at(%{progress_records: records}) do
+    records
+    |> Enum.map(& &1.last_watched_at)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max(DateTime, fn -> nil end)
   end
 
   def merge_extra_progress(records, nil), do: records
