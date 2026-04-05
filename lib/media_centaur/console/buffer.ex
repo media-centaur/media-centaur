@@ -77,6 +77,10 @@ defmodule MediaCentaur.Console.Buffer do
   @spec min_cap() :: pos_integer()
   def min_cap, do: @min_cap
 
+  @doc "Default buffer cap used when no persisted setting exists."
+  @spec default_cap() :: pos_integer()
+  def default_cap, do: @default_cap
+
   @doc "Resizes the buffer cap. Must be between #{@min_cap} and #{@max_cap}."
   @spec resize(non_neg_integer()) :: :ok | {:error, String.t()}
   def resize(n), do: resize(n, __MODULE__)
