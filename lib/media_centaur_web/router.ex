@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.Router do
 
     live_session :default do
       live "/", LibraryLive, :index
-      live "/dashboard", DashboardLive, :index
+      live "/status", StatusLive, :index
       live "/settings", SettingsLive, :index
       live "/review", ReviewLive, :index
       live "/console", ConsolePageLive, :index

@@ -66,7 +66,7 @@ export async function waitForSettle(page, ms = 100) {
 /**
  * Navigate to a page and wait for LiveView + input system to be ready.
  * @param {import("@playwright/test").Page} page
- * @param {string} path - URL path (e.g., "/", "/dashboard")
+ * @param {string} path - URL path (e.g., "/", "/status")
  */
 export async function navigateAndWait(page, path) {
   await page.goto(path)

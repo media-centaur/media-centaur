@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Pipeline.Stats do
   @moduledoc """
-  Tracks pipeline stage activity for dashboard visualization.
+  Tracks pipeline stage activity for Status-page visualization.
 
   Attaches to telemetry events emitted by Discovery, Import, and their
   producers, receives updates via `GenServer.cast`, and serves snapshots
@@ -23,7 +23,7 @@ defmodule MediaCentaur.Pipeline.Stats do
   A bounded ring buffer (`recent_errors`) stores the last 50
   pipeline errors across all stages. Each entry is a map with `file_path`,
   `error_message`, `stage`, and `updated_at` — shaped to match what the
-  dashboard errors table expects.
+  Status errors table expects.
 
   ## Status derivation (computed at snapshot time)
 

@@ -31,7 +31,7 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
     |> Repo.all()
   end
 
-  @doc "Returns the count of entries with status failed (for dashboard display)."
+  @doc "Returns the count of entries with status failed (for Status-page display)."
   def retrying_count do
     from(e in ImageQueueEntry,
       where: e.status == "failed",

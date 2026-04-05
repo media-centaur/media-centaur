@@ -59,7 +59,7 @@ export const inputConfig = {
       grid:      { left: ["sections"] },
       sidebar:   { right: ["sections", "grid"] },
     },
-    dashboard: {
+    status: {
       sections:  { left: ["sidebar"] },
       sidebar:   { right: ["sections"] },
     },
@@ -76,7 +76,7 @@ export const inputConfig = {
     library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
     upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
-    dashboard: ["sections", "sidebar"],
+    status:    ["sections", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
   },
 

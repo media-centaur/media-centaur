@@ -1,7 +1,7 @@
-defmodule MediaCentaurWeb.DashboardHelpers do
+defmodule MediaCentaurWeb.StatusHelpers do
   @moduledoc """
-  Pure helper functions for the dashboard LiveView — formatting,
-  status classification, and display mapping.
+  Pure helper functions for `StatusLive` — formatting, stage classification,
+  and display mapping for the operational status page.
   """
 
   # --- Playback ---

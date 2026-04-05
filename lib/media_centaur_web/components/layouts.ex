@@ -48,14 +48,14 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="sidebar-label">Library</span>
           </.link>
           <.link
-            navigate="/dashboard"
-            class={sidebar_link_class(@current_path, "/dashboard")}
-            data-tip="Dashboard"
+            navigate="/status"
+            class={sidebar_link_class(@current_path, "/status")}
+            data-tip="Status"
             data-nav-item
             tabindex="0"
           >
             <.icon name="hero-squares-2x2" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Dashboard</span>
+            <span class="sidebar-label">Status</span>
           </.link>
           <.link
             navigate="/review"

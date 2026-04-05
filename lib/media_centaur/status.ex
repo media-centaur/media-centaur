@@ -1,7 +1,10 @@
-defmodule MediaCentaur.Dashboard do
+defmodule MediaCentaur.Status do
   @moduledoc """
-  Data-fetching module for the admin dashboard.
-  Keeps the LiveView thin by centralizing all dashboard queries.
+  Data-fetching module for the operational Status page.
+
+  Keeps `StatusLive` thin by centralizing all of the read queries the status
+  page needs — library counts, pending review, recent errors, and the recent
+  changes feed.
   """
   import Ecto.Query
 

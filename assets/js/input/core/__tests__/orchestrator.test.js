@@ -176,7 +176,7 @@ function mockCreateBehavior(name) {
   if (name === "settings") {
     return { onAttach() {}, onDetach() {}, onEscape: () => "sections" }
   }
-  if (name === "dashboard" || name === "review") {
+  if (name === "status" || name === "review") {
     return { onAttach() {}, onDetach() {}, onEscape: () => "sidebar" }
   }
   return null

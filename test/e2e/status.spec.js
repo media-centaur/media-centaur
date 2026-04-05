@@ -1,5 +1,5 @@
 /**
- * Dashboard page E2E tests.
+ * Status page E2E tests.
  *
  * Tests sequential section card navigation, sidebar transitions,
  * escape behavior, and initial focus placement.
@@ -8,9 +8,9 @@ import { test, expect } from "./fixtures/input-method.js"
 import { expectContext, expectFocusInZone, getFocusedNavItem, getFocusedIndex } from "./helpers/input.js"
 import { waitForSections } from "./helpers/liveview.js"
 
-test.describe("dashboard navigation", () => {
+test.describe("status navigation", () => {
   test.beforeEach(async ({ navigateTo }) => {
-    await navigateTo("/dashboard")
+    await navigateTo("/status")
   })
 
   test("initial focus lands on first section card", async ({ page }) => {

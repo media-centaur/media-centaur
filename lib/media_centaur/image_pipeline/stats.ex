@@ -1,6 +1,6 @@
 defmodule MediaCentaur.ImagePipeline.Stats do
   @moduledoc """
-  Tracks image pipeline activity for dashboard visualization.
+  Tracks image pipeline activity for Status-page visualization.
 
   Attaches to telemetry events emitted by `ImagePipeline` and its `Producer`,
   receives updates via `GenServer.cast`, and serves snapshots via
@@ -24,7 +24,7 @@ defmodule MediaCentaur.ImagePipeline.Stats do
   A bounded ring buffer (`recent_errors`) stores the last 20
   image pipeline errors. Each entry is a map with `file_path`,
   `error_message`, `stage`, and `updated_at` — shaped to match what the
-  dashboard errors table expects.
+  Status errors table expects.
 
   ## Status derivation (computed at snapshot time)
 

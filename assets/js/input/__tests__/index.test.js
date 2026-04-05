@@ -17,14 +17,14 @@ describe("App config", () => {
     expect(inputConfig.layouts.watching).toBeDefined()
     expect(inputConfig.layouts.library).toBeDefined()
     expect(inputConfig.layouts.settings).toBeDefined()
-    expect(inputConfig.layouts.dashboard).toBeDefined()
+    expect(inputConfig.layouts.status).toBeDefined()
   })
 
   test("has cursor start priority for all zones", () => {
     expect(inputConfig.cursorStartPriority.watching).toBeDefined()
     expect(inputConfig.cursorStartPriority.library).toBeDefined()
     expect(inputConfig.cursorStartPriority.settings).toBeDefined()
-    expect(inputConfig.cursorStartPriority.dashboard).toBeDefined()
+    expect(inputConfig.cursorStartPriority.status).toBeDefined()
   })
 
   test("has primaryMenu set", () => {
@@ -65,8 +65,8 @@ describe("App config", () => {
     expect(behavior).not.toBe(null)
   })
 
-  test("createBehavior returns dashboard behavior", () => {
-    const behavior = inputConfig.createBehavior("dashboard")
+  test("createBehavior returns status behavior", () => {
+    const behavior = inputConfig.createBehavior("status")
     expect(behavior).not.toBe(null)
   })
 

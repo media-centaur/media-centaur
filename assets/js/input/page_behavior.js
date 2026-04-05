@@ -16,13 +16,13 @@
  *     Return true to consume, { transitionTo } to transition, false to pass through.
  */
 
-import { createDashboardBehavior } from "./dashboard_behavior"
+import { createStatusBehavior } from "./status_behavior"
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createReviewBehavior } from "./review_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 
 const BEHAVIOR_REGISTRY = {
-  dashboard: () => createDashboardBehavior(),
+  status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),
   settings: () => createSettingsBehavior(),

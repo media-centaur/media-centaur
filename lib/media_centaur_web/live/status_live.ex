@@ -1,9 +1,17 @@
-defmodule MediaCentaurWeb.DashboardLive do
+defmodule MediaCentaurWeb.StatusLive do
+  @moduledoc """
+  Operational status page at `/status`.
+
+  Surfaces library counts, pipeline health, watcher state, storage metrics,
+  external integrations, recent errors, the recent-changes feed, and the
+  active playback summary. The library itself lives at `/`; this page is the
+  developer/operator view.
+  """
   use MediaCentaurWeb, :live_view
 
-  import MediaCentaurWeb.DashboardHelpers
+  import MediaCentaurWeb.StatusHelpers
 
-  alias MediaCentaur.{Dashboard, Storage}
+  alias MediaCentaur.{Status, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
 
@@ -20,7 +28,7 @@ defmodule MediaCentaurWeb.DashboardLive do
         Process.send_after(self(), :tick_pipeline, 1_000)
         Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
 
-        stats = Dashboard.fetch_stats()
+        stats = Status.fetch_stats()
         pipeline_stats = Stats.get_snapshot()
         image_stats = ImagePipeline.Stats.get_snapshot()
 
@@ -104,7 +112,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   end
 
   def handle_info(:refresh_stats, socket) do
-    stats = Dashboard.fetch_stats()
+    stats = Status.fetch_stats()
 
     {:noreply,
      socket
@@ -181,9 +189,9 @@ defmodule MediaCentaurWeb.DashboardLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/dashboard">
-      <div data-page-behavior="dashboard" data-nav-default-zone="dashboard" class="space-y-6">
-        <h1 class="text-2xl font-bold">Dashboard</h1>
+    <Layouts.app flash={@flash} current_path="/status">
+      <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
+        <h1 class="text-2xl font-bold">Status</h1>
 
         <div data-nav-zone="sections">
           <.link navigate="/" data-nav-item tabindex="0" class="block">
@@ -787,7 +795,7 @@ defmodule MediaCentaurWeb.DashboardLive do
     derive_playback(sessions)
   end
 
-  # Derives the dashboard's single-card playback view from the sessions map.
+  # Derives the status page's single-card playback view from the sessions map.
   # Shows the most recently active session (playing > paused).
 
   defp fetch_rate_limiter do

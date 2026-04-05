@@ -38,31 +38,31 @@ test.describe("sidebar navigation", () => {
     await inputAction("NAVIGATE_LEFT")
     await expectContext(page, "sidebar")
 
-    // Navigate to Dashboard link (second item) and select it
+    // Navigate to Status link (second item) and select it
     await inputAction("NAVIGATE_DOWN")
     await inputAction("SELECT")
 
     await waitForLiveView(page)
     await waitForInputSystem(page)
 
-    await expect(page).toHaveURL(/\/dashboard/)
+    await expect(page).toHaveURL(/\/status/)
   })
 })
 
 test.describe("page transitions", () => {
-  test("library → dashboard → library", async ({ page, navigateTo, inputAction }) => {
+  test("library → status → library", async ({ page, navigateTo, inputAction }) => {
     await navigateTo("/")
 
     // Go to sidebar
     await inputAction("NAVIGATE_LEFT")
     await expectContext(page, "sidebar")
 
-    // Navigate to Dashboard (second link)
+    // Navigate to Status (second link)
     await inputAction("NAVIGATE_DOWN")
     await inputAction("SELECT")
     await waitForLiveView(page)
     await waitForInputSystem(page)
-    await expect(page).toHaveURL(/\/dashboard/)
+    await expect(page).toHaveURL(/\/status/)
 
     // Go back to sidebar
     await inputAction("NAVIGATE_LEFT")
@@ -84,8 +84,8 @@ test.describe("page transitions", () => {
     )
     expect(["grid", "zone_tabs", "sidebar"]).toContain(libraryContext)
 
-    // Dashboard defaults to sections (grid empty → cursor start resolves to sections)
-    await navigateTo("/dashboard")
+    // Status defaults to sections (grid empty → cursor start resolves to sections)
+    await navigateTo("/status")
     await expectContext(page, "sections")
 
     // Settings: grid has items so default stays "grid" (cursor start doesn't override)
@@ -105,7 +105,7 @@ test.describe("input method persistence", () => {
     await inputAction("NAVIGATE_DOWN")
     await expectInputMethod(page, inputMethod)
 
-    // Navigate to dashboard via sidebar
+    // Navigate to status via sidebar
     await inputAction("NAVIGATE_LEFT")
     await inputAction("NAVIGATE_DOWN")
     await inputAction("SELECT")
@@ -123,7 +123,7 @@ test.describe("data-nav-remember (URL persistence)", () => {
     // Navigate to library with zone=library (use navigateTo for proper setup)
     await navigateTo("/?zone=library")
 
-    // Navigate away to dashboard via sidebar
+    // Navigate away to status via sidebar
     await inputAction("NAVIGATE_LEFT")
     await expectContext(page, "sidebar")
     await inputAction("NAVIGATE_DOWN")
@@ -131,7 +131,7 @@ test.describe("data-nav-remember (URL persistence)", () => {
     await waitForLiveView(page)
     await waitForInputSystem(page)
     await establishFocus(page)
-    await expect(page).toHaveURL(/\/dashboard/)
+    await expect(page).toHaveURL(/\/status/)
 
     // Navigate back to library via sidebar
     await inputAction("NAVIGATE_LEFT")

@@ -32,7 +32,7 @@ defmodule MediaCentaur.TMDB.RateLimiter do
   end
 
   @doc """
-  Returns current rate limiter status for dashboard display.
+  Returns current rate limiter status for Status-page display.
   """
   def status do
     GenServer.call(__MODULE__, :status)

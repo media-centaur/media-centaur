@@ -153,9 +153,9 @@ defmodule MediaCentaur.Config do
       file_absence_ttl_days:
         get_in(toml, ["file_absence_ttl_days"]) || defaults.file_absence_ttl_days,
       recent_changes_days:
-        get_in(toml, ["dashboard", "recent_changes_days"]) || defaults.recent_changes_days,
+        get_in(toml, ["status", "recent_changes_days"]) || defaults.recent_changes_days,
       recently_watched_count:
-        get_in(toml, ["dashboard", "recently_watched_count"]) || defaults.recently_watched_count,
+        get_in(toml, ["status", "recently_watched_count"]) || defaults.recently_watched_count,
       release_tracking_refresh_interval_hours:
         get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
           defaults.release_tracking_refresh_interval_hours
