@@ -73,9 +73,8 @@ defmodule MediaCentaur.ReleaseTracking do
     Release.create_changeset(attrs) |> Repo.insert!()
   end
 
-  def update_release(%Release{} = release, attrs) do
-    Release.update_changeset(release, attrs) |> Repo.update()
-  end
+  # Releases are always deleted and recreated (never updated individually).
+  # Use delete_releases_for_item + create_release! instead.
 
   def list_releases do
     all =
@@ -123,10 +122,13 @@ defmodule MediaCentaur.ReleaseTracking do
   # --- Bulk operations ---
 
   @doc """
-  Mark releases as in_library for a given item based on its last library episode.
-  Episodes at or before last_library_season/episode are in the library.
+  Mark releases as in_library for a given item.
+
+  TV series: episodes at or before last_library_season/episode are in the library.
+  Movies: all releases with `released: true` are marked (the library entity existing
+  means the collection is tracked, and released movies are available).
   """
-  def mark_in_library_releases(%Item{} = item) do
+  def mark_in_library_releases(%Item{media_type: :tv_series} = item) do
     season = item.last_library_season || 0
     episode = item.last_library_episode || 0
 
@@ -139,6 +141,13 @@ defmodule MediaCentaur.ReleaseTracking do
       )
       |> Repo.update_all(set: [in_library: true])
     end
+  end
+
+  def mark_in_library_releases(%Item{media_type: :movie} = item) do
+    from(r in Release,
+      where: r.item_id == ^item.id and r.released == true
+    )
+    |> Repo.update_all(set: [in_library: true])
   end
 
   def mark_past_releases_as_released do

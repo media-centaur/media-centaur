@@ -35,9 +35,4 @@ defmodule MediaCentaur.ReleaseTracking.Release do
     ])
     |> validate_required([:item_id])
   end
-
-  def update_changeset(release, attrs) do
-    release
-    |> cast(attrs, [:air_date, :title, :released])
-  end
 end

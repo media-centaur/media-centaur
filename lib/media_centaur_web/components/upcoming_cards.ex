@@ -694,6 +694,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
 
   defp event_label(%{event_type: :began_tracking}), do: "began tracking"
   defp event_label(%{event_type: :stopped_tracking}), do: "stopped tracking"
+  defp event_label(%{event_type: :removed_from_schedule}), do: "removed from schedule"
   defp event_label(event), do: event.description
 
   # --- Format helpers ---
