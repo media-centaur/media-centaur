@@ -12,6 +12,14 @@ defmodule MediaCentaur.Settings.Entry do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
+  @type t :: %__MODULE__{
+          id: Ecto.UUID.t() | nil,
+          key: String.t() | nil,
+          value: map() | nil,
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   schema "settings_entries" do
     field :key, :string
     field :value, :map

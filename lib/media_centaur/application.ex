@@ -9,27 +9,21 @@ defmodule MediaCentaur.Application do
   def start(_type, _args) do
     MediaCentaur.Config.load!()
 
-    :logger.add_primary_filter(
-      :component_filter,
-      {fn event, extra ->
-         try do
-           MediaCentaur.Log.filter(event, extra)
-         catch
-           :error, :undef -> :ignore
-         end
-       end, []}
+    :logger.add_handler(
+      :media_centaur_console,
+      MediaCentaur.Console.Handler,
+      %{level: :all, config: %{}}
     )
 
     children =
       [
         MediaCentaurWeb.Telemetry,
         MediaCentaur.Repo,
-        %{
-          id: :init_logging,
-          start: {__MODULE__, :init_logging, []},
-          restart: :temporary
-        },
+        # PubSub must start before Console.Buffer — Buffer's handle_cast
+        # broadcasts to PubSub on every log entry append, including during
+        # init when Ecto query logs land in its mailbox.
         {Phoenix.PubSub, name: MediaCentaur.PubSub},
+        MediaCentaur.Console.Buffer,
         {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
         MediaCentaur.TMDB.RateLimiter,
         MediaCentaur.Watcher.Supervisor,
@@ -59,13 +53,6 @@ defmodule MediaCentaur.Application do
     ]
 
     Supervisor.start_link(children, opts)
-  end
-
-  @doc false
-  def init_logging do
-    MediaCentaur.Log.init()
-    MediaCentaur.Log.init_framework_levels()
-    :ignore
   end
 
   defp init_services do

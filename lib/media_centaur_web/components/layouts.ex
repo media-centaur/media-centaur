@@ -134,6 +134,20 @@ defmodule MediaCentaurWeb.Layouts do
   end
 
   @doc """
+  Renders the persistent console LiveView as a sticky child of the current page.
+  Each page LiveView calls this once at the top of its render to mount the
+  Guake-style dropdown console that survives navigation within the `:default`
+  live_session.
+  """
+  attr :socket, :any, required: true
+
+  def console_mount(assigns) do
+    ~H"""
+    {live_render(@socket, MediaCentaurWeb.ConsoleLive, id: "console-sticky", sticky: true)}
+    """
+  end
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

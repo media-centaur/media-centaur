@@ -251,7 +251,7 @@ Config: `.dependency-cruiser.cjs`
 
 ## Thinking Logs
 
-The app has a component-level logging system for development visibility. All thinking logs are **info level** and filtered by an Erlang primary filter based on a set of enabled component atoms stored in `:persistent_term`.
+The app has a component-tagged logging system for development visibility. All log entries flow through an Erlang `:logger` handler into an in-memory ring buffer (`MediaCentaur.Console.Buffer`, default 2,000 entries) and are viewable in the browser via the Guake-style **Console** drawer (press `` ` `` backtick). Filter visibility is UI-driven — there is no source-level suppression.
 
 ### Usage
 
@@ -259,25 +259,42 @@ The app has a component-level logging system for development visibility. All thi
 require MediaCentaur.Log, as: Log
 Log.info(:pipeline, "claimed 3 files")
 Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
+Log.warning(:watcher, "backlog: #{count} events")
+Log.error(:library, "failed to persist entity: #{inspect(reason)}")
 ```
+
+The `MediaCentaur.Log` module contains only the `info/2`, `warning/2`, and `error/2` macros — call sites never change.
 
 ### Components
 
-| Component | Covers |
+The handler classifies every entry into one component:
+
+| Component | Source |
 |-----------|--------|
-| `:watcher` | File events, size checks, detection, scanning |
-| `:pipeline` | Processing steps, producer claims, batch results |
-| `:tmdb` | API calls, rate limiting, confidence scoring |
-| `:playback` | Play/pause/stop, session lifecycle, progress |
-| `:library` | Entity resolver, browser, admin, review |
+| `:watcher` | Explicit via `Log.info(:watcher, ...)` — file events, detection, scanning |
+| `:pipeline` | Explicit — processing steps, producer claims, batch results |
+| `:tmdb` | Explicit — API calls, rate limiting, confidence scoring |
+| `:playback` | Explicit — play/pause/stop, session lifecycle, progress |
+| `:library` | Explicit — entity resolver, browser, admin, review |
+| `:system` | Fallback — any log without a component tag and no framework prefix |
+| `:phoenix` | Automatic — logs from `Phoenix.*` modules |
+| `:ecto` | Automatic — logs from `Ecto.*`, `Postgrex.*`, `DBConnection.*` |
+| `:live_view` | Automatic — logs from `Phoenix.LiveView.*` modules |
 
-### IEx Helpers
+Framework components (`:phoenix`, `:ecto`, `:live_view`) default to HIDDEN in the console filter. Flip their chips to see Ecto queries or Phoenix request logs.
 
-`Log.enable(:pipeline)`, `Log.disable(:pipeline)`, `Log.solo(:pipeline)`, `Log.mute(:pipeline)`, `Log.all()`, `Log.none()`, `Log.enabled()`, `Log.status()`
+### Accessing the buffer
 
-### LiveView
+- **Browser:** press `` ` `` from any page to open the sticky drawer, or navigate to `/console` for the full-page view. Filter chips, level segment, and text search are all live.
+- **IEx/Remote shell:** `MediaCentaur.Diagnostics.log_recent(20)` prints the 20 most recent entries. `MediaCentaur.Console.recent_entries/1` returns them as `%Entry{}` structs.
+- **Settings page** no longer has a Logging section — all controls moved to the Console.
 
-Visit `/operations` (Logging section) to toggle components and framework log suppression from the browser.
+### Architectural notes
+
+- The bounded context `MediaCentaur.Console` owns the buffer, handler, filter, and view helpers. LiveViews interact only through the `MediaCentaur.Console` public facade (ADR-026).
+- The buffer survives page navigation and reload (sticky LiveView + server-side state). It is lost on BEAM restart.
+- Filter state and buffer size are persisted per-user to `Settings.Entry` with a 2-second debounce.
+- See `decisions/architecture/2026-04-05-031-console-log-buffer-and-ui-filtering.md` for the design rationale.
 
 ## CSS Animation Rules
 

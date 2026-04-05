@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Admin, Log, Settings}
+  alias MediaCentaur.{Admin, Settings}
   alias MediaCentaur.Watcher
   alias MediaCentaur.Pipeline
   alias MediaCentaur.ImagePipeline
@@ -9,7 +9,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   @sections [
     %{id: "services", label: "Services"},
     %{id: "preferences", label: "Preferences"},
-    %{id: "logging", label: "Logging"},
     %{id: "configuration", label: "Configuration"},
     %{id: "danger", label: "Danger Zone"}
   ]
@@ -18,24 +17,14 @@ defmodule MediaCentaurWeb.SettingsLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.logging_updates())
-
-        {enabled, all} = Log.status()
-
         socket
         |> assign(config: load_config())
-        |> assign(enabled_components: enabled)
-        |> assign(all_components: all)
-        |> assign(suppressed_frameworks: Log.suppressed_frameworks())
         |> assign(watchers_running: Watcher.Supervisor.running?())
         |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
         |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())
       else
         socket
         |> assign(config: %{})
-        |> assign(enabled_components: [])
-        |> assign(all_components: [])
-        |> assign(suppressed_frameworks: [])
         |> assign(watchers_running: false)
         |> assign(pipeline_running: false)
         |> assign(image_pipeline_running: false)
@@ -156,42 +145,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
-  def handle_event("toggle_component", %{"component" => component}, socket) do
-    component = String.to_existing_atom(component)
-
-    if component in socket.assigns.enabled_components do
-      Log.disable(component)
-    else
-      Log.enable(component)
-    end
-
-    {:noreply, assign_log_state(socket)}
-  end
-
-  def handle_event("enable_all", _params, socket) do
-    Log.all()
-    Enum.each(Log.framework_modules(), fn {key, _mod} -> Log.unsuppress_framework(key) end)
-    {:noreply, assign_log_state(socket)}
-  end
-
-  def handle_event("disable_all", _params, socket) do
-    Log.none()
-    Enum.each(Log.framework_modules(), fn {key, _mod} -> Log.suppress_framework(key) end)
-    {:noreply, assign_log_state(socket)}
-  end
-
-  def handle_event("toggle_framework", %{"key" => key}, socket) do
-    key = String.to_existing_atom(key)
-
-    if key in socket.assigns.suppressed_frameworks do
-      Log.unsuppress_framework(key)
-    else
-      Log.suppress_framework(key)
-    end
-
-    {:noreply, assign_log_state(socket)}
-  end
-
   # --- Info handlers ---
 
   @impl true
@@ -209,10 +162,6 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_flash(:info, "Image cache refreshed — re-downloaded images for #{count} entities")}
   end
 
-  def handle_info(:log_settings_changed, socket) do
-    {:noreply, assign_log_state(socket)}
-  end
-
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -222,6 +171,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/settings">
       <div
         data-page-behavior="settings"
@@ -255,9 +205,6 @@ defmodule MediaCentaurWeb.SettingsLive do
             pipeline_running={@pipeline_running}
             image_pipeline_running={@image_pipeline_running}
             scanning={@scanning}
-            enabled_components={@enabled_components}
-            all_components={@all_components}
-            suppressed_frameworks={@suppressed_frameworks}
             config={@config}
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
@@ -334,66 +281,6 @@ defmodule MediaCentaurWeb.SettingsLive do
         event="toggle_spoiler_free"
         color="info"
       />
-    </div>
-    """
-  end
-
-  defp section_content(%{active_section: "logging"} = assigns) do
-    ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold">Logging</h2>
-        <div class="flex gap-2">
-          <button
-            phx-click="enable_all"
-            data-nav-item
-            tabindex="0"
-            class="btn btn-xs btn-soft btn-success"
-          >
-            Enable all
-          </button>
-          <button
-            phx-click="disable_all"
-            data-nav-item
-            tabindex="0"
-            class="btn btn-xs btn-outline"
-          >
-            Disable all
-          </button>
-        </div>
-      </div>
-
-      <h3 class="text-sm font-medium text-base-content/70 mt-2">Components</h3>
-      <p class="text-sm opacity-50 mt-0.5 mb-2">
-        Per-component decision logs. Enable to see thinking in the terminal.
-      </p>
-
-      <.settings_row
-        :for={component <- @all_components}
-        label={component}
-        description={component_description(component)}
-        checked={component in @enabled_components}
-        event="toggle_component"
-        event_value={%{component: component}}
-        color="success"
-      />
-
-      <div class="mt-6">
-        <h3 class="text-sm font-medium text-base-content/70">Frameworks</h3>
-        <p class="text-sm opacity-50 mt-0.5 mb-2">
-          Per-framework verbose output. Disabled frameworks only emit warning and above.
-        </p>
-
-        <.settings_row
-          :for={{key, _mod} <- Log.framework_modules()}
-          label={framework_label(key)}
-          description={framework_description(key)}
-          checked={key not in @suppressed_frameworks}
-          event="toggle_framework"
-          event_value={%{key: key}}
-          color="success"
-        />
-      </div>
     </div>
     """
   end
@@ -528,15 +415,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     Map.new(map, fn {key, value} -> {:"phx-value-#{key}", value} end)
   end
 
-  defp assign_log_state(socket) do
-    {enabled, all} = Log.status()
-
-    socket
-    |> assign(enabled_components: enabled)
-    |> assign(all_components: all)
-    |> assign(suppressed_frameworks: Log.suppressed_frameworks())
-  end
-
   defp load_config do
     config = MediaCentaur.Config
 
@@ -564,18 +442,4 @@ defmodule MediaCentaurWeb.SettingsLive do
       _ -> false
     end
   end
-
-  defp component_description(:watcher), do: "file events, size checks, detection"
-  defp component_description(:pipeline), do: "processing steps, batch results"
-  defp component_description(:tmdb), do: "API calls, rate limiting, confidence"
-  defp component_description(:playback), do: "play/pause/stop, session lifecycle"
-  defp component_description(:library), do: "entity resolver, browser, admin"
-
-  defp framework_label(:ecto), do: "Ecto SQL queries"
-  defp framework_label(:phoenix), do: "Phoenix requests"
-  defp framework_label(:live_view), do: "LiveView events"
-
-  defp framework_description(:ecto), do: "full SQL dumped on every query"
-  defp framework_description(:phoenix), do: "HTTP request logs for every interaction"
-  defp framework_description(:live_view), do: "mount, handle_event, handle_params logs"
 end
