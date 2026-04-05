@@ -194,9 +194,7 @@ defmodule MediaCentaurWeb.StatusLive do
         <h1 class="text-2xl font-bold">Status</h1>
 
         <div data-nav-zone="sections">
-          <.link navigate="/" data-nav-item tabindex="0" class="block">
-            <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
-          </.link>
+          <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <.recent_changes_card entries={@recent_changes} />
@@ -247,37 +245,48 @@ defmodule MediaCentaurWeb.StatusLive do
   defp library_stats(assigns) do
     ~H"""
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-      <div class="p-4 rounded-lg glass-surface">
+      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.by_type[:movie] || 0}</div>
         <div class="text-sm text-base-content/60">Movies</div>
         <div class="text-xs text-base-content/40 mt-1">
           {@stats.by_type[:movie_series] || 0} collections
         </div>
-      </div>
-      <div class="p-4 rounded-lg glass-surface">
+      </.link>
+      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.by_type[:tv_series] || 0}</div>
         <div class="text-sm text-base-content/60">TV Series</div>
         <div class="text-xs text-base-content/40 mt-1">{@stats.episodes} episodes</div>
-      </div>
-      <div :if={(@stats.by_type[:video_object] || 0) > 0} class="p-4 rounded-lg glass-surface">
+      </.link>
+      <.link
+        :if={(@stats.by_type[:video_object] || 0) > 0}
+        navigate="/"
+        data-nav-item
+        tabindex="0"
+        class="p-4 rounded-lg glass-surface block"
+      >
         <div class="text-2xl font-bold">{@stats.by_type[:video_object]}</div>
         <div class="text-sm text-base-content/60">Videos</div>
-      </div>
-      <div class="p-4 rounded-lg glass-surface">
+      </.link>
+      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.files}</div>
         <div class="text-sm text-base-content/60">Files Tracked</div>
-      </div>
-      <div class="p-4 rounded-lg glass-surface">
+      </.link>
+      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.images}</div>
         <div class="text-sm text-base-content/60">Images Cached</div>
-      </div>
-      <div class={[
-        "p-4 rounded-lg glass-surface",
-        if(@pending_review_count > 0, do: "border-l-3 border-warning")
-      ]}>
+      </.link>
+      <.link
+        navigate={~p"/review"}
+        data-nav-item
+        tabindex="0"
+        class={[
+          "p-4 rounded-lg glass-surface block",
+          if(@pending_review_count > 0, do: "border-l-3 border-warning")
+        ]}
+      >
         <div class="text-2xl font-bold">{@pending_review_count}</div>
         <div class="text-sm text-base-content/60">Pending Review</div>
-      </div>
+      </.link>
     </div>
     """
   end
