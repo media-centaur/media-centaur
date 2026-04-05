@@ -15,10 +15,13 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   @doc """
   Loads entity progress and broadcasts an `:entity_progress_updated` message.
 
-  `season_number` and `episode_number` identify the specific item that changed,
-  used for computing the child targets delta.
+  `changed_record` is the specific `WatchProgress` record whose change triggered
+  this broadcast. Subscribers (LiveViews) use it to keep their in-memory
+  per-entity progress_records list in sync with the authoritative summary.
+  Pass `nil` only when the caller truly has no single record to report (e.g.
+  a bulk recomputation).
   """
-  def broadcast(entity_id, _season_number, _episode_number) do
+  def broadcast(entity_id, changed_record \\ nil) do
     case resolve_entity_with_progress(entity_id) do
       {:ok, entity, progress_records} ->
         summary = MediaCentaur.Playback.ProgressSummary.compute(entity, progress_records)
@@ -35,7 +38,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
              summary: summary,
              resume_target: resume_target,
              child_targets_delta: nil,
-             changed_record: nil,
+             changed_record: changed_record,
              last_activity_at: DateTime.utc_now()
            }}
         )

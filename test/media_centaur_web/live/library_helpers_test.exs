@@ -330,13 +330,13 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
 
   describe "merge_progress_record/2" do
     test "returns records unchanged for nil change" do
-      records = [build_progress(%{season_number: 1, episode_number: 1})]
+      records = [build_progress(%{episode_id: "ep-1"})]
       assert LibraryHelpers.merge_progress_record(records, nil) == records
     end
 
-    test "replaces existing record by season/episode key" do
-      existing = build_progress(%{season_number: 1, episode_number: 2, completed: false})
-      updated = build_progress(%{season_number: 1, episode_number: 2, completed: true})
+    test "replaces an existing episode record by episode_id" do
+      existing = build_progress(%{episode_id: "ep-1", completed: false})
+      updated = build_progress(%{episode_id: "ep-1", completed: true})
 
       result = LibraryHelpers.merge_progress_record([existing], updated)
 
@@ -344,16 +344,66 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
       assert hd(result).completed == true
     end
 
-    test "inserts new record in sorted position" do
-      record1 = build_progress(%{season_number: 1, episode_number: 1})
-      record3 = build_progress(%{season_number: 1, episode_number: 3})
-      new_record = build_progress(%{season_number: 1, episode_number: 2})
+    test "replaces an existing movie record by movie_id" do
+      existing = build_progress(%{movie_id: "movie-1", completed: false})
+      updated = build_progress(%{movie_id: "movie-1", completed: true})
 
-      result = LibraryHelpers.merge_progress_record([record1, record3], new_record)
+      result = LibraryHelpers.merge_progress_record([existing], updated)
 
-      assert length(result) == 3
-      numbers = Enum.map(result, & &1.episode_number)
-      assert numbers == [1, 2, 3]
+      assert length(result) == 1
+      assert hd(result).completed == true
+    end
+
+    test "replaces an existing video object record by video_object_id" do
+      existing = build_progress(%{video_object_id: "vo-1", completed: false})
+      updated = build_progress(%{video_object_id: "vo-1", completed: true})
+
+      result = LibraryHelpers.merge_progress_record([existing], updated)
+
+      assert length(result) == 1
+      assert hd(result).completed == true
+    end
+
+    test "appends a new record that does not match any existing FK" do
+      record1 = build_progress(%{episode_id: "ep-1"})
+      new_record = build_progress(%{episode_id: "ep-2"})
+
+      result = LibraryHelpers.merge_progress_record([record1], new_record)
+
+      assert length(result) == 2
+      assert Enum.any?(result, &(&1.episode_id == "ep-1"))
+      assert Enum.any?(result, &(&1.episode_id == "ep-2"))
+    end
+
+    test "prepends first record into an empty list" do
+      new_record = build_progress(%{episode_id: "ep-1"})
+
+      assert LibraryHelpers.merge_progress_record([], new_record) == [new_record]
+    end
+  end
+
+  # --- max_last_watched_at/1 ---
+
+  describe "max_last_watched_at/1" do
+    test "returns nil when progress_records is empty" do
+      assert LibraryHelpers.max_last_watched_at(%{progress_records: []}) == nil
+    end
+
+    test "returns the timestamp of the only record" do
+      timestamp = ~U[2026-01-15 12:00:00Z]
+      record = build_progress(%{episode_id: "ep-1", last_watched_at: timestamp})
+
+      assert LibraryHelpers.max_last_watched_at(%{progress_records: [record]}) == timestamp
+    end
+
+    test "returns the most recent timestamp across records" do
+      older = build_progress(%{episode_id: "ep-1", last_watched_at: ~U[2026-01-01 00:00:00Z]})
+      newer = build_progress(%{episode_id: "ep-2", last_watched_at: ~U[2026-02-01 00:00:00Z]})
+      middle = build_progress(%{episode_id: "ep-3", last_watched_at: ~U[2026-01-15 00:00:00Z]})
+
+      result = LibraryHelpers.max_last_watched_at(%{progress_records: [older, newer, middle]})
+
+      assert result == ~U[2026-02-01 00:00:00Z]
     end
   end
 

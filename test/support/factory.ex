@@ -145,6 +145,7 @@ defmodule MediaCentaur.TestFactory do
     defaults = %{
       episode_id: nil,
       movie_id: nil,
+      video_object_id: nil,
       position_seconds: 0.0,
       duration_seconds: 0.0,
       completed: false,

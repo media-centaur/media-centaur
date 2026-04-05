@@ -906,17 +906,21 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp find_tmdb_id(_), do: nil
 
+  # Sentinel for entries whose progress summary reports in-progress but have no
+  # loaded progress records (e.g. immediately after a first mark-watched broadcast
+  # on a stale entry). Sinks them to the bottom of the sort rather than crashing.
+  @epoch_datetime ~U[1970-01-01 00:00:00Z]
+
   defp recompute_continue_watching(socket) do
     continue_watching =
       socket.assigns.entries
       |> Enum.filter(&in_progress?/1)
-      |> Enum.sort_by(&max_last_watched_at/1, {:desc, DateTime})
+      |> Enum.sort_by(
+        fn entry -> max_last_watched_at(entry) || @epoch_datetime end,
+        {:desc, DateTime}
+      )
 
     assign(socket, continue_watching: continue_watching)
-  end
-
-  defp max_last_watched_at(entry) do
-    Enum.max_by(entry.progress_records, & &1.last_watched_at, DateTime, fn -> nil end).last_watched_at
   end
 
   defp compute_resume_targets(entries) do
@@ -1097,44 +1101,45 @@ defmodule MediaCentaurWeb.LibraryLive do
         end
       end
 
-    case progress do
-      %{completed: true} ->
-        Log.info(
-          :library,
-          "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
-        )
+    changed_record =
+      case progress do
+        %{completed: true} ->
+          Log.info(
+            :library,
+            "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
+          )
 
-        Library.mark_watch_incomplete!(progress)
+          Library.mark_watch_incomplete!(progress)
 
-      %{completed: false} ->
-        Log.info(:library, fn ->
-          pct =
-            if progress.duration_seconds > 0,
-              do:
-                "#{Float.round(progress.position_seconds / progress.duration_seconds * 100, 0)}%",
-              else: "unknown"
+        %{completed: false} ->
+          Log.info(:library, fn ->
+            pct =
+              if progress.duration_seconds > 0,
+                do:
+                  "#{Float.round(progress.position_seconds / progress.duration_seconds * 100, 0)}%",
+                else: "unknown"
 
-          "toggled completed — was #{pct} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
-        end)
+            "toggled completed — was #{pct} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
+          end)
 
-        Library.mark_watch_completed!(progress)
+          Library.mark_watch_completed!(progress)
 
-      nil ->
-        if fk_id do
-          Log.info(:library, "toggled completed — no prior progress, created fresh record")
+        nil ->
+          if fk_id do
+            Log.info(:library, "toggled completed — no prior progress, created fresh record")
 
-          params = %{
-            fk_key => fk_id,
-            position_seconds: 0.0,
-            duration_seconds: 0.0
-          }
+            params = %{
+              fk_key => fk_id,
+              position_seconds: 0.0,
+              duration_seconds: 0.0
+            }
 
-          {:ok, record} = create_progress_by_fk(fk_key, params)
-          Library.mark_watch_completed!(record)
-        end
-    end
+            {:ok, record} = create_progress_by_fk(fk_key, params)
+            Library.mark_watch_completed!(record)
+          end
+      end
 
-    ProgressBroadcaster.broadcast(entity_id, season_number, episode_number)
+    ProgressBroadcaster.broadcast(entity_id, changed_record)
   end
 
   defp resolve_progress_fk(entity_id, 0, ordinal) do

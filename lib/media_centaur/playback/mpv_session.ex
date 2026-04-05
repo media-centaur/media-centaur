@@ -273,11 +273,9 @@ defmodule MediaCentaur.Playback.MpvSession do
       # Entity/episode/movie playback — broadcast entity progress update
       session.episode_number ->
         entity_id = session.entity_id
-        season_number = session.season_number
-        episode_number = session.episode_number
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-          broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
+          ProgressBroadcaster.broadcast(entity_id)
         end)
 
       # No progress tracking (shouldn't happen, but safe fallback)
@@ -361,12 +359,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
-  # --- Entity Progress Broadcasting ---
-
-  defp broadcast_entity_progress_by_id(entity_id, season_number, episode_number) do
-    ProgressBroadcaster.broadcast(entity_id, season_number, episode_number)
-  end
-
   # --- Progress Persistence ---
 
   defp persist_progress(%{extra_id: extra_id} = state) when not is_nil(extra_id) do
@@ -414,9 +406,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     saveable = state.tracker.saveable_position || state.position
     duration = state.duration
 
-    season_number = state.season_number || 0
-    episode_number = state.episode_number || 0
-
     params =
       %{
         position_seconds: saveable,
@@ -436,8 +425,8 @@ defmodule MediaCentaur.Playback.MpvSession do
             "saved progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
           )
 
-          maybe_mark_completed(record, saveable, duration)
-          broadcast_entity_progress_by_id(entity_id, season_number, episode_number)
+          latest = maybe_mark_completed(record, saveable, duration)
+          ProgressBroadcaster.broadcast(entity_id, latest)
 
         {:error, reason} ->
           Log.warning(:playback, "failed to save progress — #{inspect(reason)}")
@@ -454,18 +443,19 @@ defmodule MediaCentaur.Playback.MpvSession do
       )
 
       case MediaCentaur.Library.mark_watch_completed(record) do
-        {:ok, _} ->
-          :ok
+        {:ok, updated} ->
+          updated
 
         {:error, reason} ->
           Log.warning(:playback, "failed to mark completed — #{inspect(reason)}")
+          record
       end
+    else
+      record
     end
-
-    :ok
   end
 
-  defp maybe_mark_completed(_record, _position, _duration), do: :ok
+  defp maybe_mark_completed(record, _position, _duration), do: record
 
   defp maybe_mark_extra_completed(record, position, duration)
        when is_number(position) and is_number(duration) and duration > 0 do
