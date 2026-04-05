@@ -174,7 +174,7 @@ Watchers and pipelines can be independently stopped/started via config (`start_w
 - **Entity deduplication:** `Library.Inbound` looks up existing entities by TMDB ID via `Library.ExternalId`, which has a unique constraint on `(source, external_id)`
 - **Race-loss recovery:** If two processors create entities for the same TMDB ID, the `ExternalId` insert detects the race; the loser destroys its orphan entity
 - **Find-or-create patterns:** Season, Episode, Movie, and Extra creation uses find-or-create — existing records are returned without modification
-- **DB-level constraints:** `library_images` has per-owner-type unique indexes on `(owner_id, role)` for each new type (`tv_series_id`, `movie_series_id`, `video_object_id`). Episode-number uniqueness is enforced by find-or-create in code.
+- **DB-level constraints:** `library_images` has a per-owner-type unique index on `(owner_id, role)` for each of the five owner types — `movie_id`, `episode_id`, `tv_series_id`, `movie_series_id`, `video_object_id`. The two older indexes (`images_unique_movie_role_index`, `images_unique_episode_role_index`) carry legacy names from before the `:images` → `:library_images` rename in 2026-03-26; they are functionally identical to the later `library_images_unique_*_role_index` entries. Episode-number uniqueness within a season is enforced by find-or-create in code.
 - **Image queue dedup:** Queue entries track owner + role; duplicates are prevented at insert
 
 ---

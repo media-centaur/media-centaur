@@ -122,10 +122,19 @@ and fixed:
    to reflect the type-specific `library_images` unique indexes on
    `(tv_series_id, role)`, `(movie_series_id, role)`, `(video_object_id, role)`.
 
-Side finding (not fixed, not in scope): the new `library_images` table is
-missing `(movie_id, role)` and `(episode_id, role)` unique indexes that
-the old `images` table had. If someone later audits data constraints on
-the type-specific tables, that's a real gap — noted here for the backlog.
+Side-finding retraction (was wrong, corrected 2026-04-05): an earlier
+revision of this note claimed `library_images` was missing unique
+indexes on `(movie_id, role)` and `(episode_id, role)`. That was a
+false alarm caused by a grep for `unique_index.*library_images`, which
+missed the two legacy indexes created on the old `:images` table
+before it was renamed to `:library_images` in migration
+`20260326074156_rename_tables_with_context_prefix.exs`. Indexes
+survive table renames; names do not. All five unique indexes are live:
+`images_unique_movie_role_index`, `images_unique_episode_role_index`,
+and three `library_images_unique_*_role_index` entries. Verified
+directly against `sqlite_master`. The legacy names are cosmetically
+inconsistent but functionally equivalent — not worth a rename
+migration.
 
 ---
 
