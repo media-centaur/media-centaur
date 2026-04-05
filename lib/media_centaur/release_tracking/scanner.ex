@@ -181,6 +181,8 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
       })
     end)
 
+    ReleaseTracking.mark_in_library_releases(item)
+
     ReleaseTracking.create_event!(%{
       item_id: item.id,
       item_name: name,

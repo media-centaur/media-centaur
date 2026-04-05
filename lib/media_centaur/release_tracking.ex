@@ -81,7 +81,7 @@ defmodule MediaCentaur.ReleaseTracking do
     all =
       from(r in Release,
         join: i in assoc(r, :item),
-        where: i.status == :watching,
+        where: i.status == :watching and r.in_library == false,
         order_by: [asc: r.air_date],
         preload: [:item]
       )
@@ -121,6 +121,25 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   # --- Bulk operations ---
+
+  @doc """
+  Mark releases as in_library for a given item based on its last library episode.
+  Episodes at or before last_library_season/episode are in the library.
+  """
+  def mark_in_library_releases(%Item{} = item) do
+    season = item.last_library_season || 0
+    episode = item.last_library_episode || 0
+
+    if season > 0 do
+      from(r in Release,
+        where: r.item_id == ^item.id,
+        where:
+          r.season_number < ^season or
+            (r.season_number == ^season and r.episode_number <= ^episode)
+      )
+      |> Repo.update_all(set: [in_library: true])
+    end
+  end
 
   def mark_past_releases_as_released do
     today = Date.utc_today()

@@ -109,15 +109,15 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           images={@images}
         />
 
-        <%!-- Released section (nav item) --%>
+        <%!-- Now Available section (nav item) --%>
         <div
           :if={@released != []}
           data-nav-item
-          data-section-type="released"
+          data-section-type="now-available"
           tabindex="0"
           class="space-y-3 rounded-xl outline-none p-3"
         >
-          <h3 class="text-sm font-medium text-success uppercase tracking-wider">Released</h3>
+          <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
           <.released_content releases={@released} />
         </div>
 
