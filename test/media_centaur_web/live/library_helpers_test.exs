@@ -455,4 +455,48 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
              })
     end
   end
+
+  # --- reload_strategy/1 ---
+
+  describe "reload_strategy/1" do
+    test "returns :reset when new_entries is non-empty" do
+      assert LibraryHelpers.reload_strategy(%{
+               new_entries: [:new_entry_a],
+               changed_ids: MapSet.new([:new_entry_a])
+             }) == :reset
+    end
+
+    test "returns :reset even when deletions are also present" do
+      # Mixed additions + deletions still reset — the addition is the
+      # condition that forces the reset, regardless of what else happened.
+      assert LibraryHelpers.reload_strategy(%{
+               new_entries: [:new_entry],
+               changed_ids: MapSet.new([:new_entry, :deleted_entry])
+             }) == :reset
+    end
+
+    test "returns {:touch, ids} for pure deletions" do
+      assert LibraryHelpers.reload_strategy(%{
+               new_entries: [],
+               changed_ids: MapSet.new([:deleted_entry])
+             }) == {:touch, [:deleted_entry]}
+    end
+
+    test "returns {:touch, ids} for in-place updates" do
+      assert {:touch, ids} =
+               LibraryHelpers.reload_strategy(%{
+                 new_entries: [],
+                 changed_ids: MapSet.new([:updated_a, :updated_b])
+               })
+
+      assert Enum.sort(ids) == [:updated_a, :updated_b]
+    end
+
+    test "returns {:touch, []} for an empty change set" do
+      assert LibraryHelpers.reload_strategy(%{
+               new_entries: [],
+               changed_ids: MapSet.new()
+             }) == {:touch, []}
+    end
+  end
 end

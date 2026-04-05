@@ -155,25 +155,6 @@ Option 1 is lowest risk.
 
 ---
 
-### P5. Full stream reset in library_live reload
-**Severity**: Minor — causes DOM teardown of all grid items
-**File**: `lib/media_centaur_web/live/library_live.ex`
-
-`reload_entities` handler resets the stream with `reset: true` whenever
-the gone-ids set is non-empty OR new entries are added. This tears down
-the entire grid's DOM instead of surgically updating only changed items.
-The `touch_stream_entries/1` helper exists for selective updates but isn't
-used aggressively enough.
-
-**Fix**: Narrow the reset condition. Only reset when the sort order or
-type filter changed. For typical progress updates (watch status toggle),
-use `touch_stream_entries` to update only the affected entry.
-
-**Effort**: Medium. Requires understanding the reload paths and which
-state changes warrant a full reset vs a partial update.
-
----
-
 ### P6. Over-fetched `tracking_status` on non-selection navigation
 **Severity**: Minor — duplicate DB queries
 **File**: `lib/media_centaur_web/live/library_live.ex:884-908`
@@ -359,7 +340,7 @@ If picking a batch, these cluster cleanly by effort/risk:
 
 - **Verification-first items (low effort but need measurement)**: P1, P10 — need Tidewave profiling before committing to a fix. Useful to scope before implementing.
 
-- **Bigger polish items (1 session each)**: P5 (stream reset), E3 + D3 (docs depth), D2 (PIPELINE.md staleness verification).
+- **Bigger polish items (1 session each)**: E3 + D3 (docs depth), D2 (PIPELINE.md staleness verification).
 
 - **Defer**: P7 (config caching — no observable impact), P8 (handler install timing — theoretical only).
 
