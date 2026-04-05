@@ -24,7 +24,7 @@ backend/
 │   ├── tmdb.md                    # TMDB integration
 │   ├── playback.md                # MPV playback engine
 │   ├── channel.md                 # Phoenix Channels WebSocket API
-│   └── library.md                 # Ash domain, entities, resources
+│   └── library.md                 # Ecto schemas, entities, context API
 ```
 
 ## Step 1: Bootstrap Instruction Files
@@ -159,7 +159,7 @@ Generate `backend/README.md` with this structure:
 1. **One-line description** — what Media Centaur Backend is
 2. **What it does** — 3-5 bullet points of key capabilities
 3. **Documentation link** — single line linking to `docs/getting-started.md` as the entry point (do NOT duplicate the quick start or the full doc index here — the docs have their own TOC and navigation)
-4. **Tech stack** — compact table (Elixir, Phoenix, Ash, SQLite, Broadway, etc.)
+4. **Tech stack** — compact table (Elixir, Phoenix, Ecto, SQLite, Broadway, etc.)
 5. **License** — read mix.exs or LICENSE file for license type; if none found, leave a TODO placeholder
 
 If README.md already exists, apply surgical edits to update it rather than full rewrite.

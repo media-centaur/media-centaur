@@ -5,7 +5,7 @@ argument-hint: "[path-or-module (optional)]"
 
 # Engineering Audit
 
-You are performing a meticulous code review and quality analysis of an Elixir/Phoenix/Ash
+You are performing a meticulous code review and quality analysis of an Elixir/Phoenix/Ecto
 codebase. Your goal is to find real, actionable issues — not to generate noise. Every
 finding must be specific, cite the exact file and line, and explain *why* it matters.
 
@@ -37,8 +37,9 @@ Look for inconsistencies across the codebase:
   structural conventions that vary without reason between peer modules.
 - **API shape inconsistencies:** Do peer modules expose inconsistent function signatures
   for equivalent operations?
-- **Ash action inconsistencies:** Are similar Ash resources using different action naming
-  conventions, different change/preparation patterns, or different bulk operation approaches?
+- **Context function inconsistencies:** Do peer contexts expose similar CRUD operations
+  with different function naming conventions (`create_*` vs `insert_*`, `get_*` vs `fetch_*`)?
+  Are changeset builders named consistently across schemas?
 
 ### Pass 2 — Duplication & Missing Abstractions
 
@@ -86,22 +87,26 @@ Evaluate the module hierarchy:
 - **Bounded contexts:** Does each top-level module under `lib/media_centaur/` represent a
   clear domain boundary? Are there modules that mix concerns?
 - **Dependency direction:** Do modules depend in the right direction? (Domain logic should
-  not depend on LiveView; Ash resources should not depend on pipeline logic.)
+  not depend on LiveView; Ecto schemas and context modules should not depend on pipeline logic.)
 - **Cohesion:** Are related functions and modules co-located? Are there functions that would
   be more discoverable in a different module?
 - **Public API surface:** Are modules exposing more than they need to? Are there public
   functions that are only used internally?
-- **Ash domain organization:** Do the Ash domain definitions in `library.ex` accurately
-  reflect the resources and actions that exist? Are there dead or mismatched definitions?
+- **Context API organization:** Do the public functions exposed by each top-level context
+  module (`Library`, `Pipeline`, `Review`, `Watcher`, `Settings`, `Console`, `ReleaseTracking`)
+  match the underlying schemas they wrap? Are there dead wrapper functions, or schemas
+  without a public context API?
 
 ### Pass 5 — Test Policy Compliance
 
 Audit tests against the project's testing strategy (defined in CLAUDE.md):
 
 - **Coverage of testable code:** For every pure function module (Parser, Serializer, Mapper,
-  Confidence, Resume, ProgressSummary) — is there a corresponding test? List any gaps.
+  Confidence, Resume, ProgressSummary, Console.Filter, Console.View) — is there a corresponding
+  test? List any gaps.
 - **Factory usage:** Are tests using the shared `TestFactory` (`build_*` for pure tests,
-  `create_*` for DB tests)? Flag any inline `Ash.Changeset.for_create` boilerplate.
+  `create_*` for DB tests)? Flag any inline `Ecto.Changeset.cast`/`Repo.insert!` boilerplate
+  that duplicates the factory.
 - **No tests for untestable code:** Are there tests that assert on rendered HTML, test
   GenServer internals via `:sys.get_state`, or use direct `GenServer.call/cast` instead of
   the module's public API? These violate the testing policy.
@@ -117,9 +122,10 @@ Audit tests against the project's testing strategy (defined in CLAUDE.md):
 - Flag any code that `mix compile --warnings-as-errors` would catch: unused imports, unused
   variables, unused aliases, unreachable clauses.
 - Flag any `String.to_atom` or `String.to_existing_atom` calls with untrusted input.
-- Flag any direct `Repo` or raw SQL usage (violates the Ash-only data interface rule).
-- Flag any `Ash.destroy!` or `Ash.update!` in loops where `Ash.bulk_destroy` or
-  `Ash.bulk_update` should be used.
+- Flag any `Repo.*` calls from outside a top-level context module (contexts should own
+  their Repo access; LiveViews and other consumers go through context public APIs).
+- Flag any `Repo.all`, `Repo.delete_all`, or `Repo.update_all` in loops where a single
+  batched query would work — N+1 patterns in disguise.
 - Flag any dead code: functions defined but never called, modules defined but never aliased.
 
 ---

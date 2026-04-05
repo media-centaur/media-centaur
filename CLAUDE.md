@@ -122,7 +122,7 @@ The library uses **type-specific tables** instead of a single polymorphic Entity
 
 ## Bounded Contexts
 
-Five contexts own their tables and communicate only via PubSub events. No context aliases another context's modules. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md).
+Seven contexts own their tables and communicate only via PubSub events. No context aliases another context's modules. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md).
 
 | Context | Prefix | Owns | PubSub role |
 |---------|--------|------|-------------|
@@ -131,6 +131,8 @@ Five contexts own their tables and communicate only via PubSub events. No contex
 | **Review** | `review_` | Pending files | Intake subscribes to `review:intake`; broadcasts `review:updates` and `pipeline:matched` |
 | **Watcher** | `watcher_` | File presence | Broadcasts `pipeline:input` and `library:file_events` |
 | **Settings** | `settings_` | Configuration entries | Broadcasts `settings:updates` |
+| **ReleaseTracking** | `release_tracking_` | Upcoming/tracked TMDB releases, refresh state | Broadcasts `release_tracking:updates` |
+| **Console** | _(none — in-memory ring buffer)_ | Log buffer, per-user filter state (persisted via `Settings.Entry`) | Broadcasts `console:logs` — `{:log_entry, entry}`, `:buffer_cleared`, `{:buffer_resized, n}`, `{:filter_changed, filter}` |
 
 **Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Dashboard, Admin, Playback, Serializer) read Library freely — they are not bounded contexts.
 

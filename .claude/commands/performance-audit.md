@@ -20,14 +20,13 @@ Otherwise, analyze the full application.
 
 Understand the project shape before diving into analysis.
 
-1. Read `mix.exs` to identify dependencies and the tech stack (Phoenix, Ecto, Ash,
+1. Read `mix.exs` to identify dependencies and the tech stack (Phoenix, Ecto,
    Broadway, Oban, etc.).
 2. Read `CLAUDE.md` if it exists — it describes architecture, hot paths, and design
    principles.
 3. Identify the hot paths: web endpoints/channels, background pipelines, GenServers
    that handle frequent messages, LiveViews with real-time updates.
-4. Use `mcp__tidewave__get_ecto_schemas` or `mcp__tidewave__get_ash_resources` to
-   map out the data model.
+4. Use `mcp__tidewave__get_ecto_schemas` to map out the data model.
 5. Count approximate module count and identify the largest/most complex modules.
 
 ---
@@ -41,12 +40,13 @@ For each category below, scan the relevant code and flag concrete issues. Always
 
 Look for:
 - **N+1 queries**: Loops that issue a query per iteration instead of preloading or
-  batch-loading. In Ash, look for `Ash.read!` or `Ash.get!` inside `Enum.map` or
-  comprehensions.
-- **Missing preloads**: Relationship access that triggers lazy-loading (or errors in
-  Ash's case, since Ash doesn't lazy-load — meaning the data is fetched separately
-  when it could be loaded together).
-- **Unbounded queries**: `Ash.read!` or `Repo.all` without a limit, on tables that
+  batch-loading. Look for `Repo.get`, `Repo.get_by`, or `Repo.one` inside `Enum.map`
+  or comprehensions.
+- **Missing preloads**: Relationship access that triggers a separate query. Ecto
+  does NOT lazy-load associations — accessing an unpreloaded relation raises. But
+  calling `Repo.preload/2` on a list after `Repo.all/1` still issues one query per
+  association level, which is fine as long as it's not per-entity.
+- **Unbounded queries**: `Repo.all` without a `limit` or `where`, on tables that
   grow with usage.
 - **Read-all-then-filter**: Loading full tables into memory and filtering with `Enum`
   instead of pushing predicates to the database.
