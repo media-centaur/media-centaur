@@ -100,8 +100,6 @@ defmodule MediaCentaur.Config do
       file_absence_ttl_days: 30,
       recent_changes_days: 3,
       recently_watched_count: 5,
-      logging_components: [],
-      logging_suppress_framework: ["ecto", "phoenix", "live_view"],
       release_tracking_refresh_interval_hours: 24
     }
 
@@ -158,9 +156,6 @@ defmodule MediaCentaur.Config do
         get_in(toml, ["dashboard", "recent_changes_days"]) || defaults.recent_changes_days,
       recently_watched_count:
         get_in(toml, ["dashboard", "recently_watched_count"]) || defaults.recently_watched_count,
-      logging_components: get_in(toml, ["logging", "components"]) || defaults.logging_components,
-      logging_suppress_framework:
-        get_in(toml, ["logging", "suppress_framework"]) || defaults.logging_suppress_framework,
       release_tracking_refresh_interval_hours:
         get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
           defaults.release_tracking_refresh_interval_hours
