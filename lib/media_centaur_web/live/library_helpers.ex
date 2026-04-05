@@ -237,4 +237,27 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   def in_progress?(%{progress: summary}) do
     summary.episodes_completed < summary.episodes_total
   end
+
+  # --- Reload Strategy ---
+
+  @doc """
+  Decides whether the library grid stream needs a full reset or can be
+  updated surgically after a batch of entity changes.
+
+  Additions require a full `reset_stream` because `stream_insert/3` without
+  an `:at` option appends, which misplaces new entries under any non-trivial
+  sort order. Pure deletions and in-place updates are handled surgically by
+  `touch_stream_entries/2` — its `entry == nil` branch issues
+  `stream_delete_by_dom_id` for IDs that were removed from `entries_by_id`.
+
+  This keeps the common case (file removed from disk → one card disappears)
+  from tearing down the entire grid's DOM, which is user-visible as a
+  flash across every item on screen.
+  """
+  @spec reload_strategy(%{new_entries: list(), changed_ids: MapSet.t()}) ::
+          :reset | {:touch, list()}
+  def reload_strategy(%{new_entries: [_ | _]}), do: :reset
+
+  def reload_strategy(%{new_entries: [], changed_ids: changed_ids}),
+    do: {:touch, MapSet.to_list(changed_ids)}
 end

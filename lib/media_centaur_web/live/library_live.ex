@@ -569,12 +569,14 @@ defmodule MediaCentaurWeb.LibraryLive do
       |> recompute_continue_watching()
       |> recompute_counts()
 
-    # Structural changes need full stream reset
+    # Additions need a full reset so new entries land in the correct sort
+    # position — stream_insert without :at appends. Deletions and in-place
+    # updates are handled surgically by touch_stream_entries (the `entry == nil`
+    # branch issues stream_delete_by_dom_id for IDs no longer in entries_by_id).
     socket =
-      if MapSet.size(gone_ids) > 0 || new_entries != [] do
-        reset_stream(socket)
-      else
-        touch_stream_entries(socket, MapSet.to_list(changed_ids))
+      case reload_strategy(%{new_entries: new_entries, changed_ids: changed_ids}) do
+        :reset -> reset_stream(socket)
+        {:touch, ids} -> touch_stream_entries(socket, ids)
       end
 
     if selection_deleted do
