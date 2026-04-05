@@ -15,7 +15,7 @@ defmodule MediaCentaur.Topics do
   def dir_state, do: "watcher:state"
   def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"
-  def logging_updates, do: "logging:updates"
   def settings_updates, do: "settings:updates"
   def release_tracking_updates, do: "release_tracking:updates"
+  def console_logs, do: "console:logs"
 end

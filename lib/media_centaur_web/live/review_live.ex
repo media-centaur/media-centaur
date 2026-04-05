@@ -274,6 +274,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/review">
       <div
         class="flex flex-col h-full gap-4"

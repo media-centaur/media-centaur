@@ -17,10 +17,13 @@ defmodule MediaCentaurWeb.Router do
   scope "/", MediaCentaurWeb do
     pipe_through :browser
 
-    live "/", LibraryLive, :index
-    live "/dashboard", DashboardLive, :index
-    live "/settings", SettingsLive, :index
-    live "/review", ReviewLive, :index
+    live_session :default do
+      live "/", LibraryLive, :index
+      live "/dashboard", DashboardLive, :index
+      live "/settings", SettingsLive, :index
+      live "/review", ReviewLive, :index
+      live "/console", ConsolePageLive, :index
+    end
   end
 
   # Other scopes may use custom stacks.

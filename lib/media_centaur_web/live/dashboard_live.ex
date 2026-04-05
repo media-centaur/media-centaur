@@ -180,6 +180,7 @@ defmodule MediaCentaurWeb.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/dashboard">
       <div data-page-behavior="dashboard" data-nav-default-zone="dashboard" class="space-y-6">
         <h1 class="text-2xl font-bold">Dashboard</h1>

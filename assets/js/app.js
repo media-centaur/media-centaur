@@ -24,6 +24,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/media_centaur"
 import {createInputHook} from "./input/index"
+import {Console} from "./hooks/console"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -33,6 +34,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     InputSystem: createInputHook(),
+    Console,
     ScrollToResume: {
       mounted() { this._scrollToTarget() },
       updated() {
@@ -66,6 +68,31 @@ const liveSocket = new LiveSocket("/live", Socket, {
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
+
+// Global backtick hotkey to toggle the console. Registered in CAPTURE phase
+// so it fires before the input system's bubble-phase keydown listener (which
+// calls stopPropagation on unknown keys, which would swallow our hotkey).
+//
+// Skipped when focused in an input/textarea so the user can type backticks
+// in form fields normally.
+document.addEventListener(
+  "keydown",
+  (event) => {
+    if (event.key !== "`") return
+    if (event.ctrlKey || event.metaKey || event.altKey) return
+
+    const target = event.target
+    const tag = target?.tagName
+    if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    window.dispatchEvent(new CustomEvent("mc:console:toggle"))
+  },
+  { capture: true }
+)
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()

@@ -9,6 +9,8 @@ defmodule MediaCentaur.Settings do
   alias MediaCentaur.Repo
   alias MediaCentaur.Settings.Entry
 
+  @type attrs :: %{optional(atom() | binary()) => term()}
+
   def list_entries, do: {:ok, Repo.all(Entry)}
   def list_entries!, do: Repo.all(Entry)
 
@@ -16,6 +18,7 @@ defmodule MediaCentaur.Settings do
     {:ok, Repo.get_by(Entry, key: key)}
   end
 
+  @spec find_or_create_entry(attrs()) :: {:ok, Entry.t()} | {:error, Ecto.Changeset.t()}
   def find_or_create_entry(attrs) do
     key = attrs[:key] || attrs["key"]
 
@@ -25,6 +28,7 @@ defmodule MediaCentaur.Settings do
     end
   end
 
+  @spec find_or_create_entry!(attrs()) :: Entry.t()
   def find_or_create_entry!(attrs), do: bang!(find_or_create_entry(attrs))
 
   def create_entry(attrs) do

@@ -657,6 +657,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       |> assign(:library_path, ~p"/?zone=library")
 
     ~H"""
+    <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/" full_width>
       <div data-page-behavior="library">
         <%!-- Zone tabs --%>

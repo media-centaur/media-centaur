@@ -45,44 +45,19 @@ defmodule MediaCentaur.Diagnostics do
     end
   end
 
-  @doc "Thinking log component state and framework suppression."
-  def log_status do
-    {enabled, all} = MediaCentaur.Log.status()
-    IO.puts("Components: #{Enum.join(all, ", ")}")
-    IO.puts("Enabled:    #{if enabled == [], do: "(none)", else: Enum.join(enabled, ", ")}")
+  @doc "Recent console log entries (newest first)."
+  def log_recent(count \\ 20) do
+    entries = MediaCentaur.Console.recent_entries(count)
 
-    suppressed = MediaCentaur.Log.suppressed_frameworks()
-    IO.puts("Framework suppressed: #{Enum.join(suppressed, ", ")}")
-  end
-
-  @doc "Enable a thinking log component."
-  def log_enable(component) when is_atom(component) do
-    set = MediaCentaur.Log.enable(component)
-    IO.puts("Enabled: #{Enum.join(set, ", ")}")
-  end
-
-  @doc "Disable a thinking log component."
-  def log_disable(component) when is_atom(component) do
-    set = MediaCentaur.Log.disable(component)
-    IO.puts("Enabled: #{if Enum.empty?(set), do: "(none)", else: Enum.join(set, ", ")}")
-  end
-
-  @doc "Enable all thinking log components."
-  def log_all do
-    set = MediaCentaur.Log.all()
-    IO.puts("Enabled: #{Enum.join(set, ", ")}")
-  end
-
-  @doc "Disable all thinking log components."
-  def log_none do
-    MediaCentaur.Log.none()
-    IO.puts("All thinking logs disabled")
-  end
-
-  @doc "Enable only the named component (solo mode)."
-  def log_solo(component) when is_atom(component) do
-    set = MediaCentaur.Log.solo(component)
-    IO.puts("Enabled: #{Enum.join(set, ", ")}")
+    if entries == [] do
+      IO.puts("No log entries in buffer")
+    else
+      for entry <- Enum.reverse(entries) do
+        ts = Calendar.strftime(entry.timestamp, "%H:%M:%S")
+        component = entry.component || :system
+        IO.puts("[#{ts}] [#{entry.level}] [#{component}] #{entry.message}")
+      end
+    end
   end
 
   @doc "Watcher and pipeline state, watch dirs, config."
