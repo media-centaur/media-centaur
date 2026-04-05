@@ -103,10 +103,11 @@ defmodule MediaCentaur.Library.EntityCascade do
   defp destroy_record!(record, :movie), do: Library.destroy_movie!(record)
   defp destroy_record!(record, :video_object), do: Library.destroy_video_object!(record)
 
-  defp destroy_progress(%{watch_progress: nil}), do: :ok
-  defp destroy_progress(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: :ok
+  @doc false
+  def destroy_progress(%{watch_progress: nil}), do: :ok
+  def destroy_progress(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: :ok
 
-  defp destroy_progress(%{watch_progress: progress}),
+  def destroy_progress(%{watch_progress: progress}),
     do: Library.destroy_watch_progress!(progress)
 
   @doc false

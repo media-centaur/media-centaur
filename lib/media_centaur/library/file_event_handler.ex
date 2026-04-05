@@ -23,7 +23,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
   alias MediaCentaur.Library.{EntityCascade, WatchedFile}
   alias MediaCentaur.Library.Helpers
 
-  import EntityCascade, only: [bulk_destroy: 2, delete_images: 1]
+  import EntityCascade, only: [bulk_destroy: 2, delete_images: 1, destroy_progress: 1]
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -173,10 +173,11 @@ defmodule MediaCentaur.Library.FileEventHandler do
 
     Enum.each(seasons, fn season ->
       matched_episodes =
-        Library.list_episodes_for_season!(season.id, load: [:images])
+        Library.list_episodes_for_season!(season.id, load: [:images, :watch_progress])
         |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
 
       Enum.each(matched_episodes, fn episode ->
+        destroy_progress(episode)
         delete_images(episode.images || [])
       end)
 
@@ -184,10 +185,11 @@ defmodule MediaCentaur.Library.FileEventHandler do
     end)
 
     matched_movies =
-      Library.list_movies_by_owner_id(entity_id, load: [:images])
+      Library.list_movies_by_owner_id(entity_id, load: [:images, :watch_progress])
       |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
 
     Enum.each(matched_movies, fn movie ->
+      destroy_progress(movie)
       delete_images(movie.images || [])
     end)
 

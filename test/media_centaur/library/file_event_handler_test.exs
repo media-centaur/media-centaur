@@ -87,6 +87,70 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert length(Library.list_watched_files!()) == 1
     end
 
+    test "deletes episode with recorded watch progress without FK violation" do
+      # Regression: deleting one file from a surviving TV series crashed with
+      # FOREIGN KEY constraint failed when the removed episode had a row in
+      # library_watch_progress. The partial-deletion path did not destroy
+      # watch progress before bulk-deleting the episode.
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show Thirteen"})
+
+      season =
+        create_season(%{
+          tv_series_id: tv_series.id,
+          season_number: 1,
+          name: "Season 1",
+          number_of_episodes: 2
+        })
+
+      ep1 =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/media/tv/pluribus/s01e01.mkv"
+        })
+
+      _ep2 =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 2,
+          name: "Part Two",
+          content_url: "/media/tv/pluribus/s01e02.mkv"
+        })
+
+      _file1 =
+        create_linked_file(%{
+          tv_series_id: tv_series.id,
+          file_path: "/media/tv/pluribus/s01e01.mkv",
+          watch_dir: "/media/tv"
+        })
+
+      _file2 =
+        create_linked_file(%{
+          tv_series_id: tv_series.id,
+          file_path: "/media/tv/pluribus/s01e02.mkv",
+          watch_dir: "/media/tv"
+        })
+
+      _progress =
+        create_watch_progress(%{
+          episode_id: ep1.id,
+          position_seconds: 120.0,
+          duration_seconds: 1800.0
+        })
+
+      # Before the fix, this raised Exqlite.Error "FOREIGN KEY constraint failed"
+      # on DELETE FROM library_episodes, because library_watch_progress.episode_id
+      # still referenced ep1.
+      entity_ids =
+        FileEventHandler.cleanup_removed_files(["/media/tv/pluribus/s01e01.mkv"])
+
+      assert entity_ids == [tv_series.id]
+      assert {:error, _} = Library.get_episode(ep1.id)
+      assert {:error, :not_found} = Library.get_watch_progress_by_fk(:episode_id, ep1.id)
+      assert {:ok, _} = Library.get_tv_series(tv_series.id)
+    end
+
     test "deletes empty season when all its episodes are removed" do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
 
