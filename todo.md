@@ -16,30 +16,6 @@ here is blocking.
 
 ---
 
-## Engineering
-
-### E3. Settings coupling documentation
-**Severity**: Minor — architectural documentation gap
-**Files**:
-- `lib/media_centaur/console/buffer.ex`
-- `CLAUDE.md` (Bounded Contexts section)
-
-The Console context persists its filter and buffer cap to `Settings.Entry`
-rather than owning its own settings table. ADR-029 says bounded contexts
-should own their data, so this technically crosses boundaries. In practice
-`Settings` is shared infrastructure (not a true bounded context), so the
-coupling is fine — but it's not documented.
-
-**Fix**: Add a one-line note in `CLAUDE.md` under the Bounded Contexts
-table, or in the Console moduledoc, explaining that Console uses
-`Settings.Entry` for persistence because (a) no per-console table is
-justified and (b) `Settings` is shared infrastructure treated as an
-extension of any context that needs key/value persistence.
-
-**Effort**: Low. Pure documentation.
-
----
-
 ## Performance
 
 ### P1. Handler render cost in caller's process
@@ -153,38 +129,13 @@ update any stale claims.
 
 ---
 
-### D3. CLAUDE.md architecture principles expansion
-**Severity**: Minor — dense for new contributors
-**File**: `CLAUDE.md` (Architecture Principles section, ~lines 95-102)
-
-Current principles are terse one-liners that assume deep familiarity:
-- "This app owns all writes"
-- "Schema.org is the data model"
-- "UUIDs are stable forever"
-- "Images: one copy per role"
-- "All mutations broadcast to PubSub"
-- "The pipeline is a mediator, not a side effect"
-
-Each would benefit from a 1-2 sentence explanation of the WHY — the
-constraint or past incident that made it a principle.
-
-**Fix**: Expand each bullet with a short reason. Example: "UUIDs are
-stable forever — once assigned, a UUID never changes. This ensures image
-directories (`data/images/{uuid}/`) and external references remain valid
-across entity updates."
-
-**Effort**: Low-medium. Requires knowing the history behind each
-principle.
-
----
-
 ## Priority clusters
 
 If picking a batch, these cluster cleanly by effort/risk:
 
 - **Verification-first items (low effort but need measurement)**: P1, P10 — need Tidewave profiling before committing to a fix. Useful to scope before implementing.
 
-- **Bigger polish items (1 session each)**: E3 + D3 (docs depth), D2 (PIPELINE.md staleness verification).
+- **Bigger polish items (1 session each)**: D2 (PIPELINE.md staleness verification).
 
 - **Defer**: P7 (config caching — no observable impact), P8 (handler install timing — theoretical only).
 
