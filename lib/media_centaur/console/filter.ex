@@ -13,7 +13,8 @@ defmodule MediaCentaur.Console.Filter do
   defstruct level: :info,
             components: %{},
             default_component: :show,
-            search: ""
+            search: "",
+            search_lower: ""
 
   @type visibility :: :show | :hide
 
@@ -21,14 +22,15 @@ defmodule MediaCentaur.Console.Filter do
           level: Entry.level(),
           components: %{atom() => visibility()},
           default_component: visibility(),
-          search: String.t()
+          search: String.t(),
+          search_lower: String.t()
         }
 
   @level_ranks %{debug: 0, info: 1, warning: 2, error: 3}
 
   @doc "Constructs a new filter with the given options merged over defaults."
   @spec new(keyword() | map()) :: t()
-  def new(opts \\ []), do: struct(__MODULE__, opts)
+  def new(opts \\ []), do: __MODULE__ |> struct(opts) |> put_search_lower()
 
   @doc """
   Returns a filter with seeded defaults — app components visible,
@@ -181,6 +183,7 @@ defmodule MediaCentaur.Console.Filter do
       default_component: default_component,
       search: search
     }
+    |> put_search_lower()
   end
 
   # Fallback for any non-map input (nil, string, number, list, etc.) — return
@@ -200,8 +203,16 @@ defmodule MediaCentaur.Console.Filter do
 
   defp search_passes?(%Entry{}, %__MODULE__{search: ""}), do: true
 
-  defp search_passes?(%Entry{message: message}, %__MODULE__{search: search}) do
-    String.contains?(String.downcase(message), String.downcase(search))
+  defp search_passes?(%Entry{message: message}, %__MODULE__{search_lower: search_lower}) do
+    String.contains?(String.downcase(message), search_lower)
+  end
+
+  # Derived cache — keeps `search_passes?/2` from paying `String.downcase/1`
+  # on the filter's search term on every entry match. Always call via `new/1`
+  # or `from_persistable/1`; never construct `%Filter{search: "..."}` directly
+  # in production code.
+  defp put_search_lower(%__MODULE__{search: search} = filter) do
+    %{filter | search_lower: String.downcase(search)}
   end
 
   defp safe_level_atom(value, default) do

@@ -18,21 +18,6 @@ here is blocking.
 
 ## Engineering
 
-### E2. `View.only_search_changed?` naming
-**Severity**: Minor — readability
-**File**: `lib/media_centaur/console/view.ex`
-
-Function name is slightly ambiguous. It means "the ONLY difference
-between these two filters is the search field" — used to skip server-side
-re-streaming when text search changes. Consider renaming to
-`only_search_query_differs?` or adding a clearer `@doc` explaining the
-intent.
-
-**Effort**: Low. One-line rename + docstring + callsite updates (there's
-one caller in `ConsoleLive.handle_info({:filter_changed, _})`).
-
----
-
 ### E3. Settings coupling documentation
 **Severity**: Minor — architectural documentation gap
 **Files**:
@@ -87,89 +72,6 @@ cast + return.
 
 ---
 
-### P2. Redundant `String.downcase` in Filter search path
-**Severity**: Minor — sub-microsecond per call
-**File**: `lib/media_centaur/console/filter.ex:201-204`
-
-`Filter.search_passes?/2` calls `String.downcase(search)` on every match
-check, even though `search` doesn't change between calls. The optimization
-is to cache the downcased version in the Filter struct:
-
-```elixir
-defstruct level: :info, components: %{}, default_component: :show,
-          search: "", search_lower: ""
-
-def new(opts \\ []) do
-  filter = struct(__MODULE__, opts)
-  %{filter | search_lower: String.downcase(filter.search)}
-end
-```
-
-And update `search_passes?/2` to use `filter.search_lower` instead.
-
-**Effort**: Low. Single-file change + update to `from_persistable/1` so
-the round-trip populates `search_lower`.
-
----
-
-### P3. Multi-pass Enum chain in library_live reload
-**Severity**: Minor — cosmetic
-**File**: `lib/media_centaur_web/live/library_live.ex:539-540`
-
-```elixir
-entries
-|> Enum.reject(fn entry -> MapSet.member?(gone_ids, entry.entity.id) end)
-|> Enum.map(fn entry -> Map.get(updated_map, entry.entity.id, entry) end)
-```
-
-Two traversals of the entries list. Typical list size is <1000 items so
-the perf impact is negligible, but a single comprehension is cleaner:
-
-```elixir
-for entry <- entries,
-    not MapSet.member?(gone_ids, entry.entity.id),
-    do: Map.get(updated_map, entry.entity.id, entry)
-```
-
-**Effort**: Low. One-line replacement.
-
----
-
-### P4. Unbounded `Library.list_images/0`
-**Severity**: Minor — footgun for future refactors
-**File**: `lib/media_centaur/library.ex:252-253`
-
-`list_images/0` calls `Repo.all(Image)` with no limit. The function name
-suggests it's safe to call, but a large library could load thousands of
-images into memory in one query. Currently used only in a batch-filtered
-path, so it's not a hot issue — but the API shape invites misuse.
-
-**Fix**: Either
-1. Rename to `list_all_images/0` to signal unbounded scope
-2. Add a default limit parameter: `list_images(limit \\ 5_000)`
-3. Document the memory cost in the moduledoc
-
-Option 1 is lowest risk.
-
-**Effort**: Low. Rename + callsite update.
-
----
-
-### P6. Over-fetched `tracking_status` on non-selection navigation
-**Severity**: Minor — duplicate DB queries
-**File**: `lib/media_centaur_web/live/library_live.ex:884-908`
-
-`load_tracking_status/1` is called on every `handle_params`, including
-when the user is just toggling a filter chip or sorting the grid (i.e.,
-when `selected_entity_id` didn't change). The query is fast but wasteful.
-
-**Fix**: Track `previous_selected_entity_id` in socket assigns. Only call
-`load_tracking_status/1` when the selected entity changes. Skip otherwise.
-
-**Effort**: Low. 10-15 line change in the handle_params flow.
-
----
-
 ### P7. Config lookups in dashboard
 **Severity**: Minor — repeated reads of rarely-changing config
 **File**: `lib/media_centaur_web/live/dashboard_live.ex`
@@ -211,25 +113,6 @@ boot-time noise, and adding complexity to fix it isn't worth it.
 
 ---
 
-### P9. Rescan task deduplication
-**Severity**: Minor — idempotent but wasteful
-**File**: `lib/media_centaur/console.ex`
-
-`Console.rescan_library/0` spawns a new `Task.Supervisor.start_child` on
-every call, so rapid clicks spawn parallel scans. Scans are idempotent, so
-there's no data corruption, but it's wasted CPU and confusing console
-noise.
-
-**Fix**: Add a `scanning?` flag to the Console context (via a tiny
-GenServer or `:persistent_term` + compare-and-set). If a scan is already
-running, reject the second request with a `{:error, :already_scanning}`
-and log a `[library]` entry explaining. Alternatively, client-side debounce
-the button.
-
-**Effort**: Low for client-side debounce, medium for server-side flag.
-
----
-
 ### P10. Verify library_browser N+1 claim
 **Severity**: Unknown — audit's remediation was wrong, underlying claim may or may not be real
 **File**: `lib/media_centaur/library_browser.ex`
@@ -252,22 +135,6 @@ fix.
 ---
 
 ## Documentation
-
-### D1. `mix seed.review` clarity
-**Severity**: Minor — undocumented build command
-**File**: `CLAUDE.md` (Build & Run section)
-
-`mix seed.review` is listed alongside `mix setup` / `mix phx.server` /
-`mix test` / `mix precommit` as if it's a standard task. In reality it's
-a one-shot seeding utility for the review UI's visual test cases.
-
-**Fix**: Move it to a separate "Seeding" subsection with a one-line
-explanation: "Populate the review UI with visual test cases. Run once
-after initial setup. Idempotent, safe to re-run."
-
-**Effort**: Trivial. 2-3 line edit in CLAUDE.md.
-
----
 
 ### D2. `PIPELINE.md` staleness verification
 **Severity**: Unknown — may or may not be stale
@@ -311,32 +178,9 @@ principle.
 
 ---
 
-### D4. Variable naming examples in CLAUDE.md
-**Severity**: Minor — rule without clear examples
-**File**: `CLAUDE.md` (Variable Naming section)
-
-The "Never abbreviate" rule doesn't distinguish between domain
-abbreviations (bad: `wf`, `e`, `res`) and established short names (fine:
-`id`, `ok`, `msg`, `pid`). New contributors can't tell which side of the
-line `idx`, `acc`, `ctx` fall on.
-
-**Fix**: Add a clarifying table or bullet list:
-- **Acceptable**: `id`, `ok`, `msg`, `pid`, `ref`, `fn` (established
-  conventions)
-- **Unacceptable**: `wf` (watched_file), `e` (entity), `res` (result),
-  `s` (season), `ep` (episode)
-- Rule of thumb: if you can't say the name aloud and have it be clear,
-  it's too short.
-
-**Effort**: Trivial. Small addition to the existing section.
-
----
-
 ## Priority clusters
 
 If picking a batch, these cluster cleanly by effort/risk:
-
-- **Quick wins (1 session, all low-effort)**: E2, P2, P3, P4, P6, P9, D1, D4 — each is <30 minutes, all low-risk, can be bundled into a single "chore: minor perf + docs polish" commit.
 
 - **Verification-first items (low effort but need measurement)**: P1, P10 — need Tidewave profiling before committing to a fix. Useful to scope before implementing.
 

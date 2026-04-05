@@ -547,9 +547,9 @@ defmodule MediaCentaurWeb.LibraryLive do
     updated_map = Map.new(updated_entries, fn entry -> {entry.entity.id, entry} end)
 
     entries =
-      socket.assigns.entries
-      |> Enum.reject(fn entry -> MapSet.member?(gone_ids, entry.entity.id) end)
-      |> Enum.map(fn entry -> Map.get(updated_map, entry.entity.id, entry) end)
+      for entry <- socket.assigns.entries,
+          not MapSet.member?(gone_ids, entry.entity.id),
+          do: Map.get(updated_map, entry.entity.id, entry)
 
     existing_ids = MapSet.new(entries, fn entry -> entry.entity.id end)
 

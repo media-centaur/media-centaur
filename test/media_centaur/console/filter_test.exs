@@ -326,6 +326,16 @@ defmodule MediaCentaur.Console.FilterTest do
     end
   end
 
+  describe "search_lower cache" do
+    test "Filter.new/1 populates search_lower from the search option" do
+      assert Filter.new(search: "FOO").search_lower == "foo"
+    end
+
+    test "Filter.from_persistable/1 populates search_lower from the persisted search" do
+      assert Filter.from_persistable(%{"search" => "BAR"}).search_lower == "bar"
+    end
+  end
+
   describe "new_with_defaults/0" do
     test "framework components are :hide by default" do
       filter = Filter.new_with_defaults()

@@ -169,15 +169,16 @@ defmodule MediaCentaur.Console.View do
   def pause_button_label(false), do: "pause"
 
   @doc """
-  Returns `true` if two filters differ only in their `:search` field.
-  Used to skip server-side re-streaming when text search changes — the
-  client-side hook handles DOM filtering via `data-message` attributes.
+  Returns `true` iff two filters are identical except for their `:search`
+  field. Used by console LiveViews to skip server-side re-streaming when
+  only the text-search input changed — the client-side hook handles DOM
+  filtering via `data-message` attributes.
   """
-  @spec only_search_changed?(
+  @spec only_search_query_differs?(
           MediaCentaur.Console.Filter.t(),
           MediaCentaur.Console.Filter.t()
         ) :: boolean()
-  def only_search_changed?(filter_a, filter_b) do
+  def only_search_query_differs?(filter_a, filter_b) do
     normalize = fn filter -> %{filter | search: ""} end
     filter_a.search != filter_b.search and normalize.(filter_a) == normalize.(filter_b)
   end

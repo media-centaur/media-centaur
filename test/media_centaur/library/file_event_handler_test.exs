@@ -383,7 +383,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       # Episode image should be gone
-      assert Library.list_images!() == []
+      assert Library.list_all_images!() == []
     end
   end
 end
