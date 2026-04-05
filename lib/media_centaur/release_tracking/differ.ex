@@ -122,7 +122,7 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
         end
 
       %{
-        event_type: :upcoming_release_date_changed,
+        event_type: :removed_from_schedule,
         description: "#{label} removed from schedule",
         metadata: %{
           old_date: field(old, :air_date),

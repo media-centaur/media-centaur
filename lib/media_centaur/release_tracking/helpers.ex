@@ -42,14 +42,54 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   end
 
   @doc """
+  Fetch upcoming releases for a TV series from TMDB.
+  Tries season-level extraction first, falls back to next_episode_to_air.
+  """
+  def fetch_tv_releases(tmdb_id, last_season, last_episode, response) do
+    alias MediaCentaur.TMDB.Client
+    alias MediaCentaur.ReleaseTracking.Extractor
+
+    seasons = seasons_to_fetch(response, last_season)
+
+    releases =
+      seasons
+      |> Enum.flat_map(fn season_num ->
+        case Client.get_season(tmdb_id, season_num) do
+          {:ok, season_data} ->
+            Extractor.extract_episodes_since(season_data, last_season, last_episode)
+
+          {:error, _} ->
+            []
+        end
+      end)
+      |> mark_released()
+
+    if releases == [] do
+      Extractor.extract_tv_releases(response) |> mark_released()
+    else
+      releases
+    end
+  end
+
+  @doc """
+  Fetch upcoming releases for a movie collection from TMDB.
+  """
+  def fetch_collection_releases(response) do
+    alias MediaCentaur.ReleaseTracking.Extractor
+
+    Extractor.extract_collection_releases(response)
+    |> normalize_collection_releases()
+  end
+
+  @doc """
   Sets `:released` flag on each release based on whether `air_date` is today or earlier.
   """
   def mark_released(releases) do
     today = Date.utc_today()
 
     Enum.map(releases, fn release ->
-      released = release.air_date != nil && Date.compare(release.air_date, today) != :gt
-      Map.put(release, :released, released)
+      aired = release.air_date != nil && Date.compare(release.air_date, today) != :gt
+      Map.put(release, :released, aired)
     end)
   end
 

@@ -14,6 +14,7 @@ defmodule MediaCentaur.ReleaseTracking.Event do
     field :event_type, Ecto.Enum,
       values: [
         :upcoming_release_date_changed,
+        :removed_from_schedule,
         :new_season_announced,
         :new_episodes_announced,
         :began_tracking,

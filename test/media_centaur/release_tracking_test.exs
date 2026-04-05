@@ -116,6 +116,100 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
+  describe "mark_in_library_releases/1" do
+    test "marks TV episodes at or below last library episode" do
+      item =
+        create_tracking_item(%{
+          last_library_season: 2,
+          last_library_episode: 5
+        })
+
+      # In library: S01E01, S02E03, S02E05
+      create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
+      create_tracking_release(%{item_id: item.id, season_number: 2, episode_number: 3})
+      create_tracking_release(%{item_id: item.id, season_number: 2, episode_number: 5})
+      # Not in library: S02E06, S03E01
+      create_tracking_release(%{item_id: item.id, season_number: 2, episode_number: 6})
+      create_tracking_release(%{item_id: item.id, season_number: 3, episode_number: 1})
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      in_library = Enum.filter(releases, & &1.in_library)
+      not_in_library = Enum.reject(releases, & &1.in_library)
+
+      assert length(in_library) == 3
+      assert length(not_in_library) == 2
+      episode_keys = Enum.map(not_in_library, &{&1.season_number, &1.episode_number})
+      assert {2, 6} in episode_keys
+      assert {3, 1} in episode_keys
+    end
+
+    test "marks released movie releases as in_library" do
+      item = create_tracking_item(%{media_type: :movie, name: "Test Collection"})
+
+      create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true})
+      create_tracking_release(%{item_id: item.id, title: "Upcoming Movie", released: false})
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      in_library = Enum.filter(releases, & &1.in_library)
+
+      assert length(in_library) == 1
+      assert hd(in_library).title == "Old Movie"
+    end
+
+    test "does nothing for TV with no library episodes" do
+      item = create_tracking_item(%{last_library_season: 0, last_library_episode: 0})
+      create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert Enum.all?(releases, &(not &1.in_library))
+    end
+  end
+
+  describe "list_releases/0 filtering" do
+    test "excludes in_library releases" do
+      item = create_tracking_item()
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), -5),
+        season_number: 1,
+        episode_number: 1,
+        released: true,
+        in_library: true
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), -3),
+        season_number: 1,
+        episode_number: 2,
+        released: true,
+        in_library: false
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 10),
+        season_number: 1,
+        episode_number: 3,
+        in_library: false
+      })
+
+      %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
+
+      assert length(released) == 1
+      assert hd(released).episode_number == 2
+      assert length(upcoming) == 1
+      assert hd(upcoming).episode_number == 3
+    end
+  end
+
   describe "create_event/1" do
     test "creates a change event" do
       item = create_tracking_item()

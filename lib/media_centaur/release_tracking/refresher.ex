@@ -8,7 +8,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Differ, Helpers}
+  alias MediaCentaur.ReleaseTracking.{Differ, Helpers}
   alias MediaCentaur.TMDB.Client
 
   def start_link(opts \\ []) do
@@ -90,31 +90,13 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   defp do_refresh_item(%{media_type: :tv_series} = item) do
     case Client.get_tv(item.tmdb_id) do
       {:ok, response} ->
-        last_season = item.last_library_season
-        last_episode = item.last_library_episode
-
-        seasons = Helpers.seasons_to_fetch(response, last_season)
-
         new_releases =
-          seasons
-          |> Enum.flat_map(fn season_num ->
-            case Client.get_season(item.tmdb_id, season_num) do
-              {:ok, season_data} ->
-                Extractor.extract_episodes_since(season_data, last_season, last_episode)
-
-              {:error, _} ->
-                []
-            end
-          end)
-          |> Helpers.mark_released()
-
-        # Fall back to next_episode_to_air if season data returned nothing
-        new_releases =
-          if new_releases == [] do
-            Extractor.extract_tv_releases(response) |> Helpers.mark_released()
-          else
-            new_releases
-          end
+          Helpers.fetch_tv_releases(
+            item.tmdb_id,
+            item.last_library_season,
+            item.last_library_episode,
+            response
+          )
 
         old_releases = ReleaseTracking.list_releases_for_item(item.id)
         events = Differ.diff(old_releases, new_releases)
@@ -132,10 +114,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     case Client.get_collection(item.tmdb_id) do
       {:ok, response} ->
         old_releases = ReleaseTracking.list_releases_for_item(item.id)
-
-        new_releases =
-          Extractor.extract_collection_releases(response)
-          |> Helpers.normalize_collection_releases()
+        new_releases = Helpers.fetch_collection_releases(response)
 
         events = Differ.diff(old_releases, new_releases)
         write_events(item, events)
@@ -204,13 +183,19 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
           {season, episode} = Helpers.find_last_library_episode(item.library_entity_id)
 
           if season != item.last_library_season || episode != item.last_library_episode do
-            {:ok, updated_item} =
-              ReleaseTracking.update_item(item, %{
-                last_library_season: season,
-                last_library_episode: episode
-              })
+            case ReleaseTracking.update_item(item, %{
+                   last_library_season: season,
+                   last_library_episode: episode
+                 }) do
+              {:ok, updated_item} ->
+                ReleaseTracking.mark_in_library_releases(updated_item)
 
-            ReleaseTracking.mark_in_library_releases(updated_item)
+              {:error, changeset} ->
+                Log.info(
+                  :library,
+                  "failed to update tracking item #{item.name}: #{inspect(changeset.errors)}"
+                )
+            end
           end
         end
       else

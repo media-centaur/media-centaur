@@ -77,29 +77,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
 
         if status in [:returning, :in_production, :planned] do
           {last_season, last_episode} = Helpers.find_last_library_episode(library_entity_id)
-
-          seasons = Helpers.seasons_to_fetch(response, last_season)
-
-          releases =
-            seasons
-            |> Enum.flat_map(fn season_num ->
-              case Client.get_season(tmdb_id, season_num) do
-                {:ok, season_data} ->
-                  Extractor.extract_episodes_since(season_data, last_season, last_episode)
-
-                {:error, _} ->
-                  []
-              end
-            end)
-            |> Helpers.mark_released()
-
-          # Fall back to next_episode_to_air if no season data returned releases
-          releases =
-            if releases == [] do
-              Extractor.extract_tv_releases(response) |> Helpers.mark_released()
-            else
-              releases
-            end
+          releases = Helpers.fetch_tv_releases(tmdb_id, last_season, last_episode, response)
 
           create_tracked_item(
             tmdb_id,
@@ -125,11 +103,9 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
   defp process_collection(collection_id, library_entity_id) do
     case Client.get_collection(collection_id) do
       {:ok, response} ->
-        releases = Extractor.extract_collection_releases(response)
+        collection_releases = Helpers.fetch_collection_releases(response)
 
-        if releases != [] do
-          collection_releases = Helpers.normalize_collection_releases(releases)
-
+        if collection_releases != [] do
           create_tracked_item(
             collection_id,
             :movie,
