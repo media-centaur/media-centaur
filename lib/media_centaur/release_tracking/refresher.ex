@@ -173,6 +173,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
         released: release[:released] || false
       })
     end)
+
+    ReleaseTracking.mark_in_library_releases(item)
   end
 
   defp update_item_metadata(item, response) do
@@ -202,10 +204,13 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
           {season, episode} = Helpers.find_last_library_episode(item.library_entity_id)
 
           if season != item.last_library_season || episode != item.last_library_episode do
-            ReleaseTracking.update_item(item, %{
-              last_library_season: season,
-              last_library_episode: episode
-            })
+            {:ok, updated_item} =
+              ReleaseTracking.update_item(item, %{
+                last_library_season: season,
+                last_library_episode: episode
+              })
+
+            ReleaseTracking.mark_in_library_releases(updated_item)
           end
         end
       else

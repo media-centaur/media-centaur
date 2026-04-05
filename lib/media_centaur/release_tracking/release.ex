@@ -15,6 +15,7 @@ defmodule MediaCentaur.ReleaseTracking.Release do
     field :season_number, :integer
     field :episode_number, :integer
     field :released, :boolean, default: false
+    field :in_library, :boolean, default: false
 
     belongs_to :item, MediaCentaur.ReleaseTracking.Item
 
@@ -23,7 +24,15 @@ defmodule MediaCentaur.ReleaseTracking.Release do
 
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:air_date, :title, :season_number, :episode_number, :released, :item_id])
+    |> cast(attrs, [
+      :air_date,
+      :title,
+      :season_number,
+      :episode_number,
+      :released,
+      :in_library,
+      :item_id
+    ])
     |> validate_required([:item_id])
   end
 
