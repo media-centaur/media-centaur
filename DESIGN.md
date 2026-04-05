@@ -68,9 +68,9 @@ Design principles, page structure, and visual standards for the Phoenix LiveView
 
 5. **System fonts, monospace only for function.** Use the system font stack. Monospace is reserved for content where alignment matters (paths, IDs, tabular numbers). Never for aesthetic reasons.
 
-6. **The dashboard is a hub.** The home page answers "do I need to go anywhere?" — library stats front and center, mini-dashboard cards summarizing each sub-page. If everything is healthy, you're done in one glance.
+6. **The library is the home.** The home page (`/`) is the library — the thing the user actually came here to use. Operational health, pipeline state, and administrative knobs all live on their own pages, reachable from the sidebar. The library is what the app is for; everything else supports it.
 
-7. **Separate concerns into pages.** Library overview and operational monitoring are different activities. Don't force them onto one screen. Each page has a clear purpose.
+7. **Separate concerns into pages.** Library browsing, operational monitoring, review, and settings are different activities. Don't force them onto one screen. Each page has a clear purpose.
 
 8. **Live data feels alive.** When the system is working (pipeline processing, playback active), the UI reflects it with smooth real-time updates. When idle, the UI is quiet. Animation serves comprehension, not decoration.
 
@@ -134,16 +134,17 @@ Collapsible left sidebar with glassmorphism treatment. Expanded (200px): icon + 
 
 | Page | Path | Role |
 |------|------|------|
-| **Dashboard** | `/` | Hub page: library stats, pipeline, watchers, errors, storage, review & playback summaries |
+| **Library** | `/` | Home page: entity browser with Continue Watching, Library Browse, and Upcoming zones. Playback controls and detail view. |
+| **Status** | `/status` | Operational hub: library stats, pipeline, watchers, errors, storage, review & playback summaries |
 | **Review** | `/review` | Manual TMDB matching for pending files |
-| **Library** | `/library` | Entity browser with playback controls |
-| **Settings** | `/settings` | Logging toggles, configuration reference, danger zone |
+| **Settings** | `/settings` | Services, preferences, configuration reference, danger zone |
+| **Console** | `/console` | Full-page diagnostic log viewer (also available as a `` ` `` drawer on every page) |
 
 ---
 
-### Dashboard (`/`)
+### Status (`/status`)
 
-Single scrolling page. The dashboard is the operational hub — everything you need at a glance.
+Single scrolling page. The status page is the operational hub — everything you need to answer "is the system healthy?" at a glance. The library itself lives at `/`; this page is the developer/operator view.
 
 **Sections:**
 1. **Library stats** — aggregate counts: movies, TV series, collections, episodes, files tracked, images cached
@@ -179,13 +180,15 @@ Visual refresh + UX improvement:
 
 ---
 
-### Library (`/library`)
+### Library (`/`)
 
-Two-zone layout with top-level tab switching. Both zones share the same LiveView and loaded data — switching zones uses `push_patch`, not a full remount.
+The home page. Three-zone layout with top-level tab switching. All zones share the same LiveView and loaded data — switching zones uses `push_patch`, not a full remount.
 
 **Continue Watching** (default zone): Backdrop cards (16:9 aspect) for entities with active watch progress. Each card shows the backdrop/poster image with a gradient overlay, logo or title text, resume label ("Resume S2 E5 at 12:34"), and a progress bar. Selecting a card opens a **ModalShell** — centered overlay with backdrop blur.
 
 **Library Browse** (tab): Full entity catalog as a poster grid with toolbar controls (type tabs: All/Movies/TV, sort: Recently Added/A–Z/Year, text filter). Selecting a poster opens a **ModalShell**.
+
+**Upcoming** (tab): Calendar view of upcoming TMDB releases for tracked entities, with event log and rescan action.
 
 **DetailPanel** is a shared function component rendered inside ModalShell. It displays a 21:9 hero section (backdrop + logo/title + progress + resume button), metadata row, description, and type-specific content lists (season/episode tree for TV, movie list for movie series, file details for single items).
 
@@ -201,8 +204,8 @@ Features requiring new backend tracking or computation:
 
 | Feature | Location | Status | Implementation notes |
 |---------|----------|--------|---------------------|
-| Recent event feed | Dashboard | Planned | In-memory event buffer (like Stats.recent_errors pattern) |
-| Library completeness | Dashboard | Planned | Ecto queries: entities missing images, entities without identifiers |
-| Auto-approve rate | Dashboard | Planned | Counter in Pipeline.Stats: auto_approved vs needs_review |
-| Storage metrics | Operations | Done | `Storage.measure_all/0` — disk usage per watch dir, images dir, database |
-| Last scan timestamp | Operations | Planned | Track in Watcher.Supervisor state or Stats |
+| Recent event feed | Status | Planned | In-memory event buffer (like Stats.recent_errors pattern) |
+| Library completeness | Status | Planned | Ecto queries: entities missing images, entities without identifiers |
+| Auto-approve rate | Status | Planned | Counter in Pipeline.Stats: auto_approved vs needs_review |
+| Storage metrics | Status | Done | `Storage.measure_all/0` — disk usage per watch dir, images dir, database |
+| Last scan timestamp | Status | Planned | Track in Watcher.Supervisor state or Stats |
