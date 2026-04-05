@@ -118,9 +118,12 @@ Achromatic overlays (`oklch(0% 0 0 / 0.7)` for modal backdrops) and intentionall
 
 ### Buttons
 
-- **Action buttons** (approve, search, select): use `btn-soft` with semantic color (`btn-soft btn-success`, `btn-soft btn-info`). Soft variants use a subtle tinted background with colored text — readable against glass surfaces without competing for attention. Never use solid-fill semantic buttons (`btn-success`, `btn-info` without `btn-soft`) — the saturated backgrounds wash out button text.
-- **Destructive/dismiss actions**: `btn-ghost` — minimal visual weight for secondary or negative actions.
-- **Solid-fill buttons** are acceptable only for `btn-primary` (theme accent) in contexts where a single dominant call-to-action is needed (e.g. form submit).
+- **Action buttons** (approve, search, select, scan): `btn-soft` with semantic color (`btn-soft btn-success`, `btn-soft btn-info`). Soft variants use a subtle tinted background with colored text — readable against glass surfaces without competing for attention.
+- **Dangerous primary actions** (Clear Database, Delete, Rematch, Stop Tracking — buttons the user deliberately reached for): `btn-soft btn-error` for irreversible/destructive, `btn-soft btn-warning` for risky-but-recoverable. Color carries the warning; `btn-soft` keeps the text readable.
+- **Inline / dismiss actions** (trash icon on a file row, Cancel in a confirm modal, close `×`): `btn-ghost`, optionally tinted with `text-error` when destructive. Minimal visual weight — these recede until hover.
+- **Solid-fill buttons** are acceptable only for `btn-primary` in contexts with a single dominant call-to-action (e.g. form submit). Never use solid-fill semantic buttons (`btn-success`, `btn-info`, `btn-warning`, `btn-error` without `btn-soft`) — the saturated background washes out button text.
+
+See [UIDR-003](decisions/user-interface/2026-03-03-003-button-style-convention.md) for the full rules and the "dangerous primary vs inline dismiss" judgment rule.
 
 ---
 
