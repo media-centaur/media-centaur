@@ -275,8 +275,20 @@ defmodule MediaCentaurWeb.LibraryLive do
     season_number = String.to_integer(season_str)
     episode_number = String.to_integer(episode_str)
 
+    # Resolve the FK in the LiveView process using the cached entity from
+    # `entries_by_id` — avoiding a redundant deep preload inside the async
+    # task. The task body now only has to hit the (indexed) watch_progress
+    # row and broadcast the result.
+    {fk_key, fk_id} =
+      resolve_progress_fk(
+        socket.assigns.entries_by_id,
+        entity_id,
+        season_number,
+        episode_number
+      )
+
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      toggle_watched(entity_id, season_number, episode_number)
+      update_watch_progress(entity_id, fk_key, fk_id)
     end)
 
     {:noreply, socket}
@@ -1091,9 +1103,11 @@ defmodule MediaCentaurWeb.LibraryLive do
     end
   end
 
-  defp toggle_watched(entity_id, season_number, episode_number) do
-    {fk_key, fk_id} = resolve_progress_fk(entity_id, season_number, episode_number)
-
+  # Runs inside Task.Supervisor — socket is not available here. The caller
+  # has already resolved {fk_key, fk_id} from the cached entity, so this
+  # function only hits the (now-indexed) watch_progress row and broadcasts
+  # the result.
+  defp update_watch_progress(entity_id, fk_key, fk_id) do
     progress =
       if fk_id do
         case Library.get_watch_progress_by_fk(fk_key, fk_id) do
@@ -1143,36 +1157,54 @@ defmodule MediaCentaurWeb.LibraryLive do
     ProgressBroadcaster.broadcast(entity_id, changed_record)
   end
 
-  defp resolve_progress_fk(entity_id, 0, ordinal) do
-    # Movie series — find the movie by ordinal
-    case Library.get_movie_series_with_associations(entity_id) do
-      {:ok, ms} ->
-        alias MediaCentaur.Playback.MovieList
-        available = MovieList.list_available(%{movies: ms.movies})
+  # Resolve the {fk_key, fk_id} tuple from the cached entity map. The
+  # LibraryLive mount loads every entity with full preloads via
+  # LibraryBrowser — seasons, episodes, and movies are already attached
+  # to the normalized entity map in `entries_by_id`, so this is a cheap
+  # in-memory walk with no DB queries. Called synchronously from the
+  # event handler BEFORE spawning the async task.
+  #
+  # Note: `entry.entity` is a normalized map (not an Ecto struct) with a
+  # `:type` field. Inner `seasons`/`episodes`/`movies` are still Ecto
+  # structs, so we can match on their fields directly.
+  defp resolve_progress_fk(entries_by_id, entity_id, 0, ordinal) do
+    case Map.get(entries_by_id, entity_id) do
+      %{entity: %{type: :movie_series, movies: movies}} when is_list(movies) ->
+        available = MediaCentaur.Playback.MovieList.list_available(%{movies: movies})
 
         case Enum.find(available, fn {ord, _id, _url} -> ord == ordinal end) do
           {_ord, movie_id, _url} -> {:movie_id, movie_id}
           nil -> {:movie_id, nil}
         end
 
+      %{entity: %{type: :movie, id: id}} ->
+        # Standalone movie — the entity id IS the movie id.
+        {:movie_id, id}
+
       _ ->
-        # Standalone movie
+        # Fallback: not in cache or wrong type. Treat entity_id as a movie
+        # id and let the downstream get_watch_progress_by_fk handle
+        # :not_found gracefully.
         {:movie_id, entity_id}
     end
   end
 
-  defp resolve_progress_fk(entity_id, season_number, episode_number) do
-    # TV series — find the episode by season/episode number
-    case Library.get_tv_series_with_associations(entity_id) do
-      {:ok, tv} ->
+  defp resolve_progress_fk(entries_by_id, entity_id, season_number, episode_number) do
+    case Map.get(entries_by_id, entity_id) do
+      %{entity: %{type: :tv_series, seasons: seasons}} when is_list(seasons) ->
         episode_id =
-          Enum.find_value(tv.seasons || [], fn season ->
-            if season.season_number == season_number do
-              Enum.find_value(season.episodes || [], fn episode ->
-                if episode.episode_number == episode_number, do: episode.id
-              end)
-            end
-          end)
+          seasons
+          |> Enum.find(&(&1.season_number == season_number))
+          |> case do
+            %{episodes: episodes} when is_list(episodes) ->
+              case Enum.find(episodes, &(&1.episode_number == episode_number)) do
+                %{id: id} -> id
+                _ -> nil
+              end
+
+            _ ->
+              nil
+          end
 
         {:episode_id, episode_id}
 
