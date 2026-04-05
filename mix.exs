@@ -109,7 +109,7 @@ defmodule MediaCentaur.MixProject do
       ],
       "test.all": [
         "test",
-        "cmd bun test assets/js/input/"
+        "cmd bun test --dots assets/js/input/"
       ]
     ]
   end
