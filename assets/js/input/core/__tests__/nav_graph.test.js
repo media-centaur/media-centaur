@@ -27,7 +27,7 @@ const TEST_LAYOUTS = {
     grid:      { left: ["sections"] },
     sidebar:   { right: ["sections", "grid"] },
   },
-  dashboard: {
+  status: {
     sections:  { left: ["sidebar"] },
     sidebar:   { right: ["sections"] },
   },
@@ -40,7 +40,7 @@ const TEST_CURSOR_START_PRIORITY = {
   library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
   upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
   settings:  ["sections", "grid", "sidebar"],
-  dashboard: ["sections", "sidebar"],
+  status:    ["sections", "sidebar"],
 }
 
 const CONFIG = { layouts: TEST_LAYOUTS, alwaysPopulated: TEST_ALWAYS_POPULATED }
@@ -334,9 +334,9 @@ describe("buildNavGraph", () => {
     })
   })
 
-  describe("dashboard zone, all populated", () => {
+  describe("status zone, all populated", () => {
     const counts = { sections: 4, sidebar: 4 }
-    const graph = buildNavGraph("dashboard", counts, CONFIG)
+    const graph = buildNavGraph("status", counts, CONFIG)
 
     test("sections left goes to sidebar", () => {
       expect(graph.sections.left).toBe("sidebar")
@@ -346,7 +346,7 @@ describe("buildNavGraph", () => {
       expect(graph.sidebar.right).toBe("sections")
     })
 
-    test("no grid, zone_tabs, or toolbar in dashboard layout", () => {
+    test("no grid, zone_tabs, or toolbar in status layout", () => {
       expect(graph.grid).toBeUndefined()
       expect(graph.zone_tabs).toBeUndefined()
       expect(graph.toolbar).toBeUndefined()
@@ -405,8 +405,8 @@ describe("resolveCursorStart", () => {
     expect(resolveCursorStart("settings", { sections: 0, grid: 6, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
   })
 
-  test("dashboard zone returns sections (always populated)", () => {
-    expect(resolveCursorStart("dashboard", { sections: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  test("status zone returns sections (always populated)", () => {
+    expect(resolveCursorStart("status", { sections: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
   })
 
   test("unknown zone returns null", () => {

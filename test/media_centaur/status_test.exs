@@ -1,7 +1,7 @@
-defmodule MediaCentaur.DashboardTest do
+defmodule MediaCentaur.StatusTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Dashboard
+  alias MediaCentaur.Status
 
   import MediaCentaur.TestFactory
 
@@ -12,13 +12,13 @@ defmodule MediaCentaur.DashboardTest do
       create_episode(%{episode_number: 1, season_id: season.id})
       create_episode(%{episode_number: 2, season_id: season.id})
 
-      stats = Dashboard.fetch_library_stats()
+      stats = Status.fetch_library_stats()
 
       assert stats.episodes == 2
     end
 
     test "returns zero episodes when none exist" do
-      stats = Dashboard.fetch_library_stats()
+      stats = Status.fetch_library_stats()
 
       assert stats.episodes == 0
     end
@@ -33,7 +33,7 @@ defmodule MediaCentaur.DashboardTest do
       movie_b = create_entity(%{name: "Second Movie"})
       ChangeLog.record_addition(movie_b, :movie)
 
-      changes = Dashboard.fetch_recent_changes()
+      changes = Status.fetch_recent_changes()
 
       assert length(changes) == 2
       assert hd(changes).entity_name == "Second Movie"
@@ -46,7 +46,7 @@ defmodule MediaCentaur.DashboardTest do
       ChangeLog.record_addition(movie, :movie)
       ChangeLog.record_removal(%{id: movie.id, name: movie.name, type: :movie})
 
-      changes = Dashboard.fetch_recent_changes()
+      changes = Status.fetch_recent_changes()
 
       kinds = Enum.map(changes, & &1.kind)
       assert :added in kinds
@@ -54,7 +54,7 @@ defmodule MediaCentaur.DashboardTest do
     end
 
     test "returns empty list when no changes exist" do
-      assert Dashboard.fetch_recent_changes() == []
+      assert Status.fetch_recent_changes() == []
     end
   end
 end

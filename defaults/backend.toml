@@ -50,10 +50,10 @@ extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes",
 # Common use: "Sample" directories contain short encode-preview clips.
 skip_dirs = ["Sample"]
 
-[dashboard]
-# Number of days of recent library changes to show on the dashboard.
+[status]
+# Number of days of recent library changes to show on the Status page.
 recent_changes_days = 3
-# Number of recently watched items to show on the dashboard.
+# Number of recently watched items to show on the Status page.
 recently_watched_count = 5
 
 [playback]

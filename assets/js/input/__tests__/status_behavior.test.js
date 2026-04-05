@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { createDashboardBehavior } from "../dashboard_behavior"
+import { createStatusBehavior } from "../status_behavior"
 
-describe("createDashboardBehavior", () => {
+describe("createStatusBehavior", () => {
   test("returns an object with lifecycle methods", () => {
-    const behavior = createDashboardBehavior()
+    const behavior = createStatusBehavior()
     expect(typeof behavior.onAttach).toBe("function")
     expect(typeof behavior.onDetach).toBe("function")
   })
 
   test("onEscape returns sidebar", () => {
-    const behavior = createDashboardBehavior()
+    const behavior = createStatusBehavior()
     expect(behavior.onEscape()).toBe("sidebar")
   })
 })

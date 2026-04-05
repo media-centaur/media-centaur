@@ -3,7 +3,7 @@ defmodule MediaCentaur.Admin do
   Destructive admin operations for development and testing.
 
   Provides `clear_database/0` and `refresh_image_cache/0` — used by the
-  developer dashboard Danger Zone buttons.
+  Settings Danger Zone buttons.
   """
   require MediaCentaur.Log, as: Log
 

@@ -33,7 +33,7 @@ test.beforeEach(async ({ page }, testInfo) => {
     navigator.getGamepads = () => [window.__mockGamepad, null, null, null]
   })
 
-  await page.goto("/dashboard")
+  await page.goto("/status")
   await waitForLiveView(page)
   await waitForInputSystem(page)
   await connectGamepad(page)
@@ -181,7 +181,7 @@ test.describe("button priming", () => {
     }, Button.DOWN)
 
     // Navigate fresh — GamepadSource.start() will find the button already held
-    await page.goto("/dashboard")
+    await page.goto("/status")
     await waitForLiveView(page)
     await waitForInputSystem(page)
     await waitForSections(page)

@@ -142,7 +142,7 @@ Seven contexts own their tables and communicate only via PubSub events. No conte
 | **ReleaseTracking** | `release_tracking_` | Upcoming/tracked TMDB releases, refresh state | Broadcasts `release_tracking:updates` |
 | **Console** | _(none — in-memory ring buffer)_ | Log buffer, per-user filter state (persisted via `Settings.Entry`) | Broadcasts `console:logs` — `{:log_entry, entry}`, `:buffer_cleared`, `{:buffer_resized, n}`, `{:filter_changed, filter}` |
 
-**Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Dashboard, Admin, Playback, Serializer) read Library freely — they are not bounded contexts.
+**Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Status, Admin, Playback, Serializer) read Library freely — they are not bounded contexts.
 
 **Settings as shared infrastructure:** `Settings` is treated as shared key/value infrastructure, not a peer bounded context. Any context that needs per-user or per-installation persistence without justifying its own table (Console's filter and buffer cap, for example) writes to `Settings.Entry` directly. This is the one sanctioned exception to ADR-029's "contexts own their data" rule — the coupling is one-directional (the context depends on Settings, not the other way around) and Settings carries no domain logic of its own.
 
