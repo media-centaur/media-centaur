@@ -21,10 +21,20 @@ defmodule MediaCentaurWeb.StatusHelpers do
 
   # --- Formatting ---
 
+  @doc """
+  Formats remaining playback time for the Status playback card.
+
+  Sub-minute durations round up to `"< 1m remaining"` (UIDR-004 forbids
+  seconds in user-facing durations). Otherwise delegates to
+  `LibraryHelpers.format_human_duration/1` for the canonical `"Xh Ym"` shape.
+  """
   def format_remaining(seconds) when seconds <= 0, do: "finished"
-  def format_remaining(seconds) when seconds < 60, do: "#{round(seconds)}s remaining"
-  def format_remaining(seconds) when seconds < 3600, do: "#{round(seconds / 60)}m remaining"
-  def format_remaining(seconds), do: "#{Float.round(seconds / 3600, 1)}h remaining"
+
+  def format_remaining(seconds) when seconds < 60, do: "< 1m remaining"
+
+  def format_remaining(seconds) do
+    "#{MediaCentaurWeb.LibraryHelpers.format_human_duration(trunc(seconds))} remaining"
+  end
 
   def format_throughput(rate) when rate == 0.0, do: "—"
   def format_throughput(rate), do: "#{rate}/s"

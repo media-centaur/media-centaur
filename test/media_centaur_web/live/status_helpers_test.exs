@@ -43,16 +43,22 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
       assert StatusHelpers.format_remaining(-5) == "finished"
     end
 
-    test "formats seconds" do
-      assert StatusHelpers.format_remaining(45) == "45s remaining"
+    test "sub-minute durations collapse to '< 1m remaining' (UIDR-004 forbids seconds)" do
+      assert StatusHelpers.format_remaining(45) == "< 1m remaining"
+      assert StatusHelpers.format_remaining(1) == "< 1m remaining"
+      assert StatusHelpers.format_remaining(59) == "< 1m remaining"
     end
 
-    test "formats minutes" do
+    test "formats minutes in UIDR-004 shape" do
       assert StatusHelpers.format_remaining(180) == "3m remaining"
+      assert StatusHelpers.format_remaining(60) == "1m remaining"
     end
 
-    test "formats hours" do
-      assert StatusHelpers.format_remaining(7200) == "2.0h remaining"
+    test "formats hours and minutes in UIDR-004 shape" do
+      assert StatusHelpers.format_remaining(3600) == "1h remaining"
+      assert StatusHelpers.format_remaining(7200) == "2h remaining"
+      assert StatusHelpers.format_remaining(5400) == "1h 30m remaining"
+      assert StatusHelpers.format_remaining(12_900) == "3h 35m remaining"
     end
   end
 
