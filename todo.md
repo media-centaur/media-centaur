@@ -89,24 +89,19 @@ boot-time noise, and adding complexity to fix it isn't worth it.
 
 ---
 
-### P10. Verify library_browser N+1 claim
-**Severity**: Unknown — audit's remediation was wrong, underlying claim may or may not be real
-**File**: `lib/media_centaur/library_browser.ex`
+### ~~P10. Verify library_browser N+1 claim~~ — resolved 2026-04-05
 
-The audit flagged `Repo.all(query) |> Repo.preload([...])` as N+1 and
-suggested replacing with `Repo.all(query, preload: [...])`. Those are
-equivalent at the SQL level, so the fix is wrong. But the underlying claim
-— that library page loads issue too many preload queries — might still be
-real.
+**False positive.** Measured against the dev library via Tidewave
+(`:telemetry` on `[:media_centaur, :repo, :query]`): `fetch_all_typed_entries/0`
+fires **29 queries** total, constant regardless of library size. This is
+standard Ecto preload (one query per `(association, parent type)` pair via
+`IN` clause), not N+1. The audit's suggested fix (`Repo.all(query, preload: [...])`)
+was SQL-equivalent to the pipe form already in use.
 
-**Fix**: Verify with Tidewave + EXPLAIN whether there's an actual N+1.
-Count the queries fired during a library page mount with 50 TV series.
-If it's 1 query per association level (expected), no action. If it's 1
-query per entity per association (actual N+1), consider using SQL joins
-via `from t in TVSeries, join: s in assoc(t, :seasons), preload: [seasons: s]`.
-
-**Effort**: Low for verification (just EXPLAIN), medium for any actual
-fix.
+Locked in as a regression guard — see the `query count (N+1 regression guard)`
+describe block in `test/media_centaur/library_browser_test.exs`. The test
+runs the fetcher against two differently-sized fixtures and asserts both
+produce the same bounded query count.
 
 ---
 
@@ -133,7 +128,7 @@ update any stale claims.
 
 If picking a batch, these cluster cleanly by effort/risk:
 
-- **Verification-first items (low effort but need measurement)**: P1, P10 — need Tidewave profiling before committing to a fix. Useful to scope before implementing.
+- **Verification-first items (low effort but need measurement)**: P1 — needs Tidewave profiling before committing to a fix. Useful to scope before implementing. (P10 was verified as a false positive on 2026-04-05 and is now a regression test.)
 
 - **Bigger polish items (1 session each)**: D2 (PIPELINE.md staleness verification).
 

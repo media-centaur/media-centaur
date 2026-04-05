@@ -80,6 +80,13 @@ defmodule MediaCentaur.LibraryBrowser do
   end
 
   # --- Type-Specific Fetchers (all) ---
+  #
+  # All fetchers use `Repo.all |> Repo.preload(...)`, which issues one query
+  # per (association, parent type) pair via an `IN` clause. The total cost is
+  # a bounded constant (~29 queries) that does NOT scale with row count. This
+  # is the standard Ecto preload pattern, not N+1, and is enforced as a
+  # regression by `test/media_centaur/library_browser_test.exs` — see the
+  # "query count (N+1 regression guard)" describe block.
 
   defp fetch_standalone_movies do
     from(m in Movie,
