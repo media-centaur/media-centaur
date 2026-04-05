@@ -54,8 +54,6 @@ npm-debug.log
 /media_centaur_dev*
 /priv/repo/media_centaur_test*.db*
 
-/todo/
-
 # Runtime data (downloaded images, etc.)
 /data/
 .superpowers/
