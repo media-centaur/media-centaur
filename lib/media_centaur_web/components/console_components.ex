@@ -147,7 +147,14 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       <button type="button" class="btn btn-xs" phx-click="toggle_pause">
         {View.pause_button_label(@paused)}
       </button>
-      <button type="button" class="btn btn-xs" phx-click="clear_buffer">clear</button>
+      <button
+        type="button"
+        class="btn btn-xs"
+        phx-click="clear_buffer"
+        data-confirm="Clear the diagnostic log buffer? Recent entries will be lost."
+      >
+        clear
+      </button>
       <button type="button" class="btn btn-xs" phx-click="copy_visible">copy</button>
       <button type="button" class="btn btn-xs" phx-click="download_buffer">download</button>
       <.link :if={@show_fullpage_link} navigate={~p"/console"} class="btn btn-xs">full page</.link>
