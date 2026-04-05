@@ -180,7 +180,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.progress_remaining_text(progress, entity) == "1 hr remaining"
+      assert DetailPanel.progress_remaining_text(progress, entity) == "1h remaining"
     end
   end
 
@@ -278,26 +278,6 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
     test "formats plural file count" do
       assert DetailPanel.file_summary(3, 3_145_728) == "3 files, 3.0 MB"
-    end
-  end
-
-  # --- format_duration_human/1 ---
-
-  describe "format_duration_human/1" do
-    test "formats hours and minutes" do
-      assert DetailPanel.format_duration_human(5580) == "1 hr 33 mins"
-    end
-
-    test "formats hours only" do
-      assert DetailPanel.format_duration_human(7200) == "2 hr"
-    end
-
-    test "formats minutes only" do
-      assert DetailPanel.format_duration_human(300) == "5 mins"
-    end
-
-    test "returns under 1 min for small values" do
-      assert DetailPanel.format_duration_human(30) == "<1 min"
     end
   end
 

@@ -9,7 +9,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.LiveHelpers
-  import MediaCentaurWeb.LibraryHelpers, only: [format_type: 1, extract_year: 1]
+
+  import MediaCentaurWeb.LibraryHelpers,
+    only: [format_type: 1, extract_year: 1, format_human_duration: 1]
 
   alias MediaCentaur.Playback.EpisodeList
   alias MediaCentaur.Playback.MovieList
@@ -332,7 +334,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
       progress.episode_duration_seconds > 0 && progress.episode_position_seconds > 0 ->
         remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
-        "#{format_duration_human(remaining_seconds)} remaining"
+        "#{format_human_duration(trunc(remaining_seconds))} remaining"
 
       true ->
         nil
@@ -673,12 +675,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp episode_duration_text(%{state: :current, progress: progress} = assigns) do
-    remaining = max(progress.duration_seconds - progress.position_seconds, 0)
+    remaining = trunc(max(progress.duration_seconds - progress.position_seconds, 0))
     assigns = assign(assigns, :remaining, remaining)
 
     ~H"""
     <span class="text-info text-xs">
-      {format_duration_human(@remaining)} remaining
+      {format_human_duration(@remaining)} remaining
     </span>
     """
   end
@@ -1259,18 +1261,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   # --- Helpers ---
-
-  def format_duration_human(seconds) when is_number(seconds) and seconds >= 0 do
-    hours = div(trunc(seconds), 3600)
-    minutes = div(rem(trunc(seconds), 3600), 60)
-
-    cond do
-      hours > 0 && minutes > 0 -> "#{hours} hr #{minutes} mins"
-      hours > 0 -> "#{hours} hr"
-      minutes > 0 -> "#{minutes} mins"
-      true -> "<1 min"
-    end
-  end
 
   def count_watched_episodes(season, progress_by_key) do
     (season.episodes || [])
