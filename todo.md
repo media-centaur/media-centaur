@@ -18,33 +18,24 @@ here is blocking.
 
 ## Performance
 
-### P1. Handler render cost in caller's process
-**Severity**: Moderate — only observable at high log volume
-**File**: `lib/media_centaur/console/handler.ex`
+### ~~P1. Handler render cost in caller's process~~ — resolved 2026-04-05
 
-`log/2` runs `build_entry` synchronously in the caller's process on every
-log event. `build_entry` calls `render_message` which does `strip_ansi`
-(regex) and `truncate` (`String.slice`) on the rendered binary. For a
-500-byte SQL query log, this is ~100µs per call. At 100+ logs/sec during
-heavy Ecto activity, this adds up to measurable latency in the calling
-process.
+**False positive.** The audit estimated "~100µs per 500-byte SQL log."
+Measured via `:timer.tc` on `Console.Handler.build_entry/3` across
+50,000 iterations: a 500-byte SQL-shaped log actually takes **~8µs**,
+off by ~12×. Size is essentially flat (7-8µs) across the 100B-1500B
+range that Ecto actually produces.
 
-**Fix**: Defer rendering to the Buffer GenServer. Store the raw `msg`
-tuple + metadata in a "lazy entry" struct, and render on demand at view
-time (console UI rendering, clipboard copy, download, `Diagnostics.log_recent`).
-The hot path in the caller becomes: minimal Entry struct + `Buffer.append/1`
-cast + return.
+During a real library page load (25 queries, 268B-1176B, mean 403B),
+total handler time is **~227µs across all events** — **0.47% of the
+48ms wall time**. The handler is not a bottleneck and the proposed
+lazy-entry refactor is not justified.
 
-**Tradeoffs**:
-- Adds complexity to the Buffer snapshot path (needs to know how to
-  render lazily)
-- The search filter in the console UI currently operates on the rendered
-  `message` string — would need to either render-then-match (no savings) or
-  rework to match against the raw structure
-- Worth doing only if profiling shows the handler is a bottleneck
-
-**Effort**: Medium-high. Architectural change. Recommend measuring first
-(via Tidewave under load) before committing.
+**Known edge case (not worth preemptively fixing)**: `truncate/2` uses
+`String.slice/3` which walks codepoints and costs **~72µs per call**
+for messages >2000 bytes. Nothing in normal operations triggers this;
+only giant inspect output, crash reports, or SQL with hundreds of
+parameters would. Document the cliff if someone hits it.
 
 ---
 
@@ -107,20 +98,34 @@ produce the same bounded query count.
 
 ## Documentation
 
-### D2. `PIPELINE.md` staleness verification
-**Severity**: Unknown — may or may not be stale
-**File**: `PIPELINE.md` (dated 2026-03-26)
+### ~~D2. `PIPELINE.md` staleness verification~~ — resolved 2026-04-05
 
-Predates the console feature shipped 2026-04-05. May not reflect how logs
-flow through `MediaCentaur.Console` now, or how rescan dispatch works
-post-refactor. Content may also be accurate — unknown without reading it
-end-to-end against current code.
+Read end-to-end and cross-referenced against `lib/media_centaur/pipeline/`
+and `lib/media_centaur/image_pipeline*`. Eight stale/incorrect claims found
+and fixed:
 
-**Fix**: Read PIPELINE.md in full, cross-reference against
-`lib/media_centaur/pipeline/` and `lib/media_centaur/broadway/`, and
-update any stale claims.
+1. Supervision diagram said `ImagePipeline.Supervisor` held "Pipeline.Stats
+   (shared)" — actually `ImagePipeline.Stats`, a separate module
+2. `ImagePipeline.RetryScheduler` was missing from the supervision tree
+3. Startup reconciliation (ADR-023) — the `:reconcile` rescan trigger in
+   `Discovery.Producer.init/1` was entirely undocumented
+4. `Payload.entry_point` field listed but does not exist in the struct
+5. `Payload` fields `match_title` / `match_year` / `match_poster_path` /
+   `candidates` / `ingest_status` were missing from the table
+6. Import processing flow omitted the 100 MB disk space check between
+   Parse and FetchMetadata
+7. Image pipeline was missing its batcher config (size 20, 5s), the
+   `handle_failed/2` permanent-vs-transient classification, the
+   `library:updates` broadcast at batch end, and the retry scheduler hookup
+8. Idempotency section referenced the pre-decomposition
+   `entity_id`-keyed unique indexes for `seasons` and `images`. Updated
+   to reflect the type-specific `library_images` unique indexes on
+   `(tv_series_id, role)`, `(movie_series_id, role)`, `(video_object_id, role)`.
 
-**Effort**: Medium. The document is long.
+Side finding (not fixed, not in scope): the new `library_images` table is
+missing `(movie_id, role)` and `(episode_id, role)` unique indexes that
+the old `images` table had. If someone later audits data constraints on
+the type-specific tables, that's a real gap — noted here for the backlog.
 
 ---
 
@@ -128,11 +133,11 @@ update any stale claims.
 
 If picking a batch, these cluster cleanly by effort/risk:
 
-- **Verification-first items (low effort but need measurement)**: P1 — needs Tidewave profiling before committing to a fix. Useful to scope before implementing. (P10 was verified as a false positive on 2026-04-05 and is now a regression test.)
-
 - **Bigger polish items (1 session each)**: D2 (PIPELINE.md staleness verification).
 
 - **Defer**: P7 (config caching — no observable impact), P8 (handler install timing — theoretical only).
+
+- **Verified as false positives on 2026-04-05**: P1 (handler render cost — ~0.5% of a library load), P10 (library_browser N+1 — regression test guards the constant-query invariant).
 
 ---
 

@@ -1,6 +1,6 @@
 # Pipeline Architecture
 
-> **Last updated:** 2026-03-26
+> **Last updated:** 2026-04-05
 
 The media manager processes video files through three Broadway pipelines: **Discovery**, **Import**, and **Image**. All cross-pipeline communication uses PubSub events — no direct function calls.
 
@@ -51,15 +51,16 @@ inotify + scan               high confidence → matched       → publish entit
 |-------|--------|---------|
 | `file_path` | Producer | Absolute path to the video file |
 | `watch_directory` | Producer | Watch directory the file was found in |
-| `entry_point` | Producer | `:file_detected` or `:review_resolved` |
 | `parsed` | Parse stage | `%Parser.Result{}` with title, year, type, season, episode |
-| `tmdb_id` | Search stage (or Producer) | TMDB ID of the matched entity |
-| `tmdb_type` | Search stage (or Producer) | `:movie` or `:tv` |
+| `tmdb_id` | Search stage (or Import Producer for review-resolved files) | TMDB ID of the matched entity |
+| `tmdb_type` | Search stage (or Import Producer) | `:movie` or `:tv` |
 | `confidence` | Search stage | Match confidence score (0.0–1.0) |
+| `match_title` / `match_year` / `match_poster_path` / `candidates` | Search stage | Display-oriented match fields + scored candidate list, used when the file falls out to review |
 | `metadata` | FetchMetadata stage | Full TMDB metadata mapped to domain attributes |
-| `entity_id` | Ingest stage | UUID of the created/found library entity |
+| `entity_id` | Ingest stage (via `Library.Inbound.ingest/1`) | UUID of the created/found library entity |
+| `ingest_status` | Ingest stage | `:new`, `:new_child`, or `:existing` |
 | `pending_images` | Ingest stage | List of images to download |
-| `pending_file_id` | Producer (review_resolved only) | PendingFile ID to clean up after completion |
+| `pending_file_id` | Import Producer (review-resolved files only) | PendingFile ID to clean up after Import finishes |
 
 ---
 
@@ -95,9 +96,10 @@ Fetches full metadata for a matched file and publishes the entity event for Libr
 - Batcher: 1, batch size 10, timeout 5s
 
 **Processing flow:**
-1. **Parse** — re-parse the file path (Import may receive files from Discovery or Review)
-2. **FetchMetadata** — fetch full TMDB details (movie, TV series, collection, season)
-3. **Ingest** — broadcast `{:entity_published, event}` to `"pipeline:publish"`
+1. **Parse** — re-parse the file path directly via `Parser.parse/2` (Import may receive files from Discovery or Review, so it always re-parses)
+2. **Disk space check** — aborts with `{:error, :insufficient_disk_space}` if the image directory's filesystem has less than 100 MB free
+3. **FetchMetadata** — fetch full TMDB details (movie, TV series, collection, season)
+4. **Ingest** — broadcast `{:entity_published, event}` to `"pipeline:publish"`
 
 After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), external ID creation, WatchedFile linking, and image queue population.
 
@@ -112,15 +114,17 @@ If the file came from review approval, Import also broadcasts `{:review_complete
 Downloads and processes artwork asynchronously after entity creation.
 
 **Configuration:**
-- Producer: PubSub subscriber to `"pipeline:images"`
+- Producer: PubSub subscriber to `"pipeline:images"`; dispatches queue entries as Broadway messages
 - Processors: 4 concurrent (moderate to avoid TMDB CDN hammering)
+- Batcher: 1, batch size 20, timeout 5s (collects completed downloads for one `library:updates` broadcast per batch)
 
 **Processing flow:**
-1. Query `pipeline_image_queue` for pending entries
-2. Download from TMDB CDN
-3. Resize to target dimensions per role (poster, backdrop, logo, thumb)
-4. Write to disk under the entity's image directory
-5. Broadcast `{:image_ready, attrs}` to `"pipeline:publish"` → `Library.Inbound` creates Image records
+1. Producer pulls pending entries from `pipeline_image_queue` on `{:images_pending, ...}` events
+2. Processor downloads and resizes in one step via `ImageProcessor.download_and_resize/3` (target dimensions per role: poster, backdrop, logo, thumb)
+3. Writes the resized image to disk under the entity's image directory
+4. Batcher marks queue entries `:complete`, broadcasts `{:image_ready, attrs}` to `"pipeline:publish"` (→ `Library.Inbound` creates/updates `Library.Image` records), and calls `Library.broadcast_entities_changed/1` so LiveViews see the new artwork
+
+**Failure handling:** `handle_failed/2` classifies failures as `:permanent` (4xx responses, malformed URLs — marks the queue entry `:permanent`, never retries) or `:transient` (network errors, 5xx — delegates to `ImageQueue.mark_failed/1`, which `ImagePipeline.RetryScheduler` picks up on its next tick).
 
 **Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Entries are created by `Library.Inbound` after entity creation.
 
@@ -148,24 +152,29 @@ MediaCentaur.Supervisor
 │   ├── Pipeline.Discovery (Broadway)
 │   └── Pipeline.Import (Broadway)
 ├── ImagePipeline.Supervisor (:rest_for_one)
-│   ├── Pipeline.Stats (shared)
-│   └── ImagePipeline (Broadway)
+│   ├── ImagePipeline.Stats (telemetry — separate from Pipeline.Stats)
+│   ├── ImagePipeline (Broadway)
+│   └── ImagePipeline.RetryScheduler
 └── ...
 ```
 
-If Stats crashes, pipelines restart (telemetry re-attach). Pipeline crashes do not affect Stats.
+If Stats crashes, the pipelines in its supervisor restart (clean telemetry re-attach). Pipeline crashes do not affect Stats.
+
+`ImagePipeline.RetryScheduler` periodically retries transient image download failures (network errors, CDN hiccups). Permanent failures (4xx responses, invalid URLs) are marked once and never retried — see `handle_failed/2` in `ImagePipeline`.
 
 Watchers and pipelines can be independently stopped/started via config (`start_watchers`, `start_pipeline`).
+
+**Startup reconciliation (ADR-023):** When `Discovery.Producer` starts, it sends itself `:reconcile` and triggers `Watcher.Supervisor.scan()` under the Task.Supervisor. This re-detects files that appeared while the pipeline was down so no work is lost across restarts.
 
 ---
 
 ## Idempotency & Concurrency Safety
 
-- **Already-linked check:** Discovery queries `library_watched_files` directly to skip files already linked to entities
-- **Entity deduplication:** `Library.Inbound` checks for existing entities by TMDB ID via the `ExternalId` unique constraint on `(source, external_id)`
+- **Already-linked check:** Discovery queries `library_watched_files` directly (via the `WatchedFile` schema + Repo, not through the Library context) to skip files that are already linked to an entity. A file is "linked" when any one of `movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id` is set.
+- **Entity deduplication:** `Library.Inbound` looks up existing entities by TMDB ID via `Library.ExternalId`, which has a unique constraint on `(source, external_id)`
 - **Race-loss recovery:** If two processors create entities for the same TMDB ID, the `ExternalId` insert detects the race; the loser destroys its orphan entity
 - **Find-or-create patterns:** Season, Episode, Movie, and Extra creation uses find-or-create — existing records are returned without modification
-- **DB-level constraints:** Season `(entity_id, season_number)`, Episode `(season_id, episode_number)`, Image `(entity_id, role)` — all have unique indexes
+- **DB-level constraints:** `library_images` has per-owner-type unique indexes on `(owner_id, role)` for each new type (`tv_series_id`, `movie_series_id`, `video_object_id`). Episode-number uniqueness is enforced by find-or-create in code.
 - **Image queue dedup:** Queue entries track owner + role; duplicates are prevented at insert
 
 ---
@@ -174,7 +183,7 @@ Watchers and pipelines can be independently stopped/started via config (`start_w
 
 Extras (featurettes, behind-the-scenes, deleted scenes) are detected by the Parser when a file's parent directory matches configured extras directory names.
 
-**Flow:** Parse sets `type: :extra` → Search routes to parent movie match → FetchMetadata fetches parent metadata → Ingest creates parent Entity (without `content_url`) + Extra record → Entity `content_url` is never set to the extra's file path.
+**Flow:** Parse sets `type: :extra` → Search routes to the parent movie match → FetchMetadata fetches parent metadata → Ingest creates the parent record (Movie / TVSeries / MovieSeries, without `content_url`) plus an `Extra` row linked via the type-specific FK → the parent record's `content_url` is never set to the extra's file path.
 
 ---
 
