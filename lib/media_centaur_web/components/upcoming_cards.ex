@@ -43,6 +43,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       |> assign(:by_date, by_date)
       |> assign(:no_date, no_date)
       |> assign(:released, assigns.releases.released)
+      |> assign(:dated_upcoming, Enum.filter(assigns.releases.upcoming, & &1.air_date))
       |> assign(:tracked_items, build_tracked_items(all_releases))
       |> assign(:selected_releases, selected_releases)
       |> assign(:weekdays, @weekdays)
@@ -117,7 +118,19 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           class="space-y-3 rounded-xl outline-none p-3"
         >
           <h3 class="text-sm font-medium text-success uppercase tracking-wider">Released</h3>
-          <.released_content released={@released} upcoming={assigns.releases.upcoming} />
+          <.released_content releases={@released} />
+        </div>
+
+        <%!-- Upcoming list section (nav item) --%>
+        <div
+          :if={@dated_upcoming != []}
+          data-nav-item
+          data-section-type="upcoming-list"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-3"
+        >
+          <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
+          <.upcoming_list_content releases={@dated_upcoming} />
         </div>
 
         <%!-- Unscheduled section (nav item) --%>
@@ -396,19 +409,82 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
 
   # --- Released section content ---
 
-  attr :released, :list, required: true
-  attr :upcoming, :list, required: true
+  attr :releases, :list, required: true
 
   defp released_content(assigns) do
-    grouped = group_released_by_show(assigns.released, assigns.upcoming)
-    assigns = assign(assigns, :grouped, grouped)
+    sorted =
+      assigns.releases
+      |> Enum.sort_by(fn release ->
+        date = release.air_date || ~D[9999-12-31]
+
+        {date.year, date.month, date.day, release.item.name, release.season_number || 0,
+         release.episode_number || 0}
+      end)
+
+    assigns = assign(assigns, :sorted, sorted)
 
     ~H"""
-    <div class="space-y-1">
-      <p :for={{name, summary} <- @grouped} class="text-sm pl-3 py-0.5">
-        <span class="font-medium">{name}</span>
-        <span class="text-base-content/50"> —             {summary}</span>
-      </p>
+    <div class="grid grid-cols-[auto_auto_auto_1fr] gap-x-3 gap-y-0.5 text-sm pl-3 items-baseline">
+      <%= for release <- @sorted do %>
+        <span class="text-base-content/30 tabular-nums text-right">
+          {if release.air_date, do: Calendar.strftime(release.air_date, "%b %-d"), else: "—"}
+        </span>
+        <span class="font-medium truncate">{release.item.name}</span>
+        <span class={"text-base-content/50 tabular-nums #{if !release.season_number, do: "col-span-2"}"}>
+          <%= if release.season_number do %>
+            <span class="text-[0.7em]">S</span>{String.pad_leading("#{release.season_number}", 2, "0")}
+            <span class="text-[0.7em]">E</span>{String.pad_leading(
+              "#{release.episode_number}",
+              2,
+              "0"
+            )}
+          <% end %>
+        </span>
+        <span :if={release.season_number} class="text-base-content/40 truncate">
+          {if release.title, do: "\"#{release.title}\""}
+        </span>
+      <% end %>
+    </div>
+    """
+  end
+
+  # --- Upcoming list content ---
+
+  attr :releases, :list, required: true
+
+  defp upcoming_list_content(assigns) do
+    sorted =
+      assigns.releases
+      |> Enum.sort_by(fn release ->
+        date = release.air_date
+
+        {date.year, date.month, date.day, release.item.name, release.season_number || 0,
+         release.episode_number || 0}
+      end)
+
+    assigns = assign(assigns, :sorted, sorted)
+
+    ~H"""
+    <div class="grid grid-cols-[auto_auto_auto_1fr] gap-x-3 gap-y-0.5 text-sm pl-3 items-baseline">
+      <%= for release <- @sorted do %>
+        <span class="text-base-content/30 tabular-nums text-right">
+          {Calendar.strftime(release.air_date, "%b %-d")}
+        </span>
+        <span class="font-medium truncate">{release.item.name}</span>
+        <span class={"text-base-content/50 tabular-nums #{if !release.season_number, do: "col-span-2"}"}>
+          <%= if release.season_number do %>
+            <span class="text-[0.7em]">S</span>{String.pad_leading("#{release.season_number}", 2, "0")}
+            <span class="text-[0.7em]">E</span>{String.pad_leading(
+              "#{release.episode_number}",
+              2,
+              "0"
+            )}
+          <% end %>
+        </span>
+        <span :if={release.season_number} class="text-base-content/40 truncate">
+          {if release.title, do: "\"#{release.title}\""}
+        </span>
+      <% end %>
     </div>
     """
   end
@@ -423,7 +499,8 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       <div :for={release <- @releases} class="flex items-baseline gap-2 text-sm pl-3 py-0.5">
         <span class="font-medium">{release.item.name}</span>
         <span :if={release.season_number} class="text-base-content/50">
-          S{release.season_number}E{release.episode_number}
+          <span class="text-[0.7em]">S</span>{String.pad_leading("#{release.season_number}", 2, "0")}
+          <span class="text-[0.7em]">E</span>{String.pad_leading("#{release.episode_number}", 2, "0")}
         </span>
         <span :if={release.title} class="text-base-content/40">"{release.title}"</span>
       </div>
@@ -613,52 +690,6 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     releases
     |> Enum.filter(& &1.air_date)
     |> Enum.group_by(& &1.air_date)
-  end
-
-  defp group_released_by_show(released, upcoming) do
-    # Build a set of {item_name, season_number} that still have upcoming episodes
-    seasons_with_upcoming =
-      upcoming
-      |> Enum.filter(& &1.season_number)
-      |> MapSet.new(&{&1.item.name, &1.season_number})
-
-    released
-    |> Enum.group_by(& &1.item.name)
-    |> Enum.map(fn {name, show_releases} ->
-      summary =
-        show_releases
-        |> Enum.sort_by(&{&1.season_number || 0, &1.episode_number || 0})
-        |> summarize_released(name, seasons_with_upcoming)
-
-      {name, summary}
-    end)
-    |> Enum.sort_by(&elem(&1, 0))
-  end
-
-  defp summarize_released([%{season_number: nil, title: title}], _name, _upcoming) do
-    title || "available"
-  end
-
-  defp summarize_released(episodes, name, seasons_with_upcoming) do
-    episodes
-    |> Enum.group_by(& &1.season_number)
-    |> Enum.sort_by(&elem(&1, 0))
-    |> Enum.map(fn {season, eps} ->
-      season_complete = not MapSet.member?(seasons_with_upcoming, {name, season})
-      ep_nums = Enum.map(eps, & &1.episode_number) |> Enum.sort()
-
-      cond do
-        season_complete && List.first(ep_nums) == 1 ->
-          "season #{season} available in full"
-
-        match?([_], ep_nums) ->
-          "season #{season} episode #{hd(ep_nums)} available"
-
-        true ->
-          "season #{season} episodes #{List.first(ep_nums)}–#{List.last(ep_nums)} available"
-      end
-    end)
-    |> Enum.join(", ")
   end
 
   defp event_label(%{event_type: :began_tracking}), do: "began tracking"
