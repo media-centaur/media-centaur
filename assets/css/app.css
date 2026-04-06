@@ -185,8 +185,7 @@ body {
 /* Primary glass surface — cards */
 .glass-surface {
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  @apply backdrop-blur-[12px];
   border: 1px solid var(--glass-border);
   box-shadow: 0 4px 16px var(--glass-shadow);
 }
@@ -199,16 +198,14 @@ body {
 /* Glass navbar — more opaque, stronger blur, sticky-ready */
 .glass-nav {
   background: var(--glass-nav-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  @apply backdrop-blur-[20px];
   border-bottom: 1px solid var(--glass-border);
 }
 
 /* Glass sidebar — same treatment as navbar, vertical orientation */
 .glass-sidebar {
   background: var(--glass-nav-bg);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  @apply backdrop-blur-[30px];
   border-right: 1px solid var(--glass-border);
 }
 
@@ -339,8 +336,7 @@ body {
   align-items: center;
   justify-content: center;
   background: oklch(0% 0 0 / 0.7);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  @apply backdrop-blur-[4px];
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -707,7 +703,7 @@ body {
   padding: 0.5rem 1.25rem;
   border-radius: 9999px;
   background: oklch(20% 0 0 / 0.7);
-  backdrop-filter: blur(12px);
+  @apply backdrop-blur-[12px];
   border: 1px solid oklch(100% 0 0 / 0.08);
   z-index: 40;
   visibility: hidden;
@@ -827,8 +823,7 @@ body {
      the filter itself should be set unconditionally in the base rule. Only
      opacity and visibility toggle between states. */
   background: oklch(0% 0 0 / 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  @apply backdrop-blur-[6px];
 }
 
 .console-overlay[data-state="open"] {
