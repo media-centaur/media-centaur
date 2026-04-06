@@ -87,6 +87,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        track_search_loading: false,
        track_scope_item: nil,
        track_collection_item: nil,
+       track_confirmed_ids: MapSet.new(),
        tracking_status: nil,
        confirm_stop_item: nil,
        tracked_items: []
@@ -365,7 +366,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        track_search_results: [],
        track_search_loading: false,
        track_scope_item: nil,
-       track_collection_item: nil
+       track_collection_item: nil,
+       track_confirmed_ids: MapSet.new()
      )}
   end
 
@@ -386,23 +388,34 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_event("track_suggestion", params, socket) do
     tmdb_id = String.to_integer(params["tmdb-id"])
-    tv_series_id = params["tv-series-id"]
-    name = params["name"]
+    tmdb_id_str = to_string(tmdb_id)
+    confirmed = socket.assigns.track_confirmed_ids
 
-    {last_season, last_episode} =
-      MediaCentaur.ReleaseTracking.Helpers.find_last_library_episode(tv_series_id)
+    if MapSet.member?(confirmed, tmdb_id_str) do
+      # Untrack — find and delete the tracking item
+      case MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series) do
+        nil -> :ok
+        item -> MediaCentaur.ReleaseTracking.delete_item(item)
+      end
 
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      MediaCentaur.ReleaseTracking.track_from_search(
-        %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: nil},
-        %{start_season: last_season, start_episode: last_episode}
-      )
-    end)
+      {:noreply, assign(socket, track_confirmed_ids: MapSet.delete(confirmed, tmdb_id_str))}
+    else
+      # Track
+      tv_series_id = params["tv-series-id"]
+      name = params["name"]
 
-    suggestions =
-      Enum.reject(socket.assigns.track_suggestions, &(&1.tmdb_id == to_string(tmdb_id)))
+      {last_season, last_episode} =
+        MediaCentaur.ReleaseTracking.Helpers.find_last_library_episode(tv_series_id)
 
-    {:noreply, assign(socket, track_suggestions: suggestions)}
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        MediaCentaur.ReleaseTracking.track_from_search(
+          %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: nil},
+          %{start_season: last_season, start_episode: last_episode}
+        )
+      end)
+
+      {:noreply, assign(socket, track_confirmed_ids: MapSet.put(confirmed, tmdb_id_str))}
+    end
   end
 
   def handle_event("select_search_result", params, socket) do
@@ -464,7 +477,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_event("dismiss_release", %{"release-id" => release_id}, socket) do
     MediaCentaur.ReleaseTracking.dismiss_release(release_id)
-    {:noreply, load_upcoming(socket)}
+    {:noreply, socket}
   end
 
   def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
@@ -489,10 +502,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
         MediaCentaur.ReleaseTracking.delete_item(item)
 
-        {:noreply,
-         socket
-         |> assign(confirm_stop_item: nil)
-         |> load_upcoming()}
+        {:noreply, assign(socket, confirm_stop_item: nil)}
     end
   end
 
@@ -780,11 +790,14 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_info({:releases_updated, _item_ids}, socket) do
-    if socket.assigns.zone == :upcoming do
-      {:noreply, load_upcoming(socket)}
-    else
-      {:noreply, socket}
-    end
+    socket =
+      if socket.assigns.zone == :upcoming do
+        load_upcoming(socket)
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -949,6 +962,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           search_loading={@track_search_loading}
           scope_item={@track_scope_item}
           collection_item={@track_collection_item}
+          confirmed_ids={@track_confirmed_ids}
         />
       </div>
     </Layouts.app>

@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
               class="btn btn-soft btn-primary btn-sm"
               tabindex="-1"
             >
-              <.icon name="hero-plus-mini" class="size-4" /> Track New Show
+              <.icon name="hero-plus-mini" class="size-4" /> Track New Releases
             </button>
           </div>
 
@@ -181,7 +181,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
             Tracking
           </h3>
-          <div class="release-grid release-grid-dismissable text-sm pl-3">
+          <div class="tracking-grid text-sm pl-3">
             <.tracked_item_row :for={item <- @tracked_items} item={item} />
           </div>
         </div>
@@ -194,7 +194,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       >
         <.icon name="hero-calendar-mini" class="size-8 mx-auto mb-2" />
         <p>No upcoming releases tracked</p>
-        <p class="text-sm">Click "Track New Show" to find shows and movies to follow</p>
+        <p class="text-sm">Click "Track New Releases" to find shows and movies to follow</p>
       </div>
 
       <%!-- Stop tracking confirmation modal --%>
@@ -653,7 +653,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         {if @item.media_type == :tv_series, do: "TV", else: "Movie"}
       </span>
       <span class="font-medium truncate">{@item.name}</span>
-      <span class="text-base-content/50 col-span-2 text-right">{@item.status_text}</span>
+      <span class="text-base-content/50 text-right">{@item.status_text}</span>
       <button
         phx-click="stop_tracking"
         phx-value-item-id={@item.item_id}
