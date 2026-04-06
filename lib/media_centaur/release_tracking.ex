@@ -315,7 +315,10 @@ defmodule MediaCentaur.ReleaseTracking do
             _ -> attrs
           end
 
-        if attrs != %{}, do: update_item(item, attrs)
+        if attrs != %{} do
+          update_item(item, attrs)
+          broadcast_releases_updated([item.id])
+        end
       end)
     end
   end
