@@ -51,14 +51,17 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
 
     ~H"""
     <div>
-      <%!-- Section navigation zone (uses > selector to avoid counting nested grid items) --%>
-      <div data-nav-zone="upcoming" class="space-y-6">
+      <%!-- Section navigation zone — uses CSS grid so all nav items are direct
+           children (the > selector in config.js requires it). The 2-column layout
+           lets "Now Available" and "Upcoming" sit side-by-side on large screens
+           while everything else spans both columns. --%>
+      <div data-nav-zone="upcoming" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <%!-- Calendar section (nav item wraps header + grid — left/right changes month) --%>
         <div
           data-nav-item
           data-section-type="calendar"
           tabindex="0"
-          class="space-y-6 rounded-xl outline-none p-3"
+          class="lg:col-span-2 space-y-6 rounded-xl outline-none p-3"
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -110,48 +113,41 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         </div>
 
         <%!-- Selected day detail (not a nav item) --%>
-        <.day_detail
-          :if={@selected_releases}
-          day={@selected_day}
-          releases={@selected_releases}
-          images={@images}
-        />
-
-        <%!-- Now Available + Upcoming side-by-side --%>
-        <div
-          :if={@released != [] || @dated_upcoming != []}
-          class="grid grid-cols-1 lg:grid-cols-2 gap-6"
-        >
-          <div
-            :if={@released != []}
-            data-nav-item
-            data-section-type="now-available"
-            tabindex="0"
-            class="space-y-3 rounded-xl outline-none p-4 glass-inset"
-          >
-            <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
-            <.released_content releases={@released} />
-          </div>
-
-          <div
-            :if={@dated_upcoming != []}
-            data-nav-item
-            data-section-type="upcoming-list"
-            tabindex="0"
-            class="space-y-3 rounded-xl outline-none p-4 glass-inset"
-          >
-            <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
-            <.upcoming_list_content releases={@dated_upcoming} />
-          </div>
+        <div :if={@selected_releases} class="lg:col-span-2">
+          <.day_detail day={@selected_day} releases={@selected_releases} images={@images} />
         </div>
 
-        <%!-- Unscheduled section (nav item) --%>
+        <%!-- Now Available (takes 1 column on lg — sits beside Upcoming) --%>
+        <div
+          :if={@released != []}
+          data-nav-item
+          data-section-type="now-available"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
+        >
+          <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
+          <.released_content releases={@released} />
+        </div>
+
+        <%!-- Upcoming (takes 1 column on lg — sits beside Now Available) --%>
+        <div
+          :if={@dated_upcoming != []}
+          data-nav-item
+          data-section-type="upcoming-list"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
+        >
+          <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
+          <.upcoming_list_content releases={@dated_upcoming} />
+        </div>
+
+        <%!-- Unscheduled section --%>
         <div
           :if={@no_date != []}
           data-nav-item
           data-section-type="unscheduled"
           tabindex="0"
-          class="space-y-3 rounded-xl outline-none p-3"
+          class="lg:col-span-2 space-y-3 rounded-xl outline-none p-3"
         >
           <h3 class="text-sm font-medium text-base-content/40 uppercase tracking-wider">
             Unscheduled
@@ -159,13 +155,13 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           <.unscheduled_content releases={@no_date} />
         </div>
 
-        <%!-- Events section (nav item) --%>
+        <%!-- Events section --%>
         <div
           :if={@events != []}
           data-nav-item
           data-section-type="events"
           tabindex="0"
-          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
+          class="lg:col-span-2 space-y-3 rounded-xl outline-none p-4 glass-inset"
         >
           <.events_content events={@events} />
         </div>
@@ -176,7 +172,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           data-nav-item
           data-section-type="tracking"
           tabindex="0"
-          class="space-y-3 rounded-xl outline-none p-3"
+          class="lg:col-span-2 space-y-3 rounded-xl outline-none p-3"
         >
           <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
             Tracking
