@@ -236,6 +236,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
             value="1"
             min="1"
             class="input input-bordered input-xs w-16"
+            onfocus="this.select()"
           />
           <span>episode</span>
           <input
@@ -244,6 +245,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
             value="1"
             min="1"
             class="input input-bordered input-xs w-16"
+            onfocus="this.select()"
           />
         </label>
 

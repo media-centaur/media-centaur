@@ -1,53 +1,51 @@
 defmodule MediaCentaur.ReleaseTracking.ImageStore do
   @moduledoc """
-  Downloads and manages poster images for tracked items.
-  Stores to `data/images/tracking/{tmdb_id}/poster.jpg`.
+  Downloads and manages images for tracked items via the shared `Images` service.
+  Stores to `data/images/tracking/{tmdb_id}/`.
   """
 
   require MediaCentaur.Log, as: Log
 
-  @base_url "https://image.tmdb.org/t/p/w500"
+  alias MediaCentaur.Images
+
+  @tmdb_poster_url "https://image.tmdb.org/t/p/w185"
+  @tmdb_backdrop_url "https://image.tmdb.org/t/p/w300"
   @tracking_images_dir "data/images/tracking"
 
-  def download_poster(tmdb_id, tmdb_poster_path) when is_binary(tmdb_poster_path) do
-    url = @base_url <> tmdb_poster_path
-    dir = Path.join(@tracking_images_dir, to_string(tmdb_id))
-    dest = Path.join(dir, "poster.jpg")
+  def download_poster(tmdb_id, tmdb_path) when is_binary(tmdb_path) do
+    url = @tmdb_poster_url <> tmdb_path
+    dest = image_path(tmdb_id, "poster.jpg")
 
-    File.mkdir_p!(dir)
-
-    http_client =
-      Application.get_env(:media_centaur, :image_http_client, Req)
-
-    result =
-      try do
-        http_client.get(url)
-      rescue
-        _ -> {:error, :unavailable}
-      end
-
-    case result do
-      {:ok, %{status: 200, body: body}} when is_binary(body) and byte_size(body) > 0 ->
-        File.write!(dest, body)
+    case Images.download_raw(url, dest) do
+      {:ok, _path} ->
         Log.info(:library, "downloaded tracking poster for tmdb_id=#{tmdb_id}")
         {:ok, relative_path(dest)}
 
-      {:ok, _response} ->
+      {:error, _category, _reason} ->
         {:ok, nil}
-
-      {:error, reason} ->
-        {:error, reason}
-
-      _ ->
-        {:error, :unexpected_response}
     end
   end
 
   def download_poster(_tmdb_id, nil), do: {:ok, nil}
 
-  def poster_path(tmdb_id) do
-    dest = Path.join([@tracking_images_dir, to_string(tmdb_id), "poster.jpg"])
-    if File.exists?(dest), do: relative_path(dest), else: nil
+  def download_backdrop(tmdb_id, tmdb_path) when is_binary(tmdb_path) do
+    url = @tmdb_backdrop_url <> tmdb_path
+    dest = image_path(tmdb_id, "backdrop.jpg")
+
+    case Images.download_raw(url, dest) do
+      {:ok, _path} ->
+        Log.info(:library, "downloaded tracking backdrop for tmdb_id=#{tmdb_id}")
+        {:ok, relative_path(dest)}
+
+      {:error, _category, _reason} ->
+        {:ok, nil}
+    end
+  end
+
+  def download_backdrop(_tmdb_id, nil), do: {:ok, nil}
+
+  defp image_path(tmdb_id, filename) do
+    Path.join([@tracking_images_dir, to_string(tmdb_id), filename])
   end
 
   defp relative_path(path), do: Path.relative_to(path, "data")

@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
             </button>
           </div>
 
-          <div class="rounded-xl overflow-hidden border border-base-content/5">
+          <div class="rounded-xl overflow-hidden border border-base-content/15">
             <div class="grid grid-cols-7 bg-base-200/30">
               <div
                 :for={day <- @weekdays}
@@ -95,7 +95,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
                 {day}
               </div>
             </div>
-            <div :for={week <- @weeks} class="grid grid-cols-7 border-t border-base-content/5">
+            <div :for={week <- @weeks} class="grid grid-cols-7 border-t border-base-content/15">
               <.calendar_cell
                 :for={date <- week}
                 date={date}
@@ -245,7 +245,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     ~H"""
     <div
       class={[
-        "relative min-h-[5rem] p-1.5 border-r border-base-content/5 last:border-r-0 transition-colors overflow-hidden",
+        "relative min-h-[5rem] p-1.5 border-r border-base-content/15 last:border-r-0 transition-colors overflow-hidden",
         !@in_month && "bg-base-200/10",
         @selected && "z-10",
         @has_releases && @in_month && "cursor-pointer hover:bg-base-content/5",
@@ -291,7 +291,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       <%!-- === 2 releases: side-by-side, full height === --%>
       <div
         :if={@release_count == 2 && @in_month}
-        class="absolute inset-0 grid grid-cols-2 gap-px overflow-hidden"
+        class="absolute inset-0 grid grid-cols-2 overflow-hidden"
       >
         <.release_tile
           :for={release <- @visible_releases}
@@ -303,7 +303,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       <%!-- === 3-4+ releases: 2x2 grid === --%>
       <div
         :if={@release_count >= 3 && @in_month}
-        class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px overflow-hidden"
+        class="absolute inset-0 grid grid-cols-2 grid-rows-2 overflow-hidden"
       >
         <.release_tile
           :for={release <- Enum.take(@visible_releases, if(@overflow_count > 0, do: 3, else: 4))}
@@ -670,43 +670,46 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
 
   attr :item, :any, default: nil
 
-  defp stop_tracking_modal(%{item: nil} = assigns) do
-    ~H"""
-    """
-  end
-
   defp stop_tracking_modal(assigns) do
+    open = assigns.item != nil
+
+    assigns = assign(assigns, :open, open)
+
     ~H"""
     <div
       class="modal-backdrop"
-      data-state="open"
-      data-detail-mode="modal"
-      data-dismiss-event="cancel_stop_tracking"
+      data-state={if @open, do: "open", else: "closed"}
+      data-detail-mode={@open && "modal"}
+      data-dismiss-event={@open && "cancel_stop_tracking"}
+      phx-window-keydown={@open && "cancel_stop_tracking"}
+      phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel modal-panel-sm p-6" phx-click-away="cancel_stop_tracking">
-        <h3 class="text-lg font-bold text-error">Stop tracking?</h3>
-        <p class="mt-2 text-sm text-base-content/70">
-          Stop tracking <span class="font-semibold">{@item.name}</span>?
-          You won't see upcoming releases for this title anymore.
-        </p>
-        <div class="mt-4 flex justify-end gap-2">
-          <button
-            data-nav-item
-            tabindex="0"
-            phx-click="cancel_stop_tracking"
-            class="btn btn-ghost btn-sm"
-          >
-            Cancel
-          </button>
-          <button
-            data-nav-item
-            tabindex="0"
-            phx-click="confirm_stop_tracking"
-            class="btn btn-soft btn-error btn-sm"
-          >
-            Stop tracking
-          </button>
+      <div class="modal-panel modal-panel-sm p-6" phx-click-away={@open && "cancel_stop_tracking"}>
+        <div :if={@item}>
+          <h3 class="text-lg font-bold text-error">Stop tracking?</h3>
+          <p class="mt-2 text-sm text-base-content/70">
+            Stop tracking <span class="font-semibold">{@item.name}</span>?
+            You won't see upcoming releases for this title anymore.
+          </p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button
+              data-nav-item
+              tabindex="0"
+              phx-click="cancel_stop_tracking"
+              class="btn btn-ghost btn-sm"
+            >
+              Cancel
+            </button>
+            <button
+              data-nav-item
+              tabindex="0"
+              phx-click="confirm_stop_tracking"
+              class="btn btn-soft btn-error btn-sm"
+            >
+              Stop tracking
+            </button>
+          </div>
         </div>
       </div>
     </div>

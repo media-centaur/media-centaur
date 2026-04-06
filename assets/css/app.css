@@ -328,6 +328,11 @@ body {
 
 /* Modal backdrop — always in DOM, toggled via data-state.
    Uses transitions for both open and close. */
+/* Prevent background scroll when any modal is open */
+body:has(.modal-backdrop[data-state="open"]) {
+  overflow: hidden;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

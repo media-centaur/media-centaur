@@ -1027,61 +1027,21 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   defp load_tracking_images(%{upcoming: upcoming, released: released}) do
-    import Ecto.Query
+    (upcoming ++ released)
+    |> Enum.map(& &1.item)
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.reduce(%{}, fn item, acc ->
+      images =
+        %{}
+        |> maybe_put_image(:backdrop, item.backdrop_path)
+        |> maybe_put_image(:poster, item.poster_path)
 
-    all_releases = upcoming ++ released
-
-    # Group items by entity type to batch-query images
-    items =
-      all_releases
-      |> Enum.map(& &1.item)
-      |> Enum.uniq_by(& &1.id)
-      |> Enum.filter(& &1.library_entity_id)
-
-    tv_ids = for %{media_type: :tv_series, library_entity_id: id} <- items, do: id
-    movie_ids = for %{media_type: :movie, library_entity_id: id} <- items, do: id
-
-    # Single batch query for all images we need
-    images =
-      from(i in MediaCentaur.Library.Image,
-        where:
-          (i.tv_series_id in ^tv_ids or i.movie_series_id in ^movie_ids) and
-            i.role in ["backdrop", "logo", "poster"],
-        select: %{
-          tv_series_id: i.tv_series_id,
-          movie_series_id: i.movie_series_id,
-          role: i.role,
-          content_url: i.content_url
-        }
-      )
-      |> MediaCentaur.Repo.all()
-
-    # Index images by entity_id → %{backdrop: url, logo: url, poster: url}
-    role_atoms = %{"backdrop" => :backdrop, "logo" => :logo, "poster" => :poster}
-
-    images_by_entity =
-      Enum.reduce(images, %{}, fn image, acc ->
-        entity_id = image.tv_series_id || image.movie_series_id
-        role = Map.get(role_atoms, image.role)
-        url = if image.content_url, do: "/media-images/#{image.content_url}"
-
-        if role && url do
-          acc
-          |> Map.put_new(entity_id, %{})
-          |> put_in([entity_id, role], url)
-        else
-          acc
-        end
-      end)
-
-    # Map tracking item IDs to their library entity's images
-    Enum.reduce(items, %{}, fn item, acc ->
-      case Map.get(images_by_entity, item.library_entity_id) do
-        nil -> acc
-        entity_images -> Map.put(acc, item.id, entity_images)
-      end
+      if images == %{}, do: acc, else: Map.put(acc, item.id, images)
     end)
   end
+
+  defp maybe_put_image(map, _role, nil), do: map
+  defp maybe_put_image(map, role, path), do: Map.put(map, role, "/media-images/#{path}")
 
   defp load_tracking_status(entry) do
     case find_tmdb_id(entry) do
