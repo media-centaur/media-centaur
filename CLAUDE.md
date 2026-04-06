@@ -131,7 +131,7 @@ The library uses **type-specific tables** instead of a single polymorphic Entity
 
 ## Bounded Contexts
 
-Seven contexts own their tables and communicate only via PubSub events. No context aliases another context's modules. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md).
+Eight contexts own their tables and communicate only via PubSub events. No context aliases another context's modules. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md).
 
 | Context | Prefix | Owns | PubSub role |
 |---------|--------|------|-------------|
@@ -141,11 +141,25 @@ Seven contexts own their tables and communicate only via PubSub events. No conte
 | **Watcher** | `watcher_` | File presence | Broadcasts `pipeline:input` and `library:file_events` |
 | **Settings** | `settings_` | Configuration entries | Broadcasts `settings:updates` |
 | **ReleaseTracking** | `release_tracking_` | Upcoming/tracked TMDB releases, refresh state | Broadcasts `release_tracking:updates` |
+| **Playback** | _(none — in-memory sessions)_ | MPV sessions, progress broadcasting, resume targets | Broadcasts `playback:events` — `{:playback_state_changed, ...}`, `{:entity_progress_updated, ...}`, `{:extra_progress_updated, ...}` |
 | **Console** | _(none — in-memory ring buffer)_ | Log buffer, per-user filter state (persisted via `Settings.Entry`) | Broadcasts `console:logs` — `{:log_entry, entry}`, `:buffer_cleared`, `{:buffer_resized, n}`, `{:filter_changed, filter}` |
 
-**Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Status, Admin, Playback, Serializer) read Library freely — they are not bounded contexts.
+**Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Status, Admin, Serializer) read Library freely — they are not bounded contexts.
 
 **Settings as shared infrastructure:** `Settings` is treated as shared key/value infrastructure, not a peer bounded context. Any context that needs per-user or per-installation persistence without justifying its own table (Console's filter and buffer cap, for example) writes to `Settings.Entry` directly. This is the one sanctioned exception to ADR-029's "contexts own their data" rule — the coupling is one-directional (the context depends on Settings, not the other way around) and Settings carries no domain logic of its own.
+
+**Context facade subscribe pattern:** Each bounded context exposes a `subscribe/0` function that wraps `Phoenix.PubSub.subscribe/2` with the context's topic from `MediaCentaur.Topics`. LiveViews call these instead of constructing PubSub subscriptions directly — topic knowledge stays in the context that owns it:
+
+```elixir
+# In mount/3
+if connected?(socket) do
+  Library.subscribe()
+  Playback.subscribe()
+  Settings.subscribe()
+end
+```
+
+Available: `Library.subscribe/0`, `Review.subscribe/0`, `Settings.subscribe/0`, `ReleaseTracking.subscribe/0`, `Playback.subscribe/0`, `Watcher.Supervisor.subscribe/0`, `Console.subscribe/0`.
 
 ## Pipeline
 
@@ -305,6 +319,7 @@ Framework components (`:phoenix`, `:ecto`, `:live_view`) default to HIDDEN in th
 ### Architectural notes
 
 - The bounded context `MediaCentaur.Console` owns the buffer, handler, filter, and view helpers. LiveViews interact only through the `MediaCentaur.Console` public facade (ADR-026).
+- `ConsoleLive` (sticky drawer) and `ConsolePageLive` (full-page `/console`) share all mount setup, PubSub handlers, and event handlers via `ConsoleLive.Shared` (`__using__` macro). Each LiveView is thin wiring — mount options, render template, and any view-specific events (e.g. `toggle_console` for the drawer). Pure logic lives in `ConsoleLive.Logic` (ADR-030).
 - The buffer survives page navigation and reload (sticky LiveView + server-side state). It is lost on BEAM restart.
 - Filter state and buffer size are persisted per-user to `Settings.Entry` with a 2-second debounce.
 - See `decisions/architecture/2026-04-05-031-console-log-buffer-and-ui-filtering.md` for the design rationale.
@@ -320,6 +335,19 @@ Framework components (`:phoenix`, `:ecto`, `:live_view`) default to HIDDEN in th
 
 - **Annotate every callback group with `@impl true`.** Place `@impl true` before the first clause of each callback function name (`mount`, `render`, `handle_event`, `handle_info`, `handle_params`). This is the convention used across all LiveViews in this project.
 - **Distinguish mount from selection change in `handle_params`.** On mount, `selected_entity_id` is `nil`. When a URL param like `selected=X` is present, `handle_params` sees `nil → X` as a "change." If you need to reset state only when the user *switches* entities (not on initial load), check that the previous value was non-nil: `selection_changed && socket.assigns.selected_entity_id != nil`. This ensures URL params like `view=info` survive page reload.
+
+## LiveView Real-Time Updates
+
+All LiveViews stay current via PubSub — no manual page refreshes. The pattern:
+
+1. **Subscribe in `mount/3`** (inside `if connected?(socket)`) using context facade helpers: `Library.subscribe()`, `Playback.subscribe()`, etc.
+2. **Handle PubSub messages in `handle_info/2`** with pattern-matched clauses for each message type. Every LiveView has a catch-all `def handle_info(_msg, socket)` at the end.
+3. **Debounce rapid changes** with `debounce(socket, timer_assign, message, delay_ms)` from `LiveHelpers`. Callers that accumulate data (e.g. LibraryLive's pending entity IDs) do so before calling debounce — the utility only manages the timer lifecycle.
+4. **Update streams surgically** where possible — `touch_stream_entries` for in-place changes, full `reset_stream` only when sort position may change (new entries).
+
+**Shared utilities in `LiveHelpers`:**
+- `debounce/4` — cancel-old-timer + schedule-new-timer, used by LibraryLive, ReviewLive, StatusLive
+- `apply_playback_change/5` — pure function for `Map.put`/`Map.delete` on a playback sessions map, used by LibraryLive and StatusLive
 
 ## Variable Naming
 
