@@ -29,6 +29,12 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     update_last_episodes_for(entity_ids)
   end
 
+  @doc "Auto-track new library entities with active TMDB status. Testable without GenServer."
+  def auto_track_new_entities(entity_ids) do
+    find_trackable_tv_series(entity_ids)
+    |> Enum.each(&auto_track_tv_series/1)
+  end
+
   @impl true
   def init(_opts) do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
@@ -47,6 +53,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   @impl true
   def handle_info({:entities_changed, entity_ids}, state) do
     update_last_episodes_for(entity_ids)
+    auto_track_new_entities(entity_ids)
     {:noreply, state}
   end
 
@@ -214,4 +221,98 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp library_entity_exists?(_), do: true
+
+  @active_tv_statuses [:returning, :in_production, :planned]
+
+  defp find_trackable_tv_series(entity_ids) do
+    from(tv in MediaCentaur.Library.TVSeries,
+      join: ext in MediaCentaur.Library.ExternalId,
+      on: ext.tv_series_id == tv.id and ext.source == "tmdb",
+      where: tv.id in ^entity_ids and tv.status in ^@active_tv_statuses,
+      select: %{
+        tv_series_id: tv.id,
+        tmdb_id: ext.external_id,
+        name: tv.name
+      }
+    )
+    |> MediaCentaur.Repo.all()
+    |> Enum.reject(fn %{tmdb_id: tmdb_id} ->
+      tmdb_id_int = String.to_integer(tmdb_id)
+      ReleaseTracking.get_item_by_tmdb(tmdb_id_int, :tv_series) != nil
+    end)
+  end
+
+  defp auto_track_tv_series(%{tv_series_id: tv_series_id, tmdb_id: tmdb_id_str, name: name}) do
+    tmdb_id = String.to_integer(tmdb_id_str)
+
+    case Client.get_tv(tmdb_id) do
+      {:ok, response} ->
+        {last_season, last_episode} = Helpers.find_last_library_episode(tv_series_id)
+        releases = Helpers.fetch_tv_releases(tmdb_id, last_season, last_episode, response)
+
+        {:ok, item} =
+          ReleaseTracking.track_item(%{
+            tmdb_id: tmdb_id,
+            media_type: :tv_series,
+            name: response["name"] || name,
+            source: :library,
+            library_entity_id: tv_series_id,
+            last_refreshed_at: DateTime.utc_now(),
+            last_library_season: last_season,
+            last_library_episode: last_episode
+          })
+
+        Enum.each(releases, fn release ->
+          ReleaseTracking.create_release!(%{
+            item_id: item.id,
+            air_date: release[:air_date],
+            title: release[:title],
+            season_number: release[:season_number],
+            episode_number: release[:episode_number],
+            released: release[:released] || false
+          })
+        end)
+
+        ReleaseTracking.mark_in_library_releases(item)
+
+        ReleaseTracking.create_event!(%{
+          item_id: item.id,
+          item_name: item.name,
+          event_type: :began_tracking,
+          description: "Now tracking #{item.name}"
+        })
+
+        poster_path = ReleaseTracking.Extractor.extract_poster_path(response)
+
+        if poster_path do
+          Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+            case ReleaseTracking.ImageStore.download_poster(tmdb_id, poster_path) do
+              {:ok, path} when is_binary(path) ->
+                ReleaseTracking.update_item(item, %{poster_path: path})
+
+              _ ->
+                :ok
+            end
+          end)
+        end
+
+        broadcast_tracking_update([item.id])
+
+        Log.info(
+          :library,
+          "auto-tracked #{item.name} (TMDB #{tmdb_id}) — source: library"
+        )
+
+      {:error, reason} ->
+        Log.info(:library, "auto-track failed for #{name} (TMDB #{tmdb_id}): #{inspect(reason)}")
+    end
+  end
+
+  defp broadcast_tracking_update(item_ids) do
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      MediaCentaur.Topics.release_tracking_updates(),
+      {:releases_updated, item_ids}
+    )
+  end
 end

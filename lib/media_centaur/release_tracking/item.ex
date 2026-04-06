@@ -20,6 +20,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :poster_path, :string
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
+    field :dismiss_released_before, :date
 
     has_many :releases, MediaCentaur.ReleaseTracking.Release
     has_many :events, MediaCentaur.ReleaseTracking.Event
@@ -55,7 +56,8 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :last_refreshed_at,
       :poster_path,
       :last_library_season,
-      :last_library_episode
+      :last_library_episode,
+      :dismiss_released_before
     ])
   end
 end

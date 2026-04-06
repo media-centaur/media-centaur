@@ -51,7 +51,8 @@ defmodule MediaCentaur.TMDB.MapperTest do
         "runtime" => nil,
         "vote_average" => nil,
         "credits" => nil,
-        "release_dates" => nil
+        "release_dates" => nil,
+        "status" => nil
       }
 
       result = Mapper.movie_attrs("1", data, nil)
@@ -65,6 +66,19 @@ defmodule MediaCentaur.TMDB.MapperTest do
       assert result.content_rating == nil
       assert result.aggregate_rating_value == nil
       assert result.content_url == nil
+      assert result.status == nil
+    end
+
+    test "maps movie status" do
+      data = %{"title" => "Upcoming", "status" => "In Production"}
+      result = Mapper.movie_attrs("1", data, nil)
+      assert result.status == :in_production
+    end
+
+    test "maps released movie status" do
+      data = %{"title" => "Old", "status" => "Released"}
+      result = Mapper.movie_attrs("1", data, nil)
+      assert result.status == :released
     end
   end
 
@@ -76,7 +90,8 @@ defmodule MediaCentaur.TMDB.MapperTest do
         "first_air_date" => "2008-01-20",
         "genres" => [%{"name" => "Drama"}],
         "number_of_seasons" => 5,
-        "vote_average" => 8.9
+        "vote_average" => 8.9,
+        "status" => "Ended"
       }
 
       result = Mapper.tv_attrs("1396", data)
@@ -89,6 +104,25 @@ defmodule MediaCentaur.TMDB.MapperTest do
       assert result.url == "https://www.themoviedb.org/tv/1396"
       assert result.number_of_seasons == 5
       assert result.aggregate_rating_value == 8.9
+      assert result.status == :ended
+    end
+
+    test "maps returning series status" do
+      data = %{"name" => "Active Show", "status" => "Returning Series"}
+      result = Mapper.tv_attrs("100", data)
+      assert result.status == :returning
+    end
+
+    test "maps nil status to nil" do
+      data = %{"name" => "No Status", "status" => nil}
+      result = Mapper.tv_attrs("100", data)
+      assert result.status == nil
+    end
+
+    test "maps unknown status string to nil" do
+      data = %{"name" => "Weird", "status" => "Something New"}
+      result = Mapper.tv_attrs("100", data)
+      assert result.status == nil
     end
   end
 

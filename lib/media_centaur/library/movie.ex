@@ -26,6 +26,9 @@ defmodule MediaCentaur.Library.Movie do
 
     field :genres, {:array, :string}
 
+    field :status, Ecto.Enum,
+      values: [:released, :in_production, :post_production, :planned, :rumored, :canceled]
+
     belongs_to :movie_series, MediaCentaur.Library.MovieSeries
     has_many :images, MediaCentaur.Library.Image
     has_many :extras, MediaCentaur.Library.Extra
@@ -52,7 +55,8 @@ defmodule MediaCentaur.Library.Movie do
       :tmdb_id,
       :genres,
       :position,
-      :movie_series_id
+      :movie_series_id,
+      :status
     ])
     |> validate_required([:name])
   end

@@ -16,6 +16,7 @@ defmodule MediaCentaur.ReleaseTracking.Release do
     field :episode_number, :integer
     field :released, :boolean, default: false
     field :in_library, :boolean, default: false
+    field :release_type, :string
 
     belongs_to :item, MediaCentaur.ReleaseTracking.Item
 
@@ -31,6 +32,7 @@ defmodule MediaCentaur.ReleaseTracking.Release do
       :episode_number,
       :released,
       :in_library,
+      :release_type,
       :item_id
     ])
     |> validate_required([:item_id])

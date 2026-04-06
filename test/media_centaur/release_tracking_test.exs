@@ -210,6 +210,248 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
+  describe "suggest_trackable_items/0" do
+    test "returns untracked library TV series with active status and TMDB IDs" do
+      active = create_tv_series(%{name: "Active Show", status: :returning})
+
+      create_external_id(%{
+        tv_series_id: active.id,
+        source: "tmdb",
+        external_id: "1111"
+      })
+
+      suggestions = ReleaseTracking.suggest_trackable_items()
+      assert length(suggestions) == 1
+      assert hd(suggestions).name == "Active Show"
+      assert hd(suggestions).tmdb_id == "1111"
+      assert hd(suggestions).tv_series_id == active.id
+    end
+
+    test "excludes ended TV series" do
+      ended = create_tv_series(%{name: "Done Show", status: :ended})
+
+      create_external_id(%{
+        tv_series_id: ended.id,
+        source: "tmdb",
+        external_id: "2222"
+      })
+
+      assert ReleaseTracking.suggest_trackable_items() == []
+    end
+
+    test "excludes already tracked TV series" do
+      tracked = create_tv_series(%{name: "Already Tracked", status: :returning})
+
+      create_external_id(%{
+        tv_series_id: tracked.id,
+        source: "tmdb",
+        external_id: "3333"
+      })
+
+      create_tracking_item(%{
+        tmdb_id: 3333,
+        media_type: :tv_series,
+        name: "Already Tracked",
+        library_entity_id: tracked.id
+      })
+
+      assert ReleaseTracking.suggest_trackable_items() == []
+    end
+
+    test "excludes TV series without TMDB external ID" do
+      _no_tmdb = create_tv_series(%{name: "No TMDB", status: :returning})
+      assert ReleaseTracking.suggest_trackable_items() == []
+    end
+
+    test "excludes TV series with nil status" do
+      unknown = create_tv_series(%{name: "Unknown"})
+
+      create_external_id(%{
+        tv_series_id: unknown.id,
+        source: "tmdb",
+        external_id: "4444"
+      })
+
+      assert ReleaseTracking.suggest_trackable_items() == []
+    end
+  end
+
+  describe "search_tmdb/1" do
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      :ok
+    end
+
+    test "searches both movie and TV endpoints and merges results" do
+      MediaCentaur.TmdbStubs.stub_search_both(
+        [
+          %{
+            "id" => 100,
+            "title" => "Test Movie",
+            "release_date" => "2026-07-01",
+            "poster_path" => "/m.jpg"
+          }
+        ],
+        [
+          %{
+            "id" => 200,
+            "name" => "Test Show",
+            "first_air_date" => "2025-01-01",
+            "poster_path" => "/t.jpg"
+          }
+        ]
+      )
+
+      results = ReleaseTracking.search_tmdb("test")
+      assert length(results) == 2
+
+      movie = Enum.find(results, &(&1.media_type == :movie))
+      assert movie.tmdb_id == 100
+      assert movie.name == "Test Movie"
+      assert movie.year == "2026"
+
+      show = Enum.find(results, &(&1.media_type == :tv_series))
+      assert show.tmdb_id == 200
+      assert show.name == "Test Show"
+      assert show.year == "2025"
+    end
+
+    test "marks already tracked results" do
+      create_tracking_item(%{tmdb_id: 200, media_type: :tv_series, name: "Test Show"})
+
+      MediaCentaur.TmdbStubs.stub_search_both(
+        [],
+        [
+          %{
+            "id" => 200,
+            "name" => "Test Show",
+            "first_air_date" => "2025-01-01",
+            "poster_path" => "/t.jpg"
+          }
+        ]
+      )
+
+      results = ReleaseTracking.search_tmdb("test")
+      assert hd(results).already_tracked == true
+    end
+
+    test "returns empty list for no results" do
+      MediaCentaur.TmdbStubs.stub_search_both([], [])
+      assert ReleaseTracking.search_tmdb("xyznonexistent") == []
+    end
+  end
+
+  describe "track_from_search/2" do
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      :ok
+    end
+
+    test "tracks a TV series with custom scope" do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/5555",
+         %{
+           "id" => 5555,
+           "name" => "New Show",
+           "status" => "Returning Series",
+           "poster_path" => "/new.jpg",
+           "number_of_seasons" => 3,
+           "next_episode_to_air" => %{
+             "air_date" => "2026-08-01",
+             "season_number" => 3,
+             "episode_number" => 1,
+             "name" => "S3 Premiere"
+           }
+         }}
+      ])
+
+      {:ok, item} =
+        ReleaseTracking.track_from_search(
+          %{tmdb_id: 5555, media_type: :tv_series, name: "New Show", poster_path: "/new.jpg"},
+          %{start_season: 2, start_episode: 5}
+        )
+
+      assert item.tmdb_id == 5555
+      assert item.source == :manual
+      assert item.last_library_season == 2
+      assert item.last_library_episode == 5
+
+      events = ReleaseTracking.list_recent_events(5)
+      assert Enum.any?(events, &(&1.event_type == :began_tracking))
+    end
+
+    test "tracks a movie with theatrical and digital releases" do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/movie/9999",
+         %{
+           "id" => 9999,
+           "title" => "Upcoming Movie",
+           "status" => "In Production",
+           "release_date" => "2027-01-01",
+           "poster_path" => "/movie.jpg",
+           "release_dates" => %{
+             "results" => [
+               %{
+                 "iso_3166_1" => "US",
+                 "release_dates" => [
+                   %{"release_date" => "2027-01-01T00:00:00.000Z", "type" => 3},
+                   %{"release_date" => "2027-03-15T00:00:00.000Z", "type" => 4}
+                 ]
+               }
+             ]
+           }
+         }}
+      ])
+
+      {:ok, item} =
+        ReleaseTracking.track_from_search(
+          %{tmdb_id: 9999, media_type: :movie, name: "Upcoming Movie", poster_path: "/movie.jpg"},
+          %{}
+        )
+
+      assert item.tmdb_id == 9999
+      assert item.media_type == :movie
+      assert item.source == :manual
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert length(releases) == 2
+
+      theatrical = Enum.find(releases, &(&1.release_type == "theatrical"))
+      assert theatrical.air_date == ~D[2027-01-01]
+
+      digital = Enum.find(releases, &(&1.release_type == "digital"))
+      assert digital.air_date == ~D[2027-03-15]
+
+      events = ReleaseTracking.list_recent_events(5)
+      assert Enum.any?(events, &(&1.event_type == :began_tracking))
+    end
+
+    test "tracks a movie with no release date" do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/movie/8888",
+         %{
+           "id" => 8888,
+           "title" => "Mystery Film",
+           "status" => "Planned",
+           "release_date" => nil,
+           "poster_path" => nil
+         }}
+      ])
+
+      {:ok, item} =
+        ReleaseTracking.track_from_search(
+          %{tmdb_id: 8888, media_type: :movie, name: "Mystery Film", poster_path: nil},
+          %{}
+        )
+
+      assert item.tmdb_id == 8888
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert length(releases) == 1
+      assert hd(releases).air_date == nil
+    end
+  end
+
   describe "create_event/1" do
     test "creates a change event" do
       item = create_tracking_item()
