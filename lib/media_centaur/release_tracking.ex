@@ -406,21 +406,27 @@ defmodule MediaCentaur.ReleaseTracking do
     episode = item.last_library_episode || 0
 
     if season > 0 do
-      from(r in Release,
-        where: r.item_id == ^item.id,
-        where:
-          r.season_number < ^season or
-            (r.season_number == ^season and r.episode_number <= ^episode)
-      )
-      |> Repo.update_all(set: [in_library: true])
+      {count, _} =
+        from(r in Release,
+          where: r.item_id == ^item.id,
+          where:
+            r.season_number < ^season or
+              (r.season_number == ^season and r.episode_number <= ^episode)
+        )
+        |> Repo.update_all(set: [in_library: true])
+
+      if count > 0, do: broadcast_releases_updated([item.id])
     end
   end
 
   def mark_in_library_releases(%Item{media_type: :movie} = item) do
-    from(r in Release,
-      where: r.item_id == ^item.id and r.released == true
-    )
-    |> Repo.update_all(set: [in_library: true])
+    {count, _} =
+      from(r in Release,
+        where: r.item_id == ^item.id and r.released == true
+      )
+      |> Repo.update_all(set: [in_library: true])
+
+    if count > 0, do: broadcast_releases_updated([item.id])
   end
 
   def mark_past_releases_as_released do
