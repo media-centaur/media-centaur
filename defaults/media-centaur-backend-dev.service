@@ -14,7 +14,7 @@ Environment=MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8
 Environment=ELIXIR_ERL_OPTIONS="-name media_centaur_dev@127.0.0.1"
 Restart=on-failure
 RestartSec=5
-KillMode=process
+KillMode=mixed
 TimeoutStopSec=30
 LimitNOFILE=65536
 
