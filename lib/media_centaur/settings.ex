@@ -8,8 +8,15 @@ defmodule MediaCentaur.Settings do
 
   alias MediaCentaur.Repo
   alias MediaCentaur.Settings.Entry
+  alias MediaCentaur.Topics
 
   @type attrs :: %{optional(atom() | binary()) => term()}
+
+  @doc "Subscribe the caller to settings change events."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.settings_updates())
+  end
 
   def list_entries, do: {:ok, Repo.all(Entry)}
   def list_entries!, do: Repo.all(Entry)

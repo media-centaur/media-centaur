@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.review_updates())
+        Review.subscribe()
         groups = Review.fetch_pending_groups()
 
         socket
@@ -213,9 +213,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   @impl true
   def handle_info({:file_added, _pending_file_id}, socket) do
-    if socket.assigns.reload_timer, do: Process.cancel_timer(socket.assigns.reload_timer)
-    timer = Process.send_after(self(), :reload_groups, 500)
-    {:noreply, assign(socket, reload_timer: timer)}
+    {:noreply, debounce(socket, :reload_timer, :reload_groups, 500)}
   end
 
   def handle_info(:reload_groups, socket) do

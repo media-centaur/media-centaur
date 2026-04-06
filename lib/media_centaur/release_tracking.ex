@@ -11,7 +11,14 @@ defmodule MediaCentaur.ReleaseTracking do
 
   alias MediaCentaur.Repo
   alias MediaCentaur.ReleaseTracking.{Item, Release, Event, Extractor, Helpers, ImageStore}
+  alias MediaCentaur.Topics
   alias MediaCentaur.TMDB.Client
+
+  @doc "Subscribe the caller to release tracking update events."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.release_tracking_updates())
+  end
 
   # --- Items ---
 

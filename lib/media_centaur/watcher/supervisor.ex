@@ -24,6 +24,12 @@ defmodule MediaCentaur.Watcher.Supervisor do
     Supervisor.init(children, strategy: :one_for_all, max_restarts: 5, max_seconds: 60)
   end
 
+  @doc "Subscribe the caller to watcher directory state change events."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.dir_state())
+  end
+
   @doc """
   Called after the supervisor starts to launch a watcher for each configured directory.
   """

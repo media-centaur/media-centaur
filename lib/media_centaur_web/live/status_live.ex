@@ -11,9 +11,10 @@ defmodule MediaCentaurWeb.StatusLive do
 
   import MediaCentaurWeb.StatusHelpers
 
-  alias MediaCentaur.{Status, Storage}
+  alias MediaCentaur.{Library, Playback, Status, Storage}
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.ImagePipeline
+  alias MediaCentaur.Watcher
 
   @storage_refresh_ms 5 * 60 * 1_000
 
@@ -21,9 +22,9 @@ defmodule MediaCentaurWeb.StatusLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.dir_state())
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
-        Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
+        Watcher.Supervisor.subscribe()
+        Library.subscribe()
+        Playback.subscribe()
 
         Process.send_after(self(), :tick_pipeline, 1_000)
         Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
@@ -108,7 +109,7 @@ defmodule MediaCentaurWeb.StatusLive do
   end
 
   def handle_info({:entities_changed, _entity_ids}, socket) do
-    {:noreply, debounce_stats_refresh(socket)}
+    {:noreply, debounce(socket, :stats_timer, :refresh_stats, 1_000)}
   end
 
   def handle_info(:refresh_stats, socket) do
@@ -129,22 +130,13 @@ defmodule MediaCentaurWeb.StatusLive do
         socket
       ) do
     sessions = socket.assigns.playback.sessions
+    existing = Map.get(sessions, entity_id)
+    kept_started_at = (existing && existing[:started_at]) || started_at
 
     sessions =
-      case new_state do
-        :stopped ->
-          Map.delete(sessions, entity_id)
-
-        _ ->
-          existing = Map.get(sessions, entity_id)
-          kept_started_at = (existing && existing[:started_at]) || started_at
-
-          Map.put(sessions, entity_id, %{
-            state: new_state,
-            now_playing: now_playing,
-            started_at: kept_started_at
-          })
-      end
+      apply_playback_change(sessions, entity_id, new_state, now_playing, %{
+        started_at: kept_started_at
+      })
 
     {:noreply, assign(socket, playback: derive_playback(sessions))}
   end
