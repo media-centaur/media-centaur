@@ -76,6 +76,15 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
                 Today
               </button>
             </div>
+            <button
+              phx-click="scan_library"
+              class="btn btn-ghost btn-xs text-base-content/50"
+              tabindex="-1"
+              disabled={@scanning}
+            >
+              <.icon name="hero-magnifying-glass-mini" class="size-4" />
+              {if @scanning, do: "Scanning…", else: "Scan Library"}
+            </button>
           </div>
 
           <div class="rounded-xl overflow-hidden border border-base-content/5">
@@ -119,7 +128,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
             data-nav-item
             data-section-type="now-available"
             tabindex="0"
-            class="space-y-3 rounded-xl outline-none p-3"
+            class="space-y-3 rounded-xl outline-none p-4 glass-inset"
           >
             <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
             <.released_content releases={@released} />
@@ -130,7 +139,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
             data-nav-item
             data-section-type="upcoming-list"
             tabindex="0"
-            class="space-y-3 rounded-xl outline-none p-3"
+            class="space-y-3 rounded-xl outline-none p-4 glass-inset"
           >
             <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
             <.upcoming_list_content releases={@dated_upcoming} />
@@ -157,7 +166,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           data-nav-item
           data-section-type="events"
           tabindex="0"
-          class="rounded-xl outline-none p-3"
+          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
         >
           <.events_content events={@events} />
         </div>
@@ -182,19 +191,6 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
             </div>
           </div>
         </div>
-
-        <%!-- Scan Library button --%>
-        <button
-          data-nav-item
-          data-section-type="scan"
-          tabindex="0"
-          phx-click="scan_library"
-          class="btn btn-soft btn-primary btn-sm"
-          disabled={@scanning}
-        >
-          <.icon name="hero-magnifying-glass-mini" class="size-4" />
-          {if @scanning, do: "Scanning…", else: "Scan Library"}
-        </button>
       </div>
 
       <%!-- Empty state --%>
@@ -257,7 +253,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       class={[
         "relative min-h-[5rem] p-1.5 border-r border-base-content/5 last:border-r-0 transition-colors overflow-hidden",
         !@in_month && "bg-base-200/10",
-        @selected && "bg-primary/10",
+        @selected && "z-10",
         @has_releases && @in_month && "cursor-pointer hover:bg-base-content/5",
         @is_past && @has_releases && "opacity-50"
       ]}
@@ -330,6 +326,12 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           </span>
         </div>
       </div>
+
+      <%!-- Selected-day border (z-20 to render above backdrops) --%>
+      <div
+        :if={@selected}
+        class="absolute inset-0 z-20 border-3 border-primary rounded-sm pointer-events-none"
+      />
     </div>
     """
   end
@@ -391,7 +393,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           <.icon name="hero-x-mark-mini" class="size-4" />
         </button>
       </div>
-      <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,360px))] gap-3">
         <.day_release_card :for={release <- @releases} release={release} images={@images} />
       </div>
     </div>
@@ -503,8 +505,12 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         <span class="font-medium truncate">{release.item.name}</span>
         <span class={"text-base-content/50 tabular-nums #{if !release.season_number, do: "col-span-2"}"}>
           <%= if release.season_number do %>
-            <span class="text-[0.7em]">S</span>{String.pad_leading("#{release.season_number}", 2, "0")}
-            <span class="text-[0.7em]">E</span>{String.pad_leading(
+            <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
+              "#{release.season_number}",
+              2,
+              "0"
+            )}
+            <span class="text-[0.8em] text-base-content/30">E</span>{String.pad_leading(
               "#{release.episode_number}",
               2,
               "0"
@@ -544,8 +550,12 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         <span class="font-medium truncate">{release.item.name}</span>
         <span class={"text-base-content/50 tabular-nums #{if !release.season_number, do: "col-span-2"}"}>
           <%= if release.season_number do %>
-            <span class="text-[0.7em]">S</span>{String.pad_leading("#{release.season_number}", 2, "0")}
-            <span class="text-[0.7em]">E</span>{String.pad_leading(
+            <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
+              "#{release.season_number}",
+              2,
+              "0"
+            )}
+            <span class="text-[0.8em] text-base-content/30">E</span>{String.pad_leading(
               "#{release.episode_number}",
               2,
               "0"
@@ -570,8 +580,16 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       <div :for={release <- @releases} class="flex items-baseline gap-2 text-sm pl-3 py-0.5">
         <span class="font-medium">{release.item.name}</span>
         <span :if={release.season_number} class="text-base-content/50">
-          <span class="text-[0.7em]">S</span>{String.pad_leading("#{release.season_number}", 2, "0")}
-          <span class="text-[0.7em]">E</span>{String.pad_leading("#{release.episode_number}", 2, "0")}
+          <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
+            "#{release.season_number}",
+            2,
+            "0"
+          )}
+          <span class="text-[0.8em] text-base-content/30">E</span>{String.pad_leading(
+            "#{release.episode_number}",
+            2,
+            "0"
+          )}
         </span>
         <span :if={release.title} class="text-base-content/40">"{release.title}"</span>
       </div>
@@ -585,20 +603,18 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
 
   defp events_content(assigns) do
     ~H"""
-    <details open class="collapse collapse-arrow bg-base-200/30 rounded-box">
-      <summary class="collapse-title text-sm font-medium text-base-content/50">
-        Recent Changes
-      </summary>
-      <div class="collapse-content space-y-1.5 pt-1">
-        <p :for={event <- @events} class="text-sm text-base-content/60">
-          <span class="text-base-content/30">{format_datetime(event.inserted_at)}</span>
-          <span class="font-medium">{event.item_name}</span>
-          <span class="text-base-content/40">
-            — {event_label(event)}
-          </span>
-        </p>
-      </div>
-    </details>
+    <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
+      Recent Changes
+    </h3>
+    <div class="space-y-1.5">
+      <p :for={event <- @events} class="text-sm text-base-content/60">
+        <span class="text-base-content/30">{format_datetime(event.inserted_at)}</span>
+        <span class="font-medium">{event.item_name}</span>
+        <span class="text-base-content/40">
+          — {event_label(event)}
+        </span>
+      </p>
+    </div>
     """
   end
 
