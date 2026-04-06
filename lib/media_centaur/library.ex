@@ -7,6 +7,8 @@ defmodule MediaCentaur.Library do
 
   alias MediaCentaur.Repo
 
+  alias MediaCentaur.Topics
+
   alias MediaCentaur.Library.{
     ChangeEntry,
     Episode,
@@ -22,6 +24,12 @@ defmodule MediaCentaur.Library do
     WatchProgress,
     WatchedFile
   }
+
+  @doc "Subscribe the caller to library entity change events."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
+  end
 
   @tv_series_full_preloads [
     :images,

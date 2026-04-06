@@ -29,18 +29,50 @@ defmodule MediaCentaurWeb.LiveHelpers do
   end
 
   @doc """
-  Debounces a stats refresh by cancelling any pending timer and scheduling a new
-  `:refresh_stats` message after 1 second.
+  Cancels any pending timer stored in `timer_assign` and schedules `message`
+  to be sent to `self()` after `delay_ms` milliseconds. Returns the socket
+  with the new timer ref stored in `timer_assign`.
 
-  Expects the socket to have a `:stats_timer` assign.
+  Callers that need to accumulate data (e.g. LibraryLive's pending entity IDs)
+  do so before calling this — the utility only manages the timer lifecycle.
+
+  ## Examples
+
+      # Simple debounce
+      debounce(socket, :reload_timer, :reload_groups, 500)
+
+      # With accumulation
+      socket
+      |> assign(pending_ids: MapSet.union(socket.assigns.pending_ids, new_ids))
+      |> debounce(:reload_timer, :reload_entities, 500)
   """
-  def debounce_stats_refresh(socket) do
-    if socket.assigns[:stats_timer] do
-      Process.cancel_timer(socket.assigns.stats_timer)
+  def debounce(socket, timer_assign, message, delay_ms) do
+    if socket.assigns[timer_assign] do
+      Process.cancel_timer(socket.assigns[timer_assign])
     end
 
-    timer = Process.send_after(self(), :refresh_stats, 1_000)
-    assign(socket, stats_timer: timer)
+    timer = Process.send_after(self(), message, delay_ms)
+    assign(socket, [{timer_assign, timer}])
+  end
+
+  @doc """
+  Applies a playback state change to a sessions map. On `:stopped`, removes
+  the entity. On any other state, inserts or replaces the entry with the given
+  `now_playing` data.
+
+  Accepts an optional `extra_fields` map that is merged into the entry — used
+  by StatusLive to preserve `started_at` timestamps that LibraryLive doesn't
+  need.
+  """
+  def apply_playback_change(sessions, entity_id, new_state, now_playing, extra_fields \\ %{}) do
+    case new_state do
+      :stopped ->
+        Map.delete(sessions, entity_id)
+
+      _ ->
+        entry = Map.merge(%{state: new_state, now_playing: now_playing}, extra_fields)
+        Map.put(sessions, entity_id, entry)
+    end
   end
 
   @doc """

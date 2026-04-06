@@ -81,4 +81,72 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       assert time_ago(naive) == "just now"
     end
   end
+
+  describe "debounce/4" do
+    test "schedules a message and stores the timer ref" do
+      socket = %Phoenix.LiveView.Socket{assigns: %{__changed__: %{}, my_timer: nil}}
+      result = debounce(socket, :my_timer, :reload, 50)
+
+      assert is_reference(result.assigns.my_timer)
+      assert_receive :reload, 200
+    end
+
+    test "cancels an existing timer before scheduling a new one" do
+      socket = %Phoenix.LiveView.Socket{assigns: %{__changed__: %{}, my_timer: nil}}
+      first = debounce(socket, :my_timer, :reload, 500)
+
+      # Schedule a second debounce that should cancel the first
+      second = debounce(first, :my_timer, :reload, 50)
+
+      assert second.assigns.my_timer != first.assigns.my_timer
+      # Only the second timer should fire
+      assert_receive :reload, 200
+      refute_receive :reload, 100
+    end
+  end
+
+  describe "apply_playback_change/4" do
+    test "adds a playing entry to sessions" do
+      sessions = %{}
+      now_playing = %{title: "Episode 1"}
+
+      result = apply_playback_change(sessions, "entity-1", :playing, now_playing)
+
+      assert result == %{
+               "entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}
+             }
+    end
+
+    test "removes an entry on :stopped" do
+      sessions = %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
+
+      result = apply_playback_change(sessions, "entity-1", :stopped, nil)
+
+      assert result == %{}
+    end
+
+    test "updates existing entry state" do
+      sessions = %{"entity-1" => %{state: :playing, now_playing: %{title: "Episode 1"}}}
+
+      result = apply_playback_change(sessions, "entity-1", :paused, %{title: "Episode 1"})
+
+      assert result == %{
+               "entity-1" => %{state: :paused, now_playing: %{title: "Episode 1"}}
+             }
+    end
+
+    test "merges extra fields when provided" do
+      sessions = %{}
+      now_playing = %{title: "Episode 1"}
+      started_at = ~U[2026-04-06 12:00:00Z]
+
+      result =
+        apply_playback_change(sessions, "entity-1", :playing, now_playing, %{
+          started_at: started_at
+        })
+
+      assert result["entity-1"].started_at == started_at
+      assert result["entity-1"].state == :playing
+    end
+  end
 end

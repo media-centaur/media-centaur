@@ -17,6 +17,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   def mount(_params, _session, socket) do
     socket =
       if connected?(socket) do
+        Settings.subscribe()
+        Watcher.Supervisor.subscribe()
+
         socket
         |> assign(config: load_config())
         |> assign(watchers_running: Watcher.Supervisor.running?())
@@ -160,6 +163,20 @@ defmodule MediaCentaurWeb.SettingsLive do
      socket
      |> assign(refreshing_images: false)
      |> put_flash(:info, "Image cache refreshed — re-downloaded images for #{count} entities")}
+  end
+
+  # Cross-tab sync — another tab toggled spoiler_free
+  def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
+    {:noreply, assign(socket, spoiler_free: enabled)}
+  end
+
+  # Watcher/pipeline state change — refresh service toggle states
+  def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
+    {:noreply,
+     socket
+     |> assign(watchers_running: Watcher.Supervisor.running?())
+     |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
+     |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
   end
 
   def handle_info(_msg, socket) do

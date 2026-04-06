@@ -16,8 +16,15 @@ defmodule MediaCentaur.Review do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Topics
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.DateUtil
+
+  @doc "Subscribe the caller to review process events."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
+  end
 
   # ---------------------------------------------------------------------------
   # PendingFile CRUD

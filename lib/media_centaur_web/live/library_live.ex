@@ -21,8 +21,10 @@ defmodule MediaCentaurWeb.LibraryLive do
     Library,
     Library.FileEventHandler,
     LibraryBrowser,
+    Playback,
     Playback.ProgressBroadcaster,
     Playback.ResumeTarget,
+    ReleaseTracking,
     Settings
   }
 
@@ -39,14 +41,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.settings_updates())
-
-      Phoenix.PubSub.subscribe(
-        MediaCentaur.PubSub,
-        MediaCentaur.Topics.release_tracking_updates()
-      )
+      Library.subscribe()
+      Playback.subscribe()
+      Settings.subscribe()
+      ReleaseTracking.subscribe()
     end
 
     {:ok,
@@ -672,13 +670,12 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   @impl true
   def handle_info({:entities_changed, entity_ids}, socket) do
-    if socket.assigns[:reload_timer] do
-      Process.cancel_timer(socket.assigns.reload_timer)
-    end
-
     pending = MapSet.union(socket.assigns.pending_entity_ids, MapSet.new(entity_ids))
-    timer = Process.send_after(self(), :reload_entities, 500)
-    {:noreply, assign(socket, reload_timer: timer, pending_entity_ids: pending)}
+
+    {:noreply,
+     socket
+     |> assign(pending_entity_ids: pending)
+     |> debounce(:reload_timer, :reload_entities, 500)}
   end
 
   def handle_info(:reload_entities, socket) do
@@ -754,17 +751,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         {:playback_state_changed, entity_id, new_state, now_playing, _started_at},
         socket
       ) do
-    playback =
-      case new_state do
-        :stopped ->
-          Map.delete(socket.assigns.playback, entity_id)
-
-        _ ->
-          Map.put(socket.assigns.playback, entity_id, %{
-            state: new_state,
-            now_playing: now_playing
-          })
-      end
+    playback = apply_playback_change(socket.assigns.playback, entity_id, new_state, now_playing)
 
     {:noreply,
      socket
