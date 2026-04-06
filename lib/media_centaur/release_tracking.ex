@@ -42,7 +42,10 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   def delete_item(%Item{} = item) do
-    Repo.delete(item)
+    item_id = item.id
+    result = Repo.delete(item)
+    broadcast_releases_updated([item_id])
+    result
   end
 
   def list_watching_items do
@@ -83,12 +86,15 @@ defmodule MediaCentaur.ReleaseTracking do
     from(tv in MediaCentaur.Library.TVSeries,
       join: ext in MediaCentaur.Library.ExternalId,
       on: ext.tv_series_id == tv.id and ext.source == "tmdb",
-      where: tv.status in ^@active_tv_statuses,
+      left_join: img in MediaCentaur.Library.Image,
+      on: img.tv_series_id == tv.id and img.role == "poster",
+      where: tv.status in ^@active_tv_statuses or is_nil(tv.status),
       select: %{
         tv_series_id: tv.id,
         tmdb_id: ext.external_id,
         name: tv.name,
-        media_type: :tv_series
+        media_type: :tv_series,
+        poster_url: img.content_url
       }
     )
     |> Repo.all()
@@ -346,8 +352,13 @@ defmodule MediaCentaur.ReleaseTracking do
   @doc "Dismiss a single release by deleting it."
   def dismiss_release(release_id) do
     case Repo.get(Release, release_id) do
-      nil -> {:error, :not_found}
-      release -> Repo.delete(release)
+      nil ->
+        {:error, :not_found}
+
+      release ->
+        result = Repo.delete(release)
+        broadcast_releases_updated([release.item_id])
+        result
     end
   end
 

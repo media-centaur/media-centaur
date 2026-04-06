@@ -263,7 +263,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert ReleaseTracking.suggest_trackable_items() == []
     end
 
-    test "excludes TV series with nil status" do
+    test "includes TV series with nil status (pre-existing library items)" do
       unknown = create_tv_series(%{name: "Unknown"})
 
       create_external_id(%{
@@ -272,7 +272,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
         external_id: "4444"
       })
 
-      assert ReleaseTracking.suggest_trackable_items() == []
+      suggestions = ReleaseTracking.suggest_trackable_items()
+      assert length(suggestions) == 1
+      assert hd(suggestions).name == "Unknown"
     end
   end
 

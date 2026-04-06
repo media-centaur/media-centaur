@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
   attr :search_loading, :boolean, default: false
   attr :scope_item, :map, default: nil
   attr :collection_item, :map, default: nil
+  attr :confirmed_ids, :any, default: nil
 
   def track_modal(assigns) do
     ~H"""
@@ -29,7 +30,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
         <div class="flex flex-col flex-1 min-h-0 max-h-[80vh]">
           <%!-- Header --%>
           <div class="flex items-center justify-between px-5 py-4 border-b border-base-content/10">
-            <h2 class="text-lg font-semibold">Track New Show</h2>
+            <h2 class="text-lg font-semibold">Track New Releases</h2>
             <button
               phx-click="close_track_modal"
               class="btn btn-ghost btn-circle btn-sm"
@@ -44,6 +45,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
             <.suggestions_section
               suggestions={@suggestions}
               loading={@suggestions_loading}
+              confirmed_ids={@confirmed_ids}
             />
 
             <%!-- Search bar --%>
@@ -55,7 +57,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
                   name="query"
                   value={@search_query}
                   placeholder="Search movies & shows…"
-                  class="input input-bordered w-full"
+                  class="input input-bordered w-full focus:outline-none focus:border-base-content/20"
                   autocomplete="off"
                   phx-debounce="300"
                 />
@@ -93,6 +95,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
 
   attr :suggestions, :list, required: true
   attr :loading, :boolean, required: true
+  attr :confirmed_ids, :any, default: nil
 
   defp suggestions_section(%{suggestions: [], loading: false} = assigns) do
     ~H"""
@@ -106,14 +109,41 @@ defmodule MediaCentaurWeb.Components.TrackModal do
       <div :if={@loading} class="flex justify-center py-4">
         <span class="loading loading-spinner loading-sm text-base-content/50"></span>
       </div>
-      <div :if={!@loading} class="flex gap-3 overflow-x-auto pb-2">
-        <.suggestion_card :for={suggestion <- @suggestions} suggestion={suggestion} />
+      <div
+        :if={!@loading}
+        class="flex gap-3 overflow-x-auto p-1 -m-1 pb-2"
+        onwheel="if(Math.abs(event.deltaY)>Math.abs(event.deltaX)){this.scrollLeft+=event.deltaY;event.preventDefault()}"
+      >
+        <.suggestion_card
+          :for={suggestion <- @suggestions}
+          suggestion={suggestion}
+          confirming={@confirmed_ids && MapSet.member?(@confirmed_ids, suggestion.tmdb_id)}
+        />
       </div>
     </div>
     """
   end
 
   attr :suggestion, :map, required: true
+  attr :confirming, :boolean, default: false
+
+  defp suggestion_card(%{confirming: true} = assigns) do
+    ~H"""
+    <button
+      phx-click="track_suggestion"
+      phx-value-tmdb-id={@suggestion.tmdb_id}
+      phx-value-tv-series-id={@suggestion.tv_series_id}
+      phx-value-name={@suggestion.name}
+      class="flex-shrink-0 w-28 cursor-pointer text-left"
+    >
+      <div class="aspect-[2/3] rounded-lg bg-success/10 overflow-hidden mb-2 ring-1 ring-success/30 flex items-center justify-center hover:bg-error/10 hover:ring-error/30 transition-colors">
+        <.icon name="hero-check-mini" class="size-8 text-success" />
+      </div>
+      <p class="text-xs font-medium truncate">{@suggestion.name}</p>
+      <p class="text-xs text-success">Tracking</p>
+    </button>
+    """
+  end
 
   defp suggestion_card(assigns) do
     ~H"""
@@ -125,7 +155,16 @@ defmodule MediaCentaurWeb.Components.TrackModal do
       class="flex-shrink-0 w-28 group cursor-pointer text-left"
     >
       <div class="aspect-[2/3] rounded-lg bg-base-300 overflow-hidden mb-2 ring-1 ring-base-content/10 group-hover:ring-primary/40 transition-all">
-        <div class="w-full h-full flex items-center justify-center text-base-content/20">
+        <img
+          :if={@suggestion.poster_url}
+          src={"/media-images/#{@suggestion.poster_url}"}
+          class="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div
+          :if={!@suggestion.poster_url}
+          class="w-full h-full flex items-center justify-center text-base-content/20"
+        >
           <.icon name="hero-tv-mini" class="size-8" />
         </div>
       </div>
