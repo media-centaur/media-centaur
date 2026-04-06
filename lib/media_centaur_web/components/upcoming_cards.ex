@@ -227,6 +227,19 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     is_today = assigns.date == assigns.today
     has_releases = assigns.releases != []
     is_past = Date.before?(assigns.date, assigns.today)
+    release_count = length(assigns.releases)
+
+    # For single releases, extract the backdrop for full-cell fill
+    solo_backdrop =
+      if release_count == 1 do
+        item = hd(assigns.releases).item
+        item_images = Map.get(assigns.images, item.id, %{})
+        item_images[:backdrop]
+      end
+
+    # For 2+ releases, prepare visible tiles (cap at 4) and overflow count
+    visible_releases = Enum.take(assigns.releases, 4)
+    overflow_count = max(release_count - 4, 0)
 
     assigns =
       assigns
@@ -234,11 +247,15 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       |> assign(:is_today, is_today)
       |> assign(:has_releases, has_releases)
       |> assign(:is_past, is_past)
+      |> assign(:release_count, release_count)
+      |> assign(:solo_backdrop, solo_backdrop)
+      |> assign(:visible_releases, visible_releases)
+      |> assign(:overflow_count, overflow_count)
 
     ~H"""
     <div
       class={[
-        "min-h-[5rem] p-1.5 border-r border-base-content/5 last:border-r-0 transition-colors",
+        "relative min-h-[5rem] p-1.5 border-r border-base-content/5 last:border-r-0 transition-colors overflow-hidden",
         !@in_month && "bg-base-200/10",
         @selected && "bg-primary/10",
         @has_releases && @in_month && "cursor-pointer hover:bg-base-content/5",
@@ -247,63 +264,113 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       phx-click={@has_releases && @in_month && "select_day"}
       phx-value-date={@has_releases && @in_month && Date.to_iso8601(@date)}
     >
-      <div class="flex items-start justify-between mb-1">
+      <%!-- === 1 release: full-cell backdrop === --%>
+      <img
+        :if={@release_count == 1 && @solo_backdrop && @in_month}
+        src={@solo_backdrop}
+        class="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+      />
+      <div
+        :if={@release_count == 1 && @solo_backdrop && @in_month}
+        class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40"
+      />
+
+      <%!-- Day number (z-10 to sit above backdrop) --%>
+      <div class="relative z-10 flex items-start justify-between mb-1">
         <span class={[
           "text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full",
           @is_today && "bg-primary text-primary-content",
-          !@is_today && @in_month && "text-base-content/60",
+          !@is_today && @has_releases && @in_month && "bg-black/90 text-white",
+          !@is_today && !@has_releases && @in_month && "text-base-content/60",
           !@is_today && !@in_month && "text-base-content/15"
         ]}>
           {@date.day}
         </span>
-        <span
-          :if={@has_releases && length(@releases) > 1}
-          class="text-[10px] font-semibold text-base-content/40 bg-base-content/10 rounded-full px-1.5"
-        >
-          {length(@releases)}
-        </span>
       </div>
 
-      <div :if={@has_releases && @in_month} class="flex flex-wrap gap-0.5">
-        <.release_dot :for={release <- Enum.take(@releases, 4)} release={release} images={@images} />
+      <%!-- 1 release: show name at bottom --%>
+      <span
+        :if={@release_count == 1 && @in_month}
+        class="absolute z-10 bottom-0.5 left-1 right-1 text-[9px] font-semibold text-white truncate"
+        title={hd(@releases).item.name}
+      >
+        {hd(@releases).item.name}
+      </span>
+
+      <%!-- === 2 releases: side-by-side, full height === --%>
+      <div
+        :if={@release_count == 2 && @in_month}
+        class="absolute inset-0 grid grid-cols-2 gap-px overflow-hidden"
+      >
+        <.release_tile
+          :for={release <- @visible_releases}
+          release={release}
+          images={@images}
+        />
+      </div>
+
+      <%!-- === 3-4+ releases: 2x2 grid === --%>
+      <div
+        :if={@release_count >= 3 && @in_month}
+        class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px overflow-hidden"
+      >
+        <.release_tile
+          :for={release <- Enum.take(@visible_releases, if(@overflow_count > 0, do: 3, else: 4))}
+          release={release}
+          images={@images}
+        />
+        <%!-- +N overflow tile --%>
+        <div
+          :if={@overflow_count > 0}
+          class="relative bg-base-300/80 flex items-center justify-center"
+        >
+          <span class="text-sm font-bold text-base-content/60">
+            +{@overflow_count + 1}
+          </span>
+        </div>
       </div>
     </div>
     """
   end
 
-  # --- Release indicator dot/thumb in calendar cell ---
+  # --- Backdrop tile for calendar cell grids ---
 
   attr :release, :any, required: true
   attr :images, :map, default: %{}
 
-  defp release_dot(assigns) do
+  defp release_tile(assigns) do
     item = assigns.release.item
     item_images = Map.get(assigns.images, item.id, %{})
-    poster = item_images[:poster]
+    backdrop = item_images[:backdrop]
 
     assigns =
       assigns
-      |> assign(:poster, poster)
+      |> assign(:backdrop, backdrop)
       |> assign(:name, item.name)
       |> assign(:media_type, item.media_type)
 
     ~H"""
-    <img
-      :if={@poster}
-      src={@poster}
-      title={@name}
-      class="w-5 h-7 rounded-sm object-cover"
-      loading="lazy"
-    />
-    <div
-      :if={!@poster}
-      title={@name}
-      class={[
-        "w-5 h-2 rounded-full",
-        @media_type == :tv_series && "bg-info/60",
-        @media_type == :movie && "bg-warning/60"
-      ]}
-    />
+    <div class="relative min-w-0 overflow-hidden" title={@name}>
+      <img
+        :if={@backdrop}
+        src={@backdrop}
+        class="w-full h-full object-cover"
+        loading="lazy"
+      />
+      <div
+        :if={!@backdrop}
+        class={[
+          "w-full h-full",
+          @media_type == :tv_series && "bg-info/20",
+          @media_type == :movie && "bg-warning/20"
+        ]}
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+      <span class="absolute bottom-0.5 left-1 right-1 text-[9px] font-semibold text-white truncate">
+        {@name}
+      </span>
+    </div>
     """
   end
 
