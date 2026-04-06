@@ -267,5 +267,49 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       assert updated.last_library_season == 1
       assert updated.last_library_episode == 5
     end
+
+    test "marks releases in_library and broadcasts when new episode added" do
+      tv_series = create_tv_series(%{name: "Shrinking"})
+
+      season =
+        create_season(%{tv_series_id: tv_series.id, season_number: 3, number_of_episodes: 9})
+
+      for ep <- 1..9 do
+        create_episode(%{season_id: season.id, episode_number: ep, name: "Episode #{ep}"})
+      end
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 4321,
+          media_type: :tv_series,
+          name: "Shrinking",
+          library_entity_id: tv_series.id,
+          last_library_season: 3,
+          last_library_episode: 8
+        })
+
+      # Create a release for S03E09 that should get marked in_library
+      ReleaseTracking.create_release!(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), -1),
+        title: "Episode 9",
+        season_number: 3,
+        episode_number: 9,
+        released: true
+      })
+
+      # Subscribe to PubSub to verify broadcast
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "release_tracking:updates")
+
+      # Simulate library change event
+      Refresher.refresh_item_tracking_for([tv_series.id])
+
+      # Release should be marked in_library
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert Enum.all?(releases, & &1.in_library)
+
+      # LiveView should be notified via PubSub
+      assert_received {:releases_updated, _item_ids}
+    end
   end
 end
