@@ -17,6 +17,7 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 | **ANY implementation** — features, bug fixes, refactors (test-first is mandatory) | `automated-testing` |
 | General coding standards, naming, structure | `coding-guidelines` |
 | Production debugging, service health, runtime logs | `troubleshoot` |
+| UI work — components, CSS, styling, layout, modals, cards, themes | `user-interface` |
 | mpv Lua scripts, overlays, key bindings, playback UI | `mpv-extensions` |
 
 Invoke the skill **first**, then explore the codebase, then write code.
@@ -171,7 +172,7 @@ Protocol specifications live in `specs/`. See [specs/README.md](specs/README.md)
 
 ## UI Design
 
-See [`DESIGN.md`](DESIGN.md) for UI principles, page structure, color/theme standards, and component guidelines. Read it before any LiveView, layout, or styling work.
+Load the `user-interface` skill before any UI work. It consolidates design principles, component recipes, CSS conventions, page structure, and all UIDR decisions into one reference.
 
 ## Decision Records
 
