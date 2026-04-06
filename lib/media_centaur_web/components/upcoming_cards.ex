@@ -109,28 +109,32 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           images={@images}
         />
 
-        <%!-- Now Available section (nav item) --%>
+        <%!-- Now Available + Upcoming side-by-side --%>
         <div
-          :if={@released != []}
-          data-nav-item
-          data-section-type="now-available"
-          tabindex="0"
-          class="space-y-3 rounded-xl outline-none p-3"
+          :if={@released != [] || @dated_upcoming != []}
+          class="grid grid-cols-1 lg:grid-cols-2 gap-6"
         >
-          <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
-          <.released_content releases={@released} />
-        </div>
+          <div
+            :if={@released != []}
+            data-nav-item
+            data-section-type="now-available"
+            tabindex="0"
+            class="space-y-3 rounded-xl outline-none p-3"
+          >
+            <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
+            <.released_content releases={@released} />
+          </div>
 
-        <%!-- Upcoming list section (nav item) --%>
-        <div
-          :if={@dated_upcoming != []}
-          data-nav-item
-          data-section-type="upcoming-list"
-          tabindex="0"
-          class="space-y-3 rounded-xl outline-none p-3"
-        >
-          <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
-          <.upcoming_list_content releases={@dated_upcoming} />
+          <div
+            :if={@dated_upcoming != []}
+            data-nav-item
+            data-section-type="upcoming-list"
+            tabindex="0"
+            class="space-y-3 rounded-xl outline-none p-3"
+          >
+            <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
+            <.upcoming_list_content releases={@dated_upcoming} />
+          </div>
         </div>
 
         <%!-- Unscheduled section (nav item) --%>
