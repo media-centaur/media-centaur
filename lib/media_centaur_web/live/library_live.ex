@@ -759,7 +759,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         </section>
 
         <%!-- Upcoming Releases zone --%>
-        <section :if={@zone == :upcoming} id="upcoming" class="space-y-6 pb-8">
+        <section :if={@zone == :upcoming} id="upcoming" class="max-w-7xl space-y-6 pb-8">
           <UpcomingCards.upcoming_zone
             releases={@upcoming_releases}
             events={@upcoming_events}
