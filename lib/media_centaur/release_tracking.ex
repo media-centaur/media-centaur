@@ -183,8 +183,16 @@ defmodule MediaCentaur.ReleaseTracking do
   defp do_track_from_search(%{media_type: :tv_series} = result, start_season, start_episode) do
     case Client.get_tv(result.tmdb_id) do
       {:ok, response} ->
-        releases =
+        all_releases =
           Helpers.fetch_tv_releases(result.tmdb_id, start_season, start_episode, response)
+
+        # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
+        releases =
+          if start_season == 0 && start_episode == 0 do
+            Enum.reject(all_releases, & &1[:released])
+          else
+            all_releases
+          end
 
         {:ok, item} =
           track_item(%{
@@ -199,7 +207,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
         persist_releases(item, releases)
         create_began_tracking_event(item)
-        schedule_poster_download(item, result.tmdb_id, Extractor.extract_poster_path(response))
+        schedule_image_downloads(item, result.tmdb_id, response)
 
         {:ok, item}
 
@@ -224,7 +232,7 @@ defmodule MediaCentaur.ReleaseTracking do
         persist_movie_releases(item, releases)
 
         create_began_tracking_event(item)
-        schedule_poster_download(item, result.tmdb_id, Extractor.extract_poster_path(response))
+        schedule_image_downloads(item, result.tmdb_id, response)
 
         {:ok, item}
 
@@ -281,18 +289,29 @@ defmodule MediaCentaur.ReleaseTracking do
     })
   end
 
-  defp schedule_poster_download(_item, _tmdb_id, nil), do: :ok
+  defp schedule_image_downloads(item, tmdb_id, response) do
+    poster_path = Extractor.extract_poster_path(response)
+    backdrop_path = response["backdrop_path"]
 
-  defp schedule_poster_download(item, tmdb_id, poster_path) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case ImageStore.download_poster(tmdb_id, poster_path) do
-        {:ok, path} when is_binary(path) ->
-          update_item(item, %{poster_path: path})
+    if poster_path || backdrop_path do
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        attrs = %{}
 
-        _ ->
-          :ok
-      end
-    end)
+        attrs =
+          case ImageStore.download_poster(tmdb_id, poster_path) do
+            {:ok, path} when is_binary(path) -> Map.put(attrs, :poster_path, path)
+            _ -> attrs
+          end
+
+        attrs =
+          case ImageStore.download_backdrop(tmdb_id, backdrop_path) do
+            {:ok, path} when is_binary(path) -> Map.put(attrs, :backdrop_path, path)
+            _ -> attrs
+          end
+
+        if attrs != %{}, do: update_item(item, attrs)
+      end)
+    end
   end
 
   # --- Releases ---

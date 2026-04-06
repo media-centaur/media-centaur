@@ -18,6 +18,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :library_entity_id, Ecto.UUID
     field :last_refreshed_at, :utc_datetime
     field :poster_path, :string
+    field :backdrop_path, :string
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
@@ -55,6 +56,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :status,
       :last_refreshed_at,
       :poster_path,
+      :backdrop_path,
       :last_library_season,
       :last_library_episode,
       :dismiss_released_before

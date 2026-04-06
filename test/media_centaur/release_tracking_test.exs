@@ -380,6 +380,48 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert Enum.any?(events, &(&1.event_type == :began_tracking))
     end
 
+    test "all upcoming excludes already-released episodes" do
+      past_date = Date.add(Date.utc_today(), -10) |> Date.to_iso8601()
+      future_date = Date.add(Date.utc_today(), 30) |> Date.to_iso8601()
+
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/6666/season/1",
+         %{
+           "season_number" => 1,
+           "episodes" => [
+             %{"episode_number" => 1, "name" => "Pilot", "air_date" => past_date},
+             %{"episode_number" => 2, "name" => "Second", "air_date" => past_date},
+             %{"episode_number" => 3, "name" => "Future Ep", "air_date" => future_date}
+           ]
+         }},
+        {"/tv/6666",
+         %{
+           "id" => 6666,
+           "name" => "Mixed Show",
+           "status" => "Returning Series",
+           "poster_path" => "/mix.jpg",
+           "number_of_seasons" => 1,
+           "next_episode_to_air" => %{
+             "air_date" => future_date,
+             "season_number" => 1,
+             "episode_number" => 3,
+             "name" => "Future Ep"
+           }
+         }}
+      ])
+
+      {:ok, item} =
+        ReleaseTracking.track_from_search(
+          %{tmdb_id: 6666, media_type: :tv_series, name: "Mixed Show", poster_path: "/mix.jpg"},
+          %{start_season: 0, start_episode: 0}
+        )
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert length(releases) == 1
+      assert hd(releases).title == "Future Ep"
+      assert hd(releases).released == false
+    end
+
     test "tracks a movie with theatrical and digital releases" do
       MediaCentaur.TmdbStubs.stub_routes([
         {"/movie/9999",

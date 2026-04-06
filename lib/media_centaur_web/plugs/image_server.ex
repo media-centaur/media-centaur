@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
         Enum.find_value(watch_dirs, fn dir ->
           candidate = Path.join(MediaCentaur.Config.images_dir_for(dir), relative)
           if File.regular?(candidate), do: candidate
-        end)
+        end) || find_in_data_images(relative)
 
       if file_path do
         conn
@@ -37,4 +37,9 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   end
 
   def call(conn, _opts), do: conn
+
+  defp find_in_data_images(relative) do
+    candidate = Path.join("data", relative)
+    if File.regular?(candidate), do: candidate
+  end
 end
