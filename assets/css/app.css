@@ -360,6 +360,7 @@ body {
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
+  color: var(--color-base-content);
   box-shadow: 0 25px 50px -12px oklch(0% 0 0 / 0.25);
   opacity: 0;
   transform: scale(0.96) translateY(8px);
@@ -377,6 +378,30 @@ body {
   width: min(480px, 92vw);
   max-height: none;
   overflow: visible;
+}
+
+/* Release grid — column-aligned rows with subgrid for proper row hover */
+.release-grid {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
+}
+
+.release-grid-dismissable {
+  grid-template-columns: auto auto auto 1fr auto;
+}
+
+.release-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  gap: 0 0.75rem;
+  padding: 2px 0.25rem;
+  border-radius: 0.25rem;
+}
+
+.release-row:hover {
+  background-color: oklch(from var(--color-base-content) l c h / 0.05);
 }
 
 /* Show only the active theme icon */

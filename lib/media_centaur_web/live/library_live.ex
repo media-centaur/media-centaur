@@ -26,7 +26,13 @@ defmodule MediaCentaurWeb.LibraryLive do
     Settings
   }
 
-  alias MediaCentaurWeb.Components.{DetailPanel, LibraryCards, ModalShell, UpcomingCards}
+  alias MediaCentaurWeb.Components.{
+    DetailPanel,
+    LibraryCards,
+    ModalShell,
+    TrackModal,
+    UpcomingCards
+  }
 
   import MediaCentaurWeb.LibraryHelpers
 
@@ -73,9 +79,17 @@ defmodule MediaCentaurWeb.LibraryLive do
        upcoming_images: %{},
        calendar_month: {Date.utc_today().year, Date.utc_today().month},
        selected_day: nil,
-       scanning: false,
+       track_modal_open: false,
+       track_suggestions: [],
+       track_suggestions_loading: false,
+       track_search_query: "",
+       track_search_results: [],
+       track_search_loading: false,
+       track_scope_item: nil,
+       track_collection_item: nil,
        tracking_status: nil,
-       confirm_stop_item: nil
+       confirm_stop_item: nil,
+       tracked_items: []
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -326,12 +340,131 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, push_patch(socket, to: build_path(socket, %{view: new_view}))}
   end
 
-  def handle_event("scan_library", _params, socket) do
+  def handle_event("open_track_modal", _params, socket) do
+    socket =
+      assign(socket,
+        track_modal_open: true,
+        track_suggestions_loading: true,
+        track_search_query: "",
+        track_search_results: [],
+        track_scope_item: nil,
+        track_collection_item: nil
+      )
+
+    send(self(), :load_track_suggestions)
+    {:noreply, socket}
+  end
+
+  def handle_event("close_track_modal", _params, socket) do
+    {:noreply,
+     assign(socket,
+       track_modal_open: false,
+       track_suggestions: [],
+       track_suggestions_loading: false,
+       track_search_query: "",
+       track_search_results: [],
+       track_search_loading: false,
+       track_scope_item: nil,
+       track_collection_item: nil
+     )}
+  end
+
+  def handle_event("track_search", %{"query" => query}, socket) when byte_size(query) < 2 do
+    {:noreply,
+     assign(socket,
+       track_search_query: query,
+       track_search_results: [],
+       track_search_loading: false
+     )}
+  end
+
+  def handle_event("track_search", %{"query" => query}, socket) do
+    socket = assign(socket, track_search_query: query, track_search_loading: true)
+    send(self(), {:do_track_search, query})
+    {:noreply, socket}
+  end
+
+  def handle_event("track_suggestion", params, socket) do
+    tmdb_id = String.to_integer(params["tmdb-id"])
+    tv_series_id = params["tv-series-id"]
+    name = params["name"]
+
+    {last_season, last_episode} =
+      MediaCentaur.ReleaseTracking.Helpers.find_last_library_episode(tv_series_id)
+
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      MediaCentaur.ReleaseTracking.Scanner.scan()
+      MediaCentaur.ReleaseTracking.track_from_search(
+        %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: nil},
+        %{start_season: last_season, start_episode: last_episode}
+      )
     end)
 
-    {:noreply, assign(socket, scanning: true)}
+    suggestions =
+      Enum.reject(socket.assigns.track_suggestions, &(&1.tmdb_id == to_string(tmdb_id)))
+
+    {:noreply, assign(socket, track_suggestions: suggestions)}
+  end
+
+  def handle_event("select_search_result", params, socket) do
+    tmdb_id = String.to_integer(params["tmdb-id"])
+    media_type = String.to_existing_atom(params["media-type"])
+    name = params["name"]
+    poster_path = params["poster-path"]
+
+    result = %{tmdb_id: tmdb_id, media_type: media_type, name: name, poster_path: poster_path}
+
+    case media_type do
+      :tv_series ->
+        {:noreply, assign(socket, track_scope_item: result, track_collection_item: nil)}
+
+      :movie ->
+        # Track immediately for movies (collection detection deferred to future iteration)
+        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          MediaCentaur.ReleaseTracking.track_from_search(result, %{})
+        end)
+
+        results =
+          Enum.map(socket.assigns.track_search_results, fn r ->
+            if r.tmdb_id == tmdb_id, do: Map.put(r, :already_tracked, true), else: r
+          end)
+
+        {:noreply, assign(socket, track_search_results: results, track_collection_item: nil)}
+    end
+  end
+
+  def handle_event("confirm_track", params, socket) do
+    tmdb_id = String.to_integer(params["tmdb_id"])
+    name = params["name"]
+    poster_path = params["poster_path"]
+
+    {start_season, start_episode} =
+      case params["scope"] do
+        "custom" ->
+          {String.to_integer(params["start_season"] || "1"),
+           String.to_integer(params["start_episode"] || "1")}
+
+        _ ->
+          {0, 0}
+      end
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      MediaCentaur.ReleaseTracking.track_from_search(
+        %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: poster_path},
+        %{start_season: start_season, start_episode: start_episode}
+      )
+    end)
+
+    results =
+      Enum.map(socket.assigns.track_search_results, fn r ->
+        if r.tmdb_id == tmdb_id, do: Map.put(r, :already_tracked, true), else: r
+      end)
+
+    {:noreply, assign(socket, track_search_results: results, track_scope_item: nil)}
+  end
+
+  def handle_event("dismiss_release", %{"release-id" => release_id}, socket) do
+    MediaCentaur.ReleaseTracking.dismiss_release(release_id)
+    {:noreply, load_upcoming(socket)}
   end
 
   def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
@@ -648,9 +781,26 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_info({:releases_updated, _item_ids}, socket) do
     if socket.assigns.zone == :upcoming do
-      {:noreply, load_upcoming(socket) |> assign(scanning: false)}
+      {:noreply, load_upcoming(socket)}
     else
-      {:noreply, assign(socket, scanning: false)}
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info(:load_track_suggestions, socket) do
+    suggestions = MediaCentaur.ReleaseTracking.suggest_trackable_items()
+
+    {:noreply, assign(socket, track_suggestions: suggestions, track_suggestions_loading: false)}
+  end
+
+  @impl true
+  def handle_info({:do_track_search, query}, socket) do
+    if query == socket.assigns.track_search_query do
+      results = MediaCentaur.ReleaseTracking.search_tmdb(query)
+      {:noreply, assign(socket, track_search_results: results, track_search_loading: false)}
+    else
+      {:noreply, socket}
     end
   end
 
@@ -766,7 +916,7 @@ defmodule MediaCentaurWeb.LibraryLive do
             images={@upcoming_images}
             calendar_month={@calendar_month}
             selected_day={@selected_day}
-            scanning={@scanning}
+            tracked_items={@tracked_items}
             confirm_stop_item={@confirm_stop_item}
           />
         </section>
@@ -787,6 +937,18 @@ defmodule MediaCentaurWeb.LibraryLive do
           tracking_status={@tracking_status}
           on_play="play"
           on_close="close_detail"
+        />
+
+        <%!-- Track New Show modal (always in DOM) --%>
+        <TrackModal.track_modal
+          open={@track_modal_open}
+          suggestions={@track_suggestions}
+          suggestions_loading={@track_suggestions_loading}
+          search_query={@track_search_query}
+          search_results={@track_search_results}
+          search_loading={@track_search_loading}
+          scope_item={@track_scope_item}
+          collection_item={@track_collection_item}
         />
       </div>
     </Layouts.app>
@@ -830,12 +992,38 @@ defmodule MediaCentaurWeb.LibraryLive do
     releases = MediaCentaur.ReleaseTracking.list_releases()
     events = MediaCentaur.ReleaseTracking.list_recent_events(10)
     image_map = load_tracking_images(releases)
+    tracked_items = build_tracked_items_from_watching()
 
     assign(socket,
       upcoming_releases: releases,
       upcoming_events: events,
-      upcoming_images: image_map
+      upcoming_images: image_map,
+      tracked_items: tracked_items
     )
+  end
+
+  defp build_tracked_items_from_watching do
+    MediaCentaur.ReleaseTracking.list_watching_items()
+    |> Enum.map(fn item ->
+      releases = item.releases || []
+      upcoming_count = Enum.count(releases, &(not &1.released and not &1.in_library))
+      released_count = Enum.count(releases, &(&1.released and not &1.in_library))
+
+      status_text =
+        case {upcoming_count, released_count} do
+          {0, 0} -> "tracking"
+          {u, 0} -> "#{u} upcoming"
+          {0, r} -> "#{r} released"
+          {u, r} -> "#{u} upcoming, #{r} released"
+        end
+
+      %{
+        item_id: item.id,
+        name: item.name,
+        media_type: item.media_type,
+        status_text: status_text
+      }
+    end)
   end
 
   defp load_tracking_images(%{upcoming: upcoming, released: released}) do

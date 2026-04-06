@@ -20,7 +20,8 @@ defmodule MediaCentaur.TMDB.Mapper do
       director: extract_director(movie["credits"]),
       content_rating: extract_us_rating(movie["release_dates"]),
       aggregate_rating_value: movie["vote_average"],
-      content_url: file_path
+      content_url: file_path,
+      status: parse_movie_status(movie["status"])
     }
   end
 
@@ -36,7 +37,8 @@ defmodule MediaCentaur.TMDB.Mapper do
       genres: extract_genre_names(show["genres"]),
       url: tmdb_url(:tv, tmdb_id),
       number_of_seasons: show["number_of_seasons"],
-      aggregate_rating_value: show["vote_average"]
+      aggregate_rating_value: show["vote_average"],
+      status: parse_tv_status(show["status"])
     }
   end
 
@@ -182,6 +184,29 @@ defmodule MediaCentaur.TMDB.Mapper do
   @doc "Builds a full TMDB image CDN URL from a relative path."
   def tmdb_image_url(nil), do: nil
   def tmdb_image_url(path), do: "https://image.tmdb.org/t/p/original#{path}"
+
+  @tv_status_map %{
+    "Returning Series" => :returning,
+    "Ended" => :ended,
+    "Canceled" => :canceled,
+    "In Production" => :in_production,
+    "Planned" => :planned
+  }
+
+  @movie_status_map %{
+    "Released" => :released,
+    "In Production" => :in_production,
+    "Post Production" => :post_production,
+    "Planned" => :planned,
+    "Rumored" => :rumored,
+    "Canceled" => :canceled
+  }
+
+  defp parse_tv_status(nil), do: nil
+  defp parse_tv_status(status), do: Map.get(@tv_status_map, status)
+
+  defp parse_movie_status(nil), do: nil
+  defp parse_movie_status(status), do: Map.get(@movie_status_map, status)
 
   def extract_genre_names(nil), do: []
   def extract_genre_names(genres), do: Enum.map(genres, & &1["name"])

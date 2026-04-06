@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   Components for the Upcoming releases zone — calendar view with release cards.
   """
   use Phoenix.Component
+  alias Phoenix.LiveView.JS
   import MediaCentaurWeb.CoreComponents
 
   @weekdays ~w(Mon Tue Wed Thu Fri Sat Sun)
@@ -12,9 +13,9 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   attr :releases, :map, required: true
   attr :events, :list, required: true
   attr :images, :map, default: %{}
-  attr :scanning, :boolean, default: false
   attr :calendar_month, :any, required: true
   attr :selected_day, :any, default: nil
+  attr :tracked_items, :list, default: []
   attr :confirm_stop_item, :any, default: nil
 
   def upcoming_zone(assigns) do
@@ -44,7 +45,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       |> assign(:no_date, no_date)
       |> assign(:released, assigns.releases.released)
       |> assign(:dated_upcoming, Enum.filter(assigns.releases.upcoming, & &1.air_date))
-      |> assign(:tracked_items, build_tracked_items(all_releases))
+      |> assign(:tracked_items, assigns.tracked_items)
       |> assign(:selected_releases, selected_releases)
       |> assign(:weekdays, @weekdays)
 
@@ -77,13 +78,11 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
               </button>
             </div>
             <button
-              phx-click="scan_library"
-              class="btn btn-ghost btn-xs text-base-content/50"
+              phx-click={JS.push("open_track_modal") |> JS.focus(to: "#track-search-input")}
+              class="btn btn-soft btn-primary btn-sm"
               tabindex="-1"
-              disabled={@scanning}
             >
-              <.icon name="hero-magnifying-glass-mini" class="size-4" />
-              {if @scanning, do: "Scanning…", else: "Scan Library"}
+              <.icon name="hero-plus-mini" class="size-4" /> Track New Show
             </button>
           </div>
 
@@ -171,7 +170,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           <.events_content events={@events} />
         </div>
 
-        <%!-- Tracking section (nav item wraps heading + card grid — SELECT drills in) --%>
+        <%!-- Tracking section --%>
         <div
           :if={@tracked_items != []}
           data-nav-item
@@ -182,13 +181,8 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
             Tracking
           </h3>
-          <div data-nav-zone="grid">
-            <div
-              data-nav-grid
-              class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3"
-            >
-              <.tracked_item_card :for={item <- @tracked_items} item={item} images={@images} />
-            </div>
+          <div class="release-grid release-grid-dismissable text-sm pl-3">
+            <.tracked_item_row :for={item <- @tracked_items} item={item} />
           </div>
         </div>
       </div>
@@ -200,7 +194,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       >
         <.icon name="hero-calendar-mini" class="size-8 mx-auto mb-2" />
         <p>No upcoming releases tracked</p>
-        <p class="text-sm">Click "Scan Library" to find shows and movies with upcoming content</p>
+        <p class="text-sm">Click "Track New Show" to find shows and movies to follow</p>
       </div>
 
       <%!-- Stop tracking confirmation modal --%>
@@ -497,30 +491,8 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     assigns = assign(assigns, :sorted, sorted)
 
     ~H"""
-    <div class="grid grid-cols-[auto_auto_auto_1fr] gap-x-3 gap-y-0.5 text-sm pl-3 items-baseline">
-      <%= for release <- @sorted do %>
-        <span class="text-base-content/30 tabular-nums text-right">
-          {if release.air_date, do: Calendar.strftime(release.air_date, "%b %-d"), else: "—"}
-        </span>
-        <span class="font-medium truncate">{release.item.name}</span>
-        <span class={"text-base-content/50 tabular-nums #{if !release.season_number, do: "col-span-2"}"}>
-          <%= if release.season_number do %>
-            <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
-              "#{release.season_number}",
-              2,
-              "0"
-            )}
-            <span class="text-[0.8em] text-base-content/30">E</span>{String.pad_leading(
-              "#{release.episode_number}",
-              2,
-              "0"
-            )}
-          <% end %>
-        </span>
-        <span :if={release.season_number} class="text-base-content/40 truncate">
-          {if release.title, do: "\"#{release.title}\""}
-        </span>
-      <% end %>
+    <div class="release-grid release-grid-dismissable text-sm pl-3">
+      <.release_row :for={release <- @sorted} release={release} dismissable />
     </div>
     """
   end
@@ -542,30 +514,8 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     assigns = assign(assigns, :sorted, sorted)
 
     ~H"""
-    <div class="grid grid-cols-[auto_auto_auto_1fr] gap-x-3 gap-y-0.5 text-sm pl-3 items-baseline">
-      <%= for release <- @sorted do %>
-        <span class="text-base-content/30 tabular-nums text-right">
-          {Calendar.strftime(release.air_date, "%b %-d")}
-        </span>
-        <span class="font-medium truncate">{release.item.name}</span>
-        <span class={"text-base-content/50 tabular-nums #{if !release.season_number, do: "col-span-2"}"}>
-          <%= if release.season_number do %>
-            <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
-              "#{release.season_number}",
-              2,
-              "0"
-            )}
-            <span class="text-[0.8em] text-base-content/30">E</span>{String.pad_leading(
-              "#{release.episode_number}",
-              2,
-              "0"
-            )}
-          <% end %>
-        </span>
-        <span :if={release.season_number} class="text-base-content/40 truncate">
-          {if release.title, do: "\"#{release.title}\""}
-        </span>
-      <% end %>
+    <div class="release-grid text-sm pl-3">
+      <.release_row :for={release <- @sorted} release={release} />
     </div>
     """
   end
@@ -606,82 +556,112 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
       Recent Changes
     </h3>
-    <div class="space-y-1.5">
-      <p :for={event <- @events} class="text-sm text-base-content/60">
-        <span class="text-base-content/30">{format_datetime(event.inserted_at)}</span>
-        <span class="font-medium">{event.item_name}</span>
-        <span class="text-base-content/40">
-          — {event_label(event)}
+    <div class="release-grid text-sm pl-3">
+      <div :for={event <- @events} class="release-row">
+        <span class="text-base-content/30 tabular-nums text-right">
+          {format_datetime(event.inserted_at)}
         </span>
-      </p>
+        <span class="font-medium">{event.item_name}</span>
+        <span class="text-base-content/40 col-span-2">
+          {event_label(event)}
+        </span>
+      </div>
     </div>
     """
   end
 
-  # --- Tracked item card ---
+  # --- Release row (shared by released + upcoming lists) ---
+
+  attr :release, :map, required: true
+  attr :dismissable, :boolean, default: false
+
+  defp release_row(assigns) do
+    ~H"""
+    <div class="release-row group">
+      <span class="text-base-content/30 tabular-nums text-right">
+        {if @release.air_date, do: Calendar.strftime(@release.air_date, "%b %-d"), else: "—"}
+      </span>
+      <span class="font-medium truncate">{@release.item.name}</span>
+      <.release_detail release={@release} />
+      <button
+        :if={@dismissable}
+        phx-click="dismiss_release"
+        phx-value-release-id={@release.id}
+        class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="Dismiss"
+      >
+        <.icon name="hero-x-mark-mini" class="size-3.5" />
+      </button>
+    </div>
+    """
+  end
+
+  # --- Release detail (episode info or type label) ---
+
+  attr :release, :map, required: true
+
+  defp release_detail(%{release: %{season_number: s}} = assigns) when is_integer(s) do
+    ~H"""
+    <span class="text-base-content/50 tabular-nums">
+      <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
+        "#{@release.season_number}",
+        2,
+        "0"
+      )}
+      <span class="text-[0.8em] text-base-content/30">E</span>{String.pad_leading(
+        "#{@release.episode_number}",
+        2,
+        "0"
+      )}
+    </span>
+    <span class="text-base-content/40 truncate">
+      {if @release.title, do: "\"#{@release.title}\""}
+    </span>
+    """
+  end
+
+  defp release_detail(%{release: %{release_type: "theatrical"}} = assigns) do
+    ~H"""
+    <span class="text-warning/70 text-xs col-span-2">In Theaters</span>
+    """
+  end
+
+  defp release_detail(%{release: %{release_type: "digital"}} = assigns) do
+    ~H"""
+    <span class="text-info/70 text-xs col-span-2">Streaming</span>
+    """
+  end
+
+  defp release_detail(assigns) do
+    ~H"""
+    <span class="col-span-2"></span>
+    """
+  end
+
+  # --- Tracked item row ---
 
   attr :item, :map, required: true
-  attr :images, :map, default: %{}
 
-  defp tracked_item_card(assigns) do
-    item_data = assigns.item.item
-    item_images = Map.get(assigns.images, item_data.id, %{})
-    backdrop = item_images[:backdrop] || item_images[:poster]
-    logo = item_images[:logo]
-
-    assigns =
-      assigns
-      |> assign(:item_id, item_data.id)
-      |> assign(:backdrop, backdrop)
-      |> assign(:logo, logo)
-      |> assign(:name, item_data.name)
-      |> assign(:media_type, item_data.media_type)
-      |> assign(:status_text, assigns.item.status_text)
-
+  defp tracked_item_row(assigns) do
     ~H"""
-    <div
-      data-nav-item
-      data-entity-id={@item_id}
-      tabindex="0"
-      phx-click="stop_tracking"
-      phx-value-item-id={@item_id}
-      class="relative rounded-lg overflow-hidden glass-inset group outline-none cursor-pointer"
-    >
-      <div class="aspect-video relative">
-        <img
-          :if={@backdrop}
-          src={@backdrop}
-          class="w-full h-full object-cover"
-          loading="lazy"
-        />
-        <div :if={!@backdrop} class="w-full h-full flex items-center justify-center bg-base-300">
-          <.icon name="hero-film" class="size-8 text-base-content/15" />
-        </div>
-        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 via-40% to-transparent" />
-        <div class="absolute bottom-2 left-2 right-2 space-y-0.5">
-          <img
-            :if={@logo}
-            src={@logo}
-            class="max-h-8 max-w-[65%] object-contain drop-shadow-[0_1px_6px_rgba(0,0,0,0.7)]"
-          />
-          <p
-            :if={!@logo}
-            class="text-sm font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] leading-tight truncate"
-          >
-            {@name}
-          </p>
-          <p class="text-[11px] text-base-content/60 drop-shadow">{@status_text}</p>
-        </div>
-        <div class="absolute top-1.5 right-1.5">
-          <span class={[
-            "text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-black/40 backdrop-blur-sm",
-            @media_type == :tv_series && "text-info",
-            @media_type == :movie && "text-warning"
-          ]}>
-            {if @media_type == :tv_series, do: "TV", else: "Movie"}
-          </span>
-        </div>
-      </div>
+    <div class="release-row group">
+      <span class={[
+        "text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded text-center min-w-10",
+        @item.media_type == :tv_series && "bg-info/15 text-info",
+        @item.media_type == :movie && "bg-warning/15 text-warning"
+      ]}>
+        {if @item.media_type == :tv_series, do: "TV", else: "Movie"}
+      </span>
+      <span class="font-medium truncate">{@item.name}</span>
+      <span class="text-base-content/50 col-span-2 text-right">{@item.status_text}</span>
+      <button
+        phx-click="stop_tracking"
+        phx-value-item-id={@item.item_id}
+        class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
+        aria-label="Stop tracking"
+      >
+        <.icon name="hero-x-mark-mini" class="size-4" />
+      </button>
     </div>
     """
   end
@@ -749,28 +729,6 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       end)
     end)
     |> Enum.reject(fn week -> Enum.all?(week, &(&1.month != month)) end)
-  end
-
-  # Build unique tracked items with a status summary for each
-  defp build_tracked_items(all_releases) do
-    all_releases
-    |> Enum.group_by(& &1.item_id)
-    |> Enum.map(fn {_item_id, releases} ->
-      item = hd(releases).item
-      upcoming_count = Enum.count(releases, &(not &1.released))
-      released_count = Enum.count(releases, & &1.released)
-
-      status_text =
-        case {upcoming_count, released_count} do
-          {0, 0} -> "tracking"
-          {u, 0} -> "#{u} upcoming"
-          {0, r} -> "#{r} released"
-          {u, r} -> "#{u} upcoming, #{r} released"
-        end
-
-      %{item: item, status_text: status_text}
-    end)
-    |> Enum.sort_by(& &1.item.name)
   end
 
   defp releases_by_date(releases) do

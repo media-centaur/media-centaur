@@ -95,6 +95,7 @@ defmodule MediaCentaur.TestFactory do
       aggregate_rating_value: nil,
       tmdb_id: nil,
       position: 0,
+      status: nil,
       images: []
     }
 
@@ -165,6 +166,7 @@ defmodule MediaCentaur.TestFactory do
       url: nil,
       aggregate_rating_value: nil,
       number_of_seasons: nil,
+      status: nil,
       seasons: [],
       images: [],
       extras: [],
@@ -226,6 +228,7 @@ defmodule MediaCentaur.TestFactory do
       tmdb_id: nil,
       genres: nil,
       position: 0,
+      status: nil,
       movie_series_id: nil,
       images: [],
       extras: [],

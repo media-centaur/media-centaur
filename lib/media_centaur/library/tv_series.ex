@@ -18,6 +18,7 @@ defmodule MediaCentaur.Library.TVSeries do
     field :url, :string
     field :aggregate_rating_value, :float
     field :number_of_seasons, :integer
+    field :status, Ecto.Enum, values: [:returning, :ended, :canceled, :in_production, :planned]
 
     has_many :seasons, MediaCentaur.Library.Season, foreign_key: :tv_series_id
     has_many :images, MediaCentaur.Library.Image, foreign_key: :tv_series_id
@@ -38,7 +39,8 @@ defmodule MediaCentaur.Library.TVSeries do
       :genres,
       :url,
       :aggregate_rating_value,
-      :number_of_seasons
+      :number_of_seasons,
+      :status
     ])
     |> validate_required([:name])
   end
@@ -52,7 +54,8 @@ defmodule MediaCentaur.Library.TVSeries do
       :genres,
       :url,
       :aggregate_rating_value,
-      :number_of_seasons
+      :number_of_seasons,
+      :status
     ])
   end
 end

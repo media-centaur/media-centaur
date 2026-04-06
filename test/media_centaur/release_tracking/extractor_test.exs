@@ -137,6 +137,110 @@ defmodule MediaCentaur.ReleaseTracking.ExtractorTest do
     end
   end
 
+  describe "extract_movie_release_dates/1" do
+    test "extracts US theatrical and digital dates" do
+      response = %{
+        "title" => "Test Movie",
+        "release_date" => "2026-05-10",
+        "release_dates" => %{
+          "results" => [
+            %{
+              "iso_3166_1" => "US",
+              "release_dates" => [
+                %{
+                  "release_date" => "2026-05-10T00:00:00.000Z",
+                  "type" => 3,
+                  "certification" => "PG-13"
+                },
+                %{
+                  "release_date" => "2026-07-15T00:00:00.000Z",
+                  "type" => 4,
+                  "certification" => ""
+                }
+              ]
+            }
+          ]
+        }
+      }
+
+      releases = Extractor.extract_movie_release_dates(response)
+      assert length(releases) == 2
+
+      theatrical = Enum.find(releases, &(&1.release_type == "theatrical"))
+      assert theatrical.air_date == ~D[2026-05-10]
+      assert theatrical.title == "Test Movie"
+
+      digital = Enum.find(releases, &(&1.release_type == "digital"))
+      assert digital.air_date == ~D[2026-07-15]
+      assert digital.title == "Test Movie"
+    end
+
+    test "falls back to simple release_date when no detailed dates" do
+      response = %{
+        "title" => "Simple Movie",
+        "release_date" => "2027-01-01",
+        "release_dates" => %{"results" => []}
+      }
+
+      releases = Extractor.extract_movie_release_dates(response)
+      assert length(releases) == 1
+      assert hd(releases).air_date == ~D[2027-01-01]
+      assert hd(releases).release_type == "theatrical"
+    end
+
+    test "falls back when no US entry exists" do
+      response = %{
+        "title" => "Foreign Movie",
+        "release_date" => "2027-03-01",
+        "release_dates" => %{
+          "results" => [
+            %{
+              "iso_3166_1" => "GB",
+              "release_dates" => [%{"release_date" => "2027-02-01T00:00:00.000Z", "type" => 3}]
+            }
+          ]
+        }
+      }
+
+      releases = Extractor.extract_movie_release_dates(response)
+      assert length(releases) == 1
+      assert hd(releases).air_date == ~D[2027-03-01]
+    end
+
+    test "handles nil release_dates" do
+      response = %{"title" => "No Dates", "release_date" => nil, "release_dates" => nil}
+
+      releases = Extractor.extract_movie_release_dates(response)
+      assert length(releases) == 1
+      assert hd(releases).air_date == nil
+    end
+
+    test "extracts only theatrical when no digital date" do
+      response = %{
+        "title" => "Theater Only",
+        "release_date" => "2026-06-01",
+        "release_dates" => %{
+          "results" => [
+            %{
+              "iso_3166_1" => "US",
+              "release_dates" => [
+                %{
+                  "release_date" => "2026-06-01T00:00:00.000Z",
+                  "type" => 3,
+                  "certification" => "R"
+                }
+              ]
+            }
+          ]
+        }
+      }
+
+      releases = Extractor.extract_movie_release_dates(response)
+      assert length(releases) == 1
+      assert hd(releases).release_type == "theatrical"
+    end
+  end
+
   describe "extract_episodes_since/3" do
     test "returns episodes after the given season/episode" do
       season = %{
