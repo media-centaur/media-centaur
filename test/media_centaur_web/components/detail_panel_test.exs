@@ -281,6 +281,100 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     end
   end
 
+  # --- build_file_groups/2 ---
+
+  describe "build_file_groups/2" do
+    test "groups files by directory" do
+      files = [
+        %{file: %{file_path: "/media/movies/The Matrix/movie.mkv"}, size: 4_000_000_000},
+        %{file: %{file_path: "/media/movies/The Matrix/extras.mkv"}, size: 1_000_000_000}
+      ]
+
+      result = DetailPanel.build_file_groups(files, MapSet.new())
+
+      assert [%{dir: "/media/movies/The Matrix", name: "The Matrix", files: files_list}] = result
+      assert length(files_list) == 2
+    end
+
+    test "sorts groups by directory path" do
+      files = [
+        %{file: %{file_path: "/z-dir/movie.mkv"}, size: 100},
+        %{file: %{file_path: "/a-dir/movie.mkv"}, size: 200}
+      ]
+
+      result = DetailPanel.build_file_groups(files, MapSet.new())
+
+      assert [%{dir: "/a-dir"}, %{dir: "/z-dir"}] = result
+    end
+
+    test "flags watch directories" do
+      files = [
+        %{file: %{file_path: "/watch/movie.mkv"}, size: 100},
+        %{file: %{file_path: "/other/movie.mkv"}, size: 200}
+      ]
+
+      watch_dirs = MapSet.new(["/watch"])
+      result = DetailPanel.build_file_groups(files, watch_dirs)
+
+      watch_group = Enum.find(result, &(&1.dir == "/watch"))
+      other_group = Enum.find(result, &(&1.dir == "/other"))
+
+      assert watch_group.is_watch_dir == true
+      assert other_group.is_watch_dir == false
+    end
+
+    test "returns empty list for empty files" do
+      assert DetailPanel.build_file_groups([], MapSet.new()) == []
+    end
+  end
+
+  # --- build_delete_all_payload/2 ---
+
+  describe "build_delete_all_payload/2" do
+    test "builds grouped payload with totals" do
+      files = [
+        %{file: %{file_path: "/media/Sample Show Four/ep1.mkv"}, size: 4_000_000_000},
+        %{file: %{file_path: "/media/Sample Show Four/ep2.mkv"}, size: 3_000_000_000},
+        %{file: %{file_path: "/other/movie.mkv"}, size: 2_000_000_000}
+      ]
+
+      result = DetailPanel.build_delete_all_payload(files, MapSet.new())
+
+      assert result.file_count == 3
+      assert result.total_size == 9_000_000_000
+
+      assert length(result.file_groups) == 2
+
+      shoresy_group = Enum.find(result.file_groups, &(&1.name == "Sample Show Four"))
+      assert length(shoresy_group.files) == 2
+      assert Enum.all?(shoresy_group.files, &Map.has_key?(&1, :path))
+      assert Enum.all?(shoresy_group.files, &Map.has_key?(&1, :name))
+      assert Enum.all?(shoresy_group.files, &Map.has_key?(&1, :size))
+    end
+
+    test "flags watch directories in payload" do
+      files = [
+        %{file: %{file_path: "/watch/movie.mkv"}, size: 100}
+      ]
+
+      result = DetailPanel.build_delete_all_payload(files, MapSet.new(["/watch"]))
+
+      assert [%{is_watch_dir: true}] = result.file_groups
+    end
+
+    test "handles nil sizes gracefully" do
+      files = [
+        %{file: %{file_path: "/dir/movie.mkv"}, size: nil},
+        %{file: %{file_path: "/dir/other.mkv"}, size: 1000}
+      ]
+
+      result = DetailPanel.build_delete_all_payload(files, MapSet.new())
+
+      assert result.total_size == 1000
+      assert result.file_count == 2
+    end
+  end
+
   # --- build_episode_list/2 ---
 
   describe "build_episode_list/2" do

@@ -948,14 +948,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       if is_list(assigns.entity.external_ids), do: assigns.entity.external_ids, else: []
 
     watch_dirs = MapSet.new(MediaCentaur.Config.get(:watch_dirs) || [])
-
-    file_groups =
-      assigns.files
-      |> Enum.group_by(fn %{file: file} -> Path.dirname(file.file_path) end)
-      |> Enum.sort_by(fn {dir, _files} -> dir end)
-      |> Enum.map(fn {dir, files} ->
-        %{dir: dir, name: Path.basename(dir), files: files, is_watch_dir: dir in watch_dirs}
-      end)
+    file_groups = build_file_groups(assigns.files, watch_dirs)
 
     assigns =
       assigns
@@ -969,17 +962,29 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     <div class="pt-3 space-y-5">
       <%!-- Files section --%>
       <div :if={@files != []}>
-        <div class="flex items-center justify-between mb-2">
+        <div class="group/files flex items-center justify-between mb-2">
           <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
             Files
           </span>
-          <span class="text-xs text-base-content/40">
-            {file_summary(@file_count, @total_size)}
-          </span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-base-content/40">
+              {file_summary(@file_count, @total_size)}
+            </span>
+            <button
+              :if={@file_count > 1}
+              phx-click="delete_all_prompt"
+              class="btn btn-ghost btn-xs text-error/60 hover:text-error opacity-0 group-hover/files:opacity-100 focus:opacity-100 transition-opacity"
+              data-nav-item
+              tabindex="0"
+              aria-label="Delete all files"
+            >
+              <.icon name="hero-trash-mini" class="size-3.5" /> Delete all
+            </button>
+          </div>
         </div>
         <div class="space-y-3">
           <div :for={group <- @file_groups}>
-            <div class="flex items-center gap-1.5 mb-1.5">
+            <div class="group/folder flex items-center gap-1.5 mb-1.5">
               <.icon name="hero-folder-mini" class="size-3.5 text-base-content/40 flex-shrink-0" />
               <span
                 class="text-xs font-medium text-base-content/60 truncate"
@@ -992,7 +997,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 phx-click="delete_folder_prompt"
                 phx-value-path={group.dir}
                 phx-value-count={length(group.files)}
-                class="btn btn-ghost btn-xs text-error/60 hover:text-error ml-auto flex-shrink-0"
+                class="btn btn-ghost btn-xs text-error/60 hover:text-error ml-auto flex-shrink-0 opacity-0 group-hover/folder:opacity-100 focus:opacity-100 transition-opacity"
+                data-nav-item
+                tabindex="0"
               >
                 <.icon name="hero-folder-minus-mini" class="size-3.5" />
                 Delete ({length(group.files)} {if length(group.files) == 1,
@@ -1010,9 +1017,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <.delete_confirmation delete_confirm={@delete_confirm} />
 
       <%!-- Metadata section --%>
-      <div :if={
-        @genres != [] || @entity.director || @entity.aggregate_rating_value || @entity.duration
-      }>
+      <div
+        :if={@genres != [] || @entity.director || @entity.aggregate_rating_value || @entity.duration}
+        data-nav-item
+        tabindex="0"
+        class="rounded-xl outline-none"
+      >
         <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
           Metadata
         </span>
@@ -1041,7 +1051,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       </div>
 
       <%!-- External IDs section --%>
-      <div>
+      <div data-nav-item tabindex="0" class="rounded-xl outline-none">
         <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
           External IDs
         </span>
@@ -1108,7 +1118,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:absent, absent)
 
     ~H"""
-    <div class={["text-sm rounded p-2 bg-base-content/5", @absent && "opacity-60"]}>
+    <div class={["group text-sm rounded p-2 bg-base-content/5", @absent && "opacity-60"]}>
       <div class="flex items-center gap-2">
         <.icon
           name={if @absent, do: "hero-exclamation-triangle-mini", else: "hero-document-mini"}
@@ -1124,14 +1134,56 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <button
           phx-click="delete_file_prompt"
           phx-value-path={@file_path}
-          class="btn btn-ghost btn-xs size-6 min-h-0 p-0 text-base-content/30 hover:text-error flex-shrink-0"
+          class="btn btn-ghost btn-xs size-6 min-h-0 p-0 text-base-content/30 hover:text-error flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
           aria-label="Delete file"
+          data-nav-item
+          tabindex="0"
         >
           <.icon name="hero-trash-mini" class="size-3.5" />
         </button>
       </div>
     </div>
     """
+  end
+
+  @doc """
+  Groups watched files by directory, sorted alphabetically.
+  Returns a list of `%{dir, name, files, is_watch_dir}` maps.
+  """
+  def build_file_groups(files, watch_dirs) do
+    files
+    |> Enum.group_by(fn %{file: file} -> Path.dirname(file.file_path) end)
+    |> Enum.sort_by(fn {dir, _files} -> dir end)
+    |> Enum.map(fn {dir, dir_files} ->
+      %{dir: dir, name: Path.basename(dir), files: dir_files, is_watch_dir: dir in watch_dirs}
+    end)
+  end
+
+  @doc """
+  Builds the payload for the "Delete All" confirmation modal.
+  Returns `%{file_groups, total_size, file_count}` where each group has
+  `%{dir, name, is_watch_dir, files}` with files as `%{path, name, size}` maps.
+  """
+  def build_delete_all_payload(detail_files, watch_dirs) do
+    file_groups =
+      detail_files
+      |> Enum.group_by(fn %{file: file} -> Path.dirname(file.file_path) end)
+      |> Enum.sort_by(fn {dir, _files} -> dir end)
+      |> Enum.map(fn {dir, dir_files} ->
+        %{
+          dir: dir,
+          name: Path.basename(dir),
+          is_watch_dir: dir in watch_dirs,
+          files:
+            Enum.map(dir_files, fn %{file: file, size: size} ->
+              %{path: file.file_path, name: Path.basename(file.file_path), size: size}
+            end)
+        }
+      end)
+
+    total_size = Enum.reduce(detail_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
+
+    %{file_groups: file_groups, total_size: total_size, file_count: length(detail_files)}
   end
 
   def file_summary(count, total_size) do
@@ -1166,7 +1218,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :file, file)
 
     ~H"""
-    <div class="modal-backdrop" data-state="open" style="z-index: 60;">
+    <div
+      class="modal-backdrop"
+      data-state="open"
+      data-detail-mode="modal"
+      data-dismiss-event="delete_cancel"
+      phx-window-keydown="delete_cancel"
+      phx-key="Escape"
+      style="z-index: 60;"
+    >
       <div class="modal-panel modal-panel-sm p-6" phx-click-away="delete_cancel">
         <h3 class="text-lg font-bold text-error">Delete file?</h3>
         <div class="mt-3 rounded-lg bg-base-content/5 p-3">
@@ -1184,8 +1244,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <p class="mt-3 text-sm text-warning">This file will be permanently deleted from disk.</p>
         <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
         <div class="mt-4 flex justify-end gap-2">
-          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm">Cancel</button>
-          <button phx-click="delete_confirm" class="btn btn-soft btn-error btn-sm">Delete</button>
+          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm" data-nav-item tabindex="0">
+            Cancel
+          </button>
+          <button
+            phx-click="delete_confirm"
+            class="btn btn-soft btn-error btn-sm"
+            data-nav-item
+            tabindex="0"
+          >
+            Delete
+          </button>
         </div>
       </div>
     </div>
@@ -1196,7 +1265,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns = assign(assigns, :folder, folder)
 
     ~H"""
-    <div class="modal-backdrop" data-state="open" style="z-index: 60;">
+    <div
+      class="modal-backdrop"
+      data-state="open"
+      data-detail-mode="modal"
+      data-dismiss-event="delete_cancel"
+      phx-window-keydown="delete_cancel"
+      phx-key="Escape"
+      style="z-index: 60;"
+    >
       <div class="modal-panel p-6" phx-click-away="delete_cancel">
         <h3 class="text-lg font-bold text-error">Delete folder?</h3>
         <div class="mt-3 rounded-lg bg-base-content/5 p-3">
@@ -1230,9 +1307,85 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </p>
         <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
         <div class="mt-4 flex justify-end gap-2">
-          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm">Cancel</button>
-          <button phx-click="delete_confirm" class="btn btn-soft btn-error btn-sm">
+          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm" data-nav-item tabindex="0">
+            Cancel
+          </button>
+          <button
+            phx-click="delete_confirm"
+            class="btn btn-soft btn-error btn-sm"
+            data-nav-item
+            tabindex="0"
+          >
             Delete folder
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp delete_confirmation(%{delete_confirm: {:all, all_info}} = assigns) do
+    assigns = assign(assigns, :all_info, all_info)
+
+    ~H"""
+    <div
+      class="modal-backdrop"
+      data-state="open"
+      data-detail-mode="modal"
+      data-dismiss-event="delete_cancel"
+      phx-window-keydown="delete_cancel"
+      phx-key="Escape"
+      style="z-index: 60;"
+    >
+      <div class="modal-panel p-6" phx-click-away="delete_cancel">
+        <h3 class="text-lg font-bold text-error">Delete all files?</h3>
+        <p class="mt-1 text-sm text-base-content/60">
+          {file_summary(@all_info.file_count, @all_info.total_size)} across {length(
+            @all_info.file_groups
+          )} {if length(@all_info.file_groups) == 1,
+            do: "folder",
+            else: "folders"}
+        </p>
+        <div class="mt-3 rounded-lg bg-base-content/5 p-3 max-h-64 overflow-y-auto thin-scrollbar space-y-2">
+          <div :for={group <- @all_info.file_groups}>
+            <div class="flex items-center gap-1.5 mb-1">
+              <.icon name="hero-folder-mini" class="size-3.5 text-base-content/40 flex-shrink-0" />
+              <span class="text-xs font-medium text-base-content/60 truncate" title={group.dir}>
+                {group.name}
+              </span>
+            </div>
+            <div class="ml-5 space-y-0.5">
+              <div
+                :for={file <- group.files}
+                class="flex items-center gap-2 text-xs text-base-content/60"
+              >
+                <.icon
+                  name="hero-document-mini"
+                  class="size-3 text-base-content/30 flex-shrink-0"
+                />
+                <span class="truncate font-mono">{file.name}</span>
+                <span :if={file.size} class="text-base-content/30 flex-shrink-0 ml-auto">
+                  {format_file_size(file.size)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="mt-3 text-sm text-warning">
+          All files will be permanently deleted from disk.
+        </p>
+        <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
+        <div class="mt-4 flex justify-end gap-2">
+          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm" data-nav-item tabindex="0">
+            Cancel
+          </button>
+          <button
+            phx-click="delete_confirm"
+            class="btn btn-soft btn-error btn-sm"
+            data-nav-item
+            tabindex="0"
+          >
+            Delete all
           </button>
         </div>
       </div>
