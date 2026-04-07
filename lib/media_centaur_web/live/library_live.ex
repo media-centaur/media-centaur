@@ -610,6 +610,16 @@ defmodule MediaCentaurWeb.LibraryLive do
     end
   end
 
+  def handle_event("delete_all_prompt", _params, socket) do
+    if playing?(socket.assigns.playback, socket.assigns.selected_entity_id) do
+      {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
+    else
+      watch_dirs = MapSet.new(MediaCentaur.Config.get(:watch_dirs) || [])
+      payload = DetailPanel.build_delete_all_payload(socket.assigns.detail_files, watch_dirs)
+      {:noreply, assign(socket, delete_confirm: {:all, payload})}
+    end
+  end
+
   def handle_event("delete_confirm", _params, socket) do
     entity_id = socket.assigns.selected_entity_id
 
@@ -625,6 +635,18 @@ defmodule MediaCentaurWeb.LibraryLive do
             |> Enum.filter(&String.starts_with?(&1, folder_path <> "/"))
 
           FileEventHandler.delete_folder(folder_path, file_paths)
+
+        {:all, %{file_groups: file_groups}} ->
+          Enum.each(file_groups, fn group ->
+            if group.is_watch_dir do
+              Enum.each(group.files, fn %{path: path} -> FileEventHandler.delete_file(path) end)
+            else
+              file_paths = Enum.map(group.files, & &1.path)
+              FileEventHandler.delete_folder(group.dir, file_paths)
+            end
+          end)
+
+          {:ok, []}
 
         nil ->
           {:ok, []}
