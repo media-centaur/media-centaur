@@ -137,6 +137,8 @@ defmodule MediaCentaur.Playback.SessionRecovery do
         {season_number, episode_number, episode_name} =
           resolve_episode_context(entity, content_url)
 
+        direct_fks = resolve_direct_fks(entity, content_url)
+
         {:ok,
          %{
            entity_id: entity_id,
@@ -146,7 +148,8 @@ defmodule MediaCentaur.Playback.SessionRecovery do
            episode_name: episode_name,
            content_url: content_url,
            start_position: position
-         }}
+         }
+         |> Map.merge(direct_fks)}
 
       :not_found ->
         {:ok,
@@ -174,6 +177,39 @@ defmodule MediaCentaur.Playback.SessionRecovery do
       :not_found -> :not_found
     end
   end
+
+  defp resolve_direct_fks(%{type: :movie} = entity, _content_url),
+    do: %{movie_id: entity.id}
+
+  defp resolve_direct_fks(%{type: :video_object} = entity, _content_url),
+    do: %{video_object_id: entity.id}
+
+  defp resolve_direct_fks(%{type: :tv_series} = entity, content_url) do
+    alias MediaCentaur.Playback.EpisodeList
+
+    episode_id =
+      Enum.find_value(entity.seasons || [], fn season ->
+        Enum.find_value(season.episodes || [], fn episode ->
+          if episode.content_url == content_url, do: episode.id
+        end)
+      end)
+
+    %{episode_id: episode_id}
+  end
+
+  defp resolve_direct_fks(%{type: :movie_series} = entity, content_url) do
+    alias MediaCentaur.Playback.MovieList
+
+    movie_id =
+      case MovieList.find_by_content_url(entity, content_url) do
+        {_ordinal, id, _name} -> id
+        nil -> nil
+      end
+
+    %{movie_id: movie_id}
+  end
+
+  defp resolve_direct_fks(_entity, _content_url), do: %{}
 
   defp resolve_episode_context(entity, content_url) do
     alias MediaCentaur.Playback.{EpisodeList, MovieList}
