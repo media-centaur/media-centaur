@@ -271,7 +271,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         end)
 
       # Entity/episode/movie playback — broadcast entity progress update
-      session.episode_number ->
+      session.movie_id || session.episode_id || session.video_object_id ->
         entity_id = session.entity_id
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
@@ -365,7 +365,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     persist_extra_progress(state)
   end
 
-  defp persist_progress(%{episode_number: nil}), do: :ok
+  defp persist_progress(%{movie_id: nil, episode_id: nil, video_object_id: nil}), do: :ok
 
   defp persist_progress(state) do
     persist_entity_progress(state)
