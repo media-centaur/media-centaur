@@ -54,6 +54,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     |> cast(attrs, [
       :name,
       :status,
+      :library_entity_id,
       :last_refreshed_at,
       :poster_path,
       :backdrop_path,

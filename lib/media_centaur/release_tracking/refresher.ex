@@ -177,7 +177,43 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     hours * 60 * 60 * 1000
   end
 
+  defp link_unlinked_items(entity_ids) do
+    tmdb_mappings =
+      from(ext in MediaCentaur.Library.ExternalId,
+        where: ext.tv_series_id in ^entity_ids and ext.source == "tmdb",
+        select: {ext.tv_series_id, ext.external_id}
+      )
+      |> MediaCentaur.Repo.all()
+
+    Enum.each(tmdb_mappings, fn {tv_series_id, tmdb_id_str} ->
+      tmdb_id = String.to_integer(tmdb_id_str)
+
+      from(i in ReleaseTracking.Item,
+        where:
+          i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and is_nil(i.library_entity_id)
+      )
+      |> MediaCentaur.Repo.all()
+      |> Enum.each(fn item ->
+        case ReleaseTracking.update_item(item, %{library_entity_id: tv_series_id}) do
+          {:ok, _} ->
+            Log.info(
+              :library,
+              "linked tracking item #{item.name} to library entity #{tv_series_id}"
+            )
+
+          {:error, changeset} ->
+            Log.info(
+              :library,
+              "failed to link tracking item #{item.name}: #{inspect(changeset.errors)}"
+            )
+        end
+      end)
+    end)
+  end
+
   defp update_last_episodes_for(entity_ids) do
+    link_unlinked_items(entity_ids)
+
     items =
       from(i in ReleaseTracking.Item,
         where: i.library_entity_id in ^entity_ids

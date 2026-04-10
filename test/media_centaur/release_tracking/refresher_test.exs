@@ -219,6 +219,87 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
     end
   end
 
+  describe "update_last_episodes_for — auto-linking" do
+    test "links a manually-tracked item to a library entity by TMDB ID and updates episode progress" do
+      tv_series = create_tv_series(%{name: "The Pitt"})
+
+      create_external_id(%{
+        tv_series_id: tv_series.id,
+        source: "tmdb",
+        external_id: "250307"
+      })
+
+      season =
+        create_season(%{tv_series_id: tv_series.id, season_number: 2, number_of_episodes: 14})
+
+      for ep <- 1..14 do
+        create_episode(%{season_id: season.id, episode_number: ep, name: "Episode #{ep}"})
+      end
+
+      # Manually-tracked item with no library_entity_id — simulates the real scenario
+      item =
+        create_tracking_item(%{
+          tmdb_id: 250_307,
+          media_type: :tv_series,
+          name: "The Pitt",
+          source: :manual,
+          last_library_season: 2,
+          last_library_episode: 13
+        })
+
+      ReleaseTracking.create_release!(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), -1),
+        title: "8:00 P.M.",
+        season_number: 2,
+        episode_number: 14,
+        released: true
+      })
+
+      Refresher.refresh_item_tracking_for([tv_series.id])
+
+      updated = ReleaseTracking.get_item(item.id)
+      assert updated.library_entity_id == tv_series.id
+      assert updated.last_library_episode == 14
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert Enum.all?(releases, & &1.in_library)
+    end
+
+    test "does not affect items already linked to a library entity" do
+      tv_series = create_tv_series(%{name: "Already Linked"})
+
+      create_external_id(%{
+        tv_series_id: tv_series.id,
+        source: "tmdb",
+        external_id: "11111"
+      })
+
+      season =
+        create_season(%{tv_series_id: tv_series.id, season_number: 1, number_of_episodes: 5})
+
+      for ep <- 1..5 do
+        create_episode(%{season_id: season.id, episode_number: ep, name: "Episode #{ep}"})
+      end
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 11_111,
+          media_type: :tv_series,
+          name: "Already Linked",
+          library_entity_id: tv_series.id,
+          last_library_season: 1,
+          last_library_episode: 4
+        })
+
+      Refresher.refresh_item_tracking_for([tv_series.id])
+
+      updated = ReleaseTracking.get_item(item.id)
+      assert updated.library_entity_id == tv_series.id
+      assert updated.last_library_episode == 5
+    end
+  end
+
   describe "update_last_episodes_for (via PubSub)" do
     test "removes tracking item when library entity is deleted" do
       tv_series = create_tv_series(%{name: "Cancelled Show"})
