@@ -21,7 +21,9 @@ defmodule MediaCentaur.WatchHistory.StatsTest do
     end
 
     test "sums count and seconds" do
-      events = [make_event(~D[2026-04-10], 7200.0), make_event(~D[2026-04-09], 3600.0)]
+      today = Date.utc_today()
+      yesterday = Date.add(today, -1)
+      events = [make_event(today, 7200.0), make_event(yesterday, 3600.0)]
       result = Stats.compute(events)
       assert result.total_count == 2
       assert result.total_seconds == 10_800.0
@@ -66,7 +68,7 @@ defmodule MediaCentaur.WatchHistory.StatsTest do
     end
 
     test "counts completions per day" do
-      date = ~D[2026-04-10]
+      date = Date.utc_today()
       events = [make_event(date), make_event(date)]
       assert Stats.heatmap(events)[date] == 2
     end

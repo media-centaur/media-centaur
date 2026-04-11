@@ -17,5 +17,6 @@ defmodule MediaCentaur.Topics do
   def review_updates, do: "review:updates"
   def settings_updates, do: "settings:updates"
   def release_tracking_updates, do: "release_tracking:updates"
+  def watch_history_events, do: "watch_history:events"
   def console_logs, do: "console:logs"
 end

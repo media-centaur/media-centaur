@@ -25,7 +25,7 @@ defmodule MediaCentaur.WatchHistory.Stats do
 
   @doc "Sum duration_seconds across all events."
   def total_seconds([]), do: 0.0
-  def total_seconds(events), do: Enum.reduce(events, 0.0, &(&1.duration_seconds + &2))
+  def total_seconds(events), do: Enum.reduce(events, 0.0, &(&2 + &1.duration_seconds))
 
   @doc """
   Count consecutive days with at least one completion, ending today or yesterday.
@@ -72,7 +72,6 @@ defmodule MediaCentaur.WatchHistory.Stats do
     start_date = Date.add(today, -(@days - 1))
 
     Date.range(start_date, today)
-    |> Enum.to_list()
     |> Enum.chunk_every(7)
     |> Enum.with_index()
     |> Enum.flat_map(fn {week_dates, week_idx} ->
