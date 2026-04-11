@@ -25,8 +25,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         filter_date: nil,
         page: 1,
         deleting_event: nil,
-        deleted_event: nil,
-        delete_task: nil
+        deleted_event: nil
       )
 
     {events, has_next} = fetch_page(socket)
@@ -316,17 +315,23 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         {:noreply, socket}
 
       event ->
-        task =
-          Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, fn ->
-            WatchHistory.remove_event!(event)
+        parent = self()
 
-            %{
-              stats: WatchHistory.stats(),
-              heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type()
-            }
-          end)
+        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          WatchHistory.remove_event!(event)
 
-        {:noreply, assign(socket, deleting_event: event, delete_task: task.ref)}
+          send(
+            parent,
+            {:delete_result, event,
+             %{
+               stats: WatchHistory.stats(),
+               heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type()
+             }}
+          )
+        end)
+
+        events = Enum.reject(socket.assigns.events, &(&1.id == event.id))
+        {:noreply, assign(socket, events: events, deleting_event: event)}
     end
   end
 
@@ -350,9 +355,10 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   end
 
   @impl true
-  def handle_info({ref, %{stats: stats, heatmap_cells_by_type: heatmap}}, socket)
-      when socket.assigns.delete_task == ref do
-    Process.demonitor(ref, [:flush])
+  def handle_info(
+        {:delete_result, event, %{stats: stats, heatmap_cells_by_type: heatmap}},
+        socket
+      ) do
     socket = assign(socket, page: 1)
     {events, has_next} = fetch_page(socket)
 
@@ -362,16 +368,9 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
        has_next: has_next,
        stats: stats,
        heatmap_cells_by_type: heatmap,
-       deleted_event: socket.assigns.deleting_event,
-       deleting_event: nil,
-       delete_task: nil
+       deleted_event: event,
+       deleting_event: nil
      )}
-  end
-
-  @impl true
-  def handle_info({:DOWN, ref, :process, _pid, _reason}, socket)
-      when socket.assigns.delete_task == ref do
-    {:noreply, assign(socket, deleting_event: nil, delete_task: nil)}
   end
 
   @impl true
