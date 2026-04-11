@@ -25,7 +25,8 @@ defmodule MediaCentaurWeb.LibraryLive do
     Playback.ProgressBroadcaster,
     Playback.ResumeTarget,
     ReleaseTracking,
-    Settings
+    Settings,
+    WatchHistory
   }
 
   alias MediaCentaurWeb.Components.{
@@ -45,6 +46,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       Playback.subscribe()
       Settings.subscribe()
       ReleaseTracking.subscribe()
+      WatchHistory.subscribe()
     end
 
     {:ok,
@@ -88,7 +90,9 @@ defmodule MediaCentaurWeb.LibraryLive do
        track_confirmed_ids: MapSet.new(),
        tracking_status: nil,
        confirm_stop_item: nil,
-       tracked_items: []
+       tracked_items: [],
+       history_stats: WatchHistory.stats(),
+       history_events: WatchHistory.recent_events(5)
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -826,6 +830,16 @@ defmodule MediaCentaurWeb.LibraryLive do
     end
   end
 
+  @impl true
+  def handle_info({:watch_event_created, _event}, socket) do
+    socket =
+      socket
+      |> assign(:history_stats, WatchHistory.stats())
+      |> assign(:history_events, WatchHistory.recent_events(5))
+
+    {:noreply, socket}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -894,6 +908,48 @@ defmodule MediaCentaurWeb.LibraryLive do
               resume={Map.get(@resume_targets, entry.entity.id)}
               playing={playing?(@playback, entry.entity.id)}
             />
+          </div>
+
+          <%!-- Watch History widget --%>
+          <div class="card bg-base-200 mt-8 max-w-sm" id="watch-history-widget">
+            <div class="card-body gap-3 p-4">
+              <div class="flex items-center justify-between">
+                <h3 class="card-title text-sm">Watch History</h3>
+                <.link
+                  navigate={~p"/history"}
+                  class="text-xs text-base-content/60 hover:text-base-content"
+                >
+                  View all →
+                </.link>
+              </div>
+              <p class="text-xs text-base-content/60">
+                {@history_stats.total_count} titles · {Float.round(
+                  @history_stats.total_seconds / 3600,
+                  1
+                )} hrs watched
+              </p>
+              <div :if={@history_events == []} class="text-xs text-base-content/50">
+                No watch history yet.
+              </div>
+              <ul :if={@history_events != []} class="space-y-2">
+                <li :for={event <- @history_events} class="flex items-center gap-3 min-w-0">
+                  <div class="w-8 h-12 flex-shrink-0 rounded overflow-hidden bg-base-300">
+                    <img
+                      :if={event_poster_url(event)}
+                      src={event_poster_url(event)}
+                      class="w-full h-full object-cover"
+                      alt=""
+                    />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="truncate text-sm">{event.title}</div>
+                    <div class="text-xs text-base-content/50">
+                      {history_time_ago(event.completed_at)}
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
         </section>
 
@@ -976,6 +1032,36 @@ defmodule MediaCentaurWeb.LibraryLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  # --- Pure Helpers (public for testability, ADR-030) ---
+
+  @doc """
+  Returns a human-readable relative time string for a UTC datetime,
+  using natural language day counts. Used by the watch history widget.
+  Examples: "Today", "Yesterday", "3 days ago", "2 weeks ago", "1 month ago".
+  """
+  def history_time_ago(%DateTime{} = datetime) do
+    days = DateTime.diff(DateTime.utc_now(), datetime, :day)
+
+    cond do
+      days == 0 -> "Today"
+      days == 1 -> "Yesterday"
+      days < 7 -> "#{days} days ago"
+      days < 14 -> "1 week ago"
+      days < 30 -> "#{div(days, 7)} weeks ago"
+      days < 60 -> "1 month ago"
+      true -> "#{div(days, 30)} months ago"
+    end
+  end
+
+  @doc """
+  Returns the poster image URL for a watch event, or nil if unavailable.
+  Resolves the first non-nil entity association (movie, episode, video_object).
+  """
+  def event_poster_url(event) do
+    entity = event.movie || event.episode || event.video_object
+    if entity, do: image_url(entity, "poster")
   end
 
   # --- Data Loading ---
@@ -1396,7 +1482,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     progress =
       case Library.get_extra_progress_by_extra(extra_id) do
         {:ok, record} -> record
-        _ -> nil
       end
 
     case progress do
