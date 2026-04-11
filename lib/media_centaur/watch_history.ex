@@ -90,7 +90,13 @@ defmodule MediaCentaur.WatchHistory do
   defp maybe_filter_search(query, ""), do: query
 
   defp maybe_filter_search(query, search) do
-    where(query, [e], ilike(e.title, ^"%#{search}%"))
+    escaped =
+      search
+      |> String.replace("\\", "\\\\")
+      |> String.replace("%", "\\%")
+      |> String.replace("_", "\\_")
+
+    where(query, [e], ilike(e.title, ^"%#{escaped}%"))
   end
 
   defp maybe_filter_date(query, nil), do: query
@@ -105,12 +111,7 @@ defmodule MediaCentaur.WatchHistory do
     case Library.get_watch_progress_by_fk(:movie_id, movie_id) do
       {:ok, progress} ->
         Library.mark_watch_incomplete(progress)
-
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
-          Topics.library_updates(),
-          {:entities_changed, [movie_id]}
-        )
+        Library.broadcast_entities_changed([movie_id])
 
       _ ->
         :ok
@@ -119,8 +120,12 @@ defmodule MediaCentaur.WatchHistory do
 
   defp reset_watch_progress(%Event{episode_id: episode_id}) when not is_nil(episode_id) do
     case Library.get_watch_progress_by_fk(:episode_id, episode_id) do
-      {:ok, progress} -> Library.mark_watch_incomplete(progress)
-      _ -> :ok
+      {:ok, progress} ->
+        Library.mark_watch_incomplete(progress)
+        Library.broadcast_entities_changed([episode_id])
+
+      _ ->
+        :ok
     end
   end
 
@@ -129,12 +134,7 @@ defmodule MediaCentaur.WatchHistory do
     case Library.get_watch_progress_by_fk(:video_object_id, video_object_id) do
       {:ok, progress} ->
         Library.mark_watch_incomplete(progress)
-
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
-          Topics.library_updates(),
-          {:entities_changed, [video_object_id]}
-        )
+        Library.broadcast_entities_changed([video_object_id])
 
       _ ->
         :ok

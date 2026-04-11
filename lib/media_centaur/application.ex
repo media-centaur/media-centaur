@@ -78,7 +78,8 @@ defmodule MediaCentaur.Application do
     [
       MediaCentaur.Library.Inbound,
       MediaCentaur.Review.Intake,
-      MediaCentaur.ReleaseTracking.Refresher
+      MediaCentaur.ReleaseTracking.Refresher,
+      MediaCentaur.WatchHistory.Recorder
     ]
   end
 
