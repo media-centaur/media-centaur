@@ -23,7 +23,10 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         filter_type: nil,
         filter_search: "",
         filter_date: nil,
-        page: 1
+        page: 1,
+        deleting_event: nil,
+        deleted_event: nil,
+        delete_task: nil
       )
 
     {events, has_next} = fetch_page(socket)
@@ -216,6 +219,50 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           </button>
         </div>
       </div>
+
+      <%!-- Deleting in-progress modal --%>
+      <div class="modal-backdrop" data-state={if @deleting_event, do: "open", else: "closed"}>
+        <div class="modal-panel modal-panel-sm p-6 flex flex-col items-center gap-4">
+          <span class="loading loading-spinner loading-md text-base-content/50"></span>
+          <div class="text-center">
+            <p class="text-sm font-medium text-base-content/70">Removing from history…</p>
+            <p class="text-xs text-base-content/40 mt-1 truncate max-w-xs">
+              {@deleting_event && @deleting_event.title}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Deleted summary modal --%>
+      <div
+        class="modal-backdrop"
+        data-state={if @deleted_event, do: "open", else: "closed"}
+        phx-click-away={@deleted_event && "dismiss_deleted_event"}
+        phx-window-keydown={@deleted_event && "dismiss_deleted_event"}
+        phx-key="Escape"
+      >
+        <div class="modal-panel modal-panel-sm p-6 space-y-4">
+          <div class="flex items-start gap-3">
+            <div class="rounded-full bg-error/10 p-2 shrink-0">
+              <.icon name="hero-trash-mini" class="size-4 text-error" />
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-semibold">Removed from history</h3>
+              <p class="text-sm text-base-content/60 truncate mt-0.5">
+                {@deleted_event && @deleted_event.title}
+              </p>
+              <p class="text-xs text-base-content/40 mt-1">
+                {@deleted_event && type_label(@deleted_event.entity_type)}
+              </p>
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <button class="btn btn-ghost btn-sm" phx-click="dismiss_deleted_event">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
     </Layouts.app>
     """
   end
@@ -269,18 +316,23 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         {:noreply, socket}
 
       event ->
-        WatchHistory.remove_event!(event)
-        stats = WatchHistory.stats()
-        {events, has_next} = fetch_page(socket)
+        task =
+          Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, fn ->
+            WatchHistory.remove_event!(event)
 
-        {:noreply,
-         assign(socket,
-           events: events,
-           has_next: has_next,
-           stats: stats,
-           heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type()
-         )}
+            %{
+              stats: WatchHistory.stats(),
+              heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type()
+            }
+          end)
+
+        {:noreply, assign(socket, deleting_event: event, delete_task: task.ref)}
     end
+  end
+
+  @impl true
+  def handle_event("dismiss_deleted_event", _params, socket) do
+    {:noreply, assign(socket, deleted_event: nil)}
   end
 
   @impl true
@@ -295,6 +347,31 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     socket = assign(socket, page: socket.assigns.page + 1)
     {events, has_next} = fetch_page(socket)
     {:noreply, assign(socket, events: events, has_next: has_next)}
+  end
+
+  @impl true
+  def handle_info({ref, %{stats: stats, heatmap_cells_by_type: heatmap}}, socket)
+      when socket.assigns.delete_task == ref do
+    Process.demonitor(ref, [:flush])
+    socket = assign(socket, page: 1)
+    {events, has_next} = fetch_page(socket)
+
+    {:noreply,
+     assign(socket,
+       events: events,
+       has_next: has_next,
+       stats: stats,
+       heatmap_cells_by_type: heatmap,
+       deleted_event: socket.assigns.deleting_event,
+       deleting_event: nil,
+       delete_task: nil
+     )}
+  end
+
+  @impl true
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, socket)
+      when socket.assigns.delete_task == ref do
+    {:noreply, assign(socket, deleting_event: nil, delete_task: nil)}
   end
 
   @impl true
