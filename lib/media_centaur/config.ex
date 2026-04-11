@@ -99,7 +99,6 @@ defmodule MediaCentaur.Config do
       skip_dirs: ["Sample"],
       file_absence_ttl_days: 30,
       recent_changes_days: 3,
-      recently_watched_count: 5,
       release_tracking_refresh_interval_hours: 24
     }
 
@@ -154,8 +153,6 @@ defmodule MediaCentaur.Config do
         get_in(toml, ["file_absence_ttl_days"]) || defaults.file_absence_ttl_days,
       recent_changes_days:
         get_in(toml, ["status", "recent_changes_days"]) || defaults.recent_changes_days,
-      recently_watched_count:
-        get_in(toml, ["status", "recently_watched_count"]) || defaults.recently_watched_count,
       release_tracking_refresh_interval_hours:
         get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
           defaults.release_tracking_refresh_interval_hours

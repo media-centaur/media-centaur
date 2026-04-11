@@ -37,9 +37,11 @@ defmodule MediaCentaur.WatchHistory do
   - `:search` — case-insensitive title substring match
   - `:date` — filter to a specific `Date`
   - `:limit` — max rows (default 100)
+  - `:offset` — rows to skip (default 0)
   """
   def list_events(opts \\ []) do
     limit = Keyword.get(opts, :limit, 100)
+    offset = Keyword.get(opts, :offset, 0)
     entity_type = Keyword.get(opts, :entity_type)
     search = Keyword.get(opts, :search)
     date = Keyword.get(opts, :date)
@@ -50,8 +52,8 @@ defmodule MediaCentaur.WatchHistory do
     |> maybe_filter_date(date)
     |> order_by([e], desc: e.completed_at)
     |> limit(^limit)
+    |> offset(^offset)
     |> Repo.all()
-    |> Repo.preload(movie: :images, episode: :images, video_object: :images)
   end
 
   @doc """
@@ -62,7 +64,20 @@ defmodule MediaCentaur.WatchHistory do
     |> order_by([e], desc: e.completed_at)
     |> limit(^limit)
     |> Repo.all()
-    |> Repo.preload(movie: :images, episode: :images, video_object: :images)
+  end
+
+  @doc """
+  Compute SVG heatmap cell sets for all entity types from a single DB query.
+  Returns %{nil => cells_all, :movie => cells, :episode => cells, :video_object => cells}.
+  """
+  def heatmap_cells_by_type do
+    events = Repo.all(Event)
+
+    Map.new([nil, :movie, :episode, :video_object], fn type ->
+      filtered = if type, do: Enum.filter(events, &(&1.entity_type == type)), else: events
+      cells = filtered |> Stats.heatmap() |> Stats.heatmap_cells()
+      {type, cells}
+    end)
   end
 
   @doc """
@@ -72,6 +87,14 @@ defmodule MediaCentaur.WatchHistory do
   def stats do
     events = Repo.all(Event)
     Stats.compute(events)
+  end
+
+  @doc """
+  Remove a WatchEvent from history. Does not affect library watch progress.
+  """
+  def remove_event!(%Event{} = event) do
+    Repo.delete!(event)
+    event
   end
 
   @doc """

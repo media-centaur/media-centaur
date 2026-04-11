@@ -2,7 +2,6 @@ defmodule MediaCentaurWeb.WatchHistoryLiveHelpersTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaurWeb.WatchHistoryLive
-  alias MediaCentaur.TestFactory
 
   # --- format_hours/1 ---
 
@@ -41,50 +40,23 @@ defmodule MediaCentaurWeb.WatchHistoryLiveHelpersTest do
 
   describe "heatmap_fill/1" do
     test "returns base fill for 0 count" do
-      assert WatchHistoryLive.heatmap_fill(0) == "fill: oklch(var(--b3))"
+      assert WatchHistoryLive.heatmap_fill(0) == "fill: var(--color-base-300)"
     end
 
     test "returns faint success fill for 1 count" do
-      assert WatchHistoryLive.heatmap_fill(1) == "fill: oklch(var(--su) / 0.35)"
+      assert WatchHistoryLive.heatmap_fill(1) ==
+               "fill: color-mix(in oklch, var(--color-success) 30%, transparent)"
     end
 
     test "returns medium success fill for 2-3 counts" do
-      assert WatchHistoryLive.heatmap_fill(2) == "fill: oklch(var(--su) / 0.65)"
-      assert WatchHistoryLive.heatmap_fill(3) == "fill: oklch(var(--su) / 0.65)"
+      fill = "fill: color-mix(in oklch, var(--color-success) 60%, transparent)"
+      assert WatchHistoryLive.heatmap_fill(2) == fill
+      assert WatchHistoryLive.heatmap_fill(3) == fill
     end
 
     test "returns full success fill for 4+ counts" do
-      assert WatchHistoryLive.heatmap_fill(4) == "fill: oklch(var(--su))"
-      assert WatchHistoryLive.heatmap_fill(10) == "fill: oklch(var(--su))"
-    end
-  end
-
-  # --- event_poster_url/1 ---
-
-  describe "event_poster_url/1" do
-    test "returns nil when all FK fields are nil (no entity loaded)" do
-      event = TestFactory.build_watch_event(%{movie: nil, episode: nil, video_object: nil})
-      assert WatchHistoryLive.event_poster_url(event) == nil
-    end
-
-    test "returns nil when movie has no poster image" do
-      movie = TestFactory.build_movie(%{images: []})
-      event = TestFactory.build_watch_event(%{movie: movie})
-      assert WatchHistoryLive.event_poster_url(event) == nil
-    end
-
-    test "returns the image URL when movie has a poster image with a content_url" do
-      image = TestFactory.build_image(%{role: "poster", content_url: "movies/abc/poster.jpg"})
-      movie = TestFactory.build_movie(%{images: [image]})
-      event = TestFactory.build_watch_event(%{movie: movie})
-      assert WatchHistoryLive.event_poster_url(event) == "/media-images/movies/abc/poster.jpg"
-    end
-
-    test "returns nil when poster image exists but has no content_url" do
-      image = TestFactory.build_image(%{role: "poster", content_url: nil})
-      movie = TestFactory.build_movie(%{images: [image]})
-      event = TestFactory.build_watch_event(%{movie: movie})
-      assert WatchHistoryLive.event_poster_url(event) == nil
+      assert WatchHistoryLive.heatmap_fill(4) == "fill: var(--color-success)"
+      assert WatchHistoryLive.heatmap_fill(10) == "fill: var(--color-success)"
     end
   end
 
@@ -98,12 +70,12 @@ defmodule MediaCentaurWeb.WatchHistoryLiveHelpersTest do
 
     test "uses singular form for count of 1" do
       assert WatchHistoryLive.heatmap_tooltip(%{count: 1, date: ~D[2026-01-01]}) ==
-               "2026-01-01 — 1 completion"
+               "2026-01-01 — 1 watched"
     end
 
     test "uses plural form for count > 1" do
       assert WatchHistoryLive.heatmap_tooltip(%{count: 3, date: ~D[2026-01-01]}) ==
-               "2026-01-01 — 3 completions"
+               "2026-01-01 — 3 watched"
     end
   end
 end

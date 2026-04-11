@@ -60,6 +60,70 @@ defmodule MediaCentaur.WatchHistory.EventTest do
     end
   end
 
+  describe "WatchHistory.remove_event!/1" do
+    test "removes the event record" do
+      event = create_watch_event(%{title: "Sample Movie Ten"})
+
+      MediaCentaur.WatchHistory.remove_event!(event)
+
+      assert_raise Ecto.NoResultsError, fn ->
+        MediaCentaur.Repo.get!(MediaCentaur.WatchHistory.Event, event.id)
+      end
+    end
+
+    test "does not affect watch progress" do
+      movie = create_movie(%{name: "Sample Movie Ten"})
+      _progress = create_watch_progress(%{movie_id: movie.id, completed: true})
+      event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Ten"})
+
+      MediaCentaur.WatchHistory.remove_event!(event)
+
+      {:ok, progress} = MediaCentaur.Library.get_watch_progress_by_fk(:movie_id, movie.id)
+      assert progress.completed == true
+    end
+
+    test "returns the deleted event" do
+      event = create_watch_event(%{title: "Sample Movie Nine"})
+      result = MediaCentaur.WatchHistory.remove_event!(event)
+      assert result.id == event.id
+    end
+  end
+
+  describe "WatchHistory.heatmap_cells_by_type/0" do
+    test "returns a map with keys for all types and nil" do
+      result = MediaCentaur.WatchHistory.heatmap_cells_by_type()
+      assert Map.has_key?(result, nil)
+      assert Map.has_key?(result, :movie)
+      assert Map.has_key?(result, :episode)
+      assert Map.has_key?(result, :video_object)
+    end
+
+    test "each value is a list of 364 cell maps" do
+      result = MediaCentaur.WatchHistory.heatmap_cells_by_type()
+
+      for {_type, cells} <- result do
+        assert length(cells) == 364
+        assert %{date: _, count: _, x: _, y: _} = hd(cells)
+      end
+    end
+
+    test "type-filtered cells only count events of that type" do
+      create_watch_event(%{entity_type: :movie, title: "A Movie"})
+      create_watch_event(%{entity_type: :episode, title: "An Episode"})
+
+      result = MediaCentaur.WatchHistory.heatmap_cells_by_type()
+      today = Date.utc_today()
+
+      movie_count = Enum.find(result[:movie], &(&1.date == today)).count
+      episode_count = Enum.find(result[:episode], &(&1.date == today)).count
+      all_count = Enum.find(result[nil], &(&1.date == today)).count
+
+      assert movie_count == 1
+      assert episode_count == 1
+      assert all_count == 2
+    end
+  end
+
   describe "WatchHistory.delete_event!/1" do
     test "deletes the event record" do
       movie = create_movie(%{name: "Sample Movie Eight"})
