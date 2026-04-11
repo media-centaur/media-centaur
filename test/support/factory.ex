@@ -439,4 +439,38 @@ defmodule MediaCentaur.TestFactory do
   def create_tracking_release(attrs) do
     ReleaseTracking.create_release!(attrs)
   end
+
+  # ---------------------------------------------------------------------------
+  # WatchHistory
+  # ---------------------------------------------------------------------------
+
+  def build_watch_event(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      entity_type: :movie,
+      movie_id: nil,
+      episode_id: nil,
+      video_object_id: nil,
+      title: "Test Movie",
+      duration_seconds: 7200.0,
+      completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+    }
+
+    struct(MediaCentaur.WatchHistory.Event, Map.merge(defaults, overrides))
+  end
+
+  def create_watch_event(attrs \\ %{}) do
+    defaults = %{
+      entity_type: :movie,
+      title: "Test Movie",
+      duration_seconds: 7200.0,
+      completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+    }
+
+    {:ok, event} =
+      Map.merge(defaults, attrs)
+      |> MediaCentaur.WatchHistory.create_event()
+
+    event
+  end
 end
