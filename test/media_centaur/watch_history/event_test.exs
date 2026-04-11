@@ -9,7 +9,7 @@ defmodule MediaCentaur.WatchHistory.EventTest do
         entity_type: :movie,
         title: "Sample Movie Thirteen",
         duration_seconds: 9360.0,
-        completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+        completed_at: DateTime.utc_now()
       }
 
       changeset = Event.create_changeset(attrs)
