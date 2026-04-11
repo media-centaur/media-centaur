@@ -96,7 +96,8 @@ defmodule MediaCentaur.WatchHistory do
       |> String.replace("%", "\\%")
       |> String.replace("_", "\\_")
 
-    where(query, [e], ilike(e.title, ^"%#{escaped}%"))
+    pattern = "%#{escaped}%"
+    where(query, [e], fragment("lower(?) LIKE lower(?)", e.title, ^pattern))
   end
 
   defp maybe_filter_date(query, nil), do: query

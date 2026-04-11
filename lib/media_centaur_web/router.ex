@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb.Router do
       live "/settings", SettingsLive, :index
       live "/review", ReviewLive, :index
       live "/console", ConsolePageLive, :index
+      live "/history", WatchHistoryLive, :index
     end
   end
 
