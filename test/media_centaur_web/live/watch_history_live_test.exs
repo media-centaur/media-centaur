@@ -44,7 +44,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       html =
         view
-        |> element("[phx-click='filter_type'][phx-value-type='movie']")
+        |> element("[role='group'] button", "Movies")
         |> render_click()
 
       assert html =~ "A Movie"
@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
 
       html =
         view
-        |> element("[phx-click='filter_type'][phx-value-type='all']")
+        |> element("[role='group'] button", "All")
         |> render_click()
 
       assert html =~ "A Movie"

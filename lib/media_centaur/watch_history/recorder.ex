@@ -116,6 +116,13 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   defp format_episode_title(episode) do
     season_num = String.pad_leading("#{episode.season.season_number}", 2, "0")
     ep_num = String.pad_leading("#{episode.episode_number}", 2, "0")
-    "#{episode.season.tv_series.name} S#{season_num}E#{ep_num}"
+    code = "S#{season_num}E#{ep_num}"
+    series = episode.season.tv_series.name
+
+    if episode.name && episode.name != "" do
+      "#{series} #{code} — #{episode.name}"
+    else
+      "#{series} #{code}"
+    end
   end
 end

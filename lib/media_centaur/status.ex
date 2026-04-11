@@ -29,8 +29,7 @@ defmodule MediaCentaur.Status do
       library: fetch_library_stats(),
       pending_review: fetch_pending_review(),
       recent_errors: fetch_recent_errors(),
-      recent_changes: fetch_recent_changes(),
-      recently_watched: []
+      recent_changes: fetch_recent_changes()
     }
   end
 
