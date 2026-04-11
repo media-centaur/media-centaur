@@ -4,10 +4,10 @@ defmodule MediaCentaur.Repo.Migrations.CreateWatchHistoryEvents do
   def change do
     create table(:watch_history_events, primary_key: false) do
       add :id, :uuid, null: false, primary_key: true
-      add :entity_type, :string, null: false
-      add :title, :string, null: false
+      add :entity_type, :text, null: false
+      add :title, :text, null: false
       add :duration_seconds, :float, null: false, default: 0.0
-      add :completed_at, :utc_datetime, null: false
+      add :completed_at, :utc_datetime_usec, null: false
 
       add :movie_id, references(:library_movies, type: :uuid, on_delete: :nilify_all)
       add :episode_id, references(:library_episodes, type: :uuid, on_delete: :nilify_all)
@@ -15,7 +15,7 @@ defmodule MediaCentaur.Repo.Migrations.CreateWatchHistoryEvents do
       add :video_object_id,
           references(:library_video_objects, type: :uuid, on_delete: :nilify_all)
 
-      timestamps(type: :utc_datetime)
+      timestamps(type: :utc_datetime_usec)
     end
 
     create index(:watch_history_events, [:completed_at])
