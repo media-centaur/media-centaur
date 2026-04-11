@@ -30,7 +30,8 @@ defmodule MediaCentaur.Library.WatchProgress do
       :episode_id,
       :video_object_id,
       :position_seconds,
-      :duration_seconds
+      :duration_seconds,
+      :completed
     ])
     |> put_change(:last_watched_at, DateTime.truncate(DateTime.utc_now(), :second))
   end
@@ -40,6 +41,7 @@ defmodule MediaCentaur.Library.WatchProgress do
     |> cast(attrs, [
       :position_seconds,
       :duration_seconds,
+      :completed,
       :movie_id,
       :episode_id,
       :video_object_id
