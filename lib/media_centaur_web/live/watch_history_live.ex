@@ -144,6 +144,14 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
             :for={event <- @events}
             class="flex items-center gap-4 p-3 rounded-box bg-base-200 group"
           >
+            <div class="w-10 h-14 flex-shrink-0 rounded overflow-hidden bg-base-300">
+              <img
+                :if={event_poster_url(event)}
+                src={event_poster_url(event)}
+                class="w-full h-full object-cover"
+                alt=""
+              />
+            </div>
             <div class="flex-1 min-w-0">
               <div class="font-medium truncate">{event.title}</div>
               <div class="text-sm text-base-content/60">
@@ -170,7 +178,14 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   @impl true
   def handle_event("filter_type", %{"type" => type_str}, socket) do
-    type = if type_str == "all", do: nil, else: String.to_existing_atom(type_str)
+    type =
+      case type_str do
+        "movie" -> :movie
+        "episode" -> :episode
+        "video_object" -> :video_object
+        _ -> nil
+      end
+
     events = load_events(socket, entity_type: type)
     {:noreply, assign(socket, events: events, filter_type: type)}
   end
@@ -183,9 +198,14 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   @impl true
   def handle_event("filter_date", %{"date" => date_str}, socket) do
-    date = Date.from_iso8601!(date_str)
-    events = load_events(socket, date: date)
-    {:noreply, assign(socket, events: events, filter_date: date)}
+    case Date.from_iso8601(date_str) do
+      {:ok, date} ->
+        events = load_events(socket, date: date)
+        {:noreply, assign(socket, events: events, filter_date: date)}
+
+      {:error, _} ->
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -196,17 +216,22 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   @impl true
   def handle_event("delete_event", %{"id" => id}, socket) do
-    event = WatchHistory.get_event!(id)
-    WatchHistory.delete_event!(event)
-    stats = WatchHistory.stats()
-    events = load_events(socket)
+    case WatchHistory.get_event(id) do
+      nil ->
+        {:noreply, socket}
 
-    {:noreply,
-     assign(socket,
-       events: events,
-       stats: stats,
-       heatmap_cells: Stats.heatmap_cells(stats.heatmap)
-     )}
+      event ->
+        WatchHistory.delete_event!(event)
+        stats = WatchHistory.stats()
+        events = load_events(socket)
+
+        {:noreply,
+         assign(socket,
+           events: events,
+           stats: stats,
+           heatmap_cells: Stats.heatmap_cells(stats.heatmap)
+         )}
+    end
   end
 
   @impl true
@@ -238,25 +263,34 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     WatchHistory.list_events(opts)
   end
 
-  defp heatmap_fill(0), do: "fill: oklch(var(--b3))"
-  defp heatmap_fill(1), do: "fill: oklch(var(--su) / 0.35)"
-  defp heatmap_fill(n) when n <= 3, do: "fill: oklch(var(--su) / 0.65)"
-  defp heatmap_fill(_), do: "fill: oklch(var(--su))"
+  def heatmap_fill(0), do: "fill: oklch(var(--b3))"
+  def heatmap_fill(1), do: "fill: oklch(var(--su) / 0.35)"
+  def heatmap_fill(n) when n <= 3, do: "fill: oklch(var(--su) / 0.65)"
+  def heatmap_fill(_), do: "fill: oklch(var(--su))"
 
-  defp heatmap_tooltip(%{count: 0, date: date}), do: Date.to_string(date)
-  defp heatmap_tooltip(%{count: 1, date: date}), do: "#{Date.to_string(date)} — 1 completion"
-  defp heatmap_tooltip(%{count: n, date: date}), do: "#{Date.to_string(date)} — #{n} completions"
+  def heatmap_tooltip(%{count: 0, date: date}), do: Date.to_string(date)
+  def heatmap_tooltip(%{count: 1, date: date}), do: "#{Date.to_string(date)} — 1 completion"
+  def heatmap_tooltip(%{count: n, date: date}), do: "#{Date.to_string(date)} — #{n} completions"
 
-  defp type_label(:movie), do: "Movie"
-  defp type_label(:episode), do: "Episode"
-  defp type_label(:video_object), do: "Video"
+  def type_label(:movie), do: "Movie"
+  def type_label(:episode), do: "Episode"
+  def type_label(:video_object), do: "Video"
 
-  defp format_hours(seconds) do
+  def format_hours(seconds) do
     hours = round(seconds / 3600)
     "#{hours} hrs"
   end
 
-  defp format_completed_at(completed_at) do
+  def format_completed_at(completed_at) do
     Calendar.strftime(completed_at, "%B %-d, %Y at %-I:%M %p")
+  end
+
+  @doc """
+  Returns the poster image URL for a watch event, or nil if unavailable.
+  Resolves the first non-nil entity association (movie, episode, video_object).
+  """
+  def event_poster_url(event) do
+    entity = event.movie || event.episode || event.video_object
+    if entity, do: image_url(entity, "poster")
   end
 end

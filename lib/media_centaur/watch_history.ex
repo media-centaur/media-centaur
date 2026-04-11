@@ -26,6 +26,9 @@ defmodule MediaCentaur.WatchHistory do
   @doc "Get a single event by id, raising if not found."
   def get_event!(id), do: Repo.get!(Event, id)
 
+  @doc "Get a single event by id, returning nil if not found."
+  def get_event(id), do: Repo.get(Event, id)
+
   @doc """
   List completion events, newest first.
 
@@ -48,6 +51,7 @@ defmodule MediaCentaur.WatchHistory do
     |> order_by([e], desc: e.completed_at)
     |> limit(^limit)
     |> Repo.all()
+    |> Repo.preload(movie: :images, episode: :images, video_object: :images)
   end
 
   @doc """
@@ -58,6 +62,7 @@ defmodule MediaCentaur.WatchHistory do
     |> order_by([e], desc: e.completed_at)
     |> limit(^limit)
     |> Repo.all()
+    |> Repo.preload(movie: :images, episode: :images, video_object: :images)
   end
 
   @doc """
