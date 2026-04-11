@@ -686,6 +686,41 @@ defmodule MediaCentaur.ParserTest do
     end
   end
 
+  # ─── Extra: sample files ────────────────────────────────────────────────
+
+  describe "extra — sample files" do
+    test "file in Sample/ subdirectory of movie release directory" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Sample.Mascot.Cosmos.2024.1080p.BluRay/Sample/super.mario.galaxy.2024-sample.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.parent_title == "Sample Mascot Cosmos"
+      assert result.parent_year == 2024
+    end
+
+    test "file with -SAMPLE suffix alongside movie in release directory" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Sample Mascot Cosmos (2024)/Sample.Mascot.Cosmos.2024.1080p.BluRay-SAMPLE.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.parent_title == "Sample Mascot Cosmos"
+      assert result.parent_year == 2024
+    end
+
+    test "Samples/ directory variant" do
+      result =
+        Parser.parse("/mnt/videos/Alien.1979.UHD.BluRay/Samples/Alien.1979-sample.mkv")
+
+      assert result.type == :extra
+      assert result.parent_title == "Alien"
+      assert result.parent_year == 1979
+    end
+  end
+
   # ─── Unknown fallback ─────────────────────────────────────────────────────
 
   describe "unknown fallback" do

@@ -82,7 +82,7 @@ defmodule MediaCentaur.Parser do
   def effective_media_type(%Result{type: :extra}), do: :movie
   def effective_media_type(%Result{type: type}), do: type
 
-  @default_extras_dirs ~w(extras featurettes bonus)
+  @default_extras_dirs ~w(extras featurettes bonus sample samples)
   @default_extras_dirs_multi_word ["special features", "behind the scenes", "deleted scenes"]
 
   @generic_names ~w(movie video episode file index sample)
@@ -125,6 +125,9 @@ defmodule MediaCentaur.Parser do
       extras_file?(file_path, extras_dirs) ->
         parse_extra(file_path, extras_dirs)
 
+      sample_filename?(file_path) ->
+        parse_sample(file_path)
+
       result = parse_compact_episode(file_path) ->
         result
 
@@ -160,6 +163,26 @@ defmodule MediaCentaur.Parser do
 
   defp extras_file?(file_path, extras_dirs) do
     find_extras_ancestor(file_path, extras_dirs) != nil
+  end
+
+  @sample_suffix_pattern ~r/-sample$/i
+
+  defp sample_filename?(file_path) do
+    base = base_without_media_extension(file_path)
+    Regex.match?(@sample_suffix_pattern, base)
+  end
+
+  defp parse_sample(file_path) do
+    parent = file_path |> Path.dirname() |> Path.basename()
+    {parent_title, parent_year} = parse_parent_movie(parent)
+
+    %Result{
+      file_path: file_path,
+      title: "Sample",
+      type: :extra,
+      parent_title: parent_title,
+      parent_year: parent_year
+    }
   end
 
   # Returns the index (in Path.split/1) of the extras directory ancestor, or nil
