@@ -59,4 +59,36 @@ defmodule MediaCentaur.WatchHistory.EventTest do
       assert reloaded.title == "Sample Movie"
     end
   end
+
+  describe "WatchHistory.delete_event!/1" do
+    test "deletes the event record" do
+      movie = create_movie(%{name: "Sample Movie Eight"})
+
+      event =
+        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Eight"})
+
+      MediaCentaur.WatchHistory.delete_event!(event)
+
+      assert_raise Ecto.NoResultsError, fn ->
+        MediaCentaur.Repo.get!(MediaCentaur.WatchHistory.Event, event.id)
+      end
+    end
+
+    test "resets watch progress to incomplete" do
+      movie = create_movie(%{name: "Sample Movie Fourteen"})
+      _progress = create_watch_progress(%{movie_id: movie.id, completed: true})
+      event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Fourteen"})
+
+      MediaCentaur.WatchHistory.delete_event!(event)
+
+      {:ok, reloaded} = MediaCentaur.Library.get_watch_progress_by_fk(:movie_id, movie.id)
+      assert reloaded.completed == false
+    end
+
+    test "succeeds when FK is nil (entity already deleted)" do
+      event = create_watch_event(%{entity_type: :movie, movie_id: nil, title: "Ghost Movie"})
+      result = MediaCentaur.WatchHistory.delete_event!(event)
+      assert result.id == event.id
+    end
+  end
 end

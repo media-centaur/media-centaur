@@ -47,14 +47,14 @@ defmodule MediaCentaur.WatchHistory.Recorder do
               {:watch_event_created, event}
             )
 
-            Log.info(:library, "watch history: recorded — #{attrs.title}")
+            Log.info(:playback, "watch history: recorded — #{attrs.title}")
 
           {:error, reason} ->
-            Log.error(:library, "watch history: insert failed — #{inspect(reason)}")
+            Log.error(:playback, "watch history: insert failed — #{inspect(reason)}")
         end
 
       {:error, reason} ->
-        Log.error(:library, "watch history: could not resolve title — #{inspect(reason)}")
+        Log.error(:playback, "watch history: could not resolve title — #{inspect(reason)}")
     end
   end
 

@@ -78,6 +78,37 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
       assert event.episode_id == episode.id
     end
 
+    test "records a WatchEvent when a video object is completed", %{recorder: recorder} do
+      video_object = create_video_object(%{name: "Extra Feature Reel"})
+
+      progress =
+        create_watch_progress(%{
+          video_object_id: video_object.id,
+          completed: true,
+          duration_seconds: 1800.0
+        })
+
+      WatchHistory.subscribe()
+
+      send(
+        recorder,
+        {:entity_progress_updated,
+         %{
+           entity_id: video_object.id,
+           changed_record: progress,
+           summary: nil,
+           resume_target: nil,
+           child_targets_delta: nil,
+           last_activity_at: DateTime.utc_now()
+         }}
+      )
+
+      assert_receive {:watch_event_created, event}, 2000
+      assert event.title == "Extra Feature Reel"
+      assert event.entity_type == :video_object
+      assert event.video_object_id == video_object.id
+    end
+
     test "ignores progress updates where completed is false", %{recorder: recorder} do
       movie = create_movie(%{name: "Sample Movie Thirteen"})
 
