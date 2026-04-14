@@ -19,6 +19,19 @@ defmodule MediaCentaurWeb.StatusHelpers do
     %{state: primary.state, now_playing: primary.now_playing, sessions: sessions}
   end
 
+  @doc """
+  Returns true if the WatchProgress record corresponds to the item currently
+  playing in the session's `now_playing` map.
+
+  Matches by direct FK ID (`episode_id`, `movie_id`, or `video_object_id`) —
+  never by season/episode numbers, which are display metadata only.
+  """
+  def progress_matches_session?(record, now_playing) do
+    (record.episode_id != nil && record.episode_id == now_playing[:episode_id]) ||
+      (record.movie_id != nil && record.movie_id == now_playing[:movie_id]) ||
+      (record.video_object_id != nil && record.video_object_id == now_playing[:video_object_id])
+  end
+
   # --- Formatting ---
 
   @doc """

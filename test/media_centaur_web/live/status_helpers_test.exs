@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.StatusHelpersTest do
   use ExUnit.Case, async: true
 
+  alias MediaCentaur.Library.WatchProgress
   alias MediaCentaurWeb.StatusHelpers
 
   # --- derive_playback/1 ---
@@ -250,6 +251,52 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
 
     test "returns success for low usage" do
       assert StatusHelpers.usage_text_class(60) == "text-success"
+    end
+  end
+
+  # --- progress_matches_session?/2 ---
+
+  describe "progress_matches_session?/2" do
+    test "matches movie progress to movie session by movie_id" do
+      progress = %WatchProgress{movie_id: "be868a6e", episode_id: nil, video_object_id: nil}
+      now_playing = %{movie_id: "be868a6e", episode_id: nil}
+
+      assert StatusHelpers.progress_matches_session?(progress, now_playing)
+    end
+
+    test "does not match when movie_id differs" do
+      progress = %WatchProgress{movie_id: "be868a6e", episode_id: nil, video_object_id: nil}
+      now_playing = %{movie_id: "other-id"}
+
+      refute StatusHelpers.progress_matches_session?(progress, now_playing)
+    end
+
+    test "matches episode progress to episode session by episode_id" do
+      progress = %WatchProgress{episode_id: "ep-uuid", movie_id: nil, video_object_id: nil}
+      now_playing = %{episode_id: "ep-uuid"}
+
+      assert StatusHelpers.progress_matches_session?(progress, now_playing)
+    end
+
+    test "does not match when episode_id differs" do
+      progress = %WatchProgress{episode_id: "ep-uuid-1", movie_id: nil, video_object_id: nil}
+      now_playing = %{episode_id: "ep-uuid-2"}
+
+      refute StatusHelpers.progress_matches_session?(progress, now_playing)
+    end
+
+    test "matches video object progress to video object session" do
+      progress = %WatchProgress{video_object_id: "vo-uuid", movie_id: nil, episode_id: nil}
+      now_playing = %{video_object_id: "vo-uuid"}
+
+      assert StatusHelpers.progress_matches_session?(progress, now_playing)
+    end
+
+    test "does not match when fk type differs — episode progress does not apply to movie session" do
+      progress = %WatchProgress{episode_id: "ep-uuid", movie_id: nil, video_object_id: nil}
+      now_playing = %{movie_id: "be868a6e"}
+
+      refute StatusHelpers.progress_matches_session?(progress, now_playing)
     end
   end
 
