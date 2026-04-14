@@ -162,9 +162,7 @@ defmodule MediaCentaurWeb.StatusLive do
       with %{now_playing: now_playing} = session when not is_nil(now_playing) <-
              Map.get(sessions, entity_id),
            %{} = record <- changed_record,
-           true <-
-             record.season_number == (now_playing[:season_number] || 0) &&
-               record.episode_number == (now_playing[:episode_number] || 0) do
+           true <- StatusHelpers.progress_matches_session?(record, now_playing) do
         updated =
           Map.merge(now_playing, %{
             position_seconds: record.position_seconds,
