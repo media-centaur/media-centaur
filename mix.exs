@@ -77,6 +77,7 @@ defmodule MediaCentaur.MixProject do
       {:broadway, "~> 1.1"},
       {:image, "~> 0.54"},
       {:toml, "~> 0.7"},
+      {:oban, "~> 2.19"},
       {:tidewave, "~> 0.5", only: :dev}
     ]
   end

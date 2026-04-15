@@ -110,6 +110,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
         write_events(item, events)
         replace_releases(item, new_releases)
         update_item_metadata(item, response)
+        maybe_broadcast_release_ready(item)
         :ok
 
       {:error, reason} ->
@@ -127,6 +128,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
         write_events(item, events)
         replace_releases(item, new_releases)
         update_item_metadata(item, response)
+        maybe_broadcast_release_ready(item)
         :ok
 
       {:error, reason} ->
@@ -363,5 +365,21 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       MediaCentaur.Topics.release_tracking_updates(),
       {:releases_updated, item_ids}
     )
+  end
+
+  defp maybe_broadcast_release_ready(item) do
+    today = Date.utc_today()
+    releases = ReleaseTracking.list_releases_for_item(item.id)
+
+    has_available =
+      Enum.any?(releases, fn r -> r.air_date != nil && Date.compare(r.air_date, today) != :gt end)
+
+    if has_available do
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        MediaCentaur.Topics.release_tracking_updates(),
+        {:release_ready, item}
+      )
+    end
   end
 end

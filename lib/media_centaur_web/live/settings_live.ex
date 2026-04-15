@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   @sections [
     %{id: "services", label: "Services"},
     %{id: "preferences", label: "Preferences"},
+    %{id: "acquisition", label: "Acquisition"},
     %{id: "configuration", label: "Configuration"},
     %{id: "danger", label: "Danger Zone"}
   ]
@@ -41,7 +42,9 @@ defmodule MediaCentaurWeb.SettingsLive do
        scanning: false,
        clearing_database: false,
        refreshing_images: false,
-       spoiler_free: spoiler_free
+       spoiler_free: spoiler_free,
+       prowlarr_test_status: nil,
+       prowlarr_testing: false
      )}
   end
 
@@ -148,6 +151,23 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
+  @impl true
+  def handle_event("test_prowlarr", _params, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      status =
+        case MediaCentaur.Acquisition.search("test", []) do
+          {:ok, _} -> :ok
+          {:error, _} -> :error
+        end
+
+      send(parent, {:prowlarr_test_result, status})
+    end)
+
+    {:noreply, assign(socket, prowlarr_testing: true, prowlarr_test_status: nil)}
+  end
+
   # --- Info handlers ---
 
   @impl true
@@ -177,6 +197,10 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(watchers_running: Watcher.Supervisor.running?())
      |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
      |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
+  end
+
+  def handle_info({:prowlarr_test_result, status}, socket) do
+    {:noreply, assign(socket, prowlarr_testing: false, prowlarr_test_status: status)}
   end
 
   def handle_info(_msg, socket) do
@@ -378,6 +402,83 @@ defmodule MediaCentaurWeb.SettingsLive do
           class="btn btn-soft btn-warning btn-sm"
         >
           {if @refreshing_images, do: "Refreshing...", else: "Clear & refresh image cache"}
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "acquisition"} = assigns) do
+    prowlarr_configured = MediaCentaur.Acquisition.available?()
+
+    assigns =
+      assign(assigns,
+        prowlarr_configured: prowlarr_configured,
+        prowlarr_url: MediaCentaur.Acquisition.Config.url()
+      )
+
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-4">
+      <div>
+        <h2 class="text-lg font-semibold">Acquisition</h2>
+        <p class="text-sm text-base-content/50 mt-0.5">
+          Media search and automated download via Prowlarr.
+        </p>
+      </div>
+
+      <%!-- Not configured --%>
+      <div :if={!@prowlarr_configured} class="glass-inset rounded-lg p-4 space-y-3">
+        <div class="flex items-center gap-2">
+          <span class="size-2 rounded-full bg-base-content/20 shrink-0"></span>
+          <span class="text-sm text-base-content/60">Prowlarr not configured</span>
+        </div>
+        <p class="text-sm text-base-content/50">
+          Add your Prowlarr URL and API key to <code class="font-mono text-xs">backend.toml</code>
+          to enable media search and automated acquisition.
+        </p>
+        <div class="text-xs font-mono glass-inset rounded p-3 text-base-content/70">
+          [prowlarr]<br /> url = "http://localhost:9696"<br /> api_key = "your-api-key-here"
+        </div>
+        <p class="text-xs text-base-content/40">
+          See <code class="font-mono">docs/acquisition/prowlarr-setup.md</code>
+          for full setup instructions.
+        </p>
+      </div>
+
+      <%!-- Configured --%>
+      <div :if={@prowlarr_configured} class="space-y-4">
+        <div class="glass-inset rounded-lg p-4 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class={[
+              "size-2 rounded-full shrink-0",
+              @prowlarr_test_status == :ok && "bg-success",
+              @prowlarr_test_status == :error && "bg-error",
+              is_nil(@prowlarr_test_status) && "bg-warning"
+            ]}>
+            </span>
+            <span class="text-sm font-medium">
+              {cond do
+                @prowlarr_test_status == :ok -> "Connected"
+                @prowlarr_test_status == :error -> "Unreachable"
+                true -> "Configured — not tested"
+              end}
+            </span>
+          </div>
+          <div class="flex items-baseline justify-between gap-4">
+            <span class="text-xs text-base-content/50">URL</span>
+            <span class="font-mono text-xs text-base-content/70">{@prowlarr_url}</span>
+          </div>
+        </div>
+
+        <button
+          class="btn btn-soft btn-primary btn-sm"
+          phx-click="test_prowlarr"
+          disabled={@prowlarr_testing}
+          data-nav-item
+          tabindex="0"
+        >
+          <span :if={@prowlarr_testing} class="loading loading-spinner loading-xs"></span>
+          <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" /> Test connection
         </button>
       </div>
     </div>
