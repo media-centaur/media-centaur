@@ -54,7 +54,15 @@ npm-debug.log
 /media_centaur_dev*
 /priv/repo/media_centaur_test*.db*
 media_manager.db
+dev.db
+/priv/repo/dev.db
 
 # Runtime data (downloaded images, etc.)
 /data/
 .superpowers/
+
+# Local AI tooling state (machine-specific)
+/.claude/settings.json
+
+# Internal project backlog
+/todo/
