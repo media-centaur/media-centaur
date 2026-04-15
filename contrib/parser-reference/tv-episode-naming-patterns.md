@@ -1,21 +1,3 @@
----
-title: TV and Series Episode Naming Patterns
-category: naming-conventions
-date_accessed: 2026-03-12
-sources:
-  - url: https://kodi.wiki/view/Naming_video_files/Episodes
-    title: "Kodi Wiki — Naming Video Files / Episodes"
-  - url: https://support.plex.tv/articles/naming-and-organizing-your-tv-show-files/
-    title: "Plex — Naming and Organizing TV Show Files"
-  - url: https://emby.media/support/articles/TV-Naming.html
-    title: "Emby — TV Naming Documentation"
-  - url: https://guessit.readthedocs.io/en/latest/properties.html
-    title: "GuessIt Properties Documentation"
-  - url: https://thewiki.moe/advanced/naming/
-    title: "Anime Naming — TheWiki.moe"
-  - url: https://scenerules.org/t.html?id=2020_X265.nfo
-    title: "Scene Rules — X265 Standard"
----
 
 # TV and Series Episode Naming Patterns
 

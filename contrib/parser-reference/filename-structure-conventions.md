@@ -1,23 +1,3 @@
----
-title: Video Release Filename Structure Conventions
-category: naming-conventions
-date_accessed: 2026-03-12
-sources:
-  - url: https://scenerules.org/t.html?id=2020_X265.nfo
-    title: "Scene Rules — X265 Standard (Revision 5.0)"
-  - url: https://guessit.readthedocs.io/en/latest/properties.html
-    title: "GuessIt Properties Documentation"
-  - url: https://ripped.guide/Scene/Scene-Glossary/
-    title: "Scene Glossary — Ripped Guide"
-  - url: https://thewiki.moe/advanced/naming/
-    title: "Anime Naming — TheWiki.moe"
-  - url: https://github.com/guessit-io/guessit
-    title: "GuessIt GitHub Repository"
-  - url: https://support.plex.tv/articles/naming-and-organizing-your-movie-media-files/
-    title: "Plex Movie Naming Guide"
-  - url: https://dimitris.tech/tutorials/453/
-    title: "Torrent Types & Scene Releases Explained"
----
 
 # Video Release Filename Structure Conventions
 

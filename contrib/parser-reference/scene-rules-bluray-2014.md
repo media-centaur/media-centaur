@@ -1,13 +1,8 @@
----
-title: "Complete Blu-ray Releasing Standards 2014"
-source_url: "https://scenerules.org/html/2014_BLURAY.html"
-date_accessed: "2026-03-12"
-category: "scene-standards"
-document_id: "2014_BLURAY"
-effective_date: "2014-04-01"
----
 
 # Complete Blu-ray Releasing Standards 2014
+
+> Source: https://scenerules.org/html/2014_BLURAY.html
+
 
 Effective date: 2014-04-01 GMT. Prior releases exempt unless technical reasons apply.
 

@@ -1,16 +1,12 @@
----
-title: "Parser Reference: guessit"
-sources:
-  - https://github.com/guessit-io/guessit
-  - https://github.com/guessit-io/guessit/blob/develop/guessit/config/options.json
-  - https://github.com/guessit-io/guessit/tree/develop/guessit/rules/properties
-  - https://github.com/guessit-io/guessit/blob/develop/guessit/test/movies.yml
-  - https://github.com/guessit-io/guessit/blob/develop/guessit/test/episodes.yml
-date_accessed: 2026-03-12
-category: parser-reference
----
 
 # guessit - Video Filename Parser (Python)
+
+> Source: https://github.com/guessit-io/guessit
+> Source: https://github.com/guessit-io/guessit/blob/develop/guessit/config/options.json
+> Source: https://github.com/guessit-io/guessit/tree/develop/guessit/rules/properties
+> Source: https://github.com/guessit-io/guessit/blob/develop/guessit/test/movies.yml
+> Source: https://github.com/guessit-io/guessit/blob/develop/guessit/test/episodes.yml
+
 
 The most comprehensive open-source video filename parser. Uses the Rebulk pattern
 matching library with patterns defined in `config/options.json` and rule logic in

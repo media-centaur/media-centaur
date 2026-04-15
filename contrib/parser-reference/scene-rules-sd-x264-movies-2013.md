@@ -1,13 +1,8 @@
----
-title: "SD x264 Releasing Standards v1.1 (Movies)"
-source_url: "https://scenerules.org/html/2013_SDX264v1.1.html"
-date_accessed: "2026-03-12"
-category: "scene-standards"
-document_id: "2013_SDX264v1.1"
-effective_date: "2013-11-01"
----
 
 # SD x264 Releasing Standards v1.1
+
+> Source: https://scenerules.org/html/2013_SDX264v1.1.html
+
 
 Effective date: 2013-11-01 00:00 UTC (1383264000 unixtime). Compliance mandatory from this date forward. This ruleset transitions SD releases from XviD to x264 codec standards.
 

@@ -1,12 +1,8 @@
----
-title: "Hungarian HD x264 Release Rules and Standards"
-source_url: "https://github.com/encoding-hun/rules-and-standards/blob/master/series-and-movies-x264-hd.md"
-date_accessed: "2026-03-12"
-category: "scene-standards"
-notes: "P2P/community ruleset adapted from scene standards for Hungarian releases. Useful as supplementary reference for encoding parameters and tagging conventions."
----
 
 # Hungarian HD x264 Release Rules and Standards
+
+> Source: https://github.com/encoding-hun/rules-and-standards/blob/master/series-and-movies-x264-hd.md
+
 
 Based on international scene standards, adapted for Hungarian context as of April 15, 2020.
 

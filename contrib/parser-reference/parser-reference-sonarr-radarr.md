@@ -1,17 +1,13 @@
----
-title: "Parser Reference: Sonarr & Radarr"
-sources:
-  - https://github.com/Sonarr/Sonarr/blob/develop/src/NzbDrone.Core/Parser/Parser.cs
-  - https://github.com/Sonarr/Sonarr/blob/develop/src/NzbDrone.Core/Parser/QualityParser.cs
-  - https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Parser/Parser.cs
-  - https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Parser/QualityParser.cs
-  - https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Qualities/Quality.cs
-  - https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Parser/LanguageParser.cs
-date_accessed: 2026-03-12
-category: parser-reference
----
 
 # Sonarr & Radarr - Quality / Tag Parsing (C#)
+
+> Source: https://github.com/Sonarr/Sonarr/blob/develop/src/NzbDrone.Core/Parser/Parser.cs
+> Source: https://github.com/Sonarr/Sonarr/blob/develop/src/NzbDrone.Core/Parser/QualityParser.cs
+> Source: https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Parser/Parser.cs
+> Source: https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Parser/QualityParser.cs
+> Source: https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Qualities/Quality.cs
+> Source: https://github.com/Radarr/Radarr/blob/develop/src/NzbDrone.Core/Parser/LanguageParser.cs
+
 
 Both projects share the same NzbDrone parser codebase. Radarr focuses on movies,
 Sonarr on TV series. Their quality parser is the industry standard for release

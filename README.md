@@ -297,7 +297,7 @@ Detailed documentation lives in the [`docs/`](docs/) directory:
 
 ## License
 
-All rights reserved. A license will be chosen before this project opens to outside contributions.
+[MIT License](LICENSE) — Copyright (c) 2026 Shawn McCool
 
 ---
 

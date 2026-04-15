@@ -1,27 +1,23 @@
----
-title: "Video & Audio Codec Tags and Quality Indicators in Release Filenames"
-category: "tag-reference"
-date_accessed: "2026-03-12"
-sources:
-  - https://en.wikipedia.org/wiki/Pirated_movie_release_types
-  - https://trash-guides.info/Radarr/Radarr-collection-of-custom-formats/
-  - https://trash-guides.info/Sonarr/sonarr-collection-of-custom-formats/
-  - https://en.wikipedia.org/wiki/Dolby_Digital
-  - https://en.wikipedia.org/wiki/Dolby_Digital_Plus
-  - https://en.wikipedia.org/wiki/Dolby_TrueHD
-  - https://en.wikipedia.org/wiki/High-dynamic-range_television
-  - https://en.wikipedia.org/wiki/VP9
-  - https://en.wikipedia.org/wiki/AV1
-  - https://en.wikipedia.org/wiki/Display_resolution_standards
-  - https://en.wikipedia.org/wiki/Audio_file_format
-  - https://www.filebot.net/forums/viewtopic.php?t=6259
-  - https://www.filebot.net/forums/viewtopic.php?t=12807
-  - https://scenerules.org/t.html?id=2020_X265.nfo
-  - https://www.whathifi.com/advice/mp3-aac-wav-flac-all-the-audio-file-formats-explained
-  - https://handwiki.org/wiki/Engineering:Pirated_movie_release_types
----
 
 # Video & Audio Codec Tags and Quality Indicators in Release Filenames
+
+> Source: https://en.wikipedia.org/wiki/Pirated_movie_release_types
+> Source: https://trash-guides.info/Radarr/Radarr-collection-of-custom-formats/
+> Source: https://trash-guides.info/Sonarr/sonarr-collection-of-custom-formats/
+> Source: https://en.wikipedia.org/wiki/Dolby_Digital
+> Source: https://en.wikipedia.org/wiki/Dolby_Digital_Plus
+> Source: https://en.wikipedia.org/wiki/Dolby_TrueHD
+> Source: https://en.wikipedia.org/wiki/High-dynamic-range_television
+> Source: https://en.wikipedia.org/wiki/VP9
+> Source: https://en.wikipedia.org/wiki/AV1
+> Source: https://en.wikipedia.org/wiki/Display_resolution_standards
+> Source: https://en.wikipedia.org/wiki/Audio_file_format
+> Source: https://www.filebot.net/forums/viewtopic.php?t=6259
+> Source: https://www.filebot.net/forums/viewtopic.php?t=12807
+> Source: https://scenerules.org/t.html?id=2020_X265.nfo
+> Source: https://www.whathifi.com/advice/mp3-aac-wav-flac-all-the-audio-file-formats-explained
+> Source: https://handwiki.org/wiki/Engineering:Pirated_movie_release_types
+
 
 Comprehensive reference for tags found in media release filenames. Tags are grouped by
 category. Each entry lists the tag as it appears in filenames, what it means, common

@@ -1,25 +1,14 @@
----
-title: Streaming Service Tags in Video Release Filenames
-category: tag-reference
-date_accessed: 2026-03-12
-sources:
-  - name: TRaSH Guides - Sonarr Custom Formats Collection
-    url: https://trash-guides.info/Sonarr/sonarr-collection-of-custom-formats/
-  - name: TRaSH Guides - Radarr Custom Formats Collection
-    url: https://trash-guides.info/Radarr/Radarr-collection-of-custom-formats/
-  - name: TRaSH Guides GitHub - Sonarr Custom Formats
-    url: https://github.com/TRaSH-Guides/Guides/blob/master/docs/Sonarr/sonarr-collection-of-custom-formats.md
-  - name: TRaSH Guides GitHub - Radarr Custom Formats
-    url: https://github.com/TRaSH-Guides/Guides/blob/master/docs/Radarr/Radarr-collection-of-custom-formats.md
-  - name: Streaming Service Abbreviation (pandamoon21 gist)
-    url: https://gist.github.com/pandamoon21/6fd124010f2e5e270b5089f77bc47355
-  - name: Video Torrent Acronyms (rubenhortas gist)
-    url: https://gist.github.com/rubenhortas/d7006be931a3b17f7163cb37e027cedf
-  - name: Wikipedia - Pirated Movie Release Types
-    url: https://en.wikipedia.org/wiki/Pirated_movie_release_types
----
 
 # Streaming Service Tags in Video Release Filenames
+
+> Source: https://trash-guides.info/Sonarr/sonarr-collection-of-custom-formats/
+> Source: https://trash-guides.info/Radarr/Radarr-collection-of-custom-formats/
+> Source: https://github.com/TRaSH-Guides/Guides/blob/master/docs/Sonarr/sonarr-collection-of-custom-formats.md
+> Source: https://github.com/TRaSH-Guides/Guides/blob/master/docs/Radarr/Radarr-collection-of-custom-formats.md
+> Source: https://gist.github.com/pandamoon21/6fd124010f2e5e270b5089f77bc47355
+> Source: https://gist.github.com/rubenhortas/d7006be931a3b17f7163cb37e027cedf
+> Source: https://en.wikipedia.org/wiki/Pirated_movie_release_types
+
 
 This document catalogs the abbreviated service tags embedded in WEB-DL and WEBRip
 release filenames. These tags identify which streaming platform a video was sourced from.
