@@ -1,13 +1,9 @@
----
-title: "Parser Reference: Other Parsers (PTN, parse-torrent-title)"
-sources:
-  - https://github.com/divijbindlish/parse-torrent-name (PTN, Python)
-  - https://github.com/TheBeastLT/parse-torrent-title (parse-torrent-title, JavaScript)
-date_accessed: 2026-03-12
-category: parser-reference
----
 
 # Other Video Filename Parsers
+
+> Source: https://github.com/divijbindlish/parse-torrent-name (PTN, Python)
+> Source: https://github.com/TheBeastLT/parse-torrent-title (parse-torrent-title, JavaScript)
+
 
 ## PTN - Parse Torrent Name (Python)
 

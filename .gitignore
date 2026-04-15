@@ -53,6 +53,7 @@ npm-debug.log
 # sqlite stuff
 /media_centaur_dev*
 /priv/repo/media_centaur_test*.db*
+media_manager.db
 
 # Runtime data (downloaded images, etc.)
 /data/

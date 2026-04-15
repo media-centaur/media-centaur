@@ -1,13 +1,8 @@
----
-title: "WEB and WEBRip SD/HD x264 UHD x265 Releasing Standards v2.0"
-source_url: "https://scenerules.org/t.html?id=2020_WDX_unformatted.nfo"
-date_accessed: "2026-03-12"
-category: "scene-standards"
-document_id: "2020_WDX"
-effective_date: "2020-05-20"
----
 
 # THE.2020.WEB.AND.WEBRIP.SD.HD.X264.UHD.X265.RULESET.v2.0-WDX
+
+> Source: https://scenerules.org/t.html?id=2020_WDX_unformatted.nfo
+
 
 High Definition x264/H264 and Ultra High Definition x265/H265 WEB and WEBRip Standards
 Version 2.0 - 2020-05-13

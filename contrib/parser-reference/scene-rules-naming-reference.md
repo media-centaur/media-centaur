@@ -1,11 +1,8 @@
----
-title: "Scene Release Naming Convention Quick Reference"
-source_url: "https://scenerules.org/"
-date_accessed: "2026-03-12"
-category: "scene-standards"
----
 
 # Scene Release Naming Convention Quick Reference
+
+> Source: https://scenerules.org/
+
 
 A consolidated reference of naming patterns, tags, and format tokens extracted from all
 scene standards documents for use in building a filename parser.

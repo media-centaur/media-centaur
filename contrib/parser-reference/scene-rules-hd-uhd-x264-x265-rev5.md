@@ -1,13 +1,8 @@
----
-title: "High Definition x264 and Ultra High Definition x265 Standards Revision 5.0"
-source_url: "https://scenerules.org/t.html?id=2020_X265.nfo"
-date_accessed: "2026-03-12"
-category: "scene-standards"
-document_id: "2020_X265"
-effective_date: "2020-05-11"
----
 
 # High Definition x264 and Ultra High Definition x265 Standards
+
+> Source: https://scenerules.org/t.html?id=2020_X265.nfo
+
 
 Revision 5.0 - 2020-04-15
 Compliance mandatory as of 2020-05-11 00:00:00 UTC.

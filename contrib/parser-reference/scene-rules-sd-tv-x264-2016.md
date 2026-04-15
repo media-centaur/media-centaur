@@ -1,13 +1,8 @@
----
-title: "The SD TV x264 Releasing Standards 2016"
-source_url: "https://scenerules.org/html/sdtvx2642k16.html"
-date_accessed: "2026-03-12"
-category: "scene-standards"
-document_id: "sdtvx2642k16"
-effective_date: "2016-04-10"
----
 
 # The SD TV x264 Releasing Standards 2016
+
+> Source: https://scenerules.org/html/sdtvx2642k16.html
+
 
 Mandatory compliance date: 2016-04-10 00:00:00 UTC
 

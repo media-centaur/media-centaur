@@ -1,31 +1,27 @@
----
-title: Video Release Filename Tags Reference
-sources:
-  - https://en.wikipedia.org/wiki/Pirated_movie_release_types
-  - https://en.wikipedia.org/wiki/Standard_(warez)
-  - https://scenerules.org/rules.html
-  - https://ripped.guide/Scene/Scene-Glossary/
-  - https://scenelingo.wordpress.com/
-  - https://sites.google.com/site/aiodvdripping/understanding-scene-release-tags
-  - https://torrentinvites.org/f96/guide-understanding-scene-release-tags-84278/
-  - https://trash-guides.info/Radarr/Radarr-collection-of-custom-formats/
-  - https://emby.media/support/articles/3D-Videos.html
-  - https://en.wikipedia.org/wiki/DVD_region_code
-  - https://en.wikipedia.org/wiki/High-dynamic-range_video
-  - https://en.wikipedia.org/wiki/High_Efficiency_Video_Coding
-  - https://en.wikipedia.org/wiki/Dolby_TrueHD
-  - https://en.wikipedia.org/wiki/Dolby_Digital
-  - https://beathau5com.wordpress.com/2016/07/29/scene-tags-information/
-  - https://dimitris.tech/tutorials/453/
-  - https://www.skidrowcodex.net/scene-tags/
-  - https://badazzeasyguidestech.wordpress.com/2020/03/09/some-of-the-most-common-piracy-related-tv-movie-terms/
-  - https://support.plex.tv/articles/multiple-editions/
-  - https://jellyfin.org/docs/general/server/media/movies/
-date_accessed: 2026-03-12
-category: tag-reference
----
 
 # Video Release Filename Tags Reference
+
+> Source: https://en.wikipedia.org/wiki/Pirated_movie_release_types
+> Source: https://en.wikipedia.org/wiki/Standard_(warez)
+> Source: https://scenerules.org/rules.html
+> Source: https://ripped.guide/Scene/Scene-Glossary/
+> Source: https://scenelingo.wordpress.com/
+> Source: https://sites.google.com/site/aiodvdripping/understanding-scene-release-tags
+> Source: https://torrentinvites.org/f96/guide-understanding-scene-release-tags-84278/
+> Source: https://trash-guides.info/Radarr/Radarr-collection-of-custom-formats/
+> Source: https://emby.media/support/articles/3D-Videos.html
+> Source: https://en.wikipedia.org/wiki/DVD_region_code
+> Source: https://en.wikipedia.org/wiki/High-dynamic-range_video
+> Source: https://en.wikipedia.org/wiki/High_Efficiency_Video_Coding
+> Source: https://en.wikipedia.org/wiki/Dolby_TrueHD
+> Source: https://en.wikipedia.org/wiki/Dolby_Digital
+> Source: https://beathau5com.wordpress.com/2016/07/29/scene-tags-information/
+> Source: https://dimitris.tech/tutorials/453/
+> Source: https://www.skidrowcodex.net/scene-tags/
+> Source: https://badazzeasyguidestech.wordpress.com/2020/03/09/some-of-the-most-common-piracy-related-tv-movie-terms/
+> Source: https://support.plex.tv/articles/multiple-editions/
+> Source: https://jellyfin.org/docs/general/server/media/movies/
+
 
 Comprehensive reference for metadata tags found in video release filenames. Tags appear
 dot-separated, hyphen-separated, or underscore-separated in release names. They are
