@@ -67,6 +67,18 @@ defmodule MediaCentaurWeb.Layouts do
             <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Review</span>
           </.link>
+          <%= if MediaCentaur.Acquisition.available?() do %>
+            <.link
+              navigate="/search"
+              class={sidebar_link_class(@current_path, "/search")}
+              data-tip="Search"
+              data-nav-item
+              tabindex="0"
+            >
+              <.icon name="hero-magnifying-glass" class="size-5 flex-shrink-0" />
+              <span class="sidebar-label">Search</span>
+            </.link>
+          <% end %>
           <.link
             navigate="/settings"
             class={sidebar_link_class(@current_path, "/settings")}

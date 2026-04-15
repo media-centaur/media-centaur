@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.Router do
       live "/review", ReviewLive, :index
       live "/console", ConsolePageLive, :index
       live "/history", WatchHistoryLive, :index
+      live "/search", SearchLive, :index
     end
   end
 

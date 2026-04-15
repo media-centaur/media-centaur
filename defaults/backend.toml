@@ -67,3 +67,11 @@ socket_timeout_ms = 5000
 [release_tracking]
 # How often to refresh TMDB data for tracked items (in hours)
 refresh_interval_hours = 24
+
+# [prowlarr]
+# Prowlarr indexer aggregator for media search and acquisition.
+# When configured, enables the Search page and automated acquisition from release tracking.
+# See docs/acquisition/prowlarr-setup.md for full setup instructions.
+#
+# url = "http://localhost:9696"
+# api_key = "your-api-key-here"

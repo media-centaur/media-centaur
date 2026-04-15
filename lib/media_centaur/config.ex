@@ -99,7 +99,9 @@ defmodule MediaCentaur.Config do
       skip_dirs: ["Sample"],
       file_absence_ttl_days: 30,
       recent_changes_days: 3,
-      release_tracking_refresh_interval_hours: 24
+      release_tracking_refresh_interval_hours: 24,
+      prowlarr_url: nil,
+      prowlarr_api_key: nil
     }
 
     if Application.get_env(:media_centaur, :skip_user_config, false) do
@@ -155,7 +157,9 @@ defmodule MediaCentaur.Config do
         get_in(toml, ["status", "recent_changes_days"]) || defaults.recent_changes_days,
       release_tracking_refresh_interval_hours:
         get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
-          defaults.release_tracking_refresh_interval_hours
+          defaults.release_tracking_refresh_interval_hours,
+      prowlarr_url: get_in(toml, ["prowlarr", "url"]),
+      prowlarr_api_key: get_in(toml, ["prowlarr", "api_key"])
     }
   end
 

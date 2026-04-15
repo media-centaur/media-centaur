@@ -19,6 +19,7 @@ defmodule MediaCentaur.Application do
       [
         MediaCentaurWeb.Telemetry,
         MediaCentaur.Repo,
+        {Oban, Application.fetch_env!(:media_centaur, Oban)},
         # PubSub must start before Console.Buffer — Buffer's handle_cast
         # broadcasts to PubSub on every log entry append, including during
         # init when Ecto query logs land in its mailbox.
@@ -79,7 +80,8 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Library.Inbound,
       MediaCentaur.Review.Intake,
       MediaCentaur.ReleaseTracking.Refresher,
-      MediaCentaur.WatchHistory.Recorder
+      MediaCentaur.WatchHistory.Recorder,
+      MediaCentaur.Acquisition
     ]
   end
 
