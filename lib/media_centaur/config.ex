@@ -26,6 +26,80 @@ defmodule MediaCentaur.Config do
     :persistent_term.get({__MODULE__, :config}) |> Map.get(key)
   end
 
+  @doc """
+  The config keys that can be updated at runtime via `update/2` and
+  persisted to the Settings database. Excludes structural values that
+  require a restart (`database_path`, `watch_dirs`, etc.).
+  """
+  def runtime_settable_keys do
+    [
+      :tmdb_api_key,
+      :auto_approve_threshold,
+      :prowlarr_url,
+      :prowlarr_api_key,
+      :mpv_path,
+      :mpv_socket_dir,
+      :mpv_socket_timeout_ms,
+      :file_absence_ttl_days,
+      :recent_changes_days,
+      :release_tracking_refresh_interval_hours,
+      :extras_dirs,
+      :skip_dirs
+    ]
+  end
+
+  @doc """
+  Loads runtime overrides from the Settings database and overlays them
+  onto the `:persistent_term` config map. Call once after the Repo starts
+  (i.e. after `Supervisor.start_link` returns in `Application.start/2`).
+  Settings DB values take precedence over TOML values.
+  """
+  def load_runtime_overrides do
+    config = :persistent_term.get({__MODULE__, :config})
+
+    updated =
+      Enum.reduce(runtime_settable_keys(), config, fn key, acc ->
+        case MediaCentaur.Settings.get_by_key("config:#{key}") do
+          {:ok, %{value: %{"value" => value}}} -> Map.put(acc, key, value)
+          _ -> acc
+        end
+      end)
+
+    :persistent_term.put({__MODULE__, :config}, updated)
+    :ok
+  end
+
+  @doc """
+  Updates a single runtime-settable config key: stores the new value in
+  `:persistent_term` immediately (for zero-restart effect) and persists
+  it to the Settings database so it survives restarts.
+  """
+  def update(key, value)
+      when key in [
+             :tmdb_api_key,
+             :auto_approve_threshold,
+             :prowlarr_url,
+             :prowlarr_api_key,
+             :mpv_path,
+             :mpv_socket_dir,
+             :mpv_socket_timeout_ms,
+             :file_absence_ttl_days,
+             :recent_changes_days,
+             :release_tracking_refresh_interval_hours,
+             :extras_dirs,
+             :skip_dirs
+           ] do
+    config = :persistent_term.get({__MODULE__, :config})
+    :persistent_term.put({__MODULE__, :config}, Map.put(config, key, value))
+
+    MediaCentaur.Settings.find_or_create_entry(%{
+      key: "config:#{key}",
+      value: %{"value" => value}
+    })
+
+    :ok
+  end
+
   @doc "Returns the images directory for the given watch directory."
   @spec images_dir_for(String.t()) :: String.t()
   def images_dir_for(watch_directory) do

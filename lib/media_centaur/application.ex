@@ -53,7 +53,9 @@ defmodule MediaCentaur.Application do
       max_seconds: 30
     ]
 
-    Supervisor.start_link(children, opts)
+    result = Supervisor.start_link(children, opts)
+    MediaCentaur.Config.load_runtime_overrides()
+    result
   end
 
   defp init_services do

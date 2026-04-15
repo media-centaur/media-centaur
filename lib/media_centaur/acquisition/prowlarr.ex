@@ -15,6 +15,12 @@ defmodule MediaCentaur.Acquisition.Prowlarr do
 
   alias MediaCentaur.Acquisition.SearchResult
 
+  @doc "Clears the cached Req client so the next call rebuilds it from config."
+  def invalidate_client do
+    :persistent_term.erase({__MODULE__, :client})
+    :ok
+  end
+
   @doc "Returns a Req client configured for Prowlarr. Cached in `:persistent_term`."
   def default_client do
     case :persistent_term.get({__MODULE__, :client}, nil) do

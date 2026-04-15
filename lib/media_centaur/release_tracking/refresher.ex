@@ -38,15 +38,14 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   @impl true
   def init(_opts) do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
-    interval = refresh_interval_ms()
-    schedule_refresh(interval)
-    {:ok, %{interval: interval}}
+    schedule_refresh(refresh_interval_ms())
+    {:ok, %{}}
   end
 
   @impl true
   def handle_info(:refresh, state) do
     do_refresh_all()
-    schedule_refresh(state.interval)
+    schedule_refresh(refresh_interval_ms())
     {:noreply, state}
   end
 
