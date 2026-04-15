@@ -1,7 +1,8 @@
 defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Admin, Settings}
+  alias MediaCentaur.{Admin, Config, Settings}
+  alias MediaCentaur.Acquisition.Prowlarr
   alias MediaCentaur.Watcher
   alias MediaCentaur.Pipeline
   alias MediaCentaur.ImagePipeline
@@ -9,8 +10,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   @sections [
     %{id: "services", label: "Services"},
     %{id: "preferences", label: "Preferences"},
+    %{id: "tmdb", label: "TMDB"},
     %{id: "acquisition", label: "Acquisition"},
-    %{id: "configuration", label: "Configuration"},
+    %{id: "pipeline", label: "Pipeline"},
+    %{id: "playback", label: "Playback"},
+    %{id: "library", label: "Library"},
+    %{id: "release_tracking", label: "Release Tracking"},
+    %{id: "system", label: "System"},
     %{id: "danger", label: "Danger Zone"}
   ]
 
@@ -151,6 +157,110 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
+  def handle_event("save_tmdb", params, socket) do
+    if params["tmdb_api_key"] != "" do
+      Config.update(:tmdb_api_key, params["tmdb_api_key"])
+    end
+
+    case Float.parse(params["auto_approve_threshold"] || "") do
+      {threshold, _} -> Config.update(:auto_approve_threshold, threshold)
+      :error -> :ok
+    end
+
+    {:noreply,
+     socket
+     |> assign(config: load_config())
+     |> put_flash(:info, "TMDB settings saved")}
+  end
+
+  def handle_event("save_prowlarr", params, socket) do
+    if params["prowlarr_url"] != "" do
+      Config.update(:prowlarr_url, params["prowlarr_url"])
+    end
+
+    if params["prowlarr_api_key"] != "" do
+      Config.update(:prowlarr_api_key, params["prowlarr_api_key"])
+    end
+
+    Prowlarr.invalidate_client()
+
+    {:noreply,
+     socket
+     |> assign(config: load_config(), prowlarr_test_status: nil)
+     |> put_flash(:info, "Acquisition settings saved")}
+  end
+
+  def handle_event("save_pipeline", params, socket) do
+    extras =
+      (params["extras_dirs"] || "")
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+    skip =
+      (params["skip_dirs"] || "")
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+    Config.update(:extras_dirs, extras)
+    Config.update(:skip_dirs, skip)
+
+    {:noreply,
+     socket
+     |> assign(config: load_config())
+     |> put_flash(:info, "Pipeline settings saved")}
+  end
+
+  def handle_event("save_playback", params, socket) do
+    if params["mpv_path"] != "" do
+      Config.update(:mpv_path, params["mpv_path"])
+    end
+
+    if params["mpv_socket_dir"] != "" do
+      Config.update(:mpv_socket_dir, params["mpv_socket_dir"])
+    end
+
+    case Integer.parse(params["mpv_socket_timeout_ms"] || "") do
+      {ms, _} -> Config.update(:mpv_socket_timeout_ms, ms)
+      :error -> :ok
+    end
+
+    {:noreply,
+     socket
+     |> assign(config: load_config())
+     |> put_flash(:info, "Playback settings saved")}
+  end
+
+  def handle_event("save_library", params, socket) do
+    case Integer.parse(params["file_absence_ttl_days"] || "") do
+      {days, _} -> Config.update(:file_absence_ttl_days, days)
+      :error -> :ok
+    end
+
+    case Integer.parse(params["recent_changes_days"] || "") do
+      {days, _} -> Config.update(:recent_changes_days, days)
+      :error -> :ok
+    end
+
+    {:noreply,
+     socket
+     |> assign(config: load_config())
+     |> put_flash(:info, "Library settings saved")}
+  end
+
+  def handle_event("save_release_tracking", params, socket) do
+    case Integer.parse(params["refresh_interval_hours"] || "") do
+      {hours, _} -> Config.update(:release_tracking_refresh_interval_hours, hours)
+      :error -> :ok
+    end
+
+    {:noreply,
+     socket
+     |> assign(config: load_config())
+     |> put_flash(:info, "Release tracking settings saved")}
+  end
+
   @impl true
   def handle_event("test_prowlarr", _params, socket) do
     parent = self()
@@ -250,6 +360,8 @@ defmodule MediaCentaurWeb.SettingsLive do
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
             spoiler_free={@spoiler_free}
+            prowlarr_test_status={@prowlarr_test_status}
+            prowlarr_testing={@prowlarr_testing}
           />
         </div>
       </div>
@@ -326,27 +438,401 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp section_content(%{active_section: "configuration"} = assigns) do
+  defp section_content(%{active_section: "tmdb"} = assigns) do
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-5">
+      <div>
+        <h2 class="text-lg font-semibold">TMDB</h2>
+        <p class="text-sm text-base-content/50 mt-0.5">
+          The Movie Database API — required for metadata scraping and artwork.
+        </p>
+      </div>
+
+      <form phx-submit="save_tmdb" class="space-y-4">
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              API Key
+              <span
+                :if={@config[:tmdb_api_key] not in [nil, ""]}
+                class="ml-2 text-success normal-case font-normal"
+              >
+                ✓ configured
+              </span>
+              <span
+                :if={@config[:tmdb_api_key] in [nil, ""]}
+                class="ml-2 text-warning normal-case font-normal"
+              >
+                not set
+              </span>
+            </label>
+            <input
+              type="password"
+              name="tmdb_api_key"
+              class="input input-bordered w-full font-mono text-sm"
+              placeholder={
+                if @config[:tmdb_api_key] not in [nil, ""],
+                  do: "Leave blank to keep current key",
+                  else: "Enter your TMDB API key"
+              }
+              autocomplete="off"
+              data-nav-item
+              tabindex="0"
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Auto-approve threshold
+            </label>
+            <input
+              type="number"
+              name="auto_approve_threshold"
+              step="0.01"
+              min="0"
+              max="1"
+              value={@config[:auto_approve_threshold]}
+              class="input input-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              Confidence score (0.0–1.0) above which matches are approved automatically.
+            </p>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+          Save
+        </button>
+      </form>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "acquisition"} = assigns) do
+    prowlarr_configured = MediaCentaur.Acquisition.available?()
+    assigns = assign(assigns, prowlarr_configured: prowlarr_configured)
+
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-5">
+      <div>
+        <h2 class="text-lg font-semibold">Acquisition</h2>
+        <p class="text-sm text-base-content/50 mt-0.5">
+          Media search and automated download via Prowlarr.
+        </p>
+      </div>
+
+      <form phx-submit="save_prowlarr" class="space-y-4">
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Prowlarr URL
+            </label>
+            <input
+              type="text"
+              name="prowlarr_url"
+              value={@config[:prowlarr_url]}
+              class="input input-bordered w-full font-mono text-sm"
+              placeholder="http://localhost:9696"
+              data-nav-item
+              tabindex="0"
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              API Key
+              <span
+                :if={@config[:prowlarr_api_key] not in [nil, ""]}
+                class="ml-2 text-success normal-case font-normal"
+              >
+                ✓ configured
+              </span>
+            </label>
+            <input
+              type="password"
+              name="prowlarr_api_key"
+              class="input input-bordered w-full font-mono text-sm"
+              placeholder={
+                if @config[:prowlarr_api_key] not in [nil, ""],
+                  do: "Leave blank to keep current key",
+                  else: "Enter your Prowlarr API key"
+              }
+              autocomplete="off"
+              data-nav-item
+              tabindex="0"
+            />
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+          Save
+        </button>
+      </form>
+
+      <div :if={@prowlarr_configured} class="pt-3 border-t border-base-content/10 space-y-3">
+        <div class="glass-inset rounded-lg p-3 flex items-center gap-2">
+          <span class={[
+            "size-2 rounded-full shrink-0",
+            @prowlarr_test_status == :ok && "bg-success",
+            @prowlarr_test_status == :error && "bg-error",
+            is_nil(@prowlarr_test_status) && "bg-warning"
+          ]}>
+          </span>
+          <span class="text-sm">
+            {cond do
+              @prowlarr_test_status == :ok -> "Connected"
+              @prowlarr_test_status == :error -> "Unreachable"
+              true -> "Configured — not tested"
+            end}
+          </span>
+        </div>
+
+        <button
+          class="btn btn-soft btn-primary btn-sm"
+          phx-click="test_prowlarr"
+          disabled={@prowlarr_testing}
+          data-nav-item
+          tabindex="0"
+        >
+          <span :if={@prowlarr_testing} class="loading loading-spinner loading-xs"></span>
+          <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" /> Test connection
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "pipeline"} = assigns) do
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-5">
+      <div>
+        <h2 class="text-lg font-semibold">Pipeline</h2>
+        <p class="text-sm text-base-content/50 mt-0.5">
+          Controls how files are classified during ingestion.
+        </p>
+      </div>
+
+      <form phx-submit="save_pipeline" class="space-y-4">
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Extras directories
+            </label>
+            <input
+              type="text"
+              name="extras_dirs"
+              value={Enum.join(@config[:extras_dirs] || [], ", ")}
+              class="input input-bordered w-full text-sm"
+              placeholder="Extras, Featurettes, Special Features"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              Comma-separated directory names treated as bonus content.
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Skip directories
+            </label>
+            <input
+              type="text"
+              name="skip_dirs"
+              value={Enum.join(@config[:skip_dirs] || [], ", ")}
+              class="input input-bordered w-full text-sm"
+              placeholder="Sample"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              Comma-separated directory names to ignore silently.
+            </p>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+          Save
+        </button>
+      </form>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "playback"} = assigns) do
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-5">
+      <div>
+        <h2 class="text-lg font-semibold">Playback</h2>
+        <p class="text-sm text-base-content/50 mt-0.5">
+          MPV player configuration.
+        </p>
+      </div>
+
+      <form phx-submit="save_playback" class="space-y-4">
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              MPV path
+            </label>
+            <input
+              type="text"
+              name="mpv_path"
+              value={@config[:mpv_path]}
+              class="input input-bordered w-full font-mono text-sm"
+              placeholder="/usr/bin/mpv"
+              data-nav-item
+              tabindex="0"
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              IPC socket directory
+            </label>
+            <input
+              type="text"
+              name="mpv_socket_dir"
+              value={@config[:mpv_socket_dir]}
+              class="input input-bordered w-full font-mono text-sm"
+              placeholder="/tmp"
+              data-nav-item
+              tabindex="0"
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Socket timeout (ms)
+            </label>
+            <input
+              type="number"
+              name="mpv_socket_timeout_ms"
+              value={@config[:mpv_socket_timeout_ms]}
+              min="100"
+              class="input input-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            />
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+          Save
+        </button>
+      </form>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "library"} = assigns) do
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-5">
+      <div>
+        <h2 class="text-lg font-semibold">Library</h2>
+        <p class="text-sm text-base-content/50 mt-0.5">
+          Library cleanup and status display settings.
+        </p>
+      </div>
+
+      <form phx-submit="save_library" class="space-y-4">
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              File absence TTL (days)
+            </label>
+            <input
+              type="number"
+              name="file_absence_ttl_days"
+              value={@config[:file_absence_ttl_days]}
+              min="1"
+              class="input input-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              Days before an absent file is removed from the library.
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Recent changes window (days)
+            </label>
+            <input
+              type="number"
+              name="recent_changes_days"
+              value={@config[:recent_changes_days]}
+              min="1"
+              class="input input-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              How many days back to show on the Status page's recent changes list.
+            </p>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+          Save
+        </button>
+      </form>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "release_tracking"} = assigns) do
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-5">
+      <div>
+        <h2 class="text-lg font-semibold">Release Tracking</h2>
+        <p class="text-sm text-base-content/50 mt-0.5">
+          How often to poll TMDB for upcoming release dates.
+        </p>
+      </div>
+
+      <form phx-submit="save_release_tracking" class="space-y-4">
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Refresh interval (hours)
+          </label>
+          <input
+            type="number"
+            name="refresh_interval_hours"
+            value={@config[:release_tracking_refresh_interval_hours]}
+            min="1"
+            class="input input-bordered w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
+          />
+          <p class="text-xs text-base-content/40 mt-1">
+            Changes take effect after the current refresh cycle completes.
+          </p>
+        </div>
+
+        <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+          Save
+        </button>
+      </form>
+    </div>
+    """
+  end
+
+  defp section_content(%{active_section: "system"} = assigns) do
     ~H"""
     <div class="p-5 rounded-lg glass-surface">
-      <h2 class="text-lg font-semibold">Configuration</h2>
-      <p class="text-sm opacity-50 mt-0.5 mb-2">
-        Read-only view of the current configuration.
+      <h2 class="text-lg font-semibold">System</h2>
+      <p class="text-sm opacity-50 mt-0.5 mb-4">
+        Structural settings that require editing <code class="font-mono text-xs">backend.toml</code>
+        and restarting.
       </p>
 
       <div :if={@config == %{}} class="text-base-content/60 py-4">Loading...</div>
 
-      <div :if={@config != %{}} class="space-y-3 text-sm mt-3">
-        <div class="flex justify-between items-baseline gap-4">
-          <span class="text-base-content/60">Auto-approve threshold</span>
-          <span class="font-mono">{@config[:auto_approve_threshold] || "—"}</span>
-        </div>
-        <div class="flex justify-between items-baseline gap-4 min-w-0">
-          <span class="text-base-content/60 shrink-0">MPV path</span>
-          <span class="font-mono truncate-left" title={@config[:mpv_path]}>
-            <bdo dir="ltr">{@config[:mpv_path] || "—"}</bdo>
-          </span>
-        </div>
+      <div :if={@config != %{}} class="space-y-3 text-sm">
         <div class="flex justify-between items-baseline gap-4 min-w-0">
           <span class="text-base-content/60 shrink-0">Database path</span>
           <span class="font-mono text-xs min-w-0 truncate-left" title={@config[:database_path]}>
@@ -408,83 +894,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp section_content(%{active_section: "acquisition"} = assigns) do
-    prowlarr_configured = MediaCentaur.Acquisition.available?()
-
-    assigns =
-      assign(assigns,
-        prowlarr_configured: prowlarr_configured,
-        prowlarr_url: MediaCentaur.Acquisition.Config.url()
-      )
-
-    ~H"""
-    <div class="p-5 rounded-lg glass-surface space-y-4">
-      <div>
-        <h2 class="text-lg font-semibold">Acquisition</h2>
-        <p class="text-sm text-base-content/50 mt-0.5">
-          Media search and automated download via Prowlarr.
-        </p>
-      </div>
-
-      <%!-- Not configured --%>
-      <div :if={!@prowlarr_configured} class="glass-inset rounded-lg p-4 space-y-3">
-        <div class="flex items-center gap-2">
-          <span class="size-2 rounded-full bg-base-content/20 shrink-0"></span>
-          <span class="text-sm text-base-content/60">Prowlarr not configured</span>
-        </div>
-        <p class="text-sm text-base-content/50">
-          Add your Prowlarr URL and API key to <code class="font-mono text-xs">backend.toml</code>
-          to enable media search and automated acquisition.
-        </p>
-        <div class="text-xs font-mono glass-inset rounded p-3 text-base-content/70">
-          [prowlarr]<br /> url = "http://localhost:9696"<br /> api_key = "your-api-key-here"
-        </div>
-        <p class="text-xs text-base-content/40">
-          See <code class="font-mono">docs/acquisition/prowlarr-setup.md</code>
-          for full setup instructions.
-        </p>
-      </div>
-
-      <%!-- Configured --%>
-      <div :if={@prowlarr_configured} class="space-y-4">
-        <div class="glass-inset rounded-lg p-4 space-y-2">
-          <div class="flex items-center gap-2">
-            <span class={[
-              "size-2 rounded-full shrink-0",
-              @prowlarr_test_status == :ok && "bg-success",
-              @prowlarr_test_status == :error && "bg-error",
-              is_nil(@prowlarr_test_status) && "bg-warning"
-            ]}>
-            </span>
-            <span class="text-sm font-medium">
-              {cond do
-                @prowlarr_test_status == :ok -> "Connected"
-                @prowlarr_test_status == :error -> "Unreachable"
-                true -> "Configured — not tested"
-              end}
-            </span>
-          </div>
-          <div class="flex items-baseline justify-between gap-4">
-            <span class="text-xs text-base-content/50">URL</span>
-            <span class="font-mono text-xs text-base-content/70">{@prowlarr_url}</span>
-          </div>
-        </div>
-
-        <button
-          class="btn btn-soft btn-primary btn-sm"
-          phx-click="test_prowlarr"
-          disabled={@prowlarr_testing}
-          data-nav-item
-          tabindex="0"
-        >
-          <span :if={@prowlarr_testing} class="loading loading-spinner loading-xs"></span>
-          <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" /> Test connection
-        </button>
-      </div>
-    </div>
-    """
-  end
-
   defp section_content(assigns) do
     ~H"""
     <div class="p-5 rounded-lg glass-surface">
@@ -534,14 +943,23 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   defp load_config do
-    config = MediaCentaur.Config
+    cfg = Config
 
     %{
-      tmdb_configured: config.get(:tmdb_api_key) not in [nil, ""],
-      auto_approve_threshold: config.get(:auto_approve_threshold),
-      mpv_path: config.get(:mpv_path),
-      database_path: config.get(:database_path),
-      watch_dirs: config.get(:watch_dirs) || []
+      tmdb_api_key: cfg.get(:tmdb_api_key),
+      auto_approve_threshold: cfg.get(:auto_approve_threshold),
+      prowlarr_url: cfg.get(:prowlarr_url),
+      prowlarr_api_key: cfg.get(:prowlarr_api_key),
+      mpv_path: cfg.get(:mpv_path),
+      mpv_socket_dir: cfg.get(:mpv_socket_dir),
+      mpv_socket_timeout_ms: cfg.get(:mpv_socket_timeout_ms),
+      file_absence_ttl_days: cfg.get(:file_absence_ttl_days),
+      recent_changes_days: cfg.get(:recent_changes_days),
+      release_tracking_refresh_interval_hours: cfg.get(:release_tracking_refresh_interval_hours),
+      extras_dirs: cfg.get(:extras_dirs) || [],
+      skip_dirs: cfg.get(:skip_dirs) || [],
+      database_path: cfg.get(:database_path),
+      watch_dirs: cfg.get(:watch_dirs) || []
     }
   end
 
