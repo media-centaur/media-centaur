@@ -83,6 +83,20 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Returns the current Prowlarr download queue.
+
+  Returns `{:error, :not_configured}` when Prowlarr is not configured.
+  """
+  @spec queue() :: {:ok, list()} | {:error, term()}
+  def queue do
+    if available?() do
+      Prowlarr.queue()
+    else
+      {:error, :not_configured}
+    end
+  end
+
+  @doc """
   Enqueues an automated acquisition job for a TMDB item.
 
   Creates an `acquisition_grabs` record (idempotent — skips if already exists)

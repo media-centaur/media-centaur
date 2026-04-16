@@ -1,0 +1,340 @@
+defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
+  use ExUnit.Case, async: true
+
+  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarrWeb.AcquisitionLive.Logic
+
+  describe "expansion_preview/1" do
+    test "returns :idle for empty query" do
+      assert Logic.expansion_preview("") == :idle
+      assert Logic.expansion_preview("   ") == :idle
+    end
+
+    test "returns {:ok, 1} for query without braces" do
+      assert Logic.expansion_preview("Sample Movie") == {:ok, 1}
+    end
+
+    test "returns {:ok, n} for valid expansion" do
+      assert Logic.expansion_preview("The Pitt S02E{00-09}") == {:ok, 10}
+      assert Logic.expansion_preview("X{a,b,c}") == {:ok, 3}
+    end
+
+    test "returns {:error, :invalid_syntax} for malformed brace" do
+      assert Logic.expansion_preview("foo {a-}") == {:error, :invalid_syntax}
+      assert Logic.expansion_preview("{a,b}{c,d}") == {:error, :invalid_syntax}
+    end
+  end
+
+  describe "build_groups/1" do
+    test "returns empty list for empty input" do
+      assert Logic.build_groups([]) == []
+    end
+
+    test "groups results by term, sorted by quality desc then seeders desc" do
+      r4k = result(guid: "a", quality: :uhd_4k, seeders: 5)
+      r1080_high = result(guid: "b", quality: :hd_1080p, seeders: 100)
+      r1080_low = result(guid: "c", quality: :hd_1080p, seeders: 1)
+      rnil = result(guid: "d", quality: nil, seeders: 50)
+
+      input = [{"Movie A", [r1080_low, r4k, rnil, r1080_high]}]
+
+      [group] = Logic.build_groups(input)
+
+      assert group.term == "Movie A"
+      assert group.expanded? == false
+      assert Enum.map(group.results, & &1.guid) == ["a", "b", "c", "d"]
+    end
+
+    test "preserves term order from input" do
+      r1 = result(guid: "1")
+      r2 = result(guid: "2")
+
+      input = [{"Term One", [r1]}, {"Term Two", [r2]}]
+      groups = Logic.build_groups(input)
+
+      assert Enum.map(groups, & &1.term) == ["Term One", "Term Two"]
+    end
+
+    test "handles nil seeders by treating as 0 for sort" do
+      a = result(guid: "a", quality: :hd_1080p, seeders: nil)
+      b = result(guid: "b", quality: :hd_1080p, seeders: 1)
+
+      [group] = Logic.build_groups([{"X", [a, b]}])
+
+      assert Enum.map(group.results, & &1.guid) == ["b", "a"]
+    end
+  end
+
+  describe "default_selections/1" do
+    test "selects the first (top-ranked) result per group with results" do
+      r_a = result(guid: "a-top")
+      r_b = result(guid: "b-top")
+
+      groups = [
+        %{term: "A", expanded?: false, results: [r_a, result(guid: "a-2")]},
+        %{term: "B", expanded?: false, results: [r_b]}
+      ]
+
+      assert Logic.default_selections(groups) == %{"A" => "a-top", "B" => "b-top"}
+    end
+
+    test "skips groups with no results" do
+      groups = [
+        %{term: "A", expanded?: false, results: [result(guid: "a")]},
+        %{term: "B", expanded?: false, results: []}
+      ]
+
+      assert Logic.default_selections(groups) == %{"A" => "a"}
+    end
+
+    test "returns empty map for no groups" do
+      assert Logic.default_selections([]) == %{}
+    end
+  end
+
+  describe "format_grab_reason/1" do
+    test "extracts errorMessage from a Prowlarr JSON body" do
+      reason = {:http_error, 400, %{"errorMessage" => "Indexer not found"}}
+      assert Logic.format_grab_reason(reason) == "HTTP 400: Indexer not found"
+    end
+
+    test "extracts message field from JSON body" do
+      reason = {:http_error, 500, %{"message" => "Internal server error"}}
+      assert Logic.format_grab_reason(reason) == "HTTP 500: Internal server error"
+    end
+
+    test "extracts error field from JSON body when string" do
+      reason = {:http_error, 401, %{"error" => "Unauthorized"}}
+      assert Logic.format_grab_reason(reason) == "HTTP 401: Unauthorized"
+    end
+
+    test "shows just status code when body has no recognizable message" do
+      reason = {:http_error, 503, "Service Unavailable"}
+      assert Logic.format_grab_reason(reason) == "HTTP 503"
+    end
+
+    test "inspects non-http reasons" do
+      assert Logic.format_grab_reason(%Req.TransportError{reason: :econnrefused}) =~
+               "econnrefused"
+
+      assert Logic.format_grab_reason(:timeout) == ":timeout"
+    end
+  end
+
+  describe "build_grab_message/1" do
+    test "all-ok returns {:ok, count submitted}" do
+      pair = {result(guid: "a"), :ok}
+      assert Logic.build_grab_message([pair, pair]) == {:ok, "2 grab(s) submitted"}
+    end
+
+    test "all-failed returns {:error, count failed + first reason}" do
+      pairs = [
+        {result(guid: "a"), {:error, {:http_error, 400, %{"errorMessage" => "Bad guid"}}}},
+        {result(guid: "b"), {:error, :timeout}}
+      ]
+
+      assert Logic.build_grab_message(pairs) ==
+               {:error, "All 2 grab(s) failed — HTTP 400: Bad guid"}
+    end
+
+    test "partial returns {:partial, ok+err counts + first error reason}" do
+      pairs = [
+        {result(guid: "a"), :ok},
+        {result(guid: "b"), {:error, {:http_error, 500, %{"message" => "boom"}}}}
+      ]
+
+      assert Logic.build_grab_message(pairs) ==
+               {:partial, "1 ok, 1 failed — HTTP 500: boom"}
+    end
+
+    test "empty list returns {:ok, 0 submitted}" do
+      assert Logic.build_grab_message([]) == {:ok, "0 grab(s) submitted"}
+    end
+  end
+
+  describe "find_result/2" do
+    test "finds a result by guid across all groups" do
+      r_a = result(guid: "a")
+      r_b = result(guid: "b")
+      r_c = result(guid: "c")
+
+      groups = [
+        %{term: "T1", expanded?: false, results: [r_a, r_b]},
+        %{term: "T2", expanded?: false, results: [r_c]}
+      ]
+
+      assert Logic.find_result(groups, "b") == r_b
+      assert Logic.find_result(groups, "c") == r_c
+    end
+
+    test "returns nil when guid is not present" do
+      groups = [%{term: "T", expanded?: false, results: [result(guid: "a")]}]
+      assert Logic.find_result(groups, "missing") == nil
+    end
+  end
+
+  describe "placeholder_groups/1" do
+    test "returns one :loading group per query, in order, with empty results" do
+      groups = Logic.placeholder_groups(["A", "B", "C"])
+
+      assert Enum.map(groups, & &1.term) == ["A", "B", "C"]
+      assert Enum.all?(groups, &(&1.status == :loading))
+      assert Enum.all?(groups, &(&1.results == []))
+      assert Enum.all?(groups, &(&1.expanded? == false))
+    end
+
+    test "returns empty list for empty input" do
+      assert Logic.placeholder_groups([]) == []
+    end
+  end
+
+  describe "apply_search_result/3" do
+    test "fills in matching group's results, sorts, and flips status to :ready" do
+      groups = Logic.placeholder_groups(["X", "Y"])
+
+      r_low = result(guid: "low", quality: :hd_1080p, seeders: 1)
+      r_high = result(guid: "high", quality: :uhd_4k, seeders: 5)
+
+      [x, y] = Logic.apply_search_result(groups, "X", {:ok, [r_low, r_high]})
+
+      assert x.status == :ready
+      assert Enum.map(x.results, & &1.guid) == ["high", "low"]
+
+      # Other group untouched
+      assert y.status == :loading
+      assert y.results == []
+    end
+
+    test "marks matching group :failed on error and clears results" do
+      groups = Logic.placeholder_groups(["X"])
+
+      [x] = Logic.apply_search_result(groups, "X", {:error, :boom})
+
+      assert x.status == :failed
+      assert x.results == []
+    end
+
+    test "is a no-op when term is unknown (e.g. result from a stale search)" do
+      groups = Logic.placeholder_groups(["X"])
+
+      assert Logic.apply_search_result(groups, "OTHER", {:ok, [result(guid: "r")]}) == groups
+    end
+  end
+
+  describe "add_default_selection/2" do
+    test "adds top result guid when group is ready and term not yet selected" do
+      group = %{term: "T", expanded?: false, status: :ready, results: [result(guid: "top")]}
+
+      assert Logic.add_default_selection(%{}, group) == %{"T" => "top"}
+    end
+
+    test "does not overwrite an existing selection for the term" do
+      group = %{term: "T", expanded?: false, status: :ready, results: [result(guid: "top")]}
+
+      assert Logic.add_default_selection(%{"T" => "user-pick"}, group) == %{"T" => "user-pick"}
+    end
+
+    test "no-op when group has no results" do
+      group = %{term: "T", expanded?: false, status: :ready, results: []}
+      assert Logic.add_default_selection(%{}, group) == %{}
+    end
+
+    test "no-op for loading or failed groups" do
+      loading = %{term: "T", expanded?: false, status: :loading, results: []}
+      failed = %{term: "T", expanded?: false, status: :failed, results: []}
+
+      assert Logic.add_default_selection(%{}, loading) == %{}
+      assert Logic.add_default_selection(%{}, failed) == %{}
+    end
+  end
+
+  describe "all_loaded?/1" do
+    test "true when no group is :loading" do
+      groups = [
+        %{term: "A", expanded?: false, status: :ready, results: []},
+        %{term: "B", expanded?: false, status: :failed, results: []}
+      ]
+
+      assert Logic.all_loaded?(groups) == true
+    end
+
+    test "false when any group is :loading" do
+      groups = [
+        %{term: "A", expanded?: false, status: :ready, results: []},
+        %{term: "B", expanded?: false, status: :loading, results: []}
+      ]
+
+      assert Logic.all_loaded?(groups) == false
+    end
+
+    test "true for empty groups list" do
+      assert Logic.all_loaded?([]) == true
+    end
+  end
+
+  describe "featured_result/2" do
+    test "returns the selected result when group's term is present in selections" do
+      r_top = result(guid: "top")
+      r_alt = result(guid: "alt")
+      group = %{term: "T", expanded?: false, status: :ready, results: [r_top, r_alt]}
+
+      assert Logic.featured_result(group, %{"T" => "alt"}) == r_alt
+    end
+
+    test "falls back to top result when term has no selection" do
+      r_top = result(guid: "top")
+      r_alt = result(guid: "alt")
+      group = %{term: "T", expanded?: false, status: :ready, results: [r_top, r_alt]}
+
+      assert Logic.featured_result(group, %{}) == r_top
+    end
+
+    test "falls back to top result when selection guid does not exist in this group" do
+      r_top = result(guid: "top")
+      group = %{term: "T", expanded?: false, status: :ready, results: [r_top]}
+
+      assert Logic.featured_result(group, %{"T" => "stale-guid"}) == r_top
+    end
+
+    test "returns nil when group has no results" do
+      group = %{term: "T", expanded?: false, status: :ready, results: []}
+      assert Logic.featured_result(group, %{"T" => "anything"}) == nil
+    end
+  end
+
+  describe "toggle_group/2" do
+    test "flips expanded? for matching term, leaves others alone" do
+      groups = [
+        %{term: "A", expanded?: false, results: []},
+        %{term: "B", expanded?: true, results: []}
+      ]
+
+      [a, b] = Logic.toggle_group(groups, "A")
+      assert a.expanded? == true
+      assert b.expanded? == true
+
+      [a2, b2] = Logic.toggle_group([a, b], "B")
+      assert a2.expanded? == true
+      assert b2.expanded? == false
+    end
+
+    test "no-op for unknown term" do
+      groups = [%{term: "A", expanded?: false, results: []}]
+      assert Logic.toggle_group(groups, "Z") == groups
+    end
+  end
+
+  defp result(opts) do
+    %SearchResult{
+      title: Keyword.get(opts, :title, "Some.Release.2024.2160p"),
+      guid: Keyword.fetch!(opts, :guid),
+      indexer_id: Keyword.get(opts, :indexer_id, 1),
+      quality: Keyword.get(opts, :quality, :hd_1080p),
+      seeders: Keyword.get(opts, :seeders, 10),
+      leechers: Keyword.get(opts, :leechers, 0),
+      size_bytes: Keyword.get(opts, :size_bytes, nil),
+      indexer_name: Keyword.get(opts, :indexer_name, "indexer"),
+      publish_date: nil
+    }
+  end
+end

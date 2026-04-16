@@ -47,6 +47,18 @@ defmodule MediaCentarrWeb.Layouts do
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
           </.link>
+          <%= if MediaCentarr.Acquisition.available?() do %>
+            <.link
+              navigate="/download"
+              class={sidebar_link_class(@current_path, "/download")}
+              data-tip="Download"
+              data-nav-item
+              tabindex="0"
+            >
+              <.icon name="hero-arrow-down-tray" class="size-5 flex-shrink-0" />
+              <span class="sidebar-label">Download</span>
+            </.link>
+          <% end %>
           <.link
             navigate="/status"
             class={sidebar_link_class(@current_path, "/status")}
@@ -67,18 +79,6 @@ defmodule MediaCentarrWeb.Layouts do
             <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Review</span>
           </.link>
-          <%= if MediaCentarr.Acquisition.available?() do %>
-            <.link
-              navigate="/search"
-              class={sidebar_link_class(@current_path, "/search")}
-              data-tip="Search"
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon name="hero-magnifying-glass" class="size-5 flex-shrink-0" />
-              <span class="sidebar-label">Search</span>
-            </.link>
-          <% end %>
           <.link
             navigate="/settings"
             class={sidebar_link_class(@current_path, "/settings")}

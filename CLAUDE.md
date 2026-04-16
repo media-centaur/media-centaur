@@ -181,6 +181,8 @@ Decision records live in `decisions/` using [MADR 4.0](https://adr.github.io/mad
 - **Architecture** (`decisions/architecture/`): system design, data model, integration patterns, engineering standards
 - **User Interface** (`decisions/user-interface/`): visual conventions, component behavior, layout patterns, interaction design
 
+**Prefer moduledocs for technical concepts.** Document module-internal contracts (syntax rules, parsing behavior, struct shape, format details) in the relevant `@moduledoc`, not in a decision record. Reserve ADRs for decisions that apply repository-wide or that supersede an existing ADR. The test: would a contributor want to read this while looking at the module, or while browsing `decisions/`? Former → moduledoc. Latter → ADR.
+
 ## Defaults
 
 The `defaults/` directory contains git-tracked starter config files — seed values shipped with the repo, **never overwritten at runtime**. **Keep `defaults/media-centarr.toml` complete.** Every configuration key recognised by `MediaCentarr.Config` must have an entry with a logical default value and a comment. The file must always be valid TOML.

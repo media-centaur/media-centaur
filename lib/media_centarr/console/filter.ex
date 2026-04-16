@@ -48,6 +48,7 @@ defmodule MediaCentarr.Console.Filter do
         tmdb: :show,
         playback: :show,
         library: :show,
+        acquisition: :show,
         system: :show,
         # framework (hidden by default)
         phoenix: :hide,

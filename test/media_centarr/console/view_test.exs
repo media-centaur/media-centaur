@@ -46,7 +46,15 @@ defmodule MediaCentarr.Console.ViewTest do
 
   describe "app_components/0" do
     test "returns the app component atoms" do
-      assert View.app_components() == [:watcher, :pipeline, :tmdb, :playback, :library, :system]
+      assert View.app_components() == [
+               :watcher,
+               :pipeline,
+               :tmdb,
+               :playback,
+               :library,
+               :acquisition,
+               :system
+             ]
     end
   end
 

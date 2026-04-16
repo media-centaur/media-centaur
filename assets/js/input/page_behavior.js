@@ -20,12 +20,14 @@ import { createStatusBehavior } from "./status_behavior"
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createReviewBehavior } from "./review_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
+import { createDownloadBehavior } from "./download_behavior"
 
 const BEHAVIOR_REGISTRY = {
   status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),
   settings: () => createSettingsBehavior(),
+  download: () => createDownloadBehavior(),
 }
 
 /**
