@@ -6,7 +6,7 @@ date: 2026-04-15
 
 ## Context and Problem Statement
 
-Media-centaur manages a media library but has no way to search for or download new content. Users currently place files manually in watch directories. Two acquisition use-cases need to be supported: manual search (user finds and grabs a title) and automated acquisition (release tracking triggers a download when a tracked item becomes available).
+Media-centarr manages a media library but has no way to search for or download new content. Users currently place files manually in watch directories. Two acquisition use-cases need to be supported: manual search (user finds and grabs a title) and automated acquisition (release tracking triggers a download when a tracked item becomes available).
 
 The challenge is supporting a range of user setups without locking into one specific stack. Users may run Prowlarr + qBittorrent, Prowlarr + Transmission, or no download stack at all. The system must degrade gracefully when no acquisition tooling is configured, and it must be extensible as new integrations become desirable.
 
@@ -14,12 +14,12 @@ The challenge is supporting a range of user setups without locking into one spec
 
 Chosen option: **Prowlarr as the single integration point, optional**, because:
 
-- Prowlarr is an indexer aggregator that already abstracts over dozens of tracker sources. Users configure their download client (qBittorrent, Transmission, Deluge, SABnzbd, etc.) inside Prowlarr. Media-centaur only needs to talk to Prowlarr — never directly to the download client.
+- Prowlarr is an indexer aggregator that already abstracts over dozens of tracker sources. Users configure their download client (qBittorrent, Transmission, Deluge, SABnzbd, etc.) inside Prowlarr. Media-centarr only needs to talk to Prowlarr — never directly to the download client.
 - The grab API (`POST /api/v1/release`) lets media-centarr submit a chosen release to Prowlarr, which routes it to whatever client the user has configured. This keeps the integration surface minimal.
 - When Prowlarr is not configured, all acquisition UI surfaces are hidden and no acquisition features are active. The application remains fully functional as a library manager.
 - A `SearchProvider` behaviour wraps Prowlarr as an implementation detail, keeping call sites decoupled from the specific adapter.
 
-**Rule:** Media-centaur integrates with Prowlarr only. It never talks directly to qBittorrent, Transmission, Deluge, or any other download client. Prowlarr owns the download client relationship. If a user wants to use a different indexer/search stack in the future, they implement `Acquisition.SearchProvider` — existing call sites do not change.
+**Rule:** Media-centarr integrates with Prowlarr only. It never talks directly to qBittorrent, Transmission, Deluge, or any other download client. Prowlarr owns the download client relationship. If a user wants to use a different indexer/search stack in the future, they implement `Acquisition.SearchProvider` — existing call sites do not change.
 
 ### Quality preference
 

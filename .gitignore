@@ -52,10 +52,9 @@ npm-debug.log
 
 # sqlite stuff
 /media_centarr_dev*
-/priv/repo/media_centarr_test*.db*
-media_manager.db
-dev.db
-/priv/repo/dev.db
+/priv/repo/*.db
+/priv/repo/*.db-shm
+/priv/repo/*.db-wal
 
 # Runtime data (downloaded images, etc.)
 /data/

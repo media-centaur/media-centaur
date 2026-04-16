@@ -1,6 +1,6 @@
 # Acquisition
 
-Media-centaur can search for and acquire media automatically or on demand. Acquisition is **optional** — the application works fully as a library manager without it. When Prowlarr is configured, additional capabilities unlock.
+Media-centarr can search for and acquire media automatically or on demand. Acquisition is **optional** — the application works fully as a library manager without it. When Prowlarr is configured, additional capabilities unlock.
 
 ## What acquisition provides
 
@@ -12,7 +12,7 @@ Media-centaur can search for and acquire media automatically or on demand. Acqui
 
 Acquisition requires [Prowlarr](https://prowlarr.com/) — an indexer aggregator that connects your search sources (torrent/usenet indexers) to your download client (qBittorrent, Transmission, Deluge, SABnzbd, etc.).
 
-Media-centaur talks only to Prowlarr. You configure your download client once inside Prowlarr, and Prowlarr routes grabs to it automatically.
+Media-centarr talks only to Prowlarr. You configure your download client once inside Prowlarr, and Prowlarr routes grabs to it automatically.
 
 ## Setup
 

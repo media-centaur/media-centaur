@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-03-01
 ---
 # Test environment must never read user config or use real filesystem paths
