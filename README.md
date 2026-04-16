@@ -7,138 +7,48 @@
 [![Elixir](https://img.shields.io/badge/Elixir-1.15+-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org)
 [![Platform](https://img.shields.io/badge/platform-Linux-informational?logo=linux&logoColor=white)](https://kernel.org)
 
-Point it at your video directories. It identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything through mpv — all from a real-time LiveView interface designed for the living room.
+Point it at your video directories. It identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything through mpv — all from a real-time interface designed for the living room.
 
 Zero-config SQLite database. No Docker. No transcoding server. No accounts.
 
 </div>
 
----
-
-## Why Media Centarr
-
-**Built for the living room.** This is a 10-foot interface designed to drive a TV connected to a Linux PC. You navigate with a keyboard or gamepad from the couch — not a phone app, not a web dashboard you squint at. Spatial navigation, large artwork, and focus-driven interaction make it feel like a console media app, not a web page.
-
-**mpv is the player.** Media Centarr doesn't reinvent video playback. mpv is the best video player on Linux — hardware decoding, format support, subtitle handling, shader pipelines, HDR passthrough. Media Centarr integrates with mpv over IPC so you get all of its capabilities with none of the file-management overhead.
-
-**Your files, your machine.** Single-user, single-machine. No accounts, no auth, no cloud, no Docker, no transcoding server. Point it at your video directories and it handles the rest. SQLite means zero database administration — the entire library is one file you can back up with `cp`.
-
-**Automatic but not magic.** It watches your directories, identifies your media via TMDB, and downloads artwork — all automatically. But when the confidence is low, it queues the file for human review instead of guessing wrong. You stay in control.
-
-**Real-time, not refresh.** Every state change — new file detected, metadata fetched, artwork downloaded, playback started — propagates instantly to the UI via PubSub. No polling, no stale pages, no manual refresh. The interface feels alive because it is.
+> **Alpha software.** Media Centarr is functional for daily use but under active development. Expect rough edges and occasional breaking changes between releases.
 
 ---
 
 ## Features
 
-### 📁 Library Management
-
-- Watches directories for video files via inotify with automatic mount/unmount resilience
-- Supports movies, TV series (with seasons and episodes), collections, and extras/bonus features
-- Smart filename parser handles release-group naming conventions, nested directories, and edge cases
-- Configurable extras directories (`Extras/`, `Featurettes/`, `Behind The Scenes/`, etc.) linked to parent movies
-- Exclude and skip directories to ignore samples, incomplete downloads, or system folders
-- Graceful handling of removable and network drives — files on disconnected drives are retained for a configurable period
-
-### 🎬 Metadata & Artwork
-
-- TMDB search with confidence-scored auto-approval — high-confidence matches are written automatically
-- Low-confidence matches are queued for human review with an inline TMDB search panel
-- Downloads poster, backdrop, logo, and thumbnail artwork per entity
-- Resizes images to WebP for efficient storage and fast rendering
-- Maps all metadata to schema.org vocabulary (JSON-LD compatible)
-- Per-entity artwork stored alongside your media or in a configurable cache directory
-
-### ▶️ Playback
-
-- mpv integration via JSON IPC — full control without leaving the interface
-- Seek-aware progress tracking with a 20-second minimum threshold (ignores scrubbing)
-- Smart resume: picks up where you left off for movies, advances to the next episode for TV series
-- 90% completion threshold marks episodes/movies as watched
-- Per-entity playback sessions with live progress updates in the UI
-
-### ⚡ Processing Pipeline
-
-- Built on [Broadway](https://github.com/dashbitco/broadway) for supervised, fault-tolerant processing
-- Five stages: Parse → Search → FetchMetadata → DownloadImages → Ingest
-- 15 concurrent processors, partitioned by file path to prevent conflicts
-- Idempotent and race-safe — duplicate detections, concurrent processing of the same TMDB ID, and re-scans are all handled gracefully
-- Review-resolved files re-enter the pipeline automatically, skipping the search stage
-- Batch PubSub broadcasts minimize UI update overhead
-
-### 🖥️ Real-Time Interface
-
-- Phoenix LiveView — server-rendered, real-time UI with no JavaScript framework and no page reloads
-- PubSub-driven updates: every entity change, pipeline event, and playback state change is pushed instantly
-- Keyboard and gamepad navigation with spatial focus — designed for couch use
-- Dark-first design with light mode support, system theme detection, and manual toggle
-- Collapsible glassmorphism sidebar, poster grids, backdrop hero sections, and detail modals
-
-### 🔧 Observability & Control
-
-- Per-component debug logging (`:watcher`, `:pipeline`, `:tmdb`, `:playback`, `:library`) toggleable from the UI or IEx
-- Pipeline stats: throughput, error counts, active processors, per-stage timing
-- Storage measurement across watch directories, image caches, and the database file
-- Service start/stop, directory scanning, and cache management from the Settings page
-- Named BEAM node with remote IEx shell access for live debugging
+- **Library management** — watches directories for new video files, identifies movies and TV shows via TMDB, and downloads artwork automatically. Low-confidence matches are held for manual review instead of guessing wrong.
+- **Playback** — plays everything through mpv via IPC. Tracks your progress, resumes where you left off, and advances to the next episode automatically.
+- **Release tracking** — track upcoming movies and TV seasons from your library. Media Centarr monitors TMDB daily and shows what's coming and when.
+- **Acquisition** *(optional)* — search for and download media via Prowlarr. Works with any download client Prowlarr supports. See [Prowlarr Integration](#prowlarr-integration) below.
+- **Living room UI** — keyboard and gamepad navigation, large artwork, dark-first design. Built to drive a TV from the couch, not a desktop browser.
+- **Real-time** — every change (new file, metadata fetched, playback started) appears instantly. No polling, no refresh.
 
 ---
 
-## Pages
+## Requirements
 
-### Library
+- Elixir 1.15+ and Erlang/OTP 26+
+- SQLite3
+- mpv
+- inotify-tools
+- A free [TMDB API key](https://www.themoviedb.org/settings/api)
 
-The default landing page. Two zones:
+**Arch Linux:**
+```bash
+sudo pacman -S elixir sqlite mpv inotify-tools
+```
 
-- **Continue Watching** — backdrop cards for in-progress media with resume labels and progress bars
-- **Library Browse** — poster grid with type tabs (All / Movies / TV), sort (Recently Added / A–Z / Year), and text filter
-- **Detail Modal** — hero section with backdrop and logo, metadata, description, season/episode tree for TV, movie list for collections, file info, TMDB rematch, and delete controls
-- Scrollable episode lists with a pinned header so entity identity stays visible
-
-### Dashboard
-
-The operational hub — everything you need at a glance:
-
-- Library stats: movie, series, collection, episode, and file counts
-- Pipeline status: per-stage throughput, errors, active count, and scan trigger
-- Watcher health per directory with state indicators
-- TMDB rate limiter status and configuration
-- Recent errors table (last 50)
-- Storage metrics: disk usage per watch directory, image cache, and database
-- Playback and review summary cards
-
-### Review
-
-Triage queue for low-confidence TMDB matches:
-
-- Side-by-side comparison of parsed filename info vs. TMDB result with images and descriptions
-- Inline TMDB search for manual matching
-- Approve, dismiss, or re-search — resolved files re-enter the pipeline automatically
-- Files grouped by series root for efficient batch review
-
-### Settings
-
-- Service toggles (watcher, pipeline), preferences, and read-only configuration reference
-- Danger zone: scan directories, clear database, clear and refresh image cache
-- Log visibility is controlled from the **Console drawer** (press `` ` `` backtick on any page), not from Settings
+**Debian/Ubuntu:**
+```bash
+sudo apt install elixir sqlite3 mpv inotify-tools
+```
 
 ---
 
-## Getting Started
-
-### Requirements
-
-| Dependency | Version | Notes |
-|------------|---------|-------|
-| Erlang/OTP | 26+ | Required by Elixir 1.15+ |
-| Elixir | ~> 1.15 | With Mix build tool |
-| SQLite3 | 3.x | Database engine |
-| mpv | any | Video playback |
-| inotify-tools | any | File system watching (Linux) |
-
-You'll also need a free [TMDB API key](https://www.themoviedb.org/settings/api).
-
-### Install
+## Installation
 
 ```bash
 git clone https://github.com/media-centarr/media-centarr.git
@@ -146,18 +56,23 @@ cd media-centarr
 mix setup
 ```
 
-### Configure
+---
+
+## Configuration
+
+Copy the default config:
 
 ```bash
 mkdir -p ~/.config/media-centarr
 cp defaults/backend.toml ~/.config/media-centarr/backend.toml
 ```
 
-Edit `~/.config/media-centarr/backend.toml` — at minimum, set your watch directories and TMDB API key:
+Edit `~/.config/media-centarr/backend.toml`. At minimum, set your watch directories and TMDB API key:
 
 ```toml
 watch_dirs = [
-  { dir = "/path/to/your/videos" },
+  { dir = "/mnt/media/Movies" },
+  { dir = "/mnt/media/TV" },
 ]
 
 [tmdb]
@@ -166,27 +81,15 @@ api_key = "your-tmdb-api-key"
 
 See [Configuration](docs/configuration.md) for all options.
 
-### Run
+---
+
+## Running
 
 ```bash
 mix phx.server
 ```
 
-Open [http://localhost:4001](http://localhost:4001).
-
----
-
-## Configuration
-
-Media Centarr is configured via a TOML file at `~/.config/media-centarr/backend.toml`. All keys have sensible defaults — see `defaults/backend.toml` for the full reference.
-
-| Section | Key Options | Description |
-|---------|-------------|-------------|
-| *(top-level)* | `watch_dirs`, `exclude_dirs`, `database_path`, `file_absence_ttl_days` | Watch directories, exclusions, database location, retention for disconnected drives |
-| `[tmdb]` | `api_key` | TMDB API credentials |
-| `[pipeline]` | `auto_approve_threshold`, `extras_dirs`, `skip_dirs` | Confidence threshold, extras directory names, skip directory names |
-| `[playback]` | `mpv_path`, `socket_dir`, `socket_timeout_ms` | mpv binary path, IPC socket location and timeout |
-| `[dashboard]` | `recent_changes_days`, `recently_watched_count` | Dashboard display preferences |
+Open [http://localhost:4001](http://localhost:4001). Enable the watcher and pipeline from the Settings page to start scanning your library.
 
 ---
 
@@ -197,101 +100,67 @@ Media Centarr is configured via a TOML file at `~/.config/media-centarr/backend.
 ```bash
 scripts/install-dev                                    # install systemd user service
 systemctl --user start media-centarr-backend-dev       # start
+systemctl --user stop media-centarr-backend-dev        # stop
 journalctl --user -u media-centarr-backend-dev -f      # logs
 ```
 
-Connect a REPL to the running server:
+### Production release
 
 ```bash
-iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1
-```
-
-Disconnect with `Ctrl+\` — the server keeps running.
-
-### Production
-
-```bash
-scripts/release    # build production release
+scripts/release    # build release
 scripts/install    # install to ~/.local/lib/media-centarr/ and set up systemd
 ```
 
-The release binds to `127.0.0.1:4000`, runs migrations automatically, and manages its own systemd user unit. See [Getting Started — Release](docs/getting-started.md#release) for full details.
+Before running a production release, generate and set a secret key:
+
+```bash
+export SECRET_KEY_BASE="$(mix phx.gen.secret)"
+```
+
+Add this to your shell profile or the systemd unit's `Environment=` directives. See [Getting Started](docs/getting-started.md) for full release instructions.
 
 ---
 
-## Tech Stack
+## Prowlarr Integration
 
-| Component | Technology | Why |
-|-----------|------------|-----|
-| Language | [Elixir](https://elixir-lang.org) | Fault-tolerant concurrency, hot code reloading, pattern matching |
-| Web framework | [Phoenix LiveView](https://github.com/phoenixframework/phoenix_live_view) | Real-time server-rendered UI without a JS framework |
-| Database library | [Ecto](https://github.com/elixir-ecto/ecto) | Type-safe schema, changeset validation, and query DSL |
-| Database | [SQLite](https://sqlite.org) | Zero-admin embedded database, single-file backups |
-| Pipeline | [Broadway](https://github.com/dashbitco/broadway) | Supervised concurrent processing with backpressure |
-| Video player | [mpv](https://mpv.io) | Best-in-class Linux video playback via JSON IPC |
-| CSS | [Tailwind v4](https://tailwindcss.com) + [daisyUI](https://daisyui.com) | Utility-first styling with semantic component classes |
-| Metadata | [TMDB](https://www.themoviedb.org) | Comprehensive movie and TV metadata API |
-| HTTP client | [Req](https://github.com/wojtekmach/req) | Composable HTTP client with built-in retry and test support |
+Prowlarr is an indexer aggregator that enables media search and automated downloading. This integration is entirely optional — Media Centarr works as a library manager without it.
 
----
+### How it works
 
-## Architecture
+1. You search for media in Media Centarr (or release tracking triggers an automated search)
+2. Media Centarr sends a grab request to Prowlarr
+3. Prowlarr routes it to your configured download client (qBittorrent, Transmission, Deluge, SABnzbd, etc.)
+4. Your download client downloads the file and **moves it into one of your Media Centarr watch directories**
+5. Media Centarr detects the new file, identifies it, and adds it to your library automatically
 
+**The key step:** configure your download client to move completed downloads into a directory that Media Centarr is watching. Without this, downloaded files won't be picked up automatically.
+
+### Setup
+
+1. Install and configure [Prowlarr](https://prowlarr.com/) with your indexers and download client
+2. In your download client, set the completed download location to one of your watch directories (e.g. `/mnt/media/Movies` or `/mnt/media/TV`)
+3. Add to `~/.config/media-centarr/backend.toml`:
+
+```toml
+[prowlarr]
+url = "http://localhost:9696"
+api_key = "your-prowlarr-api-key"
 ```
-                        ┌──────────────────────────────────────────────────┐
-                        │                 TMDB API                         │
-                        └──────────┬───────────────┬───────────────┬───────┘
-                                   │ search        │ metadata      │ images
-                                   │               │               │
- ┌─────────────┐    ┌─────────────────────────────────────────────────────────┐
- │             │    │                    Broadway Pipeline                     │
- │  Video      │    │                                                         │
- │  Files      │    │  ┌───────┐   ┌────────┐   ┌──────────┐   ┌──────────┐  │
- │             │    │  │ Parse ├──▸│ Search ├──▸│  Fetch   ├──▸│ Download ├──┐│
- │  /movies/   │    │  └───────┘   └────┬───┘   │ Metadata │   │  Images  │  ││
- │  /tv/       │    │                   │       └──────────┘   └──────────┘  ││
- │  /extras/   │    │              low  │                              │      │
- │             │    │           confidence                             │      │
- └──────┬──────┘    │                   │       ┌──────────┐   ┌──────▾──┐   │
-        │           │                   └──────▸│  Review  │   │  Ingest │   │
-   inotify          │                           │  Queue   ├──▸│         │   │
-        │           │                           └──────────┘   └────┬────┘   │
- ┌──────▾──────┐    └───────────────────────────────────────────────│────────┘
- │   Watcher   │                                                    │
- │  Supervisor ├──── PubSub ──▸ Producer                            │ PubSub
- │             │                                                    │
- │  per-dir    │    ┌───────────────────────────────────────────────▾────────┐
- │  watchers   │    │                  Phoenix LiveView                      │
- └─────────────┘    │                                                        │
-                    │  Dashboard    Library    Review    Settings             │
- ┌─────────────┐    │  stats/health  browse    triage    logging             │
- │   SQLite    │◂───│  pipeline      playback  search    services            │
- │             │    │  storage       progress  approve   config              │
- └─────────────┘    │                   │                                    │
-                    └───────────────────│────────────────────────────────────┘
- ┌─────────────┐                       │
- │ Image Cache │                  ┌────▾────┐
- │  WebP       │                  │   mpv   │
- │  per-entity │                  │   IPC   │
- └─────────────┘                  └─────────┘
-```
+
+4. Restart Media Centarr — the Search page and acquisition controls appear automatically
+
+See [Acquisition](docs/acquisition/README.md) and [Prowlarr Setup](docs/acquisition/prowlarr-setup.md) for detailed instructions.
 
 ---
 
 ## Documentation
 
-Detailed documentation lives in the [`docs/`](docs/) directory:
-
 - [Getting Started](docs/getting-started.md) — installation, configuration, running, and release
 - [Configuration](docs/configuration.md) — all config options with defaults
 - [Architecture](docs/architecture.md) — system overview and component relationships
 - [Pipeline](docs/pipeline.md) — how files are processed from detection to library
-- [Watcher](docs/watcher.md) — directory watching, mount resilience, and scanning
-- [TMDB](docs/tmdb.md) — metadata scraping, confidence scoring, and rate limiting
 - [Playback](docs/playback.md) — mpv integration, progress tracking, and resume logic
-- [Library](docs/library.md) — entity model, serialization, and browsing
-- [Input System](docs/input-system.md) — keyboard and gamepad navigation
-- [mpv](docs/mpv.md) — mpv IPC protocol and configuration
+- [Acquisition](docs/acquisition/README.md) — Prowlarr integration, manual search, automated grabs
 
 ---
 
@@ -308,5 +177,3 @@ Detailed documentation lives in the [`docs/`](docs/) directory:
 </a>
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
-
-Built with [Elixir](https://elixir-lang.org), [Phoenix](https://phoenixframework.org), [Ecto](https://github.com/elixir-ecto/ecto), [Broadway](https://github.com/dashbitco/broadway), and [mpv](https://mpv.io).
