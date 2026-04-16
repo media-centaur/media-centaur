@@ -70,7 +70,7 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
 
   defp build_client do
     url = MediaCentarr.Config.get(:prowlarr_url)
-    api_key = MediaCentarr.Config.get(:prowlarr_api_key)
+    api_key = MediaCentarr.Config.get(:prowlarr_api_key) |> MediaCentarr.Secret.expose()
     Req.new(base_url: url, headers: [{"x-api-key", api_key}])
   end
 
@@ -168,8 +168,11 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
     }
   end
 
+  # Prowlarr returns each field as `%{"name" => name, "value" => value, ...}`,
+  # but optional fields that are unset come back without the `"value"` key
+  # (only "name", "label", "type", etc.). Tolerate the absence.
   defp field_map(fields) when is_list(fields) do
-    Map.new(fields, fn %{"name" => name, "value" => value} -> {name, value} end)
+    for %{"name" => name} = field <- fields, into: %{}, do: {name, field["value"]}
   end
 
   defp field_map(_), do: %{}

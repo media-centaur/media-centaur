@@ -797,7 +797,7 @@ defmodule MediaCentarrWeb.StatusLive do
     config = MediaCentarr.Config
 
     %{
-      tmdb_configured: config.get(:tmdb_api_key) not in [nil, ""],
+      tmdb_configured: MediaCentarr.Secret.present?(config.get(:tmdb_api_key)),
       auto_approve_threshold: config.get(:auto_approve_threshold),
       mpv_path: config.get(:mpv_path),
       database_path: config.get(:database_path),

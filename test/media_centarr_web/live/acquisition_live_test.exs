@@ -4,6 +4,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.Acquisition.Prowlarr
+  alias MediaCentarr.Secret
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -14,7 +15,10 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
     :persistent_term.put(
       {MediaCentarr.Config, :config},
-      Map.merge(config, %{prowlarr_url: "http://prowlarr.test", prowlarr_api_key: "test-key"})
+      Map.merge(config, %{
+        prowlarr_url: "http://prowlarr.test",
+        prowlarr_api_key: Secret.wrap("test-key")
+      })
     )
 
     on_exit(fn ->

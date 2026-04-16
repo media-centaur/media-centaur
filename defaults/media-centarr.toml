@@ -82,9 +82,12 @@ refresh_interval_hours = 24
 # progress back. Currently supported types: "qbittorrent".
 # The "Detect from Prowlarr" button on the Settings page can pre-fill type/url
 # from Prowlarr's configured download client; the password must be entered
-# manually since Prowlarr does not expose stored passwords through its API.
+# manually (Prowlarr does not expose stored passwords through its API).
+#
+# The download client password is intentionally NOT readable from this TOML
+# file — it must be entered via the Settings UI so it never lands in
+# dotfiles/backup repos. See decisions/architecture/ for the policy.
 #
 # type = "qbittorrent"
 # url = "http://localhost:8080"
 # username = "admin"
-# password = ""

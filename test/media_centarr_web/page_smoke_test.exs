@@ -14,7 +14,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Config
+  alias MediaCentarr.{Config, Secret}
 
   for {path, label} <- [
         {"/", "library"},
@@ -38,7 +38,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         {Config, :config},
         Map.merge(original, %{
           prowlarr_url: "http://prowlarr.test",
-          prowlarr_api_key: "test-key"
+          prowlarr_api_key: Secret.wrap("test-key")
         })
       )
 
