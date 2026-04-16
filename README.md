@@ -142,7 +142,7 @@ You'll also need a free [TMDB API key](https://www.themoviedb.org/settings/api).
 
 ```bash
 git clone https://github.com/media-centaur/media-centaur.git
-cd media-centaur/backend
+cd media-centaur
 mix setup
 ```
 

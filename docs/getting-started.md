@@ -1,6 +1,6 @@
 # Getting Started
 
-Media Centaur Backend is a Phoenix/Elixir application that manages a media library — watching directories for video files, scraping metadata from TMDB, downloading artwork, and serving a LiveView web UI.
+Media Centaur is a Phoenix/Elixir application that manages a media library — watching directories for video files, scraping metadata from TMDB, downloading artwork, and serving a LiveView web UI.
 
 > **Getting Started** · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
 
@@ -27,8 +27,8 @@ Media Centaur Backend is a Phoenix/Elixir application that manages a media libra
 ## Install
 
 ```bash
-git clone https://github.com/user/media-centaur.git
-cd media-centaur/backend
+git clone https://github.com/media-centaur/media-centaur.git
+cd media-centaur
 mix setup    # install deps, create DB, run migrations, build assets
 ```
 
