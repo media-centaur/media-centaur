@@ -46,7 +46,7 @@ Technical, direct, factual. Like Arch Wiki or man pages. No marketing speak, no 
 - Mermaid diagrams over prose for relationships and flows
 - Code examples where they clarify faster than words
 - Link between docs rather than duplicating content
-- Configuration doc embeds full defaults/backend.toml as a fenced code block
+- Configuration doc embeds full defaults/media-centarr.toml as a fenced code block
 - Each subsystem doc must have at least one mermaid diagram
 ```
 
@@ -71,8 +71,8 @@ For each doc file listed below, follow this process:
 
 | Doc | Primary Sources to Read |
 |-----|------------------------|
-| getting-started.md | mix.exs, defaults/backend.toml, CLAUDE.md (Build & Run section) |
-| configuration.md | defaults/backend.toml, lib/media_centarr/config.ex |
+| getting-started.md | mix.exs, defaults/media-centarr.toml, CLAUDE.md (Build & Run section) |
+| configuration.md | defaults/media-centarr.toml, lib/media_centarr/config.ex |
 | architecture.md | CLAUDE.md (Architecture Principles, Repository Layout), lib/media_centarr/application.ex, specs/ directory listing |
 | watcher.md | lib/media_centarr/watcher.ex, lib/media_centarr/watcher/supervisor.ex, PIPELINE.md (watcher-relevant sections) |
 | pipeline.md | PIPELINE.md, lib/media_centarr/pipeline.ex, lib/media_centarr/pipeline/stages/ (all stage files), lib/media_centarr/pipeline/producer.ex |
@@ -148,7 +148,7 @@ This applies everywhere: README.md, architecture.md, and any doc that references
 
 ### Special Rules
 
-- **configuration.md**: Must embed the full contents of `defaults/backend.toml` as a fenced TOML code block with inline annotations explaining each section.
+- **configuration.md**: Must embed the full contents of `defaults/media-centarr.toml` as a fenced TOML code block with inline annotations explaining each section.
 - **architecture.md**: Must include a top-level mermaid diagram showing how all subsystems relate.
 - **getting-started.md**: Must list system dependencies (Erlang/OTP, Elixir versions from mix.exs, SQLite).
 
@@ -184,7 +184,7 @@ Use the Task tool to parallelize where possible:
 Before finishing, verify:
 - [ ] README.md links to `docs/getting-started.md` as the documentation entry point
 - [ ] Every subsystem doc has at least one mermaid diagram
-- [ ] configuration.md contains the full embedded backend.toml
+- [ ] configuration.md contains the full embedded media-centarr.toml
 - [ ] No instruction files were overwritten
 - [ ] getting-started.md lists Elixir/OTP version requirements
 - [ ] Every doc in `docs/` has a cross-doc nav bar and page TOC (no `## Contents` heading)

@@ -63,9 +63,9 @@ scripts/install-dev    # install systemd user service for dev server
 The dev server can run as a persistent systemd user service. `scripts/install-dev` installs a unit that runs `mix phx.server` via `mise exec`, with a named BEAM node for remote shell access.
 
 ```bash
-systemctl --user start media-centarr-backend-dev     # start
-systemctl --user stop media-centarr-backend-dev      # stop
-journalctl --user -u media-centarr-backend-dev -f    # logs
+systemctl --user start media-centarr-dev     # start
+systemctl --user stop media-centarr-dev      # stop
+journalctl --user -u media-centarr-dev -f    # logs
 iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1   # REPL
 ```
 
@@ -183,7 +183,7 @@ Decision records live in `decisions/` using [MADR 4.0](https://adr.github.io/mad
 
 ## Defaults
 
-The `defaults/` directory contains git-tracked starter config files — seed values shipped with the repo, **never overwritten at runtime**. **Keep `defaults/backend.toml` complete.** Every configuration key recognised by `MediaCentarr.Config` must have an entry with a logical default value and a comment. The file must always be valid TOML.
+The `defaults/` directory contains git-tracked starter config files — seed values shipped with the repo, **never overwritten at runtime**. **Keep `defaults/media-centarr.toml` complete.** Every configuration key recognised by `MediaCentarr.Config` must have an entry with a logical default value and a comment. The file must always be valid TOML.
 
 ## Testing Strategy
 

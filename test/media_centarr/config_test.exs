@@ -159,7 +159,7 @@ defmodule MediaCentarr.ConfigTest do
     setup do
       toml_dir = Path.join(System.tmp_dir!(), "config_test_#{Ecto.UUID.generate()}")
       File.mkdir_p!(toml_dir)
-      toml_path = Path.join(toml_dir, "backend.toml")
+      toml_path = Path.join(toml_dir, "media-centarr.toml")
 
       on_exit(fn -> File.rm_rf!(toml_dir) end)
 

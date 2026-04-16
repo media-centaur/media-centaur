@@ -64,10 +64,10 @@ Copy the default config:
 
 ```bash
 mkdir -p ~/.config/media-centarr
-cp defaults/backend.toml ~/.config/media-centarr/backend.toml
+cp defaults/media-centarr.toml ~/.config/media-centarr/media-centarr.toml
 ```
 
-Edit `~/.config/media-centarr/backend.toml`. At minimum, set your watch directories and TMDB API key:
+Edit `~/.config/media-centarr/media-centarr.toml`. At minimum, set your watch directories and TMDB API key:
 
 ```toml
 watch_dirs = [
@@ -99,9 +99,9 @@ Open [http://localhost:4001](http://localhost:4001). Enable the watcher and pipe
 
 ```bash
 scripts/install-dev                                    # install systemd user service
-systemctl --user start media-centarr-backend-dev       # start
-systemctl --user stop media-centarr-backend-dev        # stop
-journalctl --user -u media-centarr-backend-dev -f      # logs
+systemctl --user start media-centarr-dev       # start
+systemctl --user stop media-centarr-dev        # stop
+journalctl --user -u media-centarr-dev -f      # logs
 ```
 
 ### Production release
@@ -139,7 +139,7 @@ Prowlarr is an indexer aggregator that enables media search and automated downlo
 
 1. Install and configure [Prowlarr](https://prowlarr.com/) with your indexers and download client
 2. In your download client, set the completed download location to one of your watch directories (e.g. `/mnt/media/Movies` or `/mnt/media/TV`)
-3. Add to `~/.config/media-centarr/backend.toml`:
+3. Add to `~/.config/media-centarr/media-centarr.toml`:
 
 ```toml
 [prowlarr]

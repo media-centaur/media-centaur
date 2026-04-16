@@ -11,8 +11,8 @@ banner() { echo "==> $1"; }
 
 release_src="_build/prod/rel/media_centarr"
 install_dir="$HOME/.local/lib/media-centarr"
-unit_src="defaults/media-centarr-backend.service"
-unit_dst="$HOME/.config/systemd/user/media-centarr-backend.service"
+unit_src="defaults/media-centarr.service"
+unit_dst="$HOME/.config/systemd/user/media-centarr.service"
 
 # 1. Verify the release exists
 if [ ! -d "$release_src" ]; then
@@ -44,9 +44,9 @@ banner "Running migrations"
 "$install_dir/bin/media_centarr" eval "MediaCentarr.Release.migrate()"
 
 # 6. Restart service if active
-if systemctl --user is-active --quiet media-centarr-backend; then
+if systemctl --user is-active --quiet media-centarr; then
   banner "Restarting service"
-  systemctl --user restart media-centarr-backend
+  systemctl --user restart media-centarr
 fi
 
 # 7. Status summary
@@ -55,4 +55,4 @@ echo "  Release: $install_dir"
 echo "  Unit:    $unit_dst"
 echo "  Version: $("$install_dir/bin/media_centarr" version)"
 echo ""
-systemctl --user status media-centarr-backend --no-pager 2>/dev/null || echo "  Service is not running. Start with: systemctl --user start media-centarr-backend"
+systemctl --user status media-centarr --no-pager 2>/dev/null || echo "  Service is not running. Start with: systemctl --user start media-centarr"

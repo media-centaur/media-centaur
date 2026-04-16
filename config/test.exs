@@ -1,6 +1,6 @@
 import Config
 
-# Never read user TOML config (~/.config/media-centarr/backend.toml) in tests.
+# Never read user TOML config (~/.config/media-centarr/media-centarr.toml) in tests.
 # Tests use only app env defaults — no real user paths enter the test environment.
 config :media_centarr, :environment, :test
 config :media_centarr, :skip_user_config, true

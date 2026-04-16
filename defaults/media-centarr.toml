@@ -1,7 +1,7 @@
-# defaults/backend.toml
+# defaults/media-centarr.toml
 #
 # Shipped default configuration for Media Centarr — Backend.
-# Copy this file to ~/.config/media-centarr/backend.toml and edit as needed.
+# Copy this file to ~/.config/media-centarr/media-centarr.toml and edit as needed.
 # This file must contain every recognised config key; keep it up to date as new
 # keys are added to MediaCentarr.Config.
 
