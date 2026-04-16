@@ -1,4 +1,5 @@
 defmodule MediaCentarr.Repo do
+  @moduledoc false
   use Ecto.Repo,
     otp_app: :media_centarr,
     adapter: Ecto.Adapters.SQLite3

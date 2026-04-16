@@ -163,7 +163,7 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent do
 
   defp authenticate(client) do
     username = Config.get(:download_client_username) || ""
-    password = Config.get(:download_client_password) |> MediaCentarr.Secret.expose() || ""
+    password = MediaCentarr.Secret.expose(Config.get(:download_client_password)) || ""
 
     Log.info(:acquisition, "qbittorrent — authenticating")
 

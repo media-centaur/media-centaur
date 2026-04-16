@@ -3,7 +3,7 @@ defmodule MediaCentarr.ConfigTest do
   Tests for Config: images_dir_for/1, staging_base_for/1, and
   watch_dirs parsing (plain strings, inline tables, legacy media_dir).
   """
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   alias MediaCentarr.Config
 
@@ -253,16 +253,18 @@ defmodule MediaCentarr.ConfigTest do
   end
 
   defp parse_watch_dirs(raw_list) do
-    Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
-      case entry do
-        dir when is_binary(dir) ->
-          {[dir | dirs], Map.put(images_map, dir, Path.join(dir, ".media-centarr/images"))}
+    then(
+      Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
+        case entry do
+          dir when is_binary(dir) ->
+            {[dir | dirs], Map.put(images_map, dir, Path.join(dir, ".media-centarr/images"))}
 
-        %{"dir" => dir} = table ->
-          images_dir = table["images_dir"] || Path.join(dir, ".media-centarr/images")
-          {[dir | dirs], Map.put(images_map, dir, images_dir)}
-      end
-    end)
-    |> then(fn {dirs, images_map} -> {Enum.reverse(dirs), images_map} end)
+          %{"dir" => dir} = table ->
+            images_dir = table["images_dir"] || Path.join(dir, ".media-centarr/images")
+            {[dir | dirs], Map.put(images_map, dir, images_dir)}
+        end
+      end),
+      fn {dirs, images_map} -> {Enum.reverse(dirs), images_map} end
+    )
   end
 end

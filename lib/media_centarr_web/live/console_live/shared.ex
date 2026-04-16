@@ -164,8 +164,7 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
         payload = Logic.format_visible_payload(snapshot.entries, socket.assigns.filter)
         filename = Logic.download_filename()
 
-        {:noreply,
-         push_event(socket, "console:download", %{filename: filename, content: payload})}
+        {:noreply, push_event(socket, "console:download", %{filename: filename, content: payload})}
       end
 
       def handle_event("copy_visible", _params, socket) do

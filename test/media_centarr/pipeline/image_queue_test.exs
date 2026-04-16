@@ -3,7 +3,7 @@ defmodule MediaCentarr.Pipeline.ImageQueueTest do
   Tests for the Pipeline.ImageQueue context — CRUD operations on image
   download queue entries.
   """
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Pipeline.ImageQueue
 

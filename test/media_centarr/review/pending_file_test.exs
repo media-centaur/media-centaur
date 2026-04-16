@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Review.PendingFileTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Review
 
@@ -9,7 +9,7 @@ defmodule MediaCentarr.Review.PendingFileTest do
     parsed_title: "Inception",
     parsed_year: 2010,
     parsed_type: "movie",
-    tmdb_id: 27205,
+    tmdb_id: 27_205,
     tmdb_type: "movie",
     confidence: 0.72,
     match_title: "Inception",
@@ -17,7 +17,7 @@ defmodule MediaCentarr.Review.PendingFileTest do
     match_poster_path: "/9gk7adHYeDvHkCSEhniVJErJ0Gs.jpg",
     candidates: [
       %{
-        "tmdb_id" => 27205,
+        "tmdb_id" => 27_205,
         "title" => "Inception",
         "year" => "2010",
         "score" => 0.72,
@@ -35,7 +35,7 @@ defmodule MediaCentarr.Review.PendingFileTest do
       assert pending_file.parsed_title == "Inception"
       assert pending_file.parsed_year == 2010
       assert pending_file.parsed_type == "movie"
-      assert pending_file.tmdb_id == 27205
+      assert pending_file.tmdb_id == 27_205
       assert pending_file.tmdb_type == "movie"
       assert pending_file.confidence == 0.72
       assert pending_file.match_title == "Inception"
@@ -92,7 +92,7 @@ defmodule MediaCentarr.Review.PendingFileTest do
 
       {:ok, updated} =
         Review.set_pending_file_match(pending_file, %{
-          tmdb_id: 12345,
+          tmdb_id: 12_345,
           tmdb_type: "movie",
           confidence: 1.0,
           match_title: "The Unknown Movie",
@@ -101,7 +101,7 @@ defmodule MediaCentarr.Review.PendingFileTest do
         })
 
       assert updated.status == :pending
-      assert updated.tmdb_id == 12345
+      assert updated.tmdb_id == 12_345
       assert updated.match_title == "The Unknown Movie"
       assert updated.confidence == 1.0
     end

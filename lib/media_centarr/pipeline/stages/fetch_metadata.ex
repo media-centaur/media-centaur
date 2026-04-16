@@ -237,13 +237,16 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
     backdrop_path = data["backdrop_path"]
     logo_path = find_logo_path(data)
 
-    [
-      poster_path && %{role: "poster", url: Mapper.tmdb_image_url(poster_path), extension: "jpg"},
-      backdrop_path &&
-        %{role: "backdrop", url: Mapper.tmdb_image_url(backdrop_path), extension: "jpg"},
-      logo_path && %{role: "logo", url: Mapper.tmdb_image_url(logo_path), extension: "png"}
-    ]
-    |> Enum.reject(&is_nil/1)
+    Enum.reject(
+      [
+        poster_path &&
+          %{role: "poster", url: Mapper.tmdb_image_url(poster_path), extension: "jpg"},
+        backdrop_path &&
+          %{role: "backdrop", url: Mapper.tmdb_image_url(backdrop_path), extension: "jpg"},
+        logo_path && %{role: "logo", url: Mapper.tmdb_image_url(logo_path), extension: "png"}
+      ],
+      &is_nil/1
+    )
   end
 
   defp build_episode_images(nil), do: []

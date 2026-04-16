@@ -66,7 +66,7 @@ defmodule MediaCentarr.Application do
       MediaCentarr.Watcher.Supervisor.start_image_dir_monitors()
     end
 
-    unless should_start?(env, :start_pipeline) do
+    if !should_start?(env, :start_pipeline) do
       MediaCentarr.Pipeline.Supervisor.stop_pipeline()
       MediaCentarr.ImagePipeline.Supervisor.stop_pipeline()
     end

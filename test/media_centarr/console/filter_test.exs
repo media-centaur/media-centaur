@@ -3,6 +3,7 @@ defmodule MediaCentarr.Console.FilterTest do
 
   alias MediaCentarr.Console.Entry
   alias MediaCentarr.Console.Filter
+  alias MediaCentarr.Console.View
 
   defp build_entry(overrides) do
     defaults = [
@@ -193,7 +194,7 @@ defmodule MediaCentarr.Console.FilterTest do
 
       assert soloed.components[:pipeline] == :show
 
-      known_components = MediaCentarr.Console.View.known_components()
+      known_components = View.known_components()
 
       for component <- known_components, component != :pipeline do
         assert soloed.components[component] == :hide,
@@ -218,7 +219,7 @@ defmodule MediaCentarr.Console.FilterTest do
 
       assert soloed.components[unknown] == :show
 
-      for known_component <- MediaCentarr.Console.View.known_components() do
+      for known_component <- View.known_components() do
         assert soloed.components[known_component] == :hide
       end
     end
@@ -231,7 +232,7 @@ defmodule MediaCentarr.Console.FilterTest do
 
       assert muted.components[:pipeline] == :hide
 
-      known_components = MediaCentarr.Console.View.known_components()
+      known_components = View.known_components()
 
       for component <- known_components, component != :pipeline do
         assert muted.components[component] == :show,
@@ -247,7 +248,7 @@ defmodule MediaCentarr.Console.FilterTest do
 
       assert muted.components[unknown] == :hide
 
-      for known_component <- MediaCentarr.Console.View.known_components() do
+      for known_component <- View.known_components() do
         assert muted.components[known_component] == :show
       end
     end

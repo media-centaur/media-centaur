@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Review.RematchTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Review.Rematch
 

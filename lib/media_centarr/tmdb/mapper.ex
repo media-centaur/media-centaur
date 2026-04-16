@@ -114,8 +114,7 @@ defmodule MediaCentarr.TMDB.Mapper do
   Builds image attribute maps for a child Movie (poster, backdrop, logo).
   Uses `movie_id` instead of `entity_id`.
   """
-  def movie_image_attrs(movie_id, tmdb_data),
-    do: build_image_attrs(:movie_id, movie_id, tmdb_data)
+  def movie_image_attrs(movie_id, tmdb_data), do: build_image_attrs(:movie_id, movie_id, tmdb_data)
 
   @doc """
   Builds a thumb image attribute map for an episode from TMDB episode data.
@@ -149,25 +148,27 @@ defmodule MediaCentarr.TMDB.Mapper do
     backdrop_path = tmdb_data["backdrop_path"]
     logo_path = find_logo_path(tmdb_data)
 
-    [
-      poster_path &&
-        %{
-          owner_key => owner_id,
-          role: "poster",
-          url: tmdb_image_url(poster_path),
-          extension: "jpg"
-        },
-      backdrop_path &&
-        %{
-          owner_key => owner_id,
-          role: "backdrop",
-          url: tmdb_image_url(backdrop_path),
-          extension: "jpg"
-        },
-      logo_path &&
-        %{owner_key => owner_id, role: "logo", url: tmdb_image_url(logo_path), extension: "png"}
-    ]
-    |> Enum.reject(&is_nil/1)
+    Enum.reject(
+      [
+        poster_path &&
+          %{
+            owner_key => owner_id,
+            role: "poster",
+            url: tmdb_image_url(poster_path),
+            extension: "jpg"
+          },
+        backdrop_path &&
+          %{
+            owner_key => owner_id,
+            role: "backdrop",
+            url: tmdb_image_url(backdrop_path),
+            extension: "jpg"
+          },
+        logo_path &&
+          %{owner_key => owner_id, role: "logo", url: tmdb_image_url(logo_path), extension: "png"}
+      ],
+      &is_nil/1
+    )
   end
 
   defp find_logo_path(tmdb_data) do
@@ -216,7 +217,7 @@ defmodule MediaCentarr.TMDB.Mapper do
   def extract_director(%{"crew" => crew}) do
     crew
     |> Enum.find(&(&1["department"] == "Directing" && &1["job"] == "Director"))
-    |> then(&if &1, do: &1["name"], else: nil)
+    |> then(&if &1, do: &1["name"])
   end
 
   def extract_us_rating(nil), do: nil

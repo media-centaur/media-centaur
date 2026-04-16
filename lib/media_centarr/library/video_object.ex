@@ -40,13 +40,6 @@ defmodule MediaCentarr.Library.VideoObject do
   end
 
   def update_changeset(video_object, attrs) do
-    video_object
-    |> cast(attrs, [
-      :name,
-      :description,
-      :date_published,
-      :content_url,
-      :url
-    ])
+    cast(video_object, attrs, [:name, :description, :date_published, :content_url, :url])
   end
 end

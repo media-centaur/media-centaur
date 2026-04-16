@@ -16,8 +16,7 @@ defmodule MediaCentarr.Pipeline.ImageQueue do
   and reset to pending.
   """
   def create(attrs) do
-    ImageQueueEntry.create_changeset(attrs)
-    |> Repo.insert(
+    Repo.insert(ImageQueueEntry.create_changeset(attrs),
       on_conflict: {:replace, [:source_url, :status, :retry_count, :updated_at]},
       conflict_target: [:owner_id, :role]
     )
@@ -25,44 +24,31 @@ defmodule MediaCentarr.Pipeline.ImageQueue do
 
   @doc "Returns all pending entries for a given entity."
   def list_pending(entity_id) do
-    from(e in ImageQueueEntry,
-      where: e.entity_id == ^entity_id and e.status == "pending"
-    )
-    |> Repo.all()
+    Repo.all(from(e in ImageQueueEntry, where: e.entity_id == ^entity_id and e.status == "pending"))
   end
 
   @doc "Returns the count of entries with status failed (for Status-page display)."
   def retrying_count do
-    from(e in ImageQueueEntry,
-      where: e.status == "failed",
-      select: count(e.id)
-    )
-    |> Repo.one()
+    Repo.one(from(e in ImageQueueEntry, where: e.status == "failed", select: count(e.id)))
   end
 
   @doc "Returns all entries with status pending or failed (for retry scheduler)."
   def list_retryable do
-    from(e in ImageQueueEntry,
-      where: e.status in ["pending", "failed"]
-    )
-    |> Repo.all()
+    Repo.all(from(e in ImageQueueEntry, where: e.status in ["pending", "failed"]))
   end
 
   @doc "Updates entry status to the given value."
   def update_status(entry, status) when is_atom(status) do
-    ImageQueueEntry.status_changeset(entry, to_string(status))
-    |> Repo.update()
+    Repo.update(ImageQueueEntry.status_changeset(entry, to_string(status)))
   end
 
   @doc "Marks entry as failed and increments retry_count."
   def mark_failed(entry) do
-    ImageQueueEntry.fail_changeset(entry)
-    |> Repo.update()
+    Repo.update(ImageQueueEntry.fail_changeset(entry))
   end
 
   @doc "Resets entry status to pending (for retry)."
   def reset_to_pending(entry) do
-    ImageQueueEntry.reset_changeset(entry)
-    |> Repo.update()
+    Repo.update(ImageQueueEntry.reset_changeset(entry))
   end
 end

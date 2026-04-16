@@ -142,8 +142,7 @@ defmodule MediaCentarr.Library.FileEventHandler do
   defp cleanup_entity_files(entity_id, watched_files, removed_paths) do
     removed_file_paths =
       watched_files
-      |> Enum.map(& &1.file_path)
-      |> MapSet.new()
+      |> MapSet.new(& &1.file_path)
       |> MapSet.intersection(removed_paths)
 
     seasons = delete_children_for_paths(entity_id, removed_file_paths)
@@ -153,7 +152,7 @@ defmodule MediaCentarr.Library.FileEventHandler do
 
     if files_to_delete != [] do
       ids = Enum.map(files_to_delete, & &1.id)
-      from(w in WatchedFile, where: w.id in ^ids) |> Repo.delete_all()
+      Repo.delete_all(from(w in WatchedFile, where: w.id in ^ids))
     end
 
     # Check if entity is now orphaned (no remaining WatchedFiles)
@@ -173,8 +172,10 @@ defmodule MediaCentarr.Library.FileEventHandler do
 
     Enum.each(seasons, fn season ->
       matched_episodes =
-        Library.list_episodes_for_season!(season.id, load: [:images, :watch_progress])
-        |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+        Enum.filter(
+          Library.list_episodes_for_season!(season.id, load: [:images, :watch_progress]),
+          &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
+        )
 
       Enum.each(matched_episodes, fn episode ->
         destroy_progress(episode)
@@ -185,8 +186,10 @@ defmodule MediaCentarr.Library.FileEventHandler do
     end)
 
     matched_movies =
-      Library.list_movies_by_owner_id(entity_id, load: [:images, :watch_progress])
-      |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+      Enum.filter(
+        Library.list_movies_by_owner_id(entity_id, load: [:images, :watch_progress]),
+        &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
+      )
 
     Enum.each(matched_movies, fn movie ->
       destroy_progress(movie)
@@ -196,8 +199,10 @@ defmodule MediaCentarr.Library.FileEventHandler do
     bulk_destroy(matched_movies, Library.Movie)
 
     matched_extras =
-      Library.list_extras_by_owner_id(entity_id)
-      |> Enum.filter(&(&1.content_url && MapSet.member?(removed_paths, &1.content_url)))
+      Enum.filter(
+        Library.list_extras_by_owner_id(entity_id),
+        &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
+      )
 
     bulk_destroy(matched_extras, Library.Extra)
 
@@ -214,15 +219,15 @@ defmodule MediaCentarr.Library.FileEventHandler do
   end
 
   defp delete_entity_cascade(entity_id) do
-    if Library.list_watched_files_by_entity_id(entity_id) != [] do
+    if Library.list_watched_files_by_entity_id(entity_id) == [] do
+      EntityCascade.destroy!(entity_id)
+    else
       Log.info(
         :library,
         "skipped cascade — entity #{MediaCentarr.Format.short_id(entity_id)} gained files during cleanup"
       )
 
       :ok
-    else
-      EntityCascade.destroy!(entity_id)
     end
   end
 

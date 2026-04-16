@@ -38,7 +38,7 @@ defmodule MediaCentarr.TMDB.Client do
   end
 
   defp build_client do
-    api_key = MediaCentarr.Config.get(:tmdb_api_key) |> MediaCentarr.Secret.expose()
+    api_key = MediaCentarr.Secret.expose(MediaCentarr.Config.get(:tmdb_api_key))
     Req.new(base_url: @base_url, params: [api_key: api_key])
   end
 

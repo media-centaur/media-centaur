@@ -26,8 +26,7 @@ defmodule MediaCentarr.Library.Extra do
   end
 
   def create_changeset(attrs) do
-    %__MODULE__{}
-    |> cast(attrs, [
+    cast(%__MODULE__{}, attrs, [
       :name,
       :content_url,
       :position,

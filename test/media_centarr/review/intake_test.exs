@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Review.IntakeTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Review.Intake
   alias MediaCentarr.TestFactory
@@ -14,7 +14,7 @@ defmodule MediaCentarr.Review.IntakeTest do
       parsed_type: "movie",
       season_number: nil,
       episode_number: nil,
-      tmdb_id: 27205,
+      tmdb_id: 27_205,
       tmdb_type: "movie",
       confidence: 0.72,
       match_title: "Inception",
@@ -22,7 +22,7 @@ defmodule MediaCentarr.Review.IntakeTest do
       match_poster_path: "/9gk7adHYeDvHkCSEhniVJErJ0Gs.jpg",
       candidates: [
         %{
-          "tmdb_id" => 27205,
+          "tmdb_id" => 27_205,
           "title" => "Inception",
           "year" => "2010",
           "score" => 0.72,
@@ -46,7 +46,7 @@ defmodule MediaCentarr.Review.IntakeTest do
       assert pending_file.parsed_title == "Inception"
       assert pending_file.parsed_year == 2010
       assert pending_file.parsed_type == "movie"
-      assert pending_file.tmdb_id == 27205
+      assert pending_file.tmdb_id == 27_205
       assert pending_file.tmdb_type == "movie"
       assert pending_file.confidence == 0.72
       assert pending_file.match_title == "Inception"
@@ -79,7 +79,7 @@ defmodule MediaCentarr.Review.IntakeTest do
     test "pre-normalized candidates pass through correctly" do
       candidates = [
         %{
-          "tmdb_id" => 27205,
+          "tmdb_id" => 27_205,
           "title" => "Inception",
           "year" => "2010",
           "score" => 0.92,
@@ -87,7 +87,7 @@ defmodule MediaCentarr.Review.IntakeTest do
           "overview" => "A dream heist movie"
         },
         %{
-          "tmdb_id" => 99999,
+          "tmdb_id" => 99_999,
           "title" => "Other Movie",
           "year" => "2015",
           "score" => 0.45,
@@ -104,7 +104,7 @@ defmodule MediaCentarr.Review.IntakeTest do
       [first, second] = pending_file.candidates
 
       assert first == %{
-               "tmdb_id" => 27205,
+               "tmdb_id" => 27_205,
                "title" => "Inception",
                "year" => "2010",
                "score" => 0.92,
@@ -113,7 +113,7 @@ defmodule MediaCentarr.Review.IntakeTest do
              }
 
       assert second == %{
-               "tmdb_id" => 99999,
+               "tmdb_id" => 99_999,
                "title" => "Other Movie",
                "year" => "2015",
                "score" => 0.45,

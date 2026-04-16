@@ -14,9 +14,7 @@ defmodule MediaCentarr.ParserTest do
   describe "movie — dot-separated filename" do
     test "simple title + year + quality tags" do
       result =
-        Parser.parse(
-          "/mnt/videos/Videos/Sample.Movie.Two.1991.BluRay.Remux.1080p.AVC.DTS-HD.MA.5.1-HiFi.mkv"
-        )
+        Parser.parse("/mnt/videos/Videos/Sample.Movie.Two.1991.BluRay.Remux.1080p.AVC.DTS-HD.MA.5.1-HiFi.mkv")
 
       assert result.title == "Sample Movie Two"
       assert result.year == 1991
@@ -89,9 +87,7 @@ defmodule MediaCentarr.ParserTest do
 
     test "Sample Movie One as directory name (no extension)" do
       result =
-        Parser.parse(
-          "/mnt/videos/Videos/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE"
-        )
+        Parser.parse("/mnt/videos/Videos/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE")
 
       assert result.title == "Sample Movie One"
       assert result.year == 1967
@@ -115,9 +111,7 @@ defmodule MediaCentarr.ParserTest do
 
     test "single word title spaces" do
       result =
-        Parser.parse(
-          "/mnt/videos/Videos/Little Trouble Kids.2025.1080p.WEB-DL.AAC.x264-skyflickz.mp4"
-        )
+        Parser.parse("/mnt/videos/Videos/Little Trouble Kids.2025.1080p.WEB-DL.AAC.x264-skyflickz.mp4")
 
       assert result.title == "Little Trouble Kids"
       assert result.year == 2025
@@ -361,9 +355,7 @@ defmodule MediaCentarr.ParserTest do
 
     test "Sample Show One: NxNN format (7x02) inside Season directory" do
       result =
-        Parser.parse(
-          "/home/shawn/videos/media-library/Sample Show One/Season 7/Sample Show One 7x02 - Sample Episode Toil.avi"
-        )
+        Parser.parse("/home/shawn/videos/media-library/Sample Show One/Season 7/Sample Show One 7x02 - Sample Episode Toil.avi")
 
       assert result.title == "Sample Show One"
       assert result.season == 7
@@ -503,9 +495,7 @@ defmodule MediaCentarr.ParserTest do
   describe "tv — season pack directory (no episode)" do
     test "dot-separated season pack" do
       result =
-        Parser.parse(
-          "/mnt/videos/Videos/Sample Show Four.S01.COMPLETE.720p.HULU.WEBRip.x264-GalaxyTV[TGx]"
-        )
+        Parser.parse("/mnt/videos/Videos/Sample Show Four.S01.COMPLETE.720p.HULU.WEBRip.x264-GalaxyTV[TGx]")
 
       assert result.title == "Sample Show Four"
       assert result.season == 1
@@ -515,9 +505,7 @@ defmodule MediaCentarr.ParserTest do
 
     test "Sample Show Ten season pack" do
       result =
-        Parser.parse(
-          "/mnt/videos/Videos/Sample.Show.Ten.S01.COMPLETE.720p.BluRay.x264-GalaxyTV[TGx]"
-        )
+        Parser.parse("/mnt/videos/Videos/Sample.Show.Ten.S01.COMPLETE.720p.BluRay.x264-GalaxyTV[TGx]")
 
       assert result.title == "Sample Show Ten"
       assert result.season == 1
@@ -663,9 +651,7 @@ defmodule MediaCentarr.ParserTest do
 
     test "Layout A with S-prefix: Show (2022)/S02/Extras/file.mkv" do
       result =
-        Parser.parse(
-          "/mnt/videos/Videos/Sample Show Nine (2022)/S02/Extras/Inside the Segment.mkv"
-        )
+        Parser.parse("/mnt/videos/Videos/Sample Show Nine (2022)/S02/Extras/Inside the Segment.mkv")
 
       assert result.type == :extra
       assert result.season == 2

@@ -120,14 +120,16 @@ defmodule MediaCentarr.Admin do
   defp collect_entities_with_images_and_files do
     import Ecto.Query
 
-    tv = Repo.all(TVSeries) |> Repo.preload([:images, :watched_files])
-    ms = Repo.all(MovieSeries) |> Repo.preload([:images, :watched_files])
+    tv = Repo.preload(Repo.all(TVSeries), [:images, :watched_files])
+    ms = Repo.preload(Repo.all(MovieSeries), [:images, :watched_files])
 
     standalone_movies =
-      Repo.all(from(m in Movie, where: is_nil(m.movie_series_id)))
-      |> Repo.preload([:images, :watched_files])
+      Repo.preload(Repo.all(from(m in Movie, where: is_nil(m.movie_series_id))), [
+        :images,
+        :watched_files
+      ])
 
-    vo = Repo.all(VideoObject) |> Repo.preload([:images, :watched_files])
+    vo = Repo.preload(Repo.all(VideoObject), [:images, :watched_files])
 
     tv ++ ms ++ standalone_movies ++ vo
   end

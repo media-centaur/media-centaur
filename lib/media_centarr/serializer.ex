@@ -102,9 +102,7 @@ defmodule MediaCentarr.Serializer do
       [single_movie] ->
         %{
           "@id" => movie_series.id,
-          "entity" =>
-            serialize_child_movie(single_movie)
-            |> maybe_add_extras(movie_series)
+          "entity" => maybe_add_extras(serialize_child_movie(single_movie), movie_series)
         }
 
       _ ->
@@ -178,8 +176,7 @@ defmodule MediaCentarr.Serializer do
     |> compact()
   end
 
-  defp maybe_add_season_extras(map, %Season{extras: extras})
-       when is_list(extras) and extras != [] do
+  defp maybe_add_season_extras(map, %Season{extras: extras}) when is_list(extras) and extras != [] do
     serialized =
       extras
       |> Enum.sort_by(&(&1.position || 0))
@@ -234,13 +231,12 @@ defmodule MediaCentarr.Serializer do
   end
 
   defp serialize_extra(%Extra{} = extra) do
-    %{
+    compact(%{
       "@id" => extra.id,
       "@type" => "VideoObject",
       "name" => extra.name,
       "contentUrl" => extra.content_url
-    }
-    |> compact()
+    })
   end
 
   defp serialize_child_movie(%Movie{} = movie) do
@@ -262,8 +258,7 @@ defmodule MediaCentarr.Serializer do
     |> compact()
   end
 
-  defp maybe_add_child_movie_identifier(map, %Movie{tmdb_id: tmdb_id})
-       when is_binary(tmdb_id) do
+  defp maybe_add_child_movie_identifier(map, %Movie{tmdb_id: tmdb_id}) when is_binary(tmdb_id) do
     identifier = %{
       "@type" => "PropertyValue",
       "propertyID" => "tmdb",
@@ -275,8 +270,7 @@ defmodule MediaCentarr.Serializer do
 
   defp maybe_add_child_movie_identifier(map, _), do: map
 
-  defp maybe_add_child_movie_rating(map, %Movie{aggregate_rating_value: value})
-       when is_number(value) do
+  defp maybe_add_child_movie_rating(map, %Movie{aggregate_rating_value: value}) when is_number(value) do
     Map.put(map, "aggregateRating", %{"ratingValue" => value})
   end
 
@@ -295,12 +289,11 @@ defmodule MediaCentarr.Serializer do
   end
 
   defp serialize_image(%Image{} = image) do
-    %{
+    compact(%{
       "@type" => "ImageObject",
       "name" => image.role,
       "contentUrl" => Config.resolve_image_path(image.content_url)
-    }
-    |> compact()
+    })
   end
 
   defp maybe_add_external_ids(map, record) do
@@ -314,12 +307,11 @@ defmodule MediaCentarr.Serializer do
   end
 
   defp serialize_external_id(%ExternalId{} = ext_id) do
-    %{
+    compact(%{
       "@type" => "PropertyValue",
       "propertyID" => ext_id.source,
       "value" => ext_id.external_id
-    }
-    |> compact()
+    })
   end
 
   defp maybe_add_rating(map, record) do

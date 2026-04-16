@@ -9,8 +9,7 @@ defmodule MediaCentarr.Playback.EpisodeList do
   def sort_seasons(_), do: []
 
   @doc "Sorts episodes by episode_number."
-  def sort_episodes(episodes) when is_list(episodes),
-    do: Enum.sort_by(episodes, & &1.episode_number)
+  def sort_episodes(episodes) when is_list(episodes), do: Enum.sort_by(episodes, & &1.episode_number)
 
   def sort_episodes(_), do: []
 

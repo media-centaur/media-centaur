@@ -30,8 +30,8 @@ defmodule MediaCentarr.Settings do
     key = attrs[:key] || attrs["key"]
 
     case Repo.get_by(Entry, key: key) do
-      nil -> Entry.upsert_changeset(attrs) |> Repo.insert()
-      existing -> Entry.update_changeset(existing, attrs) |> Repo.update()
+      nil -> Repo.insert(Entry.upsert_changeset(attrs))
+      existing -> Repo.update(Entry.update_changeset(existing, attrs))
     end
   end
 
@@ -39,13 +39,13 @@ defmodule MediaCentarr.Settings do
   def find_or_create_entry!(attrs), do: bang!(find_or_create_entry(attrs))
 
   def create_entry(attrs) do
-    Entry.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Entry.create_changeset(attrs))
   end
 
   def create_entry!(attrs), do: bang!(create_entry(attrs))
 
   def update_entry(entry, attrs) do
-    Entry.update_changeset(entry, attrs) |> Repo.update()
+    Repo.update(Entry.update_changeset(entry, attrs))
   end
 
   def update_entry!(entry, attrs), do: bang!(update_entry(entry, attrs))

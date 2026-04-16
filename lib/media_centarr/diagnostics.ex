@@ -62,8 +62,8 @@ defmodule MediaCentarr.Diagnostics do
 
   @doc "Watcher and pipeline state, watch dirs, config."
   def services do
-    watcher_children = Supervisor.which_children(MediaCentarr.Watcher.Supervisor) |> length()
-    pipeline_children = Supervisor.which_children(MediaCentarr.Pipeline.Supervisor) |> length()
+    watcher_children = length(Supervisor.which_children(MediaCentarr.Watcher.Supervisor))
+    pipeline_children = length(Supervisor.which_children(MediaCentarr.Pipeline.Supervisor))
 
     IO.puts("Watcher children: #{watcher_children}")
     IO.puts("Pipeline children: #{pipeline_children}")

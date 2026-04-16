@@ -1,5 +1,5 @@
 defmodule MediaCentarr.WatchHistory.EventTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.WatchHistory.Event
 
@@ -43,14 +43,15 @@ defmodule MediaCentarr.WatchHistory.EventTest do
       movie = create_movie(%{name: "Sample Movie"})
 
       {:ok, event} =
-        Event.create_changeset(%{
-          entity_type: :movie,
-          movie_id: movie.id,
-          title: "Sample Movie",
-          duration_seconds: 7080.0,
-          completed_at: DateTime.truncate(DateTime.utc_now(), :second)
-        })
-        |> MediaCentarr.Repo.insert()
+        MediaCentarr.Repo.insert(
+          Event.create_changeset(%{
+            entity_type: :movie,
+            movie_id: movie.id,
+            title: "Sample Movie",
+            duration_seconds: 7080.0,
+            completed_at: DateTime.utc_now(:second)
+          })
+        )
 
       MediaCentarr.Repo.delete!(movie)
       reloaded = MediaCentarr.Repo.get!(Event, event.id)

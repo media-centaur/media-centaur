@@ -56,9 +56,7 @@ defmodule MediaCentarr.Watcher do
   ]
 
   def start_link(dir) do
-    GenServer.start_link(__MODULE__, dir,
-      name: {:via, Registry, {MediaCentarr.Watcher.Registry, dir}}
-    )
+    GenServer.start_link(__MODULE__, dir, name: {:via, Registry, {MediaCentarr.Watcher.Registry, dir}})
   end
 
   def status(pid), do: GenServer.call(pid, :status)
@@ -75,8 +73,7 @@ defmodule MediaCentarr.Watcher do
     Process.flag(:trap_exit, true)
     send(self(), :start_watching)
 
-    {:ok,
-     %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs(dir), skip_dirs: load_skip_dirs()}}
+    {:ok, %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs(dir), skip_dirs: load_skip_dirs()}}
   end
 
   @impl true
@@ -188,13 +185,13 @@ defmodule MediaCentarr.Watcher do
         end
 
       {:error, _} ->
-        if state.state != :unavailable do
+        if state.state == :unavailable do
+          schedule_health_check()
+          {:noreply, state}
+        else
           Log.warning(:watcher, "directory inaccessible — #{state.dir}")
           broadcast_state(state.dir, :unavailable)
           {:noreply, %{state | state: :unavailable, was_unavailable: true}}
-        else
-          schedule_health_check()
-          {:noreply, state}
         end
     end
   end
@@ -289,10 +286,10 @@ defmodule MediaCentarr.Watcher do
     restored_paths = FilePresence.restore_present_files(dir, video_files)
 
     restored_entity_ids =
-      if restored_paths != [] do
-        files_by_paths(restored_paths) |> unique_entity_ids()
-      else
+      if restored_paths == [] do
         []
+      else
+        unique_entity_ids(files_by_paths(restored_paths))
       end
 
     broadcast_entities_changed(restored_entity_ids)
@@ -359,8 +356,7 @@ defmodule MediaCentarr.Watcher do
   end
 
   defp load_skip_dirs do
-    (MediaCentarr.Config.get(:skip_dirs) || [])
-    |> Enum.map(&String.downcase/1)
+    Enum.map(MediaCentarr.Config.get(:skip_dirs) || [], &String.downcase/1)
   end
 
   defp in_skip_dir?(path, skip_dirs) do
@@ -376,8 +372,7 @@ defmodule MediaCentarr.Watcher do
     staging_base = MediaCentarr.Config.staging_base_for(watch_dir)
 
     auto_excludes =
-      [images_dir, staging_base]
-      |> Enum.filter(&String.starts_with?(&1, watch_dir <> "/"))
+      Enum.filter([images_dir, staging_base], &String.starts_with?(&1, watch_dir <> "/"))
 
     Enum.uniq(configured ++ auto_excludes)
   end
@@ -422,11 +417,11 @@ defmodule MediaCentarr.Watcher do
   # ---------------------------------------------------------------------------
 
   defp files_by_paths(paths) do
-    from(w in WatchedFile, where: w.file_path in ^paths) |> Repo.all()
+    Repo.all(from(w in WatchedFile, where: w.file_path in ^paths))
   end
 
   defp files_by_watch_dir(watch_dir) do
-    from(w in WatchedFile, where: w.watch_dir == ^watch_dir) |> Repo.all()
+    Repo.all(from(w in WatchedFile, where: w.watch_dir == ^watch_dir))
   end
 
   defp unique_entity_ids(records) do

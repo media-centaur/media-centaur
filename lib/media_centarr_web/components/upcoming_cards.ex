@@ -476,8 +476,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   defp released_content(assigns) do
     sorted =
-      assigns.releases
-      |> Enum.sort_by(fn release ->
+      Enum.sort_by(assigns.releases, fn release ->
         date = release.air_date || ~D[9999-12-31]
 
         {date.year, date.month, date.day, release.item.name, release.season_number || 0,
@@ -499,8 +498,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   defp upcoming_list_content(assigns) do
     sorted =
-      assigns.releases
-      |> Enum.sort_by(fn release ->
+      Enum.sort_by(assigns.releases, fn release ->
         date = release.air_date
 
         {date.year, date.month, date.day, release.item.name, release.season_number || 0,
@@ -596,7 +594,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   attr :release, :map, required: true
 
-  defp release_detail(%{release: %{season_number: s}} = assigns) when is_integer(s) do
+  defp release_detail(%{release: %{season_number: season}} = assigns) when is_integer(season) do
     ~H"""
     <span class="text-base-content/50 tabular-nums">
       <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
@@ -722,12 +720,14 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     start_pad = Date.day_of_week(first) - 1
     start = Date.add(first, -start_pad)
 
-    Enum.map(0..5, fn week ->
-      Enum.map(0..6, fn day ->
-        Date.add(start, week * 7 + day)
-      end)
-    end)
-    |> Enum.reject(fn week -> Enum.all?(week, &(&1.month != month)) end)
+    Enum.reject(
+      Enum.map(0..5, fn week ->
+        Enum.map(0..6, fn day ->
+          Date.add(start, week * 7 + day)
+        end)
+      end),
+      fn week -> Enum.all?(week, &(&1.month != month)) end
+    )
   end
 
   defp releases_by_date(releases) do

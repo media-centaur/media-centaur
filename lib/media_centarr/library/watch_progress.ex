@@ -33,7 +33,7 @@ defmodule MediaCentarr.Library.WatchProgress do
       :duration_seconds,
       :completed
     ])
-    |> put_change(:last_watched_at, DateTime.truncate(DateTime.utc_now(), :second))
+    |> put_change(:last_watched_at, DateTime.utc_now(:second))
   end
 
   def upsert_changeset(record, attrs) do
@@ -46,16 +46,14 @@ defmodule MediaCentarr.Library.WatchProgress do
       :episode_id,
       :video_object_id
     ])
-    |> put_change(:last_watched_at, DateTime.truncate(DateTime.utc_now(), :second))
+    |> put_change(:last_watched_at, DateTime.utc_now(:second))
   end
 
   def mark_completed_changeset(record) do
-    record
-    |> change(completed: true, last_watched_at: DateTime.truncate(DateTime.utc_now(), :second))
+    change(record, completed: true, last_watched_at: DateTime.utc_now(:second))
   end
 
   def mark_incomplete_changeset(record) do
-    record
-    |> change(completed: false, last_watched_at: DateTime.truncate(DateTime.utc_now(), :second))
+    change(record, completed: false, last_watched_at: DateTime.utc_now(:second))
   end
 end

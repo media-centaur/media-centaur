@@ -103,8 +103,7 @@ defmodule MediaCentarr.Playback.ProgressSummary do
     progress_by_key = EpisodeList.index_progress_by_key(progress_records)
 
     most_recent =
-      progress_records
-      |> Enum.max_by(& &1.last_watched_at, DateTime, fn -> nil end)
+      Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
 
     case most_recent do
       nil ->

@@ -8,7 +8,7 @@ defmodule MediaCentarr.PipelineTest do
   `Library.Inbound.ingest/1` directly (in the test process) to verify
   entity creation within the sandbox.
   """
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.Inbound
@@ -134,8 +134,7 @@ defmodule MediaCentarr.PipelineTest do
       ])
 
       payload = %Payload{
-        file_path:
-          "/media/pipeline/TV/Sample.Show.Eight/Season.01/Sample.Show.Eight.S01E01.1080p.BluRay.mkv",
+        file_path: "/media/pipeline/TV/Sample.Show.Eight/Season.01/Sample.Show.Eight.S01E01.1080p.BluRay.mkv",
         watch_directory: "/media/pipeline/TV"
       }
 

@@ -1,4 +1,10 @@
 defmodule MediaCentarrWeb.ReviewLive do
+  @moduledoc """
+  Master/detail UI for files awaiting review (`Review.PendingFile` records).
+
+  Lists pending files in the left pane with a detail editor on the right —
+  user accepts the proposed match, manually rematches, or skips the file.
+  """
   use MediaCentarrWeb, :live_view
 
   import MediaCentarrWeb.ReviewHelpers
@@ -207,7 +213,7 @@ defmodule MediaCentarrWeb.ReviewLive do
   def handle_event("toggle_files", %{"key" => key}, socket) do
     group_key = decode_key(key)
     current = socket.assigns[:expanded_group]
-    expanded = if current == group_key, do: nil, else: group_key
+    expanded = if current != group_key, do: group_key
     {:noreply, assign(socket, expanded_group: expanded)}
   end
 
@@ -963,6 +969,11 @@ defmodule MediaCentarrWeb.ReviewLive do
     Base.url_encode64(:erlang.term_to_binary({watch_dir, root}))
   end
 
+  # sobelow_skip ["Misc.BinToTerm"]
+  # `:safe` prevents atom creation; the encoded payload is always a
+  # `{watch_dir, root}` string tuple created by `encode_key/1` above and
+  # round-tripped through the URL by the same LiveView. Phoenix's request
+  # size limits bound any DoS-via-large-term attack surface.
   defp decode_key(encoded) do
     encoded
     |> Base.url_decode64!()

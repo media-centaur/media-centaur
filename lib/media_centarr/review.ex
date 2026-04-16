@@ -55,7 +55,7 @@ defmodule MediaCentarr.Review do
   def list_pending_files_for_review!, do: bang!(list_pending_files_for_review())
 
   def create_pending_file(attrs) do
-    PendingFile.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(PendingFile.create_changeset(attrs))
   end
 
   def create_pending_file!(attrs), do: bang!(create_pending_file(attrs))
@@ -64,7 +64,7 @@ defmodule MediaCentarr.Review do
     file_path = attrs[:file_path] || attrs["file_path"]
 
     case Repo.get_by(PendingFile, file_path: file_path) do
-      nil -> PendingFile.create_changeset(attrs) |> Repo.insert()
+      nil -> Repo.insert(PendingFile.create_changeset(attrs))
       existing -> {:ok, existing}
     end
   end
@@ -72,19 +72,19 @@ defmodule MediaCentarr.Review do
   def find_or_create_pending_file!(attrs), do: bang!(find_or_create_pending_file(attrs))
 
   def approve_pending_file(pending_file) do
-    PendingFile.approve_changeset(pending_file) |> Repo.update()
+    Repo.update(PendingFile.approve_changeset(pending_file))
   end
 
   def approve_pending_file!(pending_file), do: bang!(approve_pending_file(pending_file))
 
   def dismiss_pending_file(pending_file) do
-    PendingFile.dismiss_changeset(pending_file) |> Repo.update()
+    Repo.update(PendingFile.dismiss_changeset(pending_file))
   end
 
   def dismiss_pending_file!(pending_file), do: bang!(dismiss_pending_file(pending_file))
 
   def set_pending_file_match(pending_file, attrs) do
-    PendingFile.set_tmdb_match_changeset(pending_file, attrs) |> Repo.update()
+    Repo.update(PendingFile.set_tmdb_match_changeset(pending_file, attrs))
   end
 
   def set_pending_file_match!(pending_file, attrs) do

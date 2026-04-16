@@ -53,7 +53,7 @@ defmodule MediaCentarr.LibraryBrowser do
 
     entries
     |> Enum.map(&build_typed_entry/1)
-    |> Enum.sort_by(fn entry -> (entry.entity.name || "") |> String.downcase() end)
+    |> Enum.sort_by(fn entry -> String.downcase(entry.entity.name || "") end)
   end
 
   @doc """

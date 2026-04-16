@@ -33,12 +33,11 @@ defmodule MediaCentarr.Watcher.FilePresence do
   """
   @spec record_file(String.t(), String.t()) :: :ok
   def record_file(file_path, watch_dir) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = DateTime.utc_now(:second)
 
     case Repo.get_by(KnownFile, file_path: file_path) do
       nil ->
-        KnownFile.record_changeset(%{file_path: file_path, watch_dir: watch_dir})
-        |> Repo.insert!()
+        Repo.insert!(KnownFile.record_changeset(%{file_path: file_path, watch_dir: watch_dir}))
 
       existing ->
         existing
@@ -74,10 +73,7 @@ defmodule MediaCentarr.Watcher.FilePresence do
     existing_set = MapSet.new(existing_paths)
 
     absent_files =
-      from(k in KnownFile,
-        where: k.watch_dir == ^watch_dir and k.state == :absent
-      )
-      |> Repo.all()
+      Repo.all(from(k in KnownFile, where: k.watch_dir == ^watch_dir and k.state == :absent))
 
     restored =
       Enum.filter(absent_files, fn file ->
@@ -88,10 +84,11 @@ defmodule MediaCentarr.Watcher.FilePresence do
       Log.info(:watcher, "restored #{length(restored)} absent files — #{watch_dir}")
 
       ids = Enum.map(restored, & &1.id)
-      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      now = DateTime.utc_now(:second)
 
-      from(k in KnownFile, where: k.id in ^ids)
-      |> Repo.update_all(set: [state: :present, absent_since: nil, updated_at: now])
+      Repo.update_all(from(k in KnownFile, where: k.id in ^ids),
+        set: [state: :present, absent_since: nil, updated_at: now]
+      )
     end
 
     Enum.map(restored, & &1.file_path)
@@ -105,10 +102,10 @@ defmodule MediaCentarr.Watcher.FilePresence do
   def mark_absent_for_watch_dir(watch_dir) do
     now = DateTime.utc_now()
 
-    from(k in KnownFile,
-      where: k.watch_dir == ^watch_dir and k.state == :present
+    Repo.update_all(
+      from(k in KnownFile, where: k.watch_dir == ^watch_dir and k.state == :present),
+      set: [state: :absent, absent_since: now, updated_at: now]
     )
-    |> Repo.update_all(set: [state: :absent, absent_since: now, updated_at: now])
 
     :ok
   end
@@ -122,8 +119,9 @@ defmodule MediaCentarr.Watcher.FilePresence do
   def mark_files_absent(file_paths) do
     now = DateTime.utc_now()
 
-    from(k in KnownFile, where: k.file_path in ^file_paths)
-    |> Repo.update_all(set: [state: :absent, absent_since: now, updated_at: now])
+    Repo.update_all(from(k in KnownFile, where: k.file_path in ^file_paths),
+      set: [state: :absent, absent_since: now, updated_at: now]
+    )
 
     :ok
   end
@@ -177,18 +175,18 @@ defmodule MediaCentarr.Watcher.FilePresence do
     cutoff = DateTime.add(DateTime.utc_now(), -ttl_days, :day)
 
     expired =
-      from(k in KnownFile,
-        where: k.state == :absent and k.absent_since < ^cutoff,
-        select: k.file_path
+      Repo.all(
+        from(k in KnownFile,
+          where: k.state == :absent and k.absent_since < ^cutoff,
+          select: k.file_path
+        )
       )
-      |> Repo.all()
 
     if expired != [] do
       Log.info(:watcher, "TTL expired — #{length(expired)} absent files")
 
       # Delete expired records from watcher_files
-      from(k in KnownFile, where: k.file_path in ^expired)
-      |> Repo.delete_all()
+      Repo.delete_all(from(k in KnownFile, where: k.file_path in ^expired))
 
       # Broadcast for Library to clean up its records
       Phoenix.PubSub.broadcast(

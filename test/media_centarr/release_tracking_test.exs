@@ -383,8 +383,8 @@ defmodule MediaCentarr.ReleaseTrackingTest do
     end
 
     test "all upcoming excludes already-released episodes" do
-      past_date = Date.add(Date.utc_today(), -10) |> Date.to_iso8601()
-      future_date = Date.add(Date.utc_today(), 30) |> Date.to_iso8601()
+      past_date = Date.to_iso8601(Date.add(Date.utc_today(), -10))
+      future_date = Date.to_iso8601(Date.add(Date.utc_today(), 30))
 
       MediaCentarr.TmdbStubs.stub_routes([
         {"/tv/6666/season/1",

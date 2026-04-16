@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Playback.ProgressBroadcaster
 

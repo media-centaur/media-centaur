@@ -6,7 +6,7 @@ defmodule MediaCentarr.ImagePipelineTest do
   downloads and resizes them, and the batcher updates queue status and
   broadcasts {:image_ready, ...} events.
   """
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.ImagePipeline
   alias MediaCentarr.Pipeline.ImageQueue
@@ -107,7 +107,7 @@ defmodule MediaCentarr.ImagePipelineTest do
       work_items = ImagePipeline.Producer.build_work_items(entity_id)
 
       assert length(work_items) == 2
-      roles = Enum.map(work_items, & &1.queue_entry.role) |> Enum.sort()
+      roles = Enum.sort(Enum.map(work_items, & &1.queue_entry.role))
       assert roles == ["poster", "thumb"]
     end
   end

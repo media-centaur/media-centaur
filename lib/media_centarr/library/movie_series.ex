@@ -42,8 +42,7 @@ defmodule MediaCentarr.Library.MovieSeries do
   end
 
   def update_changeset(movie_series, attrs) do
-    movie_series
-    |> cast(attrs, [
+    cast(movie_series, attrs, [
       :name,
       :description,
       :date_published,

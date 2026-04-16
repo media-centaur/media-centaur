@@ -6,7 +6,7 @@ defmodule MediaCentarr.Pipeline.Stages.IngestTest do
   Entity creation is tested in Library.InboundTest — these tests verify the
   broadcast event format and payload passthrough.
   """
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Pipeline.Payload
   alias MediaCentarr.Pipeline.Stages.Ingest

@@ -150,7 +150,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     tracking_status =
       if selection_changed do
         selected_entry = socket.assigns.entries_by_id[selected_id]
-        if selected_entry, do: load_tracking_status(selected_entry), else: nil
+        if selected_entry, do: load_tracking_status(selected_entry)
       else
         socket.assigns.tracking_status
       end
@@ -196,10 +196,12 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_event("select_entity", %{"id" => id}, socket) do
-    new_id = if socket.assigns.selected_entity_id == id, do: nil, else: id
+    new_id = if socket.assigns.selected_entity_id != id, do: id
 
     socket =
-      if new_id != socket.assigns.selected_entity_id do
+      if new_id == socket.assigns.selected_entity_id do
+        socket
+      else
         entry = socket.assigns.entries_by_id[new_id]
 
         expanded_seasons =
@@ -208,8 +210,6 @@ defmodule MediaCentarrWeb.LibraryLive do
             else: MapSet.new()
 
         assign(socket, expanded_seasons: expanded_seasons)
-      else
-        socket
       end
 
     {:noreply, push_patch(socket, to: build_path(socket, %{selected: new_id}))}
@@ -307,11 +307,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, socket}
   end
 
-  def handle_event(
-        "toggle_extra_watched",
-        %{"extra-id" => extra_id, "entity-id" => entity_id},
-        socket
-      ) do
+  def handle_event("toggle_extra_watched", %{"extra-id" => extra_id, "entity-id" => entity_id}, socket) do
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
       toggle_extra_watched(entity_id, extra_id)
     end)
@@ -510,13 +506,13 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   def handle_event("prev_month", _params, socket) do
     {year, month} = socket.assigns.calendar_month
-    date = Date.new!(year, month, 1) |> Date.add(-1)
+    date = Date.add(Date.new!(year, month, 1), -1)
     {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
   end
 
   def handle_event("next_month", _params, socket) do
     {year, month} = socket.assigns.calendar_month
-    last_day = Date.new!(year, month, 1) |> Date.end_of_month()
+    last_day = Date.end_of_month(Date.new!(year, month, 1))
     date = Date.add(last_day, 1)
     {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
   end
@@ -533,7 +529,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   def handle_event("select_day", %{"date" => date_str}, socket) do
     case Date.from_iso8601(date_str) do
       {:ok, date} ->
-        selected = if socket.assigns.selected_day == date, do: nil, else: date
+        selected = if socket.assigns.selected_day != date, do: date
         {:noreply, assign(socket, selected_day: selected)}
 
       _ ->
@@ -659,12 +655,12 @@ defmodule MediaCentarrWeb.LibraryLive do
         # Check if entity still exists (cascade may have deleted it)
         files = Library.list_watched_files_by_entity_id(entity_id)
 
-        if files != [] do
-          detail_files = load_entity_files(entity_id)
-          {:noreply, assign(socket, detail_files: detail_files)}
-        else
+        if files == [] do
           # Entity was cascade-deleted — close modal
           {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil, view: :main}))}
+        else
+          detail_files = load_entity_files(entity_id)
+          {:noreply, assign(socket, detail_files: detail_files)}
         end
 
       {:error, reason} ->
@@ -769,10 +765,7 @@ defmodule MediaCentarrWeb.LibraryLive do
      |> touch_stream_entries([entity_id])}
   end
 
-  def handle_info(
-        {:playback_state_changed, entity_id, new_state, now_playing, _started_at},
-        socket
-      ) do
+  def handle_info({:playback_state_changed, entity_id, new_state, now_playing, _started_at}, socket) do
     playback = apply_playback_change(socket.assigns.playback, entity_id, new_state, now_playing)
 
     {:noreply,
@@ -782,8 +775,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_info(
-        {:extra_progress_updated,
-         %{entity_id: entity_id, extra_id: _extra_id, progress: progress}},
+        {:extra_progress_updated, %{entity_id: entity_id, extra_id: _extra_id, progress: progress}},
         socket
       ) do
     entries = update_entry_extra_progress(socket.assigns.entries, entity_id, progress)
@@ -981,8 +973,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Data Loading ---
 
   defp load_entity_files(entity_id) do
-    Library.list_watched_files_by_entity_id(entity_id)
-    |> Enum.map(fn file ->
+    Enum.map(Library.list_watched_files_by_entity_id(entity_id), fn file ->
       size =
         case File.stat(file.file_path) do
           {:ok, %{size: size}} -> size
@@ -998,8 +989,9 @@ defmodule MediaCentarrWeb.LibraryLive do
     resume_targets = compute_resume_targets(entries)
 
     playback =
-      MediaCentarr.Playback.Sessions.list()
-      |> Map.new(fn session -> {session.entity_id, session} end)
+      Map.new(MediaCentarr.Playback.Sessions.list(), fn session ->
+        {session.entity_id, session}
+      end)
 
     socket
     |> assign_entries(entries)
@@ -1026,8 +1018,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   defp build_tracked_items_from_watching do
-    MediaCentarr.ReleaseTracking.list_watching_items()
-    |> Enum.map(fn item ->
+    Enum.map(MediaCentarr.ReleaseTracking.list_watching_items(), fn item ->
       releases = item.releases || []
       upcoming_count = Enum.count(releases, &(not &1.released and not &1.in_library))
       released_count = Enum.count(releases, &(&1.released and not &1.in_library))
@@ -1247,7 +1238,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     params = if zone == :upcoming, do: Map.put(params, :zone, :upcoming), else: params
     params = if zone == :library, do: Map.put(params, :tab, tab), else: params
     params = if zone == :library, do: Map.put(params, :sort, sort), else: params
-    params = if filter != "", do: Map.put(params, :filter, filter), else: params
+    params = if filter == "", do: params, else: Map.put(params, :filter, filter)
     params = if selected, do: Map.put(params, :selected, selected), else: params
     params = if selected && view == :info, do: Map.put(params, :view, :info), else: params
 
@@ -1303,8 +1294,7 @@ defmodule MediaCentarrWeb.LibraryLive do
           Log.info(:library, fn ->
             pct =
               if progress.duration_seconds > 0,
-                do:
-                  "#{Float.round(progress.position_seconds / progress.duration_seconds * 100, 0)}%",
+                do: "#{Float.round(progress.position_seconds / progress.duration_seconds * 100, 0)}%",
                 else: "unknown"
 
             "toggled completed — was #{pct} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"

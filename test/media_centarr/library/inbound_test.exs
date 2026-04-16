@@ -9,7 +9,7 @@ defmodule MediaCentarr.Library.InboundTest do
   and broadcasts entity changes — but those are integration concerns
   tested via the pipeline end-to-end, not here.
   """
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   import Ecto.Query
 
@@ -44,7 +44,7 @@ defmodule MediaCentarr.Library.InboundTest do
       watch_dir: "/media"
     }
 
-    Map.merge(defaults, Enum.into(overrides, %{}))
+    Map.merge(defaults, Map.new(overrides))
   end
 
   defp collection_event(overrides \\ %{}) do
@@ -79,7 +79,7 @@ defmodule MediaCentarr.Library.InboundTest do
       watch_dir: "/media"
     }
 
-    Map.merge(defaults, Enum.into(overrides, %{}))
+    Map.merge(defaults, Map.new(overrides))
   end
 
   defp tv_event(overrides \\ %{}) do
@@ -119,7 +119,7 @@ defmodule MediaCentarr.Library.InboundTest do
       watch_dir: "/media/TV"
     }
 
-    Map.merge(defaults, Enum.into(overrides, %{}))
+    Map.merge(defaults, Map.new(overrides))
   end
 
   # ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ defmodule MediaCentarr.Library.InboundTest do
 
       # Images collected for queue (not created in DB)
       assert length(pending_images) == 2
-      roles = Enum.map(pending_images, & &1.role) |> Enum.sort()
+      roles = Enum.sort(Enum.map(pending_images, & &1.role))
       assert roles == ["backdrop", "poster"]
 
       assert Enum.all?(pending_images, fn img ->
@@ -500,7 +500,7 @@ defmodule MediaCentarr.Library.InboundTest do
       queue_entries = MediaCentarr.Pipeline.ImageQueue.list_pending(movie.id)
       assert length(queue_entries) == 2
 
-      roles = Enum.map(queue_entries, & &1.role) |> Enum.sort()
+      roles = Enum.sort(Enum.map(queue_entries, & &1.role))
       assert roles == ["backdrop", "poster"]
 
       assert Enum.all?(queue_entries, &(&1.entity_id == movie.id))
@@ -695,7 +695,7 @@ defmodule MediaCentarr.Library.InboundTest do
       # Both files sent to review
       assert_received {:files_for_review, files}
       assert length(files) == 2
-      paths = Enum.map(files, & &1.file_path) |> Enum.sort()
+      paths = Enum.sort(Enum.map(files, & &1.file_path))
 
       assert paths == [
                "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",

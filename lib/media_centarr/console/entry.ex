@@ -52,7 +52,7 @@ defmodule MediaCentarr.Console.Entry do
       level: Map.fetch!(attrs, :level),
       component: Map.fetch!(attrs, :component),
       message: Map.fetch!(attrs, :message),
-      module: Map.get(attrs, :module, nil),
+      module: Map.get(attrs, :module),
       metadata: Map.get(attrs, :metadata, %{})
     }
   end

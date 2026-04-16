@@ -1,5 +1,5 @@
 defmodule MediaCentarrWeb.LibraryLiveTest do
-  use MediaCentarrWeb.ConnCase
+  use MediaCentarrWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 

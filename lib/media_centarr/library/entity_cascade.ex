@@ -107,15 +107,14 @@ defmodule MediaCentarr.Library.EntityCascade do
   def destroy_progress(%{watch_progress: nil}), do: :ok
   def destroy_progress(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: :ok
 
-  def destroy_progress(%{watch_progress: progress}),
-    do: Library.destroy_watch_progress!(progress)
+  def destroy_progress(%{watch_progress: progress}), do: Library.destroy_watch_progress!(progress)
 
   @doc false
   def bulk_destroy([], _schema), do: :ok
 
   def bulk_destroy(records, schema) do
     ids = Enum.map(records, & &1.id)
-    from(r in schema, where: r.id in ^ids) |> Repo.delete_all()
+    Repo.delete_all(from(r in schema, where: r.id in ^ids))
   end
 
   @doc false

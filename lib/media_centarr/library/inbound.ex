@@ -94,8 +94,11 @@ defmodule MediaCentarr.Library.Inbound do
     } = attrs
 
     image_attrs =
-      %{role: role, content_url: content_url, extension: extension}
-      |> put_owner_fk(owner_type, owner_id)
+      put_owner_fk(
+        %{role: role, content_url: content_url, extension: extension},
+        owner_type,
+        owner_id
+      )
 
     conflict_target = conflict_target_for(owner_type)
 
@@ -399,12 +402,15 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp create_season_and_episode(entity_type, entity_id, season_data) do
     season_attrs =
-      %{
-        season_number: season_data.season_number,
-        name: season_data.name,
-        number_of_episodes: season_data.number_of_episodes
-      }
-      |> put_type_fk(entity_type, entity_id)
+      put_type_fk(
+        %{
+          season_number: season_data.season_number,
+          name: season_data.name,
+          number_of_episodes: season_data.number_of_episodes
+        },
+        entity_type,
+        entity_id
+      )
 
     with {:ok, season} <- find_or_create_season(entity_type, season_attrs) do
       Log.info(
@@ -449,8 +455,7 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp create_child_movie(entity_type, entity_id, child_movie_data) do
     movie_attrs =
-      child_movie_data.attrs
-      |> maybe_put(:movie_series_id, entity_id, entity_type == :movie_series)
+      maybe_put(child_movie_data.attrs, :movie_series_id, entity_id, entity_type == :movie_series)
 
     result = Library.find_or_create_movie_for_series(movie_attrs)
 
@@ -469,11 +474,11 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp create_child_movie_identifier(entity_type, entity_id, %{identifier: identifier}) do
     attrs =
-      %{
-        source: identifier.source,
-        external_id: identifier.external_id
-      }
-      |> put_type_fk(entity_type, entity_id)
+      put_type_fk(
+        %{source: identifier.source, external_id: identifier.external_id},
+        entity_type,
+        entity_id
+      )
 
     case Library.find_or_create_external_id(attrs) do
       {:ok, _} -> :ok
@@ -489,12 +494,15 @@ defmodule MediaCentarr.Library.Inbound do
     season =
       if extra_data.season_number do
         season_attrs =
-          %{
-            season_number: extra_data.season_number,
-            name: "Season #{extra_data.season_number}",
-            number_of_episodes: 0
-          }
-          |> put_type_fk(entity_type, entity_id)
+          put_type_fk(
+            %{
+              season_number: extra_data.season_number,
+              name: "Season #{extra_data.season_number}",
+              number_of_episodes: 0
+            },
+            entity_type,
+            entity_id
+          )
 
         case find_or_create_season(entity_type, season_attrs) do
           {:ok, season} -> season
@@ -503,13 +511,16 @@ defmodule MediaCentarr.Library.Inbound do
       end
 
     extra_attrs =
-      %{
-        name: extra_data.name,
-        content_url: extra_data.content_url,
-        position: 0,
-        season_id: if(season, do: season.id)
-      }
-      |> put_type_fk(entity_type, entity_id)
+      put_type_fk(
+        %{
+          name: extra_data.name,
+          content_url: extra_data.content_url,
+          position: 0,
+          season_id: if(season, do: season.id)
+        },
+        entity_type,
+        entity_id
+      )
 
     type_fk = type_fk_for(entity_type)
 
@@ -548,11 +559,11 @@ defmodule MediaCentarr.Library.Inbound do
     type_fk = type_fk_for(event.entity_type)
 
     attrs =
-      %{
-        source: event.identifier.source,
-        external_id: event.identifier.external_id
-      }
-      |> put_type_fk(event.entity_type, type_record.id)
+      put_type_fk(
+        %{source: event.identifier.source, external_id: event.identifier.external_id},
+        event.entity_type,
+        type_record.id
+      )
 
     case Library.find_or_create_external_id(attrs) do
       {:ok, created_external_id} ->
@@ -600,11 +611,11 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp link_file(entity, event) do
     attrs =
-      %{
-        file_path: event.file_path,
-        watch_dir: event.watch_dir
-      }
-      |> put_type_fk(event.entity_type, entity.id)
+      put_type_fk(
+        %{file_path: event.file_path, watch_dir: event.watch_dir},
+        event.entity_type,
+        entity.id
+      )
 
     Library.link_file!(attrs)
   end
@@ -663,11 +674,9 @@ defmodule MediaCentarr.Library.Inbound do
   defp put_owner_fk(attrs, "episode", owner_id), do: Map.put(attrs, :episode_id, owner_id)
   defp put_owner_fk(attrs, "tv_series", owner_id), do: Map.put(attrs, :tv_series_id, owner_id)
 
-  defp put_owner_fk(attrs, "movie_series", owner_id),
-    do: Map.put(attrs, :movie_series_id, owner_id)
+  defp put_owner_fk(attrs, "movie_series", owner_id), do: Map.put(attrs, :movie_series_id, owner_id)
 
-  defp put_owner_fk(attrs, "video_object", owner_id),
-    do: Map.put(attrs, :video_object_id, owner_id)
+  defp put_owner_fk(attrs, "video_object", owner_id), do: Map.put(attrs, :video_object_id, owner_id)
 
   defp conflict_target_for("movie"), do: [:movie_id, :role]
   defp conflict_target_for("episode"), do: [:episode_id, :role]

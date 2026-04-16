@@ -84,23 +84,25 @@ defmodule MediaCentarr.Review.Intake do
   @spec receive_files_for_review([map()]) :: {:ok, non_neg_integer()}
   def receive_files_for_review(files) do
     pending_files =
-      Enum.map(files, fn file ->
-        attrs = build_pending_attrs(file)
+      Enum.reject(
+        Enum.map(files, fn file ->
+          attrs = build_pending_attrs(file)
 
-        case create_pending_file(attrs) do
-          {:ok, pending_file} ->
-            pending_file
+          case create_pending_file(attrs) do
+            {:ok, pending_file} ->
+              pending_file
 
-          {:error, reason} ->
-            Log.warning(
-              :library,
-              "failed to create pending file for rematch — #{inspect(reason)}"
-            )
+            {:error, reason} ->
+              Log.warning(
+                :library,
+                "failed to create pending file for rematch — #{inspect(reason)}"
+              )
 
-            nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
+              nil
+          end
+        end),
+        &is_nil/1
+      )
 
     Log.info(:library, "rematch — created #{length(pending_files)} pending files")
 

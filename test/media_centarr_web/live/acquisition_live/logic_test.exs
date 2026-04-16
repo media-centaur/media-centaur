@@ -406,7 +406,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
       quality: Keyword.get(opts, :quality, :hd_1080p),
       seeders: Keyword.get(opts, :seeders, 10),
       leechers: Keyword.get(opts, :leechers, 0),
-      size_bytes: Keyword.get(opts, :size_bytes, nil),
+      size_bytes: Keyword.get(opts, :size_bytes),
       indexer_name: Keyword.get(opts, :indexer_name, "indexer"),
       publish_date: nil
     }

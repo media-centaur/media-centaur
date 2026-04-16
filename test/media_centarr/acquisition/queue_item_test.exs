@@ -74,7 +74,7 @@ defmodule MediaCentarr.Acquisition.QueueItemTest do
     end
 
     test "progress is nil when missing" do
-      raw = base_torrent(%{}) |> Map.delete("progress")
+      raw = Map.delete(base_torrent(%{}), "progress")
       item = QueueItem.from_qbittorrent(raw)
       assert item.progress == nil
     end

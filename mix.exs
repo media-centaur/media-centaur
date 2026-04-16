@@ -78,7 +78,14 @@ defmodule MediaCentarr.MixProject do
       {:image, "~> 0.54"},
       {:toml, "~> 0.7"},
       {:oban, "~> 2.19"},
-      {:tidewave, "~> 0.5", only: :dev}
+      {:tidewave, "~> 0.5", only: :dev},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:credo_naming, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:credo_envvar, "~> 0.1", only: [:dev, :test], runtime: false},
+      {:credo_check_error_handling_ecto_oban, "~> 0.9", only: [:dev, :test], runtime: false},
+      {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -105,7 +112,10 @@ defmodule MediaCentarr.MixProject do
         "compile --warning-as-errors",
         "deps.unlock --unused",
         "format",
+        "credo --strict",
         "boundaries",
+        "deps.audit",
+        "sobelow",
         "test"
       ],
       "test.all": [

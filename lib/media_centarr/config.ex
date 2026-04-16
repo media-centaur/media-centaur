@@ -46,7 +46,7 @@ defmodule MediaCentarr.Config do
   end
 
   def get(key) do
-    :persistent_term.get({__MODULE__, :config}) |> Map.get(key)
+    Map.get(:persistent_term.get({__MODULE__, :config}), key)
   end
 
   @doc """
@@ -187,8 +187,7 @@ defmodule MediaCentarr.Config do
     {_, default_images_map} = parse_watch_dirs(app_watch_dirs)
 
     defaults = %{
-      database_path:
-        expand(get_in(Application.get_env(:media_centarr, MediaCentarr.Repo), [:database])),
+      database_path: expand(get_in(Application.get_env(:media_centarr, MediaCentarr.Repo), [:database])),
       watch_dirs: app_watch_dirs,
       watch_dir_images: default_images_map,
       tmdb_api_key: Secret.wrap(Application.get_env(:media_centarr, :tmdb_api_key)),
@@ -264,8 +263,7 @@ defmodule MediaCentarr.Config do
         get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms,
       extras_dirs: get_in(toml, ["pipeline", "extras_dirs"]) || defaults.extras_dirs,
       skip_dirs: get_in(toml, ["pipeline", "skip_dirs"]) || defaults.skip_dirs,
-      file_absence_ttl_days:
-        get_in(toml, ["file_absence_ttl_days"]) || defaults.file_absence_ttl_days,
+      file_absence_ttl_days: get_in(toml, ["file_absence_ttl_days"]) || defaults.file_absence_ttl_days,
       recent_changes_days:
         get_in(toml, ["status", "recent_changes_days"]) || defaults.recent_changes_days,
       release_tracking_refresh_interval_hours:
@@ -301,19 +299,21 @@ defmodule MediaCentarr.Config do
   end
 
   defp parse_watch_dirs(raw_list) do
-    Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
-      case entry do
-        dir when is_binary(dir) ->
-          dir = expand(dir)
-          {[dir | dirs], Map.put(images_map, dir, default_images_dir(dir))}
+    then(
+      Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
+        case entry do
+          dir when is_binary(dir) ->
+            dir = expand(dir)
+            {[dir | dirs], Map.put(images_map, dir, default_images_dir(dir))}
 
-        %{"dir" => dir} = table ->
-          dir = expand(dir)
-          images_dir = expand(table["images_dir"] || default_images_dir(dir))
-          {[dir | dirs], Map.put(images_map, dir, images_dir)}
-      end
-    end)
-    |> then(fn {dirs, images_map} -> {Enum.reverse(dirs), images_map} end)
+          %{"dir" => dir} = table ->
+            dir = expand(dir)
+            images_dir = expand(table["images_dir"] || default_images_dir(dir))
+            {[dir | dirs], Map.put(images_map, dir, images_dir)}
+        end
+      end),
+      fn {dirs, images_map} -> {Enum.reverse(dirs), images_map} end
+    )
   end
 
   defp default_images_dir(watch_dir), do: Path.join(watch_dir, ".media-centarr/images")

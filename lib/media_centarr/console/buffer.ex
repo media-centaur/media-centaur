@@ -221,29 +221,27 @@ defmodule MediaCentarr.Console.Buffer do
   end
 
   defp load_settings do
-    try do
-      cap =
-        case Settings.get_by_key("console_buffer_size") do
-          {:ok, %{value: %{"value" => value}}} when is_integer(value) ->
-            if value in @min_cap..@max_cap, do: value, else: @default_cap
+    cap =
+      case Settings.get_by_key("console_buffer_size") do
+        {:ok, %{value: %{"value" => value}}} when is_integer(value) ->
+          if value in @min_cap..@max_cap, do: value, else: @default_cap
 
-          _ ->
-            @default_cap
-        end
+        _ ->
+          @default_cap
+      end
 
-      filter =
-        case Settings.get_by_key("console_filter") do
-          {:ok, %{value: value}} when is_map(value) ->
-            Filter.from_persistable(value)
+    filter =
+      case Settings.get_by_key("console_filter") do
+        {:ok, %{value: value}} when is_map(value) ->
+          Filter.from_persistable(value)
 
-          _ ->
-            Filter.new_with_defaults()
-        end
+        _ ->
+          Filter.new_with_defaults()
+      end
 
-      {cap, filter}
-    rescue
-      _ -> {@default_cap, Filter.new_with_defaults()}
-    end
+    {cap, filter}
+  rescue
+    _ -> {@default_cap, Filter.new_with_defaults()}
   end
 
   defp persist_to_settings(state) do

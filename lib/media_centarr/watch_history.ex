@@ -158,8 +158,7 @@ defmodule MediaCentarr.WatchHistory do
     end
   end
 
-  defp reset_watch_progress(%Event{video_object_id: video_object_id})
-       when not is_nil(video_object_id) do
+  defp reset_watch_progress(%Event{video_object_id: video_object_id}) when not is_nil(video_object_id) do
     case Library.get_watch_progress_by_fk(:video_object_id, video_object_id) do
       {:ok, progress} ->
         Library.mark_watch_incomplete(progress)

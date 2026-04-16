@@ -52,7 +52,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
       assert metadata.entity_attrs.type == :movie
       assert metadata.entity_attrs.content_url == "/media/Fight.Club.1999.mkv"
       assert metadata.identifier == %{source: "tmdb", external_id: "550"}
-      assert length(metadata.images) >= 1
+      refute metadata.images == []
       assert Enum.any?(metadata.images, &(&1.role == "poster"))
       assert is_nil(metadata.child_movie)
       assert is_nil(metadata.season)

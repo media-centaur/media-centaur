@@ -28,10 +28,8 @@ defmodule MediaCentarr.ImagePipeline.RetrySchedulerTest do
 
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_destroy)
 
-      # Trigger tick manually
-      send(pid, :tick)
-      # Sync with the GenServer
-      :sys.get_state(pid)
+      # Trigger a synchronous tick via the public API (ADR-026).
+      :ok = RetryScheduler.tick(pid)
 
       # Entry should be marked permanent
       [entry] = MediaCentarr.Repo.all(MediaCentarr.Pipeline.ImageQueueEntry)
@@ -66,8 +64,7 @@ defmodule MediaCentarr.ImagePipeline.RetrySchedulerTest do
 
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_retry)
 
-      send(pid, :tick)
-      :sys.get_state(pid)
+      :ok = RetryScheduler.tick(pid)
 
       # Entry should be reset to pending
       [entry] = MediaCentarr.Repo.all(MediaCentarr.Pipeline.ImageQueueEntry)

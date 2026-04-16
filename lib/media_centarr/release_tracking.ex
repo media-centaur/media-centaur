@@ -23,23 +23,23 @@ defmodule MediaCentarr.ReleaseTracking do
   # --- Items ---
 
   def track_item(attrs) do
-    Item.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Item.create_changeset(attrs))
   end
 
   def track_item!(attrs) do
-    Item.create_changeset(attrs) |> Repo.insert!()
+    Repo.insert!(Item.create_changeset(attrs))
   end
 
   def ignore_item(%Item{} = item) do
-    Item.update_changeset(item, %{status: :ignored}) |> Repo.update()
+    Repo.update(Item.update_changeset(item, %{status: :ignored}))
   end
 
   def watch_item(%Item{} = item) do
-    Item.update_changeset(item, %{status: :watching}) |> Repo.update()
+    Repo.update(Item.update_changeset(item, %{status: :watching}))
   end
 
   def update_item(%Item{} = item, attrs) do
-    Item.update_changeset(item, attrs) |> Repo.update()
+    Repo.update(Item.update_changeset(item, attrs))
   end
 
   def get_item(id), do: Repo.get(Item, id)
@@ -56,17 +56,13 @@ defmodule MediaCentarr.ReleaseTracking do
   end
 
   def list_watching_items do
-    from(i in Item,
-      where: i.status == :watching,
-      order_by: [asc: i.name],
-      preload: [:releases]
+    Repo.all(
+      from(i in Item, where: i.status == :watching, order_by: [asc: i.name], preload: [:releases])
     )
-    |> Repo.all()
   end
 
   def list_all_items do
-    from(i in Item, order_by: [asc: i.name], preload: [:releases])
-    |> Repo.all()
+    Repo.all(from(i in Item, order_by: [asc: i.name], preload: [:releases]))
   end
 
   def tracking_status({tmdb_id, media_type}) do
@@ -139,8 +135,7 @@ defmodule MediaCentarr.ReleaseTracking do
       |> Repo.all()
       |> MapSet.new()
 
-    (movie_results ++ tv_results)
-    |> Enum.map(fn result ->
+    Enum.map(movie_results ++ tv_results, fn result ->
       tracked = MapSet.member?(tracked_tmdb_ids, {result.tmdb_id, result.media_type})
       Map.put(result, :already_tracked, tracked)
     end)
@@ -333,11 +328,11 @@ defmodule MediaCentarr.ReleaseTracking do
   # --- Releases ---
 
   def create_release(attrs) do
-    Release.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Release.create_changeset(attrs))
   end
 
   def create_release!(attrs) do
-    Release.create_changeset(attrs) |> Repo.insert!()
+    Repo.insert!(Release.create_changeset(attrs))
   end
 
   # Releases are always deleted and recreated (never updated individually).
@@ -345,13 +340,14 @@ defmodule MediaCentarr.ReleaseTracking do
 
   def list_releases do
     all =
-      from(r in Release,
-        join: i in assoc(r, :item),
-        where: i.status == :watching and r.in_library == false,
-        order_by: [asc: r.air_date],
-        preload: [:item]
+      Repo.all(
+        from(r in Release,
+          join: i in assoc(r, :item),
+          where: i.status == :watching and r.in_library == false,
+          order_by: [asc: r.air_date],
+          preload: [:item]
+        )
       )
-      |> Repo.all()
 
     upcoming = Enum.reject(all, & &1.released)
     released = Enum.filter(all, & &1.released)
@@ -373,30 +369,30 @@ defmodule MediaCentarr.ReleaseTracking do
   end
 
   def list_releases_for_item(item_id) do
-    from(r in Release, where: r.item_id == ^item_id, order_by: [asc: r.air_date])
-    |> Repo.all()
+    Repo.all(from(r in Release, where: r.item_id == ^item_id, order_by: [asc: r.air_date]))
   end
 
   def delete_releases_for_item(item_id) do
-    from(r in Release, where: r.item_id == ^item_id) |> Repo.delete_all()
+    Repo.delete_all(from(r in Release, where: r.item_id == ^item_id))
   end
 
   # --- Events ---
 
   def create_event(attrs) do
-    Event.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Event.create_changeset(attrs))
   end
 
   def create_event!(attrs) do
-    Event.create_changeset(attrs) |> Repo.insert!()
+    Repo.insert!(Event.create_changeset(attrs))
   end
 
   def list_recent_events(limit \\ 20) do
-    from(e in Event,
-      order_by: [{:desc, e.inserted_at}, {:desc, fragment("rowid")}],
-      limit: ^limit
+    Repo.all(
+      from(e in Event,
+        order_by: [{:desc, e.inserted_at}, {:desc, fragment("rowid")}],
+        limit: ^limit
+      )
     )
-    |> Repo.all()
   end
 
   # --- Bulk operations ---
@@ -414,13 +410,15 @@ defmodule MediaCentarr.ReleaseTracking do
 
     if season > 0 do
       {count, _} =
-        from(r in Release,
-          where: r.item_id == ^item.id,
-          where:
-            r.season_number < ^season or
-              (r.season_number == ^season and r.episode_number <= ^episode)
+        Repo.update_all(
+          from(r in Release,
+            where: r.item_id == ^item.id,
+            where:
+              r.season_number < ^season or
+                (r.season_number == ^season and r.episode_number <= ^episode)
+          ),
+          set: [in_library: true]
         )
-        |> Repo.update_all(set: [in_library: true])
 
       if count > 0, do: broadcast_releases_updated([item.id])
     end
@@ -428,10 +426,9 @@ defmodule MediaCentarr.ReleaseTracking do
 
   def mark_in_library_releases(%Item{media_type: :movie} = item) do
     {count, _} =
-      from(r in Release,
-        where: r.item_id == ^item.id and r.released == true
+      Repo.update_all(from(r in Release, where: r.item_id == ^item.id and r.released == true),
+        set: [in_library: true]
       )
-      |> Repo.update_all(set: [in_library: true])
 
     if count > 0, do: broadcast_releases_updated([item.id])
   end
@@ -439,9 +436,11 @@ defmodule MediaCentarr.ReleaseTracking do
   def mark_past_releases_as_released do
     today = Date.utc_today()
 
-    from(r in Release,
-      where: not is_nil(r.air_date) and r.air_date <= ^today and r.released == false
+    Repo.update_all(
+      from(r in Release,
+        where: not is_nil(r.air_date) and r.air_date <= ^today and r.released == false
+      ),
+      set: [released: true]
     )
-    |> Repo.update_all(set: [released: true])
   end
 end

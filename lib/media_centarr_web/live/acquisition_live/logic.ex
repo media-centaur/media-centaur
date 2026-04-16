@@ -97,11 +97,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   any user-made selection.
   """
   @spec add_default_selection(%{String.t() => String.t()}, group()) :: %{String.t() => String.t()}
-  def add_default_selection(selections, %{
-        term: term,
-        status: :ready,
-        results: [first | _]
-      }) do
+  def add_default_selection(selections, %{term: term, status: :ready, results: [first | _]}) do
     Map.put_new(selections, term, first.guid)
   end
 

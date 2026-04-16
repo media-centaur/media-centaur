@@ -31,8 +31,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
 
   @doc "Auto-track new library entities with active TMDB status. Testable without GenServer."
   def auto_track_new_entities(entity_ids) do
-    find_trackable_tv_series(entity_ids)
-    |> Enum.each(&auto_track_tv_series/1)
+    Enum.each(find_trackable_tv_series(entity_ids), &auto_track_tv_series/1)
   end
 
   @impl true
@@ -180,18 +179,18 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
 
   defp link_unlinked_items(entity_ids) do
     tmdb_mappings =
-      from(ext in MediaCentarr.Library.ExternalId,
-        where: ext.tv_series_id in ^entity_ids and ext.source == "tmdb",
-        select: {ext.tv_series_id, ext.external_id}
+      MediaCentarr.Repo.all(
+        from(ext in MediaCentarr.Library.ExternalId,
+          where: ext.tv_series_id in ^entity_ids and ext.source == "tmdb",
+          select: {ext.tv_series_id, ext.external_id}
+        )
       )
-      |> MediaCentarr.Repo.all()
 
     Enum.each(tmdb_mappings, fn {tv_series_id, tmdb_id_str} ->
       tmdb_id = String.to_integer(tmdb_id_str)
 
       from(i in ReleaseTracking.Item,
-        where:
-          i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and is_nil(i.library_entity_id)
+        where: i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and is_nil(i.library_entity_id)
       )
       |> MediaCentarr.Repo.all()
       |> Enum.each(fn item ->
@@ -216,10 +215,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     link_unlinked_items(entity_ids)
 
     items =
-      from(i in ReleaseTracking.Item,
-        where: i.library_entity_id in ^entity_ids
-      )
-      |> MediaCentarr.Repo.all()
+      MediaCentarr.Repo.all(from(i in ReleaseTracking.Item, where: i.library_entity_id in ^entity_ids))
 
     Enum.each(items, fn item ->
       if library_entity_exists?(item) do

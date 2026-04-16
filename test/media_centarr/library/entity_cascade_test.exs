@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Library.EntityCascadeTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.EntityCascade

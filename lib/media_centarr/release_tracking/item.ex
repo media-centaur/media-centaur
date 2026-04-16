@@ -50,8 +50,7 @@ defmodule MediaCentarr.ReleaseTracking.Item do
   end
 
   def update_changeset(item, attrs) do
-    item
-    |> cast(attrs, [
+    cast(item, attrs, [
       :name,
       :status,
       :library_entity_id,

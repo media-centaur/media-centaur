@@ -73,7 +73,7 @@ defmodule MediaCentarr.Playback.MpvSession do
   def init(params) do
     Process.flag(:trap_exit, true)
 
-    session_id = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
+    session_id = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
     socket_dir = MediaCentarr.Config.get(:mpv_socket_dir)
     socket_path = Path.join(socket_dir, "media-centarr-#{params.entity_id}.sock")
     timeout_ms = MediaCentarr.Config.get(:mpv_socket_timeout_ms)
@@ -315,10 +315,7 @@ defmodule MediaCentarr.Playback.MpvSession do
     %{state | duration: duration}
   end
 
-  defp handle_mpv_message(
-         %{"event" => "property-change", "name" => "pause", "data" => paused},
-         state
-       )
+  defp handle_mpv_message(%{"event" => "property-change", "name" => "pause", "data" => paused}, state)
        when is_boolean(paused) do
     new_state = if paused, do: :paused, else: :playing
     Log.info(:playback, if(paused, do: "paused", else: "resumed"))
@@ -507,8 +504,7 @@ defmodule MediaCentarr.Playback.MpvSession do
     )
   end
 
-  defp build_now_playing_for_broadcast(new_state, session)
-       when new_state in [:playing, :paused] do
+  defp build_now_playing_for_broadcast(new_state, session) when new_state in [:playing, :paused] do
     build_now_playing(session)
   end
 

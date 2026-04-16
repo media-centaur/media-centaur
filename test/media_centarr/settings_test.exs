@@ -2,7 +2,7 @@ defmodule MediaCentarr.SettingsTest do
   @moduledoc """
   Tests for the Settings bounded context — key/value entry CRUD.
   """
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Settings
 
@@ -25,7 +25,7 @@ defmodule MediaCentarr.SettingsTest do
       Settings.create_entry!(%{key: "b", value: %{}})
 
       {:ok, entries} = Settings.list_entries()
-      keys = Enum.map(entries, & &1.key) |> Enum.sort()
+      keys = Enum.sort(Enum.map(entries, & &1.key))
       assert "a" in keys
       assert "b" in keys
     end
