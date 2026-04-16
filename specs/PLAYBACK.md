@@ -1,6 +1,6 @@
 # Playback Specification
 
-This document specifies MPV integration, watch progress tracking, and resume logic for Media Centaur.
+This document specifies MPV integration, watch progress tracking, and resume logic for Media Centarr.
 
 ---
 
@@ -10,7 +10,7 @@ This document specifies MPV integration, watch progress tracking, and resume log
 
 The backend manages MPV playback. Each active playback session is a dedicated GenServer that:
 
-1. Launches an `mpv` process with `--input-ipc-server=/tmp/media-centaur-mpv-{session_id}.sock`
+1. Launches an `mpv` process with `--input-ipc-server=/tmp/media-centarr-mpv-{session_id}.sock`
 2. Connects to the Unix domain socket for JSON IPC
 3. Polls playback position at regular intervals
 4. Handles MPV lifecycle events (play, pause, seek, end-of-file, quit)
@@ -64,7 +64,7 @@ The backend observes `time-pos` via MPV's property observation mechanism. MPV se
 ### MPV Launch Flags
 
 ```
-mpv --input-ipc-server=/tmp/media-centaur-mpv-{session_id}.sock
+mpv --input-ipc-server=/tmp/media-centarr-mpv-{session_id}.sock
     --fullscreen
     --no-terminal
     --force-window=immediate

@@ -1,6 +1,6 @@
 # Data Format Specification
 
-Canonical reference for all JSON data formats in the Media Centaur system.
+Canonical reference for all JSON data formats in the Media Centarr system.
 
 ---
 
@@ -176,7 +176,7 @@ Example (without extras):
         "@type": "ImageObject",
         "name": "poster",
         "url": "https://image.tmdb.org/t/p/original/...",
-        "contentUrl": "/mnt/media/.media-centaur/images/550e8400-e29b-41d4-a716-446655440020/poster.jpg"
+        "contentUrl": "/mnt/media/.media-centarr/images/550e8400-e29b-41d4-a716-446655440020/poster.jpg"
       }
     ],
     "aggregateRating": { "ratingValue": 8.9 },
@@ -194,7 +194,7 @@ Example (without extras):
           {
             "@type": "ImageObject",
             "name": "poster",
-            "contentUrl": "/mnt/media/.media-centaur/images/550e8400-e29b-41d4-a716-446655440020/fellowship-poster.jpg"
+            "contentUrl": "/mnt/media/.media-centarr/images/550e8400-e29b-41d4-a716-446655440020/fellowship-poster.jpg"
           }
         ],
         "aggregateRating": { "ratingValue": 8.8 },
@@ -258,7 +258,7 @@ Used in `image` arrays on all entity types and in TVEpisode.
   "@type": "ImageObject",
   "name": "poster",
   "url": "https://image.tmdb.org/t/p/original/1E5baAaEse26fej7uHcjOgEE2t2.jpg",
-  "contentUrl": "/mnt/media/.media-centaur/images/550e8400-e29b-41d4-a716-446655440004/poster.jpg"
+  "contentUrl": "/mnt/media/.media-centarr/images/550e8400-e29b-41d4-a716-446655440004/poster.jpg"
 }
 ```
 
@@ -323,7 +323,7 @@ Identifiers are flattened for action template substitution as `identifier.{prope
         "@type": "ImageObject",
         "name": "poster",
         "url": "https://image.tmdb.org/t/p/original/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg",
-        "contentUrl": "/mnt/media/.media-centaur/images/550e8400-e29b-41d4-a716-446655440001/poster.jpg"
+        "contentUrl": "/mnt/media/.media-centarr/images/550e8400-e29b-41d4-a716-446655440001/poster.jpg"
       }
     ],
     "identifier": [

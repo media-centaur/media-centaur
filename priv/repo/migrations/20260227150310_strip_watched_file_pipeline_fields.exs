@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.StripWatchedFilePipelineFields do
+defmodule MediaCentarr.Repo.Migrations.StripWatchedFilePipelineFields do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

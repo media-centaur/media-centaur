@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.InitialResources do
+defmodule MediaCentarr.Repo.Migrations.InitialResources do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

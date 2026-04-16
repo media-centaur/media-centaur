@@ -7,29 +7,29 @@
 # General application configuration
 import Config
 
-config :media_centaur,
-  ecto_repos: [MediaCentaur.Repo],
+config :media_centarr,
+  ecto_repos: [MediaCentarr.Repo],
   generators: [timestamp_type: :utc_datetime]
 
-config :media_centaur, MediaCentaur.Repo,
-  database: Path.expand("~/.local/share/media-centaur/media_library.db")
+config :media_centarr, MediaCentarr.Repo,
+  database: Path.expand("~/.local/share/media-centarr/media_library.db")
 
 # Configures the endpoint
-config :media_centaur, MediaCentaurWeb.Endpoint,
+config :media_centarr, MediaCentarrWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: MediaCentaurWeb.ErrorHTML, json: MediaCentaurWeb.ErrorJSON],
+    formats: [html: MediaCentarrWeb.ErrorHTML, json: MediaCentarrWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: MediaCentaur.PubSub,
+  pubsub_server: MediaCentarr.PubSub,
   live_view: [signing_salt: "802OLLfH"],
   secret_key_base: "QC0XH/1hm1UEMlboIygQEPtXH1iXVgOZJJZLeIrelftuxkpsNxJ4rhG/6hNeYrEP"
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  media_centaur: [
+  media_centarr: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -39,7 +39,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.1.7",
-  media_centaur: [
+  media_centarr: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
@@ -55,9 +55,9 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-config :media_centaur, Oban,
+config :media_centarr, Oban,
   engine: Oban.Engines.Lite,
-  repo: MediaCentaur.Repo,
+  repo: MediaCentarr.Repo,
   queues: [acquisition: 5]
 
 # Import environment specific config. This must remain at the bottom

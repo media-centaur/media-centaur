@@ -106,5 +106,5 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Superviso
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Watcher` | Per-directory GenServer, inotify + PubSub | `lib/media_centaur/watcher.ex` |
-| `MediaCentaur.Watcher.Supervisor` | Coordinates all watchers, scan/pause API | `lib/media_centaur/watcher/supervisor.ex` |
+| `MediaCentarr.Watcher` | Per-directory GenServer, inotify + PubSub | `lib/media_centarr/watcher.ex` |
+| `MediaCentarr.Watcher.Supervisor` | Coordinates all watchers, scan/pause API | `lib/media_centarr/watcher/supervisor.ex` |

@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddMatchFields do
+defmodule MediaCentarr.Repo.Migrations.AddMatchFields do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

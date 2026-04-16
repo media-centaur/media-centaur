@@ -84,7 +84,7 @@ intent without deciphering implementation tricks.
 
 Evaluate the module hierarchy:
 
-- **Bounded contexts:** Does each top-level module under `lib/media_centaur/` represent a
+- **Bounded contexts:** Does each top-level module under `lib/media_centarr/` represent a
   clear domain boundary? Are there modules that mix concerns?
 - **Dependency direction:** Do modules depend in the right direction? (Domain logic should
   not depend on LiveView; Ecto schemas and context modules should not depend on pipeline logic.)

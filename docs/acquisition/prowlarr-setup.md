@@ -1,17 +1,17 @@
 # Prowlarr Setup Guide
 
-This guide covers installing Prowlarr, connecting it to your indexers and download client, and configuring media-centaur to use it.
+This guide covers installing Prowlarr, connecting it to your indexers and download client, and configuring media-centarr to use it.
 
 ## Overview
 
 The acquisition stack has three components:
 
 ```
-media-centaur → Prowlarr → Download client → watch directory → media-centaur
+media-centarr → Prowlarr → Download client → watch directory → media-centarr
      (search)   (indexers)  (qBit/Transmission)   (Watcher picks up)
 ```
 
-The critical link is that your download client must save completed downloads to a directory that media-centaur's Watcher is monitoring.
+The critical link is that your download client must save completed downloads to a directory that media-centarr's Watcher is monitoring.
 
 ## Directory layout (recommended)
 
@@ -76,7 +76,7 @@ In Prowlarr: **Settings → Download Clients → Add**.
 | Port | `8080` (default qBittorrent WebUI port) |
 | Username | your qBittorrent username |
 | Password | your qBittorrent password |
-| Category | `media-centaur` (optional, for organisation) |
+| Category | `media-centarr` (optional, for organisation) |
 
 In qBittorrent, set the default save path to your `Downloads/complete/` directory. If using categories, set the category save path instead.
 
@@ -112,9 +112,9 @@ In Prowlarr: **Settings → General → Security → API Key**. Copy this value.
 
 In Prowlarr: **Indexers**, click the search icon next to any indexer to confirm it returns results. Then click the download icon on a result to confirm the grab routes to your download client.
 
-## Configuring media-centaur
+## Configuring media-centarr
 
-Add to `~/.config/media-centaur/backend.toml`:
+Add to `~/.config/media-centarr/backend.toml`:
 
 ```toml
 [prowlarr]
@@ -124,7 +124,7 @@ api_key = "your-api-key-here"
 
 If Prowlarr runs on a different host (e.g. in Docker with a custom network), adjust the URL accordingly.
 
-Restart media-centaur (`systemctl --user restart media-centaur-backend-dev` or `mix phx.server`). The **Search** link will appear in the navigation bar.
+Restart media-centarr (`systemctl --user restart media-centarr-backend-dev` or `mix phx.server`). The **Search** link will appear in the navigation bar.
 
 ## Connecting downloads to the library
 
@@ -148,6 +148,6 @@ With this setup, files downloaded to `/mnt/media/Downloads/complete/` are detect
 
 **Grab succeeds but download never starts** — check the download client configuration in Prowlarr. Look at Prowlarr's logs (System → Logs) for errors.
 
-**Download completes but doesn't appear in library** — verify the download directory is inside a watch directory configured in `backend.toml`. Check media-centaur's Console (press `` ` ``) for Watcher events.
+**Download completes but doesn't appear in library** — verify the download directory is inside a watch directory configured in `backend.toml`. Check media-centarr's Console (press `` ` ``) for Watcher events.
 
-**Connection error in Settings** — confirm Prowlarr is running and the URL in `backend.toml` is reachable from the machine running media-centaur.
+**Connection error in Settings** — confirm Prowlarr is running and the URL in `backend.toml` is reachable from the machine running media-centarr.

@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddReleaseTypeToReleases do
+defmodule MediaCentarr.Repo.Migrations.AddReleaseTypeToReleases do
   use Ecto.Migration
 
   def change do

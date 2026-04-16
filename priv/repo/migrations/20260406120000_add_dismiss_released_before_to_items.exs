@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddDismissReleasedBeforeToItems do
+defmodule MediaCentarr.Repo.Migrations.AddDismissReleasedBeforeToItems do
   use Ecto.Migration
 
   def change do

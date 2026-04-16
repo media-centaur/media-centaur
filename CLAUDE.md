@@ -22,9 +22,9 @@ Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 
 Invoke the skill **first**, then explore the codebase, then write code.
 
-# Media Centaur — Backend
+# Media Centarr — Backend
 
-A Phoenix/Elixir web application that manages the Media Centaur media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The LiveView web UI provides library browsing, review, playback control, and administration.
+A Phoenix/Elixir web application that manages the Media Centarr media library. It is the **write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork images. The LiveView web UI provides library browsing, review, playback control, and administration.
 
 ## Version Control (Jujutsu)
 
@@ -63,10 +63,10 @@ scripts/install-dev    # install systemd user service for dev server
 The dev server can run as a persistent systemd user service. `scripts/install-dev` installs a unit that runs `mix phx.server` via `mise exec`, with a named BEAM node for remote shell access.
 
 ```bash
-systemctl --user start media-centaur-backend-dev     # start
-systemctl --user stop media-centaur-backend-dev      # stop
-journalctl --user -u media-centaur-backend-dev -f    # logs
-iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1   # REPL
+systemctl --user start media-centarr-backend-dev     # start
+systemctl --user stop media-centarr-backend-dev      # stop
+journalctl --user -u media-centarr-backend-dev -f    # logs
+iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1   # REPL
 ```
 
 Disconnect the REPL with `Ctrl+\` (leaves the server running).
@@ -75,17 +75,17 @@ Disconnect the REPL with `Ctrl+\` (leaves the server running).
 
 ```bash
 scripts/release              # build production release
-scripts/install              # install to ~/.local/lib/media-centaur/ and set up systemd
+scripts/install              # install to ~/.local/lib/media-centarr/ and set up systemd
 ```
 
 Manual build (if needed):
 
 ```bash
 MIX_ENV=prod mix assets.deploy && MIX_ENV=prod mix release   # build release
-_build/prod/rel/media_centaur/bin/media_centaur start         # run release
+_build/prod/rel/media_centarr/bin/media_centarr start         # run release
 ```
 
-Migrations in a release: `bin/media_centaur eval "MediaCentaur.Release.migrate()"`. See `docs/getting-started.md#release` for full details including systemd setup.
+Migrations in a release: `bin/media_centarr eval "MediaCentarr.Release.migrate()"`. See `docs/getting-started.md#release` for full details including systemd setup.
 
 > Note: When compiling, always use the environment variable `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8` to parallelize and speed up compilation.
 
@@ -97,7 +97,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
 
 Every system — Elixir, JavaScript, or otherwise — must be designed so that Claude Code can get diagnostic feedback when something goes wrong at runtime. Tests passing while the app is broken means the observability gap is the first problem to solve.
 
-- **Elixir/OTP:** The thinking log system (`MediaCentaur.Log`) already covers this. Use it.
+- **Elixir/OTP:** The thinking log system (`MediaCentarr.Log`) already covers this. Use it.
 - **JavaScript (browser):** The input system has built-in debug logging via `debug()` from `assets/js/input/core/debug.js`. Toggle at runtime: `window.__inputDebug = true`. All messages are prefixed `[input]` and silent by default. Use the Chrome DevTools MCP (`evaluate_script`) to enable/disable and `list_console_messages` to read output. Two call forms: `debug("msg", value)` for cheap args, `debug(() => ["msg", expensiveFn()])` for expensive args (stack traces, deep inspect). The lazy form is zero-cost when disabled. When adding debug logging to other JS systems, follow the same pattern — a toggle-gated function, never bare `console.log`.
 - **New systems:** If it's not immediately obvious how to get runtime diagnostic output back to Claude Code, stop and consult with the user on how it should work before proceeding with the fix. Don't guess — the feedback loop is a prerequisite.
 
@@ -107,7 +107,7 @@ Every system — Elixir, JavaScript, or otherwise — must be designed so that C
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON. *Why:* an established public vocabulary avoids bespoke ontology debate, keeps the on-disk format legible to any external reader, and gives every type/field question an authoritative external answer.
 - **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID. *Why:* reassigning a UUID would orphan its `data/images/{uuid}/` directory and invalidate every external reference that had resolved it — caches, frontend state, log entries, existing PubSub IDs in flight.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`. *Why:* resizing is cheap at render time, disk is expensive, and storing multiple resolutions multiplies every invalidation path.
-- **Shared image service.** `MediaCentaur.Images` is the single download+resize module. Any context that needs to fetch an image from a URL calls `Images.download/3` (with optional resize via libvips) or `Images.download_raw/2` (raw bytes, no processing). The Pipeline's `ImageProcessor` and ReleaseTracking's `ImageStore` both delegate to it. Never write inline HTTP+File.write for images — use `Images`.
+- **Shared image service.** `MediaCentarr.Images` is the single download+resize module. Any context that needs to fetch an image from a URL calls `Images.download/3` (with optional resize via libvips) or `Images.download_raw/2` (raw bytes, no processing). The Pipeline's `ImageProcessor` and ReleaseTracking's `ImageStore` both delegate to it. Never write inline HTTP+File.write for images — use `Images`.
 - **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals. *Why:* PubSub is the only reload signal the UI ever gets; a missed broadcast leaves LiveViews stale until the next navigation, and a direct cross-context call silently couples the two contexts against ADR-029.
 - **The pipeline is a mediator, not a side effect.** The pipeline actively orchestrates — it calls services, gathers data, and hands results to the library. Domain resources do not trigger pipeline behavior through state changes. *Why:* implicit triggers fan out through hidden paths that are impossible to reason about; explicit orchestration keeps the call graph discoverable and the sequencing deterministic.
 
@@ -149,7 +149,7 @@ Eight contexts own their tables and communicate only via PubSub events. No conte
 
 **Settings as shared infrastructure:** `Settings` is treated as shared key/value infrastructure, not a peer bounded context. Any context that needs per-user or per-installation persistence without justifying its own table (Console's filter and buffer cap, for example) writes to `Settings.Entry` directly. This is the one sanctioned exception to ADR-029's "contexts own their data" rule — the coupling is one-directional (the context depends on Settings, not the other way around) and Settings carries no domain logic of its own.
 
-**Context facade subscribe pattern:** Each bounded context exposes a `subscribe/0` function that wraps `Phoenix.PubSub.subscribe/2` with the context's topic from `MediaCentaur.Topics`. LiveViews call these instead of constructing PubSub subscriptions directly — topic knowledge stays in the context that owns it:
+**Context facade subscribe pattern:** Each bounded context exposes a `subscribe/0` function that wraps `Phoenix.PubSub.subscribe/2` with the context's topic from `MediaCentarr.Topics`. LiveViews call these instead of constructing PubSub subscriptions directly — topic knowledge stays in the context that owns it:
 
 ```elixir
 # In mount/3
@@ -183,7 +183,7 @@ Decision records live in `decisions/` using [MADR 4.0](https://adr.github.io/mad
 
 ## Defaults
 
-The `defaults/` directory contains git-tracked starter config files — seed values shipped with the repo, **never overwritten at runtime**. **Keep `defaults/backend.toml` complete.** Every configuration key recognised by `MediaCentaur.Config` must have an entry with a logical default value and a comment. The file must always be valid TOML.
+The `defaults/` directory contains git-tracked starter config files — seed values shipped with the repo, **never overwritten at runtime**. **Keep `defaults/backend.toml` complete.** Every configuration key recognised by `MediaCentarr.Config` must have an entry with a logical default value and a comment. The file must always be valid TOML.
 
 ## Testing Strategy
 
@@ -199,7 +199,7 @@ Load the `automated-testing` skill before writing any test — Elixir, JavaScrip
 - **Resource tests** (Entity, WatchedFile, WatchProgress) use `DataCase` and exercise against the real database.
 ### Shared Test Factory
 
-`test/support/factory.ex` provides `MediaCentaur.TestFactory`:
+`test/support/factory.ex` provides `MediaCentarr.TestFactory`:
 
 - `build_*` functions return plain structs with sensible defaults (no DB). Use for pure function tests.
 - `create_*` functions persist records and return loaded records. Use for resource tests.
@@ -223,7 +223,7 @@ Examples: `file_absent?(file_info)`, `episode_status(episode, progress)`, `progr
 **Test-first, mandatory.** Every change to the Broadway pipeline must have a corresponding test written *before* the implementation. The pipeline is the core of the application and bugs here are silent and cascading.
 
 - **TMDB stubs via `Req.Test`.** All pipeline tests that touch TMDB use `test/support/tmdb_stubs.ex`, which installs a `Req.Test`-backed client into `:persistent_term`. Stub responses per-test with `stub_routes/1` or the individual `stub_*` helpers.
-- **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`.
+- **Image downloads use a no-op.** `config/test.exs` sets `:image_downloader` to `MediaCentarr.NoopImageDownloader`.
 - **NEVER delete or weaken pipeline tests.** See [ADR-027](decisions/architecture/2026-03-07-027-regression-tests-append-only.md). Each test represents a real scenario — fix the pipeline, not the test.
 
 ### JavaScript Tests (Input System)
@@ -271,7 +271,7 @@ Config: `.dependency-cruiser.cjs`
 
 ## Parser
 
-`lib/media_centaur/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.
+`lib/media_centarr/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.
 
 - **Real paths only.** Every test case uses a real file path observed in the wild — never synthetic/invented paths.
 - **One test per pattern.** Each distinct filename convention gets its own test case with a descriptive test name explaining what makes it unique.
@@ -279,19 +279,19 @@ Config: `.dependency-cruiser.cjs`
 
 ## Thinking Logs
 
-The app has a component-tagged logging system for development visibility. All log entries flow through an Erlang `:logger` handler into an in-memory ring buffer (`MediaCentaur.Console.Buffer`, default 2,000 entries) and are viewable in the browser via the Guake-style **Console** drawer (press `` ` `` backtick). Filter visibility is UI-driven — there is no source-level suppression.
+The app has a component-tagged logging system for development visibility. All log entries flow through an Erlang `:logger` handler into an in-memory ring buffer (`MediaCentarr.Console.Buffer`, default 2,000 entries) and are viewable in the browser via the Guake-style **Console** drawer (press `` ` `` backtick). Filter visibility is UI-driven — there is no source-level suppression.
 
 ### Usage
 
 ```elixir
-require MediaCentaur.Log, as: Log
+require MediaCentarr.Log, as: Log
 Log.info(:pipeline, "claimed 3 files")
 Log.info(:tmdb, fn -> "response: #{inspect(data, limit: 5)}" end)
 Log.warning(:watcher, "backlog: #{count} events")
 Log.error(:library, "failed to persist entity: #{inspect(reason)}")
 ```
 
-The `MediaCentaur.Log` module contains only the `info/2`, `warning/2`, and `error/2` macros — call sites never change.
+The `MediaCentarr.Log` module contains only the `info/2`, `warning/2`, and `error/2` macros — call sites never change.
 
 ### Components
 
@@ -314,12 +314,12 @@ Framework components (`:phoenix`, `:ecto`, `:live_view`) default to HIDDEN in th
 ### Accessing the buffer
 
 - **Browser:** press `` ` `` from any page to open the sticky drawer, or navigate to `/console` for the full-page view. Filter chips, level segment, and text search are all live.
-- **IEx/Remote shell:** `MediaCentaur.Diagnostics.log_recent(20)` prints the 20 most recent entries. `MediaCentaur.Console.recent_entries/1` returns them as `%Entry{}` structs.
+- **IEx/Remote shell:** `MediaCentarr.Diagnostics.log_recent(20)` prints the 20 most recent entries. `MediaCentarr.Console.recent_entries/1` returns them as `%Entry{}` structs.
 - **Settings page** no longer has a Logging section — all controls moved to the Console.
 
 ### Architectural notes
 
-- The bounded context `MediaCentaur.Console` owns the buffer, handler, filter, and view helpers. LiveViews interact only through the `MediaCentaur.Console` public facade (ADR-026).
+- The bounded context `MediaCentarr.Console` owns the buffer, handler, filter, and view helpers. LiveViews interact only through the `MediaCentarr.Console` public facade (ADR-026).
 - `ConsoleLive` (sticky drawer) and `ConsolePageLive` (full-page `/console`) share all mount setup, PubSub handlers, and event handlers via `ConsoleLive.Shared` (`__using__` macro). Each LiveView is thin wiring — mount options, render template, and any view-specific events (e.g. `toggle_console` for the drawer). Pure logic lives in `ConsoleLive.Logic` (ADR-030).
 - The buffer survives page navigation and reload (sticky LiveView + server-side state). It is lost on BEAM restart.
 - Filter state and buffer size are persisted per-user to `Settings.Entry` with a 2-second debounce.

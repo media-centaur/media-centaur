@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.MigrateEntityDataToTypeTables do
+defmodule MediaCentarr.Repo.Migrations.MigrateEntityDataToTypeTables do
   @moduledoc """
   Data migration: populate type-specific tables from library_entities and
   re-key all FK references from entity_id to the new type-specific columns.
@@ -296,7 +296,7 @@ defmodule MediaCentaur.Repo.Migrations.MigrateEntityDataToTypeTables do
   end
 
   defp verify!(label, query) do
-    %{rows: [[count]]} = Ecto.Adapters.SQL.query!(MediaCentaur.Repo, query)
+    %{rows: [[count]]} = Ecto.Adapters.SQL.query!(MediaCentarr.Repo, query)
 
     if count > 0 do
       raise "INTEGRITY CHECK FAILED: #{count} #{label}"

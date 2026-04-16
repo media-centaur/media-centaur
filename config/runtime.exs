@@ -9,14 +9,14 @@ import Config
 if config_env() != :test do
   watch_dirs = [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")]
 
-  config :media_centaur,
+  config :media_centarr,
     watch_dirs: watch_dirs,
     tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
     auto_approve_threshold: 0.85
 end
 
 if config_env() == :prod do
-  config :media_centaur, MediaCentaurWeb.Endpoint,
+  config :media_centarr, MediaCentarrWeb.Endpoint,
     server: true,
     check_origin: false,
     http: [ip: {127, 0, 0, 1}, port: 4000]

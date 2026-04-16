@@ -14,7 +14,7 @@ All configuration is loaded from a single TOML file at startup. No runtime reloa
 ## Config File Location
 
 ```
-~/.config/media-centaur/backend.toml
+~/.config/media-centarr/backend.toml
 ```
 
 If this file is missing, the application falls back to built-in defaults. If the file exists but has invalid TOML syntax, a warning is logged and defaults are used.
@@ -26,20 +26,20 @@ A complete template ships in the repo at `defaults/backend.toml`.
 ```mermaid
 flowchart LR
     A["config/*.exs<br/>app defaults"] --> C[Config.load!/0]
-    B["~/.config/media-centaur/<br/>backend.toml"] --> C
+    B["~/.config/media-centarr/<br/>backend.toml"] --> C
     C --> D[":persistent_term"]
     D --> E["Config.get(:key)"]
 ```
 
 1. Application environment defaults (from `config/*.exs`)
-2. User TOML file at `~/.config/media-centaur/backend.toml` (overrides defaults)
+2. User TOML file at `~/.config/media-centarr/backend.toml` (overrides defaults)
 3. Values stored in `:persistent_term` for fast read-only access
 
 ## Config Keys
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `database_path` | string | `~/.local/share/media-centaur/media_library.db` | SQLite database file path |
+| `database_path` | string | `~/.local/share/media-centarr/media_library.db` | SQLite database file path |
 | `watch_dirs` | array | `[]` | Directories to watch for video files |
 | `exclude_dirs` | array | `[]` | Directories to skip during watching |
 | `file_absence_ttl_days` | integer | `30` | Days to retain records for files on disconnected drives |
@@ -68,7 +68,7 @@ watch_dirs = [
 media_dir = "/mnt/media"
 ```
 
-Default images directory for each watch dir: `{dir}/.media-centaur/images`
+Default images directory for each watch dir: `{dir}/.media-centarr/images`
 
 All paths support `~` expansion.
 
@@ -79,20 +79,20 @@ The complete `defaults/backend.toml` shipped with the repo:
 ```toml
 # defaults/backend.toml
 #
-# Shipped default configuration for Media Centaur — Backend.
-# Copy this file to ~/.config/media-centaur/backend.toml and edit as needed.
+# Shipped default configuration for Media Centarr — Backend.
+# Copy this file to ~/.config/media-centarr/backend.toml and edit as needed.
 # This file must contain every recognised config key; keep it up to date as new
-# keys are added to MediaCentaur.Config.
+# keys are added to MediaCentarr.Config.
 
 # Path to the SQLite database file.
-database_path = "~/.local/share/media-centaur/media_library.db"
+database_path = "~/.local/share/media-centarr/media_library.db"
 
 # Directories containing video/media files (e.g. torrent downloads folders).
 # Watched for additions and removals. May be on removable or network drives.
 # Add multiple directories to watch media across several drives/mounts.
 #
 # Each watch directory can specify its own images_dir for artwork caching.
-# If omitted, defaults to {dir}/.media-centaur/images.
+# If omitted, defaults to {dir}/.media-centarr/images.
 # Examples:
 #   watch_dirs = [{ dir = "/mnt/media", images_dir = "/mnt/media/.cache/images" }]
 #   watch_dirs = [{ dir = "/mnt/media" }]   # uses default images_dir
@@ -137,4 +137,4 @@ socket_timeout_ms = 5000
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Config` | TOML loader, `:persistent_term` storage, path helpers | `lib/media_centaur/config.ex` |
+| `MediaCentarr.Config` | TOML loader, `:persistent_term` storage, path helpers | `lib/media_centarr/config.ex` |

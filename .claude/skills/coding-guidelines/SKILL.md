@@ -15,8 +15,8 @@ description: "Use this skill for any implementation task — adding features, fi
 
 - Use `DataCase` (not async — SQLite limitation).
 - Use `create_*` factory helpers to persist via the relevant context module
-  (`MediaCentaur.Library`, `MediaCentaur.Review`, `MediaCentaur.ReleaseTracking`,
-  `MediaCentaur.Settings`).
+  (`MediaCentarr.Library`, `MediaCentarr.Review`, `MediaCentarr.ReleaseTracking`,
+  `MediaCentarr.Settings`).
 - Test through the context's public API against the real database — never stub
   the data layer, never call `Repo` directly from tests.
 - For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result.
@@ -46,7 +46,7 @@ Extract all non-trivial LiveView/component logic into public pure functions and 
 
 ## Factory
 
-All tests use `MediaCentaur.TestFactory`. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
+All tests use `MediaCentarr.TestFactory`. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
 
 - `build_*` — pure structs for async tests (fast, no I/O).
 - `create_*` — persisted via context-module functions for DataCase tests.

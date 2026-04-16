@@ -1,19 +1,19 @@
 # defaults/backend.toml
 #
-# Shipped default configuration for Media Centaur — Backend.
-# Copy this file to ~/.config/media-centaur/backend.toml and edit as needed.
+# Shipped default configuration for Media Centarr — Backend.
+# Copy this file to ~/.config/media-centarr/backend.toml and edit as needed.
 # This file must contain every recognised config key; keep it up to date as new
-# keys are added to MediaCentaur.Config.
+# keys are added to MediaCentarr.Config.
 
 # Path to the SQLite database file.
-database_path = "~/.local/share/media-centaur/media_library.db"
+database_path = "~/.local/share/media-centarr/media_library.db"
 
 # Directories containing video/media files (e.g. torrent downloads folders).
 # Watched for additions and removals. May be on removable or network drives.
 # Add multiple directories to watch media across several drives/mounts.
 #
 # Each watch directory can specify its own images_dir for artwork caching.
-# If omitted, defaults to {dir}/.media-centaur/images.
+# If omitted, defaults to {dir}/.media-centarr/images.
 # Examples:
 #   watch_dirs = [{ dir = "/mnt/media", images_dir = "/mnt/media/.cache/images" }]
 #   watch_dirs = [{ dir = "/mnt/media" }]   # uses default images_dir

@@ -1,15 +1,15 @@
 import Config
 
-config :media_centaur, MediaCentaur.Repo,
+config :media_centarr, MediaCentarr.Repo,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
 
-config :media_centaur, :environment, :dev
+config :media_centarr, :environment, :dev
 
 # Dev defaults: watchers and pipeline OFF to coexist with a running prod release.
 # Toggle at runtime via the Settings page.
-config :media_centaur, :start_watchers, false
-config :media_centaur, :start_pipeline, false
+config :media_centarr, :start_watchers, false
+config :media_centarr, :start_pipeline, false
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -17,7 +17,7 @@ config :media_centaur, :start_pipeline, false
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :media_centaur, MediaCentaurWeb.Endpoint,
+config :media_centarr, MediaCentarrWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4001")],
@@ -25,8 +25,8 @@ config :media_centaur, MediaCentaurWeb.Endpoint,
   code_reloader: true,
   debug_errors: true,
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:media_centaur, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:media_centaur, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:media_centarr, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:media_centarr, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -53,19 +53,19 @@ config :media_centaur, MediaCentaurWeb.Endpoint,
 # different ports.
 
 # Watch static and templates for browser reloading.
-config :media_centaur, MediaCentaurWeb.Endpoint,
+config :media_centarr, MediaCentarrWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/media_centaur_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ~r"lib/media_centarr_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
 
 # Use custom formatter that shows [level][component] for thinking logs
 config :logger, :default_formatter,
-  format: {MediaCentaur.Log.Formatter, :format},
+  format: {MediaCentarr.Log.Formatter, :format},
   metadata: [:component]
 
 # Set a higher stacktrace during development. Avoid configuring such

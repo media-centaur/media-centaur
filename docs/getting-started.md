@@ -1,6 +1,6 @@
 # Getting Started
 
-Media Centaur is a Phoenix/Elixir application that manages a media library — watching directories for video files, scraping metadata from TMDB, downloading artwork, and serving a LiveView web UI.
+Media Centarr is a Phoenix/Elixir application that manages a media library — watching directories for video files, scraping metadata from TMDB, downloading artwork, and serving a LiveView web UI.
 
 > **Getting Started** · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
 
@@ -27,8 +27,8 @@ Media Centaur is a Phoenix/Elixir application that manages a media library — w
 ## Install
 
 ```bash
-git clone https://github.com/media-centaur/media-centaur.git
-cd media-centaur
+git clone https://github.com/media-centarr/media-centarr.git
+cd media-centarr
 mix setup    # install deps, create DB, run migrations, build assets
 ```
 
@@ -42,8 +42,8 @@ mix run priv/repo/seeds.exs
 mix tailwind.install --if-missing
 mix esbuild.install --if-missing
 mix compile
-mix tailwind media_centaur
-mix esbuild media_centaur
+mix tailwind media_centarr
+mix esbuild media_centarr
 ```
 
 ## Configure
@@ -51,8 +51,8 @@ mix esbuild media_centaur
 Copy the default config and edit:
 
 ```bash
-mkdir -p ~/.config/media-centaur
-cp defaults/backend.toml ~/.config/media-centaur/backend.toml
+mkdir -p ~/.config/media-centarr
+cp defaults/backend.toml ~/.config/media-centarr/backend.toml
 ```
 
 At minimum, set your TMDB API key and watch directories:
@@ -84,15 +84,15 @@ The dev server can run as a persistent background service instead of a terminal 
 
 ```bash
 scripts/install-dev                                  # install/update the systemd unit
-systemctl --user start media-centaur-backend-dev     # start
-systemctl --user stop media-centaur-backend-dev      # stop
-journalctl --user -u media-centaur-backend-dev -f    # view logs
+systemctl --user start media-centarr-backend-dev     # start
+systemctl --user stop media-centarr-backend-dev      # stop
+journalctl --user -u media-centarr-backend-dev -f    # view logs
 ```
 
 The service runs `mix phx.server` via `mise exec` (so it picks up the correct Erlang/Elixir versions) and starts a named BEAM node. Connect a REPL to the running server with:
 
 ```bash
-iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1
+iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1
 ```
 
 Disconnect with `Ctrl+\` — the server keeps running.
@@ -118,7 +118,7 @@ Build and install with the provided scripts:
 
 ```bash
 scripts/release              # build production release (add --clean to wipe _build/prod first)
-scripts/install              # install to ~/.local/lib/media-centaur/ and set up systemd
+scripts/install              # install to ~/.local/lib/media-centarr/ and set up systemd
 ```
 
 `scripts/install` copies the release, installs a patched systemd unit, runs migrations, and restarts the service if it was already active.
@@ -132,15 +132,15 @@ MIX_ENV=prod mix assets.deploy
 MIX_ENV=prod mix release
 ```
 
-The release is written to `_build/prod/rel/media_centaur/`.
+The release is written to `_build/prod/rel/media_centarr/`.
 
 ### Run the release
 
 ```bash
-bin/media_centaur start       # foreground
-bin/media_centaur daemon       # background
-bin/media_centaur stop         # stop a running daemon
-bin/media_centaur remote       # IEx shell attached to running node
+bin/media_centarr start       # foreground
+bin/media_centarr daemon       # background
+bin/media_centarr stop         # stop a running daemon
+bin/media_centarr remote       # IEx shell attached to running node
 ```
 
 The release binds to `127.0.0.1:4000` and enables `server: true` automatically — no environment variables needed.
@@ -148,26 +148,26 @@ The release binds to `127.0.0.1:4000` and enables `server: true` automatically �
 ### Run migrations
 
 ```bash
-bin/media_centaur eval "MediaCentaur.Release.migrate()"
+bin/media_centarr eval "MediaCentarr.Release.migrate()"
 ```
 
 ### systemd user unit
 
 `scripts/install` handles systemd setup automatically. To set up manually instead:
 
-A template unit file ships at `defaults/media-centaur-backend.service`. To install:
+A template unit file ships at `defaults/media-centarr-backend.service`. To install:
 
 ```bash
 mkdir -p ~/.config/systemd/user
-cp defaults/media-centaur-backend.service ~/.config/systemd/user/media-centaur-backend.service
+cp defaults/media-centarr-backend.service ~/.config/systemd/user/media-centarr-backend.service
 ```
 
-Edit `ExecStart` and `ExecStop` to point to your release `bin/media_centaur`, then:
+Edit `ExecStart` and `ExecStop` to point to your release `bin/media_centarr`, then:
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now media-centaur-backend
-journalctl --user -u media-centaur-backend -f    # view logs
+systemctl --user enable --now media-centarr-backend
+journalctl --user -u media-centarr-backend -f    # view logs
 ```
 
 ### Release tuning

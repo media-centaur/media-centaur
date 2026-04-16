@@ -1,6 +1,6 @@
 # Image Cache Specification
 
-This document specifies how artwork images are stored, referenced, and loaded in the Media Centaur system.
+This document specifies how artwork images are stored, referenced, and loaded in the Media Centarr system.
 
 ---
 
@@ -27,7 +27,7 @@ Each entry in an entity's `image` array is a schema.org `ImageObject`. See [`DAT
 Key points for image caching:
 
 - **`url`** — the canonical remote source URL (written by manager, used for re-download)
-- **`contentUrl`** — stored as a relative path in the database (`{uuid}/poster.jpg`). Resolved to an absolute filesystem path by the serializer when needed (e.g. `/mnt/media/.media-centaur/images/{uuid}/poster.jpg`). `null` until download completes.
+- **`contentUrl`** — stored as a relative path in the database (`{uuid}/poster.jpg`). Resolved to an absolute filesystem path by the serializer when needed (e.g. `/mnt/media/.media-centarr/images/{uuid}/poster.jpg`). `null` until download completes.
 - **`name`** — the image role (see roles below)
 
 ---
@@ -56,18 +56,18 @@ Key points for image caching:
 
 ## Directory Structure
 
-Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centaur/images/`. Users can override this per watch directory in the TOML config.
+Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centarr/images/`. Users can override this per watch directory in the TOML config.
 
 ```toml
 # Per-watch-directory image caches
 watch_dirs = [
-  { dir = "/mnt/videos/Movies", images_dir = "/mnt/videos/.media-centaur/images" },
-  { dir = "/mnt/nas/TV" },  # defaults to /mnt/nas/TV/.media-centaur/images
+  { dir = "/mnt/videos/Movies", images_dir = "/mnt/videos/.media-centarr/images" },
+  { dir = "/mnt/nas/TV" },  # defaults to /mnt/nas/TV/.media-centarr/images
 ]
 ```
 
 ```
-/mnt/videos/.media-centaur/
+/mnt/videos/.media-centarr/
 └── images/
     ├── 550e8400-e29b-41d4-a716-446655440001/   # Sample Movie (entity)
     │   ├── poster.jpg
@@ -76,7 +76,7 @@ watch_dirs = [
     │   └── poster.jpg
     └── ...
 
-/mnt/nas/TV/.media-centaur/
+/mnt/nas/TV/.media-centarr/
 └── images/
     ├── 550e8400-e29b-41d4-a716-446655440004/   # Sample Show Eight (entity)
     │   └── poster.jpg

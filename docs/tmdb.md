@@ -104,7 +104,7 @@ Sliding window using Erlang `:queue`:
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.TMDB.Client` | HTTP client, endpoint methods | `lib/media_centaur/tmdb/client.ex` |
-| `MediaCentaur.TMDB.Confidence` | Jaro distance scoring | `lib/media_centaur/tmdb/confidence.ex` |
-| `MediaCentaur.TMDB.Mapper` | JSON → domain attribute mapping | `lib/media_centaur/tmdb/mapper.ex` |
-| `MediaCentaur.TMDB.RateLimiter` | Sliding window rate limiter | `lib/media_centaur/tmdb/rate_limiter.ex` |
+| `MediaCentarr.TMDB.Client` | HTTP client, endpoint methods | `lib/media_centarr/tmdb/client.ex` |
+| `MediaCentarr.TMDB.Confidence` | Jaro distance scoring | `lib/media_centarr/tmdb/confidence.ex` |
+| `MediaCentarr.TMDB.Mapper` | JSON → domain attribute mapping | `lib/media_centarr/tmdb/mapper.ex` |
+| `MediaCentarr.TMDB.RateLimiter` | Sliding window rate limiter | `lib/media_centarr/tmdb/rate_limiter.ex` |

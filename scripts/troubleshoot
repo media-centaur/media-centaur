@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Troubleshoot a running Media Centaur production instance.
-# All Elixir-side logic lives in MediaCentaur.Diagnostics — this script
+# Troubleshoot a running Media Centarr production instance.
+# All Elixir-side logic lives in MediaCentarr.Diagnostics — this script
 # is a thin dispatcher that calls named functions, never inline code.
 # Usage: scripts/troubleshoot [command] [args...]
 
-service="media-centaur-backend"
-install_dir="$HOME/.local/lib/media-centaur"
-bin="$install_dir/bin/media_centaur"
+service="media-centarr-backend"
+install_dir="$HOME/.local/lib/media-centarr"
+bin="$install_dir/bin/media_centarr"
 port=4000
 
 bold="\033[1m"
@@ -43,7 +43,7 @@ require_running() {
 }
 
 diag() {
-  "$bin" rpc "MediaCentaur.Diagnostics.$1"
+  "$bin" rpc "MediaCentarr.Diagnostics.$1"
 }
 
 # --- Commands ---
@@ -84,8 +84,8 @@ cmd_status() {
   fi
 
   banner "Database"
-  if [ -f "$HOME/.local/share/media-centaur/media_library.db" ]; then
-    db_size=$(du -h "$HOME/.local/share/media-centaur/media_library.db" 2>/dev/null | cut -f1)
+  if [ -f "$HOME/.local/share/media-centarr/media_library.db" ]; then
+    db_size=$(du -h "$HOME/.local/share/media-centarr/media_library.db" 2>/dev/null | cut -f1)
     ok "Exists ($db_size)"
   else
     fail "Database file not found"

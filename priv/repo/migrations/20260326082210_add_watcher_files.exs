@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddWatcherFiles do
+defmodule MediaCentarr.Repo.Migrations.AddWatcherFiles do
   use Ecto.Migration
 
   def change do

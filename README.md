@@ -1,6 +1,6 @@
 <div align="center">
 
-# Media Centaur
+# Media Centarr
 
 **A self-hosted media center for Linux that watches your library, identifies your media, and gets out of the way.**
 
@@ -15,11 +15,11 @@ Zero-config SQLite database. No Docker. No transcoding server. No accounts.
 
 ---
 
-## Why Media Centaur
+## Why Media Centarr
 
 **Built for the living room.** This is a 10-foot interface designed to drive a TV connected to a Linux PC. You navigate with a keyboard or gamepad from the couch — not a phone app, not a web dashboard you squint at. Spatial navigation, large artwork, and focus-driven interaction make it feel like a console media app, not a web page.
 
-**mpv is the player.** Media Centaur doesn't reinvent video playback. mpv is the best video player on Linux — hardware decoding, format support, subtitle handling, shader pipelines, HDR passthrough. Media Centaur integrates with mpv over IPC so you get all of its capabilities with none of the file-management overhead.
+**mpv is the player.** Media Centarr doesn't reinvent video playback. mpv is the best video player on Linux — hardware decoding, format support, subtitle handling, shader pipelines, HDR passthrough. Media Centarr integrates with mpv over IPC so you get all of its capabilities with none of the file-management overhead.
 
 **Your files, your machine.** Single-user, single-machine. No accounts, no auth, no cloud, no Docker, no transcoding server. Point it at your video directories and it handles the rest. SQLite means zero database administration — the entire library is one file you can back up with `cp`.
 
@@ -141,19 +141,19 @@ You'll also need a free [TMDB API key](https://www.themoviedb.org/settings/api).
 ### Install
 
 ```bash
-git clone https://github.com/media-centaur/media-centaur.git
-cd media-centaur
+git clone https://github.com/media-centarr/media-centarr.git
+cd media-centarr
 mix setup
 ```
 
 ### Configure
 
 ```bash
-mkdir -p ~/.config/media-centaur
-cp defaults/backend.toml ~/.config/media-centaur/backend.toml
+mkdir -p ~/.config/media-centarr
+cp defaults/backend.toml ~/.config/media-centarr/backend.toml
 ```
 
-Edit `~/.config/media-centaur/backend.toml` — at minimum, set your watch directories and TMDB API key:
+Edit `~/.config/media-centarr/backend.toml` — at minimum, set your watch directories and TMDB API key:
 
 ```toml
 watch_dirs = [
@@ -178,7 +178,7 @@ Open [http://localhost:4001](http://localhost:4001).
 
 ## Configuration
 
-Media Centaur is configured via a TOML file at `~/.config/media-centaur/backend.toml`. All keys have sensible defaults — see `defaults/backend.toml` for the full reference.
+Media Centarr is configured via a TOML file at `~/.config/media-centarr/backend.toml`. All keys have sensible defaults — see `defaults/backend.toml` for the full reference.
 
 | Section | Key Options | Description |
 |---------|-------------|-------------|
@@ -196,14 +196,14 @@ Media Centaur is configured via a TOML file at `~/.config/media-centaur/backend.
 
 ```bash
 scripts/install-dev                                    # install systemd user service
-systemctl --user start media-centaur-backend-dev       # start
-journalctl --user -u media-centaur-backend-dev -f      # logs
+systemctl --user start media-centarr-backend-dev       # start
+journalctl --user -u media-centarr-backend-dev -f      # logs
 ```
 
 Connect a REPL to the running server:
 
 ```bash
-iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1
+iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1
 ```
 
 Disconnect with `Ctrl+\` — the server keeps running.
@@ -212,7 +212,7 @@ Disconnect with `Ctrl+\` — the server keeps running.
 
 ```bash
 scripts/release    # build production release
-scripts/install    # install to ~/.local/lib/media-centaur/ and set up systemd
+scripts/install    # install to ~/.local/lib/media-centarr/ and set up systemd
 ```
 
 The release binds to `127.0.0.1:4000`, runs migrations automatically, and manages its own systemd user unit. See [Getting Started — Release](docs/getting-started.md#release) for full details.

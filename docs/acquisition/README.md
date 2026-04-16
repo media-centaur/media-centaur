@@ -28,7 +28,7 @@ url = "http://localhost:9696"
 api_key = "your-api-key-here"
 ```
 
-2. Restart media-centaur. The search nav link and acquisition controls will appear.
+2. Restart media-centarr. The search nav link and acquisition controls will appear.
 
 ## Graceful degradation
 
@@ -46,6 +46,6 @@ Automated grabs prefer 4K (2160p/UHD). If no 4K release is found, 1080p is accep
 
 ## How downloads reach your library
 
-When Prowlarr routes a grab to your download client, the completed download lands in your download client's configured directory. If that directory (or a parent of it) is one of media-centaur's watch directories, the Watcher detects the new file automatically and the pipeline processes it — scraping metadata, downloading artwork, and adding it to your library.
+When Prowlarr routes a grab to your download client, the completed download lands in your download client's configured directory. If that directory (or a parent of it) is one of media-centarr's watch directories, the Watcher detects the new file automatically and the pipeline processes it — scraping metadata, downloading artwork, and adding it to your library.
 
 **The critical link:** your download client's completion directory must be inside a watch directory configured in `backend.toml`. See [prowlarr-setup.md](prowlarr-setup.md) for the recommended directory layout.

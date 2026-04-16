@@ -6,7 +6,7 @@ date: 2026-04-05
 
 ## Context and Problem Statement
 
-The existing `MediaCentaur.Log` module gates info-level component logs at the
+The existing `MediaCentarr.Log` module gates info-level component logs at the
 Erlang primary filter based on a `MapSet` in `:persistent_term`. This makes
 enabled components truly zero-cost when disabled, but makes log visibility
 opaque: filter state lives in memory only, requires IEx or a settings-page
@@ -26,8 +26,8 @@ browser, and keeps the `Log` macro API unchanged at all call sites.
 
 ### Design
 
-Install a `:logger` handler (`MediaCentaur.Console.Handler`) that captures all
-log events into a GenServer-backed ring buffer (`MediaCentaur.Console.Buffer`,
+Install a `:logger` handler (`MediaCentarr.Console.Handler`) that captures all
+log events into a GenServer-backed ring buffer (`MediaCentarr.Console.Buffer`,
 default 2,000 entries, configurable up to 50,000). Expose the buffer via a
 sticky LiveView drawer present on every page and a full-page `/console` route.
 Persist user filter state and buffer size to `Settings.Entry` with debounced
@@ -38,20 +38,20 @@ console UI. Framework log suppression (`Logger.put_module_level/2`) is also
 removed — framework logs become filterable pseudo-components (`:phoenix`,
 `:ecto`, `:live_view`) in the same console filter.
 
-The `MediaCentaur.Log` module shrinks to only the `info/2`, `warning/2`, and
+The `MediaCentarr.Log` module shrinks to only the `info/2`, `warning/2`, and
 `error/2` macros — the primary filter management helpers are gone.
 
 ### Rules
 
-1. **`MediaCentaur.Console` is the public facade.** LiveViews and other callers
-   interact with the console only through `MediaCentaur.Console` public
+1. **`MediaCentarr.Console` is the public facade.** LiveViews and other callers
+   interact with the console only through `MediaCentarr.Console` public
    functions — never directly with `Buffer` or `Handler` (per ADR-026 GenServer
    API encapsulation).
 2. **Filter state is server-side.** The active component filter and level filter
    are stored in LiveView assigns and persisted to `Settings.Entry`. Client-side
    text search (the search input) is a pure client filter layered on top.
 3. **Cross-context rescan:** `Console.rescan_library/0` dispatches to
-   `MediaCentaur.Watcher.Supervisor.scan/0` via `Task.Supervisor`. This is a
+   `MediaCentarr.Watcher.Supervisor.scan/0` via `Task.Supervisor`. This is a
    direct public-function call, consistent with existing cross-context patterns
    (ADR-029 allows consumer modules to call Library and Watcher directly).
 4. **Buffer size is configurable at runtime.** Users can adjust the cap (1,000
@@ -65,7 +65,7 @@ The `MediaCentaur.Log` module shrinks to only the `info/2`, `warning/2`, and
 * Good, because filter state is persistent across page navigation and restart
 * Good, because the closed-loop feedback loop is natural: the rescan button
   emits pipeline and watcher logs that appear inline in the console
-* Good, because `MediaCentaur.Log` surface area drops from ~290 lines to ~50 —
+* Good, because `MediaCentarr.Log` surface area drops from ~290 lines to ~50 —
   the primary filter management helpers, component enable/disable helpers, and
   `:persistent_term` logic are all removed
 * Good, because framework logs (Ecto, Phoenix, LiveView) are available on-demand

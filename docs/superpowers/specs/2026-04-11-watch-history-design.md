@@ -47,7 +47,7 @@ get three `WatchEvent` rows. Re-watch count is `count(*)` grouped by entity FK.
 ## Bounded Context Structure
 
 ```
-lib/media_centaur/watch_history/
+lib/media_centarr/watch_history/
   event.ex          # Ecto schema + changesets
   recorder.ex       # GenServer — subscribes to playback:events, writes WatchEvents
   stats.ex          # Pure functions — totals, streak, heatmap data
@@ -82,7 +82,7 @@ def watch_history_events, do: "watch_history:events"
 
 ### Supervision Tree
 
-`WatchHistory.Recorder` is added to `MediaCentaur.Application` alongside the other
+`WatchHistory.Recorder` is added to `MediaCentarr.Application` alongside the other
 bounded context workers.
 
 ## Mark as Unwatched
@@ -91,7 +91,7 @@ bounded context workers.
 1. Delete the `WatchEvent` row
 2. Find `WatchProgress` via the event's FK (`movie_id` / `episode_id` / `video_object_id`)
 3. Call `Library.mark_watch_incomplete(record)` — changeset already exists in
-   `lib/media_centaur/library/watch_progress.ex`
+   `lib/media_centarr/library/watch_progress.ex`
 4. Broadcast `{:entities_changed, [entity_id]}` to `"library:updates"` so LibraryLive
    refreshes the entity's completion state
 
@@ -100,7 +100,7 @@ If the FK has been nilified (entity deleted), skip steps 2–4.
 ## Completion Trigger
 
 `MpvSession.maybe_mark_completed/3` at
-`lib/media_centaur/playback/mpv_session.ex` marks completion at ≥90% playback.
+`lib/media_centarr/playback/mpv_session.ex` marks completion at ≥90% playback.
 This calls `Library.mark_watch_completed/1`, then `ProgressBroadcaster.broadcast/2`
 fires `{:entity_progress_updated, %{changed_record: updated_record}}` on
 `"playback:events"`. The Recorder handles this message.
@@ -109,7 +109,7 @@ fires `{:entity_progress_updated, %{changed_record: updated_record}}` on
 
 ### Dashboard Widget (LibraryLive)
 
-Added to `lib/media_centaur_web/live/library_live.ex`:
+Added to `lib/media_centarr_web/live/library_live.ex`:
 - Stat block: "42 titles completed · 187 hrs watched"
 - Last 5 completions: poster thumbnail + title + relative date ("2 days ago")
 - "View all history →" navigates to `/history`

@@ -1,9 +1,9 @@
-defmodule MediaCentaur.MixProject do
+defmodule MediaCentarr.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :media_centaur,
+      app: :media_centarr,
       version: "0.1.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -14,10 +14,10 @@ defmodule MediaCentaur.MixProject do
       listeners: [Phoenix.CodeReloader],
       consolidate_protocols: Mix.env() != :dev,
       releases: [
-        media_centaur: [
+        media_centarr: [
           include_executables_for: [:unix],
           applications: [runtime_tools: :permanent],
-          cookie: "media-centaur-local"
+          cookie: "media-centarr-local"
         ]
       ],
       usage_rules: usage_rules()
@@ -29,7 +29,7 @@ defmodule MediaCentaur.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {MediaCentaur.Application, []},
+      mod: {MediaCentarr.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -95,10 +95,10 @@ defmodule MediaCentaur.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind media_centaur", "esbuild media_centaur"],
+      "assets.build": ["compile", "tailwind media_centarr", "esbuild media_centarr"],
       "assets.deploy": [
-        "tailwind media_centaur --minify",
-        "esbuild media_centaur --minify",
+        "tailwind media_centarr --minify",
+        "esbuild media_centarr --minify",
         "phx.digest"
       ],
       precommit: [

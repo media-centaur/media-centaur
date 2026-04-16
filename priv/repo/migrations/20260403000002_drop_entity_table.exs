@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.DropEntityTable do
+defmodule MediaCentarr.Repo.Migrations.DropEntityTable do
   use Ecto.Migration
 
   def up do

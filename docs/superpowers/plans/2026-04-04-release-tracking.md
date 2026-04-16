@@ -4,7 +4,7 @@
 
 **Goal:** Add a "Release Tracking" bounded context that monitors TMDB for upcoming content related to the user's library, with a dedicated "Upcoming" zone in the library UI.
 
-**Architecture:** New bounded context `MediaCentaur.ReleaseTracking` with 3 tables (items, releases, events), fully isolated from Library. Pure function modules (Extractor, Differ) handle TMDB response parsing and change detection. A GenServer (Refresher) runs daily TMDB refresh cycles. The UI adds an "Upcoming" zone tab to the existing library LiveView.
+**Architecture:** New bounded context `MediaCentarr.ReleaseTracking` with 3 tables (items, releases, events), fully isolated from Library. Pure function modules (Extractor, Differ) handle TMDB response parsing and change detection. A GenServer (Refresher) runs daily TMDB refresh cycles. The UI adds an "Upcoming" zone tab to the existing library LiveView.
 
 **Tech Stack:** Elixir/Phoenix, Ecto (SQLite), TMDB API via existing `TMDB.Client`, Phoenix PubSub, LiveView
 
@@ -19,33 +19,33 @@
 | File | Responsibility |
 |------|----------------|
 | `priv/repo/migrations/*_create_release_tracking.exs` | 3 tables: items, releases, events |
-| `lib/media_centaur/release_tracking.ex` | Context facade — public API |
-| `lib/media_centaur/release_tracking/item.ex` | Item schema (tracked movie/TV series) |
-| `lib/media_centaur/release_tracking/release.ex` | Release schema (episode/movie air date) |
-| `lib/media_centaur/release_tracking/event.ex` | Event schema (change log) |
-| `lib/media_centaur/release_tracking/extractor.ex` | Pure functions: TMDB JSON → release data |
-| `lib/media_centaur/release_tracking/differ.ex` | Pure functions: old vs new → change events |
-| `lib/media_centaur/release_tracking/scanner.ex` | Scan library external IDs via TMDB |
-| `lib/media_centaur/release_tracking/refresher.ex` | GenServer: periodic TMDB refresh |
-| `lib/media_centaur/release_tracking/image_store.ex` | Poster download to `data/images/tracking/` |
-| `lib/media_centaur_web/components/upcoming_cards.ex` | Upcoming zone UI components |
-| `test/media_centaur/release_tracking/extractor_test.exs` | Extractor pure function tests |
-| `test/media_centaur/release_tracking/differ_test.exs` | Differ pure function tests |
-| `test/media_centaur/release_tracking_test.exs` | Context facade resource tests |
-| `test/media_centaur/release_tracking/scanner_test.exs` | Scanner tests with TMDB stubs |
-| `test/media_centaur/release_tracking/refresher_test.exs` | Refresher tests |
+| `lib/media_centarr/release_tracking.ex` | Context facade — public API |
+| `lib/media_centarr/release_tracking/item.ex` | Item schema (tracked movie/TV series) |
+| `lib/media_centarr/release_tracking/release.ex` | Release schema (episode/movie air date) |
+| `lib/media_centarr/release_tracking/event.ex` | Event schema (change log) |
+| `lib/media_centarr/release_tracking/extractor.ex` | Pure functions: TMDB JSON → release data |
+| `lib/media_centarr/release_tracking/differ.ex` | Pure functions: old vs new → change events |
+| `lib/media_centarr/release_tracking/scanner.ex` | Scan library external IDs via TMDB |
+| `lib/media_centarr/release_tracking/refresher.ex` | GenServer: periodic TMDB refresh |
+| `lib/media_centarr/release_tracking/image_store.ex` | Poster download to `data/images/tracking/` |
+| `lib/media_centarr_web/components/upcoming_cards.ex` | Upcoming zone UI components |
+| `test/media_centarr/release_tracking/extractor_test.exs` | Extractor pure function tests |
+| `test/media_centarr/release_tracking/differ_test.exs` | Differ pure function tests |
+| `test/media_centarr/release_tracking_test.exs` | Context facade resource tests |
+| `test/media_centarr/release_tracking/scanner_test.exs` | Scanner tests with TMDB stubs |
+| `test/media_centarr/release_tracking/refresher_test.exs` | Refresher tests |
 
 ### Modified Files
 
 | File | Change |
 |------|--------|
-| `lib/media_centaur/topics.ex` | Add `release_tracking_updates/0` |
-| `lib/media_centaur/application.ex` | Add Refresher to supervision tree |
-| `lib/media_centaur_web/live/library_live.ex` | Add `:upcoming` zone, tab, handlers, PubSub |
-| `lib/media_centaur_web/components/detail_panel.ex` | Add tracking icon to hero |
+| `lib/media_centarr/topics.ex` | Add `release_tracking_updates/0` |
+| `lib/media_centarr/application.ex` | Add Refresher to supervision tree |
+| `lib/media_centarr_web/live/library_live.ex` | Add `:upcoming` zone, tab, handlers, PubSub |
+| `lib/media_centarr_web/components/detail_panel.ex` | Add tracking icon to hero |
 | `test/support/factory.ex` | Add tracking build/create helpers |
 | `defaults/backend.toml` | Add `[release_tracking]` section |
-| `lib/media_centaur/config.ex` | Add refresh interval config |
+| `lib/media_centarr/config.ex` | Add refresh interval config |
 
 ---
 
@@ -56,14 +56,14 @@
 
 - [ ] **Step 1: Generate migration**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && mix ecto.gen.migration create_release_tracking`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && mix ecto.gen.migration create_release_tracking`
 
 - [ ] **Step 2: Write migration**
 
 Replace the generated migration content with:
 
 ```elixir
-defmodule MediaCentaur.Repo.Migrations.CreateReleaseTracking do
+defmodule MediaCentarr.Repo.Migrations.CreateReleaseTracking do
   use Ecto.Migration
 
   def change do
@@ -119,7 +119,7 @@ end
 
 - [ ] **Step 3: Run migration**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix ecto.migrate`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix ecto.migrate`
 
 - [ ] **Step 4: Commit**
 
@@ -132,14 +132,14 @@ feat: add release tracking migration — 3 tables
 ### Task 2: Ecto Schemas
 
 **Files:**
-- Create: `lib/media_centaur/release_tracking/item.ex`
-- Create: `lib/media_centaur/release_tracking/release.ex`
-- Create: `lib/media_centaur/release_tracking/event.ex`
+- Create: `lib/media_centarr/release_tracking/item.ex`
+- Create: `lib/media_centarr/release_tracking/release.ex`
+- Create: `lib/media_centarr/release_tracking/event.ex`
 
 - [ ] **Step 1: Write Item schema**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.Item do
+defmodule MediaCentarr.ReleaseTracking.Item do
   @moduledoc """
   A movie or TV series being tracked for upcoming releases.
   """
@@ -160,8 +160,8 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :last_refreshed_at, :utc_datetime
     field :poster_path, :string
 
-    has_many :releases, MediaCentaur.ReleaseTracking.Release
-    has_many :events, MediaCentaur.ReleaseTracking.Event
+    has_many :releases, MediaCentarr.ReleaseTracking.Release
+    has_many :events, MediaCentarr.ReleaseTracking.Event
 
     timestamps()
   end
@@ -192,7 +192,7 @@ end
 - [ ] **Step 2: Write Release schema**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.Release do
+defmodule MediaCentarr.ReleaseTracking.Release do
   @moduledoc """
   An individual upcoming release event — one row per episode or movie.
   """
@@ -210,7 +210,7 @@ defmodule MediaCentaur.ReleaseTracking.Release do
     field :episode_number, :integer
     field :released, :boolean, default: false
 
-    belongs_to :item, MediaCentaur.ReleaseTracking.Item
+    belongs_to :item, MediaCentarr.ReleaseTracking.Item
 
     timestamps()
   end
@@ -231,7 +231,7 @@ end
 - [ ] **Step 3: Write Event schema**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.Event do
+defmodule MediaCentarr.ReleaseTracking.Event do
   @moduledoc """
   A notable change detected during TMDB refresh — date moved, new season, etc.
   """
@@ -249,7 +249,7 @@ defmodule MediaCentaur.ReleaseTracking.Event do
     field :description, :string
     field :metadata, :map, default: %{}
 
-    belongs_to :item, MediaCentaur.ReleaseTracking.Item
+    belongs_to :item, MediaCentarr.ReleaseTracking.Item
 
     timestamps(updated_at: false)
   end
@@ -264,7 +264,7 @@ end
 
 - [ ] **Step 4: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 5: Commit**
 
@@ -288,7 +288,7 @@ Add to `test/support/factory.ex` before the final `end`:
   # Release Tracking
   # ---------------------------------------------------------------------------
 
-  alias MediaCentaur.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking
 
   def build_tracking_item(overrides \\ %{}) do
     defaults = %{
@@ -351,7 +351,7 @@ Add to `test/support/factory.ex` before the final `end`:
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 Note: This will fail until the facade is written in Task 4. That's expected — move to Task 4.
 
@@ -360,16 +360,16 @@ Note: This will fail until the facade is written in Task 4. That's expected — 
 ### Task 4: Context Facade + Tests
 
 **Files:**
-- Create: `lib/media_centaur/release_tracking.ex`
-- Create: `test/media_centaur/release_tracking_test.exs`
+- Create: `lib/media_centarr/release_tracking.ex`
+- Create: `test/media_centarr/release_tracking_test.exs`
 
 - [ ] **Step 1: Write failing tests**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTrackingTest do
-  use MediaCentaur.DataCase, async: false
+defmodule MediaCentarr.ReleaseTrackingTest do
+  use MediaCentarr.DataCase, async: false
 
-  alias MediaCentaur.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking
 
   describe "track_item/1" do
     test "creates a tracking item" do
@@ -525,14 +525,14 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking_test.exs`
 
 Expected: Compilation error — `ReleaseTracking` module not found.
 
 - [ ] **Step 3: Write context facade**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking do
+defmodule MediaCentarr.ReleaseTracking do
   @moduledoc """
   Bounded context for tracking upcoming movie and TV releases via TMDB.
 
@@ -541,8 +541,8 @@ defmodule MediaCentaur.ReleaseTracking do
   """
 
   import Ecto.Query
-  alias MediaCentaur.Repo
-  alias MediaCentaur.ReleaseTracking.{Item, Release, Event}
+  alias MediaCentarr.Repo
+  alias MediaCentarr.ReleaseTracking.{Item, Release, Event}
 
   # --- Items ---
 
@@ -668,7 +668,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking_test.exs`
 
 Expected: All tests pass.
 
@@ -683,13 +683,13 @@ feat: add ReleaseTracking context facade with CRUD operations
 ### Task 5: PubSub Topics + Config
 
 **Files:**
-- Modify: `lib/media_centaur/topics.ex`
+- Modify: `lib/media_centarr/topics.ex`
 - Modify: `defaults/backend.toml`
-- Modify: `lib/media_centaur/config.ex`
+- Modify: `lib/media_centarr/config.ex`
 
 - [ ] **Step 1: Add topic to Topics module**
 
-Add to `lib/media_centaur/topics.ex` before the final `end`:
+Add to `lib/media_centarr/topics.ex` before the final `end`:
 
 ```elixir
   def release_tracking_updates, do: "release_tracking:updates"
@@ -707,7 +707,7 @@ refresh_interval_hours = 24
 
 - [ ] **Step 3: Add config loading**
 
-In `lib/media_centaur/config.ex`, add to the `defaults` map in `load_config/0`:
+In `lib/media_centarr/config.ex`, add to the `defaults` map in `load_config/0`:
 
 ```elixir
 release_tracking_refresh_interval_hours: 24,
@@ -723,7 +723,7 @@ release_tracking_refresh_interval_hours:
 
 - [ ] **Step 4: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 5: Commit**
 
@@ -736,16 +736,16 @@ feat: add release tracking PubSub topic and config
 ### Task 6: Extractor — TDD
 
 **Files:**
-- Create: `test/media_centaur/release_tracking/extractor_test.exs`
-- Create: `lib/media_centaur/release_tracking/extractor.ex`
+- Create: `test/media_centarr/release_tracking/extractor_test.exs`
+- Create: `lib/media_centarr/release_tracking/extractor.ex`
 
 - [ ] **Step 1: Write failing tests**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.ExtractorTest do
+defmodule MediaCentarr.ReleaseTracking.ExtractorTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.ReleaseTracking.Extractor
+  alias MediaCentarr.ReleaseTracking.Extractor
 
   describe "extract_tv_status/1" do
     test "maps Returning Series" do
@@ -922,14 +922,14 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/extractor_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/extractor_test.exs`
 
 Expected: Compilation error — `Extractor` module not found.
 
 - [ ] **Step 3: Write Extractor implementation**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.Extractor do
+defmodule MediaCentarr.ReleaseTracking.Extractor do
   @moduledoc """
   Pure functions that extract release tracking data from raw TMDB JSON responses.
   """
@@ -1031,7 +1031,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/extractor_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/extractor_test.exs`
 
 Expected: All pass.
 
@@ -1046,17 +1046,17 @@ feat: add ReleaseTracking.Extractor — TMDB JSON extraction
 ### Task 7: Differ — TDD
 
 **Files:**
-- Create: `test/media_centaur/release_tracking/differ_test.exs`
-- Create: `lib/media_centaur/release_tracking/differ.ex`
+- Create: `test/media_centarr/release_tracking/differ_test.exs`
+- Create: `lib/media_centarr/release_tracking/differ.ex`
 
 - [ ] **Step 1: Write failing tests**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.DifferTest do
+defmodule MediaCentarr.ReleaseTracking.DifferTest do
   use ExUnit.Case, async: true
 
-  import MediaCentaur.TestFactory
-  alias MediaCentaur.ReleaseTracking.Differ
+  import MediaCentarr.TestFactory
+  alias MediaCentarr.ReleaseTracking.Differ
 
   describe "diff/2" do
     test "detects no changes" do
@@ -1158,14 +1158,14 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/differ_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/differ_test.exs`
 
 Expected: Compilation error — `Differ` module not found.
 
 - [ ] **Step 3: Write Differ implementation**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.Differ do
+defmodule MediaCentarr.ReleaseTracking.Differ do
   @moduledoc """
   Pure functions that compare stored releases against freshly extracted releases
   and produce change events.
@@ -1303,7 +1303,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/differ_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/differ_test.exs`
 
 Expected: All pass.
 
@@ -1318,18 +1318,18 @@ feat: add ReleaseTracking.Differ — release change detection
 ### Task 8: ImageStore
 
 **Files:**
-- Create: `lib/media_centaur/release_tracking/image_store.ex`
+- Create: `lib/media_centarr/release_tracking/image_store.ex`
 
 - [ ] **Step 1: Write ImageStore module**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.ImageStore do
+defmodule MediaCentarr.ReleaseTracking.ImageStore do
   @moduledoc """
   Downloads and manages poster images for tracked items.
   Stores to `data/images/tracking/{tmdb_id}/poster.jpg`.
   """
 
-  require MediaCentaur.Log, as: Log
+  require MediaCentarr.Log, as: Log
 
   @base_url "https://image.tmdb.org/t/p/w500"
   @tracking_images_dir "data/images/tracking"
@@ -1341,7 +1341,7 @@ defmodule MediaCentaur.ReleaseTracking.ImageStore do
 
     File.mkdir_p!(dir)
 
-    downloader = Application.get_env(:media_centaur, :image_http_client, MediaCentaur.ImageDownloader)
+    downloader = Application.get_env(:media_centarr, :image_http_client, MediaCentarr.ImageDownloader)
 
     case downloader.download(url, dest) do
       :ok ->
@@ -1369,7 +1369,7 @@ Note: The `ImageDownloader` module and `NoopImageDownloader` (test stub) already
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 3: Commit**
 
@@ -1382,18 +1382,18 @@ feat: add ReleaseTracking.ImageStore — poster download
 ### Task 9: Scanner — TDD
 
 **Files:**
-- Create: `test/media_centaur/release_tracking/scanner_test.exs`
-- Create: `lib/media_centaur/release_tracking/scanner.ex`
+- Create: `test/media_centarr/release_tracking/scanner_test.exs`
+- Create: `lib/media_centarr/release_tracking/scanner.ex`
 
 - [ ] **Step 1: Write failing tests**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.ScannerTest do
-  use MediaCentaur.DataCase, async: false
+defmodule MediaCentarr.ReleaseTracking.ScannerTest do
+  use MediaCentarr.DataCase, async: false
 
-  import MediaCentaur.TmdbStubs
-  alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Scanner
+  import MediaCentarr.TmdbStubs
+  alias MediaCentarr.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking.Scanner
 
   setup do
     setup_tmdb_client()
@@ -1518,27 +1518,27 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/scanner_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/scanner_test.exs`
 
 Expected: Compilation error — `Scanner` module not found.
 
 - [ ] **Step 3: Write Scanner implementation**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.Scanner do
+defmodule MediaCentarr.ReleaseTracking.Scanner do
   @moduledoc """
   Scans the library for items with TMDB external IDs and creates tracking
   items for any with upcoming releases.
   """
 
   import Ecto.Query
-  require MediaCentaur.Log, as: Log
+  require MediaCentarr.Log, as: Log
 
-  alias MediaCentaur.Repo
-  alias MediaCentaur.Library.ExternalId
-  alias MediaCentaur.TMDB.Client
-  alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Extractor
+  alias MediaCentarr.Repo
+  alias MediaCentarr.Library.ExternalId
+  alias MediaCentarr.TMDB.Client
+  alias MediaCentarr.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking.Extractor
 
   def scan do
     external_ids = load_library_tmdb_ids()
@@ -1674,7 +1674,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
     poster_path = Extractor.extract_poster_path(response)
 
     if poster_path do
-      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
         case ReleaseTracking.ImageStore.download_poster(tmdb_id, poster_path) do
           {:ok, path} when is_binary(path) ->
             ReleaseTracking.update_item(item, %{poster_path: path})
@@ -1699,7 +1699,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/scanner_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/scanner_test.exs`
 
 Expected: All pass.
 
@@ -1714,19 +1714,19 @@ feat: add ReleaseTracking.Scanner — library TMDB scan
 ### Task 10: Refresher GenServer
 
 **Files:**
-- Create: `lib/media_centaur/release_tracking/refresher.ex`
-- Create: `test/media_centaur/release_tracking/refresher_test.exs`
-- Modify: `lib/media_centaur/application.ex`
+- Create: `lib/media_centarr/release_tracking/refresher.ex`
+- Create: `test/media_centarr/release_tracking/refresher_test.exs`
+- Modify: `lib/media_centarr/application.ex`
 
 - [ ] **Step 1: Write failing tests**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.RefresherTest do
-  use MediaCentaur.DataCase, async: false
+defmodule MediaCentarr.ReleaseTracking.RefresherTest do
+  use MediaCentarr.DataCase, async: false
 
-  import MediaCentaur.TmdbStubs
-  alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Refresher
+  import MediaCentarr.TmdbStubs
+  alias MediaCentarr.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking.Refresher
 
   setup do
     setup_tmdb_client()
@@ -1804,24 +1804,24 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/refresher_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/refresher_test.exs`
 
 Expected: Compilation error — `Refresher` module not found.
 
 - [ ] **Step 3: Write Refresher implementation**
 
 ```elixir
-defmodule MediaCentaur.ReleaseTracking.Refresher do
+defmodule MediaCentarr.ReleaseTracking.Refresher do
   @moduledoc """
   GenServer that periodically refreshes TMDB data for all tracked items.
   """
   use GenServer
 
-  require MediaCentaur.Log, as: Log
+  require MediaCentarr.Log, as: Log
 
-  alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Differ}
-  alias MediaCentaur.TMDB.Client
+  alias MediaCentarr.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking.{Extractor, Differ}
+  alias MediaCentarr.TMDB.Client
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -1874,8 +1874,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
     if changed_ids != [] do
       Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
-        MediaCentaur.Topics.release_tracking_updates(),
+        MediaCentarr.PubSub,
+        MediaCentarr.Topics.release_tracking_updates(),
         {:releases_updated, changed_ids}
       )
     end
@@ -1957,7 +1957,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp refresh_interval_ms do
-    hours = MediaCentaur.Config.get(:release_tracking_refresh_interval_hours) || 24
+    hours = MediaCentarr.Config.get(:release_tracking_refresh_interval_hours) || 24
     hours * 60 * 60 * 1000
   end
 end
@@ -1965,29 +1965,29 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/refresher_test.exs`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/release_tracking/refresher_test.exs`
 
 Expected: All pass.
 
 - [ ] **Step 5: Add Refresher to supervision tree**
 
-In `lib/media_centaur/application.ex`, add to the `children` list after `MediaCentaur.Review.Intake` in `pubsub_listeners/1`:
+In `lib/media_centarr/application.ex`, add to the `children` list after `MediaCentarr.Review.Intake` in `pubsub_listeners/1`:
 
 ```elixir
   defp pubsub_listeners(:test), do: []
 
   defp pubsub_listeners(_env) do
     [
-      MediaCentaur.Library.Inbound,
-      MediaCentaur.Review.Intake,
-      MediaCentaur.ReleaseTracking.Refresher
+      MediaCentarr.Library.Inbound,
+      MediaCentarr.Review.Intake,
+      MediaCentarr.ReleaseTracking.Refresher
     ]
   end
 ```
 
 - [ ] **Step 6: Verify compilation and all tests**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
 
 Expected: All tests pass, zero warnings.
 
@@ -2002,7 +2002,7 @@ feat: add ReleaseTracking.Refresher — periodic TMDB refresh
 ### Task 11: UI — Upcoming Zone Tab
 
 **Files:**
-- Modify: `lib/media_centaur_web/live/library_live.ex`
+- Modify: `lib/media_centarr_web/live/library_live.ex`
 
 - [ ] **Step 1: Add `:upcoming` to `parse_zone/1`**
 
@@ -2054,7 +2054,7 @@ scanning: false,
 In `mount/3`, add after the existing PubSub subscriptions:
 
 ```elixir
-Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.release_tracking_updates())
+Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.release_tracking_updates())
 ```
 
 - [ ] **Step 5: Handle upcoming zone in `handle_params/3`**
@@ -2086,8 +2086,8 @@ socket =
 
 ```elixir
 defp load_upcoming(socket) do
-  releases = MediaCentaur.ReleaseTracking.list_releases()
-  events = MediaCentaur.ReleaseTracking.list_recent_events(10)
+  releases = MediaCentarr.ReleaseTracking.list_releases()
+  events = MediaCentarr.ReleaseTracking.list_recent_events(10)
   assign(socket, upcoming_releases: releases, upcoming_events: events)
 end
 ```
@@ -2104,8 +2104,8 @@ params = if zone == :upcoming, do: Map.put(params, :zone, :upcoming), else: para
 
 ```elixir
 def handle_event("scan_library", _params, socket) do
-  Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-    MediaCentaur.ReleaseTracking.Scanner.scan()
+  Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+    MediaCentarr.ReleaseTracking.Scanner.scan()
   end)
 
   {:noreply, assign(socket, scanning: true)}
@@ -2141,12 +2141,12 @@ After the Library browse section, add:
 Add the alias at the top of the module:
 
 ```elixir
-alias MediaCentaurWeb.Components.UpcomingCards
+alias MediaCentarrWeb.Components.UpcomingCards
 ```
 
 - [ ] **Step 11: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 Note: Will fail until UpcomingCards is created in Task 12. Move to Task 12.
 
@@ -2155,17 +2155,17 @@ Note: Will fail until UpcomingCards is created in Task 12. Move to Task 12.
 ### Task 12: UI — Upcoming Components
 
 **Files:**
-- Create: `lib/media_centaur_web/components/upcoming_cards.ex`
+- Create: `lib/media_centarr_web/components/upcoming_cards.ex`
 
 - [ ] **Step 1: Write UpcomingCards component module**
 
 ```elixir
-defmodule MediaCentaurWeb.Components.UpcomingCards do
+defmodule MediaCentarrWeb.Components.UpcomingCards do
   @moduledoc """
   Components for the Upcoming releases zone.
   """
   use Phoenix.Component
-  import MediaCentaurWeb.CoreComponents
+  import MediaCentarrWeb.CoreComponents
 
   attr :releases, :map, required: true
   attr :events, :list, required: true
@@ -2346,11 +2346,11 @@ end
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 3: Verify all tests still pass**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
 
 - [ ] **Step 4: Commit**
 
@@ -2363,8 +2363,8 @@ feat: add Upcoming zone tab and components to library UI
 ### Task 13: UI — Detail Panel Tracking Icon
 
 **Files:**
-- Modify: `lib/media_centaur_web/components/detail_panel.ex`
-- Modify: `lib/media_centaur_web/live/library_live.ex`
+- Modify: `lib/media_centarr_web/components/detail_panel.ex`
+- Modify: `lib/media_centarr_web/live/library_live.ex`
 
 - [ ] **Step 1: Add tracking_status attr to detail_panel**
 
@@ -2437,7 +2437,7 @@ In the helper that resolves a selected entity (wherever `selected_entry` is comp
 defp load_tracking_status(entry) do
   case find_tmdb_id(entry) do
     {tmdb_id, media_type} ->
-      MediaCentaur.ReleaseTracking.tracking_status({tmdb_id, media_type})
+      MediaCentarr.ReleaseTracking.tracking_status({tmdb_id, media_type})
 
     nil ->
       nil
@@ -2475,13 +2475,13 @@ def handle_event("toggle_tracking", _params, socket) do
 
   case {socket.assigns.tracking_status, find_tmdb_id(selected_entry)} do
     {:watching, {tmdb_id, media_type}} ->
-      item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
-      if item, do: MediaCentaur.ReleaseTracking.ignore_item(item)
+      item = MediaCentarr.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
+      if item, do: MediaCentarr.ReleaseTracking.ignore_item(item)
       {:noreply, assign(socket, tracking_status: :ignored)}
 
     {:ignored, {tmdb_id, media_type}} ->
-      item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
-      if item, do: MediaCentaur.ReleaseTracking.watch_item(item)
+      item = MediaCentarr.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
+      if item, do: MediaCentarr.ReleaseTracking.watch_item(item)
       {:noreply, assign(socket, tracking_status: :watching)}
 
     _ ->
@@ -2500,7 +2500,7 @@ tracking_status={@tracking_status}
 
 - [ ] **Step 7: Verify compilation and all tests**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
 
 Expected: All pass, zero warnings.
 
@@ -2516,7 +2516,7 @@ feat: add tracking toggle icon to entity detail panel
 
 - [ ] **Step 1: Run full precommit**
 
-Run: `cd /home/shawn/src/media-centaur/media-centaur && mix precommit`
+Run: `cd /home/shawn/src/media-centarr/media-centarr && mix precommit`
 
 Expected: Zero warnings, all tests pass, formatting clean.
 

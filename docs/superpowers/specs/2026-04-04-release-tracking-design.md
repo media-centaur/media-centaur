@@ -2,7 +2,7 @@
 
 ## Context
 
-Media Centaur's library manages media you already own. There's no way to track upcoming releases — new seasons of TV shows you're watching, or sequels in movie series you follow. This feature adds a new "Release Tracking" bounded context that monitors TMDB for upcoming content related to your library, with a dedicated UI zone in the library view.
+Media Centarr's library manages media you already own. There's no way to track upcoming releases — new seasons of TV shows you're watching, or sequels in movie series you follow. This feature adds a new "Release Tracking" bounded context that monitors TMDB for upcoming content related to your library, with a dedicated UI zone in the library view.
 
 The feature is fully isolated from the Library context's database. It maintains its own tables, images, and TMDB extraction logic. The data model is designed to support a future "manual search and track" feature for items not in your library.
 
@@ -10,7 +10,7 @@ The feature is fully isolated from the Library context's database. It maintains 
 
 ## Data Model
 
-### Context: `MediaCentaur.ReleaseTracking`
+### Context: `MediaCentarr.ReleaseTracking`
 
 Table prefix: `release_tracking_`
 
@@ -68,7 +68,7 @@ Event types: `:date_changed`, `:new_season_announced`, `:new_episodes_announced`
 ### Module Structure
 
 ```
-lib/media_centaur/release_tracking/
+lib/media_centarr/release_tracking/
   item.ex              # Ecto schema
   release.ex           # Ecto schema
   event.ex             # Ecto schema
@@ -78,10 +78,10 @@ lib/media_centaur/release_tracking/
   refresher.ex         # GenServer: periodic TMDB refresh cycle
   image_store.ex       # Downloads/manages poster images
 
-lib/media_centaur/release_tracking.ex  # Context facade
+lib/media_centarr/release_tracking.ex  # Context facade
 ```
 
-### Context Facade: `MediaCentaur.ReleaseTracking`
+### Context Facade: `MediaCentarr.ReleaseTracking`
 
 Public API:
 - `list_watching_items/0` — items with status `:watching`

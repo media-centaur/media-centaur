@@ -1,23 +1,23 @@
 ---
 name: troubleshoot
-description: "Use this skill when debugging production issues, checking service health, enabling runtime logs, or investigating errors in the deployed Media Centaur backend."
+description: "Use this skill when debugging production issues, checking service health, enabling runtime logs, or investigating errors in the deployed Media Centarr backend."
 ---
 
 ## Production Deployment
 
-- **Service:** `media-centaur-backend` (systemd user unit)
-- **Install dir:** `~/.local/lib/media-centaur/`
-- **Binary:** `~/.local/lib/media-centaur/bin/media_centaur`
-- **Database:** `~/.local/share/media-centaur/media_library.db` (SQLite)
-- **Config:** `~/.config/media-centaur/backend.toml`
+- **Service:** `media-centarr-backend` (systemd user unit)
+- **Install dir:** `~/.local/lib/media-centarr/`
+- **Binary:** `~/.local/lib/media-centarr/bin/media_centarr`
+- **Database:** `~/.local/share/media-centarr/media_library.db` (SQLite)
+- **Config:** `~/.config/media-centarr/backend.toml`
 - **Port:** 4000 (loopback only)
-- **Node:** `media_centaur` (sname, cookie: `media-centaur-local`)
+- **Node:** `media_centarr` (sname, cookie: `media-centarr-local`)
 
 Dev runs on port 4001. Both coexist on the same machine.
 
 ## Diagnostics Module
 
-All diagnostic logic lives in `MediaCentaur.Diagnostics` (`lib/media_centaur/diagnostics.ex`). The troubleshoot script calls these named functions — never inline Elixir code.
+All diagnostic logic lives in `MediaCentarr.Diagnostics` (`lib/media_centarr/diagnostics.ex`). The troubleshoot script calls these named functions — never inline Elixir code.
 
 | Function | Purpose |
 |----------|---------|
@@ -32,7 +32,7 @@ level. The buffer captures every log; filtering is a display concern.
 
 ## The Troubleshoot Script
 
-`scripts/troubleshoot` is the CLI interface. All Elixir-side calls go through `MediaCentaur.Diagnostics`.
+`scripts/troubleshoot` is the CLI interface. All Elixir-side calls go through `MediaCentarr.Diagnostics`.
 
 ### Quick Health Check
 
@@ -76,7 +76,7 @@ Disconnect with `Ctrl+\`.
 ## Log Architecture
 
 Every log emitted by the application flows through an Erlang `:logger` handler
-into `MediaCentaur.Console.Buffer` — an in-memory ring buffer (default 2,000
+into `MediaCentarr.Console.Buffer` — an in-memory ring buffer (default 2,000
 entries, configurable up to 50,000). The buffer captures unconditionally; the
 console UI applies display-time filtering via component chips, a level floor
 (info/warning/error), and a text search box.
@@ -91,7 +91,7 @@ Filter state and buffer size are persisted per user in `Settings.Entry` with a
 
 ### Component Formatter (terminal / journal)
 
-Production uses the component-aware formatter (`MediaCentaur.Log.Formatter`),
+Production uses the component-aware formatter (`MediaCentarr.Log.Formatter`),
 so thinking logs show `[info][playback] resolved entity Dept Q — play_next, file.mkv`
 in `journalctl`. The browser console shows the same entries with rich
 filtering. Choose whichever is faster for the task at hand.
@@ -110,12 +110,12 @@ scripts/troubleshoot errors 24h             # error-level journal entries, last 
 ### Dev (via Tidewave MCP)
 
 Call functions directly on the running dev node:
-- `MediaCentaur.Diagnostics.log_recent(20)` — print recent entries
-- `MediaCentaur.Console.recent_entries(20)` — same data as `%Entry{}` structs
-- `MediaCentaur.Console.snapshot()` — entries + buffer cap + current filter
-- `MediaCentaur.Diagnostics.playback()` — active playback state
-- `MediaCentaur.Diagnostics.services()` — watcher/pipeline/session counts
-- `MediaCentaur.Diagnostics.status()` — supervision tree health
+- `MediaCentarr.Diagnostics.log_recent(20)` — print recent entries
+- `MediaCentarr.Console.recent_entries(20)` — same data as `%Entry{}` structs
+- `MediaCentarr.Console.snapshot()` — entries + buffer cap + current filter
+- `MediaCentarr.Diagnostics.playback()` — active playback state
+- `MediaCentarr.Diagnostics.services()` — watcher/pipeline/session counts
+- `MediaCentarr.Diagnostics.status()` — supervision tree health
 
 ## Common Debugging Workflows
 
@@ -145,15 +145,15 @@ for rate-limit warnings, 404s, and confidence scoring decisions.
 1. `scripts/troubleshoot errors 24h` — systemd journal errors
 2. `scripts/troubleshoot log recent 100` — in-memory buffer (lost on restart,
    so may be empty after a crash)
-3. `journalctl --user -u media-centaur-backend --since "1 hour ago"` — full
+3. `journalctl --user -u media-centarr-backend --since "1 hour ago"` — full
    journal context around the crash
 
 ## Systemd Operations
 
 ```bash
-systemctl --user start media-centaur-backend
-systemctl --user stop media-centaur-backend
-systemctl --user restart media-centaur-backend
+systemctl --user start media-centarr-backend
+systemctl --user stop media-centarr-backend
+systemctl --user restart media-centarr-backend
 ```
 
 ## Rebuilding and Deploying

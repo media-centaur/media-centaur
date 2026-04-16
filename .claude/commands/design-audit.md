@@ -6,7 +6,7 @@ allowed-tools: Read, Glob, Grep, Bash(mix compile *), mcp__chrome-devtools__list
 
 # Design Audit
 
-You are performing a meticulous design audit of the Media Centaur backend UI.
+You are performing a meticulous design audit of the Media Centarr backend UI.
 Your goal is to find **concrete, evidence-based** design-language, UIDR-compliance,
 and UX-coverage issues — not speculative polish suggestions. Every finding must
 cite the exact file and line, quote the offending snippet, and propose a
@@ -18,7 +18,7 @@ or balance criticism with unearned praise. If the implementation drifts from
 directly. A sycophantic audit is worse than no audit at all.
 
 **Scope:** If `$ARGUMENTS` is provided, focus on that page, component, or file.
-Otherwise, audit the full Phoenix LiveView UI under `lib/media_centaur_web/`.
+Otherwise, audit the full Phoenix LiveView UI under `lib/media_centarr_web/`.
 
 **Strict lane.** This audit deliberately does NOT cover:
 
@@ -51,9 +51,9 @@ Load the authority layer before analysis.
 3. Read `assets/css/app.css` — note the theme block boundaries so Pass 3 can
    distinguish legitimate theme token definitions from hardcoded values in
    application CSS.
-4. Glob `lib/media_centaur_web/components/*.ex` and
-   `lib/media_centaur_web/live/*.ex` to build the target inventory.
-5. Read `lib/media_centaur_web/router.ex` — extract the list of `live "/path"`
+4. Glob `lib/media_centarr_web/components/*.ex` and
+   `lib/media_centarr_web/live/*.ex` to build the target inventory.
+5. Read `lib/media_centarr_web/router.ex` — extract the list of `live "/path"`
    routes for Pass 4's orphan check.
 
 ---
@@ -93,7 +93,7 @@ Audit implementation against `DESIGN.md`'s 12 numbered UI principles:
     collapsed state; content area not reclaiming horizontal space
 
 Per-page narrative check: for each LiveView in
-`lib/media_centaur_web/live/` (`dashboard_live`, `library_live`, `review_live`,
+`lib/media_centarr_web/live/` (`dashboard_live`, `library_live`, `review_live`,
 `settings_live`, `console_live`, `console_page_live`), assess in 1-2
 sentences whether the page embodies the stated principles. A page that
 obviously honors all 12 gets "No issues found." A page that drifts gets a
@@ -161,7 +161,7 @@ project's display helper in `LiveHelpers`. Raw ISO 8601 (`"PT3H48M"`) or raw
 seconds (`3600`, `"3600s"`) must never reach the DOM.
 
 **Scan:**
-- Grep for `"PT` inside `.ex` files in `lib/media_centaur_web/` — if it
+- Grep for `"PT` inside `.ex` files in `lib/media_centarr_web/` — if it
   appears in a template rendering (not inside `@moduledoc` / comments /
   schema definitions), it's a raw ISO 8601 leak → **Critical**
 - Grep for `duration` or `runtime` fields being interpolated directly in HEEx
@@ -260,7 +260,7 @@ Scan for:
 
 ### Pass 4 — UX state coverage & flow gaps
 
-For each interactive LiveView in `lib/media_centaur_web/live/`, check:
+For each interactive LiveView in `lib/media_centarr_web/live/`, check:
 
 - **Empty state** — what does the page render when there is no data? Search
   for `:if={}` or `cond do` branches handling empty collections. A page that
@@ -280,7 +280,7 @@ For each interactive LiveView in `lib/media_centaur_web/live/`, check:
   (`ModalShell`) or `phx-confirm` / `data-confirm`. Unguarded destructive
   actions → **Critical**.
 - **Orphan pages** — cross-reference the router's `live "/path"` routes against
-  the LiveView modules in `lib/media_centaur_web/live/`. Also check the
+  the LiveView modules in `lib/media_centarr_web/live/`. Also check the
   sidebar navigation (find where nav links are rendered — likely
   `components/layouts.ex` or `core_components.ex`). A LiveView registered in
   the router but not reachable from the sidebar nav or any in-page link is

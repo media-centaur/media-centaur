@@ -14,21 +14,21 @@
 
 **Create:**
 - `priv/repo/migrations/20260411120000_create_watch_history_events.exs`
-- `lib/media_centaur/watch_history/event.ex`
-- `lib/media_centaur/watch_history/stats.ex`
-- `lib/media_centaur/watch_history/recorder.ex`
-- `lib/media_centaur/watch_history.ex`
-- `lib/media_centaur_web/live/watch_history_live.ex`
-- `test/media_centaur/watch_history/event_test.exs`
-- `test/media_centaur/watch_history/stats_test.exs`
-- `test/media_centaur/watch_history/recorder_test.exs`
-- `test/media_centaur_web/live/watch_history_live_test.exs`
+- `lib/media_centarr/watch_history/event.ex`
+- `lib/media_centarr/watch_history/stats.ex`
+- `lib/media_centarr/watch_history/recorder.ex`
+- `lib/media_centarr/watch_history.ex`
+- `lib/media_centarr_web/live/watch_history_live.ex`
+- `test/media_centarr/watch_history/event_test.exs`
+- `test/media_centarr/watch_history/stats_test.exs`
+- `test/media_centarr/watch_history/recorder_test.exs`
+- `test/media_centarr_web/live/watch_history_live_test.exs`
 
 **Modify:**
-- `lib/media_centaur/topics.ex` — add `watch_history_events/0`
-- `lib/media_centaur/application.ex` — add `Recorder` to `pubsub_listeners/1`
-- `lib/media_centaur_web/router.ex` — add `/history` route
-- `lib/media_centaur_web/live/library_live.ex` — history widget + subscribe
+- `lib/media_centarr/topics.ex` — add `watch_history_events/0`
+- `lib/media_centarr/application.ex` — add `Recorder` to `pubsub_listeners/1`
+- `lib/media_centarr_web/router.ex` — add `/history` route
+- `lib/media_centarr_web/live/library_live.ex` — history widget + subscribe
 - `test/support/factory.ex` — add `build_watch_event/1`, `create_watch_event/1`
 
 ---
@@ -41,7 +41,7 @@
 - [ ] **Write the migration**
 
 ```elixir
-defmodule MediaCentaur.Repo.Migrations.CreateWatchHistoryEvents do
+defmodule MediaCentarr.Repo.Migrations.CreateWatchHistoryEvents do
   use Ecto.Migration
 
   def change do
@@ -88,17 +88,17 @@ jj new
 ## Task 2: WatchHistory.Event schema
 
 **Files:**
-- Create: `lib/media_centaur/watch_history/event.ex`
-- Create: `test/media_centaur/watch_history/event_test.exs`
+- Create: `lib/media_centarr/watch_history/event.ex`
+- Create: `test/media_centarr/watch_history/event_test.exs`
 
 - [ ] **Write the failing test**
 
 ```elixir
-# test/media_centaur/watch_history/event_test.exs
-defmodule MediaCentaur.WatchHistory.EventTest do
-  use MediaCentaur.DataCase
+# test/media_centarr/watch_history/event_test.exs
+defmodule MediaCentarr.WatchHistory.EventTest do
+  use MediaCentarr.DataCase
 
-  alias MediaCentaur.WatchHistory.Event
+  alias MediaCentarr.WatchHistory.Event
 
   describe "create_changeset/1" do
     test "valid attrs produce a valid changeset" do
@@ -141,10 +141,10 @@ defmodule MediaCentaur.WatchHistory.EventTest do
           duration_seconds: 7080.0,
           completed_at: DateTime.truncate(DateTime.utc_now(), :second)
         })
-        |> MediaCentaur.Repo.insert()
+        |> MediaCentarr.Repo.insert()
 
-      MediaCentaur.Repo.delete!(movie)
-      reloaded = MediaCentaur.Repo.get!(Event, event.id)
+      MediaCentarr.Repo.delete!(movie)
+      reloaded = MediaCentarr.Repo.get!(Event, event.id)
 
       assert reloaded.movie_id == nil
       assert reloaded.title == "Sample Movie"
@@ -156,7 +156,7 @@ end
 - [ ] **Run test to verify it fails**
 
 ```bash
-mix test test/media_centaur/watch_history/event_test.exs
+mix test test/media_centarr/watch_history/event_test.exs
 ```
 
 Expected: compile error (module doesn't exist yet).
@@ -164,8 +164,8 @@ Expected: compile error (module doesn't exist yet).
 - [ ] **Write the schema**
 
 ```elixir
-# lib/media_centaur/watch_history/event.ex
-defmodule MediaCentaur.WatchHistory.Event do
+# lib/media_centarr/watch_history/event.ex
+defmodule MediaCentarr.WatchHistory.Event do
   @moduledoc """
   A single completion event. Append-only — one row per time a title is watched
   to completion (≥90%). Re-watching creates a new row.
@@ -186,9 +186,9 @@ defmodule MediaCentaur.WatchHistory.Event do
     field :duration_seconds, :float
     field :completed_at, :utc_datetime
 
-    belongs_to :movie, MediaCentaur.Library.Movie
-    belongs_to :episode, MediaCentaur.Library.Episode
-    belongs_to :video_object, MediaCentaur.Library.VideoObject
+    belongs_to :movie, MediaCentarr.Library.Movie
+    belongs_to :episode, MediaCentarr.Library.Episode
+    belongs_to :video_object, MediaCentarr.Library.VideoObject
 
     timestamps()
   end
@@ -212,7 +212,7 @@ end
 - [ ] **Run tests to verify they pass**
 
 ```bash
-mix test test/media_centaur/watch_history/event_test.exs
+mix test test/media_centarr/watch_history/event_test.exs
 ```
 
 Expected: 3 tests, 0 failures.
@@ -229,17 +229,17 @@ jj new
 ## Task 3: WatchHistory.Stats (pure functions)
 
 **Files:**
-- Create: `lib/media_centaur/watch_history/stats.ex`
-- Create: `test/media_centaur/watch_history/stats_test.exs`
+- Create: `lib/media_centarr/watch_history/stats.ex`
+- Create: `test/media_centarr/watch_history/stats_test.exs`
 
 - [ ] **Write the failing tests**
 
 ```elixir
-# test/media_centaur/watch_history/stats_test.exs
-defmodule MediaCentaur.WatchHistory.StatsTest do
+# test/media_centarr/watch_history/stats_test.exs
+defmodule MediaCentarr.WatchHistory.StatsTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.WatchHistory.{Event, Stats}
+  alias MediaCentarr.WatchHistory.{Event, Stats}
 
   defp make_event(date, duration_seconds \\ 7200.0) do
     %Event{
@@ -349,7 +349,7 @@ end
 - [ ] **Run tests to verify they fail**
 
 ```bash
-mix test test/media_centaur/watch_history/stats_test.exs
+mix test test/media_centarr/watch_history/stats_test.exs
 ```
 
 Expected: compile error (module not found).
@@ -357,8 +357,8 @@ Expected: compile error (module not found).
 - [ ] **Write Stats module**
 
 ```elixir
-# lib/media_centaur/watch_history/stats.ex
-defmodule MediaCentaur.WatchHistory.Stats do
+# lib/media_centarr/watch_history/stats.ex
+defmodule MediaCentarr.WatchHistory.Stats do
   @moduledoc """
   Pure functions for computing watch history statistics from a list of
   `WatchHistory.Event` structs. No database access — all queries happen
@@ -462,7 +462,7 @@ end
 - [ ] **Run tests to verify they pass**
 
 ```bash
-mix test test/media_centaur/watch_history/stats_test.exs
+mix test test/media_centarr/watch_history/stats_test.exs
 ```
 
 Expected: 12 tests, 0 failures.
@@ -479,12 +479,12 @@ jj new
 ## Task 4: WatchHistory facade
 
 **Files:**
-- Create: `lib/media_centaur/watch_history.ex`
-- Modify: `lib/media_centaur/topics.ex`
+- Create: `lib/media_centarr/watch_history.ex`
+- Modify: `lib/media_centarr/topics.ex`
 
 - [ ] **Add topic to Topics**
 
-In `lib/media_centaur/topics.ex`, add after `release_tracking_updates`:
+In `lib/media_centarr/topics.ex`, add after `release_tracking_updates`:
 
 ```elixir
 def watch_history_events, do: "watch_history:events"
@@ -493,8 +493,8 @@ def watch_history_events, do: "watch_history:events"
 - [ ] **Write the facade**
 
 ```elixir
-# lib/media_centaur/watch_history.ex
-defmodule MediaCentaur.WatchHistory do
+# lib/media_centarr/watch_history.ex
+defmodule MediaCentarr.WatchHistory do
   @moduledoc """
   Public API for the WatchHistory bounded context.
 
@@ -504,12 +504,12 @@ defmodule MediaCentaur.WatchHistory do
   """
   import Ecto.Query
 
-  alias MediaCentaur.{Library, Repo, Topics}
-  alias MediaCentaur.WatchHistory.{Event, Stats}
+  alias MediaCentarr.{Library, Repo, Topics}
+  alias MediaCentarr.WatchHistory.{Event, Stats}
 
   @doc "Subscribe to watch_history:events PubSub topic."
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.watch_history_events())
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.watch_history_events())
   end
 
   @doc "Insert a new WatchEvent. Called by Recorder."
@@ -603,7 +603,7 @@ defmodule MediaCentaur.WatchHistory do
         Library.mark_watch_incomplete(progress)
 
         Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
+          MediaCentarr.PubSub,
           Topics.library_updates(),
           {:entities_changed, [movie_id]}
         )
@@ -627,7 +627,7 @@ defmodule MediaCentaur.WatchHistory do
         Library.mark_watch_incomplete(progress)
 
         Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
+          MediaCentarr.PubSub,
           Topics.library_updates(),
           {:entities_changed, [video_object_id]}
         )
@@ -661,19 +661,19 @@ jj new
 ## Task 5: WatchHistory.Recorder GenServer + supervision
 
 **Files:**
-- Create: `lib/media_centaur/watch_history/recorder.ex`
-- Create: `test/media_centaur/watch_history/recorder_test.exs`
-- Modify: `lib/media_centaur/application.ex`
+- Create: `lib/media_centarr/watch_history/recorder.ex`
+- Create: `test/media_centarr/watch_history/recorder_test.exs`
+- Modify: `lib/media_centarr/application.ex`
 
 - [ ] **Write the failing test**
 
 ```elixir
-# test/media_centaur/watch_history/recorder_test.exs
-defmodule MediaCentaur.WatchHistory.RecorderTest do
-  use MediaCentaur.DataCase
+# test/media_centarr/watch_history/recorder_test.exs
+defmodule MediaCentarr.WatchHistory.RecorderTest do
+  use MediaCentarr.DataCase
 
-  alias MediaCentaur.WatchHistory
-  alias MediaCentaur.WatchHistory.{Event, Recorder}
+  alias MediaCentarr.WatchHistory
+  alias MediaCentarr.WatchHistory.{Event, Recorder}
 
   setup do
     # Recorder is excluded from pubsub_listeners in test env — start it manually
@@ -764,7 +764,7 @@ end
 - [ ] **Run test to verify it fails**
 
 ```bash
-mix test test/media_centaur/watch_history/recorder_test.exs
+mix test test/media_centarr/watch_history/recorder_test.exs
 ```
 
 Expected: compile error (Recorder not defined).
@@ -772,8 +772,8 @@ Expected: compile error (Recorder not defined).
 - [ ] **Write the Recorder**
 
 ```elixir
-# lib/media_centaur/watch_history/recorder.ex
-defmodule MediaCentaur.WatchHistory.Recorder do
+# lib/media_centarr/watch_history/recorder.ex
+defmodule MediaCentarr.WatchHistory.Recorder do
   @moduledoc """
   GenServer that subscribes to `"playback:events"` and records a `WatchEvent`
   whenever a movie, episode, or video object is completed (≥90% threshold).
@@ -783,10 +783,10 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   """
   use GenServer
 
-  require MediaCentaur.Log, as: Log
+  require MediaCentarr.Log, as: Log
 
-  alias MediaCentaur.{Repo, Topics, WatchHistory}
-  alias MediaCentaur.Library.{Episode, Movie, Season, TVSeries, VideoObject}
+  alias MediaCentarr.{Repo, Topics, WatchHistory}
+  alias MediaCentarr.Library.{Episode, Movie, Season, TVSeries, VideoObject}
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -794,7 +794,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.playback_events())
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.playback_events())
     {:ok, %{}}
   end
 
@@ -817,7 +817,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
         case WatchHistory.create_event(attrs) do
           {:ok, event} ->
             Phoenix.PubSub.broadcast(
-              MediaCentaur.PubSub,
+              MediaCentarr.PubSub,
               Topics.watch_history_events(),
               {:watch_event_created, event}
             )
@@ -898,15 +898,15 @@ end
 
 - [ ] **Add Recorder to supervision tree**
 
-In `lib/media_centaur/application.ex`, add `MediaCentaur.WatchHistory.Recorder` to the `pubsub_listeners/1` function:
+In `lib/media_centarr/application.ex`, add `MediaCentarr.WatchHistory.Recorder` to the `pubsub_listeners/1` function:
 
 ```elixir
 defp pubsub_listeners(_env) do
   [
-    MediaCentaur.Library.Inbound,
-    MediaCentaur.Review.Intake,
-    MediaCentaur.ReleaseTracking.Refresher,
-    MediaCentaur.WatchHistory.Recorder
+    MediaCentarr.Library.Inbound,
+    MediaCentarr.Review.Intake,
+    MediaCentarr.ReleaseTracking.Refresher,
+    MediaCentarr.WatchHistory.Recorder
   ]
 end
 ```
@@ -914,7 +914,7 @@ end
 - [ ] **Run tests to verify they pass**
 
 ```bash
-mix test test/media_centaur/watch_history/recorder_test.exs
+mix test test/media_centarr/watch_history/recorder_test.exs
 ```
 
 Expected: 3 tests, 0 failures.
@@ -932,7 +932,7 @@ jj new
 
 **Files:**
 - Modify: `test/support/factory.ex`
-- The delete test goes in `test/media_centaur/watch_history/event_test.exs`
+- The delete test goes in `test/media_centarr/watch_history/event_test.exs`
 
 - [ ] **Add factory helpers**
 
@@ -951,7 +951,7 @@ def build_watch_event(overrides \\ %{}) do
     completed_at: DateTime.truncate(DateTime.utc_now(), :second)
   }
 
-  struct(MediaCentaur.WatchHistory.Event, Map.merge(defaults, overrides))
+  struct(MediaCentarr.WatchHistory.Event, Map.merge(defaults, overrides))
 end
 
 def create_watch_event(attrs \\ %{}) do
@@ -964,7 +964,7 @@ def create_watch_event(attrs \\ %{}) do
 
   {:ok, event} =
     Map.merge(defaults, attrs)
-    |> MediaCentaur.WatchHistory.create_event()
+    |> MediaCentarr.WatchHistory.create_event()
 
   event
 end
@@ -972,7 +972,7 @@ end
 
 - [ ] **Write delete_event! tests — add to existing event test file**
 
-Append to `test/media_centaur/watch_history/event_test.exs`:
+Append to `test/media_centarr/watch_history/event_test.exs`:
 
 ```elixir
 describe "WatchHistory.delete_event!/1" do
@@ -980,10 +980,10 @@ describe "WatchHistory.delete_event!/1" do
     movie = create_movie(%{name: "Sample Movie Eight"})
     event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Eight"})
 
-    MediaCentaur.WatchHistory.delete_event!(event)
+    MediaCentarr.WatchHistory.delete_event!(event)
 
     assert_raise Ecto.NoResultsError, fn ->
-      MediaCentaur.Repo.get!(MediaCentaur.WatchHistory.Event, event.id)
+      MediaCentarr.Repo.get!(MediaCentarr.WatchHistory.Event, event.id)
     end
   end
 
@@ -992,15 +992,15 @@ describe "WatchHistory.delete_event!/1" do
     progress = create_watch_progress(%{movie_id: movie.id, completed: true})
     event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Fourteen"})
 
-    MediaCentaur.WatchHistory.delete_event!(event)
+    MediaCentarr.WatchHistory.delete_event!(event)
 
-    {:ok, reloaded} = MediaCentaur.Library.get_watch_progress_by_fk(:movie_id, movie.id)
+    {:ok, reloaded} = MediaCentarr.Library.get_watch_progress_by_fk(:movie_id, movie.id)
     assert reloaded.completed == false
   end
 
   test "succeeds when FK is nil (entity already deleted)" do
     event = create_watch_event(%{entity_type: :movie, movie_id: nil, title: "Ghost Movie"})
-    result = MediaCentaur.WatchHistory.delete_event!(event)
+    result = MediaCentarr.WatchHistory.delete_event!(event)
     assert result.id == event.id
   end
 end
@@ -1009,7 +1009,7 @@ end
 - [ ] **Run tests to verify they pass**
 
 ```bash
-mix test test/media_centaur/watch_history/event_test.exs
+mix test test/media_centarr/watch_history/event_test.exs
 ```
 
 Expected: 6 tests, 0 failures.
@@ -1026,16 +1026,16 @@ jj new
 ## Task 7: WatchHistoryLive page + route
 
 **Files:**
-- Create: `lib/media_centaur_web/live/watch_history_live.ex`
-- Modify: `lib/media_centaur_web/router.ex`
-- Create: `test/media_centaur_web/live/watch_history_live_test.exs`
+- Create: `lib/media_centarr_web/live/watch_history_live.ex`
+- Modify: `lib/media_centarr_web/router.ex`
+- Create: `test/media_centarr_web/live/watch_history_live_test.exs`
 
 - [ ] **Write the failing test**
 
 ```elixir
-# test/media_centaur_web/live/watch_history_live_test.exs
-defmodule MediaCentaurWeb.WatchHistoryLiveTest do
-  use MediaCentaurWeb.ConnCase
+# test/media_centarr_web/live/watch_history_live_test.exs
+defmodule MediaCentarrWeb.WatchHistoryLiveTest do
+  use MediaCentarrWeb.ConnCase
 
   import Phoenix.LiveViewTest
 
@@ -1117,14 +1117,14 @@ end
 - [ ] **Run test to verify it fails**
 
 ```bash
-mix test test/media_centaur_web/live/watch_history_live_test.exs
+mix test test/media_centarr_web/live/watch_history_live_test.exs
 ```
 
 Expected: compile error or route error.
 
 - [ ] **Add route**
 
-In `lib/media_centaur_web/router.ex`, inside `live_session :default`:
+In `lib/media_centarr_web/router.ex`, inside `live_session :default`:
 
 ```elixir
 live_session :default do
@@ -1140,16 +1140,16 @@ end
 - [ ] **Write WatchHistoryLive**
 
 ```elixir
-# lib/media_centaur_web/live/watch_history_live.ex
-defmodule MediaCentaurWeb.WatchHistoryLive do
+# lib/media_centarr_web/live/watch_history_live.ex
+defmodule MediaCentarrWeb.WatchHistoryLive do
   @moduledoc """
   Watch history page — stats bar, GitHub-style heatmap, and a filterable
   completion event list with real-time updates and mark-as-unwatched.
   """
-  use MediaCentaurWeb, :live_view
+  use MediaCentarrWeb, :live_view
 
-  alias MediaCentaur.{Format, WatchHistory}
-  alias MediaCentaur.WatchHistory.Stats
+  alias MediaCentarr.{Format, WatchHistory}
+  alias MediaCentarr.WatchHistory.Stats
 
   @impl true
   def mount(_params, _session, socket) do
@@ -1398,7 +1398,7 @@ end
 - [ ] **Run tests to verify they pass**
 
 ```bash
-mix test test/media_centaur_web/live/watch_history_live_test.exs
+mix test test/media_centarr_web/live/watch_history_live_test.exs
 ```
 
 Expected: 7 tests, 0 failures.
@@ -1415,15 +1415,15 @@ jj new
 ## Task 8: LibraryLive dashboard widget
 
 **Files:**
-- Modify: `lib/media_centaur_web/live/library_live.ex`
+- Modify: `lib/media_centarr_web/live/library_live.ex`
 
 - [ ] **Add WatchHistory subscribe + assigns in mount**
 
-In `lib/media_centaur_web/live/library_live.ex`:
+In `lib/media_centarr_web/live/library_live.ex`:
 
 1. Add `WatchHistory` to the alias block at the top:
 ```elixir
-alias MediaCentaur.{
+alias MediaCentarr.{
   Format,
   Library,
   Library.FileEventHandler,

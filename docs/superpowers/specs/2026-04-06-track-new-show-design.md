@@ -171,7 +171,7 @@ Internally:
 
 ### 2.7 LiveView Integration
 
-**New component**: `TrackModal` in `lib/media_centaur_web/components/track_modal.ex`
+**New component**: `TrackModal` in `lib/media_centarr_web/components/track_modal.ex`
 
 Follows the always-in-DOM modal pattern:
 - `data-state="open"/"closed"` toggles visibility
@@ -246,13 +246,13 @@ User clicks movie search result
 
 | Component | Location | Reuse |
 |-----------|----------|-------|
-| `TMDB.Client.search_movie/2`, `search_tv/2` | `lib/media_centaur/tmdb/client.ex` | Search flow |
-| `ReleaseTracking.Extractor.extract_tv_status/1` | `lib/media_centaur/release_tracking/extractor.ex` | Status parsing (shared with Mapper) |
-| `ReleaseTracking.Helpers.fetch_tv_releases/4` | `lib/media_centaur/release_tracking/helpers.ex` | Release fetching for new tracked items |
-| `ReleaseTracking.ImageStore` | `lib/media_centaur/release_tracking/image_store.ex` | Poster download |
-| `ReleaseTracking.track_item/1` | `lib/media_centaur/release_tracking.ex` | Item creation |
-| `ModalShell` pattern | `lib/media_centaur_web/components/modal_shell.ex` | Always-in-DOM modal reference |
-| `Scanner.scan/0` logic | `lib/media_centaur/release_tracking/scanner.ex` | Suggestion discovery (extract and reuse) |
+| `TMDB.Client.search_movie/2`, `search_tv/2` | `lib/media_centarr/tmdb/client.ex` | Search flow |
+| `ReleaseTracking.Extractor.extract_tv_status/1` | `lib/media_centarr/release_tracking/extractor.ex` | Status parsing (shared with Mapper) |
+| `ReleaseTracking.Helpers.fetch_tv_releases/4` | `lib/media_centarr/release_tracking/helpers.ex` | Release fetching for new tracked items |
+| `ReleaseTracking.ImageStore` | `lib/media_centarr/release_tracking/image_store.ex` | Poster download |
+| `ReleaseTracking.track_item/1` | `lib/media_centarr/release_tracking.ex` | Item creation |
+| `ModalShell` pattern | `lib/media_centarr_web/components/modal_shell.ex` | Always-in-DOM modal reference |
+| `Scanner.scan/0` logic | `lib/media_centarr/release_tracking/scanner.ex` | Suggestion discovery (extract and reuse) |
 
 ## Testing Strategy
 

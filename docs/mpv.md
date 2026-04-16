@@ -1,6 +1,6 @@
 # mpv Configuration
 
-Media Centaur uses mpv as its playback engine. This document covers the custom configuration, keybindings, and plugins shipped in `contrib/mpv/`.
+Media Centarr uses mpv as its playback engine. This document covers the custom configuration, keybindings, and plugins shipped in `contrib/mpv/`.
 
 ## Installation
 

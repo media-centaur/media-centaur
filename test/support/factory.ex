@@ -1,4 +1,4 @@
-defmodule MediaCentaur.TestFactory do
+defmodule MediaCentarr.TestFactory do
   @moduledoc """
   Shared test data builders.
 
@@ -10,9 +10,9 @@ defmodule MediaCentaur.TestFactory do
     Use for resource tests and channel tests.
   """
 
-  alias MediaCentaur.Library
+  alias MediaCentarr.Library
 
-  alias MediaCentaur.Library.{
+  alias MediaCentarr.Library.{
     Extra,
     Image,
     ExternalId,
@@ -24,7 +24,7 @@ defmodule MediaCentaur.TestFactory do
     VideoObject
   }
 
-  alias MediaCentaur.Review
+  alias MediaCentarr.Review
 
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
@@ -377,7 +377,7 @@ defmodule MediaCentaur.TestFactory do
   # Release Tracking
   # ---------------------------------------------------------------------------
 
-  alias MediaCentaur.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking
 
   def build_tracking_item(overrides \\ %{}) do
     defaults = %{
@@ -456,7 +456,7 @@ defmodule MediaCentaur.TestFactory do
       completed_at: DateTime.truncate(DateTime.utc_now(), :second)
     }
 
-    struct(MediaCentaur.WatchHistory.Event, Map.merge(defaults, overrides))
+    struct(MediaCentarr.WatchHistory.Event, Map.merge(defaults, overrides))
   end
 
   def create_watch_event(attrs \\ %{}) do
@@ -469,7 +469,7 @@ defmodule MediaCentaur.TestFactory do
 
     {:ok, event} =
       Map.merge(defaults, attrs)
-      |> MediaCentaur.WatchHistory.create_event()
+      |> MediaCentarr.WatchHistory.create_event()
 
     event
   end

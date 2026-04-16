@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.CleanupEnumsAndDefaults do
+defmodule MediaCentarr.Repo.Migrations.CleanupEnumsAndDefaults do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

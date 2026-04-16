@@ -5,7 +5,7 @@ argument-hint: "[file-or-path (optional)]"
 
 # Documentation Audit — Systematic Validation
 
-You are performing a meticulous documentation audit of the Media Centaur backend.
+You are performing a meticulous documentation audit of the Media Centarr backend.
 Your goal is to find real, actionable issues — not to generate noise. Every finding
 must cite the exact documentation file, the source file(s) that contradict it, and
 explain the discrepancy with evidence.
@@ -39,13 +39,13 @@ Verify that documentation claims match the actual codebase. Check each of these
 categories:
 
 - **File paths and module references:** Every path mentioned in docs (e.g.
-  `lib/media_centaur/`, `lib/media_centaur_web/live/`, `defaults/backend.toml`) must
+  `lib/media_centarr/`, `lib/media_centarr_web/live/`, `defaults/backend.toml`) must
   exist on disk. Glob to verify.
 - **Config fields:** Every field documented in CLAUDE.md or referenced in docs must
-  exist in the config source (`MediaCentaur.Config`). Every config field in the source
+  exist in the config source (`MediaCentarr.Config`). Every config field in the source
   should be documented. Check defaults match `defaults/backend.toml`.
 - **Entity tables:** Any entity type tables in CLAUDE.md must match what actually
-  exists in the Ecto schemas under `lib/media_centaur/library/` (Movie, TVSeries,
+  exists in the Ecto schemas under `lib/media_centarr/library/` (Movie, TVSeries,
   MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress,
   WatchedFile).
 - **Architecture claims:** Statements about how components interact (e.g. "Ecto is

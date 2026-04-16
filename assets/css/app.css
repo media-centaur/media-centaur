@@ -4,7 +4,7 @@
 @import "tailwindcss" source(none);
 @source "../css";
 @source "../js";
-@source "../../lib/media_centaur_web";
+@source "../../lib/media_centarr_web";
 
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
@@ -17,7 +17,7 @@
   themes: false;
 }
 
-/* Media Centaur themes — slate-based cool grays (hue 264).
+/* Media Centarr themes — slate-based cool grays (hue 264).
    Dark-first design. See the user-interface skill for color philosophy.
    Build your own at: https://daisyui.com/theme-generator/ */
 

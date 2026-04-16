@@ -72,14 +72,14 @@ For each doc file listed below, follow this process:
 | Doc | Primary Sources to Read |
 |-----|------------------------|
 | getting-started.md | mix.exs, defaults/backend.toml, CLAUDE.md (Build & Run section) |
-| configuration.md | defaults/backend.toml, lib/media_centaur/config.ex |
-| architecture.md | CLAUDE.md (Architecture Principles, Repository Layout), lib/media_centaur/application.ex, specs/ directory listing |
-| watcher.md | lib/media_centaur/watcher.ex, lib/media_centaur/watcher/supervisor.ex, PIPELINE.md (watcher-relevant sections) |
-| pipeline.md | PIPELINE.md, lib/media_centaur/pipeline.ex, lib/media_centaur/pipeline/stages/ (all stage files), lib/media_centaur/pipeline/producer.ex |
-| tmdb.md | lib/media_centaur/tmdb/ (all files: client, confidence, mapper, rate_limiter) |
-| playback.md | lib/media_centaur/playback/ (all files), specs/PLAYBACK.md |
-| channel.md | lib/media_centaur_web/channels/ (all files), specs/API.md |
-| library.md | lib/media_centaur/library/ (domain, resources, ingress, helpers), lib/media_centaur/review/ |
+| configuration.md | defaults/backend.toml, lib/media_centarr/config.ex |
+| architecture.md | CLAUDE.md (Architecture Principles, Repository Layout), lib/media_centarr/application.ex, specs/ directory listing |
+| watcher.md | lib/media_centarr/watcher.ex, lib/media_centarr/watcher/supervisor.ex, PIPELINE.md (watcher-relevant sections) |
+| pipeline.md | PIPELINE.md, lib/media_centarr/pipeline.ex, lib/media_centarr/pipeline/stages/ (all stage files), lib/media_centarr/pipeline/producer.ex |
+| tmdb.md | lib/media_centarr/tmdb/ (all files: client, confidence, mapper, rate_limiter) |
+| playback.md | lib/media_centarr/playback/ (all files), specs/PLAYBACK.md |
+| channel.md | lib/media_centarr_web/channels/ (all files), specs/API.md |
+| library.md | lib/media_centarr/library/ (domain, resources, ingress, helpers), lib/media_centarr/review/ |
 
 ### Doc Template (each subsystem doc)
 
@@ -156,7 +156,7 @@ This applies everywhere: README.md, architecture.md, and any doc that references
 
 Generate `backend/README.md` with this structure:
 
-1. **One-line description** — what Media Centaur Backend is
+1. **One-line description** — what Media Centarr Backend is
 2. **What it does** — 3-5 bullet points of key capabilities
 3. **Documentation link** — single line linking to `docs/getting-started.md` as the entry point (do NOT duplicate the quick start or the full doc index here — the docs have their own TOC and navigation)
 4. **Tech stack** — compact table (Elixir, Phoenix, Ecto, SQLite, Broadway, etc.)

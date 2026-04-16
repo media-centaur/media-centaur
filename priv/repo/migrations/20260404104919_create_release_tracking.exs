@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.CreateReleaseTracking do
+defmodule MediaCentarr.Repo.Migrations.CreateReleaseTracking do
   use Ecto.Migration
 
   def change do
