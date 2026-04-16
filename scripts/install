@@ -33,6 +33,7 @@ mkdir -p "$(dirname "$unit_dst")"
 sed \
   -e "s|ExecStart=.*|ExecStart=$install_dir/bin/media_centarr start|" \
   -e "s|ExecStop=.*|ExecStop=$install_dir/bin/media_centarr stop|" \
+  -e "s|# EnvironmentFile=.*|EnvironmentFile=$HOME/.config/media-centarr/secrets.env|" \
   "$unit_src" > "$unit_dst"
 
 # 4. Reload systemd
@@ -41,6 +42,11 @@ systemctl --user daemon-reload
 
 # 5. Run migrations
 banner "Running migrations"
+secrets_file="$HOME/.config/media-centarr/secrets.env"
+if [ -f "$secrets_file" ]; then
+  # shellcheck source=/dev/null
+  set -a; source "$secrets_file"; set +a
+fi
 "$install_dir/bin/media_centarr" eval "MediaCentarr.Release.migrate()"
 
 # 6. Restart service if active
