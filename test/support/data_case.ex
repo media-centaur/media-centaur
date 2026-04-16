@@ -1,4 +1,4 @@
-defmodule MediaCentaur.DataCase do
+defmodule MediaCentarr.DataCase do
   @moduledoc """
   This module defines the setup for tests requiring
   access to the application's data layer.
@@ -10,7 +10,7 @@ defmodule MediaCentaur.DataCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use MediaCentaur.DataCase, async: true`, although
+  by setting `use MediaCentarr.DataCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -18,18 +18,18 @@ defmodule MediaCentaur.DataCase do
 
   using do
     quote do
-      alias MediaCentaur.Repo
+      alias MediaCentarr.Repo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import MediaCentaur.DataCase
-      import MediaCentaur.TestFactory
+      import MediaCentarr.DataCase
+      import MediaCentarr.TestFactory
     end
   end
 
   setup tags do
-    MediaCentaur.DataCase.setup_sandbox(tags)
+    MediaCentarr.DataCase.setup_sandbox(tags)
     :ok
   end
 
@@ -37,7 +37,7 @@ defmodule MediaCentaur.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentaur.Repo, shared: not tags[:async])
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentarr.Repo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
   end
 

@@ -33,7 +33,7 @@ graph TD
 
 ## Key Concepts
 
-**Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centaur-{entity_id}.sock`).
+**Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centarr-{entity_id}.sock`).
 
 **Observation, not control:** The backend is a tracking system. The user controls mpv directly (keyboard, remote, gamepad). Each MpvSession observes position/duration/pause/eof via IPC, persists watch progress, and broadcasts state via PubSub.
 
@@ -136,7 +136,7 @@ LiveView subscribers receive both via PubSub.
 
 ### Session Recovery (ADR-023)
 
-On startup, a one-shot Task scans the socket directory for `media-centaur-*.sock` files. For each socket found, it probes mpv for the current path and position, resolves the entity, and starts a reconnecting MpvSession. Dead socket files are cleaned up.
+On startup, a one-shot Task scans the socket directory for `media-centarr-*.sock` files. For each socket found, it probes mpv for the current path and position, resolves the entity, and starts a reconnecting MpvSession. Dead socket files are cleaned up.
 
 ### WatchingTracker
 
@@ -165,16 +165,16 @@ After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Playback.Sessions` | Public API facade (stateless) | `lib/media_centaur/playback/sessions.ex` |
-| `MediaCentaur.Playback.SessionRegistry` | Registry wrapper, entity_id lookup | `lib/media_centaur/playback/session_registry.ex` |
-| `MediaCentaur.Playback.MpvSession` | Per-session GenServer, MPV IPC observer | `lib/media_centaur/playback/mpv_session.ex` |
-| `MediaCentaur.Playback.SessionSupervisor` | DynamicSupervisor for sessions | `lib/media_centaur/playback/session_supervisor.ex` |
-| `MediaCentaur.Playback.SessionRecovery` | Multi-socket orphan recovery | `lib/media_centaur/playback/session_recovery.ex` |
-| `MediaCentaur.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centaur/playback/supervisor.ex` |
-| `MediaCentaur.Playback.Resume` | Resume/next algorithm | `lib/media_centaur/playback/resume.ex` |
-| `MediaCentaur.Playback.Resolver` | UUID → play params | `lib/media_centaur/playback/resolver.ex` |
-| `MediaCentaur.Playback.EpisodeList` | TV episode walking helpers | `lib/media_centaur/playback/episode_list.ex` |
-| `MediaCentaur.Playback.MovieList` | Movie series walking helpers | `lib/media_centaur/playback/movie_list.ex` |
-| `MediaCentaur.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centaur/playback/progress_summary.ex` |
-| `MediaCentaur.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centaur/playback/resume_target.ex` |
-| `MediaCentaur.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centaur/playback/watching_tracker.ex` |
+| `MediaCentarr.Playback.Sessions` | Public API facade (stateless) | `lib/media_centarr/playback/sessions.ex` |
+| `MediaCentarr.Playback.SessionRegistry` | Registry wrapper, entity_id lookup | `lib/media_centarr/playback/session_registry.ex` |
+| `MediaCentarr.Playback.MpvSession` | Per-session GenServer, MPV IPC observer | `lib/media_centarr/playback/mpv_session.ex` |
+| `MediaCentarr.Playback.SessionSupervisor` | DynamicSupervisor for sessions | `lib/media_centarr/playback/session_supervisor.ex` |
+| `MediaCentarr.Playback.SessionRecovery` | Multi-socket orphan recovery | `lib/media_centarr/playback/session_recovery.ex` |
+| `MediaCentarr.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centarr/playback/supervisor.ex` |
+| `MediaCentarr.Playback.Resume` | Resume/next algorithm | `lib/media_centarr/playback/resume.ex` |
+| `MediaCentarr.Playback.Resolver` | UUID → play params | `lib/media_centarr/playback/resolver.ex` |
+| `MediaCentarr.Playback.EpisodeList` | TV episode walking helpers | `lib/media_centarr/playback/episode_list.ex` |
+| `MediaCentarr.Playback.MovieList` | Movie series walking helpers | `lib/media_centarr/playback/movie_list.ex` |
+| `MediaCentarr.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centarr/playback/progress_summary.ex` |
+| `MediaCentarr.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centarr/playback/resume_target.ex` |
+| `MediaCentarr.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centarr/playback/watching_tracker.ex` |

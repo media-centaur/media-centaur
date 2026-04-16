@@ -129,7 +129,7 @@ evaluate_script: () => { window.__inputDebug = false; return "disabled" }
 **Visual verification:** `take_screenshot` captures the current viewport. Use to confirm focus rings, scroll position, and layout state after navigation.
 
 **Typical debug workflow:**
-1. `select_page` — pick the Media Centaur tab
+1. `select_page` — pick the Media Centarr tab
 2. `evaluate_script` — enable `window.__inputDebug`
 3. `press_key` — simulate the failing input sequence
 4. `list_console_messages` — read the `[input]` trace

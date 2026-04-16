@@ -45,7 +45,7 @@ inotify + scan               high confidence → matched       → publish entit
 
 ## Payload
 
-`MediaCentaur.Pipeline.Payload` is the data structure that flows through all pipeline stages:
+`MediaCentarr.Pipeline.Payload` is the data structure that flows through all pipeline stages:
 
 | Field | Set by | Purpose |
 |-------|--------|---------|
@@ -66,7 +66,7 @@ inotify + scan               high confidence → matched       → publish entit
 
 ## Discovery Pipeline
 
-**Module:** `MediaCentaur.Pipeline.Discovery`
+**Module:** `MediaCentarr.Pipeline.Discovery`
 
 Identifies what a file is — parses the filename, searches TMDB, and decides if it's a confident match or needs human review.
 
@@ -86,7 +86,7 @@ Identifies what a file is — parses the filename, searches TMDB, and decides if
 
 ## Import Pipeline
 
-**Module:** `MediaCentaur.Pipeline.Import`
+**Module:** `MediaCentarr.Pipeline.Import`
 
 Fetches full metadata for a matched file and publishes the entity event for Library to create records.
 
@@ -109,7 +109,7 @@ If the file came from review approval, Import also broadcasts `{:review_complete
 
 ## Image Pipeline
 
-**Module:** `MediaCentaur.ImagePipeline`
+**Module:** `MediaCentarr.ImagePipeline`
 
 Downloads and processes artwork asynchronously after entity creation.
 
@@ -132,7 +132,7 @@ Downloads and processes artwork asynchronously after entity creation.
 
 ## Pipeline Stages
 
-All stages are pure-function modules in `lib/media_centaur/pipeline/stages/`. Each takes a `%Payload{}` and returns `{:ok, payload}`, `{:needs_review, payload}`, or `{:error, reason}`.
+All stages are pure-function modules in `lib/media_centarr/pipeline/stages/`. Each takes a `%Payload{}` and returns `{:ok, payload}`, `{:needs_review, payload}`, or `{:error, reason}`.
 
 | Stage | Module | Used by | Purpose |
 |-------|--------|---------|---------|
@@ -146,7 +146,7 @@ All stages are pure-function modules in `lib/media_centaur/pipeline/stages/`. Ea
 ## Supervision
 
 ```
-MediaCentaur.Supervisor
+MediaCentarr.Supervisor
 ├── Pipeline.Supervisor (:rest_for_one)
 │   ├── Pipeline.Stats (telemetry)
 │   ├── Pipeline.Discovery (Broadway)

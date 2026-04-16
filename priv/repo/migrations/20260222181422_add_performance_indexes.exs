@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddPerformanceIndexes do
+defmodule MediaCentarr.Repo.Migrations.AddPerformanceIndexes do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

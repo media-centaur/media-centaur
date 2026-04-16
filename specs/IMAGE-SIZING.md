@@ -1,6 +1,6 @@
 # Image Sizing Specification
 
-This document specifies the recommended source dimensions for every image role in the Media Centaur system. It provides the data the backend needs to generate appropriately-sized images, eliminating the memory waste of decoding full-resolution source images for small UI elements.
+This document specifies the recommended source dimensions for every image role in the Media Centarr system. It provides the data the backend needs to generate appropriately-sized images, eliminating the memory waste of decoding full-resolution source images for small UI elements.
 
 Companion to [`IMAGE-CACHING.md`](IMAGE-CACHING.md), which defines image roles, directory layout, and caching rules. This document adds **sizing requirements** per role.
 

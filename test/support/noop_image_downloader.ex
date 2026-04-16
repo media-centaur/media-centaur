@@ -1,4 +1,4 @@
-defmodule MediaCentaur.NoopImageDownloader do
+defmodule MediaCentarr.NoopImageDownloader do
   @moduledoc """
   No-op HTTP client for tests. Replaces `Req` in the image pipeline
   to avoid real HTTP requests and file I/O during tests.

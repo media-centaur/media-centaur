@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build a production release of Media Centaur Backend.
+# Build a production release of Media Centarr Backend.
 # Usage: scripts/release [--clean]
 
 cd "$(dirname "$0")/.."
@@ -33,6 +33,6 @@ MIX_ENV=prod mix assets.deploy
 banner "Building release"
 MIX_ENV=prod mix release --overwrite
 
-release_path="_build/prod/rel/media_centaur"
+release_path="_build/prod/rel/media_centarr"
 banner "Release built at: $(pwd)/$release_path"
-"$release_path/bin/media_centaur" version
+"$release_path/bin/media_centarr" version

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="MediaCentarr" suffix=" · Media Centarr">
+      {assigns[:page_title]}
+    </.live_title>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    <script>
+      (() => {
+        const setTheme = (theme) => {
+          if (theme === "system") {
+            localStorage.removeItem("phx:theme");
+            document.documentElement.removeAttribute("data-theme");
+          } else {
+            localStorage.setItem("phx:theme", theme);
+            document.documentElement.setAttribute("data-theme", theme);
+          }
+        };
+        if (!document.documentElement.hasAttribute("data-theme")) {
+          setTheme(localStorage.getItem("phx:theme") || "system");
+        }
+        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
+        
+        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+
+        // Cycle theme: system → light → dark → system
+        window.addEventListener("phx:cycle-theme", () => {
+          const current = localStorage.getItem("phx:theme");
+          setTheme(current === null ? "light" : current === "light" ? "dark" : "system");
+        });
+
+        // Sidebar collapsed state — mirrors the theme pattern
+        const sidebarState = localStorage.getItem("phx:sidebar-collapsed");
+        if (sidebarState === "true") {
+          document.documentElement.setAttribute("data-sidebar", "collapsed");
+        }
+        // Remember each page's full URL (with query string) for sidebar nav
+        document.addEventListener("click", (e) => {
+          const navLink = e.target.closest("[data-nav-item]");
+          if (!navLink) return;
+          // Save current page's URL before navigating away
+          sessionStorage.setItem("nav:" + location.pathname, location.pathname + location.search);
+          // Restore stored URL for links that opt in
+          if (navLink.hasAttribute("data-nav-remember")) {
+            const basePath = new URL(navLink.href, location.origin).pathname;
+            const stored = sessionStorage.getItem("nav:" + basePath);
+            if (stored) navLink.setAttribute("href", stored);
+          }
+        }, true);
+
+        window.addEventListener("phx:toggle-sidebar", () => {
+          const el = document.documentElement;
+          const collapsed = el.getAttribute("data-sidebar") === "collapsed";
+          if (collapsed) {
+            el.removeAttribute("data-sidebar");
+            localStorage.removeItem("phx:sidebar-collapsed");
+          } else {
+            el.setAttribute("data-sidebar", "collapsed");
+            localStorage.setItem("phx:sidebar-collapsed", "true");
+          }
+        });
+      })();
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+
+    <%!-- Gamepad hint bar — outside LiveView so it persists across navigations.
+          Pure CSS visibility: driven by data-input and data-nav-context on <html>. --%>
+    <div class="gamepad-hint-bar" aria-hidden="true">
+      <div class="hint-group" data-hint-context="grid">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Back</span>
+        <span class="hint"><span class="hint-btn" data-btn="y"></span> Clear Filter</span>
+        <span class="hint"><span class="hint-btn" data-btn="start"></span> Play</span>
+        <span class="hint"><span class="hint-btn" data-btn="lb-rb"></span> Zone</span>
+      </div>
+      <div class="hint-group" data-hint-context="modal">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Close</span>
+      </div>
+      <div class="hint-group" data-hint-context="drawer">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Close</span>
+      </div>
+      <div class="hint-group" data-hint-context="sidebar">
+        <span class="hint"><span class="hint-btn" data-btn="dpad"></span> Navigate</span>
+        <span class="hint"><span class="hint-btn" data-btn="a"></span> Select</span>
+        <span class="hint"><span class="hint-btn" data-btn="b"></span> Back</span>
+      </div>
+    </div>
+  </body>
+</html>

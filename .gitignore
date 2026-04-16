@@ -26,7 +26,7 @@ erl_crash.dump
 /tmp/
 
 # Ignore package tarball (built via "mix hex.build").
-media_centaur-*.tar
+media_centarr-*.tar
 
 # Ignore assets that are produced by build tools.
 /priv/static/assets/
@@ -51,8 +51,8 @@ npm-debug.log
 /playwright-report/
 
 # sqlite stuff
-/media_centaur_dev*
-/priv/repo/media_centaur_test*.db*
+/media_centarr_dev*
+/priv/repo/media_centarr_test*.db*
 media_manager.db
 dev.db
 /priv/repo/dev.db

@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.RenameIdentifiersToExternalIds do
+defmodule MediaCentarr.Repo.Migrations.RenameIdentifiersToExternalIds do
   use Ecto.Migration
 
   def change do

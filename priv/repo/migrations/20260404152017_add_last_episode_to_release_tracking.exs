@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddLastEpisodeToReleaseTracking do
+defmodule MediaCentarr.Repo.Migrations.AddLastEpisodeToReleaseTracking do
   use Ecto.Migration
 
   def change do

@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddWatchProgress do
+defmodule MediaCentarr.Repo.Migrations.AddWatchProgress do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

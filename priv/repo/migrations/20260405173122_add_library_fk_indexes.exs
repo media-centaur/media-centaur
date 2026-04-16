@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddLibraryFkIndexes do
+defmodule MediaCentarr.Repo.Migrations.AddLibraryFkIndexes do
   use Ecto.Migration
 
   # Adds single-column indexes on the type-specific FK columns across the

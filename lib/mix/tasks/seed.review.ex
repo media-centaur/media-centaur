@@ -11,9 +11,9 @@ defmodule Mix.Tasks.Seed.Review do
   """
   use Mix.Task
 
-  alias MediaCentaur.Repo
-  alias MediaCentaur.Review
-  alias MediaCentaur.Review.PendingFile
+  alias MediaCentarr.Repo
+  alias MediaCentarr.Review
+  alias MediaCentarr.Review.PendingFile
 
   @impl true
   def run(_) do

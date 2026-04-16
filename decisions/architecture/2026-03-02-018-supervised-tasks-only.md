@@ -6,7 +6,7 @@ date: 2026-03-02
 
 ## Context and Problem Statement
 
-The codebase uses `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, ...)` for fire-and-forget async work in most places (Watcher, OperationsLive, MpvSession), but ReviewLive used bare `Task.start/1`. Unsupervised tasks are invisible to the supervision tree — if they crash, no one notices, and they cannot be monitored or shut down gracefully during application stop.
+The codebase uses `Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, ...)` for fire-and-forget async work in most places (Watcher, OperationsLive, MpvSession), but ReviewLive used bare `Task.start/1`. Unsupervised tasks are invisible to the supervision tree — if they crash, no one notices, and they cannot be monitored or shut down gracefully during application stop.
 
 ## Decision Outcome
 

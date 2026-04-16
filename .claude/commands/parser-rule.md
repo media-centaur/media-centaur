@@ -14,7 +14,7 @@ The user says: $ARGUMENTS
 
    ```elixir
    import Ecto.Query
-   alias MediaCentaur.{Repo, Library.WatchedFile}
+   alias MediaCentarr.{Repo, Library.WatchedFile}
 
    pattern = "%" <> String.downcase("<user input>") <> "%"
 
@@ -30,9 +30,9 @@ The user says: $ARGUMENTS
    - Every `WatchedFile` row — show `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `season_number`, `episode_number`, and `state`
    - If a row has a type-specific FK populated (`movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id`), fetch and display the associated entity's name for context.
 
-3. Read `lib/media_centaur/parser.ex` and `test/media_centaur/parser_test.exs` for context.
+3. Read `lib/media_centarr/parser.ex` and `test/media_centarr/parser_test.exs` for context.
 
-4. For each watched file, evaluate `MediaCentaur.Parser.parse(file_path)` to show what the parser currently produces.
+4. For each watched file, evaluate `MediaCentarr.Parser.parse(file_path)` to show what the parser currently produces.
 
 5. Present the results clearly so the user can compare entity data vs. parse results and identify which files are misparsed.
 
@@ -47,7 +47,7 @@ Ask the user: which file(s) are misparsed, and what should the correct parse res
    - A descriptive test name explaining what makes this pattern unique
    - The exact real file path from the database
    - Assertions for all expected fields (title, year, type, season, episode) based on the user's instructions
-3. Run `mix test test/media_centaur/parser_test.exs` — confirm the new test(s) **fail** and all existing tests still pass.
+3. Run `mix test test/media_centarr/parser_test.exs` — confirm the new test(s) **fail** and all existing tests still pass.
 4. Show the user the failure output.
 
 ## Step 4: Fix the parser
@@ -59,6 +59,6 @@ Ask the user: which file(s) are misparsed, and what should the correct parse res
 
 ## Step 5: Verify
 
-1. Run `mix test test/media_centaur/parser_test.exs` — all tests must pass.
+1. Run `mix test test/media_centarr/parser_test.exs` — all tests must pass.
 2. Run `mix precommit` — no warnings, no failures.
-3. For each fixed file, evaluate `MediaCentaur.Parser.parse(file_path)` again and show the user the corrected result.
+3. For each fixed file, evaluate `MediaCentarr.Parser.parse(file_path)` again and show the user the corrected result.

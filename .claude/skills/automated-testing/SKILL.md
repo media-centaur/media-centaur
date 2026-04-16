@@ -73,10 +73,10 @@ scripts/input-test --ui                               # Playwright UI mode
 | Template | When | Async? |
 |----------|------|--------|
 | `use ExUnit.Case, async: true` | Pure functions (Parser, Serializer, Mapper, Confidence) | Yes |
-| `use MediaCentaur.DataCase` | Ecto schema tests, pipeline stages, anything touching DB | No (SQLite) |
-| `use MediaCentaurWeb.ConnCase` | HTTP/LiveView connection tests | No |
+| `use MediaCentarr.DataCase` | Ecto schema tests, pipeline stages, anything touching DB | No (SQLite) |
+| `use MediaCentarrWeb.ConnCase` | HTTP/LiveView connection tests | No |
 
-### Factory — `MediaCentaur.TestFactory`
+### Factory — `MediaCentarr.TestFactory`
 
 All tests use the shared factory. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
 
@@ -106,7 +106,7 @@ Fixtures: `movie_search_result/1`, `tv_search_result/1`, `movie_detail/1`, `tv_d
 
 ### Image Downloads
 
-`config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`. No HTTP or file I/O in tests.
+`config/test.exs` sets `:image_downloader` to `MediaCentarr.NoopImageDownloader`. No HTTP or file I/O in tests.
 
 ### Filesystem Isolation ([ADR-016])
 

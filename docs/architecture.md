@@ -1,6 +1,6 @@
 # Architecture
 
-Media Centaur Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library through a LiveView web UI.
+Media Centarr Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library through a LiveView web UI.
 
 > [Getting Started](getting-started.md) · [Configuration](configuration.md) · **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
 
@@ -71,7 +71,7 @@ flowchart LR
 
 ```mermaid
 graph TD
-    App[MediaCentaur.Supervisor<br/>one_for_one]
+    App[MediaCentarr.Supervisor<br/>one_for_one]
 
     App --> Telemetry[Telemetry]
     App --> Repo[Repo<br/>SQLite]
@@ -135,10 +135,10 @@ Protocol specifications live in [`specs/`](../specs/):
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Application` | OTP application, supervision tree | `lib/media_centaur/application.ex` |
-| `MediaCentaur.Config` | TOML config loader | `lib/media_centaur/config.ex` |
-| `MediaCentaur.Log` | Component-level thinking logs | `lib/media_centaur/log.ex` |
-| `MediaCentaur.Serializer` | Entity to JSON-LD serializer | `lib/media_centaur/serializer.ex` |
-| `MediaCentaur.Storage` | Disk usage measurement | `lib/media_centaur/storage.ex` |
-| `MediaCentaur.Admin` | Destructive admin operations | `lib/media_centaur/admin.ex` |
-| `MediaCentaur.Dashboard` | Dashboard data fetching | `lib/media_centaur/dashboard.ex` |
+| `MediaCentarr.Application` | OTP application, supervision tree | `lib/media_centarr/application.ex` |
+| `MediaCentarr.Config` | TOML config loader | `lib/media_centarr/config.ex` |
+| `MediaCentarr.Log` | Component-level thinking logs | `lib/media_centarr/log.ex` |
+| `MediaCentarr.Serializer` | Entity to JSON-LD serializer | `lib/media_centarr/serializer.ex` |
+| `MediaCentarr.Storage` | Disk usage measurement | `lib/media_centarr/storage.ex` |
+| `MediaCentarr.Admin` | Destructive admin operations | `lib/media_centarr/admin.ex` |
+| `MediaCentarr.Dashboard` | Dashboard data fetching | `lib/media_centarr/dashboard.ex` |

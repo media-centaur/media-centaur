@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Repo.Migrations.AddUniqueIndexToIdentifiers do
+defmodule MediaCentarr.Repo.Migrations.AddUniqueIndexToIdentifiers do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

@@ -8,12 +8,12 @@ description: "Triggers when user asks about their media library — searching ti
 1. **All queries via `mcp__tidewave__project_eval`** — never `execute_sql_query`, never raw SQL
 2. **Standard alias block** — paste at the top of every eval:
    ```elixir
-   alias MediaCentaur.Repo
-   alias MediaCentaur.Library.{Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchedFile, WatchProgress}
-   alias MediaCentaur.Review.PendingFile
+   alias MediaCentarr.Repo
+   alias MediaCentarr.Library.{Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchedFile, WatchProgress}
+   alias MediaCentarr.Review.PendingFile
    import Ecto.Query
    ```
-3. **Prefer context functions** — `MediaCentaur.Library.get_tv_series_with_associations/1`, `get_movie_series_with_associations/1`, etc. are already preloaded correctly. Reach for `Repo` directly only when a context function doesn't fit.
+3. **Prefer context functions** — `MediaCentarr.Library.get_tv_series_with_associations/1`, `get_movie_series_with_associations/1`, etc. are already preloaded correctly. Reach for `Repo` directly only when a context function doesn't fit.
 
 ## Data Model Quick Reference
 
@@ -61,8 +61,8 @@ Prefer these over raw `Repo` calls — they load the canonical preloads for each
 ### Search by name (across all types)
 
 ```elixir
-alias MediaCentaur.Repo
-alias MediaCentaur.Library.{Movie, TVSeries, MovieSeries, VideoObject}
+alias MediaCentarr.Repo
+alias MediaCentarr.Library.{Movie, TVSeries, MovieSeries, VideoObject}
 import Ecto.Query
 
 pattern = "%" <> String.downcase("search term") <> "%"
@@ -80,14 +80,14 @@ SQLite `LIKE` is case-insensitive on ASCII by default; the `lower(...)` wrapper 
 ### Get a TV series by UUID with full preloads
 
 ```elixir
-{:ok, tv} = MediaCentaur.Library.get_tv_series_with_associations("uuid-here")
+{:ok, tv} = MediaCentarr.Library.get_tv_series_with_associations("uuid-here")
 # tv.seasons → [%Season{episodes: [%Episode{images: [...], watch_progress: %WatchProgress{}}]}]
 ```
 
 ### Get a movie series (collection) by UUID
 
 ```elixir
-{:ok, ms} = MediaCentaur.Library.get_movie_series_with_associations("uuid-here")
+{:ok, ms} = MediaCentarr.Library.get_movie_series_with_associations("uuid-here")
 # ms.movies → [%Movie{images: [...], watch_progress: %WatchProgress{}}]
 ```
 
@@ -141,7 +141,7 @@ Exactly one of the four belongs_to associations will be non-nil on the result.
 ### Watch progress for a TV series
 
 ```elixir
-{:ok, tv} = MediaCentaur.Library.get_tv_series_with_associations("uuid-here")
+{:ok, tv} = MediaCentarr.Library.get_tv_series_with_associations("uuid-here")
 
 # Already preloaded through seasons → episodes → watch_progress.
 for season <- tv.seasons, episode <- season.episodes, episode.watch_progress do
@@ -277,7 +277,7 @@ When you hit friction while querying the library, suggest improvements:
 Missing query patterns, awkward examples, bad formatting — propose adding to this skill. Examples: search by genre, date-range filters, better display for edge cases.
 
 ### Context function improvements
-If a raw `Repo.all` pattern keeps coming up, suggest adding a named function to `MediaCentaur.Library`. Examples:
+If a raw `Repo.all` pattern keeps coming up, suggest adding a named function to `MediaCentarr.Library`. Examples:
 - `search_all_types/1` — cross-type name search with a unified result shape
 - `count_by_type/0` — library statistics as a single call
 - `find_by_tmdb_id/1` — single-call TMDB lookup across all four types

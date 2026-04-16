@@ -1,6 +1,6 @@
 # Parser Reference
 
-Reference documents gathered during development of the Media Centaur filename parser (`lib/media_centaur/parser.ex`). They cover the naming conventions, tag vocabularies, and scene standards that real-world video filenames follow, as well as notes on how existing open-source parsers handle these patterns.
+Reference documents gathered during development of the Media Centarr filename parser (`lib/media_centarr/parser.ex`). They cover the naming conventions, tag vocabularies, and scene standards that real-world video filenames follow, as well as notes on how existing open-source parsers handle these patterns.
 
 ## Contents
 

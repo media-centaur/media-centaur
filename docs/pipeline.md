@@ -82,7 +82,7 @@ flowchart TD
 
 ### Parse
 
-Extracts title, year, type, season, and episode from the file path using `MediaCentaur.Parser`. Always succeeds — unparseable paths return type `:unknown`.
+Extracts title, year, type, season, and episode from the file path using `MediaCentarr.Parser`. Always succeeds — unparseable paths return type `:unknown`.
 
 ### Search
 
@@ -169,12 +169,12 @@ Files inside directories named `Extras/`, `Featurettes/`, `Special Features/`, e
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.Pipeline` | Broadway orchestrator | `lib/media_centaur/pipeline.ex` |
-| `MediaCentaur.Pipeline.Producer` | PubSub → GenStage producer | `lib/media_centaur/pipeline/producer.ex` |
-| `MediaCentaur.Pipeline.Payload` | Data struct flowing through stages | `lib/media_centaur/pipeline/payload.ex` |
-| `MediaCentaur.Pipeline.Stats` | Telemetry aggregator for dashboard | `lib/media_centaur/pipeline/stats.ex` |
-| `MediaCentaur.Pipeline.Stages.Parse` | Filename parsing stage | `lib/media_centaur/pipeline/stages/parse.ex` |
-| `MediaCentaur.Pipeline.Stages.Search` | TMDB search + confidence scoring | `lib/media_centaur/pipeline/stages/search.ex` |
-| `MediaCentaur.Pipeline.Stages.FetchMetadata` | Full TMDB metadata fetch | `lib/media_centaur/pipeline/stages/fetch_metadata.ex` |
-| `MediaCentaur.Pipeline.Stages.DownloadImages` | Artwork download to staging | `lib/media_centaur/pipeline/stages/download_images.ex` |
-| `MediaCentaur.Pipeline.Stages.Ingest` | Library ingestion via Ingress | `lib/media_centaur/pipeline/stages/ingest.ex` |
+| `MediaCentarr.Pipeline` | Broadway orchestrator | `lib/media_centarr/pipeline.ex` |
+| `MediaCentarr.Pipeline.Producer` | PubSub → GenStage producer | `lib/media_centarr/pipeline/producer.ex` |
+| `MediaCentarr.Pipeline.Payload` | Data struct flowing through stages | `lib/media_centarr/pipeline/payload.ex` |
+| `MediaCentarr.Pipeline.Stats` | Telemetry aggregator for dashboard | `lib/media_centarr/pipeline/stats.ex` |
+| `MediaCentarr.Pipeline.Stages.Parse` | Filename parsing stage | `lib/media_centarr/pipeline/stages/parse.ex` |
+| `MediaCentarr.Pipeline.Stages.Search` | TMDB search + confidence scoring | `lib/media_centarr/pipeline/stages/search.ex` |
+| `MediaCentarr.Pipeline.Stages.FetchMetadata` | Full TMDB metadata fetch | `lib/media_centarr/pipeline/stages/fetch_metadata.ex` |
+| `MediaCentarr.Pipeline.Stages.DownloadImages` | Artwork download to staging | `lib/media_centarr/pipeline/stages/download_images.ex` |
+| `MediaCentarr.Pipeline.Stages.Ingest` | Library ingestion via Ingress | `lib/media_centarr/pipeline/stages/ingest.ex` |
