@@ -15,7 +15,7 @@ Media Centaur is built from two primary components: a **backend** (Elixir/Phoeni
 
 ## Backend (backend)
 
-**Repository:** `media-centaur/backend`
+**Repository:** `media-centaur/media-centaur`
 
 The backend is the **single source of truth** for the entire system. It manages the media library, controls MPV playback, tracks watch progress, and exposes all data and commands over a Phoenix Channels WebSocket API.
 

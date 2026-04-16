@@ -56,7 +56,7 @@
 
 - [ ] **Step 1: Generate migration**
 
-Run: `cd /home/shawn/src/media-centaur/backend && mix ecto.gen.migration create_release_tracking`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && mix ecto.gen.migration create_release_tracking`
 
 - [ ] **Step 2: Write migration**
 
@@ -119,7 +119,7 @@ end
 
 - [ ] **Step 3: Run migration**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix ecto.migrate`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix ecto.migrate`
 
 - [ ] **Step 4: Commit**
 
@@ -264,7 +264,7 @@ end
 
 - [ ] **Step 4: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 5: Commit**
 
@@ -351,7 +351,7 @@ Add to `test/support/factory.ex` before the final `end`:
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 Note: This will fail until the facade is written in Task 4. That's expected — move to Task 4.
 
@@ -525,7 +525,7 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking_test.exs`
 
 Expected: Compilation error — `ReleaseTracking` module not found.
 
@@ -668,7 +668,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking_test.exs`
 
 Expected: All tests pass.
 
@@ -723,7 +723,7 @@ release_tracking_refresh_interval_hours:
 
 - [ ] **Step 4: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 5: Commit**
 
@@ -922,7 +922,7 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/extractor_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/extractor_test.exs`
 
 Expected: Compilation error — `Extractor` module not found.
 
@@ -1031,7 +1031,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/extractor_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/extractor_test.exs`
 
 Expected: All pass.
 
@@ -1158,7 +1158,7 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/differ_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/differ_test.exs`
 
 Expected: Compilation error — `Differ` module not found.
 
@@ -1303,7 +1303,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/differ_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/differ_test.exs`
 
 Expected: All pass.
 
@@ -1369,7 +1369,7 @@ Note: The `ImageDownloader` module and `NoopImageDownloader` (test stub) already
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 3: Commit**
 
@@ -1518,7 +1518,7 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/scanner_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/scanner_test.exs`
 
 Expected: Compilation error — `Scanner` module not found.
 
@@ -1699,7 +1699,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/scanner_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/scanner_test.exs`
 
 Expected: All pass.
 
@@ -1804,7 +1804,7 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/refresher_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/refresher_test.exs`
 
 Expected: Compilation error — `Refresher` module not found.
 
@@ -1965,7 +1965,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/refresher_test.exs`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/release_tracking/refresher_test.exs`
 
 Expected: All pass.
 
@@ -1987,7 +1987,7 @@ In `lib/media_centaur/application.ex`, add to the `children` list after `MediaCe
 
 - [ ] **Step 6: Verify compilation and all tests**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
 
 Expected: All tests pass, zero warnings.
 
@@ -2146,7 +2146,7 @@ alias MediaCentaurWeb.Components.UpcomingCards
 
 - [ ] **Step 11: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 Note: Will fail until UpcomingCards is created in Task 12. Move to Task 12.
 
@@ -2346,11 +2346,11 @@ end
 
 - [ ] **Step 2: Verify compilation**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 
 - [ ] **Step 3: Verify all tests still pass**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
 
 - [ ] **Step 4: Commit**
 
@@ -2500,7 +2500,7 @@ tracking_status={@tracking_status}
 
 - [ ] **Step 7: Verify compilation and all tests**
 
-Run: `cd /home/shawn/src/media-centaur/backend && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test`
 
 Expected: All pass, zero warnings.
 
@@ -2516,7 +2516,7 @@ feat: add tracking toggle icon to entity detail panel
 
 - [ ] **Step 1: Run full precommit**
 
-Run: `cd /home/shawn/src/media-centaur/backend && mix precommit`
+Run: `cd /home/shawn/src/media-centaur/media-centaur && mix precommit`
 
 Expected: Zero warnings, all tests pass, formatting clean.
 
