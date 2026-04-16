@@ -56,7 +56,8 @@ defmodule MediaCentarrWeb.SettingsLive do
        download_client_test_status: nil,
        download_client_testing: false,
        download_client_detect_status: nil,
-       download_client_detecting: false
+       download_client_detecting: false,
+       detected_download_client: nil
      )}
   end
 
@@ -218,7 +219,8 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> assign(
        config: load_config(),
        download_client_test_status: nil,
-       download_client_detect_status: nil
+       download_client_detect_status: nil,
+       detected_download_client: nil
      )
      |> put_flash(:info, "Download client settings saved")}
   end
@@ -380,13 +382,15 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_info({:download_client_detect_result, {:ok, [first | _rest] = clients}}, socket) do
-    if first.type not in [nil, ""], do: Config.update(:download_client_type, first.type)
-    if first.url not in [nil, ""], do: Config.update(:download_client_url, first.url)
-
-    if first.username not in [nil, ""],
-      do: Config.update(:download_client_username, first.username)
-
-    QBittorrent.invalidate_client()
+    # Stash detected values as a suggestion — do NOT persist. The URL
+    # Prowlarr returns is correct from Prowlarr's perspective but is
+    # often a Docker service name unreachable from this host. The user
+    # reviews the form and clicks Save to commit. See ADR-037.
+    detected = %{
+      type: first.type,
+      url: first.url,
+      username: first.username
+    }
 
     extra =
       if length(clients) > 1,
@@ -396,11 +400,14 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply,
      socket
      |> assign(
-       config: load_config(),
+       detected_download_client: detected,
        download_client_detecting: false,
        download_client_detect_status: :ok
      )
-     |> put_flash(:info, "Pre-filled from Prowlarr#{extra} — enter password and Save")}
+     |> put_flash(
+       :info,
+       "Pre-filled from Prowlarr#{extra} — review URL, enter password, then Save"
+     )}
   end
 
   def handle_info({:download_client_detect_result, {:ok, []}}, socket) do
@@ -470,6 +477,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             download_client_testing={@download_client_testing}
             download_client_detect_status={@download_client_detect_status}
             download_client_detecting={@download_client_detecting}
+            detected_download_client={@detected_download_client}
           />
         </div>
       </div>
@@ -622,10 +630,23 @@ defmodule MediaCentarrWeb.SettingsLive do
     prowlarr_configured = Acquisition.available?()
     download_client_configured = Acquisition.download_client_available?()
 
+    # Form values prefer a pending `detected_download_client` (pre-filled
+    # by "Detect from Prowlarr", not yet saved) over the persisted config.
+    # See ADR-037 — the user must review and click Save to commit.
+    detected = assigns[:detected_download_client] || %{}
+    config = assigns.config
+
+    download_client_display = %{
+      type: detected[:type] || config[:download_client_type],
+      url: detected[:url] || config[:download_client_url],
+      username: detected[:username] || config[:download_client_username]
+    }
+
     assigns =
       assign(assigns,
         prowlarr_configured: prowlarr_configured,
-        download_client_configured: download_client_configured
+        download_client_configured: download_client_configured,
+        download_client_display: download_client_display
       )
 
     ~H"""
@@ -736,10 +757,13 @@ defmodule MediaCentarrWeb.SettingsLive do
                 data-nav-item
                 tabindex="0"
               >
-                <option value="" selected={@config[:download_client_type] in [nil, ""]}>
+                <option value="" selected={@download_client_display.type in [nil, ""]}>
                   Not configured
                 </option>
-                <option value="qbittorrent" selected={@config[:download_client_type] == "qbittorrent"}>
+                <option
+                  value="qbittorrent"
+                  selected={@download_client_display.type == "qbittorrent"}
+                >
                   qBittorrent
                 </option>
               </select>
@@ -752,7 +776,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               <input
                 type="text"
                 name="download_client_url"
-                value={@config[:download_client_url]}
+                value={@download_client_display.url}
                 class="input input-bordered w-full font-mono text-sm"
                 placeholder="http://localhost:8080"
                 data-nav-item
@@ -767,7 +791,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               <input
                 type="text"
                 name="download_client_username"
-                value={@config[:download_client_username]}
+                value={@download_client_display.username}
                 class="input input-bordered w-full font-mono text-sm"
                 placeholder="admin"
                 autocomplete="off"
