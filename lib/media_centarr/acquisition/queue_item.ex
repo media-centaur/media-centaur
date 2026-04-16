@@ -74,7 +74,10 @@ defmodule MediaCentarr.Acquisition.QueueItem do
   defp state_from_qbittorrent(_), do: :other
 
   defp progress_from_qbittorrent(nil), do: nil
-  defp progress_from_qbittorrent(p) when is_number(p), do: Float.round(p * 100, 1)
+  # qBittorrent sometimes serialises progress as a JSON integer (0 or 1)
+  # rather than a float. Coerce to float before `Float.round/2`, which
+  # rejects integers in Elixir 1.19+.
+  defp progress_from_qbittorrent(p) when is_number(p), do: Float.round(p * 100.0, 1)
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
