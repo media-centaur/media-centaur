@@ -2,7 +2,9 @@ defmodule MediaCentarrWeb.SettingsLive do
   use MediaCentarrWeb, :live_view
 
   alias MediaCentarr.{Admin, Config, Settings}
+  alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.Prowlarr
+  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
   alias MediaCentarr.Watcher
   alias MediaCentarr.Pipeline
   alias MediaCentarr.ImagePipeline
@@ -50,7 +52,11 @@ defmodule MediaCentarrWeb.SettingsLive do
        refreshing_images: false,
        spoiler_free: spoiler_free,
        prowlarr_test_status: nil,
-       prowlarr_testing: false
+       prowlarr_testing: false,
+       download_client_test_status: nil,
+       download_client_testing: false,
+       download_client_detect_status: nil,
+       download_client_detecting: false
      )}
   end
 
@@ -190,6 +196,61 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> put_flash(:info, "Acquisition settings saved")}
   end
 
+  def handle_event("save_download_client", params, socket) do
+    if params["download_client_type"] not in [nil, ""] do
+      Config.update(:download_client_type, params["download_client_type"])
+    end
+
+    if params["download_client_url"] not in [nil, ""] do
+      Config.update(:download_client_url, params["download_client_url"])
+    end
+
+    Config.update(:download_client_username, params["download_client_username"] || "")
+
+    if params["download_client_password"] not in [nil, ""] do
+      Config.update(:download_client_password, params["download_client_password"])
+    end
+
+    QBittorrent.invalidate_client()
+
+    {:noreply,
+     socket
+     |> assign(
+       config: load_config(),
+       download_client_test_status: nil,
+       download_client_detect_status: nil
+     )
+     |> put_flash(:info, "Download client settings saved")}
+  end
+
+  def handle_event("test_download_client", _params, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      status =
+        case Acquisition.test_download_client() do
+          :ok -> :ok
+          {:error, _} -> :error
+        end
+
+      send(parent, {:download_client_test_result, status})
+    end)
+
+    {:noreply, assign(socket, download_client_testing: true, download_client_test_status: nil)}
+  end
+
+  def handle_event("detect_download_client", _params, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      result = Acquisition.discover_download_clients()
+      send(parent, {:download_client_detect_result, result})
+    end)
+
+    {:noreply,
+     assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
+  end
+
   def handle_event("save_pipeline", params, socket) do
     extras =
       (params["extras_dirs"] || "")
@@ -313,6 +374,49 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, prowlarr_testing: false, prowlarr_test_status: status)}
   end
 
+  def handle_info({:download_client_test_result, status}, socket) do
+    {:noreply,
+     assign(socket, download_client_testing: false, download_client_test_status: status)}
+  end
+
+  def handle_info({:download_client_detect_result, {:ok, [first | _rest] = clients}}, socket) do
+    if first.type not in [nil, ""], do: Config.update(:download_client_type, first.type)
+    if first.url not in [nil, ""], do: Config.update(:download_client_url, first.url)
+
+    if first.username not in [nil, ""],
+      do: Config.update(:download_client_username, first.username)
+
+    QBittorrent.invalidate_client()
+
+    extra =
+      if length(clients) > 1,
+        do: " (#{length(clients)} found, used the first)",
+        else: ""
+
+    {:noreply,
+     socket
+     |> assign(
+       config: load_config(),
+       download_client_detecting: false,
+       download_client_detect_status: :ok
+     )
+     |> put_flash(:info, "Pre-filled from Prowlarr#{extra} — enter password and Save")}
+  end
+
+  def handle_info({:download_client_detect_result, {:ok, []}}, socket) do
+    {:noreply,
+     socket
+     |> assign(download_client_detecting: false, download_client_detect_status: :empty)
+     |> put_flash(:error, "Prowlarr has no download clients configured")}
+  end
+
+  def handle_info({:download_client_detect_result, {:error, _reason}}, socket) do
+    {:noreply,
+     socket
+     |> assign(download_client_detecting: false, download_client_detect_status: :error)
+     |> put_flash(:error, "Couldn't reach Prowlarr to discover download clients")}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -362,6 +466,10 @@ defmodule MediaCentarrWeb.SettingsLive do
             spoiler_free={@spoiler_free}
             prowlarr_test_status={@prowlarr_test_status}
             prowlarr_testing={@prowlarr_testing}
+            download_client_test_status={@download_client_test_status}
+            download_client_testing={@download_client_testing}
+            download_client_detect_status={@download_client_detect_status}
+            download_client_detecting={@download_client_detecting}
           />
         </div>
       </div>
@@ -511,8 +619,14 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   defp section_content(%{active_section: "acquisition"} = assigns) do
-    prowlarr_configured = MediaCentarr.Acquisition.available?()
-    assigns = assign(assigns, prowlarr_configured: prowlarr_configured)
+    prowlarr_configured = Acquisition.available?()
+    download_client_configured = Acquisition.download_client_available?()
+
+    assigns =
+      assign(assigns,
+        prowlarr_configured: prowlarr_configured,
+        download_client_configured: download_client_configured
+      )
 
     ~H"""
     <div class="p-5 rounded-lg glass-surface space-y-5">
@@ -599,6 +713,149 @@ defmodule MediaCentarrWeb.SettingsLive do
           <span :if={@prowlarr_testing} class="loading loading-spinner loading-xs"></span>
           <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" /> Test connection
         </button>
+      </div>
+
+      <div class="pt-3 border-t border-base-content/10 space-y-3">
+        <div>
+          <h3 class="text-sm font-semibold">Download Client</h3>
+          <p class="text-xs text-base-content/50 mt-0.5">
+            Where Prowlarr forwards grabs. Used to read active and completed
+            download progress on the Download page.
+          </p>
+        </div>
+
+        <form phx-submit="save_download_client" class="space-y-4">
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+                Type
+              </label>
+              <select
+                name="download_client_type"
+                class="select select-bordered w-full font-mono text-sm"
+                data-nav-item
+                tabindex="0"
+              >
+                <option value="" selected={@config[:download_client_type] in [nil, ""]}>
+                  Not configured
+                </option>
+                <option value="qbittorrent" selected={@config[:download_client_type] == "qbittorrent"}>
+                  qBittorrent
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+                URL
+              </label>
+              <input
+                type="text"
+                name="download_client_url"
+                value={@config[:download_client_url]}
+                class="input input-bordered w-full font-mono text-sm"
+                placeholder="http://localhost:8080"
+                data-nav-item
+                tabindex="0"
+              />
+            </div>
+
+            <div>
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+                Username
+              </label>
+              <input
+                type="text"
+                name="download_client_username"
+                value={@config[:download_client_username]}
+                class="input input-bordered w-full font-mono text-sm"
+                placeholder="admin"
+                autocomplete="off"
+                data-nav-item
+                tabindex="0"
+              />
+            </div>
+
+            <div>
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+                Password
+                <span
+                  :if={@config[:download_client_password] not in [nil, ""]}
+                  class="ml-2 text-success normal-case font-normal"
+                >
+                  ✓ configured
+                </span>
+              </label>
+              <input
+                type="password"
+                name="download_client_password"
+                class="input input-bordered w-full font-mono text-sm"
+                placeholder={
+                  if @config[:download_client_password] not in [nil, ""],
+                    do: "Leave blank to keep current password",
+                    else: "Enter download client password"
+                }
+                autocomplete="off"
+                data-nav-item
+                tabindex="0"
+              />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+              Save
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-soft btn-sm"
+              phx-click="detect_download_client"
+              disabled={@download_client_detecting || !@prowlarr_configured}
+              data-nav-item
+              tabindex="0"
+            >
+              <span :if={@download_client_detecting} class="loading loading-spinner loading-xs">
+              </span>
+              <.icon
+                :if={!@download_client_detecting}
+                name="hero-magnifying-glass-mini"
+                class="size-4"
+              /> Detect from Prowlarr
+            </button>
+          </div>
+        </form>
+
+        <div :if={@download_client_configured} class="space-y-3">
+          <div class="glass-inset rounded-lg p-3 flex items-center gap-2">
+            <span class={[
+              "size-2 rounded-full shrink-0",
+              @download_client_test_status == :ok && "bg-success",
+              @download_client_test_status == :error && "bg-error",
+              is_nil(@download_client_test_status) && "bg-warning"
+            ]}>
+            </span>
+            <span class="text-sm">
+              {cond do
+                @download_client_test_status == :ok -> "Connected"
+                @download_client_test_status == :error -> "Unreachable / auth failed"
+                true -> "Configured — not tested"
+              end}
+            </span>
+          </div>
+
+          <button
+            class="btn btn-soft btn-primary btn-sm"
+            phx-click="test_download_client"
+            disabled={@download_client_testing}
+            data-nav-item
+            tabindex="0"
+          >
+            <span :if={@download_client_testing} class="loading loading-spinner loading-xs"></span>
+            <.icon :if={!@download_client_testing} name="hero-signal-mini" class="size-4" />
+            Test connection
+          </button>
+        </div>
       </div>
     </div>
     """
@@ -951,6 +1208,10 @@ defmodule MediaCentarrWeb.SettingsLive do
       auto_approve_threshold: cfg.get(:auto_approve_threshold),
       prowlarr_url: cfg.get(:prowlarr_url),
       prowlarr_api_key: cfg.get(:prowlarr_api_key),
+      download_client_type: cfg.get(:download_client_type),
+      download_client_url: cfg.get(:download_client_url),
+      download_client_username: cfg.get(:download_client_username),
+      download_client_password: cfg.get(:download_client_password),
       mpv_path: cfg.get(:mpv_path),
       mpv_socket_dir: cfg.get(:mpv_socket_dir),
       mpv_socket_timeout_ms: cfg.get(:mpv_socket_timeout_ms),

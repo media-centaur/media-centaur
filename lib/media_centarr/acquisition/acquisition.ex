@@ -30,6 +30,7 @@ defmodule MediaCentarr.Acquisition do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition.{Config, Grab, Jobs.SearchAndGrab, Prowlarr}
+  alias MediaCentarr.Acquisition.DownloadClient.Dispatcher
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
 
@@ -83,14 +84,49 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
-  Returns the current Prowlarr download queue.
-
-  Returns `{:error, :not_configured}` when Prowlarr is not configured.
+  Returns true when a download client is configured (type + URL set).
   """
-  @spec queue() :: {:ok, list()} | {:error, term()}
-  def queue do
+  @spec download_client_available?() :: boolean()
+  def download_client_available?, do: Config.download_client_available?()
+
+  @doc """
+  Lists downloads from the configured download client.
+
+  Returns `{:error, :not_configured}` when no driver is configured, or
+  `{:error, {:unknown_driver, type}}` when the configured type has no
+  driver in this build.
+
+  `filter` is one of `:active | :completed | :all`.
+  """
+  @spec list_downloads(:active | :completed | :all) ::
+          {:ok, list()} | {:error, term()}
+  def list_downloads(filter \\ :all) do
+    with {:ok, driver} <- Dispatcher.driver() do
+      driver.list_downloads(filter)
+    end
+  end
+
+  @doc """
+  Tests connectivity and credentials against the configured download client.
+  """
+  @spec test_download_client() :: :ok | {:error, term()}
+  def test_download_client do
+    with {:ok, driver} <- Dispatcher.driver() do
+      driver.test_connection()
+    end
+  end
+
+  @doc """
+  Asks Prowlarr for the list of download clients it has configured.
+
+  Returns a list of `%{name, type, url, username, enabled}` maps used by
+  the Settings UI to pre-fill the download-client form. Passwords are
+  not exposed by Prowlarr and the user must enter them manually.
+  """
+  @spec discover_download_clients() :: {:ok, [map()]} | {:error, term()}
+  def discover_download_clients do
     if available?() do
-      Prowlarr.queue()
+      Prowlarr.list_download_clients()
     else
       {:error, :not_configured}
     end

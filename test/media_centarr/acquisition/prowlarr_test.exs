@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Acquisition.ProwlarrTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Acquisition.{Prowlarr, QueueItem, SearchResult}
+  alias MediaCentarr.Acquisition.{Prowlarr, SearchResult}
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -76,8 +76,10 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
   end
 
   describe "grab/1" do
-    test "posts grab request with guid and indexer_id, returns :ok" do
+    test "posts grab request to /api/v1/search with guid and indexer_id, returns :ok" do
       Req.Test.stub(:prowlarr, fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/api/v1/search"
         {:ok, body, _conn} = Plug.Conn.read_body(conn)
         payload = Jason.decode!(body)
         assert payload["guid"] == "abc123"
@@ -101,58 +103,88 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
     end
   end
 
-  describe "queue/0" do
-    test "returns queue items parsed from a bare list response" do
+  describe "list_download_clients/0" do
+    test "GETs /api/v1/downloadclient and parses each entry" do
       Req.Test.stub(:prowlarr, fn conn ->
+        assert conn.method == "GET"
+        assert conn.request_path == "/api/v1/downloadclient"
+
         Req.Test.json(conn, [
           %{
             "id" => 1,
-            "title" => "Some.Movie.2024.2160p",
-            "status" => "downloading",
-            "downloadClient" => "qBittorrent",
-            "indexer" => "1337x",
-            "size" => 100,
-            "sizeleft" => 25,
-            "timeleft" => "00:10:00"
+            "name" => "qBittorrent Local",
+            "implementation" => "QBittorrent",
+            "enable" => true,
+            "fields" => [
+              %{"name" => "host", "value" => "localhost"},
+              %{"name" => "port", "value" => 8080},
+              %{"name" => "username", "value" => "admin"},
+              %{"name" => "password", "value" => ""},
+              %{"name" => "useSsl", "value" => false}
+            ]
           }
         ])
       end)
 
-      assert {:ok, [%QueueItem{} = item]} = Prowlarr.queue()
-      assert item.id == 1
-      assert item.title == "Some.Movie.2024.2160p"
-      assert item.status == "downloading"
-      assert item.download_client == "qBittorrent"
-      assert item.progress == 75.0
+      assert {:ok, [client]} = Prowlarr.list_download_clients()
+      assert client.name == "qBittorrent Local"
+      assert client.type == "qbittorrent"
+      assert client.url == "http://localhost:8080"
+      assert client.username == "admin"
+      assert client.enabled == true
     end
 
-    test "returns queue items parsed from a paginated wrapper response" do
+    test "uses https when useSsl is true" do
       Req.Test.stub(:prowlarr, fn conn ->
-        Req.Test.json(conn, %{
-          "page" => 1,
-          "pageSize" => 10,
-          "totalRecords" => 1,
-          "records" => [
-            %{"id" => 7, "title" => "X", "size" => 200, "sizeleft" => 100}
-          ]
-        })
+        Req.Test.json(conn, [
+          %{
+            "name" => "qb",
+            "implementation" => "QBittorrent",
+            "enable" => true,
+            "fields" => [
+              %{"name" => "host", "value" => "qb.example.com"},
+              %{"name" => "port", "value" => 8443},
+              %{"name" => "useSsl", "value" => true}
+            ]
+          }
+        ])
       end)
 
-      assert {:ok, [%QueueItem{id: 7, progress: 50.0}]} = Prowlarr.queue()
+      assert {:ok, [client]} = Prowlarr.list_download_clients()
+      assert client.url == "https://qb.example.com:8443"
     end
 
-    test "returns empty list when queue is empty" do
-      assert {:ok, []} = Prowlarr.queue()
+    test "lowercases unknown implementation strings for forward compatibility" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "name" => "deluge",
+            "implementation" => "Deluge",
+            "enable" => true,
+            "fields" => [
+              %{"name" => "host", "value" => "h"},
+              %{"name" => "port", "value" => 8112}
+            ]
+          }
+        ])
+      end)
+
+      assert {:ok, [client]} = Prowlarr.list_download_clients()
+      assert client.type == "deluge"
     end
 
-    test "returns error on non-200 response" do
+    test "returns empty list when none configured" do
+      assert {:ok, []} = Prowlarr.list_download_clients()
+    end
+
+    test "returns http_error on non-200 response" do
       Req.Test.stub(:prowlarr, fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
-        |> Plug.Conn.send_resp(503, Jason.encode!(%{"message" => "Unavailable"}))
+        |> Plug.Conn.send_resp(401, Jason.encode!(%{"message" => "Unauthorized"}))
       end)
 
-      assert {:error, _} = Prowlarr.queue()
+      assert {:error, _} = Prowlarr.list_download_clients()
     end
   end
 end

@@ -10,7 +10,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   Per ADR-030 (LiveView logic extraction).
   """
 
-  alias MediaCentarr.Acquisition.{QueryExpander, Quality, SearchResult}
+  alias MediaCentarr.Acquisition.{QueryExpander, Quality, QueueItem, SearchResult}
 
   @type status :: :loading | :ready | :failed
   @type group :: %{
@@ -213,4 +213,38 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
       group -> group
     end)
   end
+
+  @doc """
+  Buckets `QueueItem`s into `:active` (in-flight) and `:completed` lists,
+  preserving input order within each bucket. Items with `state: :completed`
+  go to `:completed`; everything else (including `nil` for forward-compat
+  with new drivers) goes to `:active`.
+  """
+  @spec group_downloads_by_state([QueueItem.t()]) :: %{
+          active: [QueueItem.t()],
+          completed: [QueueItem.t()]
+        }
+  def group_downloads_by_state(items) when is_list(items) do
+    {completed, active} = Enum.split_with(items, fn item -> item.state == :completed end)
+    %{active: active, completed: completed}
+  end
+
+  @doc "User-facing label for a `QueueItem` state."
+  @spec state_label(QueueItem.state() | nil) :: String.t()
+  def state_label(:downloading), do: "Downloading"
+  def state_label(:stalled), do: "Stalled"
+  def state_label(:paused), do: "Paused"
+  def state_label(:completed), do: "Completed"
+  def state_label(:error), do: "Error"
+  def state_label(:other), do: "Other"
+  def state_label(_), do: "Unknown"
+
+  @doc "daisyUI badge color class for a `QueueItem` state."
+  @spec state_badge_class(QueueItem.state() | nil) :: String.t()
+  def state_badge_class(:downloading), do: "badge badge-info"
+  def state_badge_class(:completed), do: "badge badge-success"
+  def state_badge_class(:error), do: "badge badge-error"
+  def state_badge_class(:paused), do: "badge badge-warning"
+  def state_badge_class(:stalled), do: "badge badge-warning"
+  def state_badge_class(_), do: "badge badge-neutral"
 end

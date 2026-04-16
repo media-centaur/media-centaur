@@ -42,6 +42,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          grabbing?: false,
          grab_message: nil,
          queue: [],
+         grouped_queue: %{active: [], completed: []},
          queue_loaded?: false
        )}
     else
@@ -242,11 +243,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </div>
         </section>
 
-        <%!-- Queue section --%>
+        <%!-- Downloads sections (active + completed, from configured download client) --%>
         <section class="glass-surface rounded-xl overflow-hidden">
           <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between">
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-              Download Queue
+              Downloading
             </h2>
             <span
               :if={!@queue_loaded?}
@@ -256,43 +257,26 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </div>
 
           <p
-            :if={@queue_loaded? && @queue == []}
+            :if={@queue_loaded? && @grouped_queue.active == []}
             class="px-4 py-6 text-center text-sm text-base-content/40"
           >
             No active downloads
           </p>
 
-          <div :if={@queue != []}>
-            <div
-              :for={item <- @queue}
-              class="px-4 py-3 border-b border-base-content/5 last:border-0 space-y-1.5"
-            >
-              <div class="flex items-center gap-3">
-                <span class="flex-1 min-w-0 text-sm truncate" title={item.title}>
-                  {item.title}
-                </span>
-                <span :if={item.status} class={["text-xs", status_color(item.status)]}>
-                  {item.status}
-                </span>
-                <span :if={item.timeleft} class="text-xs text-base-content/40 tabular-nums">
-                  {item.timeleft}
-                </span>
-              </div>
+          <div :if={@grouped_queue.active != []}>
+            <.queue_row :for={item <- @grouped_queue.active} item={item} />
+          </div>
+        </section>
 
-              <div :if={item.progress} class="h-[3px] bg-base-content/10 rounded-full overflow-hidden">
-                <div
-                  class="progress-fill h-full bg-primary rounded-full"
-                  style={"width: #{item.progress}%"}
-                >
-                </div>
-              </div>
+        <section :if={@grouped_queue.completed != []} class="glass-surface rounded-xl overflow-hidden">
+          <div class="px-4 py-2 border-b border-base-content/5">
+            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+              Completed
+            </h2>
+          </div>
 
-              <div class="flex items-center gap-3 text-xs text-base-content/40">
-                <span :if={item.download_client}>{item.download_client}</span>
-                <span :if={item.indexer}>{item.indexer}</span>
-                <span :if={item.progress} class="tabular-nums">{item.progress}%</span>
-              </div>
-            </div>
+          <div>
+            <.queue_row :for={item <- @grouped_queue.completed} item={item} />
           </div>
         </section>
       </div>
@@ -428,17 +412,27 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   def handle_info(:poll_queue, socket) do
     queue =
-      case Acquisition.queue() do
+      case Acquisition.list_downloads(:all) do
         {:ok, items} ->
           items
 
+        {:error, :not_configured} ->
+          # Download client not set up — show empty list, no log noise.
+          []
+
         {:error, reason} ->
-          Log.warning(:acquisition, "queue poll failed: #{inspect(reason)}")
+          Log.warning(:acquisition, "download client poll failed: #{inspect(reason)}")
           socket.assigns.queue
       end
 
     Process.send_after(self(), :poll_queue, @queue_poll_interval_ms)
-    {:noreply, assign(socket, queue: queue, queue_loaded?: true)}
+
+    {:noreply,
+     assign(socket,
+       queue: queue,
+       grouped_queue: Logic.group_downloads_by_state(queue),
+       queue_loaded?: true
+     )}
   end
 
   # Acquisition PubSub events — informational, no-op for now.
@@ -491,13 +485,39 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   defp seeder_color(n) when n >= 3, do: "text-warning"
   defp seeder_color(_), do: "text-error"
 
-  defp status_color("downloading"), do: "text-info"
-  defp status_color("queued"), do: "text-base-content/50"
-  defp status_color("completed"), do: "text-success"
-  defp status_color("warning"), do: "text-warning"
-  defp status_color("failed"), do: "text-error"
-  defp status_color("paused"), do: "text-warning"
-  defp status_color(_), do: "text-base-content/50"
+  attr :item, MediaCentarr.Acquisition.QueueItem, required: true
+
+  defp queue_row(assigns) do
+    ~H"""
+    <div class="px-4 py-3 border-b border-base-content/5 last:border-0 space-y-1.5">
+      <div class="flex items-center gap-3">
+        <span class="flex-1 min-w-0 text-sm truncate" title={@item.title}>
+          {@item.title}
+        </span>
+        <span :if={@item.state} class={["text-xs", Logic.state_badge_class(@item.state)]}>
+          {Logic.state_label(@item.state)}
+        </span>
+        <span :if={@item.timeleft} class="text-xs text-base-content/40 tabular-nums">
+          {@item.timeleft}
+        </span>
+      </div>
+
+      <div :if={@item.progress} class="h-[3px] bg-base-content/10 rounded-full overflow-hidden">
+        <div
+          class="progress-fill h-full bg-primary rounded-full"
+          style={"width: #{@item.progress}%"}
+        >
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs text-base-content/40">
+        <span :if={@item.download_client}>{@item.download_client}</span>
+        <span :if={@item.indexer}>{@item.indexer}</span>
+        <span :if={@item.progress} class="tabular-nums">{@item.progress}%</span>
+      </div>
+    </div>
+    """
+  end
 
   defp format_bytes(bytes) when bytes >= 1_073_741_824 do
     "#{Float.round(bytes / 1_073_741_824, 1)} GB"
