@@ -13,16 +13,20 @@ defmodule MediaCentarr.Acquisition.Config do
   @spec available?() :: boolean()
   def available? do
     url = MediaCentarr.Config.get(:prowlarr_url)
-    api_key = MediaCentarr.Config.get(:prowlarr_api_key)
-    is_binary(url) and url != "" and is_binary(api_key) and api_key != ""
+
+    is_binary(url) and url != "" and
+      MediaCentarr.Secret.present?(MediaCentarr.Config.get(:prowlarr_api_key))
   end
 
   @doc "Returns the configured Prowlarr URL, or nil."
   @spec url() :: String.t() | nil
   def url, do: MediaCentarr.Config.get(:prowlarr_url)
 
-  @doc "Returns the configured Prowlarr API key, or nil."
-  @spec api_key() :: String.t() | nil
+  @doc """
+  Returns the configured Prowlarr API key wrapped as a `Secret`, or `nil`.
+  Use `Secret.expose/1` at the boundary where the raw value must be sent.
+  """
+  @spec api_key() :: MediaCentarr.Secret.t() | nil
   def api_key, do: MediaCentarr.Config.get(:prowlarr_api_key)
 
   @doc "Returns true when a download client type and URL are configured."

@@ -3,7 +3,7 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrentTest do
 
   alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
   alias MediaCentarr.Acquisition.QueueItem
-  alias MediaCentarr.Config
+  alias MediaCentarr.{Config, Secret}
 
   setup do
     original_config = :persistent_term.get({Config, :config}, %{})
@@ -13,7 +13,7 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrentTest do
       Map.merge(original_config, %{
         download_client_url: "http://qbit.test",
         download_client_username: "alice",
-        download_client_password: "s3cret"
+        download_client_password: Secret.wrap("s3cret")
       })
     )
 

@@ -173,6 +173,34 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
       assert client.type == "deluge"
     end
 
+    test "tolerates fields with no \"value\" key (real Prowlarr response shape)" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "name" => "qBit",
+            "implementation" => "QBittorrent",
+            "enable" => true,
+            "fields" => [
+              %{"name" => "host", "value" => "localhost"},
+              %{"name" => "port", "value" => 8080},
+              # Real Prowlarr returns optional fields with no "value" key.
+              %{
+                "name" => "urlBase",
+                "label" => "URL Base",
+                "type" => "textbox",
+                "advanced" => true
+              },
+              %{"name" => "username", "value" => "admin"}
+            ]
+          }
+        ])
+      end)
+
+      assert {:ok, [client]} = Prowlarr.list_download_clients()
+      assert client.url == "http://localhost:8080"
+      assert client.username == "admin"
+    end
+
     test "returns empty list when none configured" do
       assert {:ok, []} = Prowlarr.list_download_clients()
     end

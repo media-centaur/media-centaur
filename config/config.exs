@@ -55,6 +55,13 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Redact sensitive form params from Plug.Logger output. Any param whose
+# name CONTAINS one of these substrings (case-insensitive) is replaced
+# with "[FILTERED]" in request logs. When adding a new sensitive config
+# key, ensure its form name matches one of these substrings or extend
+# this list. See decisions/architecture/ for the policy.
+config :phoenix, :filter_parameters, ~w(password api_key secret token)
+
 config :media_centarr, Oban,
   engine: Oban.Engines.Lite,
   repo: MediaCentarr.Repo,

@@ -6,10 +6,33 @@ defmodule MediaCentarr.Config do
 
   Call `load!/0` once at startup (before the supervision tree).
   Use `get/1` anywhere to read a config key from `:persistent_term`.
+
+  ## Sensitive values
+
+  The keys listed in `sensitive_keys/0` are wrapped as
+  `MediaCentarr.Secret` whenever they enter `:persistent_term`.
+  `get/1` returns a `%Secret{}` for those keys; callers must use
+  `Secret.expose/1` at the boundary where the raw value must be sent.
+  This protects against crash-dump leaks (the entire config map is
+  often included in `inspect/2` output of socket assigns) and is the
+  minimum bar required by the sensitive-information policy ADR.
   """
   require MediaCentarr.Log, as: Log
 
+  alias MediaCentarr.Secret
+
   @config_path "~/.config/media-centarr/media-centarr.toml"
+
+  @sensitive_keys [:tmdb_api_key, :prowlarr_api_key, :download_client_password]
+
+  @doc """
+  Returns the list of config keys that must always be stored as
+  `%Secret{}` in `:persistent_term`. Adding to this list also requires
+  adding the key (or a substring match) to `:phoenix, :filter_parameters`
+  in `config/config.exs`.
+  """
+  @spec sensitive_keys() :: [atom()]
+  def sensitive_keys, do: @sensitive_keys
 
   @doc """
   Loads configuration from TOML and stores it in `:persistent_term`.
@@ -64,13 +87,17 @@ defmodule MediaCentarr.Config do
     updated =
       Enum.reduce(runtime_settable_keys(), config, fn key, acc ->
         case MediaCentarr.Settings.get_by_key("config:#{key}") do
-          {:ok, %{value: %{"value" => value}}} -> Map.put(acc, key, value)
+          {:ok, %{value: %{"value" => value}}} -> Map.put(acc, key, maybe_wrap(key, value))
           _ -> acc
         end
       end)
 
     :persistent_term.put({__MODULE__, :config}, updated)
     :ok
+  end
+
+  defp maybe_wrap(key, value) do
+    if key in @sensitive_keys, do: Secret.wrap(value), else: value
   end
 
   @doc """
@@ -98,7 +125,7 @@ defmodule MediaCentarr.Config do
              :skip_dirs
            ] do
     config = :persistent_term.get({__MODULE__, :config})
-    :persistent_term.put({__MODULE__, :config}, Map.put(config, key, value))
+    :persistent_term.put({__MODULE__, :config}, Map.put(config, key, maybe_wrap(key, value)))
 
     MediaCentarr.Settings.find_or_create_entry(%{
       key: "config:#{key}",
@@ -164,7 +191,7 @@ defmodule MediaCentarr.Config do
         expand(get_in(Application.get_env(:media_centarr, MediaCentarr.Repo), [:database])),
       watch_dirs: app_watch_dirs,
       watch_dir_images: default_images_map,
-      tmdb_api_key: Application.get_env(:media_centarr, :tmdb_api_key),
+      tmdb_api_key: Secret.wrap(Application.get_env(:media_centarr, :tmdb_api_key)),
       auto_approve_threshold: Application.get_env(:media_centarr, :auto_approve_threshold),
       mpv_path: "/usr/bin/mpv",
       mpv_socket_dir: "/tmp",
@@ -228,7 +255,7 @@ defmodule MediaCentarr.Config do
       watch_dirs: watch_dirs,
       watch_dir_images: watch_dir_images,
       exclude_dirs: expand_list(get_in(toml, ["exclude_dirs"]) || defaults.exclude_dirs),
-      tmdb_api_key: get_in(toml, ["tmdb", "api_key"]) || defaults.tmdb_api_key,
+      tmdb_api_key: Secret.wrap(get_in(toml, ["tmdb", "api_key"])) || defaults.tmdb_api_key,
       auto_approve_threshold:
         get_in(toml, ["pipeline", "auto_approve_threshold"]) || defaults.auto_approve_threshold,
       mpv_path: get_in(toml, ["playback", "mpv_path"]) || defaults.mpv_path,
@@ -245,11 +272,13 @@ defmodule MediaCentarr.Config do
         get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
           defaults.release_tracking_refresh_interval_hours,
       prowlarr_url: get_in(toml, ["prowlarr", "url"]),
-      prowlarr_api_key: get_in(toml, ["prowlarr", "api_key"]),
+      prowlarr_api_key: Secret.wrap(get_in(toml, ["prowlarr", "api_key"])),
       download_client_type: get_in(toml, ["download_client", "type"]),
       download_client_url: get_in(toml, ["download_client", "url"]),
       download_client_username: get_in(toml, ["download_client", "username"]),
-      download_client_password: get_in(toml, ["download_client", "password"])
+      # Password is intentionally NOT read from TOML — it must be entered
+      # via the Settings UI so it's never committed/backed up via dotfiles.
+      download_client_password: nil
     }
   end
 

@@ -562,13 +562,13 @@ defmodule MediaCentarrWeb.SettingsLive do
             <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
               API Key
               <span
-                :if={@config[:tmdb_api_key] not in [nil, ""]}
+                :if={@config[:tmdb_api_key_configured?]}
                 class="ml-2 text-success normal-case font-normal"
               >
                 ✓ configured
               </span>
               <span
-                :if={@config[:tmdb_api_key] in [nil, ""]}
+                :if={!@config[:tmdb_api_key_configured?]}
                 class="ml-2 text-warning normal-case font-normal"
               >
                 not set
@@ -579,7 +579,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               name="tmdb_api_key"
               class="input input-bordered w-full font-mono text-sm"
               placeholder={
-                if @config[:tmdb_api_key] not in [nil, ""],
+                if @config[:tmdb_api_key_configured?],
                   do: "Leave blank to keep current key",
                   else: "Enter your TMDB API key"
               }
@@ -658,7 +658,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
               API Key
               <span
-                :if={@config[:prowlarr_api_key] not in [nil, ""]}
+                :if={@config[:prowlarr_api_key_configured?]}
                 class="ml-2 text-success normal-case font-normal"
               >
                 ✓ configured
@@ -669,7 +669,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               name="prowlarr_api_key"
               class="input input-bordered w-full font-mono text-sm"
               placeholder={
-                if @config[:prowlarr_api_key] not in [nil, ""],
+                if @config[:prowlarr_api_key_configured?],
                   do: "Leave blank to keep current key",
                   else: "Enter your Prowlarr API key"
               }
@@ -780,7 +780,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
                 Password
                 <span
-                  :if={@config[:download_client_password] not in [nil, ""]}
+                  :if={@config[:download_client_password_configured?]}
                   class="ml-2 text-success normal-case font-normal"
                 >
                   ✓ configured
@@ -791,7 +791,7 @@ defmodule MediaCentarrWeb.SettingsLive do
                 name="download_client_password"
                 class="input input-bordered w-full font-mono text-sm"
                 placeholder={
-                  if @config[:download_client_password] not in [nil, ""],
+                  if @config[:download_client_password_configured?],
                     do: "Leave blank to keep current password",
                     else: "Enter download client password"
                 }
@@ -1204,14 +1204,18 @@ defmodule MediaCentarrWeb.SettingsLive do
     cfg = Config
 
     %{
-      tmdb_api_key: cfg.get(:tmdb_api_key),
+      # Sensitive values are NOT placed in LV assigns — only their
+      # presence flags. The templates use *_configured? to decide whether
+      # to show the "✓ configured" badge and the placeholder text.
+      tmdb_api_key_configured?: MediaCentarr.Secret.present?(cfg.get(:tmdb_api_key)),
       auto_approve_threshold: cfg.get(:auto_approve_threshold),
       prowlarr_url: cfg.get(:prowlarr_url),
-      prowlarr_api_key: cfg.get(:prowlarr_api_key),
+      prowlarr_api_key_configured?: MediaCentarr.Secret.present?(cfg.get(:prowlarr_api_key)),
       download_client_type: cfg.get(:download_client_type),
       download_client_url: cfg.get(:download_client_url),
       download_client_username: cfg.get(:download_client_username),
-      download_client_password: cfg.get(:download_client_password),
+      download_client_password_configured?:
+        MediaCentarr.Secret.present?(cfg.get(:download_client_password)),
       mpv_path: cfg.get(:mpv_path),
       mpv_socket_dir: cfg.get(:mpv_socket_dir),
       mpv_socket_timeout_ms: cfg.get(:mpv_socket_timeout_ms),
