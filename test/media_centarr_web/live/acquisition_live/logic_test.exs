@@ -324,6 +324,80 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     end
   end
 
+  describe "group_downloads_by_state/1" do
+    alias MediaCentarr.Acquisition.QueueItem
+
+    test "returns active and completed buckets in display order" do
+      items = [
+        %QueueItem{id: "a", title: "a", state: :downloading},
+        %QueueItem{id: "b", title: "b", state: :completed},
+        %QueueItem{id: "c", title: "c", state: :paused},
+        %QueueItem{id: "d", title: "d", state: :stalled},
+        %QueueItem{id: "e", title: "e", state: :error},
+        %QueueItem{id: "f", title: "f", state: :other}
+      ]
+
+      result = Logic.group_downloads_by_state(items)
+
+      assert Map.keys(result) == [:active, :completed]
+      assert Enum.map(result.active, & &1.id) == ~w(a c d e f)
+      assert Enum.map(result.completed, & &1.id) == ~w(b)
+    end
+
+    test "preserves input order within each bucket" do
+      items = [
+        %QueueItem{id: "1", title: "1", state: :completed},
+        %QueueItem{id: "2", title: "2", state: :downloading},
+        %QueueItem{id: "3", title: "3", state: :completed}
+      ]
+
+      result = Logic.group_downloads_by_state(items)
+
+      assert Enum.map(result.completed, & &1.id) == ~w(1 3)
+      assert Enum.map(result.active, & &1.id) == ~w(2)
+    end
+
+    test "returns empty buckets when input is empty" do
+      assert Logic.group_downloads_by_state([]) == %{active: [], completed: []}
+    end
+
+    test "groups nil state into active (defensive — drivers should always set it)" do
+      items = [%QueueItem{id: "x", title: "x", state: nil}]
+      assert Logic.group_downloads_by_state(items) == %{active: items, completed: []}
+    end
+  end
+
+  describe "state_label/1" do
+    test "returns user-facing label per state atom" do
+      assert Logic.state_label(:downloading) == "Downloading"
+      assert Logic.state_label(:stalled) == "Stalled"
+      assert Logic.state_label(:paused) == "Paused"
+      assert Logic.state_label(:completed) == "Completed"
+      assert Logic.state_label(:error) == "Error"
+      assert Logic.state_label(:other) == "Other"
+    end
+
+    test "falls back to a generic label for nil or unknown" do
+      assert Logic.state_label(nil) == "Unknown"
+      assert Logic.state_label(:something_new) == "Unknown"
+    end
+  end
+
+  describe "state_badge_class/1" do
+    test "returns a daisyUI badge color class per state" do
+      assert Logic.state_badge_class(:downloading) =~ "info"
+      assert Logic.state_badge_class(:completed) =~ "success"
+      assert Logic.state_badge_class(:error) =~ "error"
+      assert Logic.state_badge_class(:paused) =~ "warning"
+      assert Logic.state_badge_class(:stalled) =~ "warning"
+    end
+
+    test "returns a neutral class for nil or unknown states" do
+      assert Logic.state_badge_class(nil) =~ "neutral"
+      assert Logic.state_badge_class(:other) =~ "neutral"
+    end
+  end
+
   defp result(opts) do
     %SearchResult{
       title: Keyword.get(opts, :title, "Some.Release.2024.2160p"),

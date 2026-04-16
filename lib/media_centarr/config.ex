@@ -37,6 +37,10 @@ defmodule MediaCentarr.Config do
       :auto_approve_threshold,
       :prowlarr_url,
       :prowlarr_api_key,
+      :download_client_type,
+      :download_client_url,
+      :download_client_username,
+      :download_client_password,
       :mpv_path,
       :mpv_socket_dir,
       :mpv_socket_timeout_ms,
@@ -80,6 +84,10 @@ defmodule MediaCentarr.Config do
              :auto_approve_threshold,
              :prowlarr_url,
              :prowlarr_api_key,
+             :download_client_type,
+             :download_client_url,
+             :download_client_username,
+             :download_client_password,
              :mpv_path,
              :mpv_socket_dir,
              :mpv_socket_timeout_ms,
@@ -175,7 +183,11 @@ defmodule MediaCentarr.Config do
       recent_changes_days: 3,
       release_tracking_refresh_interval_hours: 24,
       prowlarr_url: nil,
-      prowlarr_api_key: nil
+      prowlarr_api_key: nil,
+      download_client_type: nil,
+      download_client_url: nil,
+      download_client_username: nil,
+      download_client_password: nil
     }
 
     if Application.get_env(:media_centarr, :skip_user_config, false) do
@@ -233,7 +245,11 @@ defmodule MediaCentarr.Config do
         get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
           defaults.release_tracking_refresh_interval_hours,
       prowlarr_url: get_in(toml, ["prowlarr", "url"]),
-      prowlarr_api_key: get_in(toml, ["prowlarr", "api_key"])
+      prowlarr_api_key: get_in(toml, ["prowlarr", "api_key"]),
+      download_client_type: get_in(toml, ["download_client", "type"]),
+      download_client_url: get_in(toml, ["download_client", "url"]),
+      download_client_username: get_in(toml, ["download_client", "username"]),
+      download_client_password: get_in(toml, ["download_client", "password"])
     }
   end
 

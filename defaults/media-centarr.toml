@@ -75,3 +75,16 @@ refresh_interval_hours = 24
 #
 # url = "http://localhost:9696"
 # api_key = "your-api-key-here"
+
+# [download_client]
+# Download client used for active/completed download visibility on /download.
+# Prowlarr forwards grabs to this client; this is how Media Centarr reads
+# progress back. Currently supported types: "qbittorrent".
+# The "Detect from Prowlarr" button on the Settings page can pre-fill type/url
+# from Prowlarr's configured download client; the password must be entered
+# manually since Prowlarr does not expose stored passwords through its API.
+#
+# type = "qbittorrent"
+# url = "http://localhost:8080"
+# username = "admin"
+# password = ""
