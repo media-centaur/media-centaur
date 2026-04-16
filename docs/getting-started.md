@@ -52,7 +52,7 @@ Copy the default config and edit:
 
 ```bash
 mkdir -p ~/.config/media-centarr
-cp defaults/backend.toml ~/.config/media-centarr/backend.toml
+cp defaults/media-centarr.toml ~/.config/media-centarr/media-centarr.toml
 ```
 
 At minimum, set your TMDB API key and watch directories:
@@ -84,9 +84,9 @@ The dev server can run as a persistent background service instead of a terminal 
 
 ```bash
 scripts/install-dev                                  # install/update the systemd unit
-systemctl --user start media-centarr-backend-dev     # start
-systemctl --user stop media-centarr-backend-dev      # stop
-journalctl --user -u media-centarr-backend-dev -f    # view logs
+systemctl --user start media-centarr-dev     # start
+systemctl --user stop media-centarr-dev      # stop
+journalctl --user -u media-centarr-dev -f    # view logs
 ```
 
 The service runs `mix phx.server` via `mise exec` (so it picks up the correct Erlang/Elixir versions) and starts a named BEAM node. Connect a REPL to the running server with:
@@ -161,19 +161,19 @@ bin/media_centarr eval "MediaCentarr.Release.migrate()"
 
 `scripts/install` handles systemd setup automatically. To set up manually instead:
 
-A template unit file ships at `defaults/media-centarr-backend.service`. To install:
+A template unit file ships at `defaults/media-centarr.service`. To install:
 
 ```bash
 mkdir -p ~/.config/systemd/user
-cp defaults/media-centarr-backend.service ~/.config/systemd/user/media-centarr-backend.service
+cp defaults/media-centarr.service ~/.config/systemd/user/media-centarr.service
 ```
 
 Edit `ExecStart` and `ExecStop` to point to your release `bin/media_centarr`, then:
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now media-centarr-backend
-journalctl --user -u media-centarr-backend -f    # view logs
+systemctl --user enable --now media-centarr
+journalctl --user -u media-centarr -f    # view logs
 ```
 
 ### Release tuning
@@ -187,7 +187,7 @@ journalctl --user -u media-centarr-backend -f    # view logs
 
 ```mermaid
 graph LR
-    Config["backend.toml"] --> App[Backend]
+    Config["media-centarr.toml"] --> App[Backend]
     Videos["Video Files"] --> App
     App --> TMDB["TMDB API"]
     App -->|WebSocket| Frontend

@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Config do
   @moduledoc """
   Loads and serves application configuration from the user's
-  TOML config file (`~/.config/media-centarr/backend.toml`),
+  TOML config file (`~/.config/media-centarr/media-centarr.toml`),
   falling back to application environment defaults.
 
   Call `load!/0` once at startup (before the supervision tree).
@@ -9,7 +9,7 @@ defmodule MediaCentarr.Config do
   """
   require MediaCentarr.Log, as: Log
 
-  @config_path "~/.config/media-centarr/backend.toml"
+  @config_path "~/.config/media-centarr/media-centarr.toml"
 
   @doc """
   Loads configuration from TOML and stores it in `:persistent_term`.

@@ -14,25 +14,25 @@ All configuration is loaded from a single TOML file at startup. No runtime reloa
 ## Config File Location
 
 ```
-~/.config/media-centarr/backend.toml
+~/.config/media-centarr/media-centarr.toml
 ```
 
 If this file is missing, the application falls back to built-in defaults. If the file exists but has invalid TOML syntax, a warning is logged and defaults are used.
 
-A complete template ships in the repo at `defaults/backend.toml`.
+A complete template ships in the repo at `defaults/media-centarr.toml`.
 
 ## Loading Order
 
 ```mermaid
 flowchart LR
     A["config/*.exs<br/>app defaults"] --> C[Config.load!/0]
-    B["~/.config/media-centarr/<br/>backend.toml"] --> C
+    B["~/.config/media-centarr/<br/>media-centarr.toml"] --> C
     C --> D[":persistent_term"]
     D --> E["Config.get(:key)"]
 ```
 
 1. Application environment defaults (from `config/*.exs`)
-2. User TOML file at `~/.config/media-centarr/backend.toml` (overrides defaults)
+2. User TOML file at `~/.config/media-centarr/media-centarr.toml` (overrides defaults)
 3. Values stored in `:persistent_term` for fast read-only access
 
 ## Config Keys
@@ -74,13 +74,13 @@ All paths support `~` expansion.
 
 ## Full Defaults
 
-The complete `defaults/backend.toml` shipped with the repo:
+The complete `defaults/media-centarr.toml` shipped with the repo:
 
 ```toml
-# defaults/backend.toml
+# defaults/media-centarr.toml
 #
 # Shipped default configuration for Media Centarr — Backend.
-# Copy this file to ~/.config/media-centarr/backend.toml and edit as needed.
+# Copy this file to ~/.config/media-centarr/media-centarr.toml and edit as needed.
 # This file must contain every recognised config key; keep it up to date as new
 # keys are added to MediaCentarr.Config.
 

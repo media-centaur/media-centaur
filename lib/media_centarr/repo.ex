@@ -3,7 +3,7 @@ defmodule MediaCentarr.Repo do
     otp_app: :media_centarr,
     adapter: Ecto.Adapters.SQLite3
 
-  @toml_path "~/.config/media-centarr/backend.toml"
+  @toml_path "~/.config/media-centarr/media-centarr.toml"
 
   @doc """
   Overrides the database path at runtime from the user's TOML config file.

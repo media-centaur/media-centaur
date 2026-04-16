@@ -6,7 +6,7 @@ date: 2026-03-01
 
 ## Context and Problem Statement
 
-Running `mix test` reads the user's real TOML config (`~/.config/media-centarr/backend.toml`) and inherits real watch directories from `config/runtime.exs`. This causes destructive operations in tests — specifically `Admin.clear_database/0` — to `File.rm_rf!` the user's actual image cache. The test environment must be structurally isolated from all real user configuration and filesystem paths.
+Running `mix test` reads the user's real TOML config (`~/.config/media-centarr/media-centarr.toml`) and inherits real watch directories from `config/runtime.exs`. This causes destructive operations in tests — specifically `Admin.clear_database/0` — to `File.rm_rf!` the user's actual image cache. The test environment must be structurally isolated from all real user configuration and filesystem paths.
 
 ## Decision Outcome
 

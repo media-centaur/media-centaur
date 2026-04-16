@@ -17,8 +17,8 @@ The critical link is that your download client must save completed downloads to 
 
 ```
 /mnt/media/
-  Movies/         ← watch directory in backend.toml
-  TV/             ← watch directory in backend.toml
+  Movies/         ← watch directory in media-centarr.toml
+  TV/             ← watch directory in media-centarr.toml
   Downloads/
     complete/     ← download client saves here (inside a watch directory)
       Movies/
@@ -26,7 +26,7 @@ The critical link is that your download client must save completed downloads to 
     incomplete/   ← in-progress downloads (Watcher ignores incomplete files)
 ```
 
-Add `/mnt/media` (or the specific subdirectories) to `watch_dirs` in `backend.toml`.
+Add `/mnt/media` (or the specific subdirectories) to `watch_dirs` in `media-centarr.toml`.
 
 ## Installing Prowlarr
 
@@ -114,7 +114,7 @@ In Prowlarr: **Indexers**, click the search icon next to any indexer to confirm 
 
 ## Configuring media-centarr
 
-Add to `~/.config/media-centarr/backend.toml`:
+Add to `~/.config/media-centarr/media-centarr.toml`:
 
 ```toml
 [prowlarr]
@@ -124,13 +124,13 @@ api_key = "your-api-key-here"
 
 If Prowlarr runs on a different host (e.g. in Docker with a custom network), adjust the URL accordingly.
 
-Restart media-centarr (`systemctl --user restart media-centarr-backend-dev` or `mix phx.server`). The **Search** link will appear in the navigation bar.
+Restart media-centarr (`systemctl --user restart media-centarr-dev` or `mix phx.server`). The **Search** link will appear in the navigation bar.
 
 ## Connecting downloads to the library
 
 For acquired files to appear in your library automatically, the download client's save directory must be inside (or equal to) a directory in `watch_dirs`.
 
-**Example `backend.toml`:**
+**Example `media-centarr.toml`:**
 
 ```toml
 watch_dirs = [
@@ -148,6 +148,6 @@ With this setup, files downloaded to `/mnt/media/Downloads/complete/` are detect
 
 **Grab succeeds but download never starts** — check the download client configuration in Prowlarr. Look at Prowlarr's logs (System → Logs) for errors.
 
-**Download completes but doesn't appear in library** — verify the download directory is inside a watch directory configured in `backend.toml`. Check media-centarr's Console (press `` ` ``) for Watcher events.
+**Download completes but doesn't appear in library** — verify the download directory is inside a watch directory configured in `media-centarr.toml`. Check media-centarr's Console (press `` ` ``) for Watcher events.
 
-**Connection error in Settings** — confirm Prowlarr is running and the URL in `backend.toml` is reachable from the machine running media-centarr.
+**Connection error in Settings** — confirm Prowlarr is running and the URL in `media-centarr.toml` is reachable from the machine running media-centarr.

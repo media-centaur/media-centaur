@@ -6,7 +6,7 @@ set -euo pipefail
 # is a thin dispatcher that calls named functions, never inline code.
 # Usage: scripts/troubleshoot [command] [args...]
 
-service="media-centarr-backend"
+service="media-centarr"
 install_dir="$HOME/.local/lib/media-centarr"
 bin="$install_dir/bin/media_centarr"
 port=4000

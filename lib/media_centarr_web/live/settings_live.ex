@@ -826,7 +826,8 @@ defmodule MediaCentarrWeb.SettingsLive do
     <div class="p-5 rounded-lg glass-surface">
       <h2 class="text-lg font-semibold">System</h2>
       <p class="text-sm opacity-50 mt-0.5 mb-4">
-        Structural settings that require editing <code class="font-mono text-xs">backend.toml</code>
+        Structural settings that require editing
+        <code class="font-mono text-xs">media-centarr.toml</code>
         and restarting.
       </p>
 
