@@ -79,6 +79,20 @@ defmodule MediaCentarr.Acquisition.QueueItemTest do
       assert item.progress == nil
     end
 
+    # qBittorrent's JSON sometimes serialises `progress` as an integer
+    # (0 or 1) rather than a float. `Float.round/2` rejects integers in
+    # Elixir 1.19+, which crashed the /download poller. Ensure integer
+    # progress is coerced to float.
+    test "progress accepts integer 0 and returns a float" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"progress" => 0}))
+      assert item.progress === 0.0
+    end
+
+    test "progress accepts integer 1 and returns a float" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"progress" => 1}))
+      assert item.progress === 100.0
+    end
+
     test "timeleft is nil when eta is the qbittorrent infinite sentinel" do
       assert QueueItem.from_qbittorrent(base_torrent(%{"eta" => 8_640_000})).timeleft == nil
     end
