@@ -1,8 +1,11 @@
 ---
-status: accepted
+status: superseded
 date: 2026-02-20
+superseded-by: decisions/architecture/2026-03-26-029-data-decoupling.md
 ---
 # Bounded contexts communicating through PubSub
+
+> **Superseded by ADR-029** — see `decisions/architecture/2026-03-26-029-data-decoupling.md` for the current bounded context rules, context table, and acceptable-reads policy.
 
 ## Context and Problem Statement
 

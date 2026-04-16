@@ -18,6 +18,9 @@ Chosen option: "test-first development, spec-first contracts, and zero warnings 
 - Parser tests use real file paths observed in the wild — never synthetic paths
 - Pipeline tests are mandatory and must never be deleted or weakened
 - Pipeline tests call stage functions directly — no Broadway topology in tests
+- Never promote `defp` to `def` for testability — extract into its own module with a proper public API instead
+- Test observable behavior through the public API; if a code path can't be reached that way, question whether it should exist
+- Complex computation hiding in GenServer callbacks or LiveView handlers belongs in a pure-function module (`Parser`, `Confidence`, `Mapper`) that's trivially testable
 
 **Spec-first contracts:**
 - Every contract between the backend and UI must be documented in a specification file before implementation ships
