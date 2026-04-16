@@ -21,6 +21,8 @@ Chosen option: **Prowlarr as the single integration point, optional**, because:
 
 **Rule:** Media-centarr integrates with Prowlarr only. It never talks directly to qBittorrent, Transmission, Deluge, or any other download client. Prowlarr owns the download client relationship. If a user wants to use a different indexer/search stack in the future, they implement `Acquisition.SearchProvider` — existing call sites do not change.
 
+> **Amended by [ADR-037](2026-04-16-037-acquisition-integration-scope.md):** a direct download-client driver is permitted *only* where Prowlarr has no equivalent capability (today: reading download progress, which Prowlarr does not expose). The spirit of this rule — Prowlarr is the integration surface; drivers are the exception — is preserved.
+
 ### Quality preference
 
 The system prefers 4K (2160p/UHD) releases. 1080p is accepted when 4K is unavailable. Releases below 1080p are filtered out in automated grabs. Manual search shows all results so the user can choose.
