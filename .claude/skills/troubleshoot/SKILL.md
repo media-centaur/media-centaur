@@ -5,7 +5,7 @@ description: "Use this skill when debugging production issues, checking service 
 
 ## Production Deployment
 
-- **Service:** `media-centarr-backend` (systemd user unit)
+- **Service:** `media-centarr` (systemd user unit)
 - **Install dir:** `~/.local/lib/media-centarr/`
 - **Binary:** `~/.local/lib/media-centarr/bin/media_centarr`
 - **Database:** `~/.local/share/media-centarr/media_library.db` (SQLite)
@@ -145,15 +145,15 @@ for rate-limit warnings, 404s, and confidence scoring decisions.
 1. `scripts/troubleshoot errors 24h` — systemd journal errors
 2. `scripts/troubleshoot log recent 100` — in-memory buffer (lost on restart,
    so may be empty after a crash)
-3. `journalctl --user -u media-centarr-backend --since "1 hour ago"` — full
+3. `journalctl --user -u media-centarr --since "1 hour ago"` — full
    journal context around the crash
 
 ## Systemd Operations
 
 ```bash
-systemctl --user start media-centarr-backend
-systemctl --user stop media-centarr-backend
-systemctl --user restart media-centarr-backend
+systemctl --user start media-centarr
+systemctl --user stop media-centarr
+systemctl --user restart media-centarr
 ```
 
 ## Rebuilding and Deploying
