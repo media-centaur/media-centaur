@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Acquisition.{Grab, Jobs.SearchAndGrab, Prowlarr}
   alias MediaCentarr.Repo
@@ -14,13 +14,11 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   defp insert_grab(attrs \\ %{}) do
     {:ok, grab} =
-      Grab.create_changeset(
-        Map.merge(
-          %{tmdb_id: "12345", tmdb_type: "movie", title: "Sample Movie Thirteen Part Two"},
-          attrs
+      Repo.insert(
+        Grab.create_changeset(
+          Map.merge(%{tmdb_id: "12345", tmdb_type: "movie", title: "Sample Movie Thirteen Part Two"}, attrs)
         )
       )
-      |> Repo.insert()
 
     grab
   end

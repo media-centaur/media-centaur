@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Watcher.FilePresenceTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Watcher.FilePresence
   alias MediaCentarr.Watcher.KnownFile
@@ -96,7 +96,7 @@ defmodule MediaCentarr.Watcher.FilePresenceTest do
       present = Repo.get_by!(KnownFile, file_path: "/media/drive1/movie2.mkv")
 
       assert absent.state == :absent
-      assert not is_nil(absent.absent_since)
+      refute is_nil(absent.absent_since)
       assert present.state == :present
     end
 

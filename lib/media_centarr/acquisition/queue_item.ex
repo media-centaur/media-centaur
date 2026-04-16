@@ -65,8 +65,7 @@ defmodule MediaCentarr.Acquisition.QueueItem do
        do: :downloading
 
   defp state_from_qbittorrent(state)
-       when state in ~w(uploading forcedUP pausedUP queuedUP stalledUP checkingUP),
-       do: :completed
+       when state in ~w(uploading forcedUP pausedUP queuedUP stalledUP checkingUP), do: :completed
 
   defp state_from_qbittorrent("pausedDL"), do: :paused
   defp state_from_qbittorrent(state) when state in ~w(stalledDL queuedDL), do: :stalled

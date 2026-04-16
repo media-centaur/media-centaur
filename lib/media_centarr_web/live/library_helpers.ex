@@ -53,7 +53,7 @@ defmodule MediaCentarrWeb.LibraryHelpers do
   # --- Sorting ---
 
   def sorted_by(entries, :alpha) do
-    Enum.sort_by(entries, fn entry -> (entry.entity.name || "") |> String.downcase() end)
+    Enum.sort_by(entries, fn entry -> String.downcase(entry.entity.name || "") end)
   end
 
   def sorted_by(entries, :year) do

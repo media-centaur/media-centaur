@@ -66,7 +66,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
            "parts" => [
              %{"id" => 155, "title" => "The Shadowy Sentinel", "release_date" => "2008-07-18"},
              %{
-               "id" => 99999,
+               "id" => 99_999,
                "title" => "The Shadowy Sentinel Returns",
                "release_date" => "2028-12-25"
              }
@@ -151,7 +151,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
       assert item.library_entity_id == tv_series.id
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
-      assert length(releases) >= 1
+      refute releases == []
 
       events = ReleaseTracking.list_recent_events(5)
       assert Enum.any?(events, &(&1.event_type == :began_tracking))

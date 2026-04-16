@@ -54,14 +54,13 @@ defmodule MediaCentarr.ReleaseTracking.Extractor do
         ]
 
       dates ->
-        dates |> Enum.map(&Map.put(&1, :title, title))
+        Enum.map(dates, &Map.put(&1, :title, title))
     end
   end
 
   @tracked_release_types %{3 => "theatrical", 4 => "digital"}
 
-  defp extract_us_typed_dates(%{"release_dates" => %{"results" => results}})
-       when is_list(results) do
+  defp extract_us_typed_dates(%{"release_dates" => %{"results" => results}}) when is_list(results) do
     us_entry = Enum.find(results, &(&1["iso_3166_1"] == "US"))
 
     case us_entry do

@@ -329,11 +329,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, assign(socket, cancel_confirm: %{id: id, title: title})}
   end
 
-  def handle_event(
-        "cancel_download_confirm",
-        _params,
-        %{assigns: %{cancel_confirm: nil}} = socket
-      ) do
+  def handle_event("cancel_download_confirm", _params, %{assigns: %{cancel_confirm: nil}} = socket) do
     {:noreply, socket}
   end
 

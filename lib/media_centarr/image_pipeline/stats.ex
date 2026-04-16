@@ -268,12 +268,7 @@ defmodule MediaCentarr.ImagePipeline.Stats do
     )
   end
 
-  def handle_telemetry(
-        [:media_centarr, :image_pipeline, :queue_depth],
-        measurements,
-        _metadata,
-        config
-      ) do
+  def handle_telemetry([:media_centarr, :image_pipeline, :queue_depth], measurements, _metadata, config) do
     queue_depth(config.stats, measurements.depth)
   end
 end

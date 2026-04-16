@@ -24,10 +24,7 @@ defmodule MediaCentarr.WatchHistory.Recorder do
   end
 
   @impl true
-  def handle_info(
-        {:entity_progress_updated, %{changed_record: %{completed: true} = record}},
-        state
-      ) do
+  def handle_info({:entity_progress_updated, %{changed_record: %{completed: true} = record}}, state) do
     record_completion(record)
     {:noreply, state}
   end
@@ -70,7 +67,7 @@ defmodule MediaCentarr.WatchHistory.Recorder do
            movie_id: movie_id,
            title: movie.name,
            duration_seconds: record.duration_seconds,
-           completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+           completed_at: DateTime.utc_now(:second)
          }}
     end
   end
@@ -90,7 +87,7 @@ defmodule MediaCentarr.WatchHistory.Recorder do
            episode_id: episode_id,
            title: title,
            duration_seconds: record.duration_seconds,
-           completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+           completed_at: DateTime.utc_now(:second)
          }}
     end
   end
@@ -108,7 +105,7 @@ defmodule MediaCentarr.WatchHistory.Recorder do
            video_object_id: video_object_id,
            title: video_object.name,
            duration_seconds: record.duration_seconds,
-           completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+           completed_at: DateTime.utc_now(:second)
          }}
     end
   end

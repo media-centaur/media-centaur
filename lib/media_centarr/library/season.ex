@@ -23,7 +23,6 @@ defmodule MediaCentarr.Library.Season do
   end
 
   def create_changeset(attrs) do
-    %__MODULE__{}
-    |> cast(attrs, [:season_number, :number_of_episodes, :name, :tv_series_id])
+    cast(%__MODULE__{}, attrs, [:season_number, :number_of_episodes, :name, :tv_series_id])
   end
 end

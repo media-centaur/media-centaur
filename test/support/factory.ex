@@ -348,7 +348,7 @@ defmodule MediaCentarr.TestFactory do
       watch_directory: "/media/test",
       parsed_title: "Test File",
       confidence: 0.5,
-      tmdb_id: 12345,
+      tmdb_id: 12_345,
       tmdb_type: "movie",
       match_title: "Test Match"
     }
@@ -360,12 +360,14 @@ defmodule MediaCentarr.TestFactory do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
     merged = Map.merge(defaults, attrs)
 
-    cond do
-      merged[:movie_id] -> Library.find_or_create_watch_progress_for_movie(merged)
-      merged[:episode_id] -> Library.find_or_create_watch_progress_for_episode(merged)
-      merged[:video_object_id] -> Library.find_or_create_watch_progress_for_video_object(merged)
-    end
-    |> then(fn {:ok, record} -> record end)
+    cond_result =
+      cond do
+        merged[:movie_id] -> Library.find_or_create_watch_progress_for_movie(merged)
+        merged[:episode_id] -> Library.find_or_create_watch_progress_for_episode(merged)
+        merged[:video_object_id] -> Library.find_or_create_watch_progress_for_video_object(merged)
+      end
+
+    then(cond_result, fn {:ok, record} -> record end)
   end
 
   def create_extra_progress(attrs) do
@@ -453,7 +455,7 @@ defmodule MediaCentarr.TestFactory do
       video_object_id: nil,
       title: "Test Movie",
       duration_seconds: 7200.0,
-      completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+      completed_at: DateTime.utc_now(:second)
     }
 
     struct(MediaCentarr.WatchHistory.Event, Map.merge(defaults, overrides))
@@ -464,12 +466,10 @@ defmodule MediaCentarr.TestFactory do
       entity_type: :movie,
       title: "Test Movie",
       duration_seconds: 7200.0,
-      completed_at: DateTime.truncate(DateTime.utc_now(), :second)
+      completed_at: DateTime.utc_now(:second)
     }
 
-    {:ok, event} =
-      Map.merge(defaults, attrs)
-      |> MediaCentarr.WatchHistory.create_event()
+    {:ok, event} = MediaCentarr.WatchHistory.create_event(Map.merge(defaults, attrs))
 
     event
   end

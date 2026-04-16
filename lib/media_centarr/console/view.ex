@@ -127,8 +127,7 @@ defmodule MediaCentarr.Console.View do
   def format_lines(entries) do
     entries
     |> Enum.reverse()
-    |> Enum.map(&format_line/1)
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &format_line/1)
   end
 
   @doc """

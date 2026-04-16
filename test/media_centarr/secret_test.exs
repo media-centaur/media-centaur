@@ -55,7 +55,11 @@ defmodule MediaCentarr.SecretTest do
 
   describe "String.Chars protocol" do
     test "is intentionally NOT implemented — interpolation should crash loudly" do
-      secret = Secret.wrap("hunter2")
+      # Routed through `Function.identity/1` so Elixir's compile-time type
+      # checker sees `any()` instead of `%Secret{}` and doesn't emit the
+      # otherwise-correct `String.Chars` typing warning. The runtime crash
+      # we're verifying still fires.
+      secret = Function.identity(Secret.wrap("hunter2"))
 
       assert_raise Protocol.UndefinedError, fn ->
         "#{secret}"

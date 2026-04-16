@@ -26,10 +26,25 @@ defmodule MediaCentarr.ImagePipeline.RetryScheduler do
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
+  @doc """
+  Synchronously processes one retry tick and returns when done.
+
+  Useful for tests that need to ensure the scheduler has processed pending
+  retries before asserting on the database — replaces the historic pattern
+  of `send(pid, :tick); :sys.get_state(pid)` with a public API per ADR-026.
+  """
+  def tick(server \\ __MODULE__), do: GenServer.call(server, :tick)
+
   @impl true
   def init(_opts) do
     schedule_tick()
     {:ok, %{}}
+  end
+
+  @impl true
+  def handle_call(:tick, _from, state) do
+    process_pending()
+    {:reply, :ok, state}
   end
 
   @impl true

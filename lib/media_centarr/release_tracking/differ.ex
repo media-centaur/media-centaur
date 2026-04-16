@@ -48,7 +48,9 @@ defmodule MediaCentarr.ReleaseTracking.Differ do
       old_date = field(old, :air_date)
       new_date = field(new, :air_date)
 
-      if old_date != new_date do
+      if old_date == new_date do
+        []
+      else
         [
           %{
             event_type: :upcoming_release_date_changed,
@@ -62,8 +64,6 @@ defmodule MediaCentarr.ReleaseTracking.Differ do
             }
           }
         ]
-      else
-        []
       end
     end)
   end
@@ -83,8 +83,7 @@ defmodule MediaCentarr.ReleaseTracking.Differ do
 
         %{
           event_type: :new_season_announced,
-          description:
-            "Season #{season} announced (#{count} episode#{if count > 1, do: "s", else: ""})",
+          description: "Season #{season} announced (#{count} episode#{if count > 1, do: "s", else: ""})",
           metadata: %{season_number: season, episode_count: count}
         }
       end)

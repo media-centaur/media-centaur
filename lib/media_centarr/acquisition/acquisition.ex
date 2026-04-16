@@ -204,8 +204,7 @@ defmodule MediaCentarr.Acquisition do
   defp get_or_create_grab(tmdb_id, tmdb_type, title) do
     case Repo.get_by(Grab, tmdb_id: tmdb_id, tmdb_type: tmdb_type) do
       nil ->
-        Grab.create_changeset(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type, title: title})
-        |> Repo.insert()
+        Repo.insert(Grab.create_changeset(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type, title: title}))
 
       grab ->
         {:ok, grab}

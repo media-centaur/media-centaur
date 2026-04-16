@@ -14,15 +14,16 @@ defmodule MediaCentarr.ReleaseTracking.Helpers do
 
   def find_last_library_episode(library_entity_id) do
     result =
-      from(e in MediaCentarr.Library.Episode,
-        join: s in MediaCentarr.Library.Season,
-        on: e.season_id == s.id,
-        where: s.tv_series_id == ^library_entity_id,
-        select: {s.season_number, e.episode_number},
-        order_by: [desc: s.season_number, desc: e.episode_number],
-        limit: 1
+      Repo.one(
+        from(e in MediaCentarr.Library.Episode,
+          join: s in MediaCentarr.Library.Season,
+          on: e.season_id == s.id,
+          where: s.tv_series_id == ^library_entity_id,
+          select: {s.season_number, e.episode_number},
+          order_by: [desc: s.season_number, desc: e.episode_number],
+          limit: 1
+        )
       )
-      |> Repo.one()
 
     result || {0, 0}
   end
@@ -65,7 +66,7 @@ defmodule MediaCentarr.ReleaseTracking.Helpers do
       |> mark_released()
 
     if releases == [] do
-      Extractor.extract_tv_releases(response) |> mark_released()
+      mark_released(Extractor.extract_tv_releases(response))
     else
       releases
     end
@@ -77,8 +78,7 @@ defmodule MediaCentarr.ReleaseTracking.Helpers do
   def fetch_collection_releases(response) do
     alias MediaCentarr.ReleaseTracking.Extractor
 
-    Extractor.extract_collection_releases(response)
-    |> normalize_collection_releases()
+    normalize_collection_releases(Extractor.extract_collection_releases(response))
   end
 
   @doc """

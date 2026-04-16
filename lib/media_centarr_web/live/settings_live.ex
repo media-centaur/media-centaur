@@ -1,4 +1,12 @@
 defmodule MediaCentarrWeb.SettingsLive do
+  @moduledoc """
+  Settings UI for editing the user's `media-centarr.toml` configuration.
+
+  Renders editable rows for sensitive credentials (TMDB key, Prowlarr API
+  key, qBittorrent login), service toggles (watchers, pipelines), and
+  service start/stop actions. Persists changes by rewriting the TOML file
+  on disk and broadcasting `Settings` updates.
+  """
   use MediaCentarrWeb, :live_view
 
   alias MediaCentarr.{Admin, Config, Settings}
@@ -143,8 +151,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       ImagePipeline.Supervisor.start_pipeline()
     end
 
-    {:noreply,
-     assign(socket, image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
+    {:noreply, assign(socket, image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
   end
 
   def handle_event("toggle_spoiler_free", _params, socket) do
@@ -249,8 +256,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       send(parent, {:download_client_detect_result, result})
     end)
 
-    {:noreply,
-     assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
+    {:noreply, assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
   end
 
   def handle_event("save_pipeline", params, socket) do
@@ -377,8 +383,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_info({:download_client_test_result, status}, socket) do
-    {:noreply,
-     assign(socket, download_client_testing: false, download_client_test_status: status)}
+    {:noreply, assign(socket, download_client_testing: false, download_client_test_status: status)}
   end
 
   def handle_info({:download_client_detect_result, {:ok, [first | _rest] = clients}}, socket) do
@@ -1221,7 +1226,8 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp phx_values(map) when map_size(map) == 0, do: %{}
 
   defp phx_values(map) do
-    Map.new(map, fn {key, value} -> {:"phx-value-#{key}", value} end)
+    # String keys avoid creating atoms at runtime — Phoenix accepts both.
+    Map.new(map, fn {key, value} -> {"phx-value-#{key}", value} end)
   end
 
   defp load_config do

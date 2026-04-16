@@ -88,17 +88,17 @@ defmodule MediaCentarr.Library do
   end
 
   def get_tv_series_with_associations!(id) do
-    Repo.get!(TVSeries, id) |> Repo.preload(@tv_series_full_preloads)
+    Repo.preload(Repo.get!(TVSeries, id), @tv_series_full_preloads)
   end
 
   def create_tv_series(attrs) do
-    TVSeries.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(TVSeries.create_changeset(attrs))
   end
 
   def create_tv_series!(attrs), do: bang!(create_tv_series(attrs))
 
   def update_tv_series(tv_series, attrs) do
-    TVSeries.update_changeset(tv_series, attrs) |> Repo.update()
+    Repo.update(TVSeries.update_changeset(tv_series, attrs))
   end
 
   def update_tv_series!(tv_series, attrs), do: bang!(update_tv_series(tv_series, attrs))
@@ -127,21 +127,20 @@ defmodule MediaCentarr.Library do
   end
 
   def get_movie_series_with_associations!(id) do
-    Repo.get!(MovieSeries, id) |> Repo.preload(@movie_series_full_preloads)
+    Repo.preload(Repo.get!(MovieSeries, id), @movie_series_full_preloads)
   end
 
   def create_movie_series(attrs) do
-    MovieSeries.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(MovieSeries.create_changeset(attrs))
   end
 
   def create_movie_series!(attrs), do: bang!(create_movie_series(attrs))
 
   def update_movie_series(movie_series, attrs) do
-    MovieSeries.update_changeset(movie_series, attrs) |> Repo.update()
+    Repo.update(MovieSeries.update_changeset(movie_series, attrs))
   end
 
-  def update_movie_series!(movie_series, attrs),
-    do: bang!(update_movie_series(movie_series, attrs))
+  def update_movie_series!(movie_series, attrs), do: bang!(update_movie_series(movie_series, attrs))
 
   def destroy_movie_series(movie_series), do: Repo.delete(movie_series)
   def destroy_movie_series!(movie_series), do: destroy_bang!(movie_series)
@@ -167,21 +166,20 @@ defmodule MediaCentarr.Library do
   end
 
   def get_video_object_with_associations!(id) do
-    Repo.get!(VideoObject, id) |> Repo.preload(@video_object_full_preloads)
+    Repo.preload(Repo.get!(VideoObject, id), @video_object_full_preloads)
   end
 
   def create_video_object(attrs) do
-    VideoObject.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(VideoObject.create_changeset(attrs))
   end
 
   def create_video_object!(attrs), do: bang!(create_video_object(attrs))
 
   def update_video_object(video_object, attrs) do
-    VideoObject.update_changeset(video_object, attrs) |> Repo.update()
+    Repo.update(VideoObject.update_changeset(video_object, attrs))
   end
 
-  def update_video_object!(video_object, attrs),
-    do: bang!(update_video_object(video_object, attrs))
+  def update_video_object!(video_object, attrs), do: bang!(update_video_object(video_object, attrs))
 
   def destroy_video_object(video_object), do: Repo.delete(video_object)
   def destroy_video_object!(video_object), do: destroy_bang!(video_object)
@@ -197,15 +195,15 @@ defmodule MediaCentarr.Library do
     file_path = attrs[:file_path] || attrs["file_path"]
 
     case Repo.get_by(WatchedFile, file_path: file_path) do
-      nil -> WatchedFile.link_file_changeset(attrs) |> Repo.insert()
-      existing -> WatchedFile.link_file_changeset(existing, attrs) |> Repo.update()
+      nil -> Repo.insert(WatchedFile.link_file_changeset(attrs))
+      existing -> Repo.update(WatchedFile.link_file_changeset(existing, attrs))
     end
   end
 
   def link_file!(attrs), do: bang!(link_file(attrs))
 
   def list_files_by_paths(file_paths) do
-    {:ok, from(w in WatchedFile, where: w.file_path in ^file_paths) |> Repo.all()}
+    {:ok, Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths))}
   end
 
   def list_files_by_paths!(file_paths), do: bang!(list_files_by_paths(file_paths))
@@ -215,19 +213,20 @@ defmodule MediaCentarr.Library do
   Used when you have an entity UUID but don't know which type table it lives in.
   """
   def list_watched_files_by_entity_id(entity_id) do
-    from(w in WatchedFile,
-      where:
-        w.movie_id == ^entity_id or w.tv_series_id == ^entity_id or
-          w.movie_series_id == ^entity_id or w.video_object_id == ^entity_id
+    Repo.all(
+      from(w in WatchedFile,
+        where:
+          w.movie_id == ^entity_id or w.tv_series_id == ^entity_id or
+            w.movie_series_id == ^entity_id or w.video_object_id == ^entity_id
+      )
     )
-    |> Repo.all()
   end
 
   @doc """
   Lists seasons for a TV series by its ID.
   """
   def list_seasons_by_owner_id(owner_id) do
-    from(s in Season, where: s.tv_series_id == ^owner_id) |> Repo.all()
+    Repo.all(from(s in Season, where: s.tv_series_id == ^owner_id))
   end
 
   @doc """
@@ -245,12 +244,11 @@ defmodule MediaCentarr.Library do
   Lists extras by any type-specific FK matching the given ID.
   """
   def list_extras_by_owner_id(owner_id) do
-    from(x in Extra,
-      where:
-        x.tv_series_id == ^owner_id or x.movie_series_id == ^owner_id or
-          x.movie_id == ^owner_id
+    Repo.all(
+      from(x in Extra,
+        where: x.tv_series_id == ^owner_id or x.movie_series_id == ^owner_id or x.movie_id == ^owner_id
+      )
     )
-    |> Repo.all()
   end
 
   # ---------------------------------------------------------------------------
@@ -261,21 +259,20 @@ defmodule MediaCentarr.Library do
   def list_all_images!, do: Repo.all(Image)
 
   def create_image(attrs) do
-    Image.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Image.create_changeset(attrs))
   end
 
   def create_image!(attrs), do: bang!(create_image(attrs))
 
   def upsert_image(attrs, conflict_target) do
-    Image.create_changeset(attrs)
-    |> Repo.insert(
+    Repo.insert(Image.create_changeset(attrs),
       on_conflict: {:replace, [:content_url, :extension, :updated_at]},
       conflict_target: conflict_target
     )
   end
 
   def update_image(image, attrs) do
-    Image.update_changeset(image, attrs) |> Repo.update()
+    Repo.update(Image.update_changeset(image, attrs))
   end
 
   def update_image!(image, attrs), do: bang!(update_image(image, attrs))
@@ -292,7 +289,7 @@ defmodule MediaCentarr.Library do
     external_id = attrs[:external_id] || attrs["external_id"]
 
     case Repo.get_by(ExternalId, source: source, external_id: external_id) do
-      nil -> ExternalId.create_changeset(attrs) |> Repo.insert()
+      nil -> Repo.insert(ExternalId.create_changeset(attrs))
       existing -> {:ok, existing}
     end
   end
@@ -300,7 +297,7 @@ defmodule MediaCentarr.Library do
   def find_or_create_external_id!(attrs), do: bang!(find_or_create_external_id(attrs))
 
   def create_external_id(attrs) do
-    ExternalId.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(ExternalId.create_changeset(attrs))
   end
 
   def create_external_id!(attrs), do: bang!(create_external_id(attrs))
@@ -357,13 +354,13 @@ defmodule MediaCentarr.Library do
   def get_movie!(id), do: Repo.get!(Movie, id)
 
   def set_movie_content_url(movie, attrs) do
-    Movie.set_content_url_changeset(movie, attrs) |> Repo.update()
+    Repo.update(Movie.set_content_url_changeset(movie, attrs))
   end
 
   def set_movie_content_url!(movie, attrs), do: bang!(set_movie_content_url(movie, attrs))
 
   def create_movie(attrs) do
-    Movie.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Movie.create_changeset(attrs))
   end
 
   def create_movie!(attrs), do: bang!(create_movie(attrs))
@@ -379,7 +376,7 @@ defmodule MediaCentarr.Library do
   end
 
   def get_movie_with_associations!(id) do
-    Repo.get!(Movie, id) |> Repo.preload(@movie_full_preloads)
+    Repo.preload(Repo.get!(Movie, id), @movie_full_preloads)
   end
 
   def find_or_create_movie_for_series(attrs) do
@@ -387,7 +384,7 @@ defmodule MediaCentarr.Library do
     tmdb_id = attrs[:tmdb_id] || attrs["tmdb_id"]
 
     case Repo.get_by(Movie, movie_series_id: movie_series_id, tmdb_id: tmdb_id) do
-      nil -> Movie.create_changeset(attrs) |> Repo.insert()
+      nil -> Repo.insert(Movie.create_changeset(attrs))
       existing -> {:ok, existing}
     end
   end
@@ -408,7 +405,7 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
 
   def list_extras_for_season(season_id) do
-    {:ok, from(x in Extra, where: x.season_id == ^season_id) |> Repo.all()}
+    {:ok, Repo.all(from(x in Extra, where: x.season_id == ^season_id))}
   end
 
   def list_extras_for_season!(season_id), do: bang!(list_extras_for_season(season_id))
@@ -436,13 +433,13 @@ defmodule MediaCentarr.Library do
       end
 
     case existing do
-      nil -> Extra.create_changeset(attrs) |> Repo.insert()
+      nil -> Repo.insert(Extra.create_changeset(attrs))
       record -> {:ok, record}
     end
   end
 
   def create_extra(attrs) do
-    Extra.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Extra.create_changeset(attrs))
   end
 
   def create_extra!(attrs), do: bang!(create_extra(attrs))
@@ -467,7 +464,7 @@ defmodule MediaCentarr.Library do
   def get_season!(id), do: Repo.get!(Season, id)
 
   def create_season(attrs) do
-    Season.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Season.create_changeset(attrs))
   end
 
   def create_season!(attrs), do: bang!(create_season(attrs))
@@ -485,13 +482,13 @@ defmodule MediaCentarr.Library do
       end
 
     case existing do
-      nil -> Season.create_changeset(attrs) |> Repo.insert()
+      nil -> Repo.insert(Season.create_changeset(attrs))
       record -> {:ok, record}
     end
   end
 
   def list_seasons_for_tv_series(tv_series_id) do
-    {:ok, from(s in Season, where: s.tv_series_id == ^tv_series_id) |> Repo.all()}
+    {:ok, Repo.all(from(s in Season, where: s.tv_series_id == ^tv_series_id))}
   end
 
   # ---------------------------------------------------------------------------
@@ -530,7 +527,7 @@ defmodule MediaCentarr.Library do
     episode_number = attrs[:episode_number] || attrs["episode_number"]
 
     case Repo.get_by(Episode, season_id: season_id, episode_number: episode_number) do
-      nil -> Episode.create_changeset(attrs) |> Repo.insert()
+      nil -> Repo.insert(Episode.create_changeset(attrs))
       existing -> {:ok, existing}
     end
   end
@@ -538,7 +535,7 @@ defmodule MediaCentarr.Library do
   def find_or_create_episode!(attrs), do: bang!(find_or_create_episode(attrs))
 
   def set_episode_content_url(episode, attrs) do
-    Episode.set_content_url_changeset(episode, attrs) |> Repo.update()
+    Repo.update(Episode.set_content_url_changeset(episode, attrs))
   end
 
   def set_episode_content_url!(episode, attrs) do
@@ -546,7 +543,7 @@ defmodule MediaCentarr.Library do
   end
 
   def create_episode(attrs) do
-    Episode.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(Episode.create_changeset(attrs))
   end
 
   def create_episode!(attrs), do: bang!(create_episode(attrs))
@@ -562,13 +559,13 @@ defmodule MediaCentarr.Library do
   def list_watch_progress!, do: Repo.all(WatchProgress)
 
   def mark_watch_completed(progress) do
-    WatchProgress.mark_completed_changeset(progress) |> Repo.update()
+    Repo.update(WatchProgress.mark_completed_changeset(progress))
   end
 
   def mark_watch_completed!(progress), do: bang!(mark_watch_completed(progress))
 
   def mark_watch_incomplete(progress) do
-    WatchProgress.mark_incomplete_changeset(progress) |> Repo.update()
+    Repo.update(WatchProgress.mark_incomplete_changeset(progress))
   end
 
   def mark_watch_incomplete!(progress), do: bang!(mark_watch_incomplete(progress))
@@ -590,8 +587,8 @@ defmodule MediaCentarr.Library do
     movie_id = attrs[:movie_id] || attrs["movie_id"]
 
     case Repo.get_by(WatchProgress, movie_id: movie_id) do
-      nil -> WatchProgress.upsert_changeset(attrs) |> Repo.insert()
-      existing -> WatchProgress.upsert_changeset(existing, attrs) |> Repo.update()
+      nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
+      existing -> Repo.update(WatchProgress.upsert_changeset(existing, attrs))
     end
   end
 
@@ -599,8 +596,8 @@ defmodule MediaCentarr.Library do
     episode_id = attrs[:episode_id] || attrs["episode_id"]
 
     case Repo.get_by(WatchProgress, episode_id: episode_id) do
-      nil -> WatchProgress.upsert_changeset(attrs) |> Repo.insert()
-      existing -> WatchProgress.upsert_changeset(existing, attrs) |> Repo.update()
+      nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
+      existing -> Repo.update(WatchProgress.upsert_changeset(existing, attrs))
     end
   end
 
@@ -608,8 +605,8 @@ defmodule MediaCentarr.Library do
     video_object_id = attrs[:video_object_id] || attrs["video_object_id"]
 
     case Repo.get_by(WatchProgress, video_object_id: video_object_id) do
-      nil -> WatchProgress.upsert_changeset(attrs) |> Repo.insert()
-      existing -> WatchProgress.upsert_changeset(existing, attrs) |> Repo.update()
+      nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
+      existing -> Repo.update(WatchProgress.upsert_changeset(existing, attrs))
     end
   end
 
@@ -626,23 +623,23 @@ defmodule MediaCentarr.Library do
 
     case Repo.get_by(ExtraProgress, extra_id: extra_id) do
       nil ->
-        ExtraProgress.upsert_changeset(attrs) |> Repo.insert()
+        Repo.insert(ExtraProgress.upsert_changeset(attrs))
 
       existing ->
-        ExtraProgress.upsert_changeset(existing, attrs) |> Repo.update()
+        Repo.update(ExtraProgress.upsert_changeset(existing, attrs))
     end
   end
 
   def find_or_create_extra_progress!(attrs), do: bang!(find_or_create_extra_progress(attrs))
 
   def mark_extra_completed(progress) do
-    ExtraProgress.mark_completed_changeset(progress) |> Repo.update()
+    Repo.update(ExtraProgress.mark_completed_changeset(progress))
   end
 
   def mark_extra_completed!(progress), do: bang!(mark_extra_completed(progress))
 
   def mark_extra_incomplete(progress) do
-    ExtraProgress.mark_incomplete_changeset(progress) |> Repo.update()
+    Repo.update(ExtraProgress.mark_incomplete_changeset(progress))
   end
 
   def mark_extra_incomplete!(progress), do: bang!(mark_extra_incomplete(progress))
@@ -655,7 +652,7 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
 
   def create_change_entry(attrs) do
-    ChangeEntry.create_changeset(attrs) |> Repo.insert()
+    Repo.insert(ChangeEntry.create_changeset(attrs))
   end
 
   def create_change_entry!(attrs), do: bang!(create_change_entry(attrs))

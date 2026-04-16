@@ -70,7 +70,7 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
 
   defp build_client do
     url = MediaCentarr.Config.get(:prowlarr_url)
-    api_key = MediaCentarr.Config.get(:prowlarr_api_key) |> MediaCentarr.Secret.expose()
+    api_key = MediaCentarr.Secret.expose(MediaCentarr.Config.get(:prowlarr_api_key))
     Req.new(base_url: url, headers: [{"x-api-key", api_key}])
   end
 
@@ -184,8 +184,7 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
   defp normalize_type(nil), do: nil
   defp normalize_type("QBittorrent"), do: "qbittorrent"
 
-  defp normalize_type(implementation) when is_binary(implementation),
-    do: String.downcase(implementation)
+  defp normalize_type(implementation) when is_binary(implementation), do: String.downcase(implementation)
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value

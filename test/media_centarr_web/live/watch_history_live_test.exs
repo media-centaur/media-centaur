@@ -1,5 +1,5 @@
 defmodule MediaCentarrWeb.WatchHistoryLiveTest do
-  use MediaCentarrWeb.ConnCase
+  use MediaCentarrWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
   import MediaCentarr.TestFactory

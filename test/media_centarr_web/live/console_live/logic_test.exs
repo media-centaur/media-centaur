@@ -216,7 +216,7 @@ defmodule MediaCentarrWeb.ConsoleLive.LogicTest do
     end
 
     test "sets an empty search string" do
-      filter = %Filter{Filter.new_with_defaults() | search: "old"}
+      filter = %{Filter.new_with_defaults() | search: "old"}
       updated = Logic.set_search(filter, "")
       assert updated.search == ""
     end

@@ -125,8 +125,8 @@ defmodule MediaCentarr.Pipeline.Discovery do
   end
 
   defp run_discovery(payload) do
-    with {:ok, payload} <- Stage.run(:parse, Parse, payload),
-         result <- Stage.run(:search, Search, payload) do
+    with {:ok, payload} <- Stage.run(:parse, Parse, payload) do
+      result = Stage.run(:search, Search, payload)
       result
     end
   end
@@ -196,13 +196,14 @@ defmodule MediaCentarr.Pipeline.Discovery do
   end
 
   defp already_linked?(file_path) do
-    from(w in WatchedFile,
-      where:
-        w.file_path == ^file_path and
-          (not is_nil(w.movie_id) or not is_nil(w.tv_series_id) or
-             not is_nil(w.movie_series_id) or not is_nil(w.video_object_id)),
-      limit: 1
+    Repo.exists?(
+      from(w in WatchedFile,
+        where:
+          w.file_path == ^file_path and
+            (not is_nil(w.movie_id) or not is_nil(w.tv_series_id) or not is_nil(w.movie_series_id) or
+               not is_nil(w.video_object_id)),
+        limit: 1
+      )
     )
-    |> Repo.exists?()
   end
 end

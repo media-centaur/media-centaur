@@ -42,7 +42,7 @@ All repositories use **JJ (Jujutsu)** — never use raw `git` commands.
 mix setup              # install deps, create DB, run migrations, build assets
 mix phx.server         # start dev server (http://localhost:4001)
 mix test               # run tests (creates and migrates test DB automatically)
-mix precommit          # compile --warning-as-errors, unlock unused deps, format, test
+mix precommit          # compile --warning-as-errors, format (Quokka), credo --strict, JS boundaries, deps.audit, sobelow, test
 ```
 
 ### Seeding
@@ -92,6 +92,24 @@ Migrations in a release: `bin/media_centarr eval "MediaCentarr.Release.migrate()
 Run `mix precommit` before finishing any set of changes and fix all issues it reports.
 
 **Zero warnings policy.** Application code and tests must compile and run with zero warnings. This includes unused variables, unused aliases, unused imports, and any log output during tests that indicates misconfiguration (e.g., HTTP requests hitting real endpoints instead of stubs). Treat every warning as a bug — fix it before moving on.
+
+## Static Analysis
+
+`mix precommit` runs four analysis tools in addition to format and test. Run them ad-hoc with their own commands:
+
+- **`mix format`** — formatter with the **Quokka** plugin enabled. Quokka reads `.credo.exs` and auto-rewrites many Credo violations during `mix format` (pipe normalization, deprecation rewrites, single-pipe fixes, `with` cleanups, etc.). It is intentionally configured to **skip `:module_directives`** (alias/import reordering) because that rewriter has shadowed stdlib modules in this codebase — see the comment in `.formatter.exs`.
+- **`mix credo --strict`** — Credo lints `lib/` and `test/` against `.credo.exs`. Five **custom checks** live in `lib/media_centarr/credo/checks/` and encode house rules:
+  - `PredicateNaming` — boolean functions end in `?`, `is_` is reserved for `defmacro`/`defguard` (AGENTS.md).
+  - `NoAbbreviatedNames` — bans denylisted parameter names (`wf`, `e`, `ep`, `s`, `res`, `wp`, `ent`).
+  - `ContextSubscribeFacade` — LiveViews must subscribe via `Library.subscribe()`/etc., not direct `Phoenix.PubSub.subscribe/2` (see "Context facade subscribe pattern" below).
+  - `NoSysIntrospection` — bans `:sys.get_state` and friends in `test/` (ADR-026).
+  - `LogMacroPreferred` — code under `lib/media_centarr/` (excluding `console/` and `log.ex`) must use `MediaCentarr.Log` macros, not direct `Logger` calls (see "Thinking Logs" below).
+
+  Plugin checks: `credo_naming` (module/filename consistency, denylisted module-name terms), `credo_envvar` (compile-time env reads), `credo_check_error_handling_ecto_oban` (the `Repo.transaction` 4-tuple-inside-Oban-worker bug). Each tuned/disabled check in `.credo.exs` carries a comment explaining why.
+- **`mix sobelow`** — Phoenix-aware security scan (XSS, CSRF, traversal, RCE, hardcoded secrets). Configured via `.sobelow-conf` to ignore `Config.HTTPS` and `Config.CSP` because this app is a self-hosted LAN-only media center; revisit if a public deployment mode is added.
+- **`mix deps.audit`** — `mix_audit` checks dependencies against the GitHub Advisory Database for known CVEs.
+
+When you add a new house rule that fits a static check, prefer adding it as a custom Credo check over prose in this file — code-as-spec keeps it enforced.
 
 ## Observability for Debugging
 

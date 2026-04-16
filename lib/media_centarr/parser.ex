@@ -45,6 +45,7 @@ defmodule MediaCentarr.Parser do
   """
 
   defmodule Result do
+    @moduledoc false
     @enforce_keys [:file_path, :title, :type]
     defstruct [
       :file_path,
@@ -209,7 +210,7 @@ defmodule MediaCentarr.Parser do
     extra_title =
       case intermediate_dirs do
         [] -> clean_title(base, strip_release_group: false)
-        dirs -> (dirs ++ [base]) |> Enum.join(" - ") |> clean_title(strip_release_group: false)
+        dirs -> clean_title(Enum.join(dirs ++ [base], " - "), strip_release_group: false)
       end
 
     {parent_title, parent_year, season} = parse_extra_parent(parts, extras_index)
@@ -434,8 +435,6 @@ defmodule MediaCentarr.Parser do
         {episode, ""} when episode > 0 -> {episode, season_str}
         _ -> nil
       end
-    else
-      nil
     end
   end
 
@@ -484,7 +483,7 @@ defmodule MediaCentarr.Parser do
           dir
         end
       end)
-      |> then(&if(&1, do: clean_title(&1) |> strip_trailing_season_marker(), else: ""))
+      |> then(&if(&1, do: strip_trailing_season_marker(clean_title(&1)), else: ""))
     else
       cleaned
     end
@@ -492,8 +491,7 @@ defmodule MediaCentarr.Parser do
 
   # Strip year tokens (with optional surrounding parens/brackets/separators) anywhere in string
   defp strip_year_tokens(str) do
-    Regex.replace(~r/\s*[\[(]?(19|20)\d{2}[\])]?\s*/, str, " ")
-    |> String.trim()
+    String.trim(Regex.replace(~r/\s*[\[(]?(19|20)\d{2}[\])]?\s*/, str, " "))
   end
 
   defp strip_trailing_season_marker(title) do
@@ -540,7 +538,7 @@ defmodule MediaCentarr.Parser do
       |> String.trim()
       |> title_case()
 
-    if cleaned == "", do: nil, else: cleaned
+    if cleaned != "", do: cleaned
   end
 
   # ---------------------------------------------------------------------------
@@ -629,8 +627,7 @@ defmodule MediaCentarr.Parser do
   defp title_case(str) do
     str
     |> String.split(" ")
-    |> Enum.map(&capitalize_word/1)
-    |> Enum.join(" ")
+    |> Enum.map_join(" ", &capitalize_word/1)
   end
 
   defp capitalize_word(""), do: ""

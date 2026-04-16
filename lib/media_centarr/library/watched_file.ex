@@ -39,8 +39,7 @@ defmodule MediaCentarr.Library.WatchedFile do
   end
 
   def link_file_changeset(watched_file, attrs) do
-    watched_file
-    |> cast(attrs, [
+    cast(watched_file, attrs, [
       :file_path,
       :watch_dir,
       :movie_id,

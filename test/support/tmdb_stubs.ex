@@ -189,7 +189,7 @@ defmodule MediaCentarr.TmdbStubs do
         "parts" => [
           %{"id" => 272, "title" => "Batman Begins"},
           %{"id" => 155, "title" => "The Shadowy Sentinel"},
-          %{"id" => 49026, "title" => "The Shadowy Sentinel Rises"}
+          %{"id" => 49_026, "title" => "The Shadowy Sentinel Rises"}
         ],
         "images" => %{"logos" => []}
       },

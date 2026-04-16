@@ -47,7 +47,7 @@ defmodule MediaCentarr.Library.ChangeLog do
 
     if overflow != [] do
       ids = Enum.map(overflow, & &1.id)
-      from(c in ChangeEntry, where: c.id in ^ids) |> Repo.delete_all()
+      Repo.delete_all(from(c in ChangeEntry, where: c.id in ^ids))
     end
 
     :ok

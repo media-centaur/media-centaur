@@ -62,7 +62,6 @@ defmodule MediaCentarr.Library.Movie do
   end
 
   def set_content_url_changeset(movie, attrs) do
-    movie
-    |> cast(attrs, [:content_url])
+    cast(movie, attrs, [:content_url])
   end
 end

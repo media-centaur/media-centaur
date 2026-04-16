@@ -355,10 +355,7 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   end
 
   @impl true
-  def handle_info(
-        {:delete_result, event, %{stats: stats, heatmap_cells_by_type: heatmap}},
-        socket
-      ) do
+  def handle_info({:delete_result, event, %{stats: stats, heatmap_cells_by_type: heatmap}}, socket) do
     socket = assign(socket, page: 1)
     {events, has_next} = fetch_page(socket)
 
@@ -413,8 +410,7 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   def heatmap_fill(0), do: "fill: var(--color-base-300)"
   def heatmap_fill(1), do: "fill: color-mix(in oklch, var(--color-success) 30%, transparent)"
 
-  def heatmap_fill(n) when n <= 3,
-    do: "fill: color-mix(in oklch, var(--color-success) 60%, transparent)"
+  def heatmap_fill(n) when n <= 3, do: "fill: color-mix(in oklch, var(--color-success) 60%, transparent)"
 
   def heatmap_fill(_), do: "fill: var(--color-success)"
 

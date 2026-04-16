@@ -42,7 +42,6 @@ defmodule MediaCentarr.Library.Image do
   end
 
   def update_changeset(image, attrs) do
-    image
-    |> cast(attrs, [:content_url, :extension])
+    cast(image, attrs, [:content_url, :extension])
   end
 end

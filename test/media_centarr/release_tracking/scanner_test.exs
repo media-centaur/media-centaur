@@ -145,7 +145,7 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
            "parts" => [
              %{"id" => 155, "title" => "The Shadowy Sentinel", "release_date" => "2008-07-18"},
              %{
-               "id" => 99999,
+               "id" => 99_999,
                "title" => "The Shadowy Sentinel Returns",
                "release_date" => "2027-07-01"
              }

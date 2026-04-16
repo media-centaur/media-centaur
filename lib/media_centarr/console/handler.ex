@@ -16,7 +16,7 @@ defmodule MediaCentarr.Console.Handler do
   @doc false
   def log(%{level: level, msg: msg, meta: meta}, _config) do
     try do
-      unless meta[:mc_log_source] == :buffer do
+      if meta[:mc_log_source] != :buffer do
         entry = build_entry(level, msg, meta)
         MediaCentarr.Console.Buffer.append(entry)
       end
@@ -72,14 +72,12 @@ defmodule MediaCentarr.Console.Handler do
   # Component classification — every entry gets exactly one component atom.
   # Explicit :component metadata wins; otherwise classify from module prefix.
   defp classify_component(meta) do
-    cond do
-      is_atom(meta[:component]) and meta[:component] != nil ->
-        meta[:component]
-
-      true ->
-        meta
-        |> module_from_meta()
-        |> classify_module()
+    if is_atom(meta[:component]) and meta[:component] != nil do
+      meta[:component]
+    else
+      meta
+      |> module_from_meta()
+      |> classify_module()
     end
   end
 
@@ -121,7 +119,7 @@ defmodule MediaCentarr.Console.Handler do
   end
 
   defp render_message({:report, report}) do
-    inspect(report, limit: 50, printable_limit: 500) |> truncate(2_000)
+    truncate(inspect(report, limit: 50, printable_limit: 500), 2_000)
   rescue
     _ -> "<unrenderable report>"
   end
@@ -135,7 +133,7 @@ defmodule MediaCentarr.Console.Handler do
     _ -> "<unrenderable format>"
   end
 
-  defp render_message(other), do: inspect(other, limit: 50) |> truncate(2_000)
+  defp render_message(other), do: truncate(inspect(other, limit: 50), 2_000)
 
   # Strip ANSI escape sequences (colors, cursor moves, etc) from a rendered
   # message. Loggers like Ecto.Adapters.SQL emit pre-colorized output that
@@ -172,9 +170,7 @@ defmodule MediaCentarr.Console.Handler do
     inspect(reason, limit: 5, printable_limit: 200)
   end
 
-  defp prune_value(_key, value)
-       when is_binary(value) or is_number(value) or is_atom(value),
-       do: value
+  defp prune_value(_key, value) when is_binary(value) or is_number(value) or is_atom(value), do: value
 
   defp prune_value(_key, value), do: inspect(value, limit: 5, printable_limit: 100)
 end

@@ -105,17 +105,19 @@ defmodule MediaCentarr.Playback.Resolver do
         end)
 
         {:ok,
-         %{
-           action: action,
-           entity_id: entity.id,
-           entity_name: entity.name,
-           season_number: season,
-           episode_number: episode,
-           episode_name: episode_name,
-           content_url: content_url,
-           start_position: position
-         }
-         |> Map.merge(direct_fks)}
+         Map.merge(
+           %{
+             action: action,
+             entity_id: entity.id,
+             entity_name: entity.name,
+             season_number: season,
+             episode_number: episode,
+             episode_name: episode_name,
+             content_url: content_url,
+             start_position: position
+           },
+           direct_fks
+         )}
     end
   end
 
@@ -242,28 +244,26 @@ defmodule MediaCentarr.Playback.Resolver do
   end
 
   defp resolve_movie_parent(movie) do
-    cond do
-      movie.movie_series_id ->
-        case Library.get_movie_series_with_associations(movie.movie_series_id) do
-          {:ok, ms} ->
-            entity = EntityShape.normalize(ms, :movie_series)
-            progress = EntityShape.extract_progress(ms, :movie_series)
-            {:ok, entity, progress}
+    if movie.movie_series_id do
+      case Library.get_movie_series_with_associations(movie.movie_series_id) do
+        {:ok, ms} ->
+          entity = EntityShape.normalize(ms, :movie_series)
+          progress = EntityShape.extract_progress(ms, :movie_series)
+          {:ok, entity, progress}
 
-          _ ->
-            :not_found
-        end
+        _ ->
+          :not_found
+      end
+    else
+      # Standalone movie — resolve as its own entity
+      case Library.get_movie_with_associations(movie.id) do
+        {:ok, m} ->
+          progress = EntityShape.extract_progress(m, :movie)
+          {:ok, EntityShape.normalize(m, :movie), progress}
 
-      true ->
-        # Standalone movie — resolve as its own entity
-        case Library.get_movie_with_associations(movie.id) do
-          {:ok, m} ->
-            progress = EntityShape.extract_progress(m, :movie)
-            {:ok, EntityShape.normalize(m, :movie), progress}
-
-          _ ->
-            :not_found
-        end
+        _ ->
+          :not_found
+      end
     end
   end
 

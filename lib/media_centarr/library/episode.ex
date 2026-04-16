@@ -31,7 +31,6 @@ defmodule MediaCentarr.Library.Episode do
   end
 
   def set_content_url_changeset(episode, attrs) do
-    episode
-    |> cast(attrs, [:content_url])
+    cast(episode, attrs, [:content_url])
   end
 end

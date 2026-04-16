@@ -90,6 +90,8 @@ custom classes must fully style the input
 - Read the docs and options before using tasks (by using `mix help task_name`)
 - To debug test failures, run tests in a specific file with `mix test test/my_test.exs` or run all previously failed tests with `mix test --failed`
 - `mix deps.clean --all` is **almost never needed**. **Avoid** using it unless you have good reason
+- `mix precommit` is the merge gate: it runs `compile --warning-as-errors`, `format` (with **Quokka** auto-rewrites), `credo --strict`, the JS `boundaries` task, `deps.audit`, `sobelow`, and `test`. Run before finishing any change.
+- Static analysis configuration: `.credo.exs` (lint rules), `.sobelow-conf` (security scan), `.formatter.exs` (formatter + Quokka). House-rule custom Credo checks live under `lib/media_centarr/credo/checks/`. Each tuned/disabled check has a comment explaining why. See `CLAUDE.md` "Static Analysis" for the full picture.
 <!-- phoenix:elixir-end -->
 
 <!-- phoenix:phoenix-start -->

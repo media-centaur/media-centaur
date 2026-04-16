@@ -58,11 +58,10 @@ defmodule MediaCentarr.ImagePipeline do
         :telemetry.execute(
           [:media_centarr, :image_pipeline, :download, :stop],
           %{duration: duration},
-          Map.merge(telemetry_metadata, %{result: :ok})
+          Map.put(telemetry_metadata, :result, :ok)
         )
 
-        message
-        |> Broadway.Message.update_data(fn data ->
+        Broadway.Message.update_data(message, fn data ->
           Map.merge(data, %{relative_path: relative_path, extension: extension})
         end)
 

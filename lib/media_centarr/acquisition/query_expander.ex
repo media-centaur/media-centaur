@@ -107,7 +107,7 @@ defmodule MediaCentarr.Acquisition.QueryExpander do
     cond do
       "{" in rest -> :invalid
       "}" in rest -> :invalid
-      true -> {:single, prefix, Enum.reverse(content_rev) |> Enum.join(), suffix}
+      true -> {:single, prefix, Enum.join(Enum.reverse(content_rev)), suffix}
     end
   end
 

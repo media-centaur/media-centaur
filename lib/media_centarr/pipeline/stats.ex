@@ -155,8 +155,7 @@ defmodule MediaCentarr.Pipeline.Stats do
         {stage,
          %{
            data
-           | window_completions:
-               StatsHelpers.prune_window(data.window_completions, now, @window_ms)
+           | window_completions: StatsHelpers.prune_window(data.window_completions, now, @window_ms)
          }}
       end)
 
@@ -214,10 +213,7 @@ defmodule MediaCentarr.Pipeline.Stats do
     handle_stage_stop(state, stage, duration, result, now, file_path, error_reason)
   end
 
-  def handle_cast(
-        {:stage_stop_at, stage, duration, result, timestamp, file_path, error_reason},
-        state
-      ) do
+  def handle_cast({:stage_stop_at, stage, duration, result, timestamp, file_path, error_reason}, state) do
     handle_stage_stop(state, stage, duration, result, timestamp, file_path, error_reason)
   end
 
@@ -317,12 +313,7 @@ defmodule MediaCentarr.Pipeline.Stats do
   end
 
   @doc false
-  def handle_telemetry(
-        [:media_centarr, :pipeline, :stage, :start],
-        _measurements,
-        metadata,
-        config
-      ) do
+  def handle_telemetry([:media_centarr, :pipeline, :stage, :start], _measurements, metadata, config) do
     stage_start(config.stats, metadata.stage, metadata.file_path)
   end
 
@@ -337,12 +328,7 @@ defmodule MediaCentarr.Pipeline.Stats do
     )
   end
 
-  def handle_telemetry(
-        [:media_centarr, :pipeline, :stage, :exception],
-        measurements,
-        metadata,
-        config
-      ) do
+  def handle_telemetry([:media_centarr, :pipeline, :stage, :exception], measurements, metadata, config) do
     stage_exception(
       config.stats,
       metadata.stage,
@@ -352,12 +338,7 @@ defmodule MediaCentarr.Pipeline.Stats do
     )
   end
 
-  def handle_telemetry(
-        [:media_centarr, :pipeline, :needs_review],
-        _measurements,
-        metadata,
-        config
-      ) do
+  def handle_telemetry([:media_centarr, :pipeline, :needs_review], _measurements, metadata, config) do
     needs_review(config.stats, metadata.file_path)
   end
 

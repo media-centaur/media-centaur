@@ -27,8 +27,7 @@ defmodule MediaCentarr.Playback.SessionRecovery do
     socket_dir = MediaCentarr.Config.get(:mpv_socket_dir)
     pattern = Path.join(socket_dir, "#{@socket_prefix}*#{@socket_suffix}")
 
-    Path.wildcard(pattern)
-    |> Enum.flat_map(fn socket_path ->
+    Enum.flat_map(Path.wildcard(pattern), fn socket_path ->
       entity_id = extract_entity_id(socket_path)
 
       case recover_from_socket(socket_path, entity_id) do
@@ -140,16 +139,18 @@ defmodule MediaCentarr.Playback.SessionRecovery do
         direct_fks = resolve_direct_fks(entity, content_url)
 
         {:ok,
-         %{
-           entity_id: entity_id,
-           entity_name: entity.name,
-           season_number: season_number,
-           episode_number: episode_number,
-           episode_name: episode_name,
-           content_url: content_url,
-           start_position: position
-         }
-         |> Map.merge(direct_fks)}
+         Map.merge(
+           %{
+             entity_id: entity_id,
+             entity_name: entity.name,
+             season_number: season_number,
+             episode_number: episode_number,
+             episode_name: episode_name,
+             content_url: content_url,
+             start_position: position
+           },
+           direct_fks
+         )}
 
       :not_found ->
         {:ok,
@@ -178,8 +179,7 @@ defmodule MediaCentarr.Playback.SessionRecovery do
     end
   end
 
-  defp resolve_direct_fks(%{type: :movie} = entity, _content_url),
-    do: %{movie_id: entity.id}
+  defp resolve_direct_fks(%{type: :movie} = entity, _content_url), do: %{movie_id: entity.id}
 
   defp resolve_direct_fks(%{type: :video_object} = entity, _content_url),
     do: %{video_object_id: entity.id}

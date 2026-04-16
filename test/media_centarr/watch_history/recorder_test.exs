@@ -1,5 +1,5 @@
 defmodule MediaCentarr.WatchHistory.RecorderTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.WatchHistory
   alias MediaCentarr.WatchHistory.Recorder

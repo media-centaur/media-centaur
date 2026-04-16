@@ -1,4 +1,5 @@
 defmodule MediaCentarrWeb.Router do
+  @moduledoc false
   use MediaCentarrWeb, :router
 
   pipeline :browser do

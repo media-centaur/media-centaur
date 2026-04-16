@@ -40,17 +40,14 @@ defmodule MediaCentarr.Pipeline.ImageQueueEntry do
   end
 
   def status_changeset(entry, status) do
-    entry
-    |> change(status: status)
+    change(entry, status: status)
   end
 
   def fail_changeset(entry) do
-    entry
-    |> change(status: "failed", retry_count: entry.retry_count + 1)
+    change(entry, status: "failed", retry_count: entry.retry_count + 1)
   end
 
   def reset_changeset(entry) do
-    entry
-    |> change(status: "pending")
+    change(entry, status: "pending")
   end
 end

@@ -37,12 +37,10 @@ defmodule MediaCentarr.Acquisition.Grab do
   end
 
   def grabbed_changeset(grab, quality) do
-    grab
-    |> change(status: "grabbed", quality: quality, grabbed_at: DateTime.utc_now(:second))
+    change(grab, status: "grabbed", quality: quality, grabbed_at: DateTime.utc_now(:second))
   end
 
   def increment_attempt_changeset(grab) do
-    grab
-    |> change(attempt_count: grab.attempt_count + 1)
+    change(grab, attempt_count: grab.attempt_count + 1)
   end
 end

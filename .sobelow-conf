@@ -1,0 +1,14 @@
+[
+  verbose: false,
+  private: false,
+  skip: true,
+  router: "lib/media_centarr_web/router.ex",
+  exit: "High",
+  threshold: "high",
+  # Config.HTTPS and Config.CSP are intentionally not enforced — this app
+  # is a self-hosted media center designed for LAN-only deployment, where
+  # the operator chooses whether to terminate TLS upstream (typically not).
+  # CSP would otherwise be a real check; revisit if a public deployment
+  # mode is ever introduced.
+  ignore: ["Config.HTTPS", "Config.CSP"]
+]

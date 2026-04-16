@@ -31,17 +31,18 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
   end
 
   defp load_library_tmdb_ids do
-    from(e in ExternalId,
-      where: e.source in ["tmdb", "tmdb_collection"],
-      select: %{
-        source: e.source,
-        external_id: e.external_id,
-        tv_series_id: e.tv_series_id,
-        movie_series_id: e.movie_series_id,
-        movie_id: e.movie_id
-      }
+    Repo.all(
+      from(e in ExternalId,
+        where: e.source in ["tmdb", "tmdb_collection"],
+        select: %{
+          source: e.source,
+          external_id: e.external_id,
+          tv_series_id: e.tv_series_id,
+          movie_series_id: e.movie_series_id,
+          movie_id: e.movie_id
+        }
+      )
     )
-    |> Repo.all()
   end
 
   defp process_external_id(%{source: "tmdb", tv_series_id: tv_series_id} = ext_id)
@@ -55,9 +56,7 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
     end
   end
 
-  defp process_external_id(
-         %{source: "tmdb_collection", movie_series_id: movie_series_id} = ext_id
-       )
+  defp process_external_id(%{source: "tmdb_collection", movie_series_id: movie_series_id} = ext_id)
        when not is_nil(movie_series_id) do
     collection_id = parse_tmdb_id(ext_id.external_id)
 
@@ -105,7 +104,9 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
       {:ok, response} ->
         collection_releases = Helpers.fetch_collection_releases(response)
 
-        if collection_releases != [] do
+        if collection_releases == [] do
+          :skipped
+        else
           create_tracked_item(
             collection_id,
             :movie,
@@ -116,8 +117,6 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
           )
 
           :tracked
-        else
-          :skipped
         end
 
       {:error, _reason} ->
@@ -125,15 +124,7 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
     end
   end
 
-  defp create_tracked_item(
-         tmdb_id,
-         media_type,
-         name,
-         library_entity_id,
-         releases,
-         response,
-         opts \\ []
-       ) do
+  defp create_tracked_item(tmdb_id, media_type, name, library_entity_id, releases, response, opts \\ []) do
     {:ok, item} =
       ReleaseTracking.track_item(%{
         tmdb_id: tmdb_id,

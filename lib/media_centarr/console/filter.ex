@@ -167,24 +167,25 @@ defmodule MediaCentarr.Console.Filter do
     components =
       case Map.get(data, "components") do
         components_map when is_map(components_map) ->
-          Map.new(components_map, fn {key, value} ->
-            component_atom = safe_existing_atom(key, nil)
-            visibility = safe_visibility_atom(value, :show)
-            {component_atom, visibility}
-          end)
-          |> Map.delete(nil)
+          Map.delete(
+            Map.new(components_map, fn {key, value} ->
+              component_atom = safe_existing_atom(key, nil)
+              visibility = safe_visibility_atom(value, :show)
+              {component_atom, visibility}
+            end),
+            nil
+          )
 
         _ ->
           default.components
       end
 
-    %__MODULE__{
+    put_search_lower(%__MODULE__{
       level: level,
       components: components,
       default_component: default_component,
       search: search
-    }
-    |> put_search_lower()
+    })
   end
 
   # Fallback for any non-map input (nil, string, number, list, etc.) — return
@@ -228,22 +229,18 @@ defmodule MediaCentarr.Console.Filter do
   end
 
   defp safe_visibility_atom(value, default) do
-    try do
-      case String.to_existing_atom(value) do
-        :show -> :show
-        :hide -> :hide
-        _ -> default
-      end
-    rescue
+    case String.to_existing_atom(value) do
+      :show -> :show
+      :hide -> :hide
       _ -> default
     end
+  rescue
+    _ -> default
   end
 
   defp safe_existing_atom(value, default) do
-    try do
-      String.to_existing_atom(value)
-    rescue
-      _ -> default
-    end
+    String.to_existing_atom(value)
+  rescue
+    _ -> default
   end
 end

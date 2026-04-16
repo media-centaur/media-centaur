@@ -1,15 +1,13 @@
 import Config
 
+# Use custom formatter that shows [level][component] for thinking logs
+config :logger, :default_formatter,
+  format: {MediaCentarr.Log.Formatter, :format},
+  metadata: [:component]
+
 config :media_centarr, MediaCentarr.Repo,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
-
-config :media_centarr, :environment, :dev
-
-# Dev defaults: watchers and pipeline OFF to coexist with a running prod release.
-# Toggle at runtime via the Settings page.
-config :media_centarr, :start_watchers, false
-config :media_centarr, :start_pipeline, false
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -29,6 +27,7 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
     tailwind: {Tailwind, :install_and_run, [:media_centarr, ~w(--watch)]}
   ]
 
+# Watch static and templates for browser reloading.
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed
@@ -40,19 +39,6 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
 # Run `mix help phx.gen.cert` for more information.
 #
 # The `http:` config above can be replaced with:
-#
-#     https: [
-#       port: 4001,
-#       cipher_suite: :strong,
-#       keyfile: "priv/cert/selfsigned_key.pem",
-#       certfile: "priv/cert/selfsigned.pem"
-#     ],
-#
-# If desired, both `http:` and `https:` keys can be
-# configured to run both http and https servers on
-# different ports.
-
-# Watch static and templates for browser reloading.
 config :media_centarr, MediaCentarrWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
@@ -63,24 +49,36 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
     ]
   ]
 
-# Use custom formatter that shows [level][component] for thinking logs
-config :logger, :default_formatter,
-  format: {MediaCentarr.Log.Formatter, :format},
-  metadata: [:component]
-
-# Set a higher stacktrace during development. Avoid configuring such
-# in production as building large stacktraces may be expensive.
-config :phoenix, :stacktrace_depth, 20
+config :media_centarr, :environment, :dev
+# Dev defaults: watchers and pipeline OFF to coexist with a running prod release.
+#
+config :media_centarr, :start_pipeline, false
+# Toggle at runtime via the Settings page.
+#     https: [
+#       port: 4001,
+#       cipher_suite: :strong,
+#       keyfile: "priv/cert/selfsigned_key.pem",
+config :media_centarr, :start_watchers, false
 
 # Initialize plugs at runtime for faster development compilation
+#       certfile: "priv/cert/selfsigned.pem"
+#     ],
+#
 config :phoenix, :plug_init_mode, :runtime
 
-config :visualizer, output_dir: "tmp"
+# Set a higher stacktrace during development. Avoid configuring such
+# If desired, both `http:` and `https:` keys can be
+# in production as building large stacktraces may be expensive.
+# configured to run both http and https servers on
+# different ports.
+# Include debug annotations and locations in rendered markup.
+# Changing this configuration will require mix clean and a full recompile.
+config :phoenix, :stacktrace_depth, 20
 
 config :phoenix_live_view,
-  # Include debug annotations and locations in rendered markup.
-  # Changing this configuration will require mix clean and a full recompile.
   debug_heex_annotations: true,
   debug_attributes: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
+
+config :visualizer, output_dir: "tmp"

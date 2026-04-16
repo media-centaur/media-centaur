@@ -34,8 +34,7 @@ defmodule MediaCentarr.Settings.Entry do
   end
 
   def update_changeset(setting, attrs) do
-    setting
-    |> cast(attrs, [:value])
+    cast(setting, attrs, [:value])
   end
 
   def upsert_changeset(attrs) do

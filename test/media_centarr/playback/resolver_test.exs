@@ -1,5 +1,5 @@
 defmodule MediaCentarr.Playback.ResolverTest do
-  use MediaCentarr.DataCase
+  use MediaCentarr.DataCase, async: false
 
   import MediaCentarr.TestFactory
 
@@ -59,12 +59,13 @@ defmodule MediaCentarr.Playback.ResolverTest do
       })
 
       # Mark episode 1 as completed
-      create_watch_progress(%{
-        episode_id: ep1.id,
-        position_seconds: 3000.0,
-        duration_seconds: 3100.0
-      })
-      |> mark_completed()
+      mark_completed(
+        create_watch_progress(%{
+          episode_id: ep1.id,
+          position_seconds: 3000.0,
+          duration_seconds: 3100.0
+        })
+      )
 
       assert {:ok, params} = Resolver.resolve(tv_series.id)
       assert params.action == :play_next

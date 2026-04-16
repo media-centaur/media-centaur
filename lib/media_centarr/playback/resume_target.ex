@@ -17,9 +17,7 @@ defmodule MediaCentarr.Playback.ResumeTarget do
   """
   @spec compute(map(), [map()]) :: map() | nil
   def compute(entity, progress_records) do
-    if all_completed?(entity, progress_records) do
-      nil
-    else
+    if !all_completed?(entity, progress_records) do
       case Resume.resolve(entity, progress_records) do
         {:play_next, url, _position} ->
           build_hint("begin", entity, url, nil)
@@ -66,10 +64,9 @@ defmodule MediaCentarr.Playback.ResumeTarget do
 
     entity
     |> MovieList.list_available()
-    |> Enum.map(fn {_ordinal, movie_id, _url} ->
+    |> Map.new(fn {_ordinal, movie_id, _url} ->
       {movie_id, child_hint(Map.get(progress_by_key, movie_id))}
     end)
-    |> Map.new()
   end
 
   def compute_child_targets(_entity, _progress_records), do: nil
@@ -98,14 +95,16 @@ defmodule MediaCentarr.Playback.ResumeTarget do
         episode =
           find_episode_struct(entity, season_number, episode_number)
 
-        %{
-          "action" => action,
-          "targetId" => episode && episode.id,
-          "name" => name,
-          "seasonNumber" => season_number,
-          "episodeNumber" => episode_number
-        }
-        |> maybe_add_timing(timing)
+        maybe_add_timing(
+          %{
+            "action" => action,
+            "targetId" => episode && episode.id,
+            "name" => name,
+            "seasonNumber" => season_number,
+            "episodeNumber" => episode_number
+          },
+          timing
+        )
 
       nil ->
         nil
@@ -117,14 +116,16 @@ defmodule MediaCentarr.Playback.ResumeTarget do
       {ordinal, movie_id, movie_name} ->
         total = MovieList.total_available(entity)
 
-        %{
-          "action" => action,
-          "targetId" => movie_id,
-          "name" => movie_name,
-          "ordinal" => ordinal,
-          "total" => total
-        }
-        |> maybe_add_timing(timing)
+        maybe_add_timing(
+          %{
+            "action" => action,
+            "targetId" => movie_id,
+            "name" => movie_name,
+            "ordinal" => ordinal,
+            "total" => total
+          },
+          timing
+        )
 
       nil ->
         nil
@@ -132,8 +133,7 @@ defmodule MediaCentarr.Playback.ResumeTarget do
   end
 
   defp build_hint(action, entity, _url, timing) do
-    %{"action" => action, "name" => entity.name}
-    |> maybe_add_timing(timing)
+    maybe_add_timing(%{"action" => action, "name" => entity.name}, timing)
   end
 
   defp maybe_add_timing(hint, nil), do: hint
@@ -185,9 +185,7 @@ defmodule MediaCentarr.Playback.ResumeTarget do
   defp child_hint(nil), do: %{"action" => "begin"}
 
   defp child_hint(progress) do
-    if progress.completed do
-      nil
-    else
+    if !progress.completed do
       if (progress.position_seconds || 0.0) > 0.0 do
         %{
           "action" => "resume",

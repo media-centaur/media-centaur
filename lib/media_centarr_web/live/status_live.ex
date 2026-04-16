@@ -136,10 +136,7 @@ defmodule MediaCentarrWeb.StatusLive do
      |> assign(:history_stats, WatchHistory.stats())}
   end
 
-  def handle_info(
-        {:playback_state_changed, entity_id, new_state, now_playing, started_at},
-        socket
-      ) do
+  def handle_info({:playback_state_changed, entity_id, new_state, now_playing, started_at}, socket) do
     sessions = socket.assigns.playback.sessions
     existing = Map.get(sessions, entity_id)
     kept_started_at = (existing && existing[:started_at]) || started_at
@@ -761,8 +758,7 @@ defmodule MediaCentarrWeb.StatusLive do
 
   defp build_playback_state do
     sessions =
-      MediaCentarr.Playback.Sessions.list()
-      |> Map.new(fn session ->
+      Map.new(MediaCentarr.Playback.Sessions.list(), fn session ->
         {session.entity_id,
          %{
            state: session.state,

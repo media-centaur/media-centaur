@@ -48,7 +48,11 @@ defmodule MediaCentarr.Storage do
   """
   @spec available_bytes(String.t()) :: {:ok, non_neg_integer()} | :error
   def available_bytes(path) do
-    case System.cmd("df", ["--output=avail", "-B1", path], stderr_to_stdout: true) do
+    # `env: []` clears the inherited environment so we don't leak credentials
+    # (TMDB key, qBittorrent password, etc.) into a subprocess that doesn't
+    # need them. `df` only needs LANG-style locale settings to format output,
+    # which we don't depend on.
+    case System.cmd("df", ["--output=avail", "-B1", path], stderr_to_stdout: true, env: []) do
       {output, 0} -> parse_avail(output)
       _ -> :error
     end
@@ -115,7 +119,8 @@ defmodule MediaCentarr.Storage do
 
     if File.dir?(path) do
       case System.cmd("df", ["--output=source,used,avail,target", "-B1", path],
-             stderr_to_stdout: true
+             stderr_to_stdout: true,
+             env: []
            ) do
         {output, 0} ->
           output
@@ -143,7 +148,10 @@ defmodule MediaCentarr.Storage do
         :error
 
       line ->
-        case line |> String.trim() |> Integer.parse() do
+        line
+        |> String.trim()
+        |> Integer.parse()
+        |> case do
           {bytes, ""} -> {:ok, bytes}
           _ -> :error
         end

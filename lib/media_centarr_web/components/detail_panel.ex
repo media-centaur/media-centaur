@@ -35,8 +35,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     end
   end
 
-  def auto_expand_season(%{type: :tv_series, seasons: seasons}, _progress)
-      when is_list(seasons) do
+  def auto_expand_season(%{type: :tv_series, seasons: seasons}, _progress) when is_list(seasons) do
     default_expand_season(seasons)
   end
 
@@ -288,8 +287,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   def overall_progress_percent(nil, _entity), do: 0
 
-  def overall_progress_percent(progress, %{type: type})
-      when type in [:tv_series, :movie_series] do
+  def overall_progress_percent(progress, %{type: type}) when type in [:tv_series, :movie_series] do
     if progress.episodes_total > 0 do
       min(round(progress.episodes_completed / progress.episodes_total * 100), 100)
     else
@@ -662,8 +660,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     end
   end
 
-  def episode_row_class(_state, true = _is_resume_target),
-    do: "border-l-2 border-primary bg-primary/5"
+  def episode_row_class(_state, true = _is_resume_target), do: "border-l-2 border-primary bg-primary/5"
 
   def episode_row_class(:watched, _), do: "opacity-60"
   def episode_row_class(:current, _), do: "bg-info/5"
@@ -698,8 +695,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
-  defp watched_circle_class(:watched),
-    do: "bg-success hover:bg-success/70"
+  defp watched_circle_class(:watched), do: "bg-success hover:bg-success/70"
 
   defp watched_circle_class(_),
     do: "group/check border border-base-content/20 hover:border-base-content/50"
@@ -1416,8 +1412,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   # --- Helpers ---
 
   def count_watched_episodes(season, progress_by_key) do
-    (season.episodes || [])
-    |> Enum.count(fn episode ->
+    Enum.count(season.episodes || [], fn episode ->
       case Map.get(progress_by_key, episode.id) do
         %{completed: true} -> true
         _ -> false
@@ -1435,9 +1430,8 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   defp resume_episode_key(_), do: nil
 
-  defp progress_episode_key(%{current_episode: %{season: s, episode: e}})
-       when is_integer(s) and is_integer(e),
-       do: {s, e}
+  defp progress_episode_key(%{current_episode: %{season: season, episode: episode}})
+       when is_integer(season) and is_integer(episode), do: {season, episode}
 
   defp progress_episode_key(_), do: nil
 end

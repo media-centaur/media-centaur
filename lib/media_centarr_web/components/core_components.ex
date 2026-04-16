@@ -172,7 +172,7 @@ defmodule MediaCentarrWeb.CoreComponents do
 
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
-    |> assign(:errors, Enum.map(errors, &translate_error(&1)))
+    |> assign(:errors, Enum.map(errors, &translate_error/1))
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
     |> assign_new(:value, fn -> field.value end)
     |> input()
@@ -426,8 +426,7 @@ defmodule MediaCentarrWeb.CoreComponents do
       to: selector,
       time: 300,
       transition:
-        {"transition-all ease-out duration-300",
-         "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
+        {"transition-all ease-out duration-300", "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
          "opacity-100 translate-y-0 sm:scale-100"}
     )
   end
