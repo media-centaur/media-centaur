@@ -24,6 +24,7 @@ Chosen option: "Encode dependencies in sub-supervisors with explicit restart lim
 3. **Telemetry handlers attached in `init/1` must detach stale handlers before re-attaching.** Call `:telemetry.detach/1` before `:telemetry.attach_many/4` to handle the crash-restart case where the old handler ID still exists.
 4. **GenServers that subscribe to PubSub should use `handle_continue/2`** to run an immediate recovery check on restart, closing the gap where events may have been missed.
 5. **The root supervisor remains `:one_for_one`** for independent subsystems. Sub-supervisors encode structural dependencies within subsystems.
+6. **Always use `Task.Supervisor.start_child` for async work.** Never use bare `Task.start/1`. Supervised tasks are visible in the supervision tree, crashes are logged, and `Task.Supervisor` respects application shutdown ordering.
 
 ### Consequences
 
