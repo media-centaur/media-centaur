@@ -13,7 +13,7 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Acquisition.{QueueItem, SearchResult}
 
   @doc "Clears the cached Req client so the next call rebuilds it from config."
   def invalidate_client do
@@ -43,44 +43,76 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
   @impl true
   def search(query, opts \\ [], client \\ default_client()) do
     params = [query: query, type: "search"] ++ maybe_year(opts)
-    Log.info(:library, "prowlarr search — #{query}")
+    Log.info(:acquisition, "prowlarr search — #{query}")
 
     case Req.get(client, url: "/api/v1/search", params: params) do
       {:ok, %{status: 200, body: results}} when is_list(results) ->
         search_results = Enum.map(results, &SearchResult.from_prowlarr/1)
-        Log.info(:library, "prowlarr found #{length(search_results)} results for #{query}")
+        Log.info(:acquisition, "prowlarr found #{length(search_results)} results for #{query}")
         {:ok, search_results}
 
       {:ok, %{status: status, body: body}} ->
-        Log.warning(:library, "prowlarr search failed — status=#{status} body=#{inspect(body)}")
+        Log.warning(
+          :acquisition,
+          "prowlarr search failed — status=#{status} body=#{inspect(body)}"
+        )
+
         {:error, {:http_error, status, body}}
 
       {:error, reason} ->
-        Log.warning(:library, "prowlarr search error — #{inspect(reason)}")
+        Log.warning(:acquisition, "prowlarr search error — #{inspect(reason)}")
         {:error, reason}
     end
   end
 
   @impl true
   def grab(result, client \\ default_client()) do
-    Log.info(:library, "prowlarr grab — #{result.title}")
+    Log.info(:acquisition, "prowlarr grab — #{result.title}")
 
     payload = %{"guid" => result.guid, "indexerId" => result.indexer_id}
 
     case Req.post(client, url: "/api/v1/release", json: payload) do
       {:ok, %{status: 200}} ->
-        Log.info(:library, "prowlarr grab submitted — #{result.title}")
+        Log.info(:acquisition, "prowlarr grab submitted — #{result.title}")
         :ok
 
       {:ok, %{status: status, body: body}} ->
-        Log.warning(:library, "prowlarr grab failed — status=#{status} body=#{inspect(body)}")
+        Log.warning(:acquisition, "prowlarr grab failed — status=#{status} body=#{inspect(body)}")
         {:error, {:http_error, status, body}}
 
       {:error, reason} ->
-        Log.warning(:library, "prowlarr grab error — #{inspect(reason)}")
+        Log.warning(:acquisition, "prowlarr grab error — #{inspect(reason)}")
         {:error, reason}
     end
   end
+
+  @impl true
+  def queue(client \\ default_client()) do
+    case Req.get(client, url: "/api/v1/queue") do
+      {:ok, %{status: 200, body: body}} ->
+        items = body |> extract_queue_records() |> Enum.map(&QueueItem.from_prowlarr/1)
+        {:ok, items}
+
+      {:ok, %{status: status, body: body}} ->
+        Log.warning(
+          :acquisition,
+          "prowlarr queue failed — status=#{status} body=#{inspect(body)}"
+        )
+
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "prowlarr queue error — #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  # Prowlarr's /api/v1/queue may return either a paginated wrapper
+  # (`%{"records" => [...]}`) or a bare list, depending on version. Accept
+  # both so the adapter is resilient to upstream shape changes.
+  defp extract_queue_records(%{"records" => records}) when is_list(records), do: records
+  defp extract_queue_records(records) when is_list(records), do: records
+  defp extract_queue_records(_), do: []
 
   defp maybe_year(opts) do
     case Keyword.get(opts, :year) do

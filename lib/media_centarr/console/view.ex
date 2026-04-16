@@ -14,6 +14,7 @@ defmodule MediaCentarr.Console.View do
     :tmdb,
     :playback,
     :library,
+    :acquisition,
     :system,
     # framework
     :phoenix,
@@ -21,7 +22,7 @@ defmodule MediaCentarr.Console.View do
     :live_view
   ]
 
-  @app_components [:watcher, :pipeline, :tmdb, :playback, :library, :system]
+  @app_components [:watcher, :pipeline, :tmdb, :playback, :library, :acquisition, :system]
   @framework_components [:phoenix, :ecto, :live_view]
 
   @badge_palette [

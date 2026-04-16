@@ -6,7 +6,7 @@ defmodule MediaCentarr.Acquisition.SearchProvider do
   (e.g. Jackett) implement this behaviour without requiring changes to call sites.
   """
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Acquisition.{QueueItem, SearchResult}
 
   @doc """
   Searches for releases matching the given query.
@@ -25,4 +25,10 @@ defmodule MediaCentarr.Acquisition.SearchProvider do
   Returns `:ok` on success.
   """
   @callback grab(result :: SearchResult.t()) :: :ok | {:error, term()}
+
+  @doc """
+  Returns the current download queue from the provider's configured download
+  client(s). Used by the Download page to surface live progress.
+  """
+  @callback queue() :: {:ok, [QueueItem.t()]} | {:error, term()}
 end

@@ -31,6 +31,11 @@ const TEST_LAYOUTS = {
     sections:  { left: ["sidebar"] },
     sidebar:   { right: ["sections"] },
   },
+  download: {
+    sections:  { down: ["grid"],   left: ["sidebar"] },
+    grid:      { up: ["sections"], left: ["sidebar"] },
+    sidebar:   { right: ["sections", "grid"] },
+  },
 }
 
 const TEST_ALWAYS_POPULATED = ["sidebar", "sections"]
@@ -41,6 +46,7 @@ const TEST_CURSOR_START_PRIORITY = {
   upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
   settings:  ["sections", "grid", "sidebar"],
   status:    ["sections", "sidebar"],
+  download:  ["sections", "grid", "sidebar"],
 }
 
 const CONFIG = { layouts: TEST_LAYOUTS, alwaysPopulated: TEST_ALWAYS_POPULATED }
@@ -353,6 +359,59 @@ describe("buildNavGraph", () => {
     })
   })
 
+  describe("download zone, all populated (after a search)", () => {
+    const counts = { grid: 5, sections: 2, sidebar: 4 }
+    const graph = buildNavGraph("download", counts, CONFIG)
+
+    test("sections down goes to grid", () => {
+      expect(graph.sections.down).toBe("grid")
+    })
+
+    test("sections left goes to sidebar", () => {
+      expect(graph.sections.left).toBe("sidebar")
+    })
+
+    test("grid up goes to sections", () => {
+      expect(graph.grid.up).toBe("sections")
+    })
+
+    test("grid left goes to sidebar", () => {
+      expect(graph.grid.left).toBe("sidebar")
+    })
+
+    test("sidebar right goes to sections (first candidate)", () => {
+      expect(graph.sidebar.right).toBe("sections")
+    })
+
+    test("no zone_tabs, toolbar, or drawer in download layout", () => {
+      expect(graph.zone_tabs).toBeUndefined()
+      expect(graph.toolbar).toBeUndefined()
+      expect(graph.drawer).toBeUndefined()
+    })
+  })
+
+  describe("download zone, before any search (grid empty)", () => {
+    const counts = { grid: 0, sections: 2, sidebar: 4 }
+    const graph = buildNavGraph("download", counts, CONFIG)
+
+    test("sections down blocked (grid is only candidate and empty)", () => {
+      expect(graph.sections.down).toBeUndefined()
+    })
+
+    test("sections left still goes to sidebar", () => {
+      expect(graph.sections.left).toBe("sidebar")
+    })
+
+    test("sidebar right goes to sections (grid empty)", () => {
+      expect(graph.sidebar.right).toBe("sections")
+    })
+
+    test("grid edges still resolve (sections is alwaysPopulated)", () => {
+      expect(graph.grid.up).toBe("sections")
+      expect(graph.grid.left).toBe("sidebar")
+    })
+  })
+
   describe("edge cases", () => {
     test("unknown zone returns empty graph", () => {
       expect(buildNavGraph("unknown", fullCounts(), CONFIG)).toEqual({})
@@ -407,6 +466,14 @@ describe("resolveCursorStart", () => {
 
   test("status zone returns sections (always populated)", () => {
     expect(resolveCursorStart("status", { sections: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  })
+
+  test("download zone with full counts returns sections", () => {
+    expect(resolveCursorStart("download", { sections: 2, grid: 5, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  })
+
+  test("download zone always starts at sections (always populated)", () => {
+    expect(resolveCursorStart("download", { sections: 0, grid: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
   })
 
   test("unknown zone returns null", () => {

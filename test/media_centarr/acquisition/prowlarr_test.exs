@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Acquisition.ProwlarrTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Acquisition.{Prowlarr, SearchResult}
+  alias MediaCentarr.Acquisition.{Prowlarr, QueueItem, SearchResult}
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -98,6 +98,61 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
 
       result = %SearchResult{title: "Some.Movie.2160p", guid: "bad-guid", indexer_id: 1}
       assert {:error, _} = Prowlarr.grab(result)
+    end
+  end
+
+  describe "queue/0" do
+    test "returns queue items parsed from a bare list response" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "id" => 1,
+            "title" => "Some.Movie.2024.2160p",
+            "status" => "downloading",
+            "downloadClient" => "qBittorrent",
+            "indexer" => "1337x",
+            "size" => 100,
+            "sizeleft" => 25,
+            "timeleft" => "00:10:00"
+          }
+        ])
+      end)
+
+      assert {:ok, [%QueueItem{} = item]} = Prowlarr.queue()
+      assert item.id == 1
+      assert item.title == "Some.Movie.2024.2160p"
+      assert item.status == "downloading"
+      assert item.download_client == "qBittorrent"
+      assert item.progress == 75.0
+    end
+
+    test "returns queue items parsed from a paginated wrapper response" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, %{
+          "page" => 1,
+          "pageSize" => 10,
+          "totalRecords" => 1,
+          "records" => [
+            %{"id" => 7, "title" => "X", "size" => 200, "sizeleft" => 100}
+          ]
+        })
+      end)
+
+      assert {:ok, [%QueueItem{id: 7, progress: 50.0}]} = Prowlarr.queue()
+    end
+
+    test "returns empty list when queue is empty" do
+      assert {:ok, []} = Prowlarr.queue()
+    end
+
+    test "returns error on non-200 response" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(503, Jason.encode!(%{"message" => "Unavailable"}))
+      end)
+
+      assert {:error, _} = Prowlarr.queue()
     end
   end
 end
