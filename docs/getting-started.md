@@ -143,7 +143,13 @@ bin/media_centarr stop         # stop a running daemon
 bin/media_centarr remote       # IEx shell attached to running node
 ```
 
-The release binds to `127.0.0.1:4000` and enables `server: true` automatically — no environment variables needed.
+The release binds to `127.0.0.1:4000` and enables `server: true` automatically. One environment variable is required:
+
+```bash
+export SECRET_KEY_BASE="$(mix phx.gen.secret)"
+```
+
+Generate a value with `mix phx.gen.secret` and add it to your shell profile or systemd unit's `Environment=` directives.
 
 ### Run migrations
 

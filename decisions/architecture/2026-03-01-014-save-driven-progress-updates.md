@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-03-01
 ---
 # Replace real-time playback ticks with save-driven progress updates

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-03-01
 ---
 # Two-phase file removal: immediate cleanup for deletions, TTL for unavailability
