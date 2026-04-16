@@ -152,6 +152,54 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrentTest do
     end
   end
 
+  describe "cancel_download/2" do
+    test "POSTs /api/v2/torrents/delete with hash and deleteFiles=true", %{client: client} do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        assert conn.method == "POST"
+        assert conn.request_path == "/api/v2/torrents/delete"
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        assert body == "hashes=abc123&deleteFiles=true"
+        Plug.Conn.send_resp(conn, 200, "")
+      end)
+
+      assert :ok = QBittorrent.cancel_download("abc123", client)
+    end
+
+    test "returns http_error tuple on non-200, non-403 responses", %{client: client} do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        Plug.Conn.send_resp(conn, 500, "boom")
+      end)
+
+      assert {:error, {:http_error, 500, _}} = QBittorrent.cancel_download("abc", client)
+    end
+
+    test "re-auths on 403 then retries the delete", %{client: client} do
+      counter = :counters.new(1, [:atomics])
+
+      Req.Test.stub(:qbittorrent, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"POST", "/api/v2/torrents/delete"} ->
+            n = :counters.get(counter, 1)
+            :counters.add(counter, 1, 1)
+
+            if n == 0 do
+              Plug.Conn.send_resp(conn, 403, "Forbidden")
+            else
+              Plug.Conn.send_resp(conn, 200, "")
+            end
+
+          {"POST", "/api/v2/auth/login"} ->
+            conn
+            |> Plug.Conn.put_resp_header("set-cookie", "SID=xyz")
+            |> Plug.Conn.send_resp(200, "Ok.")
+        end
+      end)
+
+      assert :ok = QBittorrent.cancel_download("abc", client)
+      assert :counters.get(counter, 1) == 2
+    end
+  end
+
   describe "test_connection/1" do
     test "GETs /api/v2/app/version and returns :ok on 200", %{client: client} do
       Req.Test.stub(:qbittorrent, fn conn ->
