@@ -107,6 +107,19 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Cancels a download by id. Destructive — the torrent and any downloaded
+  files are removed from the client.
+
+  Returns `{:error, :not_configured}` when no driver is configured.
+  """
+  @spec cancel_download(String.t()) :: :ok | {:error, term()}
+  def cancel_download(id) do
+    with {:ok, driver} <- Dispatcher.driver() do
+      driver.cancel_download(id)
+    end
+  end
+
+  @doc """
   Tests connectivity and credentials against the configured download client.
   """
   @spec test_download_client() :: :ok | {:error, term()}

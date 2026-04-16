@@ -23,4 +23,10 @@ defmodule MediaCentarr.Acquisition.DownloadClient do
 
   @callback list_downloads(filter()) :: {:ok, [QueueItem.t()]} | {:error, term()}
   @callback test_connection() :: :ok | {:error, term()}
+
+  @doc """
+  Cancels a download by its client-specific id. Destructive — the driver
+  is expected to remove both the queue entry and the downloaded files.
+  """
+  @callback cancel_download(id :: String.t()) :: :ok | {:error, term()}
 end

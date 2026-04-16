@@ -41,9 +41,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          selections: %{},
          grabbing?: false,
          grab_message: nil,
-         queue: [],
-         grouped_queue: %{active: [], completed: []},
-         queue_loaded?: false
+         active_queue: [],
+         queue_loaded?: false,
+         cancel_confirm: nil
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -243,7 +243,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </div>
         </section>
 
-        <%!-- Downloads sections (active + completed, from configured download client) --%>
+        <%!-- Active downloads from configured download client. Completed
+        torrents are intentionally hidden — qBittorrent manages seeding. --%>
         <section class="glass-surface rounded-xl overflow-hidden">
           <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between">
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
@@ -257,29 +258,19 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </div>
 
           <p
-            :if={@queue_loaded? && @grouped_queue.active == []}
+            :if={@queue_loaded? && @active_queue == []}
             class="px-4 py-6 text-center text-sm text-base-content/40"
           >
             No active downloads
           </p>
 
-          <div :if={@grouped_queue.active != []}>
-            <.queue_row :for={item <- @grouped_queue.active} item={item} />
-          </div>
-        </section>
-
-        <section :if={@grouped_queue.completed != []} class="glass-surface rounded-xl overflow-hidden">
-          <div class="px-4 py-2 border-b border-base-content/5">
-            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-              Completed
-            </h2>
-          </div>
-
-          <div>
-            <.queue_row :for={item <- @grouped_queue.completed} item={item} />
+          <div :if={@active_queue != []}>
+            <.queue_row :for={item <- @active_queue} item={item} />
           </div>
         </section>
       </div>
+
+      <.cancel_confirmation cancel_confirm={@cancel_confirm} />
     </Layouts.app>
     """
   end
@@ -332,6 +323,42 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       end
 
     {:noreply, assign(socket, selections: selections)}
+  end
+
+  def handle_event("cancel_download_prompt", %{"id" => id, "title" => title}, socket) do
+    {:noreply, assign(socket, cancel_confirm: %{id: id, title: title})}
+  end
+
+  def handle_event(
+        "cancel_download_confirm",
+        _params,
+        %{assigns: %{cancel_confirm: nil}} = socket
+      ) do
+    {:noreply, socket}
+  end
+
+  def handle_event("cancel_download_confirm", _params, socket) do
+    %{id: id, title: title} = socket.assigns.cancel_confirm
+
+    socket =
+      case Acquisition.cancel_download(id) do
+        :ok ->
+          Log.info(:acquisition, "cancelled download — #{title}")
+          # Refresh the queue now so the row disappears without waiting for
+          # the next 5 s poll.
+          send(self(), :poll_queue)
+          put_flash(socket, :info, "Cancelled “#{title}”.")
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "cancel failed — #{title} — #{inspect(reason)}")
+          put_flash(socket, :error, "Could not cancel “#{title}”.")
+      end
+
+    {:noreply, assign(socket, cancel_confirm: nil)}
+  end
+
+  def handle_event("cancel_download_cancel", _params, socket) do
+    {:noreply, assign(socket, cancel_confirm: nil)}
   end
 
   def handle_event("grab_selected", _params, socket) do
@@ -414,7 +441,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     queue =
       case Acquisition.list_downloads(:all) do
         {:ok, items} ->
-          items
+          Enum.reject(items, &(&1.state == :completed))
 
         {:error, :not_configured} ->
           # Download client not set up — show empty list, no log noise.
@@ -422,17 +449,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
         {:error, reason} ->
           Log.warning(:acquisition, "download client poll failed: #{inspect(reason)}")
-          socket.assigns.queue
+          socket.assigns.active_queue
       end
 
     Process.send_after(self(), :poll_queue, @queue_poll_interval_ms)
 
-    {:noreply,
-     assign(socket,
-       queue: queue,
-       grouped_queue: Logic.group_downloads_by_state(queue),
-       queue_loaded?: true
-     )}
+    {:noreply, assign(socket, active_queue: queue, queue_loaded?: true)}
   end
 
   # Acquisition PubSub events — informational, no-op for now.
@@ -500,6 +522,18 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         <span :if={@item.timeleft} class="text-xs text-base-content/40 tabular-nums">
           {@item.timeleft}
         </span>
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-error"
+          phx-click="cancel_download_prompt"
+          phx-value-id={@item.id}
+          phx-value-title={@item.title}
+          title="Cancel and delete"
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-x-mark-mini" class="size-4" />
+        </button>
       </div>
 
       <div :if={@item.progress} class="h-[3px] bg-base-content/10 rounded-full overflow-hidden">
@@ -514,6 +548,46 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         <span :if={@item.download_client}>{@item.download_client}</span>
         <span :if={@item.indexer}>{@item.indexer}</span>
         <span :if={@item.progress} class="tabular-nums">{@item.progress}%</span>
+      </div>
+    </div>
+    """
+  end
+
+  attr :cancel_confirm, :any, required: true
+
+  defp cancel_confirmation(%{cancel_confirm: nil} = assigns), do: ~H""
+
+  defp cancel_confirmation(assigns) do
+    ~H"""
+    <div
+      class="modal-backdrop"
+      data-state="open"
+      data-detail-mode="modal"
+      data-dismiss-event="cancel_download_cancel"
+      phx-window-keydown="cancel_download_cancel"
+      phx-key="Escape"
+      style="z-index: 60;"
+    >
+      <div class="modal-panel modal-panel-sm p-6" phx-click-away="cancel_download_cancel">
+        <h3 class="text-lg font-bold text-error">Cancel download?</h3>
+        <p class="mt-2 text-sm text-base-content/70">
+          The torrent and any downloaded files will be deleted from qBittorrent.
+        </p>
+        <div class="mt-3 rounded-lg bg-base-content/5 p-3 text-sm break-words">
+          {@cancel_confirm.title}
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <button type="button" phx-click="cancel_download_cancel" class="btn btn-ghost btn-sm">
+            Keep
+          </button>
+          <button
+            type="button"
+            phx-click="cancel_download_confirm"
+            class="btn btn-soft btn-error btn-sm"
+          >
+            Cancel download
+          </button>
+        </div>
       </div>
     </div>
     """

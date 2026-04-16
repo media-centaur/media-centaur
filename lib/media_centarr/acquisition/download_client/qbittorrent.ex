@@ -6,11 +6,12 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent do
 
   ## Endpoints used
 
-  | Operation | Method + path                |
-  |-----------|------------------------------|
-  | Login     | `POST /api/v2/auth/login`    |
-  | List      | `GET  /api/v2/torrents/info` |
-  | Version   | `GET  /api/v2/app/version`   |
+  | Operation | Method + path                  |
+  |-----------|--------------------------------|
+  | Login     | `POST /api/v2/auth/login`      |
+  | List      | `GET  /api/v2/torrents/info`   |
+  | Delete    | `POST /api/v2/torrents/delete` |
+  | Version   | `GET  /api/v2/app/version`     |
 
   ## Auth
 
@@ -65,6 +66,34 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent do
 
         {:error, reason} ->
           Log.warning(:acquisition, "qbittorrent list_downloads error — #{inspect(reason)}")
+          {:error, reason}
+      end
+    end)
+  end
+
+  @impl true
+  def cancel_download(id, client \\ default_client()) do
+    attempt(client, fn c ->
+      case Req.post(c,
+             url: "/api/v2/torrents/delete",
+             form: [hashes: id, deleteFiles: "true"]
+           ) do
+        {:ok, %{status: 200}} ->
+          :ok
+
+        {:ok, %{status: 403, body: body}} ->
+          {:error, {:http_error, 403, body}}
+
+        {:ok, %{status: status, body: body}} ->
+          Log.warning(
+            :acquisition,
+            "qbittorrent cancel_download failed — status=#{status} body=#{inspect(body)}"
+          )
+
+          {:error, {:http_error, status, body}}
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "qbittorrent cancel_download error — #{inspect(reason)}")
           {:error, reason}
       end
     end)
