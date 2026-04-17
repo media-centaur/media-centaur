@@ -42,7 +42,7 @@ All repositories use **JJ (Jujutsu)** — never use raw `git` commands.
 mix setup              # install deps, create DB, run migrations, build assets
 mix phx.server         # start dev server (http://localhost:4001)
 mix test               # run tests (creates and migrates test DB automatically)
-mix precommit          # compile --warning-as-errors, format (Quokka), credo --strict, JS boundaries, deps.audit, sobelow, test
+mix precommit          # compile --warning-as-errors (incl. boundary), format (Quokka), credo --strict, JS boundaries, deps.audit, sobelow, test
 ```
 
 ### Seeding
@@ -108,6 +108,7 @@ Run `mix precommit` before finishing any set of changes and fix all issues it re
   Plugin checks: `credo_naming` (module/filename consistency, denylisted module-name terms), `credo_envvar` (compile-time env reads), `credo_check_error_handling_ecto_oban` (the `Repo.transaction` 4-tuple-inside-Oban-worker bug). Each tuned/disabled check in `.credo.exs` carries a comment explaining why.
 - **`mix sobelow`** — Phoenix-aware security scan (XSS, CSRF, traversal, RCE, hardcoded secrets). Configured via `.sobelow-conf` to ignore `Config.HTTPS` and `Config.CSP` because this app is a self-hosted LAN-only media center; revisit if a public deployment mode is added.
 - **`mix deps.audit`** — `mix_audit` checks dependencies against the GitHub Advisory Database for known CVEs.
+- **Boundary** — runs as a Mix compiler (no separate command). Each context module declares `use Boundary, deps: [...], exports: [...]` and `mix compile --warnings-as-errors` fails on any cross-boundary call without a declared `dep:`. This is the canonical source of truth for inter-context dependencies — read the `use Boundary` line in each context facade, not prose in this file. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md) for the rationale.
 
 When you add a new house rule that fits a static check, prefer adding it as a custom Credo check over prose in this file — code-as-spec keeps it enforced.
 
@@ -150,22 +151,24 @@ The library uses **type-specific tables** instead of a single polymorphic Entity
 
 ## Bounded Contexts
 
-Eight contexts own their tables and communicate only via PubSub events. No context aliases another context's modules. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md).
+Ten bounded contexts plus the `MediaCentarr.TMDB` adapter. Each owns its data and broadcasts via PubSub. Cross-context references are enforced at compile time by the Boundary library — see each context's `use Boundary, deps: [...]` declaration for the canonical inter-context dependencies. See [ADR-029](decisions/architecture/2026-03-26-029-data-decoupling.md) for the rationale and sanctioned-deps list.
 
-| Context | Prefix | Owns | PubSub role |
-|---------|--------|------|-------------|
-| **Library** | `library_` | Movies, TV series, movie series, video objects, seasons, episodes, extras, images, identifiers, watched files, watch progress | Subscribes to `pipeline:publish` and `library:commands`; broadcasts `library:updates` |
-| **Pipeline** | `pipeline_` | Image queue | Discovery subscribes to `pipeline:input`; Import subscribes to `pipeline:matched`; broadcasts `pipeline:publish` |
-| **Review** | `review_` | Pending files | Intake subscribes to `review:intake`; broadcasts `review:updates` and `pipeline:matched` |
-| **Watcher** | `watcher_` | File presence | Broadcasts `pipeline:input` and `library:file_events` |
-| **Settings** | `settings_` | Configuration entries | Broadcasts `settings:updates` |
-| **ReleaseTracking** | `release_tracking_` | Upcoming/tracked TMDB releases, refresh state | Broadcasts `release_tracking:updates` |
-| **Playback** | _(none — in-memory sessions)_ | MPV sessions, progress broadcasting, resume targets | Broadcasts `playback:events` — `{:playback_state_changed, ...}`, `{:entity_progress_updated, ...}`, `{:extra_progress_updated, ...}` |
-| **Console** | _(none — in-memory ring buffer)_ | Log buffer, per-user filter state (persisted via `Settings.Entry`) | Broadcasts `console:logs` — `{:log_entry, entry}`, `:buffer_cleared`, `{:buffer_resized, n}`, `{:filter_changed, filter}` |
+| Context | Table prefix |
+|---------|--------------|
+| **Library** | `library_` |
+| **Pipeline** | `pipeline_` |
+| **Review** | `review_` |
+| **Watcher** | `watcher_` (none — in-memory file presence) |
+| **Settings** | `settings_` |
+| **ReleaseTracking** | `release_tracking_` |
+| **Playback** | _(none — in-memory sessions)_ |
+| **Console** | _(none — in-memory ring buffer; filter persisted via `Settings.Entry`)_ |
+| **Acquisition** | `acquisition_` |
+| **WatchHistory** | `watch_history_` |
 
-**Acceptable reads:** Pipeline and Watcher may query `library_watched_files` directly (via Repo, not Library context) for dedup checks. Consumer modules (Status, Admin, Serializer) read Library freely — they are not bounded contexts.
+PubSub topic strings live in `MediaCentarr.Topics` — that's the source of truth for what each context broadcasts and subscribes to. Read that module instead of duplicating topic info here.
 
-**Settings as shared infrastructure:** `Settings` is treated as shared key/value infrastructure, not a peer bounded context. Any context that needs per-user or per-installation persistence without justifying its own table (Console's filter and buffer cap, for example) writes to `Settings.Entry` directly. This is the one sanctioned exception to ADR-029's "contexts own their data" rule — the coupling is one-directional (the context depends on Settings, not the other way around) and Settings carries no domain logic of its own.
+**Settings as shared infrastructure:** `Settings` is treated as shared key/value infrastructure in addition to being a bounded context. Any context that needs per-user or per-installation persistence without justifying its own table (Console's filter and buffer cap, for example) may write to `Settings.Entry` directly via a declared `Settings` dep in its `use Boundary`. The coupling is one-directional — Settings carries no domain logic of its own.
 
 **Context facade subscribe pattern:** Each bounded context exposes a `subscribe/0` function that wraps `Phoenix.PubSub.subscribe/2` with the context's topic from `MediaCentarr.Topics`. LiveViews call these instead of constructing PubSub subscriptions directly — topic knowledge stays in the context that owns it:
 
@@ -177,8 +180,6 @@ if connected?(socket) do
   Settings.subscribe()
 end
 ```
-
-Available: `Library.subscribe/0`, `Review.subscribe/0`, `Settings.subscribe/0`, `ReleaseTracking.subscribe/0`, `Playback.subscribe/0`, `Watcher.Supervisor.subscribe/0`, `Console.subscribe/0`.
 
 ## Pipeline
 
@@ -215,8 +216,8 @@ Load the `automated-testing` skill before writing any test — Elixir, JavaScrip
 
 ### Pure Function Tests vs Resource Tests
 
-- **Pure function modules** (Parser, Serializer, Mapper, Confidence, Resume, ProgressSummary) use `async: true` and build struct literals via factory — no database.
-- **Resource tests** (Entity, WatchedFile, WatchProgress) use `DataCase` and exercise against the real database.
+- **Pure function modules** (no DB, no side effects) use `async: true` and build struct literals via factory.
+- **Resource tests** (anything that touches the database) use `DataCase` and exercise against the real database.
 ### Shared Test Factory
 
 `test/support/factory.ex` provides `MediaCentarr.TestFactory`:
