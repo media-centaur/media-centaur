@@ -18,7 +18,7 @@ config :media_centarr, MediaCentarr.Repo,
 config :media_centarr, MediaCentarrWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4001")],
+  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "1080")],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
@@ -59,7 +59,7 @@ config :media_centarr, :environment, :dev
 config :media_centarr, :start_pipeline, false
 # Toggle at runtime via the Settings page.
 #     https: [
-#       port: 4001,
+#       port: 1080,
 #       cipher_suite: :strong,
 #       keyfile: "priv/cert/selfsigned_key.pem",
 config :media_centarr, :start_watchers, false

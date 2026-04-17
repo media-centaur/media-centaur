@@ -6,7 +6,10 @@
 // Invoked by scripts/screenshot-tour.
 const { defineConfig } = require("@playwright/test")
 
-const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:4001"
+// Defaults to 4003 (showcase override), since this tour is only meant
+// to run against seeded showcase data — pointing it at dev (1080) or
+// prod (2160) would capture personal library content.
+const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:4003"
 
 module.exports = defineConfig({
   testDir: ".",
@@ -25,5 +28,13 @@ module.exports = defineConfig({
     // No trace/video needed — screenshots are the artefact.
     trace: "off",
     video: "off",
+    // Force XWayland + set WM_CLASS so Hyprland can match a single
+    // surgical rule against this specific browser instance without
+    // touching the user's other Chromium windows. On native Wayland
+    // (Ozone), Chromium derives app_id from the URL and ignores
+    // --class; XWayland honours --class reliably.
+    launchOptions: {
+      args: ["--ozone-platform=x11", "--class=media-centarr"],
+    },
   },
 })

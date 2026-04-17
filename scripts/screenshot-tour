@@ -1,46 +1,69 @@
 #!/usr/bin/env bash
-# Screenshot tour for the showcase profile — navigates to every major UI
-# surface in a headed Chromium and saves PNGs into docs-site/assets/screenshots/.
+# Screenshot tour for the showcase instance — navigates to every major
+# UI surface in a headed Chromium and saves PNGs into
+# docs-site/assets/screenshots/.
 #
 # Prerequisites:
-#   1. Showcase profile DB created and seeded:
-#        MEDIA_CENTARR_PROFILE=showcase mix ecto.create
-#        MEDIA_CENTARR_PROFILE=showcase mix ecto.migrate
-#        MEDIA_CENTARR_PROFILE=showcase mix seed.showcase
-#   2. Dev server running under the showcase profile:
-#        MEDIA_CENTARR_PROFILE=showcase mix phx.server
+#   1. Showcase DB created and seeded (all prefixed with the override env var):
+#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
+#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
+#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
+#   2. Server running with the showcase override (binds :4003):
+#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
 #   3. Hyprland running (for the floating-window rule). Not strictly
 #      required — Chromium will just open normally on other compositors.
 #
-# Output: docs-site/assets/screenshots/{library-grid,review-queue,...}.png
+# Output: docs-site/assets/screenshots/{library-grid,library-detail-movie,...}.png
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BASE_URL="${BASE_URL:-http://127.0.0.1:4001}"
+BASE_URL="${BASE_URL:-http://127.0.0.1:4003}"
 
-# Fail fast if the dev server isn't reachable — launching Chromium only
-# to land on an error page wastes time and produces garbage screenshots.
+# Fail fast if the showcase server isn't reachable — launching Chromium
+# only to land on an error page wastes time and produces garbage shots.
 if ! curl --silent --fail --max-time 3 "$BASE_URL" > /dev/null 2>&1; then
-  echo "error: dev server not reachable at $BASE_URL" >&2
+  echo "error: showcase server not reachable at $BASE_URL" >&2
   echo "" >&2
-  echo "Start it with the showcase profile first:" >&2
+  echo "Start it with the showcase override first:" >&2
   echo "" >&2
-  echo "    MEDIA_CENTARR_PROFILE=showcase mix phx.server" >&2
+  echo "    MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server" >&2
   echo "" >&2
   exit 1
 fi
 
-# Hyprland window rule — only applies if hyprctl is available. Floats the
-# Chromium window used by Playwright so it doesn't rearrange the rest of
-# your workspace during the tour.
+# Hyprland window rules — only applied if hyprctl is available. Float
+# the tour's Chromium window so it doesn't get auto-tiled.
+#
+# The launch config (test/e2e/screenshot-tour.config.js) forces XWayland
+# with --ozone-platform=x11 and sets --class=media-centarr. That lands a
+# literal WM_CLASS of "media-centarr" on the tour window only, so a
+# single exact-match rule is surgical — it cannot touch the user's other
+# Chromium windows.
 if command -v hyprctl > /dev/null 2>&1; then
-  hyprctl keyword windowrulev2 "float, class:^(Chromium)$" > /dev/null 2>&1 || true
-  hyprctl keyword windowrulev2 "size 1400 900, class:^(Chromium)$" > /dev/null 2>&1 || true
-  hyprctl keyword windowrulev2 "center, class:^(Chromium)$" > /dev/null 2>&1 || true
+  for rule in \
+    "float, class:^media-centarr$" \
+    "size 1400 900, class:^media-centarr$" \
+    "center, class:^media-centarr$" \
+    "noinitialfocus, class:^media-centarr$"
+  do
+    hyprctl keyword windowrulev2 "$rule" > /dev/null 2>&1 || true
+  done
 fi
 
 mkdir -p "$REPO_ROOT/docs-site/assets/screenshots"
+
+# Entity UUIDs for the detail-modal tour stops change every reseed. Look
+# them up fresh here so the tour never needs manual editing. If the DB
+# is missing (showcase not yet created), the vars stay empty and the
+# tour's waitFor selectors time out cleanly — a visible failure rather
+# than a silent miss.
+SHOWCASE_DB="$REPO_ROOT/priv/showcase/media-centarr.db"
+if [ -f "$SHOWCASE_DB" ]; then
+  NOSFERATU_ID=$(sqlite3 "$SHOWCASE_DB" "SELECT id FROM library_movies WHERE name = 'Nosferatu' LIMIT 1;" 2>/dev/null || true)
+  PIONEER_ONE_ID=$(sqlite3 "$SHOWCASE_DB" "SELECT id FROM library_tv_series WHERE name = 'Pioneer One' LIMIT 1;" 2>/dev/null || true)
+  export NOSFERATU_ID PIONEER_ONE_ID
+fi
 
 cd "$REPO_ROOT/test/e2e"
 BASE_URL="$BASE_URL" bunx playwright test \

@@ -10,4 +10,4 @@ export USER_GID=1000
 # Your development machine's hostname (get with: hostname)
 export HOSTNAME=
 
-export WEB_HOST=http://localhost:4000
+export WEB_HOST=http://localhost:2160

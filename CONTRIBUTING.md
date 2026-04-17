@@ -16,7 +16,7 @@ Thanks for your interest. This is a small project with a specific scope (see [No
 git clone https://github.com/media-centarr/media-centarr.git
 cd media-centarr
 mix setup          # install deps, create DB, run migrations, build assets
-mix phx.server     # start dev server at http://localhost:4001
+mix phx.server     # start dev server at http://localhost:1080
 ```
 
 Requirements: Elixir 1.15+, Erlang/OTP 26+, SQLite3, mpv, inotify-tools. See [README.md#requirements](README.md#requirements) for distro-specific install commands.

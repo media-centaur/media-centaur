@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Start the showcase phx server (foreground) on :4003 with the right
+# env: MEDIA_CENTARR_CONFIG_OVERRIDE pointing at the shipped showcase
+# TOML, and TMDB_API_KEY pulled from the dev DB's settings_entries.
+#
+# Run in a terminal you can leave open — this process stays in the
+# foreground. For background-with-logs, see `scripts/reseed-showcase`
+# which stops any existing server before it seeds.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+DEV_DB="$HOME/.local/share/media-centarr/media-centarr.db"
+
+export MEDIA_CENTARR_CONFIG_OVERRIDE="defaults/media-centarr-showcase.toml"
+
+if [ -f "$DEV_DB" ]; then
+  TMDB_API_KEY=$(sqlite3 "$DEV_DB" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
+  export TMDB_API_KEY
+fi
+
+exec mise exec -- mix phx.server

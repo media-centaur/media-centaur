@@ -31,6 +31,7 @@ defmodule MediaCentarr.Showcase do
   alias MediaCentarr.Review
   alias MediaCentarr.Showcase.Catalog
   alias MediaCentarr.TMDB
+  alias MediaCentarr.Watcher.FilePresence
   alias MediaCentarr.WatchHistory
 
   require MediaCentarr.Log, as: Log
@@ -113,11 +114,13 @@ defmodule MediaCentarr.Showcase do
 
       download_images!(movie.id, movie_data, :movie_id)
 
-      Library.create_external_id!(%{
+      Library.find_or_create_external_id!(%{
         movie_id: movie.id,
         source: "tmdb",
         external_id: to_string(tmdb_id)
       })
+
+      seed_presence!(movie.id, :movie_id, fake_movie_path(movie.name))
 
       movie
     else
@@ -147,7 +150,7 @@ defmodule MediaCentarr.Showcase do
 
       download_images!(series.id, tv_data, :tv_series_id)
 
-      Library.create_external_id!(%{
+      Library.find_or_create_external_id!(%{
         tv_series_id: series.id,
         source: "tmdb",
         external_id: to_string(tmdb_id)
@@ -157,6 +160,19 @@ defmodule MediaCentarr.Showcase do
         Enum.map(season_numbers, fn season_number ->
           seed_season!(series, tmdb_id, season_number, client)
         end)
+
+      # One file-presence row per episode so the TV detail modal shows
+      # each episode as "in library" (not a missing-file state).
+      seasons
+      |> Enum.flat_map(& &1.episodes)
+      |> Enum.filter(& &1.id)
+      |> Enum.each(fn episode ->
+        seed_presence!(
+          series.id,
+          :tv_series_id,
+          fake_episode_path(series.name, episode_season_number(episode, seasons), episode.episode_number)
+        )
+      end)
 
       Map.put(series, :seasons, seasons)
     else
@@ -194,14 +210,33 @@ defmodule MediaCentarr.Showcase do
     episode_number = ep_data["episode_number"]
     episode_name = ep_data["name"] || "Episode #{episode_number}"
 
-    Library.create_episode!(%{
-      season_id: season.id,
-      episode_number: episode_number,
-      name: episode_name,
-      description: ep_data["overview"],
-      duration: minutes_to_iso(ep_data["runtime"]),
-      content_url: fake_episode_path(series_name, season.season_number, episode_number)
-    })
+    episode =
+      Library.create_episode!(%{
+        season_id: season.id,
+        episode_number: episode_number,
+        name: episode_name,
+        description: ep_data["overview"],
+        duration: minutes_to_iso(ep_data["runtime"]),
+        content_url: fake_episode_path(series_name, season.season_number, episode_number)
+      })
+
+    # Episode thumbnail. The detail modal's episode list reads role:thumb
+    # images via DetailPanel.image_url/2. When TMDB has a still_path, we
+    # download from there (mirrors the pipeline FetchMetadata stage).
+    # When it doesn't — the shipped showcase catalog is indie/public-
+    # domain TV that TMDB mostly lacks stills for — we fall back to a
+    # bundled gradient fixture so the TV detail modal still renders a
+    # varied strip of thumbs. Regenerate fixtures via
+    # `scripts/generate-showcase-thumbs`.
+    case ep_data["still_path"] do
+      path when is_binary(path) and path != "" ->
+        download_image_role!(episode.id, :episode_id, :thumb, path)
+
+      _ ->
+        bundle_episode_thumb!(episode)
+    end
+
+    episode
   end
 
   # ---------------------------------------------------------------------------
@@ -209,13 +244,18 @@ defmodule MediaCentarr.Showcase do
   # ---------------------------------------------------------------------------
 
   defp seed_video_object!(%{title: title} = entry) do
-    Library.create_video_object!(%{
-      name: title,
-      description: entry[:description],
-      date_published: entry[:year] && to_string(entry[:year]),
-      content_url: entry[:content_url],
-      url: entry[:url]
-    })
+    video_object =
+      Library.create_video_object!(%{
+        name: title,
+        description: entry[:description],
+        date_published: entry[:year] && to_string(entry[:year]),
+        content_url: entry[:content_url],
+        url: entry[:url]
+      })
+
+    seed_presence!(video_object.id, :video_object_id, fake_short_path(title))
+
+    video_object
   end
 
   # ---------------------------------------------------------------------------
@@ -350,7 +390,7 @@ defmodule MediaCentarr.Showcase do
 
   defp seed_pending_files! do
     pending_file_data()
-    |> Enum.map(&Review.create_pending_file!/1)
+    |> Enum.map(&Review.find_or_create_pending_file!/1)
     |> length()
   end
 
@@ -448,6 +488,41 @@ defmodule MediaCentarr.Showcase do
     end
   end
 
+  @bundled_thumb_count 5
+
+  # Fallback for episodes TMDB has no still_path for (Pioneer One, Dragnet
+  # 1951, etc.). Copies a bundled gradient fixture from
+  # priv/showcase/fixtures/thumbs/thumb-N.jpg into the episode's image
+  # directory and creates the matching role=thumb Image row. Picks a
+  # fixture by (episode_number - 1) mod count so consecutive episodes
+  # get different colors. Regenerate the fixtures via
+  # `scripts/generate-showcase-thumbs`.
+  defp bundle_episode_thumb!(episode) do
+    fixture_index = rem(max(episode.episode_number - 1, 0), @bundled_thumb_count) + 1
+    fixture = Path.expand("priv/showcase/fixtures/thumbs/thumb-#{fixture_index}.jpg")
+
+    watch_dirs = MediaCentarr.Config.get(:watch_dirs) || []
+
+    with primary when is_binary(primary) <- List.first(watch_dirs),
+         true <- File.exists?(fixture) do
+      images_root = MediaCentarr.Config.images_dir_for(primary)
+      dest = Path.join([images_root, episode.id, "thumb.jpg"])
+      File.mkdir_p!(Path.dirname(dest))
+      File.cp!(fixture, dest)
+
+      Library.create_image!(%{
+        episode_id: episode.id,
+        role: "thumb",
+        content_url: "#{episode.id}/thumb.jpg",
+        extension: "jpg"
+      })
+
+      :ok
+    else
+      _ -> :ok
+    end
+  end
+
   defp extract_genre_names(nil), do: []
   defp extract_genre_names(genres) when is_list(genres), do: Enum.map(genres, & &1["name"])
 
@@ -459,7 +534,61 @@ defmodule MediaCentarr.Showcase do
     safe_name = String.replace(series_name, ~r/[^a-zA-Z0-9]+/, ".")
     season_str = season_number |> Integer.to_string() |> String.pad_leading(2, "0")
     episode_str = episode_number |> Integer.to_string() |> String.pad_leading(2, "0")
-    "/showcase/#{safe_name}/Season #{season_number}/#{safe_name}.S#{season_str}E#{episode_str}.mkv"
+
+    Path.join(
+      showcase_watch_dir(),
+      "#{safe_name}/Season #{season_number}/#{safe_name}.S#{season_str}E#{episode_str}.mkv"
+    )
+  end
+
+  defp fake_movie_path(title) do
+    safe_name = String.replace(title, ~r/[^a-zA-Z0-9]+/, ".")
+    Path.join(showcase_watch_dir(), "#{safe_name}.mkv")
+  end
+
+  defp fake_short_path(title) do
+    safe_name = String.replace(title, ~r/[^a-zA-Z0-9]+/, ".")
+    Path.join(showcase_watch_dir(), "shorts/#{safe_name}.mkv")
+  end
+
+  defp showcase_watch_dir do
+    case MediaCentarr.Config.get(:watch_dirs) do
+      [dir | _] -> dir
+      _ -> "/showcase"
+    end
+  end
+
+  # Locate which season an episode belongs to by walking the seasons list.
+  # Seeded series have at most a handful of seasons, so this is fine.
+  defp episode_season_number(episode, seasons) do
+    Enum.find_value(seasons, 1, fn season ->
+      if Enum.any?(season.episodes, &(&1.id == episode.id)), do: season.season_number
+    end)
+  end
+
+  # Seeds one file-presence pair (library_watched_files + watcher_files) so
+  # the entity satisfies `Library.Browser.fetch_all_typed_entries`'s filter
+  # requiring a present watched file. Also touches an empty stub file at
+  # `file_path` so the detail modal's "video missing" banner doesn't fire
+  # — the UI checks File.exists?/1 on the content path for that state, and
+  # the showcase can't ship real video files. If the user drops a real
+  # file at that path later, mpv plays it; if not, the stub at least
+  # makes the detail screenshots look like a populated library.
+  # Both helpers are idempotent (Library.link_file and
+  # FilePresence.record_file use get_by + upsert; File.touch! is a no-op
+  # on existing files).
+  defp seed_presence!(entity_id, fk_column, file_path) do
+    watch_dir = showcase_watch_dir()
+
+    attrs = Map.put(%{file_path: file_path, watch_dir: watch_dir}, fk_column, entity_id)
+
+    Library.link_file!(attrs)
+    FilePresence.record_file(file_path, watch_dir)
+
+    File.mkdir_p!(Path.dirname(file_path))
+    File.touch!(file_path)
+
+    :ok
   end
 
   defp pending_file_data do
