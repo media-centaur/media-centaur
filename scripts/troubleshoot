@@ -84,8 +84,8 @@ cmd_status() {
   fi
 
   banner "Database"
-  if [ -f "$HOME/.local/share/media-centarr/media_library.db" ]; then
-    db_size=$(du -h "$HOME/.local/share/media-centarr/media_library.db" 2>/dev/null | cut -f1)
+  if [ -f "$HOME/.local/share/media-centarr/media-centarr.db" ]; then
+    db_size=$(du -h "$HOME/.local/share/media-centarr/media-centarr.db" 2>/dev/null | cut -f1)
     ok "Exists ($db_size)"
   else
     fail "Database file not found"

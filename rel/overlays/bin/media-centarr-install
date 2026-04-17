@@ -138,7 +138,7 @@ if [ "$mode" = uninstall ]; then
     rm -f "$SYSTEMD_USER_DIR/$UNIT_NAME"
     sysctl_user daemon-reload || true
 
-    printf 'Note: config (%s) and data (~/.local/share/media-centaur/) preserved.\n' "$CONFIG_DIR"
+    printf 'Note: config (%s) and data (~/.local/share/media-centarr/) preserved.\n' "$CONFIG_DIR"
     exit 0
 fi
 

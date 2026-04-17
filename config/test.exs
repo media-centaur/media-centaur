@@ -18,7 +18,9 @@ config :media_centarr, MediaCentarr.Repo,
 # you can enable the server option below.
 config :media_centarr, MediaCentarrWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  server: false
+  server: false,
+  # Test-only signing key. Not a secret — tests never run against real data.
+  secret_key_base: "test_signing_key_not_a_secret_deterministic_value_for_test_runs_xxxx"
 
 # Oban inline testing — jobs execute synchronously in tests
 # Never read user TOML config (~/.config/media-centarr/media-centarr.toml) in tests.

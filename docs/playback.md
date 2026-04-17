@@ -1,6 +1,6 @@
 # Playback
 
-The playback subsystem manages video playback through mpv, tracks watch progress, and provides resume/next-episode logic for the frontend.
+The playback subsystem manages video playback through mpv, tracks watch progress, and provides resume/next-episode logic for the UI.
 
 > [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · **Playback** · [Library](library.md)
 

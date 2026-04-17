@@ -8,7 +8,7 @@ description: "Use this skill when debugging production issues, checking service 
 - **Service:** `media-centarr` (systemd user unit)
 - **Install dir:** `~/.local/lib/media-centarr/`
 - **Binary:** `~/.local/lib/media-centarr/bin/media_centarr`
-- **Database:** `~/.local/share/media-centarr/media_library.db` (SQLite)
+- **Database:** `~/.local/share/media-centarr/media-centarr.db` (SQLite)
 - **Config:** `~/.config/media-centarr/media-centarr.toml`
 - **Port:** 4000 (loopback only)
 - **Node:** `media_centarr` (sname, cookie: `media-centarr-local`)

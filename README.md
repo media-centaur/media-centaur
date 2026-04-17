@@ -2,35 +2,57 @@
 
 # Media Centarr
 
-**A self-hosted media center for Linux that watches your library, identifies your media, and gets out of the way.**
+**Library management and playback for your personal movie and TV collection — the \*ARR stack and a couch-ready player in one self-hosted Linux app.**
 
-[![Elixir](https://img.shields.io/badge/Elixir-1.15+-4B275F?logo=elixir&logoColor=white)](https://elixir-lang.org)
-[![Platform](https://img.shields.io/badge/platform-Linux-informational?logo=linux&logoColor=white)](https://kernel.org)
+![Status: Alpha](https://img.shields.io/badge/status-alpha-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: Linux](https://img.shields.io/badge/platform-Linux-informational)
 
-Point it at your video directories. It identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything through mpv — all from a real-time interface designed for the living room.
+Point it at your video directories. It identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything locally through mpv — all from a real-time browser UI designed for a TV across the room.
 
-Zero-config SQLite database. No Docker. No transcoding server. No accounts.
+Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 </div>
 
-> **Alpha software.** Media Centarr is functional for daily use but under active development. Expect rough edges and occasional breaking changes between releases.
+> [!WARNING]
+> **Alpha.** Functional for daily use but under active development. Expect rough edges and occasional breaking changes between releases.
 
 ---
 
-## Features
+## What it does
 
-- **Library management** — watches directories for new video files, identifies movies and TV shows via TMDB, and downloads artwork automatically. Low-confidence matches are held for manual review instead of guessing wrong.
-- **Playback** — plays everything through mpv via IPC. Tracks your progress, resumes where you left off, and advances to the next episode automatically.
-- **Release tracking** — track upcoming movies and TV seasons from your library. Media Centarr monitors TMDB daily and shows what's coming and when.
-- **Acquisition** *(optional)* — search and queue downloads via Prowlarr. All acquisition features are gated behind a working Prowlarr install with a download client configured. Live queue progress and in-app cancellation currently require qBittorrent; adding other clients is a small driver — see [Prowlarr Integration](#prowlarr-integration).
-- **Living room UI** — keyboard and gamepad navigation, large artwork, dark-first design. Built to drive a TV from the couch, not a desktop browser.
-- **Real-time** — every change (new file, metadata fetched, playback started) appears instantly. No polling, no refresh.
+- **Library management** — watches your directories for new video files, identifies movies and TV shows via TMDB, and downloads artwork automatically. Low-confidence matches wait for manual review instead of polluting your library with wrong guesses.
+- **Playback** — launches mpv on the local machine, tracks your progress, resumes where you left off, and auto-advances to the next episode.
+- **Release tracking** — monitors TMDB daily for upcoming movies and new TV seasons tied to the shows in your library.
+- **Acquisition** *(optional)* — search and queue downloads via Prowlarr. Entirely optional: Media Centarr is a full library manager without it. See [Prowlarr Integration](#prowlarr-integration) below.
+- **Couch-first UI** — keyboard *and* gamepad navigation, large artwork, dark-first. Built to drive a TV from across the room, not a desktop browser with a squinted "TV mode."
+- **Real-time** — every change (new file, metadata fetched, playback started) appears instantly via Phoenix LiveView. No polling, no refresh.
+
+---
+
+## Non-Goals
+
+Media Centarr is deliberately **not** trying to be a streaming media server or a cross-platform media suite. If you need any of the following, this is the wrong project and that's fine:
+
+- **Streaming to other devices.** No goal. No web player for remote clients, no Chromecast / AirPlay / DLNA, no mobile app, no "watch my library from a hotel room." Media Centarr plays locally on the machine it runs on. If you want a streaming server, [Jellyfin](https://jellyfin.org/) and Plex exist and do it well.
+- **Transcoding.** No goal. Media Centarr never re-encodes your files. It plays what's on disk, at the resolution and codec the file was authored in. If a file won't play on your hardware, fix the hardware or the file — not the library manager.
+- **Docker / containerised deployment.** No goal. Media Centarr is a native Linux application — install script, systemd user unit, SQLite. If you want containerised, Jellyfin and the \*ARR stack in Docker is a well-trodden path.
+- **Multi-user accounts, sharing, access control.** No goal. This is a single-user app for the person at the keyboard or on the couch. No auth, no permissions, no share links, no "kids profile." A reverse proxy with HTTP basic auth is as fancy as it gets.
+- **Windows or macOS support.** No goal in the near term. Runs from source on any Unix with Elixir, but the installer, systemd unit, and tested path are Linux-only.
+- **Being a media player on its own.** mpv is the player. Media Centarr drives it. See below.
+
+## Why mpv
+
+Media Centarr hands playback off to [mpv](https://mpv.io/) instead of bundling a player or using an in-browser one. mpv is the right choice because:
+
+- **World-class subtitle rendering.** libass handles every subtitle format correctly — ASS typesetting, SRT, PGS/SUP image subs, external or embedded tracks — and renders them beautifully. No other player comes close.
+- **High compatibility.** mpv plays virtually every container and codec you throw at it, at full fidelity, without "this file won't play on your device" problems.
+- **Extensible by design.** mpv exposes a Lua scripting surface and a stable JSON IPC socket, both of which Media Centarr uses. The couch overlays, progress tracking, and next-episode logic all hook into mpv rather than replacing it.
+
+Reinventing any of the above is a multi-year project. Delegating to mpv is how Media Centarr stays a library manager instead of a half-baked player.
 
 ---
 
 ## Requirements
 
-- Elixir 1.15+ and Erlang/OTP 26+
 - SQLite3
 - mpv
 - inotify-tools
@@ -38,13 +60,27 @@ Zero-config SQLite database. No Docker. No transcoding server. No accounts.
 
 **Arch Linux:**
 ```bash
-sudo pacman -S elixir sqlite mpv inotify-tools
+sudo pacman -S sqlite mpv inotify-tools
 ```
 
 **Debian/Ubuntu:**
 ```bash
-sudo apt install elixir sqlite3 mpv inotify-tools
+sudo apt install sqlite3 mpv inotify-tools
 ```
+
+<details>
+<summary>Building from source (contributors)</summary>
+
+Additionally requires Elixir 1.15+ and Erlang/OTP 26+. The supported install path is the pre-built release (see [Installation](#installation)) — you don't need Elixir to run Media Centarr.
+
+```bash
+# Arch
+sudo pacman -S elixir
+# Debian/Ubuntu
+sudo apt install elixir
+```
+
+</details>
 
 ---
 
@@ -161,13 +197,13 @@ Your library data lives in three places. Back up all three and you can restore a
 
 | Path | What's in it |
 |---|---|
-| `~/.local/share/media-centarr/media_library.db` | The SQLite database — library entities, watch progress, watch history, settings edited in the UI (TMDB key, Prowlarr credentials, etc.), release tracking, acquisition grabs. This is the single most important file. |
+| `~/.local/share/media-centarr/media-centarr.db` | The SQLite database — library entities, watch progress, watch history, settings edited in the UI (TMDB key, Prowlarr credentials, etc.), release tracking, acquisition grabs. This is the single most important file. |
 | `<watch_dir>/.media-centarr/images/` | Downloaded artwork (posters, backdrops, logos, thumbs). One such directory lives inside **each** of your `watch_dirs`. Losing these means re-downloading from TMDB; it's not catastrophic, but it's bandwidth and time. |
 | `~/.config/media-centarr/media-centarr.toml` | The TOML config — watch directories, exclude directories, optional custom database path. Small and easy to regenerate by hand if lost, but backing it up avoids the re-typing. |
 
 Notes:
 
-- If you configured a non-default `database_path` in your TOML, back up that path instead of `~/.local/share/media-centarr/media_library.db`.
+- If you configured a non-default `database_path` in your TOML, back up that path instead of `~/.local/share/media-centarr/media-centarr.db`.
 - If you configured a custom `images_dir` per watch directory, back up those paths instead of the default `.media-centarr/images/` location.
 - `SECRET_KEY_BASE` is **not** data — it's a per-install secret. You can regenerate it (`mix phx.gen.secret`) on a restore; doing so invalidates any signed cookies / sessions, which is harmless for a single-user LAN install.
 - Your video files themselves are owned by you and live wherever you put them. Media Centarr never moves, deletes, or modifies them.
