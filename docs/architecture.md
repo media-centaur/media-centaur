@@ -2,7 +2,7 @@
 
 Media Centarr Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library through a LiveView web UI.
 
-> [Getting Started](getting-started.md) · [Configuration](configuration.md) · **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
+> **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md) · [Input System](input-system.md)
 
 - [System Overview](#system-overview)
 - [Data Flow](#data-flow)

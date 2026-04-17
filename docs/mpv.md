@@ -1,6 +1,16 @@
-# mpv Configuration
+# mpv Integration
 
-Media Centarr uses mpv as its playback engine. This document covers the custom configuration, keybindings, and plugins shipped in `contrib/mpv/`.
+End-user content has moved to the wiki:
+
+- **[Playback](https://github.com/media-centarr/media-centarr/wiki/Playback)** — how playback works end-to-end.
+- **[Keyboard & Gamepad](https://github.com/media-centarr/media-centarr/wiki/Keyboard-and-Gamepad)** — full mpv key bindings (playback, seek, tracks, volume, subtitles).
+- **[FAQ → Why mpv](https://github.com/media-centarr/media-centarr/wiki/FAQ#why-mpv)** — the rationale for delegating to mpv.
+
+---
+
+## Contributor internals
+
+The remainder of this file documents mpv configuration, the couch-mode Lua scripts shipped in `contrib/mpv/`, and their implementation details. End users who just want to know which keys do what should use the wiki links above.
 
 ## Installation
 
@@ -53,52 +63,7 @@ cp -r contrib/mpv/scripts/ ~/.config/mpv/scripts/
 
 ## Key Bindings (input.conf)
 
-### Playback
-
-| Key | Action |
-|-----|--------|
-| `SPACE` | Toggle pause |
-| `[` / `]` | Decrease / increase playback speed (0.9x / 1.1x) |
-| `BS` | Reset speed to 1.0x |
-
-### Seeking
-
-| Key | Action |
-|-----|--------|
-| `LEFT` / `RIGHT` | Seek -5s / +5s |
-| `DOWN` / `UP` | Seek -30s / +30s |
-| `Shift+LEFT` / `Shift+RIGHT` | Seek -1s / +1s (exact) |
-
-### Volume
-
-| Key | Action |
-|-----|--------|
-| `WHEEL_UP` / `WHEEL_DOWN` | Volume +5 / -5 |
-| `m` | Toggle mute |
-
-### Track Selection
-
-| Key | Action |
-|-----|--------|
-| `TAB` | Toggle track selector menu (track-menu plugin) |
-| `a` | Cycle audio track |
-| `j` / `J` | Cycle subtitle track forward / backward |
-| `v` | Toggle subtitle visibility |
-| `z` / `Z` | Adjust subtitle delay -0.1s / +0.1s |
-| `Ctrl+z` / `Ctrl+Z` | Adjust audio delay -0.1s / +0.1s |
-
-### Window & Navigation
-
-| Key | Action |
-|-----|--------|
-| `f` / `ENTER` | Toggle fullscreen |
-| `ESC` / `Q` | Quit and save position |
-| `q` | Quit without saving |
-| `<` / `>` | Previous / next playlist item |
-| `l` | Toggle file loop |
-| `s` / `S` | Screenshot (with subs) / screenshot (video only) |
-| `h` | Open playback history (memo script) |
-| `MBTN_BACK` | Close track menu if open, otherwise quit and save position |
+See the wiki's [Keyboard & Gamepad](https://github.com/media-centarr/media-centarr/wiki/Keyboard-and-Gamepad) page for the user-facing reference. The canonical source is `contrib/mpv/input.conf`.
 
 ## track-menu Plugin
 
