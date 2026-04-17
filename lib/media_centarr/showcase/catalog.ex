@@ -102,35 +102,11 @@ defmodule MediaCentarr.Showcase.Catalog do
 
   @spec video_objects() :: [video_entry()]
   def video_objects do
-    [
-      %{
-        title: "Caminandes: Llama Drama",
-        year: 2013,
-        description: "Blender Institute short — a llama tries to cross a fence.",
-        content_url: "/showcase/shorts/Caminandes 1 - Llama Drama.mkv",
-        url: "https://www.blender.org/"
-      },
-      %{
-        title: "Caminandes: Gran Dillama",
-        year: 2013,
-        description: "Blender Institute short — the llama's fence foray continues.",
-        content_url: "/showcase/shorts/Caminandes 2 - Gran Dillama.mkv",
-        url: "https://www.blender.org/"
-      },
-      %{
-        title: "Caminandes: Llamigos",
-        year: 2016,
-        description: "Blender Institute short — an uneasy friendship blossoms.",
-        content_url: "/showcase/shorts/Caminandes 3 - Llamigos.mkv",
-        url: "https://www.blender.org/"
-      },
-      %{
-        title: "Agent 327: Operation Barbershop",
-        year: 2017,
-        description: "Blender Animation Studio teaser for the long-running Dutch spy comic.",
-        content_url: "/showcase/shorts/Agent 327 - Operation Barbershop.mkv",
-        url: "https://www.blender.org/"
-      }
-    ]
+    # Intentionally empty. VideoObject (schema.org shorts without a TMDB
+    # identity) clutters the showcase library grid with low-metadata
+    # cards that look unfinished next to the TMDB-backed movies and
+    # series. The catalog still supports the shape — re-populate this
+    # list to bring shorts back.
+    []
   end
 end
