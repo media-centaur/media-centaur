@@ -1,9 +1,9 @@
-defmodule MediaCentarr.LastActivityTest do
+defmodule MediaCentarr.Library.LastActivityTest do
   use ExUnit.Case, async: true
 
   import MediaCentarr.TestFactory
 
-  alias MediaCentarr.LastActivity
+  alias MediaCentarr.Library.LastActivity
 
   describe "compute/1" do
     test "movie with no progress returns inserted_at" do

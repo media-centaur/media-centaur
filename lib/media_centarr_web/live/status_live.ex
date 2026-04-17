@@ -13,7 +13,7 @@ defmodule MediaCentarrWeb.StatusLive do
 
   alias MediaCentarr.{Library, Playback, Status, Storage, WatchHistory}
   alias MediaCentarr.Pipeline.Stats
-  alias MediaCentarr.ImagePipeline
+  alias MediaCentarr.Pipeline.Image, as: ImagePipeline
   alias MediaCentarr.Watcher
 
   @storage_refresh_ms 5 * 60 * 1_000

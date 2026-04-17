@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Config do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Loads and serves application configuration from the user's
   TOML config file (`~/.config/media-centarr/media-centarr.toml`),

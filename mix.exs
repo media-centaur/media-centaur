@@ -10,7 +10,7 @@ defmodule MediaCentarr.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       consolidate_protocols: Mix.env() != :dev,
       releases: [
@@ -85,7 +85,8 @@ defmodule MediaCentarr.MixProject do
       {:credo_check_error_handling_ecto_oban, "~> 0.9", only: [:dev, :test], runtime: false},
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:boundary, "~> 0.10", runtime: false}
     ]
   end
 

@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Parser do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Parses media file paths to extract title, year, type, season, and episode information.
   Pure module — no GenServer, no DB, no side effects.

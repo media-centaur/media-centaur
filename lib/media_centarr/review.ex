@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Review do
+  use Boundary, deps: [MediaCentarr.TMDB], exports: [Rematch]
+
   @moduledoc """
   The review domain — files requiring human review before library ingestion.
 

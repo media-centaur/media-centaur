@@ -1,4 +1,6 @@
 defmodule MediaCentarr.WatchHistory do
+  use Boundary, deps: [MediaCentarr.Library], exports: []
+
   @moduledoc """
   Public API for the WatchHistory bounded context.
 

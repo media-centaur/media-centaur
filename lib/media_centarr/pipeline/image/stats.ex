@@ -1,8 +1,8 @@
-defmodule MediaCentarr.ImagePipeline.Stats do
+defmodule MediaCentarr.Pipeline.Image.Stats do
   @moduledoc """
   Tracks image pipeline activity for Status-page visualization.
 
-  Attaches to telemetry events emitted by `ImagePipeline` and its `Producer`,
+  Attaches to telemetry events emitted by `Pipeline.Image` and its `Producer`,
   receives updates via `GenServer.cast`, and serves snapshots via
   `GenServer.call`. Each telemetry handler runs in the caller's process
   (a Broadway processor) and sends a cast to avoid blocking.
@@ -35,7 +35,7 @@ defmodule MediaCentarr.ImagePipeline.Stats do
   """
   use GenServer
 
-  alias MediaCentarr.StatsHelpers
+  alias MediaCentarr.Pipeline.StatsHelpers
 
   @window_ms 5_000
   @saturated_threshold 3

@@ -1,5 +1,6 @@
 defmodule MediaCentarr.DateUtil do
   @moduledoc false
+  use Boundary, top_level?: true, check: [in: false, out: false]
 
   @doc """
   Extracts the four-character year prefix from a date string like `"2024-01-15"`.

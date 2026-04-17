@@ -1,4 +1,8 @@
 defmodule MediaCentarr.Settings do
+  use Boundary,
+    deps: [MediaCentarr.Library, MediaCentarr.Watcher],
+    exports: [Entry, Admin]
+
   @moduledoc """
   Cross-cutting key/value settings — logging toggles, framework log
   suppression, spoiler-free mode, service startup flags.

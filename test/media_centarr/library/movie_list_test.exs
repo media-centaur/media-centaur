@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Playback.MovieListTest do
+defmodule MediaCentarr.Library.MovieListTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Playback.MovieList
+  alias MediaCentarr.Library.MovieList
 
   import MediaCentarr.TestFactory
 
@@ -56,7 +56,7 @@ defmodule MediaCentarr.Playback.MovieListTest do
       progress_a = build_progress(%{movie_id: movie_id_a, position_seconds: 30.0})
       progress_b = build_progress(%{movie_id: movie_id_b, position_seconds: 60.0})
 
-      alias MediaCentarr.Playback.EpisodeList
+      alias MediaCentarr.Library.EpisodeList
       index = EpisodeList.index_progress_by_key([progress_a, progress_b])
 
       assert index[movie_id_a] == progress_a

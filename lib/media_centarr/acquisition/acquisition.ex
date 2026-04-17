@@ -1,4 +1,8 @@
 defmodule MediaCentarr.Acquisition do
+  use Boundary,
+    deps: [],
+    exports: [Quality, QueryExpander, QueueItem, Prowlarr, DownloadClient.QBittorrent]
+
   @moduledoc """
   Public facade for the Acquisition bounded context.
 

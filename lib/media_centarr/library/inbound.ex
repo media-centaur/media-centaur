@@ -22,7 +22,6 @@ defmodule MediaCentarr.Library.Inbound do
   alias MediaCentarr.Library
   alias MediaCentarr.Library.{ChangeLog, EntityCascade, Helpers}
   alias MediaCentarr.Library.WatchedFile
-  alias MediaCentarr.Pipeline.ImageQueue
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -623,21 +622,10 @@ defmodule MediaCentarr.Library.Inbound do
   defp queue_images(_entity, [], _event), do: :ok
 
   defp queue_images(entity, pending_images, event) do
-    Enum.each(pending_images, fn image ->
-      ImageQueue.create(%{
-        owner_id: image.owner_id,
-        owner_type: image.owner_type,
-        role: image.role,
-        source_url: image.source_url,
-        entity_id: entity.id,
-        watch_dir: event.watch_dir
-      })
-    end)
-
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
       MediaCentarr.Topics.pipeline_images(),
-      {:images_pending, %{entity_id: entity.id, watch_dir: event.watch_dir}}
+      {:enqueue_images, %{entity_id: entity.id, watch_dir: event.watch_dir, images: pending_images}}
     )
   end
 

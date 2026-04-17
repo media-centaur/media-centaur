@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Watcher do
+  use Boundary, deps: [MediaCentarr.Library], exports: [Supervisor, FilePresence]
+
   @moduledoc """
   Watches a single directory for new video files via inotify.
 

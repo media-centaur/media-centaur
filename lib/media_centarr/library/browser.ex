@@ -1,33 +1,16 @@
-defmodule MediaCentarr.LibraryBrowser do
+defmodule MediaCentarr.Library.Browser do
   @moduledoc """
   Data-fetching module for the library browser LiveView.
-  Keeps the LiveView thin by centralizing all library queries and playback actions.
+  Keeps the LiveView thin by centralizing all library queries.
   """
   import Ecto.Query
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Format
   alias MediaCentarr.Library.{EntityShape, Movie, MovieSeries, TVSeries, VideoObject}
-  alias MediaCentarr.Playback.{EpisodeList, MovieList, ProgressSummary, Resolver, Sessions}
+  alias MediaCentarr.Library.{EpisodeList, MovieList, ProgressSummary}
   alias MediaCentarr.Repo
   alias MediaCentarr.Watcher.KnownFile
-
-  @doc """
-  Smart play for any UUID — resolves the target and starts playback.
-  """
-  def play(uuid) do
-    Log.info(:library, "play requested — #{Format.short_id(uuid)}")
-
-    case Resolver.resolve(uuid) do
-      {:ok, play_params} ->
-        Sessions.play(play_params)
-
-      {:error, reason} ->
-        Log.info(:playback, "play failed — #{Format.short_id(uuid)}, #{reason}")
-        {:error, reason}
-    end
-  end
 
   @doc """
   Loads all library entries from the type-specific tables

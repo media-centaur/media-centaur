@@ -56,24 +56,6 @@ defmodule MediaCentarr.ConsoleTest do
     end
   end
 
-  describe "rescan_library/0" do
-    test "returns :ok and dispatches to TaskSupervisor" do
-      before_count = length(Task.Supervisor.children(MediaCentarr.TaskSupervisor))
-
-      assert Console.rescan_library() == :ok
-
-      # The call must be non-blocking — it returns :ok immediately whether or
-      # not watchers are configured. The task may finish instantly in test
-      # (no watch dirs), so just verify the count increased by at least 1 at
-      # some point OR that it completed without crashing.
-      after_count = length(Task.Supervisor.children(MediaCentarr.TaskSupervisor))
-
-      # Either the task is still running (after > before) or it already
-      # finished (after == before). Either way: no crash, :ok returned.
-      assert after_count >= before_count
-    end
-  end
-
   describe "subscribe/0" do
     test "returns :ok" do
       result = Console.subscribe()

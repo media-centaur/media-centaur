@@ -13,8 +13,8 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   import MediaCentarrWeb.LibraryHelpers,
     only: [format_type: 1, extract_year: 1, format_human_duration: 1]
 
-  alias MediaCentarr.Playback.EpisodeList
-  alias MediaCentarr.Playback.MovieList
+  alias MediaCentarr.Library.EpisodeList
+  alias MediaCentarr.Library.MovieList
 
   # --- Public API ---
 

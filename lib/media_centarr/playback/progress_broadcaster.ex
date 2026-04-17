@@ -24,7 +24,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   def broadcast(entity_id, changed_record \\ nil) do
     case resolve_entity_with_progress(entity_id) do
       {:ok, entity, progress_records} ->
-        summary = MediaCentarr.Playback.ProgressSummary.compute(entity, progress_records)
+        summary = MediaCentarr.Library.ProgressSummary.compute(entity, progress_records)
         resume_target = MediaCentarr.Playback.ResumeTarget.compute(entity, progress_records)
 
         Log.info(:playback, "broadcast progress — #{Format.short_id(entity_id)}")

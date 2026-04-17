@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Secret do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Wraps a sensitive string (API key, password) so it doesn't leak via
   `inspect/2`, crash dumps, or accidental string interpolation.

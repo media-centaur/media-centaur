@@ -2,6 +2,7 @@ defmodule MediaCentarr.Format do
   @moduledoc """
   Shared formatting helpers for log messages and display.
   """
+  use Boundary, top_level?: true, check: [in: false, out: false]
 
   @doc """
   Formats a number of seconds into a human-readable duration string.

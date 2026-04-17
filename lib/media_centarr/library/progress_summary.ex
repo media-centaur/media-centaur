@@ -1,10 +1,10 @@
-defmodule MediaCentarr.Playback.ProgressSummary do
+defmodule MediaCentarr.Library.ProgressSummary do
   @moduledoc """
   Computes a display-ready progress summary for an entity given its watch progress records.
   Pure function — no DB or side effects.
   """
 
-  alias MediaCentarr.Playback.{EpisodeList, MovieList}
+  alias MediaCentarr.Library.{EpisodeList, MovieList}
 
   @type t :: %{
           current_episode: %{season: integer(), episode: integer()} | nil,

@@ -9,13 +9,14 @@ defmodule MediaCentarrWeb.SettingsLive do
   """
   use MediaCentarrWeb, :live_view
 
-  alias MediaCentarr.{Admin, Config, Settings}
+  alias MediaCentarr.{Config, Settings}
+  alias MediaCentarr.Settings.Admin
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.Prowlarr
   alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
   alias MediaCentarr.Watcher
   alias MediaCentarr.Pipeline
-  alias MediaCentarr.ImagePipeline
+  alias MediaCentarr.Pipeline.Image, as: ImagePipeline
 
   @sections [
     %{id: "services", label: "Services"},

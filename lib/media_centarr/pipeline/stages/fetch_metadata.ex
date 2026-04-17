@@ -27,7 +27,8 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
   """
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.{Parser, Pipeline.Payload}
+  alias MediaCentarr.Parser
+  alias MediaCentarr.Pipeline.Payload
   alias MediaCentarr.TMDB.{Client, Mapper}
 
   @spec run(Payload.t()) :: {:ok, Payload.t()} | {:error, term()}

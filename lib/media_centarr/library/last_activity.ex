@@ -1,4 +1,4 @@
-defmodule MediaCentarr.LastActivity do
+defmodule MediaCentarr.Library.LastActivity do
   @moduledoc """
   Computes the most recent activity timestamp for an entity.
   Activity is the newest of: when the entity or any child was added, or when anything was last watched.

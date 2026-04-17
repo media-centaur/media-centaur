@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Seed.Review do
   @shortdoc "Seed review UI with all visual cases"
+  use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
   Populates PendingFile records covering every review UI state:

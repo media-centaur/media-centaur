@@ -1,4 +1,4 @@
-defmodule MediaCentarr.ImagePipeline.RetryScheduler do
+defmodule MediaCentarr.Pipeline.Image.RetryScheduler do
   @moduledoc """
   Automatically retries transient image download failures with exponential backoff.
 

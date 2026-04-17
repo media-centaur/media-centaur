@@ -7,12 +7,13 @@ defmodule MediaCentarr.Pipeline.Stages.Parse do
   """
   require MediaCentarr.Log, as: Log
 
+  alias MediaCentarr.Parser
   alias MediaCentarr.Pipeline.Payload
 
   @spec run(Payload.t()) :: {:ok, Payload.t()}
   def run(%Payload{file_path: file_path} = payload) do
     extras_dirs = extras_dirs_from_config()
-    result = MediaCentarr.Parser.parse(file_path, extras_dirs: extras_dirs)
+    result = Parser.parse(file_path, extras_dirs: extras_dirs)
 
     Log.info(:pipeline, fn ->
       "parsed #{Path.basename(file_path)} — " <>

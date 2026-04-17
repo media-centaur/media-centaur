@@ -3,6 +3,7 @@ defmodule MediaCentarr.Topics do
   PubSub topic constants. Centralises all topic strings so typos
   become compile-time failures instead of silent subscription misses.
   """
+  use Boundary, top_level?: true, check: [in: false, out: false]
 
   def library_updates, do: "library:updates"
   def library_commands, do: "library:commands"

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.ImagePipeline.Producer do
+defmodule MediaCentarr.Pipeline.Image.Producer do
   @moduledoc """
   GenStage producer for the image pipeline.
 
@@ -42,6 +42,25 @@ defmodule MediaCentarr.ImagePipeline.Producer do
     state = %{state | queue: queue}
     {messages, state} = dispatch(state)
     {:noreply, messages, state}
+  end
+
+  def handle_info(
+        {:enqueue_images, %{entity_id: entity_id, watch_dir: watch_dir, images: images}},
+        state
+      ) do
+    Enum.each(images, fn image ->
+      ImageQueue.create(%{
+        owner_id: image.owner_id,
+        owner_type: image.owner_type,
+        role: image.role,
+        source_url: image.source_url,
+        entity_id: entity_id,
+        watch_dir: watch_dir
+      })
+    end)
+
+    send(self(), {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}})
+    {:noreply, [], state}
   end
 
   def handle_info(_msg, state) do

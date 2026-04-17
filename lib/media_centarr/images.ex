@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Images do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Shared image download and storage service.
 

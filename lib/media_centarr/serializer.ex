@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Serializer do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Converts library records into schema.org JSON-LD maps matching DATA-FORMAT.md.
 
@@ -17,7 +19,7 @@ defmodule MediaCentarr.Serializer do
     Episode
   }
 
-  alias MediaCentarr.Playback.{EpisodeList, MovieList}
+  alias MediaCentarr.Library.{EpisodeList, MovieList}
 
   @doc """
   Dispatches to the type-specific serializer based on a plain map's `:type` field.

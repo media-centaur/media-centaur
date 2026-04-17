@@ -1,9 +1,9 @@
 defmodule MediaCentarr.Pipeline.Stages.SearchTest do
   use MediaCentarr.DataCase, async: false
 
+  alias MediaCentarr.Parser
   alias MediaCentarr.Pipeline.Payload
   alias MediaCentarr.Pipeline.Stages.Search
-  alias MediaCentarr.Parser
 
   import MediaCentarr.TmdbStubs
 

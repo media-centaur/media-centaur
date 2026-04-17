@@ -1,7 +1,7 @@
-defmodule MediaCentarr.AdminTest do
+defmodule MediaCentarr.Settings.AdminTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Admin
+  alias MediaCentarr.Settings.Admin
   alias MediaCentarr.Review
 
   import MediaCentarr.TestFactory
