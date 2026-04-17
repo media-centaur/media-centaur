@@ -6,6 +6,10 @@
 # scripts/release and the release CI workflow.
 /rel/overlays/share/defaults/media-centarr.toml
 
+# Build info written by the release CI workflow (version, built_at, git_sha).
+# Absent in dev/test — the app falls back to a "dev build" label.
+/priv/build_info.json
+
 # The directory Mix will write compiled artifacts to.
 /_build/
 
