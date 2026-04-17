@@ -1,0 +1,56 @@
+# Showcase override — self-contained config for the demo instance.
+#
+# Activate by setting MEDIA_CENTARR_CONFIG_OVERRIDE to this file's path.
+# Paths below are relative to repo root (i.e. the CWD when running mix
+# tasks from the checkout).
+#
+#   MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
+#   MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
+#   MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
+#   MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+#
+# Everything the showcase needs (DB, image cache, fake watch dir) lives
+# under priv/showcase/, which is git-ignored — a `rm -rf priv/showcase/`
+# resets the demo cleanly.
+
+# Separate port so the showcase can run side-by-side with dev (1080) and
+# prod (2160) without colliding. scripts/screenshot-tour defaults to this.
+port = 4003
+
+# Showcase data lives inside the repo checkout, not ~/.local/share, so
+# the demo setup is fully contained and git-clean-able.
+database_path = "priv/showcase/media-centarr.db"
+
+watch_dirs = [
+  { dir = "priv/showcase/media", images_dir = "priv/showcase/images" }
+]
+
+exclude_dirs = []
+
+file_absence_ttl_days = 30
+
+[tmdb]
+# TMDB API key — required for the seeder's metadata fetches. Leave
+# commented so the value falls through to the `TMDB_API_KEY` env var
+# (matches the seeder invocation pattern used by scripts/screenshot-tour
+# and the seed.showcase runbook in CLAUDE.md).
+# api_key = ""
+
+[pipeline]
+# Lower threshold than the default so the review UI will show a mix of
+# auto-approved + below-threshold candidates on seeded data.
+auto_approve_threshold = 0.80
+extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
+skip_dirs = ["Sample"]
+
+[status]
+recent_changes_days = 7
+recently_watched_count = 8
+
+[playback]
+mpv_path = "/usr/bin/mpv"
+socket_dir = "/tmp"
+socket_timeout_ms = 5000
+
+[release_tracking]
+refresh_interval_hours = 24

@@ -26,13 +26,11 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 <div align="center">
 
-<img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="32%">
-<img src="docs-site/assets/screenshots/playback-overlay.png" alt="Playback overlay" width="32%">
-<img src="docs-site/assets/screenshots/review-queue.png" alt="Review queue" width="32%">
+<img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="48%">
+<img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%">
 
-<img src="docs-site/assets/screenshots/release-tracking.png" alt="Release tracking" width="32%">
-<img src="docs-site/assets/screenshots/settings-overview.png" alt="Settings overview" width="32%">
-<img src="docs-site/assets/screenshots/watch-history.png" alt="Watch history" width="32%">
+<img src="docs-site/assets/screenshots/library-detail-tv.png" alt="TV series detail with episode list" width="48%">
+<img src="docs-site/assets/screenshots/settings-overview.png" alt="Settings overview" width="48%">
 
 </div>
 

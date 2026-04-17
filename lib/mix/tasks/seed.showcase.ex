@@ -1,18 +1,21 @@
 defmodule Mix.Tasks.Seed.Showcase do
-  @shortdoc "Seed the showcase profile with public-domain media for demos"
+  @shortdoc "Seed the showcase database with public-domain media for demos"
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
-  Populates the showcase profile's database with curated public-domain and
-  Creative Commons media so the UI can be exercised and screenshotted without
-  copyrighted material from your personal library.
+  Populates the showcase database with curated public-domain and
+  Creative Commons media so the UI can be exercised and screenshotted
+  without copyrighted material from your personal library.
 
-  Refuses to run unless `MEDIA_CENTARR_PROFILE=showcase` is set — this is the
-  single safety rail that keeps the seeder from clobbering your real DB.
+  Refuses to run unless `MEDIA_CENTARR_CONFIG_OVERRIDE` is set. That env
+  var points at a self-contained TOML (see
+  `defaults/media-centarr-showcase.toml`) which carries its own
+  `database_path` and `watch_dirs` — so the seeder cannot land on the
+  default dev/prod DB by accident.
 
-      MEDIA_CENTARR_PROFILE=showcase mix ecto.create
-      MEDIA_CENTARR_PROFILE=showcase mix ecto.migrate
-      MEDIA_CENTARR_PROFILE=showcase mix seed.showcase
+      MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
+      MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
+      MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
 
   See `MediaCentarr.Showcase` for what gets created.
   """
@@ -22,38 +25,28 @@ defmodule Mix.Tasks.Seed.Showcase do
 
   @impl true
   def run(_args) do
-    Mix.Task.run("app.start")
-
-    case MediaCentarr.Config.profile() do
-      "showcase" ->
+    case System.get_env("MEDIA_CENTARR_CONFIG_OVERRIDE") do
+      override when is_binary(override) and override != "" ->
+        Mix.Task.run("app.start")
         summary = Showcase.seed!()
         print_summary(summary)
 
-      nil ->
+      _ ->
         Mix.raise("""
-        mix seed.showcase refuses to run against the default profile.
+        mix seed.showcase refuses to run without MEDIA_CENTARR_CONFIG_OVERRIDE.
 
-        Re-run with the showcase profile active:
+        Run with the shipped showcase override:
 
-            MEDIA_CENTARR_PROFILE=showcase mix seed.showcase
+            MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
 
-        This protects your real database from being seeded with demo data.
-        """)
-
-      other ->
-        Mix.raise("""
-        mix seed.showcase requires MEDIA_CENTARR_PROFILE=showcase, got #{inspect(other)}.
-
-        If you meant to use the showcase profile:
-
-            MEDIA_CENTARR_PROFILE=showcase mix seed.showcase
+        This prevents seeding the default dev/prod DB by accident.
         """)
     end
   end
 
   defp print_summary(summary) do
     Mix.shell().info("""
-    Seeded showcase profile:
+    Seeded showcase:
       Movies:         #{summary.movies}
       TV series:      #{summary.tv_series}
       Seasons:        #{summary.seasons}

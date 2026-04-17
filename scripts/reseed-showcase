@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Wipe and re-seed the showcase database from scratch.
+#
+# Flow:
+#   1. Stop any showcase server listening on :4003 (best-effort).
+#   2. Delete priv/showcase/media-centarr.db{,-shm,-wal}.
+#   3. ecto.create + ecto.migrate against the showcase override TOML.
+#   4. Pull the TMDB API key from the dev DB's settings_entries (the one
+#      and only place it's stored on this machine) and export it so the
+#      seeder can fetch real metadata and artwork.
+#   5. mix seed.showcase (populates ~14 movies, 2 TV series, stubs for
+#      content files so the detail modals don't show "missing" banners).
+#
+# All state lives inside priv/showcase/ — `rm -rf priv/showcase/` is a
+# full reset and this script will rebuild from scratch.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+OVERRIDE="defaults/media-centarr-showcase.toml"
+SHOWCASE_DB="priv/showcase/media-centarr.db"
+DEV_DB="$HOME/.local/share/media-centarr/media-centarr.db"
+SHOWCASE_PORT=4003
+
+# 1. Stop any showcase-on-4003 so the DB isn't locked when we wipe.
+# `|| true` on the pipeline — under `set -eo pipefail` a grep miss (no
+# server running, which is the common case) would silently kill the
+# script here otherwise.
+pid=$(ss -tlnpH 2>/dev/null | awk -v p=":$SHOWCASE_PORT" '$4 ~ p {print $0}' | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2 || true)
+if [ -n "$pid" ]; then
+  echo "stopping showcase server pid=$pid"
+  kill "$pid" 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8; do
+    sleep 1
+    ss -tlnpH 2>/dev/null | grep -q ":$SHOWCASE_PORT" || break
+  done
+fi
+
+# 2. Wipe showcase DB + WAL sidecars.
+rm -f "$SHOWCASE_DB" "${SHOWCASE_DB}-shm" "${SHOWCASE_DB}-wal"
+
+# 3. Create + migrate. MEDIA_CENTARR_CONFIG_OVERRIDE points at the shipped
+# showcase TOML, which carries an explicit priv/showcase/media-centarr.db
+# path so there's no risk of hitting the default dev DB.
+export MEDIA_CENTARR_CONFIG_OVERRIDE="$OVERRIDE"
+mise exec -- mix ecto.create
+mise exec -- mix ecto.migrate
+
+# 4. TMDB key: the seeder needs it to fetch real metadata + artwork. The
+# key lives in the user's dev DB settings_entries (the single canonical
+# location). Read-only query; doesn't mutate dev DB.
+if [ -f "$DEV_DB" ]; then
+  TMDB_API_KEY=$(sqlite3 "$DEV_DB" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
+  export TMDB_API_KEY
+fi
+
+if [ -z "${TMDB_API_KEY:-}" ]; then
+  echo "warning: no TMDB_API_KEY found in $DEV_DB; seeder will fail on TMDB lookups" >&2
+fi
+
+# 5. Seed.
+mise exec -- mix seed.showcase

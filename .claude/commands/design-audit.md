@@ -327,12 +327,12 @@ belongs to the sibling.
 ### Pass 6 — Live visual inspection (opportunistic)
 
 This pass is **optional and runs only if** chrome-devtools MCP is available
-**and** the dev server is reachable at `http://127.0.0.1:4001`.
+**and** the dev server is reachable at `http://127.0.0.1:1080`.
 
 **Availability probe.** Attempt `mcp__chrome-devtools__list_pages`. If the
 tool is unavailable or the call fails with a connection error, skip the entire
 pass and record a single note in the final summary: *"Pass 6 skipped: dev
-server not reachable at 127.0.0.1:4001"*. Never error out; never block the
+server not reachable at 127.0.0.1:1080"*. Never error out; never block the
 static passes.
 
 **If available, run the following against each top-level page** (`/`,

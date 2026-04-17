@@ -10,10 +10,10 @@ description: "Use this skill when debugging production issues, checking service 
 - **Binary:** `~/.local/lib/media-centarr/bin/media_centarr`
 - **Database:** `~/.local/share/media-centarr/media-centarr.db` (SQLite)
 - **Config:** `~/.config/media-centarr/media-centarr.toml`
-- **Port:** 4000 (loopback only)
+- **Port:** 2160 (loopback only)
 - **Node:** `media_centarr` (sname, cookie: `media-centarr-local`)
 
-Dev runs on port 4001. Both coexist on the same machine.
+Dev runs on port 1080 (see `MEDIA_CENTARR_CONFIG_OVERRIDE` in the dev systemd unit). Both coexist on the same machine.
 
 ## Diagnostics Module
 

@@ -183,7 +183,7 @@ Every navigation test runs twice — once with keyboard, once with gamepad — v
 
 **Location:** `test/e2e/`
 
-**Requires:** Dev server running (`mix phx.server` at `http://127.0.0.1:4001`)
+**Requires:** Dev server running (`mix phx.server` at `http://127.0.0.1:1080`)
 
 ### Parameterized Input Method
 

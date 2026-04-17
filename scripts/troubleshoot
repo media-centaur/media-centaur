@@ -9,7 +9,7 @@ set -euo pipefail
 service="media-centarr"
 install_dir="$HOME/.local/lib/media-centarr"
 bin="$install_dir/bin/media_centarr"
-port=4000
+port=2160
 
 bold="\033[1m"
 dim="\033[2m"

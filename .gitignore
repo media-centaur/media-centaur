@@ -10,6 +10,14 @@
 # Absent in dev/test — the app falls back to a "dev build" label.
 /priv/build_info.json
 
+# Showcase demo data — populated by `mix seed.showcase` with the shipped
+# override TOML. Self-contained inside the repo so `rm -rf priv/showcase/`
+# resets the demo cleanly.
+/priv/showcase/media/
+/priv/showcase/images/
+/priv/showcase/*.db
+/priv/showcase/*.db-*
+
 # The directory Mix will write compiled artifacts to.
 /_build/
 

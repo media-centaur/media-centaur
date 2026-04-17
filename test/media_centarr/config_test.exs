@@ -152,60 +152,36 @@ defmodule MediaCentarr.ConfigTest do
   end
 
   # ---------------------------------------------------------------------------
-  # Profiles
+  # Config path resolution
   # ---------------------------------------------------------------------------
 
-  describe "profile/0" do
+  describe "config_path/0" do
     setup do
-      original = System.get_env("MEDIA_CENTARR_PROFILE")
+      original = System.get_env("MEDIA_CENTARR_CONFIG_OVERRIDE")
 
       on_exit(fn ->
         case original do
-          nil -> System.delete_env("MEDIA_CENTARR_PROFILE")
-          value -> System.put_env("MEDIA_CENTARR_PROFILE", value)
+          nil -> System.delete_env("MEDIA_CENTARR_CONFIG_OVERRIDE")
+          value -> System.put_env("MEDIA_CENTARR_CONFIG_OVERRIDE", value)
         end
       end)
 
       :ok
     end
 
-    test "returns nil when MEDIA_CENTARR_PROFILE is unset" do
-      System.delete_env("MEDIA_CENTARR_PROFILE")
-      assert Config.profile() == nil
+    test "returns default XDG path when MEDIA_CENTARR_CONFIG_OVERRIDE is unset" do
+      System.delete_env("MEDIA_CENTARR_CONFIG_OVERRIDE")
+      assert Config.config_path() == Path.expand("~/.config/media-centarr/media-centarr.toml")
     end
 
-    test "returns the profile name when MEDIA_CENTARR_PROFILE is set" do
-      System.put_env("MEDIA_CENTARR_PROFILE", "showcase")
-      assert Config.profile() == "showcase"
+    test "returns override path when set" do
+      System.put_env("MEDIA_CENTARR_CONFIG_OVERRIDE", "/tmp/custom-config.toml")
+      assert Config.config_path() == "/tmp/custom-config.toml"
     end
 
-    test "treats empty string as no profile" do
-      System.put_env("MEDIA_CENTARR_PROFILE", "")
-      assert Config.profile() == nil
-    end
-  end
-
-  describe "config_path/1" do
-    test "returns default path when profile is nil" do
-      expected = Path.expand("~/.config/media-centarr/media-centarr.toml")
-      assert Config.config_path(nil) == expected
-    end
-
-    test "returns profile-scoped path when profile is a string" do
-      expected = Path.expand("~/.config/media-centarr/profiles/showcase.toml")
-      assert Config.config_path("showcase") == expected
-    end
-  end
-
-  describe "profile_data_dir/1" do
-    test "returns profile-scoped data directory" do
-      expected = Path.expand("~/.local/share/media-centarr/profiles/showcase")
-      assert Config.profile_data_dir("showcase") == expected
-    end
-
-    test "works for arbitrary profile names" do
-      expected = Path.expand("~/.local/share/media-centarr/profiles/review-dev")
-      assert Config.profile_data_dir("review-dev") == expected
+    test "treats empty string as unset" do
+      System.put_env("MEDIA_CENTARR_CONFIG_OVERRIDE", "")
+      assert Config.config_path() == Path.expand("~/.config/media-centarr/media-centarr.toml")
     end
   end
 

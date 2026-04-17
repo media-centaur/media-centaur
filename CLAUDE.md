@@ -42,7 +42,7 @@ All repositories use **JJ (Jujutsu)** — never use raw `git` commands.
 
 ```bash
 mix setup              # install deps, create DB, run migrations, build assets
-mix phx.server         # start dev server (http://localhost:4001)
+mix phx.server         # start dev server (http://localhost:1080)
 mix test               # run tests (creates and migrates test DB automatically)
 mix precommit          # compile --warning-as-errors (incl. boundary), format (Quokka), credo --strict, JS boundaries, deps.audit, sobelow, test
 ```
@@ -56,27 +56,38 @@ mix seed.review        # populate the review UI with all visual test cases
 One-shot utility for the review UI's visual test cases. Run once after
 initial setup. Idempotent — safe to re-run.
 
-### Profiles (isolated dev databases)
+### Config overrides (isolated dev/demo instances)
 
-The `MEDIA_CENTARR_PROFILE` env var activates an alternative profile —
-separate SQLite DB, watch dir, and image cache under
-`~/.local/share/media-centarr/profiles/<name>/`. The default install is
-untouched. Used for showcase/demo setups and feature-specific dev
-environments.
+`MEDIA_CENTARR_CONFIG_OVERRIDE` points at a TOML file that fully replaces
+the default (`~/.config/media-centarr/media-centarr.toml`). The override
+TOML carries its own `port`, `database_path`, and `watch_dirs`, so a
+mis-configured command can't accidentally clobber the real DB. This is
+the single mechanism for running dev + demo side-by-side with the
+installed release.
+
+Shipped overrides live in `defaults/`:
+
+| TOML | Purpose | Binds |
+|------|---------|-------|
+| `defaults/media-centarr-dev.toml` | Dev systemd unit | :1080 |
+| `defaults/media-centarr-showcase.toml` | Demo instance, public-domain media | :4003 |
 
 ```bash
-# Showcase profile — populated with public-domain media for screenshots.
-MEDIA_CENTARR_PROFILE=showcase mix ecto.create
-MEDIA_CENTARR_PROFILE=showcase mix ecto.migrate
-MEDIA_CENTARR_PROFILE=showcase mix seed.showcase
-MEDIA_CENTARR_PROFILE=showcase mix phx.server
+# Showcase demo — public-domain media for screenshots, fully contained
+# in priv/showcase/ (git-ignored; rm -rf resets cleanly).
+MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
+MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
+MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
+MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
 
-# Capture marketing screenshots against the showcase profile:
+# Capture marketing screenshots against the showcase (manual only —
+# screenshots are NOT regenerated on every deploy):
 scripts/screenshot-tour
 ```
 
-Per-profile TOML overrides live at `~/.config/media-centarr/profiles/<name>.toml`.
-Shipped defaults for the showcase profile are in `defaults/profiles/showcase.toml`.
+`mix seed.showcase` refuses to run without `MEDIA_CENTARR_CONFIG_OVERRIDE`
+set — that guarantee is why the earlier profile mechanism was collapsed
+into this single lever.
 
 ### Dev service
 
