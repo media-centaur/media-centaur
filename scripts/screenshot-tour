@@ -20,14 +20,21 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BASE_URL="${BASE_URL:-http://127.0.0.1:4003}"
 
-# Fail fast if the showcase server isn't reachable — launching Chromium
-# only to land on an error page wastes time and produces garbage shots.
+# Wait up to 30s for the showcase server to bind — the common workflow
+# is "scripts/start-showcase & ; scripts/screenshot-tour" and the BEAM
+# takes a few seconds to compile + migrate + listen on first boot.
+SERVER_WAIT_SECONDS=30
+for _ in $(seq 1 "$SERVER_WAIT_SECONDS"); do
+  curl --silent --fail --max-time 1 "$BASE_URL" > /dev/null 2>&1 && break
+  sleep 1
+done
+
 if ! curl --silent --fail --max-time 3 "$BASE_URL" > /dev/null 2>&1; then
-  echo "error: showcase server not reachable at $BASE_URL" >&2
+  echo "error: showcase server not reachable at $BASE_URL after ${SERVER_WAIT_SECONDS}s" >&2
   echo "" >&2
-  echo "Start it with the showcase override first:" >&2
+  echo "Start it first with:" >&2
   echo "" >&2
-  echo "    MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server" >&2
+  echo "    scripts/start-showcase" >&2
   echo "" >&2
   exit 1
 fi
@@ -40,7 +47,12 @@ fi
 # literal WM_CLASS of "media-centarr" on the tour window only, so a
 # single exact-match rule is surgical — it cannot touch the user's other
 # Chromium windows.
+#
+# Reload first to wipe any transient rules from an earlier tour run;
+# otherwise stale wildcards (e.g. "class:^(Chromium)$" from a different
+# session) keep affecting regular browser windows until reboot.
 if command -v hyprctl > /dev/null 2>&1; then
+  hyprctl reload > /dev/null 2>&1 || true
   for rule in \
     "float, class:^media-centarr$" \
     "size 1400 900, class:^media-centarr$" \

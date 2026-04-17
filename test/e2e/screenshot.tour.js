@@ -41,8 +41,11 @@ const TOUR = [
   },
   {
     name: "library-detail-movie",
-    url: `/?zone=library&selected=${NOSFERATU_ID}&view=info`,
-    waitFor: "#detail-modal[data-state='open'][data-detail-view='info']",
+    // Default view (not `&view=info`) — the info/"more info" panel was
+    // text-heavier than the main panel for Nosferatu and didn't sell the
+    // visual language as well.
+    url: `/?zone=library&selected=${NOSFERATU_ID}`,
+    waitFor: "#detail-modal[data-state='open']",
   },
   {
     name: "library-detail-tv",
