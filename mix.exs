@@ -41,7 +41,8 @@ defmodule MediaCentarr.MixProject do
   end
 
   # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(:test), do: ["lib", "test/support", "credo_checks"]
+  defp elixirc_paths(:dev), do: ["lib", "credo_checks"]
   defp elixirc_paths(_), do: ["lib"]
 
   # Specifies your project dependencies.
