@@ -90,6 +90,20 @@
 
       html {
         scroll-behavior: smooth;
+        /* TV-scale base type — everything rem-based scales with this */
+        font-size: 17px;
+      }
+
+      @media (min-width: 1280px) {
+        html {
+          font-size: 18px;
+        }
+      }
+
+      @media (min-width: 1536px) {
+        html {
+          font-size: 19px;
+        }
       }
 
       body {
@@ -190,7 +204,7 @@
     <!-- ================== NAV ================== -->
     <header class="relative z-10">
       <nav
-        class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:py-6"
+        class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:py-6"
       >
         <a href="#" class="flex items-center gap-3">
           <img
@@ -227,7 +241,7 @@
     <!-- ================== HERO ================== -->
     <section class="hero-bg relative overflow-hidden">
       <div
-        class="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 sm:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:py-36"
+        class="mx-auto grid max-w-7xl items-center gap-12 px-6 py-16 sm:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:py-36"
       >
         <div>
           <p
@@ -240,17 +254,17 @@
           <h1
             class="display text-4xl leading-[1.08] text-parchment-100 sm:text-6xl sm:leading-[1.02] lg:text-7xl"
           >
-            The media center for the <em class="text-arrow-500 not-italic">self-hosting enthusiast.</em>
+            The media center for the <em class="text-arrow-500 not-italic"><span class="whitespace-nowrap">self-hosting</span> enthusiast.</em>
           </h1>
 
-          <p class="mt-6 max-w-xl text-base leading-relaxed text-parchment-300 sm:mt-7 sm:text-lg">
+          <p class="mt-6 max-w-2xl text-lg leading-relaxed text-parchment-300 sm:mt-7 sm:text-xl">
             Point it at your video directories. Media Centarr identifies your
             movies and TV shows via TMDB, downloads artwork, tracks your
             progress, and plays everything locally through mpv — all from a
             real-time browser UI built for a TV across the room.
           </p>
 
-          <p class="mt-3 max-w-xl text-base text-parchment-400">
+          <p class="mt-3 max-w-2xl text-base text-parchment-400 sm:text-lg">
             Zero-config SQLite. No Docker. No transcoding server. No accounts.
             No cloud.
           </p>
@@ -289,12 +303,12 @@
     <main id="main">
       <!-- ================== WHAT IT DOES ================== -->
       <section id="what" class="scroll-mt-4 border-t border-white/5 bg-ink-800">
-        <div class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
+        <div class="mx-auto max-w-7xl px-6 py-20 sm:py-24">
           <div class="max-w-3xl">
-            <h2 class="display text-3xl text-parchment-100 sm:text-4xl">
+            <h2 class="display text-4xl text-parchment-100 sm:text-5xl">
               Everything the *ARR stack does, in one app — plus the player.
             </h2>
-            <p class="mt-4 text-parchment-300">
+            <p class="mt-4 text-lg text-parchment-300">
               Most self-hosted media setups are four services in a trench coat.
               Media Centarr is one Elixir app that does the library management,
               the metadata, the review workflow, and the playback — and hands
@@ -304,12 +318,12 @@
 
           <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-6"
+              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
             >
-              <h3 class="display text-lg text-parchment-100">
+              <h3 class="display text-xl text-parchment-100">
                 Library management
               </h3>
-              <p class="mt-2 text-sm text-parchment-300">
+              <p class="mt-2 text-base text-parchment-300">
                 Watches your directories, identifies movies and TV shows via
                 TMDB, downloads artwork. Low-confidence matches wait for
                 manual review rather than polluting your library with wrong
@@ -318,10 +332,10 @@
             </article>
 
             <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-6"
+              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
             >
-              <h3 class="display text-lg text-parchment-100">Playback</h3>
-              <p class="mt-2 text-sm text-parchment-300">
+              <h3 class="display text-xl text-parchment-100">Playback</h3>
+              <p class="mt-2 text-base text-parchment-300">
                 Launches mpv on the local machine, tracks your progress,
                 resumes where you left off, auto-advances to the next episode.
                 World-class subtitle rendering out of the box.
@@ -329,12 +343,12 @@
             </article>
 
             <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-6"
+              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
             >
-              <h3 class="display text-lg text-parchment-100">
+              <h3 class="display text-xl text-parchment-100">
                 Release tracking
               </h3>
-              <p class="mt-2 text-sm text-parchment-300">
+              <p class="mt-2 text-base text-parchment-300">
                 Monitors TMDB daily for upcoming movies and new TV seasons
                 tied to the shows in your library. No more "wait, there's a
                 season 4?"
@@ -342,12 +356,12 @@
             </article>
 
             <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-6"
+              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
             >
-              <h3 class="display text-lg text-parchment-100">
+              <h3 class="display text-xl text-parchment-100">
                 Optional acquisition
               </h3>
-              <p class="mt-2 text-sm text-parchment-300">
+              <p class="mt-2 text-base text-parchment-300">
                 Search and queue downloads via Prowlarr. Entirely optional —
                 Media Centarr is a full library manager without it. Bring your
                 own indexers.
@@ -355,10 +369,10 @@
             </article>
 
             <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-6"
+              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
             >
-              <h3 class="display text-lg text-parchment-100">Couch-first UI</h3>
-              <p class="mt-2 text-sm text-parchment-300">
+              <h3 class="display text-xl text-parchment-100">Couch-first UI</h3>
+              <p class="mt-2 text-base text-parchment-300">
                 Keyboard <em class="not-italic text-arrow-500">and</em>
                 gamepad navigation — plus any universal remote that can send
                 keystrokes (Bluetooth pairing or a Flirc USB). Large artwork,
@@ -367,10 +381,10 @@
             </article>
 
             <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-6"
+              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
             >
-              <h3 class="display text-lg text-parchment-100">Real-time</h3>
-              <p class="mt-2 text-sm text-parchment-300">
+              <h3 class="display text-xl text-parchment-100">Real-time</h3>
+              <p class="mt-2 text-base text-parchment-300">
                 Every change — new file detected, metadata fetched, playback
                 started — appears instantly via Phoenix LiveView. No polling.
                 No refresh button.
@@ -382,12 +396,12 @@
 
       <!-- ================== SCREENSHOTS ================== -->
       <section class="bg-ink-900">
-        <div class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
+        <div class="mx-auto max-w-7xl px-6 py-20 sm:py-24">
           <div class="max-w-3xl">
-            <h2 class="display text-3xl text-parchment-100 sm:text-4xl">
+            <h2 class="display text-4xl text-parchment-100 sm:text-5xl">
               The product.
             </h2>
-            <p class="mt-4 text-parchment-300">
+            <p class="mt-4 text-lg text-parchment-300">
               Dark-first, keyboard- and gamepad-friendly, designed for the
               distance between a couch and a TV.
             </p>
@@ -490,7 +504,7 @@
 
       <!-- ================== WHY MPV ================== -->
       <section class="border-t border-white/5 bg-ink-800">
-        <div class="mx-auto grid max-w-6xl gap-10 px-6 py-20 sm:py-24 lg:grid-cols-[0.7fr_1.3fr]">
+        <div class="mx-auto grid max-w-7xl gap-10 px-6 py-20 sm:py-24 lg:grid-cols-[0.7fr_1.3fr]">
           <div>
             <a
               href="https://mpv.io/"
@@ -510,11 +524,11 @@
             >
               Why mpv
             </p>
-            <h2 class="display mt-2 text-3xl text-parchment-100 sm:text-4xl">
+            <h2 class="display mt-2 text-4xl text-parchment-100 sm:text-5xl">
               Great software delegates.
             </h2>
           </div>
-          <div class="space-y-4 text-parchment-300">
+          <div class="space-y-4 text-lg text-parchment-300">
             <p>
               Media Centarr hands playback off to
               <a
@@ -539,20 +553,20 @@
 
       <!-- ================== NON-GOALS ================== -->
       <section class="bg-ink-900">
-        <div class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
+        <div class="mx-auto max-w-7xl px-6 py-20 sm:py-24">
           <div class="max-w-3xl">
             <p
               class="text-xs uppercase tracking-[0.2em] text-parchment-400"
             >
               Deliberately not
             </p>
-            <h2 class="display mt-2 text-3xl text-parchment-100 sm:text-4xl">
+            <h2 class="display mt-2 text-4xl text-parchment-100 sm:text-5xl">
               This is the wrong project if you want&hellip;
             </h2>
           </div>
 
-          <ul class="mt-10 grid gap-4 text-parchment-300 sm:grid-cols-2">
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-5">
+          <ul class="mt-10 grid gap-4 text-lg text-parchment-300 sm:grid-cols-2">
+            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
               <strong class="text-parchment-100"
                 >To stream to other devices.</strong
               >
@@ -565,13 +579,13 @@
               >
               exists.
             </li>
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-5">
+            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
               <strong class="text-parchment-100">Transcoding.</strong>
               Media Centarr never re-encodes your files. It plays what's on
               disk, as authored. Fix the file or the hardware, not the
               library manager.
             </li>
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-5">
+            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
               <strong class="text-parchment-100"
                 >Docker or containerized deployment.</strong
               >
@@ -579,7 +593,7 @@
               SQLite. The *ARR stack in Docker is a well-trodden path if you
               want that.
             </li>
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-5">
+            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
               <strong class="text-parchment-100"
                 >Multi-user accounts, sharing, access control.</strong
               >
@@ -597,10 +611,10 @@
             <p class="text-xs uppercase tracking-[0.2em] text-arrow-500">
               Install
             </p>
-            <h2 class="display mt-2 text-3xl text-parchment-100 sm:text-4xl">
+            <h2 class="display mt-2 text-4xl text-parchment-100 sm:text-5xl">
               One line on Linux x86_64.
             </h2>
-            <p class="mt-4 text-parchment-300">
+            <p class="mt-4 text-lg text-parchment-300">
               Downloads the latest release, verifies its checksum, installs
               atomically, and sets up a systemd user unit.
             </p>
@@ -674,7 +688,7 @@
     <!-- ================== FOOTER ================== -->
     <footer class="border-t border-white/5 bg-ink-900">
       <div
-        class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-12 sm:flex-row sm:items-center sm:justify-between"
+        class="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-12 sm:flex-row sm:items-center sm:justify-between"
       >
         <div class="flex items-center gap-3">
           <img
@@ -713,7 +727,7 @@
         </nav>
       </div>
 
-      <div class="mx-auto max-w-6xl px-6 pb-10">
+      <div class="mx-auto max-w-7xl px-6 pb-10">
         <a href="https://www.themoviedb.org" class="inline-flex items-center gap-3 opacity-70 hover:opacity-100">
           <img
             src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
