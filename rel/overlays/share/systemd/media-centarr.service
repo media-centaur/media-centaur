@@ -1,0 +1,18 @@
+[Unit]
+Description=Media Centarr
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/lib/media-centarr/current/bin/media_centarr start
+ExecStop=%h/.local/lib/media-centarr/current/bin/media_centarr stop
+EnvironmentFile=-%h/.config/media-centarr/secrets.env
+Restart=on-failure
+RestartSec=5
+KillMode=process
+TimeoutStopSec=30
+LimitNOFILE=65536
+
+[Install]
+WantedBy=default.target

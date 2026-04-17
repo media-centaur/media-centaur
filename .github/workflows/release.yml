@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Linux x86_64 release
+    # ubuntu-22.04 = older glibc → wider compatibility on user systems.
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          tag="${GITHUB_REF##*/}"
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify mix.exs version matches tag
+        run: |
+          mix_version=$(grep -E '^\s*version:' mix.exs | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          if [ "$mix_version" != "${{ steps.version.outputs.version }}" ]; then
+            echo "::error::Tag version (${{ steps.version.outputs.version }}) does not match mix.exs version ($mix_version)"
+            exit 1
+          fi
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18"
+          otp-version: "27"
+
+      - name: Cache deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-release-mix-${{ hashFiles('**/mix.lock') }}
+
+      - name: Cache _build
+        uses: actions/cache@v4
+        with:
+          path: _build
+          key: ${{ runner.os }}-release-build-${{ hashFiles('**/mix.lock') }}
+
+      - name: Fetch prod deps
+        run: MIX_ENV=prod mix deps.get --only prod
+
+      - name: Compile
+        env:
+          MIX_ENV: prod
+          MIX_OS_DEPS_COMPILE_PARTITION_COUNT: "8"
+        run: mix compile
+
+      - name: Deploy assets
+        run: MIX_ENV=prod mix assets.deploy
+
+      - name: Sync defaults into release overlay
+        run: |
+          mkdir -p rel/overlays/share/defaults
+          cp defaults/media-centarr.toml rel/overlays/share/defaults/media-centarr.toml
+
+      - name: Build release tarball
+        run: MIX_ENV=prod mix release --overwrite
+
+      - name: Stage release artifacts
+        id: stage
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          src="_build/prod/media_centarr-${version}.tar.gz"
+          if [ ! -f "$src" ]; then
+            echo "::error::Expected tarball not found at $src"
+            ls -la _build/prod/
+            exit 1
+          fi
+          mkdir -p artifacts
+          dest="artifacts/media-centarr-${version}-linux-x86_64.tar.gz"
+          cp "$src" "$dest"
+          (cd artifacts && sha256sum "media-centarr-${version}-linux-x86_64.tar.gz" > SHA256SUMS)
+          echo "tarball=$dest" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test installer presence in tarball
+        run: |
+          tar -tzf "${{ steps.stage.outputs.tarball }}" | grep -q '^bin/media-centarr-install$' \
+            || (echo "::error::Tarball missing bin/media-centarr-install"; exit 1)
+          tar -tzf "${{ steps.stage.outputs.tarball }}" | grep -q '^share/systemd/media-centarr.service$' \
+            || (echo "::error::Tarball missing share/systemd/media-centarr.service"; exit 1)
+          tar -tzf "${{ steps.stage.outputs.tarball }}" | grep -q '^share/defaults/media-centarr.toml$' \
+            || (echo "::error::Tarball missing share/defaults/media-centarr.toml"; exit 1)
+
+      - name: Write release notes
+        run: |
+          cat > /tmp/release-notes.md <<'EOF'
+          Linux x86_64 release.
+
+          Install: see [docs/installation.md](https://github.com/${{ github.repository }}/blob/main/docs/installation.md)
+          EOF
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" artifacts/* --clobber
+          else
+            gh release create "$tag" \
+              --title "$tag" \
+              --notes-file /tmp/release-notes.md \
+              artifacts/*
+          fi

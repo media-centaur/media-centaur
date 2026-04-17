@@ -50,6 +50,27 @@ sudo apt install elixir sqlite3 mpv inotify-tools
 
 ## Installation
 
+### Quick install (Linux x86_64)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh | sh
+```
+
+Downloads the latest release, verifies its checksum, installs it
+atomically under `~/.local/lib/media-centarr/`, generates a
+`SECRET_KEY_BASE`, and sets up a systemd user unit. Update later with:
+
+```sh
+~/.local/lib/media-centarr/current/bin/media-centarr-install --update
+```
+
+See [docs/installation.md](docs/installation.md) for the full layout,
+update flow, uninstall, and rollback.
+
+### From source
+
+For development or unsupported platforms (musl, aarch64, macOS):
+
 ```bash
 git clone https://github.com/media-centarr/media-centarr.git
 cd media-centarr
@@ -116,18 +137,21 @@ journalctl --user -u media-centarr-dev -f      # logs
 
 ### Production release
 
+End users should use the [quick install](#quick-install-linux-x86_64)
+above — that's the supported path and handles secrets, systemd, and
+atomic upgrades for you.
+
+For source builds, the legacy scripts still work:
+
 ```bash
-scripts/release    # build release
-scripts/install    # install to ~/.local/lib/media-centarr/ and set up systemd
+scripts/release    # build a release tarball in _build/prod/
+scripts/install    # install the just-built release (legacy script)
 ```
 
-Before running a production release, generate and set a secret key:
-
-```bash
-export SECRET_KEY_BASE="$(mix phx.gen.secret)"
-```
-
-Add this to your shell profile or the systemd unit's `Environment=` directives. See [Getting Started](docs/getting-started.md) for full release instructions.
+`scripts/install` predates the bundled installer and uses a
+sed-patched unit; it remains for source-build workflows but is no
+longer the recommended path. See [docs/installation.md](docs/installation.md)
+and [Getting Started](docs/getting-started.md) for details.
 
 ---
 
