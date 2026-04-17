@@ -7,7 +7,8 @@ defmodule MediaCentarr.Playback.ResumeTarget do
   - `compute_child_targets/2` returns per-child hints for series entities (`childTargets`)
   """
 
-  alias MediaCentarr.Playback.{EpisodeList, MovieList, Resume}
+  alias MediaCentarr.Library.{EpisodeList, MovieList}
+  alias MediaCentarr.Playback.Resume
 
   @doc """
   Computes the display hint for what will play next for this entity.

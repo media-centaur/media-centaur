@@ -1,5 +1,6 @@
 defmodule Mix.Tasks.Boundaries do
   @shortdoc "Check JS input system import boundaries"
+  use Boundary, top_level?: true, check: [in: false, out: false]
   use Mix.Task
 
   @impl true

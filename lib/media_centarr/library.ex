@@ -1,4 +1,23 @@
 defmodule MediaCentarr.Library do
+  use Boundary,
+    deps: [],
+    exports: [
+      Browser,
+      EntityShape,
+      Episode,
+      EpisodeList,
+      ExternalId,
+      FileEventHandler,
+      Movie,
+      MovieList,
+      MovieSeries,
+      ProgressSummary,
+      TVSeries,
+      TypeResolver,
+      VideoObject,
+      WatchedFile
+    ]
+
   @moduledoc """
   The media library context — entities, images, external IDs, seasons, episodes,
   and watched files that flow through the ingestion pipeline.

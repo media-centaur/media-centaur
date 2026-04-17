@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Release do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Release tasks for running migrations from a deployed release.
 

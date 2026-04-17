@@ -1,7 +1,7 @@
-defmodule MediaCentarr.StatsHelpersTest do
+defmodule MediaCentarr.Pipeline.StatsHelpersTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.StatsHelpers
+  alias MediaCentarr.Pipeline.StatsHelpers
 
   describe "prune_window/3" do
     test "removes completions older than window" do

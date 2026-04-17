@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Log do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Component-tagged log macros for MediaCentarr domain logs.
 

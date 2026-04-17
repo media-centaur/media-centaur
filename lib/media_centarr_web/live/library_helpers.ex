@@ -7,7 +7,7 @@ defmodule MediaCentarrWeb.LibraryHelpers do
   and rendering.
   """
 
-  alias MediaCentarr.{DateUtil, Playback.EpisodeList, Playback.MovieList}
+  alias MediaCentarr.{DateUtil, Library.EpisodeList, Library.MovieList}
 
   @movie_types [:movie, :movie_series, :video_object]
 

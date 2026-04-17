@@ -1,4 +1,6 @@
 defmodule MediaCentarr.NoopImageDownloader do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   No-op HTTP client for tests. Replaces `Req` in the image pipeline
   to avoid real HTTP requests and file I/O during tests.

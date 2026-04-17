@@ -1,6 +1,6 @@
-defmodule MediaCentarr.ImagePipelineTest do
+defmodule MediaCentarr.Pipeline.ImageTest do
   @moduledoc """
-  Integration tests for the ImagePipeline Broadway.
+  Integration tests for the Pipeline.Image Broadway.
 
   Verifies that the producer queries pending queue entries, the processor
   downloads and resizes them, and the batcher updates queue status and
@@ -8,8 +8,7 @@ defmodule MediaCentarr.ImagePipelineTest do
   """
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.ImagePipeline
-  alias MediaCentarr.Pipeline.ImageQueue
+  alias MediaCentarr.Pipeline.{Image, ImageQueue}
 
   @watch_directory "/tmp/image_pipeline_test"
 
@@ -50,7 +49,7 @@ defmodule MediaCentarr.ImagePipelineTest do
           watch_dir: @watch_directory
         })
 
-      work_items = ImagePipeline.Producer.build_work_items(entity_id)
+      work_items = Image.Producer.build_work_items(entity_id)
 
       assert length(work_items) == 1
       item = hd(work_items)
@@ -75,7 +74,7 @@ defmodule MediaCentarr.ImagePipelineTest do
 
       ImageQueue.update_status(entry, :complete)
 
-      work_items = ImagePipeline.Producer.build_work_items(entity_id)
+      work_items = Image.Producer.build_work_items(entity_id)
 
       assert work_items == []
     end
@@ -104,7 +103,7 @@ defmodule MediaCentarr.ImagePipelineTest do
           watch_dir: @watch_directory
         })
 
-      work_items = ImagePipeline.Producer.build_work_items(entity_id)
+      work_items = Image.Producer.build_work_items(entity_id)
 
       assert length(work_items) == 2
       roles = Enum.sort(Enum.map(work_items, & &1.queue_entry.role))

@@ -1,9 +1,9 @@
-defmodule MediaCentarr.Playback.ProgressSummaryTest do
+defmodule MediaCentarr.Library.ProgressSummaryTest do
   use ExUnit.Case, async: true
 
   import MediaCentarr.TestFactory
 
-  alias MediaCentarr.Playback.ProgressSummary
+  alias MediaCentarr.Library.ProgressSummary
 
   describe "no progress" do
     test "empty list returns nil" do

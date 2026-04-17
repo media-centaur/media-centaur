@@ -1,7 +1,7 @@
-defmodule MediaCentarr.ImagePipeline.RetrySchedulerTest do
+defmodule MediaCentarr.Pipeline.Image.RetrySchedulerTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.ImagePipeline.RetryScheduler
+  alias MediaCentarr.Pipeline.Image.RetryScheduler
   alias MediaCentarr.Pipeline.ImageQueue
 
   @watch_directory "/tmp/retry_test"

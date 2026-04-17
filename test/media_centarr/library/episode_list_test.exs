@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Playback.EpisodeListTest do
+defmodule MediaCentarr.Library.EpisodeListTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Playback.EpisodeList
+  alias MediaCentarr.Library.EpisodeList
 
   import MediaCentarr.TestFactory
 

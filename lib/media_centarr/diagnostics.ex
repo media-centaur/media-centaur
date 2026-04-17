@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Diagnostics do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Structured diagnostic functions for production troubleshooting.
 

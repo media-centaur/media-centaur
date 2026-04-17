@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Status do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Data-fetching module for the operational Status page.
 

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.ImagePipeline do
+defmodule MediaCentarr.Pipeline.Image do
   @moduledoc """
   Broadway pipeline that downloads and resizes images asynchronously.
 
@@ -23,7 +23,7 @@ defmodule MediaCentarr.ImagePipeline do
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
       producer: [
-        module: {MediaCentarr.ImagePipeline.Producer, []},
+        module: {MediaCentarr.Pipeline.Image.Producer, []},
         concurrency: 1
       ],
       processors: [default: [concurrency: 4]],

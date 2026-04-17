@@ -16,9 +16,10 @@ defmodule MediaCentarr.Watcher.Supervisor do
   def init(_opts) do
     children = [
       {Registry, keys: :unique, name: MediaCentarr.Watcher.Registry},
-      {Registry, keys: :unique, name: MediaCentarr.DirMonitor.Registry},
+      {Registry, keys: :unique, name: MediaCentarr.Watcher.DirMonitor.Registry},
       {DynamicSupervisor, name: MediaCentarr.Watcher.DynamicSupervisor, strategy: :one_for_one},
-      {DynamicSupervisor, name: MediaCentarr.DirMonitor.DynamicSupervisor, strategy: :one_for_one}
+      {DynamicSupervisor,
+       name: MediaCentarr.Watcher.DirMonitor.DynamicSupervisor, strategy: :one_for_one}
     ]
 
     Supervisor.init(children, strategy: :one_for_all, max_restarts: 5, max_seconds: 60)
@@ -61,8 +62,8 @@ defmodule MediaCentarr.Watcher.Supervisor do
 
     Enum.each(pairs, fn {watch_dir, image_dir} ->
       case DynamicSupervisor.start_child(
-             MediaCentarr.DirMonitor.DynamicSupervisor,
-             {MediaCentarr.DirMonitor, {image_dir, watch_dir}}
+             MediaCentarr.Watcher.DirMonitor.DynamicSupervisor,
+             {MediaCentarr.Watcher.DirMonitor, {image_dir, watch_dir}}
            ) do
         {:ok, _pid} ->
           Log.info(:watcher, "started image dir monitor — #{image_dir}")
@@ -83,15 +84,15 @@ defmodule MediaCentarr.Watcher.Supervisor do
   Returns a list of `%{dir: path, watch_dir: path, state: atom}` for all running DirMonitors.
   """
   def image_dir_statuses do
-    MediaCentarr.DirMonitor.Registry
+    MediaCentarr.Watcher.DirMonitor.Registry
     |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
     |> Enum.flat_map(fn {dir, pid} ->
       try do
         [
           %{
             dir: dir,
-            watch_dir: MediaCentarr.DirMonitor.watch_dir(pid),
-            state: MediaCentarr.DirMonitor.status(pid)
+            watch_dir: MediaCentarr.Watcher.DirMonitor.watch_dir(pid),
+            state: MediaCentarr.Watcher.DirMonitor.status(pid)
           }
         ]
       catch

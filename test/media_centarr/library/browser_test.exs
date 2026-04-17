@@ -1,7 +1,7 @@
-defmodule MediaCentarr.LibraryBrowserTest do
+defmodule MediaCentarr.Library.BrowserTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.LibraryBrowser
+  alias MediaCentarr.Library.Browser
   alias MediaCentarr.Watcher.FilePresence
 
   # Creates a linked file and registers it as present in watcher_files,
@@ -17,7 +17,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
       movie = create_standalone_movie(%{name: "Standalone Movie"})
       create_present_file(%{movie_id: movie.id})
 
-      results = LibraryBrowser.fetch_all_typed_entries()
+      results = Browser.fetch_all_typed_entries()
 
       assert [%{entity: fetched, progress: nil}] = results
       assert fetched.id == movie.id
@@ -35,7 +35,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
       create_episode(%{season_id: season1.id, episode_number: 2, name: "S1E2"})
       create_episode(%{season_id: season1.id, episode_number: 1, name: "S1E1"})
 
-      [%{entity: fetched}] = LibraryBrowser.fetch_all_typed_entries()
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
 
       assert fetched.type == :tv_series
       assert [first_season, second_season] = fetched.seasons
@@ -51,7 +51,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
       create_present_file(%{movie_series_id: series.id})
       create_movie(%{movie_series_id: series.id, name: "Only Child", position: 0})
 
-      [%{entity: fetched}] = LibraryBrowser.fetch_all_typed_entries()
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
 
       assert fetched.type == :movie
       assert fetched.name == "Only Child"
@@ -64,7 +64,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
       create_movie(%{movie_series_id: series.id, name: "Part 1", position: 0})
       create_movie(%{movie_series_id: series.id, name: "Part 2", position: 1})
 
-      [%{entity: fetched}] = LibraryBrowser.fetch_all_typed_entries()
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
 
       assert fetched.type == :movie_series
       assert fetched.name == "Trilogy"
@@ -77,7 +77,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
 
       FilePresence.mark_files_absent([file.file_path])
 
-      assert [] = LibraryBrowser.fetch_all_typed_entries()
+      assert [] = Browser.fetch_all_typed_entries()
     end
   end
 
@@ -89,7 +89,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
       other = create_standalone_movie(%{name: "Other Movie"})
       create_present_file(%{movie_id: other.id})
 
-      {entries, gone_ids} = LibraryBrowser.fetch_typed_entries_by_ids([movie.id])
+      {entries, gone_ids} = Browser.fetch_typed_entries_by_ids([movie.id])
 
       assert [%{entity: fetched}] = entries
       assert fetched.id == movie.id
@@ -99,7 +99,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
     test "returns gone_ids for destroyed entries" do
       missing_id = Ecto.UUID.generate()
 
-      {entries, gone_ids} = LibraryBrowser.fetch_typed_entries_by_ids([missing_id])
+      {entries, gone_ids} = Browser.fetch_typed_entries_by_ids([missing_id])
 
       assert entries == []
       assert MapSet.member?(gone_ids, missing_id)
@@ -111,7 +111,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
 
       FilePresence.mark_files_absent([file.file_path])
 
-      {entries, gone_ids} = LibraryBrowser.fetch_typed_entries_by_ids([movie.id])
+      {entries, gone_ids} = Browser.fetch_typed_entries_by_ids([movie.id])
 
       assert entries == []
       assert MapSet.member?(gone_ids, movie.id)
@@ -120,7 +120,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
 
   # Regression guard for the "N+1 queries" claim in the audit backlog.
   #
-  # `LibraryBrowser` uses `Repo.all |> Repo.preload(...)` which issues ONE
+  # `Library.Browser` uses `Repo.all |> Repo.preload(...)` which issues ONE
   # query per (association, parent type) pair via an `IN` clause. The total
   # cost is a small constant that does NOT scale with the number of rows.
   #
@@ -191,7 +191,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
       video = create_video_object(%{name: "A Clip"})
       create_present_file(%{video_object_id: video.id})
 
-      {entries, queries} = count_queries(fn -> LibraryBrowser.fetch_all_typed_entries() end)
+      {entries, queries} = count_queries(fn -> Browser.fetch_all_typed_entries() end)
 
       assert length(entries) >= 4,
              "expected at least 4 entries, got #{length(entries)}"
@@ -250,7 +250,7 @@ defmodule MediaCentarr.LibraryBrowserTest do
         create_present_file(%{video_object_id: video.id})
       end
 
-      {entries, queries} = count_queries(fn -> LibraryBrowser.fetch_all_typed_entries() end)
+      {entries, queries} = count_queries(fn -> Browser.fetch_all_typed_entries() end)
 
       # 5 standalone movies + 3 TV series + 2 movie series + 4 video objects = 14
       assert length(entries) == 14

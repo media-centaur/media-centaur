@@ -34,7 +34,7 @@ defmodule MediaCentarr.Pipeline.Stats do
   """
   use GenServer
 
-  alias MediaCentarr.StatsHelpers
+  alias MediaCentarr.Pipeline.StatsHelpers
 
   @stages [:parse, :search, :fetch_metadata, :ingest]
   @window_ms 5_000

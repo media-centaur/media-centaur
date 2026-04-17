@@ -20,7 +20,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     Format,
     Library,
     Library.FileEventHandler,
-    LibraryBrowser,
     Playback,
     Playback.ProgressBroadcaster,
     Playback.ResumeTarget,
@@ -276,7 +275,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_event("play", %{"id" => id}, socket) do
-    LibraryBrowser.play(id)
+    Playback.play(id)
     {:noreply, socket}
   end
 
@@ -700,7 +699,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     changed_ids = socket.assigns.pending_entity_ids
 
     {updated_entries, gone_ids} =
-      LibraryBrowser.fetch_typed_entries_by_ids(MapSet.to_list(changed_ids))
+      Library.Browser.fetch_typed_entries_by_ids(MapSet.to_list(changed_ids))
 
     updated_map = Map.new(updated_entries, fn entry -> {entry.entity.id, entry} end)
 
@@ -985,7 +984,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   defp load_library(socket) do
-    entries = LibraryBrowser.fetch_all_typed_entries()
+    entries = Library.Browser.fetch_all_typed_entries()
     resume_targets = compute_resume_targets(entries)
 
     playback =
@@ -1322,7 +1321,7 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   # Resolve the {fk_key, fk_id} tuple from the cached entity map. The
   # LibraryLive mount loads every entity with full preloads via
-  # LibraryBrowser — seasons, episodes, and movies are already attached
+  # Library.Browser — seasons, episodes, and movies are already attached
   # to the normalized entity map in `entries_by_id`, so this is a cheap
   # in-memory walk with no DB queries. Called synchronously from the
   # event handler BEFORE spawning the async task.
@@ -1333,7 +1332,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   defp resolve_progress_fk(entries_by_id, entity_id, 0, ordinal) do
     case Map.get(entries_by_id, entity_id) do
       %{entity: %{type: :movie_series, movies: movies}} when is_list(movies) ->
-        available = MediaCentarr.Playback.MovieList.list_available(%{movies: movies})
+        available = MediaCentarr.Library.MovieList.list_available(%{movies: movies})
 
         case Enum.find(available, fn {ord, _id, _url} -> ord == ordinal end) do
           {_ord, movie_id, _url} -> {:movie_id, movie_id}

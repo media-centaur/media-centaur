@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Playback.MovieList do
+defmodule MediaCentarr.Library.MovieList do
   @moduledoc """
   Shared helpers for walking a MovieSeries entity's child movies.
   Parallel to EpisodeList but for MovieSeries.

@@ -1,8 +1,8 @@
-defmodule MediaCentarr.StatsHelpers do
+defmodule MediaCentarr.Pipeline.StatsHelpers do
   @moduledoc """
   Shared utility functions for pipeline stats GenServers.
 
-  Used by `Pipeline.Stats` and `ImagePipeline.Stats` to avoid
+  Used by `Pipeline.Stats` and `Pipeline.Image.Stats` to avoid
   duplicating windowed throughput calculation, status derivation,
   and error formatting.
   """

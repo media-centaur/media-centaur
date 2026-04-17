@@ -18,7 +18,8 @@ defmodule MediaCentarr.Playback.Resolver do
 
   alias MediaCentarr.{Format, Library}
   alias MediaCentarr.Library.{EntityShape, TypeResolver}
-  alias MediaCentarr.Playback.{EpisodeList, MovieList, Resume}
+  alias MediaCentarr.Library.{EpisodeList, MovieList}
+  alias MediaCentarr.Playback.Resume
 
   @type play_params :: %{
           action: atom(),

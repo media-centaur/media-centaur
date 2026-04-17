@@ -1,4 +1,6 @@
 defmodule MediaCentarr.DataCase do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   This module defines the setup for tests requiring
   access to the application's data layer.

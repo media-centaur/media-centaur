@@ -185,7 +185,7 @@ defmodule MediaCentarr.Playback.SessionRecovery do
     do: %{video_object_id: entity.id}
 
   defp resolve_direct_fks(%{type: :tv_series} = entity, content_url) do
-    alias MediaCentarr.Playback.EpisodeList
+    alias MediaCentarr.Library.EpisodeList
 
     episode_id =
       Enum.find_value(entity.seasons || [], fn season ->
@@ -198,7 +198,7 @@ defmodule MediaCentarr.Playback.SessionRecovery do
   end
 
   defp resolve_direct_fks(%{type: :movie_series} = entity, content_url) do
-    alias MediaCentarr.Playback.MovieList
+    alias MediaCentarr.Library.MovieList
 
     movie_id =
       case MovieList.find_by_content_url(entity, content_url) do
@@ -212,7 +212,7 @@ defmodule MediaCentarr.Playback.SessionRecovery do
   defp resolve_direct_fks(_entity, _content_url), do: %{}
 
   defp resolve_episode_context(entity, content_url) do
-    alias MediaCentarr.Playback.{EpisodeList, MovieList}
+    alias MediaCentarr.Library.{EpisodeList, MovieList}
 
     case entity.type do
       :movie_series ->

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Playback.EpisodeList do
+defmodule MediaCentarr.Library.EpisodeList do
   @moduledoc """
   Shared helpers for walking a TV series entity's seasons and episodes.
   Used by Resume and ProgressSummary.

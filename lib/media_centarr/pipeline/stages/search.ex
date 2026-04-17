@@ -9,7 +9,8 @@ defmodule MediaCentarr.Pipeline.Stages.Search do
   """
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.{DateUtil, Parser}
+  alias MediaCentarr.DateUtil
+  alias MediaCentarr.Parser
   alias MediaCentarr.Pipeline.Payload
   alias MediaCentarr.TMDB.{Client, Confidence}
 

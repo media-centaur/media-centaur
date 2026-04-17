@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Admin do
+defmodule MediaCentarr.Settings.Admin do
   @moduledoc """
   Destructive admin operations for development and testing.
 

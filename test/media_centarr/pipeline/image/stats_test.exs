@@ -1,7 +1,7 @@
-defmodule MediaCentarr.ImagePipeline.StatsTest do
+defmodule MediaCentarr.Pipeline.Image.StatsTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.ImagePipeline.Stats
+  alias MediaCentarr.Pipeline.Image.Stats
 
   setup do
     name = :"image_stats_#{System.unique_integer([:positive])}"

@@ -493,18 +493,17 @@ defmodule MediaCentarr.Library.InboundTest do
       assert file.movie_id == movie.id
     end
 
-    test "creates ImageQueue entries for pending images" do
+    test "broadcasts pending images for queueing by Pipeline" do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.pipeline_images())
+
       assert {:ok, movie, :new, pending_images} = Inbound.ingest(movie_event())
       assert length(pending_images) == 2
 
-      queue_entries = MediaCentarr.Pipeline.ImageQueue.list_pending(movie.id)
-      assert length(queue_entries) == 2
-
-      roles = Enum.sort(Enum.map(queue_entries, & &1.role))
-      assert roles == ["backdrop", "poster"]
-
-      assert Enum.all?(queue_entries, &(&1.entity_id == movie.id))
-      assert Enum.all?(queue_entries, &(&1.status == "pending"))
+      assert_receive {:enqueue_images, %{entity_id: entity_id, watch_dir: watch_dir, images: images}}
+      assert entity_id == movie.id
+      assert watch_dir == "/media"
+      assert length(images) == 2
+      assert Enum.sort(Enum.map(images, & &1.role)) == ["backdrop", "poster"]
     end
 
     test "broadcasts entities_changed to library:updates" do
@@ -516,23 +515,13 @@ defmodule MediaCentarr.Library.InboundTest do
       assert movie.id in entity_ids
     end
 
-    test "broadcasts images_pending to pipeline:images" do
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.pipeline_images())
-
-      assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
-
-      assert_receive {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}
-      assert entity_id == movie.id
-      assert watch_dir == "/media"
-    end
-
-    test "skips image queue and broadcast when no images" do
+    test "skips image queue broadcast when no images" do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.pipeline_images())
 
       event = movie_event(images: [])
       assert {:ok, _movie, :new, []} = Inbound.ingest(event)
 
-      refute_receive {:images_pending, _}
+      refute_receive {:enqueue_images, _}
     end
   end
 

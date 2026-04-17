@@ -4,7 +4,7 @@ defmodule MediaCentarr.Playback.Resume do
   and its watch progress records. No DB access, no side effects.
   """
 
-  alias MediaCentarr.Playback.{EpisodeList, MovieList}
+  alias MediaCentarr.Library.{EpisodeList, MovieList}
 
   @type result ::
           {:resume, String.t(), float()}

@@ -1,4 +1,6 @@
 defmodule MediaCentarr.TestFactory do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Shared test data builders.
 

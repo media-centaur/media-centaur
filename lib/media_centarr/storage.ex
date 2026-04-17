@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Storage do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Measures disk usage for configured directories using `df`.
 

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.DirMonitor do
+defmodule MediaCentarr.Watcher.DirMonitor do
   @moduledoc """
   Health-check-only monitor for image directories on separate drives.
 
@@ -20,7 +20,7 @@ defmodule MediaCentarr.DirMonitor do
 
   def start_link({image_dir, watch_dir}) do
     GenServer.start_link(__MODULE__, {image_dir, watch_dir},
-      name: {:via, Registry, {MediaCentarr.DirMonitor.Registry, image_dir}}
+      name: {:via, Registry, {MediaCentarr.Watcher.DirMonitor.Registry, image_dir}}
     )
   end
 

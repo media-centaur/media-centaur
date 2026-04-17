@@ -1,4 +1,20 @@
 defmodule MediaCentarrWeb do
+  use Boundary,
+    deps: [
+      MediaCentarr.Library,
+      MediaCentarr.Pipeline,
+      MediaCentarr.Review,
+      MediaCentarr.Watcher,
+      MediaCentarr.Settings,
+      MediaCentarr.ReleaseTracking,
+      MediaCentarr.Playback,
+      MediaCentarr.Console,
+      MediaCentarr.Acquisition,
+      MediaCentarr.WatchHistory,
+      MediaCentarr.TMDB
+    ],
+    exports: [Endpoint]
+
   @moduledoc """
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.

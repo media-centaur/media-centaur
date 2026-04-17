@@ -2,6 +2,22 @@ defmodule MediaCentarr.Application do
   # See https://hexdocs.pm/elixir/Application.html
   # for more information on OTP Applications
   @moduledoc false
+  use Boundary,
+    top_level?: true,
+    deps: [
+      MediaCentarr.Library,
+      MediaCentarr.Pipeline,
+      MediaCentarr.Review,
+      MediaCentarr.Watcher,
+      MediaCentarr.Settings,
+      MediaCentarr.ReleaseTracking,
+      MediaCentarr.Playback,
+      MediaCentarr.Console,
+      MediaCentarr.Acquisition,
+      MediaCentarr.WatchHistory,
+      MediaCentarr.TMDB,
+      MediaCentarrWeb
+    ]
 
   use Application
 
@@ -29,7 +45,7 @@ defmodule MediaCentarr.Application do
         MediaCentarr.TMDB.RateLimiter,
         MediaCentarr.Watcher.Supervisor,
         MediaCentarr.Pipeline.Supervisor,
-        MediaCentarr.ImagePipeline.Supervisor,
+        MediaCentarr.Pipeline.Image.Supervisor,
         %{
           id: :init_services,
           start: {Task, :start_link, [fn -> init_services() end]},
@@ -68,7 +84,7 @@ defmodule MediaCentarr.Application do
 
     if !should_start?(env, :start_pipeline) do
       MediaCentarr.Pipeline.Supervisor.stop_pipeline()
-      MediaCentarr.ImagePipeline.Supervisor.stop_pipeline()
+      MediaCentarr.Pipeline.Image.Supervisor.stop_pipeline()
     end
   end
 

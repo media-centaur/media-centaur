@@ -1,9 +1,9 @@
 defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
   use ExUnit.Case, async: true
 
+  alias MediaCentarr.Parser
   alias MediaCentarr.Pipeline.Payload
   alias MediaCentarr.Pipeline.Stages.FetchMetadata
-  alias MediaCentarr.Parser
 
   import MediaCentarr.TmdbStubs
 

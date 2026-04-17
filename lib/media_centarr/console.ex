@@ -1,4 +1,6 @@
 defmodule MediaCentarr.Console do
+  use Boundary, deps: [MediaCentarr.Settings], exports: [View, Filter, Buffer, Entry]
+
   @moduledoc """
   Bounded context for the in-browser log console: ring buffer, filter, rescan
   dispatch. All LiveViews and cross-context callers interact with the console
@@ -35,23 +37,5 @@ defmodule MediaCentarr.Console do
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.console_logs())
-  end
-
-  # commands
-  @doc """
-  Dispatch a library rescan via the Watcher context. Non-blocking — the actual
-  scan runs in a supervised task so the caller (typically a LiveView event
-  handler) returns immediately.
-
-  Any logs emitted by the scan will flow through the console buffer via the
-  logger handler, providing closed-loop feedback to the user.
-  """
-  @spec rescan_library() :: :ok
-  def rescan_library do
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      MediaCentarr.Watcher.Supervisor.scan()
-    end)
-
-    :ok
   end
 end

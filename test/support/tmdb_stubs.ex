@@ -1,4 +1,6 @@
 defmodule MediaCentarr.TmdbStubs do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   Shared TMDB API stub helpers for pipeline tests.
 
