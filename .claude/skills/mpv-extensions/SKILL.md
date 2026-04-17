@@ -3,7 +3,9 @@ name: mpv-extensions
 description: "Use this skill when creating or modifying mpv Lua scripts, mpv configuration, key bindings, or any playback overlay UI. Covers the ASS rendering pattern, forced key binding lifecycle, OSD scaling, and project conventions for media-center-style mpv extensions."
 ---
 
-Media Centarr extends mpv with custom Lua scripts that add media-center UX (track selection, intro skipping, playback info overlays). All scripts live in `contrib/mpv/scripts/` and share a common visual language and implementation pattern.
+Media Centarr extends mpv with custom Lua scripts that add media-center UX (track selection, intro skipping, playback info overlays). All scripts live in `../contrib/mpv/scripts/` and share a common visual language and implementation pattern.
+
+> **Repo layout note:** mpv configs live in the sibling `contrib/` repo (`~/src/media-centarr/contrib/`), not inside the main app repo. All paths below are relative to the main app repo root. If you don't have the contrib repo checked out, `git clone git@github.com:media-centarr/contrib.git` alongside the main app.
 
 Read the [mpv Lua API reference](references/mpv-lua-api.md) before writing any script code.
 
@@ -11,21 +13,21 @@ Read the [mpv Lua API reference](references/mpv-lua-api.md) before writing any s
 
 | File | Purpose |
 |------|---------|
-| `contrib/mpv/mpv.conf` | Player settings — rendering, subtitles, audio, OSD |
-| `contrib/mpv/input.conf` | Key bindings (section-commented, one concern per block) |
-| `contrib/mpv/scripts/*.lua` | Auto-loaded Lua scripts |
+| `../contrib/mpv/mpv.conf` | Player settings — rendering, subtitles, audio, OSD |
+| `../contrib/mpv/input.conf` | Key bindings (section-commented, one concern per block) |
+| `../contrib/mpv/scripts/*.lua` | Auto-loaded Lua scripts |
 | `docs/mpv.md` | User-facing documentation for all mpv config and scripts |
 
 Scripts auto-load from `scripts/` — no registration needed. mpv converts hyphens in filenames to underscores internally (`skip-intro.lua` becomes `skip_intro` in `input.conf` bindings and `--msg-level`).
 
 ## Deployment
 
-The repo files in `contrib/mpv/` are the source of truth. mpv reads from `~/.config/mpv/` at runtime. After creating or modifying any script, config, or key binding, **copy the changed files to the runtime directory**:
+The repo files in `../contrib/mpv/` are the source of truth. mpv reads from `~/.config/mpv/` at runtime. After creating or modifying any script, config, or key binding, **copy the changed files to the runtime directory**:
 
 ```bash
-cp contrib/mpv/scripts/*.lua ~/.config/mpv/scripts/
-cp contrib/mpv/mpv.conf ~/.config/mpv/mpv.conf
-cp contrib/mpv/input.conf ~/.config/mpv/input.conf
+cp ../contrib/mpv/scripts/*.lua ~/.config/mpv/scripts/
+cp ../contrib/mpv/mpv.conf ~/.config/mpv/mpv.conf
+cp ../contrib/mpv/input.conf ~/.config/mpv/input.conf
 ```
 
 There is no automatic sync — forgetting to copy means mpv runs stale or missing scripts. Always deploy after changes.
@@ -187,7 +189,7 @@ When adding or modifying a script, update `docs/mpv.md`:
 
 ## Checklist: New mpv Script
 
-1. **Create** `contrib/mpv/scripts/{name}.lua` following the structure convention above
+1. **Create** `../contrib/mpv/scripts/{name}.lua` following the structure convention above
 2. **Copy** the color palette and scaling pattern from an existing script
 3. **Namespace** all forced key binding names with the script name
 4. **Add logging** at info (lifecycle), debug (results), trace (detail) levels
