@@ -33,6 +33,17 @@ jobs:
             exit 1
           fi
 
+      - name: Write build info for runtime display
+        run: |
+          mkdir -p priv
+          built_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          git_sha="${GITHUB_SHA:-unknown}"
+          printf '{"version":"%s","built_at":"%s","git_sha":"%s"}\n' \
+            "${{ steps.version.outputs.version }}" \
+            "$built_at" \
+            "$git_sha" > priv/build_info.json
+          cat priv/build_info.json
+
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
