@@ -203,8 +203,8 @@
             >Media Centarr</span
           >
         </a>
-        <div class="flex items-center gap-6 text-sm text-parchment-300">
-          <a href="#what" class="hover:text-parchment-100">What it does</a>
+        <div class="flex items-center gap-3 text-sm text-parchment-300 sm:gap-6">
+          <a href="#what" class="hidden hover:text-parchment-100 sm:inline">What it does</a>
           <a
             href="#install"
             class="hidden hover:text-parchment-100 sm:inline"
@@ -227,7 +227,7 @@
     <!-- ================== HERO ================== -->
     <section class="hero-bg relative overflow-hidden">
       <div
-        class="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 sm:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:py-36"
+        class="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 sm:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:py-36"
       >
         <div>
           <p
@@ -238,12 +238,12 @@
           </p>
 
           <h1
-            class="display text-5xl leading-[1.02] text-parchment-100 sm:text-6xl lg:text-7xl"
+            class="display text-4xl leading-[1.08] text-parchment-100 sm:text-6xl sm:leading-[1.02] lg:text-7xl"
           >
-            The media center for the <em class="text-arrow-500 not-italic">self-hosting&nbsp;enthusiast.</em>
+            The media center for the <em class="text-arrow-500 not-italic">self-hosting enthusiast.</em>
           </h1>
 
-          <p class="mt-7 max-w-xl text-lg leading-relaxed text-parchment-300">
+          <p class="mt-6 max-w-xl text-base leading-relaxed text-parchment-300 sm:mt-7 sm:text-lg">
             Point it at your video directories. Media Centarr identifies your
             movies and TV shows via TMDB, downloads artwork, tracks your
             progress, and plays everything locally through mpv — all from a
@@ -411,8 +411,8 @@
             </figure>
             <figure class="shot-frame">
               <img
-                src="assets/screenshots/playback-overlay.png"
-                alt="Playback overlay — screenshot placeholder"
+                src="assets/screenshots/library-detail-movie.png"
+                alt="Movie detail — screenshot placeholder"
                 loading="lazy"
                 width="1920"
                 height="1080"
@@ -421,7 +421,7 @@
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
-                Playback overlay
+                Movie detail
               </figcaption>
             </figure>
             <figure class="shot-frame">
@@ -598,11 +598,11 @@
           >
             <pre
               id="install-cmd"
-              class="overflow-x-auto whitespace-pre text-xs sm:text-sm"
+              class="overflow-x-auto whitespace-pre pr-20 text-xs sm:text-sm"
             ><code>curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh | sh</code></pre>
             <button
               id="copy-btn"
-              class="copy-btn absolute right-3 top-3 rounded-md border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] uppercase tracking-wider text-parchment-200 hover:border-arrow-500/40 hover:bg-white/10"
+              class="copy-btn absolute right-3 top-3 rounded-md border border-white/15 bg-ink-700 px-2.5 py-1 text-[11px] uppercase tracking-wider text-parchment-200 hover:border-arrow-500/40 hover:bg-ink-600"
               type="button"
               aria-label="Copy install command"
             >
