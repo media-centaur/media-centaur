@@ -30,6 +30,13 @@ MIX_ENV=prod MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile
 banner "Deploying assets"
 MIX_ENV=prod mix assets.deploy
 
+# Sync defaults/media-centarr.toml into the release overlay so the bundled
+# installer can seed it on first install. Source of truth stays in defaults/;
+# the overlay copy is gitignored.
+banner "Syncing config defaults into release overlay"
+mkdir -p rel/overlays/share/defaults
+cp defaults/media-centarr.toml rel/overlays/share/defaults/media-centarr.toml
+
 banner "Building release"
 MIX_ENV=prod mix release --overwrite
 

@@ -1,0 +1,244 @@
+#!/bin/sh
+# media-centarr-install — install or update Media Centarr from a release tree.
+#
+# Two modes:
+#
+#   1. From inside an extracted release tree (no flags):
+#        ./bin/media-centarr-install
+#      Installs THIS release atomically into ~/.local/lib/media-centarr/,
+#      runs migrations, flips the `current` symlink, and (re)starts the
+#      systemd user unit.
+#
+#   2. Update an existing install (--update):
+#        ~/.local/lib/media-centarr/current/bin/media-centarr-install --update
+#      Resolves the latest release on GitHub, downloads it, and installs
+#      via mode 1 from inside the freshly-extracted tree.
+#
+# Atomic-upgrade contract:
+#   - Each release lives at ~/.local/lib/media-centarr/releases/<version>/
+#   - ~/.local/lib/media-centarr/current is a symlink to one of them
+#   - Migrations run against the new release BEFORE the symlink flips
+#   - On any failure before the flip, the existing install keeps serving
+#
+# Designed for: Linux x86_64 glibc, single-user systemd-user installs.
+
+set -eu
+
+GITHUB_REPO="media-centarr/media-centarr"
+INSTALL_ROOT="${MEDIA_CENTARR_INSTALL_ROOT:-$HOME/.local/lib/media-centarr}"
+CONFIG_DIR="${MEDIA_CENTARR_CONFIG_DIR:-$HOME/.config/media-centarr}"
+SYSTEMD_USER_DIR="${SYSTEMD_USER_DIR:-$HOME/.config/systemd/user}"
+UNIT_NAME="media-centarr.service"
+
+# When SYSTEMD_USER_DIR is overridden away from the real user systemd
+# location (typically for testing), suppress systemctl invocations so we
+# don't poke the running user session. Production installs always go
+# through the real path and run systemctl normally.
+real_systemd_dir="$HOME/.config/systemd/user"
+if [ "$SYSTEMD_USER_DIR" = "$real_systemd_dir" ]; then
+    USE_SYSTEMCTL=1
+else
+    USE_SYSTEMCTL=0
+fi
+sysctl_user() {
+    if [ "$USE_SYSTEMCTL" = 1 ]; then
+        systemctl --user "$@"
+    else
+        return 1
+    fi
+}
+
+banner() { printf '==> %s\n' "$1"; }
+die()    { printf 'Error: %s\n' "$1" >&2; exit 1; }
+
+# Locate the release root from this script's path. The script lives at
+# <release_root>/bin/media-centarr-install, so the release root is two
+# levels up. Resolve symlinks so `current/bin/media-centarr-install --update`
+# still works.
+script_path=$(readlink -f "$0" 2>/dev/null || realpath "$0")
+release_root=$(cd "$(dirname "$script_path")/.." && pwd)
+
+# Read the release version from the bundled mix release metadata.
+# `bin/media_centarr version` prints "media_centarr 0.3.0" (or similar).
+detect_version() {
+    "$release_root/bin/media_centarr" version 2>/dev/null | awk '{print $NF}'
+}
+
+mode=install
+for arg in "$@"; do
+    case "$arg" in
+        --update)    mode=update ;;
+        --uninstall) mode=uninstall ;;
+        --help|-h)
+            sed -n '2,/^$/p' "$script_path" | sed 's/^# //;s/^#$//'
+            exit 0
+            ;;
+        *) die "Unknown flag: $arg" ;;
+    esac
+done
+
+# ---- update: download latest, then re-exec from new tree ------------------
+
+if [ "$mode" = update ]; then
+    command -v curl >/dev/null 2>&1 || die "curl is required for --update"
+    command -v tar  >/dev/null 2>&1 || die "tar is required for --update"
+    command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required for --update"
+
+    banner "Resolving latest release"
+    api_url="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    tag=$(curl -fsSL "$api_url" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1)
+    [ -n "$tag" ] || die "Could not resolve latest release tag"
+
+    current_version=$(detect_version || echo unknown)
+    latest_version=${tag#v}
+    if [ "$current_version" = "$latest_version" ]; then
+        banner "Already at latest version: $current_version"
+        exit 0
+    fi
+    banner "Updating from $current_version to $latest_version"
+
+    tarball="media-centarr-${latest_version}-linux-x86_64.tar.gz"
+    base_url="https://github.com/$GITHUB_REPO/releases/download/$tag"
+
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' EXIT
+
+    banner "Downloading $tarball"
+    curl -fsSL -o "$tmpdir/$tarball"   "$base_url/$tarball"
+    curl -fsSL -o "$tmpdir/SHA256SUMS" "$base_url/SHA256SUMS"
+
+    banner "Verifying checksum"
+    (cd "$tmpdir" && grep " $tarball\$" SHA256SUMS | sha256sum -c -) \
+        || die "Checksum verification failed"
+
+    banner "Extracting"
+    mkdir -p "$tmpdir/extract"
+    tar -xzf "$tmpdir/$tarball" -C "$tmpdir/extract"
+
+    # Mix release tarballs extract their contents at the top level (no
+    # wrapping dir), so the installer is at extract/bin/media-centarr-install.
+    new_installer="$tmpdir/extract/bin/media-centarr-install"
+    [ -x "$new_installer" ] || die "Update tarball does not contain bin/media-centarr-install"
+
+    banner "Handing off to new installer"
+    exec "$new_installer"
+fi
+
+# ---- uninstall ------------------------------------------------------------
+
+if [ "$mode" = uninstall ]; then
+    banner "Stopping service"
+    sysctl_user stop "$UNIT_NAME" 2>/dev/null || true
+    sysctl_user disable "$UNIT_NAME" 2>/dev/null || true
+
+    banner "Removing $INSTALL_ROOT"
+    rm -rf "$INSTALL_ROOT"
+
+    banner "Removing systemd unit"
+    rm -f "$SYSTEMD_USER_DIR/$UNIT_NAME"
+    sysctl_user daemon-reload || true
+
+    printf 'Note: config (%s) and data (~/.local/share/media-centaur/) preserved.\n' "$CONFIG_DIR"
+    exit 0
+fi
+
+# ---- install / upgrade (default mode) -------------------------------------
+
+version=$(detect_version) || die "Could not detect release version from $release_root/bin/media_centarr"
+[ -n "$version" ] || die "Empty version string from bin/media_centarr"
+
+target="$INSTALL_ROOT/releases/$version"
+current_link="$INSTALL_ROOT/current"
+
+banner "Installing media-centarr $version"
+banner "  release tree: $release_root"
+banner "  install root: $INSTALL_ROOT"
+
+# 1. Stage the new release version.
+if [ -d "$target" ]; then
+    banner "Replacing existing $target"
+    rm -rf "$target"
+fi
+mkdir -p "$target"
+cp -a "$release_root/." "$target/"
+
+# 2. Seed config dir (idempotent — never overwrite user edits).
+mkdir -p "$CONFIG_DIR"
+seed_toml="$target/share/defaults/media-centarr.toml"
+user_toml="$CONFIG_DIR/media-centarr.toml"
+if [ -f "$seed_toml" ] && [ ! -f "$user_toml" ]; then
+    banner "Seeding config: $user_toml"
+    cp "$seed_toml" "$user_toml"
+fi
+
+# 3. Install systemd user unit (idempotent — overwrite is safe, the unit is
+#    pinned to current/ so it doesn't change between versions).
+mkdir -p "$SYSTEMD_USER_DIR"
+unit_src="$target/share/systemd/$UNIT_NAME"
+unit_dst="$SYSTEMD_USER_DIR/$UNIT_NAME"
+if [ -f "$unit_src" ]; then
+    banner "Installing unit: $unit_dst"
+    cp "$unit_src" "$unit_dst"
+    sysctl_user daemon-reload || true
+else
+    die "Bundled systemd unit missing at $unit_src"
+fi
+
+# 4. Seed secrets.env on first install. SECRET_KEY_BASE is required at runtime;
+#    generate one rather than fail with a cryptic Erlang stack trace. Never
+#    overwrite an existing secrets.env — users may have edited it.
+secrets_file="$CONFIG_DIR/secrets.env"
+if [ ! -f "$secrets_file" ]; then
+    banner "Generating $secrets_file"
+    secret_key_base=$(head -c 48 /dev/urandom | base64 | tr -d '\n')
+    umask 077
+    cat > "$secrets_file" <<EOF
+# Media Centarr runtime secrets — loaded by the systemd unit and the
+# bundled installer when running migrations.
+#
+# SECRET_KEY_BASE is auto-generated on first install. Do not change it
+# unless you know what you're doing — sessions and signed tokens are
+# bound to this value.
+SECRET_KEY_BASE=$secret_key_base
+
+# Optional: TMDB API key for metadata enrichment.
+# TMDB_API_KEY=
+
+# Optional: root directory to watch for new media files.
+# MEDIA_DIR=/mnt/videos/Videos
+EOF
+fi
+
+# 5. Run migrations against the NEW release, before the symlink flip. If
+#    this fails, the running service (pointing at old `current`) is untouched.
+banner "Running migrations against $version"
+# shellcheck source=/dev/null
+set -a; . "$secrets_file"; set +a
+"$target/bin/media_centarr" eval "MediaCentarr.Release.migrate()"
+
+# 6. Atomic symlink flip.
+banner "Pointing current -> releases/$version"
+ln -sfn "releases/$version" "$current_link.new"
+mv -Tf "$current_link.new" "$current_link"
+
+# 7. Restart service if it's already running; otherwise leave it alone so
+#    first-time installers can decide when to start it.
+if sysctl_user is-active --quiet "$UNIT_NAME"; then
+    banner "Restarting $UNIT_NAME"
+    sysctl_user restart "$UNIT_NAME"
+elif sysctl_user is-enabled --quiet "$UNIT_NAME" 2>/dev/null; then
+    banner "Starting $UNIT_NAME (enabled but not running)"
+    sysctl_user start "$UNIT_NAME"
+fi
+
+# 8. Summary.
+banner "Install complete"
+printf '  Version:  %s\n' "$version"
+printf '  Path:     %s\n' "$current_link"
+printf '  Unit:     %s\n' "$unit_dst"
+printf '  Config:   %s\n' "$user_toml"
+
+if [ "$USE_SYSTEMCTL" = 1 ] && ! systemctl --user is-enabled --quiet "$UNIT_NAME" 2>/dev/null; then
+    printf '\nFirst-time install: enable + start the service with:\n'
+    printf '  systemctl --user enable --now %s\n' "$UNIT_NAME"
+fi
