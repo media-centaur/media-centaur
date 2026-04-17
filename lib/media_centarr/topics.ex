@@ -8,6 +8,7 @@ defmodule MediaCentarr.Topics do
   def library_updates, do: "library:updates"
   def library_commands, do: "library:commands"
   def library_file_events, do: "library:file_events"
+  def library_watch_completed, do: "library:watch_completed"
   def pipeline_input, do: "pipeline:input"
   def pipeline_matched, do: "pipeline:matched"
   def pipeline_images, do: "pipeline:images"

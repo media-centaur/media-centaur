@@ -1,10 +1,11 @@
 defmodule MediaCentarr.WatchHistory.Recorder do
   @moduledoc """
-  GenServer that subscribes to `"playback:events"` and records a `WatchEvent`
-  whenever a movie, episode, or video object is completed (≥90% threshold).
+  GenServer that subscribes to `"library:watch_completed"` and records a
+  `WatchEvent` for each transition-to-completed.
 
-  The `MpvSession.maybe_mark_completed/3` guard (`not record.completed`) ensures
-  this broadcast fires exactly once per physical viewing — no dedup needed here.
+  `Library.mark_watch_completed/1` broadcasts `{:entity_watch_completed, record}`
+  exactly once per transition (pre-update record had `completed: false`), so no
+  dedup is needed here.
   """
   use GenServer
 
@@ -19,12 +20,12 @@ defmodule MediaCentarr.WatchHistory.Recorder do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.playback_events())
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.library_watch_completed())
     {:ok, %{}}
   end
 
   @impl true
-  def handle_info({:entity_progress_updated, %{changed_record: %{completed: true} = record}}, state) do
+  def handle_info({:entity_watch_completed, record}, state) do
     record_completion(record)
     {:noreply, state}
   end

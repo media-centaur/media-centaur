@@ -1,7 +1,7 @@
 defmodule MediaCentarr.WatchHistory.RecorderTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.WatchHistory
+  alias MediaCentarr.{Topics, WatchHistory}
   alias MediaCentarr.WatchHistory.Recorder
 
   setup do
@@ -12,7 +12,7 @@ defmodule MediaCentarr.WatchHistory.RecorderTest do
     %{recorder: pid}
   end
 
-  describe "handle_info :entity_progress_updated" do
+  describe "handle_info :entity_watch_completed" do
     test "records a WatchEvent when a movie is completed", %{recorder: recorder} do
       movie = create_movie(%{name: "Sample Movie"})
 
@@ -25,18 +25,7 @@ defmodule MediaCentarr.WatchHistory.RecorderTest do
 
       WatchHistory.subscribe()
 
-      send(
-        recorder,
-        {:entity_progress_updated,
-         %{
-           entity_id: movie.id,
-           changed_record: progress,
-           summary: nil,
-           resume_target: nil,
-           child_targets_delta: nil,
-           last_activity_at: DateTime.utc_now()
-         }}
-      )
+      send(recorder, {:entity_watch_completed, progress})
 
       assert_receive {:watch_event_created, event}, 2000
       assert event.title == "Sample Movie"
@@ -59,18 +48,7 @@ defmodule MediaCentarr.WatchHistory.RecorderTest do
 
       WatchHistory.subscribe()
 
-      send(
-        recorder,
-        {:entity_progress_updated,
-         %{
-           entity_id: tv_series.id,
-           changed_record: progress,
-           summary: nil,
-           resume_target: nil,
-           child_targets_delta: nil,
-           last_activity_at: DateTime.utc_now()
-         }}
-      )
+      send(recorder, {:entity_watch_completed, progress})
 
       assert_receive {:watch_event_created, event}, 2000
       assert event.title == "Sample Show S01E04"
@@ -90,35 +68,35 @@ defmodule MediaCentarr.WatchHistory.RecorderTest do
 
       WatchHistory.subscribe()
 
-      send(
-        recorder,
-        {:entity_progress_updated,
-         %{
-           entity_id: video_object.id,
-           changed_record: progress,
-           summary: nil,
-           resume_target: nil,
-           child_targets_delta: nil,
-           last_activity_at: DateTime.utc_now()
-         }}
-      )
+      send(recorder, {:entity_watch_completed, progress})
 
       assert_receive {:watch_event_created, event}, 2000
       assert event.title == "Extra Feature Reel"
       assert event.entity_type == :video_object
       assert event.video_object_id == video_object.id
     end
+  end
 
-    test "ignores progress updates where completed is false", %{recorder: recorder} do
+  describe "ignores unrelated playback events" do
+    test "does not record on :entity_progress_updated even with completed record",
+         %{recorder: _recorder} do
+      # Regression test for the duplicate-event bug: before the fix, Recorder
+      # subscribed to playback_events and matched on every progress tick that
+      # carried a completed record, inserting one WatchEvent per ~10s tick.
       movie = create_movie(%{name: "Sample Movie Thirteen"})
 
       progress =
-        create_watch_progress(%{movie_id: movie.id, completed: false, duration_seconds: 9000.0})
+        create_watch_progress(%{
+          movie_id: movie.id,
+          completed: true,
+          duration_seconds: 9000.0
+        })
 
       WatchHistory.subscribe()
 
-      send(
-        recorder,
+      Phoenix.PubSub.broadcast(
+        MediaCentarr.PubSub,
+        Topics.playback_events(),
         {:entity_progress_updated,
          %{
            entity_id: movie.id,

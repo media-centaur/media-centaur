@@ -578,7 +578,19 @@ defmodule MediaCentarr.Library do
   def list_watch_progress!, do: Repo.all(WatchProgress)
 
   def mark_watch_completed(progress) do
-    Repo.update(WatchProgress.mark_completed_changeset(progress))
+    transitioning? = not progress.completed
+
+    with {:ok, updated} <- Repo.update(WatchProgress.mark_completed_changeset(progress)) do
+      if transitioning? do
+        Phoenix.PubSub.broadcast(
+          MediaCentarr.PubSub,
+          MediaCentarr.Topics.library_watch_completed(),
+          {:entity_watch_completed, updated}
+        )
+      end
+
+      {:ok, updated}
+    end
   end
 
   def mark_watch_completed!(progress), do: bang!(mark_watch_completed(progress))
