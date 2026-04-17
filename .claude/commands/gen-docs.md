@@ -74,11 +74,10 @@ For each doc file listed below, follow this process:
 | getting-started.md | mix.exs, defaults/media-centarr.toml, CLAUDE.md (Build & Run section) |
 | configuration.md | defaults/media-centarr.toml, lib/media_centarr/config.ex |
 | architecture.md | CLAUDE.md (Architecture Principles, Repository Layout), lib/media_centarr/application.ex, specs/ directory listing |
-| watcher.md | lib/media_centarr/watcher.ex, lib/media_centarr/watcher/supervisor.ex, PIPELINE.md (watcher-relevant sections) |
-| pipeline.md | PIPELINE.md, lib/media_centarr/pipeline.ex, lib/media_centarr/pipeline/stages/ (all stage files), lib/media_centarr/pipeline/producer.ex |
+| watcher.md | lib/media_centarr/watcher.ex, lib/media_centarr/watcher/supervisor.ex |
+| pipeline.md | lib/media_centarr/pipeline.ex, lib/media_centarr/pipeline/stages/ (all stage files), lib/media_centarr/pipeline/producer.ex |
 | tmdb.md | lib/media_centarr/tmdb/ (all files: client, confidence, mapper, rate_limiter) |
-| playback.md | lib/media_centarr/playback/ (all files), specs/PLAYBACK.md |
-| channel.md | lib/media_centarr_web/channels/ (all files), specs/API.md |
+| playback.md | lib/media_centarr/playback/ (all files) |
 | library.md | lib/media_centarr/library/ (domain, resources, ingress, helpers), lib/media_centarr/review/ |
 
 ### Doc Template (each subsystem doc)

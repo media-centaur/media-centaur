@@ -23,7 +23,7 @@ config :logger, :default_formatter,
   metadata: [:request_id]
 
 config :media_centarr, MediaCentarr.Repo,
-  database: Path.expand("~/.local/share/media-centarr/media_library.db")
+  database: Path.expand("~/.local/share/media-centarr/media-centarr.db")
 
 # Configures the endpoint
 config :media_centarr, MediaCentarrWeb.Endpoint,
@@ -34,8 +34,7 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
     layout: false
   ],
   pubsub_server: MediaCentarr.PubSub,
-  live_view: [signing_salt: "802OLLfH"],
-  secret_key_base: "QC0XH/1hm1UEMlboIygQEPtXH1iXVgOZJJZLeIrelftuxkpsNxJ4rhG/6hNeYrEP"
+  live_view: [signing_salt: "802OLLfH"]
 
 config :media_centarr, Oban,
   engine: Oban.Engines.Lite,

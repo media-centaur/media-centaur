@@ -83,8 +83,8 @@ Evaluate documentation from the perspective of a new contributor:
   README.md alone? Are prerequisites (Elixir version, SQLite, etc.) listed?
 - **Contributing guidance:** Is there a CONTRIBUTING.md or contributing section? Are
   code style and testing expectations documented for external contributors?
-- **Relationship between repos:** Is the relationship between `backend/`, `frontend/`,
-  `ctl/`, `dock/` explained clearly?
+- **Subsystem boundaries:** Are bounded contexts, their dependencies, and their
+  PubSub topics explained clearly for someone new to the codebase?
 
 ### Pass 4 — Conciseness & Clarity
 

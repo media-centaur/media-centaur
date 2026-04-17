@@ -11,7 +11,7 @@ defmodule MediaCentarr.Pipeline.Discovery do
   by file path), 1 batcher (serialises match broadcasts, batch size 10,
   timeout 5s).
 
-  See `PIPELINE.md` for full architecture details.
+  See `docs/pipeline.md` for full architecture details.
   """
   use Broadway
   require MediaCentarr.Log, as: Log

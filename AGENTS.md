@@ -1,3 +1,5 @@
+> **Internal contributor guide.** Phoenix / Elixir / LiveView / Ecto conventions for people working on this codebase. End users: see [README.md](README.md).
+
 This is a web application written using the Phoenix web framework.
 
 ## Project guidelines

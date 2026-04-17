@@ -341,7 +341,7 @@ Identifiers are flattened for action template substitution as `identifier.{prope
 
 ### Resume Target
 
-The `resumeTarget` field on the wrapper object tells the frontend what will play when the user hits "play" on this entity. It enables the UI to show hints like "Resume S2E3" or "Begin The Shadowy Sentinel" on entity cards without issuing a play command.
+The `resumeTarget` field on the wrapper object tells the UI what will play when the user hits "play" on this entity. It enables display of hints like "Resume S2E3" or "Begin The Shadowy Sentinel" on entity cards without issuing a play command.
 
 | Field | Type | Present when | Description |
 |-------|------|-------------|-------------|
@@ -386,7 +386,7 @@ MovieSeries, completed first movie:
 
 ### Child Targets
 
-The `childTargets` field provides per-child resume hints so the frontend can display watch state on individual episodes or movies within a series. It is a map keyed by child UUID.
+The `childTargets` field provides per-child resume hints so the UI can display watch state on individual episodes or movies within a series. It is a map keyed by child UUID.
 
 Each value is either:
 - `null` — the child is completed

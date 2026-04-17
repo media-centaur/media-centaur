@@ -39,7 +39,7 @@ flowchart LR
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `database_path` | string | `~/.local/share/media-centarr/media_library.db` | SQLite database file path |
+| `database_path` | string | `~/.local/share/media-centarr/media-centarr.db` | SQLite database file path |
 | `watch_dirs` | array | `[]` | Directories to watch for video files |
 | `exclude_dirs` | array | `[]` | Directories to skip during watching |
 | `file_absence_ttl_days` | integer | `30` | Days to retain records for files on disconnected drives |
@@ -85,7 +85,7 @@ The complete `defaults/media-centarr.toml` shipped with the repo:
 # keys are added to MediaCentarr.Config.
 
 # Path to the SQLite database file.
-database_path = "~/.local/share/media-centarr/media_library.db"
+database_path = "~/.local/share/media-centarr/media-centarr.db"
 
 # Directories containing video/media files (e.g. torrent downloads folders).
 # Watched for additions and removals. May be on removable or network drives.

@@ -1,180 +1,203 @@
-# Pipeline
+# Pipeline Architecture
 
-The pipeline processes detected video files through metadata enrichment and library ingestion. Built on [Broadway](https://github.com/dashbitco/broadway), it runs 15 concurrent processors partitioned by file path.
+> **Last updated:** 2026-04-05
 
-> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · **Pipeline** · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md)
+The media manager processes video files through three Broadway pipelines: **Discovery**, **Import**, and **Image**. All cross-pipeline communication uses PubSub events — no direct function calls.
 
-- [Architecture](#architecture)
-- [Key Concepts](#key-concepts)
-- [Pipeline Stages](#pipeline-stages)
-- [Batching](#batching)
-- [Idempotency](#idempotency)
-- [Telemetry & Stats](#telemetry--stats)
-- [Review Flow](#review-flow)
-- [Extras (Bonus Features)](#extras-bonus-features)
-- [Module Reference](#module-reference)
+For the data format produced at the end of the pipeline, see [`DATA-FORMAT.md`](specs/DATA-FORMAT.md). For image handling, see [`IMAGE-CACHING.md`](specs/IMAGE-CACHING.md).
 
-## Architecture
+---
 
-```mermaid
-graph LR
-    subgraph Input
-        W[Watcher] -->|PubSub: file_detected| P[Producer]
-        R[Review UI] -->|PubSub: review_resolved| P
-    end
+## Overview
 
-    subgraph "Broadway Pipeline (15 processors)"
-        P --> Parse
-        Parse --> Search
-        Search -->|high confidence| Fetch[FetchMetadata]
-        Search -->|low confidence| Review[PendingFile]
-        Fetch --> DL[DownloadImages]
-        DL --> Ingest
-    end
-
-    subgraph Output
-        Ingest --> Library[Library Domain]
-        Ingest --> Batcher
-        Batcher -->|PubSub: entities_changed| LiveViews[LiveViews]
-    end
+```
+Watcher                      Discovery Pipeline              Import Pipeline
+────────                     ──────────────────              ───────────────
+detects files via            parse → search                  fetch_metadata → ingest
+inotify + scan               high confidence → matched       → publish entity event
+  ↓                          low confidence → needs_review    → Library.Inbound creates records
+"pipeline:input"         →  "pipeline:matched"           →  "pipeline:publish"
+                                                               ↓
+                             Review UI                      Image Pipeline
+                             ─────────                      ──────────────
+                             approve/search/dismiss         download → resize → write
+                               ↓                              ↓
+                             "pipeline:matched"             "pipeline:publish"
+                                                            → Library.Inbound creates Image records
 ```
 
-## Key Concepts
+---
 
-**Payload:** `%Pipeline.Payload{}` carries all intermediate state through stages. Each stage reads specific fields and writes new ones:
+## PubSub Event Flow
 
-| Field | Set By | Type |
-|-------|--------|------|
-| `file_path` | Producer | string |
-| `watch_directory` | Producer | string |
-| `entry_point` | Producer | `:file_detected` or `:review_resolved` |
-| `parsed` | Parse | `%Parser.Result{}` |
-| `tmdb_id` | Search (or Producer for review) | integer |
-| `tmdb_type` | Search (or Producer for review) | `:movie` or `:tv` |
-| `confidence` | Search | float (0.0–1.0) |
-| `metadata` | FetchMetadata | map (entity attrs, images, identifiers) |
-| `staged_images` | DownloadImages | list of `%{role, owner, local_path}` |
-| `entity_id` | Ingest | UUID |
+| Topic | Producer | Consumer | Payload |
+|-------|----------|----------|---------|
+| `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, watch_dir}}` |
+| `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, watch_dir, tmdb_id, tmdb_type, pending_file_id}}` |
+| `pipeline:publish` | Import (Ingest stage), ImagePipeline | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
+| `pipeline:images` | Library.Inbound | ImagePipeline.Producer | `{:images_pending, %{entity_id, watch_dir}}` |
+| `review:intake` | Discovery, Import | Review.Intake | `{:needs_review, attrs}`, `{:review_completed, id}`, `{:files_for_review, files}` |
+| `review:updates` | Review.Intake | LiveViews | `{:file_added, id}`, `{:file_reviewed, id}` |
+| `library:updates` | Library.Inbound, Watcher | LiveViews, Channels | `{:entities_changed, entity_ids}` |
+| `library:commands` | Review.Rematch | Library.Inbound | `{:rematch_requested, entity_id}` |
 
-**Two entry points:**
+---
 
-```mermaid
-flowchart TD
-    FD[":file_detected"] --> Skip{Already linked?}
-    Skip -->|yes| Done[Skip]
-    Skip -->|no| Parse1[Parse]
-    Parse1 --> Search1[Search]
-    Search1 -->|confidence >= 0.85| Fetch1[FetchMetadata]
-    Search1 -->|confidence < 0.85| NR[Create PendingFile]
-    Fetch1 --> DL1[DownloadImages]
-    DL1 --> Ingest1[Ingest]
-    Ingest1 --> Link1[Link WatchedFile]
+## Payload
 
-    RR[":review_resolved"] --> Parse2[Parse]
-    Parse2 --> Fetch2[FetchMetadata]
-    Fetch2 --> DL2[DownloadImages]
-    DL2 --> Ingest2[Ingest]
-    Ingest2 --> Link2[Link WatchedFile]
-    Ingest2 --> Cleanup[Delete PendingFile]
-```
+`MediaCentarr.Pipeline.Payload` is the data structure that flows through all pipeline stages:
+
+| Field | Set by | Purpose |
+|-------|--------|---------|
+| `file_path` | Producer | Absolute path to the video file |
+| `watch_directory` | Producer | Watch directory the file was found in |
+| `parsed` | Parse stage | `%Parser.Result{}` with title, year, type, season, episode |
+| `tmdb_id` | Search stage (or Import Producer for review-resolved files) | TMDB ID of the matched entity |
+| `tmdb_type` | Search stage (or Import Producer) | `:movie` or `:tv` |
+| `confidence` | Search stage | Match confidence score (0.0–1.0) |
+| `match_title` / `match_year` / `match_poster_path` / `candidates` | Search stage | Display-oriented match fields + scored candidate list, used when the file falls out to review |
+| `metadata` | FetchMetadata stage | Full TMDB metadata mapped to domain attributes |
+| `entity_id` | Ingest stage (via `Library.Inbound.ingest/1`) | UUID of the created/found library entity |
+| `ingest_status` | Ingest stage | `:new`, `:new_child`, or `:existing` |
+| `pending_images` | Ingest stage | List of images to download |
+| `pending_file_id` | Import Producer (review-resolved files only) | PendingFile ID to clean up after Import finishes |
+
+---
+
+## Discovery Pipeline
+
+**Module:** `MediaCentarr.Pipeline.Discovery`
+
+Identifies what a file is — parses the filename, searches TMDB, and decides if it's a confident match or needs human review.
+
+**Configuration:**
+- Producer: `Discovery.Producer` (PubSub subscriber to `"pipeline:input"`)
+- Processors: 10 concurrent, partitioned by file path
+- Batcher: 1, batch size 10, timeout 5s
+
+**Processing flow:**
+1. **Dedup check** — query `library_watched_files` directly (not through Library context) to skip already-linked files
+2. **Parse** — extract title, year, type, season, episode from the file path
+3. **Search** — search TMDB, score confidence
+   - High confidence → batcher emits `{:file_matched, ...}` to `"pipeline:matched"`
+   - Low confidence → broadcast `{:needs_review, attrs}` to `"review:intake"`, stop
+
+---
+
+## Import Pipeline
+
+**Module:** `MediaCentarr.Pipeline.Import`
+
+Fetches full metadata for a matched file and publishes the entity event for Library to create records.
+
+**Configuration:**
+- Producer: `Import.Producer` (PubSub subscriber to `"pipeline:matched"`)
+- Processors: 5 concurrent, partitioned by file path
+- Batcher: 1, batch size 10, timeout 5s
+
+**Processing flow:**
+1. **Parse** — re-parse the file path directly via `Parser.parse/2` (Import may receive files from Discovery or Review, so it always re-parses)
+2. **Disk space check** — aborts with `{:error, :insufficient_disk_space}` if the image directory's filesystem has less than 100 MB free
+3. **FetchMetadata** — fetch full TMDB details (movie, TV series, collection, season)
+4. **Ingest** — broadcast `{:entity_published, event}` to `"pipeline:publish"`
+
+After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), external ID creation, WatchedFile linking, and image queue population.
+
+If the file came from review approval, Import also broadcasts `{:review_completed, pending_file_id}` to `"review:intake"`.
+
+---
+
+## Image Pipeline
+
+**Module:** `MediaCentarr.ImagePipeline`
+
+Downloads and processes artwork asynchronously after entity creation.
+
+**Configuration:**
+- Producer: PubSub subscriber to `"pipeline:images"`; dispatches queue entries as Broadway messages
+- Processors: 4 concurrent (moderate to avoid TMDB CDN hammering)
+- Batcher: 1, batch size 20, timeout 5s (collects completed downloads for one `library:updates` broadcast per batch)
+
+**Processing flow:**
+1. Producer pulls pending entries from `pipeline_image_queue` on `{:images_pending, ...}` events
+2. Processor downloads and resizes in one step via `ImageProcessor.download_and_resize/3` (target dimensions per role: poster, backdrop, logo, thumb)
+3. Writes the resized image to disk under the entity's image directory
+4. Batcher marks queue entries `:complete`, broadcasts `{:image_ready, attrs}` to `"pipeline:publish"` (→ `Library.Inbound` creates/updates `Library.Image` records), and calls `Library.broadcast_entities_changed/1` so LiveViews see the new artwork
+
+**Failure handling:** `handle_failed/2` classifies failures as `:permanent` (4xx responses, malformed URLs — marks the queue entry `:permanent`, never retries) or `:transient` (network errors, 5xx — delegates to `ImageQueue.mark_failed/1`, which `ImagePipeline.RetryScheduler` picks up on its next tick).
+
+**Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Entries are created by `Library.Inbound` after entity creation.
+
+---
 
 ## Pipeline Stages
 
-### Parse
+All stages are pure-function modules in `lib/media_centarr/pipeline/stages/`. Each takes a `%Payload{}` and returns `{:ok, payload}`, `{:needs_review, payload}`, or `{:error, reason}`.
 
-Extracts title, year, type, season, and episode from the file path using `MediaCentarr.Parser`. Always succeeds — unparseable paths return type `:unknown`.
+| Stage | Module | Used by | Purpose |
+|-------|--------|---------|---------|
+| Parse | `Stages.Parse` | Discovery, Import | Extracts title, year, type from file path via `Parser` |
+| Search | `Stages.Search` | Discovery | Searches TMDB, scores confidence, decides approve/review |
+| FetchMetadata | `Stages.FetchMetadata` | Import | Fetches full TMDB details, maps to domain metadata |
+| Ingest | `Stages.Ingest` | Import | Broadcasts entity event to `"pipeline:publish"` |
 
-### Search
+---
 
-Searches TMDB for the parsed title using `TMDB.Client`, then scores results with `TMDB.Confidence`:
+## Supervision
 
-- Known type (movie/tv) — single search
-- Unknown type — dual async search (movie + tv), best score wins
-- Extras with season — TV search; without season — movie search
-- Returns `{:needs_review, payload}` if confidence < threshold or no results
+```
+MediaCentarr.Supervisor
+├── Pipeline.Supervisor (:rest_for_one)
+│   ├── Pipeline.Stats (telemetry)
+│   ├── Pipeline.Discovery (Broadway)
+│   └── Pipeline.Import (Broadway)
+├── ImagePipeline.Supervisor (:rest_for_one)
+│   ├── ImagePipeline.Stats (telemetry — separate from Pipeline.Stats)
+│   ├── ImagePipeline (Broadway)
+│   └── ImagePipeline.RetryScheduler
+└── ...
+```
 
-### FetchMetadata
+If Stats crashes, the pipelines in its supervisor restart (clean telemetry re-attach). Pipeline crashes do not affect Stats.
 
-Fetches full TMDB details and maps to domain attributes via `TMDB.Mapper`:
+`ImagePipeline.RetryScheduler` periodically retries transient image download failures (network errors, CDN hiccups). Permanent failures (4xx responses, invalid URLs) are marked once and never retried — see `handle_failed/2` in `ImagePipeline`.
 
-- **Movie:** movie details + credits + images; if part of collection, fetches collection too
-- **TV:** series details + season details (only for parsed season) + episode details
-- **Extra:** builds extra metadata attached to parent entity
+Watchers and pipelines can be independently stopped/started via config (`start_watchers`, `start_pipeline`).
 
-Checks for 100 MB minimum disk space before proceeding.
+**Startup reconciliation (ADR-023):** When `Discovery.Producer` starts, it sends itself `:reconcile` and triggers `Watcher.Supervisor.scan()` under the Task.Supervisor. This re-detects files that appeared while the pipeline was down so no work is lost across restarts.
 
-### DownloadImages
+---
 
-Downloads artwork from TMDB CDN to a temporary staging directory:
+## Idempotency & Concurrency Safety
 
-- Entity images (poster, backdrop, logo)
-- Child movie images (for movie series)
-- Episode images (still/thumb)
+- **Already-linked check:** Discovery queries `library_watched_files` directly (via the `WatchedFile` schema + Repo, not through the Library context) to skip files that are already linked to an entity. A file is "linked" when any one of `movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id` is set.
+- **Entity deduplication:** `Library.Inbound` looks up existing entities by TMDB ID via `Library.ExternalId`, which has a unique constraint on `(source, external_id)`
+- **Race-loss recovery:** If two processors create entities for the same TMDB ID, the `ExternalId` insert detects the race; the loser destroys its orphan entity
+- **Find-or-create patterns:** Season, Episode, Movie, and Extra creation uses find-or-create — existing records are returned without modification
+- **DB-level constraints:** `library_images` has a per-owner-type unique index on `(owner_id, role)` for each of the five owner types — `movie_id`, `episode_id`, `tv_series_id`, `movie_series_id`, `video_object_id`. The two older indexes (`images_unique_movie_role_index`, `images_unique_episode_role_index`) carry legacy names from before the `:images` → `:library_images` rename in 2026-03-26; they are functionally identical to the later `library_images_unique_*_role_index` entries. Episode-number uniqueness within a season is enforced by find-or-create in code.
+- **Image queue dedup:** Queue entries track owner + role; duplicates are prevented at insert
 
-Individual failures are logged and skipped — partial downloads don't fail the pipeline.
-
-### Ingest
-
-Delegates to `Library.Ingress.ingest/1` which:
-
-- Resolves existing entity by TMDB identifier (or creates new)
-- Handles race-loss recovery (concurrent processors creating same entity)
-- Creates child records (seasons, episodes, movies, extras)
-- Moves staged images from temp directory to final location
-
-Returns `:new`, `:new_child`, or `:existing` status.
-
-## Batching
-
-The Broadway batcher (concurrency 1, batch size 10, timeout 5s) collects entity IDs from completed messages and broadcasts a single `{:entities_changed, entity_ids}` event to `"library:updates"`.
-
-## Idempotency
-
-- **Already-linked check** before processing
-- **WatchedFile deduplication** via `unique_file_path` identity
-- **Entity deduplication** via TMDB identifier unique constraint
-- **Upsert patterns** on all child records (seasons, episodes, images)
-- **Race-loss recovery** if two processors create the same entity concurrently
-
-## Telemetry & Stats
-
-`Pipeline.Stats` aggregates per-stage telemetry for the dashboard:
-
-- Active processor count per stage
-- Throughput (files/sec over 5-second window)
-- Error count and recent errors (last 50)
-- Queue depth
-- Stage status: `:idle`, `:active`, `:saturated` (>= 10 processors), `:erroring`
-
-## Review Flow
-
-Files with low confidence stop processing. A `PendingFile` is created via `Review.Intake`. The admin UI at `/review` shows pending files where the reviewer can:
-
-1. **Approve** — accept the TMDB match, re-enter pipeline
-2. **Search** — manually search TMDB, select a result, then approve
-3. **Dismiss** — reject the file
-
-Approved files broadcast `{:review_resolved, ...}` to `"pipeline:input"`, re-entering the pipeline at FetchMetadata (skipping search).
+---
 
 ## Extras (Bonus Features)
 
-Files inside directories named `Extras/`, `Featurettes/`, `Special Features/`, etc. (configurable via `extras_dirs`) are detected as bonus features:
+Extras (featurettes, behind-the-scenes, deleted scenes) are detected by the Parser when a file's parent directory matches configured extras directory names.
 
-1. Parser sets `type: :extra` with parent title/year from the grandparent directory
-2. Search matches the parent movie/series
-3. Ingest creates an `Extra` record linked to the parent entity
-4. The parent entity's `content_url` is never set to the extra's file path
+**Flow:** Parse sets `type: :extra` → Search routes to the parent movie match → FetchMetadata fetches parent metadata → Ingest creates the parent record (Movie / TVSeries / MovieSeries, without `content_url`) plus an `Extra` row linked via the type-specific FK → the parent record's `content_url` is never set to the extra's file path.
 
-## Module Reference
+---
 
-| Module | Description | Path |
-|--------|-------------|------|
-| `MediaCentarr.Pipeline` | Broadway orchestrator | `lib/media_centarr/pipeline.ex` |
-| `MediaCentarr.Pipeline.Producer` | PubSub → GenStage producer | `lib/media_centarr/pipeline/producer.ex` |
-| `MediaCentarr.Pipeline.Payload` | Data struct flowing through stages | `lib/media_centarr/pipeline/payload.ex` |
-| `MediaCentarr.Pipeline.Stats` | Telemetry aggregator for dashboard | `lib/media_centarr/pipeline/stats.ex` |
-| `MediaCentarr.Pipeline.Stages.Parse` | Filename parsing stage | `lib/media_centarr/pipeline/stages/parse.ex` |
-| `MediaCentarr.Pipeline.Stages.Search` | TMDB search + confidence scoring | `lib/media_centarr/pipeline/stages/search.ex` |
-| `MediaCentarr.Pipeline.Stages.FetchMetadata` | Full TMDB metadata fetch | `lib/media_centarr/pipeline/stages/fetch_metadata.ex` |
-| `MediaCentarr.Pipeline.Stages.DownloadImages` | Artwork download to staging | `lib/media_centarr/pipeline/stages/download_images.ex` |
-| `MediaCentarr.Pipeline.Stages.Ingest` | Library ingestion via Ingress | `lib/media_centarr/pipeline/stages/ingest.ex` |
+## Review Flow
+
+Files with low-confidence TMDB matches stop at Discovery. Discovery broadcasts `{:needs_review, attrs}` to `"review:intake"`. `Review.Intake` creates a PendingFile for human review.
+
+The `/review` UI surfaces PendingFiles. The reviewer can:
+1. **Approve** — accepts the match, broadcasts `{:file_matched, ...}` to `"pipeline:matched"` → Import processes it
+2. **Search** — manual TMDB search, then approve with selected result
+3. **Dismiss** — destroys the PendingFile
+
+After Import finishes, it broadcasts `{:review_completed, pending_file_id}` to `"review:intake"` → Intake destroys the PendingFile.
+
+**Rematch:** From the Library UI, a user can rematch an entity. `Review.Rematch` broadcasts `{:rematch_requested, entity_id}` to `"library:commands"`. `Library.Inbound` destroys the entity and sends `{:files_for_review, files}` to `"review:intake"` → Intake creates PendingFiles for re-review.
+
+All Pipeline ↔ Review ↔ Library communication uses PubSub — no direct cross-context function calls.

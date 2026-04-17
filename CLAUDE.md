@@ -1,3 +1,5 @@
+> **Internal contributor guide.** This file describes architecture, conventions, and workflows for people working *on* the codebase (human or AI). End users: see [README.md](README.md).
+
 Read `AGENTS.md` for Elixir, Phoenix, LiveView, Ecto, and CSS/JS guidelines.
 
 ## Skills-First Development
@@ -122,9 +124,9 @@ Every system — Elixir, JavaScript, or otherwise — must be designed so that C
 
 ## Architecture Principles
 
-- **This app owns all writes.** See [ADR-028](decisions/architecture/2026-03-07-028-backend-write-ownership.md). Only the backend writes to `images/` and mutates entities. *Why:* concurrent writers would race on entity records and image files; concentrating writes here lets the pipeline sequence them without cross-process locks. The frontend is a pure consumer.
+- **This app owns all writes.** See [ADR-028](decisions/architecture/2026-03-07-028-backend-write-ownership.md). Only this app writes to `images/` and mutates entities. *Why:* concurrent writers would race on entity records and image files; concentrating writes here lets the pipeline sequence them without cross-process locks.
 - **Schema.org is the data model.** All entity fields and types come from schema.org vocabulary. Read `DATA-FORMAT.md` before writing any code that encodes or decodes entity JSON. *Why:* an established public vocabulary avoids bespoke ontology debate, keeps the on-disk format legible to any external reader, and gives every type/field question an authoritative external answer.
-- **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID. *Why:* reassigning a UUID would orphan its `data/images/{uuid}/` directory and invalidate every external reference that had resolved it — caches, frontend state, log entries, existing PubSub IDs in flight.
+- **UUIDs are stable forever.** An entity's `@id` is assigned once and never changed. It doubles as the image directory name. Never reassign or reuse a UUID. *Why:* reassigning a UUID would orphan its `data/images/{uuid}/` directory and invalidate every external reference that had resolved it — caches, LiveView state, log entries, existing PubSub IDs in flight.
 - **Images: one copy per role.** Store one high-quality image per role (`poster`, `backdrop`, `logo`, `thumb`). Never store multiple resolutions. See `IMAGE-CACHING.md`. *Why:* resizing is cheap at render time, disk is expensive, and storing multiple resolutions multiplies every invalidation path.
 - **Shared image service.** `MediaCentarr.Images` is the single download+resize module. Any context that needs to fetch an image from a URL calls `Images.download/3` (with optional resize via libvips) or `Images.download_raw/2` (raw bytes, no processing). The Pipeline's `ImageProcessor` and ReleaseTracking's `ImageStore` both delegate to it. Never write inline HTTP+File.write for images — use `Images`.
 - **All mutations broadcast to PubSub.** Any operation that creates, updates, or destroys entities must broadcast `{:entities_changed, entity_ids}` to `"library:updates"`. Collect entity IDs before deletion (they're gone afterward). PubSub subscribers (LiveViews) resolve IDs into updated/removed sets — the broadcaster doesn't need to distinguish. Cross-context interaction uses PubSub events, not direct function calls into another context's internals. *Why:* PubSub is the only reload signal the UI ever gets; a missed broadcast leaves LiveViews stale until the next navigation, and a direct cross-context call silently couples the two contexts against ADR-029.
@@ -183,7 +185,7 @@ end
 
 ## Pipeline
 
-See [`PIPELINE.md`](PIPELINE.md) for full pipeline architecture — PubSub-driven event flow, processing stages, idempotency guarantees, and extras handling.
+See [`docs/pipeline.md`](docs/pipeline.md) for full pipeline architecture — PubSub-driven event flow, processing stages, idempotency guarantees, and extras handling.
 
 ## Specifications
 

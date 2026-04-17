@@ -18,7 +18,7 @@ defmodule MediaCentarr.Pipeline.Import do
   Broadway config: 1 producer (PubSub subscriber), 5 processors (partitioned
   by file path), 1 batcher (batch size 10, timeout 5s).
 
-  See `PIPELINE.md` for full architecture details.
+  See `docs/pipeline.md` for full architecture details.
   """
   use Broadway
   require MediaCentarr.Log, as: Log

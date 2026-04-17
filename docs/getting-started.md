@@ -76,7 +76,7 @@ See [configuration.md](configuration.md) for all options.
 mix phx.server    # start dev server at http://localhost:4001
 ```
 
-The admin UI is at `http://localhost:4001`. The frontend connects via WebSocket at `/socket`.
+The web UI is at `http://localhost:4001`.
 
 ### Dev service (systemd)
 
@@ -187,10 +187,10 @@ journalctl --user -u media-centarr -f    # view logs
 
 ```mermaid
 graph LR
-    Config["media-centarr.toml"] --> App[Backend]
+    Config["media-centarr.toml"] --> App[Media Centarr]
     Videos["Video Files"] --> App
     App --> TMDB["TMDB API"]
-    App -->|WebSocket| Frontend
+    App --> Browser["LiveView UI"]
     App --> MPV["mpv player"]
     App --> DB["SQLite DB"]
 ```

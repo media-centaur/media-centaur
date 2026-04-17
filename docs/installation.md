@@ -96,7 +96,7 @@ directory, and removes the unit file.
 **Config and data are preserved**:
 
 - `~/.config/media-centarr/`
-- `~/.local/share/media-centaur/` (database, downloaded images)
+- `~/.local/share/media-centarr/` (database, downloaded images)
 
 Delete those by hand if you want a full wipe.
 
@@ -119,7 +119,7 @@ Delete those by hand if you want a full wipe.
     secrets.env
 ~/.config/systemd/user/
     media-centarr.service        (pinned to current/, never edited per-version)
-~/.local/share/media-centaur/
+~/.local/share/media-centarr/
     database, image cache, persistent state
 ```
 

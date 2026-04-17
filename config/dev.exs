@@ -22,6 +22,10 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
+  # Dev-only signing key. Not a secret — this value is in the public repo and is
+  # only ever used locally. Real installs load SECRET_KEY_BASE from the environment
+  # via config/runtime.exs.
+  secret_key_base: "dev_signing_key_not_a_secret_do_not_use_in_production_xxxxxxxxxxxxxx",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:media_centarr, ~w(--sourcemap=inline --watch)]},
     tailwind: {Tailwind, :install_and_run, [:media_centarr, ~w(--watch)]}
