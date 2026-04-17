@@ -1,16 +1,17 @@
 # Playback
 
-The playback subsystem manages video playback through mpv, tracks watch progress, and provides resume/next-episode logic for the UI.
+End-user playback documentation has moved to the wiki:
 
-> [Getting Started](getting-started.md) · [Configuration](configuration.md) · [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · **Playback** · [Library](library.md)
+- **[Playback](https://github.com/media-centarr/media-centarr/wiki/Playback)** — starting playback, resume logic, next-episode, multi-session.
+- **[Keyboard & Gamepad](https://github.com/media-centarr/media-centarr/wiki/Keyboard-and-Gamepad)** — full input reference, including mpv controls.
 
-- [Architecture](#architecture)
-- [Key Concepts](#key-concepts)
-- [Configuration](#configuration)
-- [How It Works](#how-it-works)
-- [Module Reference](#module-reference)
+---
 
-## Architecture
+## Contributor internals
+
+The remainder of this file documents the Playback subsystem's internal architecture — MpvSession, session supervision, MPV IPC protocol, WatchingTracker, session recovery (ADR-023). This is developer-only content; end users should use the wiki links above.
+
+### Architecture
 
 ```mermaid
 graph TD
@@ -31,7 +32,7 @@ graph TD
     SessionB -->|WatchProgress.upsert_progress| DB
 ```
 
-## Key Concepts
+### Key Concepts
 
 **Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centarr-{entity_id}.sock`).
 
@@ -64,19 +65,9 @@ flowchart TD
     Type -->|Movie Series| Same[Same logic as TV<br/>using child movies]
 ```
 
-## Configuration
+### How It Works
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `playback.mpv_path` | `/usr/bin/mpv` | Path to mpv binary |
-| `playback.socket_dir` | `/tmp` | Directory for MPV IPC sockets |
-| `playback.socket_timeout_ms` | `5000` | Socket connection timeout after launch |
-
-See [configuration.md](configuration.md) for the full config reference.
-
-## How It Works
-
-### Play Command
+#### Play Command
 
 1. UI calls `Sessions.play/1` with an entity UUID
 2. `Resolver.resolve/1` loads the entity and progress, then runs `Resume.resolve/2`
@@ -84,7 +75,7 @@ See [configuration.md](configuration.md) for the full config reference.
 4. MpvSession registers in `SessionRegistry` by entity_id
 5. MpvSession launches mpv with `--input-ipc-server`, `--fullscreen`, and optional `--start=position`
 
-### MPV IPC Protocol
+#### MPV IPC Protocol
 
 MpvSession communicates with mpv via newline-delimited JSON over a Unix domain socket:
 
@@ -100,7 +91,7 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 - `end-file` with reason
 - `shutdown`
 
-### Progress Persistence
+#### Progress Persistence
 
 | Event | Action |
 |-------|--------|
@@ -111,7 +102,7 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 
 Each save calls `WatchProgress.upsert_progress` with the tracker's `saveable_position` (guards against seek corruption). At 90% completion, `mark_completed` is called (monotonic).
 
-### Progress Broadcasting
+#### Progress Broadcasting
 
 Every save broadcasts to `"playback:events"`:
 
@@ -134,11 +125,11 @@ State changes broadcast with entity_id:
 
 LiveView subscribers receive both via PubSub.
 
-### Session Recovery (ADR-023)
+#### Session Recovery (ADR-023)
 
 On startup, a one-shot Task scans the socket directory for `media-centarr-*.sock` files. For each socket found, it probes mpv for the current path and position, resolves the entity, and starts a reconnecting MpvSession. Dead socket files are cleaned up.
 
-### WatchingTracker
+#### WatchingTracker
 
 Pure function module that gates progress persistence:
 
@@ -149,7 +140,7 @@ Pure function module that gates progress persistence:
 
 After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_position` starts advancing.
 
-### Display Helpers
+#### Display Helpers
 
 **ProgressSummary** — computes display-ready progress for UI cards:
 - Current episode (season, episode)
@@ -161,7 +152,7 @@ After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 - Target entity/episode/movie identifiers
 - Per-child targets for series grid items
 
-## Module Reference
+### Module Reference
 
 | Module | Description | Path |
 |--------|-------------|------|
