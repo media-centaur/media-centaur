@@ -1,0 +1,44 @@
+# defaults/profiles/showcase.toml
+#
+# Shipped showcase-profile configuration. Activated by setting
+# MEDIA_CENTARR_PROFILE=showcase; the app then reads overrides from
+# ~/.config/media-centarr/profiles/showcase.toml (copy this file there
+# if you need to override defaults).
+#
+# The showcase profile exists to demo the UI with legally-safe
+# public-domain media. It's isolated from the default install:
+# separate DB, separate watch dir, separate image cache — running
+# `mix seed.showcase` never touches your real library.
+
+# Database and watch_dir default to paths under
+# ~/.local/share/media-centarr/profiles/showcase/ when unset here.
+# Override them only if you have a specific reason.
+# database_path = "~/.local/share/media-centarr/profiles/showcase/media-centarr.db"
+# watch_dirs = [{ dir = "~/.local/share/media-centarr/profiles/showcase/media" }]
+
+exclude_dirs = []
+file_absence_ttl_days = 30
+
+[tmdb]
+# TMDB API key is required so the seeder can fetch real metadata and
+# artwork for curated public-domain titles. Reuse your main key.
+api_key = ""
+
+[pipeline]
+# Lower threshold than the default so the review UI will show candidate
+# states (ties, below-threshold matches) on seeded data.
+auto_approve_threshold = 0.80
+extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
+skip_dirs = ["Sample"]
+
+[status]
+recent_changes_days = 7
+recently_watched_count = 8
+
+[playback]
+mpv_path = "/usr/bin/mpv"
+socket_dir = "/tmp"
+socket_timeout_ms = 5000
+
+[release_tracking]
+refresh_interval_hours = 24

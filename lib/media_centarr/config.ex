@@ -23,9 +23,47 @@ defmodule MediaCentarr.Config do
 
   alias MediaCentarr.Secret
 
-  @config_path "~/.config/media-centarr/media-centarr.toml"
+  @default_config_path "~/.config/media-centarr/media-centarr.toml"
+  @profiles_config_root "~/.config/media-centarr/profiles"
+  @profiles_data_root "~/.local/share/media-centarr/profiles"
 
   @sensitive_keys [:tmdb_api_key, :prowlarr_api_key, :download_client_password]
+
+  @doc """
+  Returns the currently active profile name (from `MEDIA_CENTARR_PROFILE`),
+  or `nil` when the default profile is in use. Treats an empty string as
+  no profile — this means an accidentally-exported empty env var won't
+  silently switch away from the default DB.
+  """
+  @spec profile() :: String.t() | nil
+  def profile do
+    case System.get_env("MEDIA_CENTARR_PROFILE") do
+      nil -> nil
+      "" -> nil
+      name -> name
+    end
+  end
+
+  @doc """
+  Returns the absolute path to the TOML config file for the given profile
+  (or the default path when the profile is `nil`).
+  """
+  @spec config_path(String.t() | nil) :: String.t()
+  def config_path(nil), do: Path.expand(@default_config_path)
+
+  def config_path(profile) when is_binary(profile) do
+    Path.expand(Path.join(@profiles_config_root, "#{profile}.toml"))
+  end
+
+  @doc """
+  Returns the per-profile data directory that holds the profile's SQLite
+  database, image cache, and default watch dir. Profiles live entirely
+  separate from the default install so seeding one never touches another.
+  """
+  @spec profile_data_dir(String.t()) :: String.t()
+  def profile_data_dir(profile) when is_binary(profile) do
+    Path.expand(Path.join(@profiles_data_root, profile))
+  end
 
   @doc """
   Returns the list of config keys that must always be stored as
@@ -185,12 +223,45 @@ defmodule MediaCentarr.Config do
   end
 
   defp load_config do
+    profile = profile()
     app_watch_dirs = expand_list(Application.get_env(:media_centarr, :watch_dirs, []))
-    {_, default_images_map} = parse_watch_dirs(app_watch_dirs)
+
+    {watch_dirs, default_images_map} =
+      case profile do
+        nil ->
+          {_, map} = parse_watch_dirs(app_watch_dirs)
+          {app_watch_dirs, map}
+
+        name ->
+          # When a profile is active, default watch_dirs to a per-profile
+          # media dir so demo/feature-dev data can't leak into the user's
+          # real library. TOML / app env can still override.
+          case app_watch_dirs do
+            [] ->
+              dir = Path.join(profile_data_dir(name), "media")
+              {[dir], %{dir => default_images_dir(dir)}}
+
+            dirs ->
+              {_, map} = parse_watch_dirs(dirs)
+              {dirs, map}
+          end
+      end
+
+    database_path =
+      case profile do
+        nil ->
+          expand(get_in(Application.get_env(:media_centarr, MediaCentarr.Repo), [:database]))
+
+        name ->
+          expand(
+            get_in(Application.get_env(:media_centarr, MediaCentarr.Repo), [:database]) ||
+              Path.join(profile_data_dir(name), "media-centarr.db")
+          )
+      end
 
     defaults = %{
-      database_path: expand(get_in(Application.get_env(:media_centarr, MediaCentarr.Repo), [:database])),
-      watch_dirs: app_watch_dirs,
+      database_path: database_path,
+      watch_dirs: watch_dirs,
       watch_dir_images: default_images_map,
       tmdb_api_key: Secret.wrap(Application.get_env(:media_centarr, :tmdb_api_key)),
       auto_approve_threshold: Application.get_env(:media_centarr, :auto_approve_threshold),
@@ -226,7 +297,7 @@ defmodule MediaCentarr.Config do
   end
 
   defp load_toml(defaults) do
-    path = Path.expand(@config_path)
+    path = config_path(profile())
 
     case File.read(path) do
       {:ok, contents} ->

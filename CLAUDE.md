@@ -56,6 +56,28 @@ mix seed.review        # populate the review UI with all visual test cases
 One-shot utility for the review UI's visual test cases. Run once after
 initial setup. Idempotent — safe to re-run.
 
+### Profiles (isolated dev databases)
+
+The `MEDIA_CENTARR_PROFILE` env var activates an alternative profile —
+separate SQLite DB, watch dir, and image cache under
+`~/.local/share/media-centarr/profiles/<name>/`. The default install is
+untouched. Used for showcase/demo setups and feature-specific dev
+environments.
+
+```bash
+# Showcase profile — populated with public-domain media for screenshots.
+MEDIA_CENTARR_PROFILE=showcase mix ecto.create
+MEDIA_CENTARR_PROFILE=showcase mix ecto.migrate
+MEDIA_CENTARR_PROFILE=showcase mix seed.showcase
+MEDIA_CENTARR_PROFILE=showcase mix phx.server
+
+# Capture marketing screenshots against the showcase profile:
+scripts/screenshot-tour
+```
+
+Per-profile TOML overrides live at `~/.config/media-centarr/profiles/<name>.toml`.
+Shipped defaults for the showcase profile are in `defaults/profiles/showcase.toml`.
+
 ### Dev service
 
 ```bash

@@ -30,6 +30,10 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 <img src="docs-site/assets/screenshots/playback-overlay.png" alt="Playback overlay" width="32%">
 <img src="docs-site/assets/screenshots/review-queue.png" alt="Review queue" width="32%">
 
+<img src="docs-site/assets/screenshots/release-tracking.png" alt="Release tracking" width="32%">
+<img src="docs-site/assets/screenshots/settings-overview.png" alt="Settings overview" width="32%">
+<img src="docs-site/assets/screenshots/watch-history.png" alt="Watch history" width="32%">
+
 </div>
 
 ---

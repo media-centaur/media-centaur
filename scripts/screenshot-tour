@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Screenshot tour for the showcase profile — navigates to every major UI
+# surface in a headed Chromium and saves PNGs into docs-site/assets/screenshots/.
+#
+# Prerequisites:
+#   1. Showcase profile DB created and seeded:
+#        MEDIA_CENTARR_PROFILE=showcase mix ecto.create
+#        MEDIA_CENTARR_PROFILE=showcase mix ecto.migrate
+#        MEDIA_CENTARR_PROFILE=showcase mix seed.showcase
+#   2. Dev server running under the showcase profile:
+#        MEDIA_CENTARR_PROFILE=showcase mix phx.server
+#   3. Hyprland running (for the floating-window rule). Not strictly
+#      required — Chromium will just open normally on other compositors.
+#
+# Output: docs-site/assets/screenshots/{library-grid,review-queue,...}.png
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BASE_URL="${BASE_URL:-http://127.0.0.1:4001}"
+
+# Fail fast if the dev server isn't reachable — launching Chromium only
+# to land on an error page wastes time and produces garbage screenshots.
+if ! curl --silent --fail --max-time 3 "$BASE_URL" > /dev/null 2>&1; then
+  echo "error: dev server not reachable at $BASE_URL" >&2
+  echo "" >&2
+  echo "Start it with the showcase profile first:" >&2
+  echo "" >&2
+  echo "    MEDIA_CENTARR_PROFILE=showcase mix phx.server" >&2
+  echo "" >&2
+  exit 1
+fi
+
+# Hyprland window rule — only applies if hyprctl is available. Floats the
+# Chromium window used by Playwright so it doesn't rearrange the rest of
+# your workspace during the tour.
+if command -v hyprctl > /dev/null 2>&1; then
+  hyprctl keyword windowrulev2 "float, class:^(Chromium)$" > /dev/null 2>&1 || true
+  hyprctl keyword windowrulev2 "size 1400 900, class:^(Chromium)$" > /dev/null 2>&1 || true
+  hyprctl keyword windowrulev2 "center, class:^(Chromium)$" > /dev/null 2>&1 || true
+fi
+
+mkdir -p "$REPO_ROOT/docs-site/assets/screenshots"
+
+cd "$REPO_ROOT/test/e2e"
+BASE_URL="$BASE_URL" bunx playwright test \
+  --config=screenshot-tour.config.js \
+  --headed \
+  "$@"
