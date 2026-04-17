@@ -195,6 +195,48 @@ Protocol specifications live in `specs/`. See [specs/README.md](specs/README.md)
 
 Load the `user-interface` skill before any UI work. It consolidates design principles, component recipes, CSS conventions, page structure, and all UIDR decisions into one reference.
 
+## Public-facing documentation
+
+End-user documentation lives in **three surfaces**, each with a distinct audience:
+
+| Surface | Location | Audience |
+|---|---|---|
+| **README** | `README.md` in this repo | GitHub visitors — quick scan, logo, install, links out |
+| **GitHub Pages** | `docs-site/index.html` in this repo (auto-deployed via `.github/workflows/pages.yml`) | Marketing / landing page at [media-centarr.github.io/media-centarr](https://media-centarr.github.io/media-centarr/) |
+| **GitHub Wiki** | Separate repo cloned to `../media-centarr.wiki/` (jj-colocated) | Fleshed-out user docs — journey-based sidebar nav |
+
+**Internal contributor docs** (`docs/architecture.md`, `docs/pipeline.md`, `docs/input-system.md`, `docs/library.md`, `docs/watcher.md`, `docs/tmdb.md`, `docs/playback.md`, `docs/mpv.md`) stay in this repo, reviewed in PRs, not surfaced on the Pages site or wiki. User-facing pages under `docs/` are pointer stubs to the wiki.
+
+### Keep the wiki in sync with user-visible changes
+
+Whenever a change affects end-user behavior or setup, update the wiki alongside the code **in the same unit of work**:
+
+- New or renamed setting visible in the Settings page → update `Settings-Reference.md`.
+- New config file key → update `Configuration-File.md` (and `Adding-Your-Library.md` if it's a watch-dir concern).
+- Changes to keyboard / gamepad bindings → update `Keyboard-and-Gamepad.md` and `Keyboard-Shortcuts.md`.
+- New or changed UI flow (browsing, playback, review queue, release tracking) → update the corresponding *Using Media Centarr* page.
+- New download-client driver or Prowlarr capability → update `Prowlarr-Integration.md` / `Download-Clients.md`.
+- New failure mode with a user-actionable fix → add to `Troubleshooting.md`.
+- New non-obvious decision about what Media Centarr does or doesn't do → add to `FAQ.md`.
+
+Workflow:
+
+```sh
+cd ~/src/media-centarr/media-centarr.wiki
+# edit the relevant page(s)
+jj describe -m "wiki: <short summary>"
+jj bookmark set master -r @
+jj git push
+```
+
+The wiki repo is a sibling of the main code repo (`~/src/media-centarr/media-centarr.wiki/`), jj-colocated with git. It has its own `master` branch pushed to `git@github.com:media-centarr/media-centarr.wiki.git`.
+
+If a feature is still WIP and the user-visible shape hasn't settled, note the wiki work as a follow-up — but don't mark the feature done without the wiki update.
+
+### Pages site updates
+
+`docs-site/index.html` auto-deploys on any push to `main` that touches `docs-site/**`. Edit, commit, push — the workflow handles deploy. Screenshots live at `docs-site/assets/screenshots/*.png`; keep the paths stable so the placeholder-to-real swap is a drop-in.
+
 ## Decision Records
 
 Decision records live in `decisions/` using [MADR 4.0](https://adr.github.io/madr/). See `decisions/README.md` for the category index. **Filename convention:** `YYYY-MM-DD-NNN-short-title.md`, numbered per category.

@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/media-centarr/media-centarr/main/priv/static/images/centaur-logo.png" alt="Media Centarr" width="220">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/media-centarr/media-centarr/main/priv/static/images/centaur-logo-light.png">
+  <img src="https://raw.githubusercontent.com/media-centarr/media-centarr/main/priv/static/images/centaur-logo.png" alt="Media Centarr" width="220">
+</picture>
 
 # Media Centarr
 
