@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Media Centarr — self-hosted Linux media centre</title>
+    <title>Media Centarr — self-hosted Linux media center</title>
     <meta
       name="description"
       content="Library management and playback for your personal movie and TV collection. Self-hosted, Linux-native, couch-first. The *ARR stack and a couch-ready mpv player in one app."
@@ -17,8 +17,8 @@
       content="Library management and playback for your personal movie and TV collection. Self-hosted, Linux-native, couch-first."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://media-centarr.github.io/media-centarr/" />
-    <meta property="og:image" content="assets/centaur-logo.png" />
+    <meta property="og:url" content="https://media-centarr.net/" />
+    <meta property="og:image" content="https://media-centarr.net/assets/centaur-logo.png" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -27,8 +27,9 @@
       name="twitter:description"
       content="Library management and playback for your personal movie and TV collection. Self-hosted, Linux-native, couch-first."
     />
-    <meta name="twitter:image" content="assets/centaur-logo.png" />
+    <meta name="twitter:image" content="https://media-centarr.net/assets/centaur-logo.png" />
 
+    <link rel="canonical" href="https://media-centarr.net/" />
     <link rel="icon" type="image/png" href="assets/centaur-logo.png" />
 
     <!-- Tailwind via CDN (no build step) -->
@@ -189,7 +190,7 @@
     <!-- ================== NAV ================== -->
     <header class="relative z-10">
       <nav
-        class="mx-auto flex max-w-6xl items-center justify-between px-6 pt-6 sm:pt-8"
+        class="mx-auto flex max-w-6xl items-center justify-between px-6 py-5 sm:py-6"
       >
         <a href="#" class="flex items-center gap-3">
           <img
@@ -239,7 +240,7 @@
           <h1
             class="display text-5xl leading-[1.02] text-parchment-100 sm:text-6xl lg:text-7xl"
           >
-            The media centre for the <em class="text-arrow-500 not-italic">self-hosting&nbsp;enthusiast.</em>
+            The media center for the <em class="text-arrow-500 not-italic">self-hosting&nbsp;enthusiast.</em>
           </h1>
 
           <p class="mt-7 max-w-xl text-lg leading-relaxed text-parchment-300">
@@ -287,11 +288,11 @@
 
     <main id="main">
       <!-- ================== WHAT IT DOES ================== -->
-      <section id="what" class="border-t border-white/5 bg-ink-800">
+      <section id="what" class="scroll-mt-4 border-t border-white/5 bg-ink-800">
         <div class="mx-auto max-w-6xl px-6 py-20 sm:py-24">
           <div class="max-w-3xl">
             <h2 class="display text-3xl text-parchment-100 sm:text-4xl">
-              Everything the \*ARR stack does, in one app — plus the player.
+              Everything the *ARR stack does, in one app — plus the player.
             </h2>
             <p class="mt-4 text-parchment-300">
               Most self-hosted media setups are four services in a trench coat.
@@ -520,11 +521,6 @@
               progress tracking, and next-episode logic all hook into mpv
               rather than replacing it.
             </p>
-            <p class="text-parchment-400">
-              Reinventing any of the above is a multi-year project.
-              Delegating to mpv is how Media Centarr stays a library manager
-              instead of a half-baked player.
-            </p>
           </div>
         </div>
       </section>
@@ -565,7 +561,7 @@
             </li>
             <li class="rounded-lg border border-white/10 bg-white/[0.02] p-5">
               <strong class="text-parchment-100"
-                >Docker or containerised deployment.</strong
+                >Docker or containerized deployment.</strong
               >
               Native Linux application — install script, systemd user unit,
               SQLite. The *ARR stack in Docker is a well-trodden path if you
@@ -583,7 +579,7 @@
       </section>
 
       <!-- ================== INSTALL ================== -->
-      <section id="install" class="border-t border-white/5 bg-ink-800">
+      <section id="install" class="scroll-mt-4 border-t border-white/5 bg-ink-800">
         <div class="mx-auto max-w-4xl px-6 py-20 sm:py-24">
           <div class="text-center">
             <p class="text-xs uppercase tracking-[0.2em] text-arrow-500">
