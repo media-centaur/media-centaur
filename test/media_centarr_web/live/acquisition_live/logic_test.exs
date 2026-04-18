@@ -205,12 +205,12 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
       assert y.results == []
     end
 
-    test "marks matching group :failed on error and clears results" do
+    test "marks matching group :failed on error and clears results, preserving reason" do
       groups = Logic.placeholder_groups(["X"])
 
       [x] = Logic.apply_search_result(groups, "X", {:error, :boom})
 
-      assert x.status == :failed
+      assert x.status == {:failed, :boom}
       assert x.results == []
     end
 
@@ -241,7 +241,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
 
     test "no-op for loading or failed groups" do
       loading = %{term: "T", expanded?: false, status: :loading, results: []}
-      failed = %{term: "T", expanded?: false, status: :failed, results: []}
+      failed = %{term: "T", expanded?: false, status: {:failed, :boom}, results: []}
 
       assert Logic.add_default_selection(%{}, loading) == %{}
       assert Logic.add_default_selection(%{}, failed) == %{}
@@ -252,7 +252,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     test "true when no group is :loading" do
       groups = [
         %{term: "A", expanded?: false, status: :ready, results: []},
-        %{term: "B", expanded?: false, status: :failed, results: []}
+        %{term: "B", expanded?: false, status: {:failed, :boom}, results: []}
       ]
 
       assert Logic.all_loaded?(groups) == true
@@ -395,6 +395,40 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     test "returns a neutral class for nil or unknown states" do
       assert Logic.state_badge_class(nil) =~ "neutral"
       assert Logic.state_badge_class(:other) =~ "neutral"
+    end
+  end
+
+  describe "format_search_error/1" do
+    test "explains :econnrefused as an unreachable Prowlarr" do
+      assert Logic.format_search_error(%Req.TransportError{reason: :econnrefused}) ==
+               "Couldn't reach Prowlarr — check that the service is running and the URL is correct"
+    end
+
+    test "explains :nxdomain as a bad URL" do
+      assert Logic.format_search_error(%Req.TransportError{reason: :nxdomain}) ==
+               "Prowlarr URL not found — check the URL in Settings"
+    end
+
+    test "explains :timeout" do
+      assert Logic.format_search_error(%Req.TransportError{reason: :timeout}) ==
+               "Prowlarr timed out"
+    end
+
+    test "explains 401/403 as an API key problem" do
+      assert Logic.format_search_error({:http_error, 401, %{}}) ==
+               "Prowlarr rejected the API key — check Settings"
+
+      assert Logic.format_search_error({:http_error, 403, %{}}) ==
+               "Prowlarr rejected the API key — check Settings"
+    end
+
+    test "shows the HTTP status for other HTTP errors" do
+      assert Logic.format_search_error({:http_error, 500, %{}}) ==
+               "Prowlarr returned HTTP 500"
+    end
+
+    test "falls back to a generic message for unknown reasons" do
+      assert Logic.format_search_error(:boom) == "Search failed"
     end
   end
 

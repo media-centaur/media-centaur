@@ -159,8 +159,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                 <% {:loading, _} -> %>
                   <span class="loading loading-spinner loading-xs text-base-content/40"></span>
                   <span class="flex-1 text-sm text-base-content/40">Searching…</span>
-                <% {:failed, _} -> %>
-                  <span class="flex-1 text-sm text-error/70">Search failed</span>
+                <% {{:failed, reason}, _} -> %>
+                  <span class="flex-1 text-sm text-error/70">
+                    {Logic.format_search_error(reason)}
+                  </span>
                 <% {:ready, []} -> %>
                   <span class="flex-1 text-sm text-base-content/40">No results</span>
                 <% {:ready, [_ | _]} -> %>
@@ -182,6 +184,18 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                   </span>
               <% end %>
             </button>
+
+            <%!-- Failed-search helper: link to Prowlarr settings --%>
+            <div :if={match?({:failed, _}, group.status)} class="pl-44">
+              <.link
+                patch={~p"/settings?section=acquisition"}
+                class="btn btn-soft btn-primary btn-xs"
+                data-nav-item
+                tabindex="0"
+              >
+                Open Prowlarr settings <.icon name="hero-chevron-right-mini" class="size-3" />
+              </.link>
+            </div>
 
             <%!-- Expanded alternatives --%>
             <div :if={group.expanded? && group.results != []} class="ml-6 space-y-1">
