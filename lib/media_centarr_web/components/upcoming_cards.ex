@@ -119,29 +119,81 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
         <%!-- Now Available (takes 1 column on lg — sits beside Upcoming) --%>
         <div
-          :if={@released != []}
           data-nav-item
           data-section-type="now-available"
           tabindex="0"
           class="space-y-3 rounded-xl outline-none p-4 glass-inset"
         >
           <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
-          <.released_content releases={@released} />
+          <%= if @released != [] do %>
+            <.released_content releases={@released} />
+          <% else %>
+            <p class="text-sm text-base-content/50">No recent releases.</p>
+          <% end %>
         </div>
 
         <%!-- Upcoming (takes 1 column on lg — sits beside Now Available) --%>
         <div
-          :if={@dated_upcoming != []}
           data-nav-item
           data-section-type="upcoming-list"
           tabindex="0"
           class="space-y-3 rounded-xl outline-none p-4 glass-inset"
         >
           <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
-          <.upcoming_list_content releases={@dated_upcoming} />
+          <%= if @dated_upcoming != [] do %>
+            <.upcoming_list_content releases={@dated_upcoming} />
+          <% else %>
+            <p class="text-sm text-base-content/50">Nothing scheduled.</p>
+          <% end %>
         </div>
 
-        <%!-- Unscheduled section --%>
+        <%!-- Recent Changes (events) — paired with Tracking on lg --%>
+        <div
+          data-nav-item
+          data-section-type="events"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
+        >
+          <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
+            Recent Changes
+          </h3>
+          <%= if @events != [] do %>
+            <div class="release-grid text-sm pl-3">
+              <div :for={event <- @events} class="release-row">
+                <span class="text-base-content/30 tabular-nums text-right">
+                  {format_datetime(event.inserted_at)}
+                </span>
+                <span class="font-medium">{event.item_name}</span>
+                <span class="text-base-content/40 col-span-2">
+                  {event_label(event)}
+                </span>
+              </div>
+            </div>
+          <% else %>
+            <p class="text-sm text-base-content/50">No recent changes.</p>
+          <% end %>
+        </div>
+
+        <%!-- Tracking — paired with Recent Changes on lg --%>
+        <div
+          data-nav-item
+          data-section-type="tracking"
+          tabindex="0"
+          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
+        >
+          <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
+            Tracking
+          </h3>
+          <%= if @tracked_items != [] do %>
+            <div class="tracking-grid text-sm pl-3">
+              <.tracked_item_row :for={item <- @tracked_items} item={item} />
+            </div>
+          <% else %>
+            <p class="text-sm text-base-content/50">Nothing tracked yet.</p>
+          <% end %>
+        </div>
+
+        <%!-- Unscheduled section — still spans both columns because list can be long --%>
         <div
           :if={@no_date != []}
           data-nav-item
@@ -154,43 +206,6 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           </h3>
           <.unscheduled_content releases={@no_date} />
         </div>
-
-        <%!-- Events section --%>
-        <div
-          :if={@events != []}
-          data-nav-item
-          data-section-type="events"
-          tabindex="0"
-          class="lg:col-span-2 space-y-3 rounded-xl outline-none p-4 glass-inset"
-        >
-          <.events_content events={@events} />
-        </div>
-
-        <%!-- Tracking section --%>
-        <div
-          :if={@tracked_items != []}
-          data-nav-item
-          data-section-type="tracking"
-          tabindex="0"
-          class="lg:col-span-2 space-y-3 rounded-xl outline-none p-3"
-        >
-          <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
-            Tracking
-          </h3>
-          <div class="tracking-grid text-sm pl-3">
-            <.tracked_item_row :for={item <- @tracked_items} item={item} />
-          </div>
-        </div>
-      </div>
-
-      <%!-- Empty state --%>
-      <div
-        :if={map_size(@by_date) == 0 && @no_date == []}
-        class="text-center py-12 text-base-content/40"
-      >
-        <.icon name="hero-calendar-mini" class="size-8 mx-auto mb-2" />
-        <p>No upcoming releases tracked</p>
-        <p class="text-sm">Click "Track New Releases" to find shows and movies to follow</p>
       </div>
 
       <%!-- Stop tracking confirmation modal --%>
@@ -536,29 +551,6 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           )}
         </span>
         <span :if={release.title} class="text-base-content/40">"{release.title}"</span>
-      </div>
-    </div>
-    """
-  end
-
-  # --- Events section content ---
-
-  attr :events, :list, required: true
-
-  defp events_content(assigns) do
-    ~H"""
-    <h3 class="text-sm font-medium text-base-content/50 uppercase tracking-wider">
-      Recent Changes
-    </h3>
-    <div class="release-grid text-sm pl-3">
-      <div :for={event <- @events} class="release-row">
-        <span class="text-base-content/30 tabular-nums text-right">
-          {format_datetime(event.inserted_at)}
-        </span>
-        <span class="font-medium">{event.item_name}</span>
-        <span class="text-base-content/40 col-span-2">
-          {event_label(event)}
-        </span>
       </div>
     </div>
     """
