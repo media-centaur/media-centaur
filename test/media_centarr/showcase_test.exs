@@ -19,6 +19,19 @@ defmodule MediaCentarr.ShowcaseTest do
   setup do
     TmdbStubs.setup_tmdb_client(%{})
 
+    # Showcase writes fake media files under the first configured watch_dir.
+    # Test env sets :watch_dirs to [] (ADR-016), so override it with a temp
+    # dir for the duration of the test.
+    tmp_dir = Path.join(System.tmp_dir!(), "showcase-test-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(tmp_dir)
+    config = :persistent_term.get({MediaCentarr.Config, :config})
+    :persistent_term.put({MediaCentarr.Config, :config}, Map.put(config, :watch_dirs, [tmp_dir]))
+
+    on_exit(fn ->
+      :persistent_term.put({MediaCentarr.Config, :config}, config)
+      File.rm_rf!(tmp_dir)
+    end)
+
     # Stub every movie search → a single hit with id derived from title;
     # every TV search → same; every /movie/:id and /tv/:id → minimal detail;
     # every /tv/:id/season/:n → two-episode season.
