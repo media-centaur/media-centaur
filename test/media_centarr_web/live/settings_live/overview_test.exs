@@ -4,6 +4,10 @@ defmodule MediaCentarrWeb.Live.SettingsLive.OverviewTest do
   alias MediaCentarrWeb.Live.SettingsLive.Overview
 
   @tmp_dir System.tmp_dir!()
+  # Any executable present on both dev and CI hosts works for the "mpv binary
+  # present" check — Overview calls File.stat on the path and only cares that
+  # it exists with an exec bit set. `sh` is guaranteed on every POSIX system.
+  @present_executable System.find_executable("sh") || "/bin/sh"
 
   # Build a minimal input shape matching what SettingsLive hands to
   # `Overview.build/1`. Individual tests override the parts they care about.
@@ -21,7 +25,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.OverviewTest do
         download_client_type: "qbittorrent",
         download_client_url: "http://localhost:8080",
         download_client_password_configured?: true,
-        mpv_path: "/usr/bin/mpv",
+        mpv_path: @present_executable,
         mpv_socket_dir: @tmp_dir,
         database_path: Path.join(@tmp_dir, "test.db"),
         watch_dirs: [@tmp_dir]
@@ -145,7 +149,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.OverviewTest do
       groups = Overview.build(input())
       item = find_item(groups, :mpv)
       assert item.status == :ok
-      assert item.detail =~ "/usr/bin/mpv" or item.detail == "Found"
+      assert item.detail == @present_executable or item.detail == "Found"
     end
   end
 
