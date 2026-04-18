@@ -12,7 +12,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
 
   alias MediaCentarr.Acquisition.{QueryExpander, Quality, QueueItem, SearchResult}
 
-  @type status :: :loading | :ready | :failed
+  @type status :: :loading | :ready | {:failed, term()}
   @type group :: %{
           term: String.t(),
           expanded?: boolean(),
@@ -83,9 +83,9 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
     end)
   end
 
-  def apply_search_result(groups, term, {:error, _reason}) do
+  def apply_search_result(groups, term, {:error, reason}) do
     Enum.map(groups, fn
-      %{term: ^term} = group -> %{group | results: [], status: :failed}
+      %{term: ^term} = group -> %{group | results: [], status: {:failed, reason}}
       group -> group
     end)
   end
@@ -177,6 +177,26 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
     {_result, {:error, reason}} = List.first(err_pairs)
     format_grab_reason(reason)
   end
+
+  @doc """
+  Formats a search-error reason into a short user-facing string explaining
+  why the search failed and what to check.
+  """
+  @spec format_search_error(term()) :: String.t()
+  def format_search_error(%Req.TransportError{reason: :econnrefused}),
+    do: "Couldn't reach Prowlarr — check that the service is running and the URL is correct"
+
+  def format_search_error(%Req.TransportError{reason: :nxdomain}),
+    do: "Prowlarr URL not found — check the URL in Settings"
+
+  def format_search_error(%Req.TransportError{reason: :timeout}), do: "Prowlarr timed out"
+
+  def format_search_error({:http_error, status, _body}) when status in [401, 403],
+    do: "Prowlarr rejected the API key — check Settings"
+
+  def format_search_error({:http_error, status, _body}), do: "Prowlarr returned HTTP #{status}"
+
+  def format_search_error(_reason), do: "Search failed"
 
   @doc """
   Returns the result a group's collapsed header should display: the user's
