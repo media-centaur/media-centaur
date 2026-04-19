@@ -56,9 +56,21 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
 
   defp format_reason(:not_found), do: "no releases published"
   defp format_reason(:malformed), do: "unexpected response from GitHub"
+
+  defp format_reason({:rate_limited, %DateTime{} = reset_at}),
+    do: "GitHub rate limit reached. Try again after #{format_local_time(reset_at)}."
+
+  defp format_reason({:rate_limited, _}), do: "GitHub rate limit reached. Try again in a few minutes."
+
   defp format_reason({:http_error, status}), do: "HTTP #{status}"
   defp format_reason(%Req.TransportError{reason: reason}), do: "network: #{reason}"
   defp format_reason(other), do: inspect(other)
+
+  defp format_local_time(datetime) do
+    # Use UTC for a stable display — browsers render server-rendered
+    # labels verbatim and we don't have the user's tz here. Short form.
+    Calendar.strftime(datetime, "%H:%M UTC")
+  end
 
   @doc "Maps an `update_status/0` to a semantic tone for styling."
   @spec update_status_tone(update_status()) :: tone()

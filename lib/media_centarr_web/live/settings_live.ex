@@ -124,7 +124,9 @@ defmodule MediaCentarrWeb.SettingsLive do
           assign(socket, update_status: status, latest_release: release)
 
         {:fresh, {:error, reason}} ->
-          assign(socket, update_status: {:error, reason}, latest_release: nil)
+          # Preserve any hydrated `latest_release` so the card can keep
+          # showing the last-known release alongside the error status.
+          assign(socket, update_status: {:error, reason})
 
         :stale ->
           start_update_check(socket)
@@ -149,7 +151,9 @@ defmodule MediaCentarrWeb.SettingsLive do
       send(liveview, {:update_check_result, result})
     end)
 
-    assign(socket, update_status: :checking, latest_release: nil)
+    # Keep `latest_release` (hydrated from Storage or a previous fetch)
+    # visible while the new check runs — no "blanking" flash.
+    assign(socket, update_status: :checking)
   end
 
   # --- Events ---
@@ -619,7 +623,12 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_info({:update_check_result, {:error, reason}}, socket) do
-    {:noreply, assign(socket, update_status: {:error, reason}, latest_release: nil)}
+    # Don't nil out latest_release — keep the last-known release
+    # visible on the card so the user sees meaningful info during a
+    # transient outage (rate limit, network blip, etc.). The error
+    # surfaces via update_status; the card's rendering handles the
+    # "have release + error status" state gracefully.
+    {:noreply, assign(socket, update_status: {:error, reason})}
   end
 
   def handle_info({:progress, :done, pct}, socket) do

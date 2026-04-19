@@ -60,6 +60,20 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSectionTest do
     end
   end
 
+  describe "update_status_label/2 — rate limit" do
+    test "formats a rate-limited error with the reset time" do
+      reset_at = ~U[2026-04-19 15:30:00Z]
+      label = SystemSection.update_status_label({:error, {:rate_limited, reset_at}}, nil)
+      assert label =~ "rate limit"
+      assert label =~ "15:30"
+    end
+
+    test "falls back to a generic message when reset time is unknown" do
+      label = SystemSection.update_status_label({:error, {:rate_limited, nil}}, nil)
+      assert label =~ "rate limit"
+    end
+  end
+
   describe "apply_visible?/1" do
     test "nil is hidden, every phase is visible" do
       refute SystemSection.apply_visible?(nil)

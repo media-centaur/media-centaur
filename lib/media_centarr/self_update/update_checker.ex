@@ -92,12 +92,45 @@ defmodule MediaCentarr.SelfUpdate.UpdateChecker do
       {:ok, %{status: 404}} ->
         {:error, :not_found}
 
+      {:ok, %{status: 403} = resp} ->
+        # GitHub returns 403 with `x-ratelimit-remaining: 0` when the
+        # anonymous per-IP limit (60/hour) is exhausted. Surface this
+        # distinctly so the UI can explain it and tell the user when
+        # the limit resets, instead of blaming a generic HTTP error.
+        if rate_limited?(resp.headers) do
+          {:error, {:rate_limited, rate_limit_reset(resp.headers)}}
+        else
+          {:error, {:http_error, 403}}
+        end
+
       {:ok, %{status: status}} ->
         {:error, {:http_error, status}}
 
       {:error, reason} ->
         Log.warning(:system, "update check failed: #{inspect(reason)}")
         {:error, reason}
+    end
+  end
+
+  # Req returns headers as a map of lowercase-string keys → list of string values.
+  defp rate_limited?(headers) do
+    case Map.get(headers, "x-ratelimit-remaining") do
+      ["0" | _] -> true
+      _ -> false
+    end
+  end
+
+  defp rate_limit_reset(headers) do
+    case Map.get(headers, "x-ratelimit-reset") do
+      [epoch | _] when is_binary(epoch) -> parse_epoch(epoch)
+      _ -> nil
+    end
+  end
+
+  defp parse_epoch(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {epoch, ""} -> DateTime.from_unix!(epoch)
+      _ -> nil
     end
   end
 
