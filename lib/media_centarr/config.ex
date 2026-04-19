@@ -194,6 +194,46 @@ defmodule MediaCentarr.Config do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.config_updates())
   end
 
+  @doc """
+  One-shot import of TOML `watch_dirs` into the Settings entry. No-op if the
+  entry already exists. Called once per boot from `MediaCentarr.Application`.
+  """
+  @spec migrate_watch_dirs_from_toml([map() | String.t()]) :: :ok
+  def migrate_watch_dirs_from_toml(toml_entries) when is_list(toml_entries) do
+    case MediaCentarr.Settings.get_by_key(@watch_dirs_settings_key) do
+      {:ok, %MediaCentarr.Settings.Entry{}} ->
+        :ok
+
+      _ ->
+        entries =
+          toml_entries
+          |> Enum.map(&normalize_toml_entry/1)
+          |> Enum.reject(&is_nil/1)
+
+        case entries do
+          [] -> :ok
+          list -> put_watch_dirs(list)
+        end
+    end
+  end
+
+  defp normalize_toml_entry(dir) when is_binary(dir) do
+    %{"id" => new_uuid(), "dir" => Path.expand(dir), "images_dir" => nil, "name" => nil}
+  end
+
+  defp normalize_toml_entry(%{"dir" => dir} = table) do
+    %{
+      "id" => new_uuid(),
+      "dir" => Path.expand(dir),
+      "images_dir" => table["images_dir"] && Path.expand(table["images_dir"]),
+      "name" => nil
+    }
+  end
+
+  defp normalize_toml_entry(_), do: nil
+
+  defp new_uuid, do: Ecto.UUID.generate()
+
   defp refresh_watch_dirs_persistent_term(entries) do
     dirs = Enum.map(entries, & &1["dir"])
 
