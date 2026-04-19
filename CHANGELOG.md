@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.12.4 — 2026-04-19
+
+### Improved
+
+- **Stuck-restart warning shows up faster.** The modal now waits
+  6 seconds after the handoff fires before surfacing the diagnostic
+  panel (was 30 seconds). A healthy restart completes in 2–3 seconds,
+  so 6 is a comfortable buffer without making you stare at a dead
+  spinner for half a minute.
+
 ## v0.12.3 — 2026-04-19
 
 ### Improved
