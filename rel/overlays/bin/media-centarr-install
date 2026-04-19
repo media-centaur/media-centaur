@@ -11,10 +11,14 @@
 #       unit (unless --no-service). Skips autostart steps gracefully
 #       when systemd-user is not available on this machine.
 #
-#   --update
+#   --update [--force]
 #     ~/.local/lib/media-centarr/current/bin/media-centarr-install --update
 #       Resolves the latest release on GitHub, downloads it, and re-execs
-#       its bundled installer in default mode.
+#       its bundled installer in default mode. When the latest tag
+#       matches the running version, the command exits early — unless
+#       --force is passed, in which case it re-applies the install. Use
+#       this when the in-app updater failed mid-apply and you want to
+#       reinstall cleanly without bumping versions.
 #
 #   service install | service remove
 #     Manage the systemd user unit after the fact — set up autostart on an
@@ -124,6 +128,7 @@ validate_tag() {
 mode=install
 no_service=0
 no_start=0
+force_update=0
 
 # Subcommands: "service install" / "service remove" — consumed as a pair.
 if [ "${1:-}" = "service" ]; then
@@ -141,6 +146,7 @@ for arg in "$@"; do
         --uninstall)  mode=uninstall ;;
         --no-service) no_service=1 ;;
         --no-start)   no_start=1 ;;
+        --force)      force_update=1 ;;
         --help|-h)
             sed -n '2,/^$/p' "$script_path" | sed 's/^# //;s/^#$//'
             exit 0
@@ -191,10 +197,15 @@ if [ "$mode" = update ]; then
     current_version=$(detect_version || echo unknown)
     latest_version=${tag#v}
     if [ "$current_version" = "$latest_version" ]; then
-        banner "Already at latest version: $current_version"
-        exit 0
+        if [ "$force_update" = 1 ]; then
+            banner "Re-applying $current_version (--force)"
+        else
+            banner "Already at latest version: $current_version (pass --force to reinstall)"
+            exit 0
+        fi
+    else
+        banner "Updating from $current_version to $latest_version"
     fi
-    banner "Updating from $current_version to $latest_version"
 
     # URLs are built from the validated tag + version — never from any
     # URL field the API response supplied. A compromised API response
