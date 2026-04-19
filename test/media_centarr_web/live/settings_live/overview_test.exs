@@ -51,7 +51,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.OverviewTest do
   describe "build/1 — structure" do
     test "returns three groups in a stable order" do
       groups = Overview.build(input())
-      assert Enum.map(groups, & &1.id) == [:services, :configuration, :storage]
+      assert Enum.map(groups, & &1.id) == [:services, :integrations, :storage]
     end
 
     test "every item has the required fields" do
