@@ -4,6 +4,38 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.15.1 — 2026-04-19
+
+### Fixed
+
+- **Settings → Library layout.** Watch-directory and excluded-directory
+  rows no longer right-align paths or render the same path twice, and the
+  images-directory line is hidden when it would just restate the
+  default `{dir}/.media-centarr/images` location. Edit is now a pencil
+  icon for visual parity with the trash icon next to it.
+- **System → Storage path truncation.** The Database row stopped
+  hard-cutting at 48 characters with a leading ellipsis — long paths now
+  display in full and only collapse to a trailing CSS ellipsis when the
+  viewport is genuinely too narrow.
+- **System → "Watch directories" row** now opens *Settings → Library*
+  instead of looping back to *System*.
+
+### Improved
+
+- **Settings sidebar url for System** is now `?section=system` (was
+  `?section=overview`). Old bookmarks still work — a one-line redirect
+  catches `?section=overview` and routes to `?section=system`.
+- **System → Integrations** (was "Configuration") — the label now matches
+  what the group actually contains: external-service readiness (TMDB,
+  Prowlarr, Download Client, MPV).
+- **System page** dropped the now-obsolete "Configuration" card whose
+  subtitle claimed watch directories required editing `media-centarr.toml`
+  and restarting. Watch directories are managed in the Library section.
+- **Services → "Scan now"** uses the success tone per UIDR-003 (it
+  sits alongside other action buttons like "Detect from Prowlarr").
+- **TMDB → API Key** now includes a "get one at themoviedb.org" link
+  below the input for first-time users.
+
 ## v0.15.0 — 2026-04-19
 
 ### New
