@@ -10,6 +10,7 @@ function mockDom({ filterValue = "" } = {}) {
   let cleared = false
   let prevMonthClicked = false
   let nextMonthClicked = false
+  let scrolledToTop = false
 
   return {
     getFilter() {
@@ -24,9 +25,11 @@ function mockDom({ filterValue = "" } = {}) {
     },
     clickPrevMonth() { prevMonthClicked = true },
     clickNextMonth() { nextMonthClicked = true },
+    scrollToTop() { scrolledToTop = true },
     get cleared() { return cleared },
     get prevMonthClicked() { return prevMonthClicked },
     get nextMonthClicked() { return nextMonthClicked },
+    get scrolledToTop() { return scrolledToTop },
   }
 }
 
@@ -185,6 +188,31 @@ describe("Library behavior", () => {
       const behavior = createLibraryBehavior(dom)
       behavior.onClear()
       expect(dom.cleared).toBe(false)
+    })
+  })
+
+  describe("onZoneChanged() scroll reset", () => {
+    test("scrolls the page to the very top when focus reaches zone tabs", () => {
+      const dom = mockDom()
+      const behavior = createLibraryBehavior(dom)
+
+      behavior.onZoneChanged(Context.ZONE_TABS)
+
+      expect(dom.scrolledToTop).toBe(true)
+    })
+
+    test("does not scroll for non-zone-tabs contexts", () => {
+      const dom = mockDom()
+      const behavior = createLibraryBehavior(dom)
+
+      behavior.onZoneChanged(Context.GRID)
+      behavior.onZoneChanged("upcoming")
+      behavior.onZoneChanged(Context.TOOLBAR)
+      behavior.onZoneChanged(Context.MODAL)
+      behavior.onZoneChanged(Context.DRAWER)
+      behavior.onZoneChanged("sidebar")
+
+      expect(dom.scrolledToTop).toBe(false)
     })
   })
 
