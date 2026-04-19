@@ -27,6 +27,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   alias MediaCentarr.Watcher
   alias MediaCentarr.Pipeline
   alias MediaCentarr.Pipeline.Image, as: ImagePipeline
+  alias MediaCentarrWeb.SettingsLive.WatchDirsLogic
 
   # Sections are grouped for sidebar display — a thin divider renders between
   # adjacent items whose :group differs. Order within a group is by frequency
@@ -58,6 +59,7 @@ defmodule MediaCentarrWeb.SettingsLive do
         Watcher.Supervisor.subscribe()
         SelfUpdate.subscribe()
         SelfUpdate.subscribe_progress()
+        Config.subscribe()
 
         socket
         |> assign(config: load_config())
@@ -77,6 +79,9 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:ok,
      assign(socket,
        sections: @sections,
+       watch_dirs: MediaCentarr.Config.watch_dirs_entries(),
+       watch_dir_dialog: nil,
+       watch_dir_delete_confirm: nil,
        scanning: false,
        clearing_database: false,
        refreshing_images: false,
@@ -105,6 +110,18 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   @impl true
+  def handle_params(%{"add_watch_dir" => "1"} = params, _uri, socket) do
+    section = params["section"] || "overview"
+
+    socket =
+      socket
+      |> assign(active_section: section)
+      |> maybe_auto_check_updates(section)
+      |> open_watch_dir_dialog(WatchDirsLogic.new_entry())
+
+    {:noreply, socket}
+  end
+
   def handle_params(params, _uri, socket) do
     section = params["section"] || "overview"
 
@@ -260,6 +277,51 @@ defmodule MediaCentarrWeb.SettingsLive do
        apply_error: nil,
        apply_failed_at: nil
      )}
+  end
+
+  # --- Watch-dir card events ---
+
+  def handle_event("watch_dir:open_add", _, socket) do
+    {:noreply, open_watch_dir_dialog(socket, WatchDirsLogic.new_entry())}
+  end
+
+  def handle_event("watch_dir:open_edit", %{"id" => id}, socket) do
+    entry = Enum.find(socket.assigns.watch_dirs, &(&1["id"] == id)) || WatchDirsLogic.new_entry()
+    {:noreply, open_watch_dir_dialog(socket, entry)}
+  end
+
+  def handle_event("watch_dir:close", _, socket) do
+    {:noreply, close_watch_dir_dialog(socket)}
+  end
+
+  def handle_event("watch_dir:validate", %{"entry" => params}, socket) do
+    {:noreply, schedule_watch_dir_validation(socket, params)}
+  end
+
+  def handle_event("watch_dir:save", _, socket) do
+    %{entry: entry, validation: validation} = socket.assigns.watch_dir_dialog
+
+    if WatchDirsLogic.saveable?(validation) do
+      entries = WatchDirsLogic.upsert(socket.assigns.watch_dirs, entry)
+      :ok = MediaCentarr.Config.put_watch_dirs(entries)
+      {:noreply, close_watch_dir_dialog(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("watch_dir:delete_confirm", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :watch_dir_delete_confirm, id)}
+  end
+
+  def handle_event("watch_dir:delete_cancel", _, socket) do
+    {:noreply, assign(socket, :watch_dir_delete_confirm, nil)}
+  end
+
+  def handle_event("watch_dir:delete", %{"id" => id}, socket) do
+    entries = WatchDirsLogic.remove(socket.assigns.watch_dirs, id)
+    :ok = MediaCentarr.Config.put_watch_dirs(entries)
+    {:noreply, assign(socket, :watch_dir_delete_confirm, nil)}
   end
 
   def handle_event("scan", _params, socket) do
@@ -677,6 +739,29 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   def handle_info({:check_started}, socket), do: {:noreply, socket}
 
+  def handle_info({:config_updated, :watch_dirs, entries}, socket) do
+    {:noreply, assign(socket, :watch_dirs, entries)}
+  end
+
+  def handle_info({:watch_dir_validate, params}, socket) do
+    case socket.assigns.watch_dir_dialog do
+      %{} = dialog ->
+        entry = merge_entry(dialog.entry, params)
+
+        validation =
+          MediaCentarr.Watcher.validate_dir(
+            entry,
+            other_entries(socket.assigns.watch_dirs, entry)
+          )
+
+        new_dialog = %{dialog | entry: entry, validation: validation, debounce_timer: nil}
+        {:noreply, assign(socket, :watch_dir_dialog, new_dialog)}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -743,6 +828,8 @@ defmodule MediaCentarrWeb.SettingsLive do
             service_state={@service_state}
             service_status_visible={@service_status_visible}
             service_status_output={@service_status_output}
+            watch_dirs={@watch_dirs}
+            watch_dir_delete_confirm={@watch_dir_delete_confirm}
           />
         </div>
       </div>
@@ -763,6 +850,12 @@ defmodule MediaCentarrWeb.SettingsLive do
       />
 
       <.service_action_modal action={@service_action_confirm} />
+
+      <%!--
+        Watch-dir dialog — always in DOM so backdrop-filter compositing
+        layer is kept warm (same pattern as apply_progress_modal above).
+      --%>
+      <.watch_dir_dialog watch_dir_dialog={@watch_dir_dialog} watch_dirs={@watch_dirs} />
     </Layouts.app>
     """
   end
@@ -1634,65 +1727,136 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   defp section_content(%{active_section: "library"} = assigns) do
     ~H"""
-    <form phx-submit="save_library" class="p-5 rounded-lg glass-surface space-y-5">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Library</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
-            Cleanup and status display tuning.
-          </p>
-        </div>
-        <button
-          type="submit"
-          class="btn btn-soft btn-primary btn-sm shrink-0"
-          data-nav-item
-          tabindex="0"
-        >
-          Save
-        </button>
-      </div>
-
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            File absence TTL (days)
-          </label>
-          <input
-            type="number"
-            name="file_absence_ttl_days"
-            value={@config[:file_absence_ttl_days]}
-            min="1"
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            Grace period for a file that disappears from its watch directory — useful
-            when media lives on an external drive or network share that isn't always
-            mounted. Only after this many days of continuous absence will the library
-            entry be removed.
-          </p>
+    <div class="space-y-4">
+      <div class="glass-surface rounded-xl p-4 space-y-3">
+        <div class="flex items-baseline justify-between">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+            Watch Directories
+          </h3>
+          <button class="btn btn-soft btn-success btn-sm" phx-click="watch_dir:open_add">
+            <.icon name="hero-plus" class="size-4" /> Add
+          </button>
         </div>
 
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Recent changes window (days)
-          </label>
-          <input
-            type="number"
-            name="recent_changes_days"
-            value={@config[:recent_changes_days]}
-            min="1"
-            class="input input-bordered w-full font-mono text-sm"
+        <div :if={@watch_dirs == []} class="text-base-content/60 py-4">
+          No watch directories configured — your library is empty. Add one to get started.
+        </div>
+
+        <ul :if={@watch_dirs != []} class="space-y-2">
+          <li
+            :for={entry <- @watch_dirs}
+            class="glass-inset rounded-lg p-3 flex items-baseline justify-between gap-3"
+          >
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="font-medium">{WatchDirsLogic.display_label(entry)}</div>
+              <div
+                class="truncate-left text-sm text-base-content/60"
+                title={entry["dir"]}
+              >
+                <bdo dir="ltr">{entry["dir"]}</bdo>
+              </div>
+              <div
+                :if={entry["images_dir"]}
+                class="truncate-left text-xs text-base-content/50"
+                title={entry["images_dir"]}
+              >
+                <bdo dir="ltr">images: {entry["images_dir"]}</bdo>
+              </div>
+            </div>
+
+            <div class="flex gap-1">
+              <button
+                class="btn btn-ghost btn-sm"
+                phx-click="watch_dir:open_edit"
+                phx-value-id={entry["id"]}
+              >
+                Edit
+              </button>
+              <%= if @watch_dir_delete_confirm == entry["id"] do %>
+                <button
+                  class="btn btn-soft btn-error btn-sm"
+                  phx-click="watch_dir:delete"
+                  phx-value-id={entry["id"]}
+                >
+                  Confirm
+                </button>
+                <button class="btn btn-ghost btn-sm" phx-click="watch_dir:delete_cancel">
+                  Cancel
+                </button>
+              <% else %>
+                <button
+                  class="btn btn-ghost btn-sm text-error"
+                  phx-click="watch_dir:delete_confirm"
+                  phx-value-id={entry["id"]}
+                >
+                  <.icon name="hero-trash" class="size-4" />
+                </button>
+              <% end %>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <form phx-submit="save_library" class="p-5 rounded-lg glass-surface space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">Library</h2>
+            <p class="text-sm text-base-content/50 mt-0.5">
+              Cleanup and status display tuning.
+            </p>
+          </div>
+          <button
+            type="submit"
+            class="btn btn-soft btn-primary btn-sm shrink-0"
             data-nav-item
             tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            How many days back to show on the Status page's recent changes list.
-          </p>
+          >
+            Save
+          </button>
         </div>
-      </div>
-    </form>
+
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              File absence TTL (days)
+            </label>
+            <input
+              type="number"
+              name="file_absence_ttl_days"
+              value={@config[:file_absence_ttl_days]}
+              min="1"
+              class="input input-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              Grace period for a file that disappears from its watch directory — useful
+              when media lives on an external drive or network share that isn't always
+              mounted. Only after this many days of continuous absence will the library
+              entry be removed.
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Recent changes window (days)
+            </label>
+            <input
+              type="number"
+              name="recent_changes_days"
+              value={@config[:recent_changes_days]}
+              min="1"
+              class="input input-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              How many days back to show on the Status page's recent changes list.
+            </p>
+          </div>
+        </div>
+      </form>
+    </div>
     """
   end
 
@@ -2052,6 +2216,120 @@ defmodule MediaCentarrWeb.SettingsLive do
             {service_confirm_cta(@action)}
           </button>
         </div>
+      </div>
+    </div>
+    """
+  end
+
+  attr :watch_dir_dialog, :any, default: nil
+  attr :watch_dirs, :list, default: []
+
+  defp watch_dir_dialog(assigns) do
+    ~H"""
+    <div
+      class="modal-backdrop"
+      data-state={if @watch_dir_dialog, do: "open", else: "closed"}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="watch-dir-dialog-title"
+      phx-window-keydown={@watch_dir_dialog && "watch_dir:close"}
+      phx-key="Escape"
+    >
+      <div
+        class="modal-panel modal-panel-sm p-6"
+        phx-click-away={@watch_dir_dialog && "watch_dir:close"}
+      >
+        <button
+          phx-click="watch_dir:close"
+          class="absolute top-3 right-3 z-10 btn btn-ghost btn-circle btn-sm"
+          aria-label="Close"
+        >
+          <.icon name="hero-x-mark-mini" class="size-5" />
+        </button>
+
+        <h3 id="watch-dir-dialog-title" class="text-lg font-semibold mb-4">
+          {if @watch_dir_dialog &&
+                Enum.any?(@watch_dirs, &(&1["id"] == @watch_dir_dialog.entry["id"])),
+              do: "Edit watch directory",
+              else: "Add watch directory"}
+        </h3>
+
+        <form
+          :if={@watch_dir_dialog}
+          phx-change="watch_dir:validate"
+          phx-submit="watch_dir:save"
+          class="space-y-3"
+        >
+          <div>
+            <label class="text-sm font-medium">Directory</label>
+            <input
+              type="text"
+              name="entry[dir]"
+              value={@watch_dir_dialog.entry["dir"]}
+              class="library-filter w-full"
+            />
+            <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:dir} />
+          </div>
+
+          <div>
+            <label class="text-sm font-medium">
+              Name <span class="text-base-content/50">(optional)</span>
+            </label>
+            <input
+              type="text"
+              name="entry[name]"
+              value={@watch_dir_dialog.entry["name"]}
+              class="library-filter w-full"
+            />
+            <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:name} />
+          </div>
+
+          <details>
+            <summary class="cursor-pointer text-sm text-base-content/60">
+              Advanced — images directory
+            </summary>
+            <div class="mt-2">
+              <input
+                type="text"
+                name="entry[images_dir]"
+                value={@watch_dir_dialog.entry["images_dir"]}
+                class="library-filter w-full"
+                placeholder="Leave blank to use the default"
+              />
+              <.watch_dir_errors
+                errors={@watch_dir_dialog.validation.errors}
+                field={:images_dir}
+              />
+            </div>
+          </details>
+
+          <div
+            :if={@watch_dir_dialog.validation.preview}
+            class="glass-inset rounded-lg p-3 text-sm text-base-content/70"
+          >
+            Found {@watch_dir_dialog.validation.preview.video_count} video files, {@watch_dir_dialog.validation.preview.subdir_count} subdirectories.
+          </div>
+
+          <div
+            :for={warning <- @watch_dir_dialog.validation.warnings}
+            class="text-warning text-sm"
+          >
+            {WatchDirsLogic.error_message(warning)}
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" class="btn btn-ghost" phx-click="watch_dir:close">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              disabled={not WatchDirsLogic.saveable?(@watch_dir_dialog.validation)}
+            >
+              Save
+            </button>
+          </div>
+        </form>
       </div>
     </div>
     """
@@ -2443,10 +2721,74 @@ defmodule MediaCentarrWeb.SettingsLive do
     })
   end
 
+  # --- Watch-dir private helpers ---
+
+  defp open_watch_dir_dialog(socket, entry) do
+    assign(socket, :watch_dir_dialog, %{
+      entry: entry,
+      validation: %{errors: [], warnings: [], preview: nil},
+      debounce_timer: nil
+    })
+  end
+
+  defp close_watch_dir_dialog(socket) do
+    assign(socket, :watch_dir_dialog, nil)
+  end
+
+  defp schedule_watch_dir_validation(socket, params) do
+    case socket.assigns.watch_dir_dialog do
+      %{debounce_timer: timer} = dialog ->
+        if timer, do: Process.cancel_timer(timer)
+        new_timer = Process.send_after(self(), {:watch_dir_validate, params}, 500)
+        assign(socket, :watch_dir_dialog, %{dialog | debounce_timer: new_timer})
+
+      _ ->
+        socket
+    end
+  end
+
+  defp merge_entry(old, params) do
+    %{
+      "id" => old["id"],
+      "dir" => params["dir"] || old["dir"],
+      "images_dir" => nilify(params["images_dir"]) || old["images_dir"],
+      "name" => nilify(params["name"]) || old["name"]
+    }
+  end
+
+  defp nilify(""), do: nil
+  defp nilify(value), do: value
+
+  defp other_entries(list, entry) do
+    Enum.reject(list, &(&1["id"] == entry["id"]))
+  end
+
   defp load_spoiler_free_setting do
     case Settings.get_by_key("spoiler_free_mode") do
       {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
       _ -> false
     end
+  end
+
+  # --- Watch-dir function components ---
+
+  attr :errors, :list, required: true
+  attr :field, :atom, required: true
+
+  defp watch_dir_errors(assigns) do
+    ~H"""
+    <div
+      :for={
+        err <-
+          Enum.filter(@errors, fn
+            {f, _} -> f == @field
+            {f, _, _} -> f == @field
+          end)
+      }
+      class="text-error text-sm"
+    >
+      {WatchDirsLogic.error_message(err)}
+    </div>
+    """
   end
 end
