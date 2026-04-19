@@ -27,30 +27,8 @@ watch_dirs = [
 
 exclude_dirs = []
 
-file_absence_ttl_days = 30
-
-[tmdb]
-# TMDB API key — required for the seeder's metadata fetches. Leave
-# commented so the value falls through to the `TMDB_API_KEY` env var
-# (matches the seeder invocation pattern used by scripts/screenshot-tour
-# and the seed.showcase runbook in CLAUDE.md).
-# api_key = ""
-
-[pipeline]
-# Lower threshold than the default so the review UI will show a mix of
-# auto-approved + below-threshold candidates on seeded data.
-auto_approve_threshold = 0.80
-extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
-skip_dirs = ["Sample"]
-
-[status]
-recent_changes_days = 7
-recently_watched_count = 8
-
-[playback]
-mpv_path = "/usr/bin/mpv"
-socket_dir = "/tmp"
-socket_timeout_ms = 5000
-
-[release_tracking]
-refresh_interval_hours = 24
+# ---------------------------------------------------------------------------
+# All other settings (TMDB, pipeline thresholds, playback paths, etc.) are
+# imported from seed.showcase on first boot and managed through the Settings
+# page thereafter. Add them here only if the seeder doesn't cover them.
+# ---------------------------------------------------------------------------

@@ -195,6 +195,61 @@ defmodule MediaCentarr.Config do
   end
 
   @doc """
+  One-shot import of any runtime-settable config keys present in TOML but
+  absent from Settings. Called once per boot from `Application.init_services`.
+  Idempotent — only writes keys that don't already have a Settings row.
+
+  After this runs, the TOML is no longer consulted for runtime keys; the
+  Settings database is the sole source of truth.
+  """
+  @spec migrate_runtime_keys_from_toml(map()) :: :ok
+  def migrate_runtime_keys_from_toml(toml_runtime) when is_map(toml_runtime) do
+    Enum.each(runtime_settable_keys(), fn key ->
+      case MediaCentarr.Settings.get_by_key("config:#{key}") do
+        {:ok, %MediaCentarr.Settings.Entry{}} ->
+          :ok
+
+        _ ->
+          case Map.get(toml_runtime, key) do
+            nil -> :ok
+            value -> persist_migrated_value(key, value)
+          end
+      end
+    end)
+
+    :ok
+  end
+
+  defp persist_migrated_value(key, value) do
+    # Sensitive keys arrive wrapped in %Secret{} — unwrap at the boundary
+    # before persisting. Settings stores plaintext JSON and re-wraps on read
+    # via load_runtime_overrides/0.
+    raw =
+      if key in @sensitive_keys do
+        Secret.expose(value)
+      else
+        value
+      end
+
+    case raw do
+      nil ->
+        :ok
+
+      "" ->
+        :ok
+
+      _ ->
+        {:ok, _} =
+          MediaCentarr.Settings.find_or_create_entry(%{
+            key: "config:#{key}",
+            value: %{"value" => raw}
+          })
+
+        :ok
+    end
+  end
+
+  @doc """
   One-shot import of TOML `watch_dirs` into the Settings entry. No-op if the
   entry already exists. Called once per boot from `MediaCentarr.Application`.
   """
@@ -352,9 +407,23 @@ defmodule MediaCentarr.Config do
 
     if Application.get_env(:media_centarr, :skip_user_config, false) do
       Application.put_env(:media_centarr, :__raw_toml_watch_dirs, [])
+      Application.put_env(:media_centarr, :__raw_toml_runtime_keys, %{})
       defaults
     else
-      load_toml(defaults)
+      toml_merged = load_toml(defaults)
+
+      # Snapshot TOML-derived runtime-key values so the migration can
+      # import them on first boot. After this point we revert those keys
+      # to defaults so persistent_term is TOML-independent — the DB is
+      # the runtime source of truth.
+      runtime_snapshot =
+        Map.new(runtime_settable_keys(), fn key -> {key, Map.get(toml_merged, key)} end)
+
+      Application.put_env(:media_centarr, :__raw_toml_runtime_keys, runtime_snapshot)
+
+      Enum.reduce(runtime_settable_keys(), toml_merged, fn key, acc ->
+        Map.put(acc, key, Map.get(defaults, key))
+      end)
     end
   end
 
@@ -424,21 +493,14 @@ defmodule MediaCentarr.Config do
     }
   end
 
-  # Supports plain string lists, inline table arrays, and legacy `media_dir` key.
+  # Supports plain string lists and inline table arrays.
   defp resolve_watch_dirs(toml, defaults) do
     case get_in(toml, ["watch_dirs"]) do
       dirs when is_list(dirs) and dirs != [] ->
         parse_watch_dirs(dirs)
 
       _ ->
-        case get_in(toml, ["media_dir"]) do
-          dir when is_binary(dir) ->
-            dir = expand(dir)
-            {[dir], %{dir => default_images_dir(dir)}}
-
-          _ ->
-            {defaults.watch_dirs, defaults.watch_dir_images}
-        end
+        {defaults.watch_dirs, defaults.watch_dir_images}
     end
   end
 

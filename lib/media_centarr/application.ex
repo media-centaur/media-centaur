@@ -86,10 +86,13 @@ defmodule MediaCentarr.Application do
 
   defp init_services do
     toml_entries = Application.get_env(:media_centarr, :__raw_toml_watch_dirs, [])
+    toml_runtime = Application.get_env(:media_centarr, :__raw_toml_runtime_keys, %{})
 
     try do
       :ok = MediaCentarr.Config.migrate_watch_dirs_from_toml(toml_entries)
+      :ok = MediaCentarr.Config.migrate_runtime_keys_from_toml(toml_runtime)
       :ok = MediaCentarr.Config.refresh_watch_dirs_from_settings()
+      :ok = MediaCentarr.Config.load_runtime_overrides()
 
       count = length(MediaCentarr.Config.watch_dirs_entries())
       require MediaCentarr.Log
@@ -100,7 +103,7 @@ defmodule MediaCentarr.Application do
 
         MediaCentarr.Log.error(
           :library,
-          "watch_dirs migration failed: #{Exception.format(:error, e, __STACKTRACE__)}"
+          "config migration failed: #{Exception.format(:error, e, __STACKTRACE__)}"
         )
     end
 

@@ -2,11 +2,19 @@
 #
 # Shipped default configuration for Media Centarr — Backend.
 # Copy this file to ~/.config/media-centarr/media-centarr.toml and edit as needed.
-# This file must contain every recognised config key; keep it up to date as new
-# keys are added to MediaCentarr.Config.
+#
+# This file now contains only the structural keys that require a restart
+# to change (database_path, port, exclude_dirs). All other settings are
+# configured in the app — open Settings to adjust them. Any values found
+# here on first boot are imported into the app's database and this file
+# is no longer consulted for those keys.
 
 # Path to the SQLite database file.
 database_path = "~/.local/share/media-centarr/media-centarr.db"
+
+# HTTP port the web UI listens on. Requires restart to change.
+# Default: 2160 (prod), 1080 (dev).
+# port = 2160
 
 # Watch directories are configured in the app — open Settings → Library →
 # Watch Directories. Any TOML `watch_dirs` present here (or in an existing
@@ -18,67 +26,9 @@ database_path = "~/.local/share/media-centarr/media-centarr.db"
 # Paths are expanded (~ resolved). Must be absolute paths.
 exclude_dirs = []
 
-# Number of days to retain database records for files on disconnected/unmounted
-# drives before cleaning them up. Files that are explicitly deleted are cleaned
-# up immediately regardless of this setting.
-file_absence_ttl_days = 30
-
-[tmdb]
-# TMDB API key. Required for metadata scraping. Get one at https://www.themoviedb.org/settings/api
-api_key = ""
-
-[pipeline]
-# Confidence score threshold (0.0–1.0). Matches at or above this score are
-# written automatically. Below it, the item is queued for human review.
-auto_approve_threshold = 0.85
-
-# Directory names (case-insensitive) treated as bonus-feature containers.
-# Files inside these directories are linked to the parent movie as extras.
-extras_dirs = ["Extras", "Featurettes", "Special Features", "Behind The Scenes", "Bonus", "Deleted Scenes"]
-
-# Directory names (case-insensitive) whose video files are silently skipped.
-# Files inside these directories are never detected or processed.
-# Common use: "Sample" directories contain short encode-preview clips.
-skip_dirs = ["Sample"]
-
-[status]
-# Number of days of recent library changes to show on the Status page.
-recent_changes_days = 3
-# Number of recently watched items to show on the Status page.
-recently_watched_count = 5
-
-[playback]
-# Absolute path to the mpv binary.
-mpv_path = "/usr/bin/mpv"
-# Directory for MPV IPC sockets. Must be writable.
-socket_dir = "/tmp"
-# Timeout in ms for connecting to the MPV IPC socket after launch.
-socket_timeout_ms = 5000
-
-[release_tracking]
-# How often to refresh TMDB data for tracked items (in hours)
-refresh_interval_hours = 24
-
-# [prowlarr]
-# Prowlarr indexer aggregator for media search and acquisition.
-# When configured, enables the Search page and automated acquisition from release tracking.
-# See docs/acquisition/prowlarr-setup.md for full setup instructions.
-#
-# url = "http://localhost:9696"
-# api_key = "your-api-key-here"
-
-# [download_client]
-# Download client used for active/completed download visibility on /download.
-# Prowlarr forwards grabs to this client; this is how Media Centarr reads
-# progress back. Currently supported types: "qbittorrent".
-# The "Detect from Prowlarr" button on the Settings page can pre-fill type/url
-# from Prowlarr's configured download client; the password must be entered
-# manually (Prowlarr does not expose stored passwords through its API).
-#
-# The download client password is intentionally NOT readable from this TOML
-# file — it must be entered via the Settings UI so it never lands in
-# dotfiles/backup repos. See decisions/architecture/ for the policy.
-#
-# type = "qbittorrent"
-# url = "http://localhost:8080"
-# username = "admin"
+# ---------------------------------------------------------------------------
+# All other settings (TMDB, pipeline, playback, Prowlarr, download client,
+# release tracking, etc.) are managed through the Settings page in the app.
+# Values set here on first boot are imported; subsequent TOML edits are
+# ignored in favour of the database.
+# ---------------------------------------------------------------------------
