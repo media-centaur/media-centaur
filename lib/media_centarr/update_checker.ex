@@ -20,6 +20,7 @@ defmodule MediaCentarr.UpdateChecker do
 
   @base_url "https://api.github.com"
   @repo "media-centarr/media-centarr"
+  @cache_ttl_ms :timer.minutes(5)
 
   @type release :: %{
           version: String.t(),
@@ -123,5 +124,45 @@ defmodule MediaCentarr.UpdateChecker do
       :lt -> :ahead_of_release
       :error -> :error
     end
+  end
+
+  @type cache_outcome :: {:ok, release()} | {:error, term()}
+
+  @doc """
+  Returns the cached outcome of the most recent update check if it is within
+  the TTL window, otherwise `:stale`. The cache lives in `:persistent_term`
+  so it is process-independent and survives LiveView session turnover.
+  """
+  @spec cached_latest_release() :: {:fresh, cache_outcome()} | :stale
+  def cached_latest_release do
+    case :persistent_term.get({__MODULE__, :cache}, nil) do
+      %{result: result, cached_at: at} ->
+        if System.monotonic_time(:millisecond) - at < @cache_ttl_ms do
+          {:fresh, result}
+        else
+          :stale
+        end
+
+      nil ->
+        :stale
+    end
+  end
+
+  @doc "Records the outcome of an update check for later reuse within the TTL."
+  @spec cache_result(cache_outcome()) :: :ok
+  def cache_result(result) do
+    :persistent_term.put({__MODULE__, :cache}, %{
+      result: result,
+      cached_at: System.monotonic_time(:millisecond)
+    })
+
+    :ok
+  end
+
+  @doc "Drops the cached outcome so the next caller sees `:stale`."
+  @spec clear_cache() :: :ok
+  def clear_cache do
+    _ = :persistent_term.erase({__MODULE__, :cache})
+    :ok
   end
 end
