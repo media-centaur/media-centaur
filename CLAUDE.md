@@ -106,21 +106,24 @@ iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1   # REPL
 
 Disconnect the REPL with `Ctrl+\` (leaves the server running).
 
-### Release
+### Release + deployment
 
-```bash
-scripts/release              # build production release
-scripts/install              # install to ~/.local/lib/media-centarr/ and set up systemd
-```
+Shipping a release is tagging the repo — nothing is installed locally by hand any more. The flow:
+
+1. `scripts/preflight` — **pre-flight only.** Builds a production release locally at `_build/prod/rel/media_centarr/` so you can verify the build is clean and the bundled installer is present before tagging. Does NOT install anything.
+2. `/ship <level>` (where `<level>` is `major`, `minor`, or `patch`) — runs upgrade-safety checks, drafts a user-facing CHANGELOG entry, bumps `mix.exs`, commits, tags `v<version>`, pushes. The tag is the deployment trigger: `.github/workflows/release.yml` picks it up and publishes the tarball to GitHub Releases.
+3. **Local production catches up via the in-app updater.** Settings > Overview → *Update now* downloads and verifies the new tarball through `MediaCentarr.SelfUpdate`, same as any end user. This is the dogfood loop; there is no `scripts/install`.
+
+First-time install on a new machine goes through the public installer (`curl … install.sh | sh`), which drops the bundled `bin/media-centarr-install` into place. Every subsequent update uses the in-app button.
 
 Manual build (if needed):
 
 ```bash
 MIX_ENV=prod mix assets.deploy && MIX_ENV=prod mix release   # build release
-_build/prod/rel/media_centarr/bin/media_centarr start         # run release
+_build/prod/rel/media_centarr/bin/media_centarr start         # run release directly (no install)
 ```
 
-Migrations in a release: `bin/media_centarr eval "MediaCentarr.Release.migrate()"`. See `docs/getting-started.md#release` for full details including systemd setup.
+Migrations in a release: `bin/media_centarr eval "MediaCentarr.Release.migrate()"`.
 
 > Note: When compiling, always use the environment variable `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8` to parallelize and speed up compilation.
 

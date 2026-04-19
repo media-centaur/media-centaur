@@ -159,6 +159,7 @@ systemctl --user restart media-centarr
 ## Rebuilding and Deploying
 
 ```bash
-scripts/release          # build production release
-scripts/install          # install + migrate + restart
+scripts/preflight        # build a production release locally to verify it compiles
 ```
+
+Deployment happens by tagging (`/ship <level>`) and letting the running app update itself via Settings > Overview → *Update now*. There is no `scripts/install` any more — never hand-roll an install over the top of a real deployment; the in-app updater does the atomic symlink flip and migrations safely.

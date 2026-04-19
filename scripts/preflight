@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build a production release of Media Centarr Backend.
-# Usage: scripts/release [--clean]
+# Pre-flight check: build a production release locally so you know it
+# will compile cleanly and ship the expected artifacts before you tag.
+# Usage: scripts/preflight [--clean]
+#
+# Run this before `/ship <level>`. It produces a release tree at
+# _build/prod/rel/media_centarr/ containing bin/media-centarr-install
+# and share/systemd/media-centarr.service — the files the in-app
+# updater needs end users to receive. If the build fails here, tagging
+# would just publish a broken release.
+#
+# This is NOT a deployment step. Deployment is tagging + pushing;
+# local production catches up through Settings > Overview → Update now.
+# There is no `scripts/install`.
 
 cd "$(dirname "$0")/.."
 
