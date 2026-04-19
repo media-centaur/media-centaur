@@ -79,6 +79,8 @@ defmodule MediaCentarrWeb.SettingsLive do
        sections: @sections,
        watch_dirs: MediaCentarr.Config.watch_dirs_entries(),
        exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [],
+       exclude_dir_input: "",
+       exclude_dir_error: nil,
        watch_dir_dialog: nil,
        watch_dir_delete_confirm: nil,
        scanning: false,
@@ -331,23 +333,33 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   # --- Exclude-dir card events ---
 
-  def handle_event("exclude_dir:add", %{"path" => path}, socket) do
-    path = String.trim(path)
+  def handle_event("exclude_dir:validate", %{"path" => path}, socket) do
+    error = validate_exclude_dir_error(path, socket.assigns.exclude_dirs)
 
-    cond do
-      path == "" ->
+    socket =
+      socket
+      |> assign(:exclude_dir_input, path)
+      |> assign(:exclude_dir_error, error)
+
+    {:noreply, socket}
+  end
+
+  def handle_event("exclude_dir:add", %{"path" => path}, socket) do
+    case validate_exclude_dir(path, socket.assigns.exclude_dirs) do
+      {:ok, trimmed} ->
+        new_list = [trimmed | socket.assigns.exclude_dirs]
+        :ok = MediaCentarr.Config.update(:exclude_dirs, new_list)
+
+        socket =
+          socket
+          |> assign(:exclude_dirs, new_list)
+          |> assign(:exclude_dir_input, "")
+          |> assign(:exclude_dir_error, nil)
+
         {:noreply, socket}
 
-      Path.type(path) != :absolute ->
-        {:noreply, put_flash(socket, :error, "Excluded directory must be an absolute path.")}
-
-      path in socket.assigns.exclude_dirs ->
-        {:noreply, put_flash(socket, :error, "That directory is already excluded.")}
-
-      true ->
-        new_list = [path | socket.assigns.exclude_dirs]
-        :ok = MediaCentarr.Config.update(:exclude_dirs, new_list)
-        {:noreply, assign(socket, :exclude_dirs, new_list)}
+      _ ->
+        {:noreply, socket}
     end
   end
 
@@ -799,6 +811,44 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, socket}
   end
 
+  # Live validation for the Excluded Directories add-row input.
+  # Called on every keystroke via phx-change. The checks are cheap
+  # (string ops + one File.stat) so no debounce is needed.
+  defp validate_exclude_dir(path, existing_list) do
+    trimmed = String.trim(path || "")
+
+    cond do
+      trimmed == "" -> {:error, :empty}
+      Path.type(trimmed) != :absolute -> {:error, :relative}
+      trimmed in existing_list -> {:error, :duplicate}
+      not File.dir?(trimmed) -> {:error, :not_a_directory}
+      not path_readable?(trimmed) -> {:error, :not_readable}
+      true -> {:ok, trimmed}
+    end
+  end
+
+  defp validate_exclude_dir_error(path, existing_list) do
+    case validate_exclude_dir(path, existing_list) do
+      {:ok, _} -> nil
+      {:error, :empty} -> nil
+      {:error, :relative} -> "Must be an absolute path (starts with /)."
+      {:error, :duplicate} -> "Already in the list."
+      {:error, :not_a_directory} -> "Path does not exist or is not a directory."
+      {:error, :not_readable} -> "Path exists but isn't readable by the app."
+    end
+  end
+
+  defp path_readable?(path) do
+    case File.stat(path) do
+      {:ok, %File.Stat{access: access}} when access in [:read, :read_write] -> true
+      _ -> false
+    end
+  end
+
+  defp exclude_dir_add_disabled?(path, error) do
+    String.trim(path || "") == "" or is_binary(error)
+  end
+
   # --- Render ---
 
   @impl true
@@ -864,6 +914,8 @@ defmodule MediaCentarrWeb.SettingsLive do
             watch_dirs={@watch_dirs}
             watch_dir_delete_confirm={@watch_dir_delete_confirm}
             exclude_dirs={@exclude_dirs}
+            exclude_dir_input={@exclude_dir_input}
+            exclude_dir_error={@exclude_dir_error}
           />
         </div>
       </div>
@@ -1829,16 +1881,31 @@ defmodule MediaCentarrWeb.SettingsLive do
           No excluded directories.
         </div>
 
-        <form phx-submit="exclude_dir:add" class="flex gap-2 pt-1">
-          <input
-            type="text"
-            name="path"
-            placeholder="/absolute/path/to/exclude"
-            class="library-filter flex-1"
-          />
-          <button type="submit" class="btn btn-soft btn-success btn-sm">
-            <.icon name="hero-plus" class="size-4" /> Add
-          </button>
+        <form
+          phx-change="exclude_dir:validate"
+          phx-submit="exclude_dir:add"
+          class="space-y-1.5 pt-1"
+        >
+          <div class="flex gap-2">
+            <input
+              type="text"
+              name="path"
+              value={@exclude_dir_input}
+              placeholder="/absolute/path/to/exclude"
+              class="library-filter flex-1"
+              autocomplete="off"
+            />
+            <button
+              type="submit"
+              class="btn btn-soft btn-success btn-sm shrink-0"
+              disabled={exclude_dir_add_disabled?(@exclude_dir_input, @exclude_dir_error)}
+            >
+              <.icon name="hero-plus" class="size-4" /> Add
+            </button>
+          </div>
+          <p :if={is_binary(@exclude_dir_error)} class="text-error text-xs">
+            {@exclude_dir_error}
+          </p>
         </form>
       </div>
 
