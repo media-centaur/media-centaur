@@ -31,8 +31,7 @@ defmodule MediaCentarr.Watcher.Reconciler do
       to_start: Enum.map(added, &Map.fetch!(new_by_id, &1)),
       to_stop: Enum.map(removed, fn id -> old_by_id[id]["dir"] end),
       to_replace:
-        kept
-        |> Enum.flat_map(fn id ->
+        Enum.flat_map(kept, fn id ->
           old = old_by_id[id]
           new = new_by_id[id]
 
