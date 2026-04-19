@@ -34,10 +34,6 @@ defmodule MediaCentarr.SelfUpdate.Stager do
     "share/defaults/media-centarr.toml"
   ]
 
-  @type entry ::
-          {:erl_tar.tar_entry(), :regular | :directory | :symlink | atom(), non_neg_integer(), integer(),
-           integer(), integer(), integer()}
-
   @type extract_error ::
           :absolute_path
           | :path_traversal
