@@ -19,10 +19,66 @@ defmodule MediaCentarr.Watcher.Supervisor do
       {Registry, keys: :unique, name: MediaCentarr.Watcher.DirMonitor.Registry},
       {DynamicSupervisor, name: MediaCentarr.Watcher.DynamicSupervisor, strategy: :one_for_one},
       {DynamicSupervisor,
-       name: MediaCentarr.Watcher.DirMonitor.DynamicSupervisor, strategy: :one_for_one}
+       name: MediaCentarr.Watcher.DirMonitor.DynamicSupervisor, strategy: :one_for_one},
+      MediaCentarr.Watcher.ConfigListener
     ]
 
     Supervisor.init(children, strategy: :one_for_all, max_restarts: 5, max_seconds: 60)
+  end
+
+  @doc """
+  Reconciles the set of running watcher children with `new_entries`.
+  Starts added entries, terminates removed ones, and replaces entries
+  whose `dir` or `images_dir` changed. Name-only changes are no-ops.
+
+  Called whenever `Config` broadcasts `{:config_updated, :watch_dirs, ...}`.
+  """
+  @spec reconcile([map()]) :: :ok
+  def reconcile(new_entries) when is_list(new_entries) do
+    old_entries = currently_running_entries()
+    actions = MediaCentarr.Watcher.Reconciler.diff(old_entries, new_entries)
+
+    Enum.each(actions.to_stop, &stop_dir/1)
+
+    Enum.each(actions.to_replace, fn %{old_dir: old_dir, new: new_entry} ->
+      stop_dir(old_dir)
+      start_dir(new_entry["dir"])
+    end)
+
+    Enum.each(actions.to_start, fn new_entry -> start_dir(new_entry["dir"]) end)
+
+    :ok
+  end
+
+  defp currently_running_entries do
+    MediaCentarr.Watcher.Registry
+    |> Registry.select([{{:"$1", :_, :_}, [], [:"$1"]}])
+    |> Enum.map(fn dir ->
+      %{"id" => dir, "dir" => dir, "images_dir" => nil, "name" => nil}
+    end)
+  end
+
+  defp start_dir(dir) do
+    case DynamicSupervisor.start_child(
+           MediaCentarr.Watcher.DynamicSupervisor,
+           {MediaCentarr.Watcher, dir}
+         ) do
+      {:ok, _} ->
+        :ok
+
+      {:error, {:already_started, _}} ->
+        :ok
+
+      {:error, reason} ->
+        Log.warning(:watcher, "reconcile: failed to start #{dir}: #{inspect(reason)}")
+    end
+  end
+
+  defp stop_dir(dir) do
+    case Registry.lookup(MediaCentarr.Watcher.Registry, dir) do
+      [{pid, _}] -> DynamicSupervisor.terminate_child(MediaCentarr.Watcher.DynamicSupervisor, pid)
+      [] -> :ok
+    end
   end
 
   @doc "Subscribe the caller to watcher directory state change events."
