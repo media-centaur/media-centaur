@@ -70,6 +70,22 @@ defmodule MediaCentarr.Watcher do
   """
   def scan(pid), do: GenServer.call(pid, :scan, 60_000)
 
+  @doc """
+  Validates a watch-directory form entry against all 11 rules. Returns
+  `%{errors: [...], warnings: [...], preview: nil | %{...}}`.
+
+  Thin facade over `MediaCentarr.Watcher.DirValidator` — binds the production
+  filesystem adapter so callers don't need to reach into Watcher internals.
+  """
+  @spec validate_dir(map(), [map()]) :: map()
+  def validate_dir(entry, existing_entries) do
+    MediaCentarr.Watcher.DirValidator.validate(
+      entry,
+      existing_entries,
+      MediaCentarr.Watcher.DirValidator.real_fs()
+    )
+  end
+
   @impl true
   def init(dir) do
     Process.flag(:trap_exit, true)
