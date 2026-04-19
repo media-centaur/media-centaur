@@ -1846,18 +1846,27 @@ defmodule MediaCentarrWeb.SettingsLive do
     state = SystemSection.phase_state(assigns.phase, assigns.current, assigns.failed_at)
     assigns = assign(assigns, :state, state)
 
+    # Icons sized for text-sm labels (14px): size-4 (16px) keeps the
+    # glyph proportional to its label. `-mini` variants are the lighter
+    # heroicons family intended for inline-adjacent use — they match
+    # the visual weight of surrounding text far better than `-solid`.
     ~H"""
     <li class="flex items-start gap-3">
-      <div class="shrink-0 mt-0.5 w-5 h-5 flex items-center justify-center">
+      <%!--
+        Icon wrapper matches the label's line-height (1.25rem, i.e. h-5)
+        so the icon's visual center sits on the first line of the label,
+        same vertical rhythm as the text itself.
+      --%>
+      <div class="shrink-0 w-5 h-5 flex items-center justify-center">
         <div :if={@state == :pending} class="w-2.5 h-2.5 rounded-full border border-base-content/30">
         </div>
         <.icon
           :if={@state == :active}
-          name="hero-arrow-path"
+          name="hero-arrow-path-mini"
           class="size-4 animate-spin text-primary"
         />
-        <.icon :if={@state == :done} name="hero-check-circle-solid" class="size-5 text-success" />
-        <.icon :if={@state == :failed} name="hero-x-circle-solid" class="size-5 text-error" />
+        <.icon :if={@state == :done} name="hero-check-circle-mini" class="size-4 text-success" />
+        <.icon :if={@state == :failed} name="hero-x-circle-mini" class="size-4 text-error" />
       </div>
       <div class="flex-1 min-w-0">
         <p class={phase_text_class(@state)}>
@@ -1970,10 +1979,14 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp path_status(assigns) do
     assigns = assign(assigns, :result, PathCheck.check(assigns.path, assigns.kind))
 
+    # `-mini` variants at `size-3.5` match inline-badge convention used
+    # elsewhere in the app (see the "All good" pill on the Health Check
+    # card). Pairing a larger `-solid` glyph with `text-xs` mono made
+    # the icon look stacked above the baseline.
     ~H"""
     <span
       class={[
-        "inline-flex items-center justify-center size-4 shrink-0 text-xs",
+        "inline-flex items-center justify-center size-3.5 shrink-0 relative top-px",
         PathCheck.ok?(@result) && "text-success",
         !PathCheck.ok?(@result) && "text-warning"
       ]}
@@ -1982,13 +1995,13 @@ defmodule MediaCentarrWeb.SettingsLive do
     >
       <.icon
         :if={PathCheck.ok?(@result)}
-        name="hero-check-circle-solid"
-        class="size-4"
+        name="hero-check-circle-mini"
+        class="size-3.5"
       />
       <.icon
         :if={!PathCheck.ok?(@result)}
-        name="hero-exclamation-triangle-solid"
-        class="size-4"
+        name="hero-exclamation-triangle-mini"
+        class="size-3.5"
       />
     </span>
     """
