@@ -85,6 +85,10 @@ defmodule MediaCentarr.Application do
   end
 
   defp init_services do
+    toml_entries = Application.get_env(:media_centarr, :__raw_toml_watch_dirs, [])
+    :ok = MediaCentarr.Config.migrate_watch_dirs_from_toml(toml_entries)
+    :ok = MediaCentarr.Config.refresh_watch_dirs_from_settings()
+
     env = Application.get_env(:media_centarr, :environment, :dev)
 
     if should_start?(env, :start_watchers) do
