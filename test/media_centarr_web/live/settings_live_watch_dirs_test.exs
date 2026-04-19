@@ -1,5 +1,5 @@
 defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
-  use MediaCentarrWeb.ConnCase
+  use MediaCentarrWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
