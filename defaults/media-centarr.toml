@@ -8,19 +8,10 @@
 # Path to the SQLite database file.
 database_path = "~/.local/share/media-centarr/media-centarr.db"
 
-# Directories containing video/media files (e.g. torrent downloads folders).
-# Watched for additions and removals. May be on removable or network drives.
-# Add multiple directories to watch media across several drives/mounts.
-#
-# Each watch directory can specify its own images_dir for artwork caching.
-# If omitted, defaults to {dir}/.media-centarr/images.
-# Examples:
-#   watch_dirs = [{ dir = "/mnt/media", images_dir = "/mnt/media/.cache/images" }]
-#   watch_dirs = [{ dir = "/mnt/media" }]   # uses default images_dir
-#   watch_dirs = ["/mnt/media"]              # plain string, uses default images_dir
-watch_dirs = [
-  { dir = "/mnt/videos/Videos" },
-]
+# Watch directories are configured in the app — open Settings → Library →
+# Watch Directories. Any TOML `watch_dirs` present here (or in an existing
+# user config) are imported into the app's database on first boot, after
+# which this key is ignored and edits live in the UI.
 
 # Directories to exclude from watching. Files inside these directories
 # (and their subdirectories) are ignored by both inotify and manual scans.
