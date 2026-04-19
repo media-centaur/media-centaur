@@ -275,8 +275,19 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_event("play", %{"id" => id}, socket) do
-    Playback.play(id)
-    {:noreply, socket}
+    case Playback.play(id) do
+      :ok ->
+        {:noreply, socket}
+
+      {:error, :file_not_found} ->
+        {:noreply, put_flash(socket, :error, "File not available — is your media drive mounted?")}
+
+      {:error, :already_playing} ->
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Couldn't start playback.")}
+    end
   end
 
   def handle_event(
