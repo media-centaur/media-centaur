@@ -29,7 +29,8 @@ info()   { printf "  ${dim}%s${reset}\n" "$1"; }
 require_release() {
   if [ ! -x "$bin" ]; then
     echo "Error: Release not found at $bin"
-    echo "Run 'scripts/release && scripts/install' first."
+    echo "Install one: curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh | sh"
+    echo "(Or tag a new release with /ship <level> and update from Settings > Overview.)"
     exit 1
   fi
 }

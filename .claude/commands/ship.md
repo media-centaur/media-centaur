@@ -91,7 +91,7 @@ Run these in the Media Centarr app repo (the one with `mix.exs`). If shipping mu
 
 1. **No pending migrations.** Run `mix ecto.migrations 2>&1 | grep -v "up"` in the app repo. Any line showing a migration in state other than `up` → halt with the offending migration listed.
 2. **Tests green.** Run `mix test` (fast subset acceptable if the full suite was just run). Any failure → halt with the failing test names.
-3. **Full release workflow builds.** Run `scripts/release` and confirm it produces `_build/prod/media_centarr-<new_version>.tar.gz` containing `bin/media-centarr-install` and `share/systemd/media-centarr.service`. Missing files or build failure → halt with details.
+3. **Full release workflow builds.** Run `scripts/preflight` and confirm it produces `_build/prod/rel/media_centarr/` containing `bin/media-centarr-install` and `share/systemd/media-centarr.service`. Missing files or build failure → halt with details. (`scripts/preflight` never installs anything.)
 4. **Settings.Entry schema compatibility.** Check if the diff from the previous tag touches `lib/media_centarr/settings/entry.ex` or migrations under `priv/repo/migrations/` in a way that renames or drops keys under the `update.*` namespace (`update.last_check_at`, `update.latest_known`, or anything the updater reads). Any such change → halt with a note that in-app hydration would break.
 5. **Updater contract intact.** Check if the diff from the previous tag touches `rel/overlays/bin/media-centarr-install` in a backward-incompatible way (removing `--update` flag, changing argv contract of the default install path). Any such change → halt with the offending diff hunks.
 6. **Changelog present.** Check that `CHANGELOG.md` (or `docs/changelog.md`) exists and has an entry header matching the target version. If missing, it will be generated in 5b — do NOT halt for this.
@@ -139,9 +139,12 @@ jj git push --bookmark main
 
 ### 5d: Tag and push
 
+Read the version from the bumped `mix.exs` — the tag follows that value exactly. Pre-computed variables are not the source of truth; `mix.exs` is.
+
 ```bash
-git tag "v<version>"
-git push origin "v<version>"
+version=$(grep -E '^\s*version:' mix.exs | head -1 | sed 's/.*"\(.*\)".*/\1/')
+git tag "v$version"
+git push origin "v$version"
 ```
 
 (Git is the source of truth for tags in a jj-colocated repo; `jj git push` doesn't push tags.)
