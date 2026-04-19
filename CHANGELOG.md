@@ -4,6 +4,39 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.14.0 — 2026-04-19
+
+### New
+
+- **Watch directories are now managed in the app.** Open *Settings →
+  Library → Watch Directories* to add, edit, or remove watch directories
+  from the UI. No more editing the TOML config file or restarting the
+  app — changes take effect immediately, starting or stopping the file
+  watcher per directory. The dialog validates paths live (exists, is
+  readable, not duplicated, not nested inside another configured
+  directory) and previews how many video files and subdirectories it
+  found. Each entry supports an optional display name and an advanced
+  *images directory* override for putting the artwork cache on a
+  separate (e.g. SSD) volume. Existing `watch_dirs` entries in your
+  `media-centarr.toml` are imported automatically on first boot, after
+  which the UI is the source of truth.
+
+### Improved
+
+- **Library scrolls all the way to the top when you reach the zone
+  tabs.** Keyboard and gamepad up-navigation from the library grid now
+  scrolls the page fully to the top when focus lands on the Continue
+  Watching / Library / Upcoming tabs, instead of stopping flush with
+  the tab row.
+
+### Fixed
+
+- **Dev builds no longer check GitHub for updates.** Development
+  instances (running via `mix phx.server` or the dev systemd unit) skip
+  the boot update check and the periodic six-hour check, and hide the
+  Updates card in Settings. The in-app updater targets production
+  binaries; dev builds update by rebuilding from source.
+
 ## v0.13.1 — 2026-04-19
 
 ### Improved
