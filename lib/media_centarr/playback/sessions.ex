@@ -17,22 +17,31 @@ defmodule MediaCentarr.Playback.Sessions do
   def play(params) do
     entity_id = params.entity_id
 
-    if SessionRegistry.active?(entity_id) do
-      Log.info(:playback, "already playing — #{params[:entity_name] || entity_id}")
-      {:error, :already_playing}
-    else
-      Log.info(:playback, "starting session — #{params[:entity_name] || entity_id}")
+    cond do
+      not playable_file?(params) ->
+        Log.error(:playback, "file not available — #{params[:content_url]}")
+        {:error, :file_not_found}
 
-      case SessionSupervisor.start_session(params) do
-        {:ok, _pid} ->
-          :ok
+      SessionRegistry.active?(entity_id) ->
+        Log.info(:playback, "already playing — #{params[:entity_name] || entity_id}")
+        {:error, :already_playing}
 
-        {:error, reason} ->
-          Log.info(:playback, "session start failed — #{inspect(reason)}")
-          {:error, reason}
-      end
+      true ->
+        Log.info(:playback, "starting session — #{params[:entity_name] || entity_id}")
+
+        case SessionSupervisor.start_session(params) do
+          {:ok, _pid} ->
+            :ok
+
+          {:error, reason} ->
+            Log.info(:playback, "session start failed — #{inspect(reason)}")
+            {:error, reason}
+        end
     end
   end
+
+  defp playable_file?(%{content_url: path}) when is_binary(path), do: File.exists?(path)
+  defp playable_file?(_params), do: false
 
   @doc """
   Returns a list of `%{entity_id, state, now_playing}` for all active sessions.
