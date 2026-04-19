@@ -95,6 +95,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        apply_phase: nil,
        apply_progress: nil,
        apply_error: nil,
+       apply_failed_at: nil,
        tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key))
      )}
   end
@@ -157,7 +158,13 @@ defmodule MediaCentarrWeb.SettingsLive do
   def handle_event("apply_update", _params, socket) do
     case SelfUpdate.apply_pending() do
       :ok ->
-        {:noreply, assign(socket, apply_phase: :preparing, apply_progress: nil, apply_error: nil)}
+        {:noreply,
+         assign(socket,
+           apply_phase: :preparing,
+           apply_progress: nil,
+           apply_error: nil,
+           apply_failed_at: nil
+         )}
 
       {:error, :already_running} ->
         {:noreply, put_flash(socket, :info, "An update is already in progress.")}
@@ -171,7 +178,13 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_event("dismiss_apply_modal", _params, socket) do
-    {:noreply, assign(socket, apply_phase: nil, apply_progress: nil, apply_error: nil)}
+    {:noreply,
+     assign(socket,
+       apply_phase: nil,
+       apply_progress: nil,
+       apply_error: nil,
+       apply_failed_at: nil
+     )}
   end
 
   def handle_event("scan", _params, socket) do
@@ -538,12 +551,36 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, update_status: {:error, reason}, latest_release: nil)}
   end
 
+  def handle_info({:progress, :done, pct}, socket) do
+    # If the BEAM doesn't die within 30s, something about the handoff
+    # didn't actually trigger a service restart. Surface a diagnostic
+    # panel instead of sitting on "Restarting the service…" forever.
+    Process.send_after(self(), :apply_done_stuck, 30_000)
+    {:noreply, assign(socket, apply_phase: :done, apply_progress: pct)}
+  end
+
   def handle_info({:progress, phase, pct}, socket) do
     {:noreply, assign(socket, apply_phase: phase, apply_progress: pct)}
   end
 
   def handle_info({:apply_failed, reason}, socket) do
-    {:noreply, assign(socket, apply_phase: :failed, apply_error: reason)}
+    # Preserve whatever phase was active when the failure arrived so
+    # the phase-row timeline in the modal can mark the right step as
+    # failed (rather than all of them being grey/pending).
+    {:noreply,
+     assign(socket,
+       apply_phase: :failed,
+       apply_failed_at: socket.assigns.apply_phase,
+       apply_error: reason
+     )}
+  end
+
+  def handle_info(:apply_done_stuck, socket) do
+    if socket.assigns.apply_phase == :done do
+      {:noreply, assign(socket, apply_phase: :done_stuck)}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Scheduled CheckerJob broadcast — refresh the visible card.
@@ -622,6 +659,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             apply_phase={@apply_phase}
             apply_progress={@apply_progress}
             apply_error={@apply_error}
+            apply_failed_at={@apply_failed_at}
             tmdb_missing={@tmdb_missing}
           />
         </div>
@@ -846,36 +884,45 @@ defmodule MediaCentarrWeb.SettingsLive do
         </.link>
       </div>
 
+      <%!--
+        Apply-progress modal. Always in the DOM per UI conventions (the
+        `backdrop-filter: blur()` compositing cost would be paid on
+        every conditional insertion). Visibility toggles via `data-state`.
+      --%>
       <div
-        :if={SystemSection.apply_visible?(@apply_phase)}
+        class="modal-backdrop"
+        data-state={if SystemSection.apply_visible?(@apply_phase), do: "open", else: "closed"}
         role="dialog"
         aria-modal="true"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        aria-labelledby="apply-modal-title"
       >
-        <div class="bg-base-100 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
-          <h3 class="text-lg font-semibold">
-            {SystemSection.apply_phase_label(@apply_phase)}
-          </h3>
-
-          <div :if={@apply_phase == :downloading} class="space-y-1">
-            <div class="h-2 rounded bg-base-content/10 overflow-hidden">
-              <div
-                class="h-full bg-primary transition-[width] duration-150 ease-out"
-                style={"width: #{@apply_progress || 0}%"}
-              >
-              </div>
-            </div>
-            <p class="text-xs text-base-content/60">
-              {SystemSection.apply_progress_text(@apply_progress)}
+        <div class="modal-panel modal-panel-sm p-6 space-y-5">
+          <div class="space-y-1">
+            <h3 id="apply-modal-title" class="text-lg font-semibold">
+              Updating
+              <span :if={@latest_release} class="font-mono text-sm text-base-content/60 ml-1">
+                {@latest_release.tag}
+              </span>
+            </h3>
+            <p class="text-sm text-base-content/60">
+              This usually takes under a minute. The app will restart when it finishes.
             </p>
           </div>
 
-          <p :if={@apply_phase == :handing_off} class="text-sm text-base-content/70">
-            The service is about to restart. The browser will reconnect
-            automatically to the new version.
-          </p>
+          <ol class="space-y-3">
+            <.apply_phase_row
+              :for={phase <- SystemSection.visible_phases()}
+              phase={phase}
+              current={@apply_phase}
+              failed_at={@apply_failed_at}
+              progress={@apply_progress}
+            />
+          </ol>
 
-          <div :if={@apply_phase == :failed} class="space-y-3">
+          <div
+            :if={@apply_phase == :failed}
+            class="pt-4 border-t border-base-content/10 space-y-3"
+          >
             <div class="space-y-1">
               <p class="text-sm text-error">
                 {SystemSection.apply_error_label(@apply_error)}
@@ -885,7 +932,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               </p>
             </div>
 
-            <div class="pt-3 border-t border-base-content/10 space-y-2">
+            <div class="space-y-1">
               <p class="text-xs font-medium text-base-content/70">
                 If it keeps failing, update from a terminal:
               </p>
@@ -908,7 +955,41 @@ defmodule MediaCentarrWeb.SettingsLive do
             </div>
           </div>
 
-          <div :if={@apply_phase == :failed} class="flex justify-end gap-2 pt-2">
+          <div
+            :if={@apply_phase == :done_stuck}
+            class="pt-4 border-t border-base-content/10 space-y-3"
+          >
+            <div class="space-y-1">
+              <p class="text-sm text-warning">
+                The service didn't restart on its own.
+              </p>
+              <p class="text-xs text-base-content/60">
+                The new release was staged successfully. Restart the service manually to finish:
+              </p>
+            </div>
+
+            <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+              <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                systemctl --user restart media-centarr
+              </code>
+              <button
+                id="copy-stuck-restart"
+                type="button"
+                phx-hook="CopyButton"
+                data-copy-text="systemctl --user restart media-centarr"
+                class="btn btn-xs btn-ghost shrink-0"
+                data-nav-item
+                tabindex="0"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+
+          <div
+            :if={@apply_phase in [:failed, :done_stuck]}
+            class="flex justify-end gap-2 pt-2"
+          >
             <button
               type="button"
               phx-click="dismiss_apply_modal"
@@ -919,6 +1000,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               Close
             </button>
             <button
+              :if={@apply_phase == :failed}
               type="button"
               phx-click="apply_update"
               data-nav-item
@@ -1748,6 +1830,56 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp update_tone_class(:info), do: "text-info"
   defp update_tone_class(:warning), do: "text-warning"
   defp update_tone_class(:error), do: "text-error"
+
+  # One row in the apply-progress modal's phase list. Renders an icon
+  # reflecting the phase's state (pending / active / done / failed), a
+  # label, and — for the downloading phase specifically — an inline
+  # progress bar that animates as `@progress` changes.
+  attr :phase, :atom, required: true
+  attr :current, :atom, required: true
+  attr :failed_at, :atom, default: nil
+  attr :progress, :any, default: nil
+
+  defp apply_phase_row(assigns) do
+    state = SystemSection.phase_state(assigns.phase, assigns.current, assigns.failed_at)
+    assigns = assign(assigns, :state, state)
+
+    ~H"""
+    <li class="flex items-start gap-3">
+      <div class="shrink-0 mt-0.5 w-5 h-5 flex items-center justify-center">
+        <div :if={@state == :pending} class="w-2.5 h-2.5 rounded-full border border-base-content/30">
+        </div>
+        <.icon
+          :if={@state == :active}
+          name="hero-arrow-path"
+          class="size-4 animate-spin text-primary"
+        />
+        <.icon :if={@state == :done} name="hero-check-circle-solid" class="size-5 text-success" />
+        <.icon :if={@state == :failed} name="hero-x-circle-solid" class="size-5 text-error" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class={phase_text_class(@state)}>
+          {SystemSection.apply_phase_label(@phase)}
+        </p>
+        <div
+          :if={@state == :active and @phase == :downloading}
+          class="h-1.5 mt-2 rounded bg-base-content/10 overflow-hidden"
+        >
+          <div
+            class="h-full bg-primary rounded transition-[width] duration-150 ease-out"
+            style={"width: #{@progress || 0}%"}
+          >
+          </div>
+        </div>
+      </div>
+    </li>
+    """
+  end
+
+  defp phase_text_class(:pending), do: "text-sm text-base-content/40"
+  defp phase_text_class(:active), do: "text-sm text-base-content font-medium"
+  defp phase_text_class(:done), do: "text-sm text-base-content/70"
+  defp phase_text_class(:failed), do: "text-sm text-error"
 
   defp overview_summary(0), do: "Configuration looks healthy."
 

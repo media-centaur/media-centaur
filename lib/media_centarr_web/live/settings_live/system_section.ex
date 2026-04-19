@@ -75,10 +75,22 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
           nil
           | :preparing
           | :downloading
+          | :verifying
           | :extracting
           | :handing_off
           | :done
+          | :done_stuck
           | :failed
+
+  # Phase rows shown in the apply-progress modal, in the order they run.
+  # `:preparing` and `:done`/`:failed` aren't rows — preparing flashes
+  # past before the UI has time to render, and terminal states are
+  # surfaced separately.
+  @visible_phases [:downloading, :verifying, :extracting, :handing_off]
+
+  @doc "Ordered list of phases shown as rows in the apply-progress modal."
+  @spec visible_phases() :: [atom()]
+  def visible_phases, do: @visible_phases
 
   @doc """
   Returns `true` when the progress modal should be visible — an apply
@@ -92,11 +104,53 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
   @spec apply_phase_label(apply_phase()) :: String.t()
   def apply_phase_label(:preparing), do: "Preparing…"
   def apply_phase_label(:downloading), do: "Downloading release"
-  def apply_phase_label(:extracting), do: "Extracting"
-  def apply_phase_label(:handing_off), do: "Installing and restarting…"
+  def apply_phase_label(:verifying), do: "Verifying checksum"
+  def apply_phase_label(:extracting), do: "Extracting files"
+  def apply_phase_label(:handing_off), do: "Installing and restarting"
   def apply_phase_label(:done), do: "Update staged. Restarting the service…"
+  def apply_phase_label(:done_stuck), do: "Taking longer than expected"
   def apply_phase_label(:failed), do: "Update failed"
   def apply_phase_label(nil), do: ""
+
+  @doc """
+  Given one phase row and the current overall phase (plus which phase
+  was active when `:failed` was reached), classifies the row into one
+  of `:pending | :active | :done | :failed` so the modal can render the
+  correct icon and styling.
+  """
+  @spec phase_state(apply_phase(), apply_phase(), apply_phase()) ::
+          :pending | :active | :done | :failed
+  def phase_state(_target, nil, _failed_at), do: :pending
+
+  def phase_state(target, :failed, failed_at) do
+    cond do
+      target == failed_at -> :failed
+      phase_index(target) < phase_index(failed_at) -> :done
+      true -> :pending
+    end
+  end
+
+  def phase_state(_target, current, _failed_at) when current in [:done, :done_stuck], do: :done
+
+  def phase_state(target, current, _failed_at) do
+    target_idx = phase_index(target)
+    current_idx = phase_index(current)
+
+    cond do
+      target_idx < current_idx -> :done
+      target_idx == current_idx -> :active
+      true -> :pending
+    end
+  end
+
+  defp phase_index(:preparing), do: 0
+  defp phase_index(:downloading), do: 1
+  defp phase_index(:verifying), do: 2
+  defp phase_index(:extracting), do: 3
+  defp phase_index(:handing_off), do: 4
+  defp phase_index(:done), do: 5
+  defp phase_index(:done_stuck), do: 5
+  defp phase_index(_), do: 0
 
   @doc """
   Returns `true` when the apply phase is one the user is still allowed to

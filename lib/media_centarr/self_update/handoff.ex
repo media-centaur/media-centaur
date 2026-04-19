@@ -16,20 +16,31 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
       from the web request chain (BEAM session, LiveView socket) cannot
       influence the installer.
     * `setsid --fork` creates a brand-new session with a grandchild
-      process. `nohup` ignores SIGHUP. Together they ensure the chain
-      survives when Erlang closes the Port (which otherwise sends
-      SIGPIPE through the inherited stdio pipes).
+      process. Any SIGHUP from the parent BEAM's restart cannot reach
+      the grandchild because it is no longer in the BEAM's session.
     * The spawning `Port.open` uses `:nouse_stdio` so Erlang never
-      connects its pipes to the child at all. The handoff script
-      redirects the installer's own stdout+stderr to a file inside the
-      staging dir — the installer's output never flows through the
-      broken Erlang stdio path.
-    * A `sleep 1` front-matter lets LiveView commit the "Installing and
-      restarting…" phase to the browser before the BEAM goes down.
+      connects its pipes to the child at all. `Port.close` therefore
+      cannot SIGPIPE the chain.
+    * The handoff script's first instruction redirects the shell's own
+      stdout/stderr to a log file inside the staging dir. Every
+      subsequent command — including the `exec`-replaced installer —
+      inherits those FDs, so there is one durable diagnostic trail we
+      can read back after the update.
+
+  ## Diagnosing a stuck handoff
+
+  If the UI gets stuck on "Restarting the service…" the
+  `{staged_root}/handoff.log` file tells you how far the chain got:
+
+    * Missing or empty → the shell never ran (setsid failed, port
+      died before exec completed, missing binary, etc.)
+    * Contains "handoff: started …" but nothing more → `sleep 1` or
+      `exec` failed
+    * Contains the installer's banners up to some point → installer
+      ran and its output explains where it stopped
 
   The `:spawn_fn` option lets tests assert the exact argv shape without
-  executing a subprocess. Tests also verify that maliciously-named paths
-  can't escape the single argv entry.
+  executing a subprocess.
   """
 
   require MediaCentarr.Log, as: Log
@@ -42,11 +53,21 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
     installer = Path.join(staged_root, "bin/media-centarr-install")
     log_file = Path.join(staged_root, "handoff.log")
 
-    # The script body is a static string literal. The installer path and
-    # log file are passed as positional parameters ($1 and $2) so shell
-    # metacharacters in either path are never parsed — they are just
-    # argv values to the inner `sh`.
-    script = ~s(sleep 1 && exec "$1" >"$2" 2>&1)
+    # `exec >>"$2" 2>&1` redirects the *shell's own* stdio to the log
+    # before any other command runs, so every trace line here — plus
+    # the installer's output after `exec "$1"` — lands in the log.
+    #
+    # `nohup` is intentionally absent. `setsid --fork` already creates
+    # a new session, so SIGHUP can't reach the grandchild. Adding
+    # `nohup` on top of that would also try to reopen stdio as a side
+    # effect, which complicates the redirect we just set up.
+    script = ~S"""
+    exec >>"$2" 2>&1
+    printf 'handoff: started at %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    sleep 1
+    printf 'handoff: execing %s\n' "$1"
+    exec "$1"
+    """
 
     args = [
       "env",
@@ -55,7 +76,6 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
       "PATH=/usr/bin:/bin",
       "setsid",
       "--fork",
-      "nohup",
       "sh",
       "-c",
       script,
@@ -73,9 +93,11 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
     [command | rest] = args
 
     # `:nouse_stdio` — Erlang does not connect stdin/stdout to the child.
-    # Critical: without this, `Port.close` below would propagate SIGPIPE
-    # through the inherited pipes when the installer tries to write its
-    # output, killing the chain before `systemctl restart` runs.
+    # Without this, `Port.close` below would propagate SIGPIPE through
+    # the inherited pipes when the installer tries to write its output,
+    # killing the chain before `systemctl restart` runs. The script
+    # redirects its own stdio to the staging-dir log file, so nothing
+    # needs to flow through Erlang.
     port =
       Port.open({:spawn_executable, System.find_executable(command)}, [
         :binary,

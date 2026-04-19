@@ -37,11 +37,32 @@ defmodule MediaCentarr.SelfUpdate.HandoffTest do
       assert installer == Path.join(staged, "bin/media-centarr-install")
       assert log_file == Path.join(staged, "handoff.log")
 
-      # Script body redirects the installer's stdout+stderr to $2 (log
-      # file). Without this, closed-stdio from Port.close would SIGPIPE
-      # the installer before `systemctl restart` runs.
+      # Script body redirects the shell's own stdio to $2 (log file) at
+      # the very first line. Without this, closed-stdio from Port.close
+      # would SIGPIPE the installer before `systemctl restart` runs.
       assert String.contains?(body, "\"$2\"")
-      assert String.contains?(body, ">\"$2\" 2>&1")
+      assert String.contains?(body, "exec >>\"$2\" 2>&1")
+
+      # And the final line execs the installer — replacing the shell so
+      # the installer inherits the (already-redirected) stdio.
+      assert String.contains?(body, ~s(exec "$1"))
+    end
+
+    test "script logs trace lines so a stuck handoff can be diagnosed after the fact" do
+      me = self()
+      spawn_fn = fn args -> send(me, {:argv, args}) end
+
+      assert :ok = Handoff.spawn_detached("/staged", spawn_fn: spawn_fn)
+
+      assert_receive {:argv, args}
+      script_idx = Enum.find_index(args, &(&1 == "-c"))
+      body = Enum.at(args, script_idx + 1)
+
+      # Each phase of the handoff writes a distinct line to the log so
+      # we can tell whether the shell ran, whether sleep completed, and
+      # whether the exec happened.
+      assert String.contains?(body, "handoff: started at")
+      assert String.contains?(body, "handoff: execing")
     end
 
     test "paths containing shell metacharacters remain as single argv entries, not parsed" do
