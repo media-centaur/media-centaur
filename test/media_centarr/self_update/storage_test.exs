@@ -81,6 +81,39 @@ defmodule MediaCentarr.SelfUpdate.StorageTest do
     end
   end
 
+  describe "record_check_result/1" do
+    test "dual-writes a successful release to Settings.Entry + :persistent_term" do
+      release = %{
+        version: "9.9.9",
+        tag: "v9.9.9",
+        published_at: ~U[2050-01-01 00:00:00Z],
+        html_url: "https://github.com/media-centarr/media-centarr/releases/tag/v9.9.9",
+        body: "Notes here."
+      }
+
+      assert {:ok, classification, ^release} = Storage.record_check_result({:ok, release})
+      assert classification in [:update_available, :up_to_date, :ahead_of_release]
+
+      # Durable store is updated.
+      assert {:ok, %{release: persisted}} = Storage.get_latest_known()
+      assert persisted.version == "9.9.9"
+      assert {:ok, %DateTime{}} = Storage.get_last_check_at()
+
+      # Hot-path cache is updated — this is what prevents the v0.8.0
+      # regression where manual checks refreshed only the cache while
+      # Settings.Entry kept the old value.
+      assert {:fresh, {:ok, %{version: "9.9.9"}}} = UpdateChecker.cached_latest_release()
+    end
+
+    test "does not persist on failure but does cache the error result" do
+      assert {:error, :not_found} = Storage.record_check_result({:error, :not_found})
+
+      assert Storage.get_latest_known() == :none
+      assert Storage.get_last_check_at() == :none
+      assert {:fresh, {:error, :not_found}} = UpdateChecker.cached_latest_release()
+    end
+  end
+
   describe "hydrate_cache/0" do
     test "populates the :persistent_term cache from persisted Settings.Entry" do
       release = %{

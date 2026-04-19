@@ -20,7 +20,6 @@ defmodule MediaCentarr.SelfUpdate.CheckerJob do
 
   alias MediaCentarr.SelfUpdate.{Storage, UpdateChecker}
   alias MediaCentarr.Topics
-  alias MediaCentarr.Version
 
   @impl Oban.Worker
   def perform(_job) do
@@ -50,23 +49,14 @@ defmodule MediaCentarr.SelfUpdate.CheckerJob do
   end
 
   defp run_check do
-    case UpdateChecker.latest_release() do
-      {:ok, release} ->
-        classification = UpdateChecker.compare(release, Version.current_version())
-        persist_success(release, classification)
-        UpdateChecker.cache_result({:ok, release})
+    case Storage.record_check_result(UpdateChecker.latest_release()) do
+      {:ok, classification, release} ->
         {classification, release}
 
       {:error, reason} = error ->
         Log.warning(:system, "update check failed: #{inspect(reason)}")
-        UpdateChecker.cache_result(error)
-        {:error, reason}
+        error
     end
-  end
-
-  defp persist_success(release, classification) do
-    :ok = Storage.put_latest_known(release, classification)
-    :ok = Storage.put_last_check_at(DateTime.utc_now())
   end
 
   defp broadcast(message) do

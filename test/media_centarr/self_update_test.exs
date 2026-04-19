@@ -53,25 +53,47 @@ defmodule MediaCentarr.SelfUpdateTest do
       }
 
       :ok = Storage.put_latest_known(release, :update_available)
-      # Mark last_check_at as recent so boot!/0 doesn't enqueue a fresh
-      # check that would overwrite the hydrated cache.
-      :ok = Storage.put_last_check_at(DateTime.utc_now())
       UpdateChecker.clear_cache()
 
-      :ok = SelfUpdate.boot!()
+      # Suspend Oban's inline test mode so the always-enqueued boot
+      # CheckerJob doesn't run synchronously and overwrite the hydrated
+      # cache. This test isolates `boot!/0`'s hydrate behaviour from
+      # the concurrent fresh-check it schedules.
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        :ok = SelfUpdate.boot!()
+      end)
 
       assert {:fresh, {:ok, %{version: "0.7.1"}}} = UpdateChecker.cached_latest_release()
     end
 
     test "is safe to call when nothing is persisted" do
-      # Mark a recent check so the stale guard doesn't enqueue. Without
-      # this the inline test-mode Oban would run the CheckerJob
-      # immediately and hit the stubbed GitHub endpoint, which isn't
-      # what this test is asserting.
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        :ok = SelfUpdate.boot!()
+      end)
+
+      assert UpdateChecker.cached_latest_release() == :stale
+    end
+
+    test "always enqueues a fresh check so stale Storage can't survive a restart" do
+      # Simulate: Storage has a recent last_check_at (the CheckerJob
+      # ran within the last 6h), but with a stale release value. The
+      # old boot! gated on `Storage.stale?` and would NOT have enqueued
+      # a fresh check — letting the stale row survive. The new boot!
+      # always enqueues.
       :ok = Storage.put_last_check_at(DateTime.utc_now())
 
-      :ok = SelfUpdate.boot!()
-      assert UpdateChecker.cached_latest_release() == :stale
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        :ok = SelfUpdate.boot!()
+      end)
+
+      import Ecto.Query
+
+      jobs =
+        MediaCentarr.Repo.all(
+          from j in Oban.Job, where: j.worker == "MediaCentarr.SelfUpdate.CheckerJob"
+        )
+
+      assert jobs != []
     end
   end
 
