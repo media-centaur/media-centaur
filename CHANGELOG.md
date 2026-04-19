@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.10.2 — 2026-04-19
+
+### Fixed
+
+- **Retry after a failed update.** If *Update now* failed (network blip,
+  bad checksum, anything), the next click reported *"an update is
+  already in progress"* and stayed stuck until the service restarted.
+  Retries now work correctly — a new attempt blows through the previous
+  failure. The failure dialog also gains an explicit **Retry** button so
+  you don't need to close and re-open.
+
 ## v0.10.1 — 2026-04-19
 
 ### Fixed
