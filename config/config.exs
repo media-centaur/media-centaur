@@ -39,7 +39,16 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
 config :media_centarr, Oban,
   engine: Oban.Engines.Lite,
   repo: MediaCentarr.Repo,
-  queues: [acquisition: 5]
+  queues: [acquisition: 5, self_update: 1],
+  plugins: [
+    # Offset minute (17) so every install doesn't hit the GitHub API
+    # on the hour — spreads requests across the 60s window and keeps
+    # us far under the 60/h unauthenticated rate limit.
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"17 */6 * * *", MediaCentarr.SelfUpdate.CheckerJob}
+     ]}
+  ]
 
 config :media_centarr,
   ecto_repos: [MediaCentarr.Repo],
