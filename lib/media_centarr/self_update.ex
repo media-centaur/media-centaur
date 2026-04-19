@@ -27,7 +27,7 @@ defmodule MediaCentarr.SelfUpdate do
   as a follow-up.
   """
 
-  alias MediaCentarr.SelfUpdate.{CheckerJob, Storage, UpdateChecker}
+  alias MediaCentarr.SelfUpdate.{CheckerJob, Storage, UpdateChecker, Updater}
   alias MediaCentarr.Topics
 
   @boot_check_delay_seconds 30
@@ -65,6 +65,30 @@ defmodule MediaCentarr.SelfUpdate do
       :stale -> :none
     end
   end
+
+  @doc """
+  Subscribes the caller to `self_update:progress` — apply-time phase
+  transitions (`{:progress, phase, percent}`) and failures
+  (`{:apply_failed, reason}`) fire here.
+  """
+  @spec subscribe_progress() :: :ok | {:error, term()}
+  def subscribe_progress do
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.self_update_progress())
+  end
+
+  @doc """
+  Applies the cached pending release via the `Updater` GenServer.
+
+  Returns `:ok` if the apply pipeline has started,
+  `{:error, :no_update_pending | :invalid_tag | :already_running}` otherwise.
+  """
+  @spec apply_pending() ::
+          :ok | {:error, :no_update_pending | :invalid_tag | :already_running}
+  def apply_pending, do: Updater.apply_pending()
+
+  @doc "Returns the current `Updater` state."
+  @spec current_status() :: Updater.status()
+  def current_status, do: Updater.status()
 
   @doc """
   App-boot hydration. Reads the persisted `latest_known` entry into the
