@@ -85,6 +85,30 @@ detect_version() {
     "$release_root/bin/media_centarr" version 2>/dev/null | awk '{print $NF}'
 }
 
+# Resolve the port the installed app will listen on.
+#
+# Port conventions for this project are:
+#   1080 — dev server (mix phx.server) — NEVER use this in installer output
+#   2160 — production default (matches lib/media_centarr/config.ex defaults.port)
+#   4003 — showcase demo
+#
+# If the user has uncommented `port = NNNN` in their TOML, honor it.
+# Otherwise fall back to the production default. Do NOT hardcode 1080 —
+# end users see this value as the URL in the success summary.
+detect_port() {
+    toml="$CONFIG_DIR/media-centarr.toml"
+    if [ -f "$toml" ]; then
+        port=$(grep -E '^[[:space:]]*port[[:space:]]*=[[:space:]]*[0-9]+' "$toml" 2>/dev/null \
+               | head -1 \
+               | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/')
+        if [ -n "${port:-}" ]; then
+            printf '%s' "$port"
+            return
+        fi
+    fi
+    printf '%s' "2160"
+}
+
 # Validate a tag string against the canonical release shape:
 # v<major>.<minor>.<patch> with an optional -<prerelease> suffix.
 # Rejected strings never reach URL construction or filesystem paths, so
@@ -402,7 +426,7 @@ printf '  Data (created on first run):\n'
 printf '    %s/\n' "$DATA_DIR"
 
 if [ "$want_service" = 1 ] && [ "$autostart_state" = "enabled + running" ]; then
-    printf '\nOpen http://localhost:1080 to get started.\n'
+    printf '\nOpen http://localhost:%s to get started.\n' "$(detect_port)"
 else
     summary_manual_start_hint
 fi
