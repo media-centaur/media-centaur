@@ -49,7 +49,7 @@ defmodule MediaCentarr.SelfUpdateTest do
         tag: "v0.7.1",
         published_at: ~U[2026-04-19 12:00:00Z],
         html_url: "https://github.com/media-centarr/media-centarr/releases/tag/v0.7.1",
-        body_excerpt: ""
+        body: ""
       }
 
       :ok = Storage.put_latest_known(release, :update_available)

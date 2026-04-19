@@ -117,7 +117,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
 
   @doc """
   True when the "See what's new" disclosure should be rendered. The
-  `body_excerpt` attached to the latest release drives the content, but
+  `body` attached to the latest release drives the content, but
   the disclosure only makes sense for states where the user has a
   meaningful remote release to read notes for.
 
