@@ -1226,7 +1226,7 @@ defmodule MediaCentarrWeb.SettingsLive do
           disabled={@scanning}
           data-nav-item
           tabindex="0"
-          class="btn btn-soft btn-info btn-sm shrink-0"
+          class="btn btn-soft btn-success btn-sm shrink-0"
         >
           {if @scanning, do: "Scanning…", else: "Scan now"}
         </button>
@@ -1300,6 +1300,14 @@ defmodule MediaCentarrWeb.SettingsLive do
             data-nav-item
             tabindex="0"
           />
+          <p class="text-xs text-base-content/40 mt-1">
+            Don't have one yet? Request a free key at <a
+              href="https://www.themoviedb.org/settings/api"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link link-primary"
+            >themoviedb.org/settings/api</a>.
+          </p>
         </div>
 
         <div>
