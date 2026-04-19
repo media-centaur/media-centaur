@@ -31,6 +31,18 @@ defmodule MediaCentarrWeb.SettingsLive.WatchDirsLogic do
   @spec remove([map()], String.t()) :: [map()]
   def remove(list, id), do: Enum.reject(list, &(&1["id"] == id))
 
+  @doc """
+  Returns a human-readable hint for the default images directory given the
+  current `dir` value in the dialog. Used below the `images_dir` input so
+  users see exactly where artwork will land if they leave the field blank.
+  """
+  @spec default_images_dir_hint(String.t() | nil) :: String.t()
+  def default_images_dir_hint(dir) when is_binary(dir) and dir != "" do
+    Path.join(dir, ".media-centarr/images")
+  end
+
+  def default_images_dir_hint(_), do: "<watch dir>/.media-centarr/images"
+
   @spec saveable?(map()) :: boolean()
   def saveable?(%{errors: errors}), do: errors == []
 

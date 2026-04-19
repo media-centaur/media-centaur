@@ -11,6 +11,18 @@ defmodule MediaCentarrWeb.SettingsLive.WatchDirsLogicTest do
       "name" => opts[:name]
     }
 
+  describe "default_images_dir_hint/1" do
+    test "returns <dir>/.media-centarr/images when dir is set" do
+      assert WatchDirsLogic.default_images_dir_hint("/mnt/media") ==
+               "/mnt/media/.media-centarr/images"
+    end
+
+    test "returns a placeholder when dir is blank or nil" do
+      assert WatchDirsLogic.default_images_dir_hint("") == "<watch dir>/.media-centarr/images"
+      assert WatchDirsLogic.default_images_dir_hint(nil) == "<watch dir>/.media-centarr/images"
+    end
+  end
+
   test "display_label/1 falls back from name to dir" do
     assert WatchDirsLogic.display_label(entry("/mnt/a", name: "Movies")) == "Movies"
     assert WatchDirsLogic.display_label(entry("/mnt/a")) == "/mnt/a"

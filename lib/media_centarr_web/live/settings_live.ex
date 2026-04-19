@@ -2288,7 +2288,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             <summary class="cursor-pointer text-sm text-base-content/60">
               Advanced — images directory
             </summary>
-            <div class="mt-2">
+            <div class="mt-2 space-y-1">
               <input
                 type="text"
                 name="entry[images_dir]"
@@ -2296,6 +2296,13 @@ defmodule MediaCentarrWeb.SettingsLive do
                 class="library-filter w-full"
                 placeholder="Leave blank to use the default"
               />
+              <p class="text-xs text-base-content/50">
+                If blank, artwork is cached at
+                <code class="font-mono">
+                  {WatchDirsLogic.default_images_dir_hint(@watch_dir_dialog.entry["dir"])}
+                </code>
+                and automatically skipped by the file watcher.
+              </p>
               <.watch_dir_errors
                 errors={@watch_dir_dialog.validation.errors}
                 field={:images_dir}
