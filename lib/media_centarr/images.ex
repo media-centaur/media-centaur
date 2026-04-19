@@ -147,7 +147,6 @@ defmodule MediaCentarr.Images do
   defp categorize({:http_error, status, _url}) when status in @permanent_statuses, do: :permanent
   defp categorize({:http_error, _status, _url}), do: :transient
   defp categorize({:download_failed, _url, _reason}), do: :transient
-  defp categorize({:empty_body, _url}), do: :permanent
   defp categorize({:image_open_failed, _reason}), do: :permanent
   defp categorize({:resize_failed, _reason}), do: :permanent
   defp categorize({:write_failed, _path, _reason}), do: :transient
