@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Derive version from tag
         id: version
@@ -51,13 +51,13 @@ jobs:
           otp-version: "27"
 
       - name: Cache deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: deps
           key: ${{ runner.os }}-release-mix-${{ hashFiles('**/mix.lock') }}
 
       - name: Cache _build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: _build
           key: ${{ runner.os }}-release-build-${{ hashFiles('**/mix.lock') }}
