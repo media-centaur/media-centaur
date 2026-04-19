@@ -61,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/in
 
 Downloads the latest release, verifies its checksum, installs atomically under `~/.local/lib/media-centarr/`, generates a `SECRET_KEY_BASE`, and sets up a systemd user unit.
 
-After install, everyday updates happen inside the app: **Settings → Overview → Update now**.
+After install, everyday updates happen inside the app: **Settings → System → Update now**.
 
 Full installation guide, manual install, update, and uninstall: **[Wiki → Installation](https://github.com/media-centarr/media-centarr/wiki/Installation)**.
 
@@ -85,7 +85,7 @@ curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/in
 
 Your config (`~/.config/media-centarr/`), data (`~/.local/share/media-centarr/`), and cache (`~/.cache/media-centarr/`) are preserved across all of these. The atomic install layout keeps the previous release's tree at `~/.local/lib/media-centarr/releases/<old>/` if a manual rollback is ever needed.
 
-The Settings → Overview page surfaces the same commands (with a copy button) under **Prefer the terminal?** and inside the failure dialog — so users don't need to hunt for this README to recover.
+The Settings → System page surfaces the same commands (with a copy button) under **Prefer the terminal?** and inside the failure dialog — so users don't need to hunt for this README to recover.
 
 ## Requirements
 
