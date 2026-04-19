@@ -53,7 +53,8 @@ defmodule MediaCentarr.Application do
           restart: :temporary
         },
         MediaCentarr.Watcher.FilePresence,
-        MediaCentarr.Library.FileEventHandler
+        MediaCentarr.Library.FileEventHandler,
+        MediaCentarr.SelfUpdate.Updater
       ] ++
         pubsub_listeners(Application.get_env(:media_centarr, :environment)) ++
         [
