@@ -56,4 +56,42 @@ defmodule MediaCentarr.ConfigWatchDirsTest do
       assert Config.get(:watch_dir_images) == %{"/mnt/a" => "/mnt/ssd/images"}
     end
   end
+
+  describe "migrate_watch_dirs_from_toml/1" do
+    setup do
+      original = :persistent_term.get({Config, :config})
+      on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
+      :ok
+    end
+
+    test "imports TOML dirs into a Settings entry with UUIDs" do
+      toml_entries = [
+        %{"dir" => "/mnt/a", "images_dir" => nil},
+        %{"dir" => "/mnt/b", "images_dir" => "/mnt/ssd/images"}
+      ]
+
+      :ok = Config.migrate_watch_dirs_from_toml(toml_entries)
+
+      entries = Config.watch_dirs_entries()
+      assert length(entries) == 2
+      assert entries |> Enum.map(& &1["dir"]) |> Enum.sort() == ["/mnt/a", "/mnt/b"]
+      assert Enum.all?(entries, fn e -> is_binary(e["id"]) and byte_size(e["id"]) > 0 end)
+    end
+
+    test "is a no-op when the settings entry already exists" do
+      :ok =
+        Config.put_watch_dirs([
+          %{"id" => "seed", "dir" => "/mnt/existing", "images_dir" => nil, "name" => nil}
+        ])
+
+      :ok = Config.migrate_watch_dirs_from_toml([%{"dir" => "/mnt/other", "images_dir" => nil}])
+
+      assert [%{"id" => "seed", "dir" => "/mnt/existing"}] = Config.watch_dirs_entries()
+    end
+
+    test "empty input list is a no-op and creates no entry" do
+      :ok = Config.migrate_watch_dirs_from_toml([])
+      assert Config.watch_dirs_entries() == []
+    end
+  end
 end
