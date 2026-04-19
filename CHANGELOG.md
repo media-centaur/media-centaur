@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.9.1 — 2026-04-19
+
+### Fixed
+
+- **Post-install URL.** The installer's success message showed the dev
+  server's URL (`http://localhost:1080`) instead of the real production
+  URL. It now prints `http://localhost:2160`, and honors a custom
+  `port = NNNN` if you've set one in your `media-centarr.toml`.
+
 ## v0.9.0 — 2026-04-19
 
 No user-facing changes in this release. Internal build-tooling cleanup
