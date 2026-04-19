@@ -59,4 +59,57 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSectionTest do
       assert SystemSection.update_status_tone({:error, :any}) == :error
     end
   end
+
+  describe "apply_visible?/1" do
+    test "nil is hidden, every phase is visible" do
+      refute SystemSection.apply_visible?(nil)
+
+      for phase <- [:preparing, :downloading, :extracting, :handing_off, :done, :failed] do
+        assert SystemSection.apply_visible?(phase)
+      end
+    end
+  end
+
+  describe "apply_phase_label/1" do
+    test "returns user-readable copy per phase" do
+      assert SystemSection.apply_phase_label(:preparing) =~ "Preparing"
+      assert SystemSection.apply_phase_label(:downloading) =~ "Downloading"
+      assert SystemSection.apply_phase_label(:extracting) =~ "Extracting"
+      assert SystemSection.apply_phase_label(:handing_off) =~ "Installing"
+      assert SystemSection.apply_phase_label(:done) =~ "Restarting"
+      assert SystemSection.apply_phase_label(:failed) =~ "failed"
+      assert SystemSection.apply_phase_label(nil) == ""
+    end
+  end
+
+  describe "apply_cancelable?/1" do
+    test "true before handoff, false after" do
+      assert SystemSection.apply_cancelable?(:preparing)
+      assert SystemSection.apply_cancelable?(:downloading)
+      assert SystemSection.apply_cancelable?(:extracting)
+
+      refute SystemSection.apply_cancelable?(:handing_off)
+      refute SystemSection.apply_cancelable?(:done)
+      refute SystemSection.apply_cancelable?(:failed)
+      refute SystemSection.apply_cancelable?(nil)
+    end
+  end
+
+  describe "apply_progress_text/1" do
+    test "formats integer percents and hides unknown progress" do
+      assert SystemSection.apply_progress_text(nil) == ""
+      assert SystemSection.apply_progress_text(0) == "0%"
+      assert SystemSection.apply_progress_text(73) == "73%"
+      assert SystemSection.apply_progress_text(100) == "100%"
+    end
+  end
+
+  describe "apply_error_label/1" do
+    test "maps structured reasons into user-facing sentences" do
+      assert SystemSection.apply_error_label({:download, :checksum_mismatch}) =~ "checksum"
+      assert SystemSection.apply_error_label({:stage, :path_traversal}) =~ "rejected"
+      assert SystemSection.apply_error_label({:handoff, :eaccess}) =~ "hand off"
+      assert SystemSection.apply_error_label({:task_crashed, :whatever}) =~ "crashed"
+    end
+  end
 end

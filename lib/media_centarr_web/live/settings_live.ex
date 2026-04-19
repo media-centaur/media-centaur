@@ -9,7 +9,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   """
   use MediaCentarrWeb, :live_view
 
-  alias MediaCentarr.{Config, Settings, Version}
+  alias MediaCentarr.{Config, SelfUpdate, Settings, Version}
   alias MediaCentarr.SelfUpdate.UpdateChecker
 
   alias MediaCentarrWeb.Live.SettingsLive.{
@@ -53,6 +53,8 @@ defmodule MediaCentarrWeb.SettingsLive do
       if connected?(socket) do
         Settings.subscribe()
         Watcher.Supervisor.subscribe()
+        SelfUpdate.subscribe()
+        SelfUpdate.subscribe_progress()
 
         socket
         |> assign(config: load_config())
@@ -86,7 +88,10 @@ defmodule MediaCentarrWeb.SettingsLive do
        app_version: Version.current_version(),
        build_info: Version.build_info(),
        update_status: :idle,
-       latest_release: nil
+       latest_release: nil,
+       apply_phase: nil,
+       apply_progress: nil,
+       apply_error: nil
      )}
   end
 
@@ -139,6 +144,26 @@ defmodule MediaCentarrWeb.SettingsLive do
   @impl true
   def handle_event("check_updates", _params, socket) do
     {:noreply, start_update_check(socket)}
+  end
+
+  def handle_event("apply_update", _params, socket) do
+    case SelfUpdate.apply_pending() do
+      :ok ->
+        {:noreply, assign(socket, apply_phase: :preparing, apply_progress: nil, apply_error: nil)}
+
+      {:error, :already_running} ->
+        {:noreply, put_flash(socket, :info, "An update is already in progress.")}
+
+      {:error, :no_update_pending} ->
+        {:noreply, put_flash(socket, :error, "No update is pending right now.")}
+
+      {:error, :invalid_tag} ->
+        {:noreply, put_flash(socket, :error, "The release tag failed safety validation.")}
+    end
+  end
+
+  def handle_event("dismiss_apply_modal", _params, socket) do
+    {:noreply, assign(socket, apply_phase: nil, apply_progress: nil, apply_error: nil)}
   end
 
   def handle_event("scan", _params, socket) do
@@ -505,6 +530,26 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, update_status: {:error, reason}, latest_release: nil)}
   end
 
+  def handle_info({:progress, phase, pct}, socket) do
+    {:noreply, assign(socket, apply_phase: phase, apply_progress: pct)}
+  end
+
+  def handle_info({:apply_failed, reason}, socket) do
+    {:noreply, assign(socket, apply_phase: :failed, apply_error: reason)}
+  end
+
+  # Scheduled CheckerJob broadcast — refresh the visible card.
+  def handle_info({:check_complete, {classification, release}}, socket)
+      when classification in [:update_available, :up_to_date, :ahead_of_release] do
+    {:noreply, assign(socket, update_status: classification, latest_release: release)}
+  end
+
+  def handle_info({:check_complete, {:error, reason}}, socket) do
+    {:noreply, assign(socket, update_status: {:error, reason}, latest_release: nil)}
+  end
+
+  def handle_info({:check_started}, socket), do: {:noreply, socket}
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -566,6 +611,9 @@ defmodule MediaCentarrWeb.SettingsLive do
             build_info={@build_info}
             update_status={@update_status}
             latest_release={@latest_release}
+            apply_phase={@apply_phase}
+            apply_progress={@apply_progress}
+            apply_error={@apply_error}
           />
         </div>
       </div>
@@ -642,17 +690,84 @@ defmodule MediaCentarrWeb.SettingsLive do
           <p class={"text-sm #{update_tone_class(SystemSection.update_status_tone(@update_status))}"}>
             {SystemSection.update_status_label(@update_status, @latest_release)}
           </p>
-          <a
+          <div
             :if={@update_status == :update_available and @latest_release}
-            href={@latest_release.html_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="link link-primary text-sm mt-1 inline-block"
-            data-nav-item
-            tabindex="0"
+            class="flex items-center gap-3 mt-2"
           >
-            View release on GitHub →
-          </a>
+            <button
+              type="button"
+              phx-click="apply_update"
+              disabled={@apply_phase != nil}
+              data-nav-item
+              tabindex="0"
+              class="btn btn-primary btn-sm"
+            >
+              Update now
+            </button>
+            <a
+              href={@latest_release.html_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link link-primary text-sm"
+              data-nav-item
+              tabindex="0"
+            >
+              View on GitHub →
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div
+        :if={SystemSection.apply_visible?(@apply_phase)}
+        role="dialog"
+        aria-modal="true"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      >
+        <div class="bg-base-100 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
+          <h3 class="text-lg font-semibold">
+            {SystemSection.apply_phase_label(@apply_phase)}
+          </h3>
+
+          <div :if={@apply_phase == :downloading} class="space-y-1">
+            <div class="h-2 rounded bg-base-content/10 overflow-hidden">
+              <div
+                class="h-full bg-primary transition-[width]"
+                style={"width: #{@apply_progress || 0}%"}
+              >
+              </div>
+            </div>
+            <p class="text-xs text-base-content/60">
+              {SystemSection.apply_progress_text(@apply_progress)}
+            </p>
+          </div>
+
+          <p :if={@apply_phase == :handing_off} class="text-sm text-base-content/70">
+            The service is about to restart. The browser will reconnect
+            automatically to the new version.
+          </p>
+
+          <div :if={@apply_phase == :failed} class="space-y-2">
+            <p class="text-sm text-error">
+              {SystemSection.apply_error_label(@apply_error)}
+            </p>
+            <p class="text-xs text-base-content/50">
+              The running install is untouched.
+            </p>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              :if={@apply_phase == :failed}
+              type="button"
+              phx-click="dismiss_apply_modal"
+              data-nav-item
+              tabindex="0"
+              class="btn btn-sm"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
 

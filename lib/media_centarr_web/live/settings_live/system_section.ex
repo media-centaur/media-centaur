@@ -68,4 +68,58 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
   def update_status_tone(:update_available), do: :info
   def update_status_tone(:ahead_of_release), do: :warning
   def update_status_tone({:error, _}), do: :error
+
+  # --- Apply (Update now) state helpers -----------------------------------
+
+  @type apply_phase ::
+          nil
+          | :preparing
+          | :downloading
+          | :extracting
+          | :handing_off
+          | :done
+          | :failed
+
+  @doc """
+  Returns `true` when the progress modal should be visible — an apply
+  is in flight or has just completed/failed.
+  """
+  @spec apply_visible?(apply_phase()) :: boolean()
+  def apply_visible?(nil), do: false
+  def apply_visible?(_), do: true
+
+  @doc "Human-readable label for the current apply phase."
+  @spec apply_phase_label(apply_phase()) :: String.t()
+  def apply_phase_label(:preparing), do: "Preparing…"
+  def apply_phase_label(:downloading), do: "Downloading release"
+  def apply_phase_label(:extracting), do: "Extracting"
+  def apply_phase_label(:handing_off), do: "Installing and restarting…"
+  def apply_phase_label(:done), do: "Update staged. Restarting the service…"
+  def apply_phase_label(:failed), do: "Update failed"
+  def apply_phase_label(nil), do: ""
+
+  @doc """
+  Returns `true` when the apply phase is one the user is still allowed to
+  cancel. After handoff the detached shell has been spawned, so cancel
+  is gone.
+  """
+  @spec apply_cancelable?(apply_phase()) :: boolean()
+  def apply_cancelable?(phase) when phase in [:preparing, :downloading, :extracting], do: true
+  def apply_cancelable?(_), do: false
+
+  @doc """
+  Formats a progress percentage for display, or returns an empty string
+  when the progress is unknown.
+  """
+  @spec apply_progress_text(integer() | nil) :: String.t()
+  def apply_progress_text(nil), do: ""
+  def apply_progress_text(pct) when is_integer(pct), do: "#{pct}%"
+
+  @doc "Formats an apply error reason into a human-readable sentence."
+  @spec apply_error_label(any()) :: String.t()
+  def apply_error_label({:download, reason}), do: "Download failed: #{format_reason(reason)}"
+  def apply_error_label({:stage, reason}), do: "Tarball rejected: #{format_reason(reason)}"
+  def apply_error_label({:handoff, _}), do: "Could not hand off to the installer."
+  def apply_error_label({:task_crashed, _}), do: "Update process crashed unexpectedly."
+  def apply_error_label(other), do: "Update failed: #{format_reason(other)}"
 end
