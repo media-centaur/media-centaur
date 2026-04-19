@@ -23,9 +23,12 @@ defmodule MediaCentarr.SelfUpdate.CheckerJob do
 
   @impl Oban.Worker
   def perform(_job) do
-    broadcast({:check_started})
-    outcome = run_check()
-    broadcast({:check_complete, outcome})
+    if MediaCentarr.SelfUpdate.enabled?() do
+      broadcast({:check_started})
+      outcome = run_check()
+      broadcast({:check_complete, outcome})
+    end
+
     :ok
   end
 

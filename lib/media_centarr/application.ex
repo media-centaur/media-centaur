@@ -77,7 +77,7 @@ defmodule MediaCentarr.Application do
     # Hydrate the update-check cache from persisted state and, if the
     # last check is stale, enqueue a fresh one. Skipped in test mode so
     # the suite doesn't reach out to GitHub or fire inline Oban jobs.
-    if Application.get_env(:media_centarr, :environment, :dev) != :test do
+    if MediaCentarr.SelfUpdate.enabled?() do
       MediaCentarr.SelfUpdate.boot!()
     end
 

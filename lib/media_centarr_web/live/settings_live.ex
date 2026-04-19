@@ -905,7 +905,7 @@ defmodule MediaCentarrWeb.SettingsLive do
         </div>
       </div>
 
-      <div class="p-5 rounded-lg glass-surface">
+      <div :if={SelfUpdate.enabled?()} class="p-5 rounded-lg glass-surface">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold">Updates</h2>

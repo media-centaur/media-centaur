@@ -16,7 +16,12 @@ defmodule MediaCentarr.SelfUpdate.CheckerJobTest do
 
     UpdateChecker.clear_cache()
 
+    # CheckerJob.perform/1 short-circuits when SelfUpdate.enabled?() is false.
+    # Override to :prod so the job body runs; restore on exit.
+    Application.put_env(:media_centarr, :environment, :prod)
+
     on_exit(fn ->
+      Application.put_env(:media_centarr, :environment, :test)
       :persistent_term.erase({UpdateChecker, :client})
       UpdateChecker.clear_cache()
     end)
