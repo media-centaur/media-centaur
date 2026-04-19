@@ -1,7 +1,7 @@
-defmodule MediaCentarr.UpdateCheckerTest do
+defmodule MediaCentarr.SelfUpdate.UpdateCheckerTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.UpdateChecker
+  alias MediaCentarr.SelfUpdate.UpdateChecker
 
   setup do
     Req.Test.stub(:github_releases, fn conn ->
@@ -67,6 +67,116 @@ defmodule MediaCentarr.UpdateCheckerTest do
 
       assert {:error, %Req.TransportError{reason: :econnrefused}} =
                UpdateChecker.latest_release(client)
+    end
+  end
+
+  describe "tag validation" do
+    test "rejects a response with a shell-metachar tag", %{client: client} do
+      Req.Test.stub(:github_releases, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          JSON.encode!(%{
+            "tag_name" => "v1.0.0; rm -rf $HOME",
+            "published_at" => "2026-05-01T10:00:00Z",
+            "html_url" => "https://github.com/media-centarr/media-centarr/releases/tag/v1.0.0"
+          })
+        )
+      end)
+
+      assert {:error, :invalid_tag} = UpdateChecker.latest_release(client)
+    end
+
+    test "rejects a response with a path-traversal tag", %{client: client} do
+      Req.Test.stub(:github_releases, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          JSON.encode!(%{
+            "tag_name" => "../../etc/passwd",
+            "published_at" => "2026-05-01T10:00:00Z"
+          })
+        )
+      end)
+
+      assert {:error, :invalid_tag} = UpdateChecker.latest_release(client)
+    end
+
+    test "rejects an empty tag", %{client: client} do
+      Req.Test.stub(:github_releases, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          JSON.encode!(%{"tag_name" => "", "published_at" => "2026-05-01T10:00:00Z"})
+        )
+      end)
+
+      assert {:error, :invalid_tag} = UpdateChecker.latest_release(client)
+    end
+
+    test "rejects a tag without the v prefix", %{client: client} do
+      Req.Test.stub(:github_releases, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          JSON.encode!(%{"tag_name" => "1.0.0", "published_at" => "2026-05-01T10:00:00Z"})
+        )
+      end)
+
+      assert {:error, :invalid_tag} = UpdateChecker.latest_release(client)
+    end
+
+    test "accepts a valid pre-release tag", %{client: client} do
+      Req.Test.stub(:github_releases, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          JSON.encode!(%{
+            "tag_name" => "v1.2.3-beta.4",
+            "published_at" => "2026-05-01T10:00:00Z",
+            "html_url" => "https://github.com/media-centarr/media-centarr/releases/tag/v1.2.3-beta.4"
+          })
+        )
+      end)
+
+      assert {:ok, %{tag: "v1.2.3-beta.4", version: "1.2.3-beta.4"}} =
+               UpdateChecker.latest_release(client)
+    end
+
+    test "replaces an html_url pointing at an unexpected host", %{client: client} do
+      Req.Test.stub(:github_releases, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          JSON.encode!(%{
+            "tag_name" => "v1.0.0",
+            "published_at" => "2026-05-01T10:00:00Z",
+            "html_url" => "https://evil.example.com/fake"
+          })
+        )
+      end)
+
+      assert {:ok, release} = UpdateChecker.latest_release(client)
+      assert release.html_url == "https://github.com/media-centarr/media-centarr/releases/tag/v1.0.0"
+    end
+
+    test "validate_tag/1 accepts canonical shapes and rejects anything else" do
+      assert :ok = UpdateChecker.validate_tag("v0.7.1")
+      assert :ok = UpdateChecker.validate_tag("v10.20.30")
+      assert :ok = UpdateChecker.validate_tag("v1.0.0-rc.1")
+
+      assert {:error, :invalid_tag} = UpdateChecker.validate_tag("")
+      assert {:error, :invalid_tag} = UpdateChecker.validate_tag("0.7.1")
+      assert {:error, :invalid_tag} = UpdateChecker.validate_tag("v0.7")
+      assert {:error, :invalid_tag} = UpdateChecker.validate_tag("v0.7.1 ")
+      assert {:error, :invalid_tag} = UpdateChecker.validate_tag("v0.7.1;ls")
+      assert {:error, :invalid_tag} = UpdateChecker.validate_tag(nil)
     end
   end
 

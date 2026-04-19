@@ -9,7 +9,8 @@ defmodule MediaCentarrWeb.SettingsLive do
   """
   use MediaCentarrWeb, :live_view
 
-  alias MediaCentarr.{Config, Settings, UpdateChecker, Version}
+  alias MediaCentarr.{Config, Settings, Version}
+  alias MediaCentarr.SelfUpdate.UpdateChecker
 
   alias MediaCentarrWeb.Live.SettingsLive.{
     ConnectionTest,

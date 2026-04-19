@@ -11,4 +11,4 @@ Ecto.Adapters.SQL.Sandbox.mode(MediaCentarr.Repo, :manual)
 # auto-check-on-mount sees :fresh and does not dial out to GitHub during
 # tests that haven't wired a stub. Tests that exercise the auto-check flow
 # call `UpdateChecker.clear_cache/0` in their own setup.
-MediaCentarr.UpdateChecker.cache_result({:error, :disabled_in_tests})
+MediaCentarr.SelfUpdate.UpdateChecker.cache_result({:error, :disabled_in_tests})

@@ -9,7 +9,7 @@ defmodule MediaCentarrWeb.SettingsLiveSystemTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.UpdateChecker
+  alias MediaCentarr.SelfUpdate.UpdateChecker
 
   setup do
     # Install a stub GitHub Releases client into the same persistent_term
