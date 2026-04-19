@@ -14,7 +14,6 @@ defmodule MediaCentarr.Watcher.DirValidator do
   - `{:dir, :duplicate}` — another entry already uses this path
   - `{:dir, :nested}` — path is nested inside another entry's dir
   - `{:dir, :contains_existing}` — path contains another entry's dir
-  - `{:images_dir, :inside_watch_dir}` — images_dir is inside a watch dir
   - `{:images_dir, :unwritable}` — images_dir cannot be created or written to
   - `{:name, :too_long}` — name exceeds 60 characters
   - `{:name, :duplicate}` — another entry uses the same name
@@ -180,24 +179,10 @@ defmodule MediaCentarr.Watcher.DirValidator do
 
   defp validate_images_dir(errors, %{"images_dir" => nil}, _existing, _fs), do: errors
 
-  defp validate_images_dir(errors, %{"images_dir" => images_dir} = entry, existing, fs) do
+  defp validate_images_dir(errors, %{"images_dir" => images_dir}, _existing, fs) do
     normalized_images_dir = normalize(images_dir, fs)
 
-    errors
-    |> maybe_add(
-      inside_any_watch_dir?(normalized_images_dir, entry, existing, fs),
-      {:images_dir, :inside_watch_dir}
-    )
-    |> maybe_add(not writable?(normalized_images_dir, fs), {:images_dir, :unwritable})
-  end
-
-  defp inside_any_watch_dir?(images_dir, entry, existing, fs) do
-    watch_dirs =
-      [entry | existing]
-      |> Enum.uniq_by(& &1["id"])
-      |> Enum.map(&normalize(&1["dir"], fs))
-
-    Enum.any?(watch_dirs, fn dir -> nested_under?(images_dir, dir) end)
+    maybe_add(errors, not writable?(normalized_images_dir, fs), {:images_dir, :unwritable})
   end
 
   defp writable?(path, fs) do

@@ -96,12 +96,15 @@ defmodule MediaCentarr.Watcher.DirValidatorTest do
   end
 
   describe "images_dir" do
-    test "errors when images_dir is inside any watch dir" do
+    test "allows images_dir nested inside a watch dir (watcher auto-excludes it)" do
       existing = [candidate("/mnt/a", id: "existing")]
       fs = stub_fs()
       entry = candidate("/mnt/b", images_dir: "/mnt/a/cache")
       assert %{errors: errors} = DirValidator.validate(entry, existing, fs)
-      assert Enum.any?(errors, &match?({:images_dir, :inside_watch_dir}, &1))
+      refute Enum.any?(errors, fn
+        {:images_dir, _} -> true
+        _ -> false
+      end)
     end
 
     test "errors when images_dir cannot be created and does not exist" do
