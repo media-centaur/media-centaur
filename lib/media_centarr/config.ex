@@ -217,6 +217,16 @@ defmodule MediaCentarr.Config do
     end
   end
 
+  @doc """
+  Rebuilds `:watch_dirs` and `:watch_dir_images` in `:persistent_term` from
+  the current Settings entry. Used on boot (after migration) and whenever a
+  runtime change writes Settings directly.
+  """
+  @spec refresh_watch_dirs_from_settings() :: :ok
+  def refresh_watch_dirs_from_settings do
+    refresh_watch_dirs_persistent_term(watch_dirs_entries())
+  end
+
   defp normalize_toml_entry(dir) when is_binary(dir) do
     %{"id" => new_uuid(), "dir" => Path.expand(dir), "images_dir" => nil, "name" => nil}
   end
@@ -338,6 +348,7 @@ defmodule MediaCentarr.Config do
     }
 
     if Application.get_env(:media_centarr, :skip_user_config, false) do
+      Application.put_env(:media_centarr, :__raw_toml_watch_dirs, [])
       defaults
     else
       load_toml(defaults)
@@ -369,6 +380,14 @@ defmodule MediaCentarr.Config do
 
   defp merge_toml(defaults, toml) do
     {watch_dirs, watch_dir_images} = resolve_watch_dirs(toml, defaults)
+
+    raw_watch_dirs =
+      case get_in(toml, ["watch_dirs"]) do
+        list when is_list(list) -> list
+        _ -> []
+      end
+
+    Application.put_env(:media_centarr, :__raw_toml_watch_dirs, raw_watch_dirs)
 
     %{
       port: get_in(toml, ["port"]) || defaults.port,

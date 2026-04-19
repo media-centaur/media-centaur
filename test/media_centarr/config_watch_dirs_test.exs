@@ -94,4 +94,33 @@ defmodule MediaCentarr.ConfigWatchDirsTest do
       assert Config.watch_dirs_entries() == []
     end
   end
+
+  describe "refresh_watch_dirs_from_settings/0" do
+    setup do
+      original = :persistent_term.get({Config, :config})
+      on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
+      :ok
+    end
+
+    test "rebuilds :watch_dirs and :watch_dir_images from the Settings entry" do
+      {:ok, _} =
+        Settings.find_or_create_entry(%{
+          key: "config:watch_dirs",
+          value: %{
+            "entries" => [
+              %{"id" => "a", "dir" => "/mnt/a", "images_dir" => nil, "name" => nil},
+              %{"id" => "b", "dir" => "/mnt/b", "images_dir" => "/mnt/ssd", "name" => "B"}
+            ]
+          }
+        })
+
+      assert :ok = Config.refresh_watch_dirs_from_settings()
+      assert Config.get(:watch_dirs) == ["/mnt/a", "/mnt/b"]
+
+      assert Config.get(:watch_dir_images) == %{
+               "/mnt/a" => Path.join("/mnt/a", ".media-centarr/images"),
+               "/mnt/b" => "/mnt/ssd"
+             }
+    end
+  end
 end
