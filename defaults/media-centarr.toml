@@ -21,11 +21,6 @@ database_path = "~/.local/share/media-centarr/media-centarr.db"
 # user config) are imported into the app's database on first boot, after
 # which this key is ignored and edits live in the UI.
 
-# Directories to exclude from watching. Files inside these directories
-# (and their subdirectories) are ignored by both inotify and manual scans.
-# Paths are expanded (~ resolved). Must be absolute paths.
-exclude_dirs = []
-
 # ---------------------------------------------------------------------------
 # All other settings (TMDB, pipeline, playback, Prowlarr, download client,
 # release tracking, etc.) are managed through the Settings page in the app.

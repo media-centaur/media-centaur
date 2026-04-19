@@ -63,5 +63,15 @@ defmodule MediaCentarr.ConfigRuntimeKeysMigrationTest do
 
       assert {:ok, nil} = Settings.get_by_key("config:auto_approve_threshold")
     end
+
+    test "migrates exclude_dirs from TOML to Settings on first boot" do
+      :ok =
+        Config.migrate_runtime_keys_from_toml(%{
+          exclude_dirs: ["/mnt/cache", "/mnt/trash"]
+        })
+
+      assert {:ok, %{value: %{"value" => ["/mnt/cache", "/mnt/trash"]}}} =
+               Settings.get_by_key("config:exclude_dirs")
+    end
   end
 end
