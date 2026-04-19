@@ -50,6 +50,35 @@ defmodule MediaCentarr.SelfUpdate.UpdateCheckerTest do
       assert {:error, {:http_error, 503}} = UpdateChecker.latest_release(client)
     end
 
+    test "detects rate-limit on a 403 with x-ratelimit-remaining: 0", %{client: client} do
+      reset_epoch = DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.to_unix()
+
+      Req.Test.stub(:github_releases, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("x-ratelimit-remaining", "0")
+        |> Plug.Conn.put_resp_header("x-ratelimit-reset", Integer.to_string(reset_epoch))
+        |> Plug.Conn.send_resp(403, ~s({"message":"API rate limit exceeded"}))
+      end)
+
+      assert {:error, {:rate_limited, %DateTime{} = reset_at}} =
+               UpdateChecker.latest_release(client)
+
+      # Reset timestamp matches the header we sent (tolerate 2s clock skew).
+      drift = abs(DateTime.diff(reset_at, DateTime.from_unix!(reset_epoch)))
+      assert drift <= 2
+    end
+
+    test "falls back to {:http_error, 403} when 403 is returned without rate-limit headers",
+         %{client: client} do
+      Req.Test.stub(:github_releases, fn conn ->
+        # No x-ratelimit-remaining header — this is some other 403
+        # (abuse detection, repository permission issue, etc.).
+        Plug.Conn.send_resp(conn, 403, "forbidden")
+      end)
+
+      assert {:error, {:http_error, 403}} = UpdateChecker.latest_release(client)
+    end
+
     test "returns {:error, :malformed} when tag_name is missing", %{client: client} do
       Req.Test.stub(:github_releases, fn conn ->
         conn
