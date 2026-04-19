@@ -23,6 +23,7 @@ import { Action, Context } from "./core/index.js"
  * @property {function(): {value: string, clear: function}|null} getFilter
  * @property {function(): void} clickPrevMonth
  * @property {function(): void} clickNextMonth
+ * @property {function(): void} scrollToTop
  */
 
 /** Default DOM implementation for production use. */
@@ -43,6 +44,9 @@ const REAL_DOM = {
   },
   clickNextMonth() {
     document.querySelector("[phx-click='next_month']")?.click()
+  },
+  scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "instant" })
   },
 }
 
@@ -68,6 +72,13 @@ export function createLibraryBehavior(dom) {
       // Only clear drill-in on real context changes, not temporary overlays
       if (context !== Context.GRID && context !== Context.MODAL && context !== Context.DRAWER) {
         trackingDrillIn = false
+      }
+      // Reaching the zone tabs means the user has navigated to the top of
+      // the library view — pin the page to the very top so the tabs and
+      // top padding are fully visible (scrollIntoView("nearest") stops
+      // flush with the tab, clipping the main padding above it).
+      if (context === Context.ZONE_TABS) {
+        dom.scrollToTop()
       }
       currentContext = context
     },
