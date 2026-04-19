@@ -53,7 +53,6 @@ defmodule MediaCentarr.Watcher do
     was_unavailable: false,
     pending_files: %{},
     deletion_buffer: %{},
-    exclude_dirs: [],
     skip_dirs: []
   ]
 
@@ -91,7 +90,7 @@ defmodule MediaCentarr.Watcher do
     Process.flag(:trap_exit, true)
     send(self(), :start_watching)
 
-    {:ok, %__MODULE__{dir: dir, exclude_dirs: load_exclude_dirs(dir), skip_dirs: load_skip_dirs()}}
+    {:ok, %__MODULE__{dir: dir, skip_dirs: load_skip_dirs()}}
   end
 
   @impl true
@@ -149,13 +148,14 @@ defmodule MediaCentarr.Watcher do
         {:noreply, %{state | state: :unavailable, was_unavailable: true}}
 
       (:created in events or :modified in events) and video_file?(path) and
-        not excluded?(path, state.exclude_dirs) and
+        not excluded?(path, load_exclude_dirs(state.dir)) and
           not in_skip_dir?(path, state.skip_dirs) ->
         Log.info(:watcher, "detected file event — #{Path.basename(path)}, checking size")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
-      :deleted in events and video_file?(path) and not excluded?(path, state.exclude_dirs) and
+      :deleted in events and video_file?(path) and
+        not excluded?(path, load_exclude_dirs(state.dir)) and
           not in_skip_dir?(path, state.skip_dirs) ->
         {:noreply, buffer_deletion(state, path)}
 

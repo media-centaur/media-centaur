@@ -80,6 +80,7 @@ defmodule MediaCentarrWeb.SettingsLive do
      assign(socket,
        sections: @sections,
        watch_dirs: MediaCentarr.Config.watch_dirs_entries(),
+       exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [],
        watch_dir_dialog: nil,
        watch_dir_delete_confirm: nil,
        scanning: false,
@@ -322,6 +323,34 @@ defmodule MediaCentarrWeb.SettingsLive do
     entries = WatchDirsLogic.remove(socket.assigns.watch_dirs, id)
     :ok = MediaCentarr.Config.put_watch_dirs(entries)
     {:noreply, assign(socket, :watch_dir_delete_confirm, nil)}
+  end
+
+  # --- Exclude-dir card events ---
+
+  def handle_event("exclude_dir:add", %{"path" => path}, socket) do
+    path = String.trim(path)
+
+    cond do
+      path == "" ->
+        {:noreply, socket}
+
+      Path.type(path) != :absolute ->
+        {:noreply, put_flash(socket, :error, "Excluded directory must be an absolute path.")}
+
+      path in socket.assigns.exclude_dirs ->
+        {:noreply, put_flash(socket, :error, "That directory is already excluded.")}
+
+      true ->
+        new_list = [path | socket.assigns.exclude_dirs]
+        :ok = MediaCentarr.Config.update(:exclude_dirs, new_list)
+        {:noreply, assign(socket, :exclude_dirs, new_list)}
+    end
+  end
+
+  def handle_event("exclude_dir:delete", %{"path" => path}, socket) do
+    new_list = Enum.reject(socket.assigns.exclude_dirs, &(&1 == path))
+    :ok = MediaCentarr.Config.update(:exclude_dirs, new_list)
+    {:noreply, assign(socket, :exclude_dirs, new_list)}
   end
 
   def handle_event("scan", _params, socket) do
@@ -830,6 +859,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             service_status_output={@service_status_output}
             watch_dirs={@watch_dirs}
             watch_dir_delete_confirm={@watch_dir_delete_confirm}
+            exclude_dirs={@exclude_dirs}
           />
         </div>
       </div>
@@ -1795,6 +1825,54 @@ defmodule MediaCentarrWeb.SettingsLive do
             </div>
           </li>
         </ul>
+      </div>
+
+      <div class="glass-surface rounded-xl p-4 space-y-3">
+        <div>
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+            Excluded Directories
+          </h3>
+          <p class="text-xs text-base-content/60 mt-1">
+            Paths inside your watch directories that should be ignored — handy for
+            downloads-cache folders, trash bins, anything with transient files you
+            don't want indexed.
+          </p>
+        </div>
+
+        <ul :if={@exclude_dirs != []} class="space-y-2">
+          <li
+            :for={path <- @exclude_dirs}
+            class="glass-inset rounded-lg p-3 flex items-center gap-3"
+          >
+            <span class="truncate-left flex-1 text-sm" title={path}>
+              <bdo dir="ltr">{path}</bdo>
+            </span>
+            <button
+              class="btn btn-ghost btn-sm text-error"
+              phx-click="exclude_dir:delete"
+              phx-value-path={path}
+              data-confirm={"Remove #{path} from excluded directories?"}
+            >
+              <.icon name="hero-trash" class="size-4" />
+            </button>
+          </li>
+        </ul>
+
+        <div :if={@exclude_dirs == []} class="text-xs text-base-content/50 py-2">
+          No excluded directories.
+        </div>
+
+        <form phx-submit="exclude_dir:add" class="flex gap-2 pt-1">
+          <input
+            type="text"
+            name="path"
+            placeholder="/absolute/path/to/exclude"
+            class="library-filter flex-1"
+          />
+          <button type="submit" class="btn btn-soft btn-success btn-sm">
+            <.icon name="hero-plus" class="size-4" /> Add
+          </button>
+        </form>
       </div>
 
       <form phx-submit="save_library" class="p-5 rounded-lg glass-surface space-y-5">

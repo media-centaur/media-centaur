@@ -89,7 +89,8 @@ defmodule MediaCentarr.Config do
       :recent_changes_days,
       :release_tracking_refresh_interval_hours,
       :extras_dirs,
-      :skip_dirs
+      :skip_dirs,
+      :exclude_dirs
     ]
   end
 
@@ -140,7 +141,8 @@ defmodule MediaCentarr.Config do
              :recent_changes_days,
              :release_tracking_refresh_interval_hours,
              :extras_dirs,
-             :skip_dirs
+             :skip_dirs,
+             :exclude_dirs
            ] do
     config = :persistent_term.get({__MODULE__, :config})
     :persistent_term.put({__MODULE__, :config}, Map.put(config, key, maybe_wrap(key, value)))
