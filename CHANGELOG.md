@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.10.1 — 2026-04-19
+
+### Fixed
+
+- **In-app updater failure.** *Update now* crashed with `Tarball
+  rejected: tar_error ... :enoent` because the extractor was clearing
+  its own staging directory — including the tarball it was about to
+  read. The extractor now leaves the downloaded file in place and
+  only tightens the directory permissions.
+
 ## v0.10.0 — 2026-04-19
 
 ### New
