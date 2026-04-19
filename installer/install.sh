@@ -23,6 +23,14 @@ die()    { printf 'Error: %s\n' "$1" >&2; exit 1; }
 banner() { printf '==> %s\n' "$1"; }
 need()   { command -v "$1" >/dev/null 2>&1 || die "$1 is required"; }
 
+# Validate a tag string against the canonical release shape.
+# Rejected strings never reach URL construction or filesystem paths.
+# POSIX grep -E for a precise character class — shell `case` globs can't
+# enforce digits-only, which opens injections like "v0.7.1; rm".
+validate_tag() {
+    printf '%s' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'
+}
+
 # ---- platform check -------------------------------------------------------
 
 case "$(uname -s)" in
@@ -72,6 +80,8 @@ else
     [ -n "$tag" ] || die "Could not resolve latest release tag from $api_url"
     banner "Latest is $tag"
 fi
+
+validate_tag "$tag" || die "Rejected malformed tag: $tag"
 
 version=${tag#v}
 tarball="media-centarr-${version}-linux-x86_64.tar.gz"
