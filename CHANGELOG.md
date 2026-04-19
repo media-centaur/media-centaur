@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.12.5 — 2026-04-19
+
+### Improved
+
+- **Status check-marks no longer look oversized.** The green ✓ and
+  amber ⚠ indicators on the System page (Configuration card) and the
+  update-progress modal are now the lighter `-mini` heroicon variants
+  sized to match their adjacent text, instead of chunky `-solid`
+  glyphs that sat visually above the baseline. Applied across every
+  place these indicators show up.
+
 ## v0.12.4 — 2026-04-19
 
 ### Improved
