@@ -32,6 +32,22 @@ defmodule MediaCentarrWeb.SettingsLive.WatchDirsLogic do
   def remove(list, id), do: Enum.reject(list, &(&1["id"] == id))
 
   @doc """
+  Returns true when the entry has a non-default `images_dir` worth showing
+  in the UI. Matches the hidden default `{dir}/.media-centarr/images` so
+  the images-dir line is omitted when it would just restate the default.
+  """
+  @spec show_images_dir?(map()) :: boolean()
+  def show_images_dir?(%{"images_dir" => nil}), do: false
+  def show_images_dir?(%{"images_dir" => ""}), do: false
+
+  def show_images_dir?(%{"images_dir" => images_dir, "dir" => dir})
+      when is_binary(images_dir) and is_binary(dir) do
+    Path.expand(images_dir) != Path.expand(Path.join(dir, ".media-centarr/images"))
+  end
+
+  def show_images_dir?(_), do: false
+
+  @doc """
   Returns a human-readable hint for the default images directory given the
   current `dir` value in the dialog. Used below the `images_dir` input so
   users see exactly where artwork will land if they leave the field blank.
