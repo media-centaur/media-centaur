@@ -101,13 +101,58 @@ defmodule MediaCentarr.SelfUpdate.HandoffTest do
       me = self()
       spawn_fn = fn args -> send(me, {:argv, args}) end
 
-      assert :ok = Handoff.spawn_detached("/staged", spawn_fn: spawn_fn)
+      assert :ok =
+               Handoff.spawn_detached("/staged",
+                 spawn_fn: spawn_fn,
+                 env_getter: fn _ -> nil end
+               )
 
       assert_receive {:argv, args}
       assert "env" in args
       assert "-i" in args
       assert Enum.any?(args, &String.starts_with?(&1, "HOME="))
       assert "PATH=/usr/bin:/bin" in args
+    end
+
+    # Regression: `systemctl --user` inside the detached shell silently
+    # failed on real installs because `env -i` stripped the env vars
+    # systemctl needs to reach the user's systemd instance. The resulting
+    # failure mode — new release staged but service never restarted — is
+    # exactly what the user reported. Pass-through is the fix.
+    test "passes through XDG_RUNTIME_DIR + DBUS_SESSION_BUS_ADDRESS when set" do
+      me = self()
+      spawn_fn = fn args -> send(me, {:argv, args}) end
+
+      env = %{
+        "XDG_RUNTIME_DIR" => "/run/user/1000",
+        "DBUS_SESSION_BUS_ADDRESS" => "unix:path=/run/user/1000/bus"
+      }
+
+      assert :ok =
+               Handoff.spawn_detached("/staged",
+                 spawn_fn: spawn_fn,
+                 env_getter: fn name -> Map.get(env, name) end
+               )
+
+      assert_receive {:argv, args}
+      assert "XDG_RUNTIME_DIR=/run/user/1000" in args
+
+      assert "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus" in args
+    end
+
+    test "omits systemd env vars entirely when the caller's environment has none" do
+      me = self()
+      spawn_fn = fn args -> send(me, {:argv, args}) end
+
+      assert :ok =
+               Handoff.spawn_detached("/staged",
+                 spawn_fn: spawn_fn,
+                 env_getter: fn _ -> nil end
+               )
+
+      assert_receive {:argv, args}
+      refute Enum.any?(args, &String.starts_with?(&1, "XDG_RUNTIME_DIR="))
+      refute Enum.any?(args, &String.starts_with?(&1, "DBUS_SESSION_BUS_ADDRESS="))
     end
 
     test "returns :ok even when the spawn function returns an unexpected value" do
