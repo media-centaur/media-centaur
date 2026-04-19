@@ -254,7 +254,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Database",
           detail: truncate(path),
           status: :ok,
-          link: section_link("system")
+          link: section_link("overview")
         }
 
       _ ->
@@ -263,7 +263,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Database",
           detail: "Parent directory missing: #{dir}",
           status: :warning,
-          link: section_link("system")
+          link: section_link("overview")
         }
     end
   end
@@ -274,7 +274,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       label: "Database",
       detail: "No path configured",
       status: :warning,
-      link: section_link("system")
+      link: section_link("overview")
     }
   end
 
@@ -289,7 +289,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       label: "Watch directories",
       detail: "None configured",
       status: :warning,
-      link: section_link("system")
+      link: section_link("overview")
     }
   end
 
@@ -303,7 +303,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Watch directories",
           detail: describe_dirs(dirs),
           status: :ok,
-          link: section_link("system")
+          link: section_link("overview")
         }
 
       missing == length(dirs) ->
@@ -312,7 +312,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Watch directories",
           detail: "All #{length(dirs)} unreachable — check that storage is mounted",
           status: :warning,
-          link: section_link("system")
+          link: section_link("overview")
         }
 
       true ->
@@ -321,7 +321,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Watch directories",
           detail: "#{missing} of #{length(dirs)} unreachable",
           status: :warning,
-          link: section_link("system")
+          link: section_link("overview")
         }
     end
   end

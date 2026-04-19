@@ -70,6 +70,35 @@ defmodule MediaCentarr.UpdateCheckerTest do
     end
   end
 
+  describe "cache" do
+    setup do
+      UpdateChecker.clear_cache()
+      on_exit(fn -> UpdateChecker.clear_cache() end)
+      :ok
+    end
+
+    test "cached_latest_release/0 returns :stale when nothing cached" do
+      assert UpdateChecker.cached_latest_release() == :stale
+    end
+
+    test "cache_result/1 stores a successful result and cached_latest_release returns :fresh" do
+      release = %{version: "0.5.0", tag: "v0.5.0", published_at: now(), html_url: "x"}
+      :ok = UpdateChecker.cache_result({:ok, release})
+      assert {:fresh, {:ok, ^release}} = UpdateChecker.cached_latest_release()
+    end
+
+    test "cache_result/1 stores an error result and returns it as :fresh" do
+      :ok = UpdateChecker.cache_result({:error, :not_found})
+      assert {:fresh, {:error, :not_found}} = UpdateChecker.cached_latest_release()
+    end
+
+    test "clear_cache/0 drops the cached result" do
+      :ok = UpdateChecker.cache_result({:error, :not_found})
+      :ok = UpdateChecker.clear_cache()
+      assert UpdateChecker.cached_latest_release() == :stale
+    end
+  end
+
   describe "compare/2" do
     test "classifies a newer remote version as :update_available" do
       release = %{version: "0.5.0", tag: "v0.5.0", published_at: now(), html_url: "x"}

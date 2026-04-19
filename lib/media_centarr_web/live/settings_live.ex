@@ -43,7 +43,6 @@ defmodule MediaCentarrWeb.SettingsLive do
     %{id: "playback", label: "Playback", group: :media},
     %{id: "release_tracking", label: "Release Tracking", group: :media},
     # Infrastructure — rare-touch admin
-    %{id: "system", label: "System", group: :infra},
     %{id: "danger", label: "Danger Zone", group: :infra}
   ]
 
@@ -93,21 +92,52 @@ defmodule MediaCentarrWeb.SettingsLive do
   @impl true
   def handle_params(params, _uri, socket) do
     section = params["section"] || "overview"
-    {:noreply, assign(socket, active_section: section)}
+
+    socket =
+      socket
+      |> assign(active_section: section)
+      |> maybe_auto_check_updates(section)
+
+    {:noreply, socket}
+  end
+
+  defp maybe_auto_check_updates(socket, "overview") do
+    if connected?(socket) do
+      case UpdateChecker.cached_latest_release() do
+        {:fresh, {:ok, release}} ->
+          status = UpdateChecker.compare(release, socket.assigns.app_version)
+          assign(socket, update_status: status, latest_release: release)
+
+        {:fresh, {:error, reason}} ->
+          assign(socket, update_status: {:error, reason}, latest_release: nil)
+
+        :stale ->
+          start_update_check(socket)
+      end
+    else
+      socket
+    end
+  end
+
+  defp maybe_auto_check_updates(socket, _section), do: socket
+
+  defp start_update_check(socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      result = UpdateChecker.latest_release()
+      UpdateChecker.cache_result(result)
+      send(liveview, {:update_check_result, result})
+    end)
+
+    assign(socket, update_status: :checking, latest_release: nil)
   end
 
   # --- Events ---
 
   @impl true
   def handle_event("check_updates", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      result = UpdateChecker.latest_release()
-      send(liveview, {:update_check_result, result})
-    end)
-
-    {:noreply, assign(socket, update_status: :checking, latest_release: nil)}
+    {:noreply, start_update_check(socket)}
   end
 
   def handle_event("scan", _params, socket) do
@@ -566,10 +596,116 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     ~H"""
     <div class="space-y-5">
+      <div class="p-6 rounded-lg glass-surface flex items-center gap-6">
+        <img
+          src={~p"/images/centaur-logo.png"}
+          alt="Media Centarr"
+          width="96"
+          height="96"
+          class="h-24 w-24 shrink-0 object-contain centaur-logo"
+        />
+        <div class="min-w-0 space-y-1.5">
+          <h2 class="text-xl font-semibold tracking-tight">Media Centarr</h2>
+          <p class="text-xs text-base-content/50 italic">
+            media center &middot; *arr stack &middot; centaur
+          </p>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs font-mono text-base-content/60">
+            <span>v{@app_version}</span>
+            <span class="text-base-content/30">&middot;</span>
+            <span>{SystemSection.built_label(@build_info)}</span>
+          </div>
+        </div>
+      </div>
+
       <div class="p-5 rounded-lg glass-surface">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Overview</h2>
+            <h2 class="text-lg font-semibold">Updates</h2>
+            <p class="text-sm opacity-50 mt-0.5">
+              Check GitHub for a newer release.
+            </p>
+          </div>
+          <button
+            type="button"
+            phx-click="check_updates"
+            disabled={@update_status == :checking}
+            data-nav-item
+            tabindex="0"
+            class="btn btn-soft btn-primary btn-sm shrink-0"
+          >
+            {if @update_status == :checking, do: "Checking…", else: "Check for updates"}
+          </button>
+        </div>
+
+        <div :if={@update_status != :idle} class="mt-4 pt-4 border-t border-base-content/10">
+          <p class={"text-sm #{update_tone_class(SystemSection.update_status_tone(@update_status))}"}>
+            {SystemSection.update_status_label(@update_status, @latest_release)}
+          </p>
+          <a
+            :if={@update_status == :update_available and @latest_release}
+            href={@latest_release.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link link-primary text-sm mt-1 inline-block"
+            data-nav-item
+            tabindex="0"
+          >
+            View release on GitHub →
+          </a>
+        </div>
+      </div>
+
+      <div class="p-5 rounded-lg glass-surface">
+        <h2 class="text-lg font-semibold">Configuration</h2>
+        <p class="text-sm opacity-50 mt-0.5 mb-4">
+          Structural settings that require editing
+          <code class="font-mono text-xs">media-centarr.toml</code>
+          and restarting.
+        </p>
+
+        <div :if={@config == %{}} class="text-base-content/60 py-4">Loading...</div>
+
+        <dl :if={@config != %{}} class="space-y-2.5 text-sm">
+          <div class="flex justify-between items-baseline gap-4 min-w-0">
+            <dt class="text-base-content/60 shrink-0">Database path</dt>
+            <dd class="flex items-baseline gap-2 min-w-0">
+              <.path_status
+                :if={@config[:database_path]}
+                path={Path.dirname(@config[:database_path])}
+                kind={:directory}
+              />
+              <span class="font-mono text-xs min-w-0 truncate-left" title={@config[:database_path]}>
+                <bdo dir="ltr">{@config[:database_path] || "—"}</bdo>
+              </span>
+            </dd>
+          </div>
+
+          <div class="flex justify-between items-start gap-4 min-w-0">
+            <dt class="text-base-content/60 shrink-0 pt-0.5">Watch directories</dt>
+            <dd class="min-w-0 text-right">
+              <span :if={@config[:watch_dirs] == []} class="text-base-content/40 italic text-xs">
+                None configured
+              </span>
+              <ul :if={@config[:watch_dirs] != []} class="space-y-0.5">
+                <li
+                  :for={dir <- @config[:watch_dirs]}
+                  class="flex items-baseline gap-2 justify-end min-w-0"
+                >
+                  <.path_status path={dir} kind={:directory} />
+                  <span class="font-mono text-xs min-w-0 truncate-left" title={dir}>
+                    <bdo dir="ltr">{dir}</bdo>
+                  </span>
+                </li>
+              </ul>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="p-5 rounded-lg glass-surface">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">Health Check</h2>
             <p class="text-sm text-base-content/50 mt-0.5">
               {overview_summary(@issue_count)}
             </p>
@@ -1264,118 +1400,6 @@ defmodule MediaCentarrWeb.SettingsLive do
         </p>
       </div>
     </form>
-    """
-  end
-
-  defp section_content(%{active_section: "system"} = assigns) do
-    ~H"""
-    <div class="space-y-5">
-      <div class="p-6 rounded-lg glass-surface flex items-center gap-6">
-        <img
-          src={~p"/images/centaur-logo.png"}
-          alt="Media Centarr"
-          width="96"
-          height="96"
-          class="h-24 w-24 shrink-0 object-contain centaur-logo"
-        />
-        <div class="min-w-0 space-y-1.5">
-          <h2 class="text-xl font-semibold tracking-tight">Media Centarr</h2>
-          <p class="text-xs text-base-content/50 italic">
-            media center &middot; *arr stack &middot; centaur
-          </p>
-          <div class="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs font-mono text-base-content/60">
-            <span>v{@app_version}</span>
-            <span class="text-base-content/30">&middot;</span>
-            <span>{SystemSection.built_label(@build_info)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="p-5 rounded-lg glass-surface">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Updates</h2>
-            <p class="text-sm opacity-50 mt-0.5">
-              Check GitHub for a newer release.
-            </p>
-          </div>
-          <button
-            type="button"
-            phx-click="check_updates"
-            disabled={@update_status == :checking}
-            data-nav-item
-            tabindex="0"
-            class="btn btn-soft btn-primary btn-sm shrink-0"
-          >
-            {if @update_status == :checking, do: "Checking…", else: "Check for updates"}
-          </button>
-        </div>
-
-        <div :if={@update_status != :idle} class="mt-4 pt-4 border-t border-base-content/10">
-          <p class={"text-sm #{update_tone_class(SystemSection.update_status_tone(@update_status))}"}>
-            {SystemSection.update_status_label(@update_status, @latest_release)}
-          </p>
-          <a
-            :if={@update_status == :update_available and @latest_release}
-            href={@latest_release.html_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="link link-primary text-sm mt-1 inline-block"
-            data-nav-item
-            tabindex="0"
-          >
-            View release on GitHub →
-          </a>
-        </div>
-      </div>
-
-      <div class="p-5 rounded-lg glass-surface">
-        <h2 class="text-lg font-semibold">Configuration</h2>
-        <p class="text-sm opacity-50 mt-0.5 mb-4">
-          Structural settings that require editing
-          <code class="font-mono text-xs">media-centarr.toml</code>
-          and restarting.
-        </p>
-
-        <div :if={@config == %{}} class="text-base-content/60 py-4">Loading...</div>
-
-        <dl :if={@config != %{}} class="space-y-2.5 text-sm">
-          <div class="flex justify-between items-baseline gap-4 min-w-0">
-            <dt class="text-base-content/60 shrink-0">Database path</dt>
-            <dd class="flex items-baseline gap-2 min-w-0">
-              <.path_status
-                :if={@config[:database_path]}
-                path={Path.dirname(@config[:database_path])}
-                kind={:directory}
-              />
-              <span class="font-mono text-xs min-w-0 truncate-left" title={@config[:database_path]}>
-                <bdo dir="ltr">{@config[:database_path] || "—"}</bdo>
-              </span>
-            </dd>
-          </div>
-
-          <div class="flex justify-between items-start gap-4 min-w-0">
-            <dt class="text-base-content/60 shrink-0 pt-0.5">Watch directories</dt>
-            <dd class="min-w-0 text-right">
-              <span :if={@config[:watch_dirs] == []} class="text-base-content/40 italic text-xs">
-                None configured
-              </span>
-              <ul :if={@config[:watch_dirs] != []} class="space-y-0.5">
-                <li
-                  :for={dir <- @config[:watch_dirs]}
-                  class="flex items-baseline gap-2 justify-end min-w-0"
-                >
-                  <.path_status path={dir} kind={:directory} />
-                  <span class="font-mono text-xs min-w-0 truncate-left" title={dir}>
-                    <bdo dir="ltr">{dir}</bdo>
-                  </span>
-                </li>
-              </ul>
-            </dd>
-          </div>
-        </dl>
-      </div>
-    </div>
     """
   end
 

@@ -23,7 +23,6 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
         "playback",
         "library",
         "release_tracking",
-        "system",
         "danger"
       ] do
     test "section #{section} mounts without crashing", %{conn: conn} do
