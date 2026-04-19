@@ -18,6 +18,7 @@ defmodule MediaCentarr.Topics do
   def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"
   def settings_updates, do: "settings:updates"
+  def config_updates, do: "config:updates"
   def release_tracking_updates, do: "release_tracking:updates"
   def watch_history_events, do: "watch_history:events"
   def console_logs, do: "console:logs"
