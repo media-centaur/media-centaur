@@ -33,6 +33,16 @@ defmodule MediaCentarr.SelfUpdate do
   @boot_check_delay_seconds 30
 
   @doc """
+  True only when update checks should run. Returns false in dev and test —
+  dev builds update by rebuilding from source; test builds never hit the
+  network.
+  """
+  @spec enabled?() :: boolean()
+  def enabled? do
+    Application.get_env(:media_centarr, :environment, :dev) == :prod
+  end
+
+  @doc """
   Subscribes the caller to `self_update:status` — `{:check_started}` and
   `{:check_complete, outcome}` messages fire here when the scheduled or
   manual check runs.

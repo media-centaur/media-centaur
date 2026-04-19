@@ -101,10 +101,11 @@ defmodule MediaCentarr.Watcher.DirValidatorTest do
       fs = stub_fs()
       entry = candidate("/mnt/b", images_dir: "/mnt/a/cache")
       assert %{errors: errors} = DirValidator.validate(entry, existing, fs)
+
       refute Enum.any?(errors, fn
-        {:images_dir, _} -> true
-        _ -> false
-      end)
+               {:images_dir, _} -> true
+               _ -> false
+             end)
     end
 
     test "errors when images_dir cannot be created and does not exist" do
