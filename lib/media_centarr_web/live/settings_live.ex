@@ -802,16 +802,24 @@ defmodule MediaCentarrWeb.SettingsLive do
             </p>
           </div>
 
-          <div class="flex justify-end gap-2 pt-2">
+          <div :if={@apply_phase == :failed} class="flex justify-end gap-2 pt-2">
             <button
-              :if={@apply_phase == :failed}
               type="button"
               phx-click="dismiss_apply_modal"
               data-nav-item
               tabindex="0"
-              class="btn btn-sm"
+              class="btn btn-ghost btn-sm"
             >
               Close
+            </button>
+            <button
+              type="button"
+              phx-click="apply_update"
+              data-nav-item
+              tabindex="0"
+              class="btn btn-primary btn-sm"
+            >
+              Retry
             </button>
           </div>
         </div>

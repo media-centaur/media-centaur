@@ -174,6 +174,61 @@ defmodule MediaCentarr.SelfUpdate.UpdaterTest do
       assert phase in [:failed, :idle]
     end
 
+    # Regression: a previous implementation treated `:failed` as
+    # "apply in progress" and returned `{:error, :already_running}`,
+    # wedging the GenServer until the BEAM restarted. A new apply_pending
+    # call after a failure must reset and start a fresh attempt.
+    test "allows a retry after a previous failure" do
+      UpdateChecker.cache_result({:ok, valid_release()})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.self_update_progress())
+
+      name = :updater_retry_after_fail
+      # Use a process-dictionary switch so the first apply fails and the
+      # second (retry) succeeds, exercising the exact :failed → :preparing
+      # transition the UI depends on.
+      :persistent_term.put({__MODULE__, :toggle_download_fails}, true)
+
+      defmodule ToggleDownloader do
+        def run(_tarball_url, _sha256_url, opts) do
+          key = {MediaCentarr.SelfUpdate.UpdaterTest, :toggle_download_fails}
+
+          if :persistent_term.get(key, false) do
+            :persistent_term.put(key, false)
+            {:error, :simulated_failure}
+          else
+            target = Keyword.fetch!(opts, :target_dir)
+            filename = Keyword.fetch!(opts, :filename)
+            {:ok, %{tarball_path: Path.join(target, filename), sha256: String.duplicate("a", 64)}}
+          end
+        end
+      end
+
+      start_updater(name, downloader: ToggleDownloader)
+
+      assert :ok = Updater.apply_pending(name)
+      assert_receive {:apply_failed, {:download, :simulated_failure}}, 1_000
+
+      # Second attempt must not be rejected as already-running.
+      assert :ok = Updater.apply_pending(name)
+      assert_receive {:progress, :done, _}, 1_000
+    end
+
+    test "allows a retry after a previous :done (handoff survived-BEAM case)" do
+      UpdateChecker.cache_result({:ok, valid_release()})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.self_update_progress())
+
+      name = :updater_retry_after_done
+      start_updater(name)
+
+      assert :ok = Updater.apply_pending(name)
+      assert_receive {:progress, :done, _}, 1_000
+
+      # Don't depend on a race for the state read — assert via the
+      # public retry path instead. If :done were blocking, this second
+      # call would return {:error, :already_running}.
+      assert :ok = Updater.apply_pending(name)
+    end
+
     test "rejects a release whose cached tag somehow fails regex validation" do
       bad_release = %{valid_release() | tag: "not-a-tag"}
       UpdateChecker.cache_result({:ok, bad_release})
