@@ -4,6 +4,24 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.12.0 — 2026-04-19
+
+### New
+
+- **See what's new shows the full release notes.** The disclosure on
+  the System card no longer truncates at 500 characters — it now
+  renders the full release body in a contained, scrollable panel with
+  smaller type so longer changelogs don't overwhelm the page.
+
+### Improved
+
+- **Settings sidebar.** The *Overview* page is now called *System*,
+  matching what the card actually covers (version, updates, release
+  notes). URLs and bookmarks are unchanged.
+- **App card identity.** The tagline on the Media Centarr card has
+  been replaced with the license and copyright line
+  (*MIT License · © 2026 Shawn McCool*).
+
 ## v0.11.0 — 2026-04-19
 
 ### New
