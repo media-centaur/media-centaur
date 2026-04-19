@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.15.2 — 2026-04-19
+
+### Improved
+
+- **Documentation refreshed for the DB-managed-config world.** The
+  README, GitHub Pages landing, contributor `docs/configuration.md`, and
+  the public wiki (*Configuration File*, *Adding Your Library*,
+  *Settings Reference*, *Prowlarr Integration*, *Download Clients*,
+  *First Run*, *Troubleshooting*, *FAQ*) all now describe the current
+  app-managed configuration flow. The shipped `defaults/media-centarr.toml`
+  is documented as containing only `port` and `database_path`; every
+  other setting is edited in *Settings* and persisted to the database.
+
 ## v0.15.1 — 2026-04-19
 
 ### Fixed
