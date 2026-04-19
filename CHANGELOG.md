@@ -4,6 +4,35 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.12.3 — 2026-04-19
+
+### Improved
+
+- **Update progress modal shows the full checklist.** The apply dialog
+  used to show one line that replaced itself on every phase transition.
+  It now renders every step — *Downloading release*, *Extracting files*,
+  *Installing and restarting* — as a persistent row that lights up and
+  checks off as progress happens, so you can see where you are in the
+  process at a glance.
+- **Modal styling is correct.** The backdrop now covers the full
+  viewport instead of leaving the page visible at the edges, and the
+  panel uses the app's standard modal design (centered, clear dark
+  backdrop with blur, scale-in animation).
+
+### Fixed
+
+- **"Restarting the service…" no longer hangs silently.** If the BEAM
+  doesn't die within 30 seconds of the handoff being fired, the modal
+  switches to a warning state showing the exact `systemctl --user
+  restart media-centarr` command to run manually, with a copy button.
+- **Handoff script now writes a diagnostic log.** The shell redirects
+  its own stdout+stderr to `~/.cache/media-centarr/upgrade-staging/
+  <version>-<random>/handoff.log` from its first instruction, so when
+  an update doesn't finish cleanly you can see exactly how far the
+  chain got. The redundant `nohup` wrapper was also removed —
+  `setsid --fork` already creates a new session, and `nohup`'s stdio
+  reopening was interfering with our redirect.
+
 ## v0.12.2 — 2026-04-19
 
 ### Fixed
