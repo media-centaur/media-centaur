@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.12.2 — 2026-04-19
+
+### Fixed
+
+- **Settings > System stuck showing an ancient release.** Manual and
+  on-view update checks refreshed only the in-memory cache, while the
+  durable `Settings.Entry` row kept whatever the scheduled cron last
+  wrote. On every restart the old row re-hydrated the cache for 5
+  minutes, so the "latest known" version could drift weeks behind
+  reality. All check paths now dual-write — the two storage layers
+  stay in sync — and the boot-time check fires unconditionally (the
+  job's uniqueness constraint prevents piling on the cron).
+
 ## v0.12.1 — 2026-04-19
 
 ### Fixed
