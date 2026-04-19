@@ -34,9 +34,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   # of user interaction: things you touch daily come first.
   @sections [
     # System is its own group so it sits alone above everything else.
-    # URL id stays "overview" for backward-compat with any bookmarked links
-    # and existing tests; only the display label is end-user-visible.
-    %{id: "overview", label: "System", group: :overview},
+    %{id: "system", label: "System", group: :system},
     # General — start-of-session setup
     %{id: "services", label: "Services", group: :general},
     %{id: "preferences", label: "Preferences", group: :general},
@@ -124,7 +122,13 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_params(params, _uri, socket) do
-    section = params["section"] || "overview"
+    section =
+      case params["section"] do
+        nil -> "system"
+        # Legacy redirect — older bookmarks pointed at ?section=overview.
+        "overview" -> "system"
+        other -> other
+      end
 
     socket =
       socket
@@ -134,7 +138,7 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, socket}
   end
 
-  defp maybe_auto_check_updates(socket, "overview") do
+  defp maybe_auto_check_updates(socket, "system") do
     if connected?(socket) do
       case UpdateChecker.cached_latest_release() do
         {:fresh, {:ok, release}} ->
@@ -892,7 +896,7 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   # --- Section router ---
 
-  defp section_content(%{active_section: "overview"} = assigns) do
+  defp section_content(%{active_section: "system"} = assigns) do
     groups =
       if assigns.config == %{} do
         []
@@ -1110,53 +1114,6 @@ defmodule MediaCentarrWeb.SettingsLive do
         >
           Add key
         </.link>
-      </div>
-
-      <div class="p-5 rounded-lg glass-surface">
-        <h2 class="text-lg font-semibold">Configuration</h2>
-        <p class="text-sm opacity-50 mt-0.5 mb-4">
-          Structural settings that require editing
-          <code class="font-mono text-xs">media-centarr.toml</code>
-          and restarting.
-        </p>
-
-        <div :if={@config == %{}} class="text-base-content/60 py-4">Loading...</div>
-
-        <dl :if={@config != %{}} class="space-y-2.5 text-sm">
-          <div class="flex justify-between items-baseline gap-4 min-w-0">
-            <dt class="text-base-content/60 shrink-0">Database path</dt>
-            <dd class="flex items-baseline gap-2 min-w-0">
-              <.path_status
-                :if={@config[:database_path]}
-                path={Path.dirname(@config[:database_path])}
-                kind={:directory}
-              />
-              <span class="font-mono text-xs min-w-0 truncate-left" title={@config[:database_path]}>
-                <bdo dir="ltr">{@config[:database_path] || "—"}</bdo>
-              </span>
-            </dd>
-          </div>
-
-          <div class="flex justify-between items-start gap-4 min-w-0">
-            <dt class="text-base-content/60 shrink-0 pt-0.5">Watch directories</dt>
-            <dd class="min-w-0 text-right">
-              <span :if={@config[:watch_dirs] == []} class="text-base-content/40 italic text-xs">
-                None configured
-              </span>
-              <ul :if={@config[:watch_dirs] != []} class="space-y-0.5">
-                <li
-                  :for={dir <- @config[:watch_dirs]}
-                  class="flex items-baseline gap-2 justify-end min-w-0"
-                >
-                  <.path_status path={dir} kind={:directory} />
-                  <span class="font-mono text-xs min-w-0 truncate-left" title={dir}>
-                    <bdo dir="ltr">{dir}</bdo>
-                  </span>
-                </li>
-              </ul>
-            </dd>
-          </div>
-        </dl>
       </div>
 
       <div class="p-5 rounded-lg glass-surface">
