@@ -115,6 +115,20 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
   def apply_progress_text(nil), do: ""
   def apply_progress_text(pct) when is_integer(pct), do: "#{pct}%"
 
+  # --- First-run prompts --------------------------------------------------
+
+  @doc """
+  True when the TMDB API key is missing or empty. The Settings > Overview
+  callout uses this to show a one-click prompt that navigates the user to
+  External Services, where they can paste in a key.
+  """
+  @spec tmdb_key_missing?(any()) :: boolean()
+  def tmdb_key_missing?(nil), do: true
+  def tmdb_key_missing?(""), do: true
+  def tmdb_key_missing?(%{value: value}) when is_binary(value), do: tmdb_key_missing?(value)
+  def tmdb_key_missing?(value) when is_binary(value), do: String.trim(value) == ""
+  def tmdb_key_missing?(_), do: true
+
   @doc "Formats an apply error reason into a human-readable sentence."
   @spec apply_error_label(any()) :: String.t()
   def apply_error_label({:download, reason}), do: "Download failed: #{format_reason(reason)}"
