@@ -16,6 +16,7 @@ defmodule MediaCentarrWeb.SettingsLive do
     ConnectionTest,
     Overview,
     PathCheck,
+    ReleaseNotes,
     SystemSection
   }
 
@@ -717,6 +718,30 @@ defmodule MediaCentarrWeb.SettingsLive do
               View on GitHub →
             </a>
           </div>
+
+          <details
+            :if={@latest_release && SystemSection.show_release_notes?(@update_status)}
+            class="release-notes-disclosure mt-3 pt-3 border-t border-base-content/10"
+          >
+            <summary class="cursor-pointer text-sm text-base-content/70 hover:text-base-content transition-colors inline-flex items-center gap-1.5 select-none">
+              <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
+              <span>See what's new in {@latest_release.tag}</span>
+            </summary>
+            <div class="mt-3 ml-5 pl-4 border-l border-base-content/10">
+              <ReleaseNotes.release_notes body={Map.get(@latest_release, :body_excerpt, "")} />
+              <a
+                :if={@latest_release.html_url != ""}
+                href={@latest_release.html_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-block mt-3 text-xs link link-primary"
+                data-nav-item
+                tabindex="0"
+              >
+                Read full notes on GitHub →
+              </a>
+            </div>
+          </details>
         </div>
       </div>
 

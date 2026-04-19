@@ -115,6 +115,21 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
   def apply_progress_text(nil), do: ""
   def apply_progress_text(pct) when is_integer(pct), do: "#{pct}%"
 
+  @doc """
+  True when the "See what's new" disclosure should be rendered. The
+  `body_excerpt` attached to the latest release drives the content, but
+  the disclosure only makes sense for states where the user has a
+  meaningful remote release to read notes for.
+
+  :idle and :checking have no release yet. {:error, _} is noise.
+  :ahead_of_release is a dev/unreleased build so the "latest" shown
+  might be stale or regressive — hide rather than confuse.
+  """
+  @spec show_release_notes?(update_status()) :: boolean()
+  def show_release_notes?(:update_available), do: true
+  def show_release_notes?(:up_to_date), do: true
+  def show_release_notes?(_), do: false
+
   # --- First-run prompts --------------------------------------------------
 
   @doc """

@@ -107,13 +107,31 @@ jobs:
           tar -tzf "${{ steps.stage.outputs.tarball }}" | grep -q '^share/defaults/media-centarr.toml$' \
             || (echo "::error::Tarball missing share/defaults/media-centarr.toml"; exit 1)
 
-      - name: Write release notes
+      - name: Extract release notes from CHANGELOG
         run: |
-          cat > /tmp/release-notes.md <<'EOF'
+          tag="${{ steps.version.outputs.tag }}"
+          notes=/tmp/release-notes.md
+
+          if [ -f CHANGELOG.md ]; then
+            # Print lines between the `## <tag>` header (exclusive) and
+            # the next `## v` header. Blank leading/trailing lines trimmed.
+            awk -v tag="$tag" '
+              $0 ~ "^## " tag " " { in_section=1; next }
+              in_section && /^## v[0-9]/ { exit }
+              in_section { print }
+            ' CHANGELOG.md | sed -e '/./,$!d' > "$notes"
+          fi
+
+          if [ ! -s "$notes" ]; then
+            cat > "$notes" <<EOF
           Linux x86_64 release.
 
           Install: see [docs/installation.md](https://github.com/${{ github.repository }}/blob/main/docs/installation.md)
           EOF
+          fi
+
+          echo "--- Release notes for $tag ---"
+          cat "$notes"
 
       - name: Create or update GitHub Release
         env:

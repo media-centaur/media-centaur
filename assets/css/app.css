@@ -1057,3 +1057,18 @@ body:has(.modal-backdrop[data-state="open"]) {
   background: var(--color-base-100);
   color: var(--color-base-content);
 }
+
+/* --- Release notes disclosure (Settings > Overview) ------------------- */
+
+.release-notes-disclosure > summary {
+  list-style: none;
+}
+.release-notes-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.release-notes-disclosure .disclosure-caret {
+  transition: transform 200ms ease-out;
+}
+.release-notes-disclosure[open] > summary .disclosure-caret {
+  transform: rotate(90deg);
+}
