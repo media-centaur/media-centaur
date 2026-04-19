@@ -240,7 +240,10 @@ defmodule MediaCentarr.Config do
     }
   end
 
-  defp normalize_toml_entry(_), do: nil
+  defp normalize_toml_entry(other) do
+    Log.warning(:library, "ignoring malformed watch_dirs TOML entry: #{inspect(other)}")
+    nil
+  end
 
   defp new_uuid, do: Ecto.UUID.generate()
 

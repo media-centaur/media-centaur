@@ -15,6 +15,31 @@ defmodule MediaCentarr.Watcher.SupervisorReconcileTest do
     :ok
   end
 
+  test "name-only change keeps the same watcher pid (no stop/start)" do
+    tmp = Path.join(System.tmp_dir!(), "watcher-name-only-test-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(tmp)
+    on_exit(fn -> File.rm_rf!(tmp) end)
+
+    :ok =
+      Config.put_watch_dirs([
+        %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => nil}
+      ])
+
+    Process.sleep(150)
+    [{pid1, _}] = Registry.lookup(MediaCentarr.Watcher.Registry, tmp)
+
+    :ok =
+      Config.put_watch_dirs([
+        %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => "Movies"}
+      ])
+
+    Process.sleep(150)
+    [{pid2, _}] = Registry.lookup(MediaCentarr.Watcher.Registry, tmp)
+
+    assert pid1 == pid2, "name-only change should not restart the watcher"
+  end
+
   test "put_watch_dirs triggers reconcile that starts and stops watchers" do
     tmp = Path.join(System.tmp_dir!(), "watcher-reconcile-test-#{System.unique_integer([:positive])}")
 
