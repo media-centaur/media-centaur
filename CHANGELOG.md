@@ -4,6 +4,26 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.11.0 — 2026-04-19
+
+### New
+
+- **Escape hatches for when *Update now* fails.** The Updates card on
+  Settings > Overview has a new *Prefer the terminal?* disclosure with
+  three copy-button commands covering the common recovery paths
+  (standard update, force-reinstall current version, full bootstrap).
+  The failure dialog also shows the same fallback command inline so you
+  can recover with a single copy-paste rather than hunting for docs.
+- **`--force` on the CLI updater.** `media-centarr-install --update
+  --force` reinstalls the current latest tag even when the version
+  matches — useful when a previous in-app apply left partial state and
+  you want to re-extract and re-migrate cleanly without bumping to a
+  new release.
+- **Troubleshooting section in the README.** A *When auto-update fails*
+  block documents the recovery ladder (service restart → CLI update
+  → `--force` → bootstrap reinstaller) so users who reach the README
+  before the UI still find the fallback commands immediately.
+
 ## v0.10.2 — 2026-04-19
 
 ### Fixed
