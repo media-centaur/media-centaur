@@ -659,13 +659,25 @@ defmodule MediaCentarrWeb.SettingsLive do
             update_status={@update_status}
             latest_release={@latest_release}
             apply_phase={@apply_phase}
-            apply_progress={@apply_progress}
-            apply_error={@apply_error}
-            apply_failed_at={@apply_failed_at}
             tmdb_missing={@tmdb_missing}
           />
         </div>
       </div>
+
+      <%!--
+        Apply-progress modal is a LAYOUT-LEVEL overlay, not a content
+        row. Keeping it here — a sibling of the page's content root —
+        matches the pattern used elsewhere in the app (see
+        `modal_shell` in library_live) so its `position: fixed`
+        containing block is the viewport, not some content wrapper.
+      --%>
+      <.apply_progress_modal
+        apply_phase={@apply_phase}
+        apply_progress={@apply_progress}
+        apply_error={@apply_error}
+        apply_failed_at={@apply_failed_at}
+        latest_release={@latest_release}
+      />
     </Layouts.app>
     """
   end
@@ -884,135 +896,6 @@ defmodule MediaCentarrWeb.SettingsLive do
         >
           Add key
         </.link>
-      </div>
-
-      <%!--
-        Apply-progress modal. Always in the DOM per UI conventions (the
-        `backdrop-filter: blur()` compositing cost would be paid on
-        every conditional insertion). Visibility toggles via `data-state`.
-      --%>
-      <div
-        class="modal-backdrop"
-        data-state={if SystemSection.apply_visible?(@apply_phase), do: "open", else: "closed"}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="apply-modal-title"
-      >
-        <div class="modal-panel modal-panel-sm p-6 space-y-5">
-          <div class="space-y-1">
-            <h3 id="apply-modal-title" class="text-lg font-semibold">
-              Updating
-              <span :if={@latest_release} class="font-mono text-sm text-base-content/60 ml-1">
-                {@latest_release.tag}
-              </span>
-            </h3>
-            <p class="text-sm text-base-content/60">
-              This usually takes under a minute. The app will restart when it finishes.
-            </p>
-          </div>
-
-          <ol class="space-y-3">
-            <.apply_phase_row
-              :for={phase <- SystemSection.visible_phases()}
-              phase={phase}
-              current={@apply_phase}
-              failed_at={@apply_failed_at}
-              progress={@apply_progress}
-            />
-          </ol>
-
-          <div
-            :if={@apply_phase == :failed}
-            class="pt-4 border-t border-base-content/10 space-y-3"
-          >
-            <div class="space-y-1">
-              <p class="text-sm text-error">
-                {SystemSection.apply_error_label(@apply_error)}
-              </p>
-              <p class="text-xs text-base-content/50">
-                The running install is untouched.
-              </p>
-            </div>
-
-            <div class="space-y-1">
-              <p class="text-xs font-medium text-base-content/70">
-                If it keeps failing, update from a terminal:
-              </p>
-              <div class="glass-inset rounded-md p-2 flex items-center gap-2">
-                <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
-                  {SystemSection.terminal_recovery_command()}
-                </code>
-                <button
-                  id="copy-terminal-recovery"
-                  type="button"
-                  phx-hook="CopyButton"
-                  data-copy-text={SystemSection.terminal_recovery_command()}
-                  class="btn btn-xs btn-ghost shrink-0"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            :if={@apply_phase == :done_stuck}
-            class="pt-4 border-t border-base-content/10 space-y-3"
-          >
-            <div class="space-y-1">
-              <p class="text-sm text-warning">
-                The service didn't restart on its own.
-              </p>
-              <p class="text-xs text-base-content/60">
-                The new release was staged successfully. Restart the service manually to finish:
-              </p>
-            </div>
-
-            <div class="glass-inset rounded-md p-2 flex items-center gap-2">
-              <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
-                systemctl --user restart media-centarr
-              </code>
-              <button
-                id="copy-stuck-restart"
-                type="button"
-                phx-hook="CopyButton"
-                data-copy-text="systemctl --user restart media-centarr"
-                class="btn btn-xs btn-ghost shrink-0"
-                data-nav-item
-                tabindex="0"
-              >
-                Copy
-              </button>
-            </div>
-          </div>
-
-          <div
-            :if={@apply_phase in [:failed, :done_stuck]}
-            class="flex justify-end gap-2 pt-2"
-          >
-            <button
-              type="button"
-              phx-click="dismiss_apply_modal"
-              data-nav-item
-              tabindex="0"
-              class="btn btn-ghost btn-sm"
-            >
-              Close
-            </button>
-            <button
-              :if={@apply_phase == :failed}
-              type="button"
-              phx-click="apply_update"
-              data-nav-item
-              tabindex="0"
-              class="btn btn-primary btn-sm"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
       </div>
 
       <div class="p-5 rounded-lg glass-surface">
@@ -1891,6 +1774,144 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp phase_text_class(:active), do: "text-sm text-base-content font-medium"
   defp phase_text_class(:done), do: "text-sm text-base-content/70"
   defp phase_text_class(:failed), do: "text-sm text-error"
+
+  # Modal rendered at the `Layouts.app` slot root so its `position:
+  # fixed` containing block is the viewport, not some nested content
+  # wrapper. Same placement pattern as `ModalShell.modal_shell` in
+  # library_live — proven to render over the full viewport.
+  attr :apply_phase, :atom, default: nil
+  attr :apply_progress, :any, default: nil
+  attr :apply_error, :any, default: nil
+  attr :apply_failed_at, :atom, default: nil
+  attr :latest_release, :map, default: nil
+
+  defp apply_progress_modal(assigns) do
+    ~H"""
+    <div
+      class="modal-backdrop"
+      data-state={if SystemSection.apply_visible?(@apply_phase), do: "open", else: "closed"}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="apply-modal-title"
+    >
+      <div class="modal-panel modal-panel-sm p-6 space-y-5">
+        <div class="space-y-1">
+          <h3 id="apply-modal-title" class="text-lg font-semibold">
+            Updating
+            <span :if={@latest_release} class="font-mono text-sm text-base-content/60 ml-1">
+              {@latest_release.tag}
+            </span>
+          </h3>
+          <p class="text-sm text-base-content/60">
+            This usually takes under a minute. The app will restart when it finishes.
+          </p>
+        </div>
+
+        <ol class="space-y-3">
+          <.apply_phase_row
+            :for={phase <- SystemSection.visible_phases()}
+            phase={phase}
+            current={@apply_phase}
+            failed_at={@apply_failed_at}
+            progress={@apply_progress}
+          />
+        </ol>
+
+        <div
+          :if={@apply_phase == :failed}
+          class="pt-4 border-t border-base-content/10 space-y-3"
+        >
+          <div class="space-y-1">
+            <p class="text-sm text-error">
+              {SystemSection.apply_error_label(@apply_error)}
+            </p>
+            <p class="text-xs text-base-content/50">
+              The running install is untouched.
+            </p>
+          </div>
+
+          <div class="space-y-1">
+            <p class="text-xs font-medium text-base-content/70">
+              If it keeps failing, update from a terminal:
+            </p>
+            <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+              <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                {SystemSection.terminal_recovery_command()}
+              </code>
+              <button
+                id="copy-terminal-recovery"
+                type="button"
+                phx-hook="CopyButton"
+                data-copy-text={SystemSection.terminal_recovery_command()}
+                class="btn btn-xs btn-ghost shrink-0"
+                data-nav-item
+                tabindex="0"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          :if={@apply_phase == :done_stuck}
+          class="pt-4 border-t border-base-content/10 space-y-3"
+        >
+          <div class="space-y-1">
+            <p class="text-sm text-warning">
+              The service didn't restart on its own.
+            </p>
+            <p class="text-xs text-base-content/60">
+              The new release was staged successfully. Restart the service manually to finish:
+            </p>
+          </div>
+
+          <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+            <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+              systemctl --user restart media-centarr
+            </code>
+            <button
+              id="copy-stuck-restart"
+              type="button"
+              phx-hook="CopyButton"
+              data-copy-text="systemctl --user restart media-centarr"
+              class="btn btn-xs btn-ghost shrink-0"
+              data-nav-item
+              tabindex="0"
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <div
+          :if={@apply_phase in [:failed, :done_stuck]}
+          class="flex justify-end gap-2 pt-2"
+        >
+          <button
+            type="button"
+            phx-click="dismiss_apply_modal"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-ghost btn-sm"
+          >
+            Close
+          </button>
+          <button
+            :if={@apply_phase == :failed}
+            type="button"
+            phx-click="apply_update"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-primary btn-sm"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
 
   defp overview_summary(0), do: "Configuration looks healthy."
 

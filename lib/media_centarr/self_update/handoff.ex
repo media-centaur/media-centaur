@@ -49,6 +49,7 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
   def spawn_detached(staged_root, opts \\ []) do
     spawn_fn = Keyword.get(opts, :spawn_fn, &default_spawn/1)
     home = Keyword.get(opts, :home, System.user_home!())
+    env_getter = Keyword.get(opts, :env_getter, &System.get_env/1)
 
     installer = Path.join(staged_root, "bin/media-centarr-install")
     log_file = Path.join(staged_root, "handoff.log")
@@ -69,24 +70,56 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
     exec "$1"
     """
 
-    args = [
-      "env",
-      "-i",
-      "HOME=" <> home,
-      "PATH=/usr/bin:/bin",
-      "setsid",
-      "--fork",
-      "sh",
-      "-c",
-      script,
-      "--",
-      installer,
-      log_file
-    ]
+    # `systemctl --user` needs XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS
+    # to reach the user's systemd instance. Without them the installer's
+    # `has_systemd_user` probe fails, no unit gets installed, and the
+    # service never gets restarted — the exact failure mode where the
+    # new release is staged on disk but the running BEAM keeps running.
+    systemd_env =
+      Enum.reject(
+        [
+          pass_through(env_getter, "XDG_RUNTIME_DIR"),
+          pass_through(env_getter, "DBUS_SESSION_BUS_ADDRESS"),
+          pass_through(env_getter, "XDG_DATA_DIRS"),
+          pass_through(env_getter, "XDG_CONFIG_DIRS")
+        ],
+        &is_nil/1
+      )
+
+    args =
+      [
+        "env",
+        "-i",
+        "HOME=" <> home,
+        "PATH=/usr/bin:/bin"
+      ] ++
+        systemd_env ++
+        [
+          "setsid",
+          "--fork",
+          "sh",
+          "-c",
+          script,
+          "--",
+          installer,
+          log_file
+        ]
 
     Log.info(:system, "handing off to staged installer at #{staged_root}")
     _ = spawn_fn.(args)
     :ok
+  end
+
+  # Returns `"NAME=value"` when the env var is present and non-empty in
+  # the caller's environment, or `nil` if it isn't set. Used to forward
+  # the minimum set of env vars `systemctl --user` needs through
+  # `env -i`, without re-widening the attack surface to the whole env.
+  defp pass_through(env_getter, name) do
+    case env_getter.(name) do
+      nil -> nil
+      "" -> nil
+      value -> "#{name}=#{value}"
+    end
   end
 
   defp default_spawn(args) do
