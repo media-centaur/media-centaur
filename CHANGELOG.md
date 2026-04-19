@@ -4,6 +4,34 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.15.0 — 2026-04-19
+
+### New
+
+- **Excluded directories are now managed in the app.** A new *Excluded
+  Directories* card lives next to *Watch Directories* under *Settings →
+  Library*. Add a path to skip a sub-tree inside one of your watch
+  directories — handy for downloads-cache folders, trash bins, or any
+  area with transient files you don't want indexed. Changes take effect
+  immediately; no restart.
+
+### Improved
+
+- **All runtime configuration lives in the database.** Every setting
+  that has a UI (TMDB key, Prowlarr, download client, MPV paths, extras
+  and skip directory names, file-absence TTL, auto-approve threshold,
+  release-tracking cadence, and excluded directories) is now edited
+  exclusively in *Settings*. Your existing `~/.config/media-centarr/`
+  TOML values are imported automatically on first boot, after which
+  the TOML is no longer consulted for those keys — the DB is the
+  single source of truth. Editing the TOML post-upgrade is a no-op;
+  use the UI.
+- **Tighter `media-centarr.toml`.** The shipped default config now
+  contains only the two keys that genuinely have to live outside the
+  database: the HTTP `port` and the `database_path` itself. Every
+  other key was either migrated to the DB or deleted as unused
+  (`recently_watched_count`, legacy `media_dir` fallback).
+
 ## v0.14.0 — 2026-04-19
 
 ### New
