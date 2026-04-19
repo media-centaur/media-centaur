@@ -144,6 +144,37 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
   def tmdb_key_missing?(value) when is_binary(value), do: String.trim(value) == ""
   def tmdb_key_missing?(_), do: true
 
+  # --- Terminal recovery commands ----------------------------------------
+
+  @install_root "~/.local/lib/media-centarr"
+  @bootstrap_url "https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh"
+
+  @doc """
+  Returns the CLI command that runs the bundled shell installer's
+  `--update` flow. This is the primary fallback when the in-app updater
+  fails — the shell installer does not depend on the running BEAM and
+  does the full download/verify/migrate/restart dance itself.
+  """
+  @spec terminal_recovery_command() :: String.t()
+  def terminal_recovery_command, do: "#{@install_root}/current/bin/media-centarr-install --update"
+
+  @doc """
+  Returns the CLI command that re-runs the bundled installer even when
+  it is already on the latest tag. Useful when a previous apply failed
+  partway and left the install in a half-applied state — `--force`
+  re-extracts and re-migrates without needing a new version tag.
+  """
+  @spec force_recovery_command() :: String.t()
+  def force_recovery_command, do: "#{@install_root}/current/bin/media-centarr-install --update --force"
+
+  @doc """
+  Returns the `curl | sh` one-liner that bootstraps a fresh install
+  over the top. Used as a last-resort recovery when even the bundled
+  installer is missing or corrupt.
+  """
+  @spec bootstrap_install_command() :: String.t()
+  def bootstrap_install_command, do: "curl -fsSL #{@bootstrap_url} | sh"
+
   @doc "Formats an apply error reason into a human-readable sentence."
   @spec apply_error_label(any()) :: String.t()
   def apply_error_label({:download, reason}), do: "Download failed: #{format_reason(reason)}"

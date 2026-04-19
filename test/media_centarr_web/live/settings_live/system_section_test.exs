@@ -113,6 +113,28 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSectionTest do
     end
   end
 
+  describe "recovery command helpers" do
+    test "terminal_recovery_command/0 points at the bundled installer with --update" do
+      cmd = SystemSection.terminal_recovery_command()
+      assert cmd =~ "~/.local/lib/media-centarr/current/bin/media-centarr-install"
+      assert cmd =~ "--update"
+      refute cmd =~ "--force"
+    end
+
+    test "force_recovery_command/0 adds --force for stuck-state recovery" do
+      cmd = SystemSection.force_recovery_command()
+      assert cmd =~ "--update"
+      assert cmd =~ "--force"
+    end
+
+    test "bootstrap_install_command/0 is a curl | sh one-liner to the public installer" do
+      cmd = SystemSection.bootstrap_install_command()
+      assert cmd =~ "curl"
+      assert cmd =~ "| sh"
+      assert cmd =~ "installer/install.sh"
+    end
+  end
+
   describe "tmdb_key_missing?/1" do
     test "returns true for nil, empty string, whitespace, and unrecognized shapes" do
       assert SystemSection.tmdb_key_missing?(nil)

@@ -25,6 +25,7 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/media_centarr"
 import {createInputHook} from "./input/index"
 import {Console} from "./hooks/console"
+import {CopyButton} from "./hooks/copy_button"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -35,6 +36,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     ...colocatedHooks,
     InputSystem: createInputHook(),
     Console,
+    CopyButton,
     ScrollToResume: {
       mounted() { this._scrollToTarget() },
       updated() {

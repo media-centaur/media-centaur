@@ -742,6 +742,80 @@ defmodule MediaCentarrWeb.SettingsLive do
               </a>
             </div>
           </details>
+
+          <details class="release-notes-disclosure mt-2">
+            <summary class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none">
+              <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
+              <span>Prefer the terminal?</span>
+            </summary>
+            <div class="mt-3 ml-5 pl-4 border-l border-base-content/10 space-y-3 text-sm">
+              <div class="space-y-1">
+                <p class="text-xs text-base-content/70">
+                  Standard update (same as the button):
+                </p>
+                <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+                  <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                    {SystemSection.terminal_recovery_command()}
+                  </code>
+                  <button
+                    id="copy-terminal-update"
+                    type="button"
+                    phx-hook="CopyButton"
+                    data-copy-text={SystemSection.terminal_recovery_command()}
+                    class="btn btn-xs btn-ghost shrink-0"
+                    data-nav-item
+                    tabindex="0"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <p class="text-xs text-base-content/70">
+                  Force a reinstall (if a previous apply got stuck):
+                </p>
+                <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+                  <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                    {SystemSection.force_recovery_command()}
+                  </code>
+                  <button
+                    id="copy-terminal-force"
+                    type="button"
+                    phx-hook="CopyButton"
+                    data-copy-text={SystemSection.force_recovery_command()}
+                    class="btn btn-xs btn-ghost shrink-0"
+                    data-nav-item
+                    tabindex="0"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <p class="text-xs text-base-content/70">
+                  Or reinstall from scratch:
+                </p>
+                <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+                  <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                    {SystemSection.bootstrap_install_command()}
+                  </code>
+                  <button
+                    id="copy-terminal-bootstrap"
+                    type="button"
+                    phx-hook="CopyButton"
+                    data-copy-text={SystemSection.bootstrap_install_command()}
+                    class="btn btn-xs btn-ghost shrink-0"
+                    data-nav-item
+                    tabindex="0"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -793,13 +867,37 @@ defmodule MediaCentarrWeb.SettingsLive do
             automatically to the new version.
           </p>
 
-          <div :if={@apply_phase == :failed} class="space-y-2">
-            <p class="text-sm text-error">
-              {SystemSection.apply_error_label(@apply_error)}
-            </p>
-            <p class="text-xs text-base-content/50">
-              The running install is untouched.
-            </p>
+          <div :if={@apply_phase == :failed} class="space-y-3">
+            <div class="space-y-1">
+              <p class="text-sm text-error">
+                {SystemSection.apply_error_label(@apply_error)}
+              </p>
+              <p class="text-xs text-base-content/50">
+                The running install is untouched.
+              </p>
+            </div>
+
+            <div class="pt-3 border-t border-base-content/10 space-y-2">
+              <p class="text-xs font-medium text-base-content/70">
+                If it keeps failing, update from a terminal:
+              </p>
+              <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+                <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+                  {SystemSection.terminal_recovery_command()}
+                </code>
+                <button
+                  id="copy-terminal-recovery"
+                  type="button"
+                  phx-hook="CopyButton"
+                  data-copy-text={SystemSection.terminal_recovery_command()}
+                  class="btn btn-xs btn-ghost shrink-0"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
           </div>
 
           <div :if={@apply_phase == :failed} class="flex justify-end gap-2 pt-2">
