@@ -4,6 +4,35 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.13.0 — 2026-04-19
+
+### New
+
+- **Service card on Settings > System.** A new *Service* card shows the
+  current systemd state (running / stopped / not installed / not
+  running under systemd) as a coloured badge, and — when systemd is
+  available — offers **Restart** and **Stop** actions with a
+  confirmation dialog. Both actions use `systemctl --user --no-block`
+  so they return immediately and the restart cycle completes
+  asynchronously; the browser reconnects on its own when the BEAM is
+  back.
+- **Service details disclosure.** A *Show service details* toggle on
+  the card reveals the full `systemctl --user status` output in a
+  scrollable monospace panel — useful when triaging a failed restart
+  or checking recent activity without leaving the page.
+
+### Fixed
+
+- **Image-downloader test flake.** `ImagesTest` and
+  `ImageProcessorTest` both stubbed `Application.put_env(:media_centarr,
+  :image_http_client, …)` globally. Under `async: true` their setups
+  raced, causing the 404 test (and others) to occasionally see a
+  stub from a neighbour — showing `{:image_open_failed, "Failed to
+  find load buffer"}` instead of `{:http_error, 404, _}`. The
+  override now lives in the process dict (per-process, auto-cleans on
+  test exit) and sibling test files can no longer stomp on each
+  other.
+
 ## v0.12.6 — 2026-04-19
 
 ### Fixed
