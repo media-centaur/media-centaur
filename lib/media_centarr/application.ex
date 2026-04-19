@@ -15,6 +15,7 @@ defmodule MediaCentarr.Application do
       MediaCentarr.Console,
       MediaCentarr.Acquisition,
       MediaCentarr.WatchHistory,
+      MediaCentarr.SelfUpdate,
       MediaCentarr.TMDB,
       MediaCentarrWeb
     ]
@@ -71,6 +72,14 @@ defmodule MediaCentarr.Application do
 
     result = Supervisor.start_link(children, opts)
     MediaCentarr.Config.load_runtime_overrides()
+
+    # Hydrate the update-check cache from persisted state and, if the
+    # last check is stale, enqueue a fresh one. Skipped in test mode so
+    # the suite doesn't reach out to GitHub or fire inline Oban jobs.
+    if Application.get_env(:media_centarr, :environment, :dev) != :test do
+      MediaCentarr.SelfUpdate.boot!()
+    end
+
     result
   end
 

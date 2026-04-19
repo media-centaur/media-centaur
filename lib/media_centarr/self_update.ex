@@ -25,12 +25,62 @@ defmodule MediaCentarr.SelfUpdate do
   strict semver regex before being used anywhere. A compromised
   GitHub account defeats these checks — release signing is tracked
   as a follow-up.
-
-  ## Current surface
-
-  The initial scaffold exposes the moved `UpdateChecker` module. The
-  facade functions (`subscribe/0`, `check_now/0`, `apply_pending/0`,
-  `current_status/0`, `cached_release/0`) land alongside the
-  `CheckerJob`, `Updater`, and related modules in follow-up slices.
   """
+
+  alias MediaCentarr.SelfUpdate.{CheckerJob, Storage, UpdateChecker}
+  alias MediaCentarr.Topics
+
+  @boot_check_delay_seconds 30
+  @stale_ttl_ms :timer.hours(6)
+
+  @doc """
+  Subscribes the caller to `self_update:status` — `{:check_started}` and
+  `{:check_complete, outcome}` messages fire here when the scheduled or
+  manual check runs.
+  """
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.self_update_status())
+  end
+
+  @doc """
+  Enqueues a one-off update check immediately.
+
+  Returns `{:ok, job}` or `{:error, reason}`. Deduplicates against an
+  already-scheduled job.
+  """
+  @spec check_now() :: {:ok, Oban.Job.t()} | {:error, term()}
+  def check_now, do: CheckerJob.enqueue_now()
+
+  @doc """
+  Returns the last known release — either freshly cached in
+  `:persistent_term` or hydrated from Settings.Entry at boot — or
+  `:none` when nothing has been observed yet.
+  """
+  @spec cached_release() :: {:ok, map()} | :none
+  def cached_release do
+    case UpdateChecker.cached_latest_release() do
+      {:fresh, {:ok, release}} -> {:ok, release}
+      {:fresh, {:error, _}} -> :none
+      :stale -> :none
+    end
+  end
+
+  @doc """
+  App-boot hydration. Reads the persisted `latest_known` entry into the
+  hot-path `:persistent_term` cache and enqueues a fresh check when the
+  last persisted check is stale.
+  """
+  @spec boot!() :: :ok
+  def boot! do
+    :ok = Storage.hydrate_cache()
+
+    if Storage.stale?(@stale_ttl_ms) do
+      # Boot delay keeps the first HTTP call off the supervision-start
+      # hot path — the app is serving requests long before this fires.
+      _ = CheckerJob.enqueue_after(@boot_check_delay_seconds)
+    end
+
+    :ok
+  end
 end

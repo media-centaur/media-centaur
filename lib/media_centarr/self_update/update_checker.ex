@@ -35,8 +35,13 @@ defmodule MediaCentarr.SelfUpdate.UpdateChecker do
           version: String.t(),
           tag: String.t(),
           published_at: DateTime.t(),
-          html_url: String.t()
+          html_url: String.t(),
+          body_excerpt: String.t()
         }
+
+  # Release notes are truncated at the API boundary — downstream code
+  # doesn't need to know how long the original body was.
+  @body_excerpt_limit 500
 
   @type classification :: :update_available | :up_to_date | :ahead_of_release
 
@@ -103,12 +108,17 @@ defmodule MediaCentarr.SelfUpdate.UpdateChecker do
          version: String.trim_leading(tag_name, "v"),
          tag: tag_name,
          published_at: published_at,
-         html_url: html_url(body)
+         html_url: html_url(body),
+         body_excerpt: body_excerpt(body["body"])
        }}
     end
   end
 
   defp parse_release(_), do: {:error, :malformed}
+
+  defp body_excerpt(nil), do: ""
+  defp body_excerpt(text) when is_binary(text), do: String.slice(text, 0, @body_excerpt_limit)
+  defp body_excerpt(_), do: ""
 
   @doc """
   Validates that a tag string matches the strict release tag shape.
