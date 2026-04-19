@@ -137,8 +137,12 @@ defmodule MediaCentarr.SelfUpdate.Stager do
     end
   end
 
+  # The Downloader writes the tarball INTO this same directory before
+  # we're called, so we must not `rm_rf` it — that would delete the
+  # very file `:erl_tar.extract/2` is about to read. Ensuring existence
+  # + tightening permissions is enough; staging dirs always have a
+  # random suffix so there is no prior-run collision to clean up.
   defp prepare_staging(dir) do
-    File.rm_rf!(dir)
     File.mkdir_p!(dir)
     File.chmod!(dir, 0o700)
     :ok

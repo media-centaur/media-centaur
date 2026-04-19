@@ -119,6 +119,30 @@ defmodule MediaCentarr.SelfUpdate.StagerTest do
       # Extract the permission bits — ignore the file-type high bits.
       assert Bitwise.band(mode, 0o777) == 0o700
     end
+
+    # Regression: the real Updater pipeline writes the tarball INTO the
+    # staging dir (via Downloader.target_dir) and then asks the Stager to
+    # extract INTO that same dir. An earlier Stager implementation did
+    # `File.rm_rf!(target_dir)` during prepare_staging — which deleted the
+    # very tarball it was about to read, producing `{:tar_error, {path, :enoent}}`.
+    test "extracts successfully when the tarball lives inside target_dir" do
+      target = tmp_dir("inside")
+      File.mkdir_p!(target)
+
+      # Build a fixture tarball externally, then drop it INTO target before
+      # calling extract — mimics the real Downloader → Stager handoff.
+      external_tarball =
+        build_tarball(Enum.map(@required, fn path -> {path, "stub"} end))
+
+      tarball_in_target = Path.join(target, "media-centarr-9.9.9-linux-x86_64.tar.gz")
+      File.cp!(external_tarball, tarball_in_target)
+
+      assert {:ok, ^target} = Stager.extract(tarball_in_target, target)
+      assert File.exists?(Path.join(target, "bin/media-centarr-install"))
+      # The tarball itself should still be present — the extract step
+      # must not wipe it out before reading.
+      assert File.exists?(tarball_in_target)
+    end
   end
 
   describe "extract/3 — failure paths" do
