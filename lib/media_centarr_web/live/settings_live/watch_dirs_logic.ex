@@ -46,9 +46,6 @@ defmodule MediaCentarrWeb.SettingsLive.WatchDirsLogic do
 
   def error_message({:dir, :unmounted, mount}), do: "Warning: #{mount} is not currently mounted."
 
-  def error_message({:images_dir, :inside_watch_dir}),
-    do: "Images directory cannot live inside a watch directory."
-
   def error_message({:images_dir, :unwritable}),
     do: "Images directory is not writable and cannot be created."
 
