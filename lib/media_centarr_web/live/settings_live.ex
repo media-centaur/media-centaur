@@ -552,10 +552,12 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_info({:progress, :done, pct}, socket) do
-    # If the BEAM doesn't die within 30s, something about the handoff
-    # didn't actually trigger a service restart. Surface a diagnostic
-    # panel instead of sitting on "Restarting the service…" forever.
-    Process.send_after(self(), :apply_done_stuck, 30_000)
+    # A normal restart cycle — BEAM dies, systemd starts the new release,
+    # LiveView reconnects — completes in 2-3 seconds. If the BEAM hasn't
+    # died within 6s, the handoff didn't actually trigger a restart.
+    # Surface a diagnostic panel instead of sitting on "Restarting the
+    # service…" indefinitely.
+    Process.send_after(self(), :apply_done_stuck, 6_000)
     {:noreply, assign(socket, apply_phase: :done, apply_progress: pct)}
   end
 
