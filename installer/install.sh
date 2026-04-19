@@ -56,6 +56,10 @@ need awk
 # ---- arg parsing ----------------------------------------------------------
 
 requested_tag=""
+# Flags we don't recognize locally get passed through to the bundled
+# installer — this keeps `curl … | sh -s -- --no-service` working without
+# the bootstrap having to keep pace with every bundled-installer flag.
+forward_args=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --version) requested_tag="$2"; shift 2 ;;
@@ -64,7 +68,15 @@ while [ $# -gt 0 ]; do
             sed -n '2,/^$/p' "$0" 2>/dev/null | sed 's/^# //;s/^#$//' || true
             exit 0
             ;;
-        *) die "Unknown flag: $1" ;;
+        *)
+            # Preserve spacing-safe quoting for argv pass-through.
+            if [ -z "$forward_args" ]; then
+                forward_args="$1"
+            else
+                forward_args="$forward_args $1"
+            fi
+            shift
+            ;;
     esac
 done
 
@@ -110,4 +122,5 @@ bundled_installer="$tmpdir/extract/bin/media-centarr-install"
 [ -x "$bundled_installer" ] || die "Tarball missing bin/media-centarr-install — was this built before the install flow shipped?"
 
 banner "Handing off to bundled installer"
-exec "$bundled_installer"
+# shellcheck disable=SC2086 # intentional word-split of forward_args
+exec "$bundled_installer" $forward_args
