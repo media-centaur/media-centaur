@@ -7,7 +7,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSection do
   logic extraction). Tested with `async: true` against plain data.
   """
 
-  alias MediaCentarr.UpdateChecker
+  alias MediaCentarr.SelfUpdate.UpdateChecker
 
   @type update_status ::
           :idle

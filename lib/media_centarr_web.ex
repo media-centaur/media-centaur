@@ -11,6 +11,7 @@ defmodule MediaCentarrWeb do
       MediaCentarr.Console,
       MediaCentarr.Acquisition,
       MediaCentarr.WatchHistory,
+      MediaCentarr.SelfUpdate,
       MediaCentarr.TMDB
     ],
     exports: [Endpoint]

@@ -1,19 +1,27 @@
-defmodule MediaCentarr.UpdateChecker do
-  use Boundary, top_level?: true, check: [in: false, out: false]
-
+defmodule MediaCentarr.SelfUpdate.UpdateChecker do
   @moduledoc """
   Queries GitHub Releases for the latest Media Centarr release and compares
   it against the running version.
 
   Uses `Req` with a base client cached in `:persistent_term`. The public
   `latest_release/1` function accepts an optional `%Req.Request{}` for
-  test stubbing (see `test/media_centarr/update_checker_test.exs`).
+  test stubbing (see `test/media_centarr/self_update/update_checker_test.exs`).
 
   ## Endpoint
 
       GET https://api.github.com/repos/media-centarr/media-centarr/releases/latest
 
   The API is public; rate limit is 60 req/hour per IP without auth.
+
+  ## Tag validation
+
+  The API's `tag_name` is never trusted verbatim. Every parsed tag must
+  match a strict semver shape (`v<major>.<minor>.<patch>` with an
+  optional `-<prerelease>` suffix composed of alphanumerics and dots).
+  Anything else is rejected as `:invalid_tag` — this closes the door on
+  tag-injection attacks that could smuggle shell metacharacters or
+  path components when the tag is later interpolated into URLs or
+  shell commands.
   """
 
   require MediaCentarr.Log, as: Log
@@ -21,6 +29,7 @@ defmodule MediaCentarr.UpdateChecker do
   @base_url "https://api.github.com"
   @repo "media-centarr/media-centarr"
   @cache_ttl_ms :timer.minutes(5)
+  @tag_regex ~r/^v\d+\.\d+\.\d+(-[A-Za-z0-9\.]+)?$/
 
   @type release :: %{
           version: String.t(),
@@ -61,12 +70,12 @@ defmodule MediaCentarr.UpdateChecker do
   Fetches the latest GitHub release and returns it as a normalized map.
 
   Returns `{:ok, release}`, `{:error, :not_found}`, `{:error, :malformed}`,
-  `{:error, {:http_error, status}}`, or `{:error, reason}` on transport
-  failure.
+  `{:error, :invalid_tag}`, `{:error, {:http_error, status}}`, or
+  `{:error, reason}` on transport failure.
   """
   @spec latest_release(Req.Request.t()) ::
           {:ok, release()}
-          | {:error, :not_found | :malformed | {:http_error, integer()} | any()}
+          | {:error, :not_found | :malformed | :invalid_tag | {:http_error, integer()} | any()}
   def latest_release(client \\ default_client()) do
     Log.info(:system, "checking for updates — GitHub releases")
 
@@ -87,18 +96,49 @@ defmodule MediaCentarr.UpdateChecker do
   end
 
   defp parse_release(%{"tag_name" => tag_name} = body) when is_binary(tag_name) do
-    with {:ok, published_at} <- parse_published_at(body["published_at"]) do
+    with :ok <- validate_tag(tag_name),
+         {:ok, published_at} <- parse_published_at(body["published_at"]) do
       {:ok,
        %{
          version: String.trim_leading(tag_name, "v"),
          tag: tag_name,
          published_at: published_at,
-         html_url: body["html_url"] || ""
+         html_url: html_url(body)
        }}
     end
   end
 
   defp parse_release(_), do: {:error, :malformed}
+
+  @doc """
+  Validates that a tag string matches the strict release tag shape.
+
+  Returns `:ok` or `{:error, :invalid_tag}`. Exposed so the Downloader
+  and any shell-out paths can reuse the same gate before interpolating
+  a tag into a URL or filesystem path.
+  """
+  @spec validate_tag(String.t()) :: :ok | {:error, :invalid_tag}
+  def validate_tag(tag) when is_binary(tag) do
+    if Regex.match?(@tag_regex, tag), do: :ok, else: {:error, :invalid_tag}
+  end
+
+  def validate_tag(_), do: {:error, :invalid_tag}
+
+  # Only accept an `html_url` that looks like a GitHub release page for the
+  # expected repo. Any other value (missing, wrong host, wrong repo) is
+  # replaced with a constructed URL from the validated tag so the UI link
+  # never navigates to an attacker-controlled host.
+  defp html_url(%{"html_url" => url, "tag_name" => tag}) when is_binary(url) do
+    expected_prefix = "https://github.com/#{@repo}/releases/"
+
+    if String.starts_with?(url, expected_prefix) do
+      url
+    else
+      "https://github.com/#{@repo}/releases/tag/#{tag}"
+    end
+  end
+
+  defp html_url(%{"tag_name" => tag}), do: "https://github.com/#{@repo}/releases/tag/#{tag}"
 
   defp parse_published_at(nil), do: {:ok, DateTime.utc_now()}
 
