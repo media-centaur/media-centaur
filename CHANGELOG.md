@@ -4,6 +4,23 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.12.1 — 2026-04-19
+
+### Fixed
+
+- **Download progress bar sat at 0% then jumped to 100%.** The updater
+  now streams the release tarball and reports progress at every 1%, so
+  the bar moves smoothly as the download proceeds. A short CSS
+  transition on the bar itself (150ms ease-out) smooths the motion
+  between percentage ticks.
+- **"Update staged. Restarting the service…" got stuck forever.** The
+  detached shell that hands control to the staged installer was losing
+  its stdio to the closing Erlang port, which SIGPIPE'd the installer
+  before `systemctl restart` fired. Fix: the handoff script redirects
+  its own output to a log file in the staging directory, and the
+  spawner now passes `:nouse_stdio` plus `setsid --fork` so the chain
+  is fully detached before the port closes.
+
 ## v0.12.0 — 2026-04-19
 
 ### New
