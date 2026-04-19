@@ -84,14 +84,14 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
     }
   end
 
-  # --- Configuration ---
+  # --- Integrations ---
 
   defp configuration_group(input) do
     config = input.config
 
     %{
-      id: :configuration,
-      label: "Configuration",
+      id: :integrations,
+      label: "Integrations",
       items: [
         tmdb_item(config),
         prowlarr_item(config, input[:prowlarr_test]),
@@ -193,7 +193,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       :ok ->
         %{
           id: :mpv,
-          label: "MPV binary",
+          label: "MPV",
           detail: path,
           status: :ok,
           link: section_link("playback")
@@ -202,7 +202,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       :not_executable ->
         %{
           id: :mpv,
-          label: "MPV binary",
+          label: "MPV",
           detail: "File exists but is not executable: #{path}",
           status: :error,
           link: section_link("playback")
@@ -211,7 +211,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       _ ->
         %{
           id: :mpv,
-          label: "MPV binary",
+          label: "MPV",
           detail: "Not found — playback is disabled",
           status: :error,
           link: section_link("playback")
@@ -222,7 +222,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
   defp mpv_item(_config) do
     %{
       id: :mpv,
-      label: "MPV binary",
+      label: "MPV",
       detail: "No path configured",
       status: :error,
       link: section_link("playback")
@@ -252,9 +252,9 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
         %{
           id: :database,
           label: "Database",
-          detail: truncate(path),
+          detail: path,
           status: :ok,
-          link: section_link("overview")
+          link: nil
         }
 
       _ ->
@@ -263,7 +263,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Database",
           detail: "Parent directory missing: #{dir}",
           status: :warning,
-          link: section_link("overview")
+          link: nil
         }
     end
   end
@@ -274,7 +274,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       label: "Database",
       detail: "No path configured",
       status: :warning,
-      link: section_link("overview")
+      link: nil
     }
   end
 
@@ -289,7 +289,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       label: "Watch directories",
       detail: "None configured",
       status: :warning,
-      link: section_link("overview")
+      link: section_link("library")
     }
   end
 
@@ -303,7 +303,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Watch directories",
           detail: describe_dirs(dirs),
           status: :ok,
-          link: section_link("overview")
+          link: section_link("library")
         }
 
       missing == length(dirs) ->
@@ -312,7 +312,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Watch directories",
           detail: "All #{length(dirs)} unreachable — check that storage is mounted",
           status: :warning,
-          link: section_link("overview")
+          link: section_link("library")
         }
 
       true ->
@@ -321,16 +321,13 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
           label: "Watch directories",
           detail: "#{missing} of #{length(dirs)} unreachable",
           status: :warning,
-          link: section_link("overview")
+          link: section_link("library")
         }
     end
   end
 
-  defp describe_dirs([dir]), do: truncate(dir)
+  defp describe_dirs([dir]), do: dir
   defp describe_dirs(dirs), do: "#{length(dirs)} reachable"
-
-  defp truncate(path) when byte_size(path) <= 48, do: path
-  defp truncate(path), do: "…" <> binary_part(path, byte_size(path) - 47, 47)
 
   defp section_link(section), do: "/settings?section=#{section}"
 end

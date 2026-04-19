@@ -1775,32 +1775,34 @@ defmodule MediaCentarrWeb.SettingsLive do
         <ul :if={@watch_dirs != []} class="space-y-2">
           <li
             :for={entry <- @watch_dirs}
-            class="glass-inset rounded-lg p-3 flex items-baseline justify-between gap-3"
+            class="glass-inset rounded-lg p-3 flex items-start justify-between gap-3"
           >
-            <div class="min-w-0 flex-1 space-y-1">
-              <div class="font-medium">{WatchDirsLogic.display_label(entry)}</div>
+            <div class="min-w-0 flex-1 space-y-0.5">
+              <%= if entry["name"] && entry["name"] != "" do %>
+                <div class="font-medium truncate">{entry["name"]}</div>
+                <div class="text-sm text-base-content/60 truncate" title={entry["dir"]}>
+                  {entry["dir"]}
+                </div>
+              <% else %>
+                <div class="font-medium truncate" title={entry["dir"]}>{entry["dir"]}</div>
+              <% end %>
               <div
-                class="truncate-left text-sm text-base-content/60"
-                title={entry["dir"]}
-              >
-                <bdo dir="ltr">{entry["dir"]}</bdo>
-              </div>
-              <div
-                :if={entry["images_dir"]}
-                class="truncate-left text-xs text-base-content/50"
+                :if={WatchDirsLogic.show_images_dir?(entry)}
+                class="text-xs text-base-content/50 truncate"
                 title={entry["images_dir"]}
               >
-                <bdo dir="ltr">images: {entry["images_dir"]}</bdo>
+                Images cached at {entry["images_dir"]}
               </div>
             </div>
 
-            <div class="flex gap-1">
+            <div class="flex gap-1 shrink-0">
               <button
                 class="btn btn-ghost btn-sm"
                 phx-click="watch_dir:open_edit"
                 phx-value-id={entry["id"]}
+                aria-label="Edit watch directory"
               >
-                Edit
+                <.icon name="hero-pencil-square" class="size-4" />
               </button>
               <%= if @watch_dir_delete_confirm == entry["id"] do %>
                 <button
@@ -1818,6 +1820,7 @@ defmodule MediaCentarrWeb.SettingsLive do
                   class="btn btn-ghost btn-sm text-error"
                   phx-click="watch_dir:delete_confirm"
                   phx-value-id={entry["id"]}
+                  aria-label="Remove watch directory"
                 >
                   <.icon name="hero-trash" class="size-4" />
                 </button>
@@ -1844,14 +1847,13 @@ defmodule MediaCentarrWeb.SettingsLive do
             :for={path <- @exclude_dirs}
             class="glass-inset rounded-lg p-3 flex items-center gap-3"
           >
-            <span class="truncate-left flex-1 text-sm" title={path}>
-              <bdo dir="ltr">{path}</bdo>
-            </span>
+            <span class="flex-1 min-w-0 text-sm truncate" title={path}>{path}</span>
             <button
-              class="btn btn-ghost btn-sm text-error"
+              class="btn btn-ghost btn-sm text-error shrink-0"
               phx-click="exclude_dir:delete"
               phx-value-path={path}
               data-confirm={"Remove #{path} from excluded directories?"}
+              aria-label="Remove excluded directory"
             >
               <.icon name="hero-trash" class="size-4" />
             </button>
