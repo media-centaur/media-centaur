@@ -87,10 +87,23 @@ defmodule MediaCentarrWeb.LibraryLive do
        track_confirmed_ids: MapSet.new(),
        tracking_status: nil,
        confirm_stop_item: nil,
-       tracked_items: []
+       tracked_items: [],
+       watch_dirs_configured: watch_dirs_configured?()
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
+  end
+
+  @doc """
+  True when at least one `watch_dirs` entry is configured — used by the
+  empty-state branch to decide between "no media yet" (user hasn't set up
+  a library root) and "watch_dirs configured but no files found".
+  """
+  def watch_dirs_configured?(dirs \\ MediaCentarr.Config.get(:watch_dirs)) do
+    case dirs do
+      list when is_list(list) and list != [] -> true
+      _ -> false
+    end
   end
 
   @impl true
@@ -910,8 +923,22 @@ defmodule MediaCentarrWeb.LibraryLive do
             filter_text={@filter_text}
           />
 
-          <div :if={@grid_count == 0} class="text-base-content/60 py-8 text-center empty-state-enter">
-            No entities found.
+          <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">
+            <div :if={@watch_dirs_configured} class="text-base-content/60">
+              No entities found.
+            </div>
+            <div :if={not @watch_dirs_configured} class="max-w-md mx-auto space-y-2">
+              <p class="text-base-content/80">
+                No media yet — tell Media Centarr where your files live.
+              </p>
+              <.link
+                navigate={~p"/settings?section=library"}
+                class="btn btn-primary btn-sm"
+                data-nav-item
+              >
+                Configure library
+              </.link>
+            </div>
           </div>
 
           <div :if={@grid_count > 0} data-nav-zone="grid" class="mt-4">

@@ -112,4 +112,20 @@ defmodule MediaCentarrWeb.Live.SettingsLive.SystemSectionTest do
       assert SystemSection.apply_error_label({:task_crashed, :whatever}) =~ "crashed"
     end
   end
+
+  describe "tmdb_key_missing?/1" do
+    test "returns true for nil, empty string, whitespace, and unrecognized shapes" do
+      assert SystemSection.tmdb_key_missing?(nil)
+      assert SystemSection.tmdb_key_missing?("")
+      assert SystemSection.tmdb_key_missing?("   ")
+      assert SystemSection.tmdb_key_missing?(%{value: ""})
+      assert SystemSection.tmdb_key_missing?(%{value: nil})
+      assert SystemSection.tmdb_key_missing?(:whatever)
+    end
+
+    test "returns false when a real key is present" do
+      refute SystemSection.tmdb_key_missing?("abc123")
+      refute SystemSection.tmdb_key_missing?(%{value: "abc123"})
+    end
+  end
 end

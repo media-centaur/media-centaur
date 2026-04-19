@@ -91,7 +91,8 @@ defmodule MediaCentarrWeb.SettingsLive do
        latest_release: nil,
        apply_phase: nil,
        apply_progress: nil,
-       apply_error: nil
+       apply_error: nil,
+       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key))
      )}
   end
 
@@ -614,6 +615,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             apply_phase={@apply_phase}
             apply_progress={@apply_progress}
             apply_error={@apply_error}
+            tmdb_missing={@tmdb_missing}
           />
         </div>
       </div>
@@ -716,6 +718,25 @@ defmodule MediaCentarrWeb.SettingsLive do
             </a>
           </div>
         </div>
+      </div>
+
+      <div
+        :if={@tmdb_missing}
+        class="p-4 rounded-lg border border-info/30 bg-info/10 text-sm flex items-start justify-between gap-4"
+      >
+        <div>
+          <p class="font-medium">No TMDB API key configured</p>
+          <p class="text-base-content/70 mt-0.5">
+            Add one to fetch posters, backdrops, and metadata for your library.
+          </p>
+        </div>
+        <.link
+          navigate={~p"/settings?section=tmdb"}
+          class="btn btn-sm btn-primary shrink-0"
+          data-nav-item
+        >
+          Add key
+        </.link>
       </div>
 
       <div
