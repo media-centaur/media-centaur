@@ -95,21 +95,55 @@ defmodule MediaCentarr.SelfUpdate.Downloader do
 
   defp parse_sha256sums(_, _), do: {:error, :checksum_missing}
 
+  # Streams the response body via Req's `:into` callback, emitting a
+  # progress event at every 1% advance (not every chunk — that would
+  # firehose the LiveView assigns). The `:into` accumulator is the
+  # response body itself; size + cap are derived from `byte_size/1` on
+  # each iteration, with a `{:halt, _}` bail-out when the cap is hit.
   defp download_with_cap(client, url, max_bytes, progress_fn) do
-    case Req.get(client, url: url, compressed: false) do
-      {:ok, %{status: 200, body: body, headers: headers}} ->
-        total =
-          headers
-          |> header_value("content-length")
-          |> parse_integer()
+    # Emit an initial 0% tick so the UI renders the bar immediately
+    # even before the first chunk arrives.
+    _ = progress_fn.(0, nil)
 
+    into_fn = fn {:data, chunk}, {req, resp} ->
+      new_body = (resp.body || "") <> chunk
+      size = byte_size(new_body)
+      total = resp.headers |> header_value("content-length") |> parse_integer()
+      last_pct = Map.get(resp.private || %{}, :last_reported_pct, -1)
+
+      cond do
+        is_integer(total) and total > max_bytes ->
+          {:halt, {req, %{resp | body: :too_large}}}
+
+        size > max_bytes ->
+          {:halt, {req, %{resp | body: :too_large}}}
+
+        true ->
+          current_pct =
+            if is_integer(total) and total > 0, do: div(size * 100, total)
+
+          new_private =
+            if is_integer(current_pct) and current_pct > last_pct do
+              _ = progress_fn.(size, total)
+              Map.put(resp.private || %{}, :last_reported_pct, current_pct)
+            else
+              resp.private || %{}
+            end
+
+          {:cont, {req, %{resp | body: new_body, private: new_private}}}
+      end
+    end
+
+    case Req.request(client, url: url, compressed: false, into: into_fn) do
+      {:ok, %{status: 200, body: :too_large}} ->
+        {:error, :too_large}
+
+      {:ok, %{status: 200, body: body}} when is_binary(body) ->
         size = byte_size(body)
-
-        cond do
-          is_integer(total) and total > max_bytes -> {:error, :too_large}
-          size > max_bytes -> {:error, :too_large}
-          true -> emit_progress_and_return(body, size, total, progress_fn)
-        end
+        # Guarantee a final 100% tick even if we never crossed a 1% boundary
+        # (tiny body, or a response with no Content-Length header).
+        _ = progress_fn.(size, size)
+        {:ok, body}
 
       {:ok, %{status: 404}} ->
         {:error, :not_found}
@@ -120,12 +154,6 @@ defmodule MediaCentarr.SelfUpdate.Downloader do
       {:error, reason} ->
         {:error, {:transport_error, reason}}
     end
-  end
-
-  defp emit_progress_and_return(body, size, total, progress_fn) do
-    _ = progress_fn.(0, total || size)
-    _ = progress_fn.(size, total || size)
-    {:ok, body}
   end
 
   # Req returns headers as a map of lowercase-string keys → list of values.

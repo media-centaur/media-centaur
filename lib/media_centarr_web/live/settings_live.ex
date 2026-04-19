@@ -856,7 +856,7 @@ defmodule MediaCentarrWeb.SettingsLive do
           <div :if={@apply_phase == :downloading} class="space-y-1">
             <div class="h-2 rounded bg-base-content/10 overflow-hidden">
               <div
-                class="h-full bg-primary transition-[width]"
+                class="h-full bg-primary transition-[width] duration-150 ease-out"
                 style={"width: #{@apply_progress || 0}%"}
               >
               </div>
