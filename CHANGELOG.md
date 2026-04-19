@@ -4,6 +4,14 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.9.0 — 2026-04-19
+
+No user-facing changes in this release. Internal build-tooling cleanup
+that completes the transition to in-app updates as the only supported
+update path — the old `scripts/install` is gone, and the local release
+script has been renamed to `scripts/preflight` to reflect its true role
+as a pre-tag build check.
+
 ## v0.8.0 — 2026-04-19
 
 ### New
