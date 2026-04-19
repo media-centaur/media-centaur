@@ -61,7 +61,31 @@ curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/in
 
 Downloads the latest release, verifies its checksum, installs atomically under `~/.local/lib/media-centarr/`, generates a `SECRET_KEY_BASE`, and sets up a systemd user unit.
 
+After install, everyday updates happen inside the app: **Settings → Overview → Update now**.
+
 Full installation guide, manual install, update, and uninstall: **[Wiki → Installation](https://github.com/media-centarr/media-centarr/wiki/Installation)**.
+
+### When auto-update fails
+
+The in-app updater can hit network blips, transient GitHub errors, or (occasionally) its own bugs. The bundled shell installer doesn't rely on the running app, so it's the reliable fallback. Try these in order:
+
+```sh
+# 1. Restart the service — clears any in-memory stuck state.
+systemctl --user restart media-centarr.service
+
+# 2. Run the bundled installer's --update directly.
+~/.local/lib/media-centarr/current/bin/media-centarr-install --update
+
+# 3. Force a reinstall of the current latest tag (useful after a half-applied update).
+~/.local/lib/media-centarr/current/bin/media-centarr-install --update --force
+
+# 4. Nuclear option — re-run the bootstrap installer over the top.
+curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh | sh
+```
+
+Your config (`~/.config/media-centarr/`), data (`~/.local/share/media-centarr/`), and cache (`~/.cache/media-centarr/`) are preserved across all of these. The atomic install layout keeps the previous release's tree at `~/.local/lib/media-centarr/releases/<old>/` if a manual rollback is ever needed.
+
+The Settings → Overview page surfaces the same commands (with a copy button) under **Prefer the terminal?** and inside the failure dialog — so users don't need to hunt for this README to recover.
 
 ## Requirements
 
