@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.10.0 — 2026-04-19
+
+### New
+
+- **See what's new, right in Settings.** The Updates card on Settings >
+  Overview now has a *See what's new* disclosure that expands to show
+  the release notes for the latest version — no need to click through
+  to GitHub to find out what changed.
+- **Rich release notes on GitHub.** The release workflow now uses the
+  real `CHANGELOG.md` entry as the GitHub release body, so the notes
+  you see in-app and on GitHub are the same user-facing copy. No more
+  generic "Linux x86_64 release" placeholders.
+
 ## v0.9.1 — 2026-04-19
 
 ### Fixed
