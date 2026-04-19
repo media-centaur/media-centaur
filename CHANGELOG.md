@@ -4,6 +4,28 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.12.6 — 2026-04-19
+
+### Fixed
+
+- **Update-progress modal now covers the full page.** The modal was
+  nested inside the Settings page's content grid, where its
+  `position: fixed` backdrop was constrained by the surrounding flex
+  layout. Moved it to the layout root — the same placement the rest
+  of the app's modals use (`ModalShell.modal_shell`, `TrackModal`) —
+  so the backdrop covers the entire viewport regardless of which
+  settings section is active or how the page is scrolled.
+- **Auto-restart at the end of an update now actually restarts the
+  service.** The detached handoff shell runs under `env -i` for
+  hygiene, which was stripping `XDG_RUNTIME_DIR` and
+  `DBUS_SESSION_BUS_ADDRESS` — two variables `systemctl --user`
+  needs to reach the user's systemd instance. Without them, the
+  installer's `has_systemd_user` probe returned false, the unit
+  never got reinstalled, and the service was never told to restart.
+  The new release was staged correctly on disk, but the running BEAM
+  kept serving the old version. The handoff now passes these vars
+  through explicitly.
+
 ## v0.12.5 — 2026-04-19
 
 ### Improved
