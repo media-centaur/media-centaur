@@ -1,7 +1,7 @@
 defmodule MediaCentarr.SelfUpdate do
   use Boundary,
     deps: [MediaCentarr.Settings],
-    exports: [UpdateChecker]
+    exports: [Service, UpdateChecker]
 
   @moduledoc """
   In-app release check + self-update for Media Centarr.
@@ -27,7 +27,7 @@ defmodule MediaCentarr.SelfUpdate do
   as a follow-up.
   """
 
-  alias MediaCentarr.SelfUpdate.{CheckerJob, Storage, UpdateChecker, Updater}
+  alias MediaCentarr.SelfUpdate.{CheckerJob, Service, Storage, UpdateChecker, Updater}
   alias MediaCentarr.Topics
 
   @boot_check_delay_seconds 30
@@ -99,6 +99,22 @@ defmodule MediaCentarr.SelfUpdate do
   @spec record_check_result({:ok, map()} | {:error, term()}) ::
           {:ok, UpdateChecker.classification(), map()} | {:error, term()}
   def record_check_result(outcome), do: Storage.record_check_result(outcome)
+
+  @doc "Returns the systemd state for the media-centarr unit. See `Service.state/1`."
+  @spec service_state() :: Service.state()
+  def service_state, do: Service.state()
+
+  @doc "Queues a systemd-managed restart of the running unit."
+  @spec service_restart() :: :ok | {:error, term()}
+  def service_restart, do: Service.restart()
+
+  @doc "Queues a systemd-managed stop of the running unit."
+  @spec service_stop() :: :ok | {:error, term()}
+  def service_stop, do: Service.stop()
+
+  @doc "Fetches the textual output of `systemctl --user status` for the unit."
+  @spec service_status_output() :: {:ok, String.t()} | {:error, term()}
+  def service_status_output, do: Service.status_output()
 
   @doc """
   App-boot hydration. Reads the persisted `latest_known` entry into the
