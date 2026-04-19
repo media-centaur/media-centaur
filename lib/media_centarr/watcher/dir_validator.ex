@@ -39,7 +39,7 @@ defmodule MediaCentarr.Watcher.DirValidator do
   Use `real_fs/0` in production code.
   """
 
-  @video_exts ~w(.mkv .mp4 .avi .mov .m4v .webm .ts .wmv)
+  @video_exts ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
 
   @type rule :: atom()
   @type error :: {atom(), rule()} | {atom(), rule(), any()}

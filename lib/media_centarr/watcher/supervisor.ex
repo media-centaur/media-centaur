@@ -35,17 +35,33 @@ defmodule MediaCentarr.Watcher.Supervisor do
   """
   @spec reconcile([map()]) :: :ok
   def reconcile(new_entries) when is_list(new_entries) do
+    normalize = fn entry ->
+      %{
+        "id" => entry["dir"],
+        "dir" => entry["dir"],
+        "images_dir" => nil,
+        "name" => nil
+      }
+    end
+
     old_entries = currently_running_entries()
-    actions = MediaCentarr.Watcher.Reconciler.diff(old_entries, new_entries)
+    new_normalized = Enum.map(new_entries, normalize)
+
+    actions = MediaCentarr.Watcher.Reconciler.diff(old_entries, new_normalized)
 
     Enum.each(actions.to_stop, &stop_dir/1)
 
-    Enum.each(actions.to_replace, fn %{old_dir: old_dir, new: new_entry} ->
-      stop_dir(old_dir)
-      start_dir(new_entry["dir"])
+    Enum.each(actions.to_replace, fn %{old_dir: old, new: new} ->
+      stop_dir(old)
+      start_dir(new["dir"])
     end)
 
-    Enum.each(actions.to_start, fn new_entry -> start_dir(new_entry["dir"]) end)
+    Enum.each(actions.to_start, fn new -> start_dir(new["dir"]) end)
+
+    count_summary =
+      "start=#{length(actions.to_start)} stop=#{length(actions.to_stop)} replace=#{length(actions.to_replace)}"
+
+    Log.info(:watcher, "reconcile — " <> count_summary)
 
     :ok
   end

@@ -111,7 +111,7 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   @impl true
   def handle_params(%{"add_watch_dir" => "1"} = params, _uri, socket) do
-    section = params["section"] || "overview"
+    section = params["section"] || "library"
 
     socket =
       socket
@@ -2751,8 +2751,8 @@ defmodule MediaCentarrWeb.SettingsLive do
     %{
       "id" => old["id"],
       "dir" => params["dir"] || old["dir"],
-      "images_dir" => nilify(params["images_dir"]) || old["images_dir"],
-      "name" => nilify(params["name"]) || old["name"]
+      "images_dir" => nilify(params["images_dir"]),
+      "name" => nilify(params["name"])
     }
   end
 

@@ -41,6 +41,34 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
     assert Enum.map(Config.watch_dirs_entries(), & &1["dir"]) == [Path.expand(tmp)]
   end
 
+  test "clears a previously-set name when user empties the field", %{conn: conn} do
+    tmp = Path.join(System.tmp_dir!(), "wd-clear-name-test-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(tmp)
+    on_exit(fn -> File.rm_rf!(tmp) end)
+
+    :ok =
+      Config.put_watch_dirs([
+        %{"id" => "u1", "dir" => Path.expand(tmp), "images_dir" => nil, "name" => "Movies"}
+      ])
+
+    {:ok, view, _} = live(conn, "/settings?section=library")
+
+    view |> element("button[phx-click='watch_dir:open_edit'][phx-value-id='u1']") |> render_click()
+
+    view
+    |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
+    |> render_change()
+
+    :timer.sleep(600)
+
+    view
+    |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
+    |> render_submit()
+
+    assert [%{"name" => nil}] = Config.watch_dirs_entries()
+  end
+
   test "duplicate save is rejected", %{conn: conn} do
     tmp = Path.join(System.tmp_dir!(), "wd-dup-test-#{System.unique_integer([:positive])}")
 
