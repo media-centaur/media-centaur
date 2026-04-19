@@ -96,7 +96,11 @@ defmodule MediaCentarrWeb.SettingsLive do
        apply_progress: nil,
        apply_error: nil,
        apply_failed_at: nil,
-       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key))
+       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
+       service_state: SelfUpdate.service_state(),
+       service_action_confirm: nil,
+       service_status_visible: false,
+       service_status_output: nil
      )}
   end
 
@@ -175,6 +179,73 @@ defmodule MediaCentarrWeb.SettingsLive do
       {:error, :invalid_tag} ->
         {:noreply, put_flash(socket, :error, "The release tag failed safety validation.")}
     end
+  end
+
+  # --- Service controls ---
+
+  def handle_event("service_confirm", %{"action" => action}, socket)
+      when action in ["restart", "stop"] do
+    {:noreply, assign(socket, service_action_confirm: action)}
+  end
+
+  def handle_event("service_cancel", _params, socket) do
+    {:noreply, assign(socket, service_action_confirm: nil)}
+  end
+
+  def handle_event("service_execute", %{"action" => "restart"}, socket) do
+    case SelfUpdate.service_restart() do
+      :ok ->
+        {:noreply,
+         socket
+         |> assign(service_action_confirm: nil)
+         |> put_flash(
+           :info,
+           "Restarting the service. The page will reconnect automatically when it's back."
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(service_action_confirm: nil)
+         |> put_flash(:error, "Restart failed: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event("service_execute", %{"action" => "stop"}, socket) do
+    case SelfUpdate.service_stop() do
+      :ok ->
+        {:noreply,
+         socket
+         |> assign(service_action_confirm: nil)
+         |> put_flash(
+           :info,
+           "Stopping the service. You'll need to start it manually to bring it back."
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(service_action_confirm: nil)
+         |> put_flash(:error, "Stop failed: #{inspect(reason)}")}
+    end
+  end
+
+  def handle_event("service_show_status", _params, socket) do
+    output =
+      case SelfUpdate.service_status_output() do
+        {:ok, text} -> text
+        {:error, reason} -> "Failed to read systemctl status: #{inspect(reason)}"
+      end
+
+    {:noreply, assign(socket, service_status_visible: true, service_status_output: output)}
+  end
+
+  def handle_event("service_hide_status", _params, socket) do
+    {:noreply, assign(socket, service_status_visible: false)}
+  end
+
+  def handle_event("service_refresh_state", _params, socket) do
+    {:noreply, assign(socket, service_state: SelfUpdate.service_state())}
   end
 
   def handle_event("dismiss_apply_modal", _params, socket) do
@@ -660,6 +731,9 @@ defmodule MediaCentarrWeb.SettingsLive do
             latest_release={@latest_release}
             apply_phase={@apply_phase}
             tmdb_missing={@tmdb_missing}
+            service_state={@service_state}
+            service_status_visible={@service_status_visible}
+            service_status_output={@service_status_output}
           />
         </div>
       </div>
@@ -678,6 +752,8 @@ defmodule MediaCentarrWeb.SettingsLive do
         apply_failed_at={@apply_failed_at}
         latest_release={@latest_release}
       />
+
+      <.service_action_modal action={@service_action_confirm} />
     </Layouts.app>
     """
   end
@@ -878,6 +954,12 @@ defmodule MediaCentarrWeb.SettingsLive do
           </details>
         </div>
       </div>
+
+      <.service_card
+        service_state={@service_state}
+        service_status_visible={@service_status_visible}
+        service_status_output={@service_status_output}
+      />
 
       <div
         :if={@tmdb_missing}
@@ -1912,6 +1994,219 @@ defmodule MediaCentarrWeb.SettingsLive do
     </div>
     """
   end
+
+  # Service action confirmation modal. Always in DOM; opens when
+  # `@action` is set to "restart" or "stop". Destructive actions get an
+  # amber soft button; restart (recoverable) gets primary.
+  attr :action, :any, default: nil
+
+  defp service_action_modal(assigns) do
+    ~H"""
+    <div
+      class="modal-backdrop"
+      data-state={if @action, do: "open", else: "closed"}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="service-confirm-title"
+      phx-click-away={@action && JS.push("service_cancel")}
+      phx-window-keydown={@action && JS.push("service_cancel")}
+      phx-key="Escape"
+    >
+      <div class="modal-panel modal-panel-sm p-6 space-y-4">
+        <div class="space-y-1">
+          <h3 id="service-confirm-title" class="text-lg font-semibold">
+            {service_confirm_title(@action)}
+          </h3>
+          <p class="text-sm text-base-content/70">
+            {service_confirm_body(@action)}
+          </p>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            phx-click="service_cancel"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-ghost btn-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            phx-click="service_execute"
+            phx-value-action={@action || ""}
+            data-nav-item
+            tabindex="0"
+            class={service_confirm_button_class(@action)}
+          >
+            {service_confirm_cta(@action)}
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp service_confirm_title("restart"), do: "Restart the service?"
+  defp service_confirm_title("stop"), do: "Stop the service?"
+  defp service_confirm_title(_), do: ""
+
+  defp service_confirm_body("restart"),
+    do:
+      "The app will briefly go offline while systemd restarts it. Your browser will reconnect automatically."
+
+  defp service_confirm_body("stop"),
+    do:
+      "The app will stop. You'll need to start it again manually (systemctl --user start media-centarr) to bring it back."
+
+  defp service_confirm_body(_), do: ""
+
+  defp service_confirm_cta("restart"), do: "Restart"
+  defp service_confirm_cta("stop"), do: "Stop"
+  defp service_confirm_cta(_), do: ""
+
+  defp service_confirm_button_class("restart"), do: "btn btn-primary btn-sm"
+  defp service_confirm_button_class("stop"), do: "btn btn-soft btn-warning btn-sm"
+  defp service_confirm_button_class(_), do: "btn btn-sm"
+
+  # Inline Service card — rendered inside the overview section.
+  attr :service_state, :map, required: true
+  attr :service_status_visible, :boolean, default: false
+  attr :service_status_output, :any, default: nil
+
+  defp service_card(assigns) do
+    ~H"""
+    <div class="p-5 rounded-lg glass-surface space-y-4">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold">Service</h2>
+          <p class="text-sm opacity-50 mt-0.5">
+            {service_card_subtitle(@service_state)}
+          </p>
+        </div>
+
+        <div class={service_state_badge_class(@service_state)}>
+          <.icon name={service_state_badge_icon(@service_state)} class="size-3.5" />
+          {service_state_badge_text(@service_state)}
+        </div>
+      </div>
+
+      <div :if={@service_state.systemd_available and @service_state.unit_installed} class="space-y-3">
+        <div class="flex flex-wrap gap-2">
+          <button
+            :if={@service_state.active}
+            type="button"
+            phx-click="service_confirm"
+            phx-value-action="restart"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-soft btn-primary btn-sm"
+          >
+            <.icon name="hero-arrow-path-mini" class="size-4" /> Restart
+          </button>
+          <button
+            :if={@service_state.active}
+            type="button"
+            phx-click="service_confirm"
+            phx-value-action="stop"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-soft btn-warning btn-sm"
+          >
+            <.icon name="hero-stop-mini" class="size-4" /> Stop
+          </button>
+          <button
+            type="button"
+            phx-click="service_refresh_state"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-ghost btn-sm"
+          >
+            Refresh
+          </button>
+        </div>
+
+        <details
+          class="release-notes-disclosure"
+          phx-mounted={@service_status_visible && JS.set_attribute({"open", ""})}
+        >
+          <summary
+            phx-click="service_show_status"
+            class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none"
+          >
+            <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
+            <span>Show service details</span>
+          </summary>
+          <div class="mt-3">
+            <pre
+              :if={@service_status_output}
+              class="glass-inset rounded-md p-3 text-[11px] font-mono text-base-content/80 overflow-x-auto thin-scrollbar max-h-80 overflow-y-auto whitespace-pre"
+            ><%= @service_status_output %></pre>
+            <p :if={!@service_status_output} class="text-xs text-base-content/40 italic">
+              Loading…
+            </p>
+          </div>
+        </details>
+      </div>
+
+      <p
+        :if={@service_state.systemd_available and not @service_state.unit_installed}
+        class="text-sm text-base-content/60"
+      >
+        Systemd is available but the media-centarr unit isn't installed yet. Add it with
+        <code class="font-mono text-xs">
+          ~/.local/lib/media-centarr/current/bin/media-centarr-install service install
+        </code>
+        from a terminal.
+      </p>
+
+      <p
+        :if={not @service_state.systemd_available}
+        class="text-sm text-base-content/60"
+      >
+        This install isn't running under a systemd user session — start/stop/restart buttons aren't available here. Use the terminal you started the app from, or a process manager of your choice.
+      </p>
+    </div>
+    """
+  end
+
+  defp service_card_subtitle(%{systemd_available: false}), do: "Not running under systemd."
+
+  defp service_card_subtitle(%{unit_installed: false}), do: "Systemd unit isn't installed yet."
+
+  defp service_card_subtitle(%{active: true, enabled: true}), do: "Running and set to start on login."
+
+  defp service_card_subtitle(%{active: true, enabled: false}),
+    do: "Running, but not set to start on login."
+
+  defp service_card_subtitle(%{active: false}), do: "Not running."
+
+  defp service_state_badge_class(%{systemd_available: false}),
+    do:
+      "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-base-content/10 text-base-content/60"
+
+  defp service_state_badge_class(%{unit_installed: false}),
+    do:
+      "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning"
+
+  defp service_state_badge_class(%{active: true}),
+    do:
+      "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success"
+
+  defp service_state_badge_class(%{active: false}),
+    do:
+      "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning"
+
+  defp service_state_badge_icon(%{systemd_available: false}), do: "hero-minus-circle-mini"
+  defp service_state_badge_icon(%{unit_installed: false}), do: "hero-exclamation-triangle-mini"
+  defp service_state_badge_icon(%{active: true}), do: "hero-check-circle-mini"
+  defp service_state_badge_icon(%{active: false}), do: "hero-pause-circle-mini"
+
+  defp service_state_badge_text(%{systemd_available: false}), do: "Unmanaged"
+  defp service_state_badge_text(%{unit_installed: false}), do: "Not installed"
+  defp service_state_badge_text(%{active: true}), do: "Running"
+  defp service_state_badge_text(%{active: false}), do: "Stopped"
 
   defp overview_summary(0), do: "Configuration looks healthy."
 

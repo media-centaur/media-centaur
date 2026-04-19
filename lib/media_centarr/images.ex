@@ -74,7 +74,16 @@ defmodule MediaCentarr.Images do
     _ -> {:error, {:download_failed, url, :unavailable}}
   end
 
-  defp http_client, do: Application.get_env(:media_centarr, :image_http_client, Req)
+  # Resolves the HTTP client module to call. A per-process override in
+  # the caller's process dict wins if present — this lets concurrent
+  # async tests stub independently without clobbering each other via
+  # the shared `Application` env. Production callers don't use the
+  # process dict, so they fall through to the Application value
+  # (NoopImageDownloader in tests; Req in dev/prod).
+  defp http_client do
+    Process.get(:image_http_client) ||
+      Application.get_env(:media_centarr, :image_http_client, Req)
+  end
 
   # --- Image operations ---
 

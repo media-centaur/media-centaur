@@ -241,18 +241,22 @@ defmodule MediaCentarr.Pipeline.ImageProcessorTest do
   # HTTP stub helpers
   # ---------------------------------------------------------------------------
 
+  # Per-process overrides — see `Images.http_client/0`. These don't
+  # mutate `Application.env`, so async-true tests in this file and
+  # siblings can stub independently without clobbering each other.
+
   defp stub_http_success(body) do
-    Application.put_env(:media_centarr, :image_http_client, __MODULE__.FakeClient)
+    Process.put(:image_http_client, __MODULE__.FakeClient)
     Process.put(:fake_http_response, {:ok, %{status: 200, body: body}})
   end
 
   defp stub_http_error(status) do
-    Application.put_env(:media_centarr, :image_http_client, __MODULE__.FakeClient)
+    Process.put(:image_http_client, __MODULE__.FakeClient)
     Process.put(:fake_http_response, {:ok, %{status: status, body: ""}})
   end
 
   defp stub_http_connection_error(reason) do
-    Application.put_env(:media_centarr, :image_http_client, __MODULE__.FakeClient)
+    Process.put(:image_http_client, __MODULE__.FakeClient)
     Process.put(:fake_http_response, {:error, reason})
   end
 
