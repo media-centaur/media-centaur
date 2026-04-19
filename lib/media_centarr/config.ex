@@ -153,6 +153,65 @@ defmodule MediaCentarr.Config do
     :ok
   end
 
+  @watch_dirs_settings_key "config:watch_dirs"
+
+  @doc "Returns the raw list of watch-dir entry maps from Settings."
+  @spec watch_dirs_entries() :: [map()]
+  def watch_dirs_entries do
+    case MediaCentarr.Settings.get_by_key(@watch_dirs_settings_key) do
+      {:ok, %{value: %{"entries" => entries}}} when is_list(entries) -> entries
+      _ -> []
+    end
+  end
+
+  @doc """
+  Replaces the entire watch-dir list: persists to Settings, rebuilds the
+  derived `:watch_dirs` and `:watch_dir_images` values in `:persistent_term`,
+  and broadcasts `{:config_updated, :watch_dirs, entries}` on the config topic.
+  """
+  @spec put_watch_dirs([map()]) :: :ok
+  def put_watch_dirs(entries) when is_list(entries) do
+    {:ok, _} =
+      MediaCentarr.Settings.find_or_create_entry(%{
+        key: @watch_dirs_settings_key,
+        value: %{"entries" => entries}
+      })
+
+    refresh_watch_dirs_persistent_term(entries)
+
+    Phoenix.PubSub.broadcast(
+      MediaCentarr.PubSub,
+      MediaCentarr.Topics.config_updates(),
+      {:config_updated, :watch_dirs, entries}
+    )
+
+    :ok
+  end
+
+  @doc "Subscribe the calling process to runtime config change broadcasts."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.config_updates())
+  end
+
+  defp refresh_watch_dirs_persistent_term(entries) do
+    dirs = Enum.map(entries, & &1["dir"])
+
+    images_map =
+      Map.new(entries, fn entry ->
+        dir = entry["dir"]
+        images_dir = entry["images_dir"] || default_images_dir(dir)
+        {dir, images_dir}
+      end)
+
+    config =
+      :persistent_term.get({__MODULE__, :config})
+      |> Map.put(:watch_dirs, dirs)
+      |> Map.put(:watch_dir_images, images_map)
+
+    :persistent_term.put({__MODULE__, :config}, config)
+  end
+
   @doc "Returns the images directory for the given watch directory."
   @spec images_dir_for(String.t()) :: String.t()
   def images_dir_for(watch_directory) do
