@@ -32,8 +32,10 @@ defmodule MediaCentarrWeb.SettingsLive do
   # adjacent items whose :group differs. Order within a group is by frequency
   # of user interaction: things you touch daily come first.
   @sections [
-    # Overview is its own group so it sits alone above everything else.
-    %{id: "overview", label: "Overview", group: :overview},
+    # System is its own group so it sits alone above everything else.
+    # URL id stays "overview" for backward-compat with any bookmarked links
+    # and existing tests; only the display label is end-user-visible.
+    %{id: "overview", label: "System", group: :overview},
     # General — start-of-session setup
     %{id: "services", label: "Services", group: :general},
     %{id: "preferences", label: "Preferences", group: :general},
@@ -658,8 +660,8 @@ defmodule MediaCentarrWeb.SettingsLive do
         />
         <div class="min-w-0 space-y-1.5">
           <h2 class="text-xl font-semibold tracking-tight">Media Centarr</h2>
-          <p class="text-xs text-base-content/50 italic">
-            media center &middot; *arr stack &middot; centaur
+          <p class="text-xs text-base-content/50">
+            MIT License &middot; &copy; 2026 Shawn McCool
           </p>
           <div class="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs font-mono text-base-content/60">
             <span>v{@app_version}</span>
@@ -727,14 +729,16 @@ defmodule MediaCentarrWeb.SettingsLive do
               <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
               <span>See what's new in {@latest_release.tag}</span>
             </summary>
-            <div class="mt-3 ml-5 pl-4 border-l border-base-content/10">
-              <ReleaseNotes.release_notes body={Map.get(@latest_release, :body_excerpt, "")} />
+            <div class="mt-3 space-y-2">
+              <div class="glass-inset rounded-md p-4 max-h-80 overflow-y-auto thin-scrollbar text-xs">
+                <ReleaseNotes.release_notes body={Map.get(@latest_release, :body, "")} />
+              </div>
               <a
                 :if={@latest_release.html_url != ""}
                 href={@latest_release.html_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-block mt-3 text-xs link link-primary"
+                class="inline-block text-xs link link-primary"
                 data-nav-item
                 tabindex="0"
               >

@@ -16,7 +16,7 @@ defmodule MediaCentarr.SelfUpdate.StorageTest do
         tag: "v0.7.1",
         published_at: ~U[2026-04-19 12:00:00Z],
         html_url: "https://github.com/media-centarr/media-centarr/releases/tag/v0.7.1",
-        body_excerpt: "Fix bug. Add feature."
+        body: "Fix bug. Add feature."
       }
 
       assert :ok = Storage.put_latest_known(release, :update_available)
@@ -28,21 +28,40 @@ defmodule MediaCentarr.SelfUpdate.StorageTest do
       assert persisted.tag == "v0.7.1"
       assert persisted.published_at == ~U[2026-04-19 12:00:00Z]
       assert persisted.html_url =~ "v0.7.1"
-      assert persisted.body_excerpt == "Fix bug. Add feature."
+      assert persisted.body == "Fix bug. Add feature."
     end
 
-    test "truncates body_excerpt at 500 characters at save time" do
+    test "stores the full body as-given (no truncation at the Storage layer)" do
+      long_body = String.duplicate("x", 4_000)
+
       release = %{
         version: "0.7.1",
         tag: "v0.7.1",
         published_at: ~U[2026-04-19 12:00:00Z],
         html_url: "https://github.com/media-centarr/media-centarr/releases/tag/v0.7.1",
-        body_excerpt: String.duplicate("x", 900)
+        body: long_body
       }
 
       :ok = Storage.put_latest_known(release, :update_available)
       assert {:ok, %{release: persisted}} = Storage.get_latest_known()
-      assert String.length(persisted.body_excerpt) == 500
+      assert persisted.body == long_body
+    end
+
+    test "falls back to legacy body_excerpt rows for installs upgraded mid-rename" do
+      # Simulate a Settings.Entry row written by the pre-rename release.
+      MediaCentarr.Settings.find_or_create_entry!(%{
+        key: "update.latest_known",
+        value: %{
+          "version" => "0.8.0",
+          "tag" => "v0.8.0",
+          "published_at" => "2026-04-17T00:00:00Z",
+          "html_url" => "https://github.com/x/x/releases/tag/v0.8.0",
+          "body_excerpt" => "legacy notes",
+          "classification" => "up_to_date"
+        }
+      })
+
+      assert {:ok, %{release: %{body: "legacy notes"}}} = Storage.get_latest_known()
     end
 
     test "returns :none when nothing is persisted" do
@@ -69,7 +88,7 @@ defmodule MediaCentarr.SelfUpdate.StorageTest do
         tag: "v0.7.1",
         published_at: ~U[2026-04-19 12:00:00Z],
         html_url: "https://github.com/media-centarr/media-centarr/releases/tag/v0.7.1",
-        body_excerpt: ""
+        body: ""
       }
 
       :ok = Storage.put_latest_known(release, :update_available)

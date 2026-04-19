@@ -52,7 +52,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.ReleaseNotes do
     assigns = assign(assigns, :blocks, blocks)
 
     ~H"""
-    <div class={["space-y-3 text-sm text-base-content/80", @class]}>
+    <div class={["space-y-3 text-base-content/80", @class]}>
       <p :if={@blocks == []} class="italic text-base-content/50">
         No release notes available for this version yet.
       </p>

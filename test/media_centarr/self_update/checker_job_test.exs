@@ -49,7 +49,7 @@ defmodule MediaCentarr.SelfUpdate.CheckerJobTest do
                Storage.get_latest_known()
 
       assert release.version == "99.0.0"
-      assert release.body_excerpt == "Shiny new release"
+      assert release.body == "Shiny new release"
       assert classification in [:update_available, :up_to_date, :ahead_of_release]
 
       assert {:ok, %DateTime{}} = Storage.get_last_check_at()

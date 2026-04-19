@@ -11,7 +11,8 @@ defmodule MediaCentarr.SelfUpdate.Storage do
 
     * `update.last_check_at` — ISO8601 string, only written on successful checks.
     * `update.latest_known` — map with `version`, `tag`, `published_at`,
-      `html_url`, `body_excerpt` (truncated at save time to 500 chars).
+      `html_url`, `body` (full release notes as received from GitHub,
+      already capped at 20KB by `UpdateChecker`).
   """
 
   alias MediaCentarr.Settings
@@ -19,19 +20,19 @@ defmodule MediaCentarr.SelfUpdate.Storage do
 
   @last_check_key "update.last_check_at"
   @latest_known_key "update.latest_known"
-  @body_excerpt_limit 500
 
   @type release_record :: %{
           version: String.t(),
           tag: String.t(),
           published_at: DateTime.t(),
           html_url: String.t(),
-          body_excerpt: String.t()
+          body: String.t()
         }
 
   @doc """
   Persists a release + classification as the latest known check result.
-  Truncates `body_excerpt` at save time.
+  The body is stored as-is — `UpdateChecker` already applies the sanity
+  cap at the API boundary.
   """
   @spec put_latest_known(map(), UpdateChecker.classification()) :: :ok
   def put_latest_known(release, classification) do
@@ -40,7 +41,7 @@ defmodule MediaCentarr.SelfUpdate.Storage do
       "tag" => release.tag,
       "published_at" => DateTime.to_iso8601(release.published_at),
       "html_url" => release.html_url,
-      "body_excerpt" => truncate(Map.get(release, :body_excerpt, ""), @body_excerpt_limit),
+      "body" => Map.get(release, :body, ""),
       "classification" => Atom.to_string(classification)
     }
 
@@ -128,7 +129,9 @@ defmodule MediaCentarr.SelfUpdate.Storage do
       tag: value["tag"],
       published_at: decode_published_at(value["published_at"]),
       html_url: value["html_url"] || "",
-      body_excerpt: value["body_excerpt"] || ""
+      # Fall back to legacy `body_excerpt` column for rows written before
+      # the rename so existing installs don't lose their cached notes.
+      body: value["body"] || value["body_excerpt"] || ""
     }
 
     classification =
@@ -150,8 +153,4 @@ defmodule MediaCentarr.SelfUpdate.Storage do
       _ -> DateTime.utc_now()
     end
   end
-
-  defp truncate(nil, _), do: ""
-  defp truncate(text, max) when byte_size(text) <= max, do: text
-  defp truncate(text, max), do: String.slice(text, 0, max)
 end

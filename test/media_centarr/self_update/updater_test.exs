@@ -59,7 +59,7 @@ defmodule MediaCentarr.SelfUpdate.UpdaterTest do
       tag: "v99.0.0",
       published_at: ~U[2099-01-01 00:00:00Z],
       html_url: "https://github.com/media-centarr/media-centarr/releases/tag/v99.0.0",
-      body_excerpt: ""
+      body: ""
     }
   end
 
