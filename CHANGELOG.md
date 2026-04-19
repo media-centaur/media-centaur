@@ -4,6 +4,24 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.13.1 — 2026-04-19
+
+### Improved
+
+- **Clearer message when GitHub rate-limits update checks.** The
+  anonymous GitHub API has a 60-requests-per-hour-per-IP cap; when we
+  hit it the System page was showing a cryptic *"Update check error:
+  HTTP 403"*. The updater now detects the rate-limit response (via
+  `x-ratelimit-remaining`) and surfaces the friendlier *"GitHub rate
+  limit reached. Try again after HH:MM UTC."* using the reset
+  timestamp GitHub returns.
+- **Last-known release stays visible during transient errors.** A
+  failed check no longer clobbers the `latest_release` displayed on
+  the card — the "See what's new" disclosure and the tag+date line
+  now remain populated from the last successful check, with the error
+  message shown alongside. No more brief "blank card" flash during a
+  stale-to-fresh transition either.
+
 ## v0.13.0 — 2026-04-19
 
 ### New
