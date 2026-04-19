@@ -118,7 +118,15 @@ defmodule MediaCentarr.SelfUpdate.Updater do
     {:reply, %{phase: state.phase, release: state.release, error: state.error}, state}
   end
 
-  def handle_call(:apply_pending, _from, %State{phase: :idle} = state) do
+  # Terminal phases we allow a fresh apply_pending to blow through.
+  # `:idle` is the initial state. `:failed` and `:done` are terminal —
+  # letting retry fall through keeps users from being wedged by a
+  # network blip or a previous handoff that didn't tear down the BEAM
+  # (app-only installs without systemd autostart).
+  @resettable_phases [:idle, :failed, :done]
+
+  def handle_call(:apply_pending, _from, %State{phase: phase} = state)
+      when phase in @resettable_phases do
     with {:ok, release} <- fetch_pending_release(),
          :ok <- UpdateChecker.validate_tag(release.tag) do
       parent = self()
