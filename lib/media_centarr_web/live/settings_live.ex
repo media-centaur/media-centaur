@@ -135,8 +135,12 @@ defmodule MediaCentarrWeb.SettingsLive do
     liveview = self()
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      # Dual-write via SelfUpdate so Settings.Entry stays in sync with
+      # the in-memory cache. Without this, a manual check would refresh
+      # only the 5-min hot-path cache; on next boot the stale persisted
+      # row would hydrate back and the UI would regress to the old value.
       result = UpdateChecker.latest_release()
-      UpdateChecker.cache_result(result)
+      _ = SelfUpdate.record_check_result(result)
       send(liveview, {:update_check_result, result})
     end)
 

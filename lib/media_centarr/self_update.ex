@@ -31,7 +31,6 @@ defmodule MediaCentarr.SelfUpdate do
   alias MediaCentarr.Topics
 
   @boot_check_delay_seconds 30
-  @stale_ttl_ms :timer.hours(6)
 
   @doc """
   Subscribes the caller to `self_update:status` — `{:check_started}` and
@@ -91,20 +90,34 @@ defmodule MediaCentarr.SelfUpdate do
   def current_status, do: Updater.status()
 
   @doc """
+  Records the outcome of a release check into both the durable store and
+  the hot-path cache. Called by `CheckerJob` and by the LiveView's
+  manual check path so the two layers never drift.
+
+  See `Storage.record_check_result/1` for the full contract.
+  """
+  @spec record_check_result({:ok, map()} | {:error, term()}) ::
+          {:ok, UpdateChecker.classification(), map()} | {:error, term()}
+  def record_check_result(outcome), do: Storage.record_check_result(outcome)
+
+  @doc """
   App-boot hydration. Reads the persisted `latest_known` entry into the
-  hot-path `:persistent_term` cache and enqueues a fresh check when the
-  last persisted check is stale.
+  hot-path `:persistent_term` cache and unconditionally enqueues a
+  fresh check.
+
+  The boot check used to be gated on `Storage.stale?` — but that let a
+  stale persisted row survive indefinitely on installs that restart
+  often, because each boot would rehydrate it with a fresh 5-minute
+  TTL before the UI ever asked for a new check. Always enqueueing is
+  safe: `CheckerJob`'s 1-hour `unique` constraint dedupes with a cron
+  tick that just fired, so this can't spam the GitHub API.
   """
   @spec boot!() :: :ok
   def boot! do
     :ok = Storage.hydrate_cache()
-
-    if Storage.stale?(@stale_ttl_ms) do
-      # Boot delay keeps the first HTTP call off the supervision-start
-      # hot path — the app is serving requests long before this fires.
-      _ = CheckerJob.enqueue_after(@boot_check_delay_seconds)
-    end
-
+    # Boot delay keeps the first HTTP call off the supervision-start
+    # hot path — the app is serving requests long before this fires.
+    _ = CheckerJob.enqueue_after(@boot_check_delay_seconds)
     :ok
   end
 end

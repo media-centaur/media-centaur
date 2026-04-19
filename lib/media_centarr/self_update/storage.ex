@@ -64,6 +64,35 @@ defmodule MediaCentarr.SelfUpdate.Storage do
     end
   end
 
+  @doc """
+  Atomically records the outcome of a release check across both
+  storage layers — the durable `Settings.Entry` and the hot-path
+  `:persistent_term` cache.
+
+  This is the single write path both `CheckerJob` and the LiveView's
+  manual/on-view check share, so the two layers never drift. A
+  previous design only had `CheckerJob` write to Settings.Entry, which
+  meant manual checks updated the in-memory cache but the next boot
+  would hydrate back to the stale persisted value for 5 minutes.
+
+  Returns the outcome enriched with classification on success so
+  callers can broadcast without re-computing.
+  """
+  @spec record_check_result({:ok, map()} | {:error, term()}) ::
+          {:ok, UpdateChecker.classification(), map()} | {:error, term()}
+  def record_check_result({:ok, release}) do
+    classification = UpdateChecker.compare(release, MediaCentarr.Version.current_version())
+    :ok = put_latest_known(release, classification)
+    :ok = put_last_check_at(DateTime.utc_now())
+    :ok = UpdateChecker.cache_result({:ok, release})
+    {:ok, classification, release}
+  end
+
+  def record_check_result({:error, _} = error) do
+    :ok = UpdateChecker.cache_result(error)
+    error
+  end
+
   @doc "Persists the timestamp of the last successful check."
   @spec put_last_check_at(DateTime.t()) :: :ok
   def put_last_check_at(%DateTime{} = at) do
