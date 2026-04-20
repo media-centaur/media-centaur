@@ -42,9 +42,11 @@ defmodule MediaCentarr.Application do
         # init when Ecto query logs land in its mailbox.
         {Phoenix.PubSub, name: MediaCentarr.PubSub},
         MediaCentarr.Console.Buffer,
+        MediaCentarr.Console.JournalSource,
         {Task.Supervisor, name: MediaCentarr.TaskSupervisor},
         MediaCentarr.TMDB.RateLimiter,
         MediaCentarr.Watcher.Supervisor,
+        MediaCentarr.Images.Availability,
         MediaCentarr.Pipeline.Supervisor,
         MediaCentarr.Pipeline.Image.Supervisor,
         %{

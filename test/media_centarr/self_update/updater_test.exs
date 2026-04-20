@@ -247,4 +247,82 @@ defmodule MediaCentarr.SelfUpdate.UpdaterTest do
       assert %{phase: :idle} = Updater.status(name)
     end
   end
+
+  describe "cancel/1" do
+    test "returns {:error, :not_running} when no apply is in flight" do
+      name = :updater_cancel_idle
+      start_updater(name)
+      assert {:error, :not_running} = Updater.cancel(name)
+    end
+
+    test "cancels an in-flight apply in a cancellable phase" do
+      UpdateChecker.cache_result({:ok, valid_release()})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.self_update_progress())
+
+      test_pid = self()
+
+      defmodule BlockingCancelDownloader do
+        def run(_tarball_url, _sha256_url, opts) do
+          test_pid = :persistent_term.get({__MODULE__, :test_pid})
+          send(test_pid, {:blocking_cancel_started, self()})
+          progress_fn = Keyword.get(opts, :progress_fn, fn _, _ -> :ok end)
+          _ = progress_fn.(100, 1_000)
+
+          # Block until cancelled. Task.shutdown will kill us.
+          receive do
+            :never -> :ok
+          after
+            10_000 -> :timeout
+          end
+        end
+      end
+
+      :persistent_term.put({BlockingCancelDownloader, :test_pid}, test_pid)
+
+      name = :updater_cancel_live
+      start_updater(name, downloader: BlockingCancelDownloader)
+
+      assert :ok = Updater.apply_pending(name)
+      assert_receive {:blocking_cancel_started, _blocker_pid}, 1_000
+      assert_receive {:progress, :downloading, _}, 1_000
+
+      assert :ok = Updater.cancel(name)
+      assert_receive {:apply_cancelled}, 1_000
+
+      assert %{phase: :idle} = Updater.status(name)
+    end
+
+    test "refuses to cancel once handoff has started" do
+      UpdateChecker.cache_result({:ok, valid_release()})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.self_update_progress())
+
+      test_pid = self()
+
+      defmodule BlockingHandoff do
+        def spawn_detached(staged_root, _opts \\ []) do
+          test_pid = :persistent_term.get({__MODULE__, :test_pid})
+          send(test_pid, {:handoff_blocking_started, staged_root})
+
+          receive do
+            :proceed -> :ok
+          after
+            10_000 -> :timeout
+          end
+        end
+      end
+
+      :persistent_term.put({BlockingHandoff, :test_pid}, test_pid)
+
+      name = :updater_cancel_post_handoff
+      start_updater(name, handoff: BlockingHandoff)
+
+      assert :ok = Updater.apply_pending(name)
+      assert_receive {:handoff_blocking_started, _}, 2_000
+
+      # Small buffer for the GenServer to process the :handing_off phase message.
+      Process.sleep(50)
+
+      assert {:error, :past_point_of_no_return} = Updater.cancel(name)
+    end
+  end
 end

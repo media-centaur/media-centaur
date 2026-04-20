@@ -59,6 +59,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :resume, :map, default: nil
   attr :progress_records, :list, default: []
   attr :expanded_seasons, :any, default: nil
+  attr :images_available, :boolean, default: true
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
   attr :rematch_confirm, :boolean, default: false
@@ -100,7 +101,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         phx-hook="ScrollForward"
         data-target="detail-content"
       >
-        <.hero entity={@entity} tracking_status={@tracking_status} />
+        <.hero
+          entity={@entity}
+          tracking_status={@tracking_status}
+          images_available={@images_available}
+        />
         <div class="p-4 space-y-4">
           <.metadata_row entity={@entity} />
           <div class="space-y-1">
@@ -132,6 +137,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             extra_progress_by_id={@extra_progress_by_id}
             on_play={@on_play}
             spoiler_free={@spoiler_free}
+            images_available={@images_available}
           />
         <% else %>
           <.info_view
@@ -162,9 +168,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     <div class="detail-hero relative overflow-hidden">
       <div class="aspect-[21/9] glass-inset relative">
         <img
-          :if={@background}
+          :if={@background && @images_available}
           src={@background}
           class="w-full h-full object-cover"
+        />
+        <div
+          :if={@background && !@images_available}
+          class="w-full h-full bg-base-content/5"
+          aria-label="Artwork unavailable — storage not mounted"
         />
         <div :if={!@background} class="w-full h-full flex items-center justify-center">
           <.icon name="hero-film" class="size-12 text-base-content/20" />
@@ -183,12 +194,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         </button>
         <div class="absolute bottom-4 left-4 right-4">
           <img
-            :if={@logo}
+            :if={@logo && @images_available}
             src={@logo}
             class="max-h-16 max-w-[80%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]"
           />
           <h2
-            :if={!@logo}
+            :if={!@logo || !@images_available}
             class="text-xl font-bold leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
           >
             {@entity.name}
@@ -401,6 +412,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         entity_id={@entity.id}
         on_play={@on_play}
         spoiler_free={@spoiler_free}
+        images_available={@images_available}
       />
       <.extras_section
         entity={@entity}
@@ -432,6 +444,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           entity_id={@entity.id}
           on_play={@on_play}
           spoiler_free={@spoiler_free}
+          images_available={@images_available}
         />
       </div>
       <.extras_section
@@ -459,6 +472,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
+  attr :images_available, :boolean, default: true
 
   defp season_section(assigns) do
     episodes = assigns.season.episodes || []
@@ -503,6 +517,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 entity_id={@entity_id}
                 on_play={@on_play}
                 spoiler_free={@spoiler_free}
+                images_available={@images_available}
               />
             <% {:missing, episode_number} -> %>
               <.missing_episode_row
@@ -531,6 +546,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
+  attr :images_available, :boolean, default: true
 
   defp episode_row(assigns) do
     state = episode_state(assigns.progress)
@@ -561,11 +577,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       <div class="flex items-start gap-3 text-sm">
         <div class="w-20 flex-shrink-0">
           <img
-            :if={@thumbnail}
+            :if={@thumbnail && @images_available}
             src={@thumbnail}
             class="w-20 aspect-video rounded object-cover"
           />
-          <div :if={!@thumbnail} class="w-20 aspect-video rounded bg-base-300/30" />
+          <div
+            :if={(@thumbnail && !@images_available) || !@thumbnail}
+            class="w-20 aspect-video rounded bg-base-300/30"
+          />
         </div>
         <div class="flex-1 min-w-0">
           <span class="truncate block text-base-content/90">
@@ -712,6 +731,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :movie, :map, required: true
   attr :ordinal, :integer, required: true
   attr :progress, :map, default: nil
+  attr :images_available, :boolean, default: true
   attr :resume_episode_key, :any, default: nil
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
@@ -746,11 +766,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       <div class="flex items-start gap-3 text-sm">
         <div class="w-12 flex-shrink-0">
           <img
-            :if={@thumbnail}
+            :if={@thumbnail && @images_available}
             src={@thumbnail}
             class="w-12 aspect-[2/3] rounded object-cover"
           />
-          <div :if={!@thumbnail} class="w-12 aspect-[2/3] rounded bg-base-300/30" />
+          <div
+            :if={(@thumbnail && !@images_available) || !@thumbnail}
+            class="w-12 aspect-[2/3] rounded bg-base-300/30"
+          />
         </div>
         <div class="flex-1 min-w-0">
           <span class="truncate block text-base-content/90">

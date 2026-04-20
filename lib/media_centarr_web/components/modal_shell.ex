@@ -24,6 +24,7 @@ defmodule MediaCentarrWeb.Components.ModalShell do
   attr :delete_confirm, :any, default: nil
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
+  attr :images_available, :boolean, default: true
 
   def modal_shell(assigns) do
     ~H"""
@@ -60,6 +61,7 @@ defmodule MediaCentarrWeb.Components.ModalShell do
             delete_confirm={@delete_confirm}
             spoiler_free={@spoiler_free}
             tracking_status={@tracking_status}
+            images_available={@images_available}
           />
         </div>
       </div>

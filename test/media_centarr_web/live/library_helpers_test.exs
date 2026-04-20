@@ -499,4 +499,45 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
              }) == {:touch, []}
     end
   end
+
+  # --- offline_summary/2 ---
+
+  describe "offline_summary/2" do
+    test "returns nil when every dir is :watching" do
+      assert LibraryHelpers.offline_summary(%{"/mnt/a" => :watching}, 0) == nil
+      assert LibraryHelpers.offline_summary(%{}, 0) == nil
+    end
+
+    test "returns nil when dirs are :initializing (not yet unavailable)" do
+      assert LibraryHelpers.offline_summary(%{"/mnt/a" => :initializing}, 0) == nil
+    end
+
+    test "single-dir offline, pluralises items correctly" do
+      status = %{"/mnt/videos" => :unavailable}
+
+      assert LibraryHelpers.offline_summary(status, 1) ==
+               "/mnt/videos is offline — 1 item temporarily unavailable."
+
+      assert LibraryHelpers.offline_summary(status, 23) ==
+               "/mnt/videos is offline — 23 items temporarily unavailable."
+    end
+
+    test "multiple dirs offline mentions the count instead of naming each" do
+      status = %{
+        "/mnt/videos" => :unavailable,
+        "/mnt/nas/media" => :unavailable,
+        "/mnt/extra" => :watching
+      }
+
+      assert LibraryHelpers.offline_summary(status, 41) ==
+               "2 storage locations offline — 41 items temporarily unavailable."
+    end
+
+    test "zero items edge case (dir offline but nothing indexed from it yet)" do
+      status = %{"/mnt/videos" => :unavailable}
+
+      assert LibraryHelpers.offline_summary(status, 0) ==
+               "/mnt/videos is offline — 0 items temporarily unavailable."
+    end
+  end
 end

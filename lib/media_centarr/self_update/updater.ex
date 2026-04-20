@@ -44,7 +44,9 @@ defmodule MediaCentarr.SelfUpdate.Updater do
     defstruct phase: :idle,
               release: nil,
               error: nil,
+              task: nil,
               task_ref: nil,
+              staging_dir: nil,
               deps: nil,
               staging_root: nil
   end
@@ -99,6 +101,30 @@ defmodule MediaCentarr.SelfUpdate.Updater do
     GenServer.call(server, :status)
   end
 
+  @doc """
+  Cancels an in-flight apply if it hasn't passed the handoff point.
+
+  Returns:
+
+    * `:ok` when the in-flight Task was shut down and the state returned
+      to `:idle`. Broadcasts `{:apply_cancelled}` on the progress topic.
+    * `{:error, :not_running}` when nothing is in flight.
+    * `{:error, :past_point_of_no_return}` once `:handing_off` has fired
+      or the apply has already completed. After handoff the installer
+      runs detached and killing the Task here wouldn't stop it.
+  """
+  @spec cancel(atom() | pid()) ::
+          :ok | {:error, :not_running | :past_point_of_no_return}
+  def cancel(server \\ __MODULE__) do
+    GenServer.call(server, :cancel)
+  end
+
+  # Phases where we can still abort safely — no symlink has been flipped,
+  # no detached installer has been spawned, the worst consequence is a
+  # partial tarball in the staging dir (which will be cleaned up on the
+  # next apply).
+  @cancellable_phases [:preparing, :downloading, :extracting]
+
   # --- GenServer callbacks ---
 
   @impl GenServer
@@ -138,7 +164,16 @@ defmodule MediaCentarr.SelfUpdate.Updater do
           run_apply(release, worker_deps, staging, parent)
         end)
 
-      new_state = %{state | phase: :preparing, release: release, task_ref: task.ref, error: nil}
+      new_state = %{
+        state
+        | phase: :preparing,
+          release: release,
+          task: task,
+          task_ref: task.ref,
+          staging_dir: staging,
+          error: nil
+      }
+
       broadcast({:progress, :preparing, nil})
 
       {:reply, :ok, new_state}
@@ -149,6 +184,38 @@ defmodule MediaCentarr.SelfUpdate.Updater do
 
   def handle_call(:apply_pending, _from, %State{} = state) do
     {:reply, {:error, :already_running}, state}
+  end
+
+  def handle_call(:cancel, _from, %State{task: nil} = state) do
+    {:reply, {:error, :not_running}, state}
+  end
+
+  def handle_call(:cancel, _from, %State{phase: phase, task: %Task{} = task} = state)
+      when phase in @cancellable_phases do
+    # Task.shutdown/2 sends :shutdown, waits briefly, then brutal-kills.
+    # It also demonitors and flushes any pending {:DOWN, ...} or
+    # {ref, result} messages so subsequent handle_info clauses won't
+    # see stale echoes.
+    _ = Task.shutdown(task, :brutal_kill)
+    _ = rm_staging(state.staging_dir)
+
+    broadcast({:apply_cancelled})
+    Log.info(:system, "update apply cancelled from phase #{phase}")
+
+    {:reply, :ok,
+     %{
+       state
+       | phase: :idle,
+         task: nil,
+         task_ref: nil,
+         staging_dir: nil,
+         release: nil,
+         error: nil
+     }}
+  end
+
+  def handle_call(:cancel, _from, %State{} = state) do
+    {:reply, {:error, :past_point_of_no_return}, state}
   end
 
   @impl GenServer
@@ -172,17 +239,18 @@ defmodule MediaCentarr.SelfUpdate.Updater do
   # Task.async_nolink sends {ref, result} and then {:DOWN, ref, :process, pid, reason}.
   def handle_info({ref, _result}, %State{task_ref: ref} = state) when is_reference(ref) do
     Process.demonitor(ref, [:flush])
-    {:noreply, %{state | task_ref: nil}}
+    {:noreply, %{state | task: nil, task_ref: nil}}
   end
 
   def handle_info({:DOWN, ref, :process, _pid, :normal}, %State{task_ref: ref} = state) do
-    {:noreply, %{state | task_ref: nil}}
+    {:noreply, %{state | task: nil, task_ref: nil}}
   end
 
   def handle_info({:DOWN, ref, :process, _pid, reason}, %State{task_ref: ref} = state) do
     Log.warning(:system, "update task crashed: #{inspect(reason)}")
     broadcast({:apply_failed, {:task_crashed, reason}})
-    {:noreply, %{state | phase: :failed, error: {:task_crashed, reason}, task_ref: nil}}
+
+    {:noreply, %{state | phase: :failed, error: {:task_crashed, reason}, task: nil, task_ref: nil}}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
@@ -260,6 +328,18 @@ defmodule MediaCentarr.SelfUpdate.Updater do
   end
 
   defp user_home, do: System.user_home!()
+
+  # Best-effort cleanup of a staging dir on cancel. If the path doesn't
+  # exist or the remove fails, that's fine — `Stager.extract/3` creates
+  # a fresh, unique dir per attempt anyway.
+  defp rm_staging(nil), do: :ok
+
+  defp rm_staging(dir) when is_binary(dir) do
+    case File.rm_rf(dir) do
+      {:ok, _} -> :ok
+      {:error, _, _} -> :ok
+    end
+  end
 
   defp broadcast(message) do
     Phoenix.PubSub.broadcast(

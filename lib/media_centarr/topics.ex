@@ -22,6 +22,7 @@ defmodule MediaCentarr.Topics do
   def release_tracking_updates, do: "release_tracking:updates"
   def watch_history_events, do: "watch_history:events"
   def console_logs, do: "console:logs"
+  def service_journal, do: "service:journal"
   def acquisition_updates, do: "acquisition:updates"
   def self_update_status, do: "self_update:status"
   def self_update_progress, do: "self_update:progress"
