@@ -26,4 +26,5 @@ defmodule MediaCentarr.Topics do
   def acquisition_updates, do: "acquisition:updates"
   def self_update_status, do: "self_update:status"
   def self_update_progress, do: "self_update:progress"
+  def controls_updates, do: "controls:updates"
 end
