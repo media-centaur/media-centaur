@@ -664,7 +664,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   def handle_event("controls:listen", %{"id" => id, "kind" => kind}, socket) do
     {:noreply,
      socket
-     |> assign(listening: {String.to_atom(kind), String.to_existing_atom(id)})
+     |> assign(listening: {String.to_existing_atom(kind), String.to_existing_atom(id)})
      |> push_event("controls:listen", %{kind: kind})}
   end
 
@@ -672,13 +672,9 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, listening: nil)}
   end
 
-  def handle_event(
-        "controls:bind",
-        %{"id" => id, "kind" => kind, "value" => value},
-        socket
-      ) do
+  def handle_event("controls:bind", %{"id" => id, "kind" => kind, "value" => value}, socket) do
     id_atom = String.to_existing_atom(id)
-    kind_atom = String.to_atom(kind)
+    kind_atom = String.to_existing_atom(kind)
     normalized = normalize_bind_value(kind_atom, value)
 
     case Controls.put(id_atom, kind_atom, normalized) do
@@ -688,7 +684,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_event("controls:clear", %{"id" => id, "kind" => kind}, socket) do
-    :ok = Controls.clear(String.to_existing_atom(id), String.to_atom(kind))
+    :ok = Controls.clear(String.to_existing_atom(id), String.to_existing_atom(kind))
     {:noreply, socket}
   end
 

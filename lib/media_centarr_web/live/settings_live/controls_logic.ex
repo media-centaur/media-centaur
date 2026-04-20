@@ -23,8 +23,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsLogic do
   def group_for_view(resolved) do
     Enum.map(Catalog.categories(), fn category ->
       views =
-        Catalog.by_category(category)
-        |> Enum.map(fn binding ->
+        Enum.map(Catalog.by_category(category), fn binding ->
           slot = Map.get(resolved, binding.id, %{key: nil, button: nil})
 
           %{

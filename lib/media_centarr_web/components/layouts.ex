@@ -33,7 +33,13 @@ defmodule MediaCentarrWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <div id="input-system" class="flex min-h-screen" phx-hook="InputSystem">
+    <div
+      id="input-system"
+      class="flex min-h-screen"
+      phx-hook="InputSystem"
+      data-input-bindings={Jason.encode!(input_bindings())}
+      data-global-bindings={Jason.encode!(global_bindings())}
+    >
       <aside id="sidebar" class="sidebar glass-sidebar" data-nav-zone="sidebar">
         <nav class="flex flex-col gap-0.5">
           <.link
@@ -200,6 +206,42 @@ defmodule MediaCentarrWeb.Layouts do
       </.flash>
     </div>
     """
+  end
+
+  defp input_bindings do
+    resolved = MediaCentarr.Controls.get()
+    catalog = MediaCentarr.Controls.Catalog.all()
+    input_scope_ids = for b <- catalog, b.scope == :input_system, do: b.id
+
+    %{
+      keyboard:
+        Enum.reduce(input_scope_ids, %{}, fn id, acc ->
+          case resolved[id].key do
+            nil -> acc
+            key -> Map.put(acc, key, Atom.to_string(id))
+          end
+        end),
+      gamepad:
+        Enum.reduce(input_scope_ids, %{}, fn id, acc ->
+          case resolved[id].button do
+            nil -> acc
+            btn -> Map.put(acc, Integer.to_string(btn), Atom.to_string(id))
+          end
+        end)
+    }
+  end
+
+  defp global_bindings do
+    resolved = MediaCentarr.Controls.get()
+    catalog = MediaCentarr.Controls.Catalog.all()
+    global_scope_ids = for b <- catalog, b.scope == :global, do: b.id
+
+    Enum.reduce(global_scope_ids, %{}, fn id, acc ->
+      case resolved[id].key do
+        nil -> acc
+        key -> Map.put(acc, Atom.to_string(id), key)
+      end
+    end)
   end
 
   defp sidebar_link_class(current_path, path) do

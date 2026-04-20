@@ -25,7 +25,9 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
       {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
 
       view
-      |> element(~s|button[phx-click="controls:listen"][phx-value-id="navigate_up"][phx-value-kind="keyboard"]|)
+      |> element(
+        ~s|button[phx-click="controls:listen"][phx-value-id="navigate_up"][phx-value-kind="keyboard"]|
+      )
       |> render_click()
 
       assert render(view) =~ "data-listening=\"true\""
@@ -35,9 +37,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
       :ok = Controls.subscribe()
       {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
 
-      view
-      |> render_hook("controls:bind", %{"id" => "play", "kind" => "keyboard", "value" => "k"})
-
+      render_hook(view, "controls:bind", %{"id" => "play", "kind" => "keyboard", "value" => "k"})
       assert_receive {:controls_changed, map}
       assert map[:play].key == "k"
     end
@@ -46,11 +46,12 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
       {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
 
       view
-      |> element(~s|button[phx-click="controls:listen"][phx-value-id="navigate_up"][phx-value-kind="keyboard"]|)
+      |> element(
+        ~s|button[phx-click="controls:listen"][phx-value-id="navigate_up"][phx-value-kind="keyboard"]|
+      )
       |> render_click()
 
-      view |> render_hook("controls:cancel", %{})
-
+      render_hook(view, "controls:cancel", %{})
       refute render(view) =~ "data-listening=\"true\""
     end
   end
