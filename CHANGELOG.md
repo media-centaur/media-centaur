@@ -4,6 +4,12 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.16.2 — 2026-04-21
+
+Maintenance release — no user-visible changes. Restores a green CI
+baseline (test isolation fix for systemd-supervised runners) and
+renames an internal dev-only dependency.
+
 ## v0.16.1 — 2026-04-20
 
 ### Fixed
