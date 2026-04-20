@@ -18,6 +18,7 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   alias MediaCentarr.{
     Format,
+    Images.Availability,
     Library,
     Library.FileEventHandler,
     Playback,
@@ -44,6 +45,7 @@ defmodule MediaCentarrWeb.LibraryLive do
       Playback.subscribe()
       Settings.subscribe()
       ReleaseTracking.subscribe()
+      Availability.subscribe()
     end
 
     {:ok,
@@ -88,7 +90,8 @@ defmodule MediaCentarrWeb.LibraryLive do
        tracking_status: nil,
        confirm_stop_item: nil,
        tracked_items: [],
-       watch_dirs_configured: watch_dirs_configured?()
+       watch_dirs_configured: watch_dirs_configured?(),
+       dir_status: Availability.dir_status()
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -841,6 +844,21 @@ defmodule MediaCentarrWeb.LibraryLive do
     end
   end
 
+  def handle_info({:availability_changed, _dir, state}, socket) do
+    socket = assign(socket, :dir_status, Availability.dir_status())
+
+    # When storage comes back online, reset the grid stream so the
+    # browser re-requests images instead of serving cached 404s.
+    socket =
+      if state == :watching do
+        stream(socket, :grid, socket.assigns.entries, reset: true)
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -851,16 +869,27 @@ defmodule MediaCentarrWeb.LibraryLive do
   def render(assigns) do
     selected_entry = assigns.entries_by_id[assigns.selected_entity_id]
 
+    unavailable_count =
+      Enum.count(assigns.entries, fn entry ->
+        not Availability.available?(entry.entity)
+      end)
+
+    offline_summary = offline_summary(assigns.dir_status, unavailable_count)
+
     assigns =
       assigns
       |> assign(:selected_entry, selected_entry)
       |> assign(:watching_path, ~p"/")
       |> assign(:library_path, ~p"/?zone=library")
+      |> assign(:offline_summary, offline_summary)
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/" full_width>
       <div data-page-behavior="library">
+        <%!-- Storage offline banner --%>
+        <LibraryCards.storage_offline_banner :if={@offline_summary} summary={@offline_summary} />
+
         <%!-- Zone tabs --%>
         <div role="tablist" class="tabs tabs-boxed library-tabs w-fit mb-6" data-nav-zone="zone-tabs">
           <.link
@@ -908,6 +937,7 @@ defmodule MediaCentarrWeb.LibraryLive do
               entry={entry}
               resume={Map.get(@resume_targets, entry.entity.id)}
               playing={playing?(@playback, entry.entity.id)}
+              images_available={Availability.available?(entry.entity)}
             />
           </div>
         </section>
@@ -954,6 +984,7 @@ defmodule MediaCentarrWeb.LibraryLive do
                 entry={entry}
                 selected={@selected_entity_id == entry.entity.id}
                 playing={playing?(@playback, entry.entity.id)}
+                images_available={Availability.available?(entry.entity)}
               />
             </div>
           </div>
@@ -986,6 +1017,10 @@ defmodule MediaCentarrWeb.LibraryLive do
           delete_confirm={@delete_confirm}
           spoiler_free={@spoiler_free}
           tracking_status={@tracking_status}
+          images_available={
+            @selected_entry == nil ||
+              Availability.available?(@selected_entry.entity)
+          }
           on_play="play"
           on_close="close_detail"
         />

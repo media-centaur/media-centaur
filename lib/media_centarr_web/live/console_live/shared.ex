@@ -37,12 +37,17 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
             Logic.initial_snapshot()
           end
 
+        journal_available =
+          if connected?(socket), do: Console.journal_available?(), else: false
+
         socket
         |> assign(:filter, snapshot.filter)
         |> assign(:paused, false)
         |> assign(:buffer_size, snapshot.cap)
         |> assign(:app_components, View.app_components())
         |> assign(:framework_components, View.framework_components())
+        |> assign(:active_source, :app)
+        |> assign(:journal_available, journal_available)
         # Stream limit is pinned at the buffer's max_cap and never reconfigured.
         # Phoenix LiveView forbids stream_configure/3 after a stream has been
         # populated, so a dynamic limit would crash on resize. The buffer itself
@@ -53,6 +58,8 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
           limit: -Buffer.max_cap()
         )
         |> stream(:entries, Enum.reverse(snapshot.entries))
+        |> stream_configure(:journal, dom_id: &Logic.entry_dom_id/1, limit: -500)
+        |> stream(:journal, [])
       end
 
       # --- PubSub handlers ---
@@ -84,6 +91,23 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
           |> stream(:entries, Enum.reverse(visible), reset: true)
 
         {:noreply, socket}
+      end
+
+      def handle_info({:journal_line, entry}, socket) do
+        if socket.assigns.active_source == :systemd and not socket.assigns.paused do
+          {:noreply, stream_insert(socket, :journal, entry, at: 0)}
+        else
+          {:noreply, socket}
+        end
+      end
+
+      def handle_info({:journal_reset}, socket) do
+        if socket.assigns.active_source == :systemd do
+          snapshot = Console.journal_snapshot()
+          {:noreply, stream(socket, :journal, Enum.reverse(snapshot), reset: true)}
+        else
+          {:noreply, socket}
+        end
       end
 
       def handle_info({:filter_changed, filter}, socket) do
@@ -175,6 +199,54 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
         payload = Logic.format_visible_payload(snapshot.entries, socket.assigns.filter)
 
         {:noreply, push_event(socket, "console:copy", %{content: payload})}
+      end
+
+      def handle_event("set_log_source", %{"source" => source_string}, socket) do
+        new_source = if source_string == "systemd", do: :systemd, else: :app
+
+        cond do
+          new_source == socket.assigns.active_source ->
+            {:noreply, socket}
+
+          new_source == :systemd ->
+            case Console.journal_subscribe() do
+              {:ok, entries} ->
+                {:noreply,
+                 socket
+                 |> assign(:active_source, :systemd)
+                 |> stream(:journal, Enum.reverse(entries), reset: true)}
+
+              {:error, :no_unit_detected} ->
+                {:noreply, assign(socket, :journal_available, false)}
+            end
+
+          true ->
+            :ok = Console.journal_unsubscribe()
+
+            {:noreply,
+             socket
+             |> assign(:active_source, :app)
+             |> stream(:journal, [], reset: true)}
+        end
+      end
+
+      def handle_event("reconnect_journal", _params, socket) do
+        _ = Console.journal_reconnect()
+        {:noreply, socket}
+      end
+
+      @impl true
+      def terminate(_reason, socket) do
+        # Best-effort — if the LiveView was on the Systemd tab when the
+        # socket closed, release its journal subscription. JournalSource
+        # monitors subscribers and will reap this pid anyway via :DOWN,
+        # but explicit unsubscribe makes the refcount behaviour
+        # predictable in tests.
+        if socket.assigns[:active_source] == :systemd do
+          _ = Console.journal_unsubscribe()
+        end
+
+        :ok
       end
     end
   end

@@ -84,6 +84,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        watch_dir_dialog: nil,
        watch_dir_delete_confirm: nil,
        scanning: false,
+       scan_task: nil,
        clearing_database: false,
        refreshing_images: false,
        spoiler_free: spoiler_free,
@@ -105,6 +106,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
        service_state: SelfUpdate.service_state(),
        service_action_confirm: nil,
+       service_action_pending: nil,
        service_status_visible: false,
        service_status_output: nil
      )}
@@ -209,6 +211,25 @@ defmodule MediaCentarrWeb.SettingsLive do
     end
   end
 
+  def handle_event("cancel_update", _params, socket) do
+    case SelfUpdate.cancel_apply() do
+      :ok ->
+        {:noreply, socket}
+
+      {:error, :not_running} ->
+        {:noreply,
+         assign(socket, apply_phase: nil, apply_progress: nil, apply_error: nil, apply_failed_at: nil)}
+
+      {:error, :past_point_of_no_return} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :info,
+           "Too late to cancel — the update is finalising. The service will restart shortly."
+         )}
+    end
+  end
+
   # --- Service controls ---
 
   def handle_event("service_confirm", %{"action" => action}, socket)
@@ -225,7 +246,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       :ok ->
         {:noreply,
          socket
-         |> assign(service_action_confirm: nil)
+         |> assign(service_action_confirm: nil, service_action_pending: :restarting)
          |> put_flash(
            :info,
            "Restarting the service. The page will reconnect automatically when it's back."
@@ -244,7 +265,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       :ok ->
         {:noreply,
          socket
-         |> assign(service_action_confirm: nil)
+         |> assign(service_action_confirm: nil, service_action_pending: :stopping)
          |> put_flash(
            :info,
            "Stopping the service. You'll need to start it manually to bring it back."
@@ -258,22 +279,20 @@ defmodule MediaCentarrWeb.SettingsLive do
     end
   end
 
-  def handle_event("service_show_status", _params, socket) do
+  def handle_event("service_toggle_status", _params, socket) do
+    visible = not socket.assigns.service_status_visible
+
     output =
-      case SelfUpdate.service_status_output() do
-        {:ok, text} -> text
-        {:error, reason} -> "Failed to read systemctl status: #{inspect(reason)}"
+      if visible and is_nil(socket.assigns.service_status_output) do
+        case SelfUpdate.service_status_output() do
+          {:ok, text} -> text
+          {:error, reason} -> "Failed to read systemctl status: #{inspect(reason)}"
+        end
+      else
+        socket.assigns.service_status_output
       end
 
-    {:noreply, assign(socket, service_status_visible: true, service_status_output: output)}
-  end
-
-  def handle_event("service_hide_status", _params, socket) do
-    {:noreply, assign(socket, service_status_visible: false)}
-  end
-
-  def handle_event("service_refresh_state", _params, socket) do
-    {:noreply, assign(socket, service_state: SelfUpdate.service_state())}
+    {:noreply, assign(socket, service_status_visible: visible, service_status_output: output)}
   end
 
   def handle_event("dismiss_apply_modal", _params, socket) do
@@ -370,21 +389,31 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_event("scan", _params, socket) do
-    socket = assign(socket, scanning: true)
+    # Spawn the scan on a supervised Task so the LiveView stays responsive
+    # and we can surface a Cancel button backed by Task.shutdown/2. A
+    # synchronous call here would block the socket process — no render
+    # could fire during the scan, so the "Scanning…" label would never
+    # become visible.
+    task =
+      Task.Supervisor.async_nolink(MediaCentarr.TaskSupervisor, fn ->
+        MediaCentarr.Watcher.Supervisor.scan()
+      end)
 
-    case MediaCentarr.Watcher.Supervisor.scan() do
-      {:ok, count} ->
-        message =
-          case count do
-            0 -> "Scan complete — no new files found"
-            1 -> "Scan complete — 1 new file detected"
-            n -> "Scan complete — #{n} new files detected"
-          end
+    {:noreply, assign(socket, scanning: true, scan_task: task)}
+  end
+
+  def handle_event("cancel_scan", _params, socket) do
+    case socket.assigns[:scan_task] do
+      %Task{} = task ->
+        _ = Task.shutdown(task, :brutal_kill)
 
         {:noreply,
          socket
-         |> put_flash(:info, message)
-         |> assign(scanning: false)}
+         |> assign(scanning: false, scan_task: nil)
+         |> put_flash(:info, "Scan cancelled.")}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 
@@ -650,11 +679,42 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> put_flash(:info, "Database cleared successfully")}
   end
 
+  # async_nolink delivers the scan result here as {ref, result} when the
+  # Task succeeds. We match on the stored task's ref to avoid confusing it
+  # with any other Task.async_nolink result flowing through this socket.
+  def handle_info({ref, {:ok, count}}, %{assigns: %{scan_task: %Task{ref: ref}}} = socket) do
+    Process.demonitor(ref, [:flush])
+
+    message =
+      case count do
+        0 -> "Scan complete — no new files found"
+        1 -> "Scan complete — 1 new file detected"
+        n -> "Scan complete — #{n} new files detected"
+      end
+
+    {:noreply,
+     socket
+     |> assign(scanning: false, scan_task: nil)
+     |> put_flash(:info, message)}
+  end
+
+  # Task exited normally after we already reaped its result above, or
+  # exited from Task.shutdown in cancel_scan. Either way nothing to do.
+  def handle_info(
+        {:DOWN, ref, :process, _pid, _reason},
+        %{assigns: %{scan_task: %Task{ref: ref}}} = socket
+      ) do
+    {:noreply, assign(socket, scan_task: nil)}
+  end
+
   def handle_info({:image_cache_refreshed, count}, socket) do
     {:noreply,
      socket
      |> assign(refreshing_images: false)
-     |> put_flash(:info, "Image cache refreshed — re-downloaded images for #{count} entities")}
+     |> put_flash(
+       :info,
+       "Image cache cleared — #{count} #{if count == 1, do: "entity", else: "entities"} queued for re-download. New artwork will appear as the pipeline catches up."
+     )}
   end
 
   # Cross-tab sync — another tab toggled spoiler_free
@@ -762,6 +822,18 @@ defmodule MediaCentarrWeb.SettingsLive do
        apply_failed_at: socket.assigns.apply_phase,
        apply_error: reason
      )}
+  end
+
+  def handle_info({:apply_cancelled}, socket) do
+    {:noreply,
+     socket
+     |> assign(
+       apply_phase: nil,
+       apply_progress: nil,
+       apply_error: nil,
+       apply_failed_at: nil
+     )
+     |> put_flash(:info, "Update cancelled.")}
   end
 
   def handle_info(:apply_done_stuck, socket) do
@@ -911,6 +983,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             service_state={@service_state}
             service_status_visible={@service_status_visible}
             service_status_output={@service_status_output}
+            service_action_pending={@service_action_pending}
             watch_dirs={@watch_dirs}
             watch_dir_delete_confirm={@watch_dir_delete_confirm}
             exclude_dirs={@exclude_dirs}
@@ -1147,6 +1220,7 @@ defmodule MediaCentarrWeb.SettingsLive do
         service_state={@service_state}
         service_status_visible={@service_status_visible}
         service_status_output={@service_status_output}
+        service_action_pending={@service_action_pending}
       />
 
       <div
@@ -1273,15 +1347,27 @@ defmodule MediaCentarrWeb.SettingsLive do
         <p class="text-xs text-base-content/50 min-w-0">
           Manually scan all watch directories for new media files.
         </p>
-        <button
-          phx-click="scan"
-          disabled={@scanning}
-          data-nav-item
-          tabindex="0"
-          class="btn btn-soft btn-success btn-sm shrink-0"
-        >
-          {if @scanning, do: "Scanning…", else: "Scan now"}
-        </button>
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            :if={@scanning}
+            phx-click="cancel_scan"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-ghost btn-sm"
+          >
+            Cancel
+          </button>
+          <button
+            phx-click="scan"
+            disabled={@scanning}
+            data-nav-item
+            tabindex="0"
+            class="btn btn-soft btn-success btn-sm"
+          >
+            <span :if={@scanning} class="loading loading-spinner loading-xs"></span>
+            {if @scanning, do: "Scanning…", else: "Scan now"}
+          </button>
+        </div>
       </div>
     </div>
     """
@@ -1485,7 +1571,8 @@ defmodule MediaCentarrWeb.SettingsLive do
             tabindex="0"
           >
             <span :if={@prowlarr_testing} class="loading loading-spinner loading-xs"></span>
-            <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" /> Test connection
+            <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" />
+            {if @prowlarr_testing, do: "Testing…", else: "Test connection"}
           </button>
         </div>
       </form>
@@ -1516,7 +1603,8 @@ defmodule MediaCentarrWeb.SettingsLive do
                 :if={!@download_client_detecting}
                 name="hero-magnifying-glass-mini"
                 class="size-4"
-              /> Detect
+              />
+              {if @download_client_detecting, do: "Detecting…", else: "Detect"}
             </button>
             <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
               Save
@@ -1625,7 +1713,7 @@ defmodule MediaCentarrWeb.SettingsLive do
           >
             <span :if={@download_client_testing} class="loading loading-spinner loading-xs"></span>
             <.icon :if={!@download_client_testing} name="hero-signal-mini" class="size-4" />
-            Test connection
+            {if @download_client_testing, do: "Testing…", else: "Test connection"}
           </button>
         </div>
       </form>
@@ -2056,7 +2144,12 @@ defmodule MediaCentarrWeb.SettingsLive do
           <button
             phx-click="refresh_image_cache"
             disabled={@refreshing_images}
-            data-confirm="This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
+            data-confirm={
+              if @refreshing_images,
+                do: nil,
+                else:
+                  "This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
+            }
             data-nav-item
             tabindex="0"
             class="btn btn-soft btn-warning btn-sm shrink-0"
@@ -2183,6 +2276,21 @@ defmodule MediaCentarrWeb.SettingsLive do
             progress={@apply_progress}
           />
         </ol>
+
+        <div
+          :if={SystemSection.apply_cancelable?(@apply_phase)}
+          class="flex justify-end pt-2"
+        >
+          <button
+            type="button"
+            phx-click="cancel_update"
+            data-nav-item
+            tabindex="0"
+            class="btn btn-ghost btn-sm"
+          >
+            <.icon name="hero-x-mark-mini" class="size-4" /> Cancel update
+          </button>
+        </div>
 
         <div
           :if={@apply_phase == :failed}
@@ -2480,6 +2588,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   attr :service_state, :map, required: true
   attr :service_status_visible, :boolean, default: false
   attr :service_status_output, :any, default: nil
+  attr :service_action_pending, :atom, default: nil
 
   defp service_card(assigns) do
     ~H"""
@@ -2498,7 +2607,23 @@ defmodule MediaCentarrWeb.SettingsLive do
         </div>
       </div>
 
-      <div :if={@service_state.systemd_available and @service_state.unit_installed} class="space-y-3">
+      <div
+        :if={@service_action_pending}
+        class="flex items-center gap-2 text-sm text-info rounded-md glass-inset px-3 py-2"
+        role="status"
+        aria-live="polite"
+      >
+        <.icon name="hero-arrow-path-mini" class="size-4 animate-spin" />
+        <span>{service_action_pending_label(@service_action_pending)}</span>
+      </div>
+
+      <div
+        :if={
+          @service_state.under_systemd and @service_state.systemd_available and
+            @service_state.unit_installed
+        }
+        class="space-y-3"
+      >
         <div class="flex flex-wrap gap-2">
           <button
             :if={@service_state.active}
@@ -2507,6 +2632,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             phx-value-action="restart"
             data-nav-item
             tabindex="0"
+            disabled={@service_action_pending != nil}
             class="btn btn-soft btn-primary btn-sm"
           >
             <.icon name="hero-arrow-path-mini" class="size-4" /> Restart
@@ -2518,27 +2644,16 @@ defmodule MediaCentarrWeb.SettingsLive do
             phx-value-action="stop"
             data-nav-item
             tabindex="0"
+            disabled={@service_action_pending != nil}
             class="btn btn-soft btn-warning btn-sm"
           >
             <.icon name="hero-stop-mini" class="size-4" /> Stop
           </button>
-          <button
-            type="button"
-            phx-click="service_refresh_state"
-            data-nav-item
-            tabindex="0"
-            class="btn btn-ghost btn-sm"
-          >
-            Refresh
-          </button>
         </div>
 
-        <details
-          class="release-notes-disclosure"
-          phx-mounted={@service_status_visible && JS.set_attribute({"open", ""})}
-        >
+        <details class="release-notes-disclosure" open={@service_status_visible}>
           <summary
-            phx-click="service_show_status"
+            phx-click="service_toggle_status"
             class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none"
           >
             <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
@@ -2557,18 +2672,28 @@ defmodule MediaCentarrWeb.SettingsLive do
       </div>
 
       <p
-        :if={@service_state.systemd_available and not @service_state.unit_installed}
+        :if={
+          @service_state.under_systemd and @service_state.systemd_available and
+            not @service_state.unit_installed
+        }
         class="text-sm text-base-content/60"
       >
-        Systemd is available but the media-centarr unit isn't installed yet. Add it with
-        <code class="font-mono text-xs">
+        Running under systemd, but
+        <code class="font-mono text-xs">{service_card_unit_name(@service_state)}</code>
+        isn't listed by <code class="font-mono text-xs">systemctl --user list-unit-files</code>. That usually means the unit file was renamed or removed after this process started — try reinstalling with <code class="font-mono text-xs">
           ~/.local/lib/media-centarr/current/bin/media-centarr-install service install
-        </code>
-        from a terminal.
+        </code>.
       </p>
 
       <p
-        :if={not @service_state.systemd_available}
+        :if={not @service_state.under_systemd and @service_state.systemd_available}
+        class="text-sm text-base-content/60"
+      >
+        This BEAM wasn't started by systemd — start/stop/restart buttons aren't available here. Your user systemd session is reachable, so you can still manage a unit from a terminal: <code class="font-mono text-xs">systemctl --user status media-centarr.service</code>.
+      </p>
+
+      <p
+        :if={not @service_state.under_systemd and not @service_state.systemd_available}
         class="text-sm text-base-content/60"
       >
         This install isn't running under a systemd user session — start/stop/restart buttons aren't available here. Use the terminal you started the app from, or a process manager of your choice.
@@ -2577,42 +2702,60 @@ defmodule MediaCentarrWeb.SettingsLive do
     """
   end
 
+  defp service_card_subtitle(%{under_systemd: true, unit_name: unit, active: true, enabled: true})
+       when is_binary(unit), do: "Managed by systemd (#{unit}). Running and set to start on login."
+
+  defp service_card_subtitle(%{under_systemd: true, unit_name: unit, active: true, enabled: false})
+       when is_binary(unit), do: "Managed by systemd (#{unit}). Running, but not set to start on login."
+
+  defp service_card_subtitle(%{under_systemd: true, unit_name: unit, active: false})
+       when is_binary(unit), do: "Managed by systemd (#{unit}). Not running."
+
+  defp service_card_subtitle(%{under_systemd: true, active: true, enabled: true}),
+    do: "Managed by systemd. Running and set to start on login."
+
+  defp service_card_subtitle(%{under_systemd: true, active: true, enabled: false}),
+    do: "Managed by systemd. Running, but not set to start on login."
+
+  defp service_card_subtitle(%{under_systemd: true, active: false}),
+    do: "Managed by systemd. Not running."
+
   defp service_card_subtitle(%{systemd_available: false}), do: "Not running under systemd."
 
-  defp service_card_subtitle(%{unit_installed: false}), do: "Systemd unit isn't installed yet."
+  defp service_card_subtitle(%{unit_installed: false}),
+    do: "Started by hand — systemd user session is reachable but no matching unit is installed."
 
-  defp service_card_subtitle(%{active: true, enabled: true}), do: "Running and set to start on login."
+  defp service_card_subtitle(_),
+    do: "Started by hand — systemd user session is reachable but this process isn't managed."
 
-  defp service_card_subtitle(%{active: true, enabled: false}),
-    do: "Running, but not set to start on login."
+  defp service_card_unit_name(%{unit_name: unit}) when is_binary(unit), do: unit
+  defp service_card_unit_name(_), do: "media-centarr.service"
 
-  defp service_card_subtitle(%{active: false}), do: "Not running."
+  defp service_action_pending_label(:restarting),
+    do: "Restarting — the page will disconnect for a moment and reconnect automatically."
 
-  defp service_state_badge_class(%{systemd_available: false}),
-    do:
-      "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-base-content/10 text-base-content/60"
+  defp service_action_pending_label(:stopping),
+    do: "Stopping — the page will disconnect once the service is down."
 
-  defp service_state_badge_class(%{unit_installed: false}),
-    do:
-      "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning"
-
-  defp service_state_badge_class(%{active: true}),
+  defp service_state_badge_class(%{under_systemd: true, active: true}),
     do:
       "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success"
 
-  defp service_state_badge_class(%{active: false}),
+  defp service_state_badge_class(%{under_systemd: true, active: false}),
     do:
       "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning"
 
-  defp service_state_badge_icon(%{systemd_available: false}), do: "hero-minus-circle-mini"
-  defp service_state_badge_icon(%{unit_installed: false}), do: "hero-exclamation-triangle-mini"
-  defp service_state_badge_icon(%{active: true}), do: "hero-check-circle-mini"
-  defp service_state_badge_icon(%{active: false}), do: "hero-pause-circle-mini"
+  defp service_state_badge_class(_),
+    do:
+      "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-base-content/10 text-base-content/60"
 
-  defp service_state_badge_text(%{systemd_available: false}), do: "Unmanaged"
-  defp service_state_badge_text(%{unit_installed: false}), do: "Not installed"
-  defp service_state_badge_text(%{active: true}), do: "Running"
-  defp service_state_badge_text(%{active: false}), do: "Stopped"
+  defp service_state_badge_icon(%{under_systemd: true, active: true}), do: "hero-check-circle-mini"
+  defp service_state_badge_icon(%{under_systemd: true, active: false}), do: "hero-pause-circle-mini"
+  defp service_state_badge_icon(_), do: "hero-minus-circle-mini"
+
+  defp service_state_badge_text(%{under_systemd: true, active: true}), do: "Running"
+  defp service_state_badge_text(%{under_systemd: true, active: false}), do: "Stopped"
+  defp service_state_badge_text(_), do: "Unmanaged"
 
   defp overview_summary(0), do: "Configuration looks healthy."
 

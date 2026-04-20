@@ -28,12 +28,24 @@ defmodule MediaCentarrWeb.ConsoleLive do
       phx-hook="Console"
     >
       <div class="console-panel glass-surface" data-captures-keys={@open && "true"}>
+        <MediaCentarrWeb.ConsoleComponents.source_tabs
+          active_source={@active_source}
+          journal_available={@journal_available}
+        />
         <MediaCentarrWeb.ConsoleComponents.chip_row
+          :if={@active_source == :app}
           filter={@filter}
           app_components={@app_components}
           framework_components={@framework_components}
         />
-        <MediaCentarrWeb.ConsoleComponents.log_list streams={@streams} />
+        <MediaCentarrWeb.ConsoleComponents.log_list
+          :if={@active_source == :app}
+          streams={@streams}
+        />
+        <MediaCentarrWeb.ConsoleComponents.journal_list
+          :if={@active_source == :systemd}
+          streams={@streams}
+        />
         <MediaCentarrWeb.ConsoleComponents.action_footer
           paused={@paused}
           buffer_size={@buffer_size}

@@ -125,6 +125,80 @@ defmodule MediaCentarrWeb.ConsoleComponents do
   end
 
   @doc """
+  Renders the systemd journal stream. Same visual shell as `log_list` but
+  driven by `@streams.journal`. Every entry is `component: :systemd`, so
+  we skip the component badge and only render the message line — the
+  journalctl timestamp is already baked into `entry.message`.
+  """
+  attr :streams, :any, required: true
+
+  def journal_list(assigns) do
+    ~H"""
+    <main class="console-log" id="console-journal" phx-update="stream">
+      <div
+        :for={{dom_id, entry} <- @streams.journal}
+        id={dom_id}
+        class="console-entry"
+        data-level={entry.level}
+        data-component={entry.component}
+        data-message={entry.message}
+      >
+        <span class="console-message">{entry.message}</span>
+      </div>
+    </main>
+    """
+  end
+
+  @doc """
+  Tab strip for choosing the active log source — "App" is always present;
+  "Systemd" appears only when a systemd unit has been detected.
+
+  ## Attributes
+
+  - `:active_source` — `:app` or `:systemd`
+  - `:journal_available` — when false, the Systemd tab is hidden entirely
+  """
+  attr :active_source, :atom, required: true
+  attr :journal_available, :boolean, required: true
+
+  def source_tabs(assigns) do
+    ~H"""
+    <nav class="console-source-tabs" role="tablist" aria-label="Log source">
+      <button
+        type="button"
+        role="tab"
+        phx-click="set_log_source"
+        phx-value-source="app"
+        aria-selected={@active_source == :app}
+        class={["console-source-tab", @active_source == :app && "is-active"]}
+      >
+        App
+      </button>
+      <button
+        :if={@journal_available}
+        type="button"
+        role="tab"
+        phx-click="set_log_source"
+        phx-value-source="systemd"
+        aria-selected={@active_source == :systemd}
+        class={["console-source-tab", @active_source == :systemd && "is-active"]}
+      >
+        Systemd
+      </button>
+      <button
+        :if={@active_source == :systemd and @journal_available}
+        type="button"
+        phx-click="reconnect_journal"
+        class="console-source-reconnect btn btn-xs btn-ghost"
+        title="Force-respawn journalctl"
+      >
+        Reconnect
+      </button>
+    </nav>
+    """
+  end
+
+  @doc """
   Footer with buffer management actions and size slider.
 
   When `show_fullpage_link` is true (the default), renders a navigation link

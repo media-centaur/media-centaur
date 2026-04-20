@@ -11,6 +11,37 @@ defmodule MediaCentarrWeb.LibraryHelpers do
 
   @movie_types [:movie, :movie_series, :video_object]
 
+  # --- Storage-offline banner summary ---
+
+  @doc """
+  Builds the one-line summary shown in the `storage_offline_banner`.
+
+  Takes the per-dir state map (from `Images.Availability.dir_status/0`)
+  and a count of library entries currently unavailable. Returns a
+  human-readable string or `nil` when no dir is offline.
+  """
+  @spec offline_summary(%{String.t() => atom()}, non_neg_integer()) :: String.t() | nil
+  def offline_summary(dir_status, unavailable_count) do
+    offline_dirs =
+      dir_status
+      |> Enum.filter(fn {_dir, state} -> state == :unavailable end)
+      |> Enum.map(fn {dir, _} -> dir end)
+
+    case offline_dirs do
+      [] ->
+        nil
+
+      [dir] ->
+        "#{dir} is offline — #{items_phrase(unavailable_count)} temporarily unavailable."
+
+      dirs ->
+        "#{length(dirs)} storage locations offline — #{items_phrase(unavailable_count)} temporarily unavailable."
+    end
+  end
+
+  defp items_phrase(1), do: "1 item"
+  defp items_phrase(n), do: "#{n} items"
+
   # --- Filtering ---
 
   def filtered_by_tab(entries, :all), do: entries

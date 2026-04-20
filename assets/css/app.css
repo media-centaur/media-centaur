@@ -922,6 +922,42 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Source tabs — App / Systemd / Reconnect */
+.console-source-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-base-300);
+}
+
+.console-source-tab {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-base-content);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, opacity 150ms ease-out;
+}
+
+.console-source-tab:hover {
+  opacity: 0.85;
+}
+
+.console-source-tab.is-active {
+  opacity: 1;
+  background: var(--color-base-300);
+}
+
+.console-source-reconnect {
+  margin-left: auto;
+}
+
 /* Header row — chips + level + search */
 .console-header {
   display: flex;

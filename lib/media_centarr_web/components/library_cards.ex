@@ -16,6 +16,7 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   attr :entry, :map, required: true
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false
+  attr :images_available, :boolean, default: true
 
   def poster_card(assigns) do
     entity = assigns.entry.entity
@@ -42,10 +43,15 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
       <%!-- Poster --%>
       <div class="aspect-[2/3] glass-inset relative">
         <img
-          :if={@poster}
+          :if={@poster && @images_available}
           src={@poster}
           class="w-full h-full object-cover"
           loading="lazy"
+        />
+        <div
+          :if={@poster && !@images_available}
+          class="w-full h-full bg-base-content/5"
+          aria-label="Artwork unavailable — storage not mounted"
         />
         <div :if={!@poster} class="w-full h-full flex items-center justify-center">
           <.icon name="hero-film" class="size-8 text-base-content/20" />
@@ -95,6 +101,7 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   attr :entry, :map, required: true
   attr :resume, :map, default: nil
   attr :playing, :boolean, default: false
+  attr :images_available, :boolean, default: true
 
   def cw_card(assigns) do
     entity = assigns.entry.entity
@@ -131,10 +138,15 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
     >
       <div class="aspect-video glass-inset relative">
         <img
-          :if={@background}
+          :if={@background && @images_available}
           src={@background}
           class="w-full h-full object-cover"
           loading="lazy"
+        />
+        <div
+          :if={@background && !@images_available}
+          class="w-full h-full bg-base-content/5"
+          aria-label="Artwork unavailable — storage not mounted"
         />
         <div :if={!@background} class="w-full h-full flex items-center justify-center">
           <.icon name="hero-film" class="size-12 text-base-content/20" />
@@ -144,12 +156,12 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
 
         <div class="absolute bottom-4 left-4 right-4">
           <img
-            :if={@logo}
+            :if={@logo && @images_available}
             src={@logo}
             class="max-h-14 max-w-[70%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)] mb-2"
           />
           <h3
-            :if={!@logo}
+            :if={!@logo || !@images_available}
             class="text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] mb-2"
           >
             {@entry.entity.name}
@@ -188,6 +200,29 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
     ~H"""
     <div class="text-base-content/50 py-6 text-center text-sm empty-state-enter">
       Nothing in progress. Switch to the Library tab to start watching.
+    </div>
+    """
+  end
+
+  # --- Storage Offline Banner ---
+
+  @doc """
+  Renders a persistent top-of-page notice when one or more watch
+  directories are offline. `summary` is a pre-formatted one-liner
+  (see `LibraryHelpers.offline_summary/2`).
+  """
+  attr :summary, :string, required: true
+
+  def storage_offline_banner(assigns) do
+    ~H"""
+    <div class="mb-4 glass-surface rounded-lg p-3 flex items-start gap-3 border border-warning/30">
+      <.icon name="hero-exclamation-triangle" class="size-5 text-warning shrink-0 mt-0.5" />
+      <div class="min-w-0">
+        <p class="text-sm font-medium">Storage offline</p>
+        <p class="text-xs text-base-content/60 mt-0.5">
+          {@summary}
+        </p>
+      </div>
     </div>
     """
   end

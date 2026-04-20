@@ -95,6 +95,13 @@ defmodule MediaCentarr.SelfUpdate do
           :ok | {:error, :no_update_pending | :invalid_tag | :already_running}
   def apply_pending, do: Updater.apply_pending()
 
+  @doc """
+  Cancels an in-flight apply if it's still in a safe phase. See
+  `Updater.cancel/1` for the full contract.
+  """
+  @spec cancel_apply() :: :ok | {:error, :not_running | :past_point_of_no_return}
+  def cancel_apply, do: Updater.cancel()
+
   @doc "Returns the current `Updater` state."
   @spec current_status() :: Updater.status()
   def current_status, do: Updater.status()
@@ -113,6 +120,14 @@ defmodule MediaCentarr.SelfUpdate do
   @doc "Returns the systemd state for the media-centarr unit. See `Service.state/1`."
   @spec service_state() :: Service.state()
   def service_state, do: Service.state()
+
+  @doc """
+  Returns the systemd unit this BEAM is under, or `nil` — cheap (no
+  `systemctl` shell-out). Use in hot paths where you only need to know
+  if we're managed and which unit, not its active/enabled state.
+  """
+  @spec detected_unit() :: String.t() | nil
+  def detected_unit, do: Service.detected_unit()
 
   @doc "Queues a systemd-managed restart of the running unit."
   @spec service_restart() :: :ok | {:error, term()}
