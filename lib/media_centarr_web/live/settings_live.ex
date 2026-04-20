@@ -28,6 +28,8 @@ defmodule MediaCentarrWeb.SettingsLive do
   alias MediaCentarr.Pipeline
   alias MediaCentarr.Pipeline.Image, as: ImagePipeline
   alias MediaCentarrWeb.SettingsLive.WatchDirsLogic
+  alias MediaCentarr.Controls
+  alias MediaCentarrWeb.SettingsLive.Controls, as: ControlsSection
 
   # Sections are grouped for sidebar display — a thin divider renders between
   # adjacent items whose :group differs. Order within a group is by frequency
@@ -38,6 +40,7 @@ defmodule MediaCentarrWeb.SettingsLive do
     # General — start-of-session setup
     %{id: "services", label: "Services", group: :general},
     %{id: "preferences", label: "Preferences", group: :general},
+    %{id: "controls", label: "Controls", group: :general},
     # Media workflow — the arr stack
     %{id: "library", label: "Library", group: :media},
     %{id: "tmdb", label: "TMDB", group: :media},
@@ -58,6 +61,7 @@ defmodule MediaCentarrWeb.SettingsLive do
         SelfUpdate.subscribe()
         SelfUpdate.subscribe_progress()
         Config.subscribe()
+        Controls.subscribe()
 
         socket
         |> assign(config: load_config())
@@ -108,7 +112,10 @@ defmodule MediaCentarrWeb.SettingsLive do
        service_action_confirm: nil,
        service_action_pending: nil,
        service_status_visible: false,
-       service_status_output: nil
+       service_status_output: nil,
+       bindings: Controls.get(),
+       glyph_style: Controls.glyph_style(),
+       listening: nil
      )}
   end
 
@@ -652,6 +659,54 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> put_flash(:info, "Release tracking settings saved")}
   end
 
+  # --- Controls events ---
+
+  def handle_event("controls:listen", %{"id" => id, "kind" => kind}, socket) do
+    {:noreply,
+     socket
+     |> assign(listening: {String.to_atom(kind), String.to_existing_atom(id)})
+     |> push_event("controls:listen", %{kind: kind})}
+  end
+
+  def handle_event("controls:cancel", _params, socket) do
+    {:noreply, assign(socket, listening: nil)}
+  end
+
+  def handle_event(
+        "controls:bind",
+        %{"id" => id, "kind" => kind, "value" => value},
+        socket
+      ) do
+    id_atom = String.to_existing_atom(id)
+    kind_atom = String.to_atom(kind)
+    normalized = normalize_bind_value(kind_atom, value)
+
+    case Controls.put(id_atom, kind_atom, normalized) do
+      {:ok, _} -> {:noreply, socket}
+      {:error, _} -> {:noreply, put_flash(socket, :error, "Failed to bind key")}
+    end
+  end
+
+  def handle_event("controls:clear", %{"id" => id, "kind" => kind}, socket) do
+    :ok = Controls.clear(String.to_existing_atom(id), String.to_atom(kind))
+    {:noreply, socket}
+  end
+
+  def handle_event("controls:reset_all", _params, socket) do
+    :ok = Controls.reset_all()
+    {:noreply, socket}
+  end
+
+  def handle_event("controls:reset_category", %{"category" => category}, socket) do
+    :ok = Controls.reset_category(String.to_existing_atom(category))
+    {:noreply, socket}
+  end
+
+  def handle_event("controls:set_glyph", %{"style" => style}, socket) do
+    :ok = Controls.set_glyph_style(style)
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("test_prowlarr", _params, socket) do
     parent = self()
@@ -879,8 +934,36 @@ defmodule MediaCentarrWeb.SettingsLive do
     end
   end
 
+  def handle_info({:controls_changed, map}, socket) do
+    {:noreply,
+     socket
+     |> assign(bindings: map)
+     |> assign(glyph_style: Controls.glyph_style())
+     |> assign(listening: nil)
+     |> push_event("controls:updated", %{
+       keyboard: keyboard_for_client(map),
+       gamepad: gamepad_for_client(map)
+     })}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
+  end
+
+  defp normalize_bind_value(:keyboard, value) when is_binary(value), do: value
+  defp normalize_bind_value(:gamepad, value) when is_integer(value), do: value
+  defp normalize_bind_value(:gamepad, value) when is_binary(value), do: String.to_integer(value)
+
+  defp keyboard_for_client(map) do
+    map
+    |> Enum.flat_map(fn {id, %{key: key}} -> if key, do: [{key, id}], else: [] end)
+    |> Map.new()
+  end
+
+  defp gamepad_for_client(map) do
+    map
+    |> Enum.flat_map(fn {id, %{button: button}} -> if button, do: [{button, id}], else: [] end)
+    |> Map.new()
   end
 
   # Live validation for the Excluded Directories add-row input.
@@ -989,6 +1072,9 @@ defmodule MediaCentarrWeb.SettingsLive do
             exclude_dirs={@exclude_dirs}
             exclude_dir_input={@exclude_dir_input}
             exclude_dir_error={@exclude_dir_error}
+            bindings={@bindings}
+            glyph_style={@glyph_style}
+            listening={@listening}
           />
         </div>
       </div>
@@ -1395,6 +1481,12 @@ defmodule MediaCentarrWeb.SettingsLive do
         />
       </div>
     </div>
+    """
+  end
+
+  defp section_content(%{active_section: "controls"} = assigns) do
+    ~H"""
+    <ControlsSection.render bindings={@bindings} glyph_style={@glyph_style} listening={@listening} />
     """
   end
 
