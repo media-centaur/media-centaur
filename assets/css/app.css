@@ -980,19 +980,57 @@ body:has(.modal-backdrop[data-state="open"]) {
 .console-chip {
   cursor: pointer;
   user-select: none;
-  transition: opacity 150ms ease-out;
-}
-
-.console-chip-inactive {
-  opacity: 0.4;
-}
-
-.console-chip-active {
-  opacity: 1;
+  transition: background-color 150ms ease-out, color 150ms ease-out,
+              border-color 150ms ease-out, transform 100ms ease-out;
 }
 
 .console-chip:hover {
   transform: translateY(-1px);
+}
+
+/* Console chip palette
+ *
+ * Each .chip-{name} class sets a hue + chroma; the surrounding rules
+ * derive background / text / border from them. The old hash-into-daisyUI
+ * approach landed :library on `badge-warning` (making every routine
+ * library log look like an alert) and :ecto on a washed-out tone that
+ * barely rendered. Hues are spread across the wheel at consistent
+ * lightness so chips read as one cohesive family of labels rather
+ * than as semantic status colors.
+ */
+.chip-watcher     { --chip-h: 150; --chip-c: 0.14; }
+.chip-pipeline    { --chip-h: 295; --chip-c: 0.14; }
+.chip-tmdb        { --chip-h: 200; --chip-c: 0.15; }
+.chip-playback    { --chip-h:  85; --chip-c: 0.15; }
+.chip-library     { --chip-h:  10; --chip-c: 0.15; }
+.chip-acquisition { --chip-h: 230; --chip-c: 0.15; }
+.chip-system      { --chip-h: 264; --chip-c: 0.01; }
+.chip-phoenix     { --chip-h:  35; --chip-c: 0.16; }
+.chip-ecto        { --chip-h: 260; --chip-c: 0.14; }
+.chip-live_view   { --chip-h: 325; --chip-c: 0.14; }
+
+/* Filter row chip (button) + inline log-entry component badge share the
+ * same visual language so readers build one mental model for chip colors. */
+.console-chip,
+.console-component-badge {
+  background: oklch(0.78 var(--chip-c, 0.02) var(--chip-h, 264) / 0.18);
+  color: oklch(0.85 var(--chip-c, 0.14) var(--chip-h, 264));
+  border: 1px solid oklch(0.78 var(--chip-c, 0.14) var(--chip-h, 264) / 0.35);
+}
+
+[data-theme=light] .console-chip,
+[data-theme=light] .console-component-badge {
+  background: oklch(0.55 var(--chip-c, 0.02) var(--chip-h, 264) / 0.14);
+  color: oklch(0.38 var(--chip-c, 0.16) var(--chip-h, 264));
+  border-color: oklch(0.55 var(--chip-c, 0.14) var(--chip-h, 264) / 0.35);
+}
+
+/* Inactive filter chip: drop the hue entirely so the active set stands
+ * out at a glance, but keep the label readable (no 40% opacity fade). */
+.console-chip-inactive {
+  background: oklch(from var(--color-base-content) l 0 h / 0.06) !important;
+  color: oklch(from var(--color-base-content) l 0 h / 0.50) !important;
+  border-color: oklch(from var(--color-base-content) l 0 h / 0.15) !important;
 }
 
 .console-chip-group-label {

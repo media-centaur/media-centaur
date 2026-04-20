@@ -35,14 +35,14 @@ export const Console = {
     this.handleEvent("console:copy", this._onCopy)
     this.handleEvent("console:download", this._onDownload)
 
-    // After LiveView inserts new entries: re-apply the client search filter,
-    // and if the user is already scrolled to the top keep them there so new
-    // entries (inserted at position 0) remain visible.
+    // After LiveView inserts new entries: re-apply the client search filter
+    // so freshly arriving log lines honor the active query. Tail-pinning
+    // (keeping scrollTop at the live edge) lives in the LogTail hook on
+    // each log container — drawer and full-page inherit it automatically.
     this._observer = new MutationObserver(() => {
       if (this._searchInput?.value) {
         this._applyClientSearch()
       }
-      this._maintainTopScroll()
     })
     if (this._entriesContainer) {
       this._observer.observe(this._entriesContainer, {
@@ -123,19 +123,6 @@ export const Console = {
       const matches = query === "" || message.includes(query)
       node.style.display = matches ? "" : "none"
     })
-  },
-
-  // If the user was already at (or very near) the top of the entries list,
-  // snap back to the top after new entries are prepended. This keeps freshly
-  // arriving log lines visible without disturbing users who scrolled down to
-  // read older entries.
-  //
-  // Threshold of 10 px absorbs sub-pixel rounding on hi-DPI displays.
-  _maintainTopScroll() {
-    if (!this._entriesContainer) return
-    if (this._entriesContainer.scrollTop <= 10) {
-      this._entriesContainer.scrollTop = 0
-    }
   },
 
   _copy(content) {
