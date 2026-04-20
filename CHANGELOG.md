@@ -4,6 +4,34 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.16.0 — 2026-04-20
+
+### Added
+
+- **Settings → Controls.** Remap every keyboard and gamepad binding.
+  Each row has separate KEY and PAD columns; click the pencil to
+  listen for a new key or pad button, clear to unset. Choose Xbox or
+  PlayStation glyph styles. Reset per-category or all at once. New
+  bindings take effect immediately without reload.
+
+### Improved
+
+- **Console component chips** now use a deliberate per-component color
+  palette instead of randomly-assigned daisyUI semantic classes.
+  Routine library logs no longer look like warnings, and faded-to-
+  invisible chips are gone — every chip is distinct and readable in
+  both themes.
+- **Console → Systemd tab** now tails the live edge the way
+  `journalctl -f` does: oldest entries at the top, newest at the
+  bottom, scroll pinned to the bottom. Scroll up to read history;
+  scroll back down and tail-follow resumes.
+
+### Fixed
+
+- **Settings → Controls column alignment.** KEY and PAD stay firmly
+  aligned across every row in a category via a shared subgrid — longer
+  keycaps ("Backspace") no longer push the surrounding columns around.
+
 ## v0.15.2 — 2026-04-19
 
 ### Improved
