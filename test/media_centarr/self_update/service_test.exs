@@ -21,6 +21,13 @@ defmodule MediaCentarr.SelfUpdate.ServiceTest do
   # Fake /proc/self/cgroup reader. Takes `{:ok, binary()}` or `{:error, term()}`.
   defp fake_cgroup(response), do: fn -> response end
 
+  # Isolation for tests that exercise the default-unit path. Without these,
+  # the production defaults read the host's real INVOCATION_ID and
+  # /proc/self/cgroup — which on GitHub's hosted-compute runners resolves
+  # to "hosted-compute-agent.service" and diverts every systemctl probe to
+  # the wrong unit name.
+  defp no_systemd_context, do: [env_fn: fake_env(%{}), cgroup_reader: fake_cgroup({:error, :enoent})]
+
   # cgroup v2 path for the dev unit, matching what systemd produces in
   # practice for a --user unit nested under app.slice.
   @dev_cgroup "0::/user.slice/user-1000.slice/user@1000.service/app.slice/media-centarr-dev.service\n"
@@ -50,7 +57,7 @@ defmodule MediaCentarr.SelfUpdate.ServiceTest do
                unit_installed: true,
                active: true,
                enabled: true
-             } = Service.state(cmd_fn: cmd)
+             } = Service.state(Keyword.put(no_systemd_context(), :cmd_fn, cmd))
     end
 
     test "reports systemd_available: false when show-environment fails" do
@@ -73,7 +80,8 @@ defmodule MediaCentarr.SelfUpdate.ServiceTest do
           {"systemctl", ["--user", "is-enabled", "media-centarr.service"]} => {"enabled\n", 0}
         })
 
-      assert %{active: false, enabled: true} = Service.state(cmd_fn: cmd)
+      assert %{active: false, enabled: true} =
+               Service.state(Keyword.put(no_systemd_context(), :cmd_fn, cmd))
     end
 
     test "reports unit_installed: false when list-unit-files doesn't mention our unit" do
@@ -255,7 +263,7 @@ defmodule MediaCentarr.SelfUpdate.ServiceTest do
         {"", 0}
       end
 
-      assert :ok = Service.restart(cmd_fn: cmd)
+      assert :ok = Service.restart(Keyword.put(no_systemd_context(), :cmd_fn, cmd))
 
       assert_receive {:cmd_called, "systemctl",
                       ["--user", "--no-block", "restart", "media-centarr.service"]}
@@ -310,7 +318,7 @@ defmodule MediaCentarr.SelfUpdate.ServiceTest do
         {"", 0}
       end
 
-      assert :ok = Service.stop(cmd_fn: cmd)
+      assert :ok = Service.stop(Keyword.put(no_systemd_context(), :cmd_fn, cmd))
 
       assert_receive {:cmd_called, "systemctl",
                       ["--user", "--no-block", "stop", "media-centarr.service"]}
