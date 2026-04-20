@@ -95,7 +95,11 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
 
       def handle_info({:journal_line, entry}, socket) do
         if socket.assigns.active_source == :systemd and not socket.assigns.paused do
-          {:noreply, stream_insert(socket, :journal, entry, at: 0)}
+          # Append at the tail so the render order matches `journalctl -f`:
+          # oldest at the top, newest at the bottom. The LogTail hook
+          # (data-pin-to="bottom" on the journal <main>) keeps the scroll
+          # glued to the live edge.
+          {:noreply, stream_insert(socket, :journal, entry, at: -1)}
         else
           {:noreply, socket}
         end
@@ -104,7 +108,7 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
       def handle_info({:journal_reset}, socket) do
         if socket.assigns.active_source == :systemd do
           snapshot = Console.journal_snapshot()
-          {:noreply, stream(socket, :journal, Enum.reverse(snapshot), reset: true)}
+          {:noreply, stream(socket, :journal, snapshot, reset: true)}
         else
           {:noreply, socket}
         end
@@ -211,10 +215,12 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
           new_source == :systemd ->
             case Console.journal_subscribe() do
               {:ok, entries} ->
+                # Preserve chronological order (oldest-first) so the hook
+                # can tail-follow the bottom edge.
                 {:noreply,
                  socket
                  |> assign(:active_source, :systemd)
-                 |> stream(:journal, Enum.reverse(entries), reset: true)}
+                 |> stream(:journal, entries, reset: true)}
 
               {:error, :no_unit_detected} ->
                 {:noreply, assign(socket, :journal_available, false)}

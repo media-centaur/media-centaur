@@ -102,7 +102,7 @@ defmodule MediaCentarrWeb.ConsoleComponents do
 
   def log_list(assigns) do
     ~H"""
-    <main class="console-log" id="console-entries" phx-update="stream">
+    <main class="console-log" id="console-entries" phx-update="stream" phx-hook="LogTail">
       <div
         :for={{dom_id, entry} <- @streams.entries}
         id={dom_id}
@@ -134,7 +134,13 @@ defmodule MediaCentarrWeb.ConsoleComponents do
 
   def journal_list(assigns) do
     ~H"""
-    <main class="console-log" id="console-journal" phx-update="stream">
+    <main
+      class="console-log"
+      id="console-journal"
+      phx-update="stream"
+      phx-hook="LogTail"
+      data-pin-to="bottom"
+    >
       <div
         :for={{dom_id, entry} <- @streams.journal}
         id={dom_id}

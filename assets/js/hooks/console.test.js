@@ -435,43 +435,6 @@ describe("Console hook — _handleBackdropClick", () => {
   })
 })
 
-describe("Console hook — _maintainTopScroll", () => {
-  test("snaps scrollTop to 0 when already at the top", () => {
-    const container = buildEntriesContainer([])
-    container.scrollTop = 0
-    const root = buildRoot(buildPanel(), buildSearchInput(""), container)
-    instantiateHook(root)
-
-    // Simulate LiveView inserting a new entry at the top.
-    stubObservers[0].fire()
-
-    expect(container.scrollTop).toBe(0)
-  })
-
-  test("snaps scrollTop to 0 when within the 10 px threshold", () => {
-    const container = buildEntriesContainer([])
-    container.scrollTop = 8
-    const root = buildRoot(buildPanel(), buildSearchInput(""), container)
-    instantiateHook(root)
-
-    stubObservers[0].fire()
-
-    expect(container.scrollTop).toBe(0)
-  })
-
-  test("does not change scrollTop when user has scrolled down past threshold", () => {
-    const container = buildEntriesContainer([])
-    container.scrollTop = 200
-    const root = buildRoot(buildPanel(), buildSearchInput(""), container)
-    instantiateHook(root)
-
-    stubObservers[0].fire()
-
-    // scrollTop unchanged — user is reading older entries.
-    expect(container.scrollTop).toBe(200)
-  })
-})
-
 describe("Console hook — destroyed()", () => {
   test("removes all event listeners", () => {
     const searchInput = buildSearchInput("")

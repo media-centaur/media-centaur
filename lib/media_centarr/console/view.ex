@@ -25,14 +25,22 @@ defmodule MediaCentarr.Console.View do
   @app_components [:watcher, :pipeline, :tmdb, :playback, :library, :acquisition, :system]
   @framework_components [:phoenix, :ecto, :live_view]
 
-  @badge_palette [
-    "badge-primary",
-    "badge-secondary",
-    "badge-accent",
-    "badge-info",
-    "badge-success",
-    "badge-warning"
-  ]
+  # Deliberate per-component mapping. The old hash-into-daisyUI-palette approach
+  # produced visually inconsistent chips (e.g. :library landing on `badge-warning`
+  # made routine library logs look like alerts). Each chip now has a dedicated
+  # CSS class in app.css with a cohesive categorical palette.
+  @component_chip_classes %{
+    watcher: "chip-watcher",
+    pipeline: "chip-pipeline",
+    tmdb: "chip-tmdb",
+    playback: "chip-playback",
+    library: "chip-library",
+    acquisition: "chip-acquisition",
+    system: "chip-system",
+    phoenix: "chip-phoenix",
+    ecto: "chip-ecto",
+    live_view: "chip-live_view"
+  }
 
   @doc "All component atoms in display order — app first, then framework."
   @spec known_components() :: [atom()]
@@ -93,16 +101,13 @@ defmodule MediaCentarr.Console.View do
   def component_label(component), do: Atom.to_string(component)
 
   @doc """
-  Returns a deterministic DaisyUI badge class for a component atom,
-  based on `:erlang.phash2/2` mapped into a 6-element palette.
-  Returns `"badge-ghost"` for `nil`.
+  Returns the dedicated chip CSS class for a component atom (e.g. `"chip-tmdb"`).
+  The class styling lives in `app.css` under the "Console chip palette" section.
+  Unknown atoms and `nil` fall back to `chip-system` so rendering never breaks.
   """
   @spec component_badge_class(atom() | nil) :: String.t()
-  def component_badge_class(nil), do: "badge-ghost"
-
   def component_badge_class(component) do
-    index = :erlang.phash2(component, length(@badge_palette))
-    Enum.at(@badge_palette, index)
+    Map.get(@component_chip_classes, component, "chip-system")
   end
 
   @doc """

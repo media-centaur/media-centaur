@@ -127,46 +127,22 @@ defmodule MediaCentarr.Console.ViewTest do
   end
 
   describe "component_badge_class/1" do
-    @valid_badge_classes [
-      "badge-primary",
-      "badge-secondary",
-      "badge-accent",
-      "badge-info",
-      "badge-success",
-      "badge-warning"
-    ]
-
-    test "returns a class from the 6-class palette for :pipeline" do
-      result = View.component_badge_class(:pipeline)
-      assert result in @valid_badge_classes
-    end
-
-    test "returns a class from the palette for every known component" do
+    test "returns a dedicated chip-* class for every known component" do
       for component <- View.known_components() do
         result = View.component_badge_class(component)
 
-        assert result in @valid_badge_classes,
-               "expected #{component} to return a valid badge class"
+        assert result == "chip-#{component}",
+               "expected #{component} to map to chip-#{component}, got #{inspect(result)}"
       end
     end
 
-    test "returns badge-ghost for nil" do
-      assert View.component_badge_class(nil) == "badge-ghost"
+    test "returns chip-system for nil (unknown fallback)" do
+      assert View.component_badge_class(nil) == "chip-system"
     end
 
-    test "is deterministic — same input always returns same output" do
-      first = View.component_badge_class(:pipeline)
-      second = View.component_badge_class(:pipeline)
-      assert first == second
-    end
-
-    test "different atoms may produce different classes" do
-      # Just verify it hashes — not all will differ but we check at least pipeline vs ecto
-      pipeline_class = View.component_badge_class(:pipeline)
-      ecto_class = View.component_badge_class(:ecto)
-      # Both valid — we only assert they are each from the palette
-      assert pipeline_class in @valid_badge_classes
-      assert ecto_class in @valid_badge_classes
+    test "every known component gets a distinct class" do
+      classes = Enum.map(View.known_components(), &View.component_badge_class/1)
+      assert classes == Enum.uniq(classes)
     end
   end
 
