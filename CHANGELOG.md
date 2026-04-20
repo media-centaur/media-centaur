@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.16.1 — 2026-04-20
+
+### Fixed
+
+- **Detail view backdrop** now anchors to the top of the hero image
+  instead of centering. When the source image is taller than the 21:9
+  hero, the bottom crops away and the top of the composition is
+  preserved — important for posters and title treatments that live near
+  the top of the frame.
+
 ## v0.16.0 — 2026-04-20
 
 ### Added
