@@ -59,7 +59,7 @@ defmodule MediaCentarr.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:visualizer, path: "../../visualizer", only: :dev},
+      {:ex_code_view, path: "../../ex_code_view", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
@@ -134,11 +134,11 @@ defmodule MediaCentarr.MixProject do
       usage_rules: [
         {:elixir, link: :markdown},
         {:otp, link: :markdown},
-        {:visualizer, link: :markdown}
+        {:ex_code_view, link: :markdown}
       ],
       skills: [
         location: ".claude/skills",
-        deps: [:visualizer],
+        deps: [:ex_code_view],
         build: [
           "phoenix-framework": [
             description:
