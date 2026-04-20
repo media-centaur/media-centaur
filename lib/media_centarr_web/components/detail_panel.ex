@@ -170,7 +170,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         <img
           :if={@background && @images_available}
           src={@background}
-          class="w-full h-full object-cover"
+          class="w-full h-full object-cover object-top"
         />
         <div
           :if={@background && !@images_available}
