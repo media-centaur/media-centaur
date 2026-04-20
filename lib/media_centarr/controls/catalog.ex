@@ -18,17 +18,105 @@ defmodule MediaCentarr.Controls.Catalog do
   alias MediaCentarr.Controls.Binding
 
   @bindings [
-    %Binding{id: :navigate_up, category: :navigation, name: "Move up", description: "Focus the item above the current one", default_key: "ArrowUp", default_button: 12, scope: :input_system},
-    %Binding{id: :navigate_down, category: :navigation, name: "Move down", description: "Focus the item below the current one", default_key: "ArrowDown", default_button: 13, scope: :input_system},
-    %Binding{id: :navigate_left, category: :navigation, name: "Move left", description: "Focus the item to the left", default_key: "ArrowLeft", default_button: 14, scope: :input_system},
-    %Binding{id: :navigate_right, category: :navigation, name: "Move right", description: "Focus the item to the right", default_key: "ArrowRight", default_button: 15, scope: :input_system},
-    %Binding{id: :select, category: :navigation, name: "Select", description: "Confirm or activate the focused item", default_key: "Enter", default_button: 0, scope: :input_system},
-    %Binding{id: :back, category: :navigation, name: "Back", description: "Return to the previous zone or close modals", default_key: "Escape", default_button: 1, scope: :input_system},
-    %Binding{id: :clear, category: :navigation, name: "Clear", description: "Clear the current search or filter", default_key: "Backspace", default_button: 3, scope: :input_system},
-    %Binding{id: :zone_next, category: :zones, name: "Next zone", description: "Cycle focus to the next navigation zone", default_key: "]", default_button: 5, scope: :input_system},
-    %Binding{id: :zone_prev, category: :zones, name: "Previous zone", description: "Cycle focus to the previous navigation zone", default_key: "[", default_button: 4, scope: :input_system},
-    %Binding{id: :play, category: :playback, name: "Play", description: "Start playback of the focused item", default_key: "p", default_button: 9, scope: :input_system},
-    %Binding{id: :toggle_console, category: :system, name: "Toggle console", description: "Open or close the diagnostics console drawer", default_key: "`", default_button: nil, scope: :global}
+    %Binding{
+      id: :navigate_up,
+      category: :navigation,
+      name: "Move up",
+      description: "Focus the item above the current one",
+      default_key: "ArrowUp",
+      default_button: 12,
+      scope: :input_system
+    },
+    %Binding{
+      id: :navigate_down,
+      category: :navigation,
+      name: "Move down",
+      description: "Focus the item below the current one",
+      default_key: "ArrowDown",
+      default_button: 13,
+      scope: :input_system
+    },
+    %Binding{
+      id: :navigate_left,
+      category: :navigation,
+      name: "Move left",
+      description: "Focus the item to the left",
+      default_key: "ArrowLeft",
+      default_button: 14,
+      scope: :input_system
+    },
+    %Binding{
+      id: :navigate_right,
+      category: :navigation,
+      name: "Move right",
+      description: "Focus the item to the right",
+      default_key: "ArrowRight",
+      default_button: 15,
+      scope: :input_system
+    },
+    %Binding{
+      id: :select,
+      category: :navigation,
+      name: "Select",
+      description: "Confirm or activate the focused item",
+      default_key: "Enter",
+      default_button: 0,
+      scope: :input_system
+    },
+    %Binding{
+      id: :back,
+      category: :navigation,
+      name: "Back",
+      description: "Return to the previous zone or close modals",
+      default_key: "Escape",
+      default_button: 1,
+      scope: :input_system
+    },
+    %Binding{
+      id: :clear,
+      category: :navigation,
+      name: "Clear",
+      description: "Clear the current search or filter",
+      default_key: "Backspace",
+      default_button: 3,
+      scope: :input_system
+    },
+    %Binding{
+      id: :zone_next,
+      category: :zones,
+      name: "Next zone",
+      description: "Cycle focus to the next navigation zone",
+      default_key: "]",
+      default_button: 5,
+      scope: :input_system
+    },
+    %Binding{
+      id: :zone_prev,
+      category: :zones,
+      name: "Previous zone",
+      description: "Cycle focus to the previous navigation zone",
+      default_key: "[",
+      default_button: 4,
+      scope: :input_system
+    },
+    %Binding{
+      id: :play,
+      category: :playback,
+      name: "Play",
+      description: "Start playback of the focused item",
+      default_key: "p",
+      default_button: 9,
+      scope: :input_system
+    },
+    %Binding{
+      id: :toggle_console,
+      category: :system,
+      name: "Toggle console",
+      description: "Open or close the diagnostics console drawer",
+      default_key: "`",
+      default_button: nil,
+      scope: :global
+    }
   ]
 
   # Compile-time uniqueness assertion

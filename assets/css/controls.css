@@ -14,10 +14,34 @@
   --keycap-glow: oklch(62% 0.16 250);
 }
 
+/*
+ * Category layout — ONE grid shared by every row in the category so
+ * KEY and PAD align vertically across all bindings in the group.
+ * Each .controls-row then spans every column via `grid-template-columns:
+ * subgrid`, inheriting the parent's tracks. Without subgrid, each row
+ * would compute its own column widths and drift whenever a label or
+ * keycap got longer (e.g. "Backspace" widening the keycap column for
+ * that row only). The .controls-row-slots / .controls-slot wrappers
+ * use `display: contents` so their children land as direct grid cells.
+ */
+[data-page="controls"] .controls-list {
+  display: grid;
+  grid-template-columns:
+    1fr                               /* 1: label */
+    auto                              /* 2: KEY text */
+    minmax(4rem, max-content)         /* 3: keycap */
+    auto                              /* 4: PAD text */
+    minmax(4rem, max-content)         /* 5: pad glyph */
+    auto;                             /* 6: icon actions */
+  column-gap: 0.625rem;
+  row-gap: 0.5rem;
+}
+
 [data-page="controls"] .controls-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 1rem;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  column-gap: inherit;
   align-items: center;
   padding: 0.75rem 0.875rem;
   border-radius: 0.625rem;
@@ -35,16 +59,13 @@
   border-color: var(--keycap-glow);
 }
 
-[data-page="controls"] .controls-row-slots {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
+[data-page="controls"] .controls-row-slots,
+[data-page="controls"] .controls-slot {
+  display: contents;
 }
 
-[data-page="controls"] .controls-slot {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
+[data-page="controls"] .controls-row-label {
+  padding-right: 0.5rem;
 }
 
 [data-page="controls"] .controls-slot-label {
@@ -52,12 +73,17 @@
   font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  justify-self: end;
 }
 
-[data-page="controls"] .controls-row-sep {
-  color: oklch(from var(--color-base-300) l a b / 1);
-  font-size: 0.6875rem;
-  letter-spacing: 0.15em;
+[data-page="controls"] .controls-keycap {
+  justify-self: start;
+}
+
+/* Extra breathing room between the KEY pair (cols 2-3) and the PAD
+ * pair (cols 4-5) now that the middle-dot separator is gone. */
+[data-page="controls"] .controls-slot-gamepad .controls-slot-label {
+  margin-left: 0.75rem;
 }
 
 [data-page="controls"] .controls-keycap {

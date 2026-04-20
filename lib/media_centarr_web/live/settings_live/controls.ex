@@ -36,13 +36,15 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
           <button
             phx-click="controls:set_glyph"
             phx-value-style="xbox"
-            class={"join-item btn btn-xs " <> if(@glyph_style == "xbox", do: "btn-primary", else: "btn-ghost")}>
+            class={"join-item btn btn-xs " <> if(@glyph_style == "xbox", do: "btn-primary", else: "btn-ghost")}
+          >
             Xbox
           </button>
           <button
             phx-click="controls:set_glyph"
             phx-value-style="playstation"
-            class={"join-item btn btn-xs " <> if(@glyph_style == "playstation", do: "btn-primary", else: "btn-ghost")}>
+            class={"join-item btn btn-xs " <> if(@glyph_style == "playstation", do: "btn-primary", else: "btn-ghost")}
+          >
             PlayStation
           </button>
         </div>
@@ -61,17 +63,18 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
           <button
             phx-click="controls:reset_category"
             phx-value-category={Atom.to_string(category)}
-            class="text-xs text-base-content/60 hover:text-primary">
+            class="text-xs text-base-content/60 hover:text-primary"
+          >
             Reset {ControlsLogic.category_label(category)}
           </button>
         </div>
 
-        <div class="flex flex-col gap-2">
+        <div class="controls-list">
           <div
             :for={view <- views}
             class="controls-row"
-            data-listening={if listening?(@listening, view.id), do: "true", else: "false"}>
-
+            data-listening={if listening?(@listening, view.id), do: "true", else: "false"}
+          >
             <div class="controls-row-label">
               <div class="font-semibold">{view.name}</div>
               <div class="text-sm text-base-content/60">{view.description}</div>
@@ -82,16 +85,16 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
                 kind={:keyboard}
                 id={view.id}
                 glyph={ControlsLogic.display_key(view.key)}
-                listening={listening_slot?(@listening, view.id, :keyboard)} />
-
-              <span class="controls-row-sep">·</span>
+                listening={listening_slot?(@listening, view.id, :keyboard)}
+              />
 
               <.slot_view
                 kind={:gamepad}
                 id={view.id}
                 glyph={ControlsLogic.display_button(view.button, @glyph_style)}
                 listening={listening_slot?(@listening, view.id, :gamepad)}
-                gamepad_available={false} />
+                gamepad_available={false}
+              />
             </div>
 
             <div class="controls-row-actions">
@@ -100,7 +103,8 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
                 phx-value-id={Atom.to_string(view.id)}
                 phx-value-kind="keyboard"
                 class="controls-icon-btn"
-                title="Remap key">
+                title="Remap key"
+              >
                 <.icon name="hero-pencil" class="w-4 h-4" />
               </button>
               <button
@@ -108,7 +112,8 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
                 phx-value-id={Atom.to_string(view.id)}
                 phx-value-kind="keyboard"
                 class="controls-icon-btn danger"
-                title="Clear key">
+                title="Clear key"
+              >
                 <.icon name="hero-x-mark" class="w-4 h-4" />
               </button>
             </div>

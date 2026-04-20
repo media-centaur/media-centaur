@@ -34,18 +34,16 @@ defmodule MediaCentarr.Controls do
     keyboard_overrides = Store.read_keyboard()
     gamepad_overrides = Store.read_gamepad()
 
-    Catalog.all()
-    |> Enum.map(fn %Binding{} = binding ->
+    Map.new(Catalog.all(), fn %Binding{} = binding ->
       {binding.id,
        %{
          key: resolve(keyboard_overrides, Atom.to_string(binding.id), binding.default_key),
          button: resolve(gamepad_overrides, Atom.to_string(binding.id), binding.default_button)
        }}
     end)
-    |> Map.new()
   end
 
-  @doc "Returns the current glyph style (\"xbox\" or \"playstation\")."
+  @doc ~s{Returns the current glyph style ("xbox" or "playstation").}
   @spec glyph_style() :: String.t()
   def glyph_style, do: Store.read_glyph_style()
 
@@ -81,7 +79,7 @@ defmodule MediaCentarr.Controls do
   @doc "Remove every user override in a category; fall back to catalog defaults."
   @spec reset_category(atom()) :: :ok
   def reset_category(category) do
-    ids = Catalog.by_category(category) |> Enum.map(&Atom.to_string(&1.id))
+    ids = Enum.map(Catalog.by_category(category), &Atom.to_string(&1.id))
 
     :ok = Store.write_keyboard(Map.drop(Store.read_keyboard(), ids))
     :ok = Store.write_gamepad(Map.drop(Store.read_gamepad(), ids))
