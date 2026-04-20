@@ -1,6 +1,6 @@
 # Creating Custom Views
 
-Views are pluggable visualizations. Implement the `Visualizer.View` behaviour to add your own.
+Views are pluggable visualizations. Implement the `ExCodeView.View` behaviour to add your own.
 
 ## The View Behaviour
 
@@ -14,11 +14,11 @@ Views are pluggable visualizations. Implement the `Visualizer.View` behaviour to
 
 ### Callbacks
 
-- **`name/0`** — CLI identifier (e.g., `"sunburst"`). Used in `mix visualize sunburst`.
-- **`description/0`** — One-line human-readable description. Shown by `mix visualize --list`.
+- **`name/0`** — CLI identifier (e.g., `"sunburst"`). Used in `mix view sunburst`.
+- **`description/0`** — One-line human-readable description. Shown by `mix view --list`.
 - **`template_path/0`** — Absolute path to the HTML template file. Use `:code.priv_dir(:your_app)` to resolve.
 - **`js_sources/0`** — Ordered list of absolute paths to JS files. These are concatenated in order into the template.
-- **`prepare/2`** — Receives `%Visualizer.Schema.Analysis{}` and keyword opts. Transform, enrich, or pass through the data. Return `{:ok, data}` or `{:error, reason}`.
+- **`prepare/2`** — Receives `%ExCodeView.Schema.Analysis{}` and keyword opts. Transform, enrich, or pass through the data. Return `{:ok, data}` or `{:error, reason}`.
 
 ## Template Requirements
 
@@ -68,7 +68,7 @@ end
 In the consuming project's `config/config.exs`:
 
 ```elixir
-config :visualizer, views: [MyPackage.Views.Sunburst]
+config :ex_code_view, views: [MyPackage.Views.Sunburst]
 ```
 
 Multiple views can be registered. Built-in views (city, erd) are always available.
@@ -77,7 +77,7 @@ Multiple views can be registered. Built-in views (city, erd) are always availabl
 
 ```elixir
 defmodule MyPackage.Views.Sunburst do
-  @behaviour Visualizer.View
+  @behaviour ExCodeView.View
 
   @impl true
   def name, do: "sunburst"
@@ -103,5 +103,5 @@ end
 
 ## Reference Implementations
 
-- **City view** (`lib/visualizer/views/city.ex`) — passthrough prepare, Three.js viewer with importmap
-- **ERD view** (`lib/visualizer/views/erd.ex`) — enriching prepare that extracts Ecto schemas from AST, SVG viewer
+- **City view** (`lib/ex_code_view/views/city.ex`) — passthrough prepare, Three.js viewer with importmap
+- **ERD view** (`lib/ex_code_view/views/erd.ex`) — enriching prepare that extracts Ecto schemas from AST, SVG viewer

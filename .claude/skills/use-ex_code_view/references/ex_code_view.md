@@ -1,18 +1,27 @@
-# Rules for working with Visualizer
+# Rules for working with ExCodeView
 
-Visualizer analyzes Elixir codebases and generates self-contained HTML visualizations. The pipeline is: file discovery -> AST parsing -> namespace hierarchy -> coupling analysis -> view rendering -> single HTML file.
+ExCodeView analyzes Elixir codebases and generates self-contained HTML visualizations. The pipeline is: file discovery -> AST parsing -> namespace hierarchy -> coupling analysis -> view rendering -> single HTML file.
 
 ## Running Visualizations
 
 ```bash
-mix visualize              # Default view (city)
-mix visualize erd          # Specific view
-mix visualize --open       # Open in browser after generation
-mix visualize -o out.html  # Custom output path
-mix visualize --json       # Raw analysis JSON instead of HTML
-mix visualize --no-coupling # Skip dependency analysis (faster)
-mix visualize --list       # List available views
+mix view              # Default view (city)
+mix view erd          # Specific view
+mix view --open       # Open in browser after generation
+mix view -o out.html  # Custom output path
+mix view --json       # Raw analysis JSON instead of HTML
+mix view --list       # List available views
 ```
+
+All config is overridable via CLI flags:
+
+```bash
+mix view --source-dir src --extensions .ex --extensions .exs
+mix view --output-dir docs --output-template "ex_code_view-{{date}}"
+mix view --exclude "generated/**" --exclude "vendor/**"
+```
+
+Template variables: `{{date}}` (ISO 8601 UTC date).
 
 ## Built-in Views
 
@@ -21,10 +30,10 @@ mix visualize --list       # List available views
 
 ## Configuration
 
-All configuration is under `config :visualizer`:
+All configuration is under `config :ex_code_view`. CLI flags always take precedence.
 
 ```elixir
-config :visualizer,
+config :ex_code_view,
   default_view: "city",       # View used when none specified
   views: [],                  # External view modules to register
   source_dir: "lib",          # Directory to scan
@@ -35,12 +44,12 @@ config :visualizer,
 ## Programmatic API
 
 ```elixir
-{:ok, analysis} = Visualizer.analyze(project_dir, opts)
+{:ok, analysis} = ExCodeView.analyze(project_dir, opts)
 ```
 
-Returns `{:ok, %Visualizer.Schema.Analysis{}}` or `{:error, reason}`.
+Returns `{:ok, %ExCodeView.Schema.Analysis{}}` or `{:error, reason}`.
 
-Options: `:no_coupling`, `:source_dir`, `:extensions`, `:exclude`.
+Options: `:source_dir`, `:extensions`, `:exclude`.
 
 The `Analysis` struct contains: `roots`, `modules`, `namespaces`, `dependencies`, `erd_schemas`, `available_metrics`.
 
@@ -49,15 +58,15 @@ The `Analysis` struct contains: `roots`, `modules`, `namespaces`, `dependencies`
 - **Coupling analysis requires compilation.** It reads the Mix compiler manifest. If the project hasn't been compiled, coupling data will be empty.
 - **ERD does NOT require Ecto as a dependency.** Schema extraction works directly from AST via `Code.string_to_quoted/2`.
 - **Output is fully self-contained.** All JavaScript, CSS, and data are inlined into a single HTML file. No server needed.
-- **The `--json` flag** outputs raw analysis JSON — useful for building custom tooling on top of Visualizer.
+- **The `--json` flag** outputs raw analysis JSON — useful for building custom tooling on top of ExCodeView.
 
 ## Extension Points
 
-Visualizer is extensible via two behaviours:
+ExCodeView is extensible via two behaviours:
 
-- **`Visualizer.View`** — add new visualization types. See the `visualizer:views` sub-rule.
-- **`Visualizer.SchemaExtractor`** — add schema extraction for frameworks beyond Ecto (e.g., Ash). See the `visualizer:schema-extractors` sub-rule.
-- **Viewer JavaScript** — the JS concatenation pattern and testing approach. See the `visualizer:viewer-js` sub-rule.
+- **`ExCodeView.View`** — add new visualization types. See the `ex_code_view:views` sub-rule.
+- **`ExCodeView.SchemaExtractor`** — add schema extraction for frameworks beyond Ecto (e.g., Ash). See the `ex_code_view:schema-extractors` sub-rule.
+- **Viewer JavaScript** — the JS concatenation pattern and testing approach. See the `ex_code_view:viewer-js` sub-rule.
 
 ## JSON Schema Contract
 
