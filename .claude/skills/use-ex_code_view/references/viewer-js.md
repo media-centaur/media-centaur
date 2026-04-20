@@ -1,10 +1,10 @@
 # Writing Viewer JavaScript
 
-Visualizer views use a specific JS architecture: no bundler, no ES module imports between files. Files are concatenated in order into a single `<script type="module">` tag.
+ExCodeView views use a specific JS architecture: no bundler, no ES module imports between files. Files are concatenated in order into a single `<script type="module">` tag.
 
 ## Concatenation Pattern
 
-The renderer (`Visualizer.Renderer`) works as follows:
+The renderer (`ExCodeView.Renderer`) works as follows:
 
 1. Reads the HTML template from `template_path/0`
 2. Reads each JS file from `js_sources/0` in order
@@ -67,7 +67,7 @@ describe('myFunction', () => {
 
 ## JSON Schema Contract
 
-The data injected at `{{DATA}}` is a JSON-encoded `%Visualizer.Schema.Analysis{}`:
+The data injected at `{{DATA}}` is a JSON-encoded `%ExCodeView.Schema.Analysis{}`:
 
 | Field | JS Type | Description |
 |-------|---------|-------------|

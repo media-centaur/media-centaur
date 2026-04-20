@@ -1,6 +1,6 @@
 # Creating Custom Schema Extractors
 
-Schema extractors pull data model information from module ASTs. The built-in extractor handles Ecto schemas. Implement `Visualizer.SchemaExtractor` to support other frameworks (e.g., Ash).
+Schema extractors pull data model information from module ASTs. The built-in extractor handles Ecto schemas. Implement `ExCodeView.SchemaExtractor` to support other frameworks (e.g., Ash).
 
 ## The SchemaExtractor Behaviour
 
@@ -16,16 +16,16 @@ Schema extractors pull data model information from module ASTs. The built-in ext
 ## ErdSchema Struct
 
 ```elixir
-%Visualizer.Schema.ErdSchema{
+%ExCodeView.Schema.ErdSchema{
   module_id: "MyApp.Accounts.User",
   table_name: "users",
   fields: [
-    %Visualizer.Schema.ErdField{name: "email", type: "string"},
-    %Visualizer.Schema.ErdField{name: "age", type: "integer"}
+    %ExCodeView.Schema.ErdField{name: "email", type: "string"},
+    %ExCodeView.Schema.ErdField{name: "age", type: "integer"}
   ],
   associations: [
-    %Visualizer.Schema.ErdAssociation{type: "has_many", name: "posts", target: "MyApp.Blog.Post"},
-    %Visualizer.Schema.ErdAssociation{type: "belongs_to", name: "org", target: "MyApp.Accounts.Org"}
+    %ExCodeView.Schema.ErdAssociation{type: "has_many", name: "posts", target: "MyApp.Blog.Post"},
+    %ExCodeView.Schema.ErdAssociation{type: "belongs_to", name: "org", target: "MyApp.Accounts.Org"}
   ]
 }
 ```
@@ -42,7 +42,7 @@ Schema extractors pull data model information from module ASTs. The built-in ext
 
 ## AST Helpers
 
-`Visualizer.AST` provides shared helpers:
+`ExCodeView.AST` provides shared helpers:
 
 - **`extract_do_body/1`** — extracts the body from a `do` block in the AST. Handles both `[{:do, body}]` and `[{{:__block__, _, [:do]}, body}]` forms.
 - **`walk_modules/2`** — walks an AST tree, calling a callback for each `defmodule`. The callback receives `(module_name, body, meta)` and returns a list.
@@ -58,7 +58,7 @@ Schema extractors pull data model information from module ASTs. The built-in ext
 
 ## Reference Implementation
 
-See `Visualizer.SchemaExtractors.Ecto` (`lib/visualizer/schema_extractors/ecto.ex`) for a complete working example that extracts Ecto schema fields and associations from the AST.
+See `ExCodeView.SchemaExtractors.Ecto` (`lib/ex_code_view/schema_extractors/ecto.ex`) for a complete working example that extracts Ecto schema fields and associations from the AST.
 
 ## Integration
 

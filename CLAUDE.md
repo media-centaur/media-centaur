@@ -489,22 +489,22 @@ _A config-driven dev tool for Elixir projects to manage AGENTS.md files and agen
 ## usage_rules:otp usage
 [usage_rules:otp usage rules](deps/usage_rules/usage-rules/otp.md)
 <!-- usage_rules:otp-end -->
-<!-- visualizer-start -->
-## visualizer usage
-_Interactive code visualizations for Elixir projects_
+<!-- ex_code_view-start -->
+## ex_code_view usage
+_⚠️ ALPHA — expect rough edges. Interactive code visualizations for Elixir projects — 3D software city and Ecto ERD, rendered as self-contained HTML._
 
-[visualizer usage rules](deps/visualizer/usage-rules.md)
-<!-- visualizer-end -->
-<!-- visualizer:schema-extractors-start -->
-## visualizer:schema-extractors usage
-[visualizer:schema-extractors usage rules](deps/visualizer/usage-rules/schema-extractors.md)
-<!-- visualizer:schema-extractors-end -->
-<!-- visualizer:viewer-js-start -->
-## visualizer:viewer-js usage
-[visualizer:viewer-js usage rules](deps/visualizer/usage-rules/viewer-js.md)
-<!-- visualizer:viewer-js-end -->
-<!-- visualizer:views-start -->
-## visualizer:views usage
-[visualizer:views usage rules](deps/visualizer/usage-rules/views.md)
-<!-- visualizer:views-end -->
+[ex_code_view usage rules](deps/ex_code_view/usage-rules.md)
+<!-- ex_code_view-end -->
+<!-- ex_code_view:schema-extractors-start -->
+## ex_code_view:schema-extractors usage
+[ex_code_view:schema-extractors usage rules](deps/ex_code_view/usage-rules/schema-extractors.md)
+<!-- ex_code_view:schema-extractors-end -->
+<!-- ex_code_view:viewer-js-start -->
+## ex_code_view:viewer-js usage
+[ex_code_view:viewer-js usage rules](deps/ex_code_view/usage-rules/viewer-js.md)
+<!-- ex_code_view:viewer-js-end -->
+<!-- ex_code_view:views-start -->
+## ex_code_view:views usage
+[ex_code_view:views usage rules](deps/ex_code_view/usage-rules/views.md)
+<!-- ex_code_view:views-end -->
 <!-- usage-rules-end -->
