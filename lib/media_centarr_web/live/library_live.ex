@@ -1349,113 +1349,49 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   # Runs inside Task.Supervisor — socket is not available here. The caller
-  # has already resolved {fk_key, fk_id} from the cached entity, so this
-  # function only hits the (now-indexed) watch_progress row and broadcasts
-  # the result.
+  # resolved {fk_key, fk_id} from the cached entity via
+  # LibraryHelpers.resolve_progress_fk/4 before spawning the task.
   defp update_watch_progress(entity_id, fk_key, fk_id) do
-    progress =
-      if fk_id do
-        case Library.get_watch_progress_by_fk(fk_key, fk_id) do
-          {:ok, record} -> record
-          _ -> nil
-        end
-      end
-
-    changed_record =
-      case progress do
-        %{completed: true} ->
-          Log.info(
-            :library,
-            "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
-          )
-
-          Library.mark_watch_incomplete!(progress)
-
-        %{completed: false} ->
-          Log.info(:library, fn ->
-            pct =
-              if progress.duration_seconds > 0,
-                do: "#{Float.round(progress.position_seconds / progress.duration_seconds * 100, 0)}%",
-                else: "unknown"
-
-            "toggled completed — was #{pct} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
-          end)
-
-          Library.mark_watch_completed!(progress)
-
-        nil ->
-          if fk_id do
-            Log.info(:library, "toggled completed — no prior progress, created fresh record")
-
-            params = %{
-              fk_key => fk_id,
-              position_seconds: 0.0,
-              duration_seconds: 0.0
-            }
-
-            {:ok, record} = create_progress_by_fk(fk_key, params)
-            Library.mark_watch_completed!(record)
-          end
-      end
-
+    progress = load_progress_by_fk(fk_key, fk_id)
+    changed_record = apply_progress_transition(progress, fk_key, fk_id)
     ProgressBroadcaster.broadcast(entity_id, changed_record)
   end
 
-  # Resolve the {fk_key, fk_id} tuple from the cached entity map. The
-  # LibraryLive mount loads every entity with full preloads via
-  # Library.Browser — seasons, episodes, and movies are already attached
-  # to the normalized entity map in `entries_by_id`, so this is a cheap
-  # in-memory walk with no DB queries. Called synchronously from the
-  # event handler BEFORE spawning the async task.
-  #
-  # Note: `entry.entity` is a normalized map (not an Ecto struct) with a
-  # `:type` field. Inner `seasons`/`episodes`/`movies` are still Ecto
-  # structs, so we can match on their fields directly.
-  defp resolve_progress_fk(entries_by_id, entity_id, 0, ordinal) do
-    case Map.get(entries_by_id, entity_id) do
-      %{entity: %{type: :movie_series, movies: movies}} when is_list(movies) ->
-        available = MediaCentarr.Library.MovieList.list_available(%{movies: movies})
+  defp load_progress_by_fk(_fk_key, nil), do: nil
 
-        case Enum.find(available, fn {ord, _id, _url} -> ord == ordinal end) do
-          {_ord, movie_id, _url} -> {:movie_id, movie_id}
-          nil -> {:movie_id, nil}
-        end
-
-      %{entity: %{type: :movie, id: id}} ->
-        # Standalone movie — the entity id IS the movie id.
-        {:movie_id, id}
-
-      _ ->
-        # Fallback: not in cache or wrong type. Treat entity_id as a movie
-        # id and let the downstream get_watch_progress_by_fk handle
-        # :not_found gracefully.
-        {:movie_id, entity_id}
+  defp load_progress_by_fk(fk_key, fk_id) do
+    case Library.get_watch_progress_by_fk(fk_key, fk_id) do
+      {:ok, record} -> record
+      _ -> nil
     end
   end
 
-  defp resolve_progress_fk(entries_by_id, entity_id, season_number, episode_number) do
-    case Map.get(entries_by_id, entity_id) do
-      %{entity: %{type: :tv_series, seasons: seasons}} when is_list(seasons) ->
-        episode_id =
-          seasons
-          |> Enum.find(&(&1.season_number == season_number))
-          |> case do
-            %{episodes: episodes} when is_list(episodes) ->
-              case Enum.find(episodes, &(&1.episode_number == episode_number)) do
-                %{id: id} -> id
-                _ -> nil
-              end
+  defp apply_progress_transition(%{completed: true} = progress, _fk_key, _fk_id) do
+    Log.info(
+      :library,
+      "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
+    )
 
-            _ ->
-              nil
-          end
-
-        {:episode_id, episode_id}
-
-      _ ->
-        {:episode_id, nil}
-    end
+    Library.mark_watch_incomplete!(progress)
   end
+
+  defp apply_progress_transition(%{completed: false} = progress, _fk_key, _fk_id) do
+    Log.info(:library, fn ->
+      "toggled completed — was #{completion_percentage(progress)} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
+    end)
+
+    Library.mark_watch_completed!(progress)
+  end
+
+  defp apply_progress_transition(nil, fk_key, fk_id) when not is_nil(fk_id) do
+    Log.info(:library, "toggled completed — no prior progress, created fresh record")
+
+    params = %{fk_key => fk_id, position_seconds: 0.0, duration_seconds: 0.0}
+    {:ok, record} = create_progress_by_fk(fk_key, params)
+    Library.mark_watch_completed!(record)
+  end
+
+  defp apply_progress_transition(nil, _fk_key, nil), do: nil
 
   defp create_progress_by_fk(:movie_id, params),
     do: Library.find_or_create_watch_progress_for_movie(params)

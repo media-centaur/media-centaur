@@ -269,6 +269,73 @@ defmodule MediaCentarrWeb.LibraryHelpers do
     summary.episodes_completed < summary.episodes_total
   end
 
+  # --- Watch Progress ---
+
+  @doc """
+  Formats the completion percentage of a progress record for display.
+  Returns `"42%"` or `"unknown"` when the duration is missing or zero.
+  """
+  @spec completion_percentage(map() | nil) :: String.t()
+  def completion_percentage(%{position_seconds: position, duration_seconds: duration})
+      when is_number(duration) and duration > 0 and is_number(position) do
+    "#{trunc(Float.round(position / duration * 100, 0))}%"
+  end
+
+  def completion_percentage(_), do: "unknown"
+
+  @doc """
+  Resolves `{fk_key, fk_id}` for a watch-progress lookup from the cached
+  `entries_by_id` map. Called from LibraryLive before dispatching progress
+  updates — pure, no DB access.
+
+  `season_number == 0` selects a movie (standalone or an entry within a
+  movie series, indexed by `ordinal`). Any non-zero `season_number`
+  selects an episode within a TV series.
+  """
+  @spec resolve_progress_fk(map(), String.t(), non_neg_integer(), non_neg_integer()) ::
+          {:movie_id, String.t() | nil} | {:episode_id, String.t() | nil}
+  def resolve_progress_fk(entries_by_id, entity_id, 0, ordinal) do
+    case Map.get(entries_by_id, entity_id) do
+      %{entity: %{type: :movie_series, movies: movies}} when is_list(movies) ->
+        {:movie_id, find_movie_in_series(movies, ordinal)}
+
+      %{entity: %{type: :movie, id: id}} ->
+        {:movie_id, id}
+
+      _ ->
+        {:movie_id, entity_id}
+    end
+  end
+
+  def resolve_progress_fk(entries_by_id, entity_id, season_number, episode_number) do
+    case Map.get(entries_by_id, entity_id) do
+      %{entity: %{type: :tv_series, seasons: seasons}} when is_list(seasons) ->
+        {:episode_id, find_episode_in_seasons(seasons, season_number, episode_number)}
+
+      _ ->
+        {:episode_id, nil}
+    end
+  end
+
+  defp find_movie_in_series(movies, ordinal) do
+    available = MovieList.list_available(%{movies: movies})
+
+    case Enum.find(available, fn {ord, _id, _url} -> ord == ordinal end) do
+      {_ord, movie_id, _url} -> movie_id
+      nil -> nil
+    end
+  end
+
+  defp find_episode_in_seasons(seasons, season_number, episode_number) do
+    with %{episodes: episodes} when is_list(episodes) <-
+           Enum.find(seasons, &(&1.season_number == season_number)),
+         %{id: id} <- Enum.find(episodes, &(&1.episode_number == episode_number)) do
+      id
+    else
+      _ -> nil
+    end
+  end
+
   # --- Reload Strategy ---
 
   @doc """
