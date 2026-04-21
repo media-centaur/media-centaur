@@ -13,11 +13,17 @@ defmodule MediaCentarr.Credo.Checks.NoAbbreviatedNames do
       `msg`) are exempt. Underscore-prefixed unused variables (`_wf`) are
       also exempt.
 
+      The check covers `def`/`defp` parameters, `fn` closure bindings,
+      `case`/`cond`/`with`/`rescue` pattern clauses, and destructured map /
+      tuple patterns inside any of the above.
+
           # preferred
           def process(file, movie, episode), do: ...
+          Enum.map(list, fn file -> file.path end)
 
           # NOT preferred
           def process(wf, e, ep), do: ...
+          Enum.map(list, fn e -> e.id end)
 
       Source: CLAUDE.md "Variable Naming" rule.
       """
@@ -31,20 +37,28 @@ defmodule MediaCentarr.Credo.Checks.NoAbbreviatedNames do
     Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
   end
 
+  # def / defp function heads.
   defp traverse({op, _meta, [{_name, _, args} | _]} = ast, issues, issue_meta)
        when op in [:def, :defp] and is_list(args) do
-    new_issues =
-      args
-      |> collect_param_names()
-      |> Enum.filter(fn {name, _meta} -> Atom.to_string(name) in @denylist end)
-      |> Enum.map(fn {name, meta} ->
-        issue_for(issue_meta, Atom.to_string(name), meta[:line])
-      end)
+    {ast, collect_issues(args, issue_meta) ++ issues}
+  end
 
-    {ast, new_issues ++ issues}
+  # `:->` clauses cover `fn`, `case`, `cond`, `with`, and `rescue` branches —
+  # their LHS is always a list of patterns that may bind abbreviated names.
+  defp traverse({:->, _meta, [patterns, _body]} = ast, issues, issue_meta) when is_list(patterns) do
+    {ast, collect_issues(patterns, issue_meta) ++ issues}
   end
 
   defp traverse(ast, issues, _issue_meta), do: {ast, issues}
+
+  defp collect_issues(patterns, issue_meta) do
+    patterns
+    |> collect_param_names()
+    |> Enum.filter(fn {name, _meta} -> Atom.to_string(name) in @denylist end)
+    |> Enum.map(fn {name, meta} ->
+      issue_for(issue_meta, Atom.to_string(name), meta[:line])
+    end)
+  end
 
   # Recursively walk parameter ASTs to extract bare variable names.
   defp collect_param_names(args) when is_list(args) do

@@ -75,7 +75,10 @@ defmodule MediaCentarr.ConfigWatchDirsTest do
       entries = Config.watch_dirs_entries()
       assert length(entries) == 2
       assert entries |> Enum.map(& &1["dir"]) |> Enum.sort() == ["/mnt/a", "/mnt/b"]
-      assert Enum.all?(entries, fn e -> is_binary(e["id"]) and byte_size(e["id"]) > 0 end)
+
+      assert Enum.all?(entries, fn entry ->
+               is_binary(entry["id"]) and byte_size(entry["id"]) > 0
+             end)
     end
 
     test "is a no-op when the settings entry already exists" do

@@ -186,7 +186,7 @@ defmodule MediaCentarrWeb.LibraryLive do
         detail_files: detail_files,
         tracking_status: tracking_status
       )
-      |> then(fn s -> if grid_changed, do: reset_stream(s), else: s end)
+      |> then(fn socket -> if grid_changed, do: reset_stream(socket), else: socket end)
 
     socket =
       if zone == :upcoming do
