@@ -23,10 +23,11 @@ defmodule MediaCentarrWeb.Components.TrackModal do
       id="track-modal"
       class="modal-backdrop"
       data-state={if @open, do: "open", else: "closed"}
+      phx-click={@open && "close_track_modal"}
       phx-window-keydown={@open && "close_track_modal"}
       phx-key="Escape"
     >
-      <div class="modal-panel" phx-click-away={@open && "close_track_modal"}>
+      <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
         <div class="flex flex-col flex-1 min-h-0 max-h-[80vh]">
           <%!-- Header --%>
           <div class="flex items-center justify-between px-5 py-4 border-b border-base-content/10">

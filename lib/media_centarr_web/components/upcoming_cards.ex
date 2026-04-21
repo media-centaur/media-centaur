@@ -667,11 +667,12 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       data-state={if @open, do: "open", else: "closed"}
       data-detail-mode={@open && "modal"}
       data-dismiss-event={@open && "cancel_stop_tracking"}
+      phx-click={@open && "cancel_stop_tracking"}
       phx-window-keydown={@open && "cancel_stop_tracking"}
       phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel modal-panel-sm p-6" phx-click-away={@open && "cancel_stop_tracking"}>
+      <div class="modal-panel modal-panel-sm p-6" phx-click={%Phoenix.LiveView.JS{}}>
         <div :if={@item}>
           <h3 class="text-lg font-bold text-error">Stop tracking?</h3>
           <p class="mt-2 text-sm text-base-content/70">

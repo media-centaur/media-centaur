@@ -574,11 +574,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       data-state="open"
       data-detail-mode="modal"
       data-dismiss-event="cancel_download_cancel"
+      phx-click="cancel_download_cancel"
       phx-window-keydown="cancel_download_cancel"
       phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel modal-panel-sm p-6" phx-click-away="cancel_download_cancel">
+      <div class="modal-panel modal-panel-sm p-6" phx-click={%Phoenix.LiveView.JS{}}>
         <h3 class="text-lg font-bold text-error">Cancel download?</h3>
         <p class="mt-2 text-sm text-base-content/70">
           The torrent and any downloaded files will be deleted from qBittorrent.
