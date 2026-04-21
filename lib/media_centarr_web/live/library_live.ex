@@ -48,6 +48,7 @@ defmodule MediaCentarrWeb.LibraryLive do
       ReleaseTracking.subscribe()
       Availability.subscribe()
       Capabilities.subscribe()
+      MediaCentarr.Config.subscribe()
     end
 
     {:ok,
@@ -95,6 +96,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        tracking_status: nil,
        confirm_stop_item: nil,
        tracked_items: [],
+       watch_dirs: MediaCentarr.Config.get(:watch_dirs) || [],
        watch_dirs_configured: watch_dirs_configured?(),
        dir_status: Availability.dir_status()
      )
@@ -604,13 +606,11 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_event("delete_folder_prompt", %{"path" => folder_path, "count" => _count}, socket) do
-    watch_dirs = MediaCentarr.Config.get(:watch_dirs) || []
-
     cond do
       playing?(socket.assigns.playback, socket.assigns.selected_entity_id) ->
         {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
 
-      folder_path in watch_dirs ->
+      folder_path in socket.assigns.watch_dirs ->
         {:noreply, put_flash(socket, :error, "Cannot delete a watch directory")}
 
       true ->
@@ -641,8 +641,12 @@ defmodule MediaCentarrWeb.LibraryLive do
     if playing?(socket.assigns.playback, socket.assigns.selected_entity_id) do
       {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
     else
-      watch_dirs = MapSet.new(MediaCentarr.Config.get(:watch_dirs) || [])
-      payload = DetailPanel.build_delete_all_payload(socket.assigns.detail_files, watch_dirs)
+      payload =
+        DetailPanel.build_delete_all_payload(
+          socket.assigns.detail_files,
+          MapSet.new(socket.assigns.watch_dirs)
+        )
+
       {:noreply, assign(socket, delete_confirm: {:all, payload})}
     end
   end
@@ -900,6 +904,14 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   def handle_info(:capabilities_changed, socket) do
     {:noreply, assign(socket, tmdb_ready: Capabilities.tmdb_ready?())}
+  end
+
+  def handle_info({:config_updated, :watch_dirs, _entries}, socket) do
+    {:noreply,
+     assign(socket,
+       watch_dirs: MediaCentarr.Config.get(:watch_dirs) || [],
+       watch_dirs_configured: watch_dirs_configured?()
+     )}
   end
 
   def handle_info(_msg, socket) do
