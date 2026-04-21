@@ -8,9 +8,10 @@ defmodule MediaCentarr.Pipeline.Image do
   entries complete, and broadcasts `{:image_ready, ...}` on the
   `"pipeline:publish"` topic for `Library.Inbound` to create Image records.
 
-  Broadway config: 1 producer (PubSub subscriber), 4 processors (moderate
-  concurrency to avoid hammering TMDB CDN), 1 batcher (collects entity IDs
-  for broadcast).
+  Broadway config: 1 producer (PubSub subscriber), 8 processors (image
+  work is I/O-bound — TMDB CDN fetch + libvips resize + disk write — so
+  concurrency well above core count helps without a CPU spike), 1 batcher
+  (collects entity IDs for broadcast).
   """
   use Broadway
   require MediaCentarr.Log, as: Log
@@ -26,7 +27,7 @@ defmodule MediaCentarr.Pipeline.Image do
         module: {MediaCentarr.Pipeline.Image.Producer, []},
         concurrency: 1
       ],
-      processors: [default: [concurrency: 4]],
+      processors: [default: [concurrency: 8]],
       batchers: [default: [concurrency: 1, batch_size: 20, batch_timeout: 5_000]]
     )
   end
