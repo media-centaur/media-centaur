@@ -4,6 +4,25 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.18.0 — 2026-04-21
+
+### Added
+
+- **Capability gating on external integrations.** UI surfaces that depend
+  on TMDB, Prowlarr, or the download client now only appear once you've
+  explicitly tested that connection in Settings and it came back green.
+  The Download sidebar entry stays hidden until Prowlarr tests green;
+  the downloads queue panel hides (with a pointer to Settings) until
+  the download client tests green; Track New Releases, the Rematch
+  button in detail view, and Review's Search TMDB stay hidden until
+  TMDB tests green. Tests are cleared automatically when you save new
+  credentials, so changing a URL or key immediately re-hides the
+  dependent features until you re-test.
+- **TMDB "Test connection" button** on the Settings → TMDB page,
+  matching the existing Prowlarr and download client pattern. Result
+  persists with a relative-age display ("Connected · 3 min ago") and
+  is cleared when the API key is saved.
+
 ## v0.17.0 — 2026-04-21
 
 ### Fixed
