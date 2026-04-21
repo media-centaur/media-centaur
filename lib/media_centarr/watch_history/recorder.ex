@@ -11,6 +11,8 @@ defmodule MediaCentarr.WatchHistory.Recorder do
 
   require MediaCentarr.Log, as: Log
 
+  import Ecto.Query
+
   alias MediaCentarr.{Repo, Topics, WatchHistory}
   alias MediaCentarr.Library.{Episode, Movie, VideoObject}
 
@@ -74,19 +76,31 @@ defmodule MediaCentarr.WatchHistory.Recorder do
   end
 
   defp build_event_attrs(%{episode_id: episode_id} = record) when not is_nil(episode_id) do
-    case Repo.get(Episode, episode_id) do
+    # Single JOIN query instead of Repo.get + Repo.preload(season: :tv_series),
+    # which fanned out to three round trips. All we need is four strings
+    # for the title — no reason to hydrate full schemas.
+    query =
+      from e in Episode,
+        join: s in assoc(e, :season),
+        join: tv in assoc(s, :tv_series),
+        where: e.id == ^episode_id,
+        select: %{
+          episode_name: e.name,
+          episode_number: e.episode_number,
+          season_number: s.season_number,
+          series_name: tv.name
+        }
+
+    case Repo.one(query) do
       nil ->
         {:error, :episode_not_found}
 
-      episode ->
-        episode = Repo.preload(episode, season: :tv_series)
-        title = format_episode_title(episode)
-
+      parts ->
         {:ok,
          %{
            entity_type: :episode,
            episode_id: episode_id,
-           title: title,
+           title: format_episode_title(parts),
            duration_seconds: record.duration_seconds,
            completed_at: DateTime.utc_now(:second)
          }}
@@ -111,14 +125,18 @@ defmodule MediaCentarr.WatchHistory.Recorder do
     end
   end
 
-  defp format_episode_title(episode) do
-    season_num = String.pad_leading("#{episode.season.season_number}", 2, "0")
-    ep_num = String.pad_leading("#{episode.episode_number}", 2, "0")
+  defp format_episode_title(%{
+         series_name: series,
+         season_number: season_number,
+         episode_number: episode_number,
+         episode_name: episode_name
+       }) do
+    season_num = String.pad_leading("#{season_number}", 2, "0")
+    ep_num = String.pad_leading("#{episode_number}", 2, "0")
     code = "S#{season_num}E#{ep_num}"
-    series = episode.season.tv_series.name
 
-    if episode.name && episode.name != "" do
-      "#{series} #{code} — #{episode.name}"
+    if episode_name && episode_name != "" do
+      "#{series} #{code} — #{episode_name}"
     else
       "#{series} #{code}"
     end

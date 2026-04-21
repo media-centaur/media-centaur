@@ -39,7 +39,11 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
 config :media_centarr, Oban,
   engine: Oban.Engines.Lite,
   repo: MediaCentarr.Repo,
-  queues: [acquisition: 5, self_update: 1],
+  # acquisition: Prowlarr search + download-client grabs are I/O-bound
+  # (HTTP) and not rate-limited by Oban's side, so a higher ceiling keeps
+  # the queue from becoming the bottleneck.
+  # self_update: serialized because it writes to the install dir on disk.
+  queues: [acquisition: 10, self_update: 1],
   plugins: [
     # Offset minute (17) so every install doesn't hit the GitHub API
     # on the hour — spreads requests across the 60s window and keeps
