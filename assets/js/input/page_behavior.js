@@ -21,6 +21,7 @@ import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createReviewBehavior } from "./review_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createDownloadBehavior } from "./download_behavior"
+import { createWatchHistoryBehavior } from "./watch_history_behavior"
 
 const BEHAVIOR_REGISTRY = {
   status: () => createStatusBehavior(),
@@ -28,6 +29,7 @@ const BEHAVIOR_REGISTRY = {
   review: () => createReviewBehavior(),
   settings: () => createSettingsBehavior(),
   download: () => createDownloadBehavior(),
+  "watch-history": () => createWatchHistoryBehavior(),
 }
 
 /**

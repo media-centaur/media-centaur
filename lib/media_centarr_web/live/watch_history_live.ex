@@ -38,7 +38,11 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/history">
-      <div class="max-w-5xl mx-auto space-y-6 py-6" data-page-behavior="watch-history">
+      <div
+        class="max-w-5xl mx-auto space-y-6 py-6"
+        data-page-behavior="watch-history"
+        data-nav-default-zone="watch_history"
+      >
         <h1 class="text-2xl font-bold">Watch History</h1>
 
         <%!-- Stats --%>
@@ -105,10 +109,12 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
         </div>
 
         <%!-- Filters --%>
-        <div class="flex flex-wrap items-center gap-3">
+        <div data-nav-zone="toolbar" class="flex flex-wrap items-center gap-3">
           <div role="group" class="join">
             <button
               class={["join-item btn btn-sm", is_nil(@filter_type) && "btn-active"]}
+              data-nav-item
+              tabindex="0"
               phx-click={
                 JS.hide(to: "[data-heatmap]")
                 |> JS.show(to: "[data-heatmap='all']")
@@ -119,6 +125,8 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             </button>
             <button
               class={["join-item btn btn-sm", @filter_type == :movie && "btn-active"]}
+              data-nav-item
+              tabindex="0"
               phx-click={
                 JS.hide(to: "[data-heatmap]")
                 |> JS.show(to: "[data-heatmap='movie']")
@@ -129,6 +137,8 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             </button>
             <button
               class={["join-item btn btn-sm", @filter_type == :episode && "btn-active"]}
+              data-nav-item
+              tabindex="0"
               phx-click={
                 JS.hide(to: "[data-heatmap]")
                 |> JS.show(to: "[data-heatmap='episode']")
@@ -139,6 +149,8 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             </button>
             <button
               class={["join-item btn btn-sm", @filter_type == :video_object && "btn-active"]}
+              data-nav-item
+              tabindex="0"
               phx-click={
                 JS.hide(to: "[data-heatmap]")
                 |> JS.show(to: "[data-heatmap='video_object']")
@@ -157,11 +169,16 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             phx-change="filter_search"
             phx-debounce="300"
             name="value"
+            data-nav-item
+            data-captures-keys
+            tabindex="0"
           />
 
           <button
             :if={@filter_date}
             class="badge badge-primary badge-sm gap-1 cursor-pointer py-3 px-2.5"
+            data-nav-item
+            tabindex="0"
             phx-click="clear_date_filter"
           >
             {Calendar.strftime(@filter_date, "%b %-d, %Y")}
@@ -174,10 +191,16 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
           Nothing watched yet.
         </p>
 
-        <div :if={@events != []} class="glass-inset rounded-xl overflow-hidden">
+        <div
+          :if={@events != []}
+          data-nav-zone="grid"
+          class="glass-inset rounded-xl overflow-hidden"
+        >
           <div
             :for={event <- @events}
-            class="flex items-baseline gap-4 px-4 py-2.5 group hover:bg-base-content/5 border-b border-base-content/5 last:border-0"
+            class="flex items-baseline gap-4 px-4 py-2.5 group hover:bg-base-content/5 focus-within:bg-base-content/5 border-b border-base-content/5 last:border-0"
+            data-nav-item
+            tabindex="0"
           >
             <span class="flex-1 min-w-0 text-sm font-medium truncate">{event.title}</span>
             <span class="text-xs text-base-content/50 whitespace-nowrap shrink-0">
@@ -190,20 +213,28 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
               {Format.format_seconds(round(event.duration_seconds))}
             </span>
             <button
-              class="btn btn-ghost btn-xs text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 transition-opacity"
+              class="btn btn-ghost btn-xs text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
               phx-click="remove_event"
               phx-value-id={event.id}
+              tabindex="-1"
+              aria-label="Remove from history"
             >
               <.icon name="hero-x-mark-mini" class="size-3" />
             </button>
           </div>
         </div>
 
-        <%!-- Pagination --%>
-        <div :if={@page > 1 || @has_next} class="flex items-center justify-center gap-4 py-2">
+        <%!-- Pagination — lives inside the grid zone so UP from here reaches the toolbar --%>
+        <div
+          :if={@page > 1 || @has_next}
+          data-nav-zone="grid"
+          class="flex items-center justify-center gap-4 py-2"
+        >
           <button
             :if={@page > 1}
             class="btn btn-ghost btn-sm"
+            data-nav-item
+            tabindex="0"
             phx-click="prev_page"
           >
             ← Previous
@@ -212,6 +243,8 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
           <button
             :if={@has_next}
             class="btn btn-ghost btn-sm"
+            data-nav-item
+            tabindex="0"
             phx-click="next_page"
           >
             Next →
