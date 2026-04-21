@@ -237,18 +237,33 @@ defmodule MediaCentarrWeb.ReviewLive do
   end
 
   def handle_info({:file_reviewed, file_id}, socket) do
-    groups =
-      socket.assigns.groups
-      |> Enum.map(fn group ->
-        files = Enum.reject(group.files, &(&1.id == file_id))
-        %{group | files: files, representative: List.first(files)}
-      end)
-      |> Enum.reject(fn group -> group.files == [] end)
+    {groups, groups_by_key} =
+      Enum.reduce(
+        socket.assigns.groups,
+        {[], socket.assigns.groups_by_key},
+        fn group, {acc, by_key} ->
+          files = Enum.reject(group.files, &(&1.id == file_id))
+
+          cond do
+            files == group.files ->
+              {[group | acc], by_key}
+
+            files == [] ->
+              {acc, Map.delete(by_key, group.key)}
+
+            true ->
+              updated = %{group | files: files, representative: List.first(files)}
+              {[updated | acc], Map.put(by_key, group.key, updated)}
+          end
+        end
+      )
+
+    groups = Enum.reverse(groups)
 
     {:noreply,
      socket
      |> assign(groups: groups)
-     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+     |> assign(groups_by_key: groups_by_key)
      |> assign(processing: MapSet.delete(socket.assigns.processing, file_id))
      |> apply_group_stats()
      |> advance_selection(socket.assigns.selected_key)}
@@ -267,7 +282,7 @@ defmodule MediaCentarrWeb.ReviewLive do
     {:noreply,
      socket
      |> assign(groups: groups)
-     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+     |> assign(groups_by_key: Map.delete(socket.assigns.groups_by_key, group_key))
      |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
      |> apply_group_stats()
      |> advance_selection(group_key)}
