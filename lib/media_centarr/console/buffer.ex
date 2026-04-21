@@ -49,6 +49,23 @@ defmodule MediaCentarr.Console.Buffer do
     GenServer.call(name, :snapshot)
   end
 
+  @doc """
+  Like `snapshot/0`, but caps the `:entries` list at `n` newest entries.
+
+  Preferred over `snapshot/0` for LiveView mount, where copying the full
+  50k-cap buffer into the LiveView process heap on every page load is
+  wasteful — the initial stream paint only needs enough history to fill
+  the viewport; new entries arrive via PubSub.
+  """
+  @spec snapshot_window(non_neg_integer()) :: map()
+  def snapshot_window(n), do: snapshot_window(n, __MODULE__)
+
+  @doc "Explicit name variant for tests."
+  @spec snapshot_window(non_neg_integer(), atom()) :: map()
+  def snapshot_window(n, name) when is_integer(n) and n >= 0 do
+    GenServer.call(name, {:snapshot_window, n})
+  end
+
   @doc "Returns up to `n` entries newest-first. Pass `nil` for all entries."
   @spec recent(non_neg_integer() | nil) :: [Entry.t()]
   def recent(n \\ nil), do: recent(n, __MODULE__)
@@ -158,6 +175,11 @@ defmodule MediaCentarr.Console.Buffer do
 
   def handle_call(:snapshot, _from, state) do
     snapshot = %{entries: state.entries, cap: state.cap, filter: state.filter}
+    {:reply, snapshot, state}
+  end
+
+  def handle_call({:snapshot_window, n}, _from, state) do
+    snapshot = %{entries: Enum.take(state.entries, n), cap: state.cap, filter: state.filter}
     {:reply, snapshot, state}
   end
 

@@ -32,7 +32,11 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
 
         snapshot =
           if connected?(socket) do
-            Console.snapshot()
+            # Cap the initial paint at the default buffer size. The buffer
+            # itself may hold up to 50k entries on a bumped cap, but the
+            # initial viewport never needs that many — new entries arrive
+            # via PubSub. See Buffer.snapshot_window/1.
+            Console.snapshot_window(Buffer.default_cap())
           else
             Logic.initial_snapshot()
           end
