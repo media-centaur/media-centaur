@@ -242,6 +242,22 @@ defmodule MediaCentarr.TestFactory do
     struct(Movie, Map.merge(defaults, overrides))
   end
 
+  def build_parser_result(overrides \\ %{}) do
+    defaults = %{
+      file_path: "/media/Fight.Club.1999.mkv",
+      title: "Fight Club",
+      year: 1999,
+      type: :movie,
+      season: nil,
+      episode: nil,
+      episode_title: nil,
+      parent_title: nil,
+      parent_year: nil
+    }
+
+    struct(MediaCentarr.Parser.Result, Map.merge(defaults, overrides))
+  end
+
   # ---------------------------------------------------------------------------
   # create_* — persisted via context functions, returns loaded records
   # ---------------------------------------------------------------------------

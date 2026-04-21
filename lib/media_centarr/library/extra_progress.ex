@@ -10,6 +10,8 @@ defmodule MediaCentarr.Library.ExtraProgress do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour MediaCentarr.Library.ProgressTracker
+
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
@@ -25,6 +27,7 @@ defmodule MediaCentarr.Library.ExtraProgress do
     timestamps()
   end
 
+  @impl true
   def upsert_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [:extra_id, :position_seconds, :duration_seconds])
@@ -32,17 +35,16 @@ defmodule MediaCentarr.Library.ExtraProgress do
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
   end
 
-  def upsert_changeset(record, attrs) do
+  @impl true
+  def update_changeset(record, attrs) do
     record
     |> cast(attrs, [:position_seconds, :duration_seconds])
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
   end
 
-  def mark_completed_changeset(record) do
-    change(record, completed: true, last_watched_at: DateTime.utc_now(:second))
-  end
+  @impl true
+  defdelegate mark_completed_changeset(record), to: MediaCentarr.Library.ProgressTracker
 
-  def mark_incomplete_changeset(record) do
-    change(record, completed: false, last_watched_at: DateTime.utc_now(:second))
-  end
+  @impl true
+  defdelegate mark_incomplete_changeset(record), to: MediaCentarr.Library.ProgressTracker
 end

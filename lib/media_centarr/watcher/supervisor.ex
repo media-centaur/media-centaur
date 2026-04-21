@@ -202,7 +202,7 @@ defmodule MediaCentarr.Watcher.Supervisor do
 
     cond do
       statuses == [] -> :unavailable
-      Enum.any?(statuses, fn %{state: s} -> s == :watching end) -> :watching
+      Enum.any?(statuses, fn %{state: state} -> state == :watching end) -> :watching
       true -> :unavailable
     end
   end

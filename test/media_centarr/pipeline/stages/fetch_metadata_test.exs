@@ -1,10 +1,10 @@
 defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Parser
   alias MediaCentarr.Pipeline.Payload
   alias MediaCentarr.Pipeline.Stages.FetchMetadata
 
+  import MediaCentarr.TestFactory
   import MediaCentarr.TmdbStubs
 
   setup do
@@ -12,19 +12,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
   end
 
   defp payload_for(overrides \\ %{}) do
-    defaults = %{
-      title: "Fight Club",
-      year: 1999,
-      type: :movie,
-      season: nil,
-      episode: nil,
-      parent_title: nil,
-      parent_year: nil,
-      file_path: "/media/Fight.Club.1999.mkv",
-      episode_title: nil
-    }
-
-    parsed = struct(Parser.Result, Map.merge(defaults, overrides))
+    parsed = build_parser_result(Map.drop(overrides, [:tmdb_id, :tmdb_type]))
 
     %Payload{
       file_path: parsed.file_path,

@@ -1,10 +1,10 @@
 defmodule MediaCentarr.Pipeline.Stages.SearchTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Parser
   alias MediaCentarr.Pipeline.Payload
   alias MediaCentarr.Pipeline.Stages.Search
 
+  import MediaCentarr.TestFactory
   import MediaCentarr.TmdbStubs
 
   setup do
@@ -12,19 +12,7 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
   end
 
   defp payload_with_parsed(overrides \\ %{}) do
-    defaults = %{
-      title: "Fight Club",
-      year: 1999,
-      type: :movie,
-      season: nil,
-      episode: nil,
-      parent_title: nil,
-      parent_year: nil,
-      file_path: "/media/Fight.Club.1999.mkv",
-      episode_title: nil
-    }
-
-    parsed = struct(Parser.Result, Map.merge(defaults, overrides))
+    parsed = build_parser_result(overrides)
     %Payload{file_path: parsed.file_path, parsed: parsed}
   end
 

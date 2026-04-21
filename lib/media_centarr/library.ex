@@ -619,7 +619,7 @@ defmodule MediaCentarr.Library do
 
     case Repo.get_by(WatchProgress, movie_id: movie_id) do
       nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
-      existing -> Repo.update(WatchProgress.upsert_changeset(existing, attrs))
+      existing -> Repo.update(WatchProgress.update_changeset(existing, attrs))
     end
   end
 
@@ -628,7 +628,7 @@ defmodule MediaCentarr.Library do
 
     case Repo.get_by(WatchProgress, episode_id: episode_id) do
       nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
-      existing -> Repo.update(WatchProgress.upsert_changeset(existing, attrs))
+      existing -> Repo.update(WatchProgress.update_changeset(existing, attrs))
     end
   end
 
@@ -637,7 +637,7 @@ defmodule MediaCentarr.Library do
 
     case Repo.get_by(WatchProgress, video_object_id: video_object_id) do
       nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
-      existing -> Repo.update(WatchProgress.upsert_changeset(existing, attrs))
+      existing -> Repo.update(WatchProgress.update_changeset(existing, attrs))
     end
   end
 
@@ -657,7 +657,7 @@ defmodule MediaCentarr.Library do
         Repo.insert(ExtraProgress.upsert_changeset(attrs))
 
       existing ->
-        Repo.update(ExtraProgress.upsert_changeset(existing, attrs))
+        Repo.update(ExtraProgress.update_changeset(existing, attrs))
     end
   end
 

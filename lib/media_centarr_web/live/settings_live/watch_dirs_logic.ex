@@ -22,7 +22,7 @@ defmodule MediaCentarrWeb.SettingsLive.WatchDirsLogic do
   @spec upsert([map()], map()) :: [map()]
   def upsert(list, %{"id" => id} = entry) do
     if Enum.any?(list, &(&1["id"] == id)) do
-      Enum.map(list, fn e -> if e["id"] == id, do: entry, else: e end)
+      Enum.map(list, fn existing -> if existing["id"] == id, do: entry, else: existing end)
     else
       list ++ [entry]
     end

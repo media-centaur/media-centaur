@@ -693,7 +693,7 @@ defmodule MediaCentarrWeb.StatusLive do
     sessions =
       assigns.playback.sessions
       |> Enum.map(fn {_id, session} -> session end)
-      |> Enum.sort_by(fn s -> s[:started_at] || 0 end)
+      |> Enum.sort_by(fn session -> session[:started_at] || 0 end)
 
     assigns = assign(assigns, :sessions, sessions)
 
