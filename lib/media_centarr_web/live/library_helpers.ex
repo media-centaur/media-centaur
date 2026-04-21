@@ -7,9 +7,23 @@ defmodule MediaCentarrWeb.LibraryHelpers do
   and rendering.
   """
 
-  alias MediaCentarr.{DateUtil, Library.EpisodeList, Library.MovieList}
+  alias MediaCentarr.{DateUtil, Images.Availability, Library.EpisodeList, Library.MovieList}
 
   @movie_types [:movie, :movie_series, :video_object]
+
+  # --- Availability precomputation ---
+
+  @doc """
+  Counts entries whose backing storage is currently offline.
+
+  Accepts an optional predicate for test injection; defaults to
+  `Images.Availability.available?/1`, which is a persistent-term read.
+  Computed once per entries/dir-status change rather than every render.
+  """
+  @spec unavailable_count(list(), (map() -> boolean())) :: non_neg_integer()
+  def unavailable_count(entries, available_fn \\ &Availability.available?/1) do
+    Enum.count(entries, fn entry -> not available_fn.(entry.entity) end)
+  end
 
   # --- Storage-offline banner summary ---
 
