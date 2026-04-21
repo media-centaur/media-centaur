@@ -76,6 +76,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        spoiler_free: load_spoiler_free_setting(),
        tmdb_ready: Capabilities.tmdb_ready?(),
        unavailable_count: 0,
+       availability_map: %{},
        upcoming_path: ~p"/?zone=upcoming",
        upcoming_releases: %{upcoming: [], released: []},
        upcoming_events: [],
@@ -876,12 +877,13 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_info({:availability_changed, _dir, state}, socket) do
+    availability_map = MediaCentarrWeb.LibraryHelpers.availability_map(socket.assigns.entries)
+
     socket =
-      socket
-      |> assign(:dir_status, Availability.dir_status())
-      |> assign(
-        :unavailable_count,
-        MediaCentarrWeb.LibraryHelpers.unavailable_count(socket.assigns.entries)
+      assign(socket,
+        dir_status: Availability.dir_status(),
+        availability_map: availability_map,
+        unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end)
       )
 
     # When storage comes back online, reset the grid stream so the
@@ -972,7 +974,7 @@ defmodule MediaCentarrWeb.LibraryLive do
               entry={entry}
               resume={Map.get(@resume_targets, entry.entity.id)}
               playing={playing?(@playback, entry.entity.id)}
-              images_available={Availability.available?(entry.entity)}
+              images_available={Map.get(@availability_map, entry.entity.id, true)}
             />
           </div>
         </section>
@@ -1019,7 +1021,7 @@ defmodule MediaCentarrWeb.LibraryLive do
                 entry={entry}
                 selected={@selected_entity_id == entry.entity.id}
                 playing={playing?(@playback, entry.entity.id)}
-                images_available={Availability.available?(entry.entity)}
+                images_available={Map.get(@availability_map, entry.entity.id, true)}
               />
             </div>
           </div>
@@ -1055,7 +1057,7 @@ defmodule MediaCentarrWeb.LibraryLive do
           tracking_status={@tracking_status}
           images_available={
             @selected_entry == nil ||
-              Availability.available?(@selected_entry.entity)
+              Map.get(@availability_map, @selected_entry.entity.id, true)
           }
           tmdb_ready={@tmdb_ready}
           on_play="play"
@@ -1222,10 +1224,13 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Entry Index ---
 
   defp assign_entries(socket, entries) do
+    availability_map = MediaCentarrWeb.LibraryHelpers.availability_map(entries)
+
     assign(socket,
       entries: entries,
       entries_by_id: Map.new(entries, fn entry -> {entry.entity.id, entry} end),
-      unavailable_count: MediaCentarrWeb.LibraryHelpers.unavailable_count(entries)
+      availability_map: availability_map,
+      unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end)
     )
   end
 

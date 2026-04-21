@@ -25,6 +25,19 @@ defmodule MediaCentarrWeb.LibraryHelpers do
     Enum.count(entries, fn entry -> not available_fn.(entry.entity) end)
   end
 
+  @doc """
+  Builds `%{entity_id => available?}` for the template's per-card lookups.
+
+  Avoids calling `Images.Availability.available?/1` once per card on every
+  render — each call digs into `entity.watched_files` to resolve the
+  owning watch_dir, which is cheap individually but adds up across a full
+  grid of poster cards.
+  """
+  @spec availability_map(list(), (map() -> boolean())) :: %{String.t() => boolean()}
+  def availability_map(entries, available_fn \\ &Availability.available?/1) do
+    Map.new(entries, fn entry -> {entry.entity.id, available_fn.(entry.entity)} end)
+  end
+
   # --- Surgical entry updates ---
 
   @doc """
