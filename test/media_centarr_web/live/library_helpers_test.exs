@@ -19,6 +19,33 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     %{entity: entity, progress: summary, progress_records: progress_records}
   end
 
+  # --- unavailable_count/2 ---
+
+  describe "unavailable_count/2" do
+    test "returns 0 when all entries are available" do
+      entries = [entry(%{type: :movie}), entry(%{type: :tv_series})]
+      assert LibraryHelpers.unavailable_count(entries, fn _ -> true end) == 0
+    end
+
+    test "returns total count when all entries are unavailable" do
+      entries = [entry(%{type: :movie}), entry(%{type: :tv_series})]
+      assert LibraryHelpers.unavailable_count(entries, fn _ -> false end) == 2
+    end
+
+    test "counts only entries whose predicate returns false" do
+      movie = entry(%{type: :movie, name: "Online"})
+      tv = entry(%{type: :tv_series, name: "Offline"})
+
+      available = fn entity -> entity.name == "Online" end
+
+      assert LibraryHelpers.unavailable_count([movie, tv], available) == 1
+    end
+
+    test "returns 0 for an empty entries list" do
+      assert LibraryHelpers.unavailable_count([], fn _ -> false end) == 0
+    end
+  end
+
   # --- filtered_by_tab/2 ---
 
   describe "filtered_by_tab/2" do

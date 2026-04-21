@@ -75,6 +75,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        detail_files: [],
        spoiler_free: load_spoiler_free_setting(),
        tmdb_ready: Capabilities.tmdb_ready?(),
+       unavailable_count: 0,
        upcoming_path: ~p"/?zone=upcoming",
        upcoming_releases: %{upcoming: [], released: []},
        upcoming_events: [],
@@ -848,7 +849,13 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_info({:availability_changed, _dir, state}, socket) do
-    socket = assign(socket, :dir_status, Availability.dir_status())
+    socket =
+      socket
+      |> assign(:dir_status, Availability.dir_status())
+      |> assign(
+        :unavailable_count,
+        MediaCentarrWeb.LibraryHelpers.unavailable_count(socket.assigns.entries)
+      )
 
     # When storage comes back online, reset the grid stream so the
     # browser re-requests images instead of serving cached 404s.
@@ -875,13 +882,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   @impl true
   def render(assigns) do
     selected_entry = assigns.entries_by_id[assigns.selected_entity_id]
-
-    unavailable_count =
-      Enum.count(assigns.entries, fn entry ->
-        not Availability.available?(entry.entity)
-      end)
-
-    offline_summary = offline_summary(assigns.dir_status, unavailable_count)
+    offline_summary = offline_summary(assigns.dir_status, assigns.unavailable_count)
 
     assigns =
       assigns
@@ -1196,7 +1197,8 @@ defmodule MediaCentarrWeb.LibraryLive do
   defp assign_entries(socket, entries) do
     assign(socket,
       entries: entries,
-      entries_by_id: Map.new(entries, fn entry -> {entry.entity.id, entry} end)
+      entries_by_id: Map.new(entries, fn entry -> {entry.entity.id, entry} end),
+      unavailable_count: MediaCentarrWeb.LibraryHelpers.unavailable_count(entries)
     )
   end
 
