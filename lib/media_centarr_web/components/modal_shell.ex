@@ -25,6 +25,7 @@ defmodule MediaCentarrWeb.Components.ModalShell do
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
   attr :images_available, :boolean, default: true
+  attr :tmdb_ready, :boolean, default: true
 
   def modal_shell(assigns) do
     ~H"""
@@ -63,6 +64,7 @@ defmodule MediaCentarrWeb.Components.ModalShell do
             spoiler_free={@spoiler_free}
             tracking_status={@tracking_status}
             images_available={@images_available}
+            tmdb_ready={@tmdb_ready}
           />
         </div>
       </div>

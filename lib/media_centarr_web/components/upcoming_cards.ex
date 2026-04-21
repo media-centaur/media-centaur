@@ -17,6 +17,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :selected_day, :any, default: nil
   attr :tracked_items, :list, default: []
   attr :confirm_stop_item, :any, default: nil
+  attr :tmdb_ready, :boolean, default: true
 
   def upcoming_zone(assigns) do
     {year, month} = assigns.calendar_month
@@ -81,6 +82,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
               </button>
             </div>
             <button
+              :if={@tmdb_ready}
               phx-click={JS.push("open_track_modal") |> JS.focus(to: "#track-search-input")}
               class="btn btn-soft btn-primary btn-sm"
               tabindex="-1"

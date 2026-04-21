@@ -24,6 +24,7 @@ defmodule MediaCentarr.Topics do
   def console_logs, do: "console:logs"
   def service_journal, do: "service:journal"
   def acquisition_updates, do: "acquisition:updates"
+  def capabilities_updates, do: "capabilities:updates"
   def self_update_status, do: "self_update:status"
   def self_update_progress, do: "self_update:progress"
   def controls_updates, do: "controls:updates"

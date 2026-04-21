@@ -9,7 +9,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   """
   use MediaCentarrWeb, :live_view
 
-  alias MediaCentarr.{Config, SelfUpdate, Settings, Version}
+  alias MediaCentarr.{Capabilities, Config, SelfUpdate, Settings, Version}
   alias MediaCentarr.SelfUpdate.UpdateChecker
 
   alias MediaCentarrWeb.Live.SettingsLive.{
@@ -92,6 +92,8 @@ defmodule MediaCentarrWeb.SettingsLive do
        clearing_database: false,
        refreshing_images: false,
        spoiler_free: spoiler_free,
+       tmdb_test: load_test_result(:tmdb),
+       tmdb_testing: false,
        prowlarr_test: load_test_result(:prowlarr),
        prowlarr_testing: false,
        download_client_test: load_test_result(:download_client),
@@ -501,6 +503,8 @@ defmodule MediaCentarrWeb.SettingsLive do
   def handle_event("save_tmdb", params, socket) do
     if params["tmdb_api_key"] != "" do
       Config.update(:tmdb_api_key, params["tmdb_api_key"])
+      MediaCentarr.TMDB.Client.invalidate_client()
+      clear_test_result(:tmdb)
     end
 
     case Float.parse(params["auto_approve_threshold"] || "") do
@@ -510,7 +514,7 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     {:noreply,
      socket
-     |> assign(config: load_config())
+     |> assign(config: load_config(), tmdb_test: load_test_result(:tmdb))
      |> put_flash(:info, "TMDB settings saved")}
   end
 
@@ -720,6 +724,22 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, prowlarr_testing: true)}
   end
 
+  def handle_event("test_tmdb", _params, socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      status =
+        case MediaCentarr.TMDB.Client.configuration() do
+          {:ok, _} -> :ok
+          {:error, _} -> :error
+        end
+
+      send(parent, {:tmdb_test_result, status})
+    end)
+
+    {:noreply, assign(socket, tmdb_testing: true)}
+  end
+
   # --- Info handlers ---
 
   @impl true
@@ -785,6 +805,11 @@ defmodule MediaCentarrWeb.SettingsLive do
   def handle_info({:prowlarr_test_result, status}, socket) do
     info = save_test_result(:prowlarr, status)
     {:noreply, assign(socket, prowlarr_testing: false, prowlarr_test: info)}
+  end
+
+  def handle_info({:tmdb_test_result, status}, socket) do
+    info = save_test_result(:tmdb, status)
+    {:noreply, assign(socket, tmdb_testing: false, tmdb_test: info)}
   end
 
   def handle_info({:download_client_test_result, status}, socket) do
@@ -1046,6 +1071,8 @@ defmodule MediaCentarrWeb.SettingsLive do
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
             spoiler_free={@spoiler_free}
+            tmdb_test={@tmdb_test}
+            tmdb_testing={@tmdb_testing}
             prowlarr_test={@prowlarr_test}
             prowlarr_testing={@prowlarr_testing}
             download_client_test={@download_client_test}
@@ -1555,6 +1582,29 @@ defmodule MediaCentarrWeb.SettingsLive do
             Confidence score (0.0–1.0) above which matches are approved automatically.
           </p>
         </div>
+      </div>
+
+      <div
+        :if={@config[:tmdb_api_key_configured?]}
+        class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4"
+      >
+        <.connection_status
+          test={@tmdb_test}
+          ok_label="Connected"
+          error_label="Unreachable"
+        />
+        <button
+          type="button"
+          class="btn btn-soft btn-sm shrink-0"
+          phx-click="test_tmdb"
+          disabled={@tmdb_testing}
+          data-nav-item
+          tabindex="0"
+        >
+          <span :if={@tmdb_testing} class="loading loading-spinner loading-xs"></span>
+          <.icon :if={!@tmdb_testing} name="hero-signal-mini" class="size-4" />
+          {if @tmdb_testing, do: "Testing…", else: "Test connection"}
+        </button>
       </div>
     </form>
     """
@@ -3034,33 +3084,14 @@ defmodule MediaCentarrWeb.SettingsLive do
     }
   end
 
-  # Load/save/clear persisted connection test results for Prowlarr and
-  # the download client. Keyed via `ConnectionTest.storage_key/1`.
+  # Connection-test persistence is owned by `MediaCentarr.Capabilities`,
+  # which also broadcasts to `Topics.capabilities_updates/0` so LiveViews
+  # that gate UI on integration health can re-render. These local
+  # wrappers exist so callsites in this module stay readable.
 
-  defp load_test_result(subject) do
-    case Settings.get_by_key(ConnectionTest.storage_key(subject)) do
-      {:ok, %{value: value}} when is_map(value) -> ConnectionTest.parse(value)
-      _ -> nil
-    end
-  end
-
-  defp save_test_result(subject, status) when status in [:ok, :error] do
-    info = %{status: status, tested_at: DateTime.utc_now()}
-
-    Settings.find_or_create_entry!(%{
-      key: ConnectionTest.storage_key(subject),
-      value: ConnectionTest.serialize(info)
-    })
-
-    info
-  end
-
-  defp clear_test_result(subject) do
-    case Settings.get_by_key(ConnectionTest.storage_key(subject)) do
-      {:ok, nil} -> :ok
-      {:ok, entry} -> Settings.destroy_entry(entry)
-    end
-  end
+  defp load_test_result(subject), do: Capabilities.load_test_result(subject)
+  defp save_test_result(subject, status), do: Capabilities.save_test_result(subject, status)
+  defp clear_test_result(subject), do: Capabilities.clear_test_result(subject)
 
   defp persist_service_flag(service, value) do
     env = Application.get_env(:media_centarr, :environment, :dev)

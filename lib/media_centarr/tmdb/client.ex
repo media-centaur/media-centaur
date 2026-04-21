@@ -21,6 +21,12 @@ defmodule MediaCentarr.TMDB.Client do
 
   @base_url "https://api.themoviedb.org/3"
 
+  @doc "Clears the cached Req client so the next call rebuilds it from config."
+  def invalidate_client do
+    :persistent_term.erase({__MODULE__, :client})
+    :ok
+  end
+
   @doc """
   Returns a `Req` client configured with the TMDB base URL and API key.
   Caches the client in `persistent_term` for reuse across calls.
@@ -40,6 +46,17 @@ defmodule MediaCentarr.TMDB.Client do
   defp build_client do
     api_key = MediaCentarr.Secret.expose(MediaCentarr.Config.get(:tmdb_api_key))
     Req.new(base_url: @base_url, params: [api_key: api_key])
+  end
+
+  @doc """
+  Hits TMDB's `/3/configuration` endpoint — the canonical cheap
+  credential check. The endpoint returns static image-CDN metadata, so
+  a 200 response proves the api_key is accepted without consuming a
+  useful quota slot or touching user data.
+  """
+  @spec configuration(Req.Request.t()) :: {:ok, map()} | {:error, any()}
+  def configuration(client \\ default_client()) do
+    get(client, url: "/configuration")
   end
 
   @spec search_movie(String.t(), integer() | nil, Req.Request.t()) ::

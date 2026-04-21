@@ -10,6 +10,7 @@ defmodule MediaCentarrWeb do
       MediaCentarr.Playback,
       MediaCentarr.Console,
       MediaCentarr.Acquisition,
+      MediaCentarr.Capabilities,
       MediaCentarr.WatchHistory,
       MediaCentarr.SelfUpdate,
       MediaCentarr.TMDB,

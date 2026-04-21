@@ -16,6 +16,7 @@ defmodule MediaCentarrWeb.ReviewLive do
     socket =
       if connected?(socket) do
         Review.subscribe()
+        MediaCentarr.Capabilities.subscribe()
         groups = Review.fetch_pending_groups()
 
         socket
@@ -38,6 +39,7 @@ defmodule MediaCentarrWeb.ReviewLive do
      |> assign(searching: false)
      |> assign(searched: false)
      |> assign(reload_timer: nil)
+     |> assign(tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())
      |> apply_group_stats()
      |> ensure_selection()}
   end
@@ -271,6 +273,10 @@ defmodule MediaCentarrWeb.ReviewLive do
      |> advance_selection(group_key)}
   end
 
+  def handle_info(:capabilities_changed, socket) do
+    {:noreply, assign(socket, tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -353,6 +359,7 @@ defmodule MediaCentarrWeb.ReviewLive do
               searching={@searching}
               searched={@searched}
               expanded={assigns[:expanded_group] == @selected_key}
+              tmdb_ready={@tmdb_ready}
             />
             <div
               :if={!@selected_key || !@groups_by_key[@selected_key]}
@@ -673,6 +680,7 @@ defmodule MediaCentarrWeb.ReviewLive do
             {if @file_count > 1, do: "Approve All", else: "Approve"}
           </button>
           <button
+            :if={@tmdb_ready}
             phx-click="open_search"
             phx-value-key={@encoded_key}
             disabled={@processing}
