@@ -784,12 +784,27 @@ defmodule MediaCentarrWeb.LibraryLive do
          }},
         socket
       ) do
-    entries = update_entry_progress(socket.assigns.entries, entity_id, summary, changed_record)
     resume_targets = Map.put(socket.assigns.resume_targets, entity_id, resume_target)
+
+    socket =
+      case apply_entry_update(
+             socket.assigns.entries,
+             socket.assigns.entries_by_id,
+             entity_id,
+             fn entry ->
+               records = merge_progress_record(entry.progress_records, changed_record)
+               %{entry | progress: summary, progress_records: records}
+             end
+           ) do
+        {:ok, {new_entries, new_by_id}} ->
+          assign(socket, entries: new_entries, entries_by_id: new_by_id)
+
+        :not_found ->
+          socket
+      end
 
     {:noreply,
      socket
-     |> assign_entries(entries)
      |> assign(resume_targets: resume_targets)
      |> recompute_continue_watching()
      |> touch_stream_entries([entity_id])}
@@ -808,12 +823,24 @@ defmodule MediaCentarrWeb.LibraryLive do
         {:extra_progress_updated, %{entity_id: entity_id, extra_id: _extra_id, progress: progress}},
         socket
       ) do
-    entries = update_entry_extra_progress(socket.assigns.entries, entity_id, progress)
+    socket =
+      case apply_entry_update(
+             socket.assigns.entries,
+             socket.assigns.entries_by_id,
+             entity_id,
+             fn %{entity: entity} = entry ->
+               extra_progress = merge_extra_progress(entity.extra_progress || [], progress)
+               %{entry | entity: %{entity | extra_progress: extra_progress}}
+             end
+           ) do
+        {:ok, {new_entries, new_by_id}} ->
+          assign(socket, entries: new_entries, entries_by_id: new_by_id)
 
-    {:noreply,
-     socket
-     |> assign_entries(entries)
-     |> touch_stream_entries([entity_id])}
+        :not_found ->
+          socket
+      end
+
+    {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
   def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
@@ -1330,17 +1357,6 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   # --- Helpers ---
 
-  defp update_entry_progress(entries, entity_id, summary, changed_record) do
-    Enum.map(entries, fn
-      %{entity: %{id: ^entity_id}} = entry ->
-        records = merge_progress_record(entry.progress_records, changed_record)
-        %{entry | progress: summary, progress_records: records}
-
-      entry ->
-        entry
-    end)
-  end
-
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
 
   defp load_spoiler_free_setting do
@@ -1431,16 +1447,5 @@ defmodule MediaCentarrWeb.LibraryLive do
     end
 
     ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
-  end
-
-  defp update_entry_extra_progress(entries, entity_id, progress) do
-    Enum.map(entries, fn
-      %{entity: %{id: ^entity_id} = entity} = entry ->
-        extra_progress = merge_extra_progress(entity.extra_progress || [], progress)
-        %{entry | entity: %{entity | extra_progress: extra_progress}}
-
-      entry ->
-        entry
-    end)
   end
 end

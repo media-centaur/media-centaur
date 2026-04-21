@@ -25,6 +25,39 @@ defmodule MediaCentarrWeb.LibraryHelpers do
     Enum.count(entries, fn entry -> not available_fn.(entry.entity) end)
   end
 
+  # --- Surgical entry updates ---
+
+  @doc """
+  Applies `updater` to a single entry identified by `entity_id` without
+  rebuilding the `entries_by_id` map from scratch.
+
+  Returns `{:ok, {new_entries, new_entries_by_id}}` on a hit, or
+  `:not_found` when the id is absent.
+
+  Progress and extra-progress events affect one entity; this helper keeps
+  the O(n) cost bounded to a single list walk instead of the walk plus
+  the `Map.new/2` map-rebuild that `assign_entries/2` performs.
+  """
+  @spec apply_entry_update(list(), map(), String.t(), (map() -> map())) ::
+          {:ok, {list(), map()}} | :not_found
+  def apply_entry_update(entries, entries_by_id, entity_id, updater) do
+    case Map.get(entries_by_id, entity_id) do
+      nil ->
+        :not_found
+
+      existing ->
+        updated = updater.(existing)
+
+        new_entries =
+          Enum.map(entries, fn
+            %{entity: %{id: ^entity_id}} -> updated
+            entry -> entry
+          end)
+
+        {:ok, {new_entries, Map.put(entries_by_id, entity_id, updated)}}
+    end
+  end
+
   # --- Storage-offline banner summary ---
 
   @doc """

@@ -46,6 +46,48 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     end
   end
 
+  # --- apply_entry_update/4 ---
+
+  describe "apply_entry_update/4" do
+    test "returns :not_found when the id is absent" do
+      movie = entry(%{id: "a", type: :movie})
+      by_id = %{"a" => movie}
+
+      assert LibraryHelpers.apply_entry_update([movie], by_id, "missing", & &1) == :not_found
+    end
+
+    test "applies updater and updates both entries + entries_by_id" do
+      movie_a = entry(%{id: "a", type: :movie})
+      movie_b = entry(%{id: "b", type: :movie})
+      by_id = %{"a" => movie_a, "b" => movie_b}
+
+      {:ok, {new_entries, new_by_id}} =
+        LibraryHelpers.apply_entry_update([movie_a, movie_b], by_id, "a", fn entry ->
+          Map.put(entry, :marker, :updated)
+        end)
+
+      assert Enum.at(new_entries, 0).marker == :updated
+      assert Enum.at(new_entries, 1) == movie_b
+      assert new_by_id["a"].marker == :updated
+      assert new_by_id["b"] == movie_b
+    end
+
+    test "preserves list ordering" do
+      movie_a = entry(%{id: "a", type: :movie, name: "A"})
+      movie_b = entry(%{id: "b", type: :movie, name: "B"})
+      movie_c = entry(%{id: "c", type: :movie, name: "C"})
+
+      by_id = %{"a" => movie_a, "b" => movie_b, "c" => movie_c}
+
+      {:ok, {new_entries, _}} =
+        LibraryHelpers.apply_entry_update([movie_a, movie_b, movie_c], by_id, "b", fn entry ->
+          Map.put(entry, :marker, :updated)
+        end)
+
+      assert Enum.map(new_entries, & &1.entity.id) == ["a", "b", "c"]
+    end
+  end
+
   # --- filtered_by_tab/2 ---
 
   describe "filtered_by_tab/2" do
