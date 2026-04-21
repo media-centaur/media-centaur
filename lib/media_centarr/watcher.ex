@@ -289,7 +289,7 @@ defmodule MediaCentarr.Watcher do
 
     video_files =
       dir
-      |> walk_files(exclude_dirs, skip_dirs)
+      |> walk_files(prepare_excludes(exclude_dirs), skip_dirs)
       |> Enum.filter(&video_file?/1)
 
     new_files = Enum.reject(video_files, fn path -> MapSet.member?(known_paths, path) end)
@@ -395,16 +395,16 @@ defmodule MediaCentarr.Watcher do
     Enum.uniq(configured ++ auto_excludes)
   end
 
-  defp walk_files(dir, exclude_dirs, skip_dirs) do
+  defp walk_files(dir, prepared_excludes, skip_dirs) do
     case File.ls(dir) do
       {:ok, entries} ->
         Enum.flat_map(entries, fn entry ->
           path = Path.join(dir, entry)
 
           cond do
-            excluded?(path, exclude_dirs) -> []
+            excluded?(path, prepared_excludes) -> []
             File.dir?(path) and String.downcase(entry) in skip_dirs -> []
-            File.dir?(path) -> walk_files(path, exclude_dirs, skip_dirs)
+            File.dir?(path) -> walk_files(path, prepared_excludes, skip_dirs)
             true -> [path]
           end
         end)
@@ -414,9 +414,17 @@ defmodule MediaCentarr.Watcher do
     end
   end
 
-  defp excluded?(path, exclude_dirs) do
-    Enum.any?(exclude_dirs, fn dir ->
-      String.starts_with?(path, dir <> "/") or path == dir
+  # Builds {dir, dir_with_trailing_slash} tuples once per scan so the
+  # per-file `excluded?/2` check doesn't rebuild `dir <> "/"` on every
+  # call. `walk_files/3` is O(files × excludes), so concatenating in
+  # the inner loop dominates for deep trees.
+  defp prepare_excludes(exclude_dirs) do
+    Enum.map(exclude_dirs, fn dir -> {dir, dir <> "/"} end)
+  end
+
+  defp excluded?(path, prepared_excludes) do
+    Enum.any?(prepared_excludes, fn {dir, dir_slash} ->
+      path == dir or String.starts_with?(path, dir_slash)
     end)
   end
 
