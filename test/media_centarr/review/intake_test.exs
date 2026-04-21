@@ -189,7 +189,7 @@ defmodule MediaCentarr.Review.IntakeTest do
 
       assert {:ok, 1} = Intake.receive_files_for_review(files)
 
-      [pending] = MediaCentarr.Review.fetch_pending_files()
+      [pending] = MediaCentarr.Review.list_pending_files_for_review()
       assert pending.file_path == "/media/movies/Sample Movie (2017).mkv"
       assert pending.watch_directory == "/media/movies"
       assert pending.parsed_title == "Sample Movie"
@@ -212,7 +212,7 @@ defmodule MediaCentarr.Review.IntakeTest do
 
       assert {:ok, 2} = Intake.receive_files_for_review(files)
 
-      pending_files = MediaCentarr.Review.fetch_pending_files()
+      pending_files = MediaCentarr.Review.list_pending_files_for_review()
       assert length(pending_files) == 2
 
       Enum.each(pending_files, fn file ->
@@ -233,7 +233,7 @@ defmodule MediaCentarr.Review.IntakeTest do
       assert {:ok, 1} = Intake.receive_files_for_review(files)
 
       # Still only one PendingFile
-      assert length(MediaCentarr.Review.fetch_pending_files()) == 1
+      assert length(MediaCentarr.Review.list_pending_files_for_review()) == 1
     end
   end
 

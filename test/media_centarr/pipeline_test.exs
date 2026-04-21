@@ -110,7 +110,7 @@ defmodule MediaCentarr.PipelineTest do
       assert entity.name == "Fight Club"
 
       # WatchedFile created by Inbound.ingest
-      files = Library.list_watched_files!()
+      files = Library.list_watched_files()
       assert length(files) == 1
       file = hd(files)
       assert file.movie_id == entity.id
@@ -240,14 +240,14 @@ defmodule MediaCentarr.PipelineTest do
       assert_receive {:file_added, _id}, 1000
 
       # PendingFile created
-      pending_files = Review.list_pending_files_for_review!()
+      pending_files = Review.list_pending_files_for_review()
       assert length(pending_files) == 1
       pending = hd(pending_files)
       assert pending.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
       assert pending.status == :pending
 
       # No WatchedFile created
-      assert Library.list_watched_files!() == []
+      assert Library.list_watched_files() == []
     end
   end
 
@@ -267,8 +267,8 @@ defmodule MediaCentarr.PipelineTest do
       assert {:error, _reason} = Discovery.process(payload)
 
       # No WatchedFile or PendingFile created
-      assert Library.list_watched_files!() == []
-      assert Review.list_pending_files!() == []
+      assert Library.list_watched_files() == []
+      assert Review.list_pending_files() == []
     end
   end
 
@@ -294,7 +294,7 @@ defmodule MediaCentarr.PipelineTest do
       assert :skipped = Discovery.process(payload)
 
       # Still only one WatchedFile
-      assert length(Library.list_watched_files!()) == 1
+      assert length(Library.list_watched_files()) == 1
     end
   end
 
@@ -338,12 +338,12 @@ defmodule MediaCentarr.PipelineTest do
       assert entity.name == "Fight Club"
 
       # WatchedFile created by Inbound.ingest
-      files = Library.list_watched_files!()
+      files = Library.list_watched_files()
       assert length(files) == 1
       assert hd(files).movie_id == entity.id
 
       # PendingFile destroyed by Import pipeline
-      assert Review.list_pending_files!() == []
+      assert Review.list_pending_files() == []
     end
   end
 

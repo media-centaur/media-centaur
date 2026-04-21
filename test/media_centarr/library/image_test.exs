@@ -37,7 +37,7 @@ defmodule MediaCentarr.Library.ImageTest do
 
       # Same image, updated content_url
       assert first.id == second.id || first.movie_id == second.movie_id
-      images = Library.list_all_images!()
+      images = Library.list_all_images()
       movie_images = Enum.filter(images, &(&1.movie_id == movie.id && &1.role == "poster"))
       assert length(movie_images) == 1
     end

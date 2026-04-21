@@ -32,8 +32,7 @@ defmodule MediaCentarr.Review do
   # PendingFile CRUD
   # ---------------------------------------------------------------------------
 
-  def list_pending_files, do: {:ok, Repo.all(PendingFile)}
-  def list_pending_files!, do: Repo.all(PendingFile)
+  def list_pending_files, do: Repo.all(PendingFile)
 
   def get_pending_file(id) do
     case Repo.get(PendingFile, id) do
@@ -45,16 +44,13 @@ defmodule MediaCentarr.Review do
   def get_pending_file!(id), do: Repo.get!(PendingFile, id)
 
   def list_pending_files_for_review do
-    query =
+    Repo.all(
       from(p in PendingFile,
         where: p.status == :pending,
         order_by: [asc: p.inserted_at]
       )
-
-    {:ok, Repo.all(query)}
+    )
   end
-
-  def list_pending_files_for_review!, do: bang!(list_pending_files_for_review())
 
   def create_pending_file(attrs) do
     Repo.insert(PendingFile.create_changeset(attrs))
@@ -104,10 +100,6 @@ defmodule MediaCentarr.Review do
   # Business logic
   # ---------------------------------------------------------------------------
 
-  def fetch_pending_files do
-    list_pending_files_for_review!()
-  end
-
   @doc """
   Groups pending files by series root — the first directory component below
   the watch directory. Two files share a group when they have the same
@@ -120,7 +112,7 @@ defmodule MediaCentarr.Review do
   Single-file groups (movies, flat downloads) are groups of 1 — same shape.
   """
   def fetch_pending_groups do
-    fetch_pending_files()
+    list_pending_files_for_review()
     |> Enum.group_by(fn file ->
       {file.watch_directory, series_root(file)}
     end)

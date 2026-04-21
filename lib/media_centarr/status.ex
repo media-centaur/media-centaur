@@ -62,7 +62,7 @@ defmodule MediaCentarr.Status do
   end
 
   def fetch_pending_review do
-    Enum.take(Review.list_pending_files_for_review!(), 20)
+    Enum.take(Review.list_pending_files_for_review(), 20)
   end
 
   def fetch_recent_errors do

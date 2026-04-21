@@ -40,7 +40,7 @@ defmodule MediaCentarr.Library.WatchedFileTest do
       assert first.id == second.id
 
       # Only one record exists
-      all = Library.list_watched_files!()
+      all = Library.list_watched_files()
       assert length(all) == 1
     end
   end

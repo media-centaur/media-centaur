@@ -79,7 +79,7 @@ defmodule MediaCentarr.ShowcaseTest do
       tracked = ReleaseTracking.list_all_items()
       assert tracked != []
 
-      {:ok, pending} = Review.list_pending_files()
+      pending = Review.list_pending_files()
       assert pending != []
 
       events = WatchHistory.list_events()

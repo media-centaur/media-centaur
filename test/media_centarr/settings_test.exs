@@ -24,7 +24,7 @@ defmodule MediaCentarr.SettingsTest do
       Settings.create_entry!(%{key: "a", value: %{}})
       Settings.create_entry!(%{key: "b", value: %{}})
 
-      {:ok, entries} = Settings.list_entries()
+      entries = Settings.list_entries()
       keys = Enum.sort(Enum.map(entries, & &1.key))
       assert "a" in keys
       assert "b" in keys

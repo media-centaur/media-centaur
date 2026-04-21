@@ -473,7 +473,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert entity.id == winner.id
 
       # The duplicate entity was destroyed — only the winner remains
-      movies = Library.list_movies!()
+      movies = Library.list_movies()
       assert length(movies) == 1
       assert hd(movies).id == winner.id
     end

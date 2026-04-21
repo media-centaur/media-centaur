@@ -129,7 +129,7 @@ defmodule MediaCentarr.Review.PendingFileTest do
           parsed_title: "Second"
         })
 
-      pending = Review.list_pending_files_for_review!()
+      pending = Review.list_pending_files_for_review()
 
       assert length(pending) == 2
       assert Enum.map(pending, & &1.id) == [first.id, second.id]
@@ -141,7 +141,7 @@ defmodule MediaCentarr.Review.PendingFileTest do
       pending_file = Review.create_pending_file!(@valid_attrs)
 
       assert :ok = Review.destroy_pending_file!(pending_file)
-      assert Review.list_pending_files!() == []
+      assert Review.list_pending_files() == []
     end
   end
 end

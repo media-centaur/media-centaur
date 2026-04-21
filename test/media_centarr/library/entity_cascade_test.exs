@@ -51,8 +51,8 @@ defmodule MediaCentarr.Library.EntityCascadeTest do
       EntityCascade.destroy!(tv_series.id)
 
       assert {:error, _} = Library.get_tv_series(tv_series.id)
-      assert Library.list_seasons!() == []
-      assert Library.list_all_images!() == []
+      assert Library.list_seasons() == []
+      assert Library.list_all_images() == []
     end
 
     test "cascade deletes a movie with images and external IDs" do
@@ -75,7 +75,7 @@ defmodule MediaCentarr.Library.EntityCascadeTest do
       EntityCascade.destroy!(movie.id)
 
       assert {:error, _} = Library.get_movie(movie.id)
-      assert Library.list_all_images!() == []
+      assert Library.list_all_images() == []
     end
   end
 end
