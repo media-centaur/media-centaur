@@ -1156,6 +1156,64 @@ describe("Orchestrator", () => {
       globals._dispatchKeyDown("Backspace")
       expect(clearCalled).toBe(true)
     })
+
+    test("CLEAR transitions focus to the target context when onClear returns a string", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system, calls } = setup({
+        getPageBehavior: () => "library",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      // Move focus somewhere other than grid so we can see the transition.
+      system.focusMachine.forceContext(Context.TOOLBAR)
+      calls.length = 0
+
+      system._behavior = {
+        onClear: () => "grid",
+      }
+
+      onActionCallback(Action.CLEAR)
+
+      expect(system.focusMachine.context).toBe(Context.GRID)
+      const focusCalls = calls.filter((call) =>
+        call.method === "focusFirst" || call.method === "focusByIndex"
+      )
+      expect(focusCalls.length).toBeGreaterThan(0)
+    })
+
+    test("CLEAR does not transition when onClear returns falsy", () => {
+      let onActionCallback = null
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPageBehavior: () => "library",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start({})
+
+      system.focusMachine.forceContext(Context.TOOLBAR)
+
+      system._behavior = {
+        onClear: () => {},
+      }
+
+      onActionCallback(Action.CLEAR)
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+    })
   })
 
   describe("onAction behavior hook", () => {

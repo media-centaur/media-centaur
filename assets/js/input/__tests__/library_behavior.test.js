@@ -169,25 +169,28 @@ describe("Library behavior", () => {
   })
 
   describe("onClear()", () => {
-    test("clears filter when filter has content", () => {
+    test("clears filter and returns 'grid' so focus follows the unfiltered content", () => {
       const dom = mockDom({ filterValue: "some search" })
       const behavior = createLibraryBehavior(dom)
-      behavior.onClear()
+      const result = behavior.onClear()
       expect(dom.cleared).toBe(true)
+      expect(result).toBe("grid")
     })
 
-    test("does nothing when filter is empty", () => {
+    test("does nothing and returns falsy when filter is empty", () => {
       const dom = mockDom({ filterValue: "" })
       const behavior = createLibraryBehavior(dom)
-      behavior.onClear()
+      const result = behavior.onClear()
       expect(dom.cleared).toBe(false)
+      expect(result).toBeFalsy()
     })
 
-    test("does nothing when filter element does not exist", () => {
+    test("does nothing and returns falsy when filter element does not exist", () => {
       const dom = mockDom({ filterValue: null })
       const behavior = createLibraryBehavior(dom)
-      behavior.onClear()
+      const result = behavior.onClear()
       expect(dom.cleared).toBe(false)
+      expect(result).toBeFalsy()
     })
   })
 

@@ -219,10 +219,18 @@ export class Orchestrator {
    */
   _onSourceAction(action) {
     debug("action:", action, "context:", this.focusMachine.context, "method:", this.inputDetector.current)
-    // CLEAR action: delegate to page behavior's onClear hook.
-    // Behaviors use this for resetting page-specific state (e.g. clearing a filter).
+    // CLEAR action: delegate to page behavior's onClear hook. Behaviors use
+    // this for resetting page-specific state (e.g. clearing a filter). A
+    // behavior MAY return a string naming a target context — when the clear
+    // naturally ends one task (the filter) the user's next move is usually in
+    // another zone (the now-unfiltered grid), so we follow focus there.
     if (action === Action.CLEAR && this._behavior?.onClear) {
-      this._behavior.onClear()
+      const result = this._behavior.onClear()
+      if (typeof result === "string") {
+        this._saveContextMemory()
+        this.focusMachine.forceContext(result)
+        this._restoreContextFocus(result)
+      }
       return
     }
 

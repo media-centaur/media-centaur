@@ -124,11 +124,16 @@ export function createLibraryBehavior(dom) {
 
     /**
      * CLEAR clears the library filter if it has content.
+     *
+     * Returns "grid" when a clear happens so the orchestrator follows focus
+     * into the now-unfiltered grid — otherwise focus stayed in the toolbar
+     * and the user had to manually navigate down to see their library.
      */
     onClear() {
       const filter = dom.getFilter()
       if (filter && filter.value) {
         filter.clear()
+        return "grid"
       }
     },
 
