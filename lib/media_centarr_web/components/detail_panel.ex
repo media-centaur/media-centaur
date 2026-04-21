@@ -1194,25 +1194,35 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   `%{dir, name, is_watch_dir, files}` with files as `%{path, name, size}` maps.
   """
   def build_delete_all_payload(detail_files, watch_dirs) do
+    # Single pass: group by directory and accumulate the total size. The
+    # earlier two-pass version traversed `detail_files` once for the
+    # group/sort/map chain and again via Enum.reduce just to sum sizes.
+    {groups_by_dir, total_size, file_count} =
+      Enum.reduce(detail_files, {%{}, 0, 0}, fn %{file: file, size: size}, {acc, total, count} ->
+        dir = Path.dirname(file.file_path)
+
+        entry = %{
+          path: file.file_path,
+          name: Path.basename(file.file_path),
+          size: size
+        }
+
+        {Map.update(acc, dir, [entry], &[entry | &1]), total + (size || 0), count + 1}
+      end)
+
     file_groups =
-      detail_files
-      |> Enum.group_by(fn %{file: file} -> Path.dirname(file.file_path) end)
+      groups_by_dir
       |> Enum.sort_by(fn {dir, _files} -> dir end)
-      |> Enum.map(fn {dir, dir_files} ->
+      |> Enum.map(fn {dir, files} ->
         %{
           dir: dir,
           name: Path.basename(dir),
           is_watch_dir: dir in watch_dirs,
-          files:
-            Enum.map(dir_files, fn %{file: file, size: size} ->
-              %{path: file.file_path, name: Path.basename(file.file_path), size: size}
-            end)
+          files: Enum.reverse(files)
         }
       end)
 
-    total_size = Enum.reduce(detail_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
-
-    %{file_groups: file_groups, total_size: total_size, file_count: length(detail_files)}
+    %{file_groups: file_groups, total_size: total_size, file_count: file_count}
   end
 
   def file_summary(count, total_size) do

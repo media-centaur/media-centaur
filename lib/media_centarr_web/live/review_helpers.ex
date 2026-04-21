@@ -35,9 +35,9 @@ defmodule MediaCentarrWeb.ReviewHelpers do
 
   def tied_candidates?(%{candidates: candidates}) when is_list(candidates) do
     case candidates do
-      [_, _ | _] ->
-        scores = Enum.map(candidates, & &1["score"])
-        length(Enum.uniq(scores)) == 1
+      [first | [_ | _] = rest] ->
+        first_score = first["score"]
+        Enum.all?(rest, fn candidate -> candidate["score"] == first_score end)
 
       _ ->
         false
