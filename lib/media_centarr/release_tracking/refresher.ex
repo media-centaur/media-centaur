@@ -22,7 +22,13 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
 
   @doc "Refresh a single item. Can be called directly in tests."
   def refresh_item(%ReleaseTracking.Item{} = item) do
-    do_refresh_item(item)
+    case fetch_for_item(item) do
+      {:ok, ^item, response, new_releases} ->
+        commit_refresh(item, response, new_releases)
+
+      {:error, ^item, reason} ->
+        {:error, reason}
+    end
   end
 
   @doc "Update tracking items when library entities change. Testable without GenServer."
@@ -67,15 +73,29 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
 
     items = ReleaseTracking.list_watching_items()
 
-    MediaCentarr.TaskSupervisor
-    |> Task.Supervisor.async_stream_nolink(items, &do_refresh_item/1,
-      max_concurrency: 4,
-      timeout: 30_000
-    )
-    |> Enum.each(fn
-      {:ok, :ok} -> :ok
-      {:ok, {:error, reason}} -> Log.info(:library, "refresh failed: #{inspect(reason)}")
-      {:exit, reason} -> Log.info(:library, "refresh task crashed: #{inspect(reason)}")
+    # Phase 1: parallel TMDB fetches (network I/O). Safe to parallelize
+    # because nothing writes to the DB yet.
+    fetched =
+      MediaCentarr.TaskSupervisor
+      |> Task.Supervisor.async_stream_nolink(items, &fetch_for_item/1,
+        max_concurrency: 4,
+        timeout: 30_000,
+        on_timeout: :kill_task
+      )
+      |> Enum.to_list()
+
+    # Phase 2: serialized commits. SQLite is a single-writer database; a
+    # single commit loop avoids lock contention and the rollback that
+    # comes with four concurrent write transactions.
+    Enum.each(fetched, fn
+      {:ok, {:ok, item, response, new_releases}} ->
+        commit_refresh(item, response, new_releases)
+
+      {:ok, {:error, item, reason}} ->
+        Log.info(:library, "refresh failed for #{item.name}: #{inspect(reason)}")
+
+      {:exit, reason} ->
+        Log.info(:library, "refresh task crashed: #{inspect(reason)}")
     end)
 
     ReleaseTracking.mark_past_releases_as_released()
@@ -93,7 +113,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     Log.info(:library, "release tracking: refresh complete (#{length(items)} items)")
   end
 
-  defp do_refresh_item(%{media_type: :tv_series} = item) do
+  defp fetch_for_item(%{media_type: :tv_series} = item) do
     case Client.get_tv(item.tmdb_id) do
       {:ok, response} ->
         new_releases =
@@ -104,35 +124,32 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
             response
           )
 
-        old_releases = ReleaseTracking.list_releases_for_item(item.id)
-        events = Differ.diff(old_releases, new_releases)
-        write_events(item, events)
-        replace_releases(item, new_releases)
-        update_item_metadata(item, response)
-        maybe_broadcast_release_ready(item)
-        :ok
+        {:ok, item, response, new_releases}
 
       {:error, reason} ->
-        {:error, reason}
+        {:error, item, reason}
     end
   end
 
-  defp do_refresh_item(%{media_type: :movie} = item) do
+  defp fetch_for_item(%{media_type: :movie} = item) do
     case Client.get_collection(item.tmdb_id) do
       {:ok, response} ->
-        old_releases = ReleaseTracking.list_releases_for_item(item.id)
         new_releases = Helpers.fetch_collection_releases(response)
-
-        events = Differ.diff(old_releases, new_releases)
-        write_events(item, events)
-        replace_releases(item, new_releases)
-        update_item_metadata(item, response)
-        maybe_broadcast_release_ready(item)
-        :ok
+        {:ok, item, response, new_releases}
 
       {:error, reason} ->
-        {:error, reason}
+        {:error, item, reason}
     end
+  end
+
+  defp commit_refresh(item, response, new_releases) do
+    old_releases = ReleaseTracking.list_releases_for_item(item.id)
+    events = Differ.diff(old_releases, new_releases)
+    write_events(item, events)
+    replace_releases(item, new_releases)
+    update_item_metadata(item, response)
+    maybe_broadcast_release_ready(item)
+    :ok
   end
 
   defp write_events(item, events) do
