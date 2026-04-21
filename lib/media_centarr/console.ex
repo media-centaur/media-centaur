@@ -22,6 +22,7 @@ defmodule MediaCentarr.Console do
 
   # reads
   defdelegate snapshot(), to: Buffer
+  defdelegate snapshot_window(n), to: Buffer
   defdelegate recent_entries(), to: Buffer, as: :recent
   defdelegate recent_entries(n), to: Buffer, as: :recent
   defdelegate get_filter(), to: Buffer
