@@ -73,6 +73,11 @@ export const inputConfig = {
       grid:      { up: ["sections"], left: ["sidebar"] },
       sidebar:   { right: ["sections", "grid"] },
     },
+    watch_history: {
+      toolbar:   { down: ["grid"], left: ["sidebar"] },
+      grid:      { up: ["toolbar"], left: ["sidebar"] },
+      sidebar:   { right: ["toolbar", "grid"] },
+    },
   },
 
   // Cursor start priority per zone
@@ -84,6 +89,7 @@ export const inputConfig = {
     status:    ["sections", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
     download:  ["sections", "grid", "sidebar"],
+    watch_history: ["toolbar", "grid", "sidebar"],
   },
 
   // Always-populated contexts (skip item count check)
