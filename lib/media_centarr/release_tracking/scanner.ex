@@ -4,17 +4,15 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
   items for any with upcoming releases.
   """
 
-  import Ecto.Query
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Repo
-  alias MediaCentarr.Library.ExternalId
-  alias MediaCentarr.TMDB.Client
+  alias MediaCentarr.Library
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.ReleaseTracking.{Extractor, Helpers}
+  alias MediaCentarr.TMDB.Client
 
   def scan do
-    external_ids = load_library_tmdb_ids()
+    external_ids = Library.list_tmdb_external_ids()
     Log.info(:library, "release tracking scan: #{length(external_ids)} TMDB IDs found")
 
     results =
@@ -28,21 +26,6 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
 
     Log.info(:library, "release tracking scan complete: #{inspect(results)}")
     {:ok, results}
-  end
-
-  defp load_library_tmdb_ids do
-    Repo.all(
-      from(e in ExternalId,
-        where: e.source in ["tmdb", "tmdb_collection"],
-        select: %{
-          source: e.source,
-          external_id: e.external_id,
-          tv_series_id: e.tv_series_id,
-          movie_series_id: e.movie_series_id,
-          movie_id: e.movie_id
-        }
-      )
-    )
   end
 
   defp process_external_id(%{source: "tmdb", tv_series_id: tv_series_id} = ext_id)

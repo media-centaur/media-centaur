@@ -356,6 +356,39 @@ defmodule MediaCentarr.Library do
      )}
   end
 
+  @doc """
+  Returns `{tv_series_id, external_id}` pairs for TV series in the given list
+  that have a TMDB external identifier.
+  """
+  def tmdb_external_ids_for_tv_series(tv_series_ids) when is_list(tv_series_ids) do
+    Repo.all(
+      from(ext in ExternalId,
+        where: ext.tv_series_id in ^tv_series_ids and ext.source == "tmdb",
+        select: {ext.tv_series_id, ext.external_id}
+      )
+    )
+  end
+
+  @doc """
+  Returns every TMDB-style external ID in the library with its owning FK columns.
+  Includes both `"tmdb"` (movies, TV, standalone movies) and `"tmdb_collection"`
+  (movie series) sources. Used by ReleaseTracking to scan for tracking candidates.
+  """
+  def list_tmdb_external_ids do
+    Repo.all(
+      from(ext in ExternalId,
+        where: ext.source in ["tmdb", "tmdb_collection"],
+        select: %{
+          source: ext.source,
+          external_id: ext.external_id,
+          tv_series_id: ext.tv_series_id,
+          movie_series_id: ext.movie_series_id,
+          movie_id: ext.movie_id
+        }
+      )
+    )
+  end
+
   # ---------------------------------------------------------------------------
   # Movie
   # ---------------------------------------------------------------------------
