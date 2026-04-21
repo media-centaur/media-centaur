@@ -46,6 +46,26 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     end
   end
 
+  # --- availability_map/2 ---
+
+  describe "availability_map/2" do
+    test "builds {entity_id => available?} with the injected predicate" do
+      a = entry(%{id: "a", type: :movie})
+      b = entry(%{id: "b", type: :tv_series})
+
+      available = fn entity -> entity.id == "a" end
+
+      assert LibraryHelpers.availability_map([a, b], available) == %{
+               "a" => true,
+               "b" => false
+             }
+    end
+
+    test "returns an empty map for no entries" do
+      assert LibraryHelpers.availability_map([], fn _ -> true end) == %{}
+    end
+  end
+
   # --- apply_entry_update/4 ---
 
   describe "apply_entry_update/4" do
