@@ -5,6 +5,8 @@ allowed-tools: Bash, AskUserQuestion, Read, Write, Edit
 
 You are shipping one or more Jujutsu (jj) changes for Media Centarr, and optionally tagging a release the end-user updater will see. Media Centarr end users are media-center users — not engineers. Release notes they see must be written for them.
 
+> This skill supersedes the global `/ship` (`~/.claude/commands/ship.md`) when invoked from the Media Centarr repo. Both skills share the same arg modes (`/ship` / `patch` / `minor` / `major`), the same halt-on-failure discipline, the same end-user changelog voice, and the same tag flow. This local version adds the Media-Centarr-specific safety checks (pending migrations, `scripts/preflight`, Settings.Entry schema compatibility, updater-contract stability). When updating either skill, update the other to keep the concepts aligned.
+
 ## Arguments
 
 Invocation modes:
