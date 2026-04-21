@@ -83,30 +83,30 @@ defmodule MediaCentarr.ReleaseTracking do
   Used to populate the suggestions section of the Track New Show modal.
   """
   def suggest_trackable_items do
-    tracked_tmdb_ids =
-      from(i in Item, select: {i.tmdb_id, i.media_type})
-      |> Repo.all()
-      |> MapSet.new()
+    tracked_tv_tmdb_ids =
+      from(i in Item,
+        where: i.media_type == :tv_series,
+        select: fragment("CAST(? AS TEXT)", i.tmdb_id)
+      )
 
-    from(tv in MediaCentarr.Library.TVSeries,
-      join: ext in MediaCentarr.Library.ExternalId,
-      on: ext.tv_series_id == tv.id and ext.source == "tmdb",
-      left_join: img in MediaCentarr.Library.Image,
-      on: img.tv_series_id == tv.id and img.role == "poster",
-      where: tv.status in ^@active_tv_statuses or is_nil(tv.status),
-      select: %{
-        tv_series_id: tv.id,
-        tmdb_id: ext.external_id,
-        name: tv.name,
-        media_type: :tv_series,
-        poster_url: img.content_url
-      }
+    Repo.all(
+      from(tv in MediaCentarr.Library.TVSeries,
+        join: ext in MediaCentarr.Library.ExternalId,
+        on: ext.tv_series_id == tv.id and ext.source == "tmdb",
+        left_join: img in MediaCentarr.Library.Image,
+        on: img.tv_series_id == tv.id and img.role == "poster",
+        where:
+          (tv.status in ^@active_tv_statuses or is_nil(tv.status)) and
+            ext.external_id not in subquery(tracked_tv_tmdb_ids),
+        select: %{
+          tv_series_id: tv.id,
+          tmdb_id: ext.external_id,
+          name: tv.name,
+          media_type: :tv_series,
+          poster_url: img.content_url
+        }
+      )
     )
-    |> Repo.all()
-    |> Enum.reject(fn %{tmdb_id: tmdb_id} ->
-      tmdb_id_int = String.to_integer(tmdb_id)
-      MapSet.member?(tracked_tmdb_ids, {tmdb_id_int, :tv_series})
-    end)
   end
 
   # --- Search ---
