@@ -118,18 +118,18 @@ defmodule MediaCentarr.ReleaseTracking.Extractor do
     season_number = season_data["season_number"]
 
     (season_data["episodes"] || [])
-    |> Enum.filter(fn ep ->
-      ep_num = ep["episode_number"]
+    |> Enum.filter(fn episode ->
+      episode_number = episode["episode_number"]
 
       season_number > last_season ||
-        (season_number == last_season && ep_num > last_episode)
+        (season_number == last_season && episode_number > last_episode)
     end)
-    |> Enum.map(fn ep ->
+    |> Enum.map(fn episode ->
       %{
-        air_date: parse_date(ep["air_date"]),
+        air_date: parse_date(episode["air_date"]),
         season_number: season_number,
-        episode_number: ep["episode_number"],
-        title: ep["name"]
+        episode_number: episode["episode_number"],
+        title: episode["name"]
       }
     end)
   end

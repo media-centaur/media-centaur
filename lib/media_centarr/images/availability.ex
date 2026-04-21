@@ -72,7 +72,9 @@ defmodule MediaCentarr.Images.Availability do
     :ok = MediaCentarr.Watcher.Supervisor.subscribe()
     # Seed from current state so we don't wait for the first transition.
     state =
-      Map.new(MediaCentarr.Watcher.Supervisor.statuses(), fn %{dir: dir, state: s} -> {dir, s} end)
+      Map.new(MediaCentarr.Watcher.Supervisor.statuses(), fn %{dir: dir, state: state} ->
+        {dir, state}
+      end)
 
     :persistent_term.put({__MODULE__, :state}, state)
     {:ok, state}

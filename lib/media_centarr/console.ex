@@ -5,8 +5,9 @@ defmodule MediaCentarr.Console do
 
   @moduledoc """
   Bounded context for the in-browser log console: ring buffer, filter, rescan
-  dispatch. All LiveViews and cross-context callers interact with the console
-  through this module only — `Buffer` and `Handler` are internal.
+  dispatch. LiveViews interact through this facade plus the exported submodules
+  (`Buffer`, `View`, `Filter`, `Entry`). The `Handler` is internal and must not
+  be called from outside the context.
 
   ## Persistence
 

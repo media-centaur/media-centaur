@@ -100,12 +100,12 @@ defmodule MediaCentarr.Application do
       require MediaCentarr.Log
       MediaCentarr.Log.info(:library, "watch_dirs: #{count} entries active")
     rescue
-      e ->
+      error ->
         require MediaCentarr.Log
 
         MediaCentarr.Log.error(
           :library,
-          "config migration failed: #{Exception.format(:error, e, __STACKTRACE__)}"
+          "config migration failed: #{Exception.format(:error, error, __STACKTRACE__)}"
         )
     end
 

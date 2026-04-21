@@ -117,18 +117,32 @@ defmodule MediaCentarr.ReleaseTracking do
   an already_tracked flag.
   """
   def search_tmdb(query) do
-    movie_task = Task.async(fn -> Client.search_movie(query) end)
-    tv_task = Task.async(fn -> Client.search_tv(query) end)
+    [movie_outcome, tv_outcome] =
+      [:movie, :tv]
+      |> Task.async_stream(
+        fn
+          :movie -> {:movie, Client.search_movie(query)}
+          :tv -> {:tv, Client.search_tv(query)}
+        end,
+        timeout: 10_000,
+        on_timeout: :kill_task,
+        ordered: true,
+        max_concurrency: 2
+      )
+      |> Enum.map(fn
+        {:ok, outcome} -> outcome
+        {:exit, _reason} -> :error
+      end)
 
     movie_results =
-      case Task.await(movie_task, 10_000) do
-        {:ok, results} -> Enum.map(results, &normalize_movie_result/1)
+      case movie_outcome do
+        {:movie, {:ok, results}} -> Enum.map(results, &normalize_movie_result/1)
         _ -> []
       end
 
     tv_results =
-      case Task.await(tv_task, 10_000) do
-        {:ok, results} -> Enum.map(results, &normalize_tv_result/1)
+      case tv_outcome do
+        {:tv, {:ok, results}} -> Enum.map(results, &normalize_tv_result/1)
         _ -> []
       end
 
