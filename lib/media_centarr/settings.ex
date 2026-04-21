@@ -22,8 +22,7 @@ defmodule MediaCentarr.Settings do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.settings_updates())
   end
 
-  def list_entries, do: {:ok, Repo.all(Entry)}
-  def list_entries!, do: Repo.all(Entry)
+  def list_entries, do: Repo.all(Entry)
 
   def get_by_key(key) do
     {:ok, Repo.get_by(Entry, key: key)}

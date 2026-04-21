@@ -11,11 +11,11 @@ defmodule MediaCentarr.Settings.AdminTest do
       create_pending_file()
       create_pending_file()
 
-      assert [_, _] = Review.list_pending_files!()
+      assert [_, _] = Review.list_pending_files()
 
       Admin.clear_database()
 
-      assert [] = Review.list_pending_files!()
+      assert [] = Review.list_pending_files()
     end
   end
 end

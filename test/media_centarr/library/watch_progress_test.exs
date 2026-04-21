@@ -95,7 +95,7 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      records = Library.list_watch_progress!()
+      records = Library.list_watch_progress()
 
       assert length(records) == 1
       assert hd(records).position_seconds == 1200.0
@@ -116,7 +116,7 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      records = Library.list_watch_progress!()
+      records = Library.list_watch_progress()
 
       assert length(records) == 1
       assert hd(records).position_seconds == 3930.0
@@ -177,7 +177,7 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      records = Library.list_watch_progress!()
+      records = Library.list_watch_progress()
 
       assert length(records) == 2
     end

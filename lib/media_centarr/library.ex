@@ -207,8 +207,7 @@ defmodule MediaCentarr.Library do
   # WatchedFile
   # ---------------------------------------------------------------------------
 
-  def list_watched_files, do: {:ok, Repo.all(WatchedFile)}
-  def list_watched_files!, do: Repo.all(WatchedFile)
+  def list_watched_files, do: Repo.all(WatchedFile)
 
   def link_file(attrs) do
     file_path = attrs[:file_path] || attrs["file_path"]
@@ -274,8 +273,7 @@ defmodule MediaCentarr.Library do
   # Image
   # ---------------------------------------------------------------------------
 
-  def list_all_images, do: {:ok, Repo.all(Image)}
-  def list_all_images!, do: Repo.all(Image)
+  def list_all_images, do: Repo.all(Image)
 
   def create_image(attrs) do
     Repo.insert(Image.create_changeset(attrs))
@@ -393,8 +391,7 @@ defmodule MediaCentarr.Library do
   # Movie
   # ---------------------------------------------------------------------------
 
-  def list_movies, do: {:ok, Repo.all(Movie)}
-  def list_movies!, do: Repo.all(Movie)
+  def list_movies, do: Repo.all(Movie)
 
   def get_movie(id) do
     case Repo.get(Movie, id) do
@@ -503,8 +500,7 @@ defmodule MediaCentarr.Library do
   # Season
   # ---------------------------------------------------------------------------
 
-  def list_seasons, do: {:ok, Repo.all(Season)}
-  def list_seasons!, do: Repo.all(Season)
+  def list_seasons, do: Repo.all(Season)
 
   def get_season(id) do
     case Repo.get(Season, id) do
@@ -547,8 +543,7 @@ defmodule MediaCentarr.Library do
   # Episode
   # ---------------------------------------------------------------------------
 
-  def list_episodes, do: {:ok, Repo.all(Episode)}
-  def list_episodes!, do: Repo.all(Episode)
+  def list_episodes, do: Repo.all(Episode)
 
   def list_episodes_for_season(season_id, opts \\ []) do
     preloads = Keyword.get(opts, :load, [])
@@ -607,8 +602,7 @@ defmodule MediaCentarr.Library do
   # WatchProgress
   # ---------------------------------------------------------------------------
 
-  def list_watch_progress, do: {:ok, Repo.all(WatchProgress)}
-  def list_watch_progress!, do: Repo.all(WatchProgress)
+  def list_watch_progress, do: Repo.all(WatchProgress)
 
   def mark_watch_completed(progress) do
     transitioning? = not progress.completed
