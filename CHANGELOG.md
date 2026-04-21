@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.17.0 — 2026-04-21
+
+### Fixed
+
+- **Detail view no longer closes when you click inside the Console
+  drawer.** The dismiss-on-outside-click behavior is now scoped to
+  the modal's backdrop rather than listening globally — clicks
+  inside sibling overlays (Console, future popovers) stay
+  self-contained. Applies to every modal: movie/show detail, Track
+  New Show, delete confirmations, stop-tracking, cancel-download.
+
 ## v0.16.2 — 2026-04-21
 
 Maintenance release — no user-visible changes. Restores a green CI
