@@ -1242,11 +1242,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       data-state="open"
       data-detail-mode="modal"
       data-dismiss-event="delete_cancel"
+      phx-click="delete_cancel"
       phx-window-keydown="delete_cancel"
       phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel modal-panel-sm p-6" phx-click-away="delete_cancel">
+      <div class="modal-panel modal-panel-sm p-6" phx-click={%Phoenix.LiveView.JS{}}>
         <h3 class="text-lg font-bold text-error">Delete file?</h3>
         <div class="mt-3 rounded-lg bg-base-content/5 p-3">
           <div class="flex items-center gap-2">
@@ -1289,11 +1290,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       data-state="open"
       data-detail-mode="modal"
       data-dismiss-event="delete_cancel"
+      phx-click="delete_cancel"
       phx-window-keydown="delete_cancel"
       phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel p-6" phx-click-away="delete_cancel">
+      <div class="modal-panel p-6" phx-click={%Phoenix.LiveView.JS{}}>
         <h3 class="text-lg font-bold text-error">Delete folder?</h3>
         <div class="mt-3 rounded-lg bg-base-content/5 p-3">
           <div class="flex items-center gap-2">
@@ -1352,11 +1354,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       data-state="open"
       data-detail-mode="modal"
       data-dismiss-event="delete_cancel"
+      phx-click="delete_cancel"
       phx-window-keydown="delete_cancel"
       phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel p-6" phx-click-away="delete_cancel">
+      <div class="modal-panel p-6" phx-click={%Phoenix.LiveView.JS{}}>
         <h3 class="text-lg font-bold text-error">Delete all files?</h3>
         <p class="mt-1 text-sm text-base-content/60">
           {file_summary(@all_info.file_count, @all_info.total_size)} across {length(
