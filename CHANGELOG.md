@@ -4,6 +4,43 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.18.1 — 2026-04-21
+
+### Improved
+
+- **TV series detail loads faster.** The first time you open a show
+  with many seasons and episodes, the page now renders in a fraction
+  of the previous time — the database layer was missing two indexes
+  that made every show open trigger a full-table scan.
+- **Library grid stays responsive during playback.** Progress updates
+  while you're watching an episode no longer rebuild the entire grid
+  behind the scenes; only the affected poster is refreshed. Libraries
+  with hundreds of entries feel noticeably smoother.
+- **Status page opens without hanging.** The /status page used to
+  stall on first paint while it gathered stats, history, and storage
+  measurements. Those now load in the background so the page renders
+  immediately and fills in as the numbers arrive.
+- **Track New Show modal opens faster.** The list of suggested shows
+  is built from a single database query instead of loading everything
+  into memory first.
+- **Review page handles bulk approvals better.** Approving or
+  dismissing many files in a row no longer rebuilds internal
+  bookkeeping from scratch on every action.
+- **Console drawer opens faster on big buffers.** If you've bumped the
+  console buffer size above the default, opening the Console no
+  longer copies the entire buffer up-front — only what you'll see,
+  with the rest arriving live as new logs come in.
+- **Releases refresh contends less with SQLite.** The periodic refresh
+  of tracked shows now fans out only the TMDB fetches in parallel;
+  the database writes happen one at a time, avoiding the occasional
+  lock contention on slower disks.
+- **Image backfill keeps TMDB busier.** The background image pipeline
+  went from 4 to 8 concurrent workers, which cuts the time to
+  populate artwork for a freshly-imported library nearly in half.
+- **Acquisition queue processes more jobs at once.** The Oban
+  acquisition queue went from 5 to 10 concurrent jobs for faster
+  throughput when grabbing multiple releases.
+
 ## v0.18.0 — 2026-04-21
 
 ### Added
