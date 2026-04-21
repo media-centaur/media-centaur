@@ -30,22 +30,23 @@ defmodule MediaCentarrWeb.StatusLive do
         Process.send_after(self(), :tick_pipeline, 1_000)
         Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
 
-        stats = Status.fetch_stats()
         pipeline_stats = Stats.get_snapshot()
         image_stats = ImagePipeline.Stats.get_snapshot()
 
+        # Kick off expensive queries off the mount path. Mount returns
+        # immediately with empty defaults; each task sends a message back
+        # when ready. Keeps /status responsive even with a big library.
+        start_async_status_stats()
+        start_async_watch_history()
+        start_async_storage()
+
         socket
-        |> assign(library_stats: stats.library)
-        |> assign(pending_review_count: length(stats.pending_review))
-        |> assign(recent_changes: stats.recent_changes)
-        |> assign(history_events: WatchHistory.recent_events(5))
-        |> assign(history_stats: WatchHistory.stats())
+        |> assign_defaults()
         |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
         |> assign(watcher_statuses: MediaCentarr.Watcher.Supervisor.statuses())
         |> assign(image_dir_statuses: MediaCentarr.Watcher.Supervisor.image_dir_statuses())
-        |> assign(storage_drives: Storage.measure_all())
         |> assign(dir_health: check_dir_health())
         |> assign(config: load_config())
         |> assign(rate_limiter: fetch_rate_limiter())
@@ -53,17 +54,11 @@ defmodule MediaCentarrWeb.StatusLive do
         |> assign(playback: build_playback_state())
       else
         socket
-        |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
-        |> assign(pending_review_count: 0)
-        |> assign(recent_changes: [])
-        |> assign(history_events: [])
-        |> assign(history_stats: %{total_count: 0, total_seconds: 0.0, streak: 0, heatmap: %{}})
-        |> assign(recent_errors: [])
+        |> assign_defaults()
         |> assign(pipeline_stats: Stats.empty_snapshot())
         |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
         |> assign(watcher_statuses: [])
         |> assign(image_dir_statuses: [])
-        |> assign(storage_drives: [])
         |> assign(dir_health: [])
         |> assign(config: %{})
         |> assign(rate_limiter: nil)
@@ -77,6 +72,41 @@ defmodule MediaCentarrWeb.StatusLive do
        pipeline_concurrency: MediaCentarr.Pipeline.Discovery.processor_concurrency(),
        image_pipeline_concurrency: 4
      )}
+  end
+
+  defp assign_defaults(socket) do
+    socket
+    |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
+    |> assign(pending_review_count: 0)
+    |> assign(recent_changes: [])
+    |> assign(history_events: [])
+    |> assign(history_stats: %{total_count: 0, total_seconds: 0.0, streak: 0, heatmap: %{}})
+    |> assign(recent_errors: [])
+    |> assign(storage_drives: [])
+  end
+
+  defp start_async_status_stats do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      send(parent, {:status_stats_loaded, Status.fetch_stats()})
+    end)
+  end
+
+  defp start_async_watch_history do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      send(parent, {:status_history_loaded, WatchHistory.stats(), WatchHistory.recent_events(5)})
+    end)
+  end
+
+  defp start_async_storage do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      send(parent, {:status_storage_loaded, Storage.measure_all()})
+    end)
   end
 
   # --- Events ---
@@ -101,7 +131,8 @@ defmodule MediaCentarrWeb.StatusLive do
 
   def handle_info(:refresh_storage, socket) do
     Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
-    {:noreply, assign(socket, storage_drives: Storage.measure_all())}
+    start_async_storage()
+    {:noreply, socket}
   end
 
   def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
@@ -116,24 +147,33 @@ defmodule MediaCentarrWeb.StatusLive do
   end
 
   def handle_info(:refresh_stats, socket) do
-    stats = Status.fetch_stats()
+    start_async_status_stats()
+    start_async_watch_history()
+    {:noreply, assign(socket, stats_timer: nil)}
+  end
 
+  def handle_info({:status_stats_loaded, stats}, socket) do
     {:noreply,
      socket
-     |> assign(stats_timer: nil)
      |> assign(library_stats: stats.library)
      |> assign(pending_review_count: length(stats.pending_review))
      |> assign(recent_changes: stats.recent_changes)
-     |> assign(history_events: WatchHistory.recent_events(5))
-     |> assign(history_stats: WatchHistory.stats())
      |> assign(recent_errors: stats.recent_errors)}
   end
 
-  def handle_info({:watch_event_created, _event}, socket) do
+  def handle_info({:status_history_loaded, history_stats, history_events}, socket) do
     {:noreply,
      socket
-     |> assign(:history_events, WatchHistory.recent_events(5))
-     |> assign(:history_stats, WatchHistory.stats())}
+     |> assign(:history_events, history_events)
+     |> assign(:history_stats, history_stats)}
+  end
+
+  def handle_info({:status_storage_loaded, drives}, socket) do
+    {:noreply, assign(socket, storage_drives: drives)}
+  end
+
+  def handle_info({:watch_event_created, _event}, socket) do
+    {:noreply, debounce(socket, :stats_timer, :refresh_stats, 1_000)}
   end
 
   def handle_info({:playback_state_changed, entity_id, new_state, now_playing, started_at}, socket) do
