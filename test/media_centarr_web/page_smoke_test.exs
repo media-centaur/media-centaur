@@ -42,12 +42,17 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         })
       )
 
-      on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
+      MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
+
+      on_exit(fn ->
+        MediaCentarr.Capabilities.clear_test_result(:prowlarr)
+        :persistent_term.put({Config, :config}, original)
+      end)
 
       :ok
     end
 
-    test "renders without crashing (Prowlarr configured)", %{conn: conn} do
+    test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
       assert {:ok, _view, html} = live(conn, "/download")
       assert is_binary(html)
     end

@@ -68,6 +68,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :delete_confirm, :any, default: nil
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
+  attr :tmdb_ready, :boolean, default: true
 
   def detail_panel(assigns) do
     expanded_seasons =
@@ -145,6 +146,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             files={@detail_files}
             rematch_confirm={@rematch_confirm}
             delete_confirm={@delete_confirm}
+            tmdb_ready={@tmdb_ready}
           />
         <% end %>
       </div>
@@ -957,6 +959,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :files, :list, default: []
   attr :rematch_confirm, :boolean, default: false
   attr :delete_confirm, :any, default: nil
+  attr :tmdb_ready, :boolean, default: true
 
   defp info_view(assigns) do
     total_size = Enum.reduce(assigns.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
@@ -1106,6 +1109,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         </span>
         <div class="mt-2 flex items-center gap-2">
           <button
+            :if={@tmdb_ready}
             phx-click="rematch"
             phx-value-id={@entity.id}
             class={"btn btn-soft btn-sm #{if @rematch_confirm, do: "btn-error", else: "btn-warning"}"}
@@ -1115,6 +1119,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             <.icon name="hero-arrow-path-mini" class="size-4" />
             {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
           </button>
+          <p :if={!@tmdb_ready} class="text-xs text-base-content/50">
+            Rematch needs a working TMDB connection. Test it in <.link
+              navigate="/settings?section=tmdb"
+              class="link link-primary"
+            >Settings</.link>.
+          </p>
         </div>
       </div>
     </div>

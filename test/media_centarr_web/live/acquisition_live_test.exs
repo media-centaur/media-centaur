@@ -5,6 +5,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
   alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
   alias MediaCentarr.Acquisition.Prowlarr
+  alias MediaCentarr.Capabilities
   alias MediaCentarr.Secret
 
   setup do
@@ -18,9 +19,17 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       {MediaCentarr.Config, :config},
       Map.merge(config, %{
         prowlarr_url: "http://prowlarr.test",
-        prowlarr_api_key: Secret.wrap("test-key")
+        prowlarr_api_key: Secret.wrap("test-key"),
+        download_client_type: "qbittorrent",
+        download_client_url: "http://qb.test"
       })
     )
+
+    # The /download page is now gated on explicit green connection tests
+    # for Prowlarr (and the queue section on the download client). Seed
+    # both so tests of other behaviors see the fully-enabled page.
+    Capabilities.save_test_result(:prowlarr, :ok)
+    Capabilities.save_test_result(:download_client, :ok)
 
     on_exit(fn ->
       :persistent_term.erase({Prowlarr, :client})
@@ -40,6 +49,22 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       )
 
       assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/download")
+    end
+
+    test "redirects to library when Prowlarr is configured but untested", %{conn: conn} do
+      Capabilities.clear_test_result(:prowlarr)
+
+      assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/download")
+    end
+
+    test "hides the active-downloads queue when the download client is untested",
+         %{conn: conn} do
+      Capabilities.clear_test_result(:download_client)
+
+      {:ok, _view, html} = live(conn, ~p"/download")
+
+      refute html =~ "Downloading"
+      assert html =~ "Connect a download client"
     end
 
     test "renders the download page when Prowlarr is configured", %{conn: conn} do

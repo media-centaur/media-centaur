@@ -20,15 +20,17 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.{QueryExpander, Quality}
+  alias MediaCentarr.Capabilities
   alias MediaCentarrWeb.AcquisitionLive.Logic
 
   @queue_poll_interval_ms 5_000
 
   @impl true
   def mount(_params, _session, socket) do
-    if Acquisition.available?() do
+    if Capabilities.prowlarr_ready?() do
       if connected?(socket) do
         Acquisition.subscribe()
+        Capabilities.subscribe()
         Process.send_after(self(), :poll_queue, 0)
       end
 
@@ -43,7 +45,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          grab_message: nil,
          active_queue: [],
          queue_loaded?: false,
-         cancel_confirm: nil
+         cancel_confirm: nil,
+         download_client_ready: Capabilities.download_client_ready?()
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -258,8 +261,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         </section>
 
         <%!-- Active downloads from configured download client. Completed
-        torrents are intentionally hidden — qBittorrent manages seeding. --%>
-        <section class="glass-surface rounded-xl overflow-hidden">
+        torrents are intentionally hidden — qBittorrent manages seeding.
+        Hidden entirely unless the download client has passed a test in
+        Settings — without a green test we can't poll the queue. --%>
+        <section :if={@download_client_ready} class="glass-surface rounded-xl overflow-hidden">
           <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between">
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
               Downloading
@@ -281,6 +286,15 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           <div :if={@active_queue != []}>
             <.queue_row :for={item <- @active_queue} item={item} />
           </div>
+        </section>
+
+        <section
+          :if={!@download_client_ready}
+          class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/50"
+        >
+          Connect a download client in
+          <.link navigate="/settings?section=acquisition" class="link link-primary">Settings</.link>
+          to see the active queue.
         </section>
       </div>
 
@@ -393,6 +407,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # ---------------------------------------------------------------------------
 
   @impl true
+  def handle_info(:capabilities_changed, socket) do
+    if Capabilities.prowlarr_ready?() do
+      {:noreply, assign(socket, download_client_ready: Capabilities.download_client_ready?())}
+    else
+      {:noreply, push_navigate(socket, to: "/")}
+    end
+  end
+
   def handle_info({:run_search_one, query}, socket) do
     parent = self()
 
@@ -448,23 +470,30 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_info(:poll_queue, socket) do
-    queue =
-      case Acquisition.list_downloads(:all) do
-        {:ok, items} ->
-          Enum.reject(items, &(&1.state == :completed))
+    if socket.assigns.download_client_ready do
+      queue =
+        case Acquisition.list_downloads(:all) do
+          {:ok, items} ->
+            Enum.reject(items, &(&1.state == :completed))
 
-        {:error, :not_configured} ->
-          # Download client not set up — show empty list, no log noise.
-          []
+          {:error, :not_configured} ->
+            # Download client not set up — show empty list, no log noise.
+            []
 
-        {:error, reason} ->
-          Log.warning(:acquisition, "download client poll failed: #{inspect(reason)}")
-          socket.assigns.active_queue
-      end
+          {:error, reason} ->
+            Log.warning(:acquisition, "download client poll failed: #{inspect(reason)}")
+            socket.assigns.active_queue
+        end
 
-    Process.send_after(self(), :poll_queue, @queue_poll_interval_ms)
+      Process.send_after(self(), :poll_queue, @queue_poll_interval_ms)
 
-    {:noreply, assign(socket, active_queue: queue, queue_loaded?: true)}
+      {:noreply, assign(socket, active_queue: queue, queue_loaded?: true)}
+    else
+      # Skip this tick; :capabilities_changed will re-arm polling when the
+      # download client comes online. Avoid hammering an unreachable endpoint.
+      Process.send_after(self(), :poll_queue, @queue_poll_interval_ms)
+      {:noreply, socket}
+    end
   end
 
   # Acquisition PubSub events — informational, no-op for now.

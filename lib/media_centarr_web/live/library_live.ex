@@ -17,6 +17,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.{
+    Capabilities,
     Format,
     Images.Availability,
     Library,
@@ -46,6 +47,7 @@ defmodule MediaCentarrWeb.LibraryLive do
       Settings.subscribe()
       ReleaseTracking.subscribe()
       Availability.subscribe()
+      Capabilities.subscribe()
     end
 
     {:ok,
@@ -72,6 +74,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        detail_view: :main,
        detail_files: [],
        spoiler_free: load_spoiler_free_setting(),
+       tmdb_ready: Capabilities.tmdb_ready?(),
        upcoming_path: ~p"/?zone=upcoming",
        upcoming_releases: %{upcoming: [], released: []},
        upcoming_events: [],
@@ -859,6 +862,10 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, socket}
   end
 
+  def handle_info(:capabilities_changed, socket) do
+    {:noreply, assign(socket, tmdb_ready: Capabilities.tmdb_ready?())}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -1000,6 +1007,7 @@ defmodule MediaCentarrWeb.LibraryLive do
             selected_day={@selected_day}
             tracked_items={@tracked_items}
             confirm_stop_item={@confirm_stop_item}
+            tmdb_ready={@tmdb_ready}
           />
         </section>
 
@@ -1021,6 +1029,7 @@ defmodule MediaCentarrWeb.LibraryLive do
             @selected_entry == nil ||
               Availability.available?(@selected_entry.entity)
           }
+          tmdb_ready={@tmdb_ready}
           on_play="play"
           on_close="close_detail"
         />

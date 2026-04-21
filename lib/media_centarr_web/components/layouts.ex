@@ -53,7 +53,7 @@ defmodule MediaCentarrWeb.Layouts do
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
           </.link>
-          <%= if MediaCentarr.Acquisition.available?() do %>
+          <%= if MediaCentarr.Capabilities.prowlarr_ready?() do %>
             <.link
               navigate="/download"
               class={sidebar_link_class(@current_path, "/download")}
