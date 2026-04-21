@@ -7,6 +7,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   import Ecto.Query
   require MediaCentarr.Log, as: Log
 
+  alias MediaCentarr.Library
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.ReleaseTracking.{Differ, Helpers}
   alias MediaCentarr.TMDB.Client
@@ -178,13 +179,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   end
 
   defp link_unlinked_items(entity_ids) do
-    tmdb_mappings =
-      MediaCentarr.Repo.all(
-        from(ext in MediaCentarr.Library.ExternalId,
-          where: ext.tv_series_id in ^entity_ids and ext.source == "tmdb",
-          select: {ext.tv_series_id, ext.external_id}
-        )
-      )
+    tmdb_mappings = Library.tmdb_external_ids_for_tv_series(entity_ids)
 
     Enum.each(tmdb_mappings, fn {tv_series_id, tmdb_id_str} ->
       tmdb_id = String.to_integer(tmdb_id_str)
