@@ -70,7 +70,7 @@ defmodule MediaCentarrWeb.StatusLive do
      assign(socket,
        stats_timer: nil,
        pipeline_concurrency: MediaCentarr.Pipeline.Discovery.processor_concurrency(),
-       image_pipeline_concurrency: 4
+       image_pipeline_concurrency: 8
      )}
   end
 
