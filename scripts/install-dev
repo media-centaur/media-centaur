@@ -16,6 +16,24 @@ service_name="media-centarr-dev"
 # 1. Install patched systemd unit
 banner "Installing systemd unit to $unit_dst"
 mkdir -p "$(dirname "$unit_dst")"
+
+# Guard against a foreign symlink (e.g. a stow'd dotfile) sitting at the
+# destination. The repo is meant to be the sole source of truth for this
+# unit so that renaming or moving the repo directory doesn't leave the
+# unit pointing at a stale path. Writing through a dotfiles symlink would
+# silently edit the dotfile and defeat that guarantee.
+if [ -L "$unit_dst" ]; then
+  link_target="$(readlink -f "$unit_dst" || true)"
+  echo "error: $unit_dst is a symlink to $link_target"
+  echo ""
+  echo "Remove the unit from the dotfiles repo that's stowing it, then"
+  echo "unlink it here and re-run this script:"
+  echo ""
+  echo "  rm $unit_dst"
+  echo "  scripts/install-dev"
+  exit 1
+fi
+
 sed \
   -e "s|WorkingDirectory=.*|WorkingDirectory=$source_dir|" \
   "$unit_src" > "$unit_dst"

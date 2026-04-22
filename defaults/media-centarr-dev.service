@@ -11,6 +11,11 @@ WorkingDirectory=/path/to/media-centarr/media-centarr
 ExecStart=/usr/bin/mise exec -- mix phx.server
 Environment=MIX_ENV=dev
 Environment=ELIXIR_ERL_OPTIONS="-name media_centarr_dev@127.0.0.1"
+# Point the dev instance at a separate TOML so it binds a different
+# port (1080) than the installed production release (2160), and uses
+# its own database + socket directories. Without this, both instances
+# would race for port 2160 and the dev start fails on bind.
+Environment=MEDIA_CENTARR_CONFIG_OVERRIDE=%h/.config/media-centarr/media-centarr-dev.toml
 Restart=on-failure
 RestartSec=5
 KillMode=mixed
