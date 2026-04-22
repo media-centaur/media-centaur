@@ -73,7 +73,24 @@ defmodule MediaCentarr.Application do
       max_seconds: 30
     ]
 
-    result = Supervisor.start_link(children, opts)
+    children
+    |> Supervisor.start_link(opts)
+    |> post_supervisor_hooks()
+  end
+
+  @doc """
+  Runs post-start hooks when the supervision tree came up successfully,
+  or passes the error through unchanged when it didn't.
+
+  Skipping the hooks on a failed start prevents misleading secondary
+  errors — e.g. `Config.load_runtime_overrides/0` tries to read Settings
+  from Repo, and if a child failed to start, Repo is already being torn
+  down. The Repo-lookup crash that results hides the original cause of
+  the failure. Guarding here keeps the first crash the only crash.
+  """
+  @spec post_supervisor_hooks({:ok, pid()} | {:error, term()}) ::
+          {:ok, pid()} | {:error, term()}
+  def post_supervisor_hooks({:ok, _pid} = result) do
     MediaCentarr.Config.load_runtime_overrides()
 
     # Hydrate the update-check cache from persisted state and, if the
@@ -85,6 +102,8 @@ defmodule MediaCentarr.Application do
 
     result
   end
+
+  def post_supervisor_hooks({:error, _reason} = error), do: error
 
   defp init_services do
     toml_entries = Application.get_env(:media_centarr, :__raw_toml_watch_dirs, [])
