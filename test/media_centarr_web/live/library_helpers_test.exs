@@ -743,4 +743,78 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
                "/mnt/videos is offline — 0 items temporarily unavailable."
     end
   end
+
+  describe "playback_failed_flash/1" do
+    test "episode with season and episode numbers includes S0xE0y" do
+      payload = %{
+        message: "Failed to recognize file format.",
+        entity_name: "Sample Show Sixteen",
+        season_number: 3,
+        episode_number: 5,
+        episode_name: "One Day",
+        content_url: "/mnt/tv/Sample Show Sixteen/Sample Show Sixteen.S03E05.mkv"
+      }
+
+      assert LibraryHelpers.playback_failed_flash(payload) ==
+               "Couldn't play Sample Show Sixteen S3E5 — Failed to recognize file format."
+    end
+
+    test "movie without season/episode falls back to entity name only" do
+      payload = %{
+        message: "Error opening input file",
+        entity_name: "Inception",
+        season_number: nil,
+        episode_number: nil,
+        episode_name: nil,
+        content_url: "/mnt/movies/Inception.mkv"
+      }
+
+      assert LibraryHelpers.playback_failed_flash(payload) ==
+               "Couldn't play Inception — Error opening input file."
+    end
+
+    test "unknown entity name uses filename" do
+      payload = %{
+        message: "Cannot open file",
+        entity_name: nil,
+        season_number: nil,
+        episode_number: nil,
+        episode_name: nil,
+        content_url: "/mnt/tv/Something.S01E01.mkv"
+      }
+
+      assert LibraryHelpers.playback_failed_flash(payload) ==
+               "Couldn't play Something.S01E01.mkv — Cannot open file."
+    end
+
+    test "preserves exclamation mark in terminal punctuation" do
+      payload = %{
+        message: "Nope!",
+        entity_name: "Show",
+        season_number: 1,
+        episode_number: 2,
+        episode_name: nil,
+        content_url: "/x.mkv"
+      }
+
+      assert LibraryHelpers.playback_failed_flash(payload) ==
+               "Couldn't play Show S1E2 — Nope!"
+    end
+
+    test "hints about storage when message looks like a missing-file error" do
+      payload = %{
+        message: "Error opening input: No such file or directory",
+        entity_name: "Show",
+        season_number: 2,
+        episode_number: 3,
+        episode_name: nil,
+        content_url: "/mnt/tv/Show.S02E03.mkv"
+      }
+
+      flash = LibraryHelpers.playback_failed_flash(payload)
+
+      assert flash =~ "Couldn't play Show S2E3"
+      assert flash =~ "drive is mounted"
+    end
+  end
 end

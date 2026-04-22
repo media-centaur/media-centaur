@@ -2,6 +2,7 @@ defmodule MediaCentarr.Library do
   use Boundary,
     deps: [],
     exports: [
+      Availability,
       Browser,
       EntityShape,
       Episode,

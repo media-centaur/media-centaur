@@ -1,12 +1,16 @@
-defmodule MediaCentarr.Images.Availability do
+defmodule MediaCentarr.Library.Availability do
   @moduledoc """
-  Single source of truth for "are entity images reachable right now?".
+  Single source of truth for "is this entity's file reachable right now?".
 
-  The library UI doesn't need to know about filesystem paths,
-  watch-dir prefixes, or inotify state. It asks `available?/1` and
-  renders accordingly. Reads are backed by `:persistent_term` so they
-  cost nothing at grid-render scale; writes happen in a serialised
-  GenServer that subscribes to the watcher's state broadcasts.
+  Cross-cutting capability consumed by every surface that cares whether a
+  library entity's backing file is online: image rendering (placeholders vs
+  artwork), the play button (active vs "offline" pill), and any future
+  delete / move actions. Pioneered as `Images.Availability`, promoted here
+  once the same signal was needed beyond image rendering.
+
+  Reads are backed by `:persistent_term` so they cost nothing at grid-render
+  scale; writes happen in a serialised GenServer that subscribes to the
+  watcher's state broadcasts.
 
   ## Granularity
 
@@ -22,7 +26,7 @@ defmodule MediaCentarr.Images.Availability do
   """
   use GenServer
 
-  @topic "images:availability"
+  @topic "library:availability"
 
   # --- Public reads (zero message-passing cost) ---
 
@@ -69,10 +73,16 @@ defmodule MediaCentarr.Images.Availability do
 
   @impl true
   def init(_) do
-    :ok = MediaCentarr.Watcher.Supervisor.subscribe()
-    # Seed from current state so we don't wait for the first transition.
+    # Seed synchronously from the current watcher snapshot so the map is
+    # correct before our first `available?/1` read, then subscribe for
+    # live updates. `WatcherStatus` is a boundary-neutral helper that
+    # wraps `Watcher.Supervisor.statuses/0` — it exists specifically so
+    # Library can consult Watcher state without a Boundary cycle (Watcher
+    # already depends on Library).
+    :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.dir_state())
+
     state =
-      Map.new(MediaCentarr.Watcher.Supervisor.statuses(), fn %{dir: dir, state: state} ->
+      Map.new(MediaCentarr.WatcherStatus.statuses(), fn %{dir: dir, state: state} ->
         {dir, state}
       end)
 

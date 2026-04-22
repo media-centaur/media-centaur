@@ -59,7 +59,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :resume, :map, default: nil
   attr :progress_records, :list, default: []
   attr :expanded_seasons, :any, default: nil
-  attr :images_available, :boolean, default: true
+  attr :available, :boolean, default: true
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
   attr :rematch_confirm, :boolean, default: false
@@ -105,7 +105,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         <.hero
           entity={@entity}
           tracking_status={@tracking_status}
-          images_available={@images_available}
+          available={@available}
         />
         <div class="p-4 space-y-4">
           <.metadata_row entity={@entity} />
@@ -119,6 +119,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             resume={@resume}
             on_play={@on_play}
             detail_view={@detail_view}
+            available={@available}
           />
         </div>
       </div>
@@ -138,7 +139,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             extra_progress_by_id={@extra_progress_by_id}
             on_play={@on_play}
             spoiler_free={@spoiler_free}
-            images_available={@images_available}
+            available={@available}
           />
         <% else %>
           <.info_view
@@ -170,12 +171,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     <div class="detail-hero relative overflow-hidden">
       <div class="aspect-[21/9] glass-inset relative">
         <img
-          :if={@background && @images_available}
+          :if={@background && @available}
           src={@background}
           class="w-full h-full object-cover object-top"
         />
         <div
-          :if={@background && !@images_available}
+          :if={@background && !@available}
           class="w-full h-full bg-base-content/5"
           aria-label="Artwork unavailable — storage not mounted"
         />
@@ -196,12 +197,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         </button>
         <div class="absolute bottom-4 left-4 right-4">
           <img
-            :if={@logo && @images_available}
+            :if={@logo && @available}
             src={@logo}
             class="max-h-16 max-w-[80%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]"
           />
           <h2
-            :if={!@logo || !@images_available}
+            :if={!@logo || !@available}
             class="text-xl font-bold leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
           >
             {@entity.name}
@@ -260,6 +261,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       </div>
       <div class="flex items-center gap-2">
         <button
+          :if={@available}
           phx-click={@on_play}
           phx-value-id={@target_id}
           class={"btn btn-soft btn-sm btn-#{@color}"}
@@ -269,6 +271,13 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         >
           <.icon name="hero-play-mini" class="size-4" /> {@label}
         </button>
+        <span
+          :if={!@available}
+          class="btn btn-sm btn-ghost text-base-content/40 cursor-not-allowed pointer-events-none"
+          title="Storage offline — check that your media drive is mounted"
+        >
+          <.icon name="hero-cloud-arrow-down-mini" class="size-4 opacity-60" /> Offline
+        </span>
         <button
           phx-click="toggle_detail_view"
           class={[
@@ -414,7 +423,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         entity_id={@entity.id}
         on_play={@on_play}
         spoiler_free={@spoiler_free}
-        images_available={@images_available}
+        available={@available}
       />
       <.extras_section
         entity={@entity}
@@ -446,7 +455,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           entity_id={@entity.id}
           on_play={@on_play}
           spoiler_free={@spoiler_free}
-          images_available={@images_available}
+          available={@available}
         />
       </div>
       <.extras_section
@@ -474,7 +483,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
-  attr :images_available, :boolean, default: true
+  attr :available, :boolean, default: true
 
   defp season_section(assigns) do
     episodes = assigns.season.episodes || []
@@ -519,7 +528,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 entity_id={@entity_id}
                 on_play={@on_play}
                 spoiler_free={@spoiler_free}
-                images_available={@images_available}
+                available={@available}
               />
             <% {:missing, episode_number} -> %>
               <.missing_episode_row
@@ -548,7 +557,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
-  attr :images_available, :boolean, default: true
+  attr :available, :boolean, default: true
 
   defp episode_row(assigns) do
     state = episode_state(assigns.progress)
@@ -579,12 +588,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       <div class="flex items-start gap-3 text-sm">
         <div class="w-20 flex-shrink-0">
           <img
-            :if={@thumbnail && @images_available}
+            :if={@thumbnail && @available}
             src={@thumbnail}
             class="w-20 aspect-video rounded object-cover"
           />
           <div
-            :if={(@thumbnail && !@images_available) || !@thumbnail}
+            :if={(@thumbnail && !@available) || !@thumbnail}
             class="w-20 aspect-video rounded bg-base-300/30"
           />
         </div>
@@ -733,7 +742,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :movie, :map, required: true
   attr :ordinal, :integer, required: true
   attr :progress, :map, default: nil
-  attr :images_available, :boolean, default: true
+  attr :available, :boolean, default: true
   attr :resume_episode_key, :any, default: nil
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
@@ -768,12 +777,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       <div class="flex items-start gap-3 text-sm">
         <div class="w-12 flex-shrink-0">
           <img
-            :if={@thumbnail && @images_available}
+            :if={@thumbnail && @available}
             src={@thumbnail}
             class="w-12 aspect-[2/3] rounded object-cover"
           />
           <div
-            :if={(@thumbnail && !@images_available) || !@thumbnail}
+            :if={(@thumbnail && !@available) || !@thumbnail}
             class="w-12 aspect-[2/3] rounded bg-base-300/30"
           />
         </div>

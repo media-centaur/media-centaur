@@ -19,8 +19,8 @@ defmodule MediaCentarrWeb.LibraryLive do
   alias MediaCentarr.{
     Capabilities,
     Format,
-    Images.Availability,
     Library,
+    Library.Availability,
     Library.FileEventHandler,
     Playback,
     Playback.ProgressBroadcaster,
@@ -824,6 +824,10 @@ defmodule MediaCentarrWeb.LibraryLive do
      |> touch_stream_entries([entity_id])}
   end
 
+  def handle_info({:playback_failed, _entity_id, _reason, payload}, socket) do
+    {:noreply, put_flash(socket, :error, playback_failed_flash(payload))}
+  end
+
   def handle_info(
         {:extra_progress_updated, %{entity_id: entity_id, extra_id: _extra_id, progress: progress}},
         socket
@@ -986,7 +990,7 @@ defmodule MediaCentarrWeb.LibraryLive do
               entry={entry}
               resume={Map.get(@resume_targets, entry.entity.id)}
               playing={playing?(@playback, entry.entity.id)}
-              images_available={Map.get(@availability_map, entry.entity.id, true)}
+              available={Map.get(@availability_map, entry.entity.id, true)}
             />
           </div>
         </section>
@@ -1033,7 +1037,7 @@ defmodule MediaCentarrWeb.LibraryLive do
                 entry={entry}
                 selected={@selected_entity_id == entry.entity.id}
                 playing={playing?(@playback, entry.entity.id)}
-                images_available={Map.get(@availability_map, entry.entity.id, true)}
+                available={Map.get(@availability_map, entry.entity.id, true)}
               />
             </div>
           </div>
@@ -1067,7 +1071,7 @@ defmodule MediaCentarrWeb.LibraryLive do
           delete_confirm={@delete_confirm}
           spoiler_free={@spoiler_free}
           tracking_status={@tracking_status}
-          images_available={
+          available={
             @selected_entry == nil ||
               Map.get(@availability_map, @selected_entry.entity.id, true)
           }

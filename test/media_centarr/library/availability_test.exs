@@ -1,9 +1,9 @@
-defmodule MediaCentarr.Images.AvailabilityTest do
+defmodule MediaCentarr.Library.AvailabilityTest do
   # Uses `async: false` because the module writes to a module-global
   # persistent_term key. Tests that share the cache must be serialized.
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Images.Availability
+  alias MediaCentarr.Library.Availability
 
   # Helpers to poke the cache directly, bypassing the GenServer.
   defp put_cache(map), do: :persistent_term.put({Availability, :state}, map)

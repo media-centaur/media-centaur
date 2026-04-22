@@ -2,15 +2,15 @@ defmodule MediaCentarrWeb.LibraryLiveAvailabilityTest do
   @moduledoc """
   End-to-end coverage for the "storage unmounted → placeholder tiles +
   banner" chain. Drives the flow through the real PubSub channels used
-  in production (`Topics.dir_state/0` → `Images.Availability` GenServer
-  → `"images:availability"` topic → `LibraryLive.handle_info/2`).
+  in production (`Topics.dir_state/0` → `Library.Availability` GenServer
+  → `"library:availability"` topic → `LibraryLive.handle_info/2`).
   """
 
   use MediaCentarrWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Images.Availability
+  alias MediaCentarr.Library.Availability
 
   # Replays the watcher's broadcast format so we exercise the real
   # GenServer path without needing a drive unmount. The public
