@@ -4,6 +4,28 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.19.0 — 2026-04-22
+
+### New
+
+- **Watch History page is now keyboard- and gamepad-navigable.** The
+  filter pills, search input, date badge, event list, and pagination
+  all respond to arrow keys and the gamepad d-pad. The per-event
+  delete button reveals itself when its row takes focus, so you no
+  longer need a mouse to prune a mis-recorded watch.
+
+### Improved
+
+- **Clearing the library filter now returns focus to the grid.**
+  Pressing Y (gamepad) or Backspace (keyboard) to clear the filter
+  used to leave you sitting in the toolbar — you had to press Down
+  to see your unfiltered library. Focus now follows the clear
+  straight back into the grid.
+- **The gamepad hint bar shows Play inside a detail modal.** When
+  you have a movie or episode open, the bottom hint bar now reminds
+  you that the Start button plays it, matching the hint you see in
+  the grid.
+
 ## v0.18.1 — 2026-04-21
 
 ### Improved
