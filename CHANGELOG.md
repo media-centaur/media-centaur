@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.20.1 — 2026-04-22
+
+### Fixed
+
+- **Startup failures now report the real cause.** If something went
+  wrong while Media Centarr was booting — a port collision, a missing
+  config, a child that couldn't start — the log would often show a
+  misleading "could not lookup Ecto repo" error instead of the
+  underlying problem. The real failure is now the first (and only)
+  error you see in the journal.
+
 ## v0.20.0 — 2026-04-22
 
 ### Improved
