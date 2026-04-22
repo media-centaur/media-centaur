@@ -4,6 +4,30 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.20.0 — 2026-04-22
+
+### Improved
+
+- **The play button turns into an "Offline" indicator when the file's
+  storage isn't mounted.** Before, you could click play on content
+  whose drive was offline and the click would silently fail. The
+  button now disappears in favour of a muted pill the moment a watch
+  directory goes unavailable, matching the way images already become
+  placeholders for offline content. When the drive reconnects, the
+  play button returns automatically.
+
+### Fixed
+
+- **Playback failures now tell you what went wrong.** Clicking play
+  on a file mpv couldn't open — bad codec, stale mount, unreadable
+  file — used to silently do nothing: no window, no error. You now
+  get a flash message with the specific reason ("Failed to recognize
+  file format.", "Error opening input file", etc.), and when the
+  error looks like a missing file, a hint to check that your media
+  drive is mounted. mpv's own diagnostic output is also captured into
+  the Console drawer and the systemd journal, so playback issues are
+  now diagnosable after the fact without re-running.
+
 ## v0.19.0 — 2026-04-22
 
 ### New
