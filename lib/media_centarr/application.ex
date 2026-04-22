@@ -46,7 +46,7 @@ defmodule MediaCentarr.Application do
         {Task.Supervisor, name: MediaCentarr.TaskSupervisor},
         MediaCentarr.TMDB.RateLimiter,
         MediaCentarr.Watcher.Supervisor,
-        MediaCentarr.Images.Availability,
+        MediaCentarr.Library.Availability,
         MediaCentarr.Pipeline.Supervisor,
         MediaCentarr.Pipeline.Image.Supervisor,
         %{

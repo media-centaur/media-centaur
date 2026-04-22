@@ -14,10 +14,14 @@ defmodule MediaCentarr.Playback.MpvSession do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Format
-  alias MediaCentarr.Playback.{ProgressBroadcaster, SessionRegistry, WatchingTracker}
+  alias MediaCentarr.Playback.{MpvExitClassifier, ProgressBroadcaster, SessionRegistry, WatchingTracker}
 
   @db_write_interval_ms 10_000
   @socket_retry_interval_ms 200
+
+  # Brief window after the first exit signal (tcp_closed OR exit_status) to let
+  # the other signal and any final stderr chunks arrive before classifying.
+  @exit_debounce_ms 200
 
   defstruct [
     :session_id,
@@ -42,6 +46,10 @@ defmodule MediaCentarr.Playback.MpvSession do
     :socket_retries,
     :tracker,
     :started_at,
+    :exit_status,
+    seen_property_event?: false,
+    output_tail: [],
+    exiting?: false,
     state: :starting
   ]
 
@@ -157,6 +165,7 @@ defmodule MediaCentarr.Playback.MpvSession do
       [
         "--fullscreen",
         "--no-terminal",
+        "--msg-level=all=error",
         "--force-window=immediate",
         "--input-ipc-server=#{state.socket_path}"
       ] ++
@@ -167,6 +176,7 @@ defmodule MediaCentarr.Playback.MpvSession do
       Port.open({:spawn_executable, to_charlist(mpv_path)}, [
         :binary,
         :exit_status,
+        :stderr_to_stdout,
         args: flags
       ])
 
@@ -219,7 +229,9 @@ defmodule MediaCentarr.Playback.MpvSession do
       |> Jason.decode()
       |> case do
         {:ok, message} ->
-          handle_mpv_message(message, state)
+          state
+          |> flag_property_event(message)
+          |> then(&handle_mpv_message(message, &1))
 
         {:error, error} ->
           Log.warning(:playback, "IPC JSON decode failed — #{inspect(error)}")
@@ -232,17 +244,28 @@ defmodule MediaCentarr.Playback.MpvSession do
   # MPV socket closed
   def handle_info({:tcp_closed, _socket}, state) do
     Log.info(:playback, "socket closed")
-    {:stop, :normal, finalize(state)}
+    schedule_exit_classification(%{state | socket: nil})
   end
 
   # MPV process exited
   def handle_info({_port, {:exit_status, status}}, state) do
     Log.info(:playback, "mpv exited — status #{status}")
-    {:stop, :normal, finalize(state)}
+    schedule_exit_classification(%{state | exit_status: status})
   end
 
-  # Ignore MPV stdout/stderr output
-  def handle_info({_port, {:data, _data}}, state), do: {:noreply, state}
+  # MPV stdout+stderr (merged via :stderr_to_stdout). Captured into a
+  # bounded tail for later classification and logged live so failures
+  # are diagnosable in the Console / journal without re-running.
+  def handle_info({_port, {:data, data}}, state) do
+    log_mpv_lines(data)
+    {:noreply, %{state | output_tail: MpvExitClassifier.append_output(state.output_tail, data)}}
+  end
+
+  # Debounced classification — fires after the first exit signal gives
+  # both signals + any trailing output time to arrive.
+  def handle_info(:classify_and_finalize, state) do
+    {:stop, :normal, finalize_with_classification(state)}
+  end
 
   # Absorb EXIT messages from port link (required with trap_exit)
   def handle_info(_message, state), do: {:noreply, state}
@@ -554,4 +577,62 @@ defmodule MediaCentarr.Playback.MpvSession do
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp flag_property_event(state, %{"event" => "property-change"}),
+    do: %{state | seen_property_event?: true}
+
+  defp flag_property_event(state, _message), do: state
+
+  # --- Exit Classification ---
+
+  defp schedule_exit_classification(%{exiting?: true} = state), do: {:noreply, state}
+
+  defp schedule_exit_classification(state) do
+    Process.send_after(self(), :classify_and_finalize, @exit_debounce_ms)
+    {:noreply, %{state | exiting?: true}}
+  end
+
+  defp finalize_with_classification(state) do
+    classification =
+      MpvExitClassifier.classify(%{
+        seen_property_event?: state.seen_property_event?,
+        exit_status: state.exit_status,
+        output_tail: state.output_tail
+      })
+
+    case classification do
+      {:ok, :ended} ->
+        finalize(state)
+
+      {:error, :startup_failure, message} ->
+        Log.error(:playback, "mpv startup failure — #{message}")
+        broadcast_playback_failed(state, :startup_failure, message)
+        finalize(state)
+    end
+  end
+
+  defp broadcast_playback_failed(session, reason, message) do
+    Phoenix.PubSub.broadcast(
+      MediaCentarr.PubSub,
+      MediaCentarr.Topics.playback_events(),
+      {:playback_failed, session.entity_id, reason,
+       %{
+         message: message,
+         entity_name: session.entity_name,
+         season_number: session.season_number,
+         episode_number: session.episode_number,
+         episode_name: session.episode_name,
+         content_url: session.content_url
+       }}
+    )
+  end
+
+  defp log_mpv_lines(data) do
+    data
+    |> String.split("\n", trim: true)
+    |> Enum.each(fn line ->
+      trimmed = String.trim(line)
+      if trimmed != "", do: Log.info(:playback, "mpv: #{trimmed}")
+    end)
+  end
 end

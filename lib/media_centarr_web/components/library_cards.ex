@@ -16,7 +16,7 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   attr :entry, :map, required: true
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false
-  attr :images_available, :boolean, default: true
+  attr :available, :boolean, default: true
 
   def poster_card(assigns) do
     entity = assigns.entry.entity
@@ -43,13 +43,13 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
       <%!-- Poster --%>
       <div class="aspect-[2/3] glass-inset relative">
         <img
-          :if={@poster && @images_available}
+          :if={@poster && @available}
           src={@poster}
           class="w-full h-full object-cover"
           loading="lazy"
         />
         <div
-          :if={@poster && !@images_available}
+          :if={@poster && !@available}
           class="w-full h-full bg-base-content/5"
           aria-label="Artwork unavailable — storage not mounted"
         />
@@ -101,7 +101,7 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   attr :entry, :map, required: true
   attr :resume, :map, default: nil
   attr :playing, :boolean, default: false
-  attr :images_available, :boolean, default: true
+  attr :available, :boolean, default: true
 
   def cw_card(assigns) do
     entity = assigns.entry.entity
@@ -138,13 +138,13 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
     >
       <div class="aspect-video glass-inset relative">
         <img
-          :if={@background && @images_available}
+          :if={@background && @available}
           src={@background}
           class="w-full h-full object-cover"
           loading="lazy"
         />
         <div
-          :if={@background && !@images_available}
+          :if={@background && !@available}
           class="w-full h-full bg-base-content/5"
           aria-label="Artwork unavailable — storage not mounted"
         />
@@ -156,12 +156,12 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
 
         <div class="absolute bottom-4 left-4 right-4">
           <img
-            :if={@logo && @images_available}
+            :if={@logo && @available}
             src={@logo}
             class="max-h-14 max-w-[70%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)] mb-2"
           />
           <h3
-            :if={!@logo || !@images_available}
+            :if={!@logo || !@available}
             class="text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] mb-2"
           >
             {@entry.entity.name}
