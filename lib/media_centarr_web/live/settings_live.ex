@@ -1665,7 +1665,6 @@ defmodule MediaCentarrWeb.SettingsLive do
               name="prowlarr_url"
               value={@config[:prowlarr_url]}
               class="input input-bordered w-full font-mono text-sm"
-              placeholder="http://localhost:9696"
               data-nav-item
               tabindex="0"
             />
@@ -1782,7 +1781,6 @@ defmodule MediaCentarrWeb.SettingsLive do
               name="download_client_url"
               value={@download_client_display.url}
               class="input input-bordered w-full font-mono text-sm"
-              placeholder="http://localhost:8080"
               data-nav-item
               tabindex="0"
             />
@@ -2006,7 +2004,12 @@ defmodule MediaCentarrWeb.SettingsLive do
           <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
             Watch Directories
           </h3>
-          <button class="btn btn-soft btn-success btn-sm" phx-click="watch_dir:open_add">
+          <button
+            class="btn btn-soft btn-success btn-sm"
+            phx-click="watch_dir:open_add"
+            data-nav-item
+            tabindex="0"
+          >
             <.icon name="hero-plus" class="size-4" /> Add
           </button>
         </div>
@@ -2044,6 +2047,8 @@ defmodule MediaCentarrWeb.SettingsLive do
                 phx-click="watch_dir:open_edit"
                 phx-value-id={entry["id"]}
                 aria-label="Edit watch directory"
+                data-nav-item
+                tabindex="0"
               >
                 <.icon name="hero-pencil-square" class="size-4" />
               </button>
@@ -2052,10 +2057,17 @@ defmodule MediaCentarrWeb.SettingsLive do
                   class="btn btn-soft btn-error btn-sm"
                   phx-click="watch_dir:delete"
                   phx-value-id={entry["id"]}
+                  data-nav-item
+                  tabindex="0"
                 >
                   Confirm
                 </button>
-                <button class="btn btn-ghost btn-sm" phx-click="watch_dir:delete_cancel">
+                <button
+                  class="btn btn-ghost btn-sm"
+                  phx-click="watch_dir:delete_cancel"
+                  data-nav-item
+                  tabindex="0"
+                >
                   Cancel
                 </button>
               <% else %>
@@ -2064,6 +2076,8 @@ defmodule MediaCentarrWeb.SettingsLive do
                   phx-click="watch_dir:delete_confirm"
                   phx-value-id={entry["id"]}
                   aria-label="Remove watch directory"
+                  data-nav-item
+                  tabindex="0"
                 >
                   <.icon name="hero-trash" class="size-4" />
                 </button>
@@ -2097,6 +2111,8 @@ defmodule MediaCentarrWeb.SettingsLive do
               phx-value-path={path}
               data-confirm={"Remove #{path} from excluded directories?"}
               aria-label="Remove excluded directory"
+              data-nav-item
+              tabindex="0"
             >
               <.icon name="hero-trash" class="size-4" />
             </button>
@@ -2120,11 +2136,15 @@ defmodule MediaCentarrWeb.SettingsLive do
               placeholder="/absolute/path/to/exclude"
               class="library-filter flex-1"
               autocomplete="off"
+              data-nav-item
+              tabindex="0"
             />
             <button
               type="submit"
               class="btn btn-soft btn-success btn-sm shrink-0"
               disabled={exclude_dir_add_disabled?(@exclude_dir_input, @exclude_dir_error)}
+              data-nav-item
+              tabindex="0"
             >
               <.icon name="hero-plus" class="size-4" /> Add
             </button>

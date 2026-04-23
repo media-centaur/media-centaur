@@ -291,6 +291,18 @@ export function createDomWriter(config = {}) {
     },
 
     /**
+     * Project keyboard-source text-input edit mode onto <html>.
+     * Used by CSS to visually distinguish nav mode from edit mode.
+     */
+    setTextEditing(editing) {
+      if (editing) {
+        document.documentElement.dataset.inputEditing = "true"
+      } else {
+        delete document.documentElement.dataset.inputEditing
+      }
+    },
+
+    /**
      * Set inert attribute on elements matching selector (for focus trapping).
      */
     setInert(selector, value) {

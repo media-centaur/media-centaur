@@ -707,6 +707,17 @@ body:has(.modal-backdrop[data-state="open"]) {
   border-radius: 9999px;
 }
 
+/* Text-input edit-mode cue. Driven by data-input-editing on <html> — set
+   by KeyboardSource when arrow keys start typing instead of navigating.
+   A brighter ring + inner rim tells the user their keystrokes will land
+   in the field (Esc exits). */
+[data-input-editing="true"] input:focus,
+[data-input-editing="true"] textarea:focus {
+  box-shadow:
+    0 0 0 4px oklch(from var(--color-primary) l c h / 0.28),
+    inset 0 0 0 1px oklch(from var(--color-primary) l c h / 0.6);
+}
+
 /* ── Library Micro-Animations ──
    Subtle GPU-composited transitions (transform/opacity only) for polish. */
 

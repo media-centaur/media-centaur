@@ -25,7 +25,12 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
           <h2 class="text-2xl font-semibold">Controls</h2>
           <p class="text-base-content/60 mt-1">Customize keyboard and gamepad bindings.</p>
         </div>
-        <button phx-click="controls:reset_all" class="btn btn-sm btn-ghost">
+        <button
+          phx-click="controls:reset_all"
+          class="btn btn-sm btn-ghost"
+          data-nav-item
+          tabindex="0"
+        >
           Reset all to defaults
         </button>
       </div>
@@ -37,6 +42,8 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
             phx-click="controls:set_glyph"
             phx-value-style="xbox"
             class={"join-item btn btn-xs " <> if(@glyph_style == "xbox", do: "btn-primary", else: "btn-ghost")}
+            data-nav-item
+            tabindex="0"
           >
             Xbox
           </button>
@@ -44,6 +51,8 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
             phx-click="controls:set_glyph"
             phx-value-style="playstation"
             class={"join-item btn btn-xs " <> if(@glyph_style == "playstation", do: "btn-primary", else: "btn-ghost")}
+            data-nav-item
+            tabindex="0"
           >
             PlayStation
           </button>
@@ -64,6 +73,8 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
             phx-click="controls:reset_category"
             phx-value-category={Atom.to_string(category)}
             class="text-xs text-base-content/60 hover:text-primary"
+            data-nav-item
+            tabindex="0"
           >
             Reset {ControlsLogic.category_label(category)}
           </button>
@@ -104,6 +115,8 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
                 phx-value-kind="keyboard"
                 class="controls-icon-btn"
                 title="Remap key"
+                data-nav-item
+                tabindex="0"
               >
                 <.icon name="hero-pencil" class="w-4 h-4" />
               </button>
@@ -113,6 +126,8 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
                 phx-value-kind="keyboard"
                 class="controls-icon-btn danger"
                 title="Clear key"
+                data-nav-item
+                tabindex="0"
               >
                 <.icon name="hero-x-mark" class="w-4 h-4" />
               </button>
