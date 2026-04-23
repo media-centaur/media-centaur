@@ -92,6 +92,7 @@ export function createInputHook() {
             keyboardSource = new KeyboardSource({
               document: globals.document,
               keyMap,
+              onEditingChanged: (editing) => writer.setTextEditing(editing),
               ...callbacks,
             })
             return keyboardSource

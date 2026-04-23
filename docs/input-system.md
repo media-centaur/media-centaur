@@ -317,6 +317,7 @@ Actions in each context:
 | `data-nav-default-zone` | Default zone for pages without zone tabs | `settings` |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
+| `data-input-editing` | Text input is in edit mode (set on `<html>`) | `true` or absent |
 | `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
 | `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library`, `upcoming` |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
@@ -375,8 +376,10 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 
 Two modes for `<input>` and `<textarea>` elements:
 
-1. **Focused, not editing:** Arrow keys still navigate. Enter → edit mode. Printable chars → edit mode + pass through.
-2. **Editing:** All keys pass through. Enter → exit edit mode. Escape → clear value + exit edit mode.
+1. **Focused, not editing:** Arrow keys still navigate. Enter → edit mode. Printable chars → edit mode + pass through. Backspace / Delete on a non-empty input → edit mode + native delete. Backspace on an empty input → CLEAR (page-level clear filter). Escape on a non-empty input → clears the value; Escape on an empty input falls through to BACK.
+2. **Editing:** All keys pass through. Enter → exit edit mode (value preserved). Escape → exit edit mode (value preserved). A second Escape (now in Mode 1) clears the value.
+
+The mode is surfaced to CSS via `data-input-editing` on `<html>`. `KeyboardSource` owns the state and projects it through the `onEditingChanged` callback wired in `index.js` to `writer.setTextEditing()`. Focused inputs show a brighter ring in edit mode so users can see at a glance whether arrow keys will navigate or type.
 
 ## Sidebar Persistence
 
@@ -448,6 +451,7 @@ Each `data-*` attribute on `<html>` is a **projection** of exactly one piece of 
 | Attribute | State Owner | Sync Mechanism |
 |-----------|------------|----------------|
 | `data-input` | `InputMethodDetector.current` | `_onInputDetected` → `setInputMethod` |
+| `data-input-editing` | `KeyboardSource._inputEditing` | `onEditingChanged` → `setTextEditing` |
 | `data-nav-context` | `FocusContextMachine.context` | `onContextChanged` callback → `setNavContext` |
 | `data-gamepad-type` | `GamepadSource` controller detection | `setControllerType` on connect |
 | `data-sidebar` | `localStorage` | Inline script in `root.html.heex` |

@@ -187,7 +187,11 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
             Tracking
           </h3>
           <%= if @tracked_items != [] do %>
-            <div class="tracking-grid text-sm pl-3">
+            <div
+              data-nav-zone="grid"
+              data-nav-grid
+              class="tracking-grid text-sm pl-3"
+            >
               <.tracked_item_row :for={item <- @tracked_items} item={item} />
             </div>
           <% else %>
@@ -632,7 +636,15 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   defp tracked_item_row(assigns) do
     ~H"""
-    <div class="release-row group">
+    <div
+      role="button"
+      data-nav-item
+      tabindex="0"
+      phx-click="stop_tracking"
+      phx-value-item-id={@item.item_id}
+      class="release-row group cursor-pointer"
+      aria-label={"Stop tracking #{@item.name}"}
+    >
       <span class={[
         "text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded text-center min-w-10",
         @item.media_type == :tv_series && "bg-info/15 text-info",
@@ -642,14 +654,12 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       </span>
       <span class="font-medium truncate">{@item.name}</span>
       <span class="text-base-content/50 text-right">{@item.status_text}</span>
-      <button
-        phx-click="stop_tracking"
-        phx-value-item-id={@item.item_id}
-        class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Stop tracking"
+      <span
+        class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none"
+        aria-hidden="true"
       >
         <.icon name="hero-x-mark-mini" class="size-4" />
-      </button>
+      </span>
     </div>
     """
   end
