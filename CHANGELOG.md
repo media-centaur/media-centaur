@@ -4,6 +4,42 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.20.2 — 2026-04-22
+
+### Improved
+
+- **Text fields behave like ordinary text fields again.**
+  Backspace now deletes the character to the left of the
+  cursor instead of wiping the whole field, and Escape takes
+  two presses before it clears what you typed — the first
+  press just exits editing so you don't lose your work.
+  Focused text fields also show a brighter ring while you're
+  actively typing, so it's clear whether arrow keys will
+  move the cursor or navigate the page.
+- **No more misleading Prowlarr / download-client URL
+  suggestions.** Those fields used to show
+  `http://localhost:…` as placeholder text, which didn't
+  apply to most setups and led to accidental copy-paste.
+  The placeholders are gone — the fields are blank until
+  you fill them.
+
+### Fixed
+
+- **Settings → Controls is keyboard- and gamepad-navigable.**
+  The remap and clear buttons for every binding, the Reset
+  options, and the Xbox/PlayStation glyph toggles are all
+  reachable with arrow keys and the D-pad.
+- **Settings → Library watch and excluded directory lists
+  are navigable without a mouse.** The Add, Edit, Delete
+  (and Confirm/Cancel) buttons on those lists are
+  focusable, and the excluded-path input is part of the
+  focus order.
+- **Upcoming → Tracking rows accept keyboard and controller
+  input.** Each tracked show or movie can be focused
+  individually; press Enter (or A on the gamepad) to open
+  the stop-tracking confirmation instead of hovering the
+  row and clicking the X.
+
 ## v0.20.1 — 2026-04-22
 
 ### Fixed
