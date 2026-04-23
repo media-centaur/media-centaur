@@ -121,8 +121,10 @@ defmodule MediaCentarr.Config do
 
   @doc """
   Updates a single runtime-settable config key: stores the new value in
-  `:persistent_term` immediately (for zero-restart effect) and persists
-  it to the Settings database so it survives restarts.
+  `:persistent_term` immediately (for zero-restart effect), persists it
+  to the Settings database so it survives restarts, and broadcasts
+  `{:config_updated, key, value}` on the config topic so subscribers can
+  refresh any derived caches.
   """
   def update(key, value)
       when key in [
@@ -151,6 +153,12 @@ defmodule MediaCentarr.Config do
       key: "config:#{key}",
       value: %{"value" => value}
     })
+
+    Phoenix.PubSub.broadcast(
+      MediaCentarr.PubSub,
+      MediaCentarr.Topics.config_updates(),
+      {:config_updated, key, value}
+    )
 
     :ok
   end
