@@ -42,6 +42,10 @@ graph TD
 
 **Completion threshold:** 90% of duration. Completion is monotonic — once marked complete, it never regresses.
 
+**Offline state:** `Library.Availability` tracks per-watch-directory mount/reachability. When a file's watch directory is unavailable, UI cards and the detail panel swap the **Play** button for a muted **Offline** indicator. The indicator clears automatically when availability restores — no LiveView reload needed.
+
+**Error surfacing:** mpv exit codes are classified by `MpvExitClassifier` into user-actionable categories (bad format, missing file, unreadable input, generic). MpvSession attaches the classification to the flash message the UI shows, and pipes mpv's full stderr through `ProgressBroadcaster` into the Console drawer (`:playback` filter) and the systemd journal for post-mortem inspection.
+
 **Resume algorithm:** `Resume.resolve/2` determines what to play next:
 
 ```mermaid
@@ -169,3 +173,5 @@ After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentarr.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centarr/playback/progress_summary.ex` |
 | `MediaCentarr.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centarr/playback/resume_target.ex` |
 | `MediaCentarr.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centarr/playback/watching_tracker.ex` |
+| `MediaCentarr.Playback.MpvExitClassifier` | Classifies mpv exit output into actionable error categories | `lib/media_centarr/playback/mpv_exit_classifier.ex` |
+| `MediaCentarr.Playback.ProgressBroadcaster` | Fan-out of progress + diagnostic output to PubSub and thinking logs | `lib/media_centarr/playback/progress_broadcaster.ex` |
