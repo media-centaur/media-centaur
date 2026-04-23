@@ -4,6 +4,25 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.21.0 — 2026-04-24
+
+### Fixed
+
+- **The file watcher no longer crashes when you create
+  or modify an excluded directory.** If you had an
+  excluded folder (for example, a Captures dir) inside
+  a watch directory, creating or touching that folder
+  could silently kill the watcher so new media files
+  stopped being detected until the app restarted. The
+  watcher now handles those events cleanly.
+
+### Improved
+
+- **Changes to your excluded-directory list take effect
+  immediately.** Adding or removing an entry in
+  Settings → Library no longer requires a restart —
+  the watcher picks up the change as soon as you save.
+
 ## v0.20.2 — 2026-04-22
 
 ### Improved
