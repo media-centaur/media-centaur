@@ -60,9 +60,17 @@ stateDiagram-v2
 ## Configuration
 
 - `watch_dirs` — directories to monitor (see [configuration.md](configuration.md))
-- `exclude_dirs` — directories to skip (absolute paths)
+- `exclude_dirs` — paths inside a watch directory to skip (absolute paths)
+
+Both are DB-managed since v0.14.0 / v0.15.0 — edits happen in **Settings → Library** and flow through `Settings` to the watchers without a restart. The TOML only holds `port` and `database_path`.
 
 Each watcher also auto-excludes its own images directory and staging directory.
+
+### Runtime config updates
+
+When watch dirs or excluded dirs change, `Settings` broadcasts `:config_updated` on the `config:updates` topic. `Watcher.ConfigListener` translates that broadcast into targeted messages for each running `Watcher` (e.g. `{:config_updated, :exclude_dirs, new_list}`), which the watcher applies in place — no supervisor restart, no inotify teardown. This is what makes v0.21.0's "changes to your excluded-directory list take effect immediately" work.
+
+The v0.21.0 crash fix lives in the same path: previously, creating or modifying an excluded directory could trip an unhandled message and kill the watcher; the handler now treats events for excluded paths as no-ops.
 
 ## How It Works
 
@@ -108,3 +116,10 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Superviso
 |--------|-------------|------|
 | `MediaCentarr.Watcher` | Per-directory GenServer, inotify + PubSub | `lib/media_centarr/watcher.ex` |
 | `MediaCentarr.Watcher.Supervisor` | Coordinates all watchers, scan/pause API | `lib/media_centarr/watcher/supervisor.ex` |
+| `MediaCentarr.Watcher.FilePresence` | Top-level GenServer tracking in-memory file presence across all watchers | `lib/media_centarr/watcher/file_presence.ex` |
+| `MediaCentarr.Watcher.ConfigListener` | Subscribes to `config:updates` and routes changes to each watcher | `lib/media_centarr/watcher/config_listener.ex` |
+| `MediaCentarr.Watcher.ExcludeDirs` | Pure helpers for computing effective exclude lists | `lib/media_centarr/watcher/exclude_dirs.ex` |
+| `MediaCentarr.Watcher.DirMonitor` | Supervises image-dir availability monitors | `lib/media_centarr/watcher/dir_monitor.ex` |
+| `MediaCentarr.Watcher.DirValidator` | Dialog-time path validation (exists / readable / not nested) | `lib/media_centarr/watcher/dir_validator.ex` |
+| `MediaCentarr.Watcher.Reconciler` | Startup reconciliation against persisted state | `lib/media_centarr/watcher/reconciler.ex` |
+| `MediaCentarr.Watcher.KnownFile` | Struct + helpers for the per-directory known-file set | `lib/media_centarr/watcher/known_file.ex` |

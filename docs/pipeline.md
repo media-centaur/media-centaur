@@ -1,7 +1,5 @@
 # Pipeline Architecture
 
-> **Last updated:** 2026-04-05
-
 The media manager processes video files through three Broadway pipelines: **Discovery**, **Import**, and **Image**. All cross-pipeline communication uses PubSub events — no direct function calls.
 
 For the data format produced at the end of the pipeline, see [`DATA-FORMAT.md`](specs/DATA-FORMAT.md). For image handling, see [`IMAGE-CACHING.md`](specs/IMAGE-CACHING.md).
@@ -34,8 +32,8 @@ inotify + scan               high confidence → matched       → publish entit
 |-------|----------|----------|---------|
 | `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, watch_dir}}` |
 | `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, watch_dir, tmdb_id, tmdb_type, pending_file_id}}` |
-| `pipeline:publish` | Import (Ingest stage), ImagePipeline | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
-| `pipeline:images` | Library.Inbound | ImagePipeline.Producer | `{:images_pending, %{entity_id, watch_dir}}` |
+| `pipeline:publish` | Import (Ingest stage), Pipeline.Image | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
+| `pipeline:images` | Library.Inbound | Pipeline.Image.Producer | `{:images_pending, %{entity_id, watch_dir}}` |
 | `review:intake` | Discovery, Import | Review.Intake | `{:needs_review, attrs}`, `{:review_completed, id}`, `{:files_for_review, files}` |
 | `review:updates` | Review.Intake | LiveViews | `{:file_added, id}`, `{:file_reviewed, id}` |
 | `library:updates` | Library.Inbound, Watcher | LiveViews, Channels | `{:entities_changed, entity_ids}` |
@@ -109,22 +107,22 @@ If the file came from review approval, Import also broadcasts `{:review_complete
 
 ## Image Pipeline
 
-**Module:** `MediaCentarr.ImagePipeline`
+**Module:** `MediaCentarr.Pipeline.Image`
 
 Downloads and processes artwork asynchronously after entity creation.
 
 **Configuration:**
-- Producer: PubSub subscriber to `"pipeline:images"`; dispatches queue entries as Broadway messages
-- Processors: 4 concurrent (moderate to avoid TMDB CDN hammering)
+- Producer: `Pipeline.Image.Producer`, PubSub subscriber to `"pipeline:images"`; dispatches queue entries as Broadway messages
+- Processors: **8 concurrent** (TMDB's CDN tolerates well above core count; bumped from 4 in v0.18.1 to roughly halve backfill time)
 - Batcher: 1, batch size 20, timeout 5s (collects completed downloads for one `library:updates` broadcast per batch)
 
 **Processing flow:**
 1. Producer pulls pending entries from `pipeline_image_queue` on `{:images_pending, ...}` events
-2. Processor downloads and resizes in one step via `ImageProcessor.download_and_resize/3` (target dimensions per role: poster, backdrop, logo, thumb)
+2. Processor downloads and resizes in one step via `Pipeline.ImageProcessor.download_and_resize/3` (target dimensions per role: poster, backdrop, logo, thumb). The download itself is delegated to `MediaCentarr.Images`, the shared download+resize facade — see [`specs/IMAGE-CACHING.md`](../specs/IMAGE-CACHING.md).
 3. Writes the resized image to disk under the entity's image directory
 4. Batcher marks queue entries `:complete`, broadcasts `{:image_ready, attrs}` to `"pipeline:publish"` (→ `Library.Inbound` creates/updates `Library.Image` records), and calls `Library.broadcast_entities_changed/1` so LiveViews see the new artwork
 
-**Failure handling:** `handle_failed/2` classifies failures as `:permanent` (4xx responses, malformed URLs — marks the queue entry `:permanent`, never retries) or `:transient` (network errors, 5xx — delegates to `ImageQueue.mark_failed/1`, which `ImagePipeline.RetryScheduler` picks up on its next tick).
+**Failure handling:** `handle_failed/2` classifies failures as `:permanent` (4xx responses, malformed URLs — marks the queue entry `:permanent`, never retries) or `:transient` (network errors, 5xx — delegates to `ImageQueue.mark_failed/1`, which `Pipeline.Image.RetryScheduler` picks up on its next tick).
 
 **Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Entries are created by `Library.Inbound` after entity creation.
 
@@ -151,16 +149,16 @@ MediaCentarr.Supervisor
 │   ├── Pipeline.Stats (telemetry)
 │   ├── Pipeline.Discovery (Broadway)
 │   └── Pipeline.Import (Broadway)
-├── ImagePipeline.Supervisor (:rest_for_one)
-│   ├── ImagePipeline.Stats (telemetry — separate from Pipeline.Stats)
-│   ├── ImagePipeline (Broadway)
-│   └── ImagePipeline.RetryScheduler
+├── Pipeline.Image.Supervisor (:rest_for_one)
+│   ├── Pipeline.Image.Stats (telemetry — separate from Pipeline.Stats)
+│   ├── Pipeline.Image (Broadway)
+│   └── Pipeline.Image.RetryScheduler
 └── ...
 ```
 
 If Stats crashes, the pipelines in its supervisor restart (clean telemetry re-attach). Pipeline crashes do not affect Stats.
 
-`ImagePipeline.RetryScheduler` periodically retries transient image download failures (network errors, CDN hiccups). Permanent failures (4xx responses, invalid URLs) are marked once and never retried — see `handle_failed/2` in `ImagePipeline`.
+`Pipeline.Image.RetryScheduler` periodically retries transient image download failures (network errors, CDN hiccups). Permanent failures (4xx responses, invalid URLs) are marked once and never retried — see `handle_failed/2` in `Pipeline.Image`.
 
 Watchers and pipelines can be independently stopped/started via config (`start_watchers`, `start_pipeline`).
 

@@ -56,15 +56,7 @@ Key points for image caching:
 
 ## Directory Structure
 
-Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centarr/images/`. Users can override this per watch directory in the TOML config.
-
-```toml
-# Per-watch-directory image caches
-watch_dirs = [
-  { dir = "/mnt/videos/Movies", images_dir = "/mnt/videos/.media-centarr/images" },
-  { dir = "/mnt/nas/TV" },  # defaults to /mnt/nas/TV/.media-centarr/images
-]
-```
+Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centarr/images/`. Users can override this per watch directory from the UI — **Settings → Library → Watch Directories** exposes an advanced *images directory* field on each entry for putting the artwork cache on a separate volume (e.g. SSD). Watch directories are DB-managed since v0.14.0; the TOML is not consulted for them.
 
 ```
 /mnt/videos/.media-centarr/
@@ -88,7 +80,7 @@ watch_dirs = [
 - One subdirectory per owner (entity, child movie, or episode), named by the owner's UUID.
 - Filename is `{role}.{ext}` — extension matches the source format (`.jpg` or `.png`).
 - The database stores relative paths (`{uuid}/{role}.{ext}`). The serializer resolves to absolute filesystem paths when needed.
-- Staging directories for in-progress downloads are created at `{images_dir}/../tmp-image-download/` and cleaned up after pipeline completion and on application startup.
+- Staging directories for in-progress downloads are created at `{images_dir}/partial-downloads/` (inside the image cache, not alongside it) and cleaned up after pipeline completion and on application startup. See `MediaCentarr.Config.staging_base_for/1`.
 
 ---
 
@@ -104,7 +96,14 @@ The manager app uses these patterns when downloading images:
 | Backdrop | `https://image.tmdb.org/t/p/original/{backdrop_path}` |
 | Logo | `https://image.tmdb.org/t/p/original/{logo_path}` |
 
-`{poster_path}` etc. come from the TMDB API response (e.g. `/1E5baAaEse26fej7uHcjOgEE2t2.jpg`). Resize targets per role are implemented in `MediaCentarr.Pipeline.ImageProcessor`.
+`{poster_path}` etc. come from the TMDB API response (e.g. `/1E5baAaEse26fej7uHcjOgEE2t2.jpg`).
+
+All image downloads — whether driven by the Pipeline (`MediaCentarr.Pipeline.ImageProcessor`) or by `ReleaseTracking.ImageStore` — go through the shared `MediaCentarr.Images` facade:
+
+- `Images.download/3` — download + resize via libvips. Used for poster / backdrop / logo / thumb where the on-disk size must match the target role.
+- `Images.download_raw/2` — raw bytes without processing. Used where a downstream consumer needs the unmodified source.
+
+No caller writes an HTTP download inline. Resize targets per role are defined in `MediaCentarr.Pipeline.ImageProcessor`.
 
 **Video Objects:** No standard source. User-provided thumbnails or frames extracted from video.
 

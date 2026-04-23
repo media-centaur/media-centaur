@@ -32,12 +32,27 @@ graph LR
 
 ## Configuration
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `tmdb.api_key` | `""` | TMDB API key ([get one here](https://www.themoviedb.org/settings/api)) |
-| `pipeline.auto_approve_threshold` | `0.85` | Minimum confidence score for auto-approval |
+Both values are **DB-managed** as of v0.14.0 / v0.15.0. They are edited in **Settings → TMDB** and persisted via `MediaCentarr.Settings.Entry`; the TOML file no longer carries them. `MediaCentarr.Config.get/1` reads the DB under the hood.
 
-See [configuration.md](configuration.md) for the full config reference.
+| Key (via `Config.get/1`) | Default | Description |
+|--------------------------|---------|-------------|
+| `:tmdb_api_key` | `nil` | TMDB API key ([get one here](https://www.themoviedb.org/settings/api)) |
+| `:auto_approve_threshold` | `0.85` | Minimum confidence score for auto-approval |
+
+See [configuration.md](configuration.md) for the full DB-managed config reference.
+
+## Capability gating
+
+UI surfaces that depend on TMDB — **Rematch** in the detail view, **Search TMDB** in Review, and **Track New Releases** under Release Tracking — only appear once `MediaCentarr.Capabilities.tmdb_ready?/0` returns `true`. That predicate is true when:
+
+1. An API key is configured.
+2. The most recently persisted **Test connection** result was `:ok`.
+
+Saving any field in the TMDB section clears the stored test result, so the UI collapses back to the "please test" state until the user re-verifies. The test-connection button and its result storage live under `MediaCentarr.Capabilities.save_test_result/2` + `load_test_result/1`, with a broadcast on `capabilities:updates` so subscribed LiveViews refresh in place.
+
+When adding a new TMDB-dependent feature, render its affordance behind `Capabilities.tmdb_ready?/0` rather than directly checking key presence — that's the only way to pick up the "configured but untested" state correctly.
+
+TMDB is consumed by three contexts: the Pipeline (Discovery + Import + Image downloads), `ReleaseTracking.Refresher`, and `Review.Rematch`. Capability readiness applies to all three.
 
 ## How It Works
 
