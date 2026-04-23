@@ -38,6 +38,7 @@ defmodule MediaCentarr.Watcher do
   alias MediaCentarr.Library.WatchedFile
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
+  alias MediaCentarr.Watcher.ExcludeDirs
   alias MediaCentarr.Watcher.FilePresence
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
@@ -53,7 +54,8 @@ defmodule MediaCentarr.Watcher do
     was_unavailable: false,
     pending_files: %{},
     deletion_buffer: %{},
-    skip_dirs: []
+    skip_dirs: [],
+    exclude_dirs: %ExcludeDirs.Prepared{entries: []}
   ]
 
   def start_link(dir) do
@@ -89,8 +91,14 @@ defmodule MediaCentarr.Watcher do
   def init(dir) do
     Process.flag(:trap_exit, true)
     send(self(), :start_watching)
+    :ok = MediaCentarr.Config.subscribe()
 
-    {:ok, %__MODULE__{dir: dir, skip_dirs: load_skip_dirs()}}
+    {:ok,
+     %__MODULE__{
+       dir: dir,
+       skip_dirs: load_skip_dirs(),
+       exclude_dirs: ExcludeDirs.prepare(load_exclude_dirs(dir))
+     }}
   end
 
   @impl true
@@ -99,9 +107,10 @@ defmodule MediaCentarr.Watcher do
 
   def handle_call(:scan, from, state) do
     dir = state.dir
+    exclude_dirs = state.exclude_dirs
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      count = scan_directory(dir)
+      count = scan_directory(dir, exclude_dirs)
       GenServer.reply(from, {:ok, count})
     end)
 
@@ -148,14 +157,14 @@ defmodule MediaCentarr.Watcher do
         {:noreply, %{state | state: :unavailable, was_unavailable: true}}
 
       (:created in events or :modified in events) and video_file?(path) and
-        not excluded?(path, load_exclude_dirs(state.dir)) and
+        not ExcludeDirs.excluded?(path, state.exclude_dirs) and
           not in_skip_dir?(path, state.skip_dirs) ->
         Log.info(:watcher, "detected file event — #{Path.basename(path)}, checking size")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
       :deleted in events and video_file?(path) and
-        not excluded?(path, load_exclude_dirs(state.dir)) and
+        not ExcludeDirs.excluded?(path, state.exclude_dirs) and
           not in_skip_dir?(path, state.skip_dirs) ->
         {:noreply, buffer_deletion(state, path)}
 
@@ -216,9 +225,10 @@ defmodule MediaCentarr.Watcher do
 
   def handle_info({:auto_scan, opts}, state) do
     dir = state.dir
+    exclude_dirs = state.exclude_dirs
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      scan_directory(dir, opts)
+      scan_directory(dir, exclude_dirs, opts)
     end)
 
     {:noreply, state}
@@ -228,6 +238,12 @@ defmodule MediaCentarr.Watcher do
     send(self(), {:auto_scan, recovery: false})
     {:noreply, state}
   end
+
+  def handle_info({:config_updated, :exclude_dirs, _entries}, state) do
+    {:noreply, refresh_exclude_dirs(state)}
+  end
+
+  def handle_info({:config_updated, _key, _value}, state), do: {:noreply, state}
 
   def handle_info(:flush_deletions, state) do
     if map_size(state.deletion_buffer) > 0 do
@@ -274,22 +290,21 @@ defmodule MediaCentarr.Watcher do
     %{state | deletion_buffer: buffer, deletion_timer: timer}
   end
 
-  defp scan_directory(dir, opts \\ []) do
+  defp scan_directory(dir, %ExcludeDirs.Prepared{} = exclude_dirs, opts \\ []) do
     recovery = Keyword.get(opts, :recovery, false)
     Log.info(:watcher, "scanning #{dir}#{if recovery, do: " (recovery)", else: ""}")
 
     known_paths = FilePresence.known_file_paths(dir)
-    scan_directory_with_paths(dir, known_paths, recovery: recovery)
+    scan_directory_with_paths(dir, exclude_dirs, known_paths, recovery: recovery)
   end
 
-  defp scan_directory_with_paths(dir, known_paths, opts) do
+  defp scan_directory_with_paths(dir, %ExcludeDirs.Prepared{} = exclude_dirs, known_paths, opts) do
     start_time = System.monotonic_time()
-    exclude_dirs = load_exclude_dirs(dir)
     skip_dirs = load_skip_dirs()
 
     video_files =
       dir
-      |> walk_files(prepare_excludes(exclude_dirs), skip_dirs)
+      |> walk_files(exclude_dirs, skip_dirs)
       |> Enum.filter(&video_file?/1)
 
     new_files = Enum.reject(video_files, fn path -> MapSet.member?(known_paths, path) end)
@@ -384,6 +399,10 @@ defmodule MediaCentarr.Watcher do
     |> Enum.any?(fn component -> String.downcase(component) in skip_dirs end)
   end
 
+  defp refresh_exclude_dirs(state) do
+    %{state | exclude_dirs: ExcludeDirs.prepare(load_exclude_dirs(state.dir))}
+  end
+
   defp load_exclude_dirs(watch_dir) do
     configured = MediaCentarr.Config.get(:exclude_dirs) || []
     images_dir = MediaCentarr.Config.images_dir_for(watch_dir)
@@ -395,16 +414,16 @@ defmodule MediaCentarr.Watcher do
     Enum.uniq(configured ++ auto_excludes)
   end
 
-  defp walk_files(dir, prepared_excludes, skip_dirs) do
+  defp walk_files(dir, exclude_dirs, skip_dirs) do
     case File.ls(dir) do
       {:ok, entries} ->
         Enum.flat_map(entries, fn entry ->
           path = Path.join(dir, entry)
 
           cond do
-            excluded?(path, prepared_excludes) -> []
+            ExcludeDirs.excluded?(path, exclude_dirs) -> []
             File.dir?(path) and String.downcase(entry) in skip_dirs -> []
-            File.dir?(path) -> walk_files(path, prepared_excludes, skip_dirs)
+            File.dir?(path) -> walk_files(path, exclude_dirs, skip_dirs)
             true -> [path]
           end
         end)
@@ -412,20 +431,6 @@ defmodule MediaCentarr.Watcher do
       {:error, _} ->
         []
     end
-  end
-
-  # Builds {dir, dir_with_trailing_slash} tuples once per scan so the
-  # per-file `excluded?/2` check doesn't rebuild `dir <> "/"` on every
-  # call. `walk_files/3` is O(files × excludes), so concatenating in
-  # the inner loop dominates for deep trees.
-  defp prepare_excludes(exclude_dirs) do
-    Enum.map(exclude_dirs, fn dir -> {dir, dir <> "/"} end)
-  end
-
-  defp excluded?(path, prepared_excludes) do
-    Enum.any?(prepared_excludes, fn {dir, dir_slash} ->
-      path == dir or String.starts_with?(path, dir_slash)
-    end)
   end
 
   defp broadcast_state(dir, internal_state) do
