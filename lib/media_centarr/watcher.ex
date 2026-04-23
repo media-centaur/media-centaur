@@ -240,7 +240,10 @@ defmodule MediaCentarr.Watcher do
   end
 
   def handle_info({:config_updated, :exclude_dirs, _entries}, state) do
-    {:noreply, refresh_exclude_dirs(state)}
+    state = refresh_exclude_dirs(state)
+    count = length(state.exclude_dirs.entries)
+    Log.info(:watcher, "exclude_dirs refreshed — #{count} entries (#{state.dir})")
+    {:noreply, state}
   end
 
   def handle_info({:config_updated, _key, _value}, state), do: {:noreply, state}
