@@ -4,6 +4,22 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.3 — 2026-04-24
+
+Documentation / marketing release — no code changes affect the installed
+app's behavior.
+
+### Improved
+
+- **Landing page and wiki now showcase the Upcoming zone and the
+  Download page properly.** The Release Tracking screenshot on the
+  project site and wiki now captures `/?zone=upcoming` with a real
+  calendar of announced upcoming films and TV (Sample Movie Thirteen Part Three,
+  Avengers: Doomsday, Stranger Things, Sample Show Nine, etc.)
+  instead of a Recent-Changes proxy. The Download screenshot shows
+  a live queue of downloads and the search screenshot shows results
+  for a public-domain title.
+
 ## v0.22.2 — 2026-04-24
 
 ### Improved
