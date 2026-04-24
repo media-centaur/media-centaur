@@ -103,10 +103,14 @@ defmodule MediaCentarr.Config do
   def load_runtime_overrides do
     config = :persistent_term.get({__MODULE__, :config})
 
+    keys = runtime_settable_keys()
+    lookup_keys = Enum.map(keys, &"config:#{&1}")
+    entries = MediaCentarr.Settings.get_by_keys(lookup_keys)
+
     updated =
-      Enum.reduce(runtime_settable_keys(), config, fn key, acc ->
-        case MediaCentarr.Settings.get_by_key("config:#{key}") do
-          {:ok, %{value: %{"value" => value}}} -> Map.put(acc, key, maybe_wrap(key, value))
+      Enum.reduce(keys, config, fn key, acc ->
+        case Map.get(entries, "config:#{key}") do
+          %{value: %{"value" => value}} -> Map.put(acc, key, maybe_wrap(key, value))
           _ -> acc
         end
       end)
