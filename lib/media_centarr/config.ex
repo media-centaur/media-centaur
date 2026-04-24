@@ -23,7 +23,16 @@ defmodule MediaCentarr.Config do
 
   alias MediaCentarr.Secret
 
-  @default_config_path "~/.config/media-centarr/media-centarr.toml"
+  # Compile-time per-env default. `config/dev.exs` points at the dev
+  # TOML so `iex -S mix phx.server` doesn't accidentally read the
+  # installed production config and bind its port. `config/test.exs`
+  # points at a sentinel path that the test suite asserts on. Prod
+  # builds fall back to the XDG default.
+  @default_config_path Application.compile_env(
+                         :media_centarr,
+                         :default_config_path,
+                         "~/.config/media-centarr/media-centarr.toml"
+                       )
 
   @sensitive_keys [:tmdb_api_key, :prowlarr_api_key, :download_client_password]
 

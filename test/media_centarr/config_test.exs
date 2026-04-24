@@ -169,9 +169,14 @@ defmodule MediaCentarr.ConfigTest do
       :ok
     end
 
-    test "returns default XDG path when MEDIA_CENTARR_CONFIG_OVERRIDE is unset" do
+    test "returns compile-time default when MEDIA_CENTARR_CONFIG_OVERRIDE is unset" do
       System.delete_env("MEDIA_CENTARR_CONFIG_OVERRIDE")
-      assert Config.config_path() == Path.expand("~/.config/media-centarr/media-centarr.toml")
+      # config/test.exs sets :default_config_path — proves per-env
+      # routing works. In dev builds that same key points at the dev
+      # TOML so `iex -S mix phx.server` never accidentally binds the
+      # prod port.
+      assert Config.config_path() ==
+               Path.expand("~/.config/media-centarr/media-centarr-test.toml")
     end
 
     test "returns override path when set" do
@@ -181,7 +186,9 @@ defmodule MediaCentarr.ConfigTest do
 
     test "treats empty string as unset" do
       System.put_env("MEDIA_CENTARR_CONFIG_OVERRIDE", "")
-      assert Config.config_path() == Path.expand("~/.config/media-centarr/media-centarr.toml")
+
+      assert Config.config_path() ==
+               Path.expand("~/.config/media-centarr/media-centarr-test.toml")
     end
   end
 
