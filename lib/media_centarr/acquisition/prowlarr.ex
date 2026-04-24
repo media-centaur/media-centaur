@@ -69,9 +69,13 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
   end
 
   defp build_client do
-    url = MediaCentarr.Config.get(:prowlarr_url)
-    api_key = MediaCentarr.Secret.expose(MediaCentarr.Config.get(:prowlarr_api_key))
-    Req.new(base_url: url, headers: [{"x-api-key", api_key}])
+    if MediaCentarr.Config.get(:showcase_mode) do
+      Req.new(plug: &MediaCentarr.Showcase.Stubs.prowlarr_plug/1)
+    else
+      url = MediaCentarr.Config.get(:prowlarr_url)
+      api_key = MediaCentarr.Secret.expose(MediaCentarr.Config.get(:prowlarr_api_key))
+      Req.new(base_url: url, headers: [{"x-api-key", api_key}])
+    end
   end
 
   @impl true
