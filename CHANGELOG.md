@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.6 — 2026-04-25
+
+### Improved
+
+- **Missing image artwork now degrades gracefully.** When a poster,
+  backdrop, logo, or episode thumbnail isn't on disk — partial
+  download, unmounted storage, mid-flight cleanup — the UI shows a
+  subtle dark tile shaped to the correct aspect ratio (2:3 for
+  posters, 16:9 for backdrops/thumbnails, 4:1 for logos) instead of
+  the browser's native broken-image glyph. Your library grid stays
+  aligned through any transient image-cache state.
+
 ## v0.22.5 — 2026-04-24
 
 Documentation / marketing release — no code changes affect the
