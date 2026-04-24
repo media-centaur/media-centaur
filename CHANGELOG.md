@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.5 — 2026-04-24
+
+Documentation / marketing release — no code changes affect the
+installed app's behavior.
+
+### Improved
+
+- **Screenshots on the landing page, README, and wiki now link to
+  4K-resolution versions.** Click any screenshot to open a crisp
+  3840-pixel-wide capture of the same view in a new tab. A small
+  "4K" badge appears on hover on the marketing site to confirm the
+  linkout. The screenshot tour (`scripts/screenshot-tour`) now
+  dual-renders both variants in a single run.
+
 ## v0.22.4 — 2026-04-24
 
 Documentation / marketing release — no code changes affect the
