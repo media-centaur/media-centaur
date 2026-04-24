@@ -30,6 +30,9 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 <img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%">
 
 <img src="docs-site/assets/screenshots/library-detail-tv.png" alt="TV series detail with episode list" width="48%">
+<img src="docs-site/assets/screenshots/review-queue.png" alt="Review queue — pending files with confidence scores" width="48%">
+
+<img src="docs-site/assets/screenshots/download.png" alt="Download page — Prowlarr-backed search with brace-expansion syntax" width="48%">
 <img src="docs-site/assets/screenshots/settings-overview.png" alt="Settings overview" width="48%">
 
 </div>
