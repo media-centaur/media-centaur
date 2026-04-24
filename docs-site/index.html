@@ -166,42 +166,6 @@
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 14px;
         overflow: hidden;
-        position: relative;
-      }
-      .shot-link {
-        display: block;
-        position: relative;
-        cursor: zoom-in;
-      }
-      .shot-link::after {
-        content: "4K";
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: rgba(5, 7, 12, 0.7);
-        color: rgba(246, 237, 220, 0.85);
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(6px);
-        opacity: 0;
-        transform: translateY(-4px);
-        transition:
-          opacity 180ms ease,
-          transform 180ms ease;
-        pointer-events: none;
-      }
-      .shot-frame:hover .shot-link::after,
-      .shot-link:focus-visible::after {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .shot-link:focus-visible {
-        outline: 2px solid rgba(111, 168, 255, 0.8);
-        outline-offset: 2px;
       }
 
       /* Install box */
@@ -445,22 +409,14 @@
 
           <div class="mt-10 grid gap-6 md:grid-cols-2">
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/library-grid.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the library grid screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-grid.png"
-                  alt="Library grid — a wall of poster artwork for the curated showcase catalog"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/library-grid.png"
+                alt="Library grid — a wall of poster artwork for the curated showcase catalog"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -468,22 +424,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/library-detail-movie.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the movie detail screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-detail-movie.png"
-                  alt="Movie detail modal — backdrop, poster, and metadata for Nosferatu (1922)"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/library-detail-movie.png"
+                alt="Movie detail modal — backdrop, poster, and metadata for Nosferatu (1922)"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -491,22 +439,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/library-detail-tv.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the TV series detail screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-detail-tv.png"
-                  alt="TV series detail — seasons and episode list with per-episode thumbnails"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/library-detail-tv.png"
+                alt="TV series detail — seasons and episode list with per-episode thumbnails"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -514,22 +454,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/library-detail-tv-pioneer.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the Pioneer One series detail screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-detail-tv-pioneer.png"
-                  alt="TV series detail for indie content — Pioneer One with tasteful placeholder thumbnails"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/library-detail-tv-pioneer.png"
+                alt="TV series detail for indie content — Pioneer One with tasteful placeholder thumbnails"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -537,22 +469,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/settings-overview.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the settings overview screenshot"
-              >
-                <img
-                  src="assets/screenshots/settings-overview.png"
-                  alt="Settings — configuration surface for library, TMDB, pipeline, playback, and system"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/settings-overview.png"
+                alt="Settings — configuration surface for library, TMDB, pipeline, playback, and system"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -560,22 +484,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/review-queue.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the review queue screenshot"
-              >
-                <img
-                  src="assets/screenshots/review-queue.png"
-                  alt="Review queue — pending files awaiting metadata confirmation"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/review-queue.png"
+                alt="Review queue — pending files awaiting metadata confirmation"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -583,22 +499,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/status.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the status page screenshot"
-              >
-                <img
-                  src="assets/screenshots/status.png"
-                  alt="Status page — pipeline health, watcher state, and live metrics"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/status.png"
+                alt="Status page — pipeline health, watcher state, and live metrics"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -606,22 +514,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/history.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the watch history screenshot"
-              >
-                <img
-                  src="assets/screenshots/history.png"
-                  alt="Watch history — recent playback events across the library"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/history.png"
+                alt="Watch history — recent playback events across the library"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -629,22 +529,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/download.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the download page screenshot"
-              >
-                <img
-                  src="assets/screenshots/download.png"
-                  alt="Download page — Prowlarr-backed search with brace-expansion syntax and a live download queue"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/download.png"
+                alt="Download page — Prowlarr-backed search with brace-expansion syntax and a live download queue"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
@@ -652,22 +544,14 @@
               </figcaption>
             </figure>
             <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="assets/screenshots/4k/release-tracking.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the release tracking screenshot"
-              >
-                <img
-                  src="assets/screenshots/release-tracking.png"
-                  alt="Release Tracking — calendar of upcoming movies and TV seasons pulled from TMDB"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
+              <img
+                src="assets/screenshots/release-tracking.png"
+                alt="Release Tracking — calendar of upcoming movies and TV seasons pulled from TMDB"
+                loading="lazy"
+                width="1400"
+                height="900"
+                class="block w-full"
+              />
               <figcaption
                 class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
               >
