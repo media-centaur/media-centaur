@@ -48,16 +48,23 @@ export MEDIA_CENTARR_CONFIG_OVERRIDE="$OVERRIDE"
 mise exec -- mix ecto.create
 mise exec -- mix ecto.migrate
 
-# 4. TMDB key: the seeder needs it to fetch real metadata + artwork. The
-# key lives in the user's dev DB settings_entries (the single canonical
-# location). Read-only query; doesn't mutate dev DB.
-if [ -f "$DEV_DB" ]; then
+# 4. TMDB key resolution. Priority:
+#   1. TMDB_API_KEY already exported in the caller's env (one-shot override)
+#   2. Dev DB's settings_entries (the historical source of truth)
+# Read-only on the dev DB; does not mutate it.
+if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$DEV_DB" ]; then
   TMDB_API_KEY=$(sqlite3 "$DEV_DB" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
   export TMDB_API_KEY
 fi
 
-if [ -z "${TMDB_API_KEY:-}" ]; then
-  echo "warning: no TMDB_API_KEY found in $DEV_DB; seeder will fail on TMDB lookups" >&2
+if [ -z "${TMDB_API_KEY:-}" ] || [ "$TMDB_API_KEY" = "dummy-tmdb-key" ]; then
+  echo "error: TMDB_API_KEY is unset or holds the placeholder 'dummy-tmdb-key'." >&2
+  echo "" >&2
+  echo "Provide a real TMDB v3 key one of these ways:" >&2
+  echo "  TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
+  echo "  or: open the dev app, Settings → TMDB → paste the key, save," >&2
+  echo "      then re-run scripts/reseed-showcase (no env var needed)." >&2
+  exit 1
 fi
 
 # 5. Seed.

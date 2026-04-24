@@ -130,6 +130,53 @@ defmodule MediaCentarr.ShowcaseTest do
     end
   end
 
+  describe "Showcase.seed!/0 pipeline_image_queue alignment" do
+    # Background: in 0.22.5 the seeder bypassed pipeline_image_queue,
+    # writing library_images directly. Image-download failures were
+    # silently swallowed, leaving rows pointing at files that never
+    # landed and no queue row to drive a repair pass. The seeder now
+    # writes a queue row first (carrying the TMDB CDN URL), then
+    # attempts the inline download. Repair drains anything left
+    # :pending. See ImageRepair + Library.ImageHealth.
+
+    alias MediaCentarr.Pipeline.ImageQueueEntry
+
+    test "writes a pipeline_image_queue row for every image referenced" do
+      Showcase.seed!()
+
+      queue_rows = Repo.all(ImageQueueEntry)
+
+      # Every queue row should carry a populated source_url and
+      # owner_type — the repair feature depends on both.
+      assert Enum.all?(queue_rows, fn entry ->
+               is_binary(entry.source_url) and entry.source_url != "" and
+                 entry.owner_type in ~w(movie tv_series episode movie_series video_object)
+             end)
+
+      # We should have at least one queue row per top-level entity
+      # that the seeder ran download_images! for (movies + TV series).
+      expected_min = length(Catalog.movies()) + length(Catalog.tv_series())
+      assert length(queue_rows) >= expected_min
+    end
+
+    test "queue rows for episodes use the parent series id as entity_id" do
+      Showcase.seed!()
+
+      episode_rows =
+        Repo.all(from(e in ImageQueueEntry, where: e.owner_type == "episode", select: e))
+
+      # If any episode rows were written (i.e. TMDB returned still_paths),
+      # their entity_id must point at a TV series, not the episode itself.
+      Enum.each(episode_rows, fn entry ->
+        assert entry.owner_id != entry.entity_id,
+               "episode queue row entity_id should be parent series id, not own id"
+
+        assert Repo.get(Library.TVSeries, entry.entity_id),
+               "episode queue row entity_id #{entry.entity_id} must reference a TVSeries"
+      end)
+    end
+  end
+
   describe "safety rail" do
     test "raises when database_path does not look like a showcase path" do
       config = :persistent_term.get({MediaCentarr.Config, :config})

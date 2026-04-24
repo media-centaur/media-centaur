@@ -16,7 +16,9 @@ DEV_DB="$HOME/.local/share/media-centarr/media-centarr.db"
 
 export MEDIA_CENTARR_CONFIG_OVERRIDE="defaults/media-centarr-showcase.toml"
 
-if [ -f "$DEV_DB" ]; then
+# Honour an externally-set TMDB_API_KEY (lets you override the dev DB's
+# stored value for one shot). Otherwise pull the historical default.
+if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$DEV_DB" ]; then
   TMDB_API_KEY=$(sqlite3 "$DEV_DB" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
   export TMDB_API_KEY
 fi

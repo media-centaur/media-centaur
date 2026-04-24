@@ -1,6 +1,6 @@
 defmodule MediaCentarr.Settings do
   use Boundary,
-    deps: [MediaCentarr.Library, MediaCentarr.Watcher],
+    deps: [MediaCentarr.Library, MediaCentarr.Pipeline, MediaCentarr.Watcher],
     exports: [Entry, Admin]
 
   @moduledoc """

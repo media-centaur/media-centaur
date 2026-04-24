@@ -61,6 +61,50 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     assert view |> element("[data-page-behavior]") |> render() =~ "settings"
   end
 
+  describe "image repair button" do
+    alias MediaCentarr.Library
+
+    test "renders disabled with no badge when nothing is missing", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/settings?section=danger")
+
+      assert html =~ "Repair missing images"
+      assert html =~ "All image files are present on disk"
+      # Button is disabled
+      assert html =~ ~r/phx-click="repair_missing_images"[^>]*disabled/s
+    end
+
+    test "renders enabled with badge when images are missing", %{conn: conn} do
+      movie = Library.create_movie!(%{name: "Lost Posters", position: 0})
+
+      Library.create_image!(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      {:ok, _view, html} = live(conn, ~p"/settings?section=danger")
+
+      assert html =~ "Repair missing images"
+      assert html =~ "1 missing"
+      assert html =~ "Finds 1 image file"
+    end
+
+    test "dispatch flips to 'Repairing…' and completes with a flash", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/settings?section=danger")
+
+      # Hand the LiveView a completion message directly — we don't need the
+      # background Task.Supervisor path to prove the state-transition wiring.
+      send(
+        view.pid,
+        {:image_repair_complete, %{enqueued: 0, queue_reused: 0, queue_rebuilt: 0, skipped: 0}}
+      )
+
+      html = render(view)
+      assert html =~ "No missing images — nothing to repair."
+    end
+  end
+
   describe "detect download client from Prowlarr" do
     # Prowlarr returns URLs exactly as configured inside Prowlarr. Those
     # hostnames (typically Docker service names like `qbittorrent`) are

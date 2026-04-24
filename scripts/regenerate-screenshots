@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# End-to-end screenshot regeneration.
+#
+# Boots the showcase server (if one is not already listening on :4003),
+# runs the Playwright screenshot tour, then stops the server we started.
+# A pre-existing showcase server (e.g. from a long-running terminal) is
+# reused and left running — we only manage the lifecycle of a server we
+# launched ourselves.
+#
+# Prerequisite: a seeded showcase DB at priv/showcase/media-centarr.db.
+# Run scripts/reseed-showcase first if the DB is missing. (We don't run
+# it here on purpose — reseeding is destructive and slow, and the
+# operator should make that decision explicitly.)
+#
+# Output (as documented in scripts/screenshot-tour):
+#   docs-site/assets/screenshots/<name>.png       — web-resolution (1400×900)
+#   docs-site/assets/screenshots/4k/<name>.png    — supersampled ~3840px wide
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+SHOWCASE_PORT=4003
+SHOWCASE_DB="priv/showcase/media-centarr.db"
+LOG_FILE="$(mktemp -t showcase-server.XXXXXX.log)"
+SERVER_PID=""
+
+cleanup() {
+  if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "stopping showcase server (pid=$SERVER_PID)"
+    kill "$SERVER_PID" 2>/dev/null || true
+
+    for _ in 1 2 3 4 5 6 7 8; do
+      sleep 1
+      kill -0 "$SERVER_PID" 2>/dev/null || break
+    done
+
+    if kill -0 "$SERVER_PID" 2>/dev/null; then
+      kill -9 "$SERVER_PID" 2>/dev/null || true
+    fi
+  fi
+
+  if [ -f "$LOG_FILE" ]; then
+    if [ "${KEEP_LOG:-0}" = "1" ]; then
+      echo "server log retained at: $LOG_FILE"
+    else
+      rm -f "$LOG_FILE"
+    fi
+  fi
+}
+trap cleanup EXIT INT TERM
+
+if [ ! -f "$SHOWCASE_DB" ]; then
+  echo "error: showcase DB missing at $SHOWCASE_DB" >&2
+  echo "" >&2
+  echo "Seed it first:" >&2
+  echo "    TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
+  exit 1
+fi
+
+# Reuse a server already listening on :4003 (operator-managed); only
+# start a new one if the port is free. Either way the tour runs against
+# 127.0.0.1:4003.
+if ss -tlnH 2>/dev/null | awk -v p=":$SHOWCASE_PORT" '$4 ~ p {found=1} END {exit !found}'; then
+  echo "reusing existing showcase server on :$SHOWCASE_PORT"
+else
+  echo "starting showcase server (logs → $LOG_FILE)"
+  MEDIA_CENTARR_CONFIG_OVERRIDE="defaults/media-centarr-showcase.toml" \
+    nohup mise exec -- mix phx.server > "$LOG_FILE" 2>&1 &
+  SERVER_PID=$!
+
+  # Wait up to 60s for the BEAM to compile, migrate, and bind.
+  for _ in $(seq 1 60); do
+    if curl --silent --fail --max-time 1 "http://127.0.0.1:$SHOWCASE_PORT" > /dev/null 2>&1; then
+      break
+    fi
+
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      echo "error: showcase server exited during startup. Last 40 log lines:" >&2
+      tail -n 40 "$LOG_FILE" >&2
+      exit 1
+    fi
+
+    sleep 1
+  done
+
+  if ! curl --silent --fail --max-time 3 "http://127.0.0.1:$SHOWCASE_PORT" > /dev/null 2>&1; then
+    echo "error: showcase server did not respond on :$SHOWCASE_PORT after 60s. Last 40 log lines:" >&2
+    tail -n 40 "$LOG_FILE" >&2
+    exit 1
+  fi
+
+  echo "showcase server up (pid=$SERVER_PID)"
+fi
+
+# Hand off to the existing tour script — it manages BASE_URL, hyprland
+# windowrules, fixture-id lookups from the showcase DB, and Playwright.
+exec_status=0
+scripts/screenshot-tour "$@" || exec_status=$?
+
+if [ "$exec_status" -ne 0 ]; then
+  echo "screenshot-tour exited with status $exec_status" >&2
+  exit "$exec_status"
+fi
+
+# Two-repo screenshot publishing: web-resolution shots stay in this repo;
+# 4K shots move to ../media-centarr-assets so the main repo doesn't bloat
+# with multi-megabyte PNGs every release. README/docs-site/wiki link to
+# the 4K versions via jsDelivr CDN URLs that resolve against the assets
+# repo's main branch.
+ASSETS_REPO="$REPO_ROOT/../media-centarr-assets"
+LOCAL_4K_DIR="$REPO_ROOT/docs-site/assets/screenshots/4k"
+
+if [ -d "$ASSETS_REPO" ] && [ -d "$LOCAL_4K_DIR" ]; then
+  mkdir -p "$ASSETS_REPO/screenshots"
+  mv "$LOCAL_4K_DIR"/*.png "$ASSETS_REPO/screenshots/" 2>/dev/null || true
+  rmdir "$LOCAL_4K_DIR" 2>/dev/null || true
+  echo "moved 4K screenshots into $ASSETS_REPO/screenshots/"
+  echo ""
+  echo "Next step: commit + push the assets repo:"
+  echo "  cd $ASSETS_REPO && jj desc -m 'docs: regenerate marketing screenshots' && jj new && jj bookmark set main -r @- && jj git push --bookmark main"
+elif [ -d "$LOCAL_4K_DIR" ]; then
+  echo "warning: $ASSETS_REPO not present; 4K shots remain at $LOCAL_4K_DIR" >&2
+  echo "         Clone media-centarr/media-centarr-assets as a sibling of this repo," >&2
+  echo "         then re-run to publish 4K shots through jsDelivr." >&2
+fi
+
+echo "screenshots regenerated: docs-site/assets/screenshots/*.png (web)"
+[ -d "$ASSETS_REPO" ] && echo "                          $ASSETS_REPO/screenshots/*.png (4K)"
