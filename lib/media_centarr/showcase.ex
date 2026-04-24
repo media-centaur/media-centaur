@@ -45,7 +45,8 @@ defmodule MediaCentarr.Showcase do
           watch_progress: non_neg_integer(),
           tracked_items: non_neg_integer(),
           pending_files: non_neg_integer(),
-          watch_events: non_neg_integer()
+          watch_events: non_neg_integer(),
+          acquisitions: non_neg_integer()
         }
 
   @doc """
@@ -70,6 +71,8 @@ defmodule MediaCentarr.Showcase do
     tracked_count = seed_release_tracking!(movies, tv_series)
     pending_count = seed_pending_files!()
     watch_event_count = seed_watch_history!(movies)
+    acquisition_count = seed_acquisition!()
+    seed_fake_capabilities!()
     seed_console_entries!()
 
     season_count =
@@ -92,7 +95,8 @@ defmodule MediaCentarr.Showcase do
       watch_progress: watch_progress_count,
       tracked_items: tracked_count,
       pending_files: pending_count,
-      watch_events: watch_event_count
+      watch_events: watch_event_count,
+      acquisitions: acquisition_count
     }
   end
 
@@ -440,6 +444,41 @@ defmodule MediaCentarr.Showcase do
   # Helpers
   # ---------------------------------------------------------------------------
 
+  # One Acquisition.Grab row in the "searching" state so the /download
+  # page's queue monitor card has a visible entry at screenshot time.
+  # The Prowlarr client is not called — this is a static DB row only.
+  defp seed_acquisition! do
+    changeset =
+      MediaCentarr.Acquisition.Grab.create_changeset(%{
+        tmdb_id: "12345",
+        tmdb_type: "movie",
+        title: "Showcase Upcoming Film (2026)"
+      })
+
+    {:ok, _grab} = MediaCentarr.Repo.insert(changeset)
+    1
+  end
+
+  # Fake Prowlarr + download-client configuration and a recorded "ok"
+  # test result so `/download` renders instead of redirecting to `/`.
+  # Real integrations would still fail at runtime (the URLs don't point
+  # anywhere), but the UI renders the search form + empty queue card
+  # which is what the screenshot needs.
+  defp seed_fake_capabilities! do
+    MediaCentarr.Config.update(:prowlarr_url, "http://localhost:9696")
+    MediaCentarr.Config.update(:prowlarr_api_key, "showcase-prowlarr-key")
+    MediaCentarr.Config.update(:download_client_type, "qbittorrent")
+    MediaCentarr.Config.update(:download_client_url, "http://localhost:8080")
+    MediaCentarr.Config.update(:download_client_username, "admin")
+    MediaCentarr.Config.update(:download_client_password, "showcase-dl-password")
+
+    MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
+    MediaCentarr.Capabilities.save_test_result(:download_client, :ok)
+    MediaCentarr.Capabilities.save_test_result(:tmdb, :ok)
+
+    :ok
+  end
+
   # Synthetic log entries so the /console page has varied content at
   # screenshot time. Touches every non-framework component once at each
   # level. Framework components (:phoenix, :ecto, :live_view) are filled
@@ -452,8 +491,16 @@ defmodule MediaCentarr.Showcase do
     Log.info(:playback, "session stopped: position 1820s of 5400s")
 
     Log.warning(:tmdb, "rate limit window: 3 requests queued, backing off 250ms")
-    Log.warning(:watcher, "file appeared then disappeared within debounce window: /showcase/tmp/.partial.mkv")
-    Log.warning(:pipeline, "no confident TMDB match for 'Ambiguous-RELEASE-GROUP.mkv' — escalated to review queue")
+
+    Log.warning(
+      :watcher,
+      "file appeared then disappeared within debounce window: /showcase/tmp/.partial.mkv"
+    )
+
+    Log.warning(
+      :pipeline,
+      "no confident TMDB match for 'Ambiguous-RELEASE-GROUP.mkv' — escalated to review queue"
+    )
 
     Log.error(:library, "image download failed for backdrop (404) — falling back to poster crop")
 

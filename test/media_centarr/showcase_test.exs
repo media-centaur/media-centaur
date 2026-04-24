@@ -90,6 +90,11 @@ defmodule MediaCentarr.ShowcaseTest do
 
       events = WatchHistory.list_events()
       assert events != []
+
+      assert summary.acquisitions == 1
+
+      grabs = Repo.all(MediaCentarr.Acquisition.Grab)
+      assert length(grabs) == 1
     end
   end
 
