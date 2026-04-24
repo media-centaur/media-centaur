@@ -404,24 +404,35 @@ defmodule MediaCentarr.Showcase do
 
   defp seed_watch_history!(movies) do
     now = DateTime.utc_now(:second)
+    available_movies = movies |> Enum.filter(& &1.id) |> Enum.take(10)
 
-    movies
-    |> Enum.filter(& &1.id)
-    |> Enum.take(5)
-    |> Enum.with_index()
-    |> Enum.map(fn {movie, idx} ->
-      {:ok, _} =
-        WatchHistory.create_event(%{
-          entity_type: :movie,
-          movie_id: movie.id,
-          title: movie.name,
-          duration_seconds: 5400.0,
-          completed_at: DateTime.add(now, -idx * 86_400, :second)
-        })
+    # Seed 2 watch events per movie, spread across the last 30 days, so
+    # the /history page shows a populated, varied feed. Event i for
+    # movie j lands at i*day-offset + j*hour-offset so timestamps are
+    # distinct and the page renders in chronological order without
+    # collisions.
+    events =
+      for {movie, movie_idx} <- Enum.with_index(available_movies),
+          event_idx <- 0..1 do
+        day_offset = movie_idx * 2 + event_idx * 5
+        hour_offset = movie_idx
 
-      :ok
-    end)
-    |> length()
+        {:ok, _} =
+          WatchHistory.create_event(%{
+            entity_type: :movie,
+            movie_id: movie.id,
+            title: movie.name,
+            duration_seconds: 5400.0 + movie_idx * 120,
+            completed_at:
+              now
+              |> DateTime.add(-day_offset * 86_400, :second)
+              |> DateTime.add(-hour_offset * 3600, :second)
+          })
+
+        :ok
+      end
+
+    length(events)
   end
 
   # ---------------------------------------------------------------------------

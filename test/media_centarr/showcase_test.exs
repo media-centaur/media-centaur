@@ -70,7 +70,7 @@ defmodule MediaCentarr.ShowcaseTest do
       assert summary.watch_progress > 0
       assert summary.tracked_items > 0
       assert summary.pending_files > 0
-      assert summary.watch_events > 0
+      assert summary.watch_events >= 15
 
       # Persisted.
       all_movies = Repo.all(Library.Movie)
