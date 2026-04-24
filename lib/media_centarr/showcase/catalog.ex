@@ -92,10 +92,17 @@ defmodule MediaCentarr.Showcase.Catalog do
   @spec tv_series() :: [tv_entry()]
   def tv_series do
     [
-      # Public-domain TV — Dragnet has ~50 episodes in the public domain.
-      %{title: "Dragnet", year: 1951, seasons: [1]},
+      # The Beverly Hillbillies Season 1 (1962) — all 36 S1 episodes lapsed
+      # into US public domain when Orion Television (successor to Filmways)
+      # neglected to renew the copyrights. TMDB has both series metadata
+      # and episodic still_path coverage, so the TV detail modal renders
+      # real stills instead of fallback placeholders. Theme song "Ballad
+      # of Jed Clampett" is still under copyright — irrelevant since we
+      # don't use audio.
+      %{title: "The Beverly Hillbillies", year: 1962, seasons: [1]},
 
-      # CC-BY-NC-SA modern web series.
+      # CC-BY-NC-SA modern web series. No TMDB stills — exercises the
+      # bundled-fixture fallback (priv/showcase/fixtures/thumbs/).
       %{title: "Pioneer One", year: 2010, seasons: [1]}
     ]
   end
