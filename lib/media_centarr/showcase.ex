@@ -51,11 +51,15 @@ defmodule MediaCentarr.Showcase do
   @doc """
   Seeds the currently-connected database with the showcase catalog.
 
-  Returns a summary map with per-entity counts. Does NOT check which profile
-  is active — that's the caller's responsibility (the Mix task does it).
+  Returns a summary map with per-entity counts. Raises if the configured
+  `:database_path` doesn't look like a showcase DB — see
+  `assert_showcase_db!/0`. The Mix task wrapper (`mix seed.showcase`)
+  adds a second env-var check; this function itself covers the
+  direct-IEx-invocation path.
   """
   @spec seed!() :: summary()
   def seed! do
+    assert_showcase_db!()
     client = TMDB.Client.default_client()
 
     movies = Enum.map(Catalog.movies(), &seed_movie!(&1, client))
@@ -589,6 +593,26 @@ defmodule MediaCentarr.Showcase do
     File.touch!(file_path)
 
     :ok
+  end
+
+  # Belt-and-suspenders: the Mix task wrapper refuses to run without
+  # MEDIA_CENTARR_CONFIG_OVERRIDE, but a direct IEx call to this function
+  # would bypass that check. This rail fires for both invocation paths by
+  # inspecting the live config.
+  defp assert_showcase_db! do
+    db_path = MediaCentarr.Config.get(:database_path) || ""
+
+    if !String.contains?(db_path, "showcase") do
+      raise """
+      Showcase seeder refusing to seed: database_path=#{inspect(db_path)}
+      doesn't look like a showcase DB.
+
+      The showcase seeder only runs against a DB whose configured path
+      contains "showcase". Set MEDIA_CENTARR_CONFIG_OVERRIDE to
+      defaults/media-centarr-showcase.toml (or a custom TOML with a
+      showcase-prefixed database_path) and try again.
+      """
+    end
   end
 
   defp pending_file_data do
