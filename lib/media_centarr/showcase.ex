@@ -69,7 +69,7 @@ defmodule MediaCentarr.Showcase do
 
     watch_progress_count = seed_watch_progress!(movies, tv_series)
     tracked_count = seed_release_tracking!(movies, tv_series)
-    pending_count = seed_pending_files!()
+    pending_count = seed_pending_files!(client)
     watch_event_count = seed_watch_history!(movies)
     acquisition_count = seed_acquisition!()
     seed_fake_capabilities!()
@@ -397,8 +397,9 @@ defmodule MediaCentarr.Showcase do
   # Pending review files
   # ---------------------------------------------------------------------------
 
-  defp seed_pending_files! do
-    pending_file_data()
+  defp seed_pending_files!(client) do
+    client
+    |> pending_file_data()
     |> Enum.map(&Review.find_or_create_pending_file!/1)
     |> length()
   end
@@ -694,7 +695,16 @@ defmodule MediaCentarr.Showcase do
     end
   end
 
-  defp pending_file_data do
+  defp pending_file_data(client) do
+    # Real TMDB poster paths for public-domain films not in the showcase
+    # catalog, so the "pending review" state is internally consistent
+    # (these aren't already in the library) and the review UI renders
+    # real artwork instead of broken-image boxes.
+    stranger_46 = tmdb_poster_path(client, "The Stranger", 1946)
+    his_girl_friday = tmdb_poster_path(client, "His Girl Friday", 1940)
+    detour = tmdb_poster_path(client, "Detour", 1945)
+    doa = tmdb_poster_path(client, "D.O.A.", 1949)
+
     [
       %{
         file_path: "/showcase/tv/Uncharted.Series.S01E01.mkv",
@@ -708,54 +718,67 @@ defmodule MediaCentarr.Showcase do
         confidence: nil,
         candidates: []
       },
+      # Multi-match scenario: parser saw "The Stranger" with no year;
+      # TMDB has several films that plausibly match.
       %{
-        file_path: "/showcase/movies/The.Mystery.1958.mkv",
+        file_path: "/showcase/movies/The.Stranger.mkv",
         watch_directory: "/showcase/movies",
-        parsed_title: "The Mystery",
+        parsed_title: "The Stranger",
         parsed_year: nil,
         parsed_type: "movie",
         tmdb_id: nil,
         confidence: nil,
         candidates: [
           %{
-            "tmdb_id" => 11_111,
-            "title" => "The Mystery",
-            "year" => "1958",
+            "tmdb_id" => 9400,
+            "title" => "The Stranger",
+            "year" => "1946",
             "confidence" => 0.82,
-            "poster_path" => "/placeholder1.jpg"
+            "poster_path" => stranger_46
           },
           %{
-            "tmdb_id" => 22_222,
-            "title" => "The Mystery",
-            "year" => "2004",
-            "confidence" => 0.82,
-            "poster_path" => "/placeholder2.jpg"
+            "tmdb_id" => 41_631,
+            "title" => "His Girl Friday",
+            "year" => "1940",
+            "confidence" => 0.75,
+            "poster_path" => his_girl_friday
           }
         ]
       },
+      # Low-confidence match: clean filename but the parser's heuristic
+      # isn't confident enough to auto-approve.
       %{
-        file_path: "/showcase/movies/Showcase.Low.Confidence.2019.mkv",
+        file_path: "/showcase/movies/Detour.1945.mkv",
         watch_directory: "/showcase/movies",
-        parsed_title: "Showcase Low Confidence",
-        parsed_year: 2019,
+        parsed_title: "Detour",
+        parsed_year: 1945,
         parsed_type: "movie",
-        tmdb_id: 33_333,
+        tmdb_id: 25_660,
         confidence: 0.58,
-        match_title: "Showcase Low Confidence",
-        match_year: "2019",
-        match_poster_path: "/placeholder3.jpg"
+        match_title: "Detour",
+        match_year: "1945",
+        match_poster_path: detour
       },
+      # Mismatch / scene-group noise: parser latched onto an unrelated
+      # film with very low confidence.
       %{
         file_path: "/showcase/movies/Ambiguous-RELEASE-GROUP.mkv",
         watch_directory: "/showcase/movies",
         parsed_title: "Ambiguous",
         parsed_type: nil,
-        tmdb_id: 44_444,
+        tmdb_id: 4330,
         confidence: 0.21,
-        match_title: "Something Entirely Different",
-        match_year: "2011",
-        match_poster_path: "/placeholder4.jpg"
+        match_title: "D.O.A.",
+        match_year: "1949",
+        match_poster_path: doa
       }
     ]
+  end
+
+  defp tmdb_poster_path(client, title, year) do
+    case TMDB.Client.search_movie(title, year, client) do
+      {:ok, [%{"poster_path" => path} | _]} when is_binary(path) -> path
+      _ -> nil
+    end
   end
 end
