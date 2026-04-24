@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.2 — 2026-04-24
+
+### Improved
+
+- **Faster startup and image pipeline.** Three N+1 query loops are now
+  batched into single `WHERE IN` queries. Config loading at app start
+  goes from ~12 SELECTs to 1; image-download batch completions go from
+  20 UPDATEs per batch to 1; image-download failure handling collapses
+  to at most 2 queries regardless of batch size. No behaviour change —
+  just less database chatter on every startup and every image batch.
+
 ## v0.22.1 — 2026-04-24
 
 ### Improved
