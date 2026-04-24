@@ -4,6 +4,26 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.7 — 2026-04-25
+
+### Fixed
+
+- **Marketing site screenshots restored to a working set.** The 4K
+  click-through variants published in v0.22.5 were captured from a
+  showcase instance whose TMDB data had been lost, so they were
+  shipping as broken-image tiles on
+  [media-centarr.net](https://media-centarr.net/). The v0.22.4
+  screenshots are back in place; the 4K click-through feature is
+  paused until a clean recapture lands.
+
+- **Dev server no longer inherits production config.** Running
+  `iex -S mix phx.server` or `mix phx.server` from a dev checkout
+  now picks up `~/.config/media-centarr/media-centarr-dev.toml` (or
+  falls back to dev defaults) instead of silently reading the
+  installed production TOML — which was causing the dev instance to
+  bind port 2160 and share the prod database. Only affects people
+  running the app from source.
+
 ## v0.22.6 — 2026-04-25
 
 ### Improved
