@@ -142,8 +142,12 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent do
   end
 
   defp build_client do
-    url = Config.get(:download_client_url)
-    Req.new(base_url: url, retry: false)
+    if Config.get(:showcase_mode) do
+      Req.new(plug: &MediaCentarr.Showcase.Stubs.qbittorrent_plug/1, retry: false)
+    else
+      url = Config.get(:download_client_url)
+      Req.new(base_url: url, retry: false)
+    end
   end
 
   # Runs `fun.(client)`. On a 403 response, attempts to authenticate and

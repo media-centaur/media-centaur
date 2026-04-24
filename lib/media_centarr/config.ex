@@ -90,7 +90,8 @@ defmodule MediaCentarr.Config do
       :release_tracking_refresh_interval_hours,
       :extras_dirs,
       :skip_dirs,
-      :exclude_dirs
+      :exclude_dirs,
+      :showcase_mode
     ]
   end
 
@@ -148,7 +149,8 @@ defmodule MediaCentarr.Config do
              :release_tracking_refresh_interval_hours,
              :extras_dirs,
              :skip_dirs,
-             :exclude_dirs
+             :exclude_dirs,
+             :showcase_mode
            ] do
     config = :persistent_term.get({__MODULE__, :config})
     :persistent_term.put({__MODULE__, :config}, Map.put(config, key, maybe_wrap(key, value)))
@@ -416,7 +418,8 @@ defmodule MediaCentarr.Config do
       download_client_type: nil,
       download_client_url: nil,
       download_client_username: nil,
-      download_client_password: nil
+      download_client_password: nil,
+      showcase_mode: false
     }
 
     if Application.get_env(:media_centarr, :skip_user_config, false) do
