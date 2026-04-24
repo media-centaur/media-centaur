@@ -70,6 +70,7 @@ defmodule MediaCentarr.Showcase do
     tracked_count = seed_release_tracking!(movies, tv_series)
     pending_count = seed_pending_files!()
     watch_event_count = seed_watch_history!(movies)
+    seed_console_entries!()
 
     season_count =
       tv_series
@@ -438,6 +439,26 @@ defmodule MediaCentarr.Showcase do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
+
+  # Synthetic log entries so the /console page has varied content at
+  # screenshot time. Touches every non-framework component once at each
+  # level. Framework components (:phoenix, :ecto, :live_view) are filled
+  # naturally by the server accepting HTTP requests during the tour.
+  defp seed_console_entries! do
+    Log.info(:watcher, "scanned 14 files in /showcase/media")
+    Log.info(:pipeline, "processed 3 movies, 1 TV series, 2 extras in last batch")
+    Log.info(:tmdb, "search hit: Nosferatu (1922) → TMDB 653")
+    Log.info(:library, "linked watched file: Big Buck Bunny (2008).mkv")
+    Log.info(:playback, "session stopped: position 1820s of 5400s")
+
+    Log.warning(:tmdb, "rate limit window: 3 requests queued, backing off 250ms")
+    Log.warning(:watcher, "file appeared then disappeared within debounce window: /showcase/tmp/.partial.mkv")
+    Log.warning(:pipeline, "no confident TMDB match for 'Ambiguous-RELEASE-GROUP.mkv' — escalated to review queue")
+
+    Log.error(:library, "image download failed for backdrop (404) — falling back to poster crop")
+
+    :ok
+  end
 
   defp search_movie(title, year, client) do
     case TMDB.Client.search_movie(title, year, client) do
