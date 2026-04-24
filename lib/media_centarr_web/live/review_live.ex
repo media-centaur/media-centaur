@@ -455,6 +455,7 @@ defmodule MediaCentarrWeb.ReviewLive do
       phx-focus="select_item"
       phx-value-key={@encoded_key}
       data-nav-item
+      data-review-pending
       tabindex="0"
     >
       <div
