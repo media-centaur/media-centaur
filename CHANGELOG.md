@@ -4,6 +4,21 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.1 — 2026-04-24
+
+### Improved
+
+- **Settings page sections can be deep-linked via URL.** Opening
+  `/settings?section=acquisition` jumps straight to the Acquisition
+  tab; appending `#settings-prowlarr` or `#settings-download-client`
+  scrolls to the specific form. Useful for bookmarks and for
+  documentation that points at a specific setting.
+- **Project website and wiki show the product on every major page.**
+  The marketing site and the GitHub wiki now include screenshots of
+  the library grid, movie/TV detail, review queue, status, watch
+  history, download, console, and every major settings section —
+  replacing broken image links and empty documentation pages.
+
 ## v0.22.0 — 2026-04-24
 
 ### New
