@@ -26,14 +26,14 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 <div align="center">
 
-<img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="48%">
-<img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%">
+<a href="docs-site/assets/screenshots/4k/library-grid.png"><img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="48%"></a>
+<a href="docs-site/assets/screenshots/4k/library-detail-movie.png"><img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%"></a>
 
-<img src="docs-site/assets/screenshots/library-detail-tv.png" alt="TV series detail with episode list" width="48%">
-<img src="docs-site/assets/screenshots/review-queue.png" alt="Review queue — pending files with confidence scores" width="48%">
+<a href="docs-site/assets/screenshots/4k/library-detail-tv.png"><img src="docs-site/assets/screenshots/library-detail-tv.png" alt="TV series detail with episode list" width="48%"></a>
+<a href="docs-site/assets/screenshots/4k/review-queue.png"><img src="docs-site/assets/screenshots/review-queue.png" alt="Review queue — pending files with confidence scores" width="48%"></a>
 
-<img src="docs-site/assets/screenshots/download.png" alt="Download page — Prowlarr-backed search with brace-expansion syntax" width="48%">
-<img src="docs-site/assets/screenshots/settings-overview.png" alt="Settings overview" width="48%">
+<a href="docs-site/assets/screenshots/4k/download.png"><img src="docs-site/assets/screenshots/download.png" alt="Download page — Prowlarr-backed search with brace-expansion syntax" width="48%"></a>
+<a href="docs-site/assets/screenshots/4k/settings-overview.png"><img src="docs-site/assets/screenshots/settings-overview.png" alt="Settings overview" width="48%"></a>
 
 </div>
 
