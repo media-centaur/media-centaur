@@ -349,12 +349,71 @@ defmodule MediaCentarr.Showcase do
       {:tv_series, "The Last of Us"}
     ]
 
-    Enum.reduce(upcoming, 0, fn {media_type, title}, acc ->
-      case track_upcoming(client, media_type, title) do
-        :ok -> acc + 1
-        _ -> acc
-      end
-    end)
+    count =
+      Enum.reduce(upcoming, 0, fn {media_type, title}, acc ->
+        case track_upcoming(client, media_type, title) do
+          :ok -> acc + 1
+          _ -> acc
+        end
+      end)
+
+    sprinkle_calendar_releases!()
+    count
+  end
+
+  # Real TMDB-sourced release dates land wherever the real world puts
+  # them — usually months into the future, so the current-month
+  # calendar view ends up mostly empty. For the screenshot, sprinkle
+  # synthetic Release rows across the current month so the calendar
+  # shows thumbnails on multiple days the way it would for a user
+  # whose tracked shows are actively airing.
+  defp sprinkle_calendar_releases! do
+    items = ReleaseTracking.list_all_items()
+
+    if items == [] do
+      :ok
+    else
+      today = Date.utc_today()
+      last_day = Date.days_in_month(today)
+
+      # Eight evenly-spaced days across the month so the calendar
+      # reads as "lots happening" without clustering.
+      days = Enum.filter([3, 8, 12, 16, 19, 22, 26, 29], &(&1 <= last_day))
+
+      items
+      |> Stream.cycle()
+      |> Enum.zip(days)
+      |> Enum.each(fn {item, day} ->
+        date = Date.new!(today.year, today.month, day)
+        released = Date.compare(date, today) != :gt
+
+        {season_number, episode_number} =
+          case item.media_type do
+            :tv_series -> {5, day}
+            _ -> {nil, nil}
+          end
+
+        ReleaseTracking.create_release!(%{
+          item_id: item.id,
+          air_date: date,
+          title: calendar_release_title(item, season_number, episode_number),
+          season_number: season_number,
+          episode_number: episode_number,
+          released: released,
+          in_library: false
+        })
+      end)
+
+      :ok
+    end
+  end
+
+  defp calendar_release_title(%{media_type: :tv_series, name: name}, season, episode) do
+    "#{name} · S#{season}E#{episode}"
+  end
+
+  defp calendar_release_title(%{media_type: :movie, name: name}, _season, _episode) do
+    name
   end
 
   defp track_upcoming(client, :movie, title) do
