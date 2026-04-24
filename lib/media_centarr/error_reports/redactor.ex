@@ -24,7 +24,7 @@ defmodule MediaCentarr.ErrorReports.Redactor do
   @uuid_re ~r/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/iu
   @ipv4_re ~r/\b(?:\d{1,3}\.){3}\d{1,3}\b/u
   @email_re ~r/\b[\w.+-]+@[\w.-]+\.\w{2,}\b/u
-  @digits_re ~r/\b\d{3,}\b/u
+  @digits_re ~r/\b\d{3,}\w*/u
   @ws_re ~r/\s+/u
 
   @spec normalize(binary()) :: binary()
