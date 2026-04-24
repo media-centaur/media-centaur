@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.4 — 2026-04-24
+
+Documentation / marketing release — no code changes affect the
+installed app's behavior.
+
+### Improved
+
+- **Release Tracking screenshot now shows a populated calendar.**
+  The landing-page Release Tracking tile captures `/?zone=upcoming`
+  with thumbnails placed on multiple days across the current month —
+  the visual pattern a user with actively-airing tracked shows sees
+  in practice — instead of the near-empty calendar that real TMDB
+  air dates (mostly months in the future) produced.
+
 ## v0.22.3 — 2026-04-24
 
 Documentation / marketing release — no code changes affect the installed
