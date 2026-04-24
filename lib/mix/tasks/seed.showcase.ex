@@ -56,6 +56,7 @@ defmodule Mix.Tasks.Seed.Showcase do
       Tracked items:  #{summary.tracked_items}
       Pending files:  #{summary.pending_files}
       Watch events:   #{summary.watch_events}
+      Acquisitions:   #{summary.acquisitions}
     """)
   end
 end
