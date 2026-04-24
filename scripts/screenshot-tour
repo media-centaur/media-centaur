@@ -74,7 +74,8 @@ SHOWCASE_DB="$REPO_ROOT/priv/showcase/media-centarr.db"
 if [ -f "$SHOWCASE_DB" ]; then
   NOSFERATU_ID=$(sqlite3 "$SHOWCASE_DB" "SELECT id FROM library_movies WHERE name = 'Nosferatu' LIMIT 1;" 2>/dev/null || true)
   PIONEER_ONE_ID=$(sqlite3 "$SHOWCASE_DB" "SELECT id FROM library_tv_series WHERE name = 'Pioneer One' LIMIT 1;" 2>/dev/null || true)
-  export NOSFERATU_ID PIONEER_ONE_ID
+  BEVERLY_HILLBILLIES_ID=$(sqlite3 "$SHOWCASE_DB" "SELECT id FROM library_tv_series WHERE name = 'The Beverly Hillbillies' LIMIT 1;" 2>/dev/null || true)
+  export NOSFERATU_ID PIONEER_ONE_ID BEVERLY_HILLBILLIES_ID
 fi
 
 cd "$REPO_ROOT/test/e2e"
