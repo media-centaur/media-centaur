@@ -25,7 +25,13 @@ defmodule MediaCentarr.ShowcaseTest do
     tmp_dir = Path.join(System.tmp_dir!(), "showcase-test-#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
     config = :persistent_term.get({MediaCentarr.Config, :config})
-    :persistent_term.put({MediaCentarr.Config, :config}, Map.put(config, :watch_dirs, [tmp_dir]))
+
+    :persistent_term.put(
+      {MediaCentarr.Config, :config},
+      config
+      |> Map.put(:watch_dirs, [tmp_dir])
+      |> Map.put(:database_path, "priv/showcase/test.db")
+    )
 
     on_exit(fn ->
       :persistent_term.put({MediaCentarr.Config, :config}, config)
@@ -84,6 +90,23 @@ defmodule MediaCentarr.ShowcaseTest do
 
       events = WatchHistory.list_events()
       assert events != []
+    end
+  end
+
+  describe "safety rail" do
+    test "raises when database_path does not look like a showcase path" do
+      config = :persistent_term.get({MediaCentarr.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentarr.Config, :config},
+        Map.put(config, :database_path, "/home/user/.local/share/media-centarr/media-centarr.db")
+      )
+
+      on_exit(fn -> :persistent_term.put({MediaCentarr.Config, :config}, config) end)
+
+      assert_raise RuntimeError, ~r/refusing to seed/i, fn ->
+        Showcase.seed!()
+      end
     end
   end
 
