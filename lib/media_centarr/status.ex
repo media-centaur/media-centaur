@@ -22,7 +22,6 @@ defmodule MediaCentarr.Status do
     Image
   }
 
-  alias MediaCentarr.Pipeline.Stats
   alias MediaCentarr.Repo
   alias MediaCentarr.Review
 
@@ -30,7 +29,6 @@ defmodule MediaCentarr.Status do
     %{
       library: fetch_library_stats(),
       pending_review: fetch_pending_review(),
-      recent_errors: fetch_recent_errors(),
       recent_changes: fetch_recent_changes()
     }
   end
@@ -63,10 +61,6 @@ defmodule MediaCentarr.Status do
 
   def fetch_pending_review do
     Enum.take(Review.list_pending_files_for_review(), 20)
-  end
-
-  def fetch_recent_errors do
-    Stats.get_snapshot().recent_errors
   end
 
   defp count(schema) do

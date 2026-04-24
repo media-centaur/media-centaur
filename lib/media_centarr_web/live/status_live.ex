@@ -11,7 +11,7 @@ defmodule MediaCentarrWeb.StatusLive do
 
   import MediaCentarrWeb.StatusHelpers
 
-  alias MediaCentarr.{Library, Playback, Status, Storage, WatchHistory}
+  alias MediaCentarr.{ErrorReports, Library, Playback, Status, Storage, WatchHistory}
   alias MediaCentarr.Pipeline.Stats
   alias MediaCentarr.Pipeline.Image, as: ImagePipeline
   alias MediaCentarr.Watcher
@@ -26,6 +26,7 @@ defmodule MediaCentarrWeb.StatusLive do
         Library.subscribe()
         Playback.subscribe()
         WatchHistory.subscribe()
+        ErrorReports.subscribe()
 
         Process.send_after(self(), :tick_pipeline, 1_000)
         Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
@@ -42,7 +43,7 @@ defmodule MediaCentarrWeb.StatusLive do
 
         socket
         |> assign_defaults()
-        |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
+        |> assign(error_buckets: ErrorReports.list_buckets())
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
         |> assign(watcher_statuses: MediaCentarr.Watcher.Supervisor.statuses())
@@ -81,7 +82,7 @@ defmodule MediaCentarrWeb.StatusLive do
     |> assign(recent_changes: [])
     |> assign(history_events: [])
     |> assign(history_stats: %{total_count: 0, total_seconds: 0.0, streak: 0, heatmap: %{}})
-    |> assign(recent_errors: [])
+    |> assign(error_buckets: [])
     |> assign(storage_drives: [])
   end
 
@@ -123,7 +124,6 @@ defmodule MediaCentarrWeb.StatusLive do
      socket
      |> assign(pipeline_stats: pipeline_stats)
      |> assign(image_pipeline_stats: image_stats)
-     |> assign(recent_errors: merge_recent_errors(pipeline_stats, image_stats))
      |> assign(rate_limiter: fetch_rate_limiter())
      |> assign(retry_status: fetch_retry_status())
      |> assign(dir_health: check_dir_health())}
@@ -152,13 +152,17 @@ defmodule MediaCentarrWeb.StatusLive do
     {:noreply, assign(socket, stats_timer: nil)}
   end
 
+  @impl true
+  def handle_info({:buckets_changed, snapshot}, socket) do
+    {:noreply, assign(socket, error_buckets: snapshot)}
+  end
+
   def handle_info({:status_stats_loaded, stats}, socket) do
     {:noreply,
      socket
      |> assign(library_stats: stats.library)
      |> assign(pending_review_count: length(stats.pending_review))
-     |> assign(recent_changes: stats.recent_changes)
-     |> assign(recent_errors: stats.recent_errors)}
+     |> assign(recent_changes: stats.recent_changes)}
   end
 
   def handle_info({:status_history_loaded, history_stats, history_events}, socket) do
@@ -239,9 +243,7 @@ defmodule MediaCentarrWeb.StatusLive do
             <.recently_watched_card events={@history_events} />
           </div>
 
-          <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
-            <.recent_errors_table files={@recent_errors} />
-          </.link>
+          <.error_summary_card buckets={@error_buckets} />
 
           <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
@@ -690,43 +692,65 @@ defmodule MediaCentarrWeb.StatusLive do
     """
   end
 
-  defp recent_errors_table(assigns) do
+  defp error_summary_card(assigns) do
     ~H"""
-    <div class="card glass-surface">
+    <div class="card glass-surface" data-testid="error-summary-card">
       <div class="card-body">
-        <h2 class="card-title text-lg">
-          Recent Errors <span :if={@files != []} class="text-error text-sm">{length(@files)}</span>
-        </h2>
+        <div class="flex justify-between items-start gap-4">
+          <h2 class="card-title text-lg">Errors</h2>
 
-        <p :if={@files == []} class="text-base-content/60">No errors.</p>
+          <button
+            :if={@buckets != []}
+            class="btn btn-sm btn-outline"
+            phx-click="open_error_report_modal"
+          >
+            Report errors
+          </button>
+        </div>
 
-        <div :if={@files != []} class="overflow-x-auto">
-          <table class="table table-sm table-zebra">
-            <thead>
-              <tr>
-                <th>Stage</th>
-                <th>File</th>
-                <th>Error Message</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={error <- @files}>
-                <td>
-                  <span class="text-error text-xs">{error[:stage] || "—"}</span>
-                </td>
-                <td class="font-mono text-xs max-w-xs truncate-left" title={error.file_path}>
-                  <bdo dir="ltr">{error.file_path || "—"}</bdo>
-                </td>
-                <td class="text-error text-xs max-w-md truncate">{error.error_message || "—"}</td>
-                <td class="text-xs">{format_datetime(error.updated_at)}</td>
-              </tr>
-            </tbody>
-          </table>
+        <p :if={@buckets == []} class="text-base-content/60">
+          No errors in the last hour.
+        </p>
+
+        <div :if={@buckets != []} class="mt-1">
+          <div class="text-sm text-base-content/70">
+            <span class="text-error font-semibold">{total_count(@buckets)}</span>
+            errors in the last hour, across {length(@buckets)} distinct issues.
+          </div>
+
+          <ul class="mt-2 space-y-1">
+            <li :for={bucket <- top_buckets(@buckets)} class="text-sm">
+              <span class="font-mono text-xs truncate" title={bucket.display_title}>
+                {bucket.display_title}
+              </span>
+              <span class="badge badge-sm badge-ghost ml-1">×{bucket.count}</span>
+              <span class="text-xs text-base-content/50 ml-1">
+                {bucket.component} · {relative_time(bucket.last_seen)}
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
     """
+  end
+
+  defp total_count(buckets), do: Enum.reduce(buckets, 0, &(&1.count + &2))
+
+  defp top_buckets(buckets) do
+    buckets
+    |> Enum.sort_by(& &1.count, :desc)
+    |> Enum.take(3)
+  end
+
+  defp relative_time(%DateTime{} = dt) do
+    diff = DateTime.diff(DateTime.utc_now(), dt, :second)
+
+    cond do
+      diff < 60 -> "#{diff}s ago"
+      diff < 3_600 -> "#{div(diff, 60)}m ago"
+      true -> "#{div(diff, 3_600)}h ago"
+    end
   end
 
   defp playback_summary_card(assigns) do
