@@ -98,6 +98,38 @@ defmodule MediaCentarr.ShowcaseTest do
     end
   end
 
+  describe "fail-loud on silent data loss" do
+    # If TMDB can't answer (bad key, network, rate limit), the old seeder
+    # caught the error inside `seed_movie!` / `seed_tv_series!`, logged a
+    # warning, and returned a stub with `id: nil` — so the summary still
+    # counted "14 movies" but zero rows persisted. That produced
+    # marketing-grade screenshots full of broken images and took visual
+    # inspection to catch. The seeder now raises on the first silent
+    # failure so a bad key is obvious immediately.
+
+    test "raises with an actionable message when TMDB search returns no results for a movie" do
+      Req.Test.stub(:tmdb, fn conn ->
+        Req.Test.json(conn, empty_or_stub_response(conn.request_path))
+      end)
+
+      assert_raise RuntimeError, ~r/TMDB/i, fn -> Showcase.seed!() end
+    end
+
+    test "raises with an actionable message when TMDB search returns no results for a TV series" do
+      Req.Test.stub(:tmdb, fn conn ->
+        path = conn.request_path
+
+        if String.contains?(path, "/search/tv") do
+          Req.Test.json(conn, %{"results" => []})
+        else
+          Req.Test.json(conn, response_for(path, "#{path}?#{conn.query_string}"))
+        end
+      end)
+
+      assert_raise RuntimeError, ~r/TMDB/i, fn -> Showcase.seed!() end
+    end
+  end
+
   describe "safety rail" do
     test "raises when database_path does not look like a showcase path" do
       config = :persistent_term.get({MediaCentarr.Config, :config})
@@ -112,6 +144,17 @@ defmodule MediaCentarr.ShowcaseTest do
       assert_raise RuntimeError, ~r/refusing to seed/i, fn ->
         Showcase.seed!()
       end
+    end
+  end
+
+  # Returns an empty search result for any search URL, otherwise the
+  # normal stubbed response. Used by the fail-loud tests to force a
+  # TMDB miss and assert the seeder raises loudly.
+  defp empty_or_stub_response(path) do
+    if String.contains?(path, "/search/") do
+      %{"results" => []}
+    else
+      response_for(path, path)
     end
   end
 

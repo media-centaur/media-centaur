@@ -134,8 +134,13 @@ defmodule MediaCentarr.Showcase do
       movie
     else
       {:error, reason} ->
-        Log.warning(:library, "showcase: failed to seed movie #{title}: #{inspect(reason)}")
-        %{id: nil, name: title}
+        raise """
+        showcase seed failed for movie "#{title}" (#{year}): #{inspect(reason)}.
+
+        TMDB lookups must succeed for the seed to produce usable data.
+        Set TMDB_API_KEY to a valid key before running `mix seed.showcase`
+        (scripts/start-showcase inherits it from the dev DB's stored key).
+        """
     end
   end
 
@@ -186,8 +191,13 @@ defmodule MediaCentarr.Showcase do
       Map.put(series, :seasons, seasons)
     else
       {:error, reason} ->
-        Log.warning(:library, "showcase: failed to seed tv #{title}: #{inspect(reason)}")
-        %{id: nil, name: title, seasons: []}
+        raise """
+        showcase seed failed for TV series "#{title}" (#{year}): #{inspect(reason)}.
+
+        TMDB lookups must succeed for the seed to produce usable data.
+        Set TMDB_API_KEY to a valid key before running `mix seed.showcase`
+        (scripts/start-showcase inherits it from the dev DB's stored key).
+        """
     end
   end
 
