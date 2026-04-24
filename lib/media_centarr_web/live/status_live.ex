@@ -370,7 +370,7 @@ defmodule MediaCentarrWeb.StatusLive do
 
   defp recent_changes_card(assigns) do
     ~H"""
-    <div data-nav-item tabindex="0" class="card glass-surface">
+    <div data-nav-item data-status-releases tabindex="0" class="card glass-surface">
       <div class="card-body">
         <h2 class="card-title text-lg">Recent Changes</h2>
 
