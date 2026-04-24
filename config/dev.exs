@@ -1,14 +1,14 @@
 import Config
 config :ex_code_view, output_dir: "tmp"
 
-# Binding to loopback ipv4 address prevents access from other machines.
-
 # Use custom formatter that shows [level][component] for thinking logs
 # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
 config :logger, :default_formatter,
   format: {MediaCentarr.Log.Formatter, :format},
   # Watch static and templates for browser reloading.
   # ## SSL Support
+  # Binding to loopback ipv4 address prevents access from other machines.
+
   #
   # In order to use HTTPS in development, a self-signed
   metadata: [:component]
@@ -44,10 +44,17 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
     web_console_logger: true,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
+      # Dev default TOML path — separate from production's XDG default so
+      # `iex -S mix phx.server` (no `MEDIA_CENTARR_CONFIG_OVERRIDE` set)
+      # picks up dev values (port 1080, dev DB) instead of the installed
+      # prod config (port 2160). The dev systemd unit also points at this
+      # same file via its explicit override env var.
       ~r"priv/gettext/.*(po)$",
       ~r"lib/media_centarr_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
+
+config :media_centarr, :default_config_path, "~/.config/media-centarr/media-centarr-dev.toml"
 
 # Toggle at runtime via the Settings page.
 #     https: [
@@ -66,6 +73,7 @@ config :media_centarr, :start_pipeline, false
 #       certfile: "priv/cert/selfsigned.pem"
 # configured to run both http and https servers on
 config :media_centarr, :start_watchers, false
+
 #     ],
 # different ports.
 #

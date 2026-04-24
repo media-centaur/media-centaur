@@ -13,10 +13,21 @@ if config_env() != :test do
   # single lever — dev systemd unit, showcase seeder, and any demo setup
   # all set it to a self-contained TOML file. If unset, the default XDG
   # TOML is read (the installed production config).
+  # Dev and prod have different default TOML paths so `iex -S mix phx.server`
+  # in a dev checkout doesn't silently inherit the installed production's
+  # config. The dev systemd unit also points at this same dev path via its
+  # own `MEDIA_CENTARR_CONFIG_OVERRIDE`.
+  default_toml_path =
+    if config_env() == :dev do
+      "~/.config/media-centarr/media-centarr-dev.toml"
+    else
+      "~/.config/media-centarr/media-centarr.toml"
+    end
+
   toml_path =
     case System.get_env("MEDIA_CENTARR_CONFIG_OVERRIDE") do
-      nil -> Path.expand("~/.config/media-centarr/media-centarr.toml")
-      "" -> Path.expand("~/.config/media-centarr/media-centarr.toml")
+      nil -> Path.expand(default_toml_path)
+      "" -> Path.expand(default_toml_path)
       path -> Path.expand(path)
     end
 
