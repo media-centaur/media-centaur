@@ -6,6 +6,7 @@ defmodule MediaCentarr.Pipeline.ImageQueueTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Pipeline.ImageQueue
+  alias MediaCentarr.Repo
 
   defp queue_attrs(overrides \\ %{}) do
     Map.merge(
@@ -121,6 +122,46 @@ defmodule MediaCentarr.Pipeline.ImageQueueTest do
       {:ok, _} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
 
       assert ImageQueue.retrying_count() == 1
+    end
+  end
+
+  describe "update_statuses/2" do
+    test "updates all given entries to the target status in one query" do
+      {:ok, a} = ImageQueue.create(queue_attrs(%{role: "poster"}))
+      {:ok, b} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
+      {:ok, c} = ImageQueue.create(queue_attrs(%{role: "thumb"}))
+
+      {count, _} = ImageQueue.update_statuses([a, b, c], :complete)
+      assert count == 3
+
+      for entry <- [a, b, c] do
+        refreshed = Repo.get!(MediaCentarr.Pipeline.ImageQueueEntry, entry.id)
+        assert refreshed.status == "complete"
+      end
+    end
+
+    test "no-ops on an empty list" do
+      assert ImageQueue.update_statuses([], :complete) == {0, nil}
+    end
+  end
+
+  describe "mark_failed_batch/1" do
+    test "marks all given entries failed and increments retry_count" do
+      {:ok, a} = ImageQueue.create(queue_attrs(%{role: "poster"}))
+      {:ok, b} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
+
+      {count, _} = ImageQueue.mark_failed_batch([a, b])
+      assert count == 2
+
+      for entry <- [a, b] do
+        refreshed = Repo.get!(MediaCentarr.Pipeline.ImageQueueEntry, entry.id)
+        assert refreshed.status == "failed"
+        assert refreshed.retry_count == entry.retry_count + 1
+      end
+    end
+
+    test "no-ops on an empty list" do
+      assert ImageQueue.mark_failed_batch([]) == {0, nil}
     end
   end
 end

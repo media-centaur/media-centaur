@@ -86,6 +86,9 @@ defmodule MediaCentarr.Pipeline.Image do
 
   @impl true
   def handle_batch(:default, messages, _batch_info, _context) do
+    entries = Enum.map(messages, & &1.data.queue_entry)
+    ImageQueue.update_statuses(entries, :complete)
+
     Enum.each(messages, fn message ->
       %{
         queue_entry: entry,
@@ -94,8 +97,6 @@ defmodule MediaCentarr.Pipeline.Image do
         owner_id: owner_id,
         entity_id: entity_id
       } = message.data
-
-      ImageQueue.update_status(entry, :complete)
 
       Phoenix.PubSub.broadcast(
         MediaCentarr.PubSub,
@@ -145,13 +146,11 @@ defmodule MediaCentarr.Pipeline.Image do
         )
     end)
 
-    Enum.each(permanent, fn %{data: %{queue_entry: entry}} ->
-      ImageQueue.update_status(entry, :permanent)
-    end)
+    permanent_entries = Enum.map(permanent, & &1.data.queue_entry)
+    transient_entries = Enum.map(transient, & &1.data.queue_entry)
 
-    Enum.each(transient, fn %{data: %{queue_entry: entry}} ->
-      ImageQueue.mark_failed(entry)
-    end)
+    ImageQueue.update_statuses(permanent_entries, :permanent)
+    ImageQueue.mark_failed_batch(transient_entries)
 
     messages
   end

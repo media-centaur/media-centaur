@@ -42,9 +42,40 @@ defmodule MediaCentarr.Pipeline.ImageQueue do
     Repo.update(ImageQueueEntry.status_changeset(entry, to_string(status)))
   end
 
+  @doc """
+  Batch-updates multiple entries to the given status in a single query.
+  Use instead of `update_status/2` when operating on a Broadway batch.
+  """
+  def update_statuses([], _status), do: {0, nil}
+
+  def update_statuses(entries, status) when is_atom(status) do
+    ids = Enum.map(entries, & &1.id)
+    now = DateTime.utc_now(:second)
+
+    Repo.update_all(from(e in ImageQueueEntry, where: e.id in ^ids),
+      set: [status: to_string(status), updated_at: now]
+    )
+  end
+
   @doc "Marks entry as failed and increments retry_count."
   def mark_failed(entry) do
     Repo.update(ImageQueueEntry.fail_changeset(entry))
+  end
+
+  @doc """
+  Batch-marks multiple entries as failed (status="failed", retry_count+1)
+  in a single query. Use instead of `mark_failed/1` on a Broadway batch.
+  """
+  def mark_failed_batch([]), do: {0, nil}
+
+  def mark_failed_batch(entries) do
+    ids = Enum.map(entries, & &1.id)
+    now = DateTime.utc_now(:second)
+
+    Repo.update_all(from(e in ImageQueueEntry, where: e.id in ^ids),
+      set: [status: "failed", updated_at: now],
+      inc: [retry_count: 1]
+    )
   end
 
   @doc "Resets entry status to pending (for retry)."

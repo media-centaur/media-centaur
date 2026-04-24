@@ -67,4 +67,21 @@ defmodule MediaCentarr.SettingsTest do
       assert {:ok, nil} = Settings.get_by_key("doomed")
     end
   end
+
+  describe "get_by_keys/1" do
+    test "returns a map of found entries, missing keys absent" do
+      {:ok, _} = Settings.create_entry(%{key: "config:foo", value: %{value: 1}})
+      {:ok, _} = Settings.create_entry(%{key: "config:bar", value: %{value: 2}})
+
+      result = Settings.get_by_keys(["config:foo", "config:bar", "config:missing"])
+
+      assert Map.has_key?(result, "config:foo")
+      assert Map.has_key?(result, "config:bar")
+      refute Map.has_key?(result, "config:missing")
+    end
+
+    test "returns empty map for empty keys list" do
+      assert Settings.get_by_keys([]) == %{}
+    end
+  end
 end

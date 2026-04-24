@@ -28,6 +28,21 @@ defmodule MediaCentarr.Settings do
     {:ok, Repo.get_by(Entry, key: key)}
   end
 
+  @doc """
+  Returns a map of `key => Entry` for all keys that exist in the DB.
+  Keys not found in the DB are absent from the map. Single SELECT with
+  `WHERE key IN (?)` — use this instead of calling `get_by_key/1` in a
+  loop.
+  """
+  @spec get_by_keys([String.t()]) :: %{String.t() => Entry.t()}
+  def get_by_keys(keys) when is_list(keys) do
+    import Ecto.Query
+
+    from(e in Entry, where: e.key in ^keys)
+    |> Repo.all()
+    |> Map.new(fn entry -> {entry.key, entry} end)
+  end
+
   @spec find_or_create_entry(attrs()) :: {:ok, Entry.t()} | {:error, Ecto.Changeset.t()}
   def find_or_create_entry(attrs) do
     key = attrs[:key] || attrs["key"]
