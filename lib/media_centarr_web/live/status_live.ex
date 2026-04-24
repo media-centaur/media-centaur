@@ -15,6 +15,7 @@ defmodule MediaCentarrWeb.StatusLive do
   alias MediaCentarr.Pipeline.Stats
   alias MediaCentarr.Pipeline.Image, as: ImagePipeline
   alias MediaCentarr.Watcher
+  alias MediaCentarrWeb.StatusLive.ReportModal
 
   @storage_refresh_ms 5 * 60 * 1_000
 
@@ -84,6 +85,7 @@ defmodule MediaCentarrWeb.StatusLive do
     |> assign(history_stats: %{total_count: 0, total_seconds: 0.0, streak: 0, heatmap: %{}})
     |> assign(error_buckets: [])
     |> assign(storage_drives: [])
+    |> assign(show_report_modal: false)
   end
 
   defp start_async_status_stats do
@@ -111,6 +113,34 @@ defmodule MediaCentarrWeb.StatusLive do
   end
 
   # --- Events ---
+
+  @impl true
+  def handle_event("open_error_report_modal", _params, socket) do
+    {:noreply, assign(socket, show_report_modal: true)}
+  end
+
+  @impl true
+  def handle_event("report_cancel", _params, socket) do
+    {:noreply, assign(socket, show_report_modal: false)}
+  end
+
+  @impl true
+  def handle_event("report_confirm", %{"fingerprint" => fingerprint}, socket) do
+    bucket = Enum.find(socket.assigns.error_buckets, &(&1.fingerprint == fingerprint))
+
+    socket =
+      case bucket do
+        nil ->
+          socket
+
+        bucket ->
+          env = MediaCentarr.ErrorReports.EnvMetadata.collect()
+          {:ok, url, _flags} = MediaCentarr.ErrorReports.IssueUrl.build(bucket, env)
+          push_event(socket, "error_reports:open_issue", %{url: url})
+      end
+
+    {:noreply, assign(socket, show_report_modal: false)}
+  end
 
   # --- Info handlers ---
 
@@ -276,6 +306,13 @@ defmodule MediaCentarrWeb.StatusLive do
           </.link>
         </div>
       </div>
+
+      <.live_component
+        :if={@show_report_modal}
+        id="report-modal-component"
+        module={ReportModal}
+        buckets={@error_buckets}
+      />
     </Layouts.app>
     """
   end
