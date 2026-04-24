@@ -1515,7 +1515,7 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   defp section_content(%{active_section: "tmdb"} = assigns) do
     ~H"""
-    <form phx-submit="save_tmdb" class="p-5 rounded-lg glass-surface space-y-5">
+    <form id="settings-tmdb" phx-submit="save_tmdb" class="p-5 rounded-lg glass-surface space-y-5">
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 class="text-lg font-semibold flex items-center gap-2">
@@ -1635,7 +1635,11 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     ~H"""
     <div class="space-y-5">
-      <form phx-submit="save_prowlarr" class="p-5 rounded-lg glass-surface space-y-5">
+      <form
+        id="settings-prowlarr"
+        phx-submit="save_prowlarr"
+        class="p-5 rounded-lg glass-surface space-y-5"
+      >
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold flex items-center gap-2">
@@ -1714,7 +1718,11 @@ defmodule MediaCentarrWeb.SettingsLive do
         </div>
       </form>
 
-      <form phx-submit="save_download_client" class="p-5 rounded-lg glass-surface space-y-5">
+      <form
+        id="settings-download-client"
+        phx-submit="save_download_client"
+        class="p-5 rounded-lg glass-surface space-y-5"
+      >
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold flex items-center gap-2">
@@ -2155,7 +2163,11 @@ defmodule MediaCentarrWeb.SettingsLive do
         </form>
       </div>
 
-      <form phx-submit="save_library" class="p-5 rounded-lg glass-surface space-y-5">
+      <form
+        id="settings-library"
+        phx-submit="save_library"
+        class="p-5 rounded-lg glass-surface space-y-5"
+      >
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold">Library</h2>
