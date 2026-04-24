@@ -62,62 +62,66 @@ defmodule MediaCentarrWeb.StatusLive.ReportModal do
       phx-key="Escape"
     >
       <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
-        <h2 class="text-lg font-semibold">
-          Send this error report to the Media Centarr developer?
-        </h2>
+        <div class="px-6 pt-6 pb-3 flex flex-col gap-3">
+          <h2 class="text-lg font-semibold">
+            Send this error report to the Media Centarr developer?
+          </h2>
 
-        <div class="alert alert-warning mt-3 text-sm">
-          <span>
-            Review the report below before submitting. It's been automatically
-            scrubbed of paths, UUIDs, API keys, IPs, emails, and configured URLs —
-            but please glance for anything else personal (titles of private files,
-            usernames in error messages, etc.) before confirming.
-            This will open a public GitHub issue.
-          </span>
-        </div>
-
-        <fieldset class="mt-4 space-y-2">
-          <legend class="text-sm text-base-content/70 mb-1">Which error?</legend>
-          <label
-            :for={bucket <- @buckets}
-            class="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-base-200"
-          >
-            <input
-              type="radio"
-              class="radio radio-sm mt-1"
-              name="bucket"
-              value={bucket.fingerprint}
-              checked={bucket.fingerprint == @selected}
-              phx-click={
-                JS.push("select", value: %{fingerprint: bucket.fingerprint}, target: @myself)
-              }
-            />
-            <span class="flex-1 min-w-0">
-              <span class="font-mono text-xs block truncate">{bucket.display_title}</span>
-              <span class="text-xs text-base-content/60">
-                ×{bucket.count} · {bucket.component}
-              </span>
+          <div class="alert alert-warning text-sm">
+            <span>
+              Review the report below before submitting. It's been automatically
+              scrubbed of paths, UUIDs, API keys, IPs, emails, and configured URLs —
+              but please glance for anything else personal (titles of private files,
+              usernames in error messages, etc.) before confirming.
+              This will open a public GitHub issue.
             </span>
-          </label>
-        </fieldset>
-
-        <div
-          :if={@preview}
-          class="mt-4 bg-base-200 rounded p-4 font-mono text-xs whitespace-pre-wrap max-h-96 overflow-y-auto"
-        >
-          <div class="text-base-content/70 mb-2 font-sans text-sm">Preview</div>
-          <div><span class="font-semibold">Title:</span> {@preview.title}</div>
-          <div class="mt-2">{@preview.body}</div>
+          </div>
         </div>
 
-        <div
-          :if={@preview && :truncated_log_context in @preview.flags}
-          class="alert alert-info mt-3 text-sm"
-        >
-          <span>Log context truncated to fit GitHub's URL size limit.</span>
+        <div class="px-6 flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
+          <fieldset class="space-y-1">
+            <legend class="text-sm text-base-content/70 mb-1">Which error?</legend>
+            <label
+              :for={bucket <- @buckets}
+              class="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-base-200"
+            >
+              <input
+                type="radio"
+                class="radio radio-sm mt-1"
+                name="bucket"
+                value={bucket.fingerprint}
+                checked={bucket.fingerprint == @selected}
+                phx-click={
+                  JS.push("select", value: %{fingerprint: bucket.fingerprint}, target: @myself)
+                }
+              />
+              <span class="flex-1 min-w-0">
+                <span class="font-mono text-xs block truncate">{bucket.display_title}</span>
+                <span class="text-xs text-base-content/60">
+                  ×{bucket.count} · {bucket.component}
+                </span>
+              </span>
+            </label>
+          </fieldset>
+
+          <div
+            :if={@preview}
+            class="bg-base-200 rounded p-4 font-mono text-xs whitespace-pre-wrap"
+          >
+            <div class="text-base-content/70 mb-2 font-sans text-sm">Preview</div>
+            <div><span class="font-semibold">Title:</span> {@preview.title}</div>
+            <div class="mt-2">{@preview.body}</div>
+          </div>
+
+          <div
+            :if={@preview && :truncated_log_context in @preview.flags}
+            class="alert alert-info text-sm"
+          >
+            <span>Log context truncated to fit GitHub's URL size limit.</span>
+          </div>
         </div>
 
-        <div class="mt-6 flex flex-col items-center gap-2">
+        <div class="px-6 pt-4 pb-6 flex flex-col items-center gap-2 border-t border-base-300">
           <button
             class="btn btn-primary"
             phx-click={JS.push("report_confirm", value: %{fingerprint: @selected})}
