@@ -67,16 +67,48 @@ const TOUR = [
   // ─── Status / releases / history / console ──────────────────────────
   {
     name: "release-tracking",
-    url: "/status",
-    action: async (page) => {
-      const card = page.locator("[data-status-releases]").first()
-      await card.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {})
-    },
-    settleMs: 300,
+    url: "/?zone=upcoming",
+    waitFor: ".tab-active[data-nav-zone-value='upcoming']",
+    settleMs: 600,
   },
   { name: "status", url: "/status" },
   { name: "history", url: "/history" },
-  { name: "download", url: "/download" },
+  { name: "download", url: "/download", settleMs: 800 },
+  {
+    name: "download-search",
+    url: "/download",
+    action: async (page) => {
+      // Type a public-domain title into the search input and submit.
+      // In showcase mode, Prowlarr is stubbed (see
+      // MediaCentarr.Showcase.Stubs) — the stub returns fixture
+      // release candidates regardless of the query string, so any
+      // submission populates the results card.
+      const input = page.locator("input[name='query']")
+      await input.fill("Night of the Living Dead")
+      await page.locator("button[type='submit']").click()
+      // Wait for the results card to appear. The AcquisitionLive
+      // template only renders the results section when @groups is
+      // non-empty, so a presence-check on the section heading is
+      // enough to know the async search returned.
+      await page
+        .waitForFunction(
+          () =>
+            document.body.innerText.includes("Night of the Living Dead") &&
+            document.querySelector("input[name='query']")?.value,
+          null,
+          { timeout: 5_000 },
+        )
+        .catch(() => {})
+      // Scroll to the first result group so the screenshot captures
+      // the results rather than the queue card at the top.
+      await page
+        .locator("[data-nav-zone='results'], [data-nav-zone='sections']")
+        .first()
+        .scrollIntoViewIfNeeded({ timeout: 2_000 })
+        .catch(() => {})
+    },
+    settleMs: 1500,
+  },
   { name: "console", url: "/console" },
 
   // ─── Settings ────────────────────────────────────────────────────────

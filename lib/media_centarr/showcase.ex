@@ -68,7 +68,7 @@ defmodule MediaCentarr.Showcase do
     video_objects = Enum.map(Catalog.video_objects(), &seed_video_object!/1)
 
     watch_progress_count = seed_watch_progress!(movies, tv_series)
-    tracked_count = seed_release_tracking!(movies, tv_series)
+    tracked_count = seed_release_tracking!(client)
     pending_count = seed_pending_files!(client)
     watch_event_count = seed_watch_history!(movies)
     acquisition_count = seed_acquisition!()
@@ -334,63 +334,53 @@ defmodule MediaCentarr.Showcase do
   # Release tracking — upcoming + available-now
   # ---------------------------------------------------------------------------
 
-  defp seed_release_tracking!(movies, tv_series) do
-    today = Date.utc_today()
+  defp seed_release_tracking!(client) do
+    # Real upcoming films + TV series, tracked via TMDB. Release
+    # Tracking shows METADATA only (title, date, poster) — same usage
+    # as IMDb/Letterboxd — so current copyrighted titles are
+    # appropriate here even though the library itself is PD. The
+    # story: "watch for releases of your favorite movies and shows."
+    upcoming = [
+      {:movie, "Sample Movie Thirteen: Part Three"},
+      {:movie, "Avatar: Fire and Ash"},
+      {:movie, "Avengers: Doomsday"},
+      {:tv_series, "Stranger Things"},
+      {:tv_series, "Sample Show Nine"},
+      {:tv_series, "The Last of Us"}
+    ]
 
-    tv_tracked =
-      tv_series
-      |> Enum.filter(& &1.id)
-      |> Enum.take(2)
-      |> Enum.map(fn series ->
-        item =
-          ReleaseTracking.track_item!(%{
-            tmdb_id: :rand.uniform(900_000) + 100_000,
-            media_type: :tv_series,
-            name: series.name,
-            library_entity_id: series.id,
-            last_refreshed_at: DateTime.utc_now()
-          })
+    Enum.reduce(upcoming, 0, fn {media_type, title}, acc ->
+      case track_upcoming(client, media_type, title) do
+        :ok -> acc + 1
+        _ -> acc
+      end
+    end)
+  end
 
-        # Upcoming
-        ReleaseTracking.create_release!(%{
-          item_id: item.id,
-          air_date: Date.add(today, 14),
-          title: "Next Episode",
-          season_number: 2,
-          episode_number: 1,
-          released: false,
-          in_library: false
-        })
+  defp track_upcoming(client, :movie, title) do
+    case TMDB.Client.search_movie(title, nil, client) do
+      {:ok, [%{"id" => id, "title" => name} | _]} ->
+        case ReleaseTracking.track_from_search(%{tmdb_id: id, media_type: :movie, name: name}) do
+          {:ok, _item} -> :ok
+          _ -> :error
+        end
 
-        # Available now
-        ReleaseTracking.create_release!(%{
-          item_id: item.id,
-          air_date: Date.add(today, -3),
-          title: "Recent Episode",
-          season_number: 1,
-          episode_number: 99,
-          released: true,
-          in_library: false
-        })
+      _ ->
+        :error
+    end
+  end
 
-        item
-      end)
+  defp track_upcoming(client, :tv_series, title) do
+    case TMDB.Client.search_tv(title, nil, client) do
+      {:ok, [%{"id" => id, "name" => name} | _]} ->
+        case ReleaseTracking.track_from_search(%{tmdb_id: id, media_type: :tv_series, name: name}) do
+          {:ok, _item} -> :ok
+          _ -> :error
+        end
 
-    movie_tracked =
-      movies
-      |> Enum.filter(& &1.id)
-      |> Enum.take(1)
-      |> Enum.map(fn movie ->
-        ReleaseTracking.track_item!(%{
-          tmdb_id: :rand.uniform(900_000) + 100_000,
-          media_type: :movie,
-          name: movie.name,
-          library_entity_id: movie.id,
-          last_refreshed_at: DateTime.utc_now()
-        })
-      end)
-
-    length(tv_tracked) + length(movie_tracked)
+      _ ->
+        :error
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -476,6 +466,14 @@ defmodule MediaCentarr.Showcase do
     MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
     MediaCentarr.Capabilities.save_test_result(:download_client, :ok)
     MediaCentarr.Capabilities.save_test_result(:tmdb, :ok)
+
+    # Flip the showcase-mode flag and invalidate the HTTP clients so
+    # subsequent Prowlarr / qBittorrent calls go through the fixture
+    # plugs in MediaCentarr.Showcase.Stubs instead of hitting real
+    # backends that the showcase instance doesn't have.
+    MediaCentarr.Config.update(:showcase_mode, true)
+    MediaCentarr.Acquisition.Prowlarr.invalidate_client()
+    MediaCentarr.Acquisition.DownloadClient.QBittorrent.invalidate_client()
 
     :ok
   end
