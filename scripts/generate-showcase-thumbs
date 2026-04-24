@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # Regenerate the bundled showcase episode-thumbnail placeholders.
 #
-# The showcase catalog picks legally-safe public-domain / CC-licensed TV
-# (Pioneer One, Dragnet 1951) that TMDB has NO episode stills for — every
-# `still_path` comes back null. Without thumbs, the TV detail modal
-# renders empty boxes, which is not marketing-grade.
+# These are the fallback thumbs used by the seeder
+# (MediaCentarr.Showcase.bundle_episode_thumb!/1) for TV series where
+# TMDB has no still_path — currently only Pioneer One (CC-BY-NC-SA).
 #
-# The seeder (`MediaCentarr.Showcase.seed_episode!`) falls back to one of
-# these bundled gradients when TMDB has no still. Re-running this script
-# is the only way to change their look; the output is committed so every
-# checkout has consistent thumbs.
+# The design goal is "tasteful dark placeholder that reads as
+# intentional, not as a broken thumbnail." We produce five fixtures so
+# consecutive episodes get visual variety via
+# rem(episode_number - 1, 5) + 1.
 #
 # Requires: ImageMagick 7 (`magick`).
 #
@@ -20,26 +19,60 @@ set -euo pipefail
 OUT_DIR="$(cd "$(dirname "$0")/.." && pwd)/priv/showcase/fixtures/thumbs"
 mkdir -p "$OUT_DIR"
 
-# 16:9 at 400px wide — matches TMDB thumb resolution closely enough that
-# the detail panel renders these at native pixel density.
-SIZE="400x225"
+# 400×225 matches TMDB's minimum episodic-backdrop spec so the detail
+# panel renders natively without upscaling.
+WIDTH=400
+HEIGHT=225
+SIZE="${WIDTH}x${HEIGHT}"
 
-# Five muted dark gradients. Distinct enough to tell episodes apart at
-# a glance, uniformly dark so the UI's light-on-dark typography stays
-# legible on hover state. Keep order stable — `seed_episode!` picks by
-# episode_number modulo count.
-gradients=(
-  "#2e3a52-#0e1420"   # slate blue
-  "#4a2e52-#140e1e"   # deep plum
-  "#524a2e-#1e180e"   # amber/bronze
-  "#2e5245-#0e1e1a"   # teal
-  "#522e3d-#1e0e18"   # dusk rose
-)
+# Dark palette pulled from the app's ink scale. Not gradients — flat
+# near-black with a subtle radial vignette.
+BASE="#0f1117"
+VIGNETTE="#1a1d26"
 
-for i in "${!gradients[@]}"; do
-  n=$((i + 1))
-  magick -size "$SIZE" "gradient:${gradients[$i]}" "$OUT_DIR/thumb-${n}.jpg"
+# Low-opacity ink for the glyphs — keeps the shot reading as "polite
+# placeholder" rather than "look at me".
+INK="rgba(255,255,255,0.11)"
+
+# Center coordinates.
+CX=$((WIDTH / 2))
+CY=$((HEIGHT / 2))
+
+# Five vector shapes drawn with ImageMagick primitives. Native drawing
+# avoids the font-fallback trap we hit with unicode glyphs (▶ wasn't
+# in the default font and silently rendered blank).
+for n in 1 2 3 4 5; do
+  case $n in
+    1)
+      # Equilateral play triangle pointing right, ~32px wide.
+      draw="polygon $((CX - 14)),$((CY - 18)) $((CX - 14)),$((CY + 18)) $((CX + 18)),${CY}"
+      ;;
+    2)
+      # Filled circle, radius 18.
+      draw="circle ${CX},${CY} ${CX},$((CY - 18))"
+      ;;
+    3)
+      # Square, ~32px wide.
+      draw="rectangle $((CX - 16)),$((CY - 16)) $((CX + 16)),$((CY + 16))"
+      ;;
+    4)
+      # Diamond (rotated square), ~44px diagonal.
+      draw="polygon ${CX},$((CY - 22)) $((CX + 22)),${CY} ${CX},$((CY + 22)) $((CX - 22)),${CY}"
+      ;;
+    5)
+      # Triangle pointing up, ~44px wide base.
+      draw="polygon ${CX},$((CY - 20)) $((CX + 22)),$((CY + 18)) $((CX - 22)),$((CY + 18))"
+      ;;
+  esac
+
+  magick -size "$SIZE" \
+    radial-gradient:"$VIGNETTE"-"$BASE" \
+    -fill "$INK" \
+    -stroke none \
+    -draw "$draw" \
+    -quality 90 \
+    "$OUT_DIR/thumb-${n}.jpg"
 done
 
-echo "generated ${#gradients[@]} thumbs at $OUT_DIR"
+echo "generated 5 thumbs at $OUT_DIR"
 ls -la "$OUT_DIR"
