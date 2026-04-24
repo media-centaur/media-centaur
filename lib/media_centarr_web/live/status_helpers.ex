@@ -142,12 +142,4 @@ defmodule MediaCentarrWeb.StatusHelpers do
   def usage_text_class(percent) when percent >= 90, do: "text-error"
   def usage_text_class(percent) when percent >= 75, do: "text-warning"
   def usage_text_class(_percent), do: "text-success"
-
-  # --- Errors ---
-
-  def merge_recent_errors(content_stats, image_stats) do
-    (content_stats.recent_errors ++ image_stats.recent_errors)
-    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
-    |> Enum.take(50)
-  end
 end

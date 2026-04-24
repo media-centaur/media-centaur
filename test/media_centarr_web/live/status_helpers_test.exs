@@ -299,31 +299,4 @@ defmodule MediaCentarrWeb.StatusHelpersTest do
       refute StatusHelpers.progress_matches_session?(progress, now_playing)
     end
   end
-
-  # --- merge_recent_errors/2 ---
-
-  describe "merge_recent_errors/2" do
-    test "merges and sorts errors by updated_at descending" do
-      now = DateTime.utc_now()
-      old = DateTime.add(now, -3600, :second)
-
-      content_stats = %{recent_errors: [%{message: "c1", updated_at: old}]}
-      image_stats = %{recent_errors: [%{message: "i1", updated_at: now}]}
-
-      result = StatusHelpers.merge_recent_errors(content_stats, image_stats)
-
-      assert length(result) == 2
-      assert hd(result).message == "i1"
-    end
-
-    test "limits to 50 entries" do
-      errors = for i <- 1..30, do: %{message: "e#{i}", updated_at: DateTime.utc_now()}
-
-      content_stats = %{recent_errors: errors}
-      image_stats = %{recent_errors: errors}
-
-      result = StatusHelpers.merge_recent_errors(content_stats, image_stats)
-      assert length(result) == 50
-    end
-  end
 end

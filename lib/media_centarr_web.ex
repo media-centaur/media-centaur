@@ -1,6 +1,7 @@
 defmodule MediaCentarrWeb do
   use Boundary,
     deps: [
+      MediaCentarr.ErrorReports,
       MediaCentarr.Library,
       MediaCentarr.Pipeline,
       MediaCentarr.Review,
