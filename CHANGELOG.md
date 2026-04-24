@@ -4,6 +4,28 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.0 — 2026-04-24
+
+### New
+
+- **The Status page now summarises recent errors, and you can
+  report them to the developer in one click.** Instead of a
+  long list of every failed file, you see a count of errors in
+  the last hour grouped by what actually went wrong (rate
+  limits, permission denied, etc.) — at most the top three
+  groups, so the page stays scannable. A **Report errors**
+  button opens a modal that shows exactly what will be sent
+  as a GitHub issue: an environment block (app version, OS,
+  uptime), a fingerprint, a count, and up to five recent log
+  lines. Paths, UUIDs, API keys, IP addresses, emails, and
+  any URLs you've configured (Prowlarr, download clients) are
+  automatically scrubbed before the preview is shown. Nothing
+  is sent until you click **Confirm & open GitHub** — at
+  which point a new browser tab opens on the Media Centarr
+  repo with the title and body already filled in. Two users
+  hitting the same bug will produce matching issue titles, so
+  GitHub's duplicate detection can collapse them.
+
 ## v0.21.0 — 2026-04-24
 
 ### Fixed
