@@ -27,6 +27,7 @@ import {createInputHook} from "./input/index"
 import {Console} from "./hooks/console"
 import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
+import {ErrorReport} from "./hooks/error_report"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -39,6 +40,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     Console,
     LogTail,
     CopyButton,
+    ErrorReport,
     ScrollToResume: {
       mounted() { this._scrollToTarget() },
       updated() {

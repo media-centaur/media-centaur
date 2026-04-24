@@ -731,7 +731,12 @@ defmodule MediaCentarrWeb.StatusLive do
 
   defp error_summary_card(assigns) do
     ~H"""
-    <div class="card glass-surface" data-testid="error-summary-card">
+    <div
+      class="card glass-surface"
+      data-testid="error-summary-card"
+      id="error-summary-card"
+      phx-hook="ErrorReport"
+    >
       <div class="card-body">
         <div class="flex justify-between items-start gap-4">
           <h2 class="card-title text-lg">Errors</h2>
