@@ -91,6 +91,9 @@ defmodule MediaCentarrWeb.SettingsLive do
        scan_task: nil,
        clearing_database: false,
        refreshing_images: false,
+       repairing_images: false,
+       repair_last_result: nil,
+       missing_images_summary: Admin.missing_images_summary(),
        spoiler_free: spoiler_free,
        tmdb_test: load_test_result(:tmdb),
        tmdb_testing: false,
@@ -448,6 +451,17 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, refreshing_images: true)}
   end
 
+  def handle_event("repair_missing_images", _params, socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      {:ok, result} = Admin.repair_missing_images()
+      send(liveview, {:image_repair_complete, result})
+    end)
+
+    {:noreply, assign(socket, repairing_images: true)}
+  end
+
   def handle_event("toggle_watchers", _params, socket) do
     if socket.assigns.watchers_running do
       Watcher.Supervisor.stop_watchers()
@@ -788,6 +802,34 @@ defmodule MediaCentarrWeb.SettingsLive do
      )}
   end
 
+  def handle_info({:image_repair_complete, result}, socket) do
+    %{enqueued: enqueued, queue_reused: reused, queue_rebuilt: rebuilt, skipped: skipped} =
+      result
+
+    msg =
+      cond do
+        enqueued == 0 and skipped == 0 ->
+          "No missing images — nothing to repair."
+
+        enqueued == 0 ->
+          "No images could be repaired (#{skipped} skipped)."
+
+        true ->
+          "Queued #{enqueued} image#{if enqueued == 1, do: "", else: "s"} for re-download " <>
+            "(#{reused} reused, #{rebuilt} rebuilt via TMDB" <>
+            if(skipped > 0, do: ", #{skipped} skipped", else: "") <> ")."
+      end
+
+    {:noreply,
+     socket
+     |> assign(
+       repairing_images: false,
+       repair_last_result: result,
+       missing_images_summary: Admin.missing_images_summary()
+     )
+     |> put_flash(:info, msg)}
+  end
+
   # Cross-tab sync — another tab toggled spoiler_free
   def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
     {:noreply, assign(socket, spoiler_free: enabled)}
@@ -1070,6 +1112,8 @@ defmodule MediaCentarrWeb.SettingsLive do
             config={@config}
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
+            repairing_images={@repairing_images}
+            missing_images_summary={@missing_images_summary}
             spoiler_free={@spoiler_free}
             tmdb_test={@tmdb_test}
             tmdb_testing={@tmdb_testing}
@@ -2273,59 +2317,108 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   defp section_content(%{active_section: "danger"} = assigns) do
     ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface border border-error/20 space-y-4">
-      <div class="flex items-start gap-3">
-        <.icon name="hero-exclamation-triangle" class="size-6 text-error shrink-0 mt-0.5" />
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
-          <p class="text-sm text-base-content/60 mt-0.5">
-            Destructive actions that cannot be undone. Read the prompt carefully before confirming.
-          </p>
+    <div class="space-y-4">
+      <div data-nav-grid class="p-5 rounded-lg glass-surface space-y-4">
+        <div class="flex items-start gap-3">
+          <.icon name="hero-wrench-screwdriver" class="size-6 text-base-content/70 shrink-0 mt-0.5" />
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">Library maintenance</h2>
+            <p class="text-sm text-base-content/60 mt-0.5">
+              Non-destructive housekeeping — detect and heal gaps in the library's cached artwork.
+            </p>
+          </div>
+        </div>
+
+        <div class="divide-y divide-base-content/10">
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium">
+                Repair missing images
+                <span
+                  :if={@missing_images_summary.missing > 0}
+                  class="ml-2 badge badge-sm badge-warning"
+                >
+                  {@missing_images_summary.missing} missing
+                </span>
+              </p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                <%= if @missing_images_summary.missing > 0 do %>
+                  Finds {@missing_images_summary.missing} image file{if @missing_images_summary.missing ==
+                                                                          1,
+                                                                        do: "",
+                                                                        else: "s"} referenced in the database but absent on disk, and re-queues each one for download from TMDB. Reuses stored source URLs where available; re-queries TMDB when the queue entry is missing.
+                <% else %>
+                  All image files are present on disk. Nothing to repair.
+                <% end %>
+              </p>
+            </div>
+            <button
+              phx-click="repair_missing_images"
+              disabled={@repairing_images or @missing_images_summary.missing == 0}
+              data-nav-item
+              tabindex="0"
+              class="btn btn-soft btn-sm shrink-0"
+            >
+              {if @repairing_images, do: "Repairing…", else: "Repair"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="divide-y divide-base-content/10">
-        <div class="flex items-start justify-between gap-4 py-3">
+      <div data-nav-grid class="p-5 rounded-lg glass-surface border border-error/20 space-y-4">
+        <div class="flex items-start gap-3">
+          <.icon name="hero-exclamation-triangle" class="size-6 text-error shrink-0 mt-0.5" />
           <div class="min-w-0">
-            <p class="text-sm font-medium">Clear database</p>
-            <p class="text-xs text-base-content/50 mt-0.5">
-              Permanently deletes all entities, files, images, and progress.
+            <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
+            <p class="text-sm text-base-content/60 mt-0.5">
+              Destructive actions that cannot be undone. Read the prompt carefully before confirming.
             </p>
           </div>
-          <button
-            phx-click="clear_database"
-            disabled={@clearing_database}
-            data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
-            data-nav-item
-            tabindex="0"
-            class="btn btn-soft btn-error btn-sm shrink-0"
-          >
-            {if @clearing_database, do: "Clearing…", else: "Clear"}
-          </button>
         </div>
 
-        <div class="flex items-start justify-between gap-4 py-3">
-          <div class="min-w-0">
-            <p class="text-sm font-medium">Refresh image cache</p>
-            <p class="text-xs text-base-content/50 mt-0.5">
-              Deletes all cached artwork and re-downloads from TMDB. May take a while.
-            </p>
+        <div class="divide-y divide-base-content/10">
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium">Clear database</p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Permanently deletes all entities, files, images, and progress.
+              </p>
+            </div>
+            <button
+              phx-click="clear_database"
+              disabled={@clearing_database}
+              data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
+              data-nav-item
+              tabindex="0"
+              class="btn btn-soft btn-error btn-sm shrink-0"
+            >
+              {if @clearing_database, do: "Clearing…", else: "Clear"}
+            </button>
           </div>
-          <button
-            phx-click="refresh_image_cache"
-            disabled={@refreshing_images}
-            data-confirm={
-              if @refreshing_images,
-                do: nil,
-                else:
-                  "This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
-            }
-            data-nav-item
-            tabindex="0"
-            class="btn btn-soft btn-warning btn-sm shrink-0"
-          >
-            {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
-          </button>
+
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium">Refresh image cache</p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Deletes all cached artwork and re-downloads from TMDB. May take a while.
+              </p>
+            </div>
+            <button
+              phx-click="refresh_image_cache"
+              disabled={@refreshing_images}
+              data-confirm={
+                if @refreshing_images,
+                  do: nil,
+                  else:
+                    "This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
+              }
+              data-nav-item
+              tabindex="0"
+              class="btn btn-soft btn-warning btn-sm shrink-0"
+            >
+              {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

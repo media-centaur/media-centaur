@@ -1,7 +1,15 @@
 defmodule MediaCentarr.Pipeline do
   use Boundary,
     deps: [MediaCentarr.TMDB, MediaCentarr.Library, MediaCentarr.Watcher],
-    exports: [Discovery, Supervisor, Stats, ImageQueue, Image.Supervisor, Image.Stats]
+    exports: [
+      Discovery,
+      Image.Stats,
+      Image.Supervisor,
+      ImageQueue,
+      ImageRepair,
+      Stats,
+      Supervisor
+    ]
 
   @moduledoc """
   Boundary anchor for the ingestion Pipeline context.

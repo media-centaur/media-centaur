@@ -90,6 +90,42 @@ defmodule MediaCentarr.Settings.Admin do
     {:ok, length(entities)}
   end
 
+  @doc """
+  Detects `library_images` rows whose files are absent on disk and
+  re-queues each one into `pipeline_image_queue` so the pipeline can
+  re-download. Uses the existing stored `source_url` when a queue row
+  already exists, or re-queries TMDB to reconstruct one otherwise.
+
+  Non-destructive — does not touch existing files on disk or image rows
+  that are present. Returns the per-category counts from
+  `MediaCentarr.Pipeline.ImageRepair.repair_all/0`.
+  """
+  @spec repair_missing_images() ::
+          {:ok,
+           %{
+             enqueued: non_neg_integer(),
+             queue_reused: non_neg_integer(),
+             queue_rebuilt: non_neg_integer(),
+             skipped: non_neg_integer()
+           }}
+  def repair_missing_images do
+    MediaCentarr.Pipeline.ImageRepair.repair_all()
+  end
+
+  @doc """
+  Returns a summary of image-health state — total rows, missing files
+  count, and per-role breakdown. For the UI to display the repair button
+  prominence.
+  """
+  @spec missing_images_summary() :: %{
+          total: non_neg_integer(),
+          missing: non_neg_integer(),
+          by_role: %{String.t() => non_neg_integer()}
+        }
+  def missing_images_summary do
+    MediaCentarr.Library.ImageHealth.summary()
+  end
+
   defp resources_in_delete_order do
     [
       PendingFile,

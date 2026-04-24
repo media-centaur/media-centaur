@@ -249,7 +249,7 @@ defmodule MediaCentarr.Showcase do
     # `scripts/generate-showcase-thumbs`.
     case ep_data["still_path"] do
       path when is_binary(path) and path != "" ->
-        download_image_role!(episode.id, :episode_id, :thumb, path)
+        download_image_role!(episode.id, :episode_id, season.tv_series_id, :thumb, path)
 
       _ ->
         bundle_episode_thumb!(episode)
@@ -597,46 +597,98 @@ defmodule MediaCentarr.Showcase do
     poster_path = tmdb_data["poster_path"]
     backdrop_path = tmdb_data["backdrop_path"]
 
-    download_image_role!(entity_id, fk, :poster, poster_path)
-    download_image_role!(entity_id, fk, :backdrop, backdrop_path)
+    download_image_role!(entity_id, fk, entity_id, :poster, poster_path)
+    download_image_role!(entity_id, fk, entity_id, :backdrop, backdrop_path)
 
     :ok
   end
 
-  defp download_image_role!(_entity_id, _fk, _role, nil), do: :ok
-  defp download_image_role!(_entity_id, _fk, _role, ""), do: :ok
+  defp download_image_role!(_owner_id, _fk, _entity_id, _role, nil), do: :ok
+  defp download_image_role!(_owner_id, _fk, _entity_id, _role, ""), do: :ok
 
-  defp download_image_role!(entity_id, fk, role, path) do
+  # Always writes a `pipeline_image_queue` row (carrying the TMDB CDN URL)
+  # before attempting the inline download. If the inline download fails,
+  # the queue row remains `:pending` and the Settings → Library
+  # Maintenance → Repair button can drain it later via
+  # `Pipeline.ImageRepair.repair_all/0`.
+  defp download_image_role!(owner_id, fk, entity_id, role, path) do
     url = "https://image.tmdb.org/t/p/original#{path}"
     watch_dirs = MediaCentarr.Config.get(:watch_dirs) || []
     primary = List.first(watch_dirs)
 
     if primary do
-      images_root = MediaCentarr.Config.images_dir_for(primary)
       extension = path |> Path.extname() |> String.trim_leading(".") |> String.downcase()
       extension = if extension == "", do: "jpg", else: extension
-      dest = Path.join([images_root, entity_id, "#{role}.#{extension}"])
 
-      case MediaCentarr.Images.download(url, dest, []) do
-        {:ok, _} ->
-          Library.create_image!(%{
-            fk => entity_id,
-            :role => to_string(role),
-            :content_url => "#{entity_id}/#{role}.#{extension}",
-            :extension => extension
-          })
-
-          :ok
-
-        {:error, _, _reason} ->
-          # Record still gets an Image row with no file — the UI shows a
-          # placeholder. Failing the whole seed on image trouble is worse
-          # than a missing poster.
-          :ok
-      end
+      enqueue_for_repair(owner_id, fk, entity_id, role, url, primary)
+      perform_inline_download(owner_id, fk, role, extension, url, primary)
     else
       :ok
     end
+  end
+
+  defp enqueue_for_repair(owner_id, fk, entity_id, role, url, watch_dir) do
+    {:ok, _entry} =
+      MediaCentarr.Pipeline.ImageQueue.create(%{
+        owner_id: owner_id,
+        owner_type: owner_type_for(fk),
+        role: to_string(role),
+        source_url: url,
+        entity_id: entity_id,
+        watch_dir: watch_dir,
+        status: "pending",
+        retry_count: 0
+      })
+
+    :ok
+  end
+
+  defp owner_type_for(:movie_id), do: "movie"
+  defp owner_type_for(:tv_series_id), do: "tv_series"
+  defp owner_type_for(:movie_series_id), do: "movie_series"
+  defp owner_type_for(:video_object_id), do: "video_object"
+  defp owner_type_for(:episode_id), do: "episode"
+
+  defp perform_inline_download(owner_id, fk, role, extension, url, watch_dir) do
+    images_root = MediaCentarr.Config.images_dir_for(watch_dir)
+    dest = Path.join([images_root, owner_id, "#{role}.#{extension}"])
+
+    case MediaCentarr.Images.download(url, dest, []) do
+      {:ok, _} ->
+        Library.create_image!(%{
+          fk => owner_id,
+          :role => to_string(role),
+          :content_url => "#{owner_id}/#{role}.#{extension}",
+          :extension => extension
+        })
+
+        mark_queue_complete(owner_id, role)
+        :ok
+
+      {:error, _category, reason} ->
+        # The queue row stays :pending so Repair can drain it later. We
+        # log and move on — failing the whole seed on a single image is
+        # worse than letting the operator click Repair afterwards.
+        Log.warning(
+          :library,
+          "showcase: image download failed for #{owner_id}/#{role}: #{inspect(reason)} — left in queue for repair"
+        )
+
+        :ok
+    end
+  end
+
+  defp mark_queue_complete(owner_id, role) do
+    import Ecto.Query
+
+    role_str = to_string(role)
+
+    MediaCentarr.Repo.update_all(
+      from(e in MediaCentarr.Pipeline.ImageQueueEntry,
+        where: e.owner_id == ^owner_id and e.role == ^role_str
+      ),
+      set: [status: "complete", updated_at: DateTime.utc_now(:second)]
+    )
   end
 
   @bundled_thumb_count 5
