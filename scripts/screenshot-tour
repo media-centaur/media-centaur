@@ -13,7 +13,12 @@
 #   3. Hyprland running (for the floating-window rule). Not strictly
 #      required — Chromium will just open normally on other compositors.
 #
-# Output: docs-site/assets/screenshots/{library-grid,library-detail-movie,...}.png
+# Output (both in parallel, same filenames, same tour stops):
+#   docs-site/assets/screenshots/<name>.png       — web-resolution (1400×900)
+#   docs-site/assets/screenshots/4k/<name>.png    — supersampled ~3840px wide
+#
+# The 4K variant is linked from the marketing site and wiki so readers
+# can click through to a crisp full-fidelity capture.
 
 set -euo pipefail
 
@@ -63,7 +68,7 @@ if command -v hyprctl > /dev/null 2>&1; then
   done
 fi
 
-mkdir -p "$REPO_ROOT/docs-site/assets/screenshots"
+mkdir -p "$REPO_ROOT/docs-site/assets/screenshots" "$REPO_ROOT/docs-site/assets/screenshots/4k"
 
 # Entity UUIDs for the detail-modal tour stops change every reseed. Look
 # them up fresh here so the tour never needs manual editing. If the DB

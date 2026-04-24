@@ -9,8 +9,10 @@
 const { test, expect } = require("@playwright/test")
 const path = require("node:path")
 
+const fs = require("node:fs")
+
 const REPO_ROOT = path.resolve(__dirname, "..", "..")
-const OUT_DIR = path.join(REPO_ROOT, "docs-site", "assets", "screenshots")
+const OUT_BASE = path.join(REPO_ROOT, "docs-site", "assets", "screenshots")
 
 // Injected by scripts/screenshot-tour via sqlite3 lookup before each run.
 const NOSFERATU_ID = process.env.NOSFERATU_ID || ""
@@ -190,7 +192,7 @@ async function waitForLiveView(page) {
 }
 
 for (const stop of TOUR) {
-  test(`tour: ${stop.name}`, async ({ page }) => {
+  test(`tour: ${stop.name}`, async ({ page }, testInfo) => {
     await page.goto(stop.url, { waitUntil: "domcontentloaded" })
     await waitForLiveView(page)
 
@@ -209,7 +211,12 @@ for (const stop of TOUR) {
     await page.waitForLoadState("networkidle").catch(() => {})
     await page.waitForTimeout(stop.settleMs ?? 400)
 
-    const outPath = path.join(OUT_DIR, `${stop.name}.png`)
+    // Project metadata chooses the output subdir — "" for web, "4k" for
+    // supersampled. See screenshot-tour.config.js.
+    const subdir = testInfo.project.metadata?.outSubdir ?? ""
+    const outDir = path.join(OUT_BASE, subdir)
+    fs.mkdirSync(outDir, { recursive: true })
+    const outPath = path.join(outDir, `${stop.name}.png`)
     await page.screenshot({ path: outPath, fullPage: false })
     expect(outPath).toBeTruthy()
   })
