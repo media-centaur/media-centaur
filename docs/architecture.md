@@ -170,7 +170,7 @@ Each context exposes a `subscribe/0` facade that wraps `Phoenix.PubSub.subscribe
 ## Key Principles
 
 - **Ecto is the data interface.** All persistence goes through context modules that wrap `Ecto.Repo` and broadcast `{:entities_changed, ids}` on `library:updates` for every mutation. Raw SQL is reserved for SQLite-specific features (e.g. `json_extract`).
-- **Schema.org vocabulary.** Entity fields use schema.org property names. See [`specs/DATA-FORMAT.md`](../specs/DATA-FORMAT.md).
+- **Ecto schemas are the data spec.** Field names, types, and associations are defined in the schema modules under `lib/media_centarr/library/`. See [`specs/DATA-FORMAT.md`](../specs/DATA-FORMAT.md) for the entry shape returned to LiveViews.
 - **UUIDs are permanent.** Entity IDs never change once assigned — they double as image directory names.
 - **PubSub for cross-context communication.** Contexts don't call into each other's internals; cross-context wiring is enforced by Boundary.
 - **Pipeline is a mediator.** The pipeline actively orchestrates — domain resources don't trigger pipeline behavior through state changes.
@@ -182,7 +182,7 @@ Protocol specifications live in [`specs/`](../specs/):
 
 | Spec | Governs |
 |------|---------|
-| [DATA-FORMAT.md](../specs/DATA-FORMAT.md) | JSON-LD entity serialization format |
+| [DATA-FORMAT.md](../specs/DATA-FORMAT.md) | Entity types, library entry shape, and pointer to the canonical Ecto schemas |
 | [IMAGE-CACHING.md](../specs/IMAGE-CACHING.md) | Image storage conventions and the shared `MediaCentarr.Images` facade |
 
 ## Module Reference
@@ -196,6 +196,5 @@ Protocol specifications live in [`specs/`](../specs/):
 | `MediaCentarr.Controls` | Keybinding catalog + persisted overrides | `lib/media_centarr/controls.ex` |
 | `MediaCentarr.Images` | Shared image download + libvips resize service | `lib/media_centarr/images.ex` |
 | `MediaCentarr.Log` | Component-tagged thinking-log macros | `lib/media_centarr/log.ex` |
-| `MediaCentarr.Serializer` | Entity → JSON-LD serializer | `lib/media_centarr/serializer.ex` |
 | `MediaCentarr.Storage` | Disk usage measurement | `lib/media_centarr/storage.ex` |
-| `MediaCentarr.Settings.Admin` | Destructive admin operations (clear DB, refresh image cache) | `lib/media_centarr/settings/admin.ex` |
+| `MediaCentarr.Maintenance` | Operator-driven destructive operations (clear DB, refresh image cache, repair missing images) | `lib/media_centarr/maintenance.ex` |

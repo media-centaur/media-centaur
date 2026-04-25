@@ -1,23 +1,27 @@
 ---
 status: accepted
 date: 2026-03-07
+amended: 2026-04-25
 ---
-# Backend owns all writes to shared storage
+# This app is the sole writer to entity records and image storage
 
 ## Context and Problem Statement
 
-The system has two main components — a backend (Phoenix/Elixir) and a frontend (Rust) — that share access to entity data and image files on the filesystem. Without a clear ownership boundary, both sides could write to shared directories, creating race conditions, stale data, and unclear responsibility for cleanup and integrity.
+Multiple processes (Pipeline workers, LiveView event handlers, Oban jobs, the Watcher, future replicas or sync agents) can plausibly want to mutate library records or write images on disk. Without a clear ownership rule, concurrent writers race on the same entity row or image file, producing inconsistent state, half-written files, and silent overwrites.
+
+Earlier framings of this ADR predicated the rule on a backend (Phoenix/Elixir) vs. frontend (Rust) split. The Rust frontend has been retired; this app is now the only component. The single-writer invariant still matters for the same reasons, just not for the same reason.
 
 ## Decision Outcome
 
-Chosen option: "The backend is the sole writer to shared storage", because a single-writer model eliminates write conflicts and makes the backend the authoritative source for all persistent state.
+**This Phoenix application is the sole writer to entity records (DB) and image storage (filesystem under `data/images/`).** Every mutation goes through a context module that owns the resource (`Library`, `Pipeline`, `Review`, etc.), serializes through Ecto, and broadcasts a PubSub event after the write.
 
-1. **Only the backend writes to the `images/` directory.** The frontend reads images for display but never creates, modifies, or deletes them.
-2. **Only the backend creates and mutates entity records.** The frontend receives entity data over Phoenix Channels and renders it.
-3. **The frontend sends commands, not mutations.** Playback requests, review decisions, and other user actions are sent as channel messages — the backend decides what state changes result.
+1. **Only this app writes to the `images/` directory.** Reads (HTTP serving, browser image fetches) are unrestricted, but creating, modifying, or deleting image files is an operation owned by the context that owns the entity.
+2. **Only this app mutates entity records.** External integrations (TMDB, Prowlarr) are read-only sources. User actions arrive as LiveView events, Oban jobs, or PubSub messages and are translated into context calls — never direct DB writes from the source.
+3. **The pipeline is a mediator, not a side effect.** Pipeline stages call context functions to write; they do not bypass the context layer to insert records or write files directly.
 
 ### Consequences
 
-* Good, because there is exactly one process responsible for filesystem and database integrity
-* Good, because the frontend can be stateless with respect to persistent data — it only caches what the backend pushes
-* Bad, because all write paths must go through the backend, adding latency for operations that could theoretically be done locally
+* Good, because there is exactly one process model responsible for filesystem and database integrity
+* Good, because every mutation has a discoverable code path that ends in a context function
+* Good, because the PubSub broadcast contract (ADR-011) has a single point of enforcement
+* Bad, because a future replicated or distributed deployment must extend this rule rather than disclaim it — adding a second writer is a major architectural change, not a configuration tweak

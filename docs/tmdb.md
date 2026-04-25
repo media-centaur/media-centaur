@@ -28,7 +28,7 @@ graph LR
 
 **Confidence scoring:** Search results are scored against parsed filenames using Jaro string distance plus contextual bonuses. Scores above the threshold (default 0.85) are auto-approved; below it, the file is queued for human review.
 
-**Response mapping:** Raw TMDB JSON is mapped to schema.org attribute names (`title` → `name`, `overview` → `description`, `release_date` → `date_published`, etc.) before reaching the library domain.
+**Response mapping:** Raw TMDB JSON is mapped to the library schemas' field names (`title` → `name`, `overview` → `description`, `release_date` → `date_published`, etc.) before reaching the library domain.
 
 ## Configuration
 
