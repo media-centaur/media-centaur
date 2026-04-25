@@ -4,6 +4,34 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.8 — 2026-04-25
+
+### New
+
+- **Repair missing images.** Settings → Library maintenance now
+  detects artwork files that are missing from disk and re-downloads
+  them from TMDB on demand. A badge in the section header shows
+  the count; one button drains the queue. Until now, recovery from
+  a partial image-cache loss meant rebuilding the whole library;
+  this is the surgical alternative — works for any entity whose
+  TMDB id is known (movies, TV series, episodes, movie series,
+  video objects).
+
+### Improved
+
+- **Marketing screenshots restored at full 4K.** Click-through
+  shots on [media-centarr.net](https://media-centarr.net/), the
+  README, and the wiki are back. The 4K versions now live in a
+  separate `media-centarr-assets` repo and load through jsDelivr's
+  global CDN, so they render fast worldwide and the main repo
+  stops accumulating multi-megabyte PNGs every release.
+
+- **Showcase seeder is more robust.** Image-download failures
+  during `mix seed.showcase` are now logged with the queue entry
+  preserved, instead of silently leaving a broken row in the
+  database. If a download fails at seed time, the new Repair
+  button drains it without a re-seed.
+
 ## v0.22.7 — 2026-04-25
 
 ### Fixed
