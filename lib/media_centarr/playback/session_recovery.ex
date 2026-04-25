@@ -162,17 +162,10 @@ defmodule MediaCentarr.Playback.SessionRecovery do
     end
   end
 
-  @with_associations_preloads [
-    tv_series: Library.tv_series_full_preloads(),
-    movie_series: Library.movie_series_full_preloads(),
-    movie: Library.movie_full_preloads(),
-    video_object: Library.video_object_full_preloads()
-  ]
-
   defp resolve_typed_entity(id) do
     case TypeResolver.resolve(id,
            standalone_movie: false,
-           preload: @with_associations_preloads
+           preload: Library.full_preloads_by_type()
          ) do
       {:ok, type, record} -> {:ok, EntityShape.normalize(record, type)}
       :not_found -> :not_found

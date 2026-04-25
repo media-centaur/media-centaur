@@ -67,37 +67,37 @@ defmodule MediaCentarr.Showcase do
     tv_series = Enum.map(Catalog.tv_series(), &seed_tv_series!(&1, client))
     video_objects = Enum.map(Catalog.video_objects(), &seed_video_object!/1)
 
-    watch_progress_count = seed_watch_progress!(movies, tv_series)
-    tracked_count = seed_release_tracking!(client)
-    pending_count = seed_pending_files!(client)
-    watch_event_count = seed_watch_history!(movies)
-    acquisition_count = seed_acquisition!()
+    counts = %{
+      watch_progress: seed_watch_progress!(movies, tv_series),
+      tracked_items: seed_release_tracking!(client),
+      pending_files: seed_pending_files!(client),
+      watch_events: seed_watch_history!(movies),
+      acquisitions: seed_acquisition!()
+    }
+
     seed_fake_capabilities!()
     seed_console_entries!()
 
-    season_count =
-      tv_series
-      |> Enum.map(&length(&1.seasons))
-      |> Enum.sum()
+    build_summary(movies, tv_series, video_objects, counts)
+  end
 
-    episode_count =
-      tv_series
-      |> Enum.flat_map(& &1.seasons)
-      |> Enum.map(&length(&1.episodes))
-      |> Enum.sum()
-
-    %{
+  defp build_summary(movies, tv_series, video_objects, counts) do
+    Map.merge(counts, %{
       movies: length(movies),
       tv_series: length(tv_series),
-      seasons: season_count,
-      episodes: episode_count,
-      video_objects: length(video_objects),
-      watch_progress: watch_progress_count,
-      tracked_items: tracked_count,
-      pending_files: pending_count,
-      watch_events: watch_event_count,
-      acquisitions: acquisition_count
-    }
+      seasons: count_seasons(tv_series),
+      episodes: count_episodes(tv_series),
+      video_objects: length(video_objects)
+    })
+  end
+
+  defp count_seasons(tv_series), do: tv_series |> Enum.map(&length(&1.seasons)) |> Enum.sum()
+
+  defp count_episodes(tv_series) do
+    tv_series
+    |> Enum.flat_map(& &1.seasons)
+    |> Enum.map(&length(&1.episodes))
+    |> Enum.sum()
   end
 
   # ---------------------------------------------------------------------------

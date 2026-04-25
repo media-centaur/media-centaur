@@ -7,8 +7,8 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
 
   import MediaCentarrWeb.LiveHelpers, only: [image_url: 2]
 
-  import MediaCentarrWeb.LibraryHelpers,
-    only: [compute_progress_fraction: 1, format_type: 1, extract_year: 1, format_resume_parts: 2]
+  import MediaCentarrWeb.LibraryFormatters, only: [format_type: 1, extract_year: 1]
+  import MediaCentarrWeb.LibraryProgress, only: [compute_progress_fraction: 1, format_resume_parts: 2]
 
   # --- Poster Card ---
 

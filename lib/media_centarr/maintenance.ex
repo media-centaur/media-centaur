@@ -1,9 +1,16 @@
-defmodule MediaCentarr.Settings.Admin do
-  @moduledoc """
-  Destructive admin operations for development and testing.
+defmodule MediaCentarr.Maintenance do
+  use Boundary, deps: [MediaCentarr.Library, MediaCentarr.Pipeline, MediaCentarr.Watcher]
 
-  Provides `clear_database/0` and `refresh_image_cache/0` — used by the
-  Settings Danger Zone buttons.
+  @moduledoc """
+  Operator-driven destructive operations — Settings → Danger Zone and the
+  library-maintenance buttons. These actions intentionally cross context
+  boundaries (purge Library schemas, clear image cache, repair missing
+  images) so they are owned here rather than in `Settings`, which is
+  defined as shared key/value infrastructure with no domain logic.
+
+  See [ADR-029](../decisions/architecture/2026-03-26-029-data-decoupling.md):
+  Settings is intentionally one-directional. Cross-context orchestration
+  belongs in a dedicated context, not bolted onto a configuration store.
   """
   require MediaCentarr.Log, as: Log
 

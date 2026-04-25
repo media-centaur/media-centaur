@@ -3,6 +3,7 @@ defmodule MediaCentarrWeb do
     deps: [
       MediaCentarr.ErrorReports,
       MediaCentarr.Library,
+      MediaCentarr.Maintenance,
       MediaCentarr.Pipeline,
       MediaCentarr.Review,
       MediaCentarr.Watcher,

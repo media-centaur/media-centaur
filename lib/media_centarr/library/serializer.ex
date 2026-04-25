@@ -1,6 +1,4 @@
-defmodule MediaCentarr.Serializer do
-  use Boundary, top_level?: true, check: [in: false, out: false]
-
+defmodule MediaCentarr.Library.Serializer do
   @moduledoc """
   Converts library records into schema.org JSON-LD maps matching DATA-FORMAT.md.
 

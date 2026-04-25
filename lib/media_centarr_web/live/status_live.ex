@@ -395,7 +395,7 @@ defmodule MediaCentarrWeb.StatusLive do
       <span class="w-2 h-2 rounded-full bg-success shrink-0"></span>
       <span class="text-sm truncate flex-1">{@entry.entity_name}</span>
       <span class="text-xs text-base-content/50">
-        {MediaCentarrWeb.LibraryHelpers.format_type(@entry.entity_type)}
+        {MediaCentarrWeb.LibraryFormatters.format_type(@entry.entity_type)}
       </span>
       <span class="text-xs text-base-content/40 whitespace-nowrap">
         {MediaCentarrWeb.LiveHelpers.time_ago(@entry.inserted_at)}
@@ -410,7 +410,7 @@ defmodule MediaCentarrWeb.StatusLive do
       <span class="w-2 h-2 rounded-full bg-error shrink-0"></span>
       <span class="text-sm truncate flex-1 text-base-content/60">{@entry.entity_name}</span>
       <span class="text-xs text-base-content/50">
-        {MediaCentarrWeb.LibraryHelpers.format_type(@entry.entity_type)}
+        {MediaCentarrWeb.LibraryFormatters.format_type(@entry.entity_type)}
       </span>
       <span class="text-xs text-base-content/40 whitespace-nowrap">
         {MediaCentarrWeb.LiveHelpers.time_ago(@entry.inserted_at)}

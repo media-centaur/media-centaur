@@ -10,7 +10,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   import MediaCentarrWeb.LiveHelpers
 
-  import MediaCentarrWeb.LibraryHelpers,
+  import MediaCentarrWeb.LibraryFormatters,
     only: [format_type: 1, extract_year: 1, format_human_duration: 1]
 
   alias MediaCentarr.Library.EpisodeList

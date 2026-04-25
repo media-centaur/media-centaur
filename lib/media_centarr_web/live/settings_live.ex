@@ -20,7 +20,7 @@ defmodule MediaCentarrWeb.SettingsLive do
     SystemSection
   }
 
-  alias MediaCentarr.Settings.Admin
+  alias MediaCentarr.Maintenance
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.Prowlarr
   alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
@@ -93,7 +93,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        refreshing_images: false,
        repairing_images: false,
        repair_last_result: nil,
-       missing_images_summary: Admin.missing_images_summary(),
+       missing_images_summary: Maintenance.missing_images_summary(),
        spoiler_free: spoiler_free,
        tmdb_test: load_test_result(:tmdb),
        tmdb_testing: false,
@@ -433,7 +433,7 @@ defmodule MediaCentarrWeb.SettingsLive do
     liveview = self()
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      Admin.clear_database()
+      Maintenance.clear_database()
       send(liveview, :database_cleared)
     end)
 
@@ -444,7 +444,7 @@ defmodule MediaCentarrWeb.SettingsLive do
     liveview = self()
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, count} = Admin.refresh_image_cache()
+      {:ok, count} = Maintenance.refresh_image_cache()
       send(liveview, {:image_cache_refreshed, count})
     end)
 
@@ -455,7 +455,7 @@ defmodule MediaCentarrWeb.SettingsLive do
     liveview = self()
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, result} = Admin.repair_missing_images()
+      {:ok, result} = Maintenance.repair_missing_images()
       send(liveview, {:image_repair_complete, result})
     end)
 
@@ -825,7 +825,7 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> assign(
        repairing_images: false,
        repair_last_result: result,
-       missing_images_summary: Admin.missing_images_summary()
+       missing_images_summary: Maintenance.missing_images_summary()
      )
      |> put_flash(:info, msg)}
   end

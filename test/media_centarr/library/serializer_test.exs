@@ -1,10 +1,10 @@
-defmodule MediaCentarr.SerializerTest do
+defmodule MediaCentarr.Library.SerializerTest do
   use ExUnit.Case, async: false
 
   import MediaCentarr.TestFactory
 
   alias MediaCentarr.Config
-  alias MediaCentarr.Serializer
+  alias MediaCentarr.Library.Serializer
 
   setup do
     original_config = :persistent_term.get({Config, :config})

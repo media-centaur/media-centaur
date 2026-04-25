@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Settings.AdminTest do
+defmodule MediaCentarr.MaintenanceTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Settings.Admin
+  alias MediaCentarr.Maintenance
   alias MediaCentarr.Review
 
   import MediaCentarr.TestFactory
@@ -13,7 +13,7 @@ defmodule MediaCentarr.Settings.AdminTest do
 
       assert [_, _] = Review.list_pending_files()
 
-      Admin.clear_database()
+      Maintenance.clear_database()
 
       assert [] = Review.list_pending_files()
     end

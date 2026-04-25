@@ -38,6 +38,9 @@ defmodule MediaCentarrWeb.LibraryLive do
   }
 
   import MediaCentarrWeb.LibraryHelpers
+  import MediaCentarrWeb.LibraryFormatters
+  import MediaCentarrWeb.LibraryProgress
+  import MediaCentarrWeb.LibraryAvailability
 
   @impl true
   def mount(_params, _session, socket) do
@@ -885,7 +888,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   def handle_info({:availability_changed, _dir, state}, socket) do
-    availability_map = MediaCentarrWeb.LibraryHelpers.availability_map(socket.assigns.entries)
+    availability_map = MediaCentarrWeb.LibraryAvailability.availability_map(socket.assigns.entries)
 
     socket =
       assign(socket,
@@ -1240,7 +1243,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Entry Index ---
 
   defp assign_entries(socket, entries) do
-    availability_map = MediaCentarrWeb.LibraryHelpers.availability_map(entries)
+    availability_map = MediaCentarrWeb.LibraryAvailability.availability_map(entries)
 
     assign(socket,
       entries: entries,
