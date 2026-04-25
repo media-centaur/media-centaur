@@ -39,14 +39,14 @@ defmodule MediaCentarrWeb.StatusHelpers do
 
   Sub-minute durations round up to `"< 1m remaining"` (UIDR-004 forbids
   seconds in user-facing durations). Otherwise delegates to
-  `LibraryHelpers.format_human_duration/1` for the canonical `"Xh Ym"` shape.
+  `LibraryFormatters.format_human_duration/1` for the canonical `"Xh Ym"` shape.
   """
   def format_remaining(seconds) when seconds <= 0, do: "finished"
 
   def format_remaining(seconds) when seconds < 60, do: "< 1m remaining"
 
   def format_remaining(seconds) do
-    "#{MediaCentarrWeb.LibraryHelpers.format_human_duration(trunc(seconds))} remaining"
+    "#{MediaCentarrWeb.LibraryFormatters.format_human_duration(trunc(seconds))} remaining"
   end
 
   def format_throughput(rate) when rate == 0.0, do: "—"

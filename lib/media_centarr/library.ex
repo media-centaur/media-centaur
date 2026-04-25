@@ -16,6 +16,7 @@ defmodule MediaCentarr.Library do
       MovieSeries,
       ProgressSummary,
       Season,
+      Serializer,
       TVSeries,
       TypeResolver,
       VideoObject,
@@ -85,10 +86,19 @@ defmodule MediaCentarr.Library do
     :watch_progress
   ]
 
-  def tv_series_full_preloads, do: @tv_series_full_preloads
-  def movie_series_full_preloads, do: @movie_series_full_preloads
-  def movie_full_preloads, do: @movie_full_preloads
-  def video_object_full_preloads, do: @video_object_full_preloads
+  @doc """
+  Returns a `[type: preloads]` keyword list covering the four playable entity
+  types. Used by `TypeResolver.resolve/2` and other multi-type lookups that
+  preload across all four tables in one call.
+  """
+  def full_preloads_by_type do
+    [
+      tv_series: @tv_series_full_preloads,
+      movie_series: @movie_series_full_preloads,
+      movie: @movie_full_preloads,
+      video_object: @video_object_full_preloads
+    ]
+  end
 
   # ---------------------------------------------------------------------------
   # TVSeries
@@ -118,13 +128,13 @@ defmodule MediaCentarr.Library do
     Repo.insert(TVSeries.create_changeset(attrs))
   end
 
-  def create_tv_series!(attrs), do: bang!(create_tv_series(attrs))
+  def create_tv_series!(attrs), do: Repo.bang!(create_tv_series(attrs))
 
   def update_tv_series(tv_series, attrs) do
     Repo.update(TVSeries.update_changeset(tv_series, attrs))
   end
 
-  def update_tv_series!(tv_series, attrs), do: bang!(update_tv_series(tv_series, attrs))
+  def update_tv_series!(tv_series, attrs), do: Repo.bang!(update_tv_series(tv_series, attrs))
 
   def destroy_tv_series(tv_series), do: Repo.delete(tv_series)
   def destroy_tv_series!(tv_series), do: destroy_bang!(tv_series)
@@ -157,13 +167,13 @@ defmodule MediaCentarr.Library do
     Repo.insert(MovieSeries.create_changeset(attrs))
   end
 
-  def create_movie_series!(attrs), do: bang!(create_movie_series(attrs))
+  def create_movie_series!(attrs), do: Repo.bang!(create_movie_series(attrs))
 
   def update_movie_series(movie_series, attrs) do
     Repo.update(MovieSeries.update_changeset(movie_series, attrs))
   end
 
-  def update_movie_series!(movie_series, attrs), do: bang!(update_movie_series(movie_series, attrs))
+  def update_movie_series!(movie_series, attrs), do: Repo.bang!(update_movie_series(movie_series, attrs))
 
   def destroy_movie_series(movie_series), do: Repo.delete(movie_series)
   def destroy_movie_series!(movie_series), do: destroy_bang!(movie_series)
@@ -196,13 +206,13 @@ defmodule MediaCentarr.Library do
     Repo.insert(VideoObject.create_changeset(attrs))
   end
 
-  def create_video_object!(attrs), do: bang!(create_video_object(attrs))
+  def create_video_object!(attrs), do: Repo.bang!(create_video_object(attrs))
 
   def update_video_object(video_object, attrs) do
     Repo.update(VideoObject.update_changeset(video_object, attrs))
   end
 
-  def update_video_object!(video_object, attrs), do: bang!(update_video_object(video_object, attrs))
+  def update_video_object!(video_object, attrs), do: Repo.bang!(update_video_object(video_object, attrs))
 
   def destroy_video_object(video_object), do: Repo.delete(video_object)
   def destroy_video_object!(video_object), do: destroy_bang!(video_object)
@@ -222,13 +232,13 @@ defmodule MediaCentarr.Library do
     end
   end
 
-  def link_file!(attrs), do: bang!(link_file(attrs))
+  def link_file!(attrs), do: Repo.bang!(link_file(attrs))
 
   def list_files_by_paths(file_paths) do
     {:ok, Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths))}
   end
 
-  def list_files_by_paths!(file_paths), do: bang!(list_files_by_paths(file_paths))
+  def list_files_by_paths!(file_paths), do: Repo.bang!(list_files_by_paths(file_paths))
 
   @doc """
   Lists watched files where any type-specific FK matches the given ID.
@@ -283,7 +293,7 @@ defmodule MediaCentarr.Library do
     Repo.insert(Image.create_changeset(attrs))
   end
 
-  def create_image!(attrs), do: bang!(create_image(attrs))
+  def create_image!(attrs), do: Repo.bang!(create_image(attrs))
 
   def upsert_image(attrs, conflict_target) do
     Repo.insert(Image.create_changeset(attrs),
@@ -296,7 +306,7 @@ defmodule MediaCentarr.Library do
     Repo.update(Image.update_changeset(image, attrs))
   end
 
-  def update_image!(image, attrs), do: bang!(update_image(image, attrs))
+  def update_image!(image, attrs), do: Repo.bang!(update_image(image, attrs))
 
   def destroy_image(image), do: Repo.delete(image)
   def destroy_image!(image), do: destroy_bang!(image)
@@ -315,13 +325,13 @@ defmodule MediaCentarr.Library do
     end
   end
 
-  def find_or_create_external_id!(attrs), do: bang!(find_or_create_external_id(attrs))
+  def find_or_create_external_id!(attrs), do: Repo.bang!(find_or_create_external_id(attrs))
 
   def create_external_id(attrs) do
     Repo.insert(ExternalId.create_changeset(attrs))
   end
 
-  def create_external_id!(attrs), do: bang!(create_external_id(attrs))
+  def create_external_id!(attrs), do: Repo.bang!(create_external_id(attrs))
 
   def destroy_external_id(external_id), do: Repo.delete(external_id)
   def destroy_external_id!(external_id), do: destroy_bang!(external_id)
@@ -410,13 +420,13 @@ defmodule MediaCentarr.Library do
     Repo.update(Movie.set_content_url_changeset(movie, attrs))
   end
 
-  def set_movie_content_url!(movie, attrs), do: bang!(set_movie_content_url(movie, attrs))
+  def set_movie_content_url!(movie, attrs), do: Repo.bang!(set_movie_content_url(movie, attrs))
 
   def create_movie(attrs) do
     Repo.insert(Movie.create_changeset(attrs))
   end
 
-  def create_movie!(attrs), do: bang!(create_movie(attrs))
+  def create_movie!(attrs), do: Repo.bang!(create_movie(attrs))
 
   def destroy_movie(movie), do: Repo.delete(movie)
   def destroy_movie!(movie), do: destroy_bang!(movie)
@@ -461,7 +471,7 @@ defmodule MediaCentarr.Library do
     {:ok, Repo.all(from(x in Extra, where: x.season_id == ^season_id))}
   end
 
-  def list_extras_for_season!(season_id), do: bang!(list_extras_for_season(season_id))
+  def list_extras_for_season!(season_id), do: Repo.bang!(list_extras_for_season(season_id))
 
   def get_extra(id) do
     case Repo.get(Extra, id) do
@@ -495,7 +505,7 @@ defmodule MediaCentarr.Library do
     Repo.insert(Extra.create_changeset(attrs))
   end
 
-  def create_extra!(attrs), do: bang!(create_extra(attrs))
+  def create_extra!(attrs), do: Repo.bang!(create_extra(attrs))
 
   def destroy_extra(extra), do: Repo.delete(extra)
   def destroy_extra!(extra), do: destroy_bang!(extra)
@@ -519,7 +529,7 @@ defmodule MediaCentarr.Library do
     Repo.insert(Season.create_changeset(attrs))
   end
 
-  def create_season!(attrs), do: bang!(create_season(attrs))
+  def create_season!(attrs), do: Repo.bang!(create_season(attrs))
 
   def destroy_season(season), do: Repo.delete(season)
   def destroy_season!(season), do: destroy_bang!(season)
@@ -561,7 +571,7 @@ defmodule MediaCentarr.Library do
   end
 
   def list_episodes_for_season!(season_id, opts \\ []) do
-    bang!(list_episodes_for_season(season_id, opts))
+    Repo.bang!(list_episodes_for_season(season_id, opts))
   end
 
   def get_episode(id) do
@@ -583,21 +593,21 @@ defmodule MediaCentarr.Library do
     end
   end
 
-  def find_or_create_episode!(attrs), do: bang!(find_or_create_episode(attrs))
+  def find_or_create_episode!(attrs), do: Repo.bang!(find_or_create_episode(attrs))
 
   def set_episode_content_url(episode, attrs) do
     Repo.update(Episode.set_content_url_changeset(episode, attrs))
   end
 
   def set_episode_content_url!(episode, attrs) do
-    bang!(set_episode_content_url(episode, attrs))
+    Repo.bang!(set_episode_content_url(episode, attrs))
   end
 
   def create_episode(attrs) do
     Repo.insert(Episode.create_changeset(attrs))
   end
 
-  def create_episode!(attrs), do: bang!(create_episode(attrs))
+  def create_episode!(attrs), do: Repo.bang!(create_episode(attrs))
 
   def destroy_episode(episode), do: Repo.delete(episode)
   def destroy_episode!(episode), do: destroy_bang!(episode)
@@ -624,13 +634,13 @@ defmodule MediaCentarr.Library do
     end
   end
 
-  def mark_watch_completed!(progress), do: bang!(mark_watch_completed(progress))
+  def mark_watch_completed!(progress), do: Repo.bang!(mark_watch_completed(progress))
 
   def mark_watch_incomplete(progress) do
     Repo.update(WatchProgress.mark_incomplete_changeset(progress))
   end
 
-  def mark_watch_incomplete!(progress), do: bang!(mark_watch_incomplete(progress))
+  def mark_watch_incomplete!(progress), do: Repo.bang!(mark_watch_incomplete(progress))
 
   def destroy_watch_progress(progress), do: Repo.delete(progress)
   def destroy_watch_progress!(progress), do: destroy_bang!(progress)
@@ -692,19 +702,19 @@ defmodule MediaCentarr.Library do
     end
   end
 
-  def find_or_create_extra_progress!(attrs), do: bang!(find_or_create_extra_progress(attrs))
+  def find_or_create_extra_progress!(attrs), do: Repo.bang!(find_or_create_extra_progress(attrs))
 
   def mark_extra_completed(progress) do
     Repo.update(ExtraProgress.mark_completed_changeset(progress))
   end
 
-  def mark_extra_completed!(progress), do: bang!(mark_extra_completed(progress))
+  def mark_extra_completed!(progress), do: Repo.bang!(mark_extra_completed(progress))
 
   def mark_extra_incomplete(progress) do
     Repo.update(ExtraProgress.mark_incomplete_changeset(progress))
   end
 
-  def mark_extra_incomplete!(progress), do: bang!(mark_extra_incomplete(progress))
+  def mark_extra_incomplete!(progress), do: Repo.bang!(mark_extra_incomplete(progress))
 
   def destroy_extra_progress(progress), do: Repo.delete(progress)
   def destroy_extra_progress!(progress), do: destroy_bang!(progress)
@@ -717,7 +727,7 @@ defmodule MediaCentarr.Library do
     Repo.insert(ChangeEntry.create_changeset(attrs))
   end
 
-  def create_change_entry!(attrs), do: bang!(create_change_entry(attrs))
+  def create_change_entry!(attrs), do: Repo.bang!(create_change_entry(attrs))
 
   def list_recent_changes(limit, since) do
     query =
@@ -736,7 +746,7 @@ defmodule MediaCentarr.Library do
     {:ok, Repo.all(query)}
   end
 
-  def list_recent_changes!(limit, since), do: bang!(list_recent_changes(limit, since))
+  def list_recent_changes!(limit, since), do: Repo.bang!(list_recent_changes(limit, since))
 
   # ---------------------------------------------------------------------------
   # PubSub
@@ -751,16 +761,8 @@ defmodule MediaCentarr.Library do
   # Helpers
   # ---------------------------------------------------------------------------
 
-  defp bang!({:ok, result}), do: result
-
-  defp bang!({:error, %Ecto.Changeset{} = changeset}) do
-    raise Ecto.InvalidChangesetError, changeset: changeset, action: changeset.action
-  end
-
-  defp bang!({:error, reason}), do: raise("operation failed: #{inspect(reason)}")
-
   defp destroy_bang!(record) do
-    bang!(Repo.delete(record))
+    Repo.bang!(Repo.delete(record))
     :ok
   end
 

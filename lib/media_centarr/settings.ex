@@ -1,7 +1,5 @@
 defmodule MediaCentarr.Settings do
-  use Boundary,
-    deps: [MediaCentarr.Library, MediaCentarr.Pipeline, MediaCentarr.Watcher],
-    exports: [Entry, Admin]
+  use Boundary, deps: [], exports: [Entry]
 
   @moduledoc """
   Cross-cutting key/value settings — logging toggles, framework log
@@ -54,32 +52,24 @@ defmodule MediaCentarr.Settings do
   end
 
   @spec find_or_create_entry!(attrs()) :: Entry.t()
-  def find_or_create_entry!(attrs), do: bang!(find_or_create_entry(attrs))
+  def find_or_create_entry!(attrs), do: Repo.bang!(find_or_create_entry(attrs))
 
   def create_entry(attrs) do
     Repo.insert(Entry.create_changeset(attrs))
   end
 
-  def create_entry!(attrs), do: bang!(create_entry(attrs))
+  def create_entry!(attrs), do: Repo.bang!(create_entry(attrs))
 
   def update_entry(entry, attrs) do
     Repo.update(Entry.update_changeset(entry, attrs))
   end
 
-  def update_entry!(entry, attrs), do: bang!(update_entry(entry, attrs))
+  def update_entry!(entry, attrs), do: Repo.bang!(update_entry(entry, attrs))
 
   def destroy_entry(entry), do: Repo.delete(entry)
 
   def destroy_entry!(entry) do
-    bang!(Repo.delete(entry))
+    Repo.bang!(Repo.delete(entry))
     :ok
   end
-
-  defp bang!({:ok, result}), do: result
-
-  defp bang!({:error, %Ecto.Changeset{} = changeset}) do
-    raise Ecto.InvalidChangesetError, changeset: changeset, action: changeset.action
-  end
-
-  defp bang!({:error, reason}), do: raise("operation failed: #{inspect(reason)}")
 end

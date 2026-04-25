@@ -56,7 +56,7 @@ defmodule MediaCentarr.Review do
     Repo.insert(PendingFile.create_changeset(attrs))
   end
 
-  def create_pending_file!(attrs), do: bang!(create_pending_file(attrs))
+  def create_pending_file!(attrs), do: Repo.bang!(create_pending_file(attrs))
 
   def find_or_create_pending_file(attrs) do
     file_path = attrs[:file_path] || attrs["file_path"]
@@ -67,32 +67,32 @@ defmodule MediaCentarr.Review do
     end
   end
 
-  def find_or_create_pending_file!(attrs), do: bang!(find_or_create_pending_file(attrs))
+  def find_or_create_pending_file!(attrs), do: Repo.bang!(find_or_create_pending_file(attrs))
 
   def approve_pending_file(pending_file) do
     Repo.update(PendingFile.approve_changeset(pending_file))
   end
 
-  def approve_pending_file!(pending_file), do: bang!(approve_pending_file(pending_file))
+  def approve_pending_file!(pending_file), do: Repo.bang!(approve_pending_file(pending_file))
 
   def dismiss_pending_file(pending_file) do
     Repo.update(PendingFile.dismiss_changeset(pending_file))
   end
 
-  def dismiss_pending_file!(pending_file), do: bang!(dismiss_pending_file(pending_file))
+  def dismiss_pending_file!(pending_file), do: Repo.bang!(dismiss_pending_file(pending_file))
 
   def set_pending_file_match(pending_file, attrs) do
     Repo.update(PendingFile.set_tmdb_match_changeset(pending_file, attrs))
   end
 
   def set_pending_file_match!(pending_file, attrs) do
-    bang!(set_pending_file_match(pending_file, attrs))
+    Repo.bang!(set_pending_file_match(pending_file, attrs))
   end
 
   def destroy_pending_file(pending_file), do: Repo.delete(pending_file)
 
   def destroy_pending_file!(pending_file) do
-    bang!(Repo.delete(pending_file))
+    Repo.bang!(Repo.delete(pending_file))
     :ok
   end
 
@@ -276,12 +276,4 @@ defmodule MediaCentarr.Review do
       {:file_reviewed, file_id}
     )
   end
-
-  defp bang!({:ok, result}), do: result
-
-  defp bang!({:error, %Ecto.Changeset{} = changeset}) do
-    raise Ecto.InvalidChangesetError, changeset: changeset, action: changeset.action
-  end
-
-  defp bang!({:error, reason}), do: raise("operation failed: #{inspect(reason)}")
 end

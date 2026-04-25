@@ -491,4 +491,15 @@ defmodule MediaCentarr.TestFactory do
 
     event
   end
+
+  def create_grab(attrs \\ %{}) do
+    defaults = %{tmdb_id: "12345", tmdb_type: "movie", title: "Sample Movie Thirteen Part Two"}
+
+    {:ok, grab} =
+      MediaCentarr.Repo.insert(
+        MediaCentarr.Acquisition.Grab.create_changeset(Map.merge(defaults, attrs))
+      )
+
+    grab
+  end
 end

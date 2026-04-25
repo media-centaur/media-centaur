@@ -36,12 +36,7 @@ defmodule MediaCentarr.Library.EntityCascade do
   defp resolve_entity!(id) do
     case TypeResolver.resolve(id,
            standalone_movie: false,
-           preload: [
-             tv_series: Library.tv_series_full_preloads(),
-             movie_series: Library.movie_series_full_preloads(),
-             movie: Library.movie_full_preloads(),
-             video_object: Library.video_object_full_preloads()
-           ]
+           preload: Library.full_preloads_by_type()
          ) do
       {:ok, type, record} -> {record, type}
       :not_found -> raise "entity #{id} not found in any type-specific table"
