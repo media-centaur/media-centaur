@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Library.ExternalId do
   @moduledoc """
   An external identifier linking an entity to a third-party service
-  (TMDB, IMDB, etc.). Modelled as a schema.org `PropertyValue`.
+  (TMDB, IMDB, etc.). Stored as `{source, external_id}` per row.
   """
   use Ecto.Schema
   import Ecto.Changeset
