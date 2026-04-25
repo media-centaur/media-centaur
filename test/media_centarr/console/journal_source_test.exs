@@ -23,7 +23,15 @@ defmodule MediaCentarr.Console.JournalSourceTest do
     name = :"journal_src_#{System.unique_integer([:positive])}"
     opts = Keyword.put(opts, :name, name)
     {:ok, pid} = JournalSource.start_link(opts)
-    on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+    on_exit(fn ->
+      try do
+        GenServer.stop(pid, :normal, 1_000)
+      catch
+        :exit, _ -> :ok
+      end
+    end)
+
     {pid, name}
   end
 
