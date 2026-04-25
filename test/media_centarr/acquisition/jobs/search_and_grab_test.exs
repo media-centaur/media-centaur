@@ -12,24 +12,13 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
     :ok
   end
 
-  defp insert_grab(attrs \\ %{}) do
-    {:ok, grab} =
-      Repo.insert(
-        Grab.create_changeset(
-          Map.merge(%{tmdb_id: "12345", tmdb_type: "movie", title: "Sample Movie Thirteen Part Two"}, attrs)
-        )
-      )
-
-    grab
-  end
-
   defp job_for(grab) do
     %Oban.Job{args: %{"grab_id" => grab.id}}
   end
 
   describe "perform/1 — 4K result found" do
     test "grabs the result and marks grab as grabbed with 4K quality" do
-      grab = insert_grab()
+      grab = create_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -53,7 +42,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — only 1080p found" do
     test "grabs the 1080p result and marks grab as grabbed" do
-      grab = insert_grab()
+      grab = create_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -76,7 +65,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — 4K preferred over 1080p when both available" do
     test "grabs the 4K result, not the 1080p" do
-      grab = insert_grab()
+      grab = create_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -98,7 +87,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — nothing acceptable found" do
     test "increments attempt_count and returns snooze" do
-      grab = insert_grab()
+      grab = create_grab()
 
       assert {:snooze, snooze_seconds} = SearchAndGrab.perform(job_for(grab))
 
@@ -110,7 +99,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
     end
 
     test "only 720p available — does not grab, increments attempt" do
-      grab = insert_grab()
+      grab = create_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -131,7 +120,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — already grabbed" do
     test "returns ok immediately without searching" do
-      grab = insert_grab()
+      grab = create_grab()
       {:ok, grabbed} = Repo.update(Grab.grabbed_changeset(grab, "2160p"))
 
       assert {:ok, :already_grabbed} = SearchAndGrab.perform(job_for(grabbed))

@@ -42,16 +42,14 @@ defmodule MediaCentarr.WatchHistory.EventTest do
     test "movie_id is nilified when movie is deleted" do
       movie = create_movie(%{name: "Sample Movie"})
 
-      {:ok, event} =
-        MediaCentarr.Repo.insert(
-          Event.create_changeset(%{
-            entity_type: :movie,
-            movie_id: movie.id,
-            title: "Sample Movie",
-            duration_seconds: 7080.0,
-            completed_at: DateTime.utc_now(:second)
-          })
-        )
+      event =
+        create_watch_event(%{
+          entity_type: :movie,
+          movie_id: movie.id,
+          title: "Sample Movie",
+          duration_seconds: 7080.0,
+          completed_at: DateTime.utc_now(:second)
+        })
 
       MediaCentarr.Repo.delete!(movie)
       reloaded = MediaCentarr.Repo.get!(Event, event.id)
@@ -61,11 +59,11 @@ defmodule MediaCentarr.WatchHistory.EventTest do
     end
   end
 
-  describe "WatchHistory.remove_event!/1" do
+  describe "WatchHistory.delete_event!/2 (default — no progress reset)" do
     test "removes the event record" do
       event = create_watch_event(%{title: "Sample Movie Ten"})
 
-      MediaCentarr.WatchHistory.remove_event!(event)
+      MediaCentarr.WatchHistory.delete_event!(event)
 
       assert_raise Ecto.NoResultsError, fn ->
         MediaCentarr.Repo.get!(MediaCentarr.WatchHistory.Event, event.id)
@@ -77,16 +75,15 @@ defmodule MediaCentarr.WatchHistory.EventTest do
       _progress = create_watch_progress(%{movie_id: movie.id, completed: true})
       event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Ten"})
 
-      MediaCentarr.WatchHistory.remove_event!(event)
+      MediaCentarr.WatchHistory.delete_event!(event)
 
       {:ok, progress} = MediaCentarr.Library.get_watch_progress_by_fk(:movie_id, movie.id)
       assert progress.completed == true
     end
 
-    test "returns the deleted event" do
+    test "returns :ok" do
       event = create_watch_event(%{title: "Sample Movie Nine"})
-      result = MediaCentarr.WatchHistory.remove_event!(event)
-      assert result.id == event.id
+      assert :ok = MediaCentarr.WatchHistory.delete_event!(event)
     end
   end
 
@@ -125,14 +122,14 @@ defmodule MediaCentarr.WatchHistory.EventTest do
     end
   end
 
-  describe "WatchHistory.delete_event!/1" do
+  describe "WatchHistory.delete_event!/2 (reset_progress: true)" do
     test "deletes the event record" do
       movie = create_movie(%{name: "Sample Movie Eight"})
 
       event =
         create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Eight"})
 
-      MediaCentarr.WatchHistory.delete_event!(event)
+      MediaCentarr.WatchHistory.delete_event!(event, reset_progress: true)
 
       assert_raise Ecto.NoResultsError, fn ->
         MediaCentarr.Repo.get!(MediaCentarr.WatchHistory.Event, event.id)
@@ -144,7 +141,7 @@ defmodule MediaCentarr.WatchHistory.EventTest do
       _progress = create_watch_progress(%{movie_id: movie.id, completed: true})
       event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Fourteen"})
 
-      MediaCentarr.WatchHistory.delete_event!(event)
+      MediaCentarr.WatchHistory.delete_event!(event, reset_progress: true)
 
       {:ok, reloaded} = MediaCentarr.Library.get_watch_progress_by_fk(:movie_id, movie.id)
       assert reloaded.completed == false
@@ -152,8 +149,7 @@ defmodule MediaCentarr.WatchHistory.EventTest do
 
     test "succeeds when FK is nil (entity already deleted)" do
       event = create_watch_event(%{entity_type: :movie, movie_id: nil, title: "Ghost Movie"})
-      result = MediaCentarr.WatchHistory.delete_event!(event)
-      assert result.id == event.id
+      assert :ok = MediaCentarr.WatchHistory.delete_event!(event, reset_progress: true)
     end
   end
 end

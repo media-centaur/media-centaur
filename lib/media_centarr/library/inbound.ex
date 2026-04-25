@@ -371,19 +371,22 @@ defmodule MediaCentarr.Library.Inbound do
     end
   end
 
-  # Standalone movie or video object — set content_url if nil
-  defp do_link_to_existing(entity, event) do
-    content_url = event.entity_attrs[:content_url]
+  # Standalone movie or video object — set content_url if entity has none yet
+  # AND the inbound event carries a non-nil one.
+  defp do_link_to_existing(%{content_url: nil} = entity, event) do
+    case event.entity_attrs[:content_url] do
+      nil ->
+        {:ok, entity, :existing, []}
 
-    if is_nil(Map.get(entity, :content_url)) && content_url do
-      case set_content_url(entity, event.entity_type, content_url) do
-        {:ok, updated} -> {:ok, updated, :existing, []}
-        {:error, reason} -> {:error, reason}
-      end
-    else
-      {:ok, entity, :existing, []}
+      url ->
+        case set_content_url(entity, event.entity_type, url) do
+          {:ok, updated} -> {:ok, updated, :existing, []}
+          {:error, reason} -> {:error, reason}
+        end
     end
   end
+
+  defp do_link_to_existing(entity, _event), do: {:ok, entity, :existing, []}
 
   defp set_content_url(record, :movie, url) do
     Library.set_movie_content_url(record, %{content_url: url})

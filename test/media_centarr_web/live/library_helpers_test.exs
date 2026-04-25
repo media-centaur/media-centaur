@@ -3,7 +3,10 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   import MediaCentarr.TestFactory
 
+  alias MediaCentarrWeb.LibraryAvailability
+  alias MediaCentarrWeb.LibraryFormatters
   alias MediaCentarrWeb.LibraryHelpers
+  alias MediaCentarrWeb.LibraryProgress
 
   # --- Helpers ---
 
@@ -24,12 +27,12 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
   describe "unavailable_count/2" do
     test "returns 0 when all entries are available" do
       entries = [entry(%{type: :movie}), entry(%{type: :tv_series})]
-      assert LibraryHelpers.unavailable_count(entries, fn _ -> true end) == 0
+      assert LibraryAvailability.unavailable_count(entries, fn _ -> true end) == 0
     end
 
     test "returns total count when all entries are unavailable" do
       entries = [entry(%{type: :movie}), entry(%{type: :tv_series})]
-      assert LibraryHelpers.unavailable_count(entries, fn _ -> false end) == 2
+      assert LibraryAvailability.unavailable_count(entries, fn _ -> false end) == 2
     end
 
     test "counts only entries whose predicate returns false" do
@@ -38,11 +41,11 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
       available = fn entity -> entity.name == "Online" end
 
-      assert LibraryHelpers.unavailable_count([movie, tv], available) == 1
+      assert LibraryAvailability.unavailable_count([movie, tv], available) == 1
     end
 
     test "returns 0 for an empty entries list" do
-      assert LibraryHelpers.unavailable_count([], fn _ -> false end) == 0
+      assert LibraryAvailability.unavailable_count([], fn _ -> false end) == 0
     end
   end
 
@@ -55,14 +58,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
       available = fn entity -> entity.id == "a" end
 
-      assert LibraryHelpers.availability_map([a, b], available) == %{
+      assert LibraryAvailability.availability_map([a, b], available) == %{
                "a" => true,
                "b" => false
              }
     end
 
     test "returns an empty map for no entries" do
-      assert LibraryHelpers.availability_map([], fn _ -> true end) == %{}
+      assert LibraryAvailability.availability_map([], fn _ -> true end) == %{}
     end
   end
 
@@ -250,22 +253,22 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "compute_progress_fraction/1" do
     test "returns 0 for nil" do
-      assert LibraryHelpers.compute_progress_fraction(nil) == 0
+      assert LibraryProgress.compute_progress_fraction(nil) == 0
     end
 
     test "computes percentage from position and duration" do
       progress = %{episode_position_seconds: 300.0, episode_duration_seconds: 600.0}
-      assert LibraryHelpers.compute_progress_fraction(progress) == 50.0
+      assert LibraryProgress.compute_progress_fraction(progress) == 50.0
     end
 
     test "returns 0 when duration is zero" do
       progress = %{episode_position_seconds: 100.0, episode_duration_seconds: 0}
-      assert LibraryHelpers.compute_progress_fraction(progress) == 0
+      assert LibraryProgress.compute_progress_fraction(progress) == 0
     end
 
     test "rounds to one decimal place" do
       progress = %{episode_position_seconds: 1.0, episode_duration_seconds: 3.0}
-      assert LibraryHelpers.compute_progress_fraction(progress) == 33.3
+      assert LibraryProgress.compute_progress_fraction(progress) == 33.3
     end
   end
 
@@ -273,19 +276,19 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "format_human_duration/1" do
     test "formats hours and minutes" do
-      assert LibraryHelpers.format_human_duration(5400) == "1h 30m"
+      assert LibraryFormatters.format_human_duration(5400) == "1h 30m"
     end
 
     test "formats hours only when no remaining minutes" do
-      assert LibraryHelpers.format_human_duration(7200) == "2h"
+      assert LibraryFormatters.format_human_duration(7200) == "2h"
     end
 
     test "formats minutes only" do
-      assert LibraryHelpers.format_human_duration(300) == "5m"
+      assert LibraryFormatters.format_human_duration(300) == "5m"
     end
 
     test "returns under 1 minute for small values" do
-      assert LibraryHelpers.format_human_duration(30) == "< 1m"
+      assert LibraryFormatters.format_human_duration(30) == "< 1m"
     end
   end
 
@@ -293,7 +296,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "format_resume_parts/2" do
     test "returns nils for nil resume" do
-      assert LibraryHelpers.format_resume_parts(nil, entry(%{})) == {nil, nil}
+      assert LibraryProgress.format_resume_parts(nil, entry(%{})) == {nil, nil}
     end
 
     test "resume with season/episode returns label and time remaining" do
@@ -305,7 +308,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
         "durationSeconds" => 3600
       }
 
-      {label, time_remaining} = LibraryHelpers.format_resume_parts(resume, entry(%{}))
+      {label, time_remaining} = LibraryProgress.format_resume_parts(resume, entry(%{}))
 
       assert label == "Season 2 episode 5"
       assert time_remaining == "40m remaining"
@@ -319,7 +322,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
       resume = %{"action" => "resume", "positionSeconds" => 100, "durationSeconds" => 0}
 
-      {label, time_remaining} = LibraryHelpers.format_resume_parts(resume, tv_entry)
+      {label, time_remaining} = LibraryProgress.format_resume_parts(resume, tv_entry)
 
       assert label == nil
       assert time_remaining == "1 episode remaining"
@@ -327,20 +330,20 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
     test "begin with season/episode returns play label" do
       resume = %{"action" => "begin", "seasonNumber" => 1, "episodeNumber" => 1}
-      {label, _} = LibraryHelpers.format_resume_parts(resume, entry(%{}))
+      {label, _} = LibraryProgress.format_resume_parts(resume, entry(%{}))
 
       assert label == "Play season 1 episode 1"
     end
 
     test "begin without season returns Play" do
       resume = %{"action" => "begin"}
-      {label, _} = LibraryHelpers.format_resume_parts(resume, entry(%{}))
+      {label, _} = LibraryProgress.format_resume_parts(resume, entry(%{}))
 
       assert label == "Play"
     end
 
     test "unknown action returns nils" do
-      assert LibraryHelpers.format_resume_parts(%{"action" => "other"}, entry(%{})) == {nil, nil}
+      assert LibraryProgress.format_resume_parts(%{"action" => "other"}, entry(%{})) == {nil, nil}
     end
   end
 
@@ -356,7 +359,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
       progress_records = [build_progress(%{season_number: 1, episode_number: 1, completed: true})]
 
-      assert LibraryHelpers.episodes_remaining_label(entity, progress_records) ==
+      assert LibraryProgress.episodes_remaining_label(entity, progress_records) ==
                "2 episodes remaining"
     end
 
@@ -368,7 +371,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
       progress_records = [build_progress(%{season_number: 1, episode_number: 1, completed: true})]
 
-      assert LibraryHelpers.episodes_remaining_label(entity, progress_records) ==
+      assert LibraryProgress.episodes_remaining_label(entity, progress_records) ==
                "1 episode remaining"
     end
 
@@ -379,12 +382,12 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
       progress_records = [build_progress(%{season_number: 1, episode_number: 1, completed: true})]
 
-      assert LibraryHelpers.episodes_remaining_label(entity, progress_records) == nil
+      assert LibraryProgress.episodes_remaining_label(entity, progress_records) == nil
     end
 
     test "returns nil for non-series entity types" do
       entity = build_entity(%{type: :movie})
-      assert LibraryHelpers.episodes_remaining_label(entity, []) == nil
+      assert LibraryProgress.episodes_remaining_label(entity, []) == nil
     end
   end
 
@@ -392,14 +395,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "format_type/1" do
     test "formats known types" do
-      assert LibraryHelpers.format_type(:movie) == "Movie"
-      assert LibraryHelpers.format_type(:movie_series) == "Movie Series"
-      assert LibraryHelpers.format_type(:tv_series) == "TV Series"
-      assert LibraryHelpers.format_type(:video_object) == "Video"
+      assert LibraryFormatters.format_type(:movie) == "Movie"
+      assert LibraryFormatters.format_type(:movie_series) == "Movie Series"
+      assert LibraryFormatters.format_type(:tv_series) == "TV Series"
+      assert LibraryFormatters.format_type(:video_object) == "Video"
     end
 
     test "capitalizes unknown types" do
-      assert LibraryHelpers.format_type(:documentary) == "Documentary"
+      assert LibraryFormatters.format_type(:documentary) == "Documentary"
     end
   end
 
@@ -407,11 +410,11 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "extract_year/1" do
     test "extracts year from date string" do
-      assert LibraryHelpers.extract_year("2024-01-15") == "2024"
+      assert LibraryFormatters.extract_year("2024-01-15") == "2024"
     end
 
     test "returns empty string for nil" do
-      assert LibraryHelpers.extract_year(nil) == ""
+      assert LibraryFormatters.extract_year(nil) == ""
     end
   end
 
@@ -420,14 +423,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
   describe "merge_progress_record/2" do
     test "returns records unchanged for nil change" do
       records = [build_progress(%{episode_id: "ep-1"})]
-      assert LibraryHelpers.merge_progress_record(records, nil) == records
+      assert LibraryProgress.merge_progress_record(records, nil) == records
     end
 
     test "replaces an existing episode record by episode_id" do
       existing = build_progress(%{episode_id: "ep-1", completed: false})
       updated = build_progress(%{episode_id: "ep-1", completed: true})
 
-      result = LibraryHelpers.merge_progress_record([existing], updated)
+      result = LibraryProgress.merge_progress_record([existing], updated)
 
       assert length(result) == 1
       assert hd(result).completed == true
@@ -437,7 +440,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       existing = build_progress(%{movie_id: "movie-1", completed: false})
       updated = build_progress(%{movie_id: "movie-1", completed: true})
 
-      result = LibraryHelpers.merge_progress_record([existing], updated)
+      result = LibraryProgress.merge_progress_record([existing], updated)
 
       assert length(result) == 1
       assert hd(result).completed == true
@@ -447,7 +450,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       existing = build_progress(%{video_object_id: "vo-1", completed: false})
       updated = build_progress(%{video_object_id: "vo-1", completed: true})
 
-      result = LibraryHelpers.merge_progress_record([existing], updated)
+      result = LibraryProgress.merge_progress_record([existing], updated)
 
       assert length(result) == 1
       assert hd(result).completed == true
@@ -457,7 +460,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       record1 = build_progress(%{episode_id: "ep-1"})
       new_record = build_progress(%{episode_id: "ep-2"})
 
-      result = LibraryHelpers.merge_progress_record([record1], new_record)
+      result = LibraryProgress.merge_progress_record([record1], new_record)
 
       assert length(result) == 2
       assert Enum.any?(result, &(&1.episode_id == "ep-1"))
@@ -467,7 +470,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     test "prepends first record into an empty list" do
       new_record = build_progress(%{episode_id: "ep-1"})
 
-      assert LibraryHelpers.merge_progress_record([], new_record) == [new_record]
+      assert LibraryProgress.merge_progress_record([], new_record) == [new_record]
     end
   end
 
@@ -475,14 +478,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "max_last_watched_at/1" do
     test "returns nil when progress_records is empty" do
-      assert LibraryHelpers.max_last_watched_at(%{progress_records: []}) == nil
+      assert LibraryProgress.max_last_watched_at(%{progress_records: []}) == nil
     end
 
     test "returns the timestamp of the only record" do
       timestamp = ~U[2026-01-15 12:00:00Z]
       record = build_progress(%{episode_id: "ep-1", last_watched_at: timestamp})
 
-      assert LibraryHelpers.max_last_watched_at(%{progress_records: [record]}) == timestamp
+      assert LibraryProgress.max_last_watched_at(%{progress_records: [record]}) == timestamp
     end
 
     test "returns the most recent timestamp across records" do
@@ -490,7 +493,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       newer = build_progress(%{episode_id: "ep-2", last_watched_at: ~U[2026-02-01 00:00:00Z]})
       middle = build_progress(%{episode_id: "ep-3", last_watched_at: ~U[2026-01-15 00:00:00Z]})
 
-      result = LibraryHelpers.max_last_watched_at(%{progress_records: [older, newer, middle]})
+      result = LibraryProgress.max_last_watched_at(%{progress_records: [older, newer, middle]})
 
       assert result == ~U[2026-02-01 00:00:00Z]
     end
@@ -501,14 +504,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
   describe "merge_extra_progress/2" do
     test "returns records unchanged for nil change" do
       records = [%{extra_id: "a", completed: false}]
-      assert LibraryHelpers.merge_extra_progress(records, nil) == records
+      assert LibraryProgress.merge_extra_progress(records, nil) == records
     end
 
     test "replaces existing record by extra_id" do
       existing = %{extra_id: "a", completed: false}
       updated = %{extra_id: "a", completed: true}
 
-      result = LibraryHelpers.merge_extra_progress([existing], updated)
+      result = LibraryProgress.merge_extra_progress([existing], updated)
 
       assert length(result) == 1
       assert hd(result).completed == true
@@ -518,7 +521,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       existing = %{extra_id: "a", completed: false}
       new_record = %{extra_id: "b", completed: true}
 
-      result = LibraryHelpers.merge_extra_progress([existing], new_record)
+      result = LibraryProgress.merge_extra_progress([existing], new_record)
 
       assert length(result) == 2
       assert hd(result).extra_id == "b"
@@ -529,17 +532,17 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "in_progress?/1" do
     test "returns false for nil progress" do
-      refute LibraryHelpers.in_progress?(%{progress: nil})
+      refute LibraryProgress.in_progress?(%{progress: nil})
     end
 
     test "returns true when episodes remain" do
-      assert LibraryHelpers.in_progress?(%{
+      assert LibraryProgress.in_progress?(%{
                progress: %{episodes_completed: 3, episodes_total: 10}
              })
     end
 
     test "returns false when all episodes completed" do
-      refute LibraryHelpers.in_progress?(%{
+      refute LibraryProgress.in_progress?(%{
                progress: %{episodes_completed: 10, episodes_total: 10}
              })
     end
@@ -593,33 +596,33 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "completion_percentage/1" do
     test "returns percentage rounded to 0 decimals when duration known" do
-      assert LibraryHelpers.completion_percentage(%{
+      assert LibraryProgress.completion_percentage(%{
                position_seconds: 300.0,
                duration_seconds: 1_000.0
              }) == "30%"
     end
 
     test "rounds up mid-fraction values" do
-      assert LibraryHelpers.completion_percentage(%{
+      assert LibraryProgress.completion_percentage(%{
                position_seconds: 755.0,
                duration_seconds: 1_000.0
              }) == "76%"
     end
 
     test "returns 'unknown' when duration is zero" do
-      assert LibraryHelpers.completion_percentage(%{
+      assert LibraryProgress.completion_percentage(%{
                position_seconds: 100.0,
                duration_seconds: 0.0
              }) == "unknown"
     end
 
     test "returns 'unknown' when duration is missing" do
-      assert LibraryHelpers.completion_percentage(%{position_seconds: 100.0}) == "unknown"
+      assert LibraryProgress.completion_percentage(%{position_seconds: 100.0}) == "unknown"
     end
 
     test "returns 'unknown' for non-progress shape" do
-      assert LibraryHelpers.completion_percentage(nil) == "unknown"
-      assert LibraryHelpers.completion_percentage(%{}) == "unknown"
+      assert LibraryProgress.completion_percentage(nil) == "unknown"
+      assert LibraryProgress.completion_percentage(%{}) == "unknown"
     end
   end
 
@@ -632,14 +635,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entity = %{type: :tv_series, seasons: [season]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-1", 2, 3) == {:episode_id, "ep-42"}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 2, 3) == {:episode_id, "ep-42"}
     end
 
     test "returns {:episode_id, nil} when season missing" do
       entity = %{type: :tv_series, seasons: [build_season(%{season_number: 1, episodes: []})]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-1", 9, 1) == {:episode_id, nil}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 9, 1) == {:episode_id, nil}
     end
 
     test "returns {:episode_id, nil} when episode missing from season" do
@@ -648,11 +651,11 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entity = %{type: :tv_series, seasons: [season]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-1", 1, 99) == {:episode_id, nil}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 1, 99) == {:episode_id, nil}
     end
 
     test "returns {:episode_id, nil} when entity not in cache" do
-      assert LibraryHelpers.resolve_progress_fk(%{}, "missing", 1, 1) == {:episode_id, nil}
+      assert LibraryProgress.resolve_progress_fk(%{}, "missing", 1, 1) == {:episode_id, nil}
     end
   end
 
@@ -663,8 +666,8 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entity = %{type: :movie_series, movies: [movie1, movie2]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-1", 0, 1) == {:movie_id, "m-1"}
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-1", 0, 2) == {:movie_id, "m-2"}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) == {:movie_id, "m-1"}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 2) == {:movie_id, "m-2"}
     end
 
     test "skips movies without content_url when numbering ordinals" do
@@ -675,7 +678,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entries = %{"entity-1" => %{entity: entity}}
 
       # Ordinal 1 is the first available, which is `present`.
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-1", 0, 1) == {:movie_id, "present"}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) == {:movie_id, "present"}
     end
 
     test "returns {:movie_id, nil} when ordinal out of range" do
@@ -683,7 +686,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entity = %{type: :movie_series, movies: [movie]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-1", 0, 99) == {:movie_id, nil}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 99) == {:movie_id, nil}
     end
   end
 
@@ -692,14 +695,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entity = %{type: :movie, id: "entity-42"}
       entries = %{"entity-42" => %{entity: entity}}
 
-      assert LibraryHelpers.resolve_progress_fk(entries, "entity-42", 0, 1) ==
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-42", 0, 1) ==
                {:movie_id, "entity-42"}
     end
   end
 
   describe "resolve_progress_fk/4 — fallback" do
     test "returns {:movie_id, entity_id} when entity missing from cache (season 0)" do
-      assert LibraryHelpers.resolve_progress_fk(%{}, "unknown", 0, 1) == {:movie_id, "unknown"}
+      assert LibraryProgress.resolve_progress_fk(%{}, "unknown", 0, 1) == {:movie_id, "unknown"}
     end
   end
 
@@ -707,21 +710,21 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "offline_summary/2" do
     test "returns nil when every dir is :watching" do
-      assert LibraryHelpers.offline_summary(%{"/mnt/a" => :watching}, 0) == nil
-      assert LibraryHelpers.offline_summary(%{}, 0) == nil
+      assert LibraryAvailability.offline_summary(%{"/mnt/a" => :watching}, 0) == nil
+      assert LibraryAvailability.offline_summary(%{}, 0) == nil
     end
 
     test "returns nil when dirs are :initializing (not yet unavailable)" do
-      assert LibraryHelpers.offline_summary(%{"/mnt/a" => :initializing}, 0) == nil
+      assert LibraryAvailability.offline_summary(%{"/mnt/a" => :initializing}, 0) == nil
     end
 
     test "single-dir offline, pluralises items correctly" do
       status = %{"/mnt/videos" => :unavailable}
 
-      assert LibraryHelpers.offline_summary(status, 1) ==
+      assert LibraryAvailability.offline_summary(status, 1) ==
                "/mnt/videos is offline — 1 item temporarily unavailable."
 
-      assert LibraryHelpers.offline_summary(status, 23) ==
+      assert LibraryAvailability.offline_summary(status, 23) ==
                "/mnt/videos is offline — 23 items temporarily unavailable."
     end
 
@@ -732,14 +735,14 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
         "/mnt/extra" => :watching
       }
 
-      assert LibraryHelpers.offline_summary(status, 41) ==
+      assert LibraryAvailability.offline_summary(status, 41) ==
                "2 storage locations offline — 41 items temporarily unavailable."
     end
 
     test "zero items edge case (dir offline but nothing indexed from it yet)" do
       status = %{"/mnt/videos" => :unavailable}
 
-      assert LibraryHelpers.offline_summary(status, 0) ==
+      assert LibraryAvailability.offline_summary(status, 0) ==
                "/mnt/videos is offline — 0 items temporarily unavailable."
     end
   end
@@ -755,7 +758,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
         content_url: "/mnt/tv/Sample Show Sixteen/Sample Show Sixteen.S03E05.mkv"
       }
 
-      assert LibraryHelpers.playback_failed_flash(payload) ==
+      assert LibraryFormatters.playback_failed_flash(payload) ==
                "Couldn't play Sample Show Sixteen S3E5 — Failed to recognize file format."
     end
 
@@ -769,7 +772,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
         content_url: "/mnt/movies/Inception.mkv"
       }
 
-      assert LibraryHelpers.playback_failed_flash(payload) ==
+      assert LibraryFormatters.playback_failed_flash(payload) ==
                "Couldn't play Inception — Error opening input file."
     end
 
@@ -783,7 +786,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
         content_url: "/mnt/tv/Something.S01E01.mkv"
       }
 
-      assert LibraryHelpers.playback_failed_flash(payload) ==
+      assert LibraryFormatters.playback_failed_flash(payload) ==
                "Couldn't play Something.S01E01.mkv — Cannot open file."
     end
 
@@ -797,7 +800,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
         content_url: "/x.mkv"
       }
 
-      assert LibraryHelpers.playback_failed_flash(payload) ==
+      assert LibraryFormatters.playback_failed_flash(payload) ==
                "Couldn't play Show S1E2 — Nope!"
     end
 
@@ -811,7 +814,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
         content_url: "/mnt/tv/Show.S02E03.mkv"
       }
 
-      flash = LibraryHelpers.playback_failed_flash(payload)
+      flash = LibraryFormatters.playback_failed_flash(payload)
 
       assert flash =~ "Couldn't play Show S2E3"
       assert flash =~ "drive is mounted"

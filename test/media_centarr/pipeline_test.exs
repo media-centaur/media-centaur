@@ -1,7 +1,7 @@
 defmodule MediaCentarr.PipelineTest do
   @moduledoc """
   End-to-end pipeline flow tests. Calls `Discovery.process/1` and
-  `Import.process/1` directly (without Broadway) to verify the full
+  `Import.process_payload/1` directly (without Broadway) to verify the full
   parse → search → fetch_metadata → publish lifecycle.
 
   After Import publishes the entity event, the test subscribes and calls
@@ -100,7 +100,7 @@ defmodule MediaCentarr.PipelineTest do
           pending_file_id: nil
         })
 
-      assert {:ok, _result} = Import.process(import_payload)
+      assert {:ok, _result} = Import.process_payload(import_payload)
 
       # Entity creation is async via PubSub — process in-test for sandbox
       assert_receive {:entity_published, event}
@@ -149,7 +149,7 @@ defmodule MediaCentarr.PipelineTest do
           pending_file_id: nil
         })
 
-      assert {:ok, _result} = Import.process(import_payload)
+      assert {:ok, _result} = Import.process_payload(import_payload)
 
       assert_receive {:entity_published, event}
       assert {:ok, tv_series, :new, _images} = Inbound.ingest(event)
@@ -193,7 +193,7 @@ defmodule MediaCentarr.PipelineTest do
           pending_file_id: nil
         })
 
-      assert {:ok, _result} = Import.process(import_payload)
+      assert {:ok, _result} = Import.process_payload(import_payload)
 
       assert_receive {:entity_published, event}
       assert {:ok, movie_series, :new, _images} = Inbound.ingest(event)
@@ -329,7 +329,7 @@ defmodule MediaCentarr.PipelineTest do
           pending_file_id: pending.id
         })
 
-      assert {:ok, _result} = Import.process(import_payload)
+      assert {:ok, _result} = Import.process_payload(import_payload)
 
       assert_receive {:entity_published, event}
       assert {:ok, entity, :new, _images} = Inbound.ingest(event)

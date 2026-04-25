@@ -50,7 +50,7 @@ defmodule MediaCentarr.Pipeline.Import do
     payload = message.data
     Log.info(:pipeline, "import — processing #{Path.basename(payload.file_path)}")
 
-    case process(payload) do
+    case process_payload(payload) do
       {:ok, payload} ->
         Log.info(:pipeline, "import — completed #{Path.basename(payload.file_path)}")
         Broadway.Message.update_data(message, fn _ -> payload end)
@@ -82,7 +82,7 @@ defmodule MediaCentarr.Pipeline.Import do
 
   Returns `{:ok, payload}` or `{:error, reason}`.
   """
-  def process(%Payload{} = payload) do
+  def process_payload(%Payload{} = payload) do
     payload = %{payload | parsed: Parser.parse(payload.file_path)}
 
     with :ok <- check_disk_space(payload.watch_directory),

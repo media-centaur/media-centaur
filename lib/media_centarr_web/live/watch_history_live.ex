@@ -351,7 +351,7 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
         parent = self()
 
         Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          WatchHistory.remove_event!(event)
+          WatchHistory.delete_event!(event)
 
           send(
             parent,

@@ -92,23 +92,22 @@ defmodule MediaCentarr.WatchHistory do
   end
 
   @doc """
-  Remove a WatchEvent from history. Does not affect library watch progress.
-  """
-  def remove_event!(%Event{} = event) do
-    Repo.delete!(event)
-    event
-  end
+  Delete a WatchEvent from history.
 
-  @doc """
-  Delete a WatchEvent and reset the associated WatchProgress to incomplete.
+  By default the linked `WatchProgress` is left untouched (use `remove from
+  history` semantics). Pass `reset_progress: true` to also reset the linked
+  progress to incomplete — used when the user wants to mark the title as
+  unwatched, not just prune the history row.
 
-  If the entity FK has been nilified (entity was deleted), the WatchProgress
-  reset is skipped. Always returns the deleted event.
+  If the entity FK has been nilified (the entity was deleted), the progress
+  reset is skipped silently.
+
+  Returns `:ok`.
   """
-  def delete_event!(%Event{} = event) do
+  def delete_event!(%Event{} = event, opts \\ []) do
     Repo.delete!(event)
-    reset_watch_progress(event)
-    event
+    if Keyword.get(opts, :reset_progress, false), do: reset_watch_progress(event)
+    :ok
   end
 
   # --- Private ---
