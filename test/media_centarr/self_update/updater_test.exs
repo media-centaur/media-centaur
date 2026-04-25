@@ -73,7 +73,15 @@ defmodule MediaCentarr.SelfUpdate.UpdaterTest do
     ]
 
     {:ok, pid} = Updater.start_link(Keyword.merge(default_opts, opts))
-    on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
+
+    on_exit(fn ->
+      try do
+        GenServer.stop(pid, :normal, 1_000)
+      catch
+        :exit, _ -> :ok
+      end
+    end)
+
     pid
   end
 
