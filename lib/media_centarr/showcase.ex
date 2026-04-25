@@ -377,8 +377,13 @@ defmodule MediaCentarr.Showcase do
   # synthetic Release rows across the current month so the calendar
   # shows thumbnails on multiple days the way it would for a user
   # whose tracked shows are actively airing.
+  #
+  # Only TV series get sprinkled — movies already have meaningful real
+  # theatrical/digital dates from TMDB, and adding synthetic rows on
+  # top makes the same movie show up 3-4 times in the Now Available /
+  # Upcoming lists.
   defp sprinkle_calendar_releases! do
-    items = ReleaseTracking.list_all_items()
+    items = Enum.filter(ReleaseTracking.list_all_items(), &(&1.media_type == :tv_series))
 
     if items == [] do
       :ok

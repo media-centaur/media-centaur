@@ -38,6 +38,22 @@ if [ -n "$pid" ]; then
   done
 fi
 
+# 1b. Salvage the TMDB key from the existing showcase DB before we wipe
+# it — once a real key has been used to seed the showcase, that DB
+# itself is the durable source. Without this, every reseed would
+# re-fetch from the dev DB (which often holds a placeholder) and the
+# user would have to re-supply the key they already provided once.
+# Caller-supplied TMDB_API_KEY still wins (handled in step 4).
+if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$SHOWCASE_DB" ]; then
+  showcase_key=$(sqlite3 "$SHOWCASE_DB" "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" 2>/dev/null || true)
+  if [ -n "$showcase_key" ] && [ "$showcase_key" != "dummy-tmdb-key" ]; then
+    TMDB_API_KEY="$showcase_key"
+    export TMDB_API_KEY
+    echo "salvaged TMDB key from existing showcase DB"
+  fi
+  unset showcase_key
+fi
+
 # 2. Wipe showcase DB + WAL sidecars.
 rm -f "$SHOWCASE_DB" "${SHOWCASE_DB}-shm" "${SHOWCASE_DB}-wal"
 

@@ -6,13 +6,16 @@
 // Invoked by scripts/screenshot-tour.
 //
 // Two projects run the same tour at different pixel densities:
-//   - `web` — deviceScaleFactor 1, writes to docs-site/assets/screenshots/.
-//   - `4k`  — deviceScaleFactor 2.7428571 (≈3840px wide),
-//             writes to docs-site/assets/screenshots/4k/.
+//   - `web`    — deviceScaleFactor 1, writes to docs-site/assets/screenshots/.
+//   - `hires`  — deviceScaleFactor ≈2.057 (2880px wide, 3/4 of UHD),
+//                writes to docs-site/assets/screenshots/4k/ (legacy path,
+//                still served from the assets repo via jsDelivr).
 //
-// The 4K variant supersamples the exact same layout (viewport stays at
-// 1400×900 logical pixels), so text, icons, and borders render crisply
+// The hi-res variant supersamples the exact same layout (viewport stays
+// at 1400×900 logical pixels), so text, icons, and borders render crisply
 // enough for click-to-zoom linkouts from the marketing site and wiki.
+// Full UHD was overkill — 2880px wide is sharp on every common display
+// while keeping the assets repo and jsDelivr payload reasonable.
 const { defineConfig } = require("@playwright/test")
 
 // Defaults to 4003 (showcase override), since this tour is only meant
@@ -20,8 +23,8 @@ const { defineConfig } = require("@playwright/test")
 // prod (2160) would capture personal library content.
 const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:4003"
 
-// 1400 × 2.7428571 = 3840 — the horizontal UHD target.
-const FOUR_K_SCALE = 3840 / 1400
+// 1400 × (2880/1400) = 2880 — three-quarters of UHD width.
+const HIRES_SCALE = 2880 / 1400
 
 const sharedUse = {
   baseURL: BASE_URL,
@@ -58,7 +61,7 @@ module.exports = defineConfig({
     },
     {
       name: "4k",
-      use: { ...sharedUse, deviceScaleFactor: FOUR_K_SCALE },
+      use: { ...sharedUse, deviceScaleFactor: HIRES_SCALE },
       metadata: { outSubdir: "4k" },
     },
   ],
