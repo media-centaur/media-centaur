@@ -109,11 +109,11 @@ defmodule MediaCentarr.Showcase.Catalog do
 
   @spec video_objects() :: [video_entry()]
   def video_objects do
-    # Intentionally empty. VideoObject (schema.org shorts without a TMDB
-    # identity) clutters the showcase library grid with low-metadata
-    # cards that look unfinished next to the TMDB-backed movies and
-    # series. The catalog still supports the shape — re-populate this
-    # list to bring shorts back.
+    # Intentionally empty. VideoObjects (shorts without a TMDB identity)
+    # cluttered the showcase library grid with low-metadata cards that
+    # looked unfinished next to the TMDB-backed movies and series. The
+    # catalog still supports the shape — re-populate this list to bring
+    # shorts back.
     []
   end
 end

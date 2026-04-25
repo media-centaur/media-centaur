@@ -16,7 +16,7 @@ Chosen option: "Regression tests may only be added, never removed or weakened", 
 2. **Pipeline tests represent real processing scenarios.** Each test guards against a specific failure mode — silent data corruption, dropped files, malformed entities. If a pipeline change causes a test to fail, fix the pipeline.
 3. **Test assertions must not be weakened** (e.g., changing an exact match to a substring match, loosening numeric bounds) to accommodate a code change.
 
-Complements [ADR-012](2026-02-27-012-engineering-standards.md), which establishes the test-first discipline.
+Test-first discipline is documented in `CLAUDE.md` ("Testing Strategy") and the `automated-testing` skill.
 
 ### Consequences
 

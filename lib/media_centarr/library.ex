@@ -16,7 +16,6 @@ defmodule MediaCentarr.Library do
       MovieSeries,
       ProgressSummary,
       Season,
-      Serializer,
       TVSeries,
       TypeResolver,
       VideoObject,

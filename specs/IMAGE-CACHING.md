@@ -14,21 +14,27 @@ This document specifies how artwork images are stored, referenced, and loaded in
 ## Design Principles
 
 - **One copy per role, sized for the target role.** Store a single image per role, resized at download time (via libvips in `ImageProcessor`) to the target dimensions for that role.
-- **Remote URL + local path separation.** Each image record stores both the original remote URL and the local cached path. The backend writes `url` during metadata fetch and `contentUrl` after the file is downloaded.
-- **Always use an array.** `image` is always `ImageObject[]`, even when there is one image. This avoids a schema migration when additional roles are added.
-- **UUID-keyed directories.** Each entity's images live under `data/images/{entity-@id}/`. The entity `@id` is the sole key — no name-based paths.
+- **Remote URL + local path separation.** Each image record stores both the original remote URL and the local cached path. The backend writes `source_url` during metadata fetch and `content_url` after the file is downloaded.
+- **Multiple roles per entity, one row each.** The `library_images` table has many rows per entity, one per role. Adding a new role does not require a schema migration — just write a row with the new `role` value.
+- **UUID-keyed directories.** Each entity's images live under `data/images/{entity_id}/`. The entity UUID is the sole key — no name-based paths.
 
 ---
 
-## ImageObject Schema
+## Image Schema
 
-Each entry in an entity's `image` array is a schema.org `ImageObject`. See [`DATA-FORMAT.md`](DATA-FORMAT.md#imageobject) for the full field definition.
+Each row in `library_images` (Ecto schema `MediaCentarr.Library.Image`)
+holds one image for one entity. See the schema module for the full
+field list.
 
-Key points for image caching:
+Key fields for image caching:
 
-- **`url`** — the canonical remote source URL (written by manager, used for re-download)
-- **`contentUrl`** — stored as a relative path in the database (`{uuid}/poster.jpg`). Resolved to an absolute filesystem path by the serializer when needed (e.g. `/mnt/media/.media-centarr/images/{uuid}/poster.jpg`). `null` until download completes.
-- **`name`** — the image role (see roles below)
+- **`source_url`** — the canonical remote source URL (written by the
+  manager, used for re-download)
+- **`content_url`** — stored as a relative path (`{uuid}/poster.jpg`).
+  Resolved to an absolute filesystem path at serve time. `nil` until
+  download completes.
+- **`role`** — `"poster"`, `"backdrop"`, `"logo"`, or `"thumb"` (see
+  Image Roles below)
 
 ---
 

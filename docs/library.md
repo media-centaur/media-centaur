@@ -69,12 +69,12 @@ graph TD
 
 **Entity tables:**
 
-| schema.org @type | Table | Schema | Children |
-|------------------|-------|--------|----------|
-| `Movie` | `library_movies` (`movie_series_id` NULL = standalone) | `Library.Movie` | Extras |
-| `TVSeries` | `library_tv_series` | `Library.TVSeries` | Seasons → Episodes, Extras |
-| `MovieSeries` | `library_movie_series` | `Library.MovieSeries` | Movies (children), Extras |
-| `VideoObject` | `library_video_objects` | `Library.VideoObject` | — |
+| Type | Table | Schema | Children |
+|------|-------|--------|----------|
+| Movie | `library_movies` (`movie_series_id` NULL = standalone) | `Library.Movie` | Extras |
+| TV Series | `library_tv_series` | `Library.TVSeries` | Seasons → Episodes, Extras |
+| Movie Series | `library_movie_series` | `Library.MovieSeries` | Movies (children), Extras |
+| Video Object | `library_video_objects` | `Library.VideoObject` | — |
 
 The `Movie` schema serves both standalone movies and MovieSeries children. The `movie_series_id` column distinguishes them.
 
@@ -82,7 +82,7 @@ The `Movie` schema serves both standalone movies and MovieSeries children. The `
 
 **One image per role per owner.** Roles: `poster`, `backdrop`, `logo`, `thumb`. Enforced by per-owner-type unique indexes on `(<owner_id>, role)`.
 
-**External identifiers.** The `Identifier` resource (formerly `ExternalId`) links each type record to TMDB IDs (and potentially IMDB, TVDB in the future). Modeled as schema.org `PropertyValue`.
+**External identifiers.** The `ExternalId` resource links each type record to TMDB IDs (and potentially IMDB, TVDB in the future). Stored as `{source, external_id}` per row.
 
 **File tracking.** `WatchedFile` links a video file path to its specific type record via the appropriate FK. Tracks presence state (`:complete` or `:absent`) for removable drive support.
 
@@ -123,7 +123,7 @@ graph TD
 
 ### Movie / TVSeries / MovieSeries / VideoObject
 
-The four top-level type records. Each carries the schema.org-aligned attributes for its kind: `name`, `description`, `date_published`, `genres`, `duration`, `director`, `content_rating`, plus type-specific fields (e.g. `number_of_seasons` on `TVSeries`, `position` on a Movie linked to a MovieSeries, `content_url` on Movie / Episode / VideoObject for the playable file path).
+The four top-level type records. Each carries common attributes — `name`, `description`, `date_published`, `genres`, `duration`, `director`, `content_rating` — plus type-specific fields (e.g. `number_of_seasons` on `TVSeries`, `position` on a Movie linked to a MovieSeries, `content_url` on Movie / Episode / VideoObject for the playable file path). The Ecto schemas in `lib/media_centarr/library/` are the canonical reference.
 
 CRUD goes through `MediaCentarr.Library` (the context facade) using ordinary Ecto queries — no Ash actions or polymorphic dispatch. Reads that need full association trees use the dedicated helper modules listed in the [Module Reference](#module-reference).
 

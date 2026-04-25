@@ -1,8 +1,11 @@
 ---
 status: accepted
 date: 2026-04-15
+amended-by: decisions/architecture/2026-04-16-037-acquisition-integration-scope.md
 ---
 # Prowlarr as the single optional integration point for media acquisition
+
+> **Amended by ADR-037.** The literal rule "never talks directly to qBittorrent, Transmission, or any other download client" was relaxed: a download-client driver is permitted *only* where Prowlarr has no equivalent capability (today: reading download progress). The spirit — Prowlarr is the integration surface; drivers are the exception — is preserved. See [ADR-037](2026-04-16-037-acquisition-integration-scope.md).
 
 ## Context and Problem Statement
 
@@ -19,9 +22,7 @@ Chosen option: **Prowlarr as the single integration point, optional**, because:
 - When Prowlarr is not configured, all acquisition UI surfaces are hidden and no acquisition features are active. The application remains fully functional as a library manager.
 - A `SearchProvider` behaviour wraps Prowlarr as an implementation detail, keeping call sites decoupled from the specific adapter.
 
-**Rule:** Media-centarr integrates with Prowlarr only. It never talks directly to qBittorrent, Transmission, Deluge, or any other download client. Prowlarr owns the download client relationship. If a user wants to use a different indexer/search stack in the future, they implement `Acquisition.SearchProvider` — existing call sites do not change.
-
-> **Amended by [ADR-037](2026-04-16-037-acquisition-integration-scope.md):** a direct download-client driver is permitted *only* where Prowlarr has no equivalent capability (today: reading download progress, which Prowlarr does not expose). The spirit of this rule — Prowlarr is the integration surface; drivers are the exception — is preserved.
+**Rule (as amended by ADR-037):** Media-centarr integrates with Prowlarr as the integration surface. A direct download-client driver is permitted only where Prowlarr has no equivalent capability — today, reading download progress. If a user wants to use a different indexer/search stack in the future, they implement `Acquisition.SearchProvider`; existing call sites do not change.
 
 ### Quality preference
 
