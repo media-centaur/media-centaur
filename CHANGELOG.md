@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.9 — 2026-04-26
+
+### Fixed
+
+- **Connection-test buttons no longer wipe your form.** Typing a
+  Prowlarr URL, a download-client URL, or a TMDB API key into
+  Settings → Acquisition or Settings → TMDB and clicking
+  *Test connection* used to discard whatever you typed if the test
+  came back unsuccessful — the form would silently revert to the
+  previously-saved values. The Test button now saves your inputs
+  *first*, then runs the test against them. Whether the test passes
+  or fails, your typed values are kept. Saving never required a
+  passing test, and still doesn't.
+
 ## v0.22.8 — 2026-04-25
 
 ### New
