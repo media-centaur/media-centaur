@@ -36,9 +36,9 @@ defmodule MediaCentarr.ReleaseTracking.Extractor do
   end
 
   @doc """
-  Extracts US theatrical (type 3) and digital (type 4) release dates from a
-  TMDB movie response. Falls back to the simple `release_date` field if no
-  detailed US dates are available.
+  Extracts US theatrical (type 3), digital (type 4), and physical (type 5)
+  release dates from a TMDB movie response. Falls back to the simple
+  `release_date` field if no detailed US dates are available.
   """
   def extract_movie_release_dates(response) do
     title = response["title"]
@@ -58,7 +58,7 @@ defmodule MediaCentarr.ReleaseTracking.Extractor do
     end
   end
 
-  @tracked_release_types %{3 => "theatrical", 4 => "digital"}
+  @tracked_release_types %{3 => "theatrical", 4 => "digital", 5 => "physical"}
 
   defp extract_us_typed_dates(%{"release_dates" => %{"results" => results}}) when is_list(results) do
     us_entry = Enum.find(results, &(&1["iso_3166_1"] == "US"))
