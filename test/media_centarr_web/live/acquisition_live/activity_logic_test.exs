@@ -1,11 +1,11 @@
-defmodule MediaCentarrWeb.AutoGrabsLive.LogicTest do
+defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogicTest do
   use ExUnit.Case, async: true
 
   alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarrWeb.AutoGrabsLive.Logic
+  alias MediaCentarrWeb.AcquisitionLive.ActivityLogic, as: Logic
 
   defp grab(overrides \\ %{}) do
-    base = %Grab{title: "Title", status: "searching"}
+    base = %Grab{title: "Title", status: "searching", origin: "auto"}
     Map.merge(base, overrides)
   end
 
@@ -66,6 +66,30 @@ defmodule MediaCentarrWeb.AutoGrabsLive.LogicTest do
 
     test "unknown status falls through to ghost" do
       assert Logic.status_class("future_status") == "badge-ghost"
+    end
+  end
+
+  describe "origin_label/1" do
+    test "auto origin returns 'auto'" do
+      assert Logic.origin_label(grab(%{origin: "auto"})) == "auto"
+    end
+
+    test "manual origin returns 'manual'" do
+      assert Logic.origin_label(grab(%{origin: "manual"})) == "manual"
+    end
+
+    test "missing/unknown origin defaults to 'auto' (back-compat for legacy rows)" do
+      assert Logic.origin_label(grab(%{origin: nil})) == "auto"
+    end
+  end
+
+  describe "origin_class/1" do
+    test "manual gets a primary outline" do
+      assert Logic.origin_class(grab(%{origin: "manual"})) =~ "badge-primary"
+    end
+
+    test "auto gets a plain outline" do
+      assert Logic.origin_class(grab(%{origin: "auto"})) == "badge-outline"
     end
   end
 

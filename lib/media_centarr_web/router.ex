@@ -26,8 +26,12 @@ defmodule MediaCentarrWeb.Router do
       live "/console", ConsolePageLive, :index
       live "/history", WatchHistoryLive, :index
       live "/download", AcquisitionLive, :index
-      live "/download/auto-grabs", AutoGrabsLive, :index
     end
+
+    # Backward-compat redirect — bookmarks to the old auto-grabs page land
+    # on the unified Downloads page where activity now lives. Kept for at
+    # least one release after v0.24.0; safe to drop later.
+    get "/download/auto-grabs", AcquisitionRedirectController, :auto_grabs
   end
 
   # Other scopes may use custom stacks.
