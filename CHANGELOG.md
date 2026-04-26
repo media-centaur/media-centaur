@@ -4,6 +4,75 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.23.0 — 2026-04-26
+
+### New
+
+- **Auto-grab releases as they become available.** When a movie or TV
+  series you're tracking has a new release drop, Media Centarr can now
+  search Prowlarr automatically and submit the best result to your
+  download client — without you opening the Download page. Available
+  whenever Prowlarr is connected. TV episodes are searched
+  episode-by-episode (`Show Name S03E04`) with a season-pack fallback;
+  movies use the title and release year.
+
+- **Auto-grabs activity page.** A new **Auto-grabs** entry appears in
+  the sidebar (next to Download) when Prowlarr is connected. It lists
+  every active, snoozed, abandoned, or completed auto-grab with its
+  attempt count, last outcome, and lifecycle status. Each row gives you
+  a *Cancel* button while it's still searching, and *Re-arm* on grabs
+  that gave up — useful when a release that was unfindable for a week
+  finally seeds.
+
+- **4K patience.** A new global preference (Settings → Release Tracking
+  → *Auto-acquisition defaults*) lets you tell Media Centarr to wait
+  for a 4K release to seed before falling back to 1080p. Default is
+  48 hours — long enough to catch a slow 4K release without sitting on
+  an unreplaceable episode forever. Set to 0 to grab whatever's
+  available immediately.
+
+- **Per-item auto-grab preferences.** Each tracked title now has its
+  own override for mode (auto-grab on/off), minimum quality, maximum
+  quality, 4K-patience hours, and a "prefer season packs" toggle for
+  TV. The fields are wired through the Track and Item APIs today; a
+  per-card UI gear icon will land in the next polish pass.
+
+- **Configurable data directory.** Settings → Library now exposes a
+  *Data directory* field that controls where Media Centarr stores
+  caches that don't live in your watch directories — currently the
+  poster and backdrop images for tracked titles. Defaults to the
+  parent directory of the SQLite database. Files written by older
+  versions still resolve via a legacy fallback, so flipping this
+  doesn't strand existing images.
+
+### Improved
+
+- **Upcoming Releases broadcasts are now per-release.** When a tracked
+  series has multiple newly-aired episodes in the same refresh cycle,
+  each one is announced individually instead of one event per series.
+  This is what enables episode-level auto-grab — and it also means the
+  Upcoming Releases zone re-renders more precisely when only some of a
+  show's pending episodes have aired.
+
+- **Auto-grab retry strategy.** When a search comes back empty, the
+  retry interval now grows exponentially (4h → 8h → 16h, capped at
+  24h) instead of fixed 4-hour polls. Releases give up after 12 missed
+  attempts (~one week at the cap) and surface as *Abandoned* on the
+  Auto-grabs page with a *Re-arm* action — so a forgotten release
+  doesn't poll Prowlarr forever, but you can revive it with one click
+  if the situation changes.
+
+- **Quieter Prowlarr-down behaviour.** When Prowlarr is unreachable
+  during an auto-grab attempt, the failure no longer counts toward the
+  abandonment budget. The grab snoozes for an hour and tries again,
+  preserving its full retry allotment for the actual release-not-yet-
+  seeded case.
+
+- **Auto-grabs cancel themselves when their tracked title is removed.**
+  Stop tracking a series and any in-flight auto-grabs for that series
+  are cancelled with reason `item_removed`. No stray downloads after
+  you change your mind about a show.
+
 ## v0.22.11 — 2026-04-26
 
 ### Fixed
