@@ -5,19 +5,28 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   of bug where adding a new assign or template variable trips a
   `KeyError` only on a specific page.
 
-  Each route gets one test. If a page needs additional setup to mount
-  (Prowlarr config, DB fixtures, etc.) the setup happens in this file so
-  the smoke test stays isolated from the per-page test files.
+  Each route (and each zone of the library page) gets one test. If a page
+  needs additional setup to mount (Prowlarr config, DB fixtures, etc.)
+  the setup happens in this file so the smoke test stays isolated from
+  the per-page test files.
+
+  Where a zone has a non-trivial render branch (e.g. the upcoming zone's
+  Active cards with theatrical / streaming / TV variants), the test
+  seeds enough fixture data to exercise that branch — empty-state
+  rendering catches a different (smaller) class of bug.
   """
 
   use MediaCentarrWeb.ConnCase, async: false
 
+  import MediaCentarr.TestFactory
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.{Config, Secret}
 
   for {path, label} <- [
         {"/", "library"},
+        {"/?zone=library", "library zone explicit"},
+        {"/?zone=watching", "library watching zone"},
         {"/status", "status"},
         {"/settings", "settings"},
         {"/review", "review"},
@@ -26,6 +35,119 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live(conn, unquote(path))
+      assert is_binary(html)
+    end
+  end
+
+  describe "/?zone=upcoming with tracked-item fixtures" do
+    # Fixture covers every shape the Active card path renders so a
+    # render-time crash in any branch trips the smoke. Not data-correctness
+    # — just "no clause / boolean / nil errors on the way to the screen".
+    setup do
+      tv_item =
+        create_tracking_item(%{
+          tmdb_id: 9_001,
+          media_type: :tv_series,
+          name: "Smoke TV Show"
+        })
+
+      # Two released-not-in-library episodes — exercises the active-row
+      # status-icon path AND the "Queue all N" button branch (renders only
+      # when pending_grab_count >= 2 with acquisition_ready).
+      Enum.each(1..2, fn episode ->
+        create_tracking_release(%{
+          item_id: tv_item.id,
+          air_date: Date.add(Date.utc_today(), -3 - episode),
+          season_number: 1,
+          episode_number: episode,
+          title: "Episode #{episode}",
+          released: true
+        })
+      end)
+
+      # Upcoming — exercises the upcoming-row path inside the same card
+      create_tracking_release(%{
+        item_id: tv_item.id,
+        air_date: Date.add(Date.utc_today(), 7),
+        season_number: 1,
+        episode_number: 3,
+        title: "Next Week",
+        released: false
+      })
+
+      # Streaming movie — released, not in library
+      streaming_movie =
+        create_tracking_item(%{
+          tmdb_id: 9_002,
+          media_type: :movie,
+          name: "Smoke Streaming Movie"
+        })
+
+      create_tracking_release(%{
+        item_id: streaming_movie.id,
+        air_date: Date.add(Date.utc_today(), -1),
+        title: "Streaming",
+        release_type: "digital",
+        released: true
+      })
+
+      # Theatrical movie with NO home release dates — exercises the
+      # "Home release: not yet announced" branch and is the exact shape
+      # that previously crashed with `BadBooleanError` on the
+      # `air_date and Date.compare(...)` expression.
+      theatrical_movie =
+        create_tracking_item(%{
+          tmdb_id: 9_003,
+          media_type: :movie,
+          name: "Smoke Theatrical Movie"
+        })
+
+      create_tracking_release(%{
+        item_id: theatrical_movie.id,
+        air_date: Date.add(Date.utc_today(), -10),
+        title: "Theatrical",
+        release_type: "theatrical",
+        released: true
+      })
+
+      # Theatrical movie WITH digital + physical release rows — exercises
+      # the multi-line `home_release_lines/1` branch (Digital: …, Physical: …).
+      home_release_movie =
+        create_tracking_item(%{
+          tmdb_id: 9_004,
+          media_type: :movie,
+          name: "Smoke Home Release Movie"
+        })
+
+      create_tracking_release(%{
+        item_id: home_release_movie.id,
+        air_date: Date.add(Date.utc_today(), -20),
+        title: "Theatrical",
+        release_type: "theatrical",
+        released: true
+      })
+
+      create_tracking_release(%{
+        item_id: home_release_movie.id,
+        air_date: Date.add(Date.utc_today(), 30),
+        title: "Digital",
+        release_type: "digital",
+        released: false
+      })
+
+      create_tracking_release(%{
+        item_id: home_release_movie.id,
+        air_date: Date.add(Date.utc_today(), 60),
+        title: "Physical",
+        release_type: "physical",
+        released: false
+      })
+
+      :ok
+    end
+
+    test "upcoming zone renders without crashing", %{conn: conn} do
+      assert {:ok, _view, html} = live(conn, "/?zone=upcoming")
       assert is_binary(html)
     end
   end

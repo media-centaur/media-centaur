@@ -129,43 +129,29 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           />
         </div>
 
-        <%!-- Now Available (takes 1 column on lg — sits beside Upcoming) --%>
+        <%!-- Active shows: a card per show with recent releases + next-up
+        episodes folded together. Replaces the older split between Now
+        Available and Upcoming — those were two views of the same data. --%>
         <div
           data-nav-item
-          data-section-type="now-available"
+          data-section-type="active-shows"
           tabindex="0"
-          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
+          class="lg:col-span-2 space-y-3 rounded-xl outline-none p-4 glass-inset"
         >
-          <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
-          <%= if @released != [] do %>
-            <.released_content
-              releases={@released}
+          <h3 class="text-sm font-medium text-success uppercase tracking-wider">Active</h3>
+          <%= if @released != [] or @dated_upcoming != [] do %>
+            <.active_shows
+              released={@released}
+              upcoming={@dated_upcoming}
               grab_statuses={@grab_statuses}
               queue_items={@queue_items}
               acquisition_ready={@acquisition_ready}
+              images={@images}
             />
           <% else %>
-            <p class="text-sm text-base-content/50">No recent releases.</p>
-          <% end %>
-        </div>
-
-        <%!-- Upcoming (takes 1 column on lg — sits beside Now Available) --%>
-        <div
-          data-nav-item
-          data-section-type="upcoming-list"
-          tabindex="0"
-          class="space-y-3 rounded-xl outline-none p-4 glass-inset"
-        >
-          <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
-          <%= if @dated_upcoming != [] do %>
-            <.upcoming_list_content
-              releases={@dated_upcoming}
-              grab_statuses={@grab_statuses}
-              queue_items={@queue_items}
-              acquisition_ready={@acquisition_ready}
-            />
-          <% else %>
-            <p class="text-sm text-base-content/50">Nothing scheduled.</p>
+            <p class="text-sm text-base-content/50">
+              Nothing happening right now. Tracked shows with future episodes appear here.
+            </p>
           <% end %>
         </div>
 
@@ -552,68 +538,466 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     """
   end
 
-  # --- Released section content ---
+  # --- Active shows: card per show with recent + upcoming episodes ---
+  #
+  # Replaces the older split between Now Available and Upcoming. One
+  # card per show — released rows on top with status icons, upcoming
+  # rows below capped at 3 with "+N more" so the card stays compact.
+  # Long-tail upcoming dates are still on the Calendar.
 
-  attr :releases, :list, required: true
+  @upcoming_visible_per_card 3
+
+  attr :released, :list, required: true
+  attr :upcoming, :list, required: true
+  attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
+  attr :acquisition_ready, :boolean, default: false
+  attr :images, :map, default: %{}
+
+  defp active_shows(assigns) do
+    groups = merge_active_groups(assigns.released, assigns.upcoming)
+    assigns = assign(assigns, :groups, groups)
+
+    ~H"""
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <.active_card
+        :for={group <- @groups}
+        item={group.item}
+        released={group.released}
+        upcoming={group.upcoming}
+        upcoming_overflow={group.upcoming_overflow}
+        images={@images}
+        grab_statuses={@grab_statuses}
+        queue_items={@queue_items}
+        acquisition_ready={@acquisition_ready}
+      />
+    </div>
+    """
+  end
+
+  @doc """
+  Merges the released and upcoming buckets into per-show groups. Each
+  group carries its released releases (sorted by season/episode), the
+  next `@upcoming_visible_per_card` upcoming releases, and an overflow
+  count for the "+N more" indicator.
+
+  Public so the unit test can exercise the cap and sort behaviour
+  directly without going through render.
+  """
+  @spec merge_active_groups([map()], [map()]) :: [
+          %{
+            item: map(),
+            released: [map()],
+            upcoming: [map()],
+            upcoming_overflow: non_neg_integer()
+          }
+        ]
+  def merge_active_groups(released, upcoming) do
+    released_by_item = Enum.group_by(released, & &1.item_id)
+    upcoming_by_item = Enum.group_by(upcoming, & &1.item_id)
+
+    item_ids = Enum.uniq(Map.keys(released_by_item) ++ Map.keys(upcoming_by_item))
+
+    items_lookup = Map.new(released ++ upcoming, &{&1.item_id, &1.item})
+
+    item_ids
+    |> Enum.map(fn item_id ->
+      released_releases =
+        released_by_item
+        |> Map.get(item_id, [])
+        |> Enum.sort_by(&{&1.season_number || 0, &1.episode_number || 0})
+
+      all_upcoming =
+        upcoming_by_item
+        |> Map.get(item_id, [])
+        |> Enum.sort_by(&(&1.air_date || ~D[9999-12-31]), Date)
+
+      visible_upcoming = Enum.take(all_upcoming, @upcoming_visible_per_card)
+      overflow = max(length(all_upcoming) - @upcoming_visible_per_card, 0)
+
+      %{
+        item: Map.fetch!(items_lookup, item_id),
+        released: released_releases,
+        upcoming: visible_upcoming,
+        upcoming_overflow: overflow
+      }
+    end)
+    |> Enum.sort_by(&group_activity_key/1, :desc)
+  end
+
+  # Sort key per group, returned as an integer so `:desc` sort uses
+  # numeric comparison (Date structs don't sort chronologically under
+  # Erlang's default term order).
+  #
+  # - Released groups: `+days_since_year_one(max_date)` — bigger means
+  #   more recent, sorts first under `:desc`.
+  # - Upcoming-only groups: `-days_since_year_one(min_date)` — negative
+  #   so they sort BELOW released groups; the bigger value (closer to
+  #   zero) corresponds to the soonest date.
+  # - Empty groups (no released, no upcoming): far negative sentinel.
+  defp group_activity_key(%{released: released, upcoming: upcoming}) do
+    released_dates = Enum.reject(Enum.map(released, & &1.air_date), &is_nil/1)
+    upcoming_dates = Enum.reject(Enum.map(upcoming, & &1.air_date), &is_nil/1)
+
+    case {released_dates, upcoming_dates} do
+      {[], []} ->
+        -1_000_000_000
+
+      {[], dates} ->
+        -Date.diff(Enum.min(dates, Date), ~D[0001-01-01])
+
+      {dates, _} ->
+        Date.diff(Enum.max(dates, Date), ~D[0001-01-01])
+    end
+  end
+
+  attr :item, :map, required: true
+  attr :released, :list, required: true
+  attr :upcoming, :list, default: []
+  attr :upcoming_overflow, :integer, default: 0
+  attr :images, :map, default: %{}
   attr :grab_statuses, :map, default: %{}
   attr :queue_items, :list, default: []
   attr :acquisition_ready, :boolean, default: false
 
-  defp released_content(assigns) do
-    sorted =
-      Enum.sort_by(assigns.releases, fn release ->
-        date = release.air_date || ~D[9999-12-31]
+  defp active_card(assigns) do
+    item_images = Map.get(assigns.images, assigns.item.id, %{})
+    backdrop = item_images[:backdrop] || item_images[:poster]
 
-        {date.year, date.month, date.day, release.item.name, release.season_number || 0,
-         release.episode_number || 0}
-      end)
+    # Card kind decided by what's actually being rendered. If there are
+    # released movie rows, prefer streaming/theatrical decision over
+    # falling back to upcoming. Otherwise (TV or upcoming-only movie)
+    # use the released list, then upcoming as a fallback.
+    seed = first_present(assigns.released, assigns.upcoming)
+    {kind, single_release} = card_kind(assigns.item, seed)
 
-    assigns = assign(assigns, :sorted, sorted)
+    # A whole-card click only makes sense for streaming-movie cards
+    # (single actionable release). TV cards have per-row clicks; theatrical
+    # cards are informational with no destination.
+    card_destination =
+      case {kind, single_release} do
+        {:movie_streaming, release} ->
+          status =
+            if assigns.acquisition_ready do
+              grab = lookup_grab(release, assigns.grab_statuses)
+              queue_item = lookup_queue_item(release, assigns.queue_items)
+              release_status(release.in_library, grab, queue_item)
+            else
+              :none
+            end
+
+          row_destination(release, status, assigns.acquisition_ready)
+
+        _ ->
+          nil
+      end
+
+    assigns =
+      assigns
+      |> assign(backdrop: backdrop)
+      |> assign(kind: kind)
+      |> assign(card_destination: card_destination)
 
     ~H"""
-    <div class="release-grid release-grid-dismissable text-sm pl-3">
-      <.release_row
-        :for={release <- @sorted}
-        release={release}
+    <%= if @card_destination do %>
+      <.link
+        navigate={@card_destination}
+        class="block hover:ring-1 hover:ring-primary/40 rounded-lg transition-all"
+      >
+        <.active_card_inner
+          item={@item}
+          released={@released}
+          upcoming={@upcoming}
+          upcoming_overflow={@upcoming_overflow}
+          backdrop={@backdrop}
+          kind={@kind}
+          grab_statuses={@grab_statuses}
+          queue_items={@queue_items}
+          acquisition_ready={@acquisition_ready}
+        />
+      </.link>
+    <% else %>
+      <.active_card_inner
+        item={@item}
+        released={@released}
+        upcoming={@upcoming}
+        upcoming_overflow={@upcoming_overflow}
+        backdrop={@backdrop}
+        kind={@kind}
         grab_statuses={@grab_statuses}
         queue_items={@queue_items}
         acquisition_ready={@acquisition_ready}
-        dismissable
       />
+    <% end %>
+    """
+  end
+
+  defp first_present([_ | _] = a, _b), do: a
+  defp first_present([], b), do: b
+
+  attr :item, :map, required: true
+  attr :released, :list, required: true
+  attr :upcoming, :list, default: []
+  attr :upcoming_overflow, :integer, default: 0
+  attr :backdrop, :string, default: nil
+  attr :kind, :atom, required: true
+  attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
+  attr :acquisition_ready, :boolean, default: false
+
+  defp active_card_inner(assigns) do
+    pending_count =
+      if assigns.acquisition_ready,
+        do: pending_grab_count(assigns.released, assigns.grab_statuses),
+        else: 0
+
+    home_lines =
+      case assigns.kind do
+        :theatrical ->
+          home_release_lines(build_home_release_summary(assigns.released ++ assigns.upcoming))
+
+        _ ->
+          []
+      end
+
+    assigns =
+      assigns
+      |> assign(:pending_count, pending_count)
+      |> assign(:home_lines, home_lines)
+
+    ~H"""
+    <div class="rounded-lg overflow-hidden glass-inset">
+      <%!-- Backdrop header --%>
+      <div class="relative aspect-[21/9]">
+        <img
+          :if={@backdrop}
+          src={@backdrop}
+          class="w-full h-full object-cover object-top"
+          loading="lazy"
+        />
+        <div :if={!@backdrop} class="w-full h-full flex items-center justify-center bg-base-300">
+          <.icon name="hero-film" class="size-6 text-base-content/15" />
+        </div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 via-40% to-transparent" />
+        <div class="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-2">
+          <p class="text-sm font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] leading-tight truncate">
+            {@item.name}
+          </p>
+          <.kind_badge kind={@kind} />
+        </div>
+      </div>
+
+      <%!-- Body: released rows on top, upcoming rows below.
+           For movies, the single-release card has a different shape. --%>
+      <%= case @kind do %>
+        <% :tv -> %>
+          <div class="px-3 py-2 space-y-0.5">
+            <div :if={@released != []} class="release-grid text-sm">
+              <.active_episode_row
+                :for={release <- @released}
+                release={release}
+                grab_statuses={@grab_statuses}
+                queue_items={@queue_items}
+                acquisition_ready={@acquisition_ready}
+              />
+            </div>
+            <div
+              :if={@pending_count >= 2}
+              class="flex justify-end pt-1"
+            >
+              <button
+                type="button"
+                phx-click="queue_all_show"
+                phx-value-item-id={@item.id}
+                class="btn btn-soft btn-primary btn-xs"
+                aria-label={"Queue all #{@pending_count} pending episodes"}
+                tabindex="-1"
+              >
+                <.icon name="hero-arrow-down-tray-mini" class="size-3.5" /> Queue all {@pending_count}
+              </button>
+            </div>
+            <div
+              :if={@released != [] and @upcoming != []}
+              class="border-t border-base-content/10 my-1"
+            />
+            <div :if={@upcoming != []} class="release-grid text-sm">
+              <.upcoming_episode_row :for={release <- @upcoming} release={release} />
+            </div>
+            <p :if={@upcoming_overflow > 0} class="text-xs text-base-content/40 pl-1 pt-1">
+              +{@upcoming_overflow} more on the calendar
+            </p>
+          </div>
+        <% :movie_streaming -> %>
+          <div class="px-3 py-2 flex items-center gap-2 text-sm">
+            <.release_status_icon
+              release={hd(seed_releases(@released, @upcoming))}
+              grab_statuses={@grab_statuses}
+              queue_items={@queue_items}
+              acquisition_ready={@acquisition_ready}
+            />
+            <span class="text-base-content/60">
+              {movie_streaming_label(@released, @upcoming)}
+            </span>
+          </div>
+        <% :theatrical -> %>
+          <div class="px-3 py-2 space-y-0.5">
+            <div class="text-xs text-base-content/50">
+              {theatrical_label(hd(seed_releases(@released, @upcoming)).air_date)}
+            </div>
+            <div :for={line <- @home_lines} class="text-xs text-base-content/40">
+              {line}
+            </div>
+          </div>
+      <% end %>
     </div>
     """
+  end
+
+  defp seed_releases([_ | _] = released, _upcoming), do: released
+  defp seed_releases([], upcoming), do: upcoming
+
+  defp movie_streaming_label([_ | _], _upcoming), do: "Available now"
+
+  defp movie_streaming_label([], [release | _]) do
+    case release.air_date do
+      nil -> "Coming soon"
+      date -> "Available " <> Calendar.strftime(date, "%B %-d, %Y")
+    end
+  end
+
+  defp theatrical_label(nil), do: "In theaters"
+
+  defp theatrical_label(%Date{} = date) do
+    case Date.compare(date, Date.utc_today()) do
+      :gt -> "In theaters " <> Calendar.strftime(date, "%B %-d, %Y")
+      _ -> "In theaters since " <> Calendar.strftime(date, "%B %-d, %Y")
+    end
+  end
+
+  attr :kind, :atom, required: true
+
+  defp kind_badge(%{kind: :tv} = assigns) do
+    ~H"""
+    <span class="text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-info/15 text-info shrink-0">
+      TV
+    </span>
+    """
+  end
+
+  defp kind_badge(%{kind: :movie_streaming} = assigns) do
+    ~H"""
+    <span class="text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-warning/15 text-warning shrink-0">
+      Streaming
+    </span>
+    """
+  end
+
+  defp kind_badge(%{kind: :theatrical} = assigns) do
+    ~H"""
+    <span class="text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-base-content/10 text-base-content/60 shrink-0">
+      🎬 Theaters
+    </span>
+    """
+  end
+
+  attr :release, :map, required: true
+  attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
+  attr :acquisition_ready, :boolean, default: false
+
+  defp active_episode_row(assigns) do
+    status =
+      if assigns.acquisition_ready do
+        grab = lookup_grab(assigns.release, assigns.grab_statuses)
+        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
+        release_status(assigns.release.in_library, grab, queue_item)
+      else
+        :none
+      end
+
+    assigns =
+      assigns
+      |> assign(:status, status)
+      |> assign(:destination, row_destination(assigns.release, status, assigns.acquisition_ready))
+
+    ~H"""
+    <.link navigate={@destination} class="release-row group hover:bg-base-content/5 rounded">
+      <span class="text-base-content/30 tabular-nums text-right">
+        {if @release.air_date, do: Calendar.strftime(@release.air_date, "%b %-d"), else: "—"}
+      </span>
+      <span class="font-medium truncate">
+        <span :if={@release.season_number} class="text-base-content/50 tabular-nums mr-1">
+          S{String.pad_leading("#{@release.season_number}", 2, "0")}E{String.pad_leading(
+            "#{@release.episode_number}",
+            2,
+            "0"
+          )}
+        </span>
+        <span :if={@release.title} class="text-base-content/70">"{@release.title}"</span>
+      </span>
+      <div class="flex items-center gap-1 justify-end col-span-2">
+        <.release_status_icon
+          release={@release}
+          grab_statuses={@grab_statuses}
+          queue_items={@queue_items}
+          acquisition_ready={@acquisition_ready}
+        />
+        <.icon
+          :if={@status == :none and @acquisition_ready}
+          name="hero-arrow-down-tray-mini"
+          class="size-3.5 text-base-content/40 opacity-0 group-hover:opacity-60 transition-opacity"
+        />
+      </div>
+    </.link>
+    """
+  end
+
+  # Upcoming row: future episode in the same card, no acquisition state
+  # to show, not clickable. Just date + episode info, dimmed to differentiate
+  # from released/active rows visually.
+  attr :release, :map, required: true
+
+  defp upcoming_episode_row(assigns) do
+    ~H"""
+    <div class="release-row text-base-content/50">
+      <span class="text-base-content/30 tabular-nums text-right">
+        {if @release.air_date, do: Calendar.strftime(@release.air_date, "%b %-d"), else: "—"}
+      </span>
+      <span class="truncate">
+        <span :if={@release.season_number} class="tabular-nums mr-1 text-base-content/40">
+          S{String.pad_leading("#{@release.season_number}", 2, "0")}E{String.pad_leading(
+            "#{@release.episode_number}",
+            2,
+            "0"
+          )}
+        </span>
+        <span :if={@release.title} class="text-base-content/50">"{@release.title}"</span>
+      </span>
+      <div
+        class="flex items-center gap-1 justify-end col-span-2 text-base-content/30"
+        title="Upcoming"
+      >
+        <.icon name="hero-clock-mini" class="size-3.5" />
+      </div>
+    </div>
+    """
+  end
+
+  # Determines what shape of card to render. Returns `{kind, optional_single_release}`.
+  defp card_kind(%{media_type: :tv_series}, _releases), do: {:tv, nil}
+
+  defp card_kind(%{media_type: :movie}, releases) do
+    # `Enum.split_with(releases, &(&1.release_type == "theatrical"))` partitions
+    # into `{theatrical, non_theatrical}`. A streaming row (or any non-theatrical
+    # row) wins because that's the downloadable surface; otherwise we fall
+    # back to the theatrical row for informational display.
+    case Enum.split_with(releases, &(&1.release_type == "theatrical")) do
+      {_theatrical, [streaming | _]} -> {:movie_streaming, streaming}
+      {[theatrical | _], []} -> {:theatrical, theatrical}
+    end
   end
 
   # --- Upcoming list content ---
-
-  attr :releases, :list, required: true
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
-  attr :acquisition_ready, :boolean, default: false
-
-  defp upcoming_list_content(assigns) do
-    sorted =
-      Enum.sort_by(assigns.releases, fn release ->
-        date = release.air_date
-
-        {date.year, date.month, date.day, release.item.name, release.season_number || 0,
-         release.episode_number || 0}
-      end)
-
-    assigns = assign(assigns, :sorted, sorted)
-
-    ~H"""
-    <div class="release-grid text-sm pl-3">
-      <.release_row
-        :for={release <- @sorted}
-        release={release}
-        grab_statuses={@grab_statuses}
-        queue_items={@queue_items}
-        acquisition_ready={@acquisition_ready}
-      />
-    </div>
-    """
-  end
 
   # --- Unscheduled section content ---
 
@@ -639,106 +1023,6 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         <span :if={release.title} class="text-base-content/40">"{release.title}"</span>
       </div>
     </div>
-    """
-  end
-
-  # --- Release row (shared by released + upcoming lists) ---
-
-  attr :release, :map, required: true
-  attr :dismissable, :boolean, default: false
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
-  attr :acquisition_ready, :boolean, default: false
-
-  defp release_row(assigns) do
-    status =
-      if assigns.acquisition_ready do
-        grab = lookup_grab(assigns.release, assigns.grab_statuses)
-        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
-        release_status(assigns.release.in_library, grab, queue_item)
-      else
-        :none
-      end
-
-    assigns =
-      assigns
-      |> assign(:status, status)
-      |> assign(:destination, row_destination(assigns.release, status, assigns.acquisition_ready))
-
-    ~H"""
-    <.link navigate={@destination} class="release-row group hover:bg-base-content/5 rounded">
-      <span class="text-base-content/30 tabular-nums text-right">
-        {if @release.air_date, do: Calendar.strftime(@release.air_date, "%b %-d"), else: "—"}
-      </span>
-      <span class="font-medium truncate">{@release.item.name}</span>
-      <.release_detail release={@release} />
-      <div class="flex items-center gap-1 justify-end">
-        <.release_status_icon
-          release={@release}
-          grab_statuses={@grab_statuses}
-          queue_items={@queue_items}
-          acquisition_ready={@acquisition_ready}
-        />
-        <%!-- (a) hover hint: faint download icon when there's no acquisition state to show --%>
-        <.icon
-          :if={@status == :none and @acquisition_ready}
-          name="hero-arrow-down-tray-mini"
-          class="size-3.5 text-base-content/40 opacity-0 group-hover:opacity-60 transition-opacity"
-        />
-        <button
-          :if={@dismissable}
-          phx-click="dismiss_release"
-          phx-value-release-id={@release.id}
-          onclick="event.stopPropagation()"
-          class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label="Dismiss"
-        >
-          <.icon name="hero-x-mark-mini" class="size-3.5" />
-        </button>
-      </div>
-    </.link>
-    """
-  end
-
-  # --- Release detail (episode info or type label) ---
-
-  attr :release, :map, required: true
-
-  defp release_detail(%{release: %{season_number: season}} = assigns) when is_integer(season) do
-    ~H"""
-    <span class="text-base-content/50 tabular-nums">
-      <span class="text-[0.8em] text-base-content/30">S</span>{String.pad_leading(
-        "#{@release.season_number}",
-        2,
-        "0"
-      )}
-      <span class="text-[0.8em] text-base-content/30">E</span>{String.pad_leading(
-        "#{@release.episode_number}",
-        2,
-        "0"
-      )}
-    </span>
-    <span class="text-base-content/40 truncate">
-      {if @release.title, do: "\"#{@release.title}\""}
-    </span>
-    """
-  end
-
-  defp release_detail(%{release: %{release_type: "theatrical"}} = assigns) do
-    ~H"""
-    <span class="text-warning/70 text-xs col-span-2">In Theaters</span>
-    """
-  end
-
-  defp release_detail(%{release: %{release_type: "digital"}} = assigns) do
-    ~H"""
-    <span class="text-info/70 text-xs col-span-2">Streaming</span>
-    """
-  end
-
-  defp release_detail(assigns) do
-    ~H"""
-    <span class="col-span-2"></span>
     """
   end
 
@@ -930,6 +1214,132 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   def release_status(false, %Grab{status: "abandoned"}, _queue), do: :abandoned
   def release_status(false, %Grab{status: "cancelled"}, _queue), do: :cancelled
   def release_status(false, nil, _queue), do: :none
+
+  @doc """
+  Walks a movie's release rows once and picks the earliest air_date per
+  release type. Returns a struct-like map with `:theatrical`, `:digital`,
+  and `:physical` keys, each `Date.t()` or `nil`.
+
+  Multiple rows of the same type (e.g. duplicate digital entries from
+  different countries) collapse to the earliest known date — deterministic
+  even though we currently extract US-only.
+
+  Pure function — used by the per-item view-model in the active-shows
+  pipeline so the render layer doesn't re-derive this data on every patch.
+  """
+  @spec build_home_release_summary([map()]) :: %{
+          theatrical: Date.t() | nil,
+          digital: Date.t() | nil,
+          physical: Date.t() | nil
+        }
+  def build_home_release_summary(releases) do
+    by_type = Enum.group_by(releases, & &1.release_type)
+
+    %{
+      theatrical: earliest_air_date(Map.get(by_type, "theatrical")),
+      digital: earliest_air_date(Map.get(by_type, "digital")),
+      physical: earliest_air_date(Map.get(by_type, "physical"))
+    }
+  end
+
+  defp earliest_air_date(nil), do: nil
+
+  defp earliest_air_date(releases) when is_list(releases) do
+    releases
+    |> Enum.map(& &1.air_date)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      dates -> Enum.min(dates, Date)
+    end
+  end
+
+  @doc """
+  Formats a home-release summary into one or more lines of secondary text.
+
+  Returns `[]` for non-theatrical contexts (the streaming-card path already
+  shows its own date), `["Home release: not yet announced"]` when we have a
+  theatrical date but no home dates yet, and one line per known home format
+  otherwise.
+
+  Pure function — pairs with `build_home_release_summary/1`.
+  """
+  @spec home_release_lines(%{
+          theatrical: Date.t() | nil,
+          digital: Date.t() | nil,
+          physical: Date.t() | nil
+        }) :: [String.t()]
+  def home_release_lines(%{theatrical: nil}), do: []
+
+  def home_release_lines(%{digital: nil, physical: nil}) do
+    ["Home release: not yet announced"]
+  end
+
+  def home_release_lines(%{digital: digital, physical: physical}) do
+    []
+    |> append_home_line("Digital", digital)
+    |> append_home_line("Physical", physical)
+  end
+
+  defp append_home_line(lines, _label, nil), do: lines
+
+  defp append_home_line(lines, label, %Date{} = date) do
+    lines ++ ["#{label}: #{Calendar.strftime(date, "%b %-d, %Y")}"]
+  end
+
+  @doc """
+  Counts releases that should appear under the "Queue all (N)" button —
+  released-but-not-grabbed episodes for which a bulk action would actually
+  produce a new grab. A release is counted when it is not in the library
+  and has no existing grab row of any status (terminal grabs are skipped
+  because the user must explicitly re-arm them).
+
+  Pure function — `grab_statuses` is the same map produced by
+  `MediaCentarr.Acquisition.statuses_for_releases/1`.
+  """
+  @spec pending_grab_count([map()], map()) :: non_neg_integer()
+  def pending_grab_count(releases, grab_statuses) do
+    Enum.count(releases, fn release ->
+      not release.in_library and is_nil(lookup_grab(release, grab_statuses))
+    end)
+  end
+
+  @doc """
+  Groups a flat list of releases by the show/movie they belong to.
+
+  Returns `[%{item: item, releases: [release]}]` where:
+  - releases within each group are sorted by `(season_number, episode_number)`
+    ascending (so an episode list reads top-to-bottom in viewing order)
+  - groups themselves are sorted by the freshest air_date in the group,
+    descending (most recent activity surfaces first; nil-date groups
+    sink to the bottom)
+
+  Each release is expected to have its `:item` association preloaded.
+  Pure function — no I/O, no DB.
+  """
+  @spec group_releases_by_item([map()]) :: [%{item: map(), releases: [map()]}]
+  def group_releases_by_item(releases) do
+    releases
+    |> Enum.group_by(& &1.item_id)
+    |> Enum.map(fn {_item_id, group_releases} ->
+      first = hd(group_releases)
+      sorted = Enum.sort_by(group_releases, &{&1.season_number || 0, &1.episode_number || 0})
+      %{item: first.item, releases: sorted}
+    end)
+    |> Enum.sort_by(&group_sort_key/1, :desc)
+  end
+
+  # Sort key: latest air_date in the group. nil air_dates sink to the bottom
+  # by mapping them to a sentinel that sorts as oldest-possible.
+  defp group_sort_key(%{releases: releases}) do
+    releases
+    |> Enum.map(& &1.air_date)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> ~D[0001-01-01]
+      dates -> Enum.max(dates, Date)
+    end
+  end
 
   defp lookup_grab(release, grab_statuses) do
     key =

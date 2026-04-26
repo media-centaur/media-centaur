@@ -365,4 +365,156 @@ defmodule MediaCentarr.AcquisitionTest do
       refute_received {:auto_grab_cancelled, _}
     end
   end
+
+  describe "enqueue_all_pending_for_item/1" do
+    test "returns :not_found for an unknown item id" do
+      assert {:error, :not_found} = Acquisition.enqueue_all_pending_for_item(Ecto.UUID.generate())
+    end
+
+    test "enqueues a grab per pending TV episode and reports the count" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_001,
+          media_type: :tv_series,
+          name: "Bulk Show"
+        })
+
+      Enum.each(1..3, fn episode ->
+        create_tracking_release(%{
+          item_id: item.id,
+          season_number: 5,
+          episode_number: episode,
+          released: true
+        })
+      end)
+
+      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+      assert summary.queued == 3
+      assert summary.skipped_in_flight == 0
+      assert summary.failed == []
+
+      grabs =
+        Repo.all(
+          from(g in Grab,
+            where: g.tmdb_id == "7001" and g.tmdb_type == "tv",
+            order_by: g.episode_number
+          )
+        )
+
+      assert length(grabs) == 3
+      assert Enum.map(grabs, & &1.episode_number) == [1, 2, 3]
+    end
+
+    test "skips releases that already have a grab (in-flight)" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_002,
+          media_type: :tv_series,
+          name: "Half-flighted"
+        })
+
+      Enum.each(1..3, fn episode ->
+        create_tracking_release(%{
+          item_id: item.id,
+          season_number: 1,
+          episode_number: episode,
+          released: true
+        })
+      end)
+
+      # Pre-existing grab for episode 2 (still searching).
+      {:ok, _} =
+        Acquisition.enqueue("7002", "tv", "Half-flighted",
+          season_number: 1,
+          episode_number: 2
+        )
+
+      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+      assert summary.queued == 2
+      assert summary.skipped_in_flight == 1
+    end
+
+    test "ignores not-released and already-in-library releases" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_003,
+          media_type: :tv_series,
+          name: "Mostly Not Pending"
+        })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 1,
+        released: true,
+        in_library: true
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 2,
+        released: false
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 3,
+        released: true
+      })
+
+      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+      assert summary.queued == 1
+    end
+
+    test "treats a movie's digital + physical releases as a single grab key" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_004,
+          media_type: :movie,
+          name: "Both Formats"
+        })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Digital",
+        released: true,
+        release_type: "digital"
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Physical",
+        released: true,
+        release_type: "physical"
+      })
+
+      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+      assert summary.queued == 1
+
+      grabs = Repo.all(from(g in Grab, where: g.tmdb_id == "7004"))
+      assert length(grabs) == 1
+    end
+
+    test "ignores theatrical-only movie items (no acquirable releases)" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_005,
+          media_type: :movie,
+          name: "In Theaters"
+        })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Theatrical",
+        released: true,
+        release_type: "theatrical"
+      })
+
+      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+      assert summary.queued == 0
+      assert summary.skipped_in_flight == 0
+    end
+  end
 end

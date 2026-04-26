@@ -515,6 +515,30 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, socket}
   end
 
+  def handle_event("queue_all_show", %{"item-id" => item_id}, socket) do
+    case MediaCentarr.Acquisition.enqueue_all_pending_for_item(item_id) do
+      {:ok, %{queued: 0, skipped_in_flight: skipped}} when skipped > 0 ->
+        {:noreply, put_flash(socket, :info, "Already queued — #{skipped} pending")}
+
+      {:ok, %{queued: queued, failed: []}} ->
+        word = if queued == 1, do: "episode", else: "episodes"
+        {:noreply, put_flash(socket, :info, "Queued #{queued} #{word}")}
+
+      {:ok, %{queued: queued, failed: failed}} ->
+        total = queued + length(failed)
+
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Queued #{queued} of #{total} — #{length(failed)} failed"
+         )}
+
+      {:error, :not_found} ->
+        {:noreply, put_flash(socket, :error, "Show not found — couldn't queue")}
+    end
+  end
+
   def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
     case MediaCentarr.ReleaseTracking.get_item(item_id) do
       nil -> {:noreply, socket}

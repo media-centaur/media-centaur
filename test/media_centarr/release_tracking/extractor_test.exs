@@ -239,6 +239,32 @@ defmodule MediaCentarr.ReleaseTracking.ExtractorTest do
       assert length(releases) == 1
       assert hd(releases).release_type == "theatrical"
     end
+
+    test "extracts US physical (type 5) release dates alongside theatrical and digital" do
+      response = %{
+        "title" => "Three-Stage Release",
+        "release_date" => "2026-05-10",
+        "release_dates" => %{
+          "results" => [
+            %{
+              "iso_3166_1" => "US",
+              "release_dates" => [
+                %{"release_date" => "2026-05-10T00:00:00.000Z", "type" => 3},
+                %{"release_date" => "2026-07-15T00:00:00.000Z", "type" => 4},
+                %{"release_date" => "2026-09-03T00:00:00.000Z", "type" => 5}
+              ]
+            }
+          ]
+        }
+      }
+
+      releases = Extractor.extract_movie_release_dates(response)
+      assert length(releases) == 3
+
+      physical = Enum.find(releases, &(&1.release_type == "physical"))
+      assert physical.air_date == ~D[2026-09-03]
+      assert physical.title == "Three-Stage Release"
+    end
   end
 
   describe "extract_episodes_since/3" do

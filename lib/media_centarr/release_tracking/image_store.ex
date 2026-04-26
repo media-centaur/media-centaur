@@ -18,8 +18,14 @@ defmodule MediaCentarr.ReleaseTracking.ImageStore do
   alias MediaCentarr.Config
   alias MediaCentarr.Images
 
-  @tmdb_poster_url "https://image.tmdb.org/t/p/w185"
-  @tmdb_backdrop_url "https://image.tmdb.org/t/p/w300"
+  # TMDB serves at multiple fixed widths — `w185`/`w300` were originally
+  # picked to match the now-replaced thumbnail-sized tracking UI. The
+  # current card layout renders backdrops at full-card width (~400-600px
+  # on desktop), where w300 visibly upscales. Match the rest of the
+  # codebase (mapper.ex, pipeline/image_repair.ex, showcase.ex) and use
+  # `original`. Storage cost is trivial — one file per tracked item.
+  @tmdb_poster_url "https://image.tmdb.org/t/p/original"
+  @tmdb_backdrop_url "https://image.tmdb.org/t/p/original"
   @tracking_subdir "images/tracking"
 
   def download_poster(tmdb_id, tmdb_path),

@@ -210,6 +210,161 @@ defmodule MediaCentarr.ReleaseTrackingTest do
       assert reloaded.in_library == true
       assert %DateTime{} = reloaded.in_library_at
     end
+
+    test "skips theatrical-only release rows (informational, not downloadable)" do
+      item = create_tracking_item(%{media_type: :movie, name: "Mixed Release Collection"})
+
+      theatrical =
+        create_tracking_release(%{
+          item_id: item.id,
+          title: "Theatrical Premiere",
+          released: true,
+          release_type: "theatrical"
+        })
+
+      digital =
+        create_tracking_release(%{
+          item_id: item.id,
+          title: "Digital Release",
+          released: true,
+          release_type: "digital"
+        })
+
+      physical =
+        create_tracking_release(%{
+          item_id: item.id,
+          title: "Physical Release",
+          released: true,
+          release_type: "physical"
+        })
+
+      untyped =
+        create_tracking_release(%{item_id: item.id, title: "Untyped Release", released: true})
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      reload = fn id -> MediaCentarr.Repo.get!(MediaCentarr.ReleaseTracking.Release, id) end
+
+      refute reload.(theatrical.id).in_library, "theatrical row must not be auto-marked"
+      assert reload.(digital.id).in_library, "digital row should be marked"
+      assert reload.(physical.id).in_library, "physical row should be marked"
+      assert reload.(untyped.id).in_library, "untyped row should be marked (back-compat)"
+    end
+  end
+
+  describe "list_pending_acquirable_releases_for_item/1" do
+    test "returns {:error, :not_found} for a missing item" do
+      assert {:error, :not_found} =
+               ReleaseTracking.list_pending_acquirable_releases_for_item(Ecto.UUID.generate())
+    end
+
+    test "returns released, not-in-library, acquirable releases for a TV item, ordered" do
+      item = create_tracking_item(%{tmdb_id: 4242, media_type: :tv_series, name: "Sample Show Sixteen"})
+
+      # Out of order on purpose — verify the returned list is sorted (season, episode)
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 5,
+        episode_number: 2,
+        released: true
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 5,
+        episode_number: 1,
+        released: true
+      })
+
+      # Not released — must be excluded
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 5,
+        episode_number: 3,
+        released: false
+      })
+
+      # Already in library — must be excluded
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 4,
+        episode_number: 8,
+        released: true,
+        in_library: true
+      })
+
+      assert {:ok, info} = ReleaseTracking.list_pending_acquirable_releases_for_item(item.id)
+      assert info.tmdb_id == "4242"
+      assert info.tmdb_type == "tv"
+      assert info.name == "Sample Show Sixteen"
+
+      assert Enum.map(info.pending_releases, &{&1.season_number, &1.episode_number}) ==
+               [{5, 1}, {5, 2}]
+    end
+
+    test "excludes theatrical releases (informational only)" do
+      item = create_tracking_item(%{media_type: :movie, name: "Mascot Cosmos"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Theatrical",
+        released: true,
+        release_type: "theatrical"
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Digital",
+        released: true,
+        release_type: "digital"
+      })
+
+      assert {:ok, %{pending_releases: [_only_one]}} =
+               ReleaseTracking.list_pending_acquirable_releases_for_item(item.id)
+    end
+
+    test "dedupes movie's digital + physical releases into a single grab key" do
+      item = create_tracking_item(%{media_type: :movie, name: "Both Formats"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Digital",
+        released: true,
+        release_type: "digital"
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Physical",
+        released: true,
+        release_type: "physical"
+      })
+
+      # Movies have nil season/episode for both rows, so both share the same
+      # enqueue key — the orchestrator should only enqueue once.
+      assert {:ok, %{pending_releases: pending}} =
+               ReleaseTracking.list_pending_acquirable_releases_for_item(item.id)
+
+      assert length(pending) == 1
+      assert hd(pending) == %{season_number: nil, episode_number: nil}
+    end
+  end
+
+  describe "acquirable_release_type?/1" do
+    test "true for digital, physical, and nil (back-compat)" do
+      assert ReleaseTracking.acquirable_release_type?("digital")
+      assert ReleaseTracking.acquirable_release_type?("physical")
+      assert ReleaseTracking.acquirable_release_type?(nil)
+    end
+
+    test "false for theatrical (informational only)" do
+      refute ReleaseTracking.acquirable_release_type?("theatrical")
+    end
+
+    test "false for unknown types" do
+      refute ReleaseTracking.acquirable_release_type?("streaming")
+      refute ReleaseTracking.acquirable_release_type?("tv")
+    end
   end
 
   describe "list_releases/0 — recent-completed linger" do
