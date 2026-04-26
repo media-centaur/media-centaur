@@ -22,11 +22,15 @@ defmodule MediaCentarr.Acquisition.AutoGrabPolicy do
           :acquisition_unavailable
           | :already_in_library
           | :already_active
-  @type cancel_reason :: atom()
+          | :mode_off
+  @type cancel_reason :: :user_disabled
   @type decision :: :enqueue | {:skip, skip_reason()} | {:cancel, cancel_reason()}
-  @type opt :: {:prowlarr_ready, boolean()}
+  @type opt :: {:prowlarr_ready, boolean()} | {:mode, String.t()}
 
+  # Status set used for idempotency (suppress duplicate enqueue).
   @active_statuses ["searching", "snoozed", "grabbed"]
+  # Status set that has a live Oban job we can usefully cancel.
+  @cancellable_statuses ["searching", "snoozed"]
 
   @doc """
   Decides what to do for a release that just became available.
@@ -37,15 +41,35 @@ defmodule MediaCentarr.Acquisition.AutoGrabPolicy do
     `acquisition_grabs` row for this release, or `nil` if none exists.
     Active statuses (`searching`, `snoozed`, `grabbed`) cause a skip;
     terminal-but-resumable statuses (`cancelled`, `abandoned`) re-arm.
-  - `opts` — `[prowlarr_ready: boolean()]`. Required.
+  - `opts`:
+    - `prowlarr_ready: boolean()` — required.
+    - `mode: "off" | "all_releases"` — defaults to `"all_releases"`.
+      `"off"` skips with `:mode_off` (no grab) or cancels with
+      `:user_disabled` (live grab that should stop). Passed already-resolved
+      from `AutoGrabSettings.effective_mode/2` — the policy never sees
+      `"global"`.
+
+  ## Order of checks
+
+  Capability gate fires first (no point doing anything if Prowlarr is
+  unconfigured). Mode-off fires next so disabled items report a useful
+  reason rather than getting masked by `:already_in_library`. Then the
+  presence and idempotency checks.
   """
   @spec decide(boolean(), String.t() | nil, [opt()]) :: decision()
   def decide(in_library?, existing_grab_status, opts) do
     cond do
       not Keyword.fetch!(opts, :prowlarr_ready) -> {:skip, :acquisition_unavailable}
+      mode_off?(opts) -> mode_off_decision(existing_grab_status)
       in_library? -> {:skip, :already_in_library}
       existing_grab_status in @active_statuses -> {:skip, :already_active}
       true -> :enqueue
     end
   end
+
+  defp mode_off?(opts), do: Keyword.get(opts, :mode, "all_releases") == "off"
+
+  defp mode_off_decision(status) when status in @cancellable_statuses, do: {:cancel, :user_disabled}
+
+  defp mode_off_decision(_status), do: {:skip, :mode_off}
 end

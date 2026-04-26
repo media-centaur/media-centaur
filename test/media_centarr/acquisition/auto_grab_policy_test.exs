@@ -59,4 +59,40 @@ defmodule MediaCentarr.Acquisition.AutoGrabPolicyTest do
       assert :enqueue = AutoGrabPolicy.decide(false, nil, prowlarr_ready: true)
     end
   end
+
+  describe "decide/3 — mode = off" do
+    test "skips with :mode_off when no existing grab" do
+      assert {:skip, :mode_off} =
+               AutoGrabPolicy.decide(false, nil, prowlarr_ready: true, mode: "off")
+    end
+
+    test "cancels with :user_disabled when an active grab exists" do
+      assert {:cancel, :user_disabled} =
+               AutoGrabPolicy.decide(false, "searching", prowlarr_ready: true, mode: "off")
+    end
+
+    test "cancels with :user_disabled when a snoozed grab exists" do
+      assert {:cancel, :user_disabled} =
+               AutoGrabPolicy.decide(false, "snoozed", prowlarr_ready: true, mode: "off")
+    end
+
+    test "is a no-op for terminal grabs (already grabbed/cancelled/abandoned)" do
+      # Already grabbed: nothing to cancel, but also nothing to enqueue.
+      # Returns the skip path consistent with "mode is off" rather than
+      # silently re-arming a finished grab.
+      assert {:skip, :mode_off} =
+               AutoGrabPolicy.decide(false, "grabbed", prowlarr_ready: true, mode: "off")
+    end
+  end
+
+  describe "decide/3 — mode defaults to all_releases when unspecified" do
+    test "no mode opt behaves as if mode=all_releases" do
+      assert :enqueue = AutoGrabPolicy.decide(false, nil, prowlarr_ready: true)
+    end
+
+    test "explicit mode=all_releases enqueues normally" do
+      assert :enqueue =
+               AutoGrabPolicy.decide(false, nil, prowlarr_ready: true, mode: "all_releases")
+    end
+  end
 end

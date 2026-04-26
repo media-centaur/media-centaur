@@ -44,6 +44,25 @@ defmodule MediaCentarr.ReleaseTracking do
     Repo.update(Item.update_changeset(item, attrs))
   end
 
+  @doc """
+  Updates per-item auto-grab preferences and broadcasts `:releases_updated`
+  so subscribed LiveViews refresh.
+
+  `attrs` may include `:auto_grab_mode`, `:min_quality`, `:max_quality`,
+  `:quality_4k_patience_hours`, `:prefer_season_packs`. Validation lives
+  on `Item.auto_grab_changeset/2`.
+  """
+  def update_auto_grab(%Item{} = item, attrs) do
+    case Repo.update(Item.auto_grab_changeset(item, attrs)) do
+      {:ok, updated} ->
+        broadcast_releases_updated([updated.id])
+        {:ok, updated}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
   def get_item(id), do: Repo.get(Item, id)
 
   def get_item_by_tmdb(tmdb_id, media_type) do

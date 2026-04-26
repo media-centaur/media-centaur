@@ -536,6 +536,63 @@ defmodule MediaCentarr.ReleaseTrackingTest do
     end
   end
 
+  describe "update_auto_grab/2" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.release_tracking_updates())
+      :ok
+    end
+
+    test "persists per-item preferences and broadcasts :releases_updated" do
+      item = create_tracking_item(%{tmdb_id: 1111, media_type: :tv_series, name: "Pref"})
+
+      assert {:ok, updated} =
+               ReleaseTracking.update_auto_grab(item, %{
+                 auto_grab_mode: "off",
+                 min_quality: "uhd_4k",
+                 max_quality: "uhd_4k",
+                 quality_4k_patience_hours: 0,
+                 prefer_season_packs: true
+               })
+
+      assert updated.auto_grab_mode == "off"
+      assert updated.min_quality == "uhd_4k"
+      assert updated.max_quality == "uhd_4k"
+      assert updated.quality_4k_patience_hours == 0
+      assert updated.prefer_season_packs == true
+
+      assert_received {:releases_updated, [_]}
+    end
+
+    test "rejects invalid mode" do
+      item = create_tracking_item(%{tmdb_id: 2222, media_type: :movie, name: "Bad mode"})
+
+      assert {:error, changeset} =
+               ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "bogus"})
+
+      refute changeset.valid?
+      assert {"is invalid", _} = changeset.errors[:auto_grab_mode]
+    end
+
+    test "rejects invalid quality value" do
+      item = create_tracking_item(%{tmdb_id: 3333, media_type: :movie, name: "Bad quality"})
+
+      assert {:error, changeset} =
+               ReleaseTracking.update_auto_grab(item, %{min_quality: "8k_super"})
+
+      refute changeset.valid?
+      assert {"is invalid", _} = changeset.errors[:min_quality]
+    end
+
+    test "rejects negative patience hours" do
+      item = create_tracking_item(%{tmdb_id: 4444, media_type: :movie, name: "Neg"})
+
+      assert {:error, changeset} =
+               ReleaseTracking.update_auto_grab(item, %{quality_4k_patience_hours: -1})
+
+      refute changeset.valid?
+    end
+  end
+
   describe "delete_item/1 — broadcasts" do
     setup do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.release_tracking_updates())

@@ -87,6 +87,28 @@ defmodule MediaCentarr.Acquisition.QualityTest do
     end
   end
 
+  describe "acceptable?/3 — bounded" do
+    test "1080p is acceptable when bounds are 1080p..4K" do
+      assert Quality.acceptable?(:hd_1080p, "hd_1080p", "uhd_4k")
+    end
+
+    test "4K is acceptable when bounds are 1080p..4K" do
+      assert Quality.acceptable?(:uhd_4k, "hd_1080p", "uhd_4k")
+    end
+
+    test "1080p is NOT acceptable when min is 4K (4K-only)" do
+      refute Quality.acceptable?(:hd_1080p, "uhd_4k", "uhd_4k")
+    end
+
+    test "4K is NOT acceptable when max is 1080p (1080p-only)" do
+      refute Quality.acceptable?(:uhd_4k, "hd_1080p", "hd_1080p")
+    end
+
+    test "nil quality is never acceptable (unknown tier)" do
+      refute Quality.acceptable?(nil, "hd_1080p", "uhd_4k")
+    end
+  end
+
   describe "label/1" do
     test "returns human-readable label for 4K" do
       assert Quality.label(:uhd_4k) == "4K"

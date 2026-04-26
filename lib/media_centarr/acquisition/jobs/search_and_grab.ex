@@ -30,7 +30,15 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Acquisition.{Grab, Prowlarr, QueryBuilder, Quality}
+  alias MediaCentarr.Acquisition.{
+    AutoGrabSettings,
+    Grab,
+    Prowlarr,
+    QualityWindow,
+    QueryBuilder,
+    Quality
+  }
+
   alias MediaCentarr.Repo
 
   @max_attempts 12
@@ -54,25 +62,48 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
       "acquisition search — #{grab.title} (attempt #{grab.attempt_count + 1})"
     )
 
-    case search_until_match(QueryBuilder.build(grab)) do
+    bounds = effective_bounds(grab)
+
+    case search_until_match(QueryBuilder.build(grab), bounds) do
       {:ok, best} -> handle_found(grab, best)
       {:no_match, outcome} -> handle_no_results(grab, outcome)
       {:error, reason} -> handle_prowlarr_error(grab, reason)
     end
   end
 
+  # Resolves the {effective_min, effective_max} the policy will enforce.
+  # If the grab was snapshotted with bounds (Phase 2+), use them;
+  # otherwise fall back to current global defaults (handles legacy rows).
+  # The 4K-patience window can elevate the floor to "uhd_4k" while
+  # the grab is young and max includes 4K.
+  defp effective_bounds(grab) do
+    settings = AutoGrabSettings.load()
+    min = grab.min_quality || settings.default_min_quality
+    max = grab.max_quality || settings.default_max_quality
+    patience_hours = grab.quality_4k_patience_hours || settings.patience_hours
+
+    snapshot = %{
+      grab
+      | min_quality: min,
+        max_quality: max,
+        quality_4k_patience_hours: patience_hours
+    }
+
+    {QualityWindow.min_at(snapshot, DateTime.utc_now()), max}
+  end
+
   # Tries each candidate query in order. First acceptable hit wins.
   # On exhaustion, returns the most-informative outcome we observed:
   # `"no_acceptable_quality"` if any query returned results-but-none-passed,
   # otherwise `"no_results"`. A Prowlarr error short-circuits the loop.
-  defp search_until_match(queries) do
+  defp search_until_match(queries, bounds) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
       case Prowlarr.search(query, opts) do
         {:ok, []} ->
           {:cont, acc}
 
         {:ok, results} ->
-          case best_acceptable(results) do
+          case best_acceptable(results, bounds) do
             nil -> {:cont, {:no_match, "no_acceptable_quality"}}
             best -> {:halt, {:ok, best}}
           end
@@ -83,9 +114,9 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
     end)
   end
 
-  defp best_acceptable(results) do
+  defp best_acceptable(results, {min, max}) do
     results
-    |> Enum.filter(fn result -> Quality.acceptable?(result.quality) end)
+    |> Enum.filter(fn result -> Quality.acceptable?(result.quality, min, max) end)
     |> Enum.sort_by(fn result -> Quality.rank(result.quality) end, :desc)
     |> List.first()
   end
