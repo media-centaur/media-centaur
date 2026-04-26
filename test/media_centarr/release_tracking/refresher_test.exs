@@ -300,6 +300,79 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
     end
   end
 
+  describe "broadcast_releases_ready/1" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, "release_tracking:updates")
+      :ok
+    end
+
+    test "broadcasts one {:release_ready, item, release} per available, not-in-library release" do
+      item =
+        create_tracking_item(%{tmdb_id: 4242, media_type: :tv_series, name: "Three Releases"})
+
+      yesterday = Date.add(Date.utc_today(), -1)
+      tomorrow = Date.add(Date.utc_today(), 1)
+
+      available =
+        ReleaseTracking.create_release!(%{
+          item_id: item.id,
+          air_date: yesterday,
+          title: "Available",
+          season_number: 3,
+          episode_number: 1,
+          released: true,
+          in_library: false
+        })
+
+      ReleaseTracking.create_release!(%{
+        item_id: item.id,
+        air_date: yesterday,
+        title: "Already on disk",
+        season_number: 3,
+        episode_number: 2,
+        released: true,
+        in_library: true
+      })
+
+      ReleaseTracking.create_release!(%{
+        item_id: item.id,
+        air_date: tomorrow,
+        title: "Future",
+        season_number: 3,
+        episode_number: 3,
+        released: false,
+        in_library: false
+      })
+
+      Refresher.broadcast_releases_ready(item)
+
+      available_id = available.id
+
+      assert_received {:release_ready, broadcast_item, %{id: ^available_id, episode_number: 1}}
+      assert broadcast_item.id == item.id
+
+      refute_received {:release_ready, _, %{episode_number: 2}}
+      refute_received {:release_ready, _, %{episode_number: 3}}
+    end
+
+    test "broadcasts nothing when no releases are available" do
+      item = create_tracking_item(%{tmdb_id: 5252, media_type: :movie, name: "Nothing yet"})
+      tomorrow = Date.add(Date.utc_today(), 1)
+
+      ReleaseTracking.create_release!(%{
+        item_id: item.id,
+        air_date: tomorrow,
+        title: "Coming soon",
+        released: false,
+        in_library: false
+      })
+
+      Refresher.broadcast_releases_ready(item)
+
+      refute_received {:release_ready, _, _}
+    end
+  end
+
   describe "update_last_episodes_for (via PubSub)" do
     test "removes tracking item when library entity is deleted" do
       tv_series = create_tv_series(%{name: "Cancelled Show"})

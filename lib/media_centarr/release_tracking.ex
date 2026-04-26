@@ -52,9 +52,20 @@ defmodule MediaCentarr.ReleaseTracking do
 
   def delete_item(%Item{} = item) do
     item_id = item.id
+    tmdb_id = to_string(item.tmdb_id)
+    tmdb_type = to_string(item.media_type)
     result = Repo.delete(item)
     broadcast_releases_updated([item_id])
+    broadcast_item_removed(tmdb_id, tmdb_type)
     result
+  end
+
+  defp broadcast_item_removed(tmdb_id, tmdb_type) do
+    Phoenix.PubSub.broadcast(
+      MediaCentarr.PubSub,
+      MediaCentarr.Topics.release_tracking_updates(),
+      {:item_removed, tmdb_id, tmdb_type}
+    )
   end
 
   def list_watching_items do

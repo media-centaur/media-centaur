@@ -535,4 +535,28 @@ defmodule MediaCentarr.ReleaseTrackingTest do
       assert hd(events).description == "Second"
     end
   end
+
+  describe "delete_item/1 — broadcasts" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.release_tracking_updates())
+      :ok
+    end
+
+    test "broadcasts :releases_updated and :item_removed with TMDB key for TV items" do
+      item =
+        create_tracking_item(%{tmdb_id: 7777, media_type: :tv_series, name: "Going Away"})
+
+      assert {:ok, _} = ReleaseTracking.delete_item(item)
+
+      assert_received {:releases_updated, [_]}
+      assert_received {:item_removed, "7777", "tv_series"}
+    end
+
+    test "broadcasts :item_removed with movie type for movie items" do
+      item = create_tracking_item(%{tmdb_id: 8888, media_type: :movie, name: "Going Away"})
+
+      assert {:ok, _} = ReleaseTracking.delete_item(item)
+      assert_received {:item_removed, "8888", "movie"}
+    end
+  end
 end

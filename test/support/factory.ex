@@ -494,12 +494,24 @@ defmodule MediaCentarr.TestFactory do
 
   def create_grab(attrs \\ %{}) do
     defaults = %{tmdb_id: "12345", tmdb_type: "movie", title: "Sample Movie Thirteen Part Two"}
+    merged = Map.merge(defaults, attrs)
+
+    cast_keys = [:tmdb_id, :tmdb_type, :title, :year, :season_number, :episode_number]
+    cast_attrs = Map.take(merged, cast_keys)
+    internal_attrs = Map.drop(merged, cast_keys)
 
     {:ok, grab} =
-      MediaCentarr.Repo.insert(
-        MediaCentarr.Acquisition.Grab.create_changeset(Map.merge(defaults, attrs))
-      )
+      MediaCentarr.Repo.insert(MediaCentarr.Acquisition.Grab.create_changeset(cast_attrs))
 
-    grab
+    if internal_attrs == %{} do
+      grab
+    else
+      {:ok, updated} =
+        grab
+        |> Ecto.Changeset.change(internal_attrs)
+        |> MediaCentarr.Repo.update()
+
+      updated
+    end
   end
 end

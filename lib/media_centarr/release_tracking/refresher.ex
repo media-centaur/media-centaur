@@ -148,7 +148,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     write_events(item, events)
     replace_releases(item, new_releases)
     update_item_metadata(item, response)
-    maybe_broadcast_release_ready(item)
+    broadcast_releases_ready(item)
     :ok
   end
 
@@ -374,19 +374,32 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     )
   end
 
-  defp maybe_broadcast_release_ready(item) do
+  @doc """
+  Broadcasts one `{:release_ready, item, release}` per release of `item`
+  that is available (air_date on or before today) and not yet in the library.
+
+  Public so the unit test can exercise it without going through TMDB.
+  Idempotent — receivers (e.g. `Acquisition`) must handle re-broadcasts;
+  refreshes can fire repeatedly while a release stays available-and-ungrabbed.
+  """
+  def broadcast_releases_ready(item) do
     today = Date.utc_today()
-    releases = ReleaseTracking.list_releases_for_item(item.id)
 
-    has_available =
-      Enum.any?(releases, fn r -> r.air_date != nil && Date.compare(r.air_date, today) != :gt end)
-
-    if has_available do
+    item.id
+    |> ReleaseTracking.list_releases_for_item()
+    |> Enum.filter(&release_ready?(&1, today))
+    |> Enum.each(fn release ->
       Phoenix.PubSub.broadcast(
         MediaCentarr.PubSub,
         MediaCentarr.Topics.release_tracking_updates(),
-        {:release_ready, item}
+        {:release_ready, item, release}
       )
-    end
+    end)
+  end
+
+  defp release_ready?(release, today) do
+    release.air_date != nil and
+      Date.compare(release.air_date, today) != :gt and
+      not release.in_library
   end
 end
