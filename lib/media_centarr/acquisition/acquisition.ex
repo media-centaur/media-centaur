@@ -1,7 +1,19 @@
 defmodule MediaCentarr.Acquisition do
   use Boundary,
-    deps: [MediaCentarr.Capabilities, MediaCentarr.Library, MediaCentarr.ReleaseTracking],
-    exports: [Quality, QueryExpander, QueueItem, Prowlarr, DownloadClient.QBittorrent]
+    deps: [
+      MediaCentarr.Capabilities,
+      MediaCentarr.Library,
+      MediaCentarr.ReleaseTracking,
+      MediaCentarr.Settings
+    ],
+    exports: [
+      AutoGrabSettings,
+      Quality,
+      QueryExpander,
+      QueueItem,
+      Prowlarr,
+      DownloadClient.QBittorrent
+    ]
 
   @moduledoc """
   Public facade for the Acquisition bounded context.
@@ -46,6 +58,7 @@ defmodule MediaCentarr.Acquisition do
 
   alias MediaCentarr.Acquisition.{
     AutoGrabPolicy,
+    AutoGrabSettings,
     Config,
     Grab,
     Jobs.SearchAndGrab,
@@ -197,8 +210,17 @@ defmodule MediaCentarr.Acquisition do
     season = Keyword.get(opts, :season_number)
     episode = Keyword.get(opts, :episode_number)
     year = Keyword.get(opts, :year)
+    min_quality = Keyword.get(opts, :min_quality)
+    max_quality = Keyword.get(opts, :max_quality)
+    patience_hours = Keyword.get(opts, :quality_4k_patience_hours)
 
-    case get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year) do
+    snapshot = %{
+      min_quality: min_quality,
+      max_quality: max_quality,
+      quality_4k_patience_hours: patience_hours
+    }
+
+    case get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, snapshot) do
       {:ok, %Grab{status: status} = grab} when status in ["grabbed", "abandoned", "cancelled"] ->
         # Terminal — don't re-enqueue an Oban job. Caller decides whether
         # to call cancel_grab/2 or accept the existing terminal state.
@@ -268,45 +290,61 @@ defmodule MediaCentarr.Acquisition do
   # ---------------------------------------------------------------------------
 
   defp handle_release_ready(item, release) do
-    existing_status =
-      case find_grab(
-             to_string(item.tmdb_id),
-             to_string(item.media_type),
-             release.season_number,
-             release.episode_number
-           ) do
-        nil -> nil
-        grab -> grab.status
-      end
+    settings = AutoGrabSettings.load()
+
+    existing_grab =
+      find_grab(
+        to_string(item.tmdb_id),
+        to_string(item.media_type),
+        release.season_number,
+        release.episode_number
+      )
+
+    existing_status = existing_grab && existing_grab.status
+
+    effective_mode = AutoGrabSettings.effective_mode(item.auto_grab_mode, settings)
 
     decision =
       AutoGrabPolicy.decide(release.in_library, existing_status,
-        prowlarr_ready: Capabilities.prowlarr_ready?()
+        prowlarr_ready: Capabilities.prowlarr_ready?(),
+        mode: effective_mode
       )
 
-    case decision do
-      :enqueue ->
-        case enqueue(to_string(item.tmdb_id), to_string(item.media_type), item.name,
-               season_number: release.season_number,
-               episode_number: release.episode_number
-             ) do
-          {:ok, _grab} ->
-            Log.info(:library, "auto-grab armed — #{item.name} #{describe_release(release)}")
+    apply_decision(decision, item, release, settings, existing_grab)
+  end
 
-          {:error, reason} ->
-            Log.warning(:library, "auto-grab enqueue failed — #{inspect(reason)}")
-        end
+  defp apply_decision(:enqueue, item, release, settings, _existing_grab) do
+    case enqueue(to_string(item.tmdb_id), to_string(item.media_type), item.name,
+           season_number: release.season_number,
+           episode_number: release.episode_number,
+           min_quality: AutoGrabSettings.effective_min_quality(item.min_quality, settings),
+           max_quality: AutoGrabSettings.effective_max_quality(item.max_quality, settings),
+           quality_4k_patience_hours:
+             AutoGrabSettings.effective_patience_hours(
+               item.quality_4k_patience_hours,
+               settings
+             )
+         ) do
+      {:ok, _grab} ->
+        Log.info(:library, "auto-grab armed — #{item.name} #{describe_release(release)}")
 
-      {:skip, :acquisition_unavailable} ->
-        Log.info(:library, "auto-grab skipped (prowlarr not ready) — #{item.name}")
-
-      {:skip, :already_in_library} ->
-        :ok
-
-      {:skip, :already_active} ->
-        :ok
+      {:error, reason} ->
+        Log.warning(:library, "auto-grab enqueue failed — #{inspect(reason)}")
     end
   end
+
+  defp apply_decision({:cancel, :user_disabled}, item, _release, _settings, existing_grab) do
+    cancel_grab(existing_grab.id, "user_disabled")
+    Log.info(:library, "auto-grab cancelled (user disabled) — #{item.name}")
+  end
+
+  defp apply_decision({:skip, :acquisition_unavailable}, item, _release, _settings, _grab) do
+    Log.info(:library, "auto-grab skipped (prowlarr not ready) — #{item.name}")
+  end
+
+  defp apply_decision({:skip, :mode_off}, _item, _release, _settings, _grab), do: :ok
+  defp apply_decision({:skip, :already_in_library}, _item, _release, _settings, _grab), do: :ok
+  defp apply_decision({:skip, :already_active}, _item, _release, _settings, _grab), do: :ok
 
   defp describe_release(%{season_number: nil, episode_number: nil}), do: ""
   defp describe_release(%{season_number: season, episode_number: nil}), do: "S#{season}"
@@ -330,19 +368,23 @@ defmodule MediaCentarr.Acquisition do
     Enum.each(grabs, fn grab -> cancel_grab(grab.id, reason) end)
   end
 
-  defp get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year) do
+  defp get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, snapshot) do
     case find_grab(tmdb_id, tmdb_type, season, episode) do
       nil ->
-        Repo.insert(
-          Grab.create_changeset(%{
-            tmdb_id: tmdb_id,
-            tmdb_type: tmdb_type,
-            title: title,
-            year: year,
-            season_number: season,
-            episode_number: episode
-          })
-        )
+        attrs =
+          Map.merge(
+            %{
+              tmdb_id: tmdb_id,
+              tmdb_type: tmdb_type,
+              title: title,
+              year: year,
+              season_number: season,
+              episode_number: episode
+            },
+            snapshot
+          )
+
+        Repo.insert(Grab.create_changeset(attrs))
 
       grab ->
         {:ok, grab}

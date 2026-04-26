@@ -493,7 +493,15 @@ defmodule MediaCentarr.TestFactory do
   end
 
   def create_grab(attrs \\ %{}) do
-    defaults = %{tmdb_id: "12345", tmdb_type: "movie", title: "Sample Movie Thirteen Part Two"}
+    # Default `quality_4k_patience_hours: 0` keeps unrelated tests focused —
+    # patience-window behaviour is exercised by tests that opt in explicitly.
+    defaults = %{
+      tmdb_id: "12345",
+      tmdb_type: "movie",
+      title: "Sample Movie Thirteen Part Two",
+      quality_4k_patience_hours: 0
+    }
+
     merged = Map.merge(defaults, attrs)
 
     cast_keys = [:tmdb_id, :tmdb_type, :title, :year, :season_number, :episode_number]

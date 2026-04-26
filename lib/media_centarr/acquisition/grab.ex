@@ -40,7 +40,13 @@ defmodule MediaCentarr.Acquisition.Grab do
     field :season_number, :integer
     field :episode_number, :integer
     field :status, :string, default: "searching"
+    # `quality` is the OUTCOME — captured tier of the actual grabbed
+    # release. `min_quality` / `max_quality` are the BOUNDS — snapshot of
+    # the effective preferences at enqueue time.
     field :quality, :string
+    field :min_quality, :string
+    field :max_quality, :string
+    field :quality_4k_patience_hours, :integer
     field :attempt_count, :integer, default: 0
     field :grabbed_at, :utc_datetime
     field :last_attempt_at, :utc_datetime
@@ -61,7 +67,10 @@ defmodule MediaCentarr.Acquisition.Grab do
       :title,
       :year,
       :season_number,
-      :episode_number
+      :episode_number,
+      :min_quality,
+      :max_quality,
+      :quality_4k_patience_hours
     ])
     |> validate_required([:tmdb_id, :tmdb_type, :title])
     |> unique_constraint([:tmdb_id, :tmdb_type, :season_number, :episode_number],

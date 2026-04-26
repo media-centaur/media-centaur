@@ -37,6 +37,30 @@ defmodule MediaCentarr.Acquisition.Quality do
   def acceptable?(:hd_1080p), do: true
   def acceptable?(nil), do: false
 
+  @doc """
+  Returns true when `quality` falls within the inclusive `[min, max]` bound.
+
+  Bounds are storage labels (`"hd_1080p"`, `"uhd_4k"`) — the same shape used
+  on `release_tracking_items` and snapshot onto each `acquisition_grabs` row.
+  Callers (typically `SearchAndGrab`) MUST resolve nil overrides to global
+  defaults before calling this — passing nil is not supported, since the
+  function should be deterministic without reading Settings.
+
+  `nil` quality (an unparseable release title) is never acceptable.
+  """
+  @spec acceptable?(t(), String.t(), String.t()) :: boolean()
+  def acceptable?(nil, _min, _max), do: false
+
+  def acceptable?(quality, min, max) when is_binary(min) and is_binary(max) do
+    q = rank(quality)
+    q >= label_rank(min) and q <= label_rank(max)
+  end
+
+  @doc "Returns the numeric rank for a quality label string. Mirrors `rank/1`."
+  @spec label_rank(String.t()) :: non_neg_integer()
+  def label_rank("uhd_4k"), do: 2
+  def label_rank("hd_1080p"), do: 1
+
   @doc "Returns a short human-readable label."
   @spec label(t()) :: String.t()
   def label(:uhd_4k), do: "4K"

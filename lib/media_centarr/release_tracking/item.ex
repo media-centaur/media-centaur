@@ -23,11 +23,24 @@ defmodule MediaCentarr.ReleaseTracking.Item do
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
 
+    # Auto-grab per-item preferences.
+    # `auto_grab_mode` `"global"` means inherit the global default from
+    # `Settings`. Concrete overrides are `"off"` and `"all_releases"`.
+    # Nullable quality fields inherit the global default when nil.
+    field :auto_grab_mode, :string, default: "global"
+    field :min_quality, :string
+    field :max_quality, :string
+    field :quality_4k_patience_hours, :integer
+    field :prefer_season_packs, :boolean, default: false
+
     has_many :releases, MediaCentarr.ReleaseTracking.Release
     has_many :events, MediaCentarr.ReleaseTracking.Event
 
     timestamps()
   end
+
+  @auto_grab_modes ~w(global off all_releases)
+  @quality_values ~w(hd_1080p uhd_4k)
 
   def create_changeset(attrs) do
     %__MODULE__{}
@@ -61,5 +74,28 @@ defmodule MediaCentarr.ReleaseTracking.Item do
       :last_library_episode,
       :dismiss_released_before
     ])
+  end
+
+  @doc """
+  Changeset for the per-item auto-grab preferences. Validates enum-like
+  string fields and rejects unknown modes/qualities at the boundary so
+  the policy never has to handle malformed input.
+  """
+  def auto_grab_changeset(item, attrs) do
+    item
+    |> cast(attrs, [
+      :auto_grab_mode,
+      :min_quality,
+      :max_quality,
+      :quality_4k_patience_hours,
+      :prefer_season_packs
+    ])
+    |> validate_inclusion(:auto_grab_mode, @auto_grab_modes)
+    |> validate_inclusion(:min_quality, @quality_values)
+    |> validate_inclusion(:max_quality, @quality_values)
+    |> validate_number(:quality_4k_patience_hours,
+      greater_than_or_equal_to: 0,
+      less_than_or_equal_to: 24 * 30
+    )
   end
 end

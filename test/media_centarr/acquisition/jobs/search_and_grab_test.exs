@@ -244,4 +244,116 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       assert {:ok, :not_found} = SearchAndGrab.perform(job)
     end
   end
+
+  describe "perform/1 — 4K patience window" do
+    test "within patience window with max=4K: 1080p result is REJECTED, snoozes" do
+      grab =
+        create_grab(%{
+          tmdb_id: "patience-1",
+          min_quality: "hd_1080p",
+          max_quality: "uhd_4k",
+          quality_4k_patience_hours: 48,
+          # Place inserted_at recently so we are inside the 48h window.
+          inserted_at: DateTime.add(DateTime.utc_now(:second), -1, :hour)
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+        ])
+      end)
+
+      assert {:snooze, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.last_attempt_outcome == "no_acceptable_quality"
+      assert updated.status == "snoozed"
+    end
+
+    test "outside patience window: 1080p result is ACCEPTED" do
+      grab =
+        create_grab(%{
+          tmdb_id: "patience-2",
+          min_quality: "hd_1080p",
+          max_quality: "uhd_4k",
+          quality_4k_patience_hours: 48,
+          inserted_at: DateTime.add(DateTime.utc_now(:second), -49, :hour)
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+        ])
+      end)
+
+      assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "grabbed"
+      assert updated.quality == "1080p"
+    end
+
+    test "patience disabled (0 hours): 1080p accepted immediately even with 4K max" do
+      grab =
+        create_grab(%{
+          tmdb_id: "patience-3",
+          min_quality: "hd_1080p",
+          max_quality: "uhd_4k",
+          quality_4k_patience_hours: 0,
+          inserted_at: DateTime.utc_now(:second)
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+        ])
+      end)
+
+      assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "grabbed"
+    end
+
+    test "even within patience, a 4K result IS grabbed (only 1080p is held back)" do
+      grab =
+        create_grab(%{
+          tmdb_id: "patience-4",
+          min_quality: "hd_1080p",
+          max_quality: "uhd_4k",
+          quality_4k_patience_hours: 48,
+          inserted_at: DateTime.utc_now(:second)
+        })
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, four_kay_response()) end)
+
+      assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "grabbed"
+      assert updated.quality == "4K"
+    end
+
+    test "1080p-only bounds (max=hd_1080p): patience irrelevant, 1080p accepted immediately" do
+      grab =
+        create_grab(%{
+          tmdb_id: "patience-5",
+          min_quality: "hd_1080p",
+          max_quality: "hd_1080p",
+          quality_4k_patience_hours: 48,
+          inserted_at: DateTime.utc_now(:second)
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+        ])
+      end)
+
+      assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "grabbed"
+    end
+  end
 end
