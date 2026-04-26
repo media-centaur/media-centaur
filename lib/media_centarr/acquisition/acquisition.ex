@@ -92,6 +92,24 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Subscribes to download-client queue snapshots. Receivers get
+  `{:queue_snapshot, [QueueItem.t()]}` whenever the QueueMonitor polls
+  successfully (every 5s with a configured download client, 30s when
+  the client is offline).
+  """
+  def subscribe_queue do
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_queue())
+  end
+
+  @doc """
+  Returns the latest cached download-client queue snapshot. Synchronous;
+  reads `:persistent_term`, no GenServer call. Returns `[]` before the
+  first successful poll or when no download client is configured.
+  """
+  @spec queue_snapshot() :: [MediaCentarr.Acquisition.QueueItem.t()]
+  defdelegate queue_snapshot, to: MediaCentarr.Acquisition.QueueMonitor, as: :snapshot
+
+  @doc """
   Searches Prowlarr for releases matching the query.
 
   Returns `{:error, :not_configured}` when Prowlarr is not configured.

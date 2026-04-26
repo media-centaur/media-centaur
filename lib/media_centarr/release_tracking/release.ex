@@ -16,6 +16,7 @@ defmodule MediaCentarr.ReleaseTracking.Release do
     field :episode_number, :integer
     field :released, :boolean, default: false
     field :in_library, :boolean, default: false
+    field :in_library_at, :utc_datetime
     field :release_type, :string
 
     belongs_to :item, MediaCentarr.ReleaseTracking.Item

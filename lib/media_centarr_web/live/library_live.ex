@@ -53,6 +53,7 @@ defmodule MediaCentarrWeb.LibraryLive do
       Capabilities.subscribe()
       MediaCentarr.Config.subscribe()
       MediaCentarr.Acquisition.subscribe()
+      MediaCentarr.Acquisition.subscribe_queue()
     end
 
     {:ok,
@@ -87,6 +88,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        upcoming_events: [],
        upcoming_images: %{},
        release_grab_statuses: %{},
+       queue_items: MediaCentarr.Acquisition.queue_snapshot(),
        acquisition_ready: false,
        calendar_month: {Date.utc_today().year, Date.utc_today().month},
        selected_day: nil,
@@ -892,6 +894,13 @@ defmodule MediaCentarrWeb.LibraryLive do
     end
   end
 
+  # Download-client queue snapshots from the QueueMonitor — used to
+  # decorate per-release cards on the upcoming zone with the live
+  # downloading / paused / errored state.
+  def handle_info({:queue_snapshot, items}, socket) do
+    {:noreply, assign(socket, queue_items: items)}
+  end
+
   @impl true
   def handle_info(:load_track_suggestions, socket) do
     suggestions = MediaCentarr.ReleaseTracking.suggest_trackable_items()
@@ -1080,6 +1089,7 @@ defmodule MediaCentarrWeb.LibraryLive do
             confirm_stop_item={@confirm_stop_item}
             tmdb_ready={@tmdb_ready}
             grab_statuses={@release_grab_statuses}
+            queue_items={@queue_items}
             acquisition_ready={@acquisition_ready}
           />
         </section>
