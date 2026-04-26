@@ -499,7 +499,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # Acquisition PubSub events — informational, no-op for now.
   def handle_info({:grab_submitted, _grab}, socket), do: {:noreply, socket}
   def handle_info({:grab_failed, _reason}, socket), do: {:noreply, socket}
-  def handle_info({:search_retry_scheduled, _grab}, socket), do: {:noreply, socket}
+  def handle_info({:auto_grab_snoozed, _grab}, socket), do: {:noreply, socket}
+  def handle_info({:auto_grab_abandoned, _grab}, socket), do: {:noreply, socket}
+  def handle_info({:auto_grab_cancelled, _grab}, socket), do: {:noreply, socket}
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # ---------------------------------------------------------------------------
