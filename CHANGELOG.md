@@ -4,6 +4,33 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.24.0 — 2026-04-26
+
+### Improved
+
+- **Downloads is now a single page.** What used to be split between the
+  Download page (manual search) and the Auto-grabs page (background
+  activity) has been collapsed into one. The sidebar now shows a single
+  *Downloads* entry. Open it to see, top-to-bottom: what's transferring
+  right now, every grab the system has tracked (auto and manual mixed),
+  and the manual search form. Bookmarks to the old `/download/auto-grabs`
+  URL redirect to the new page.
+
+- **Manual grabs now show up in the activity timeline.** Previously,
+  hitting *Grab* on a Prowlarr search result fired and forgot — there
+  was no record of what you had asked for. Manual grabs are now tracked
+  rows alongside auto-grabs, with a *manual* badge so you can tell them
+  apart at a glance. The activity table also records the search query
+  you typed so it's easier to recognise where each row came from.
+
+- **Auto-acquisition defaults moved to a more sensible home.** The
+  Settings → Release Tracking section used to host both the TMDB refresh
+  interval *and* the auto-grab defaults (mode, quality, 4K patience).
+  Auto-grab defaults now live next to the Prowlarr and download-client
+  settings under Settings → Acquisition, where the rest of the
+  acquisition behavior is configured. Release Tracking stays focused on
+  what to track, not how to grab it.
+
 ## v0.23.0 — 2026-04-26
 
 ### New
