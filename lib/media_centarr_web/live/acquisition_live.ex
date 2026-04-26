@@ -42,8 +42,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       end
 
       {:ok,
-       socket
-       |> assign(
+       assign(socket,
          query: "",
          expansion_preview: :idle,
          searching?: false,
@@ -57,10 +56,35 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          download_client_ready: Capabilities.download_client_ready?(),
          activity_filter: :active,
          activity_search: ""
-       )
-       |> load_activity()}
+       )}
     else
       {:ok, push_navigate(socket, to: "/")}
+    end
+  end
+
+  # `?search=…` and `?filter=…` deep-link from the upcoming-zone badges
+  # straight to a pre-filtered activity view. Parsed in handle_params so
+  # subsequent `push_patch`-driven URL changes update assigns without a
+  # full remount.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply,
+     socket
+     |> assign(
+       activity_search: Map.get(params, "search", ""),
+       activity_filter: parse_activity_filter(params)
+     )
+     |> load_activity()}
+  end
+
+  defp parse_activity_filter(params) do
+    case Map.get(params, "filter") do
+      "active" -> :active
+      "abandoned" -> :abandoned
+      "cancelled" -> :cancelled
+      "grabbed" -> :grabbed
+      "all" -> :all
+      _ -> :active
     end
   end
 

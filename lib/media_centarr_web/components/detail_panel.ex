@@ -590,7 +590,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           <img
             :if={@thumbnail && @available}
             src={@thumbnail}
-            class="w-20 aspect-video rounded object-cover"
+            class="w-20 aspect-video rounded object-cover object-top"
           />
           <div
             :if={(@thumbnail && !@available) || !@thumbnail}
