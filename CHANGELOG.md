@@ -4,6 +4,21 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.10 — 2026-04-26
+
+### Fixed
+
+- **Prowlarr *Test connection* gives up faster when the URL is wrong.**
+  If you typed a Prowlarr URL that pointed nowhere reachable —
+  wrong port, firewalled host, typo'd address — the Test button
+  used to sit spinning for about a minute before reporting
+  failure. The HTTP client retried three times by default, and
+  each attempt waited the full 15-second timeout. The test now
+  fails fast: a single attempt with a 5-second cap, no retries.
+  Search and grab calls into Prowlarr inherit the same shorter
+  budget, since Prowlarr is a local indexer that has no business
+  taking that long to respond.
+
 ## v0.22.9 — 2026-04-26
 
 ### Fixed
