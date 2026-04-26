@@ -69,6 +69,7 @@ defmodule MediaCentarr.Acquisition do
 
   alias MediaCentarr.Acquisition.DownloadClient.Dispatcher
   alias MediaCentarr.Capabilities
+  alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
 
@@ -315,6 +316,63 @@ defmodule MediaCentarr.Acquisition do
     end)
     |> Enum.filter(fn {key, _grab} -> MapSet.member?(requested, key) end)
     |> Map.new()
+  end
+
+  @doc """
+  Bulk-enqueues grabs for every release of a tracked item that is released,
+  not in the library, and of an acquirable type, skipping any that already
+  have a grab row (in any state — terminal grabs are intentionally not
+  re-armed by this path; the user must re-arm them individually).
+
+  Returns a summary so the caller can decide what to flash:
+
+      {:ok, %{queued: 3, skipped_in_flight: 1, failed: []}}
+
+  Idempotent — calling twice for the same item without intervening state
+  changes yields `queued: 0, skipped_in_flight: N` on the second call.
+  """
+  @spec enqueue_all_pending_for_item(item_id :: String.t()) ::
+          {:ok,
+           %{
+             queued: non_neg_integer(),
+             skipped_in_flight: non_neg_integer(),
+             failed: [{tuple(), term()}]
+           }}
+          | {:error, :not_found}
+  def enqueue_all_pending_for_item(item_id) do
+    with {:ok,
+          %{
+            tmdb_id: tmdb_id,
+            tmdb_type: tmdb_type,
+            name: name,
+            pending_releases: pending
+          }} <- ReleaseTracking.list_pending_acquirable_releases_for_item(item_id) do
+      keys =
+        Enum.map(pending, fn r -> {tmdb_id, tmdb_type, r.season_number, r.episode_number} end)
+
+      grab_map = statuses_for_releases(keys)
+
+      summary =
+        Enum.reduce(pending, %{queued: 0, skipped_in_flight: 0, failed: []}, fn release, acc ->
+          key = {tmdb_id, tmdb_type, release.season_number, release.episode_number}
+
+          case Map.get(grab_map, key) do
+            nil ->
+              case enqueue(tmdb_id, tmdb_type, name,
+                     season_number: release.season_number,
+                     episode_number: release.episode_number
+                   ) do
+                {:ok, _grab} -> %{acc | queued: acc.queued + 1}
+                {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
+              end
+
+            _grab ->
+              %{acc | skipped_in_flight: acc.skipped_in_flight + 1}
+          end
+        end)
+
+      {:ok, summary}
+    end
   end
 
   @doc """

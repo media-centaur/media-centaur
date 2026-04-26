@@ -39,6 +39,40 @@ All non-trivial logic in LiveViews and function components must be extracted int
 - **Rendered HTML** — never assert on HTML output (`render_component`, `=~` on markup). LiveView integration tests (mount, patch, event handling) are fine — they test data flow, not DOM.
 - **External API calls** in normal runs — tag `@tag :external`, excluded from default `mix test`.
 
+## Page Smoke Tests (Mandatory for Every Route + Zone)
+
+`test/media_centarr_web/page_smoke_test.exs` mounts every top-level
+LiveView route and asserts it renders without crashing. This is the
+cheapest possible safety net for the class of bug that pure-helper unit
+tests can't catch — a render-path crash (`KeyError`, `BadBooleanError`,
+`FunctionClauseError`) that only fires when the template actually
+renders with realistic data.
+
+**Rules:**
+
+- **Every new route gets a smoke test entry** added in the same change
+  that introduces the route. Same for every zone of a multi-zone
+  LiveView (the library page has `?zone=watching`, `?zone=library`,
+  `?zone=upcoming` — each needs its own smoke).
+- **Seed enough fixture data to exercise the non-trivial render
+  branches.** An empty-state-only smoke catches a different (smaller)
+  class of bug than one that actually renders cards / rows / overlays.
+  When you ship a new template branch (e.g. a theatrical-movie variant,
+  a paused-download variant), extend the smoke fixture so the branch
+  renders during the test.
+- **Per-page setup lives in `page_smoke_test.exs`**, not in per-page
+  test files. The smoke is intentionally isolated from feature tests
+  so the safety net stays uniform.
+- **The smoke is not the primary test** — feature tests still cover
+  behaviour. The smoke just guarantees "this route mounts and renders
+  for a representative dataset" so render-path regressions surface
+  immediately instead of in a user's browser.
+
+If you change a template in a way that adds a new code path, ask
+yourself: would the existing smoke fixture exercise this path? If not,
+extend the fixture. The bar is "would a reasonable user see this state
+in production?"
+
 ## Running Tests
 
 ```bash
