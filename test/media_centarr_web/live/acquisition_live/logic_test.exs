@@ -122,8 +122,15 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   end
 
   describe "build_grab_message/1" do
-    test "all-ok returns {:ok, count submitted}" do
-      pair = {result(guid: "a"), :ok}
+    # Per the unified-grabs change (v0.24.0), Acquisition.grab/2 returns
+    # `{:ok, %Grab{}}` rather than plain `:ok`. The build_grab_message
+    # helper pattern-matches on that envelope shape.
+    setup do
+      {:ok, ok_outcome: {:ok, %MediaCentarr.Acquisition.Grab{}}}
+    end
+
+    test "all-ok returns {:ok, count submitted}", %{ok_outcome: ok} do
+      pair = {result(guid: "a"), ok}
       assert Logic.build_grab_message([pair, pair]) == {:ok, "2 grab(s) submitted"}
     end
 
@@ -137,9 +144,9 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
                {:error, "All 2 grab(s) failed — HTTP 400: Bad guid"}
     end
 
-    test "partial returns {:partial, ok+err counts + first error reason}" do
+    test "partial returns {:partial, ok+err counts + first error reason}", %{ok_outcome: ok} do
       pairs = [
-        {result(guid: "a"), :ok},
+        {result(guid: "a"), ok},
         {result(guid: "b"), {:error, {:http_error, 500, %{"message" => "boom"}}}}
       ]
 

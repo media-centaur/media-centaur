@@ -63,7 +63,8 @@ defmodule MediaCentarr.Acquisition do
     Config,
     Grab,
     Jobs.SearchAndGrab,
-    Prowlarr
+    Prowlarr,
+    SearchResult
   }
 
   alias MediaCentarr.Acquisition.DownloadClient.Dispatcher
@@ -109,14 +110,30 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
-  Submits a grab request for a search result to Prowlarr.
+  Submits a manual grab request to Prowlarr and records it in the
+  unified activity timeline.
 
-  Returns `{:error, :not_configured}` when Prowlarr is not configured.
+  On Prowlarr success, inserts an `acquisition_grabs` row in terminal
+  `"grabbed"` state with `origin: "manual"` and broadcasts
+  `{:grab_submitted, grab}` so the activity list refreshes. The
+  Prowlarr GUID doubles as the row's `tmdb_id` (with `tmdb_type: "manual"`)
+  so the unique index naturally prevents double-grabbing the same release.
+
+  `query` is the search string the user typed — stored on the row for the
+  "where did this come from?" surface in the activity list.
+
+  Returns `{:error, :not_configured}` when Prowlarr is not configured,
+  or `{:error, reason}` when Prowlarr rejects the grab.
   """
-  @spec grab(map()) :: :ok | {:error, term()}
-  def grab(result) do
+  @spec grab(SearchResult.t(), String.t()) :: {:ok, Grab.t()} | {:error, term()}
+  def grab(%SearchResult{} = result, query) when is_binary(query) do
     if available?() do
-      Prowlarr.grab(result)
+      with :ok <- Prowlarr.grab(result),
+           {:ok, grab} <- Repo.insert(Grab.manual_grabbed_changeset(result, query)) do
+        broadcast({:grab_submitted, grab})
+        Log.info(:library, "manual grab submitted — #{result.title}")
+        {:ok, grab}
+      end
     else
       {:error, :not_configured}
     end
@@ -214,11 +231,13 @@ defmodule MediaCentarr.Acquisition do
     min_quality = Keyword.get(opts, :min_quality)
     max_quality = Keyword.get(opts, :max_quality)
     patience_hours = Keyword.get(opts, :quality_4k_patience_hours)
+    origin = Keyword.get(opts, :origin, "auto")
 
     snapshot = %{
       min_quality: min_quality,
       max_quality: max_quality,
-      quality_4k_patience_hours: patience_hours
+      quality_4k_patience_hours: patience_hours,
+      origin: origin
     }
 
     case get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, snapshot) do

@@ -1,13 +1,22 @@
 defmodule MediaCentarr.Acquisition.Grab do
   @moduledoc """
-  Tracks an automated acquisition attempt for a TMDB item.
+  Tracks an acquisition — automated or manual — for a single release.
 
-  One row per `(tmdb_id, tmdb_type, season_number, episode_number)` tuple.
-  Movies use `(tmdb_id, "movie", nil, nil)`. TV episodes use a non-nil
-  `season_number` and `episode_number`. Season packs use a non-nil
-  `season_number` with a nil `episode_number`.
+  ## Origin
 
-  ## Status lifecycle
+  - `origin: "auto"` — system-initiated from a release-tracker
+    `{:release_ready, ...}` broadcast. Keyed
+    `(tmdb_id, tmdb_type, season_number, episode_number)`. Goes through
+    the `SearchAndGrab` Oban worker (search → snooze → grab/abandon).
+  - `origin: "manual"` — user-submitted from the Downloads page search
+    form. Keyed `(prowlarr_guid, "manual", nil, nil)` — i.e., the
+    Prowlarr indexer GUID is reused as `tmdb_id` so the existing unique
+    index gives us "don't double-grab the same release" idempotency for
+    free, without making `tmdb_id` nullable. Inserted directly in
+    terminal `"grabbed"` state — no Oban round-trip, manual grabs are
+    atomic from the user's perspective.
+
+  ## Status lifecycle (auto-origin only)
 
       searching ─┬─► grabbed   (Prowlarr accepted the release)
                  ├─► snoozed   (no acceptable result; SearchAndGrab will retry)
@@ -16,6 +25,7 @@ defmodule MediaCentarr.Acquisition.Grab do
 
   Terminal states: grabbed, abandoned, cancelled. The `SearchAndGrab` worker
   reads the row on every wake and exits cleanly when it finds a terminal state.
+  Manual grabs land directly in `grabbed`.
 
   ## Attempt accounting
 
@@ -27,6 +37,8 @@ defmodule MediaCentarr.Acquisition.Grab do
   """
   use Ecto.Schema
   import Ecto.Changeset
+
+  alias MediaCentarr.Acquisition.{Quality, SearchResult}
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
@@ -53,6 +65,9 @@ defmodule MediaCentarr.Acquisition.Grab do
     field :last_attempt_outcome, :string
     field :cancelled_at, :utc_datetime
     field :cancelled_reason, :string
+    field :origin, :string, default: "auto"
+    field :prowlarr_guid, :string
+    field :manual_query, :string
 
     timestamps()
   end
@@ -70,9 +85,54 @@ defmodule MediaCentarr.Acquisition.Grab do
       :episode_number,
       :min_quality,
       :max_quality,
-      :quality_4k_patience_hours
+      :quality_4k_patience_hours,
+      :origin
     ])
     |> validate_required([:tmdb_id, :tmdb_type, :title])
+    |> unique_constraint([:tmdb_id, :tmdb_type, :season_number, :episode_number],
+      name: :acquisition_grabs_tmdb_season_episode_index
+    )
+  end
+
+  @doc """
+  Builds a row in terminal `"grabbed"` state from a manual user submission.
+
+  `query` is the search string the user typed — stored on the row for
+  the activity-list "where did this come from?" surface. Whitespace-only
+  queries collapse to `nil`. The Prowlarr GUID doubles as `tmdb_id` so
+  the unique index naturally prevents double-grabbing the same release.
+  """
+  @spec manual_grabbed_changeset(SearchResult.t(), String.t()) :: Ecto.Changeset.t()
+  def manual_grabbed_changeset(%SearchResult{} = result, query) when is_binary(query) do
+    now = DateTime.utc_now(:second)
+    quality_label = Quality.label(result.quality)
+
+    cleaned_query =
+      case String.trim(query) do
+        "" -> nil
+        trimmed -> trimmed
+      end
+
+    %__MODULE__{}
+    |> cast(
+      %{
+        tmdb_id: result.guid,
+        tmdb_type: "manual",
+        title: result.title,
+        origin: "manual",
+        prowlarr_guid: result.guid,
+        manual_query: cleaned_query
+      },
+      [:tmdb_id, :tmdb_type, :title, :origin, :prowlarr_guid, :manual_query]
+    )
+    |> change(
+      status: "grabbed",
+      quality: quality_label,
+      grabbed_at: now,
+      last_attempt_at: now,
+      last_attempt_outcome: "grabbed"
+    )
+    |> validate_required([:tmdb_id, :tmdb_type, :title, :origin])
     |> unique_constraint([:tmdb_id, :tmdb_type, :season_number, :episode_number],
       name: :acquisition_grabs_tmdb_season_episode_index
     )
