@@ -694,6 +694,17 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> put_flash(:info, "Library settings saved")}
   end
 
+  def handle_event("save_data_dir", %{"data_dir" => raw}, socket) do
+    value = raw |> to_string() |> String.trim() |> Path.expand()
+
+    Config.update(:data_dir, value)
+
+    {:noreply,
+     socket
+     |> assign(config: load_config())
+     |> put_flash(:info, "Data directory saved")}
+  end
+
   def handle_event("save_release_tracking", params, socket) do
     case Integer.parse(params["refresh_interval_hours"] || "") do
       {hours, _} -> Config.update(:release_tracking_refresh_interval_hours, hours)
@@ -2052,6 +2063,41 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp section_content(%{active_section: "library"} = assigns) do
     ~H"""
     <div class="space-y-4">
+      <form
+        phx-submit="save_data_dir"
+        class="glass-surface rounded-xl p-4 space-y-3"
+      >
+        <div class="flex items-baseline justify-between">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+            Data directory
+          </h3>
+          <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+            Save
+          </button>
+        </div>
+
+        <p class="text-xs text-base-content/50">
+          Where Media Centarr stores its caches outside the watch directories —
+          currently tracking-item poster and backdrop images. Defaults to the
+          parent directory of the SQLite database.
+        </p>
+
+        <input
+          type="text"
+          name="data_dir"
+          value={@config[:data_dir]}
+          placeholder={Path.dirname(@config[:database_path] || "")}
+          class="input input-bordered w-full font-mono text-sm"
+          data-nav-item
+          tabindex="0"
+        />
+
+        <p class="text-xs text-base-content/40">
+          Images already on disk under the previous location are still served
+          (legacy `./data/` fallback) so changes don't strand existing files.
+        </p>
+      </form>
+
       <div class="glass-surface rounded-xl p-4 space-y-3">
         <div class="flex items-baseline justify-between">
           <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
@@ -3353,6 +3399,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       extras_dirs: cfg.get(:extras_dirs) || [],
       skip_dirs: cfg.get(:skip_dirs) || [],
       database_path: cfg.get(:database_path),
+      data_dir: cfg.get(:data_dir),
       watch_dirs: cfg.get(:watch_dirs) || []
     }
   end

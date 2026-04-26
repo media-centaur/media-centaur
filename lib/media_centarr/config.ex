@@ -100,7 +100,8 @@ defmodule MediaCentarr.Config do
       :extras_dirs,
       :skip_dirs,
       :exclude_dirs,
-      :showcase_mode
+      :showcase_mode,
+      :data_dir
     ]
   end
 
@@ -159,7 +160,8 @@ defmodule MediaCentarr.Config do
              :extras_dirs,
              :skip_dirs,
              :exclude_dirs,
-             :showcase_mode
+             :showcase_mode,
+             :data_dir
            ] do
     config = :persistent_term.get({__MODULE__, :config})
     :persistent_term.put({__MODULE__, :config}, Map.put(config, key, maybe_wrap(key, value)))
@@ -399,9 +401,18 @@ defmodule MediaCentarr.Config do
     database_path =
       expand(get_in(Application.get_env(:media_centarr, MediaCentarr.Repo), [:database]))
 
+    # `data_dir` is the root for app-managed cache/storage that doesn't
+    # live in the SQLite DB itself — currently just tracking-item images,
+    # but the slot exists for future caches that need a writable home
+    # independent of the user's media library. Defaults to the database's
+    # parent directory so a stock install lays everything out under the
+    # same XDG share root.
+    default_data_dir = if database_path, do: Path.dirname(database_path)
+
     defaults = %{
       port: 2160,
       database_path: database_path,
+      data_dir: default_data_dir,
       watch_dirs: app_watch_dirs,
       watch_dir_images: default_images_map,
       tmdb_api_key: Secret.wrap(Application.get_env(:media_centarr, :tmdb_api_key)),
@@ -490,6 +501,7 @@ defmodule MediaCentarr.Config do
     %{
       port: get_in(toml, ["port"]) || defaults.port,
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
+      data_dir: expand(get_in(toml, ["data_dir"]) || defaults.data_dir),
       watch_dirs: watch_dirs,
       watch_dir_images: watch_dir_images,
       exclude_dirs: expand_list(get_in(toml, ["exclude_dirs"]) || defaults.exclude_dirs),
