@@ -68,10 +68,13 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
     end
   end
 
-  # Prowlarr is a self-hosted local indexer — its responses are sub-second
-  # when reachable. A misconfigured URL/port should fail fast rather than
-  # eat Req's default 15s × 3-retry budget (~60s of UI spin per click).
-  @receive_timeout_ms 5_000
+  # Prowlarr's /api/v1/search fans out to every configured indexer in
+  # real time and can legitimately take 20s+. The client default must
+  # survive that. Lightweight calls (ping) override per-call when fast
+  # failure is appropriate. Retries are off everywhere — if the user
+  # wants to retry, they'll click again.
+  @search_timeout_ms 30_000
+  @ping_timeout_ms 5_000
 
   defp build_client do
     if MediaCentarr.Config.get(:showcase_mode) do
@@ -83,9 +86,32 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
       Req.new(
         base_url: url,
         headers: [{"x-api-key", api_key}],
-        receive_timeout: @receive_timeout_ms,
+        receive_timeout: @search_timeout_ms,
         retry: false
       )
+    end
+  end
+
+  @doc """
+  Lightweight connectivity + auth probe. Hits `GET /api/v1/system/status`,
+  which returns 200 immediately when the URL is reachable and the api key
+  is valid. Used by the Settings → *Test connection* button — never call
+  `search/2` for connectivity testing, since search performs a live
+  indexer fan-out and can take 30s+ on a healthy host.
+  """
+  @spec ping(Req.Request.t()) :: :ok | {:error, term()}
+  def ping(client \\ default_client()) do
+    case Req.get(client, url: "/api/v1/system/status", receive_timeout: @ping_timeout_ms) do
+      {:ok, %{status: 200}} ->
+        :ok
+
+      {:ok, %{status: status, body: body}} ->
+        Log.warning(:acquisition, "prowlarr ping failed — status=#{status}")
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "prowlarr ping error — #{inspect(reason)}")
+        {:error, reason}
     end
   end
 

@@ -569,8 +569,8 @@ defmodule MediaCentarrWeb.SettingsLive do
     case params["_action"] do
       "test" ->
         spawn_test_task(:prowlarr_test_result, fn ->
-          case MediaCentarr.Acquisition.search("test", []) do
-            {:ok, _} -> :ok
+          case MediaCentarr.Acquisition.test_prowlarr() do
+            :ok -> :ok
             {:error, _} -> :error
           end
         end)
