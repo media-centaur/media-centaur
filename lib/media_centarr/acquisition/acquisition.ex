@@ -256,6 +256,50 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Batch lookup: given a list of `(tmdb_id, tmdb_type, season_number,
+  episode_number)` keys, returns a map keyed by the same tuple → the
+  matching `Grab` row. Keys with no matching row are absent from the map.
+
+  Single SQL query — used by the upcoming-zone renderer to decorate each
+  release card with its grab status without N+1ing the DB.
+
+  Manual-origin grabs use synthetic `tmdb_id = guid, tmdb_type = "manual"`
+  keys, so they only match callers that pass that exact shape — release
+  tracker callers passing real TMDB ids never accidentally hit them.
+  """
+  @spec statuses_for_releases([{String.t(), String.t(), integer() | nil, integer() | nil}]) ::
+          %{
+            {String.t(), String.t(), integer() | nil, integer() | nil} => Grab.t()
+          }
+  def statuses_for_releases([]), do: %{}
+
+  def statuses_for_releases(keys) when is_list(keys) do
+    {tmdb_ids, tmdb_types} =
+      keys
+      |> Enum.map(fn {id, type, _, _} -> {id, type} end)
+      |> Enum.unzip()
+
+    tmdb_ids = Enum.uniq(tmdb_ids)
+    tmdb_types = Enum.uniq(tmdb_types)
+
+    rows =
+      Repo.all(
+        from(g in Grab,
+          where: g.tmdb_id in ^tmdb_ids and g.tmdb_type in ^tmdb_types
+        )
+      )
+
+    requested = MapSet.new(keys)
+
+    rows
+    |> Enum.map(fn grab ->
+      {{grab.tmdb_id, grab.tmdb_type, grab.season_number, grab.episode_number}, grab}
+    end)
+    |> Enum.filter(fn {key, _grab} -> MapSet.member?(requested, key) end)
+    |> Map.new()
+  end
+
+  @doc """
   Lists `acquisition_grabs` filtered by lifecycle stage.
 
   - `:all` — every row, newest-updated first
