@@ -110,6 +110,60 @@ defmodule MediaCentarr.AcquisitionTest do
     end
   end
 
+  describe "statuses_for_releases/1" do
+    test "returns a map keyed by (tmdb_id, tmdb_type, season, episode) → grab" do
+      {:ok, movie_grab} = Acquisition.enqueue("100", "movie", "M")
+
+      {:ok, episode_grab} =
+        Acquisition.enqueue("200", "tv", "S",
+          season_number: 3,
+          episode_number: 4
+        )
+
+      {:ok, season_pack_grab} =
+        Acquisition.enqueue("200", "tv", "S", season_number: 5)
+
+      keys = [
+        {"100", "movie", nil, nil},
+        {"200", "tv", 3, 4},
+        {"200", "tv", 5, nil},
+        # not-present key — should be absent from result map
+        {"999", "movie", nil, nil}
+      ]
+
+      result = Acquisition.statuses_for_releases(keys)
+
+      assert result[{"100", "movie", nil, nil}].id == movie_grab.id
+      assert result[{"200", "tv", 3, 4}].id == episode_grab.id
+      assert result[{"200", "tv", 5, nil}].id == season_pack_grab.id
+      refute Map.has_key?(result, {"999", "movie", nil, nil})
+    end
+
+    test "returns an empty map for an empty input list (no DB query)" do
+      assert Acquisition.statuses_for_releases([]) == %{}
+    end
+
+    test "ignores manual-origin grabs (their tmdb_type='manual' never matches release keys)" do
+      result = %SearchResult{
+        title: "Manual.Inception.1080p",
+        guid: "guid-skip",
+        indexer_id: 1,
+        quality: :hd_1080p
+      }
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
+      {:ok, _} = Acquisition.grab(result, "Inception")
+
+      assert Acquisition.statuses_for_releases([{"guid-skip", "manual", nil, nil}]) ==
+               %{
+                 {"guid-skip", "manual", nil, nil} => Repo.get_by!(Grab, prowlarr_guid: "guid-skip")
+               }
+
+      # But a movie key for the same title doesn't pull the manual row.
+      assert Acquisition.statuses_for_releases([{"some-tmdb-id", "movie", nil, nil}]) == %{}
+    end
+  end
+
   describe "list_auto_grabs/1 — origin column" do
     test ":all returns rows of both origins" do
       _ = Acquisition.enqueue("200", "movie", "Auto")

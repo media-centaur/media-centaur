@@ -140,7 +140,7 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
         <img
           :if={@background && @available}
           src={@background}
-          class="w-full h-full object-cover"
+          class="w-full h-full object-cover object-top"
           loading="lazy"
         />
         <div

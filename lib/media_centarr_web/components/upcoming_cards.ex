@@ -18,6 +18,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :tracked_items, :list, default: []
   attr :confirm_stop_item, :any, default: nil
   attr :tmdb_ready, :boolean, default: true
+  attr :grab_statuses, :map, default: %{}
+  attr :acquisition_ready, :boolean, default: false
 
   def upcoming_zone(assigns) do
     {year, month} = assigns.calendar_month
@@ -116,7 +118,13 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
         <%!-- Selected day detail (not a nav item) --%>
         <div :if={@selected_releases} class="lg:col-span-2">
-          <.day_detail day={@selected_day} releases={@selected_releases} images={@images} />
+          <.day_detail
+            day={@selected_day}
+            releases={@selected_releases}
+            images={@images}
+            grab_statuses={@grab_statuses}
+            acquisition_ready={@acquisition_ready}
+          />
         </div>
 
         <%!-- Now Available (takes 1 column on lg — sits beside Upcoming) --%>
@@ -128,7 +136,11 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         >
           <h3 class="text-sm font-medium text-success uppercase tracking-wider">Now Available</h3>
           <%= if @released != [] do %>
-            <.released_content releases={@released} />
+            <.released_content
+              releases={@released}
+              grab_statuses={@grab_statuses}
+              acquisition_ready={@acquisition_ready}
+            />
           <% else %>
             <p class="text-sm text-base-content/50">No recent releases.</p>
           <% end %>
@@ -143,7 +155,11 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         >
           <h3 class="text-sm font-medium text-info uppercase tracking-wider">Upcoming</h3>
           <%= if @dated_upcoming != [] do %>
-            <.upcoming_list_content releases={@dated_upcoming} />
+            <.upcoming_list_content
+              releases={@dated_upcoming}
+              grab_statuses={@grab_statuses}
+              acquisition_ready={@acquisition_ready}
+            />
           <% else %>
             <p class="text-sm text-base-content/50">Nothing scheduled.</p>
           <% end %>
@@ -161,14 +177,17 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           </h3>
           <%= if @events != [] do %>
             <div class="release-grid text-sm pl-3">
-              <div :for={event <- @events} class="release-row">
+              <div :for={event <- @events} class="release-row group">
                 <span class="text-base-content/30 tabular-nums text-right">
                   {format_datetime(event.inserted_at)}
                 </span>
                 <span class="font-medium">{event.item_name}</span>
-                <span class="text-base-content/40 col-span-2">
-                  {event_label(event)}
-                </span>
+                <span class="text-base-content/40">{event_label(event)}</span>
+                <.view_activity_link
+                  title={event.item_name}
+                  acquisition_ready={@acquisition_ready}
+                  class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
+                />
               </div>
             </div>
           <% else %>
@@ -192,7 +211,11 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
               data-nav-grid
               class="tracking-grid text-sm pl-3"
             >
-              <.tracked_item_row :for={item <- @tracked_items} item={item} />
+              <.tracked_item_row
+                :for={item <- @tracked_items}
+                item={item}
+                acquisition_ready={@acquisition_ready}
+              />
             </div>
           <% else %>
             <p class="text-sm text-base-content/50">Nothing tracked yet.</p>
@@ -275,7 +298,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       <img
         :if={@release_count == 1 && @solo_backdrop && @in_month}
         src={@solo_backdrop}
-        class="absolute inset-0 w-full h-full object-cover"
+        class="absolute inset-0 w-full h-full object-cover object-top"
         loading="lazy"
       />
       <div
@@ -368,7 +391,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       <img
         :if={@backdrop}
         src={@backdrop}
-        class="w-full h-full object-cover"
+        class="w-full h-full object-cover object-top"
         loading="lazy"
       />
       <div
@@ -392,6 +415,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :day, Date, required: true
   attr :releases, :list, required: true
   attr :images, :map, default: %{}
+  attr :grab_statuses, :map, default: %{}
+  attr :acquisition_ready, :boolean, default: false
 
   defp day_detail(assigns) do
     ~H"""
@@ -405,7 +430,13 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         </button>
       </div>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,360px))] gap-3">
-        <.day_release_card :for={release <- @releases} release={release} images={@images} />
+        <.day_release_card
+          :for={release <- @releases}
+          release={release}
+          images={@images}
+          grab_statuses={@grab_statuses}
+          acquisition_ready={@acquisition_ready}
+        />
       </div>
     </div>
     """
@@ -413,6 +444,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   attr :release, :any, required: true
   attr :images, :map, default: %{}
+  attr :grab_statuses, :map, default: %{}
+  attr :acquisition_ready, :boolean, default: false
 
   defp day_release_card(assigns) do
     item = assigns.release.item
@@ -448,7 +481,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         <img
           :if={@backdrop}
           src={@backdrop}
-          class="w-full h-full object-cover"
+          class="w-full h-full object-cover object-top"
           loading="lazy"
         />
         <div :if={!@backdrop} class="w-full h-full flex items-center justify-center bg-base-300">
@@ -471,7 +504,12 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
             {@subtitle}
           </p>
         </div>
-        <div class="absolute top-1.5 right-1.5 flex gap-1">
+        <div class="absolute top-1.5 right-1.5 flex gap-1 items-center">
+          <.grab_status_badge
+            release={@release}
+            grab_statuses={@grab_statuses}
+            acquisition_ready={@acquisition_ready}
+          />
           <span
             :if={@is_released}
             class="text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-success/20 text-success"
@@ -494,6 +532,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # --- Released section content ---
 
   attr :releases, :list, required: true
+  attr :grab_statuses, :map, default: %{}
+  attr :acquisition_ready, :boolean, default: false
 
   defp released_content(assigns) do
     sorted =
@@ -508,7 +548,13 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
     ~H"""
     <div class="release-grid release-grid-dismissable text-sm pl-3">
-      <.release_row :for={release <- @sorted} release={release} dismissable />
+      <.release_row
+        :for={release <- @sorted}
+        release={release}
+        grab_statuses={@grab_statuses}
+        acquisition_ready={@acquisition_ready}
+        dismissable
+      />
     </div>
     """
   end
@@ -516,6 +562,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # --- Upcoming list content ---
 
   attr :releases, :list, required: true
+  attr :grab_statuses, :map, default: %{}
+  attr :acquisition_ready, :boolean, default: false
 
   defp upcoming_list_content(assigns) do
     sorted =
@@ -530,7 +578,12 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
     ~H"""
     <div class="release-grid text-sm pl-3">
-      <.release_row :for={release <- @sorted} release={release} />
+      <.release_row
+        :for={release <- @sorted}
+        release={release}
+        grab_statuses={@grab_statuses}
+        acquisition_ready={@acquisition_ready}
+      />
     </div>
     """
   end
@@ -566,6 +619,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   attr :release, :map, required: true
   attr :dismissable, :boolean, default: false
+  attr :grab_statuses, :map, default: %{}
+  attr :acquisition_ready, :boolean, default: false
 
   defp release_row(assigns) do
     ~H"""
@@ -575,15 +630,22 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       </span>
       <span class="font-medium truncate">{@release.item.name}</span>
       <.release_detail release={@release} />
-      <button
-        :if={@dismissable}
-        phx-click="dismiss_release"
-        phx-value-release-id={@release.id}
-        class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
-        aria-label="Dismiss"
-      >
-        <.icon name="hero-x-mark-mini" class="size-3.5" />
-      </button>
+      <div class="flex items-center gap-1 justify-end">
+        <.grab_status_badge
+          release={@release}
+          grab_statuses={@grab_statuses}
+          acquisition_ready={@acquisition_ready}
+        />
+        <button
+          :if={@dismissable}
+          phx-click="dismiss_release"
+          phx-value-release-id={@release.id}
+          class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label="Dismiss"
+        >
+          <.icon name="hero-x-mark-mini" class="size-3.5" />
+        </button>
+      </div>
     </div>
     """
   end
@@ -633,6 +695,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # --- Tracked item row ---
 
   attr :item, :map, required: true
+  attr :acquisition_ready, :boolean, default: false
 
   defp tracked_item_row(assigns) do
     ~H"""
@@ -654,12 +717,19 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       </span>
       <span class="font-medium truncate">{@item.name}</span>
       <span class="text-base-content/50 text-right">{@item.status_text}</span>
-      <span
-        class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none"
-        aria-hidden="true"
-      >
-        <.icon name="hero-x-mark-mini" class="size-4" />
-      </span>
+      <div class="flex items-center gap-1 justify-end">
+        <.view_activity_link
+          title={@item.name}
+          acquisition_ready={@acquisition_ready}
+          class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity"
+        />
+        <span
+          class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none"
+          aria-hidden="true"
+        >
+          <.icon name="hero-x-mark-mini" class="size-4" />
+        </span>
+      </div>
     </div>
     """
   end
@@ -753,4 +823,81 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     |> DateTime.to_date()
     |> Calendar.strftime("%B %-d, %Y")
   end
+
+  # ---------------------------------------------------------------------------
+  # Acquisition cross-link helpers
+  #
+  # When the acquisition pipeline is enabled (Prowlarr connected), every
+  # release card and tracked-item row links to the unified Downloads page,
+  # so users can pivot from "what's coming" to "what's being grabbed"
+  # without hunting. All helpers no-op when `acquisition_ready` is false
+  # — release tracking remains useful without acquisition.
+  # ---------------------------------------------------------------------------
+
+  alias Phoenix.LiveView.JS
+
+  attr :release, :map, required: true
+  attr :grab_statuses, :map, default: %{}
+  attr :acquisition_ready, :boolean, default: false
+
+  defp grab_status_badge(assigns) do
+    grab =
+      if assigns.acquisition_ready,
+        do: lookup_grab(assigns.release, assigns.grab_statuses)
+
+    assigns = assign(assigns, grab: grab)
+
+    ~H"""
+    <.link
+      :if={@grab}
+      navigate={"/download?filter=all&search=" <> URI.encode_www_form(@release.item.name)}
+      class={["badge badge-sm whitespace-nowrap", grab_status_class(@grab.status)]}
+      title={"Open in Downloads — " <> grab_status_label(@grab)}
+    >
+      {grab_status_label(@grab)}
+    </.link>
+    """
+  end
+
+  attr :title, :string, required: true
+  attr :acquisition_ready, :boolean, default: false
+  attr :class, :string, default: "btn btn-ghost btn-xs"
+
+  defp view_activity_link(assigns) do
+    ~H"""
+    <.link
+      :if={@acquisition_ready}
+      navigate={"/download?filter=all&search=" <> URI.encode_www_form(@title)}
+      class={@class}
+      title={"View “" <> @title <> "” in Downloads"}
+      onclick="event.stopPropagation()"
+    >
+      <.icon name="hero-arrow-down-tray-mini" class="size-3.5" />
+    </.link>
+    """
+  end
+
+  defp lookup_grab(release, grab_statuses) do
+    key =
+      {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
+       release.episode_number}
+
+    Map.get(grab_statuses, key)
+  end
+
+  defp grab_status_label(%{status: "grabbed", quality: q}) when is_binary(q), do: "Grabbed " <> q
+
+  defp grab_status_label(%{status: "grabbed"}), do: "Grabbed"
+  defp grab_status_label(%{status: "snoozed"}), do: "Snoozed"
+  defp grab_status_label(%{status: "searching"}), do: "Searching"
+  defp grab_status_label(%{status: "abandoned"}), do: "Abandoned"
+  defp grab_status_label(%{status: "cancelled"}), do: "Cancelled"
+  defp grab_status_label(%{status: status}), do: status
+
+  defp grab_status_class("grabbed"), do: "badge-success"
+  defp grab_status_class("snoozed"), do: "badge-warning"
+  defp grab_status_class("searching"), do: "badge-info"
+  defp grab_status_class("abandoned"), do: "badge-error"
+  defp grab_status_class("cancelled"), do: "badge-ghost"
+  defp grab_status_class(_), do: "badge-ghost"
 end

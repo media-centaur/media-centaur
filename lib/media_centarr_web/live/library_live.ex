@@ -52,6 +52,7 @@ defmodule MediaCentarrWeb.LibraryLive do
       Availability.subscribe()
       Capabilities.subscribe()
       MediaCentarr.Config.subscribe()
+      MediaCentarr.Acquisition.subscribe()
     end
 
     {:ok,
@@ -85,6 +86,8 @@ defmodule MediaCentarrWeb.LibraryLive do
        upcoming_releases: %{upcoming: [], released: []},
        upcoming_events: [],
        upcoming_images: %{},
+       release_grab_statuses: %{},
+       acquisition_ready: false,
        calendar_month: {Date.utc_today().year, Date.utc_today().month},
        selected_day: nil,
        track_modal_open: false,
@@ -870,6 +873,25 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, socket}
   end
 
+  # Acquisition lifecycle events: refresh the grab-status badges on the
+  # upcoming zone when grabs land, snooze, abandon, or cancel. The
+  # upcoming zone is the only place LibraryLive surfaces this data;
+  # other zones don't need to react.
+  def handle_info({event, _payload}, socket)
+      when event in [
+             :grab_submitted,
+             :auto_grab_armed,
+             :auto_grab_snoozed,
+             :auto_grab_abandoned,
+             :auto_grab_cancelled
+           ] do
+    if socket.assigns.zone == :upcoming do
+      {:noreply, load_upcoming(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   @impl true
   def handle_info(:load_track_suggestions, socket) do
     suggestions = MediaCentarr.ReleaseTracking.suggest_trackable_items()
@@ -1057,6 +1079,8 @@ defmodule MediaCentarrWeb.LibraryLive do
             tracked_items={@tracked_items}
             confirm_stop_item={@confirm_stop_item}
             tmdb_ready={@tmdb_ready}
+            grab_statuses={@release_grab_statuses}
+            acquisition_ready={@acquisition_ready}
           />
         </section>
 
@@ -1138,13 +1162,38 @@ defmodule MediaCentarrWeb.LibraryLive do
     events = MediaCentarr.ReleaseTracking.list_recent_events(10)
     image_map = load_tracking_images(releases)
     tracked_items = build_tracked_items_from_watching()
+    grab_statuses = load_release_grab_statuses(releases)
 
     assign(socket,
       upcoming_releases: releases,
       upcoming_events: events,
       upcoming_images: image_map,
-      tracked_items: tracked_items
+      tracked_items: tracked_items,
+      release_grab_statuses: grab_statuses,
+      acquisition_ready: MediaCentarr.Capabilities.prowlarr_ready?()
     )
+  end
+
+  # Builds `(tmdb_id, tmdb_type, season, episode)` keys for every visible
+  # release and batch-asks Acquisition for matching grabs. Returns `%{}`
+  # when Prowlarr isn't ready — saves one SQL query and keeps the badge
+  # path inert when acquisition isn't usable.
+  defp load_release_grab_statuses(%{upcoming: upcoming, released: released}) do
+    if MediaCentarr.Capabilities.prowlarr_ready?() do
+      keys =
+        (upcoming ++ released)
+        |> Enum.map(&release_grab_key/1)
+        |> Enum.uniq()
+
+      MediaCentarr.Acquisition.statuses_for_releases(keys)
+    else
+      %{}
+    end
+  end
+
+  defp release_grab_key(release) do
+    {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
+     release.episode_number}
   end
 
   defp build_tracked_items_from_watching do
