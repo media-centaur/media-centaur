@@ -384,12 +384,23 @@ defmodule MediaCentarr.ReleaseTracking do
   # Releases are always deleted and recreated (never updated individually).
   # Use delete_releases_for_item + create_release! instead.
 
+  # 24-hour window for keeping recently-completed releases visible on the
+  # "Now Available" section so the user sees the success transition instead
+  # of the row vanishing when the watcher imports the file.
+  @recent_completion_hours 24
+
   def list_releases do
+    cutoff = recently_completed_cutoff()
+
     all =
       Repo.all(
         from(r in Release,
           join: i in assoc(r, :item),
-          where: i.status == :watching and r.in_library == false,
+          where:
+            i.status == :watching and
+              (r.in_library == false or
+                 (r.in_library == true and not is_nil(r.in_library_at) and
+                    r.in_library_at >= ^cutoff)),
           order_by: [asc: r.air_date],
           preload: [:item]
         )
@@ -399,6 +410,10 @@ defmodule MediaCentarr.ReleaseTracking do
     released = Enum.filter(all, & &1.released)
 
     %{upcoming: upcoming, released: released}
+  end
+
+  defp recently_completed_cutoff do
+    DateTime.add(DateTime.utc_now(:second), -@recent_completion_hours * 3600, :second)
   end
 
   @doc "Dismiss a single release by deleting it."
@@ -455,15 +470,20 @@ defmodule MediaCentarr.ReleaseTracking do
     episode = item.last_library_episode || 0
 
     if season > 0 do
+      now = DateTime.utc_now(:second)
+
+      # `where: r.in_library == false` makes the update idempotent — re-marking
+      # an already-in-library row would otherwise re-bump in_library_at on
+      # every refresh cycle, breaking the 24h linger window.
       {count, _} =
         Repo.update_all(
           from(r in Release,
-            where: r.item_id == ^item.id,
+            where: r.item_id == ^item.id and r.in_library == false,
             where:
               r.season_number < ^season or
                 (r.season_number == ^season and r.episode_number <= ^episode)
           ),
-          set: [in_library: true]
+          set: [in_library: true, in_library_at: now]
         )
 
       if count > 0, do: broadcast_releases_updated([item.id])
@@ -471,9 +491,14 @@ defmodule MediaCentarr.ReleaseTracking do
   end
 
   def mark_in_library_releases(%Item{media_type: :movie} = item) do
+    now = DateTime.utc_now(:second)
+
     {count, _} =
-      Repo.update_all(from(r in Release, where: r.item_id == ^item.id and r.released == true),
-        set: [in_library: true]
+      Repo.update_all(
+        from(r in Release,
+          where: r.item_id == ^item.id and r.released == true and r.in_library == false
+        ),
+        set: [in_library: true, in_library_at: now]
       )
 
     if count > 0, do: broadcast_releases_updated([item.id])

@@ -63,18 +63,22 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   # `?search=…` and `?filter=…` deep-link from the upcoming-zone badges
-  # straight to a pre-filtered activity view. Parsed in handle_params so
-  # subsequent `push_patch`-driven URL changes update assigns without a
-  # full remount.
+  # straight to a pre-filtered activity view. `?prowlarr_search=…` from
+  # the same zone pre-fills the manual-search box and auto-fires the
+  # search so a user clicking a "no acquisition yet" row immediately
+  # sees Prowlarr results.
   @impl true
   def handle_params(params, _uri, socket) do
-    {:noreply,
-     socket
-     |> assign(
-       activity_search: Map.get(params, "search", ""),
-       activity_filter: parse_activity_filter(params)
-     )
-     |> load_activity()}
+    socket =
+      socket
+      |> assign(
+        activity_search: Map.get(params, "search", ""),
+        activity_filter: parse_activity_filter(params)
+      )
+      |> load_activity()
+      |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
+
+    {:noreply, socket}
   end
 
   defp parse_activity_filter(params) do
@@ -87,6 +91,35 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       _ -> :active
     end
   end
+
+  # Pre-fill + auto-fire — same code path as the user submitting the
+  # search form by hand. No-op when the param is absent or only whitespace.
+  defp maybe_trigger_prowlarr_search(socket, query) when is_binary(query) do
+    case String.trim(query) do
+      "" ->
+        socket
+
+      trimmed ->
+        case QueryExpander.expand(trimmed) do
+          {:ok, [_ | _] = queries} ->
+            Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
+
+            assign(socket,
+              query: trimmed,
+              searching?: true,
+              groups: Logic.placeholder_groups(queries),
+              selections: %{},
+              grab_message: nil,
+              expansion_preview: {:ok, length(queries)}
+            )
+
+          _ ->
+            assign(socket, query: trimmed)
+        end
+    end
+  end
+
+  defp maybe_trigger_prowlarr_search(socket, _), do: socket
 
   @impl true
   def render(assigns) do
