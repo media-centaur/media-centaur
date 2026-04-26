@@ -1,17 +1,24 @@
 defmodule MediaCentarrWeb.AcquisitionLive do
   @moduledoc """
-  Download page — Prowlarr search + queue monitor.
+  Unified Downloads page at `/download`. Three stacked zones:
 
-  Searches Prowlarr using brace-expansion query syntax (one search per
-  expansion), groups results by query, lets the user select one release per
-  group, and submits the selection to Prowlarr's grab endpoint. The Prowlarr
-  download queue polls every 5 seconds below the search section.
+  1. **Active queue** (top, `data-nav-zone="queue"`) — live torrent
+     activity from the configured download client. Polled every 5s.
+  2. **Activity** (middle, `data-nav-zone="activity"`) — every
+     `acquisition_grabs` row, manual + auto. Filter chips, title
+     search, cancel + re-arm actions. Refreshes live via PubSub.
+  3. **Manual search** (bottom, `data-nav-zone="search"`) — Prowlarr
+     brace-expansion search, grouped results, batch grab. Successful
+     grabs flow through `Acquisition.grab/2` which inserts a
+     `manual`-origin row in the activity zone above.
 
   Mounted at `/download`. Only available when Prowlarr is configured —
   unauthenticated requests redirect to the library.
 
-  See `MediaCentarr.Acquisition.QueryExpander` for the supported brace syntax
-  and `MediaCentarrWeb.AcquisitionLive.Logic` for extracted pure helpers.
+  See `MediaCentarr.Acquisition.QueryExpander` for the supported brace
+  syntax, `MediaCentarrWeb.AcquisitionLive.Logic` for search/group
+  helpers, and `MediaCentarrWeb.AcquisitionLive.ActivityLogic` for the
+  activity table helpers.
   """
 
   use MediaCentarrWeb, :live_view
@@ -21,7 +28,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.{QueryExpander, Quality}
   alias MediaCentarr.Capabilities
-  alias MediaCentarrWeb.AcquisitionLive.Logic
+  alias MediaCentarrWeb.AcquisitionLive.{Activity, Logic}
 
   @queue_poll_interval_ms 5_000
 
@@ -35,7 +42,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       end
 
       {:ok,
-       assign(socket,
+       socket
+       |> assign(
          query: "",
          expansion_preview: :idle,
          searching?: false,
@@ -46,8 +54,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          active_queue: [],
          queue_loaded?: false,
          cancel_confirm: nil,
-         download_client_ready: Capabilities.download_client_ready?()
-       )}
+         download_client_ready: Capabilities.download_client_ready?(),
+         activity_filter: :active,
+         activity_search: ""
+       )
+       |> load_activity()}
     else
       {:ok, push_navigate(socket, to: "/")}
     end
@@ -63,10 +74,59 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         data-nav-default-zone="download"
         class="max-w-4xl mx-auto space-y-6 py-6"
       >
-        <h1 class="text-2xl font-bold">Download</h1>
+        <h1 class="text-2xl font-bold">Downloads</h1>
+
+        <%!-- Active queue from configured download client. Completed
+        torrents are intentionally hidden — qBittorrent manages seeding.
+        Hidden entirely unless the download client has passed a test in
+        Settings — without a green test we can't poll the queue. --%>
+        <section
+          :if={@download_client_ready}
+          data-nav-zone="queue"
+          class="glass-surface rounded-xl overflow-hidden"
+        >
+          <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between">
+            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+              Downloading
+            </h2>
+            <span
+              :if={!@queue_loaded?}
+              class="loading loading-spinner loading-xs text-base-content/30"
+            >
+            </span>
+          </div>
+
+          <p
+            :if={@queue_loaded? && @active_queue == []}
+            class="px-4 py-6 text-center text-sm text-base-content/40"
+          >
+            No active downloads
+          </p>
+
+          <div :if={@active_queue != []}>
+            <.queue_row :for={item <- @active_queue} item={item} />
+          </div>
+        </section>
+
+        <section
+          :if={!@download_client_ready}
+          class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/50"
+        >
+          Connect a download client in
+          <.link navigate="/settings?section=acquisition" class="link link-primary">
+            Settings
+          </.link>
+          to see the active queue.
+        </section>
+
+        <Activity.activity_zone
+          grabs={@activity_grabs}
+          filter={@activity_filter}
+          search={@activity_search}
+        />
 
         <%!-- Search section --%>
-        <section data-nav-zone="sections" class="glass-surface rounded-xl p-4 space-y-3">
+        <section data-nav-zone="search" class="glass-surface rounded-xl p-4 space-y-3">
           <form
             phx-change="query_change"
             phx-submit="submit_search"
@@ -259,43 +319,6 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             </button>
           </div>
         </section>
-
-        <%!-- Active downloads from configured download client. Completed
-        torrents are intentionally hidden — qBittorrent manages seeding.
-        Hidden entirely unless the download client has passed a test in
-        Settings — without a green test we can't poll the queue. --%>
-        <section :if={@download_client_ready} class="glass-surface rounded-xl overflow-hidden">
-          <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between">
-            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-              Downloading
-            </h2>
-            <span
-              :if={!@queue_loaded?}
-              class="loading loading-spinner loading-xs text-base-content/30"
-            >
-            </span>
-          </div>
-
-          <p
-            :if={@queue_loaded? && @active_queue == []}
-            class="px-4 py-6 text-center text-sm text-base-content/40"
-          >
-            No active downloads
-          </p>
-
-          <div :if={@active_queue != []}>
-            <.queue_row :for={item <- @active_queue} item={item} />
-          </div>
-        </section>
-
-        <section
-          :if={!@download_client_ready}
-          class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/50"
-        >
-          Connect a download client in
-          <.link navigate="/settings?section=acquisition" class="link link-primary">Settings</.link>
-          to see the active queue.
-        </section>
       </div>
 
       <.cancel_confirmation cancel_confirm={@cancel_confirm} />
@@ -402,6 +425,39 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     end
   end
 
+  # Activity-zone events (filter, search, cancel, re-arm).
+
+  def handle_event("set_activity_filter", %{"filter" => filter}, socket) do
+    filter_atom =
+      case filter do
+        "active" -> :active
+        "abandoned" -> :abandoned
+        "cancelled" -> :cancelled
+        "grabbed" -> :grabbed
+        _ -> :all
+      end
+
+    {:noreply, socket |> assign(activity_filter: filter_atom) |> load_activity()}
+  end
+
+  def handle_event("set_activity_search", %{"search" => search}, socket) do
+    {:noreply, socket |> assign(activity_search: search) |> load_activity()}
+  end
+
+  def handle_event("cancel_activity_grab", %{"id" => id}, socket) do
+    case Acquisition.cancel_grab(id, "user_disabled") do
+      {:ok, _} -> {:noreply, load_activity(socket)}
+      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Grab no longer exists")}
+    end
+  end
+
+  def handle_event("rearm_activity_grab", %{"id" => id}, socket) do
+    case Acquisition.rearm_grab(id) do
+      {:ok, _} -> {:noreply, load_activity(socket)}
+      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Grab no longer exists")}
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Async work + queue polling
   # ---------------------------------------------------------------------------
@@ -451,7 +507,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_info({:run_grabs, results}, socket) do
-    pairs = Enum.map(results, fn result -> {result, Acquisition.grab(result)} end)
+    query = socket.assigns.query
+
+    pairs = Enum.map(results, fn result -> {result, Acquisition.grab(result, query)} end)
 
     Enum.each(pairs, fn
       {result, {:error, reason}} ->
@@ -461,7 +519,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         :ok
     end)
 
-    ok_count = Enum.count(pairs, fn {_, outcome} -> outcome == :ok end)
+    ok_count = Enum.count(pairs, fn {_, outcome} -> match?({:ok, _}, outcome) end)
     err_count = length(pairs) - ok_count
     Log.info(:acquisition, "grab batch complete — #{ok_count} ok, #{err_count} failed")
 
@@ -496,13 +554,30 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     end
   end
 
-  # Acquisition PubSub events — informational, no-op for now.
-  def handle_info({:grab_submitted, _grab}, socket), do: {:noreply, socket}
-  def handle_info({:grab_failed, _reason}, socket), do: {:noreply, socket}
-  def handle_info({:auto_grab_snoozed, _grab}, socket), do: {:noreply, socket}
-  def handle_info({:auto_grab_abandoned, _grab}, socket), do: {:noreply, socket}
-  def handle_info({:auto_grab_cancelled, _grab}, socket), do: {:noreply, socket}
+  # Acquisition PubSub events — refresh the activity zone so lifecycle
+  # state changes appear without waiting for a manual reload.
+  def handle_info({event, _payload}, socket)
+      when event in [
+             :grab_submitted,
+             :grab_failed,
+             :auto_grab_armed,
+             :auto_grab_snoozed,
+             :auto_grab_abandoned,
+             :auto_grab_cancelled
+           ] do
+    {:noreply, load_activity(socket)}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp load_activity(socket) do
+    grabs =
+      socket.assigns.activity_filter
+      |> Acquisition.list_auto_grabs()
+      |> MediaCentarrWeb.AcquisitionLive.ActivityLogic.filter_by_search(socket.assigns.activity_search)
+
+    assign(socket, activity_grabs: grabs)
+  end
 
   # ---------------------------------------------------------------------------
   # Template helpers

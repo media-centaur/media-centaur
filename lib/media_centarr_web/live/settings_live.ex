@@ -1690,7 +1690,9 @@ defmodule MediaCentarrWeb.SettingsLive do
       assign(assigns,
         prowlarr_configured: prowlarr_configured,
         download_client_configured: download_client_configured,
-        download_client_display: download_client_display
+        download_client_display: download_client_display,
+        prowlarr_ready: MediaCentarr.Capabilities.prowlarr_ready?(),
+        auto_grab: MediaCentarr.Acquisition.AutoGrabSettings.load()
       )
 
     ~H"""
@@ -1917,6 +1919,8 @@ defmodule MediaCentarrWeb.SettingsLive do
           </button>
         </div>
       </form>
+
+      <.auto_grab_defaults_form :if={@prowlarr_ready} auto_grab={@auto_grab} />
     </div>
     """
   end
@@ -2322,174 +2326,43 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   defp section_content(%{active_section: "release_tracking"} = assigns) do
-    auto_grab = MediaCentarr.Acquisition.AutoGrabSettings.load()
-    prowlarr_ready = MediaCentarr.Capabilities.prowlarr_ready?()
-
-    assigns = assign(assigns, auto_grab: auto_grab, prowlarr_ready: prowlarr_ready)
-
     ~H"""
-    <div class="space-y-5">
-      <form phx-submit="save_release_tracking" class="p-5 rounded-lg glass-surface space-y-5">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Release Tracking</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
-              How often to poll TMDB for upcoming release dates.
-            </p>
-          </div>
-          <button
-            type="submit"
-            class="btn btn-soft btn-primary btn-sm shrink-0"
-            data-nav-item
-            tabindex="0"
-          >
-            Save
-          </button>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Refresh interval (hours)
-          </label>
-          <input
-            type="number"
-            name="refresh_interval_hours"
-            value={@config[:release_tracking_refresh_interval_hours]}
-            min="1"
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            Changes take effect after the current refresh cycle completes.
+    <form phx-submit="save_release_tracking" class="p-5 rounded-lg glass-surface space-y-5">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold">Release Tracking</h2>
+          <p class="text-sm text-base-content/50 mt-0.5">
+            How often to poll TMDB for upcoming release dates.
           </p>
         </div>
-      </form>
+        <button
+          type="submit"
+          class="btn btn-soft btn-primary btn-sm shrink-0"
+          data-nav-item
+          tabindex="0"
+        >
+          Save
+        </button>
+      </div>
 
-      <form
-        :if={@prowlarr_ready}
-        phx-submit="save_auto_grab_defaults"
-        class="p-5 rounded-lg glass-surface space-y-5"
-      >
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Auto-acquisition defaults</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
-              Applied when a tracked release becomes available. Per-item
-              overrides on individual tracking entries take precedence.
-            </p>
-          </div>
-          <button
-            type="submit"
-            class="btn btn-soft btn-primary btn-sm shrink-0"
-            data-nav-item
-            tabindex="0"
-          >
-            Save
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              Default mode
-            </label>
-            <select
-              name="auto_grab[default_mode]"
-              class="select select-bordered w-full"
-              data-nav-item
-              tabindex="0"
-            >
-              <option value="all_releases" selected={@auto_grab.default_mode == "all_releases"}>
-                Auto-grab all releases
-              </option>
-              <option value="off" selected={@auto_grab.default_mode == "off"}>
-                Off (notify only)
-              </option>
-            </select>
-            <p class="text-xs text-base-content/40 mt-1">
-              Applies to newly-tracked items. Existing items keep their per-item override.
-            </p>
-          </div>
-
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              4K patience (hours)
-            </label>
-            <input
-              type="number"
-              name="auto_grab[4k_patience_hours]"
-              value={@auto_grab.patience_hours}
-              min="0"
-              max="720"
-              class="input input-bordered w-full font-mono text-sm"
-              data-nav-item
-              tabindex="0"
-            />
-            <p class="text-xs text-base-content/40 mt-1">
-              Wait this long for a 4K release before falling back to 1080p. Set to 0 to grab immediately.
-            </p>
-          </div>
-
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              Minimum quality (final fallback)
-            </label>
-            <select
-              name="auto_grab[default_min_quality]"
-              class="select select-bordered w-full"
-              data-nav-item
-              tabindex="0"
-            >
-              <option value="hd_1080p" selected={@auto_grab.default_min_quality == "hd_1080p"}>
-                1080p
-              </option>
-              <option value="uhd_4k" selected={@auto_grab.default_min_quality == "uhd_4k"}>
-                4K only
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              Maximum quality
-            </label>
-            <select
-              name="auto_grab[default_max_quality]"
-              class="select select-bordered w-full"
-              data-nav-item
-              tabindex="0"
-            >
-              <option value="uhd_4k" selected={@auto_grab.default_max_quality == "uhd_4k"}>
-                4K
-              </option>
-              <option value="hd_1080p" selected={@auto_grab.default_max_quality == "hd_1080p"}>
-                1080p (no 4K)
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              Maximum search attempts
-            </label>
-            <input
-              type="number"
-              name="auto_grab[max_attempts]"
-              value={@auto_grab.max_attempts}
-              min="1"
-              max="50"
-              class="input input-bordered w-full font-mono text-sm"
-              data-nav-item
-              tabindex="0"
-            />
-            <p class="text-xs text-base-content/40 mt-1">
-              How many failed search cycles before giving up on a release.
-            </p>
-          </div>
-        </div>
-      </form>
-    </div>
+      <div>
+        <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          Refresh interval (hours)
+        </label>
+        <input
+          type="number"
+          name="refresh_interval_hours"
+          value={@config[:release_tracking_refresh_interval_hours]}
+          min="1"
+          class="input input-bordered w-full font-mono text-sm"
+          data-nav-item
+          tabindex="0"
+        />
+        <p class="text-xs text-base-content/40 mt-1">
+          Changes take effect after the current refresh cycle completes.
+        </p>
+      </div>
+    </form>
     """
   end
 
@@ -3521,5 +3394,135 @@ defmodule MediaCentarrWeb.SettingsLive do
       {n, _} -> n
       :error -> nil
     end
+  end
+
+  # Auto-acquisition defaults form — rendered inline by the acquisition
+  # section_content/1 clause when Prowlarr is ready. Lives here at end-of-module
+  # so it doesn't break the contiguous-grouping rule for `defp section_content/1`.
+  defp auto_grab_defaults_form(assigns) do
+    ~H"""
+    <form
+      phx-submit="save_auto_grab_defaults"
+      class="p-5 rounded-lg glass-surface space-y-5"
+    >
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold">Auto-acquisition defaults</h2>
+          <p class="text-sm text-base-content/50 mt-0.5">
+            Applied when a tracked release becomes available. Per-item
+            overrides on individual tracking entries take precedence.
+          </p>
+        </div>
+        <button
+          type="submit"
+          class="btn btn-soft btn-primary btn-sm shrink-0"
+          data-nav-item
+          tabindex="0"
+        >
+          Save
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Default mode
+          </label>
+          <select
+            name="auto_grab[default_mode]"
+            class="select select-bordered w-full"
+            data-nav-item
+            tabindex="0"
+          >
+            <option value="all_releases" selected={@auto_grab.default_mode == "all_releases"}>
+              Auto-grab all releases
+            </option>
+            <option value="off" selected={@auto_grab.default_mode == "off"}>
+              Off (notify only)
+            </option>
+          </select>
+          <p class="text-xs text-base-content/40 mt-1">
+            Applies to newly-tracked items. Existing items keep their per-item override.
+          </p>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            4K patience (hours)
+          </label>
+          <input
+            type="number"
+            name="auto_grab[4k_patience_hours]"
+            value={@auto_grab.patience_hours}
+            min="0"
+            max="720"
+            class="input input-bordered w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
+          />
+          <p class="text-xs text-base-content/40 mt-1">
+            Wait this long for a 4K release before falling back to 1080p. Set to 0 to grab immediately.
+          </p>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Minimum quality (final fallback)
+          </label>
+          <select
+            name="auto_grab[default_min_quality]"
+            class="select select-bordered w-full"
+            data-nav-item
+            tabindex="0"
+          >
+            <option value="hd_1080p" selected={@auto_grab.default_min_quality == "hd_1080p"}>
+              1080p
+            </option>
+            <option value="uhd_4k" selected={@auto_grab.default_min_quality == "uhd_4k"}>
+              4K only
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Maximum quality
+          </label>
+          <select
+            name="auto_grab[default_max_quality]"
+            class="select select-bordered w-full"
+            data-nav-item
+            tabindex="0"
+          >
+            <option value="uhd_4k" selected={@auto_grab.default_max_quality == "uhd_4k"}>
+              4K
+            </option>
+            <option value="hd_1080p" selected={@auto_grab.default_max_quality == "hd_1080p"}>
+              1080p (no 4K)
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Maximum search attempts
+          </label>
+          <input
+            type="number"
+            name="auto_grab[max_attempts]"
+            value={@auto_grab.max_attempts}
+            min="1"
+            max="50"
+            class="input input-bordered w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
+          />
+          <p class="text-xs text-base-content/40 mt-1">
+            How many failed search cycles before giving up on a release.
+          </p>
+        </div>
+      </div>
+    </form>
+    """
   end
 end

@@ -1,8 +1,12 @@
-defmodule MediaCentarrWeb.AutoGrabsLive.Logic do
+defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogic do
   @moduledoc """
-  Pure helpers for the Auto-grabs page — extracted per the LiveView
-  logic-extraction policy ([ADR-030]). Tested in isolation with
-  `async: true` and struct literals.
+  Pure helpers for the Activity zone of the unified Downloads page —
+  extracted per the LiveView logic-extraction policy ([ADR-030]). Tested
+  in isolation with `async: true` and struct literals.
+
+  Originally lived under `AutoGrabsLive.Logic` when the activity surface
+  was its own page; moved here when manual + auto grabs were unified
+  into a single Downloads page (v0.24.0).
   """
 
   alias MediaCentarr.Acquisition.Grab
@@ -23,11 +27,11 @@ defmodule MediaCentarrWeb.AutoGrabsLive.Logic do
   def filter_label(:all), do: "All"
 
   @spec empty_state(atom()) :: String.t()
-  def empty_state(:active), do: "No active auto-grabs."
+  def empty_state(:active), do: "No active grabs."
   def empty_state(:abandoned), do: "Nothing has been abandoned."
   def empty_state(:cancelled), do: "Nothing has been cancelled."
   def empty_state(:grabbed), do: "Nothing has been grabbed yet."
-  def empty_state(:all), do: "No auto-grabs on record."
+  def empty_state(:all), do: "No grabs on record."
 
   @spec episode_label(Grab.t()) :: String.t()
   def episode_label(%Grab{season_number: nil, episode_number: nil}), do: "—"
@@ -53,6 +57,20 @@ defmodule MediaCentarrWeb.AutoGrabsLive.Logic do
   def status_class("abandoned"), do: "badge-error"
   def status_class("cancelled"), do: "badge-ghost"
   def status_class(_), do: "badge-ghost"
+
+  @doc """
+  Short tag for the row's origin. `"auto"` for system-initiated grabs
+  (release-tracker driven), `"manual"` for user-submitted from the
+  search form. Surfaces alongside the status badge so users can see at
+  a glance "did I ask for this or did the system?"
+  """
+  @spec origin_label(Grab.t()) :: String.t()
+  def origin_label(%Grab{origin: "manual"}), do: "manual"
+  def origin_label(%Grab{}), do: "auto"
+
+  @spec origin_class(Grab.t()) :: String.t()
+  def origin_class(%Grab{origin: "manual"}), do: "badge-outline badge-primary"
+  def origin_class(%Grab{}), do: "badge-outline"
 
   @spec last_attempt_summary(Grab.t()) :: String.t()
   def last_attempt_summary(%Grab{last_attempt_at: nil}), do: "never"

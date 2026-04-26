@@ -2,7 +2,7 @@ defmodule MediaCentarr.AcquisitionTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.{Grab, Prowlarr}
+  alias MediaCentarr.Acquisition.{Grab, Prowlarr, SearchResult}
   alias MediaCentarr.Repo
 
   setup do
@@ -15,8 +15,118 @@ defmodule MediaCentarr.AcquisitionTest do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
     :persistent_term.put({Prowlarr, :client}, client)
-    on_exit(fn -> :persistent_term.erase({Prowlarr, :client}) end)
+
+    # `Acquisition.grab/2` and `Acquisition.search/2` short-circuit with
+    # `:not_configured` unless Config.available?/0 returns true (URL +
+    # API key both present). Stub both via persistent_term so manual-grab
+    # tests can exercise the unified path.
+    config = :persistent_term.get({MediaCentarr.Config, :config})
+
+    :persistent_term.put(
+      {MediaCentarr.Config, :config},
+      config
+      |> Map.put(:prowlarr_url, "http://prowlarr.test")
+      |> Map.put(:prowlarr_api_key, MediaCentarr.Secret.wrap("test-key"))
+    )
+
+    on_exit(fn ->
+      :persistent_term.erase({Prowlarr, :client})
+      :persistent_term.put({MediaCentarr.Config, :config}, config)
+    end)
+
     :ok
+  end
+
+  describe "enqueue/4 — origin" do
+    test "defaults to origin = auto" do
+      assert {:ok, grab} = Acquisition.enqueue("100", "movie", "M")
+      assert grab.origin == "auto"
+    end
+
+    test "accepts explicit origin opt" do
+      assert {:ok, grab} = Acquisition.enqueue("101", "movie", "M2", origin: "auto")
+      assert grab.origin == "auto"
+    end
+  end
+
+  describe "grab/2 — manual unified path" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_updates())
+      :ok
+    end
+
+    test "submits to Prowlarr and inserts a manual-origin grab in terminal grabbed state" do
+      result = %SearchResult{
+        title: "Inception.2010.2160p.UHD.BluRay.REMUX-FGT",
+        guid: "manual-guid-1",
+        indexer_id: 1,
+        quality: :uhd_4k
+      }
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
+
+      assert {:ok, %Grab{} = grab} = Acquisition.grab(result, "Inception 2010")
+
+      assert grab.origin == "manual"
+      assert grab.tmdb_type == "manual"
+      assert grab.tmdb_id == "manual-guid-1"
+      assert grab.prowlarr_guid == "manual-guid-1"
+      assert grab.manual_query == "Inception 2010"
+      assert grab.status == "grabbed"
+      assert grab.quality == "4K"
+      assert grab.grabbed_at != nil
+
+      assert_received {:grab_submitted, %Grab{origin: "manual"}}
+    end
+
+    test "does NOT insert a row when Prowlarr rejects the grab" do
+      result = %SearchResult{title: "Bad", guid: "fail-1", indexer_id: 1, quality: :hd_1080p}
+
+      Req.Test.stub(:prowlarr, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
+
+      assert {:error, _} = Acquisition.grab(result, "bad")
+      assert Repo.aggregate(Grab, :count) == 0
+    end
+
+    test "returns :not_configured when Prowlarr is not configured" do
+      :persistent_term.erase({Prowlarr, :client})
+      # Drop env so Config.available?/0 returns false.
+      original_url = MediaCentarr.Config.get(:prowlarr_url)
+
+      :persistent_term.put(
+        {MediaCentarr.Config, :config},
+        Map.put(:persistent_term.get({MediaCentarr.Config, :config}), :prowlarr_url, nil)
+      )
+
+      on_exit(fn ->
+        :persistent_term.put(
+          {MediaCentarr.Config, :config},
+          Map.put(:persistent_term.get({MediaCentarr.Config, :config}), :prowlarr_url, original_url)
+        )
+      end)
+
+      result = %SearchResult{title: "T", guid: "g", indexer_id: 1, quality: :uhd_4k}
+      assert {:error, :not_configured} = Acquisition.grab(result, "t")
+    end
+  end
+
+  describe "list_auto_grabs/1 — origin column" do
+    test ":all returns rows of both origins" do
+      _ = Acquisition.enqueue("200", "movie", "Auto")
+
+      result = %SearchResult{
+        title: "Manual.Title.1080p",
+        guid: "g-mix",
+        indexer_id: 1,
+        quality: :hd_1080p
+      }
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
+      {:ok, _} = Acquisition.grab(result, "manual")
+
+      origins = Acquisition.list_auto_grabs(:all) |> Enum.map(& &1.origin) |> Enum.sort()
+      assert origins == ["auto", "manual"]
+    end
   end
 
   describe "enqueue/4 — granularity" do

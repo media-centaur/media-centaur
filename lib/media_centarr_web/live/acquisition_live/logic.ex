@@ -157,7 +157,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   @spec build_grab_message([{SearchResult.t(), :ok | {:error, term()}}]) ::
           {:ok | :partial | :error, String.t()}
   def build_grab_message(pairs) do
-    {ok_pairs, err_pairs} = Enum.split_with(pairs, fn {_, outcome} -> outcome == :ok end)
+    {ok_pairs, err_pairs} = Enum.split_with(pairs, fn {_, outcome} -> match?({:ok, _}, outcome) end)
     ok_count = length(ok_pairs)
     err_count = length(err_pairs)
 
