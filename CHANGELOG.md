@@ -4,6 +4,24 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.22.11 — 2026-04-26
+
+### Fixed
+
+- **Prowlarr *Test connection* now actually works on a healthy
+  Prowlarr.** The previous test hit Prowlarr's `/api/v1/search`
+  endpoint, which is not a connectivity probe — it's a live
+  query that fans out to every configured indexer and routinely
+  takes 20+ seconds to return on a perfectly healthy server. The
+  short timeout introduced in v0.22.10 then made *every* test
+  fail with a transport error, even when Prowlarr was reachable
+  and the api key was correct. The button now hits
+  `/api/v1/system/status` instead — a lightweight identity probe
+  that returns 200 immediately when the URL is reachable and the
+  key is valid, or 401 when the key is wrong, with a 5-second
+  cap. Real searches and grabs use a more generous 30-second
+  budget so slow indexers don't get clipped.
+
 ## v0.22.10 — 2026-04-26
 
 ### Fixed
