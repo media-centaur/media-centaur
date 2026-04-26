@@ -12,6 +12,12 @@
 # Path to the SQLite database file.
 database_path = "~/.local/share/media-centarr/media-centarr.db"
 
+# Root directory for app-managed caches that live outside the SQLite DB
+# and outside the watch directories — currently tracking-item poster /
+# backdrop images. Defaults to the parent directory of `database_path`.
+# Configurable in Settings → Library → Data directory.
+# data_dir = "~/.local/share/media-centarr"
+
 # HTTP port the web UI listens on. Requires restart to change.
 # Default: 2160 (prod), 1080 (dev).
 # port = 2160

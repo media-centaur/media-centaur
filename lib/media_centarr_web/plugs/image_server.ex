@@ -51,10 +51,26 @@ defmodule MediaCentarrWeb.Plugs.ImageServer do
     Enum.find_value(watch_dirs, fn dir ->
       candidate = Path.join(MediaCentarr.Config.images_dir_for(dir), relative)
       if File.regular?(candidate), do: candidate
-    end) || find_in_data_images(relative)
+    end) || find_in_data_dir(relative) || find_in_legacy_data(relative)
   end
 
-  defp find_in_data_images(relative) do
+  # Configured app-data root — covers tracking-item images written by
+  # `MediaCentarr.ReleaseTracking.ImageStore`. Independent of cwd.
+  defp find_in_data_dir(relative) do
+    case MediaCentarr.Config.get(:data_dir) do
+      nil ->
+        nil
+
+      data_dir ->
+        candidate = Path.join(data_dir, relative)
+        if File.regular?(candidate), do: candidate
+    end
+  end
+
+  # Legacy cwd-relative fallback — kept so installs that wrote images
+  # before `:data_dir` was introduced continue to serve them without a
+  # manual move.
+  defp find_in_legacy_data(relative) do
     candidate = Path.join("data", relative)
     if File.regular?(candidate), do: candidate
   end
