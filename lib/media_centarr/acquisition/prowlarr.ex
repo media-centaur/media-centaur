@@ -68,13 +68,24 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
     end
   end
 
+  # Prowlarr is a self-hosted local indexer — its responses are sub-second
+  # when reachable. A misconfigured URL/port should fail fast rather than
+  # eat Req's default 15s × 3-retry budget (~60s of UI spin per click).
+  @receive_timeout_ms 5_000
+
   defp build_client do
     if MediaCentarr.Config.get(:showcase_mode) do
       Req.new(plug: &MediaCentarr.Showcase.Stubs.prowlarr_plug/1)
     else
       url = MediaCentarr.Config.get(:prowlarr_url)
       api_key = MediaCentarr.Secret.expose(MediaCentarr.Config.get(:prowlarr_api_key))
-      Req.new(base_url: url, headers: [{"x-api-key", api_key}])
+
+      Req.new(
+        base_url: url,
+        headers: [{"x-api-key", api_key}],
+        receive_timeout: @receive_timeout_ms,
+        retry: false
+      )
     end
   end
 

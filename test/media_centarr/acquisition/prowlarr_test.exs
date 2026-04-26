@@ -215,4 +215,41 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
       assert {:error, _} = Prowlarr.list_download_clients()
     end
   end
+
+  describe "default_client/0" do
+    setup do
+      original = :persistent_term.get({MediaCentarr.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentarr.Config, :config},
+        %{
+          original
+          | prowlarr_url: "http://prowlarr.test",
+            prowlarr_api_key: MediaCentarr.Secret.wrap("test-key"),
+            showcase_mode: false
+        }
+      )
+
+      Prowlarr.invalidate_client()
+
+      on_exit(fn ->
+        :persistent_term.put({MediaCentarr.Config, :config}, original)
+        Prowlarr.invalidate_client()
+      end)
+
+      :ok
+    end
+
+    test "disables Req retries so transport errors fail fast" do
+      client = Prowlarr.default_client()
+      assert client.options[:retry] == false
+    end
+
+    test "caps receive_timeout so a stalled host can't hang the UI for a minute" do
+      client = Prowlarr.default_client()
+      timeout = client.options[:receive_timeout]
+      assert is_integer(timeout)
+      assert timeout <= 10_000
+    end
+  end
 end
