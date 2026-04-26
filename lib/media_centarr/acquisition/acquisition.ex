@@ -8,6 +8,7 @@ defmodule MediaCentarr.Acquisition do
     ],
     exports: [
       AutoGrabSettings,
+      Grab,
       Quality,
       QueryExpander,
       QueueItem,
@@ -232,6 +233,65 @@ defmodule MediaCentarr.Acquisition do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  @doc """
+  Lists `acquisition_grabs` filtered by lifecycle stage.
+
+  - `:all` — every row, newest-updated first
+  - `:active` — `searching` or `snoozed` (the live job set)
+  - `:abandoned` — gave up after max attempts
+  - `:cancelled` — explicitly cancelled
+  - `:grabbed` — completed successfully
+  """
+  @spec list_auto_grabs(:all | :active | :abandoned | :cancelled | :grabbed) :: [Grab.t()]
+  def list_auto_grabs(filter \\ :all) do
+    Grab
+    |> auto_grabs_filter(filter)
+    |> order_by([g], desc: g.updated_at)
+    |> Repo.all()
+  end
+
+  defp auto_grabs_filter(query, :all), do: query
+  defp auto_grabs_filter(query, :active), do: where(query, [g], g.status in ^@cancellable_statuses)
+  defp auto_grabs_filter(query, status), do: where(query, [g], g.status == ^to_string(status))
+
+  @doc """
+  Re-arms a cancelled or abandoned grab back to `searching` and
+  re-enqueues a `SearchAndGrab` Oban job. No-op (returns the grab as-is)
+  if the grab is in any other state — including already-searching, where
+  there's nothing to re-arm.
+
+  Resets `attempt_count` to 0 so the snooze schedule starts fresh.
+  Broadcasts `{:auto_grab_armed, grab}` so the UI refreshes.
+  """
+  @spec rearm_grab(Ecto.UUID.t()) :: {:ok, Grab.t()} | {:error, :not_found}
+  def rearm_grab(grab_id) do
+    case Repo.get(Grab, grab_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Grab{status: status} = grab when status in ["cancelled", "abandoned"] ->
+        {:ok, rearmed} =
+          grab
+          |> Ecto.Changeset.change(
+            status: "searching",
+            attempt_count: 0,
+            cancelled_at: nil,
+            cancelled_reason: nil,
+            last_attempt_outcome: nil
+          )
+          |> Repo.update()
+
+        Oban.insert(SearchAndGrab.new(%{"grab_id" => rearmed.id}))
+        broadcast({:auto_grab_armed, rearmed})
+        Log.info(:library, "auto-grab re-armed — #{rearmed.title}")
+        {:ok, rearmed}
+
+      grab ->
+        # Already active or already grabbed — nothing to re-arm.
+        {:ok, grab}
     end
   end
 

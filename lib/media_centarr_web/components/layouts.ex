@@ -64,6 +64,16 @@ defmodule MediaCentarrWeb.Layouts do
               <.icon name="hero-arrow-down-tray" class="size-5 flex-shrink-0" />
               <span class="sidebar-label">Download</span>
             </.link>
+            <.link
+              navigate="/download/auto-grabs"
+              class={sidebar_link_class(@current_path, "/download/auto-grabs")}
+              data-tip="Auto-grabs"
+              data-nav-item
+              tabindex="0"
+            >
+              <.icon name="hero-bolt" class="size-5 flex-shrink-0" />
+              <span class="sidebar-label">Auto-grabs</span>
+            </.link>
           <% end %>
           <.link
             navigate="/status"

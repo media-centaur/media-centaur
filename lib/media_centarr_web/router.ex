@@ -26,6 +26,7 @@ defmodule MediaCentarrWeb.Router do
       live "/console", ConsolePageLive, :index
       live "/history", WatchHistoryLive, :index
       live "/download", AcquisitionLive, :index
+      live "/download/auto-grabs", AutoGrabsLive, :index
     end
   end
 
