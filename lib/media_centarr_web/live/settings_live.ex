@@ -514,6 +514,14 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
+  # Save + Test share one form-submit handler per service. The Save and
+  # Test buttons are both `type=submit` on the same form with
+  # `name=_action value=save|test`. This means: every test starts by
+  # persisting whatever the user typed in. If the test then fails, the
+  # form re-renders against `@config` — which now matches the typed-in
+  # values, so the user sees their input preserved instead of clobbered.
+  # See `test/media_centarr_web/live/settings_live_acquisition_test.exs`.
+
   def handle_event("save_tmdb", params, socket) do
     if params["tmdb_api_key"] != "" do
       Config.update(:tmdb_api_key, params["tmdb_api_key"])
@@ -526,10 +534,22 @@ defmodule MediaCentarrWeb.SettingsLive do
       :error -> :ok
     end
 
-    {:noreply,
-     socket
-     |> assign(config: load_config(), tmdb_test: load_test_result(:tmdb))
-     |> put_flash(:info, "TMDB settings saved")}
+    socket = assign(socket, config: load_config(), tmdb_test: load_test_result(:tmdb))
+
+    case params["_action"] do
+      "test" ->
+        spawn_test_task(:tmdb_test_result, fn ->
+          case MediaCentarr.TMDB.Client.configuration() do
+            {:ok, _} -> :ok
+            {:error, _} -> :error
+          end
+        end)
+
+        {:noreply, assign(socket, tmdb_testing: true)}
+
+      _ ->
+        {:noreply, put_flash(socket, :info, "TMDB settings saved")}
+    end
   end
 
   def handle_event("save_prowlarr", params, socket) do
@@ -544,10 +564,22 @@ defmodule MediaCentarrWeb.SettingsLive do
     Prowlarr.invalidate_client()
     clear_test_result(:prowlarr)
 
-    {:noreply,
-     socket
-     |> assign(config: load_config(), prowlarr_test: nil)
-     |> put_flash(:info, "Acquisition settings saved")}
+    socket = assign(socket, config: load_config(), prowlarr_test: nil)
+
+    case params["_action"] do
+      "test" ->
+        spawn_test_task(:prowlarr_test_result, fn ->
+          case MediaCentarr.Acquisition.search("test", []) do
+            {:ok, _} -> :ok
+            {:error, _} -> :error
+          end
+        end)
+
+        {:noreply, assign(socket, prowlarr_testing: true)}
+
+      _ ->
+        {:noreply, put_flash(socket, :info, "Acquisition settings saved")}
+    end
   end
 
   def handle_event("save_download_client", params, socket) do
@@ -568,31 +600,28 @@ defmodule MediaCentarrWeb.SettingsLive do
     QBittorrent.invalidate_client()
     clear_test_result(:download_client)
 
-    {:noreply,
-     socket
-     |> assign(
-       config: load_config(),
-       download_client_test: nil,
-       download_client_detect_status: nil,
-       detected_download_client: nil
-     )
-     |> put_flash(:info, "Download client settings saved")}
-  end
+    socket =
+      assign(socket,
+        config: load_config(),
+        download_client_test: nil,
+        download_client_detect_status: nil,
+        detected_download_client: nil
+      )
 
-  def handle_event("test_download_client", _params, socket) do
-    parent = self()
+    case params["_action"] do
+      "test" ->
+        spawn_test_task(:download_client_test_result, fn ->
+          case Acquisition.test_download_client() do
+            :ok -> :ok
+            {:error, _} -> :error
+          end
+        end)
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      status =
-        case Acquisition.test_download_client() do
-          :ok -> :ok
-          {:error, _} -> :error
-        end
+        {:noreply, assign(socket, download_client_testing: true)}
 
-      send(parent, {:download_client_test_result, status})
-    end)
-
-    {:noreply, assign(socket, download_client_testing: true)}
+      _ ->
+        {:noreply, put_flash(socket, :info, "Download client settings saved")}
+    end
   end
 
   def handle_event("detect_download_client", _params, socket) do
@@ -719,39 +748,6 @@ defmodule MediaCentarrWeb.SettingsLive do
   def handle_event("controls:set_glyph", %{"style" => style}, socket) do
     :ok = Controls.set_glyph_style(style)
     {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("test_prowlarr", _params, socket) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      status =
-        case MediaCentarr.Acquisition.search("test", []) do
-          {:ok, _} -> :ok
-          {:error, _} -> :error
-        end
-
-      send(parent, {:prowlarr_test_result, status})
-    end)
-
-    {:noreply, assign(socket, prowlarr_testing: true)}
-  end
-
-  def handle_event("test_tmdb", _params, socket) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      status =
-        case MediaCentarr.TMDB.Client.configuration() do
-          {:ok, _} -> :ok
-          {:error, _} -> :error
-        end
-
-      send(parent, {:tmdb_test_result, status})
-    end)
-
-    {:noreply, assign(socket, tmdb_testing: true)}
   end
 
   # --- Info handlers ---
@@ -1628,19 +1624,17 @@ defmodule MediaCentarrWeb.SettingsLive do
         </div>
       </div>
 
-      <div
-        :if={@config[:tmdb_api_key_configured?]}
-        class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4"
-      >
+      <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
         <.connection_status
           test={@tmdb_test}
           ok_label="Connected"
           error_label="Unreachable"
         />
         <button
-          type="button"
+          type="submit"
+          name="_action"
+          value="test"
           class="btn btn-soft btn-sm shrink-0"
-          phx-click="test_tmdb"
           disabled={@tmdb_testing}
           data-nav-item
           tabindex="0"
@@ -1738,19 +1732,17 @@ defmodule MediaCentarrWeb.SettingsLive do
           </div>
         </div>
 
-        <div
-          :if={@prowlarr_configured}
-          class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4"
-        >
+        <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
           <.connection_status
             test={@prowlarr_test}
             ok_label="Connected"
             error_label="Unreachable"
           />
           <button
-            type="button"
+            type="submit"
+            name="_action"
+            value="test"
             class="btn btn-soft btn-sm shrink-0"
-            phx-click="test_prowlarr"
             disabled={@prowlarr_testing}
             data-nav-item
             tabindex="0"
@@ -1882,19 +1874,17 @@ defmodule MediaCentarrWeb.SettingsLive do
           </div>
         </div>
 
-        <div
-          :if={@download_client_configured}
-          class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4"
-        >
+        <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
           <.connection_status
             test={@download_client_test}
             ok_label="Connected"
             error_label="Unreachable / auth failed"
           />
           <button
-            type="button"
+            type="submit"
+            name="_action"
+            value="test"
             class="btn btn-soft btn-sm shrink-0"
-            phx-click="test_download_client"
             disabled={@download_client_testing}
             data-nav-item
             tabindex="0"
@@ -3172,6 +3162,22 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   # --- Private helpers ---
+
+  # Spawns a connection-test under TaskSupervisor and forwards the
+  # `:ok | :error` result to the LiveView's mailbox under
+  # `result_message`. Each save_* handler dispatches here when the form
+  # was submitted with `_action=test`. The test runs against the values
+  # the save handler just persisted, so a failing test never displaces
+  # the user's typed-in input.
+  defp spawn_test_task(result_message, fun) when is_atom(result_message) and is_function(fun, 0) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      send(parent, {result_message, fun.()})
+    end)
+
+    :ok
+  end
 
   defp phx_values(map) when map_size(map) == 0, do: %{}
 
