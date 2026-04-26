@@ -245,11 +245,43 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
       assert client.options[:retry] == false
     end
 
-    test "caps receive_timeout so a stalled host can't hang the UI for a minute" do
+    test "uses a generous receive_timeout that survives slow indexer searches" do
+      # Prowlarr's /api/v1/search fans out to every configured indexer in
+      # real time and can take 20s+ legitimately. The client default must
+      # not clip valid responses; the lightweight `ping/0` overrides this
+      # per-call when fast failure is appropriate.
       client = Prowlarr.default_client()
       timeout = client.options[:receive_timeout]
       assert is_integer(timeout)
-      assert timeout <= 10_000
+      assert timeout >= 30_000
+    end
+  end
+
+  describe "ping/0" do
+    test "returns :ok on 200 from /api/v1/system/status" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        assert conn.method == "GET"
+        assert conn.request_path == "/api/v1/system/status"
+        Req.Test.json(conn, %{"version" => "1.0.0", "appName" => "Prowlarr"})
+      end)
+
+      assert Prowlarr.ping() == :ok
+    end
+
+    test "returns {:error, {:http_error, 401, _}} when the api key is wrong" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Plug.Conn.send_resp(conn, 401, "")
+      end)
+
+      assert {:error, {:http_error, 401, _}} = Prowlarr.ping()
+    end
+
+    test "returns {:error, transport_error} on network failure" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.transport_error(conn, :timeout)
+      end)
+
+      assert {:error, %Req.TransportError{reason: :timeout}} = Prowlarr.ping()
     end
   end
 end

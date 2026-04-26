@@ -124,6 +124,21 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Tests connectivity and credentials against Prowlarr by hitting its
+  lightweight `/api/v1/system/status` endpoint. Returns within ~5 s.
+
+  Returns `{:error, :not_configured}` when Prowlarr is not configured.
+  """
+  @spec test_prowlarr() :: :ok | {:error, term()}
+  def test_prowlarr do
+    if available?() do
+      Prowlarr.ping()
+    else
+      {:error, :not_configured}
+    end
+  end
+
+  @doc """
   Tests connectivity and credentials against the configured download client.
   """
   @spec test_download_client() :: :ok | {:error, term()}
