@@ -119,7 +119,7 @@ defmodule MediaCentarr.MixProject do
         "boundaries",
         "deps.audit",
         "sobelow",
-        "test"
+        "test.all"
       ],
       "test.all": [
         "test",

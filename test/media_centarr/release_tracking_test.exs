@@ -1,6 +1,7 @@
 defmodule MediaCentarr.ReleaseTrackingTest do
   use MediaCentarr.DataCase, async: false
 
+  import Ecto.Query
   alias MediaCentarr.ReleaseTracking
 
   describe "track_item/1" do
@@ -168,6 +169,98 @@ defmodule MediaCentarr.ReleaseTrackingTest do
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert Enum.all?(releases, &(not &1.in_library))
+    end
+
+    test "stamps in_library_at on first transition (TV)" do
+      item = create_tracking_item(%{last_library_season: 1, last_library_episode: 1})
+      release = create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
+
+      assert release.in_library == false
+      assert release.in_library_at == nil
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      reloaded = MediaCentarr.Repo.get!(MediaCentarr.ReleaseTracking.Release, release.id)
+      assert reloaded.in_library == true
+      assert %DateTime{} = reloaded.in_library_at
+    end
+
+    test "does not re-bump in_library_at on subsequent calls (TV)" do
+      item = create_tracking_item(%{last_library_season: 1, last_library_episode: 1})
+      release = create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
+
+      ReleaseTracking.mark_in_library_releases(item)
+      first = MediaCentarr.Repo.get!(MediaCentarr.ReleaseTracking.Release, release.id).in_library_at
+
+      # Sleep briefly to ensure any re-bump would have a different timestamp.
+      Process.sleep(1100)
+      ReleaseTracking.mark_in_library_releases(item)
+      second = MediaCentarr.Repo.get!(MediaCentarr.ReleaseTracking.Release, release.id).in_library_at
+
+      assert first == second
+    end
+
+    test "stamps in_library_at on first transition (movie)" do
+      item = create_tracking_item(%{media_type: :movie, name: "Test Collection"})
+      release = create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true})
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      reloaded = MediaCentarr.Repo.get!(MediaCentarr.ReleaseTracking.Release, release.id)
+      assert reloaded.in_library == true
+      assert %DateTime{} = reloaded.in_library_at
+    end
+  end
+
+  describe "list_releases/0 — recent-completed linger" do
+    test "includes a recently-completed release (within 24h) in the released bucket" do
+      item = create_tracking_item()
+      yesterday = Date.add(Date.utc_today(), -1)
+      twelve_hours_ago = DateTime.add(DateTime.utc_now(:second), -12 * 3600, :second)
+
+      release =
+        create_tracking_release(%{
+          item_id: item.id,
+          air_date: yesterday,
+          title: "Just Done",
+          season_number: 1,
+          episode_number: 1,
+          released: true
+        })
+
+      # Mark it in_library directly with a recent timestamp.
+      MediaCentarr.Repo.update_all(
+        from(r in MediaCentarr.ReleaseTracking.Release, where: r.id == ^release.id),
+        set: [in_library: true, in_library_at: twelve_hours_ago]
+      )
+
+      %{released: released} = ReleaseTracking.list_releases()
+      assert Enum.any?(released, &(&1.id == release.id))
+    end
+
+    test "excludes a long-completed release (older than 24h)" do
+      item = create_tracking_item()
+      yesterday = Date.add(Date.utc_today(), -2)
+      two_days_ago = DateTime.add(DateTime.utc_now(:second), -48 * 3600, :second)
+
+      release =
+        create_tracking_release(%{
+          item_id: item.id,
+          air_date: yesterday,
+          title: "Long Done",
+          season_number: 1,
+          episode_number: 1,
+          released: true
+        })
+
+      MediaCentarr.Repo.update_all(
+        from(r in MediaCentarr.ReleaseTracking.Release, where: r.id == ^release.id),
+        set: [in_library: true, in_library_at: two_days_ago]
+      )
+
+      %{released: released, upcoming: upcoming} = ReleaseTracking.list_releases()
+      refute Enum.any?(released, &(&1.id == release.id))
+      refute Enum.any?(upcoming, &(&1.id == release.id))
     end
   end
 

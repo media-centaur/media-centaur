@@ -19,6 +19,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :confirm_stop_item, :any, default: nil
   attr :tmdb_ready, :boolean, default: true
   attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
   attr :acquisition_ready, :boolean, default: false
 
   def upcoming_zone(assigns) do
@@ -123,6 +124,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
             releases={@selected_releases}
             images={@images}
             grab_statuses={@grab_statuses}
+            queue_items={@queue_items}
             acquisition_ready={@acquisition_ready}
           />
         </div>
@@ -139,6 +141,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
             <.released_content
               releases={@released}
               grab_statuses={@grab_statuses}
+              queue_items={@queue_items}
               acquisition_ready={@acquisition_ready}
             />
           <% else %>
@@ -158,6 +161,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
             <.upcoming_list_content
               releases={@dated_upcoming}
               grab_statuses={@grab_statuses}
+              queue_items={@queue_items}
               acquisition_ready={@acquisition_ready}
             />
           <% else %>
@@ -177,17 +181,14 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           </h3>
           <%= if @events != [] do %>
             <div class="release-grid text-sm pl-3">
-              <div :for={event <- @events} class="release-row group">
+              <div :for={event <- @events} class="release-row">
                 <span class="text-base-content/30 tabular-nums text-right">
                   {format_datetime(event.inserted_at)}
                 </span>
                 <span class="font-medium">{event.item_name}</span>
-                <span class="text-base-content/40">{event_label(event)}</span>
-                <.view_activity_link
-                  title={event.item_name}
-                  acquisition_ready={@acquisition_ready}
-                  class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
-                />
+                <span class="text-base-content/40 col-span-2">
+                  {event_label(event)}
+                </span>
               </div>
             </div>
           <% else %>
@@ -416,6 +417,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :releases, :list, required: true
   attr :images, :map, default: %{}
   attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
   attr :acquisition_ready, :boolean, default: false
 
   defp day_detail(assigns) do
@@ -435,6 +437,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           release={release}
           images={@images}
           grab_statuses={@grab_statuses}
+          queue_items={@queue_items}
           acquisition_ready={@acquisition_ready}
         />
       </div>
@@ -445,6 +448,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :release, :any, required: true
   attr :images, :map, default: %{}
   attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
   attr :acquisition_ready, :boolean, default: false
 
   defp day_release_card(assigns) do
@@ -475,8 +479,26 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       |> assign(:media_type, item.media_type)
       |> assign(:is_released, assigns.release.released)
 
+    status =
+      if assigns.acquisition_ready do
+        grab = lookup_grab(assigns.release, assigns.grab_statuses)
+        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
+        release_status(assigns.release.in_library, grab, queue_item)
+      else
+        :none
+      end
+
+    assigns =
+      assign(assigns, :destination, row_destination(assigns.release, status, assigns.acquisition_ready))
+
     ~H"""
-    <div class={["relative rounded-lg overflow-hidden glass-inset", @is_released && "opacity-60"]}>
+    <.link
+      navigate={@destination}
+      class={[
+        "block relative rounded-lg overflow-hidden glass-inset hover:ring-1 hover:ring-primary/40 transition-all",
+        @is_released && "opacity-60"
+      ]}
+    >
       <div class="aspect-[21/9] relative">
         <img
           :if={@backdrop}
@@ -505,9 +527,10 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           </p>
         </div>
         <div class="absolute top-1.5 right-1.5 flex gap-1 items-center">
-          <.grab_status_badge
+          <.release_status_icon
             release={@release}
             grab_statuses={@grab_statuses}
+            queue_items={@queue_items}
             acquisition_ready={@acquisition_ready}
           />
           <span
@@ -525,7 +548,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           </span>
         </div>
       </div>
-    </div>
+    </.link>
     """
   end
 
@@ -533,6 +556,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   attr :releases, :list, required: true
   attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
   attr :acquisition_ready, :boolean, default: false
 
   defp released_content(assigns) do
@@ -552,6 +576,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         :for={release <- @sorted}
         release={release}
         grab_statuses={@grab_statuses}
+        queue_items={@queue_items}
         acquisition_ready={@acquisition_ready}
         dismissable
       />
@@ -563,6 +588,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   attr :releases, :list, required: true
   attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
   attr :acquisition_ready, :boolean, default: false
 
   defp upcoming_list_content(assigns) do
@@ -582,6 +608,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         :for={release <- @sorted}
         release={release}
         grab_statuses={@grab_statuses}
+        queue_items={@queue_items}
         acquisition_ready={@acquisition_ready}
       />
     </div>
@@ -620,33 +647,56 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :release, :map, required: true
   attr :dismissable, :boolean, default: false
   attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
   attr :acquisition_ready, :boolean, default: false
 
   defp release_row(assigns) do
+    status =
+      if assigns.acquisition_ready do
+        grab = lookup_grab(assigns.release, assigns.grab_statuses)
+        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
+        release_status(assigns.release.in_library, grab, queue_item)
+      else
+        :none
+      end
+
+    assigns =
+      assigns
+      |> assign(:status, status)
+      |> assign(:destination, row_destination(assigns.release, status, assigns.acquisition_ready))
+
     ~H"""
-    <div class="release-row group">
+    <.link navigate={@destination} class="release-row group hover:bg-base-content/5 rounded">
       <span class="text-base-content/30 tabular-nums text-right">
         {if @release.air_date, do: Calendar.strftime(@release.air_date, "%b %-d"), else: "—"}
       </span>
       <span class="font-medium truncate">{@release.item.name}</span>
       <.release_detail release={@release} />
       <div class="flex items-center gap-1 justify-end">
-        <.grab_status_badge
+        <.release_status_icon
           release={@release}
           grab_statuses={@grab_statuses}
+          queue_items={@queue_items}
           acquisition_ready={@acquisition_ready}
+        />
+        <%!-- (a) hover hint: faint download icon when there's no acquisition state to show --%>
+        <.icon
+          :if={@status == :none and @acquisition_ready}
+          name="hero-arrow-down-tray-mini"
+          class="size-3.5 text-base-content/40 opacity-0 group-hover:opacity-60 transition-opacity"
         />
         <button
           :if={@dismissable}
           phx-click="dismiss_release"
           phx-value-release-id={@release.id}
+          onclick="event.stopPropagation()"
           class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label="Dismiss"
         >
           <.icon name="hero-x-mark-mini" class="size-3.5" />
         </button>
       </div>
-    </div>
+    </.link>
     """
   end
 
@@ -718,11 +768,6 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       <span class="font-medium truncate">{@item.name}</span>
       <span class="text-base-content/50 text-right">{@item.status_text}</span>
       <div class="flex items-center gap-1 justify-end">
-        <.view_activity_link
-          title={@item.name}
-          acquisition_ready={@acquisition_ready}
-          class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity"
-        />
         <span
           class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none"
           aria-hidden="true"
@@ -825,57 +870,66 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   end
 
   # ---------------------------------------------------------------------------
-  # Acquisition cross-link helpers
+  # Per-release acquisition state
   #
-  # When the acquisition pipeline is enabled (Prowlarr connected), every
-  # release card and tracked-item row links to the unified Downloads page,
-  # so users can pivot from "what's coming" to "what's being grabbed"
-  # without hunting. All helpers no-op when `acquisition_ready` is false
-  # — release tracking remains useful without acquisition.
+  # Each row on Now Available is wrapped in a `<.link>` whose destination
+  # depends on the release's current state — see `row_destination/3`.
+  # The accompanying icon (rendered by `release_status_icon/1`) gives an
+  # at-a-glance visual cue without itself being clickable.
   # ---------------------------------------------------------------------------
 
-  alias Phoenix.LiveView.JS
+  alias MediaCentarr.Acquisition.{Grab, QueueItem}
 
-  attr :release, :map, required: true
-  attr :grab_statuses, :map, default: %{}
-  attr :acquisition_ready, :boolean, default: false
+  @doc """
+  Resolves a release's acquisition state from its library presence, the
+  matching grab row (or nil), and the matching download-client queue item
+  (or nil).
 
-  defp grab_status_badge(assigns) do
-    grab =
-      if assigns.acquisition_ready,
-        do: lookup_grab(assigns.release, assigns.grab_statuses)
+  Takes primitive `in_library?` rather than the full `Release` struct so
+  the resolver doesn't pull `MediaCentarr.ReleaseTracking.Release` across
+  the bounded-context boundary (which doesn't export it).
 
-    assigns = assign(assigns, grab: grab)
+  Pure function — extracted for unit testing of every state combo.
 
-    ~H"""
-    <.link
-      :if={@grab}
-      navigate={"/download?filter=all&search=" <> URI.encode_www_form(@release.item.name)}
-      class={["badge badge-sm whitespace-nowrap", grab_status_class(@grab.status)]}
-      title={"Open in Downloads — " <> grab_status_label(@grab)}
-    >
-      {grab_status_label(@grab)}
-    </.link>
-    """
+  ## State precedence
+
+  1. `:completed` — file is in library (highest precedence; once it's
+     here, nothing else matters)
+  2. `:downloading | :paused | :errored` — grab succeeded; live state
+     comes from the queue item, defaulting to `:downloading` if no
+     queue item matches (still queued or already imported)
+  3. `:searching` — grab is `searching` or `snoozed`
+  4. `:abandoned` — gave up after max attempts
+  5. `:cancelled` — explicitly stopped (visually treated as no-op)
+  6. `:none` — no grab, not in library
+  """
+  @spec release_status(boolean(), Grab.t() | nil, QueueItem.t() | nil) ::
+          :completed
+          | :downloading
+          | :paused
+          | :errored
+          | :searching
+          | :abandoned
+          | :cancelled
+          | :none
+  def release_status(true, _grab, _queue), do: :completed
+
+  def release_status(false, %Grab{status: "grabbed"}, %QueueItem{state: state}) do
+    case state do
+      :paused -> :paused
+      :error -> :errored
+      _ -> :downloading
+    end
   end
 
-  attr :title, :string, required: true
-  attr :acquisition_ready, :boolean, default: false
-  attr :class, :string, default: "btn btn-ghost btn-xs"
+  def release_status(false, %Grab{status: "grabbed"}, nil), do: :downloading
 
-  defp view_activity_link(assigns) do
-    ~H"""
-    <.link
-      :if={@acquisition_ready}
-      navigate={"/download?filter=all&search=" <> URI.encode_www_form(@title)}
-      class={@class}
-      title={"View “" <> @title <> "” in Downloads"}
-      onclick="event.stopPropagation()"
-    >
-      <.icon name="hero-arrow-down-tray-mini" class="size-3.5" />
-    </.link>
-    """
-  end
+  def release_status(false, %Grab{status: status}, _queue) when status in ["searching", "snoozed"],
+    do: :searching
+
+  def release_status(false, %Grab{status: "abandoned"}, _queue), do: :abandoned
+  def release_status(false, %Grab{status: "cancelled"}, _queue), do: :cancelled
+  def release_status(false, nil, _queue), do: :none
 
   defp lookup_grab(release, grab_statuses) do
     key =
@@ -885,19 +939,94 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     Map.get(grab_statuses, key)
   end
 
-  defp grab_status_label(%{status: "grabbed", quality: q}) when is_binary(q), do: "Grabbed " <> q
+  # Fuzzy match: a torrent in the queue is considered to belong to a
+  # release when its title contains the tracked item's name. Brittle but
+  # workable — Prowlarr → qBittorrent doesn't preserve a stable ID we
+  # could otherwise key on.
+  defp lookup_queue_item(release, queue_items) do
+    needle = release.item.name |> to_string() |> String.downcase()
 
-  defp grab_status_label(%{status: "grabbed"}), do: "Grabbed"
-  defp grab_status_label(%{status: "snoozed"}), do: "Snoozed"
-  defp grab_status_label(%{status: "searching"}), do: "Searching"
-  defp grab_status_label(%{status: "abandoned"}), do: "Abandoned"
-  defp grab_status_label(%{status: "cancelled"}), do: "Cancelled"
-  defp grab_status_label(%{status: status}), do: status
+    Enum.find(queue_items || [], fn item ->
+      String.contains?(String.downcase(item.title), needle)
+    end)
+  end
 
-  defp grab_status_class("grabbed"), do: "badge-success"
-  defp grab_status_class("snoozed"), do: "badge-warning"
-  defp grab_status_class("searching"), do: "badge-info"
-  defp grab_status_class("abandoned"), do: "badge-error"
-  defp grab_status_class("cancelled"), do: "badge-ghost"
-  defp grab_status_class(_), do: "badge-ghost"
+  attr :release, :map, required: true
+  attr :grab_statuses, :map, default: %{}
+  attr :queue_items, :list, default: []
+  attr :acquisition_ready, :boolean, default: false
+
+  defp release_status_icon(assigns) do
+    status =
+      if assigns.acquisition_ready do
+        grab = lookup_grab(assigns.release, assigns.grab_statuses)
+        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
+        release_status(assigns.release.in_library, grab, queue_item)
+      else
+        :none
+      end
+
+    assigns = assign(assigns, status: status)
+
+    ~H"""
+    <span
+      :if={@status not in [:none, :cancelled]}
+      class={["inline-flex items-center justify-center", status_color(@status)]}
+      title={status_tooltip(@status)}
+      aria-label={status_tooltip(@status)}
+    >
+      <.icon name={status_icon_name(@status)} class="size-4" />
+    </span>
+    """
+  end
+
+  defp status_icon_name(:completed), do: "hero-check-circle-mini"
+  defp status_icon_name(:downloading), do: "hero-arrow-down-tray-mini"
+  defp status_icon_name(:paused), do: "hero-pause-circle-mini"
+  defp status_icon_name(:errored), do: "hero-exclamation-triangle-mini"
+  defp status_icon_name(:searching), do: "hero-clock-mini"
+  defp status_icon_name(:abandoned), do: "hero-exclamation-triangle-mini"
+
+  defp status_color(:completed), do: "text-success"
+  defp status_color(:downloading), do: "text-primary"
+  defp status_color(:paused), do: "text-base-content/60"
+  defp status_color(:errored), do: "text-warning"
+  defp status_color(:searching), do: "text-info"
+  defp status_color(:abandoned), do: "text-error/70"
+
+  defp status_tooltip(:completed), do: "Completed — in library"
+  defp status_tooltip(:downloading), do: "Downloading"
+  defp status_tooltip(:paused), do: "Paused"
+  defp status_tooltip(:errored), do: "Download error"
+  defp status_tooltip(:searching), do: "Searching for a release"
+  defp status_tooltip(:abandoned), do: "Couldn't find a release — re-arm in Downloads"
+
+  @doc """
+  Click destination for a release row. Splits by state:
+
+  - `:completed` → Library entity (the user wants to play it, not look at downloads)
+  - `:none` / `:searching` / `:cancelled` → Downloads page with a manual
+    Prowlarr search auto-fired so the user can intervene
+  - All other states → Downloads activity, filtered to the title
+
+  The Library entity URL falls back to the manual search when the
+  tracking item isn't linked to a library entity.
+  """
+  def row_destination(release, status, acquisition_ready) do
+    cond do
+      status == :completed and not is_nil(release.item.library_entity_id) ->
+        "/?zone=library&selected=#{release.item.library_entity_id}"
+
+      not acquisition_ready ->
+        if release.item.library_entity_id,
+          do: "/?zone=library&selected=#{release.item.library_entity_id}",
+          else: "/"
+
+      status in [:none, :searching, :cancelled] ->
+        "/download?prowlarr_search=" <> URI.encode_www_form(release.item.name)
+
+      true ->
+        "/download?filter=all&search=" <> URI.encode_www_form(release.item.name)
+    end
+  end
 end
