@@ -4,10 +4,6 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
   import MediaCentarr.TestFactory
   import Phoenix.LiveViewTest
 
-  import Ecto.Query
-
-  alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarr.Repo
   alias MediaCentarr.Watcher.FilePresence
 
   describe "skeleton" do
@@ -16,6 +12,12 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       assert html =~ "Continue Watching"
       assert html =~ "Library"
+    end
+  end
+
+  describe "zone=upcoming redirect" do
+    test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
+      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
     end
   end
 
@@ -54,56 +56,6 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal [phx-click-away]")
-    end
-  end
-
-  describe "queue_all_show event" do
-    setup do
-      # Oban runs inline in tests, so enqueue/4 triggers SearchAndGrab → Prowlarr.search.
-      # Stub a no-result response so the worker snoozes cleanly.
-      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-
-      client =
-        Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-
-      :persistent_term.put({MediaCentarr.Acquisition.Prowlarr, :client}, client)
-
-      on_exit(fn -> :persistent_term.erase({MediaCentarr.Acquisition.Prowlarr, :client}) end)
-
-      :ok
-    end
-
-    test "enqueues a grab per pending release and flashes the count", %{conn: conn} do
-      item =
-        create_tracking_item(%{tmdb_id: 8_001, media_type: :tv_series, name: "Bulk Queue"})
-
-      Enum.each(1..3, fn episode ->
-        create_tracking_release(%{
-          item_id: item.id,
-          season_number: 5,
-          episode_number: episode,
-          released: true
-        })
-      end)
-
-      {:ok, view, _html} = live(conn, ~p"/?zone=upcoming")
-
-      result = render_hook(view, "queue_all_show", %{"item-id" => item.id})
-
-      assert result =~ "Queued 3"
-
-      grabs =
-        Repo.all(from(g in Grab, where: g.tmdb_id == "8001" and g.tmdb_type == "tv"))
-
-      assert length(grabs) == 3
-    end
-
-    test "flashes an error when the item is not found", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/?zone=upcoming")
-
-      result = render_hook(view, "queue_all_show", %{"item-id" => Ecto.UUID.generate()})
-
-      assert result =~ "not found" or result =~ "couldn't"
     end
   end
 end
