@@ -125,6 +125,15 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   @impl true
+  def handle_params(%{"zone" => "upcoming"} = params, _uri, socket) do
+    forward_params = Map.delete(params, "zone")
+
+    query =
+      if forward_params == %{}, do: "", else: "?" <> URI.encode_query(forward_params)
+
+    {:noreply, push_navigate(socket, to: "/upcoming" <> query)}
+  end
+
   def handle_params(params, _uri, socket) do
     socket =
       if connected?(socket) && socket.assigns.entries == [] do
