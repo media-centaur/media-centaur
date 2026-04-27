@@ -577,6 +577,51 @@ defmodule MediaCentarr.ReleaseTracking do
   defp tmdb_type_for(:tv_series), do: "tv"
   defp tmdb_type_for(:movie), do: "movie"
 
+  @doc """
+  List tracked releases with `air_date` between `from_date` and `to_date` (inclusive),
+  for watching items only. Used by HomeLive's "Coming Up This Week" digest.
+
+  Returns plain maps in the shape:
+    `%{item: %{id, name}, air_date, season_number, episode_number, status, backdrop_url}`
+
+  `status` is `:scheduled` — HomeLive does not currently fetch live grab status.
+  """
+  @spec list_releases_between(Date.t(), Date.t(), keyword()) :: [map()]
+  def list_releases_between(from_date, to_date, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 8)
+
+    releases =
+      Repo.all(
+        from(release in Release,
+          join: item in assoc(release, :item),
+          where:
+            item.status == :watching and
+              not is_nil(release.air_date) and
+              release.air_date >= ^from_date and
+              release.air_date <= ^to_date,
+          order_by: [asc: release.air_date, asc: release.season_number, asc: release.episode_number],
+          limit: ^limit,
+          preload: [item: item]
+        )
+      )
+
+    Enum.map(releases, fn release ->
+      backdrop_url =
+        if release.item.backdrop_path do
+          "/media-images/#{release.item.backdrop_path}"
+        end
+
+      %{
+        item: %{id: release.item.id, name: release.item.name},
+        air_date: release.air_date,
+        season_number: release.season_number,
+        episode_number: release.episode_number,
+        status: :scheduled,
+        backdrop_url: backdrop_url
+      }
+    end)
+  end
+
   def mark_past_releases_as_released do
     today = Date.utc_today()
 

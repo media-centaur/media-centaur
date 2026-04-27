@@ -122,31 +122,21 @@ defmodule MediaCentarrWeb.HomeLive do
   # Each loader returns a list of plain maps in the shape Logic expects.
   # Loaders returning [] are intentional stubs — see WIRE(4.6) comments.
 
-  defp load_progress do
-    # WIRE(4.6): wire to Library function for in-progress titles.
-    # The shape Logic.continue_watching_items/1 expects:
-    #   %{entity_id, entity_name, last_episode_label, progress_pct, backdrop_url}
-    []
+  defp load_progress, do: Library.list_in_progress(limit: 12)
+
+  defp load_coming_up(today) do
+    {monday, sunday} = Logic.coming_up_window(today)
+    ReleaseTracking.list_releases_between(monday, sunday, limit: 8)
   end
 
-  defp load_coming_up(_today) do
-    # WIRE(4.6): wire to ReleaseTracking for this-week's tracked releases.
-    # Logic.coming_up_items/2 expects:
-    #   %{item: %{id, name}, air_date, season_number, episode_number, status, backdrop_url}
-    []
-  end
-
-  defp load_recently_added do
-    # WIRE(4.6): wire to Library for newest entities.
-    # Logic.recently_added_items/1 expects:
-    #   %{id, name, year, poster_url}
-    []
-  end
+  defp load_recently_added, do: Library.list_recently_added(limit: 16)
 
   defp load_watched_recently do
     # WatchHistory.recent_events/1 returns Event structs with :title,
     # :movie_id, :episode_id, :video_object_id. Map to the shape
     # Logic.watched_recently_items/1 expects: %{entity_id, entity_name, year, poster_url}.
+    # year and poster_url are not available on WatchHistory.Event — left nil
+    # for now; Task 4.6 may enrich these if needed.
     Enum.map(WatchHistory.recent_events(16), fn event ->
       %{
         entity_id: event.movie_id || event.episode_id || event.video_object_id,
@@ -157,9 +147,5 @@ defmodule MediaCentarrWeb.HomeLive do
     end)
   end
 
-  defp load_hero_candidates do
-    # WIRE(4.6): wire to Library for hero-eligible entities (those with
-    # rich backdrops + overviews). For now, no hero.
-    []
-  end
+  defp load_hero_candidates, do: Library.list_hero_candidates(limit: 12)
 end
