@@ -119,16 +119,36 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
     end
   end
 
-  describe "watched_recently_items/1" do
-    test "shapes watch events into poster items" do
-      events = [%{entity_id: 1, entity_name: "Severance", year: 2026, poster_url: nil}]
+  describe "heavy_rotation_items/2" do
+    test "shapes rewatch rows + lookup into PosterRow items with badges" do
+      rewatches = [
+        %{entity_type: :movie, entity_id: "m1", count: 3, last_watched_at: ~U[2026-04-27 12:00:00Z]},
+        %{entity_type: :episode, entity_id: "e1", count: 5, last_watched_at: ~U[2026-04-26 12:00:00Z]}
+      ]
 
-      [item] = Logic.watched_recently_items(events)
+      lookup = %{
+        {:movie, "m1"} => %{id: "m1", name: "Prior Lives", year: "2023", poster_url: "/img/m1.jpg"},
+        {:episode, "e1"} => %{id: "e1", name: "The Bear", year: "2024", poster_url: "/img/e1.jpg"}
+      }
 
-      assert item.id == 1
-      assert item.name == "Severance"
-      assert item.year == "2026"
-      assert item.poster_url == nil
+      [first, second] = Logic.heavy_rotation_items(rewatches, lookup)
+
+      assert first.name == "Prior Lives"
+      assert first.badge_label == "3×"
+      assert second.name == "The Bear"
+      assert second.badge_label == "5×"
+    end
+
+    test "drops entries with no matching entity" do
+      rewatches = [
+        %{entity_type: :movie, entity_id: "missing", count: 4, last_watched_at: ~U[2026-04-27 12:00:00Z]}
+      ]
+
+      assert Logic.heavy_rotation_items(rewatches, %{}) == []
+    end
+
+    test "returns empty list for empty rewatches" do
+      assert Logic.heavy_rotation_items([], %{}) == []
     end
   end
 
