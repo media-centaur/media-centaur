@@ -31,7 +31,8 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         {"/settings", "settings"},
         {"/review", "review"},
         {"/console", "console"},
-        {"/history", "watch history"}
+        {"/history", "watch history"},
+        {"/upcoming", "upcoming"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live(conn, unquote(path))
