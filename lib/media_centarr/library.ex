@@ -283,6 +283,46 @@ defmodule MediaCentarr.Library do
     )
   end
 
+  @doc """
+  Populates `extras` on a normalized entity map (and `extras` on each season for
+  TV series) without reloading the full entity. Issues at most two queries.
+
+  Called on-demand when the detail panel opens for a selected entity, so the
+  catalog grid load stays free of extras queries.
+  """
+  def load_extras_for_entity(%{id: owner_id, type: :tv_series, seasons: seasons} = entity) do
+    season_ids = Enum.map(seasons, & &1.id)
+
+    all_extras =
+      Repo.all(
+        from(x in Extra,
+          where:
+            x.tv_series_id == ^owner_id or
+              (not is_nil(x.season_id) and x.season_id in ^season_ids)
+        )
+      )
+
+    {entity_extras, season_extras_by_id} = split_extras_by_season(all_extras)
+
+    seasons_with_extras =
+      Enum.map(seasons, fn season ->
+        %{season | extras: Map.get(season_extras_by_id, season.id, [])}
+      end)
+
+    %{entity | extras: entity_extras, seasons: seasons_with_extras}
+  end
+
+  def load_extras_for_entity(%{id: owner_id} = entity) do
+    entity_extras = list_extras_by_owner_id(owner_id)
+    %{entity | extras: entity_extras}
+  end
+
+  defp split_extras_by_season(extras) do
+    {entity_extras, season_extras} = Enum.split_with(extras, &is_nil(&1.season_id))
+    season_extras_by_id = Enum.group_by(season_extras, & &1.season_id)
+    {entity_extras, season_extras_by_id}
+  end
+
   # ---------------------------------------------------------------------------
   # Image
   # ---------------------------------------------------------------------------

@@ -146,6 +146,13 @@ defmodule MediaCentarrWeb.LibraryLive do
         socket.assigns.tracking_status
       end
 
+    entries_by_id =
+      if selection_changed && selected_id do
+        load_extras_into_entry(socket.assigns.entries_by_id, selected_id)
+      else
+        socket.assigns.entries_by_id
+      end
+
     socket =
       socket
       |> assign(
@@ -156,7 +163,8 @@ defmodule MediaCentarrWeb.LibraryLive do
         detail_presentation: presentation,
         detail_view: detail_view,
         detail_files: detail_files,
-        tracking_status: tracking_status
+        tracking_status: tracking_status,
+        entries_by_id: entries_by_id
       )
       |> then(fn socket -> if grid_changed, do: reset_stream(socket), else: socket end)
 
@@ -508,6 +516,18 @@ defmodule MediaCentarrWeb.LibraryLive do
       |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
       |> recompute_counts()
 
+    # If the selected entity was among the updated entries, re-apply on-demand
+    # extras so the detail panel stays correct after a PubSub-triggered reload.
+    selected_id = socket.assigns.selected_entity_id
+
+    socket =
+      if selected_id && MapSet.member?(changed_ids, selected_id) do
+        updated_by_id = load_extras_into_entry(socket.assigns.entries_by_id, selected_id)
+        assign(socket, entries_by_id: updated_by_id)
+      else
+        socket
+      end
+
     # Additions need a full reset so new entries land in the correct sort
     # position — stream_insert without :at appends. Deletions and in-place
     # updates are handled surgically by touch_stream_entries (the `entry == nil`
@@ -795,6 +815,21 @@ defmodule MediaCentarrWeb.LibraryLive do
     Map.new(entries, fn entry ->
       {entry.entity.id, ResumeTarget.compute(entry.entity, entry.progress_records)}
     end)
+  end
+
+  # Loads extras for a selected entity and merges them into entries_by_id so
+  # the detail panel can render them without a full catalog reload. Called
+  # on-demand when the selection changes to avoid loading extras for every
+  # entity during catalog scan.
+  defp load_extras_into_entry(entries_by_id, entity_id) do
+    case entries_by_id[entity_id] do
+      nil ->
+        entries_by_id
+
+      entry ->
+        entity_with_extras = Library.load_extras_for_entity(entry.entity)
+        Map.put(entries_by_id, entity_id, %{entry | entity: entity_with_extras})
+    end
   end
 
   defp recompute_counts(socket) do
