@@ -41,20 +41,20 @@ defmodule MediaCentarrWeb.LibraryLiveAvailabilityTest do
   describe "offline banner" do
     test "not shown when every dir is :watching", %{conn: conn} do
       broadcast_dir_state("/mnt/videos", :watching)
-      {:ok, _view, html} = live(conn, ~p"/")
+      {:ok, _view, html} = live(conn, ~p"/library")
 
       refute html =~ "Storage offline"
       refute html =~ "temporarily unavailable"
     end
 
     test "not shown when dir_status is empty (fresh install)", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/")
+      {:ok, _view, html} = live(conn, ~p"/library")
 
       refute html =~ "Storage offline"
     end
 
     test "shown with a single-dir message when one dir flips to :unavailable", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/")
+      {:ok, view, _} = live(conn, ~p"/library")
       refute render(view) =~ "Storage offline"
 
       broadcast_dir_state("/mnt/videos", :unavailable)
@@ -65,7 +65,7 @@ defmodule MediaCentarrWeb.LibraryLiveAvailabilityTest do
     end
 
     test "shown with plural message when multiple dirs go offline", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/")
+      {:ok, view, _} = live(conn, ~p"/library")
 
       broadcast_dir_state("/mnt/a", :unavailable)
       broadcast_dir_state("/mnt/b", :unavailable)
@@ -76,7 +76,7 @@ defmodule MediaCentarrWeb.LibraryLiveAvailabilityTest do
 
     test "clears when the dir returns to :watching", %{conn: conn} do
       broadcast_dir_state("/mnt/videos", :unavailable)
-      {:ok, view, _} = live(conn, ~p"/")
+      {:ok, view, _} = live(conn, ~p"/library")
       assert render(view) =~ "Storage offline"
 
       broadcast_dir_state("/mnt/videos", :watching)

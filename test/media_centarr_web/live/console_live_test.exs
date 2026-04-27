@@ -14,12 +14,12 @@ defmodule MediaCentarrWeb.ConsoleLiveTest do
     :ok
   end
 
-  # Helper to get the ConsoleLive sticky child from the parent LibraryLive.
+  # Helper to get the ConsoleLive sticky child from the parent page.
   defp console_child(parent_view) do
     find_live_child(parent_view, "console-sticky")
   end
 
-  test "mounts when navigating to the library page (sticky child)", %{conn: conn} do
+  test "mounts when navigating to the home page (sticky child)", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/")
     assert html =~ "console-sticky-root"
   end

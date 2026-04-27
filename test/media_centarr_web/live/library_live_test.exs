@@ -8,7 +8,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
   describe "zone tabs removed" do
     test "library page has no zone tabs", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/")
+      {:ok, _view, html} = live(conn, "/library")
 
       refute html =~ "data-nav-zone=\"zone-tabs\""
       refute html =~ "data-zone-tab"
@@ -16,15 +16,9 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     end
 
     test "library page renders the catalog grid section", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/")
+      {:ok, _view, html} = live(conn, "/library")
 
       assert html =~ "id=\"browse\""
-    end
-  end
-
-  describe "zone=upcoming redirect" do
-    test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
-      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
     end
   end
 
@@ -42,7 +36,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     end
 
     test "clicking the backdrop closes the modal", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live(conn, ~p"/?selected=#{movie.id}")
+      {:ok, view, _html} = live(conn, ~p"/library?selected=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
 
@@ -59,7 +53,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       # phx-click-away. That handler is document-scoped, so any sibling
       # overlay (Console drawer, future popover, toast) would dismiss
       # the modal when clicked. Dismissal lives on the backdrop instead.
-      {:ok, view, _html} = live(conn, ~p"/?selected=#{movie.id}")
+      {:ok, view, _html} = live(conn, ~p"/library?selected=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal [phx-click-away]")

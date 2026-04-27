@@ -46,6 +46,17 @@ defmodule MediaCentarrWeb.Layouts do
           <.link
             navigate="/"
             class={sidebar_link_class(@current_path, "/")}
+            data-tip="Home"
+            data-nav-item
+            data-nav-remember
+            tabindex="0"
+          >
+            <.icon name="hero-home" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Home</span>
+          </.link>
+          <.link
+            navigate="/library"
+            class={sidebar_link_class(@current_path, "/library")}
             data-tip="Library"
             data-nav-item
             data-nav-remember
