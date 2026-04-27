@@ -32,7 +32,8 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         {"/review", "review"},
         {"/console", "console"},
         {"/history", "watch history"},
-        {"/upcoming", "upcoming"}
+        {"/upcoming", "upcoming"},
+        {"/home_preview", "home preview"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live(conn, unquote(path))
@@ -148,7 +149,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
 
     test "upcoming zone renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live(conn, "/?zone=upcoming")
+      # /?zone=upcoming now redirects to /upcoming (Phase 3.3). Follow it.
+      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
+      assert {:ok, _view, html} = live(conn, "/upcoming")
       assert is_binary(html)
     end
   end
