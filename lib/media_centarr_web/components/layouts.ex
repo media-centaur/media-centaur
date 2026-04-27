@@ -55,6 +55,16 @@ defmodule MediaCentarrWeb.Layouts do
             <span class="sidebar-label">Library</span>
           </.link>
           <.link
+            navigate="/upcoming"
+            class={sidebar_link_class(@current_path, "/upcoming")}
+            data-tip="Upcoming"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-calendar" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Upcoming</span>
+          </.link>
+          <.link
             navigate="/history"
             class={sidebar_link_class(@current_path, "/history")}
             data-tip="History"
