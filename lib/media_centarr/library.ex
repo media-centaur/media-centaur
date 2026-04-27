@@ -33,7 +33,6 @@ defmodule MediaCentarr.Library do
   alias MediaCentarr.Topics
 
   alias MediaCentarr.Library.{
-    Browser,
     ChangeEntry,
     Episode,
     Extra,
@@ -811,15 +810,20 @@ defmodule MediaCentarr.Library do
     `%{entity_id, entity_name, last_episode_label, progress_pct, backdrop_url}`
 
   `progress_pct` is 0..100 (integer).
+
+  Issues at most ~15 targeted queries regardless of library size, compared to
+  the ~87 queries of the previous `fetch_all_typed_entries` approach.
   """
   @spec list_in_progress(keyword()) :: [map()]
   def list_in_progress(opts \\ []) do
     limit = Keyword.get(opts, :limit, 12)
 
-    entries = Browser.fetch_all_typed_entries()
+    movie_entries = fetch_in_progress_movies(limit)
+    tv_series_entries = fetch_in_progress_tv_series(limit)
+    video_object_entries = fetch_in_progress_video_objects(limit)
+    movie_series_entries = fetch_in_progress_movie_series(limit)
 
-    entries
-    |> Enum.filter(&in_progress_entry?/1)
+    (movie_entries ++ tv_series_entries ++ video_object_entries ++ movie_series_entries)
     |> Enum.sort_by(
       fn entry -> entry_last_watched_at(entry) || @epoch_datetime end,
       {:desc, DateTime}
@@ -832,42 +836,405 @@ defmodule MediaCentarr.Library do
   List recently-added entities (newest `inserted_at` first), regardless of
   entity type. Returns plain maps in the shape:
     `%{id, name, year, poster_url}`
+
+  Issues at most 8 queries: one per entity type + one image preload per type,
+  compared to ~87 queries for the previous `fetch_all_typed_entries` approach.
   """
   @spec list_recently_added(keyword()) :: [map()]
   def list_recently_added(opts \\ []) do
     limit = Keyword.get(opts, :limit, 16)
 
-    entries = Browser.fetch_all_typed_entries()
+    movies =
+      from(m in Movie,
+        where: is_nil(m.movie_series_id),
+        order_by: [{:desc, m.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_recently_added_record/1)
 
-    entries
-    |> Enum.sort_by(fn entry -> entry.entity.inserted_at end, {:desc, DateTime})
+    tv_series =
+      from(t in TVSeries,
+        order_by: [{:desc, t.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_recently_added_record/1)
+
+    movie_series =
+      from(ms in MovieSeries,
+        order_by: [{:desc, ms.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_recently_added_record/1)
+
+    video_objects =
+      from(v in VideoObject,
+        order_by: [{:desc, v.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_recently_added_record/1)
+
+    (movies ++ tv_series ++ movie_series ++ video_objects)
+    |> Enum.sort_by(& &1.__inserted_at__, {:desc, DateTime})
     |> Enum.take(limit)
-    |> Enum.map(&shape_recently_added_row/1)
+    |> Enum.map(&Map.delete(&1, :__inserted_at__))
   end
 
   @doc """
   List entities suitable as Home page hero (those with both a backdrop
   image and a description). Returns plain maps in the shape:
     `%{id, name, year, runtime_minutes, genres, overview, backdrop_url}`
+
+  Issues at most 8 queries: one per entity type + one image preload per type,
+  compared to ~87 queries for the previous `fetch_all_typed_entries` approach.
   """
   @spec list_hero_candidates(keyword()) :: [map()]
   def list_hero_candidates(opts \\ []) do
     limit = Keyword.get(opts, :limit, 12)
 
-    entries = Browser.fetch_all_typed_entries()
+    movies =
+      from(m in Movie,
+        as: :entity,
+        where:
+          is_nil(m.movie_series_id) and
+            not is_nil(m.description) and
+            fragment("TRIM(?)", m.description) != "" and
+            exists(
+              from(img in Image,
+                where:
+                  img.movie_id == parent_as(:entity).id and
+                    img.role == "backdrop" and
+                    not is_nil(img.content_url),
+                select: 1
+              )
+            ),
+        order_by: [{:desc, m.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_hero_record/1)
 
-    entries
-    |> Enum.filter(&hero_eligible?/1)
-    |> Enum.take(limit)
-    |> Enum.map(&shape_hero_row/1)
+    tv_series =
+      from(t in TVSeries,
+        as: :entity,
+        where:
+          not is_nil(t.description) and
+            fragment("TRIM(?)", t.description) != "" and
+            exists(
+              from(img in Image,
+                where:
+                  img.tv_series_id == parent_as(:entity).id and
+                    img.role == "backdrop" and
+                    not is_nil(img.content_url),
+                select: 1
+              )
+            ),
+        order_by: [{:desc, t.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_hero_record/1)
+
+    movie_series =
+      from(ms in MovieSeries,
+        as: :entity,
+        where:
+          not is_nil(ms.description) and
+            fragment("TRIM(?)", ms.description) != "" and
+            exists(
+              from(img in Image,
+                where:
+                  img.movie_series_id == parent_as(:entity).id and
+                    img.role == "backdrop" and
+                    not is_nil(img.content_url),
+                select: 1
+              )
+            ),
+        order_by: [{:desc, ms.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_hero_record/1)
+
+    video_objects =
+      from(v in VideoObject,
+        as: :entity,
+        where:
+          not is_nil(v.description) and
+            fragment("TRIM(?)", v.description) != "" and
+            exists(
+              from(img in Image,
+                where:
+                  img.video_object_id == parent_as(:entity).id and
+                    img.role == "backdrop" and
+                    not is_nil(img.content_url),
+                select: 1
+              )
+            ),
+        order_by: [{:desc, v.inserted_at}],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload(:images)
+      |> Enum.map(&shape_hero_record/1)
+
+    Enum.take(movies ++ tv_series ++ movie_series ++ video_objects, limit)
   end
 
   # --- Private helpers for HomeLive facade ---
 
-  defp in_progress_entry?(%{progress: nil}), do: false
+  # Fetches standalone movies with at least one incomplete WatchProgress record.
+  # Returns `%{entity: entity_map, progress: progress_map, progress_records: [record]}`.
+  defp fetch_in_progress_movies(limit) do
+    movies =
+      from(m in Movie,
+        as: :movie,
+        where: is_nil(m.movie_series_id),
+        where:
+          exists(
+            from(wp in WatchProgress,
+              where: wp.movie_id == parent_as(:movie).id and wp.completed == false,
+              select: 1
+            )
+          ),
+        order_by: [
+          desc:
+            fragment(
+              "(SELECT last_watched_at FROM library_watch_progress WHERE movie_id = ? LIMIT 1)",
+              m.id
+            )
+        ],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload([:images, :watch_progress])
 
-  defp in_progress_entry?(%{progress: summary}) do
-    summary.episodes_completed < summary.episodes_total
+    Enum.reject(
+      Enum.map(movies, fn movie ->
+        progress_records = if movie.watch_progress, do: [movie.watch_progress], else: []
+
+        in_progress_records = Enum.reject(progress_records, & &1.completed)
+
+        if in_progress_records != [] do
+          entity = %{
+            id: movie.id,
+            type: :movie,
+            name: movie.name,
+            description: movie.description,
+            images: movie.images || [],
+            genres: movie.genres,
+            duration: movie.duration
+          }
+
+          progress = %{
+            episodes_completed:
+              if(movie.watch_progress && movie.watch_progress.completed, do: 1, else: 0),
+            episodes_total: 1
+          }
+
+          %{entity: entity, progress: progress, progress_records: progress_records}
+        end
+      end),
+      &is_nil/1
+    )
+  end
+
+  # Fetches TV series that have at least one incomplete episode WatchProgress record.
+  defp fetch_in_progress_tv_series(limit) do
+    series_list =
+      from(t in TVSeries,
+        as: :series,
+        where:
+          exists(
+            from(wp in WatchProgress,
+              join: ep in "library_episodes",
+              on: ep.id == wp.episode_id,
+              join: s in "library_seasons",
+              on: s.id == ep.season_id,
+              where: s.tv_series_id == parent_as(:series).id and wp.completed == false,
+              select: 1
+            )
+          ),
+        order_by: [
+          desc:
+            fragment(
+              """
+              (SELECT wp.last_watched_at FROM library_watch_progress wp
+               JOIN library_episodes ep ON ep.id = wp.episode_id
+               JOIN library_seasons s ON s.id = ep.season_id
+               WHERE s.tv_series_id = ?
+               ORDER BY wp.last_watched_at DESC LIMIT 1)
+              """,
+              t.id
+            )
+        ],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload([:images, seasons: [:episodes]])
+
+    Enum.reject(
+      Enum.map(series_list, fn series ->
+        all_episode_ids =
+          for season <- series.seasons || [], episode <- season.episodes || [], do: episode.id
+
+        progress_records =
+          if all_episode_ids == [] do
+            []
+          else
+            Repo.all(from(wp in WatchProgress, where: wp.episode_id in ^all_episode_ids))
+          end
+
+        in_progress_records = Enum.reject(progress_records, & &1.completed)
+
+        if in_progress_records != [] do
+          episodes_total = length(all_episode_ids)
+          episodes_completed = Enum.count(progress_records, & &1.completed)
+
+          entity = %{
+            id: series.id,
+            type: :tv_series,
+            name: series.name,
+            description: series.description,
+            images: series.images || [],
+            genres: series.genres,
+            duration: nil
+          }
+
+          progress = %{episodes_completed: episodes_completed, episodes_total: episodes_total}
+
+          %{entity: entity, progress: progress, progress_records: progress_records}
+        end
+      end),
+      &is_nil/1
+    )
+  end
+
+  # Fetches video objects with at least one incomplete WatchProgress record.
+  defp fetch_in_progress_video_objects(limit) do
+    video_objects =
+      from(v in VideoObject,
+        as: :video_object,
+        where:
+          exists(
+            from(wp in WatchProgress,
+              where: wp.video_object_id == parent_as(:video_object).id and wp.completed == false,
+              select: 1
+            )
+          ),
+        order_by: [
+          desc:
+            fragment(
+              "(SELECT last_watched_at FROM library_watch_progress WHERE video_object_id = ? LIMIT 1)",
+              v.id
+            )
+        ],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload([:images, :watch_progress])
+
+    Enum.reject(
+      Enum.map(video_objects, fn video_object ->
+        progress_records = if video_object.watch_progress, do: [video_object.watch_progress], else: []
+        in_progress_records = Enum.reject(progress_records, & &1.completed)
+
+        if in_progress_records != [] do
+          entity = %{
+            id: video_object.id,
+            type: :video_object,
+            name: video_object.name,
+            description: video_object.description,
+            images: video_object.images || [],
+            genres: nil,
+            duration: nil
+          }
+
+          progress = %{
+            episodes_completed:
+              if(video_object.watch_progress && video_object.watch_progress.completed, do: 1, else: 0),
+            episodes_total: 1
+          }
+
+          %{entity: entity, progress: progress, progress_records: progress_records}
+        end
+      end),
+      &is_nil/1
+    )
+  end
+
+  # Fetches movie series where child movies have at least one incomplete WatchProgress record.
+  defp fetch_in_progress_movie_series(limit) do
+    series_list =
+      from(ms in MovieSeries,
+        as: :series,
+        where:
+          exists(
+            from(wp in WatchProgress,
+              join: m in Movie,
+              on: m.id == wp.movie_id,
+              where: m.movie_series_id == parent_as(:series).id and wp.completed == false,
+              select: 1
+            )
+          ),
+        order_by: [
+          desc:
+            fragment(
+              """
+              (SELECT wp.last_watched_at FROM library_watch_progress wp
+               JOIN library_movies m ON m.id = wp.movie_id
+               WHERE m.movie_series_id = ?
+               ORDER BY wp.last_watched_at DESC LIMIT 1)
+              """,
+              ms.id
+            )
+        ],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload([:images, movies: [:watch_progress]])
+
+    Enum.reject(
+      Enum.map(series_list, fn series ->
+        progress_records =
+          for movie <- series.movies || [],
+              progress = movie.watch_progress,
+              not is_nil(progress),
+              do: progress
+
+        in_progress_records = Enum.reject(progress_records, & &1.completed)
+
+        if in_progress_records != [] do
+          movies_total = length(series.movies || [])
+          movies_completed = Enum.count(progress_records, & &1.completed)
+
+          entity = %{
+            id: series.id,
+            type: :movie_series,
+            name: series.name,
+            description: series.description,
+            images: series.images || [],
+            genres: series.genres,
+            duration: nil
+          }
+
+          progress = %{episodes_completed: movies_completed, episodes_total: movies_total}
+
+          %{entity: entity, progress: progress, progress_records: progress_records}
+        end
+      end),
+      &is_nil/1
+    )
   end
 
   defp entry_last_watched_at(%{progress_records: records}) do
@@ -920,50 +1287,48 @@ defmodule MediaCentarr.Library do
 
   defp progress_episode_label(_entity, _summary), do: nil
 
-  defp shape_recently_added_row(%{entity: entity}) do
+  # Shapes a record (Movie, TVSeries, MovieSeries, VideoObject struct) into
+  # the recently-added plain map. Carries `__inserted_at__` for merge-sort,
+  # dropped by the caller before returning to HomeLive.
+  defp shape_recently_added_record(record) do
     poster_url =
-      case Enum.find(entity.images || [], &(&1.role == "poster")) do
+      case Enum.find(record.images || [], &(&1.role == "poster")) do
         %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
         _ -> nil
       end
 
     year =
-      case entity.date_published do
+      case Map.get(record, :date_published) do
         <<year::binary-size(4), _::binary>> -> String.to_integer(year)
-        nil -> nil
         _ -> nil
       end
 
     %{
-      id: entity.id,
-      name: entity.name,
+      id: record.id,
+      name: record.name,
       year: year,
-      poster_url: poster_url
+      poster_url: poster_url,
+      __inserted_at__: record.inserted_at
     }
   end
 
-  defp hero_eligible?(%{entity: entity}) do
-    has_backdrop = Enum.any?(entity.images || [], &(&1.role == "backdrop" && &1.content_url != nil))
-    has_description = is_binary(entity.description) && String.trim(entity.description) != ""
-    has_backdrop && has_description
-  end
-
-  defp shape_hero_row(%{entity: entity}) do
+  # Shapes a record (Movie, TVSeries, MovieSeries, VideoObject struct with
+  # images preloaded) into the hero candidate plain map.
+  defp shape_hero_record(record) do
     backdrop_url =
-      case Enum.find(entity.images || [], &(&1.role == "backdrop")) do
+      case Enum.find(record.images || [], &(&1.role == "backdrop")) do
         %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
         _ -> nil
       end
 
     year =
-      case entity.date_published do
+      case Map.get(record, :date_published) do
         <<year::binary-size(4), _::binary>> -> String.to_integer(year)
-        nil -> nil
         _ -> nil
       end
 
     runtime_minutes =
-      case entity.duration do
+      case Map.get(record, :duration) do
         duration when is_binary(duration) ->
           case Integer.parse(duration) do
             {minutes, _} -> minutes
@@ -975,12 +1340,12 @@ defmodule MediaCentarr.Library do
       end
 
     %{
-      id: entity.id,
-      name: entity.name,
+      id: record.id,
+      name: record.name,
       year: year,
       runtime_minutes: runtime_minutes,
-      genres: entity.genres,
-      overview: entity.description,
+      genres: Map.get(record, :genres),
+      overview: record.description,
       backdrop_url: backdrop_url
     }
   end
