@@ -147,7 +147,7 @@ defmodule MediaCentarrWeb.HomeLive do
   # Each loader returns a list of plain maps in the shape Logic expects.
   # Loaders returning [] are intentional stubs — see WIRE(4.6) comments.
 
-  defp load_progress, do: Library.list_in_progress(limit: 12)
+  defp load_progress, do: Library.list_in_progress(limit: 4)
 
   defp load_coming_up(today) do
     {monday, sunday} = Logic.coming_up_window(today)
