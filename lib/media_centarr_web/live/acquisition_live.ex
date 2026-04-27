@@ -55,7 +55,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          cancel_confirm: nil,
          download_client_ready: Capabilities.download_client_ready?(),
          activity_filter: :active,
-         activity_search: ""
+         activity_search: "",
+         reload_timer: nil
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -622,6 +623,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
              :auto_grab_abandoned,
              :auto_grab_cancelled
            ] do
+    {:noreply, debounce(socket, :reload_timer, :reload_activity, 500)}
+  end
+
+  def handle_info(:reload_activity, socket) do
     {:noreply, load_activity(socket)}
   end
 
