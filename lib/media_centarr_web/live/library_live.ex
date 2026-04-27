@@ -2,14 +2,11 @@ defmodule MediaCentarrWeb.LibraryLive do
   @moduledoc """
   Library Browse page — the full entity catalog as a poster grid with type
   tabs, sort, and text filter. Selecting an entity opens a ModalShell detail
-  overlay.
+  overlay. Mounted at `/library`.
 
   The Continue Watching and Upcoming zones formerly here have moved:
-  - Continue Watching → HomeLive (`/home_preview`, Task 4.6 → `/`)
+  - Continue Watching → HomeLive (`/`)
   - Upcoming → UpcomingLive (`/upcoming`)
-
-  The `/?zone=upcoming` URL param is still redirected to `/upcoming` so
-  existing bookmarks continue to work.
   """
   use MediaCentarrWeb, :live_view
 
@@ -96,15 +93,6 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   @impl true
-  def handle_params(%{"zone" => "upcoming"} = params, _uri, socket) do
-    forward_params = Map.delete(params, "zone")
-
-    query =
-      if forward_params == %{}, do: "", else: "?" <> URI.encode_query(forward_params)
-
-    {:noreply, push_navigate(socket, to: "/upcoming" <> query)}
-  end
-
   def handle_params(params, _uri, socket) do
     socket =
       if connected?(socket) && socket.assigns.entries == [] do
@@ -664,7 +652,7 @@ defmodule MediaCentarrWeb.LibraryLive do
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/" full_width>
+    <Layouts.app flash={@flash} current_path="/library" full_width>
       <div data-page-behavior="library">
         <%!-- Storage offline banner --%>
         <LibraryCards.storage_offline_banner :if={@offline_summary} summary={@offline_summary} />
@@ -941,7 +929,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     params = if selected, do: Map.put(params, :selected, selected), else: params
     params = if selected && view == :info, do: Map.put(params, :view, :info), else: params
 
-    if params == %{}, do: ~p"/", else: ~p"/?#{params}"
+    if params == %{}, do: ~p"/library", else: ~p"/library?#{params}"
   end
 
   # --- Helpers ---

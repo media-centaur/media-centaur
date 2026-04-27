@@ -19,15 +19,15 @@ defmodule MediaCentarrWeb.Router do
     pipe_through :browser
 
     live_session :default do
-      live "/", LibraryLive, :index
-      live "/status", StatusLive, :index
-      live "/settings", SettingsLive, :index
-      live "/review", ReviewLive, :index
-      live "/upcoming", UpcomingLive, :index
+      live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index
-      live "/history", WatchHistoryLive, :index
       live "/download", AcquisitionLive, :index
-      live "/home_preview", HomeLive, :index
+      live "/history", WatchHistoryLive, :index
+      live "/library", LibraryLive, :index
+      live "/review", ReviewLive, :index
+      live "/settings", SettingsLive, :index
+      live "/status", StatusLive, :index
+      live "/upcoming", UpcomingLive, :index
     end
 
     # Backward-compat redirect — bookmarks to the old auto-grabs page land

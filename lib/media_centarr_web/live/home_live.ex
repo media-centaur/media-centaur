@@ -1,9 +1,6 @@
 defmodule MediaCentarrWeb.HomeLive do
   @moduledoc """
-  Cinematic landing page (Phase 4 of page redistribution).
-
-  Currently mounted at `/home_preview` — Phase 4 cutover (Task 4.6) will
-  swap it to `/`.
+  Cinematic landing page — the app's root route (`/`).
 
   Composes data from Library, ReleaseTracking, and WatchHistory contexts:
   hero card + Continue Watching + Coming Up This Week + Recently Added +
@@ -38,7 +35,7 @@ defmodule MediaCentarrWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/home_preview" full_width>
+    <Layouts.app flash={@flash} current_path="/" full_width>
       <div class="space-y-8 py-2">
         <HeroCard.hero_card item={@hero} />
 
@@ -96,6 +93,27 @@ defmodule MediaCentarrWeb.HomeLive do
     </Layouts.app>
     """
   end
+
+  @impl true
+  def handle_params(%{"zone" => zone} = params, _uri, socket) do
+    forward_params = Map.delete(params, "zone")
+    query = if forward_params == %{}, do: "", else: "?" <> URI.encode_query(forward_params)
+
+    destination =
+      case zone do
+        "upcoming" -> "/upcoming"
+        "library" -> "/library"
+        _ -> nil
+      end
+
+    if destination do
+      {:noreply, push_navigate(socket, to: destination <> query)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
   def handle_info({:entities_changed, _ids}, socket), do: {:noreply, assign_all(socket)}

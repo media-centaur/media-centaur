@@ -24,14 +24,14 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   alias MediaCentarr.{Config, Secret}
 
   for {path, label} <- [
-        {"/", "library browse"},
+        {"/", "home"},
+        {"/library", "library browse"},
         {"/status", "status"},
         {"/settings", "settings"},
         {"/review", "review"},
         {"/console", "console"},
         {"/history", "watch history"},
-        {"/upcoming", "upcoming"},
-        {"/home_preview", "home preview"}
+        {"/upcoming", "upcoming"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live(conn, unquote(path))
@@ -147,7 +147,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
 
     test "upcoming zone renders without crashing", %{conn: conn} do
-      # /?zone=upcoming now redirects to /upcoming (Phase 3.3). Follow it.
+      # /?zone=upcoming redirects to /upcoming (HomeLive handles zone params).
       assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
       assert {:ok, _view, html} = live(conn, "/upcoming")
       assert is_binary(html)
