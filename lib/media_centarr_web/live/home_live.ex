@@ -4,7 +4,7 @@ defmodule MediaCentarrWeb.HomeLive do
 
   Composes data from Library, ReleaseTracking, and WatchHistory contexts:
   hero card + Continue Watching + Coming Up This Week + Recently Added +
-  Watched Recently. Pure assembly lives in `MediaCentarrWeb.HomeLive.Logic`
+  Heavy Rotation. Pure assembly lives in `MediaCentarrWeb.HomeLive.Logic`
   per ADR-030.
   """
   use MediaCentarrWeb, :live_view
@@ -69,21 +69,21 @@ defmodule MediaCentarrWeb.HomeLive do
           <PosterRow.poster_row items={@recently_added} />
         </section>
 
-        <section :if={@watched_recently != []}>
+        <section :if={@heavy_rotation != []}>
           <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-lg font-semibold">Watched Recently</h2>
+            <h2 class="text-lg font-semibold">Heavy Rotation</h2>
             <.link navigate="/history" class="text-sm text-base-content/60 hover:text-primary">
               See all →
             </.link>
           </div>
-          <PosterRow.poster_row items={@watched_recently} />
+          <PosterRow.poster_row items={@heavy_rotation} />
         </section>
 
         <%!-- Empty state if everything is empty --%>
         <div
           :if={
             @hero == nil and @continue_items == [] and @coming_up_items == [] and
-              @recently_added == [] and @watched_recently == []
+              @recently_added == [] and @heavy_rotation == []
           }
           class="text-center py-16 text-base-content/50"
         >
@@ -132,7 +132,7 @@ defmodule MediaCentarrWeb.HomeLive do
     progress = load_progress()
     coming_up = load_coming_up(today)
     recently_added = load_recently_added()
-    watched_recently = load_watched_recently()
+    {rewatches, entity_lookup} = load_heavy_rotation()
     hero_candidates = load_hero_candidates()
 
     socket
@@ -140,7 +140,7 @@ defmodule MediaCentarrWeb.HomeLive do
     |> assign(:continue_items, Logic.continue_watching_items(progress))
     |> assign(:coming_up_items, Logic.coming_up_items(coming_up, today))
     |> assign(:recently_added, Logic.recently_added_items(recently_added))
-    |> assign(:watched_recently, Logic.watched_recently_items(watched_recently))
+    |> assign(:heavy_rotation, Logic.heavy_rotation_items(rewatches, entity_lookup))
   end
 
   # --- Data loaders ---
@@ -156,20 +156,11 @@ defmodule MediaCentarrWeb.HomeLive do
 
   defp load_recently_added, do: Library.list_recently_added(limit: 16)
 
-  defp load_watched_recently do
-    # WatchHistory.recent_events/1 returns Event structs with :title,
-    # :movie_id, :episode_id, :video_object_id. Map to the shape
-    # Logic.watched_recently_items/1 expects: %{entity_id, entity_name, year, poster_url}.
-    # year and poster_url are not available on WatchHistory.Event — left nil
-    # for now; Task 4.6 may enrich these if needed.
-    Enum.map(WatchHistory.recent_events(16), fn event ->
-      %{
-        entity_id: event.movie_id || event.episode_id || event.video_object_id,
-        entity_name: event.title,
-        year: nil,
-        poster_url: nil
-      }
-    end)
+  defp load_heavy_rotation do
+    rewatches = WatchHistory.top_rewatches(min: 2, limit: 8)
+    refs = Enum.map(rewatches, fn rewatch -> {rewatch.entity_type, rewatch.entity_id} end)
+    entity_lookup = Library.lookup_entities_for_display(refs)
+    {rewatches, entity_lookup}
   end
 
   defp load_hero_candidates, do: Library.list_hero_candidates(limit: 12)
