@@ -234,4 +234,68 @@ defmodule MediaCentarr.LibraryTest do
       assert query_count <= 8, "Expected at most 8 queries, got #{query_count}"
     end
   end
+
+  # ---------------------------------------------------------------------------
+  # Orphan-filtering regression tests
+  # Orphan = entity with no linked watched file. These leaked into the dev DB
+  # on Apr 17 via the showcase seeder and surfaced in HomeLive rows.
+  # ---------------------------------------------------------------------------
+
+  describe "list_recently_added/1 orphan filtering" do
+    test "excludes orphan movies (no watched_file)" do
+      with_file = create_standalone_movie(%{name: "Real Movie"})
+      record_present(create_linked_file(%{movie_id: with_file.id}))
+
+      _orphan = create_standalone_movie(%{name: "Orphan Movie"})
+
+      results = Library.list_recently_added(limit: 10)
+      names = Enum.map(results, & &1.name)
+
+      assert "Real Movie" in names
+      refute "Orphan Movie" in names
+    end
+
+    test "excludes orphan tv series (no watched_file)" do
+      with_file = create_tv_series(%{name: "Real Series"})
+      record_present(create_linked_file(%{tv_series_id: with_file.id}))
+
+      _orphan = create_tv_series(%{name: "Orphan Series"})
+
+      results = Library.list_recently_added(limit: 10)
+      names = Enum.map(results, & &1.name)
+
+      assert "Real Series" in names
+      refute "Orphan Series" in names
+    end
+  end
+
+  describe "list_in_progress/1 orphan filtering" do
+    test "excludes orphan movies even with watch_progress" do
+      orphan = create_standalone_movie(%{name: "Orphan With Progress"})
+      create_watch_progress(%{movie_id: orphan.id, position_seconds: 30.0, duration_seconds: 100.0})
+
+      results = Library.list_in_progress(limit: 10)
+      refute Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
+    end
+  end
+
+  describe "list_hero_candidates/1 orphan filtering" do
+    test "excludes orphan movies even with backdrop and description" do
+      orphan =
+        create_standalone_movie(%{
+          name: "Orphan With Hero Metadata",
+          description: "A description"
+        })
+
+      create_image(%{
+        movie_id: orphan.id,
+        role: "backdrop",
+        content_url: "#{orphan.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      results = Library.list_hero_candidates(limit: 10)
+      refute Enum.any?(results, &(&1.name == "Orphan With Hero Metadata"))
+    end
+  end
 end
