@@ -59,6 +59,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        sort_open: false,
        sort_highlight: 0,
        filter_text: "",
+       in_progress_filter: false,
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
        reload_timer: nil,
@@ -104,6 +105,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     tab = parse_tab(params["tab"])
     sort = parse_sort(params["sort"])
     filter_text = params["filter"] || ""
+    in_progress_filter = params["in_progress"] == "1"
     selected_id = params["selected"]
     detail_view = parse_view(params["view"])
 
@@ -113,7 +115,8 @@ defmodule MediaCentarrWeb.LibraryLive do
       just_loaded ||
         tab != socket.assigns.active_tab ||
         sort != socket.assigns.sort_order ||
-        filter_text != socket.assigns.filter_text
+        filter_text != socket.assigns.filter_text ||
+        in_progress_filter != socket.assigns.in_progress_filter
 
     selection_changed = selected_id != socket.assigns.selected_entity_id
 
@@ -159,6 +162,7 @@ defmodule MediaCentarrWeb.LibraryLive do
         active_tab: tab,
         sort_order: sort,
         filter_text: filter_text,
+        in_progress_filter: in_progress_filter,
         selected_entity_id: selected_id,
         detail_presentation: presentation,
         detail_view: detail_view,
@@ -689,6 +693,19 @@ defmodule MediaCentarrWeb.LibraryLive do
             filter_text={@filter_text}
           />
 
+          <div :if={@in_progress_filter} class="mt-3 flex items-center gap-2">
+            <span class="badge badge-neutral gap-1">
+              In progress
+              <.link
+                patch={~p"/library"}
+                class="opacity-60 hover:opacity-100"
+                aria-label="Clear filter"
+              >
+                ×
+              </.link>
+            </span>
+          </div>
+
           <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">
             <div :if={@watch_dirs_configured} class="text-base-content/60">
               No entities found.
@@ -880,16 +897,28 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   defp compute_filtered(socket) do
-    socket.assigns.entries
-    |> filtered_by_tab(socket.assigns.active_tab)
-    |> filtered_by_text(socket.assigns.filter_text)
-    |> sorted_by(socket.assigns.sort_order)
+    assigns = socket.assigns
+
+    entries =
+      assigns.entries
+      |> filtered_by_tab(assigns.active_tab)
+      |> filtered_by_text(assigns.filter_text)
+      |> filtered_by_in_progress(assigns.in_progress_filter)
+
+    if assigns.in_progress_filter do
+      sorted_by_last_watched(entries)
+    else
+      sorted_by(entries, assigns.sort_order)
+    end
   end
 
   defp compute_visible_ids(socket) do
-    socket.assigns.entries
-    |> filtered_by_tab(socket.assigns.active_tab)
-    |> filtered_by_text(socket.assigns.filter_text)
+    assigns = socket.assigns
+
+    assigns.entries
+    |> filtered_by_tab(assigns.active_tab)
+    |> filtered_by_text(assigns.filter_text)
+    |> filtered_by_in_progress(assigns.in_progress_filter)
     |> MapSet.new(& &1.entity.id)
   end
 
@@ -955,6 +984,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     tab = Map.get(overrides, :tab, assigns.active_tab)
     sort = Map.get(overrides, :sort, assigns.sort_order)
     filter = Map.get(overrides, :filter, assigns.filter_text)
+    in_progress = Map.get(overrides, :in_progress, assigns.in_progress_filter)
     selected = Map.get(overrides, :selected, assigns.selected_entity_id)
     view = Map.get(overrides, :view, assigns.detail_view)
 
@@ -962,6 +992,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     params = if tab == :all, do: params, else: Map.put(params, :tab, tab)
     params = if sort == :recent, do: params, else: Map.put(params, :sort, sort)
     params = if filter == "", do: params, else: Map.put(params, :filter, filter)
+    params = if in_progress, do: Map.put(params, :in_progress, 1), else: params
     params = if selected, do: Map.put(params, :selected, selected), else: params
     params = if selected && view == :info, do: Map.put(params, :view, :info), else: params
 
