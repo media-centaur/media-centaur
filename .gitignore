@@ -25,6 +25,10 @@
 /priv/showcase/*.db
 /priv/showcase/*.db-*
 
+# Design mockups — produced ad-hoc during brainstorming sessions, not
+# part of the production app. Keep out of the tree.
+/mockups/
+
 # The directory Mix will write compiled artifacts to.
 /_build/
 
