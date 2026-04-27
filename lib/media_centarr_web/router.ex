@@ -27,6 +27,7 @@ defmodule MediaCentarrWeb.Router do
       live "/console", ConsolePageLive, :index
       live "/history", WatchHistoryLive, :index
       live "/download", AcquisitionLive, :index
+      live "/home_preview", HomeLive, :index
     end
 
     # Backward-compat redirect — bookmarks to the old auto-grabs page land
