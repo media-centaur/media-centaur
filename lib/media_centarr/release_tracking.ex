@@ -582,9 +582,9 @@ defmodule MediaCentarr.ReleaseTracking do
   for watching items only. Used by HomeLive's "Coming Up This Week" digest.
 
   Returns plain maps in the shape:
-    `%{item: %{id, name}, air_date, season_number, episode_number, status, backdrop_url}`
+    `%{item: %{id, name, tmdb_id, media_type}, air_date, season_number, episode_number, status, backdrop_url}`
 
-  `status` is `:scheduled` — HomeLive does not currently fetch live grab status.
+  `status` is `:scheduled` — callers may enrich this with live grab status from Acquisition.
   """
   @spec list_releases_between(Date.t(), Date.t(), keyword()) :: [map()]
   def list_releases_between(from_date, to_date, opts \\ []) do
@@ -612,7 +612,12 @@ defmodule MediaCentarr.ReleaseTracking do
         end
 
       %{
-        item: %{id: release.item.id, name: release.item.name},
+        item: %{
+          id: release.item.id,
+          name: release.item.name,
+          tmdb_id: release.item.tmdb_id,
+          media_type: release.item.media_type
+        },
         air_date: release.air_date,
         season_number: release.season_number,
         episode_number: release.episode_number,

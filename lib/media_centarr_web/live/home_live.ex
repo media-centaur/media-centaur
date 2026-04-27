@@ -9,7 +9,7 @@ defmodule MediaCentarrWeb.HomeLive do
   """
   use MediaCentarrWeb, :live_view
 
-  alias MediaCentarr.{Library, ReleaseTracking, WatchHistory}
+  alias MediaCentarr.{Acquisition, Capabilities, Library, ReleaseTracking, WatchHistory}
 
   alias MediaCentarrWeb.Components.{
     ComingUpRow,
@@ -151,8 +151,38 @@ defmodule MediaCentarrWeb.HomeLive do
 
   defp load_coming_up(today) do
     {monday, sunday} = Logic.coming_up_window(today)
-    ReleaseTracking.list_releases_between(monday, sunday, limit: 8)
+    releases = ReleaseTracking.list_releases_between(monday, sunday, limit: 8)
+
+    grab_statuses =
+      if Capabilities.prowlarr_ready?() do
+        keys = Enum.map(releases, &release_grab_key/1)
+        Acquisition.statuses_for_releases(keys)
+      else
+        %{}
+      end
+
+    Enum.map(releases, fn release ->
+      key = release_grab_key(release)
+
+      status =
+        case Map.get(grab_statuses, key) do
+          nil -> :scheduled
+          grab -> grab_status_atom(grab.status)
+        end
+
+      Map.put(release, :status, status)
+    end)
   end
+
+  defp release_grab_key(release) do
+    {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
+     release.episode_number}
+  end
+
+  defp grab_status_atom("grabbed"), do: :grabbed
+  defp grab_status_atom("searching"), do: :searching
+  defp grab_status_atom("snoozed"), do: :pending
+  defp grab_status_atom(_), do: :scheduled
 
   defp load_recently_added, do: Library.list_recently_added(limit: 16)
 
