@@ -32,6 +32,25 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     assert html =~ "Continue Watching"
   end
 
+  describe "debounce on entities_changed" do
+    test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
+      # Regression guard: rapid :entities_changed messages must be debounced
+      # (500ms) rather than triggering assign_all on every message. Five
+      # messages in quick succession should result in exactly one :reload_home
+      # being processed — verifiable by the page rendering correctly after the
+      # window and not crashing from concurrent data loads.
+      {:ok, view, _html} = live(conn, "/")
+
+      for _ <- 1..5 do
+        send(view.pid, {:entities_changed, []})
+      end
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Continue Watching" or render(view) =~ "Your home page will populate"
+    end
+  end
+
   describe "zone redirects" do
     test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
       assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")

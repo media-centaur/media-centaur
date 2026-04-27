@@ -28,7 +28,7 @@ defmodule MediaCentarrWeb.HomeLive do
       WatchHistory.subscribe()
     end
 
-    {:ok, assign_all(socket)}
+    {:ok, socket |> assign(reload_timer: nil) |> assign_all()}
   end
 
   @impl true
@@ -116,7 +116,14 @@ defmodule MediaCentarrWeb.HomeLive do
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_info({:entities_changed, _ids}, socket), do: {:noreply, assign_all(socket)}
+  def handle_info({:entities_changed, _ids}, socket) do
+    {:noreply, debounce(socket, :reload_timer, :reload_home, 500)}
+  end
+
+  def handle_info(:reload_home, socket) do
+    {:noreply, assign_all(socket)}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp assign_all(socket) do

@@ -50,7 +50,8 @@ defmodule MediaCentarrWeb.UpcomingLive do
         upcoming_events: [],
         upcoming_images: %{},
         release_grab_statuses: %{},
-        tracked_items: []
+        tracked_items: [],
+        reload_timer: nil
       )
       |> load_upcoming()
 
@@ -328,7 +329,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
 
   @impl true
   def handle_info({:releases_updated, _item_ids}, socket) do
-    {:noreply, load_upcoming(socket)}
+    {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
   end
 
   def handle_info({event, _payload}, socket)
@@ -339,7 +340,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
              :auto_grab_abandoned,
              :auto_grab_cancelled
            ] do
-    {:noreply, load_upcoming(socket)}
+    {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
   end
 
   def handle_info({:queue_snapshot, items}, socket) do
@@ -361,6 +362,10 @@ defmodule MediaCentarrWeb.UpcomingLive do
   end
 
   def handle_info({:entities_changed, _entity_ids}, socket) do
+    {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
+  end
+
+  def handle_info(:reload_upcoming, socket) do
     {:noreply, load_upcoming(socket)}
   end
 

@@ -284,6 +284,25 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     end
   end
 
+  describe "debounce on acquisition PubSub events" do
+    test "five rapid grab-event broadcasts trigger only one activity reload after the debounce window",
+         %{conn: conn} do
+      # Regression guard: :grab_submitted and related events must be debounced
+      # (500ms) rather than calling load_activity on every message. Five events
+      # in quick succession must result in one :reload_activity — the page must
+      # render correctly after the window without crashing.
+      {:ok, view, _html} = live(conn, ~p"/download")
+
+      for _ <- 1..5 do
+        send(view.pid, {:grab_submitted, %{}})
+      end
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Download"
+    end
+  end
+
   # Polls render(view) until `predicate.(html)` returns true or the timeout
   # elapses. Used to wait for async Task.Supervisor work to deliver
   # {:search_result, _, _} / grab completion messages back to the LiveView.

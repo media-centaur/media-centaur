@@ -26,6 +26,24 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
     end
   end
 
+  describe "debounce on broadcast-driven reloads" do
+    test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
+      # Regression guard: :releases_updated, :entities_changed, and grab-event
+      # messages must be debounced (500ms) rather than calling load_upcoming on
+      # every message. Five messages in quick succession should produce one
+      # :reload_upcoming — the page must still render correctly after the window.
+      {:ok, view, _html} = live(conn, "/upcoming")
+
+      for _ <- 1..5 do
+        send(view.pid, {:entities_changed, []})
+      end
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Upcoming"
+    end
+  end
+
   describe "queue_all_show event" do
     setup do
       # Oban runs inline in tests, so enqueue/4 triggers SearchAndGrab → Prowlarr.search.

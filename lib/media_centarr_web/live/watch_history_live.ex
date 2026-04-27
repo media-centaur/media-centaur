@@ -27,7 +27,8 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
         filter_date: nil,
         page: 1,
         deleting_event: nil,
-        deleted_event: nil
+        deleted_event: nil,
+        reload_timer: nil
       )
 
     {events, has_next} = fetch_page(socket)
@@ -416,6 +417,10 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
 
   @impl true
   def handle_info({:watch_event_created, _event}, socket) do
+    {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
+  end
+
+  def handle_info(:reload_history, socket) do
     stats = WatchHistory.stats()
     socket = assign(socket, page: 1)
     {events, has_next} = fetch_page(socket)
