@@ -15,10 +15,33 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRowTest do
     assert html =~ "The Bear"
     assert html =~ "Sample Movie Thirteen"
     assert html =~ "width: 47%"
+    assert html =~ "See all in-progress"
+    assert html =~ ~s(data-component="continue-watching-see-all")
+  end
+
+  test "renders only 4 cards even when more items are provided" do
+    items =
+      for i <- 1..6, do: %{id: i, name: "Item #{i}", subtitle: "S1", progress_pct: 50, backdrop_url: nil}
+
+    html = render_component(&ContinueWatchingRow.continue_watching_row/1, items: items)
+
+    assert html =~ "Item 1"
+    assert html =~ "Item 4"
+    refute html =~ "Item 5"
+    refute html =~ "Item 6"
+  end
+
+  test "renders the See-all placeholder pointing to /library?in_progress=1" do
+    items = [%{id: 1, name: "Foo", subtitle: "S1", progress_pct: 30, backdrop_url: nil}]
+
+    html = render_component(&ContinueWatchingRow.continue_watching_row/1, items: items)
+
+    assert html =~ "See all in-progress"
+    assert html =~ "/library?in_progress=1"
   end
 
   test "renders nothing when items is empty" do
     html = render_component(&ContinueWatchingRow.continue_watching_row/1, items: [])
-    refute html =~ "data-component=\"continue-watching\""
+    refute html =~ ~s(data-component="continue-watching")
   end
 end
