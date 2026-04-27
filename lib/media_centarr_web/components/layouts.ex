@@ -41,6 +41,7 @@ defmodule MediaCentarrWeb.Layouts do
       data-global-bindings={Jason.encode!(global_bindings())}
     >
       <aside id="sidebar" class="sidebar glass-sidebar" data-nav-zone="sidebar">
+        <div class="sidebar-group-label sidebar-label">Watch</div>
         <nav class="flex flex-col gap-0.5">
           <.link
             navigate="/"
@@ -53,10 +54,24 @@ defmodule MediaCentarrWeb.Layouts do
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
           </.link>
+          <.link
+            navigate="/history"
+            class={sidebar_link_class(@current_path, "/history")}
+            data-tip="History"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-clock" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">History</span>
+          </.link>
+        </nav>
+
+        <div class="sidebar-group-label sidebar-label">System</div>
+        <nav class="flex flex-col gap-0.5">
           <%= if MediaCentarr.Capabilities.prowlarr_ready?() do %>
             <.link
               navigate="/download"
-              class={sidebar_link_class(@current_path, "/download")}
+              class={sidebar_link_class(@current_path, "/download") <> " sidebar-link-system"}
               data-tip="Downloads"
               data-nav-item
               tabindex="0"
@@ -67,7 +82,7 @@ defmodule MediaCentarrWeb.Layouts do
           <% end %>
           <.link
             navigate="/status"
-            class={sidebar_link_class(@current_path, "/status")}
+            class={sidebar_link_class(@current_path, "/status") <> " sidebar-link-system"}
             data-tip="Status"
             data-nav-item
             tabindex="0"
@@ -77,7 +92,7 @@ defmodule MediaCentarrWeb.Layouts do
           </.link>
           <.link
             navigate="/review"
-            class={sidebar_link_class(@current_path, "/review")}
+            class={sidebar_link_class(@current_path, "/review") <> " sidebar-link-system"}
             data-tip="Review"
             data-nav-item
             tabindex="0"
@@ -87,7 +102,7 @@ defmodule MediaCentarrWeb.Layouts do
           </.link>
           <.link
             navigate="/settings"
-            class={sidebar_link_class(@current_path, "/settings")}
+            class={sidebar_link_class(@current_path, "/settings") <> " sidebar-link-system"}
             data-tip="Settings"
             data-nav-item
             data-nav-remember
