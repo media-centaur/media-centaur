@@ -11,7 +11,7 @@ defmodule MediaCentarr.WatchHistory do
   import Ecto.Query
 
   alias MediaCentarr.{Library, Repo, Topics}
-  alias MediaCentarr.WatchHistory.{Event, Stats}
+  alias MediaCentarr.WatchHistory.{Event, Rewatch, Stats}
 
   @doc "Subscribe to watch_history:events PubSub topic."
   def subscribe do
@@ -90,6 +90,32 @@ defmodule MediaCentarr.WatchHistory do
     events = Repo.all(Event)
     Stats.compute(events)
   end
+
+  @doc """
+  Count of completion events for a single entity. Returns 0 if never watched.
+
+  Pure delegation to `Rewatch`.
+  """
+  @spec rewatch_count(Rewatch.entity_type(), Ecto.UUID.t()) :: non_neg_integer()
+  def rewatch_count(type, entity_id) do
+    type
+    |> Rewatch.count_per_entity()
+    |> Map.get(entity_id, 0)
+  end
+
+  @doc """
+  Map of `entity_id => count` for all entities of the given type with at
+  least one completion event. Useful when looking up many entities at once
+  (e.g. annotating a list of event rows in HistoryLive).
+  """
+  @spec rewatch_count_map(Rewatch.entity_type()) :: %{Ecto.UUID.t() => pos_integer()}
+  def rewatch_count_map(type), do: Rewatch.count_per_entity(type)
+
+  @doc """
+  Most-rewatched entities. See `Rewatch.top_rewatches/1` for options.
+  """
+  @spec top_rewatches(keyword()) :: [Rewatch.rewatch_row()]
+  def top_rewatches(opts \\ []), do: Rewatch.top_rewatches(opts)
 
   @doc """
   Delete a WatchEvent from history.
