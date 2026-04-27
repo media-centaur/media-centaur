@@ -841,6 +841,104 @@ defmodule MediaCentarr.ReleaseTrackingTest do
     end
   end
 
+  describe "list_releases_between/3" do
+    test "returns empty list when no releases exist" do
+      monday = ~D[2026-04-27]
+      sunday = ~D[2026-05-03]
+      assert ReleaseTracking.list_releases_between(monday, sunday) == []
+    end
+
+    test "returns releases with air_date within the window" do
+      item = create_tracking_item(%{name: "The Show", status: :watching})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-04-28],
+        season_number: 2,
+        episode_number: 3,
+        released: false
+      })
+
+      results = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
+
+      assert length(results) == 1
+      row = hd(results)
+      assert row.item.id == item.id
+      assert row.item.name == "The Show"
+      assert row.air_date == ~D[2026-04-28]
+      assert row.season_number == 2
+      assert row.episode_number == 3
+      assert Map.has_key?(row, :status)
+      assert Map.has_key?(row, :backdrop_url)
+    end
+
+    test "excludes releases outside the date window" do
+      item = create_tracking_item(%{name: "Filtered Show"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-05-10],
+        season_number: 1,
+        episode_number: 1
+      })
+
+      results = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
+      assert results == []
+    end
+
+    test "includes releases on the boundary dates" do
+      item = create_tracking_item(%{name: "Boundary Show"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-04-27],
+        season_number: 1,
+        episode_number: 1
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-05-03],
+        season_number: 1,
+        episode_number: 7
+      })
+
+      results = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
+      assert length(results) == 2
+    end
+
+    test "excludes ignored items" do
+      item = create_tracking_item(%{name: "Ignored Show", tmdb_id: 77_700})
+      ReleaseTracking.ignore_item(item)
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-04-28],
+        season_number: 1,
+        episode_number: 1
+      })
+
+      results = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
+      assert results == []
+    end
+
+    test "respects the limit option" do
+      item = create_tracking_item(%{name: "Prolific Show"})
+
+      Enum.each(1..5, fn number ->
+        create_tracking_release(%{
+          item_id: item.id,
+          air_date: ~D[2026-04-28],
+          season_number: 1,
+          episode_number: number
+        })
+      end)
+
+      results = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03], limit: 3)
+      assert length(results) == 3
+    end
+  end
+
   describe "delete_item/1 — broadcasts" do
     setup do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.release_tracking_updates())

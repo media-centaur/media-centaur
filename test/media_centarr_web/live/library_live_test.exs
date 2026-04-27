@@ -6,12 +6,19 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
   alias MediaCentarr.Watcher.FilePresence
 
-  describe "skeleton" do
-    test "renders zone tabs", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/")
+  describe "zone tabs removed" do
+    test "library page has no zone tabs", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
 
-      assert html =~ "Continue Watching"
-      assert html =~ "Library"
+      refute html =~ "data-nav-zone=\"zone-tabs\""
+      refute html =~ "data-zone-tab"
+      refute html =~ "Continue Watching"
+    end
+
+    test "library page renders the catalog grid section", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/")
+
+      assert html =~ "id=\"browse\""
     end
   end
 

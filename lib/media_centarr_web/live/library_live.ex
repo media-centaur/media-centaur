@@ -1,16 +1,15 @@
 defmodule MediaCentarrWeb.LibraryLive do
   @moduledoc """
-  Two-zone library page with Continue Watching and Library Browse.
+  Library Browse page — the full entity catalog as a poster grid with type
+  tabs, sort, and text filter. Selecting an entity opens a ModalShell detail
+  overlay.
 
-  **Continue Watching** shows in-progress entities as backdrop cards. Selecting
-  one opens a ModalShell detail overlay.
+  The Continue Watching and Upcoming zones formerly here have moved:
+  - Continue Watching → HomeLive (`/home_preview`, Task 4.6 → `/`)
+  - Upcoming → UpcomingLive (`/upcoming`)
 
-  **Library Browse** shows the full entity catalog as a poster grid with
-  type tabs, sort, and text filter. Selecting an entity opens a ModalShell
-  detail overlay (same as Continue Watching).
-
-  Zone switching uses URL params (`?zone=library`) via `push_patch` so data
-  stays loaded across tab changes.
+  The `/?zone=upcoming` URL param is still redirected to `/upcoming` so
+  existing bookmarks continue to work.
   """
   use MediaCentarrWeb, :live_view
 
@@ -25,16 +24,13 @@ defmodule MediaCentarrWeb.LibraryLive do
     Playback,
     Playback.ProgressBroadcaster,
     Playback.ResumeTarget,
-    ReleaseTracking,
     Settings
   }
 
   alias MediaCentarrWeb.Components.{
     DetailPanel,
     LibraryCards,
-    ModalShell,
-    TrackModal,
-    UpcomingCards
+    ModalShell
   }
 
   import MediaCentarrWeb.LibraryHelpers
@@ -48,22 +44,17 @@ defmodule MediaCentarrWeb.LibraryLive do
       Library.subscribe()
       Playback.subscribe()
       Settings.subscribe()
-      ReleaseTracking.subscribe()
       Availability.subscribe()
       Capabilities.subscribe()
       MediaCentarr.Config.subscribe()
-      MediaCentarr.Acquisition.subscribe()
-      MediaCentarr.Acquisition.subscribe_queue()
     end
 
     {:ok,
      assign(socket,
        entries: [],
        entries_by_id: %{},
-       continue_watching: [],
        resume_targets: %{},
        playback: %{},
-       zone: :watching,
        selected_entity_id: nil,
        detail_presentation: nil,
        active_tab: :all,
@@ -83,27 +74,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        tmdb_ready: Capabilities.tmdb_ready?(),
        unavailable_count: 0,
        availability_map: %{},
-       upcoming_path: ~p"/?zone=upcoming",
-       upcoming_releases: %{upcoming: [], released: []},
-       upcoming_events: [],
-       upcoming_images: %{},
-       release_grab_statuses: %{},
-       queue_items: MediaCentarr.Acquisition.queue_snapshot(),
-       acquisition_ready: false,
-       calendar_month: {Date.utc_today().year, Date.utc_today().month},
-       selected_day: nil,
-       track_modal_open: false,
-       track_suggestions: [],
-       track_suggestions_loading: false,
-       track_search_query: "",
-       track_search_results: [],
-       track_search_loading: false,
-       track_scope_item: nil,
-       track_collection_item: nil,
-       track_confirmed_ids: MapSet.new(),
        tracking_status: nil,
-       confirm_stop_item: nil,
-       tracked_items: [],
        watch_dirs: MediaCentarr.Config.get(:watch_dirs) || [],
        watch_dirs_configured: watch_dirs_configured?(),
        dir_status: Availability.dir_status()
@@ -142,24 +113,16 @@ defmodule MediaCentarrWeb.LibraryLive do
         socket
       end
 
-    zone = parse_zone(params["zone"])
     tab = parse_tab(params["tab"])
     sort = parse_sort(params["sort"])
     filter_text = params["filter"] || ""
     selected_id = params["selected"]
     detail_view = parse_view(params["view"])
 
-    presentation =
-      case {selected_id, zone} do
-        {nil, _} -> nil
-        {_, :watching} -> :modal
-        {_, :library} -> :modal
-        {_, :upcoming} -> nil
-      end
+    presentation = if selected_id, do: :modal
 
     grid_changed =
-      zone != socket.assigns.zone ||
-        tab != socket.assigns.active_tab ||
+      tab != socket.assigns.active_tab ||
         sort != socket.assigns.sort_order ||
         filter_text != socket.assigns.filter_text
 
@@ -197,7 +160,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     socket =
       socket
       |> assign(
-        zone: zone,
         active_tab: tab,
         sort_order: sort,
         filter_text: filter_text,
@@ -209,31 +171,12 @@ defmodule MediaCentarrWeb.LibraryLive do
       )
       |> then(fn socket -> if grid_changed, do: reset_stream(socket), else: socket end)
 
-    socket =
-      if zone == :upcoming do
-        load_upcoming(socket)
-      else
-        socket
-      end
-
     {:noreply, socket}
   end
 
   # --- Events ---
 
   @impl true
-  def handle_event("select_cw_entity", %{"id" => id}, socket) do
-    entry = socket.assigns.entries_by_id[id]
-
-    expanded_seasons =
-      if entry,
-        do: DetailPanel.auto_expand_season(entry.entity, entry.progress),
-        else: MapSet.new()
-
-    socket = assign(socket, expanded_seasons: expanded_seasons)
-    {:noreply, push_patch(socket, to: build_path(socket, %{selected: id}))}
-  end
-
   def handle_event("select_entity", %{"id" => id}, socket) do
     new_id = if socket.assigns.selected_entity_id != id, do: id
 
@@ -385,232 +328,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, push_patch(socket, to: build_path(socket, %{view: new_view}))}
   end
 
-  def handle_event("open_track_modal", _params, socket) do
-    socket =
-      assign(socket,
-        track_modal_open: true,
-        track_suggestions_loading: true,
-        track_search_query: "",
-        track_search_results: [],
-        track_scope_item: nil,
-        track_collection_item: nil
-      )
-
-    send(self(), :load_track_suggestions)
-    {:noreply, socket}
-  end
-
-  def handle_event("close_track_modal", _params, socket) do
-    {:noreply,
-     assign(socket,
-       track_modal_open: false,
-       track_suggestions: [],
-       track_suggestions_loading: false,
-       track_search_query: "",
-       track_search_results: [],
-       track_search_loading: false,
-       track_scope_item: nil,
-       track_collection_item: nil,
-       track_confirmed_ids: MapSet.new()
-     )}
-  end
-
-  def handle_event("track_search", %{"query" => query}, socket) when byte_size(query) < 2 do
-    {:noreply,
-     assign(socket,
-       track_search_query: query,
-       track_search_results: [],
-       track_search_loading: false
-     )}
-  end
-
-  def handle_event("track_search", %{"query" => query}, socket) do
-    socket = assign(socket, track_search_query: query, track_search_loading: true)
-    send(self(), {:do_track_search, query})
-    {:noreply, socket}
-  end
-
-  def handle_event("track_suggestion", params, socket) do
-    tmdb_id = String.to_integer(params["tmdb-id"])
-    tmdb_id_str = to_string(tmdb_id)
-    confirmed = socket.assigns.track_confirmed_ids
-
-    if MapSet.member?(confirmed, tmdb_id_str) do
-      # Untrack — find and delete the tracking item
-      case MediaCentarr.ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series) do
-        nil -> :ok
-        item -> MediaCentarr.ReleaseTracking.delete_item(item)
-      end
-
-      {:noreply, assign(socket, track_confirmed_ids: MapSet.delete(confirmed, tmdb_id_str))}
-    else
-      # Track
-      tv_series_id = params["tv-series-id"]
-      name = params["name"]
-
-      {last_season, last_episode} =
-        MediaCentarr.ReleaseTracking.Helpers.find_last_library_episode(tv_series_id)
-
-      Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-        MediaCentarr.ReleaseTracking.track_from_search(
-          %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: nil},
-          %{start_season: last_season, start_episode: last_episode}
-        )
-      end)
-
-      {:noreply, assign(socket, track_confirmed_ids: MapSet.put(confirmed, tmdb_id_str))}
-    end
-  end
-
-  def handle_event("select_search_result", params, socket) do
-    tmdb_id = String.to_integer(params["tmdb-id"])
-    media_type = String.to_existing_atom(params["media-type"])
-    name = params["name"]
-    poster_path = params["poster-path"]
-
-    result = %{tmdb_id: tmdb_id, media_type: media_type, name: name, poster_path: poster_path}
-
-    case media_type do
-      :tv_series ->
-        {:noreply, assign(socket, track_scope_item: result, track_collection_item: nil)}
-
-      :movie ->
-        # Track immediately for movies (collection detection deferred to future iteration)
-        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          MediaCentarr.ReleaseTracking.track_from_search(result, %{})
-        end)
-
-        results =
-          Enum.map(socket.assigns.track_search_results, fn r ->
-            if r.tmdb_id == tmdb_id, do: Map.put(r, :already_tracked, true), else: r
-          end)
-
-        {:noreply, assign(socket, track_search_results: results, track_collection_item: nil)}
-    end
-  end
-
-  def handle_event("confirm_track", params, socket) do
-    tmdb_id = String.to_integer(params["tmdb_id"])
-    name = params["name"]
-    poster_path = params["poster_path"]
-
-    {start_season, start_episode} =
-      case params["scope"] do
-        "custom" ->
-          {String.to_integer(params["start_season"] || "1"),
-           String.to_integer(params["start_episode"] || "1")}
-
-        _ ->
-          {0, 0}
-      end
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      MediaCentarr.ReleaseTracking.track_from_search(
-        %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: poster_path},
-        %{start_season: start_season, start_episode: start_episode}
-      )
-    end)
-
-    results =
-      Enum.map(socket.assigns.track_search_results, fn r ->
-        if r.tmdb_id == tmdb_id, do: Map.put(r, :already_tracked, true), else: r
-      end)
-
-    {:noreply, assign(socket, track_search_results: results, track_scope_item: nil)}
-  end
-
-  def handle_event("dismiss_release", %{"release-id" => release_id}, socket) do
-    MediaCentarr.ReleaseTracking.dismiss_release(release_id)
-    {:noreply, socket}
-  end
-
-  def handle_event("queue_all_show", %{"item-id" => item_id}, socket) do
-    case MediaCentarr.Acquisition.enqueue_all_pending_for_item(item_id) do
-      {:ok, %{queued: 0, skipped_in_flight: skipped}} when skipped > 0 ->
-        {:noreply, put_flash(socket, :info, "Already queued — #{skipped} pending")}
-
-      {:ok, %{queued: queued, failed: []}} ->
-        word = if queued == 1, do: "episode", else: "episodes"
-        {:noreply, put_flash(socket, :info, "Queued #{queued} #{word}")}
-
-      {:ok, %{queued: queued, failed: failed}} ->
-        total = queued + length(failed)
-
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Queued #{queued} of #{total} — #{length(failed)} failed"
-         )}
-
-      {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Show not found — couldn't queue")}
-    end
-  end
-
-  def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
-    case MediaCentarr.ReleaseTracking.get_item(item_id) do
-      nil -> {:noreply, socket}
-      item -> {:noreply, assign(socket, confirm_stop_item: item)}
-    end
-  end
-
-  def handle_event("confirm_stop_tracking", _params, socket) do
-    case socket.assigns.confirm_stop_item do
-      nil ->
-        {:noreply, socket}
-
-      item ->
-        MediaCentarr.ReleaseTracking.create_event!(%{
-          item_id: item.id,
-          item_name: item.name,
-          event_type: :stopped_tracking,
-          description: "Stopped tracking #{item.name}"
-        })
-
-        MediaCentarr.ReleaseTracking.delete_item(item)
-
-        {:noreply, assign(socket, confirm_stop_item: nil)}
-    end
-  end
-
-  def handle_event("cancel_stop_tracking", _params, socket) do
-    {:noreply, assign(socket, confirm_stop_item: nil)}
-  end
-
-  def handle_event("prev_month", _params, socket) do
-    {year, month} = socket.assigns.calendar_month
-    date = Date.add(Date.new!(year, month, 1), -1)
-    {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
-  end
-
-  def handle_event("next_month", _params, socket) do
-    {year, month} = socket.assigns.calendar_month
-    last_day = Date.end_of_month(Date.new!(year, month, 1))
-    date = Date.add(last_day, 1)
-    {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
-  end
-
-  def handle_event("jump_today", _params, socket) do
-    today = Date.utc_today()
-    {:noreply, assign(socket, calendar_month: {today.year, today.month}, selected_day: nil)}
-  end
-
-  def handle_event("select_day", %{"date" => ""}, socket) do
-    {:noreply, assign(socket, selected_day: nil)}
-  end
-
-  def handle_event("select_day", %{"date" => date_str}, socket) do
-    case Date.from_iso8601(date_str) do
-      {:ok, date} ->
-        selected = if socket.assigns.selected_day != date, do: date
-        {:noreply, assign(socket, selected_day: selected)}
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
   def handle_event("toggle_tracking", _params, socket) do
     selected_entry = socket.assigns.entries_by_id[socket.assigns.selected_entity_id]
 
@@ -635,7 +352,7 @@ defmodule MediaCentarrWeb.LibraryLive do
       {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
     else
       file_info =
-        Enum.find(socket.assigns.detail_files, fn %{file: f} -> f.file_path == file_path end)
+        Enum.find(socket.assigns.detail_files, fn %{file: file} -> file.file_path == file_path end)
 
       size = if file_info, do: file_info.size
 
@@ -657,9 +374,9 @@ defmodule MediaCentarrWeb.LibraryLive do
       true ->
         folder_files =
           socket.assigns.detail_files
-          |> Enum.filter(fn %{file: f} -> Path.dirname(f.file_path) == folder_path end)
-          |> Enum.map(fn %{file: f, size: size} ->
-            %{name: Path.basename(f.file_path), size: size}
+          |> Enum.filter(fn %{file: file} -> Path.dirname(file.file_path) == folder_path end)
+          |> Enum.map(fn %{file: file, size: size} ->
+            %{name: Path.basename(file.file_path), size: size}
           end)
 
         total_size = Enum.reduce(folder_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
@@ -800,7 +517,6 @@ defmodule MediaCentarrWeb.LibraryLive do
       socket
       |> assign_entries(entries)
       |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
-      |> recompute_continue_watching()
       |> recompute_counts()
 
     # Additions need a full reset so new entries land in the correct sort
@@ -852,7 +568,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply,
      socket
      |> assign(resume_targets: resume_targets)
-     |> recompute_continue_watching()
      |> touch_stream_entries([entity_id])}
   end
 
@@ -895,60 +610,6 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
     {:noreply, assign(socket, spoiler_free: enabled)}
-  end
-
-  def handle_info({:releases_updated, _item_ids}, socket) do
-    socket =
-      if socket.assigns.zone == :upcoming do
-        load_upcoming(socket)
-      else
-        socket
-      end
-
-    {:noreply, socket}
-  end
-
-  # Acquisition lifecycle events: refresh the grab-status badges on the
-  # upcoming zone when grabs land, snooze, abandon, or cancel. The
-  # upcoming zone is the only place LibraryLive surfaces this data;
-  # other zones don't need to react.
-  def handle_info({event, _payload}, socket)
-      when event in [
-             :grab_submitted,
-             :auto_grab_armed,
-             :auto_grab_snoozed,
-             :auto_grab_abandoned,
-             :auto_grab_cancelled
-           ] do
-    if socket.assigns.zone == :upcoming do
-      {:noreply, load_upcoming(socket)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  # Download-client queue snapshots from the QueueMonitor — used to
-  # decorate per-release cards on the upcoming zone with the live
-  # downloading / paused / errored state.
-  def handle_info({:queue_snapshot, items}, socket) do
-    {:noreply, assign(socket, queue_items: items)}
-  end
-
-  @impl true
-  def handle_info(:load_track_suggestions, socket) do
-    suggestions = MediaCentarr.ReleaseTracking.suggest_trackable_items()
-
-    {:noreply, assign(socket, track_suggestions: suggestions, track_suggestions_loading: false)}
-  end
-
-  @impl true
-  def handle_info({:do_track_search, query}, socket) do
-    if query == socket.assigns.track_search_query do
-      results = MediaCentarr.ReleaseTracking.search_tmdb(query)
-      {:noreply, assign(socket, track_search_results: results, track_search_loading: false)}
-    else
-      {:noreply, socket}
-    end
   end
 
   def handle_info({:availability_changed, _dir, state}, socket) do
@@ -999,8 +660,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     assigns =
       assigns
       |> assign(:selected_entry, selected_entry)
-      |> assign(:watching_path, ~p"/")
-      |> assign(:library_path, ~p"/?zone=library")
       |> assign(:offline_summary, offline_summary)
 
     ~H"""
@@ -1010,60 +669,8 @@ defmodule MediaCentarrWeb.LibraryLive do
         <%!-- Storage offline banner --%>
         <LibraryCards.storage_offline_banner :if={@offline_summary} summary={@offline_summary} />
 
-        <%!-- Zone tabs --%>
-        <div role="tablist" class="tabs tabs-boxed library-tabs w-fit mb-6" data-nav-zone="zone-tabs">
-          <.link
-            patch={@watching_path}
-            role="tab"
-            class={["tab", @zone == :watching && "tab-active"]}
-            data-nav-item
-            data-nav-zone-value="watching"
-            tabindex="0"
-          >
-            Continue Watching
-          </.link>
-          <.link
-            patch={@library_path}
-            role="tab"
-            class={["tab", @zone == :library && "tab-active"]}
-            data-nav-item
-            data-nav-zone-value="library"
-            tabindex="0"
-          >
-            Library
-          </.link>
-          <.link
-            patch={@upcoming_path}
-            role="tab"
-            class={["tab", @zone == :upcoming && "tab-active"]}
-            data-nav-item
-            data-nav-zone-value="upcoming"
-            tabindex="0"
-          >
-            Upcoming
-          </.link>
-        </div>
-
-        <%!-- Continue Watching zone --%>
-        <section :if={@zone == :watching} id="continue-watching" data-nav-zone="grid">
-          <LibraryCards.cw_empty :if={@continue_watching == []} />
-          <div
-            :if={@continue_watching != []}
-            class="grid grid-cols-[repeat(auto-fill,minmax(360px,520px))] gap-4"
-            data-nav-grid
-          >
-            <LibraryCards.cw_card
-              :for={entry <- @continue_watching}
-              entry={entry}
-              resume={Map.get(@resume_targets, entry.entity.id)}
-              playing={playing?(@playback, entry.entity.id)}
-              available={Map.get(@availability_map, entry.entity.id, true)}
-            />
-          </div>
-        </section>
-
         <%!-- Library Browse zone --%>
-        <section :if={@zone == :library} id="browse">
+        <section id="browse">
           <LibraryCards.toolbar
             active_tab={@active_tab}
             counts={@counts}
@@ -1110,23 +717,6 @@ defmodule MediaCentarrWeb.LibraryLive do
           </div>
         </section>
 
-        <%!-- Upcoming Releases zone --%>
-        <section :if={@zone == :upcoming} id="upcoming" class="max-w-7xl space-y-6 pb-8">
-          <UpcomingCards.upcoming_zone
-            releases={@upcoming_releases}
-            events={@upcoming_events}
-            images={@upcoming_images}
-            calendar_month={@calendar_month}
-            selected_day={@selected_day}
-            tracked_items={@tracked_items}
-            confirm_stop_item={@confirm_stop_item}
-            tmdb_ready={@tmdb_ready}
-            grab_statuses={@release_grab_statuses}
-            queue_items={@queue_items}
-            acquisition_ready={@acquisition_ready}
-          />
-        </section>
-
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
         <ModalShell.modal_shell
           open={@selected_entry != nil && @detail_presentation == :modal}
@@ -1148,19 +738,6 @@ defmodule MediaCentarrWeb.LibraryLive do
           tmdb_ready={@tmdb_ready}
           on_play="play"
           on_close="close_detail"
-        />
-
-        <%!-- Track New Show modal (always in DOM) --%>
-        <TrackModal.track_modal
-          open={@track_modal_open}
-          suggestions={@track_suggestions}
-          suggestions_loading={@track_suggestions_loading}
-          search_query={@track_search_query}
-          search_results={@track_search_results}
-          search_loading={@track_search_loading}
-          scope_item={@track_scope_item}
-          collection_item={@track_collection_item}
-          confirmed_ids={@track_confirmed_ids}
         />
       </div>
     </Layouts.app>
@@ -1196,88 +773,8 @@ defmodule MediaCentarrWeb.LibraryLive do
       resume_targets: resume_targets,
       playback: playback
     )
-    |> recompute_continue_watching()
     |> recompute_counts()
   end
-
-  defp load_upcoming(socket) do
-    releases = MediaCentarr.ReleaseTracking.list_releases()
-    events = MediaCentarr.ReleaseTracking.list_recent_events(10)
-    image_map = load_tracking_images(releases)
-    tracked_items = build_tracked_items_from_watching()
-    grab_statuses = load_release_grab_statuses(releases)
-
-    assign(socket,
-      upcoming_releases: releases,
-      upcoming_events: events,
-      upcoming_images: image_map,
-      tracked_items: tracked_items,
-      release_grab_statuses: grab_statuses,
-      acquisition_ready: MediaCentarr.Capabilities.prowlarr_ready?()
-    )
-  end
-
-  # Builds `(tmdb_id, tmdb_type, season, episode)` keys for every visible
-  # release and batch-asks Acquisition for matching grabs. Returns `%{}`
-  # when Prowlarr isn't ready — saves one SQL query and keeps the badge
-  # path inert when acquisition isn't usable.
-  defp load_release_grab_statuses(%{upcoming: upcoming, released: released}) do
-    if MediaCentarr.Capabilities.prowlarr_ready?() do
-      keys =
-        (upcoming ++ released)
-        |> Enum.map(&release_grab_key/1)
-        |> Enum.uniq()
-
-      MediaCentarr.Acquisition.statuses_for_releases(keys)
-    else
-      %{}
-    end
-  end
-
-  defp release_grab_key(release) do
-    {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
-     release.episode_number}
-  end
-
-  defp build_tracked_items_from_watching do
-    Enum.map(MediaCentarr.ReleaseTracking.list_watching_items(), fn item ->
-      releases = item.releases || []
-      upcoming_count = Enum.count(releases, &(not &1.released and not &1.in_library))
-      released_count = Enum.count(releases, &(&1.released and not &1.in_library))
-
-      status_text =
-        case {upcoming_count, released_count} do
-          {0, 0} -> "tracking"
-          {u, 0} -> "#{u} upcoming"
-          {0, r} -> "#{r} released"
-          {u, r} -> "#{u} upcoming, #{r} released"
-        end
-
-      %{
-        item_id: item.id,
-        name: item.name,
-        media_type: item.media_type,
-        status_text: status_text
-      }
-    end)
-  end
-
-  defp load_tracking_images(%{upcoming: upcoming, released: released}) do
-    (upcoming ++ released)
-    |> Enum.map(& &1.item)
-    |> Enum.uniq_by(& &1.id)
-    |> Enum.reduce(%{}, fn item, acc ->
-      images =
-        %{}
-        |> maybe_put_image(:backdrop, item.backdrop_path)
-        |> maybe_put_image(:poster, item.poster_path)
-
-      if images == %{}, do: acc, else: Map.put(acc, item.id, images)
-    end)
-  end
-
-  defp maybe_put_image(map, _role, nil), do: map
-  defp maybe_put_image(map, role, path), do: Map.put(map, role, "/media-images/#{path}")
 
   defp load_tracking_status(entry) do
     case find_tmdb_id(entry) do
@@ -1304,23 +801,6 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   defp find_tmdb_id(_), do: nil
-
-  # Sentinel for entries whose progress summary reports in-progress but have no
-  # loaded progress records (e.g. immediately after a first mark-watched broadcast
-  # on a stale entry). Sinks them to the bottom of the sort rather than crashing.
-  @epoch_datetime ~U[1970-01-01 00:00:00Z]
-
-  defp recompute_continue_watching(socket) do
-    continue_watching =
-      socket.assigns.entries
-      |> Enum.filter(&in_progress?/1)
-      |> Enum.sort_by(
-        fn entry -> max_last_watched_at(entry) || @epoch_datetime end,
-        {:desc, DateTime}
-      )
-
-    assign(socket, continue_watching: continue_watching)
-  end
 
   defp compute_resume_targets(entries) do
     Map.new(entries, fn entry ->
@@ -1433,10 +913,6 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   # --- URL Params ---
 
-  defp parse_zone("library"), do: :library
-  defp parse_zone("upcoming"), do: :upcoming
-  defp parse_zone(_), do: :watching
-
   defp parse_tab("movies"), do: :movies
   defp parse_tab("tv"), do: :tv
   defp parse_tab(_), do: :all
@@ -1452,7 +928,6 @@ defmodule MediaCentarrWeb.LibraryLive do
   defp build_path(socket, overrides) do
     assigns = socket.assigns
 
-    zone = Map.get(overrides, :zone, assigns.zone)
     tab = Map.get(overrides, :tab, assigns.active_tab)
     sort = Map.get(overrides, :sort, assigns.sort_order)
     filter = Map.get(overrides, :filter, assigns.filter_text)
@@ -1460,10 +935,8 @@ defmodule MediaCentarrWeb.LibraryLive do
     view = Map.get(overrides, :view, assigns.detail_view)
 
     params = %{}
-    params = if zone == :library, do: Map.put(params, :zone, :library), else: params
-    params = if zone == :upcoming, do: Map.put(params, :zone, :upcoming), else: params
-    params = if zone == :library, do: Map.put(params, :tab, tab), else: params
-    params = if zone == :library, do: Map.put(params, :sort, sort), else: params
+    params = if tab == :all, do: params, else: Map.put(params, :tab, tab)
+    params = if sort == :recent, do: params, else: Map.put(params, :sort, sort)
     params = if filter == "", do: params, else: Map.put(params, :filter, filter)
     params = if selected, do: Map.put(params, :selected, selected), else: params
     params = if selected && view == :info, do: Map.put(params, :view, :info), else: params

@@ -1,6 +1,10 @@
 defmodule MediaCentarrWeb.HomeLiveTest do
   use MediaCentarrWeb.ConnCase, async: false
+
+  import MediaCentarr.TestFactory
   import Phoenix.LiveViewTest
+
+  alias MediaCentarr.Watcher.FilePresence
 
   test "GET /home_preview renders without crashing", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/home_preview")
@@ -14,5 +18,17 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     # not have any entities in the test DB. Mount + render is enough.
     {:ok, _view, _html} = live(conn, "/home_preview")
     assert true
+  end
+
+  test "renders the Continue Watching row when there is in-progress media", %{conn: conn} do
+    movie = create_standalone_movie(%{name: "Prior Lives"})
+    file = create_linked_file(%{movie_id: movie.id})
+    FilePresence.record_file(file.file_path, file.watch_dir)
+    create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+
+    {:ok, _view, html} = live(conn, "/home_preview")
+
+    assert html =~ "Prior Lives"
+    assert html =~ "Continue Watching"
   end
 end
