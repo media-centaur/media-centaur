@@ -33,6 +33,7 @@ defmodule MediaCentarr.Library do
   alias MediaCentarr.Topics
 
   alias MediaCentarr.Library.{
+    Browser,
     ChangeEntry,
     Episode,
     Extra,
@@ -755,6 +756,194 @@ defmodule MediaCentarr.Library do
   Broadcasts `{:entities_changed, entity_ids}` to the `"library:updates"` PubSub topic.
   """
   defdelegate broadcast_entities_changed(entity_ids), to: MediaCentarr.Library.Helpers
+
+  # ---------------------------------------------------------------------------
+  # HomeLive Facade
+  # ---------------------------------------------------------------------------
+
+  @epoch_datetime ~U[1970-01-01 00:00:00Z]
+
+  @doc """
+  List in-progress titles (those with watch progress that is not yet completed),
+  most recently watched first. Used by HomeLive's Continue Watching row.
+
+  Returns a list of plain maps in the shape:
+    `%{entity_id, entity_name, last_episode_label, progress_pct, backdrop_url}`
+
+  `progress_pct` is 0..100 (integer).
+  """
+  @spec list_in_progress(keyword()) :: [map()]
+  def list_in_progress(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 12)
+
+    entries = Browser.fetch_all_typed_entries()
+
+    entries
+    |> Enum.filter(&in_progress_entry?/1)
+    |> Enum.sort_by(
+      fn entry -> entry_last_watched_at(entry) || @epoch_datetime end,
+      {:desc, DateTime}
+    )
+    |> Enum.take(limit)
+    |> Enum.map(&shape_in_progress_row/1)
+  end
+
+  @doc """
+  List recently-added entities (newest `inserted_at` first), regardless of
+  entity type. Returns plain maps in the shape:
+    `%{id, name, year, poster_url}`
+  """
+  @spec list_recently_added(keyword()) :: [map()]
+  def list_recently_added(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 16)
+
+    entries = Browser.fetch_all_typed_entries()
+
+    entries
+    |> Enum.sort_by(fn entry -> entry.entity.inserted_at end, {:desc, DateTime})
+    |> Enum.take(limit)
+    |> Enum.map(&shape_recently_added_row/1)
+  end
+
+  @doc """
+  List entities suitable as Home page hero (those with both a backdrop
+  image and a description). Returns plain maps in the shape:
+    `%{id, name, year, runtime_minutes, genres, overview, backdrop_url}`
+  """
+  @spec list_hero_candidates(keyword()) :: [map()]
+  def list_hero_candidates(opts \\ []) do
+    limit = Keyword.get(opts, :limit, 12)
+
+    entries = Browser.fetch_all_typed_entries()
+
+    entries
+    |> Enum.filter(&hero_eligible?/1)
+    |> Enum.take(limit)
+    |> Enum.map(&shape_hero_row/1)
+  end
+
+  # --- Private helpers for HomeLive facade ---
+
+  defp in_progress_entry?(%{progress: nil}), do: false
+
+  defp in_progress_entry?(%{progress: summary}) do
+    summary.episodes_completed < summary.episodes_total
+  end
+
+  defp entry_last_watched_at(%{progress_records: records}) do
+    records
+    |> Enum.map(& &1.last_watched_at)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max(DateTime, fn -> nil end)
+  end
+
+  defp shape_in_progress_row(%{entity: entity, progress: summary, progress_records: records}) do
+    backdrop_url =
+      case Enum.find(entity.images || [], &(&1.role == "backdrop")) do
+        %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
+        _ -> nil
+      end
+
+    last_episode_label = progress_episode_label(entity, summary)
+
+    progress_pct =
+      if summary && summary.episodes_total > 0 do
+        completed_fraction = summary.episodes_completed / summary.episodes_total
+        trunc(completed_fraction * 100)
+      else
+        0
+      end
+
+    last_watched_at = entry_last_watched_at(%{progress_records: records})
+
+    %{
+      entity_id: entity.id,
+      entity_name: entity.name,
+      last_episode_label: last_episode_label,
+      progress_pct: progress_pct,
+      backdrop_url: backdrop_url,
+      last_watched_at: last_watched_at
+    }
+  end
+
+  defp progress_episode_label(%{type: :tv_series}, summary) when not is_nil(summary) do
+    if summary.episodes_total > 1 do
+      "#{summary.episodes_completed} / #{summary.episodes_total} episodes"
+    end
+  end
+
+  defp progress_episode_label(%{type: :movie_series}, summary) when not is_nil(summary) do
+    if summary.episodes_total > 1 do
+      "#{summary.episodes_completed} / #{summary.episodes_total} movies"
+    end
+  end
+
+  defp progress_episode_label(_entity, _summary), do: nil
+
+  defp shape_recently_added_row(%{entity: entity}) do
+    poster_url =
+      case Enum.find(entity.images || [], &(&1.role == "poster")) do
+        %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
+        _ -> nil
+      end
+
+    year =
+      case entity.date_published do
+        <<year::binary-size(4), _::binary>> -> String.to_integer(year)
+        nil -> nil
+        _ -> nil
+      end
+
+    %{
+      id: entity.id,
+      name: entity.name,
+      year: year,
+      poster_url: poster_url
+    }
+  end
+
+  defp hero_eligible?(%{entity: entity}) do
+    has_backdrop = Enum.any?(entity.images || [], &(&1.role == "backdrop" && &1.content_url != nil))
+    has_description = is_binary(entity.description) && String.trim(entity.description) != ""
+    has_backdrop && has_description
+  end
+
+  defp shape_hero_row(%{entity: entity}) do
+    backdrop_url =
+      case Enum.find(entity.images || [], &(&1.role == "backdrop")) do
+        %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
+        _ -> nil
+      end
+
+    year =
+      case entity.date_published do
+        <<year::binary-size(4), _::binary>> -> String.to_integer(year)
+        nil -> nil
+        _ -> nil
+      end
+
+    runtime_minutes =
+      case entity.duration do
+        duration when is_binary(duration) ->
+          case Integer.parse(duration) do
+            {minutes, _} -> minutes
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+
+    %{
+      id: entity.id,
+      name: entity.name,
+      year: year,
+      runtime_minutes: runtime_minutes,
+      genres: entity.genres,
+      overview: entity.description,
+      backdrop_url: backdrop_url
+    }
+  end
 
   # ---------------------------------------------------------------------------
   # Helpers

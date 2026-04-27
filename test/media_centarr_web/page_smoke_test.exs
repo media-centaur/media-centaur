@@ -24,9 +24,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   alias MediaCentarr.{Config, Secret}
 
   for {path, label} <- [
-        {"/", "library"},
-        {"/?zone=library", "library zone explicit"},
-        {"/?zone=watching", "library watching zone"},
+        {"/", "library browse"},
         {"/status", "status"},
         {"/settings", "settings"},
         {"/review", "review"},
