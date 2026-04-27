@@ -8,6 +8,35 @@ defmodule MediaCentarr.LibraryTest do
   # Records the file as present in watcher_files so Browser queries include it.
   defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
 
+  defp count_queries(fun) do
+    ref = make_ref()
+    parent = self()
+    handler_id = {:library_query_count, ref}
+
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:media_centarr, :repo, :query],
+        fn _, _, _, _ -> send(parent, {:query, ref}) end,
+        nil
+      )
+
+    try do
+      fun.()
+      drain_queries(ref, 0)
+    after
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  defp drain_queries(ref, count) do
+    receive do
+      {:query, ^ref} -> drain_queries(ref, count + 1)
+    after
+      0 -> count
+    end
+  end
+
   describe "list_in_progress/1" do
     test "returns empty list when no entities exist" do
       assert Library.list_in_progress() == []
@@ -68,6 +97,25 @@ defmodule MediaCentarr.LibraryTest do
       results = Library.list_in_progress(limit: 3)
       assert length(results) == 3
     end
+
+    test "issues at most 15 queries regardless of library size" do
+      for index <- 1..20 do
+        movie = create_standalone_movie(%{name: "Movie #{index}"})
+        record_present(create_linked_file(%{movie_id: movie.id}))
+        create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+      end
+
+      for index <- 1..5 do
+        series = create_tv_series(%{name: "Series #{index}"})
+        record_present(create_linked_file(%{tv_series_id: series.id}))
+        season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+        episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+        create_watch_progress(%{episode_id: episode.id, position_seconds: 10.0, duration_seconds: 60.0})
+      end
+
+      query_count = count_queries(fn -> Library.list_in_progress(limit: 12) end)
+      assert query_count <= 15, "Expected at most 15 queries, got #{query_count}"
+    end
   end
 
   describe "list_recently_added/1" do
@@ -108,6 +156,21 @@ defmodule MediaCentarr.LibraryTest do
 
       results = Library.list_recently_added(limit: 5)
       assert length(results) == 5
+    end
+
+    test "issues at most 8 queries regardless of library size" do
+      for index <- 1..30 do
+        movie = create_standalone_movie(%{name: "Movie #{index}"})
+        record_present(create_linked_file(%{movie_id: movie.id}))
+      end
+
+      for index <- 1..10 do
+        series = create_tv_series(%{name: "Series #{index}"})
+        record_present(create_linked_file(%{tv_series_id: series.id}))
+      end
+
+      query_count = count_queries(fn -> Library.list_recently_added(limit: 16) end)
+      assert query_count <= 8, "Expected at most 8 queries, got #{query_count}"
     end
   end
 
@@ -153,6 +216,22 @@ defmodule MediaCentarr.LibraryTest do
 
       record_present(create_linked_file(%{movie_id: movie.id}))
       assert Library.list_hero_candidates() == []
+    end
+
+    test "issues at most 8 queries regardless of library size" do
+      for index <- 1..30 do
+        movie = create_standalone_movie(%{name: "Movie #{index}", description: "Some description"})
+
+        create_image(%{
+          movie_id: movie.id,
+          role: "backdrop",
+          content_url: "#{movie.id}/backdrop.jpg",
+          extension: "jpg"
+        })
+      end
+
+      query_count = count_queries(fn -> Library.list_hero_candidates(limit: 12) end)
+      assert query_count <= 8, "Expected at most 8 queries, got #{query_count}"
     end
   end
 end
