@@ -947,6 +947,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
+  defp season_extras(%{extras: %Ecto.Association.NotLoaded{}} = assigns) do
+    ~H"""
+    """
+  end
+
   defp season_extras(assigns) do
     ~H"""
     <div class="pt-2">

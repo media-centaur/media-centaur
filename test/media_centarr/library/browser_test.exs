@@ -79,6 +79,41 @@ defmodule MediaCentarr.Library.BrowserTest do
 
       assert [] = Browser.fetch_all_typed_entries()
     end
+
+    test "does not preload extras on standalone movies" do
+      movie = create_standalone_movie(%{name: "No Extras Yet"})
+      create_present_file(%{movie_id: movie.id})
+      create_extra(%{movie_id: movie.id, name: "Behind the Scenes"})
+
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
+
+      assert match?(%Ecto.Association.NotLoaded{}, fetched.extras),
+             "expected extras to be NotLoaded, but got: #{inspect(fetched.extras)}"
+    end
+
+    test "does not preload extras on TV series" do
+      series = create_tv_series(%{name: "No Extras Show"})
+      create_present_file(%{tv_series_id: series.id})
+      create_extra(%{tv_series_id: series.id, name: "Deleted Scenes"})
+
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
+
+      assert match?(%Ecto.Association.NotLoaded{}, fetched.extras),
+             "expected extras to be NotLoaded, but got: #{inspect(fetched.extras)}"
+    end
+
+    test "does not preload extras on movie series" do
+      collection = create_movie_series(%{name: "No Extras Collection"})
+      create_present_file(%{movie_series_id: collection.id})
+      create_movie(%{movie_series_id: collection.id, name: "Part 1", position: 0})
+      create_movie(%{movie_series_id: collection.id, name: "Part 2", position: 1})
+      create_extra(%{movie_series_id: collection.id, name: "Making Of"})
+
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
+
+      assert match?(%Ecto.Association.NotLoaded{}, fetched.extras),
+             "expected extras to be NotLoaded, but got: #{inspect(fetched.extras)}"
+    end
   end
 
   describe "fetch_typed_entries_by_ids/1" do
@@ -125,14 +160,15 @@ defmodule MediaCentarr.Library.BrowserTest do
   # cost is a small constant that does NOT scale with the number of rows.
   #
   # Measured: a fixture covering all four types (standalone movie, TV series
-  # with seasons/episodes, movie series with children, video object) produces
-  # exactly 29 queries. A 14-entity fixture with the same type mix produces
-  # exactly the same 29. The ceiling below (32) gives 3 queries of slack for
-  # small future additions and is tight enough to catch a real regression
+  # with seasons/episodes, movie series with children, video object) produced
+  # 29 queries before extras were removed from the default preloads (Phase 2
+  # perf remediation). With extras no longer preloaded at catalog scan time,
+  # the count dropped to ~25. The ceiling below (28) gives 3 queries of slack
+  # for small future additions and is tight enough to catch a real regression
   # (e.g. accidental per-row dispatch from a preload callback) — any change
   # should force a conscious update here.
   describe "query count (N+1 regression guard)" do
-    @query_ceiling 32
+    @query_ceiling 28
 
     # Counts Ecto queries fired while `fun` runs. Attaches a unique-named
     # telemetry handler, drains the resulting messages, and returns
