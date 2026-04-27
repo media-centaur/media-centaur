@@ -623,8 +623,11 @@ defmodule MediaCentarr.Library.InboundTest do
       # WatchedFiles destroyed
       assert Library.list_watched_files_by_entity_id(movie.id) == []
 
-      # Broadcasts entities_changed (via coalescer — allow flush window)
-      assert_receive {:entities_changed, [_entity_id]}, 500
+      # Broadcasts entities_changed (via coalescer — allow flush window).
+      # Coalescer may bundle this entity's ID with IDs from concurrent tests'
+      # broadcasts in the same 200ms window — assert membership, not exact list.
+      assert_receive {:entities_changed, ids}, 500
+      assert movie.id in ids
 
       # Sends file list to review:intake
       assert_received {:files_for_review,
