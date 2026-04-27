@@ -23,6 +23,7 @@ defmodule MediaCentarrWeb.Router do
       live "/status", StatusLive, :index
       live "/settings", SettingsLive, :index
       live "/review", ReviewLive, :index
+      live "/upcoming", UpcomingLive, :index
       live "/console", ConsolePageLive, :index
       live "/history", WatchHistoryLive, :index
       live "/download", AcquisitionLive, :index
