@@ -86,16 +86,14 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
     end)
   end
 
-  @doc "Shape WatchHistory event rows into PosterRow items."
-  @spec watched_recently_items([map()]) :: [map()]
-  def watched_recently_items(events) do
-    Enum.map(events, fn event ->
-      %{
-        id: event.entity_id,
-        name: event.entity_name,
-        year: format_year(event.year),
-        poster_url: event.poster_url
-      }
+  @doc "Shape rewatch rows + entity lookup map into PosterRow items with Nx badges."
+  @spec heavy_rotation_items([map()], %{{atom(), term()} => map()}) :: [map()]
+  def heavy_rotation_items(rewatch_rows, entity_lookup) do
+    Enum.flat_map(rewatch_rows, fn rewatch ->
+      case Map.get(entity_lookup, {rewatch.entity_type, rewatch.entity_id}) do
+        nil -> []
+        entity -> [Map.put(entity, :badge_label, "#{rewatch.count}×")]
+      end
     end)
   end
 
