@@ -6,8 +6,8 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
   alias MediaCentarr.Watcher.FilePresence
 
-  test "GET /home_preview renders without crashing", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/home_preview")
+  test "GET / renders without crashing", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
     # The page mounts and renders content — either section headings (when
     # there is data) or the empty-state message (when the test DB is empty).
     assert html =~ "Continue Watching" or html =~ "Your home page will populate"
@@ -16,7 +16,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   test "section headings are visible when sections have data", %{conn: conn} do
     # We're not asserting specific data here — Library facade may or may
     # not have any entities in the test DB. Mount + render is enough.
-    {:ok, _view, _html} = live(conn, "/home_preview")
+    {:ok, _view, _html} = live(conn, "/")
     assert true
   end
 
@@ -26,9 +26,25 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     FilePresence.record_file(file.file_path, file.watch_dir)
     create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
-    {:ok, _view, html} = live(conn, "/home_preview")
+    {:ok, _view, html} = live(conn, "/")
 
     assert html =~ "Prior Lives"
     assert html =~ "Continue Watching"
+  end
+
+  describe "zone redirects" do
+    test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
+      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
+    end
+
+    test "redirects /?zone=library to /library", %{conn: conn} do
+      assert {:error, {:live_redirect, %{to: "/library"}}} = live(conn, "/?zone=library")
+    end
+
+    test "/?zone=continue mounts normally (unknown zone is a no-op)", %{conn: conn} do
+      # Unknown zone params are ignored — no redirect, page mounts in place
+      {:ok, _view, html} = live(conn, "/?zone=continue")
+      assert html =~ "Continue Watching" or html =~ "Your home page will populate"
+    end
   end
 end

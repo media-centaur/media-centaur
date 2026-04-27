@@ -322,21 +322,21 @@ defmodule MediaCentarrWeb.StatusLive do
   defp library_stats(assigns) do
     ~H"""
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
+      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.by_type[:movie] || 0}</div>
         <div class="text-sm text-base-content/60">Movies</div>
         <div class="text-xs text-base-content/40 mt-1">
           {@stats.by_type[:movie_series] || 0} collections
         </div>
       </.link>
-      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
+      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.by_type[:tv_series] || 0}</div>
         <div class="text-sm text-base-content/60">TV Series</div>
         <div class="text-xs text-base-content/40 mt-1">{@stats.episodes} episodes</div>
       </.link>
       <.link
         :if={(@stats.by_type[:video_object] || 0) > 0}
-        navigate="/"
+        navigate="/library"
         data-nav-item
         tabindex="0"
         class="p-4 rounded-lg glass-surface block"
@@ -344,11 +344,11 @@ defmodule MediaCentarrWeb.StatusLive do
         <div class="text-2xl font-bold">{@stats.by_type[:video_object]}</div>
         <div class="text-sm text-base-content/60">Videos</div>
       </.link>
-      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
+      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.files}</div>
         <div class="text-sm text-base-content/60">Files Tracked</div>
       </.link>
-      <.link navigate="/" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
+      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
         <div class="text-2xl font-bold">{@stats.images}</div>
         <div class="text-sm text-base-content/60">Images Cached</div>
       </.link>
@@ -389,7 +389,7 @@ defmodule MediaCentarrWeb.StatusLive do
   defp change_entry_row(%{entry: %{kind: :added}} = assigns) do
     ~H"""
     <.link
-      navigate={"/?zone=library&selected=#{@entry.entity_id}"}
+      navigate={"/library?selected=#{@entry.entity_id}"}
       class="flex items-center gap-3 py-1 hover:bg-base-content/5 rounded px-2 -mx-2"
     >
       <span class="w-2 h-2 rounded-full bg-success shrink-0"></span>

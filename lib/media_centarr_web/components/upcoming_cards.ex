@@ -1425,11 +1425,11 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   def row_destination(release, status, acquisition_ready) do
     cond do
       status == :completed and not is_nil(release.item.library_entity_id) ->
-        "/?zone=library&selected=#{release.item.library_entity_id}"
+        "/library?selected=#{release.item.library_entity_id}"
 
       not acquisition_ready ->
         if release.item.library_entity_id,
-          do: "/?zone=library&selected=#{release.item.library_entity_id}",
+          do: "/library?selected=#{release.item.library_entity_id}",
           else: "/"
 
       status in [:none, :searching, :cancelled] ->
