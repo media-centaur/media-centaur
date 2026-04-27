@@ -20,6 +20,19 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       assert html =~ "id=\"browse\""
     end
+
+    test "catalog grid populates with entities on initial mount", %{conn: conn} do
+      # Regression: zone-stripping in Phase 4.5 broke the stream-population
+      # path. handle_params now must reset the stream when entries are
+      # loaded for the first time, not only when tab/sort/filter change.
+      movie = create_standalone_movie(%{name: "Initial Mount Fixture"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      {:ok, _view, html} = live(conn, "/library")
+
+      assert html =~ "Initial Mount Fixture"
+    end
   end
 
   describe "detail modal dismissal" do

@@ -94,11 +94,11 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    socket =
+    {socket, just_loaded} =
       if connected?(socket) && socket.assigns.entries == [] do
-        load_library(socket)
+        {load_library(socket), true}
       else
-        socket
+        {socket, false}
       end
 
     tab = parse_tab(params["tab"])
@@ -110,7 +110,8 @@ defmodule MediaCentarrWeb.LibraryLive do
     presentation = if selected_id, do: :modal
 
     grid_changed =
-      tab != socket.assigns.active_tab ||
+      just_loaded ||
+        tab != socket.assigns.active_tab ||
         sort != socket.assigns.sort_order ||
         filter_text != socket.assigns.filter_text
 
