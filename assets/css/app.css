@@ -286,6 +286,45 @@ body {
   color: oklch(from var(--color-primary) l c h / 0.8);
 }
 
+/* Sidebar group label — small, uppercase, dim. Separates Watch from System. */
+.sidebar-group-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: oklch(from var(--color-base-content) l c h / 0.4);
+  padding: 0.75rem 0.5rem 0.25rem 0.5rem;
+}
+
+[data-sidebar=collapsed] .sidebar-group-label {
+  opacity: 0;
+  padding-top: 0.5rem;
+  padding-bottom: 0;
+  height: 0.5rem;
+  overflow: hidden;
+}
+
+/* Demoted system-group links — slightly dimmer & smaller font.
+   Stack with .sidebar-link (e.g. class="sidebar-link sidebar-link-system"). */
+.sidebar-link-system {
+  font-size: 0.8125rem;
+  color: oklch(from var(--color-base-content) l c h / 0.55);
+}
+
+.sidebar-link-system:hover {
+  color: oklch(from var(--color-base-content) l c h / 0.75);
+}
+
+.sidebar-link-system.sidebar-link-active {
+  color: var(--color-primary);
+  background: oklch(from var(--color-primary) l c h / 0.10);
+}
+
+.sidebar-link-system .size-5 {
+  width: 1rem;
+  height: 1rem;
+}
+
 /* Label text fades out when collapsed */
 .sidebar-label {
   white-space: nowrap;
