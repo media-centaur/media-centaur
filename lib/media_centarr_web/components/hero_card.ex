@@ -17,7 +17,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
     <section
       :if={@item}
       data-component="hero"
-      class="relative rounded-xl overflow-hidden aspect-[21/9] mb-6 bg-base-300"
+      class="relative rounded-xl overflow-hidden aspect-[21/9] max-h-[55vh] mb-6 bg-base-300"
     >
       <img
         :if={@item.backdrop_url}
@@ -25,7 +25,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
         class="absolute inset-0 w-full h-full object-cover"
       />
       <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent"></div>
-      <div class="absolute bottom-0 left-0 right-0 p-8 max-w-4xl flex flex-col gap-3">
+      <div class="absolute bottom-0 left-0 right-0 p-6 max-w-3xl flex flex-col gap-2">
         <div
           :if={@item.year || @item.runtime || @item.genre_label}
           class="text-sm text-white/80 flex flex-wrap gap-2"
