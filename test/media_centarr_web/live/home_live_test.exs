@@ -53,6 +53,34 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     end
   end
 
+  describe "Coming Up grab status enrichment" do
+    test "Coming Up section renders with Scheduled badge when Prowlarr is not configured", %{
+      conn: conn
+    } do
+      # In the test environment Prowlarr is never configured, so load_coming_up/1
+      # skips Acquisition.statuses_for_releases/1 and every release falls back to
+      # :scheduled. This confirms the no-Prowlarr path renders correctly.
+      today = Date.utc_today()
+      {monday, _sunday} = MediaCentarrWeb.HomeLive.Logic.coming_up_window(today)
+
+      tmdb_id = :rand.uniform(999_999)
+      item = create_tracking_item(%{tmdb_id: tmdb_id, media_type: :tv_series, name: "Slow Mares"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 5,
+        episode_number: 2,
+        air_date: monday,
+        released: false
+      })
+
+      {:ok, _view, html} = live(conn, "/")
+
+      assert html =~ "Scheduled"
+      assert html =~ "Coming Up This Week"
+    end
+  end
+
   describe "zone redirects" do
     test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
       assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
