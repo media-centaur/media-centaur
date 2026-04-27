@@ -96,4 +96,27 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
       assert render(view) =~ "Sample Movie Thirteen"
     end
   end
+
+  describe "rewatch count badges" do
+    test "shows a rewatch count badge for entities watched 2+ times", %{conn: conn} do
+      movie = create_movie(%{name: "The Bear"})
+
+      for _ <- 1..3 do
+        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "The Bear"})
+      end
+
+      {:ok, _view, html} = live(conn, "/history")
+
+      assert html =~ "3×"
+    end
+
+    test "does not show a rewatch badge for entities watched only once", %{conn: conn} do
+      movie = create_movie(%{name: "Prior Lives"})
+      create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Prior Lives"})
+
+      {:ok, _view, html} = live(conn, "/history")
+
+      refute html =~ "1×"
+    end
+  end
 end

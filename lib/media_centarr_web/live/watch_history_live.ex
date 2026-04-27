@@ -15,11 +15,13 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
 
     stats = WatchHistory.stats()
     heatmap_cells_by_type = WatchHistory.heatmap_cells_by_type()
+    rewatch_counts = fetch_rewatch_counts()
 
     socket =
       assign(socket,
         stats: stats,
         heatmap_cells_by_type: heatmap_cells_by_type,
+        rewatch_counts: rewatch_counts,
         filter_type: nil,
         filter_search: "",
         filter_date: nil,
@@ -202,7 +204,15 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             data-nav-item
             tabindex="0"
           >
-            <span class="flex-1 min-w-0 text-sm font-medium truncate">{event.title}</span>
+            <span class="flex-1 min-w-0 flex items-baseline gap-2 min-w-0">
+              <span class="text-sm font-medium truncate">{event.title}</span>
+              <span
+                :if={rewatch_count_for_event(event, @rewatch_counts) >= 2}
+                class="badge badge-soft badge-primary text-xs shrink-0"
+              >
+                {rewatch_count_for_event(event, @rewatch_counts)}×
+              </span>
+            </span>
             <span class="text-xs text-base-content/50 whitespace-nowrap shrink-0">
               {type_label(event.entity_type)}
             </span>
@@ -398,6 +408,7 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
        has_next: has_next,
        stats: stats,
        heatmap_cells_by_type: heatmap,
+       rewatch_counts: fetch_rewatch_counts(),
        deleted_event: event,
        deleting_event: nil
      )}
@@ -414,13 +425,31 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
        events: events,
        has_next: has_next,
        stats: stats,
-       heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type()
+       heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type(),
+       rewatch_counts: fetch_rewatch_counts()
      )}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # --- Private helpers ---
+
+  defp fetch_rewatch_counts do
+    %{
+      movie: WatchHistory.rewatch_count_map(:movie),
+      episode: WatchHistory.rewatch_count_map(:episode),
+      video_object: WatchHistory.rewatch_count_map(:video_object)
+    }
+  end
+
+  defp rewatch_count_for_event(event, rewatch_counts) do
+    case event.entity_type do
+      :movie -> Map.get(rewatch_counts.movie, event.movie_id, 0)
+      :episode -> Map.get(rewatch_counts.episode, event.episode_id, 0)
+      :video_object -> Map.get(rewatch_counts.video_object, event.video_object_id, 0)
+      _ -> 0
+    end
+  end
 
   defp fetch_page(socket) do
     a = socket.assigns
