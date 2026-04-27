@@ -846,7 +846,17 @@ defmodule MediaCentarr.Library do
 
     movies =
       from(m in Movie,
-        where: is_nil(m.movie_series_id),
+        as: :item,
+        where:
+          is_nil(m.movie_series_id) and
+            exists(
+              from(wf in "library_watched_files",
+                join: kf in "watcher_files",
+                on: kf.file_path == wf.file_path,
+                where: wf.movie_id == parent_as(:item).id and kf.state == "present",
+                select: 1
+              )
+            ),
         order_by: [{:desc, m.inserted_at}],
         limit: ^limit
       )
@@ -856,6 +866,16 @@ defmodule MediaCentarr.Library do
 
     tv_series =
       from(t in TVSeries,
+        as: :item,
+        where:
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.tv_series_id == parent_as(:item).id and kf.state == "present",
+              select: 1
+            )
+          ),
         order_by: [{:desc, t.inserted_at}],
         limit: ^limit
       )
@@ -865,6 +885,16 @@ defmodule MediaCentarr.Library do
 
     movie_series =
       from(ms in MovieSeries,
+        as: :item,
+        where:
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.movie_series_id == parent_as(:item).id and kf.state == "present",
+              select: 1
+            )
+          ),
         order_by: [{:desc, ms.inserted_at}],
         limit: ^limit
       )
@@ -874,6 +904,16 @@ defmodule MediaCentarr.Library do
 
     video_objects =
       from(v in VideoObject,
+        as: :item,
+        where:
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.video_object_id == parent_as(:item).id and kf.state == "present",
+              select: 1
+            )
+          ),
         order_by: [{:desc, v.inserted_at}],
         limit: ^limit
       )
@@ -899,96 +939,139 @@ defmodule MediaCentarr.Library do
   def list_hero_candidates(opts \\ []) do
     limit = Keyword.get(opts, :limit, 12)
 
-    movies =
-      from(m in Movie,
-        as: :entity,
-        where:
-          is_nil(m.movie_series_id) and
-            not is_nil(m.description) and
-            fragment("TRIM(?)", m.description) != "" and
-            exists(
-              from(img in Image,
-                where:
-                  img.movie_id == parent_as(:entity).id and
-                    img.role == "backdrop" and
-                    not is_nil(img.content_url),
-                select: 1
-              )
-            ),
-        order_by: [{:desc, m.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_hero_record/1)
-
-    tv_series =
-      from(t in TVSeries,
-        as: :entity,
-        where:
-          not is_nil(t.description) and
-            fragment("TRIM(?)", t.description) != "" and
-            exists(
-              from(img in Image,
-                where:
-                  img.tv_series_id == parent_as(:entity).id and
-                    img.role == "backdrop" and
-                    not is_nil(img.content_url),
-                select: 1
-              )
-            ),
-        order_by: [{:desc, t.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_hero_record/1)
-
-    movie_series =
-      from(ms in MovieSeries,
-        as: :entity,
-        where:
-          not is_nil(ms.description) and
-            fragment("TRIM(?)", ms.description) != "" and
-            exists(
-              from(img in Image,
-                where:
-                  img.movie_series_id == parent_as(:entity).id and
-                    img.role == "backdrop" and
-                    not is_nil(img.content_url),
-                select: 1
-              )
-            ),
-        order_by: [{:desc, ms.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_hero_record/1)
-
-    video_objects =
-      from(v in VideoObject,
-        as: :entity,
-        where:
-          not is_nil(v.description) and
-            fragment("TRIM(?)", v.description) != "" and
-            exists(
-              from(img in Image,
-                where:
-                  img.video_object_id == parent_as(:entity).id and
-                    img.role == "backdrop" and
-                    not is_nil(img.content_url),
-                select: 1
-              )
-            ),
-        order_by: [{:desc, v.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_hero_record/1)
+    movies = fetch_hero_candidates_movies(limit)
+    tv_series = fetch_hero_candidates_tv_series(limit)
+    movie_series = fetch_hero_candidates_movie_series(limit)
+    video_objects = fetch_hero_candidates_video_objects(limit)
 
     Enum.take(movies ++ tv_series ++ movie_series ++ video_objects, limit)
+  end
+
+  # --- Private fetchers for list_hero_candidates ---
+
+  defp fetch_hero_candidates_movies(limit) do
+    from(m in Movie,
+      as: :entity,
+      where:
+        is_nil(m.movie_series_id) and
+          not is_nil(m.description) and
+          fragment("TRIM(?)", m.description) != "" and
+          exists(
+            from(img in Image,
+              where:
+                img.movie_id == parent_as(:entity).id and
+                  img.role == "backdrop" and
+                  not is_nil(img.content_url),
+              select: 1
+            )
+          ) and
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.movie_id == parent_as(:entity).id and kf.state == "present",
+              select: 1
+            )
+          ),
+      order_by: [{:desc, m.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_hero_record/1)
+  end
+
+  defp fetch_hero_candidates_tv_series(limit) do
+    from(t in TVSeries,
+      as: :entity,
+      where:
+        not is_nil(t.description) and
+          fragment("TRIM(?)", t.description) != "" and
+          exists(
+            from(img in Image,
+              where:
+                img.tv_series_id == parent_as(:entity).id and
+                  img.role == "backdrop" and
+                  not is_nil(img.content_url),
+              select: 1
+            )
+          ) and
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.tv_series_id == parent_as(:entity).id and kf.state == "present",
+              select: 1
+            )
+          ),
+      order_by: [{:desc, t.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_hero_record/1)
+  end
+
+  defp fetch_hero_candidates_movie_series(limit) do
+    from(ms in MovieSeries,
+      as: :entity,
+      where:
+        not is_nil(ms.description) and
+          fragment("TRIM(?)", ms.description) != "" and
+          exists(
+            from(img in Image,
+              where:
+                img.movie_series_id == parent_as(:entity).id and
+                  img.role == "backdrop" and
+                  not is_nil(img.content_url),
+              select: 1
+            )
+          ) and
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.movie_series_id == parent_as(:entity).id and kf.state == "present",
+              select: 1
+            )
+          ),
+      order_by: [{:desc, ms.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_hero_record/1)
+  end
+
+  defp fetch_hero_candidates_video_objects(limit) do
+    from(v in VideoObject,
+      as: :entity,
+      where:
+        not is_nil(v.description) and
+          fragment("TRIM(?)", v.description) != "" and
+          exists(
+            from(img in Image,
+              where:
+                img.video_object_id == parent_as(:entity).id and
+                  img.role == "backdrop" and
+                  not is_nil(img.content_url),
+              select: 1
+            )
+          ) and
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.video_object_id == parent_as(:entity).id and kf.state == "present",
+              select: 1
+            )
+          ),
+      order_by: [{:desc, v.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_hero_record/1)
   end
 
   # --- Private helpers for HomeLive facade ---
@@ -1004,6 +1087,15 @@ defmodule MediaCentarr.Library do
           exists(
             from(wp in WatchProgress,
               where: wp.movie_id == parent_as(:movie).id and wp.completed == false,
+              select: 1
+            )
+          ),
+        where:
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.movie_id == parent_as(:movie).id and kf.state == "present",
               select: 1
             )
           ),
@@ -1062,6 +1154,15 @@ defmodule MediaCentarr.Library do
               join: s in "library_seasons",
               on: s.id == ep.season_id,
               where: s.tv_series_id == parent_as(:series).id and wp.completed == false,
+              select: 1
+            )
+          ),
+        where:
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.tv_series_id == parent_as(:series).id and kf.state == "present",
               select: 1
             )
           ),
@@ -1132,6 +1233,15 @@ defmodule MediaCentarr.Library do
               select: 1
             )
           ),
+        where:
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.video_object_id == parent_as(:video_object).id and kf.state == "present",
+              select: 1
+            )
+          ),
         order_by: [
           desc:
             fragment(
@@ -1184,6 +1294,17 @@ defmodule MediaCentarr.Library do
               join: m in Movie,
               on: m.id == wp.movie_id,
               where: m.movie_series_id == parent_as(:series).id and wp.completed == false,
+              select: 1
+            )
+          ),
+        where:
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              join: m in "library_movies",
+              on: m.id == wf.movie_id,
+              where: m.movie_series_id == parent_as(:series).id and kf.state == "present",
               select: 1
             )
           ),
