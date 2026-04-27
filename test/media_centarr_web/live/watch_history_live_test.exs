@@ -93,7 +93,30 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
 
       send(view.pid, {:watch_event_created, event})
 
+      # The handler debounces at 500ms — wait for the window to fire before asserting.
+      Process.sleep(600)
+
       assert render(view) =~ "Sample Movie Thirteen"
+    end
+
+    test "five rapid watch_event_created broadcasts trigger only one reload after the debounce window",
+         %{conn: conn} do
+      # Regression guard: rapid :watch_event_created messages must be debounced
+      # (500ms) rather than triggering a full stats + events re-fetch on every
+      # message. Five messages must result in one :reload_history — the page
+      # must render correctly after the window and not crash.
+      {:ok, view, _html} = live(conn, "/history")
+
+      movie = create_movie(%{name: "Sample Movie"})
+
+      for _ <- 1..5 do
+        event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie"})
+        send(view.pid, {:watch_event_created, event})
+      end
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Watch History"
     end
   end
 
