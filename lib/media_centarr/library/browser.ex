@@ -86,7 +86,7 @@ defmodule MediaCentarr.Library.Browser do
         )
     )
     |> Repo.all()
-    |> Repo.preload([:images, :external_ids, :extras, :watched_files, :watch_progress])
+    |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])
   end
 
   defp fetch_all_tv_series do
@@ -106,9 +106,8 @@ defmodule MediaCentarr.Library.Browser do
     |> Repo.preload([
       :images,
       :external_ids,
-      :extras,
       :watched_files,
-      seasons: [:extras, episodes: [:images, :watch_progress]]
+      seasons: [episodes: [:images, :watch_progress]]
     ])
   end
 
@@ -129,7 +128,6 @@ defmodule MediaCentarr.Library.Browser do
     |> Repo.preload([
       :images,
       :external_ids,
-      :extras,
       :watched_files,
       movies: [:images, :watch_progress]
     ])
@@ -170,7 +168,7 @@ defmodule MediaCentarr.Library.Browser do
       where: exists(present_file_subquery(:movie_id))
     )
     |> Repo.all()
-    |> Repo.preload([:images, :external_ids, :extras, :watched_files, :watch_progress])
+    |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])
   end
 
   defp fetch_tv_series_by_ids(ids) do
@@ -183,9 +181,8 @@ defmodule MediaCentarr.Library.Browser do
     |> Repo.preload([
       :images,
       :external_ids,
-      :extras,
       :watched_files,
-      seasons: [:extras, episodes: [:images, :watch_progress]]
+      seasons: [episodes: [:images, :watch_progress]]
     ])
   end
 
@@ -199,7 +196,6 @@ defmodule MediaCentarr.Library.Browser do
     |> Repo.preload([
       :images,
       :external_ids,
-      :extras,
       :watched_files,
       movies: [:images, :watch_progress]
     ])
