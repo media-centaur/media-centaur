@@ -4,7 +4,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
   import MediaCentarr.TestFactory
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Watcher.FilePresence
+  alias MediaCentarr.{Library, Watcher.FilePresence}
 
   describe "zone tabs removed" do
     test "library page has no zone tabs", %{conn: conn} do
@@ -32,6 +32,63 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       {:ok, _view, html} = live(conn, "/library")
 
       assert html =~ "Initial Mount Fixture"
+    end
+  end
+
+  describe "in_progress filter" do
+    setup do
+      # Movie the user has started but not finished
+      in_progress_movie = create_standalone_movie(%{name: "In Progress Movie"})
+      file1 = create_linked_file(%{movie_id: in_progress_movie.id})
+      FilePresence.record_file(file1.file_path, file1.watch_dir)
+
+      create_watch_progress(%{
+        movie_id: in_progress_movie.id,
+        position_seconds: 100.0,
+        duration_seconds: 1000.0
+      })
+
+      # Movie the user has fully completed
+      finished_movie = create_standalone_movie(%{name: "Finished Movie"})
+      file2 = create_linked_file(%{movie_id: finished_movie.id})
+      FilePresence.record_file(file2.file_path, file2.watch_dir)
+
+      progress =
+        create_watch_progress(%{
+          movie_id: finished_movie.id,
+          position_seconds: 1000.0,
+          duration_seconds: 1000.0
+        })
+
+      Library.mark_watch_completed!(progress)
+
+      # Movie the user has never touched
+      untouched_movie = create_standalone_movie(%{name: "Untouched Movie"})
+      file3 = create_linked_file(%{movie_id: untouched_movie.id})
+      FilePresence.record_file(file3.file_path, file3.watch_dir)
+
+      :ok
+    end
+
+    test "?in_progress=1 only shows entities with in-progress watch progress", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/library?in_progress=1")
+
+      assert html =~ "In Progress Movie"
+      refute html =~ "Finished Movie"
+      refute html =~ "Untouched Movie"
+    end
+
+    test "?in_progress=1 shows the active-filter indicator chip", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/library?in_progress=1")
+      assert html =~ "In progress"
+    end
+
+    test "/library (no param) shows all entities — no in-progress filter", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/library")
+
+      assert html =~ "In Progress Movie"
+      assert html =~ "Finished Movie"
+      assert html =~ "Untouched Movie"
     end
   end
 

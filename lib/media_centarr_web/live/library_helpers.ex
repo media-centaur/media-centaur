@@ -58,6 +58,12 @@ defmodule MediaCentarrWeb.LibraryHelpers do
     Enum.filter(entries, fn %{entity: entity} -> entity.type == :tv_series end)
   end
 
+  def filtered_by_in_progress(entries, false), do: entries
+
+  def filtered_by_in_progress(entries, true) do
+    Enum.filter(entries, &MediaCentarrWeb.LibraryProgress.in_progress?/1)
+  end
+
   def filtered_by_text(entries, ""), do: entries
 
   def filtered_by_text(entries, text) do
@@ -101,6 +107,21 @@ defmodule MediaCentarrWeb.LibraryHelpers do
     Enum.sort_by(
       entries,
       fn entry -> entry.entity.inserted_at || ~U[2000-01-01 00:00:00Z] end,
+      {:desc, DateTime}
+    )
+  end
+
+  @epoch ~U[2000-01-01 00:00:00Z]
+
+  @doc """
+  Sorts entries by most-recently-watched descending. Entries with no
+  `last_watched_at` across any progress record sort last.
+  Used by the `?in_progress=1` filter.
+  """
+  def sorted_by_last_watched(entries) do
+    Enum.sort_by(
+      entries,
+      fn entry -> MediaCentarrWeb.LibraryProgress.max_last_watched_at(entry) || @epoch end,
       {:desc, DateTime}
     )
   end
