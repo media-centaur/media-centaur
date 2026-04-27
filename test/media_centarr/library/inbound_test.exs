@@ -511,7 +511,7 @@ defmodule MediaCentarr.Library.InboundTest do
 
       assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
 
-      assert_receive {:entities_changed, entity_ids}
+      assert_receive {:entities_changed, entity_ids}, 500
       assert movie.id in entity_ids
     end
 
@@ -588,7 +588,7 @@ defmodule MediaCentarr.Library.InboundTest do
         entity_id: movie.id
       })
 
-      assert_receive {:entities_changed, entity_ids}
+      assert_receive {:entities_changed, entity_ids}, 500
       assert movie.id in entity_ids
     end
   end
@@ -623,8 +623,8 @@ defmodule MediaCentarr.Library.InboundTest do
       # WatchedFiles destroyed
       assert Library.list_watched_files_by_entity_id(movie.id) == []
 
-      # Broadcasts entities_changed
-      assert_received {:entities_changed, [_entity_id]}
+      # Broadcasts entities_changed (via coalescer — allow flush window)
+      assert_receive {:entities_changed, [_entity_id]}, 500
 
       # Sends file list to review:intake
       assert_received {:files_for_review,
