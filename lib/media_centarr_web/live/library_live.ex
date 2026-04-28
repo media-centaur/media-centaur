@@ -625,8 +625,13 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
-  def handle_info({:availability_changed, _dir, state}, socket) do
-    availability_map = MediaCentarrWeb.LibraryAvailability.availability_map(socket.assigns.entries)
+  def handle_info({:availability_changed, dir, state}, socket) do
+    availability_map =
+      MediaCentarrWeb.LibraryAvailability.availability_for_dir(
+        socket.assigns.entries,
+        dir,
+        socket.assigns.availability_map
+      )
 
     socket =
       assign(socket,

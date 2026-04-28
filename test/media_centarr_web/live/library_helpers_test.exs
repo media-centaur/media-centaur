@@ -69,6 +69,66 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     end
   end
 
+  # --- availability_for_dir/4 ---
+
+  describe "availability_for_dir/4" do
+    test "patches only entries whose file is under the changed dir" do
+      a = entry(%{id: "a", type: :movie, file_path: "/mnt/disk1/movies/a.mkv"})
+      b = entry(%{id: "b", type: :movie, file_path: "/mnt/disk2/movies/b.mkv"})
+      c = entry(%{id: "c", type: :movie, file_path: "/mnt/disk1/movies/c.mkv"})
+
+      current = %{"a" => true, "b" => true, "c" => true}
+
+      result =
+        LibraryAvailability.availability_for_dir([a, b, c], "/mnt/disk1", current,
+          available_fn: fn _ -> false end
+        )
+
+      # a and c are under /mnt/disk1 -> recomputed to false
+      # b is under /mnt/disk2 -> untouched
+      assert result == %{"a" => false, "b" => true, "c" => false}
+    end
+
+    test "leaves the map unchanged when no entries are under the changed dir" do
+      a = entry(%{id: "a", type: :movie, file_path: "/mnt/disk2/movies/a.mkv"})
+      current = %{"a" => true}
+
+      result =
+        LibraryAvailability.availability_for_dir([a], "/mnt/disk1", current,
+          available_fn: fn _ -> false end
+        )
+
+      assert result == %{"a" => true}
+    end
+
+    test "ignores entries that have no file path" do
+      a = entry(%{id: "a", type: :movie})
+      current = %{"a" => true}
+
+      result =
+        LibraryAvailability.availability_for_dir([a], "/mnt/disk1", current,
+          available_fn: fn _ -> false end
+        )
+
+      assert result == %{"a" => true}
+    end
+
+    test "uses an injected under_dir_fn when provided" do
+      a = entry(%{id: "a", type: :movie})
+      b = entry(%{id: "b", type: :movie})
+
+      under_dir_fn = fn entity, _dir -> entity.id == "a" end
+
+      result =
+        LibraryAvailability.availability_for_dir([a, b], "anything", %{},
+          available_fn: fn _ -> false end,
+          under_dir_fn: under_dir_fn
+        )
+
+      assert result == %{"a" => false}
+    end
+  end
+
   # --- apply_entry_update/4 ---
 
   describe "apply_entry_update/4" do
