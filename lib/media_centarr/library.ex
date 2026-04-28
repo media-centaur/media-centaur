@@ -844,87 +844,96 @@ defmodule MediaCentarr.Library do
   def list_recently_added(opts \\ []) do
     limit = Keyword.get(opts, :limit, 16)
 
-    movies =
-      from(m in Movie,
-        as: :item,
-        where:
-          is_nil(m.movie_series_id) and
-            exists(
-              from(wf in "library_watched_files",
-                join: kf in "watcher_files",
-                on: kf.file_path == wf.file_path,
-                where: wf.movie_id == parent_as(:item).id and kf.state == "present",
-                select: 1
-              )
-            ),
-        order_by: [{:desc, m.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_recently_added_record/1)
-
-    tv_series =
-      from(t in TVSeries,
-        as: :item,
-        where:
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.tv_series_id == parent_as(:item).id and kf.state == "present",
-              select: 1
-            )
-          ),
-        order_by: [{:desc, t.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_recently_added_record/1)
-
-    movie_series =
-      from(ms in MovieSeries,
-        as: :item,
-        where:
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.movie_series_id == parent_as(:item).id and kf.state == "present",
-              select: 1
-            )
-          ),
-        order_by: [{:desc, ms.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_recently_added_record/1)
-
-    video_objects =
-      from(v in VideoObject,
-        as: :item,
-        where:
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.video_object_id == parent_as(:item).id and kf.state == "present",
-              select: 1
-            )
-          ),
-        order_by: [{:desc, v.inserted_at}],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload(:images)
-      |> Enum.map(&shape_recently_added_record/1)
+    movies = fetch_recently_added_movies(limit)
+    tv_series = fetch_recently_added_tv_series(limit)
+    movie_series = fetch_recently_added_movie_series(limit)
+    video_objects = fetch_recently_added_video_objects(limit)
 
     (movies ++ tv_series ++ movie_series ++ video_objects)
     |> Enum.sort_by(& &1.__inserted_at__, {:desc, DateTime})
     |> Enum.take(limit)
     |> Enum.map(&Map.delete(&1, :__inserted_at__))
+  end
+
+  defp fetch_recently_added_movies(limit) do
+    from(m in Movie,
+      as: :item,
+      where:
+        is_nil(m.movie_series_id) and
+          exists(
+            from(wf in "library_watched_files",
+              join: kf in "watcher_files",
+              on: kf.file_path == wf.file_path,
+              where: wf.movie_id == parent_as(:item).id and kf.state == "present",
+              select: 1
+            )
+          ),
+      order_by: [{:desc, m.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_recently_added_record/1)
+  end
+
+  defp fetch_recently_added_tv_series(limit) do
+    from(t in TVSeries,
+      as: :item,
+      where:
+        exists(
+          from(wf in "library_watched_files",
+            join: kf in "watcher_files",
+            on: kf.file_path == wf.file_path,
+            where: wf.tv_series_id == parent_as(:item).id and kf.state == "present",
+            select: 1
+          )
+        ),
+      order_by: [{:desc, t.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_recently_added_record/1)
+  end
+
+  defp fetch_recently_added_movie_series(limit) do
+    from(ms in MovieSeries,
+      as: :item,
+      where:
+        exists(
+          from(wf in "library_watched_files",
+            join: kf in "watcher_files",
+            on: kf.file_path == wf.file_path,
+            where: wf.movie_series_id == parent_as(:item).id and kf.state == "present",
+            select: 1
+          )
+        ),
+      order_by: [{:desc, ms.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_recently_added_record/1)
+  end
+
+  defp fetch_recently_added_video_objects(limit) do
+    from(v in VideoObject,
+      as: :item,
+      where:
+        exists(
+          from(wf in "library_watched_files",
+            join: kf in "watcher_files",
+            on: kf.file_path == wf.file_path,
+            where: wf.video_object_id == parent_as(:item).id and kf.state == "present",
+            select: 1
+          )
+        ),
+      order_by: [{:desc, v.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_recently_added_record/1)
   end
 
   @doc """
