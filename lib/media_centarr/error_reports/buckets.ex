@@ -90,7 +90,7 @@ defmodule MediaCentarr.ErrorReports.Buckets do
 
   @impl true
   def handle_cast({:ingest, %Entry{level: :error} = entry}, state) do
-    {:noreply, do_ingest(state, entry)}
+    if test_env_noise?(entry), do: {:noreply, state}, else: {:noreply, do_ingest(state, entry)}
   end
 
   @impl true
@@ -98,7 +98,7 @@ defmodule MediaCentarr.ErrorReports.Buckets do
 
   @impl true
   def handle_info({:log_entry, %Entry{level: :error} = entry}, state) do
-    {:noreply, do_ingest(state, entry)}
+    if test_env_noise?(entry), do: {:noreply, state}, else: {:noreply, do_ingest(state, entry)}
   end
 
   @impl true
@@ -220,4 +220,15 @@ defmodule MediaCentarr.ErrorReports.Buckets do
 
   defp max_dt(a, b), do: if(DateTime.after?(a, b), do: a, else: b)
   defp min_dt(a, b), do: if(DateTime.before?(a, b), do: a, else: b)
+
+  # Drops the `Ecto.Adapters.SQL.Sandbox` owner-exit disconnect that fires when
+  # a Task spawned during a test outlives its sandbox owner. The pattern only
+  # occurs in the test environment; in production no Sandbox is in the path.
+  # Bucketing it would surface as flake noise in unrelated tests
+  # (see flaky-tests.md #2).
+  defp test_env_noise?(%Entry{message: message}) do
+    Application.get_env(:media_centarr, :environment) == :test and
+      String.contains?(message, "DBConnection.ConnectionError") and
+      String.contains?(message, "Sandbox")
+  end
 end
