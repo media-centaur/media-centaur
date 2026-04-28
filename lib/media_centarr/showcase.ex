@@ -26,8 +26,10 @@ defmodule MediaCentarr.Showcase do
   persistent-term stub used by tests — so `mix test` never hits the real API.
   """
 
+  alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Library
   alias MediaCentarr.ReleaseTracking
+  alias MediaCentarr.Repo
   alias MediaCentarr.Review
   alias MediaCentarr.Showcase.Catalog
   alias MediaCentarr.TMDB
@@ -71,8 +73,8 @@ defmodule MediaCentarr.Showcase do
       watch_progress: seed_watch_progress!(movies, tv_series),
       tracked_items: seed_release_tracking!(client),
       pending_files: seed_pending_files!(client),
-      watch_events: seed_watch_history!(movies),
-      acquisitions: seed_acquisition!()
+      watch_events: seed_watch_history!(movies, tv_series),
+      acquisitions: seed_acquisition_activity!()
     }
 
     seed_fake_capabilities!()
@@ -278,66 +280,119 @@ defmodule MediaCentarr.Showcase do
   end
 
   # ---------------------------------------------------------------------------
-  # Watch progress — partial + completed state
+  # Watch progress — Continue Watching + completed state
   # ---------------------------------------------------------------------------
+
+  # Drives both HomeLive's Continue Watching row (4 cards + see-all) and
+  # the Library `?in_progress=1` deep-link. Six non-completed rows with
+  # spread-out progress percentages give the row visibly different
+  # progress bars (10–90% spread). Plus a couple of completed entries so
+  # the seed isn't all-paused.
+  @in_progress_movie_pcts [0.12, 0.28, 0.55, 0.82]
+  @in_progress_episode_pcts [0.38, 0.71]
+  @completed_movie_count 2
+  @completed_episode_count 2
 
   defp seed_watch_progress!(movies, tv_series) do
     now = DateTime.utc_now()
+    movies_with_id = Enum.filter(movies, & &1.id)
 
-    movie_progress =
-      movies
-      |> Enum.filter(& &1.id)
-      |> Enum.take(3)
-      |> Enum.with_index()
-      |> Enum.map(fn {movie, idx} ->
-        # 20%, 60%, completed
-        {position, completed} =
-          case idx do
-            0 -> {0.20 * 5400.0, false}
-            1 -> {0.60 * 5400.0, false}
-            _ -> {5400.0, true}
-          end
-
-        {:ok, _} =
-          Library.find_or_create_watch_progress_for_movie(%{
-            movie_id: movie.id,
-            position_seconds: position,
-            duration_seconds: 5400.0,
-            completed: completed,
-            last_watched_at: DateTime.add(now, -idx * 3600, :second)
-          })
-
-        :ok
-      end)
-
-    episode_progress =
+    episodes_with_id =
       tv_series
       |> Enum.filter(& &1.id)
       |> Enum.flat_map(& &1.seasons)
       |> Enum.flat_map(& &1.episodes)
       |> Enum.filter(& &1.id)
-      |> Enum.take(4)
-      |> Enum.with_index()
-      |> Enum.map(fn {episode, idx} ->
-        {position, completed} =
-          case idx do
-            0 -> {0.45 * 1800.0, false}
-            _ -> {1800.0, true}
-          end
 
-        {:ok, _} =
-          Library.find_or_create_watch_progress_for_episode(%{
-            episode_id: episode.id,
-            position_seconds: position,
-            duration_seconds: 1800.0,
-            completed: completed,
-            last_watched_at: DateTime.add(now, -idx * 900, :second)
-          })
+    in_progress_movies =
+      seed_movie_progress(Enum.take(movies_with_id, length(@in_progress_movie_pcts)),
+        pcts: @in_progress_movie_pcts,
+        completed: false,
+        now: now,
+        stagger_offset: 0
+      )
 
-        :ok
-      end)
+    completed_movies =
+      movies_with_id
+      |> Enum.drop(length(@in_progress_movie_pcts))
+      |> Enum.take(@completed_movie_count)
+      |> seed_movie_progress(
+        pcts: List.duplicate(1.0, @completed_movie_count),
+        completed: true,
+        now: now,
+        stagger_offset: length(@in_progress_movie_pcts)
+      )
 
-    length(movie_progress) + length(episode_progress)
+    in_progress_episodes =
+      seed_episode_progress(Enum.take(episodes_with_id, length(@in_progress_episode_pcts)),
+        pcts: @in_progress_episode_pcts,
+        completed: false,
+        now: now,
+        stagger_offset: 0
+      )
+
+    completed_episodes =
+      episodes_with_id
+      |> Enum.drop(length(@in_progress_episode_pcts))
+      |> Enum.take(@completed_episode_count)
+      |> seed_episode_progress(
+        pcts: List.duplicate(1.0, @completed_episode_count),
+        completed: true,
+        now: now,
+        stagger_offset: length(@in_progress_episode_pcts)
+      )
+
+    in_progress_movies + completed_movies + in_progress_episodes + completed_episodes
+  end
+
+  defp seed_movie_progress(movies, opts) do
+    now = Keyword.fetch!(opts, :now)
+    pcts = Keyword.fetch!(opts, :pcts)
+    completed? = Keyword.fetch!(opts, :completed)
+    stagger_offset = Keyword.fetch!(opts, :stagger_offset)
+    duration = 5400.0
+
+    movies
+    |> Enum.zip(pcts)
+    |> Enum.with_index()
+    |> Enum.map(fn {{movie, pct}, idx} ->
+      {:ok, _} =
+        Library.find_or_create_watch_progress_for_movie(%{
+          movie_id: movie.id,
+          position_seconds: pct * duration,
+          duration_seconds: duration,
+          completed: completed?,
+          last_watched_at: DateTime.add(now, -(stagger_offset + idx) * 3600, :second)
+        })
+
+      :ok
+    end)
+    |> length()
+  end
+
+  defp seed_episode_progress(episodes, opts) do
+    now = Keyword.fetch!(opts, :now)
+    pcts = Keyword.fetch!(opts, :pcts)
+    completed? = Keyword.fetch!(opts, :completed)
+    stagger_offset = Keyword.fetch!(opts, :stagger_offset)
+    duration = 1800.0
+
+    episodes
+    |> Enum.zip(pcts)
+    |> Enum.with_index()
+    |> Enum.map(fn {{episode, pct}, idx} ->
+      {:ok, _} =
+        Library.find_or_create_watch_progress_for_episode(%{
+          episode_id: episode.id,
+          position_seconds: pct * duration,
+          duration_seconds: duration,
+          completed: completed?,
+          last_watched_at: DateTime.add(now, -(stagger_offset + idx) * 900, :second)
+        })
+
+      :ok
+    end)
+    |> length()
   end
 
   # ---------------------------------------------------------------------------
@@ -472,56 +527,298 @@ defmodule MediaCentarr.Showcase do
   # Watch history events
   # ---------------------------------------------------------------------------
 
-  defp seed_watch_history!(movies) do
+  # Heavy-Rotation rewatches (≥2 events per entity) plus a long tail of
+  # single events distributed across the last 90 days. Drives:
+  #
+  #   - HomeLive Heavy Rotation row — `WatchHistory.top_rewatches(min: 2)`
+  #     returns ≥8 entities so the 8-up poster grid fills with `Nx` badges.
+  #   - History page — populated heatmap colour ramp (a busy day with 4+
+  #     completions for the deepest cell), a multi-day current-week
+  #     streak, and ≥80 events overall so stats read as 3-digit hours.
+  #   - Type-filter chips — at least one episode event so the Episodes
+  #     filter has content (Videos remains intentionally empty).
+  defp seed_watch_history!(movies, tv_series) do
     now = DateTime.utc_now(:second)
-    available_movies = movies |> Enum.filter(& &1.id) |> Enum.take(10)
+    movies_with_id = Enum.filter(movies, & &1.id)
 
-    # Seed 2 watch events per movie, spread across the last 30 days, so
-    # the /history page shows a populated, varied feed. Event i for
-    # movie j lands at i*day-offset + j*hour-offset so timestamps are
-    # distinct and the page renders in chronological order without
-    # collisions.
-    events =
-      for {movie, movie_idx} <- Enum.with_index(available_movies),
-          event_idx <- 0..1 do
-        day_offset = movie_idx * 2 + event_idx * 5
-        hour_offset = movie_idx
+    episodes_with_id =
+      tv_series
+      |> Enum.filter(& &1.id)
+      |> Enum.flat_map(& &1.seasons)
+      |> Enum.flat_map(& &1.episodes)
+      |> Enum.filter(& &1.id)
 
-        {:ok, _} =
-          WatchHistory.create_event(%{
-            entity_type: :movie,
-            movie_id: movie.id,
-            title: movie.name,
-            duration_seconds: 5400.0 + movie_idx * 120,
-            completed_at:
-              now
-              |> DateTime.add(-day_offset * 86_400, :second)
-              |> DateTime.add(-hour_offset * 3600, :second)
-          })
+    rewatch_events = seed_rewatch_events!(movies_with_id, episodes_with_id, now)
+    long_tail_events = seed_long_tail_events!(movies_with_id, episodes_with_id, now)
+    streak_events = seed_streak_events!(movies_with_id, now)
+    busy_day_events = seed_busy_day_events!(movies_with_id, episodes_with_id, now)
 
-        :ok
+    rewatch_events + long_tail_events + streak_events + busy_day_events
+  end
+
+  # Heavy Rotation candidates — 8 entities (6 movies + 2 episodes) with
+  # 4..10 events each. Counts vary so the `Nx` badges read as a real
+  # rewatch distribution rather than every card showing "2×". Higher
+  # ends (10×) are realistic for short-form content (Blender open
+  # movies are ~10 min — comfortable to rewatch on a loop).
+  @heavy_rotation_movie_counts [10, 8, 6, 5, 4, 4]
+  @heavy_rotation_episode_counts [5, 4]
+
+  defp seed_rewatch_events!(movies, episodes, now) do
+    movie_count =
+      movies
+      |> Enum.zip(@heavy_rotation_movie_counts)
+      |> Enum.flat_map(fn {movie, count} ->
+        for event_idx <- 0..(count - 1) do
+          create_movie_event!(
+            movie,
+            DateTime.add(now, -(7 + event_idx * 9) * 86_400, :second),
+            5400.0 + event_idx * 60
+          )
+        end
+      end)
+      |> length()
+
+    episode_count =
+      episodes
+      |> Enum.zip(@heavy_rotation_episode_counts)
+      |> Enum.flat_map(fn {episode, count} ->
+        for event_idx <- 0..(count - 1) do
+          create_episode_event!(
+            episode,
+            DateTime.add(now, -(10 + event_idx * 11) * 86_400, :second),
+            1800.0
+          )
+        end
+      end)
+      |> length()
+
+    movie_count + episode_count
+  end
+
+  # Long tail — every remaining movie + remaining episodes get 3 events
+  # each. Combined with heavy-rotation rewatches the seed comfortably
+  # clears 80 events spread across many distinct days.
+  defp seed_long_tail_events!(movies, episodes, now) do
+    tail_movies = Enum.drop(movies, length(@heavy_rotation_movie_counts))
+    tail_episodes = Enum.drop(episodes, length(@heavy_rotation_episode_counts))
+
+    movie_count =
+      tail_movies
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {movie, movie_idx} ->
+        for event_idx <- 0..2 do
+          day_offset = 14 + movie_idx * 5 + event_idx * 13
+          create_movie_event!(movie, DateTime.add(now, -day_offset * 86_400, :second), 5400.0)
+        end
+      end)
+      |> length()
+
+    episode_count =
+      tail_episodes
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {episode, episode_idx} ->
+        for event_idx <- 0..2 do
+          day_offset = 22 + episode_idx * 7 + event_idx * 17
+          create_episode_event!(episode, DateTime.add(now, -day_offset * 86_400, :second), 1800.0)
+        end
+      end)
+      |> length()
+
+    movie_count + episode_count
+  end
+
+  # Five consecutive days of activity ending today so the History page's
+  # Current Streak stat reads as multi-day.
+  defp seed_streak_events!(movies, now) do
+    streak_movies = Enum.take(movies, 5)
+
+    streak_movies
+    |> Enum.with_index()
+    |> Enum.map(fn {movie, day_offset} ->
+      create_movie_event!(movie, DateTime.add(now, -day_offset * 86_400, :second), 5400.0)
+      :ok
+    end)
+    |> length()
+  end
+
+  # One day with 5 completions so the heatmap renders its deepest-green
+  # colour ramp step.
+  defp seed_busy_day_events!(movies, episodes, now) do
+    busy_day = DateTime.add(now, -42 * 86_400, :second)
+    pool = Enum.take(movies, 4) ++ Enum.take(episodes, 1)
+
+    pool
+    |> Enum.with_index()
+    |> Enum.map(fn {entity, slot_idx} ->
+      stamp = DateTime.add(busy_day, -slot_idx * 1800, :second)
+
+      case entity do
+        %Library.Movie{} = movie -> create_movie_event!(movie, stamp, 5400.0)
+        %Library.Episode{} = episode -> create_episode_event!(episode, stamp, 1800.0)
       end
+    end)
+    |> length()
+  end
 
-    length(events)
+  defp create_movie_event!(movie, completed_at, duration_seconds) do
+    {:ok, event} =
+      WatchHistory.create_event(%{
+        entity_type: :movie,
+        movie_id: movie.id,
+        title: movie.name,
+        duration_seconds: duration_seconds,
+        completed_at: completed_at
+      })
+
+    event
+  end
+
+  defp create_episode_event!(episode, completed_at, duration_seconds) do
+    {:ok, event} =
+      WatchHistory.create_event(%{
+        entity_type: :episode,
+        episode_id: episode.id,
+        title: episode.name,
+        duration_seconds: duration_seconds,
+        completed_at: completed_at
+      })
+
+    event
   end
 
   # ---------------------------------------------------------------------------
-  # Helpers
+  # Acquisition activity — Coming Up grab badges + Activity filter variety
   # ---------------------------------------------------------------------------
 
-  # One Acquisition.Grab row in the "searching" state so the /download
-  # page's queue monitor card has a visible entry at screenshot time.
-  # The Prowlarr client is not called — this is a static DB row only.
-  defp seed_acquisition! do
-    changeset =
-      MediaCentarr.Acquisition.Grab.create_changeset(%{
-        tmdb_id: "12345",
-        tmdb_type: "movie",
-        title: "Showcase Upcoming Film (2026)"
-      })
+  # Drives:
+  #
+  #   - HomeLive "Coming Up This Week" + UpcomingLive Coming Up section —
+  #     four releases scheduled within the next seven days, each tied to
+  #     a grab in a *different* status so all four badge variants render
+  #     side-by-side: Grabbed, Searching, Pending (snoozed), Scheduled
+  #     (no grab row).
+  #   - /download Activity tab — at least one grab per status filter chip
+  #     (`searching`, `grabbed`, `snoozed`, `abandoned`, `cancelled`),
+  #     mixing `auto` and `manual` origin.
+  #
+  # Returns the total grab count for the seed summary.
+  defp seed_acquisition_activity! do
+    seed_coming_up_grabs!()
+    seed_extra_activity_grabs!()
+    Repo.aggregate(Grab, :count)
+  end
 
-    {:ok, _grab} = MediaCentarr.Repo.insert(changeset)
-    1
+  # Coming-Up badge states. Order matters only insofar as each tracked TV
+  # item gets one slot: a Grabbed badge today+1, Searching today+2,
+  # Pending today+4, Scheduled today+6. The Scheduled slot deliberately
+  # has *no* grab row — its "Scheduled" variant comes from the absence
+  # of a matching grab in `Acquisition.statuses_for_releases/1`.
+  @coming_up_slots [
+    {1, "grabbed", "auto"},
+    {2, "searching", "auto"},
+    {4, "snoozed", "auto"},
+    {6, nil, nil}
+  ]
+
+  defp seed_coming_up_grabs! do
+    today = Date.utc_today()
+    tv_items = Enum.filter(ReleaseTracking.list_all_items(), &(&1.media_type == :tv_series))
+
+    if tv_items == [] do
+      :ok
+    else
+      tv_items
+      |> Stream.cycle()
+      |> Enum.zip(@coming_up_slots)
+      |> Enum.with_index()
+      |> Enum.each(fn {{item, {day_offset, status, origin}}, slot_idx} ->
+        air_date = Date.add(today, day_offset)
+        season_number = 6
+        episode_number = 11 + slot_idx
+
+        ReleaseTracking.create_release!(%{
+          item_id: item.id,
+          air_date: air_date,
+          title: "#{item.name} · S#{season_number}E#{episode_number}",
+          season_number: season_number,
+          episode_number: episode_number,
+          released: false,
+          in_library: false
+        })
+
+        if status do
+          insert_grab!(%{
+            tmdb_id: to_string(item.tmdb_id),
+            tmdb_type: to_string(item.media_type),
+            title: "#{item.name} S#{season_number}E#{episode_number}",
+            season_number: season_number,
+            episode_number: episode_number,
+            origin: origin,
+            status: status
+          })
+        end
+      end)
+
+      :ok
+    end
+  end
+
+  # The Activity tab needs every status chip populated. Coming-Up
+  # already covers searching / grabbed / snoozed; here we add abandoned
+  # and cancelled, plus one manual-origin grab so the activity feed
+  # shows a mix of auto vs user-initiated work.
+  defp seed_extra_activity_grabs! do
+    insert_grab!(%{
+      tmdb_id: "showcase-manual-1",
+      tmdb_type: "manual",
+      title: "Phantom of the Opera (1925) · 1080p WEB-DL",
+      origin: "manual",
+      status: "grabbed",
+      prowlarr_guid: "showcase-manual-1",
+      manual_query: "Phantom of the Opera 1925"
+    })
+
+    insert_grab!(%{
+      tmdb_id: "showcase-abandoned-1",
+      tmdb_type: "movie",
+      title: "Carnival of Souls (1962)",
+      origin: "auto",
+      status: "abandoned",
+      attempt_count: 5
+    })
+
+    insert_grab!(%{
+      tmdb_id: "showcase-cancelled-1",
+      tmdb_type: "movie",
+      title: "House on Haunted Hill (1959)",
+      origin: "auto",
+      status: "cancelled",
+      cancelled_reason: "user_cancelled"
+    })
+  end
+
+  # Inserts a Grab in any status. The public Grab.create_changeset only
+  # casts a subset of fields and defaults `status` to "searching", so the
+  # seed bypasses it via `Ecto.Changeset.change/2` to land each row
+  # directly in the desired terminal/intermediate state. Real production
+  # transitions still flow through the dedicated changesets
+  # (`grabbed_changeset`, `attempt_changeset`, etc.) elsewhere.
+  defp insert_grab!(attrs) do
+    now = DateTime.utc_now(:second)
+    base = Map.merge(%{inserted_at: now, updated_at: now}, attrs)
+
+    base =
+      case attrs[:status] do
+        "grabbed" -> Map.put_new(base, :grabbed_at, now)
+        "abandoned" -> Map.put_new(base, :cancelled_at, now)
+        "cancelled" -> Map.put_new(base, :cancelled_at, now)
+        _ -> base
+      end
+
+    %Grab{}
+    |> Ecto.Changeset.change(base)
+    |> Repo.insert!()
   end
 
   # Fake Prowlarr + download-client configuration and a recorded "ok"

@@ -8,8 +8,11 @@ defmodule MediaCentarr.ShowcaseTest do
   """
   use MediaCentarr.DataCase, async: false
 
+  alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Library
+  alias MediaCentarr.Library.WatchProgress
   alias MediaCentarr.ReleaseTracking
+  alias MediaCentarr.ReleaseTracking.Release
   alias MediaCentarr.Review
   alias MediaCentarr.Showcase
   alias MediaCentarr.Showcase.Catalog
@@ -70,7 +73,7 @@ defmodule MediaCentarr.ShowcaseTest do
       assert summary.watch_progress > 0
       assert summary.tracked_items > 0
       assert summary.pending_files > 0
-      assert summary.watch_events >= 15
+      assert summary.watch_events >= 80
 
       # Persisted.
       all_movies = Repo.all(Library.Movie)
@@ -90,11 +93,186 @@ defmodule MediaCentarr.ShowcaseTest do
 
       events = WatchHistory.list_events()
       assert events != []
+    end
+  end
 
-      assert summary.acquisitions == 1
+  describe "Continue Watching seed shape" do
+    # HomeLive's Continue Watching row needs ≥4 visible items + the See-all
+    # placeholder, and the Library `?in_progress=1` deep-link pulls from the
+    # same `Library.list_in_progress/1` query. Six non-completed rows with
+    # spread-out progress percentages and a mix of types make the row look
+    # like a real, well-loved library — not three isolated half-watched
+    # entries.
 
-      grabs = Repo.all(MediaCentarr.Acquisition.Grab)
-      assert length(grabs) == 1
+    test "creates at least 6 non-completed watch_progress rows across mixed types" do
+      Showcase.seed!()
+
+      non_completed = Repo.all(from(p in WatchProgress, where: p.completed == false))
+      assert length(non_completed) >= 6
+
+      types =
+        non_completed
+        |> Enum.map(fn progress ->
+          cond do
+            progress.movie_id -> :movie
+            progress.episode_id -> :episode
+            progress.video_object_id -> :video_object
+            true -> :unknown
+          end
+        end)
+        |> Enum.uniq()
+
+      assert :movie in types, "expected at least one movie in Continue Watching"
+      assert :episode in types, "expected at least one episode in Continue Watching"
+    end
+
+    test "non-completed progress rows show a spread of progress percentages" do
+      Showcase.seed!()
+
+      pcts =
+        Enum.map(Repo.all(from(p in WatchProgress, where: p.completed == false)), fn progress ->
+          if progress.duration_seconds > 0 do
+            progress.position_seconds / progress.duration_seconds
+          else
+            0.0
+          end
+        end)
+
+      # At least one card under 30% and at least one over 70% so the
+      # Continue Watching row's progress bars look visibly different.
+      assert Enum.any?(pcts, &(&1 < 0.3))
+      assert Enum.any?(pcts, &(&1 > 0.7))
+    end
+  end
+
+  describe "Heavy Rotation + History seed shape" do
+    # HomeLive's Heavy Rotation row queries `WatchHistory.top_rewatches(min: 2,
+    # limit: 8)` — entities with ≥2 completion events. The History page's
+    # heatmap, stats, and rewatch badges all need a populated event log
+    # spread across many days, with episodes (not just movies) so the
+    # type-filter chips look populated.
+
+    test "writes ≥80 watch_history_events spanning movies and episodes" do
+      Showcase.seed!()
+
+      events = Repo.all(MediaCentarr.WatchHistory.Event)
+      assert length(events) >= 80
+
+      types = events |> Enum.map(& &1.entity_type) |> Enum.uniq() |> Enum.sort()
+      assert :movie in types, "expected movie events in history"
+      assert :episode in types, "expected episode events in history (Videos filter chip)"
+    end
+
+    test "produces at least 8 entities with ≥2 completion events for Heavy Rotation" do
+      Showcase.seed!()
+
+      rewatches = WatchHistory.top_rewatches(min: 2, limit: 16)
+      assert length(rewatches) >= 8
+
+      counts = Enum.map(rewatches, & &1.count)
+      assert Enum.max(counts) >= 3, "expected at least one entity with 3+ rewatches for badge variety"
+    end
+
+    test "spreads completion events across many days for the heatmap colour ramp" do
+      Showcase.seed!()
+
+      distinct_days =
+        Repo.all(MediaCentarr.WatchHistory.Event)
+        |> Enum.map(&DateTime.to_date(&1.completed_at))
+        |> Enum.uniq()
+
+      assert length(distinct_days) >= 20,
+             "expected events spread across many days for a populated heatmap"
+
+      # At least one day with 4+ events so the deepest heatmap cell colour renders.
+      busiest_day_count =
+        Repo.all(MediaCentarr.WatchHistory.Event)
+        |> Enum.group_by(&DateTime.to_date(&1.completed_at))
+        |> Enum.map(fn {_date, events} -> length(events) end)
+        |> Enum.max(fn -> 0 end)
+
+      assert busiest_day_count >= 4
+    end
+  end
+
+  describe "Coming Up + Acquisition seed shape" do
+    # HomeLive and UpcomingLive both call `Acquisition.statuses_for_releases/1`
+    # with keys derived from this-week releases. Marketing screenshots
+    # demand all four badge states render side-by-side: Grabbed, Searching,
+    # Pending (snoozed grab), Scheduled (no grab row at all). The Activity
+    # tab on /download additionally wants every status filter chip
+    # populated — five distinct states across the grabs table.
+
+    test "creates ≥4 releases scheduled within the next 7 days" do
+      Showcase.seed!()
+
+      today = Date.utc_today()
+      next_week = Date.add(today, 7)
+
+      this_week_releases =
+        Repo.all(
+          from(release in Release,
+            where: release.air_date >= ^today and release.air_date <= ^next_week
+          )
+        )
+
+      assert length(this_week_releases) >= 4
+    end
+
+    test "this-week releases align with grabs in all four Home badge states" do
+      Showcase.seed!()
+
+      today = Date.utc_today()
+      next_week = Date.add(today, 7)
+
+      releases =
+        Repo.all(
+          from(release in Release,
+            where: release.air_date >= ^today and release.air_date <= ^next_week,
+            preload: [:item]
+          )
+        )
+
+      keys =
+        Enum.map(releases, fn release ->
+          {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
+           release.episode_number}
+        end)
+
+      grab_map = MediaCentarr.Acquisition.statuses_for_releases(keys)
+
+      statuses =
+        MapSet.new(keys, fn key ->
+          case Map.get(grab_map, key) do
+            nil -> :scheduled
+            grab -> grab.status
+          end
+        end)
+
+      # All four Home/Upcoming badge variants must be present.
+      assert MapSet.member?(statuses, "grabbed"), "missing a Grabbed badge"
+      assert MapSet.member?(statuses, "searching"), "missing a Searching badge"
+      assert MapSet.member?(statuses, "snoozed"), "missing a Pending (snoozed) badge"
+      assert MapSet.member?(statuses, :scheduled), "missing a Scheduled (no grab) badge"
+    end
+
+    test "creates grabs covering all five activity states" do
+      Showcase.seed!()
+
+      grab_statuses = MapSet.new(Repo.all(Grab), & &1.status)
+
+      for expected <- ~w(searching grabbed snoozed abandoned cancelled) do
+        assert MapSet.member?(grab_statuses, expected),
+               "missing grab in #{expected} state — Activity filter chip would be empty"
+      end
+    end
+
+    test "summary acquisitions count reflects all seeded grabs" do
+      summary = Showcase.seed!()
+      grabs = Repo.all(Grab)
+
+      assert summary.acquisitions == length(grabs)
+      assert length(grabs) >= 6
     end
   end
 
