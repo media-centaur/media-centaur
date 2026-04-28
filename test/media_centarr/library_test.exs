@@ -116,6 +116,47 @@ defmodule MediaCentarr.LibraryTest do
       query_count = count_queries(fn -> Library.list_in_progress(limit: 12) end)
       assert query_count <= 15, "Expected at most 15 queries, got #{query_count}"
     end
+
+    test "query count does not grow with the number of in-progress TV series (no N+1)" do
+      # Baseline: 1 TV series with one in-progress episode.
+      seed_in_progress_tv_series(1, 1)
+      baseline = count_queries(fn -> Library.list_in_progress(limit: 12) end)
+
+      # Add 9 more (10 total). Per-series WatchProgress fan-out would inflate
+      # the count by ~9 queries; with a single batched WatchProgress query the
+      # count must stay constant.
+      seed_in_progress_tv_series(9, 1, name_prefix: "Extra")
+      expanded = count_queries(fn -> Library.list_in_progress(limit: 12) end)
+
+      assert expanded == baseline,
+             "Query count should not grow with TV series count (N+1 detected). " <>
+               "Baseline (1 series) = #{baseline}, expanded (10 series) = #{expanded}"
+    end
+  end
+
+  defp seed_in_progress_tv_series(count, episodes_per_series, opts \\ []) do
+    name_prefix = Keyword.get(opts, :name_prefix, "Series")
+
+    for index <- 1..count do
+      series = create_tv_series(%{name: "#{name_prefix} #{index}-#{System.unique_integer([:positive])}"})
+      record_present(create_linked_file(%{tv_series_id: series.id}))
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+
+      for episode_number <- 1..episodes_per_series do
+        episode =
+          create_episode(%{
+            season_id: season.id,
+            episode_number: episode_number,
+            name: "S1E#{episode_number}"
+          })
+
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 10.0,
+          duration_seconds: 60.0
+        })
+      end
+    end
   end
 
   describe "list_recently_added/1" do

@@ -1203,22 +1203,35 @@ defmodule MediaCentarr.Library do
       |> Repo.all()
       |> Repo.preload([:images, seasons: [:episodes]])
 
+    all_episode_ids =
+      for series <- series_list,
+          season <- series.seasons || [],
+          episode <- season.episodes || [],
+          do: episode.id
+
+    progress_by_episode_id =
+      if all_episode_ids == [] do
+        %{}
+      else
+        from(progress in WatchProgress, where: progress.episode_id in ^all_episode_ids)
+        |> Repo.all()
+        |> Map.new(fn progress -> {progress.episode_id, progress} end)
+      end
+
     Enum.reject(
       Enum.map(series_list, fn series ->
-        all_episode_ids =
+        episode_ids =
           for season <- series.seasons || [], episode <- season.episodes || [], do: episode.id
 
         progress_records =
-          if all_episode_ids == [] do
-            []
-          else
-            Repo.all(from(wp in WatchProgress, where: wp.episode_id in ^all_episode_ids))
-          end
+          episode_ids
+          |> Enum.map(&Map.get(progress_by_episode_id, &1))
+          |> Enum.reject(&is_nil/1)
 
         in_progress_records = Enum.reject(progress_records, & &1.completed)
 
         if in_progress_records != [] do
-          episodes_total = length(all_episode_ids)
+          episodes_total = length(episode_ids)
           episodes_completed = Enum.count(progress_records, & &1.completed)
 
           entity = %{
