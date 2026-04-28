@@ -8,6 +8,17 @@ defmodule MediaCentarr.Showcase.Catalog do
   Each movie/tv entry is looked up on TMDB by title+year at seed time —
   TMDB IDs are not hard-coded so the catalog is resilient to TMDB data
   shuffling. Video objects are seeded without TMDB.
+
+  ## PD/CC-only, no exceptions
+
+  Every entry must be unambiguously public-domain or CC-licensed. See the
+  full policy in `MediaCentarr.Showcase`'s moduledoc — it covers the
+  catalog plus every other showcase-visible string (release tracking,
+  acquisition grabs, pending review fixtures, console log lines).
+
+  *House on Haunted Hill (1959)* is **not** treated as public-domain
+  here despite occasional listings — do not re-add it. When in doubt
+  about a candidate title, leave it out.
   """
 
   @type movie_entry :: %{
