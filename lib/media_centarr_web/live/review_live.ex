@@ -152,18 +152,20 @@ defmodule MediaCentarrWeb.ReviewLive do
 
   def handle_event("search", %{"query" => query, "type" => type}, socket) do
     type = String.to_existing_atom(type)
-    socket = assign(socket, searching: true, search_query: query, search_type: type)
+    parent = self()
 
-    case Review.search_tmdb(query, type) do
-      {:ok, results} ->
-        {:noreply, assign(socket, search_results: results, searching: false, searched: true)}
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      outcome =
+        try do
+          Review.search_tmdb(query, type)
+        catch
+          kind, reason -> {:error, {kind, reason}}
+        end
 
-      {:error, _reason} ->
-        {:noreply,
-         socket
-         |> assign(search_results: [], searching: false, searched: true)
-         |> put_flash(:error, "TMDB search failed")}
-    end
+      send(parent, {:tmdb_search_result, query, type, outcome})
+    end)
+
+    {:noreply, assign(socket, searching: true, search_query: query, search_type: type)}
   end
 
   def handle_event(
@@ -290,6 +292,26 @@ defmodule MediaCentarrWeb.ReviewLive do
 
   def handle_info(:capabilities_changed, socket) do
     {:noreply, assign(socket, tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())}
+  end
+
+  def handle_info({:tmdb_search_result, query, type, outcome}, socket) do
+    # Discard stale results — the user may have changed query/type while the
+    # async TMDB call was in flight. Without this guard, a slow earlier
+    # search would clobber the latest one.
+    if socket.assigns.search_query == query and socket.assigns.search_type == type do
+      case outcome do
+        {:ok, results} ->
+          {:noreply, assign(socket, search_results: results, searching: false, searched: true)}
+
+        {:error, _reason} ->
+          {:noreply,
+           socket
+           |> assign(search_results: [], searching: false, searched: true)
+           |> put_flash(:error, "TMDB search failed")}
+      end
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(_msg, socket) do
