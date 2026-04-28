@@ -32,26 +32,80 @@ const BEVERLY_HILLBILLIES_ID = process.env.BEVERLY_HILLBILLIES_ID || ""
 
 /** @type {Stop[]} */
 const TOUR = [
-  // ─── Library ─────────────────────────────────────────────────────────
+  // ─── Home ────────────────────────────────────────────────────────────
+  // The cinematic landing page — five rows of curated content. Each
+  // section is gated by `:if` on assigned data, so the seeded showcase
+  // DB needs Continue Watching + Coming Up + Heavy Rotation to be
+  // populated for these shots to render. See lib/media_centarr/showcase.ex.
   {
-    name: "library-grid",
-    url: "/?zone=library",
-    waitFor: ".tab-active[data-nav-zone-value='library']",
+    name: "home",
+    url: "/",
+    waitFor: "section[data-row='continue-watching']",
+    settleMs: 400,
+  },
+  {
+    name: "home-coming-up",
+    url: "/",
+    waitFor: "section[data-row='coming-up']",
+    action: async (page) => {
+      await page
+        .locator("section[data-row='coming-up']")
+        .scrollIntoViewIfNeeded({ timeout: 5_000 })
+        .catch(() => {})
+    },
+    settleMs: 400,
+  },
+  {
+    name: "home-heavy-rotation",
+    url: "/",
+    waitFor: "section[data-row='heavy-rotation']",
+    action: async (page) => {
+      await page
+        .locator("section[data-row='heavy-rotation']")
+        .scrollIntoViewIfNeeded({ timeout: 5_000 })
+        .catch(() => {})
+    },
+    settleMs: 400,
+  },
+
+  // ─── Library ─────────────────────────────────────────────────────────
+  { name: "library-grid", url: "/library", settleMs: 400 },
+  {
+    name: "library-in-progress",
+    url: "/library?in_progress=1",
+    settleMs: 400,
   },
   {
     name: "library-detail-movie",
-    url: `/?zone=library&selected=${NOSFERATU_ID}`,
+    url: `/library?selected=${NOSFERATU_ID}`,
     waitFor: "#detail-modal[data-state='open']",
   },
   {
     name: "library-detail-tv",
-    url: `/?zone=library&selected=${BEVERLY_HILLBILLIES_ID}`,
+    url: `/library?selected=${BEVERLY_HILLBILLIES_ID}`,
     waitFor: "#detail-modal[data-state='open']",
   },
   {
     name: "library-detail-tv-pioneer",
-    url: `/?zone=library&selected=${PIONEER_ONE_ID}`,
+    url: `/library?selected=${PIONEER_ONE_ID}`,
     waitFor: "#detail-modal[data-state='open']",
+  },
+
+  // ─── Upcoming ────────────────────────────────────────────────────────
+  { name: "upcoming-calendar", url: "/upcoming", settleMs: 600 },
+  {
+    name: "upcoming-track-modal",
+    url: "/upcoming",
+    action: async (page) => {
+      // The Track New Show button lives in UpcomingCards; clicking
+      // pushes `open_track_modal` and focuses the modal's search input.
+      await page
+        .locator("[phx-click*='open_track_modal']")
+        .first()
+        .click({ timeout: 5_000 })
+        .catch(() => {})
+    },
+    settleMs: 800,
   },
 
   // ─── Review ──────────────────────────────────────────────────────────
@@ -66,16 +120,30 @@ const TOUR = [
     settleMs: 600,
   },
 
-  // ─── Status / releases / history / console ──────────────────────────
+  // ─── History (Watch History) ────────────────────────────────────────
+  // /history is `WatchHistoryLive` — heatmap + stats + rewatch badges.
+  // (The pre-redistribution `history.png` shot meant download-history;
+  //  see `download-activity` below for that surface.)
+  { name: "history-heatmap", url: "/history", settleMs: 500 },
   {
-    name: "release-tracking",
-    url: "/?zone=upcoming",
-    waitFor: ".tab-active[data-nav-zone-value='upcoming']",
-    settleMs: 600,
+    name: "history-rewatch-badges",
+    url: "/history",
+    action: async (page) => {
+      // Scroll past the heatmap + stats so the paginated event list
+      // with `Nx` rewatch badges fills the viewport.
+      await page.evaluate(() => window.scrollTo(0, 700)).catch(() => {})
+    },
+    settleMs: 500,
   },
+
+  // ─── Status / Acquisition / Console ─────────────────────────────────
   { name: "status", url: "/status" },
-  { name: "history", url: "/history" },
   { name: "download", url: "/download", settleMs: 800 },
+  {
+    name: "download-activity",
+    url: "/download?filter=all",
+    settleMs: 800,
+  },
   {
     name: "download-search",
     url: "/download",
@@ -143,8 +211,7 @@ const TOUR = [
   // ─── A11y / input system ────────────────────────────────────────────
   {
     name: "keyboard-focus",
-    url: "/?zone=library",
-    waitFor: ".tab-active[data-nav-zone-value='library']",
+    url: "/library",
     action: async (page) => {
       // The focus ring is gated by `<html data-input="keyboard">` (set at
       // runtime by input/core/dom_adapter.js when keyboard activity is
