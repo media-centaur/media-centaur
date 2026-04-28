@@ -62,6 +62,34 @@ defmodule MediaCentarr.ErrorReports.BucketsTest do
       [bucket] = Buckets.list_buckets(:buckets_test)
       assert length(bucket.sample_entries) == 5
     end
+
+    test "ignores Ecto sandbox-disconnect errors (test-env noise)" do
+      # When a Task spawned during a test outlives its sandbox owner, Ecto
+      # logs a `DBConnection.ConnectionError ... Sandbox` disconnect. That
+      # message is a pure test artefact — bucketing it would surface flakes
+      # in unrelated assertions (see flaky-tests.md #2).
+      message =
+        "Exqlite.Connection (#PID<0.123.0>) disconnected: ** (DBConnection.ConnectionError) " <>
+          "owner #PID<0.456.0> exited Client #PID<0.789.0> (Task.Supervised) is still using " <>
+          "a connection from owner at location: " <>
+          "(ecto_sql 3.13.4) lib/ecto/adapters/sql/sandbox.ex:0: " <>
+          "Ecto.Adapters.SQL.Sandbox.Connection.proxy/3"
+
+      Buckets.ingest(:buckets_test, error_entry(1, :ecto, message))
+
+      assert Buckets.list_buckets(:buckets_test) == []
+    end
+
+    test "still buckets non-sandbox Ecto errors" do
+      # A real Ecto error (constraint violation, query failure, etc.) must
+      # still surface — only the sandbox-owner-exit pattern is filtered.
+      Buckets.ingest(
+        :buckets_test,
+        error_entry(1, :ecto, "Postgrex.Error: unique_violation on users_email_index")
+      )
+
+      assert [%Bucket{component: :ecto}] = Buckets.list_buckets(:buckets_test)
+    end
   end
 
   describe "window-based eviction" do
