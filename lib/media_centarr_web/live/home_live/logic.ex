@@ -170,4 +170,21 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   defp format_genres([]), do: nil
   defp format_genres(genres) when is_list(genres), do: Enum.join(genres, " · ")
   defp format_genres(genres) when is_binary(genres), do: genres
+
+  @doc """
+  Map an inbound PubSub message to the home page sections that need reloading.
+  Returns `[]` for messages the home page does not care about.
+
+  Sections: `:continue_watching`, `:coming_up`, `:recently_added`, `:heavy_rotation`.
+  Hero is selected once per session and is intentionally not reloaded.
+  """
+  @spec section_reloaders(term()) :: [atom()]
+  def section_reloaders({:entities_changed, _ids}), do: [:recently_added]
+  def section_reloaders({:releases_updated, _ids}), do: [:coming_up]
+  def section_reloaders({:item_removed, _tmdb_id, _tmdb_type}), do: [:coming_up]
+  def section_reloaders({:release_ready, _item, _release}), do: [:coming_up]
+
+  def section_reloaders({:watch_event_created, _event}), do: [:heavy_rotation, :continue_watching]
+
+  def section_reloaders(_), do: []
 end
