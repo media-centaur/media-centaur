@@ -48,6 +48,22 @@ defmodule MediaCentarr.WatchHistory.Stats do
   end
 
   @doc """
+  Compute streak from a list of dates already sorted descending and unique
+  (e.g. distinct `date(completed_at)` values straight from the database).
+
+  Same semantics as `streak/1` but skips the per-event date extraction —
+  the database has already done that work.
+  """
+  def streak_from_dates([]), do: 0
+
+  def streak_from_dates(dates) when is_list(dates) do
+    today = Date.utc_today()
+    yesterday = Date.add(today, -1)
+    start = if today in dates, do: today, else: yesterday
+    count_consecutive(dates, start, 0)
+  end
+
+  @doc """
   Group completion counts by date for the last 364 days.
   Returns %{Date => count}.
   """
