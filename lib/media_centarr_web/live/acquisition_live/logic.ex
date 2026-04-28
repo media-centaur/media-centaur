@@ -91,6 +91,37 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   end
 
   @doc """
+  Flips the matching group back to `:loading` and clears its results, leaving
+  every other group untouched. `expanded?` is preserved so a manual retry
+  doesn't collapse a group the user had open. No-op when the term is unknown.
+
+  Used by the per-group "Retry" link and the bulk "Retry N timeouts" button
+  to re-arm a search before re-dispatching `{:run_search_one, term}`.
+  """
+  @spec mark_group_loading([group()], String.t()) :: [group()]
+  def mark_group_loading(groups, term) do
+    Enum.map(groups, fn
+      %{term: ^term} = group -> %{group | results: [], status: :loading}
+      group -> group
+    end)
+  end
+
+  @doc """
+  Returns the terms of every group whose status is a Prowlarr request timeout
+  (`{:failed, %Req.TransportError{reason: :timeout}}`), in group order.
+
+  Excludes other failure reasons deliberately — `:econnrefused`, `:nxdomain`,
+  HTTP 401/403, etc. are configuration problems where retrying without a fix
+  won't help. The bulk "Retry N timeouts" button is offered only when
+  retrying is plausibly useful.
+  """
+  @spec timeout_terms([group()]) :: [String.t()]
+  def timeout_terms(groups) do
+    for %{term: term, status: {:failed, %Req.TransportError{reason: :timeout}}} <- groups,
+        do: term
+  end
+
+  @doc """
   Adds `term => top_result_guid` to selections when the group is `:ready`,
   has results, and `term` is not already selected. Used incrementally as
   each search resolves so the Grab counter ticks up live without clobbering

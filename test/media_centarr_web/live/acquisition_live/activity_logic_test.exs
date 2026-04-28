@@ -11,14 +11,19 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogicTest do
 
   describe "filter_by_search/2" do
     test "empty search returns all grabs unchanged" do
-      grabs = [grab(%{title: "Inception"}), grab(%{title: "Sample Movie Thirteen"})]
+      grabs = [grab(%{title: "Sample Movie"}), grab(%{title: "Other Title"})]
       assert Logic.filter_by_search(grabs, "") == grabs
     end
 
     test "case-insensitive substring match" do
-      grabs = [grab(%{title: "Inception"}), grab(%{title: "Sample Movie Thirteen"}), grab(%{title: "incredible"})]
-      result = Logic.filter_by_search(grabs, "INC")
-      assert Enum.map(result, & &1.title) == ["Inception", "incredible"]
+      grabs = [
+        grab(%{title: "Sample Movie"}),
+        grab(%{title: "Other Title"}),
+        grab(%{title: "sampler"})
+      ]
+
+      result = Logic.filter_by_search(grabs, "SAMP")
+      assert Enum.map(result, & &1.title) == ["Sample Movie", "sampler"]
     end
   end
 

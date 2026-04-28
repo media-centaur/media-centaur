@@ -8,14 +8,14 @@ defmodule MediaCentarrWeb.Components.ComingUpRowTest do
     items = [
       %{
         id: 1,
-        name: "The Bear",
+        name: "Sample Show",
         subtitle: "MON · S04E01",
         badge: %{label: "Grabbed", variant: :success},
         backdrop_url: nil
       },
       %{
         id: 2,
-        name: "Severance",
+        name: "Other Show",
         subtitle: "THU · S02E08",
         badge: %{label: "Scheduled", variant: :default},
         backdrop_url: nil
@@ -24,8 +24,8 @@ defmodule MediaCentarrWeb.Components.ComingUpRowTest do
 
     html = render_component(&ComingUpRow.coming_up_row/1, items: items)
 
-    assert html =~ "The Bear"
-    assert html =~ "Severance"
+    assert html =~ "Sample Show"
+    assert html =~ "Other Show"
     assert html =~ "Grabbed"
     assert html =~ "Scheduled"
   end

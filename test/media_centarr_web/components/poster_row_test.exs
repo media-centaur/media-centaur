@@ -6,14 +6,14 @@ defmodule MediaCentarrWeb.Components.PosterRowTest do
 
   test "renders one card per item with name visible" do
     items = [
-      %{id: 1, name: "Oppenheimer", year: "2023", poster_url: nil},
-      %{id: 2, name: "Prior Lives", year: "2023", poster_url: nil}
+      %{id: 1, name: "Sample Movie", year: "2023", poster_url: nil},
+      %{id: 2, name: "Other Movie", year: "2023", poster_url: nil}
     ]
 
     html = render_component(&PosterRow.poster_row/1, items: items)
 
-    assert html =~ "Oppenheimer"
-    assert html =~ "Prior Lives"
+    assert html =~ "Sample Movie"
+    assert html =~ "Other Movie"
   end
 
   test "renders nothing when items is empty" do

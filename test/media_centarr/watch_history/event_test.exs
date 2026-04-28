@@ -7,7 +7,7 @@ defmodule MediaCentarr.WatchHistory.EventTest do
     test "valid attrs produce a valid changeset" do
       attrs = %{
         entity_type: :movie,
-        title: "Sample Movie Thirteen",
+        title: "Sample Movie",
         duration_seconds: 9360.0,
         completed_at: DateTime.utc_now()
       }

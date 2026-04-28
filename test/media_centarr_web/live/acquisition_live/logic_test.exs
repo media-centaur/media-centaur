@@ -11,11 +11,11 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     end
 
     test "returns {:ok, 1} for query without braces" do
-      assert Logic.expansion_preview("Sample Movie") == {:ok, 1}
+      assert Logic.expansion_preview("Sample Movie 2049") == {:ok, 1}
     end
 
     test "returns {:ok, n} for valid expansion" do
-      assert Logic.expansion_preview("The Pitt S02E{00-09}") == {:ok, 10}
+      assert Logic.expansion_preview("Sample Show S01E{01-10}") == {:ok, 10}
       assert Logic.expansion_preview("X{a,b,c}") == {:ok, 3}
     end
 
@@ -436,6 +436,92 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
 
     test "falls back to a generic message for unknown reasons" do
       assert Logic.format_search_error(:boom) == "Search failed"
+    end
+  end
+
+  describe "mark_group_loading/2" do
+    test "flips the matching group to :loading and clears its results" do
+      ready = %{
+        term: "X",
+        expanded?: true,
+        status: :ready,
+        results: [result(guid: "r")]
+      }
+
+      failed = %{
+        term: "Y",
+        expanded?: false,
+        status: {:failed, %Req.TransportError{reason: :timeout}},
+        results: []
+      }
+
+      [x, y] = Logic.mark_group_loading([ready, failed], "X")
+
+      assert x.status == :loading
+      assert x.results == []
+      # expanded? is preserved so a manual retry doesn't collapse the group
+      assert x.expanded? == true
+
+      # Other group untouched
+      assert y == failed
+    end
+
+    test "no-op when term is unknown" do
+      groups = Logic.placeholder_groups(["X"])
+      assert Logic.mark_group_loading(groups, "OTHER") == groups
+    end
+  end
+
+  describe "timeout_terms/1" do
+    test "returns terms whose status is a Req.TransportError :timeout" do
+      groups = [
+        %{term: "A", expanded?: false, status: :ready, results: [result(guid: "a")]},
+        %{
+          term: "B",
+          expanded?: false,
+          status: {:failed, %Req.TransportError{reason: :timeout}},
+          results: []
+        },
+        %{term: "C", expanded?: false, status: :loading, results: []},
+        %{
+          term: "D",
+          expanded?: false,
+          status: {:failed, %Req.TransportError{reason: :timeout}},
+          results: []
+        }
+      ]
+
+      assert Logic.timeout_terms(groups) == ["B", "D"]
+    end
+
+    test "excludes other failure reasons (econnrefused, http errors, etc.)" do
+      groups = [
+        %{
+          term: "A",
+          expanded?: false,
+          status: {:failed, %Req.TransportError{reason: :econnrefused}},
+          results: []
+        },
+        %{
+          term: "B",
+          expanded?: false,
+          status: {:failed, %Req.TransportError{reason: :nxdomain}},
+          results: []
+        },
+        %{
+          term: "C",
+          expanded?: false,
+          status: {:failed, {:http_error, 401, %{}}},
+          results: []
+        },
+        %{term: "D", expanded?: false, status: {:failed, :boom}, results: []}
+      ]
+
+      assert Logic.timeout_terms(groups) == []
+    end
+
+    test "returns [] for empty groups" do
+      assert Logic.timeout_terms([]) == []
     end
   end
 

@@ -4,7 +4,7 @@ defmodule MediaCentarr.Acquisition.QueryExpander do
   concrete queries, one per expansion. Pure function module — no I/O, no state.
 
   Used by the Download page so a single user-typed query like
-  `The Pitt S02E{00-09}` becomes ten parallel Prowlarr searches, one for each
+  `Sample Show S01E{01-10}` becomes ten parallel Prowlarr searches, one for each
   episode.
 
   ## Supported syntax
@@ -15,8 +15,8 @@ defmodule MediaCentarr.Acquisition.QueryExpander do
     substituted into the surrounding text. Items are taken literally; no
     whitespace trimming. Example:
 
-          iex> QueryExpander.expand("The Pitt S02E{00,01,02}")
-          {:ok, ["The Pitt S02E00", "The Pitt S02E01", "The Pitt S02E02"]}
+          iex> QueryExpander.expand("Sample Show S01E{01,02,03}")
+          {:ok, ["Sample Show S01E01", "Sample Show S01E02", "Sample Show S01E03"]}
 
   * **Numeric range** — `{m-n}` where `m` and `n` are non-negative integers
     and `m <= n`. The output width is the width of the **left operand**, so
@@ -30,8 +30,8 @@ defmodule MediaCentarr.Acquisition.QueryExpander do
 
   A query with no braces is returned as a single-element list:
 
-      iex> QueryExpander.expand("Sample Movie")
-      {:ok, ["Sample Movie"]}
+      iex> QueryExpander.expand("Sample Movie 2049")
+      {:ok, ["Sample Movie 2049"]}
 
   ## Rejected forms — return `{:error, :invalid_syntax}`
 

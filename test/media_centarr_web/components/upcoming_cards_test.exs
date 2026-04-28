@@ -102,55 +102,55 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
     end
 
     test "single release → single group" do
-      hacks = tv_item("1", "Sample Show Sixteen")
-      r = release_for(hacks, 5, 1, ~D[2026-04-09])
+      show_a = tv_item("1", "Sample Show")
+      r = release_for(show_a, 5, 1, ~D[2026-04-09])
 
-      assert [%{item: ^hacks, releases: [^r]}] = UpcomingCards.group_releases_by_item([r])
+      assert [%{item: ^show_a, releases: [^r]}] = UpcomingCards.group_releases_by_item([r])
     end
 
     test "two episodes of the same show → single group, sorted by (season, episode)" do
-      hacks = tv_item("1", "Sample Show Sixteen")
-      e1 = release_for(hacks, 5, 1, ~D[2026-04-09])
-      e2 = release_for(hacks, 5, 2, ~D[2026-04-16])
+      show_a = tv_item("1", "Sample Show")
+      e1 = release_for(show_a, 5, 1, ~D[2026-04-09])
+      e2 = release_for(show_a, 5, 2, ~D[2026-04-16])
 
       # Pass them out of order to verify within-group sort.
-      assert [%{item: ^hacks, releases: [^e1, ^e2]}] =
+      assert [%{item: ^show_a, releases: [^e1, ^e2]}] =
                UpcomingCards.group_releases_by_item([e2, e1])
     end
 
     test "two shows → two groups, freshest air_date first" do
-      hacks = tv_item("1", "Sample Show Sixteen")
-      paradise = tv_item("2", "Sample Show Fifteen")
+      show_a = tv_item("1", "Sample Show")
+      show_b = tv_item("2", "Other Sample Show")
 
-      hacks_old = release_for(hacks, 5, 1, ~D[2026-04-09])
-      paradise_new = release_for(paradise, 2, 8, ~D[2026-04-25])
+      show_a_old = release_for(show_a, 5, 1, ~D[2026-04-09])
+      show_b_new = release_for(show_b, 2, 8, ~D[2026-04-25])
 
-      groups = UpcomingCards.group_releases_by_item([hacks_old, paradise_new])
+      groups = UpcomingCards.group_releases_by_item([show_a_old, show_b_new])
 
-      assert [%{item: ^paradise}, %{item: ^hacks}] = groups
+      assert [%{item: ^show_b}, %{item: ^show_a}] = groups
     end
 
     test "mixed TV + movie → both groups present" do
-      hacks = tv_item("1", "Sample Show Sixteen")
-      mario = movie_item("3", "Super Mario")
+      show_a = tv_item("1", "Sample Show")
+      movie_a = movie_item("3", "Sample Movie")
 
-      tv_release = release_for(hacks, 5, 1, ~D[2026-04-09])
-      movie_release = release_for(mario, nil, nil, ~D[2026-04-01])
+      tv_release = release_for(show_a, 5, 1, ~D[2026-04-09])
+      movie_release = release_for(movie_a, nil, nil, ~D[2026-04-01])
 
       groups = UpcomingCards.group_releases_by_item([tv_release, movie_release])
       assert length(groups) == 2
-      assert Enum.find(groups, &(&1.item == hacks))
-      assert Enum.find(groups, &(&1.item == mario))
+      assert Enum.find(groups, &(&1.item == show_a))
+      assert Enum.find(groups, &(&1.item == movie_a))
     end
 
     test "groups with nil air_date sort to the end" do
-      hacks = tv_item("1", "Sample Show Sixteen")
+      show_a = tv_item("1", "Sample Show")
       mystery = tv_item("2", "Unknown Date")
 
-      dated = release_for(hacks, 1, 1, ~D[2026-04-09])
+      dated = release_for(show_a, 1, 1, ~D[2026-04-09])
       undated = release_for(mystery, 1, 1, nil)
 
-      assert [%{item: ^hacks}, %{item: ^mystery}] =
+      assert [%{item: ^show_a}, %{item: ^mystery}] =
                UpcomingCards.group_releases_by_item([undated, dated])
     end
   end
@@ -323,14 +323,14 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
     # merge_active_groups is private — exercise via the helper-aliased
     # alias to test the cap behavior at the public surface.
     test "groups with both released and upcoming, capped at 3 visible upcoming" do
-      hacks = tv_item("1", "Sample Show Sixteen")
+      show_a = tv_item("1", "Sample Show")
 
-      r1 = release_for(hacks, 5, 1, ~D[2026-04-09])
-      u1 = release_for(hacks, 5, 4, ~D[2026-04-30])
-      u2 = release_for(hacks, 5, 5, ~D[2026-05-07])
-      u3 = release_for(hacks, 5, 6, ~D[2026-05-14])
-      u4 = release_for(hacks, 5, 7, ~D[2026-05-21])
-      u5 = release_for(hacks, 5, 8, ~D[2026-05-28])
+      r1 = release_for(show_a, 5, 1, ~D[2026-04-09])
+      u1 = release_for(show_a, 5, 4, ~D[2026-04-30])
+      u2 = release_for(show_a, 5, 5, ~D[2026-05-07])
+      u3 = release_for(show_a, 5, 6, ~D[2026-05-14])
+      u4 = release_for(show_a, 5, 7, ~D[2026-05-21])
+      u5 = release_for(show_a, 5, 8, ~D[2026-05-28])
 
       [group] = UpcomingCards.merge_active_groups([r1], [u1, u2, u3, u4, u5])
 
@@ -341,8 +341,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
     end
 
     test "shows with only upcoming releases still get a card" do
-      paradise = tv_item("2", "Sample Show Fifteen")
-      u1 = release_for(paradise, 2, 1, ~D[2026-05-01])
+      show_b = tv_item("2", "Other Sample Show")
+      u1 = release_for(show_b, 2, 1, ~D[2026-05-01])
 
       [group] = UpcomingCards.merge_active_groups([], [u1])
       assert group.released == []
@@ -351,8 +351,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
     end
 
     test "shows with only released releases still get a card" do
-      hacks = tv_item("1", "Sample Show Sixteen")
-      r1 = release_for(hacks, 5, 1, ~D[2026-04-09])
+      show_a = tv_item("1", "Sample Show")
+      r1 = release_for(show_a, 5, 1, ~D[2026-04-09])
 
       [group] = UpcomingCards.merge_active_groups([r1], [])
       assert group.released == [r1]
@@ -360,13 +360,13 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
     end
 
     test "freshest released-air-date sorts above older released" do
-      hacks = tv_item("1", "Sample Show Sixteen")
-      paradise = tv_item("2", "Sample Show Fifteen")
+      show_a = tv_item("1", "Sample Show")
+      show_b = tv_item("2", "Other Sample Show")
 
-      old = release_for(hacks, 5, 1, ~D[2026-04-09])
-      newer = release_for(paradise, 2, 1, ~D[2026-04-25])
+      old = release_for(show_a, 5, 1, ~D[2026-04-09])
+      newer = release_for(show_b, 2, 1, ~D[2026-04-25])
 
-      assert [%{item: ^paradise}, %{item: ^hacks}] =
+      assert [%{item: ^show_b}, %{item: ^show_a}] =
                UpcomingCards.merge_active_groups([old, newer], [])
     end
 

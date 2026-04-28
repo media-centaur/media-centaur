@@ -579,7 +579,7 @@ defmodule MediaCentarr.ReleaseTracking do
 
   @doc """
   List tracked releases with `air_date` between `from_date` and `to_date` (inclusive),
-  for watching items only. Used by HomeLive's "Coming Up This Week" digest.
+  for watching items only. Used by HomeLive's "Coming Up" digest.
 
   Returns plain maps in the shape:
     `%{item: %{id, name, tmdb_id, media_type}, air_date, season_number, episode_number, status, backdrop_url}`

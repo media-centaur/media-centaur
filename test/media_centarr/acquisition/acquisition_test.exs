@@ -57,7 +57,7 @@ defmodule MediaCentarr.AcquisitionTest do
 
     test "submits to Prowlarr and inserts a manual-origin grab in terminal grabbed state" do
       result = %SearchResult{
-        title: "Inception.2010.2160p.UHD.BluRay.REMUX-FGT",
+        title: "Sample.Movie.2010.2160p.UHD.BluRay.REMUX-FGT",
         guid: "manual-guid-1",
         indexer_id: 1,
         quality: :uhd_4k
@@ -152,7 +152,7 @@ defmodule MediaCentarr.AcquisitionTest do
       }
 
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
-      {:ok, _} = Acquisition.grab(result, "Inception")
+      {:ok, _} = Acquisition.grab(result, "Sample Movie")
 
       assert Acquisition.statuses_for_releases([{"guid-skip", "manual", nil, nil}]) ==
                %{
@@ -186,7 +186,7 @@ defmodule MediaCentarr.AcquisitionTest do
   describe "enqueue/4 — granularity" do
     test "movie key uses NULL season and episode" do
       assert {:ok, %Grab{} = grab} =
-               Acquisition.enqueue("12345", "movie", "Inception", year: 2010)
+               Acquisition.enqueue("12345", "movie", "Sample Movie", year: 2010)
 
       assert grab.season_number == nil
       assert grab.episode_number == nil
@@ -196,7 +196,7 @@ defmodule MediaCentarr.AcquisitionTest do
 
     test "TV episode key carries season and episode" do
       assert {:ok, %Grab{} = grab} =
-               Acquisition.enqueue("999", "tv", "Severance",
+               Acquisition.enqueue("999", "tv", "Sample Show",
                  season_number: 3,
                  episode_number: 4
                )
@@ -208,7 +208,7 @@ defmodule MediaCentarr.AcquisitionTest do
 
     test "TV season pack uses non-NULL season with NULL episode" do
       assert {:ok, %Grab{} = grab} =
-               Acquisition.enqueue("999", "tv", "Severance", season_number: 3)
+               Acquisition.enqueue("999", "tv", "Sample Show", season_number: 3)
 
       assert grab.season_number == 3
       assert grab.episode_number == nil
@@ -218,13 +218,13 @@ defmodule MediaCentarr.AcquisitionTest do
   describe "enqueue/4 — idempotency on the four-tuple" do
     test "second call for same (tmdb_id, type, season, episode) returns the existing grab" do
       assert {:ok, first} =
-               Acquisition.enqueue("999", "tv", "Severance",
+               Acquisition.enqueue("999", "tv", "Sample Show",
                  season_number: 3,
                  episode_number: 4
                )
 
       assert {:ok, second} =
-               Acquisition.enqueue("999", "tv", "Severance",
+               Acquisition.enqueue("999", "tv", "Sample Show",
                  season_number: 3,
                  episode_number: 4
                )
@@ -234,13 +234,13 @@ defmodule MediaCentarr.AcquisitionTest do
 
     test "different episode of same series creates a separate grab" do
       assert {:ok, e4} =
-               Acquisition.enqueue("999", "tv", "Severance",
+               Acquisition.enqueue("999", "tv", "Sample Show",
                  season_number: 3,
                  episode_number: 4
                )
 
       assert {:ok, e5} =
-               Acquisition.enqueue("999", "tv", "Severance",
+               Acquisition.enqueue("999", "tv", "Sample Show",
                  season_number: 3,
                  episode_number: 5
                )

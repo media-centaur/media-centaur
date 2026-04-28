@@ -16,31 +16,31 @@ defmodule MediaCentarr.Library.EntityTest do
         create_entity(%{
           type: :movie,
           name: "Sample Movie",
-          description: "A young blade runner discovers a secret.",
+          description: "A sample movie description.",
           date_published: "2017-10-06",
           genres: ["Science Fiction", "Drama"],
           url: "https://www.themoviedb.org/movie/335984",
           duration: "PT2H44M",
-          director: "Denis Villeneuve",
+          director: "A. Director",
           content_rating: "R",
           aggregate_rating_value: 7.5
         })
 
       assert movie.name == "Sample Movie"
-      assert movie.description == "A young blade runner discovers a secret."
+      assert movie.description == "A sample movie description."
       assert movie.date_published == "2017-10-06"
       assert movie.genres == ["Science Fiction", "Drama"]
       assert movie.url == "https://www.themoviedb.org/movie/335984"
       assert movie.duration == "PT2H44M"
-      assert movie.director == "Denis Villeneuve"
+      assert movie.director == "A. Director"
       assert movie.content_rating == "R"
       assert movie.aggregate_rating_value == 7.5
     end
 
     test "creates with minimal required fields only" do
-      tv_series = create_entity(%{type: :tv_series, name: "Severance"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
-      assert tv_series.name == "Severance"
+      assert tv_series.name == "Sample Show"
       assert tv_series.description == nil
       assert tv_series.genres == nil
       assert tv_series.date_published == nil

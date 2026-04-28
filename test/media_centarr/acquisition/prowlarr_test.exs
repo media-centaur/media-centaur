@@ -16,27 +16,27 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
           %{
-            "title" => "Sample Movie Thirteen.Part.Two.2024.2160p.UHD.BluRay.REMUX-FGT",
+            "title" => "Sample.Movie.2024.2160p.UHD.BluRay.REMUX-FGT",
             "guid" => "abc123",
             "indexerId" => 1,
             "size" => 50_000_000_000,
             "seeders" => 42,
             "leechers" => 5,
-            "indexer" => "1337x",
+            "indexer" => "sample-indexer",
             "publishDate" => "2024-06-01T00:00:00Z"
           }
         ])
       end)
 
-      assert {:ok, [result]} = Prowlarr.search("Sample Movie Thirteen Part Two", year: 2024)
+      assert {:ok, [result]} = Prowlarr.search("Sample Movie", year: 2024)
 
       assert %SearchResult{} = result
-      assert result.title == "Sample Movie Thirteen.Part.Two.2024.2160p.UHD.BluRay.REMUX-FGT"
+      assert result.title == "Sample.Movie.2024.2160p.UHD.BluRay.REMUX-FGT"
       assert result.guid == "abc123"
       assert result.indexer_id == 1
       assert result.quality == :uhd_4k
       assert result.seeders == 42
-      assert result.indexer_name == "1337x"
+      assert result.indexer_name == "sample-indexer"
     end
 
     test "returns empty list when no results" do
@@ -47,19 +47,19 @@ defmodule MediaCentarr.Acquisition.ProwlarrTest do
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
           %{
-            "title" => "Oppenheimer.2023.2160p.BluRay.REMUX",
+            "title" => "Sample.Movie.2023.2160p.BluRay.REMUX",
             "guid" => "guid-4k",
             "indexerId" => 1
           },
           %{
-            "title" => "Oppenheimer.2023.1080p.BluRay.x264",
+            "title" => "Sample.Movie.2023.1080p.BluRay.x264",
             "guid" => "guid-1080",
             "indexerId" => 1
           }
         ])
       end)
 
-      assert {:ok, [first, second]} = Prowlarr.search("Oppenheimer")
+      assert {:ok, [first, second]} = Prowlarr.search("Sample Movie")
       assert first.quality == :uhd_4k
       assert second.quality == :hd_1080p
     end

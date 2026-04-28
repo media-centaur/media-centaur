@@ -7,9 +7,9 @@ defmodule MediaCentarr.Review.IntakeTest do
 
   defp build_attrs(overrides \\ %{}) do
     defaults = %{
-      file_path: "/media/movies/Inception.2010.1080p.BluRay.mkv",
+      file_path: "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv",
       watch_directory: "/media/movies",
-      parsed_title: "Inception",
+      parsed_title: "Sample Movie",
       parsed_year: 2010,
       parsed_type: "movie",
       season_number: nil,
@@ -17,13 +17,13 @@ defmodule MediaCentarr.Review.IntakeTest do
       tmdb_id: 27_205,
       tmdb_type: "movie",
       confidence: 0.72,
-      match_title: "Inception",
+      match_title: "Sample Movie",
       match_year: "2010",
       match_poster_path: "/9gk7adHYeDvHkCSEhniVJErJ0Gs.jpg",
       candidates: [
         %{
           "tmdb_id" => 27_205,
-          "title" => "Inception",
+          "title" => "Sample Movie",
           "year" => "2010",
           "score" => 0.72,
           "poster_path" => "/9gk7adHYeDvHkCSEhniVJErJ0Gs.jpg",
@@ -41,15 +41,15 @@ defmodule MediaCentarr.Review.IntakeTest do
 
       assert {:ok, pending_file} = Intake.create_pending_file(attrs)
 
-      assert pending_file.file_path == "/media/movies/Inception.2010.1080p.BluRay.mkv"
+      assert pending_file.file_path == "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv"
       assert pending_file.watch_directory == "/media/movies"
-      assert pending_file.parsed_title == "Inception"
+      assert pending_file.parsed_title == "Sample Movie"
       assert pending_file.parsed_year == 2010
       assert pending_file.parsed_type == "movie"
       assert pending_file.tmdb_id == 27_205
       assert pending_file.tmdb_type == "movie"
       assert pending_file.confidence == 0.72
-      assert pending_file.match_title == "Inception"
+      assert pending_file.match_title == "Sample Movie"
       assert pending_file.match_year == "2010"
       assert pending_file.match_poster_path == "/9gk7adHYeDvHkCSEhniVJErJ0Gs.jpg"
       assert pending_file.status == :pending
@@ -69,8 +69,8 @@ defmodule MediaCentarr.Review.IntakeTest do
 
       assert {:ok, pending_file} = Intake.create_pending_file(attrs)
 
-      assert pending_file.file_path == "/media/movies/Inception.2010.1080p.BluRay.mkv"
-      assert pending_file.parsed_title == "Inception"
+      assert pending_file.file_path == "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv"
+      assert pending_file.parsed_title == "Sample Movie"
       assert pending_file.tmdb_id == nil
       assert pending_file.candidates == []
       assert pending_file.status == :pending
@@ -80,7 +80,7 @@ defmodule MediaCentarr.Review.IntakeTest do
       candidates = [
         %{
           "tmdb_id" => 27_205,
-          "title" => "Inception",
+          "title" => "Sample Movie",
           "year" => "2010",
           "score" => 0.92,
           "poster_path" => "/poster1.jpg",
@@ -105,7 +105,7 @@ defmodule MediaCentarr.Review.IntakeTest do
 
       assert first == %{
                "tmdb_id" => 27_205,
-               "title" => "Inception",
+               "title" => "Sample Movie",
                "year" => "2010",
                "score" => 0.92,
                "poster_path" => "/poster1.jpg",
@@ -144,21 +144,21 @@ defmodule MediaCentarr.Review.IntakeTest do
     test "extra type uses correct parsed_title" do
       attrs =
         build_attrs(%{
-          file_path: "/media/tv/Sample Show Eight/Extras/Gag Reel.mkv",
+          file_path: "/media/tv/Sample Show/Extras/Gag Reel.mkv",
           watch_directory: "/media/tv",
-          parsed_title: "Sample Show Eight",
+          parsed_title: "Sample Show",
           parsed_type: "extra",
           parsed_year: nil,
           tmdb_id: 1396,
           tmdb_type: "tv",
           confidence: 0.65,
-          match_title: "Sample Show Eight",
+          match_title: "Sample Show",
           match_year: "2008",
           match_poster_path: "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
           candidates: [
             %{
               "tmdb_id" => 1396,
-              "title" => "Sample Show Eight",
+              "title" => "Sample Show",
               "year" => "2008",
               "score" => 0.65,
               "poster_path" => "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
@@ -169,12 +169,12 @@ defmodule MediaCentarr.Review.IntakeTest do
 
       assert {:ok, pending_file} = Intake.create_pending_file(attrs)
 
-      assert pending_file.parsed_title == "Sample Show Eight"
+      assert pending_file.parsed_title == "Sample Show"
       assert pending_file.parsed_type == "extra"
       assert pending_file.tmdb_type == "tv"
 
       [candidate] = pending_file.candidates
-      assert candidate["title"] == "Sample Show Eight"
+      assert candidate["title"] == "Sample Show"
       assert candidate["year"] == "2008"
     end
   end
@@ -184,13 +184,13 @@ defmodule MediaCentarr.Review.IntakeTest do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.review_updates())
 
       files = [
-        %{file_path: "/media/movies/Sample Movie (2017).mkv", watch_dir: "/media/movies"}
+        %{file_path: "/media/movies/Sample Movie 2049 (2017).mkv", watch_dir: "/media/movies"}
       ]
 
       assert {:ok, 1} = Intake.receive_files_for_review(files)
 
       [pending] = MediaCentarr.Review.list_pending_files_for_review()
-      assert pending.file_path == "/media/movies/Sample Movie (2017).mkv"
+      assert pending.file_path == "/media/movies/Sample Movie 2049 (2017).mkv"
       assert pending.watch_directory == "/media/movies"
       assert pending.parsed_title == "Sample Movie"
       assert pending.parsed_year == 2049
@@ -204,10 +204,10 @@ defmodule MediaCentarr.Review.IntakeTest do
 
       files = [
         %{
-          file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",
+          file_path: "/media/tv/Sitcom (2001)/Season 1/Sitcom S01E01.mkv",
           watch_dir: "/media/tv"
         },
-        %{file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv", watch_dir: "/media/tv"}
+        %{file_path: "/media/tv/Sitcom (2001)/Season 1/Sitcom S01E02.mkv", watch_dir: "/media/tv"}
       ]
 
       assert {:ok, 2} = Intake.receive_files_for_review(files)
@@ -226,7 +226,7 @@ defmodule MediaCentarr.Review.IntakeTest do
 
     test "idempotent — same file path returns same record" do
       files = [
-        %{file_path: "/media/movies/Inception (2010).mkv", watch_dir: "/media/movies"}
+        %{file_path: "/media/movies/Sample Movie (2010).mkv", watch_dir: "/media/movies"}
       ]
 
       assert {:ok, 1} = Intake.receive_files_for_review(files)

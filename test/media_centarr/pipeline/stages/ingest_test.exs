@@ -26,7 +26,7 @@ defmodule MediaCentarr.Pipeline.Stages.IngestTest do
           entity_type: :movie,
           entity_attrs: %{
             type: :movie,
-            name: "Fight Club",
+            name: "Sample Movie",
             description: "An insomniac office worker...",
             date_published: "1999-10-15",
             content_url: "/media/Fight.Club.1999.mkv",
@@ -65,7 +65,7 @@ defmodule MediaCentarr.Pipeline.Stages.IngestTest do
 
       assert_receive {:entity_published, event}
       assert event.entity_type == :movie
-      assert event.entity_attrs.name == "Fight Club"
+      assert event.entity_attrs.name == "Sample Movie"
       assert event.identifier == %{source: "tmdb", external_id: "550"}
       assert event.file_path == "/media/Fight.Club.1999.mkv"
       assert event.watch_dir == "/media"
@@ -85,14 +85,14 @@ defmodule MediaCentarr.Pipeline.Stages.IngestTest do
           entity_type: :movie_series,
           entity_attrs: %{
             type: :movie_series,
-            name: "The Shadowy Sentinel Collection"
+            name: "Sample Movie Collection"
           },
           images: [],
           identifier: %{source: "tmdb_collection", external_id: "263"},
           child_movie: %{
             attrs: %{
               tmdb_id: "155",
-              name: "The Shadowy Sentinel",
+              name: "Sample Movie Two",
               content_url: "/media/The.Shadowy.Sentinel.2008.mkv",
               position: 1
             },
@@ -108,13 +108,13 @@ defmodule MediaCentarr.Pipeline.Stages.IngestTest do
 
       assert_receive {:entity_published, event}
       assert event.entity_type == :movie_series
-      assert event.child_movie.attrs.name == "The Shadowy Sentinel"
+      assert event.child_movie.attrs.name == "Sample Movie Two"
       assert event.watch_dir == "/media"
     end
 
     test "broadcasts TV event with season and episode" do
       payload = %Payload{
-        file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv",
+        file_path: "/media/TV/Sample.Show.S01E01.mkv",
         watch_directory: "/media/TV",
         tmdb_id: 1396,
         tmdb_type: :tv,
@@ -122,7 +122,7 @@ defmodule MediaCentarr.Pipeline.Stages.IngestTest do
           entity_type: :tv_series,
           entity_attrs: %{
             type: :tv_series,
-            name: "Sample Show Eight",
+            name: "Sample Show",
             number_of_seasons: 5
           },
           images: [],

@@ -318,9 +318,8 @@ app's behavior.
 - **Landing page and wiki now showcase the Upcoming zone and the
   Download page properly.** The Release Tracking screenshot on the
   project site and wiki now captures `/?zone=upcoming` with a real
-  calendar of announced upcoming films and TV (Sample Movie Thirteen Part Three,
-  Avengers: Doomsday, Stranger Things, Sample Show Nine, etc.)
-  instead of a Recent-Changes proxy. The Download screenshot shows
+  calendar of announced upcoming films and TV instead of a
+  Recent-Changes proxy. The Download screenshot shows
   a live queue of downloads and the search screenshot shows results
   for a public-domain title.
 

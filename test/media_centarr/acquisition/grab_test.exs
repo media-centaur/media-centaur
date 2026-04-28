@@ -6,23 +6,23 @@ defmodule MediaCentarr.Acquisition.GrabTest do
   describe "manual_grabbed_changeset/3" do
     test "produces a row in terminal grabbed state with manual origin" do
       result = %SearchResult{
-        title: "Inception.2010.2160p.UHD.BluRay.REMUX-FGT",
+        title: "Sample.Movie.2010.2160p.UHD.BluRay.REMUX-FGT",
         guid: "abc-123",
         indexer_id: 1,
         quality: :uhd_4k
       }
 
-      changeset = Grab.manual_grabbed_changeset(result, "Inception 2010")
+      changeset = Grab.manual_grabbed_changeset(result, "Sample Movie 2010")
 
       assert changeset.valid?
-      assert changeset.changes.title == "Inception.2010.2160p.UHD.BluRay.REMUX-FGT"
+      assert changeset.changes.title == "Sample.Movie.2010.2160p.UHD.BluRay.REMUX-FGT"
       assert changeset.changes.tmdb_id == "abc-123"
       assert changeset.changes.tmdb_type == "manual"
       assert changeset.changes.origin == "manual"
       assert changeset.changes.status == "grabbed"
       assert changeset.changes.quality == "4K"
       assert changeset.changes.prowlarr_guid == "abc-123"
-      assert changeset.changes.manual_query == "Inception 2010"
+      assert changeset.changes.manual_query == "Sample Movie 2010"
       assert %DateTime{} = changeset.changes.grabbed_at
     end
 

@@ -26,10 +26,10 @@ defmodule MediaCentarr.Library.InboundTest do
       entity_type: :movie,
       entity_attrs: %{
         type: :movie,
-        name: "Fight Club",
-        description: "An insomniac office worker...",
+        name: "Sample Movie",
+        description: "A sample movie description.",
         date_published: "1999-10-15",
-        content_url: "/media/Fight.Club.1999.mkv",
+        content_url: "/media/Sample.Movie.1999.mkv",
         url: "https://www.themoviedb.org/movie/550"
       },
       images: [
@@ -40,7 +40,7 @@ defmodule MediaCentarr.Library.InboundTest do
       child_movie: nil,
       season: nil,
       extra: nil,
-      file_path: "/media/Fight.Club.1999.mkv",
+      file_path: "/media/Sample.Movie.1999.mkv",
       watch_dir: "/media"
     }
 
@@ -52,7 +52,7 @@ defmodule MediaCentarr.Library.InboundTest do
       entity_type: :movie_series,
       entity_attrs: %{
         type: :movie_series,
-        name: "The Shadowy Sentinel Collection"
+        name: "Sample Movie Collection"
       },
       images: [
         %{role: "poster", url: "https://image.tmdb.org/coll_poster.jpg"}
@@ -61,10 +61,10 @@ defmodule MediaCentarr.Library.InboundTest do
       child_movie: %{
         attrs: %{
           tmdb_id: "155",
-          name: "The Shadowy Sentinel",
-          description: "Batman raises the stakes...",
+          name: "Sample Movie Two",
+          description: "Sample description.",
           date_published: "2008-07-18",
-          content_url: "/media/The.Shadowy.Sentinel.2008.mkv",
+          content_url: "/media/Sample.Movie.2008.mkv",
           url: "https://www.themoviedb.org/movie/155",
           position: 1
         },
@@ -75,7 +75,7 @@ defmodule MediaCentarr.Library.InboundTest do
       },
       season: nil,
       extra: nil,
-      file_path: "/media/The.Shadowy.Sentinel.2008.mkv",
+      file_path: "/media/Sample.Movie.2008.mkv",
       watch_dir: "/media"
     }
 
@@ -87,8 +87,8 @@ defmodule MediaCentarr.Library.InboundTest do
       entity_type: :tv_series,
       entity_attrs: %{
         type: :tv_series,
-        name: "Sample Show Eight",
-        description: "A high school chemistry teacher...",
+        name: "Sample Show",
+        description: "A sample show description.",
         number_of_seasons: 5,
         url: "https://www.themoviedb.org/tv/1396"
       },
@@ -105,9 +105,9 @@ defmodule MediaCentarr.Library.InboundTest do
           attrs: %{
             episode_number: 1,
             name: "Pilot",
-            description: "Walter White begins cooking meth.",
+            description: "Sample episode description.",
             duration: "PT58M",
-            content_url: "/media/TV/Sample.Show.Eight.S01E01.mkv"
+            content_url: "/media/TV/Sample.Show.S01E01.mkv"
           },
           images: [
             %{role: "thumb", url: "https://image.tmdb.org/ep_thumb.jpg"}
@@ -115,7 +115,7 @@ defmodule MediaCentarr.Library.InboundTest do
         }
       },
       extra: nil,
-      file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv",
+      file_path: "/media/TV/Sample.Show.S01E01.mkv",
       watch_dir: "/media/TV"
     }
 
@@ -131,13 +131,13 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, movie, :new, pending_images} = Inbound.ingest(movie_event())
 
       assert %Library.Movie{} = movie
-      assert movie.name == "Fight Club"
-      assert movie.content_url == "/media/Fight.Club.1999.mkv"
+      assert movie.name == "Sample Movie"
+      assert movie.content_url == "/media/Sample.Movie.1999.mkv"
 
       # Type-specific Movie record created directly
       assert {:ok, reloaded} = Library.get_movie(movie.id)
-      assert reloaded.name == "Fight Club"
-      assert reloaded.content_url == "/media/Fight.Club.1999.mkv"
+      assert reloaded.name == "Sample Movie"
+      assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
 
       # Identifier created with movie_id
       assert {:ok, identifier} = Library.find_by_tmdb_id_for_movie("550")
@@ -185,11 +185,11 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, series, :new, pending_images} = Inbound.ingest(collection_event())
 
       assert %Library.MovieSeries{} = series
-      assert series.name == "The Shadowy Sentinel Collection"
+      assert series.name == "Sample Movie Collection"
 
       # Type-specific MovieSeries record created directly
       assert {:ok, reloaded} = Library.get_movie_series(series.id)
-      assert reloaded.name == "The Shadowy Sentinel Collection"
+      assert reloaded.name == "Sample Movie Collection"
 
       # Collection identifier with movie_series_id
       assert {:ok, collection_id} = Library.find_by_tmdb_collection_for_movie_series("263")
@@ -210,8 +210,8 @@ defmodule MediaCentarr.Library.InboundTest do
       series = MediaCentarr.Repo.preload(series, [:movies])
       assert length(series.movies) == 1
       movie = hd(series.movies)
-      assert movie.name == "The Shadowy Sentinel"
-      assert movie.content_url == "/media/The.Shadowy.Sentinel.2008.mkv"
+      assert movie.name == "Sample Movie Two"
+      assert movie.content_url == "/media/Sample.Movie.2008.mkv"
       assert movie.position == 1
       assert movie.movie_series_id == series.id
 
@@ -226,7 +226,7 @@ defmodule MediaCentarr.Library.InboundTest do
 
     test "existing movie series — adds new child movie" do
       # Pre-create the series entity and collection identifier
-      series = create_entity(%{type: :movie_series, name: "The Shadowy Sentinel Collection"})
+      series = create_entity(%{type: :movie_series, name: "Sample Movie Collection"})
 
       create_external_id(%{
         movie_series_id: series.id,
@@ -239,10 +239,10 @@ defmodule MediaCentarr.Library.InboundTest do
           child_movie: %{
             attrs: %{
               tmdb_id: "49026",
-              name: "The Shadowy Sentinel Rises",
-              description: "Eight years after the Joker...",
+              name: "Sample Movie Three",
+              description: "Sample description.",
               date_published: "2012-07-20",
-              content_url: "/media/The.Shadowy.Sentinel.Rises.2012.mkv",
+              content_url: "/media/Sample.Movie.Three.2012.mkv",
               position: 2
             },
             images: [],
@@ -258,7 +258,7 @@ defmodule MediaCentarr.Library.InboundTest do
       movie_series = MediaCentarr.Repo.preload(movie_series, :movies)
       assert length(movie_series.movies) == 1
       movie = hd(movie_series.movies)
-      assert movie.name == "The Shadowy Sentinel Rises"
+      assert movie.name == "Sample Movie Three"
       assert movie.position == 2
     end
   end
@@ -272,7 +272,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, tv_series, :new, pending_images} = Inbound.ingest(tv_event())
 
       assert %Library.TVSeries{} = tv_series
-      assert tv_series.name == "Sample Show Eight"
+      assert tv_series.name == "Sample Show"
       assert tv_series.number_of_seasons == 5
 
       # Identifier with tv_series_id
@@ -289,7 +289,7 @@ defmodule MediaCentarr.Library.InboundTest do
       episode = hd(season.episodes)
       assert episode.episode_number == 1
       assert episode.name == "Pilot"
-      assert episode.content_url == "/media/TV/Sample.Show.Eight.S01E01.mkv"
+      assert episode.content_url == "/media/TV/Sample.Show.S01E01.mkv"
 
       # Pending images: tv_series poster + episode thumb
       assert length(pending_images) == 2
@@ -301,7 +301,7 @@ defmodule MediaCentarr.Library.InboundTest do
     end
 
     test "existing TV series — adds new episode to existing season" do
-      existing = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
+      existing = create_entity(%{type: :tv_series, name: "Sample Show"})
       create_external_id(%{tv_series_id: existing.id, source: "tmdb", external_id: "1396"})
 
       event =
@@ -352,19 +352,19 @@ defmodule MediaCentarr.Library.InboundTest do
 
   describe "existing entity reuse" do
     test "existing movie sets content_url if nil" do
-      existing = create_entity(%{type: :movie, name: "Fight Club"})
+      existing = create_entity(%{type: :movie, name: "Sample Movie"})
       create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
       {:ok, reloaded} = Library.get_movie(entity.id)
-      assert reloaded.content_url == "/media/Fight.Club.1999.mkv"
+      assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
     end
 
     test "existing movie with content_url is returned unchanged" do
       existing =
-        create_entity(%{type: :movie, name: "Fight Club", content_url: "/media/original.mkv"})
+        create_entity(%{type: :movie, name: "Sample Movie", content_url: "/media/original.mkv"})
 
       create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
 
@@ -433,7 +433,7 @@ defmodule MediaCentarr.Library.InboundTest do
     end
 
     test "extra on existing entity — reuses parent, creates extra only" do
-      existing = create_entity(%{type: :movie, name: "Fight Club"})
+      existing = create_entity(%{type: :movie, name: "Sample Movie"})
       create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
 
       event =
@@ -463,7 +463,7 @@ defmodule MediaCentarr.Library.InboundTest do
   describe "race-loss recovery" do
     test "detects race loss, destroys duplicate, returns winner" do
       # Pre-create a "winner" entity with the same TMDB identifier
-      winner = create_entity(%{type: :movie, name: "Fight Club (Winner)"})
+      winner = create_entity(%{type: :movie, name: "Sample Movie (Winner)"})
       create_external_id(%{movie_id: winner.id, source: "tmdb", external_id: "550"})
 
       # Inbound will create a new type record, then when creating the identifier
@@ -488,7 +488,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
 
       [file] = MediaCentarr.Repo.all(WatchedFile)
-      assert file.file_path == "/media/Fight.Club.1999.mkv"
+      assert file.file_path == "/media/Sample.Movie.1999.mkv"
       assert file.watch_dir == "/media"
       assert file.movie_id == movie.id
     end
@@ -655,27 +655,27 @@ defmodule MediaCentarr.Library.InboundTest do
         season_id: season.id,
         episode_number: 1,
         name: "Pilot",
-        content_url: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv"
+        content_url: "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E01.mkv"
       })
 
       create_episode(%{
         season_id: season.id,
         episode_number: 2,
         name: "Second",
-        content_url: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv"
+        content_url: "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E02.mkv"
       })
 
       create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "wrong"})
 
       create_linked_file(%{
         tv_series_id: tv_series.id,
-        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",
+        file_path: "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E01.mkv",
         watch_dir: "/media/tv"
       })
 
       create_linked_file(%{
         tv_series_id: tv_series.id,
-        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv",
+        file_path: "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E02.mkv",
         watch_dir: "/media/tv"
       })
 
@@ -690,8 +690,8 @@ defmodule MediaCentarr.Library.InboundTest do
       paths = Enum.sort(Enum.map(files, & &1.file_path))
 
       assert paths == [
-               "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E01.mkv",
-               "/media/tv/Sample Show One (2001)/Season 1/Sample Show One S01E02.mkv"
+               "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E01.mkv",
+               "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E02.mkv"
              ]
     end
   end

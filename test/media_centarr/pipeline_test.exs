@@ -74,7 +74,7 @@ defmodule MediaCentarr.PipelineTest do
            "results" => [
              movie_search_result(%{
                "id" => 550,
-               "title" => "Fight Club",
+               "title" => "Sample Movie",
                "release_date" => "1999-10-15"
              })
            ]
@@ -83,7 +83,7 @@ defmodule MediaCentarr.PipelineTest do
       ])
 
       payload = %Payload{
-        file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
+        file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
         watch_directory: "/media/pipeline"
       }
 
@@ -107,14 +107,14 @@ defmodule MediaCentarr.PipelineTest do
       assert {:ok, entity, :new, _images} = Inbound.ingest(event)
 
       assert %Library.Movie{} = entity
-      assert entity.name == "Fight Club"
+      assert entity.name == "Sample Movie"
 
       # WatchedFile created by Inbound.ingest
       files = Library.list_watched_files()
       assert length(files) == 1
       file = hd(files)
       assert file.movie_id == entity.id
-      assert file.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
+      assert file.file_path == "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
     end
 
     test "TV episode: discovery matches → import creates series with season and episode" do
@@ -124,7 +124,7 @@ defmodule MediaCentarr.PipelineTest do
            "results" => [
              tv_search_result(%{
                "id" => 1396,
-               "name" => "Sample Show Eight",
+               "name" => "Sample Show",
                "first_air_date" => "2008-01-20"
              })
            ]
@@ -134,7 +134,7 @@ defmodule MediaCentarr.PipelineTest do
       ])
 
       payload = %Payload{
-        file_path: "/media/pipeline/TV/Sample.Show.Eight/Season.01/Sample.Show.Eight.S01E01.1080p.BluRay.mkv",
+        file_path: "/media/pipeline/TV/Sample.Show/Season.01/Sample.Show.S01E01.1080p.BluRay.mkv",
         watch_directory: "/media/pipeline/TV"
       }
 
@@ -155,7 +155,7 @@ defmodule MediaCentarr.PipelineTest do
       assert {:ok, tv_series, :new, _images} = Inbound.ingest(event)
 
       assert %Library.TVSeries{} = tv_series
-      assert tv_series.name == "Sample Show Eight"
+      assert tv_series.name == "Sample Show"
       tv_series = MediaCentarr.Repo.preload(tv_series, seasons: :episodes)
       assert length(tv_series.seasons) == 1
       assert length(hd(tv_series.seasons).episodes) == 1
@@ -168,7 +168,7 @@ defmodule MediaCentarr.PipelineTest do
            "results" => [
              movie_search_result(%{
                "id" => 155,
-               "title" => "The Shadowy Sentinel",
+               "title" => "Sample Movie Two",
                "release_date" => "2008-07-18"
              })
            ]
@@ -178,7 +178,7 @@ defmodule MediaCentarr.PipelineTest do
       ])
 
       payload = %Payload{
-        file_path: "/media/pipeline/The.Shadowy.Sentinel.2008.BluRay.mkv",
+        file_path: "/media/pipeline/Sample.Movie.Two.2008.BluRay.mkv",
         watch_directory: "/media/pipeline"
       }
 
@@ -199,10 +199,10 @@ defmodule MediaCentarr.PipelineTest do
       assert {:ok, movie_series, :new, _images} = Inbound.ingest(event)
 
       assert %Library.MovieSeries{} = movie_series
-      assert movie_series.name == "The Shadowy Sentinel Collection"
+      assert movie_series.name == "Sample Movie Collection"
       movie_series = MediaCentarr.Repo.preload(movie_series, :movies)
       assert length(movie_series.movies) == 1
-      assert hd(movie_series.movies).name == "The Shadowy Sentinel"
+      assert hd(movie_series.movies).name == "Sample Movie Two"
     end
   end
 
@@ -229,7 +229,7 @@ defmodule MediaCentarr.PipelineTest do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.review_updates())
 
       payload = %Payload{
-        file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
+        file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
         watch_directory: "/media/pipeline"
       }
 
@@ -243,7 +243,7 @@ defmodule MediaCentarr.PipelineTest do
       pending_files = Review.list_pending_files_for_review()
       assert length(pending_files) == 1
       pending = hd(pending_files)
-      assert pending.file_path == "/media/pipeline/Fight.Club.1999.BluRay.mkv"
+      assert pending.file_path == "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
       assert pending.status == :pending
 
       # No WatchedFile created
@@ -260,7 +260,7 @@ defmodule MediaCentarr.PipelineTest do
       stub_tmdb_error("/search/movie", 500)
 
       payload = %Payload{
-        file_path: "/media/pipeline/Fight.Club.1999.BluRay.mkv",
+        file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
         watch_directory: "/media/pipeline"
       }
 
@@ -317,7 +317,7 @@ defmodule MediaCentarr.PipelineTest do
           tmdb_id: 550,
           tmdb_type: "movie",
           confidence: 1.0,
-          match_title: "Fight Club"
+          match_title: "Sample Movie"
         })
 
       import_payload =
@@ -335,7 +335,7 @@ defmodule MediaCentarr.PipelineTest do
       assert {:ok, entity, :new, _images} = Inbound.ingest(event)
 
       assert %Library.Movie{} = entity
-      assert entity.name == "Fight Club"
+      assert entity.name == "Sample Movie"
 
       # WatchedFile created by Inbound.ingest
       files = Library.list_watched_files()

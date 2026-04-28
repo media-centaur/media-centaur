@@ -17,6 +17,12 @@ defmodule MediaCentarr.Library.TVSeries do
     field :genres, {:array, :string}
     field :url, :string
     field :aggregate_rating_value, :float
+    field :vote_count, :integer
+    field :tagline, :string
+    field :original_language, :string
+    field :studio, :string
+    field :country_code, :string
+    field :network, :string
     field :number_of_seasons, :integer
     field :status, Ecto.Enum, values: [:returning, :ended, :canceled, :in_production, :planned]
 
@@ -39,6 +45,12 @@ defmodule MediaCentarr.Library.TVSeries do
       :genres,
       :url,
       :aggregate_rating_value,
+      :vote_count,
+      :tagline,
+      :original_language,
+      :studio,
+      :country_code,
+      :network,
       :number_of_seasons,
       :status
     ])
@@ -53,6 +65,12 @@ defmodule MediaCentarr.Library.TVSeries do
       :genres,
       :url,
       :aggregate_rating_value,
+      :vote_count,
+      :tagline,
+      :original_language,
+      :studio,
+      :country_code,
+      :network,
       :number_of_seasons,
       :status
     ])

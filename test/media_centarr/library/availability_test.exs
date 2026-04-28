@@ -45,7 +45,7 @@ defmodule MediaCentarr.Library.AvailabilityTest do
     end
 
     test "true when entity's file is under a :watching dir" do
-      entity = %{files: [%{path: "/mnt/videos/Inception.mkv"}]}
+      entity = %{files: [%{path: "/mnt/videos/Sample.Movie.mkv"}]}
       assert Availability.available?(entity) == true
     end
 

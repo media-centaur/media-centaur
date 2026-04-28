@@ -13,7 +13,7 @@ defmodule MediaCentarr.Playback.ResolverTest do
   describe "resolve/1 with Entity UUID" do
     test "movie entity resolves with resume when partially watched" do
       movie =
-        create_entity(%{type: :movie, name: "Sample Movie", content_url: "/movies/br.mkv"})
+        create_entity(%{type: :movie, name: "Sample Movie", content_url: "/movies/sample.mkv"})
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -25,37 +25,37 @@ defmodule MediaCentarr.Playback.ResolverTest do
       assert params.action == :resume
       assert params.entity_id == movie.id
       assert params.entity_name == "Sample Movie"
-      assert params.content_url == "/movies/br.mkv"
+      assert params.content_url == "/movies/sample.mkv"
       assert params.start_position == 1200.0
     end
 
     test "movie entity plays from beginning when unwatched" do
       movie =
-        create_entity(%{type: :movie, name: "Sample Movie Fourteen", content_url: "/movies/arrival.mkv"})
+        create_entity(%{type: :movie, name: "Other Movie", content_url: "/movies/other.mkv"})
 
       assert {:ok, params} = Resolver.resolve(movie.id)
       assert params.action == :play_next
-      assert params.content_url == "/movies/arrival.mkv"
+      assert params.content_url == "/movies/other.mkv"
       assert params.start_position == 0.0
     end
 
     test "tv_series entity resolves via Resume algorithm" do
-      tv_series = create_entity(%{type: :tv_series, name: "Severance"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
 
       ep1 =
         create_episode(%{
           season_id: season.id,
           episode_number: 1,
-          name: "Good News About Hell",
-          content_url: "/tv/sev/s01e01.mkv"
+          name: "Pilot",
+          content_url: "/tv/show/s01e01.mkv"
         })
 
       create_episode(%{
         season_id: season.id,
         episode_number: 2,
-        name: "Half Loop",
-        content_url: "/tv/sev/s01e02.mkv"
+        name: "Episode Two",
+        content_url: "/tv/show/s01e02.mkv"
       })
 
       # Mark episode 1 as completed
@@ -69,30 +69,30 @@ defmodule MediaCentarr.Playback.ResolverTest do
 
       assert {:ok, params} = Resolver.resolve(tv_series.id)
       assert params.action == :play_next
-      assert params.content_url == "/tv/sev/s01e02.mkv"
+      assert params.content_url == "/tv/show/s01e02.mkv"
       assert params.start_position == 0.0
     end
 
     test "movie_series entity resolves via Resume algorithm" do
-      movie_series = create_entity(%{type: :movie_series, name: "Alien Collection"})
+      movie_series = create_entity(%{type: :movie_series, name: "Sample Movie Series"})
 
       create_movie(%{
         movie_series_id: movie_series.id,
-        name: "Alien",
-        content_url: "/movies/alien.mkv",
+        name: "Sample Movie One",
+        content_url: "/movies/movie1.mkv",
         position: 0
       })
 
       create_movie(%{
         movie_series_id: movie_series.id,
-        name: "Aliens",
-        content_url: "/movies/aliens.mkv",
+        name: "Sample Movie Two",
+        content_url: "/movies/movie2.mkv",
         position: 1
       })
 
       assert {:ok, params} = Resolver.resolve(movie_series.id)
       assert params.action == :play_next
-      assert params.content_url == "/movies/alien.mkv"
+      assert params.content_url == "/movies/movie1.mkv"
     end
 
     test "entity with no content returns error" do
@@ -104,15 +104,15 @@ defmodule MediaCentarr.Playback.ResolverTest do
 
   describe "resolve/1 with Episode UUID" do
     test "episode resolves with resume when partially watched" do
-      tv_series = create_entity(%{type: :tv_series, name: "Severance"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
 
       episode =
         create_episode(%{
           season_id: season.id,
           episode_number: 3,
-          name: "Who Is Alive?",
-          content_url: "/tv/sev/s01e03.mkv"
+          name: "Episode Three",
+          content_url: "/tv/show/s01e03.mkv"
         })
 
       create_watch_progress(%{
@@ -124,29 +124,30 @@ defmodule MediaCentarr.Playback.ResolverTest do
       assert {:ok, params} = Resolver.resolve(episode.id)
       assert params.action == :resume
       assert params.entity_id == tv_series.id
-      assert params.entity_name == "Severance"
+      assert params.entity_name == "Sample Show"
+
       assert params.season_number == 1
       assert params.episode_number == 3
-      assert params.episode_name == "Who Is Alive?"
-      assert params.content_url == "/tv/sev/s01e03.mkv"
+      assert params.episode_name == "Episode Three"
+      assert params.content_url == "/tv/show/s01e03.mkv"
       assert params.start_position == 600.0
     end
 
     test "episode plays from beginning when unwatched" do
-      tv_series = create_entity(%{type: :tv_series, name: "Severance"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 2})
 
       episode =
         create_episode(%{
           season_id: season.id,
           episode_number: 1,
-          name: "Hello, Ms. Cobel",
-          content_url: "/tv/sev/s02e01.mkv"
+          name: "Season Two Pilot",
+          content_url: "/tv/show/s02e01.mkv"
         })
 
       assert {:ok, params} = Resolver.resolve(episode.id)
       assert params.action == :play_episode
-      assert params.content_url == "/tv/sev/s02e01.mkv"
+      assert params.content_url == "/tv/show/s02e01.mkv"
       assert params.start_position == 0.0
     end
 
@@ -167,13 +168,13 @@ defmodule MediaCentarr.Playback.ResolverTest do
 
   describe "resolve/1 with Movie (child) UUID" do
     test "child movie resolves with resume when partially watched" do
-      movie_series = create_entity(%{type: :movie_series, name: "Alien Collection"})
+      movie_series = create_entity(%{type: :movie_series, name: "Sample Movie Series"})
 
       movie =
         create_movie(%{
           movie_series_id: movie_series.id,
-          name: "Alien",
-          content_url: "/movies/alien.mkv",
+          name: "Sample Movie One",
+          content_url: "/movies/movie1.mkv",
           position: 0
         })
 
@@ -187,28 +188,28 @@ defmodule MediaCentarr.Playback.ResolverTest do
       assert {:ok, params} = Resolver.resolve(movie.id)
       assert params.action == :resume
       assert params.entity_id == movie_series.id
-      assert params.entity_name == "Alien Collection"
+      assert params.entity_name == "Sample Movie Series"
       assert params.season_number == 0
       assert params.episode_number == 1
-      assert params.episode_name == "Alien"
-      assert params.content_url == "/movies/alien.mkv"
+      assert params.episode_name == "Sample Movie One"
+      assert params.content_url == "/movies/movie1.mkv"
       assert params.start_position == 2400.0
     end
 
     test "child movie plays from beginning when unwatched" do
-      movie_series = create_entity(%{type: :movie_series, name: "Alien Collection"})
+      movie_series = create_entity(%{type: :movie_series, name: "Sample Movie Series"})
 
       movie =
         create_movie(%{
           movie_series_id: movie_series.id,
-          name: "Aliens",
-          content_url: "/movies/aliens.mkv",
+          name: "Sample Movie Two",
+          content_url: "/movies/movie2.mkv",
           position: 1
         })
 
       assert {:ok, params} = Resolver.resolve(movie.id)
       assert params.action == :play_movie
-      assert params.content_url == "/movies/aliens.mkv"
+      assert params.content_url == "/movies/movie2.mkv"
       assert params.start_position == 0.0
     end
 
@@ -222,7 +223,7 @@ defmodule MediaCentarr.Playback.ResolverTest do
 
   describe "resolve/1 with Extra UUID" do
     test "extra resolves, plays from beginning" do
-      movie = create_entity(%{type: :movie, name: "Sample Movie One"})
+      movie = create_entity(%{type: :movie, name: "Sample Movie"})
 
       extra =
         create_extra(%{
@@ -234,7 +235,7 @@ defmodule MediaCentarr.Playback.ResolverTest do
       assert {:ok, params} = Resolver.resolve(extra.id)
       assert params.action == :play_extra
       assert params.entity_id == movie.id
-      assert params.entity_name == "Sample Movie One"
+      assert params.entity_name == "Sample Movie"
       assert params.episode_name == "Making Of"
       assert params.content_url == "/extras/making_of.mkv"
       assert params.start_position == 0.0

@@ -3,7 +3,7 @@ defmodule MediaCentarrWeb.HomeLive do
   Cinematic landing page — the app's root route (`/`).
 
   Composes data from Library, ReleaseTracking, and WatchHistory contexts:
-  hero card + Continue Watching + Coming Up This Week + Recently Added +
+  hero card + Continue Watching + Coming Up + Recently Added +
   Heavy Rotation. Pure assembly lives in `MediaCentarrWeb.HomeLive.Logic`
   per ADR-030.
   """
@@ -44,12 +44,33 @@ defmodule MediaCentarrWeb.HomeLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/" full_width>
-      <div class="space-y-8 py-2">
-        <HeroCard.hero_card item={@hero} />
+      <%!-- Hero breaks out of the Layouts.app `<main class="px-6 py-6">`
+            wrapper via negative margins so it can fill the available width
+            (viewport - side rail). The rows below pull up under the hero's
+            fade-to-base for the Netflix dissolve effect.
 
+            Hero is wrapped in `row-scroll-hero` so it can later hold
+            multiple featured items that swipe horizontally. Currently a
+            single item — the structural setup is for future per-row
+            keyboard/gamepad navigation. --%>
+      <div
+        :if={@hero}
+        class="-mx-6 -mt-6"
+        data-scroll-row="hero"
+      >
+        <div class="row-scroll row-scroll-hero">
+          <div class="w-full" data-row-item>
+            <HeroCard.hero_card item={@hero} />
+          </div>
+        </div>
+      </div>
+      <div class={[
+        "relative z-[2] space-y-10",
+        @hero && "-mt-8"
+      ]}>
         <section :if={@continue_items != []} data-row="continue-watching">
           <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-lg font-semibold">Continue Watching</h2>
+            <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
             <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
               See all →
             </.link>
@@ -59,7 +80,7 @@ defmodule MediaCentarrWeb.HomeLive do
 
         <section :if={@coming_up_items != []} data-row="coming-up">
           <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-lg font-semibold">Coming Up This Week</h2>
+            <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
             <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
               See all →
             </.link>
@@ -69,7 +90,7 @@ defmodule MediaCentarrWeb.HomeLive do
 
         <section :if={@recently_added != []} data-row="recently-added">
           <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-lg font-semibold">Recently Added</h2>
+            <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
             <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
               See all →
             </.link>
@@ -79,7 +100,7 @@ defmodule MediaCentarrWeb.HomeLive do
 
         <section :if={@heavy_rotation != []} data-row="heavy-rotation">
           <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-lg font-semibold">Heavy Rotation</h2>
+            <h2 class="text-xl font-semibold tracking-tight">Heavy Rotation</h2>
             <.link navigate="/history" class="text-sm text-base-content/60 hover:text-primary">
               See all →
             </.link>
@@ -198,11 +219,15 @@ defmodule MediaCentarrWeb.HomeLive do
   # Each loader returns a list of plain maps in the shape Logic expects.
   # Loaders returning [] are intentional stubs — see WIRE(4.6) comments.
 
-  defp load_progress, do: Library.list_in_progress(limit: 4)
+  defp load_progress, do: Library.list_in_progress(limit: 24)
 
   defp load_coming_up(today) do
-    {monday, sunday} = Logic.coming_up_window(today)
-    releases = ReleaseTracking.list_releases_between(monday, sunday, limit: 8)
+    # Show all upcoming releases in the next 90 days. Earlier this row was
+    # bounded to "this week" but the row scrolls horizontally now, so a
+    # wider window is what users expect — all their tracked coming-soon
+    # items, sorted by air date, scrollable.
+    to_date = Date.add(today, 90)
+    releases = ReleaseTracking.list_releases_between(today, to_date, limit: 30)
 
     grab_statuses =
       if Capabilities.prowlarr_ready?() do
@@ -235,10 +260,10 @@ defmodule MediaCentarrWeb.HomeLive do
   defp grab_status_atom("snoozed"), do: :pending
   defp grab_status_atom(_), do: :scheduled
 
-  defp load_recently_added, do: Library.list_recently_added(limit: 16)
+  defp load_recently_added, do: Library.list_recently_added(limit: 30)
 
   defp load_heavy_rotation do
-    rewatches = WatchHistory.top_rewatches(min: 2, limit: 8)
+    rewatches = WatchHistory.top_rewatches(min: 2, limit: 30)
     refs = Enum.map(rewatches, fn rewatch -> {rewatch.entity_type, rewatch.entity_id} end)
     entity_lookup = Library.lookup_entities_for_display(refs)
     {rewatches, entity_lookup}

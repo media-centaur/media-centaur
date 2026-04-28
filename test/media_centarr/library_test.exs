@@ -165,14 +165,14 @@ defmodule MediaCentarr.LibraryTest do
     end
 
     test "returns recently added movies with required shape" do
-      movie = create_standalone_movie(%{name: "Sample Movie Fourteen"})
+      movie = create_standalone_movie(%{name: "Sample Movie"})
       record_present(create_linked_file(%{movie_id: movie.id}))
       results = Library.list_recently_added()
 
       assert length(results) == 1
       row = hd(results)
       assert row.id == movie.id
-      assert row.name == "Sample Movie Fourteen"
+      assert row.name == "Sample Movie"
       assert Map.has_key?(row, :year)
       assert Map.has_key?(row, :poster_url)
     end
@@ -227,7 +227,7 @@ defmodule MediaCentarr.LibraryTest do
     end
 
     test "returns entities with backdrop image and description with required shape" do
-      movie = create_standalone_movie(%{name: "Inception", description: "A thief who steals secrets"})
+      movie = create_standalone_movie(%{name: "Sample Movie", description: "A sample synopsis"})
       record_present(create_linked_file(%{movie_id: movie.id}))
 
       create_image(%{
@@ -242,13 +242,13 @@ defmodule MediaCentarr.LibraryTest do
       assert length(results) == 1
       row = hd(results)
       assert row.id == movie.id
-      assert row.name == "Inception"
+      assert row.name == "Sample Movie"
       assert Map.has_key?(row, :year)
       assert Map.has_key?(row, :runtime_minutes)
       assert Map.has_key?(row, :genres)
       assert Map.has_key?(row, :overview)
       assert Map.has_key?(row, :backdrop_url)
-      assert row.overview == "A thief who steals secrets"
+      assert row.overview == "A sample synopsis"
     end
 
     test "does not return entities without a backdrop image" do
@@ -310,13 +310,61 @@ defmodule MediaCentarr.LibraryTest do
     end
   end
 
-  describe "list_in_progress/1 orphan filtering" do
-    test "excludes orphan movies even with watch_progress" do
+  describe "list_in_progress/1 mirrors the /library?in_progress=1 surface" do
+    # Continue Watching is the user's mental list of "things I'm watching".
+    # An absent file does not erase that intent — and matching this query to
+    # the broader `/library?in_progress=1` filter (which only checks for
+    # incomplete progress) keeps the two surfaces consistent.
+    test "includes movies with watch_progress even when no file is present" do
       orphan = create_standalone_movie(%{name: "Orphan With Progress"})
       create_watch_progress(%{movie_id: orphan.id, position_seconds: 30.0, duration_seconds: 100.0})
 
       results = Library.list_in_progress(limit: 10)
-      refute Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
+      assert Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
+    end
+
+    test "includes a TV series whose watched episodes are all completed but not every episode is watched" do
+      # Mirrors how `LibraryProgress.in_progress?/1` reads a series:
+      # episodes_completed (1) < episodes_total (3) → in progress, even
+      # though the user is not currently mid-episode anywhere.
+      series = create_tv_series(%{name: "Half-Watched Show"})
+      record_present(create_linked_file(%{tv_series_id: series.id}))
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+
+      [ep1, _ep2, _ep3] =
+        for ep_num <- 1..3 do
+          create_episode(%{season_id: season.id, episode_number: ep_num, name: "S1E#{ep_num}"})
+        end
+
+      create_watch_progress(%{
+        episode_id: ep1.id,
+        position_seconds: 60.0,
+        duration_seconds: 60.0,
+        completed: true
+      })
+
+      results = Library.list_in_progress(limit: 10)
+      assert Enum.any?(results, &(&1.entity_name == "Half-Watched Show"))
+    end
+
+    test "excludes a TV series where every episode is completed" do
+      series = create_tv_series(%{name: "Fully Watched Show"})
+      record_present(create_linked_file(%{tv_series_id: series.id}))
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+
+      for ep_num <- 1..2 do
+        episode = create_episode(%{season_id: season.id, episode_number: ep_num, name: "S1E#{ep_num}"})
+
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 60.0,
+          duration_seconds: 60.0,
+          completed: true
+        })
+      end
+
+      results = Library.list_in_progress(limit: 10)
+      refute Enum.any?(results, &(&1.entity_name == "Fully Watched Show"))
     end
   end
 

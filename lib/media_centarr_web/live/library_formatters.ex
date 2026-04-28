@@ -40,7 +40,7 @@ defmodule MediaCentarrWeb.LibraryFormatters do
 
   Payload shape (built in `MediaCentarr.Playback.MpvSession`):
     - `message`        — short diagnostic derived from mpv stderr
-    - `entity_name`    — e.g. "Sample Show Sixteen" (nil → falls back to filename)
+    - `entity_name`    — e.g. "Sample Show" (nil → falls back to filename)
     - `season_number`  — integer or nil
     - `episode_number` — integer or nil
     - `content_url`    — absolute path

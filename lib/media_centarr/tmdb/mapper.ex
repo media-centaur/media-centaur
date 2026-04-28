@@ -20,6 +20,11 @@ defmodule MediaCentarr.TMDB.Mapper do
       director: extract_director(movie["credits"]),
       content_rating: extract_us_rating(movie["release_dates"]),
       aggregate_rating_value: movie["vote_average"],
+      vote_count: movie["vote_count"],
+      tagline: presence(movie["tagline"]),
+      original_language: movie["original_language"],
+      studio: extract_first_company(movie["production_companies"]),
+      country_code: extract_first_country(movie["production_countries"]),
       content_url: file_path,
       status: parse_movie_status(movie["status"])
     }
@@ -38,6 +43,12 @@ defmodule MediaCentarr.TMDB.Mapper do
       url: tmdb_url(:tv, tmdb_id),
       number_of_seasons: show["number_of_seasons"],
       aggregate_rating_value: show["vote_average"],
+      vote_count: show["vote_count"],
+      tagline: presence(show["tagline"]),
+      original_language: show["original_language"],
+      studio: extract_first_company(show["production_companies"]),
+      country_code: extract_first_country(show["production_countries"]),
+      network: extract_first_network(show["networks"]),
       status: parse_tv_status(show["status"])
     }
   end
@@ -241,4 +252,23 @@ defmodule MediaCentarr.TMDB.Mapper do
     mins = rem(minutes, 60)
     "PT#{hours}H#{mins}M"
   end
+
+  def extract_first_company(nil), do: nil
+  def extract_first_company([]), do: nil
+  def extract_first_company([%{"name" => name} | _]), do: name
+  def extract_first_company(_), do: nil
+
+  def extract_first_country(nil), do: nil
+  def extract_first_country([]), do: nil
+  def extract_first_country([%{"iso_3166_1" => code} | _]), do: code
+  def extract_first_country(_), do: nil
+
+  def extract_first_network(nil), do: nil
+  def extract_first_network([]), do: nil
+  def extract_first_network([%{"name" => name} | _]), do: name
+  def extract_first_network(_), do: nil
+
+  defp presence(nil), do: nil
+  defp presence(""), do: nil
+  defp presence(value), do: value
 end
