@@ -19,7 +19,12 @@ config :media_centarr, MediaCentarr.Repo,
   # Never read user TOML config (~/.config/media-centarr/media-centarr.toml) in tests.
   # Exercises the per-env compile-time default — `config/dev.exs` points
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: System.schedulers_online() * 2
+  pool_size: System.schedulers_online() * 2,
+  # Bumped from the 2000ms default to absorb contention spikes when many
+  # async test processes share the same DB file. The default occasionally
+  # raised `Exqlite.Error: Database busy` from `Settings.put_*` writes
+  # under load. See ~/src/media-centarr/flaky-tests.md (#1).
+  busy_timeout: 10_000
 
 config :media_centarr, MediaCentarrWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
