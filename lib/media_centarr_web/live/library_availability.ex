@@ -32,6 +32,46 @@ defmodule MediaCentarrWeb.LibraryAvailability do
   end
 
   @doc """
+  Surgically updates `current_map` for a single watch dir's state change.
+  Recomputes availability only for entries whose backing file lives under
+  `dir`; entries under other dirs are left alone.
+
+  Options:
+  - `:available_fn` — predicate of the same shape as `available?/1`
+    (default `Library.Availability.available?/1`).
+  - `:under_dir_fn` — predicate `(entity, dir) -> boolean()` used to decide
+    whether an entry is impacted by the change. Default is a longest-prefix
+    check on the entity's `:files` or `:file_path`.
+
+  Avoids the O(n) recompute over the full catalog when only one dir flipped.
+  """
+  @spec availability_for_dir(list(), String.t(), %{String.t() => boolean()}, keyword()) ::
+          %{String.t() => boolean()}
+  def availability_for_dir(entries, dir, current_map, opts \\ []) do
+    available_fn = Keyword.get(opts, :available_fn, &Availability.available?/1)
+    under_dir_fn = Keyword.get(opts, :under_dir_fn, &entity_under_dir?/2)
+
+    Enum.reduce(entries, current_map, fn entry, acc ->
+      if under_dir_fn.(entry.entity, dir) do
+        Map.put(acc, entry.entity.id, available_fn.(entry.entity))
+      else
+        acc
+      end
+    end)
+  end
+
+  defp entity_under_dir?(entity, dir) do
+    case entity_file_path(entity) do
+      nil -> false
+      path -> String.starts_with?(path, dir <> "/")
+    end
+  end
+
+  defp entity_file_path(%{files: [%{path: path} | _]}) when is_binary(path), do: path
+  defp entity_file_path(%{file_path: path}) when is_binary(path), do: path
+  defp entity_file_path(_), do: nil
+
+  @doc """
   Builds the one-line summary shown in the `storage_offline_banner`.
 
   Takes the per-dir state map (from `Library.Availability.dir_status/0`)
