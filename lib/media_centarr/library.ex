@@ -811,6 +811,11 @@ defmodule MediaCentarr.Library do
 
   `progress_pct` is 0..100 (integer).
 
+  Includes entities whose underlying file is not currently present in any
+  watch_dir — Continue Watching is the user's mental list of "things I'm
+  watching", and an absent file does not erase that. Playback handles the
+  missing-file case at the action layer.
+
   Issues at most ~15 targeted queries regardless of library size, compared to
   the ~87 queries of the previous `fetch_all_typed_entries` approach.
   """
@@ -1118,15 +1123,6 @@ defmodule MediaCentarr.Library do
               select: 1
             )
           ),
-        where:
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.movie_id == parent_as(:movie).id and kf.state == "present",
-              select: 1
-            )
-          ),
         order_by: [
           desc:
             fragment(
@@ -1181,16 +1177,7 @@ defmodule MediaCentarr.Library do
               on: ep.id == wp.episode_id,
               join: s in "library_seasons",
               on: s.id == ep.season_id,
-              where: s.tv_series_id == parent_as(:series).id and wp.completed == false,
-              select: 1
-            )
-          ),
-        where:
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.tv_series_id == parent_as(:series).id and kf.state == "present",
+              where: s.tv_series_id == parent_as(:series).id,
               select: 1
             )
           ),
@@ -1237,12 +1224,13 @@ defmodule MediaCentarr.Library do
           |> Enum.map(&Map.get(progress_by_episode_id, &1))
           |> Enum.reject(&is_nil/1)
 
-        in_progress_records = Enum.reject(progress_records, & &1.completed)
+        episodes_total = length(episode_ids)
+        episodes_completed = Enum.count(progress_records, & &1.completed)
 
-        if in_progress_records != [] do
-          episodes_total = length(episode_ids)
-          episodes_completed = Enum.count(progress_records, & &1.completed)
-
+        # Include series when the user has touched it (any progress) AND
+        # hasn't finished all episodes — matches `LibraryProgress.in_progress?`
+        # used by `/library?in_progress=1`.
+        if progress_records != [] and episodes_completed < episodes_total do
           entity = %{
             id: series.id,
             type: :tv_series,
@@ -1271,15 +1259,6 @@ defmodule MediaCentarr.Library do
           exists(
             from(wp in WatchProgress,
               where: wp.video_object_id == parent_as(:video_object).id and wp.completed == false,
-              select: 1
-            )
-          ),
-        where:
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.video_object_id == parent_as(:video_object).id and kf.state == "present",
               select: 1
             )
           ),
@@ -1334,18 +1313,7 @@ defmodule MediaCentarr.Library do
             from(wp in WatchProgress,
               join: m in Movie,
               on: m.id == wp.movie_id,
-              where: m.movie_series_id == parent_as(:series).id and wp.completed == false,
-              select: 1
-            )
-          ),
-        where:
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              join: m in "library_movies",
-              on: m.id == wf.movie_id,
-              where: m.movie_series_id == parent_as(:series).id and kf.state == "present",
+              where: m.movie_series_id == parent_as(:series).id,
               select: 1
             )
           ),
@@ -1374,12 +1342,12 @@ defmodule MediaCentarr.Library do
               not is_nil(progress),
               do: progress
 
-        in_progress_records = Enum.reject(progress_records, & &1.completed)
+        movies_total = length(series.movies || [])
+        movies_completed = Enum.count(progress_records, & &1.completed)
 
-        if in_progress_records != [] do
-          movies_total = length(series.movies || [])
-          movies_completed = Enum.count(progress_records, & &1.completed)
-
+        # Include movie series when the user has touched it AND hasn't
+        # finished all child movies — matches `LibraryProgress.in_progress?`.
+        if progress_records != [] and movies_completed < movies_total do
           entity = %{
             id: series.id,
             type: :movie_series,

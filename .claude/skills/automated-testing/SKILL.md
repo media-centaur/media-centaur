@@ -129,7 +129,7 @@ setup do
 end
 
 test "searches TMDB" do
-  TmdbStubs.stub_search_movie(%{title: "Sample Title Fx", year: 2010})
+  TmdbStubs.stub_search_movie(%{title: "Sample Movie", year: 2010})
   # ... call pipeline stage ...
 end
 ```

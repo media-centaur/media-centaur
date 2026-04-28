@@ -1,7 +1,7 @@
 defmodule MediaCentarrWeb.Components.ComingUpRow do
   @moduledoc """
-  4-card digest row of upcoming tracked releases. Used on Home as a
-  "Coming Up This Week" preview that links to /upcoming.
+  Horizontal-scrolling row of upcoming tracked releases. Used on Home as a
+  "Coming Up" preview that links to /upcoming.
 
   Each item is a map: `%{id, name, subtitle, badge, backdrop_url}`.
   `badge` is `%{label, variant}` with variant in `:success | :info | :default`.
@@ -12,8 +12,17 @@ defmodule MediaCentarrWeb.Components.ComingUpRow do
 
   def coming_up_row(assigns) do
     ~H"""
-    <div :if={@items != []} data-component="coming-up" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div :for={item <- @items} class="relative aspect-[16/9] rounded-lg overflow-hidden glass-inset">
+    <div
+      :if={@items != []}
+      data-component="coming-up"
+      data-scroll-row="coming-up"
+      class="row-scroll row-scroll-backdrop"
+    >
+      <div
+        :for={item <- @items}
+        class="card-hover relative aspect-[16/9] rounded overflow-hidden glass-inset"
+        data-row-item
+      >
         <img
           :if={item.backdrop_url}
           src={item.backdrop_url}
@@ -23,7 +32,7 @@ defmodule MediaCentarrWeb.Components.ComingUpRow do
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent">
         </div>
         <span class={[
-          "absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded",
+          "absolute top-1.5 right-1.5 text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded",
           badge_class(item.badge.variant)
         ]}>
           {item.badge.label}

@@ -306,8 +306,18 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               <% end %>
             </button>
 
-            <%!-- Failed-search helper: link to Prowlarr settings --%>
-            <div :if={match?({:failed, _}, group.status)} class="pl-44">
+            <%!-- Failed-search helpers: retry the same term, jump to settings --%>
+            <div :if={match?({:failed, _}, group.status)} class="pl-44 flex items-center gap-2">
+              <button
+                type="button"
+                class="btn btn-soft btn-warning btn-xs"
+                phx-click="retry_search"
+                phx-value-term={group.term}
+                data-nav-item
+                tabindex="0"
+              >
+                <.icon name="hero-arrow-path-mini" class="size-3" /> Retry
+              </button>
               <.link
                 patch={~p"/settings?section=acquisition"}
                 class="btn btn-soft btn-primary btn-xs"
@@ -361,8 +371,19 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             </div>
           </div>
 
-          <%!-- Grab button --%>
-          <div class="flex justify-end">
+          <%!-- Footer actions: bulk-retry + grab --%>
+          <% timeouts = Logic.timeout_terms(@groups) %>
+          <div class="flex justify-end items-center gap-2">
+            <button
+              :if={!@searching? && timeouts != []}
+              type="button"
+              class="btn btn-soft btn-warning"
+              phx-click="retry_all_timeouts"
+              data-nav-item
+              tabindex="0"
+            >
+              <.icon name="hero-arrow-path-mini" class="size-4" /> Retry {length(timeouts)} timeouts
+            </button>
             <button
               type="button"
               class="btn btn-soft btn-success"
@@ -417,6 +438,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       _ ->
         {:noreply, socket}
     end
+  end
+
+  def handle_event("retry_search", %{"term" => term}, socket) do
+    {:noreply, retry_terms(socket, [term])}
+  end
+
+  def handle_event("retry_all_timeouts", _params, socket) do
+    {:noreply, retry_terms(socket, Logic.timeout_terms(socket.assigns.groups))}
   end
 
   def handle_event("toggle_group", %{"term" => term}, socket) do
@@ -639,6 +668,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       |> MediaCentarrWeb.AcquisitionLive.ActivityLogic.filter_by_search(socket.assigns.activity_search)
 
     assign(socket, activity_grabs: grabs)
+  end
+
+  defp retry_terms(socket, []), do: socket
+
+  defp retry_terms(socket, terms) do
+    Enum.each(terms, fn term -> send(self(), {:run_search_one, term}) end)
+    groups = Enum.reduce(terms, socket.assigns.groups, &Logic.mark_group_loading(&2, &1))
+    assign(socket, groups: groups, searching?: true)
   end
 
   # ---------------------------------------------------------------------------

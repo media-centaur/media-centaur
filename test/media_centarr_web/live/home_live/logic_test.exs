@@ -56,7 +56,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       progress = [
         %{
           entity_id: 1,
-          entity_name: "The Bear",
+          entity_name: "Sample Show",
           last_episode_label: "S03 · E10",
           progress_pct: 47,
           backdrop_url: "/img/1/backdrop.jpg"
@@ -66,7 +66,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       [item] = Logic.continue_watching_items(progress)
 
       assert item.id == 1
-      assert item.name == "The Bear"
+      assert item.name == "Sample Show"
       assert item.subtitle == "S03 · E10"
       assert item.progress_pct == 47
       assert item.backdrop_url == "/img/1/backdrop.jpg"
@@ -83,7 +83,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
       releases = [
         %{
-          item: %{id: 1, name: "The Bear"},
+          item: %{id: 1, name: "Sample Show"},
           air_date: ~D[2026-04-27],
           season_number: 4,
           episode_number: 1,
@@ -95,7 +95,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       [item] = Logic.coming_up_items(releases, today)
 
       assert item.id == 1
-      assert item.name == "The Bear"
+      assert item.name == "Sample Show"
       assert item.subtitle =~ "S04E01"
       assert item.badge.label == "Grabbed"
       assert item.badge.variant == :success
@@ -108,12 +108,12 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
   describe "recently_added_items/1" do
     test "shapes Library entities into poster items" do
-      entities = [%{id: 1, name: "Prior Lives", year: 2023, poster_url: "/img/1/poster.jpg"}]
+      entities = [%{id: 1, name: "Sample Movie", year: 2023, poster_url: "/img/1/poster.jpg"}]
 
       [item] = Logic.recently_added_items(entities)
 
       assert item.id == 1
-      assert item.name == "Prior Lives"
+      assert item.name == "Sample Movie"
       assert item.year == "2023"
       assert item.poster_url == "/img/1/poster.jpg"
     end
@@ -127,15 +127,15 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       ]
 
       lookup = %{
-        {:movie, "m1"} => %{id: "m1", name: "Prior Lives", year: "2023", poster_url: "/img/m1.jpg"},
-        {:episode, "e1"} => %{id: "e1", name: "The Bear", year: "2024", poster_url: "/img/e1.jpg"}
+        {:movie, "m1"} => %{id: "m1", name: "Sample Movie", year: "2023", poster_url: "/img/m1.jpg"},
+        {:episode, "e1"} => %{id: "e1", name: "Sample Show", year: "2024", poster_url: "/img/e1.jpg"}
       }
 
       [first, second] = Logic.heavy_rotation_items(rewatches, lookup)
 
-      assert first.name == "Prior Lives"
+      assert first.name == "Sample Movie"
       assert first.badge_label == "3×"
-      assert second.name == "The Bear"
+      assert second.name == "Sample Show"
       assert second.badge_label == "5×"
     end
 
@@ -156,22 +156,22 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
     test "shapes a Library entity into the hero item map" do
       entity = %{
         id: 1,
-        name: "Sample Movie Thirteen",
+        name: "Sample Movie",
         year: 2024,
         runtime_minutes: 165,
         genres: ["Sci-Fi", "Adventure"],
-        overview: "Paul Atreides leads.",
+        overview: "Sample overview.",
         backdrop_url: "/img/1/backdrop.jpg"
       }
 
       item = Logic.hero_card_item(entity)
 
       assert item.id == 1
-      assert item.name == "Sample Movie Thirteen"
+      assert item.name == "Sample Movie"
       assert item.year == "2024"
       assert item.runtime == "2h 45m"
       assert item.genre_label == "Sci-Fi · Adventure"
-      assert item.overview == "Paul Atreides leads."
+      assert item.overview == "Sample overview."
       assert item.backdrop_url == "/img/1/backdrop.jpg"
       assert item.play_url =~ "/library?selected=1"
       assert item.detail_url =~ "/library?selected=1"

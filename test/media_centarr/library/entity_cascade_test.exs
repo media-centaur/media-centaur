@@ -6,7 +6,7 @@ defmodule MediaCentarr.Library.EntityCascadeTest do
 
   describe "destroy!/1" do
     test "cascade deletes a TV series with seasons, episodes, images, and external IDs" do
-      tv_series = create_entity(%{type: :tv_series, name: "Sample Show One"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
       create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "4556"})
 
       create_image(%{
@@ -24,7 +24,7 @@ defmodule MediaCentarr.Library.EntityCascadeTest do
         })
 
       episode1 =
-        create_episode(%{season_id: season.id, episode_number: 1, name: "Sample Episode One"})
+        create_episode(%{season_id: season.id, episode_number: 1, name: "Episode One"})
 
       create_image(%{
         episode_id: episode1.id,
@@ -33,7 +33,7 @@ defmodule MediaCentarr.Library.EntityCascadeTest do
         extension: "jpg"
       })
 
-      episode2 = create_episode(%{season_id: season.id, episode_number: 2, name: "My Mentor"})
+      episode2 = create_episode(%{season_id: season.id, episode_number: 2, name: "Episode Two"})
 
       create_image(%{
         episode_id: episode2.id,
@@ -60,7 +60,7 @@ defmodule MediaCentarr.Library.EntityCascadeTest do
         create_entity(%{
           type: :movie,
           name: "Sample Movie",
-          content_url: "/media/movies/blade.mkv"
+          content_url: "/media/movies/sample.mkv"
         })
 
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "78"})

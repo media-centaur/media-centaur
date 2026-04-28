@@ -22,14 +22,14 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   end
 
   test "renders the Continue Watching row when there is in-progress media", %{conn: conn} do
-    movie = create_standalone_movie(%{name: "Prior Lives"})
+    movie = create_standalone_movie(%{name: "Sample Movie"})
     file = create_linked_file(%{movie_id: movie.id})
     FilePresence.record_file(file.file_path, file.watch_dir)
     create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
     {:ok, _view, html} = live(conn, "/")
 
-    assert html =~ "Prior Lives"
+    assert html =~ "Sample Movie"
     assert html =~ "Continue Watching"
   end
 
@@ -61,7 +61,6 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       # skips Acquisition.statuses_for_releases/1 and every release falls back to
       # :scheduled. This confirms the no-Prowlarr path renders correctly.
       today = Date.utc_today()
-      {monday, _sunday} = MediaCentarrWeb.HomeLive.Logic.coming_up_window(today)
 
       tmdb_id = :rand.uniform(999_999)
       item = create_tracking_item(%{tmdb_id: tmdb_id, media_type: :tv_series, name: "Slow Mares"})
@@ -70,14 +69,14 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         item_id: item.id,
         season_number: 5,
         episode_number: 2,
-        air_date: monday,
+        air_date: Date.add(today, 7),
         released: false
       })
 
       {:ok, _view, html} = live(conn, "/")
 
       assert html =~ "Scheduled"
-      assert html =~ "Coming Up This Week"
+      assert html =~ "Coming Up"
     end
   end
 

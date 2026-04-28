@@ -97,10 +97,10 @@ SQLite `LIKE` is case-insensitive on ASCII by default; the `lower(...)` wrapper 
 from(t in TVSeries, order_by: [asc: t.name]) |> Repo.all()
 ```
 
-### Combined filter (movies with "alien" in the title)
+### Combined filter (movies with a substring in the title)
 
 ```elixir
-pattern = "%alien%"
+pattern = "%sample%"
 
 from(m in Movie,
   where: fragment("lower(?) LIKE ?", m.name, ^pattern) and is_nil(m.movie_series_id),

@@ -371,6 +371,19 @@ The input system enforces a strict dependency rule: `core/` never imports from t
 
 Config: `.dependency-cruiser.cjs`
 
+### Test and Example Content (No Real Show Titles)
+
+Anything we write into the codebase — test queries, fixture titles, `@doc`/`@moduledoc` examples, comment examples, seed data — must use **generic placeholders** (`Sample Show`, `Movie A`, `Sample.Show.S01E01.1080p.WEB-DL.mkv`) or titles already vetted as PD/CC. Don't bake real copyrighted show or film titles into source we author.
+
+This is the same legal-safety story as the showcase PD/CC rule, extended beyond the showcase. Real titles in code drift into screenshots, demos, copy-pasted issues, and grep results.
+
+**Exempt:**
+
+- `test/media_centarr/parser_test.exs` and any other parser regression fixtures — these are real filenames the parser has been observed to handle and are append-only per [ADR-027].
+- Production runtime data (logs, real DB rows, the user's own dev media library on disk) — that's user content, not source we author.
+
+When you discover an existing real title in code, replace it. This is not that kind of software — copyrighted titles do not belong in our source, even in tests or fixtures.
+
 ## Parser
 
 `lib/media_centarr/parser.ex` is a pure function module — no GenServer, no DB, no side effects. It transforms a file path into a `%Parser.Result{}` struct with title, year, type, season, and episode. See its `@moduledoc` for pattern examples and the decision tree.

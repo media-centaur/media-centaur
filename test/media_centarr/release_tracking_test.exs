@@ -10,7 +10,7 @@ defmodule MediaCentarr.ReleaseTrackingTest do
                ReleaseTracking.track_item(%{
                  tmdb_id: 1396,
                  media_type: :tv_series,
-                 name: "Sample Show Eight"
+                 name: "Sample Show"
                })
 
       assert item.tmdb_id == 1396
@@ -21,13 +21,13 @@ defmodule MediaCentarr.ReleaseTrackingTest do
 
     test "enforces unique tmdb_id + media_type" do
       {:ok, _} =
-        ReleaseTracking.track_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show Eight"})
+        ReleaseTracking.track_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show"})
 
       assert {:error, changeset} =
                ReleaseTracking.track_item(%{
                  tmdb_id: 1396,
                  media_type: :tv_series,
-                 name: "Sample Show Eight"
+                 name: "Sample Show"
                })
 
       assert errors_on(changeset).tmdb_id
@@ -259,7 +259,7 @@ defmodule MediaCentarr.ReleaseTrackingTest do
     end
 
     test "returns released, not-in-library, acquirable releases for a TV item, ordered" do
-      item = create_tracking_item(%{tmdb_id: 4242, media_type: :tv_series, name: "Sample Show Sixteen"})
+      item = create_tracking_item(%{tmdb_id: 4242, media_type: :tv_series, name: "Other Show"})
 
       # Out of order on purpose — verify the returned list is sorted (season, episode)
       create_tracking_release(%{
@@ -296,14 +296,14 @@ defmodule MediaCentarr.ReleaseTrackingTest do
       assert {:ok, info} = ReleaseTracking.list_pending_acquirable_releases_for_item(item.id)
       assert info.tmdb_id == "4242"
       assert info.tmdb_type == "tv"
-      assert info.name == "Sample Show Sixteen"
+      assert info.name == "Other Show"
 
       assert Enum.map(info.pending_releases, &{&1.season_number, &1.episode_number}) ==
                [{5, 1}, {5, 2}]
     end
 
     test "excludes theatrical releases (informational only)" do
-      item = create_tracking_item(%{media_type: :movie, name: "Mascot Cosmos"})
+      item = create_tracking_item(%{media_type: :movie, name: "Sample Movie"})
 
       create_tracking_release(%{
         item_id: item.id,

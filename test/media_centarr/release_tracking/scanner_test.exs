@@ -12,7 +12,7 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
 
   describe "scan/0" do
     test "tracks a TV series with upcoming episodes" do
-      tv_series = create_tv_series(%{name: "Sample Show Eight"})
+      tv_series = create_tv_series(%{name: "Sample Show"})
       create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "1396"})
 
       stub_routes([
@@ -26,7 +26,7 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
         {"/tv/1396",
          %{
            "id" => 1396,
-           "name" => "Sample Show Eight",
+           "name" => "Sample Show",
            "status" => "Returning Series",
            "number_of_seasons" => 6,
            "poster_path" => "/bb.jpg",
@@ -161,20 +161,20 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
     end
 
     test "is idempotent — skips already tracked items" do
-      tv_series = create_tv_series(%{name: "Sample Show Eight"})
+      tv_series = create_tv_series(%{name: "Sample Show"})
       create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "1396"})
 
       create_tracking_item(%{
         tmdb_id: 1396,
         media_type: :tv_series,
-        name: "Sample Show Eight"
+        name: "Sample Show"
       })
 
       stub_routes([
         {"/tv/1396",
          %{
            "id" => 1396,
-           "name" => "Sample Show Eight",
+           "name" => "Sample Show",
            "status" => "Returning Series",
            "poster_path" => "/bb.jpg",
            "next_episode_to_air" => %{

@@ -286,13 +286,13 @@ defmodule MediaCentarrWeb.Components.DetailPanelTest do
   describe "build_file_groups/2" do
     test "groups files by directory" do
       files = [
-        %{file: %{file_path: "/media/movies/The Matrix/movie.mkv"}, size: 4_000_000_000},
-        %{file: %{file_path: "/media/movies/The Matrix/extras.mkv"}, size: 1_000_000_000}
+        %{file: %{file_path: "/media/movies/Sample Movie/movie.mkv"}, size: 4_000_000_000},
+        %{file: %{file_path: "/media/movies/Sample Movie/extras.mkv"}, size: 1_000_000_000}
       ]
 
       result = DetailPanel.build_file_groups(files, MapSet.new())
 
-      assert [%{dir: "/media/movies/The Matrix", name: "The Matrix", files: files_list}] = result
+      assert [%{dir: "/media/movies/Sample Movie", name: "Sample Movie", files: files_list}] = result
       assert length(files_list) == 2
     end
 
@@ -333,8 +333,8 @@ defmodule MediaCentarrWeb.Components.DetailPanelTest do
   describe "build_delete_all_payload/2" do
     test "builds grouped payload with totals" do
       files = [
-        %{file: %{file_path: "/media/Sample Show Four/ep1.mkv"}, size: 4_000_000_000},
-        %{file: %{file_path: "/media/Sample Show Four/ep2.mkv"}, size: 3_000_000_000},
+        %{file: %{file_path: "/media/SampleShow/ep1.mkv"}, size: 4_000_000_000},
+        %{file: %{file_path: "/media/SampleShow/ep2.mkv"}, size: 3_000_000_000},
         %{file: %{file_path: "/other/movie.mkv"}, size: 2_000_000_000}
       ]
 
@@ -345,7 +345,7 @@ defmodule MediaCentarrWeb.Components.DetailPanelTest do
 
       assert length(result.file_groups) == 2
 
-      shoresy_group = Enum.find(result.file_groups, &(&1.name == "Sample Show Four"))
+      shoresy_group = Enum.find(result.file_groups, &(&1.name == "SampleShow"))
       assert length(shoresy_group.files) == 2
       assert Enum.all?(shoresy_group.files, &Map.has_key?(&1, :path))
       assert Enum.all?(shoresy_group.files, &Map.has_key?(&1, :name))

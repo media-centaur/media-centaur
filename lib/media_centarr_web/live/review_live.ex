@@ -863,9 +863,7 @@ defmodule MediaCentarrWeb.ReviewLive do
             name="query"
             value={@query}
             class="input input-bordered input-sm w-full"
-            placeholder={
-              if @type == :tv, do: "Show name, e.g. Sample Show One", else: "Movie title, e.g. The Matrix"
-            }
+            placeholder={if @type == :tv, do: "Show name", else: "Movie title"}
           />
         </div>
         <div class="form-control">

@@ -7,14 +7,14 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
     test "includes year and type=:movie when year is present" do
       grab = %Grab{
         tmdb_type: "movie",
-        title: "Sample Title Fx",
+        title: "Sample Movie",
         year: 2010,
         season_number: nil,
         episode_number: nil
       }
 
       assert [{query, opts}] = QueryBuilder.build(grab)
-      assert query == "Sample Title Fx 2010"
+      assert query == "Sample Movie 2010"
       assert Keyword.get(opts, :type) == :movie
       assert Keyword.get(opts, :year) == 2010
     end
@@ -22,14 +22,14 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
     test "omits year and year-opt when year is nil" do
       grab = %Grab{
         tmdb_type: "movie",
-        title: "Sample Title Fx",
+        title: "Sample Movie",
         year: nil,
         season_number: nil,
         episode_number: nil
       }
 
       assert [{query, opts}] = QueryBuilder.build(grab)
-      assert query == "Sample Title Fx"
+      assert query == "Sample Movie"
       assert Keyword.get(opts, :type) == :movie
       refute Keyword.has_key?(opts, :year)
     end
@@ -39,14 +39,14 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
     test "primary query is 'Title SxxExx', fallback is the season pack" do
       grab = %Grab{
         tmdb_type: "tv",
-        title: "Sample Title Fz",
+        title: "Sample Show",
         season_number: 3,
         episode_number: 4
       }
 
       assert [
-               {"Sample Title Fz S03E04", primary_opts},
-               {"Sample Title Fz Season 3", fallback_opts}
+               {"Sample Show S03E04", primary_opts},
+               {"Sample Show Season 3", fallback_opts}
              ] = QueryBuilder.build(grab)
 
       assert Keyword.get(primary_opts, :type) == :tv
@@ -78,7 +78,7 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
     test "does not include year on TV queries (release titles do not carry it)" do
       grab = %Grab{
         tmdb_type: "tv",
-        title: "Sample Title Fz",
+        title: "Sample Show",
         year: 2022,
         season_number: 3,
         episode_number: 4
@@ -94,14 +94,14 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
     test "primary 'Title Season N', fallback 'Title SXX'" do
       grab = %Grab{
         tmdb_type: "tv",
-        title: "Sample Title Fz",
+        title: "Sample Show",
         season_number: 3,
         episode_number: nil
       }
 
       assert [
-               {"Sample Title Fz Season 3", primary_opts},
-               {"Sample Title Fz S03", fallback_opts}
+               {"Sample Show Season 3", primary_opts},
+               {"Sample Show S03", fallback_opts}
              ] = QueryBuilder.build(grab)
 
       assert Keyword.get(primary_opts, :type) == :tv
