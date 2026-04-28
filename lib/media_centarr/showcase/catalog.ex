@@ -75,9 +75,9 @@ defmodule MediaCentarr.Showcase.Catalog do
         content_url: "/showcase/movies/Carnival of Souls (1962).mkv"
       },
       %{
-        title: "House on Haunted Hill",
-        year: 1959,
-        content_url: "/showcase/movies/House on Haunted Hill (1959).mkv"
+        title: "The Last Man on Earth",
+        year: 1964,
+        content_url: "/showcase/movies/The Last Man on Earth (1964).mkv"
       },
 
       # CC-licensed feature.
