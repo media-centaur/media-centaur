@@ -16,6 +16,17 @@ defmodule MediaCentarrWeb.UpcomingLive do
   alias MediaCentarr.{Acquisition, Capabilities, ReleaseTracking}
   alias MediaCentarrWeb.Components.{TrackModal, UpcomingCards}
 
+  # Acquisition events that only invalidate grab statuses — not the underlying
+  # release / image / tracked-item data. Routing them to a dedicated reloader
+  # keeps the page from rebuilding the full upcoming model on every grab tick.
+  @grab_status_events [
+    :grab_submitted,
+    :auto_grab_armed,
+    :auto_grab_snoozed,
+    :auto_grab_abandoned,
+    :auto_grab_cancelled
+  ]
+
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -51,7 +62,8 @@ defmodule MediaCentarrWeb.UpcomingLive do
         upcoming_images: %{},
         release_grab_statuses: %{},
         tracked_items: [],
-        reload_timer: nil
+        reload_timer: nil,
+        grab_statuses_timer: nil
       )
       |> load_upcoming()
 
@@ -332,15 +344,13 @@ defmodule MediaCentarrWeb.UpcomingLive do
     {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
   end
 
-  def handle_info({event, _payload}, socket)
-      when event in [
-             :grab_submitted,
-             :auto_grab_armed,
-             :auto_grab_snoozed,
-             :auto_grab_abandoned,
-             :auto_grab_cancelled
-           ] do
-    {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
+  def handle_info({event, _payload}, socket) when event in @grab_status_events do
+    {:noreply, debounce(socket, :grab_statuses_timer, :reload_grab_statuses, 500)}
+  end
+
+  def handle_info(:reload_grab_statuses, socket) do
+    grab_statuses = load_release_grab_statuses(socket.assigns.upcoming_releases)
+    {:noreply, assign(socket, release_grab_statuses: grab_statuses)}
   end
 
   def handle_info({:queue_snapshot, items}, socket) do
