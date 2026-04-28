@@ -12,6 +12,36 @@ defmodule MediaCentarr.Showcase do
   `mix seed.showcase` is a thin wrapper around it that additionally refuses
   to run against the default profile as a safety rail.
 
+  ## Content policy: PD or CC only, every string
+
+  **Every title string surfaced by the showcase must be public-domain or
+  Creative Commons.** The policy applies to every reference, not just the
+  library catalog:
+
+    * `MediaCentarr.Showcase.Catalog` — movies, TV series, video objects.
+    * Release-tracking items in `seed_release_tracking!` — even though
+      tracked items render "metadata only" (title + poster + date), the
+      title string itself ships in screenshots, so an IMDb-style fair-use
+      bridge does **not** apply here. Use PD/CC titles only.
+    * Acquisition grab titles in `seed_acquisition_activity!` — visible in
+      the `/download` Activity tab; subject to the same rule.
+    * Pending review fixtures in `pending_file_data` — visible in the
+      Review queue screenshots.
+    * Console log lines in `seed_console_entries!` — visible in the
+      Console drawer screenshot.
+
+  Note on borderline titles: *House on Haunted Hill (1959)* is **not**
+  treated as public-domain by this project despite being widely listed as
+  such — keep it out. The curated PD list is the canonical source: Blender
+  open movies, pre-1928 silents, and renewal-failure films like Night of
+  the Living Dead, Plan 9 from Outer Space, Carnival of Souls, The Last
+  Man on Earth, plus CC titles like Sita Sings the Blues and Pioneer One.
+
+  Parser regression tests under `test/media_centarr/parser_test.exs` are
+  exempt: those filenames are real-world paths the parser has been
+  observed to encounter, are append-only per ADR-027, and are never
+  rendered to a screenshot or marketing surface.
+
   ## Data created
 
     * Library records (Movie, TVSeries, Season, Episode, MovieSeries, VideoObject)
