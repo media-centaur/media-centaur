@@ -4,6 +4,79 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.25.0 — 2026-04-28
+
+### New
+
+- **The home page is now a cinematic landing.** Opening Media Centarr
+  lands you on `/` — an assembled page with five rows: a rotating Hero,
+  your in-progress Continue Watching, Coming Up This Week, Recently
+  Added, and Heavy Rotation. Each row hides itself when there's nothing
+  to show. Old `/?zone=continue` bookmarks redirect here.
+
+- **Upcoming has its own page at `/upcoming`.** What used to live as a
+  tab on the old Library is now a focused page combining the month
+  calendar, tracked items, active shows, and a recent-changes feed. Old
+  `/?zone=upcoming` bookmarks redirect.
+
+- **Coming Up cards show live grab status.** Releases on the home page
+  and the Upcoming page decorate themselves with a real-time badge —
+  *Grabbed* (already acquired), *Searching* (Prowlarr is looking now),
+  *Pending* (no acceptable release yet, will retry), or *Scheduled* (no
+  grab armed yet). The badge updates automatically as the acquisition
+  pipeline progresses.
+
+- **Heavy Rotation row.** The home page surfaces the titles you actually
+  rewatch. Each poster carries an `Nx` badge showing how many times
+  you've finished it (`3×`, `5×`, …) — a more honest signal of what you
+  love than a flat watched-recently feed.
+
+- **Continue Watching, four cards plus "see all".** The home page row
+  shows four backdrop cards with progress bars; "See all" opens the
+  Library pre-filtered to in-progress titles via the new
+  `/library?in_progress=1` deep-link.
+
+- **Sidebar Watch / System groups.** The sidebar splits into **Watch**
+  (Home, Library, Upcoming, History) at the top and **System**
+  (Downloads, Status, Review, Settings) below — the cinematic surfaces
+  visually separate from the operator surfaces.
+
+### Improved
+
+- **Library is now a single-purpose catalog browser.** Continue Watching
+  and Upcoming, which used to share the Library as zone tabs, now have
+  their own pages. `/library` is just the poster grid plus toolbar.
+
+- **Faster page loads across the app.** Home, Library, Upcoming,
+  History, and Downloads switched to targeted, section-specific
+  reloaders. PubSub events that touch one row no longer trigger a
+  full-page recompute, and broadcast bursts coalesce in a 200ms window.
+  Hovering through the catalog feels snappier; arriving on `/history`
+  with a long event log is materially quicker.
+
+- **Watch history stats compute in SQL.** Hours Watched / Titles Watched
+  / Current Streak and the 52-week heatmap now use database aggregates
+  instead of streaming every event into Elixir — `/history` stays fast
+  regardless of how much history you've built up.
+
+- **Review page stays responsive while TMDB is slow.** Manual TMDB
+  searches from the review queue run in a background task; the UI no
+  longer locks up waiting for the API.
+
+- **Library detail panel loads on demand.** Cast, crew, and file
+  listings for a selected entity are fetched only when you open the
+  panel, not on initial library page render — large libraries open
+  noticeably faster.
+
+### Fixed
+
+- The library grid no longer comes up empty on initial mount in some
+  setups — entries populate immediately on first connect.
+
+- Orphaned entity records (left behind by partial deletions) are
+  filtered out of the home page loaders, so they no longer crash
+  Continue Watching or Recently Added when surfaced.
+
 ## v0.24.0 — 2026-04-26
 
 ### Improved
