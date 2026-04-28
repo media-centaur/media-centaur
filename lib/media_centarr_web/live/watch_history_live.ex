@@ -22,6 +22,7 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
         stats: stats,
         heatmap_cells_by_type: heatmap_cells_by_type,
         rewatch_counts: rewatch_counts,
+        pending_rewatch_types: MapSet.new(),
         filter_type: nil,
         filter_search: "",
         filter_date: nil,
@@ -416,12 +417,21 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   end
 
   @impl true
-  def handle_info({:watch_event_created, _event}, socket) do
-    {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
+  def handle_info({:watch_event_created, event}, socket) do
+    pending = MapSet.put(socket.assigns.pending_rewatch_types, event.entity_type)
+
+    {:noreply,
+     socket
+     |> assign(:pending_rewatch_types, pending)
+     |> debounce(:reload_timer, :reload_history, 500)}
   end
 
   def handle_info(:reload_history, socket) do
     stats = WatchHistory.stats()
+    pending_types = socket.assigns.pending_rewatch_types
+
+    rewatch_counts = update_rewatch_counts(socket.assigns.rewatch_counts, pending_types)
+
     socket = assign(socket, page: 1)
     {events, has_next} = fetch_page(socket)
 
@@ -431,7 +441,8 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
        has_next: has_next,
        stats: stats,
        heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type(),
-       rewatch_counts: fetch_rewatch_counts()
+       rewatch_counts: rewatch_counts,
+       pending_rewatch_types: MapSet.new()
      )}
   end
 
@@ -445,6 +456,19 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
       episode: WatchHistory.rewatch_count_map(:episode),
       video_object: WatchHistory.rewatch_count_map(:video_object)
     }
+  end
+
+  @doc """
+  Refresh `current` rewatch-count map for only the given `types`. Other
+  entries are left untouched. `fetch_fn` is the per-type fetcher (defaults
+  to `WatchHistory.rewatch_count_map/1`); accepting it lets unit tests
+  inject a spy.
+  """
+  @spec update_rewatch_counts(map(), Enumerable.t(), (atom() -> map())) :: map()
+  def update_rewatch_counts(current, types, fetch_fn \\ &WatchHistory.rewatch_count_map/1) do
+    Enum.reduce(types, current, fn type, acc ->
+      Map.put(acc, type, fetch_fn.(type))
+    end)
   end
 
   defp rewatch_count_for_event(event, rewatch_counts) do
