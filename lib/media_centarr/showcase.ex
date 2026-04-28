@@ -400,18 +400,17 @@ defmodule MediaCentarr.Showcase do
   # ---------------------------------------------------------------------------
 
   defp seed_release_tracking!(client) do
-    # Real upcoming films + TV series, tracked via TMDB. Release
-    # Tracking shows METADATA only (title, date, poster) — same usage
-    # as IMDb/Letterboxd — so current copyrighted titles are
-    # appropriate here even though the library itself is PD. The
-    # story: "watch for releases of your favorite movies and shows."
+    # Public-domain and CC-licensed titles only — the showcase is a
+    # legally-safe demo, so even metadata references stick to PD/CC.
+    # All five titles already live in the showcase library; tracking
+    # them here models the "watch for restorations / new seasons" flow
+    # without referencing copyrighted properties.
     upcoming = [
-      {:movie, "Sample Movie Thirteen: Part Three"},
-      {:movie, "Avatar: Fire and Ash"},
-      {:movie, "Avengers: Doomsday"},
-      {:tv_series, "Stranger Things"},
-      {:tv_series, "Sample Show Nine"},
-      {:tv_series, "The Last of Us"}
+      {:movie, "Big Buck Bunny"},
+      {:movie, "Sintel"},
+      {:movie, "Nosferatu"},
+      {:tv_series, "The Beverly Hillbillies"},
+      {:tv_series, "Pioneer One"}
     ]
 
     count =
@@ -791,7 +790,7 @@ defmodule MediaCentarr.Showcase do
     insert_grab!(%{
       tmdb_id: "showcase-cancelled-1",
       tmdb_type: "movie",
-      title: "House on Haunted Hill (1959)",
+      title: "Plan 9 from Outer Space (1959)",
       origin: "auto",
       status: "cancelled",
       cancelled_reason: "user_cancelled"
