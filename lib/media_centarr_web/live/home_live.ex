@@ -47,7 +47,7 @@ defmodule MediaCentarrWeb.HomeLive do
       <div class="space-y-8 py-2">
         <HeroCard.hero_card item={@hero} />
 
-        <section :if={@continue_items != []}>
+        <section :if={@continue_items != []} data-row="continue-watching">
           <div class="flex items-baseline justify-between mb-3">
             <h2 class="text-lg font-semibold">Continue Watching</h2>
             <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
@@ -57,7 +57,7 @@ defmodule MediaCentarrWeb.HomeLive do
           <ContinueWatchingRow.continue_watching_row items={@continue_items} />
         </section>
 
-        <section :if={@coming_up_items != []}>
+        <section :if={@coming_up_items != []} data-row="coming-up">
           <div class="flex items-baseline justify-between mb-3">
             <h2 class="text-lg font-semibold">Coming Up This Week</h2>
             <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
@@ -67,7 +67,7 @@ defmodule MediaCentarrWeb.HomeLive do
           <ComingUpRow.coming_up_row items={@coming_up_items} />
         </section>
 
-        <section :if={@recently_added != []}>
+        <section :if={@recently_added != []} data-row="recently-added">
           <div class="flex items-baseline justify-between mb-3">
             <h2 class="text-lg font-semibold">Recently Added</h2>
             <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
@@ -77,7 +77,7 @@ defmodule MediaCentarrWeb.HomeLive do
           <PosterRow.poster_row items={@recently_added} />
         </section>
 
-        <section :if={@heavy_rotation != []}>
+        <section :if={@heavy_rotation != []} data-row="heavy-rotation">
           <div class="flex items-baseline justify-between mb-3">
             <h2 class="text-lg font-semibold">Heavy Rotation</h2>
             <.link navigate="/history" class="text-sm text-base-content/60 hover:text-primary">
