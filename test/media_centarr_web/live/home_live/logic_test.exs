@@ -181,4 +181,34 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert Logic.hero_card_item(nil) == nil
     end
   end
+
+  describe "section_reloaders/1" do
+    test "entities_changed reloads recently_added only" do
+      assert Logic.section_reloaders({:entities_changed, ["abc", "def"]}) == [:recently_added]
+    end
+
+    test "releases_updated reloads coming_up only" do
+      assert Logic.section_reloaders({:releases_updated, ["item-1"]}) == [:coming_up]
+    end
+
+    test "item_removed reloads coming_up only" do
+      assert Logic.section_reloaders({:item_removed, "12345", "movie"}) == [:coming_up]
+    end
+
+    test "release_ready reloads coming_up only" do
+      assert Logic.section_reloaders({:release_ready, %{id: "item"}, %{id: "release"}}) ==
+               [:coming_up]
+    end
+
+    test "watch_event_created reloads heavy_rotation and continue_watching" do
+      sections = Logic.section_reloaders({:watch_event_created, %{id: "event-1"}})
+      assert :heavy_rotation in sections
+      assert :continue_watching in sections
+    end
+
+    test "unknown messages route to nothing" do
+      assert Logic.section_reloaders({:something_else, :data}) == []
+      assert Logic.section_reloaders(:bare_atom) == []
+    end
+  end
 end

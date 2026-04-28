@@ -28,7 +28,15 @@ defmodule MediaCentarrWeb.HomeLive do
       WatchHistory.subscribe()
     end
 
-    {:ok, socket |> assign(reload_timer: nil) |> assign_all()}
+    socket =
+      socket
+      |> assign(:continue_timer, nil)
+      |> assign(:coming_up_timer, nil)
+      |> assign(:recently_added_timer, nil)
+      |> assign(:heavy_rotation_timer, nil)
+      |> assign_all()
+
+    {:ok, socket}
   end
 
   @impl true
@@ -116,31 +124,74 @@ defmodule MediaCentarrWeb.HomeLive do
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
-  def handle_info({:entities_changed, _ids}, socket) do
-    {:noreply, debounce(socket, :reload_timer, :reload_home, 500)}
+  def handle_info(:reload_continue_watching, socket) do
+    {:noreply, assign_continue_watching(socket)}
   end
 
-  def handle_info(:reload_home, socket) do
-    {:noreply, assign_all(socket)}
+  def handle_info(:reload_coming_up, socket) do
+    {:noreply, assign_coming_up(socket, Date.utc_today())}
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  def handle_info(:reload_recently_added, socket) do
+    {:noreply, assign_recently_added(socket)}
+  end
+
+  def handle_info(:reload_heavy_rotation, socket) do
+    {:noreply, assign_heavy_rotation(socket)}
+  end
+
+  def handle_info(message, socket) do
+    socket =
+      message
+      |> Logic.section_reloaders()
+      |> Enum.reduce(socket, &schedule_section_reload/2)
+
+    {:noreply, socket}
+  end
+
+  defp schedule_section_reload(:continue_watching, socket),
+    do: debounce(socket, :continue_timer, :reload_continue_watching, 500)
+
+  defp schedule_section_reload(:coming_up, socket),
+    do: debounce(socket, :coming_up_timer, :reload_coming_up, 500)
+
+  defp schedule_section_reload(:recently_added, socket),
+    do: debounce(socket, :recently_added_timer, :reload_recently_added, 500)
+
+  defp schedule_section_reload(:heavy_rotation, socket),
+    do: debounce(socket, :heavy_rotation_timer, :reload_heavy_rotation, 500)
 
   defp assign_all(socket) do
     today = Date.utc_today()
 
-    progress = load_progress()
-    coming_up = load_coming_up(today)
-    recently_added = load_recently_added()
-    {rewatches, entity_lookup} = load_heavy_rotation()
-    hero_candidates = load_hero_candidates()
-
     socket
-    |> assign(:hero, Logic.hero_card_item(Logic.select_hero(hero_candidates, today)))
-    |> assign(:continue_items, Logic.continue_watching_items(progress))
-    |> assign(:coming_up_items, Logic.coming_up_items(coming_up, today))
-    |> assign(:recently_added, Logic.recently_added_items(recently_added))
-    |> assign(:heavy_rotation, Logic.heavy_rotation_items(rewatches, entity_lookup))
+    |> assign_hero(today)
+    |> assign_continue_watching()
+    |> assign_coming_up(today)
+    |> assign_recently_added()
+    |> assign_heavy_rotation()
+  end
+
+  defp assign_hero(socket, today) do
+    hero_candidates = load_hero_candidates()
+    assign(socket, :hero, Logic.hero_card_item(Logic.select_hero(hero_candidates, today)))
+  end
+
+  defp assign_continue_watching(socket) do
+    assign(socket, :continue_items, Logic.continue_watching_items(load_progress()))
+  end
+
+  defp assign_coming_up(socket, today) do
+    assign(socket, :coming_up_items, Logic.coming_up_items(load_coming_up(today), today))
+  end
+
+  defp assign_recently_added(socket) do
+    assign(socket, :recently_added, Logic.recently_added_items(load_recently_added()))
+  end
+
+  defp assign_heavy_rotation(socket) do
+    {rewatches, entity_lookup} = load_heavy_rotation()
+    assign(socket, :heavy_rotation, Logic.heavy_rotation_items(rewatches, entity_lookup))
   end
 
   # --- Data loaders ---
