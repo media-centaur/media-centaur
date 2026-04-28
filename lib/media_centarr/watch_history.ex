@@ -73,22 +73,78 @@ defmodule MediaCentarr.WatchHistory do
   Returns %{nil => cells_all, :movie => cells, :episode => cells, :video_object => cells}.
   """
   def heatmap_cells_by_type do
-    events = Repo.all(Event)
+    rows =
+      Repo.all(
+        from(event in Event,
+          where: event.completed_at >= ^heatmap_cutoff_dt(),
+          group_by: [fragment("date(?)", event.completed_at), event.entity_type],
+          select: {fragment("date(?)", event.completed_at), event.entity_type, count(event.id)}
+        )
+      )
 
-    Map.new([nil, :movie, :episode, :video_object], fn type ->
-      filtered = if type, do: Enum.filter(events, &(&1.entity_type == type)), else: events
-      cells = filtered |> Stats.heatmap() |> Stats.heatmap_cells()
-      {type, cells}
-    end)
+    all_map = aggregate_rows_to_heatmap(rows, :all)
+
+    by_type =
+      Map.new([:movie, :episode, :video_object], fn type ->
+        {type, aggregate_rows_to_heatmap(rows, type)}
+      end)
+
+    by_type
+    |> Map.put(nil, all_map)
+    |> Map.new(fn {type, heatmap} -> {type, Stats.heatmap_cells(heatmap)} end)
   end
 
   @doc """
-  Compute aggregate stats from all events.
-  Returns %{total_count, total_seconds, streak, heatmap}.
+  Compute aggregate stats: total count, total seconds, streak, heatmap.
+  Uses DB aggregates so result-set size does not grow with event history.
   """
   def stats do
-    events = Repo.all(Event)
-    Stats.compute(events)
+    %{
+      total_count: Repo.aggregate(Event, :count),
+      total_seconds: Repo.aggregate(Event, :sum, :duration_seconds) || 0.0,
+      streak: compute_streak(),
+      heatmap: heatmap_map()
+    }
+  end
+
+  defp heatmap_map do
+    from(event in Event,
+      where: event.completed_at >= ^heatmap_cutoff_dt(),
+      group_by: fragment("date(?)", event.completed_at),
+      select: {fragment("date(?)", event.completed_at), count(event.id)}
+    )
+    |> Repo.all()
+    |> Map.new(fn {date_str, count} -> {Date.from_iso8601!(date_str), count} end)
+  end
+
+  defp compute_streak do
+    from(event in Event,
+      group_by: fragment("date(?)", event.completed_at),
+      order_by: [desc: fragment("date(?)", event.completed_at)],
+      select: fragment("date(?)", event.completed_at)
+    )
+    |> Repo.all()
+    |> Enum.map(&Date.from_iso8601!/1)
+    |> Stats.streak_from_dates()
+  end
+
+  defp aggregate_rows_to_heatmap(rows, :all) do
+    Enum.reduce(rows, %{}, fn {date_str, _type, count}, acc ->
+      Map.update(acc, Date.from_iso8601!(date_str), count, &(&1 + count))
+    end)
+  end
+
+  defp aggregate_rows_to_heatmap(rows, type) do
+    rows
+    |> Enum.filter(fn {_date, row_type, _count} -> row_type == type end)
+    |> Map.new(fn {date_str, _type, count} -> {Date.from_iso8601!(date_str), count} end)
+  end
+
+  # Heatmap window: today minus 363 days, normalized to start-of-day UTC.
+  defp heatmap_cutoff_dt do
+    Date.utc_today()
+    |> Date.add(-363)
+    |> DateTime.new!(~T[00:00:00], "Etc/UTC")
   end
 
   @doc """
