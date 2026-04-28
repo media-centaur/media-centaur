@@ -23,7 +23,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
   defp four_kay_response do
     [
       %{
-        "title" => "Sample Movie Thirteen.Part.Two.2024.2160p.UHD.BluRay.REMUX-FGT",
+        "title" => "Sample.Movie.2024.2160p.UHD.BluRay.REMUX-FGT",
         "guid" => "uhd-guid",
         "indexerId" => 1,
         "seeders" => 10
@@ -56,7 +56,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
           %{
-            "title" => "Sample Movie Thirteen.Part.Two.2024.1080p.WEB-DL.H264-NTG",
+            "title" => "Sample.Movie.2024.1080p.WEB-DL.H264-NTG",
             "guid" => "hd-guid",
             "indexerId" => 1,
             "seeders" => 25
@@ -78,9 +78,9 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
-          %{"title" => "Sample Movie Thirteen.Part.Two.2024.1080p.WEB-DL", "guid" => "hd-guid", "indexerId" => 1},
+          %{"title" => "Sample.Movie.2024.1080p.WEB-DL", "guid" => "hd-guid", "indexerId" => 1},
           %{
-            "title" => "Sample Movie Thirteen.Part.Two.2024.2160p.UHD.BluRay",
+            "title" => "Sample.Movie.2024.2160p.UHD.BluRay",
             "guid" => "uhd-guid",
             "indexerId" => 1
           }
@@ -133,7 +133,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
           %{
-            "title" => "Sample Movie Thirteen.Part.Two.2024.720p.BluRay.x264",
+            "title" => "Sample.Movie.2024.720p.BluRay.x264",
             "guid" => "sd-guid",
             "indexerId" => 1
           }
@@ -218,7 +218,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
         create_grab(%{
           tmdb_id: "999",
           tmdb_type: "tv",
-          title: "Severance",
+          title: "Sample Show",
           season_number: 3,
           episode_number: 4
         })
@@ -234,7 +234,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
 
       [{_, first_query}] = :ets.lookup(received_queries, :ets.first(received_queries))
-      assert first_query == "Severance S03E04"
+      assert first_query == "Sample Show S03E04"
     end
   end
 

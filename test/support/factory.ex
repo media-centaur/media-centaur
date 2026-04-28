@@ -244,8 +244,8 @@ defmodule MediaCentarr.TestFactory do
 
   def build_parser_result(overrides \\ %{}) do
     defaults = %{
-      file_path: "/media/Fight.Club.1999.mkv",
-      title: "Fight Club",
+      file_path: "/media/Sample.Movie.1999.mkv",
+      title: "Sample Movie",
       year: 1999,
       type: :movie,
       season: nil,

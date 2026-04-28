@@ -126,7 +126,7 @@ defmodule MediaCentarr.Review do
 
   Examples:
 
-      /media/tv/Sample Show One (2001)/Season 1/ep.mkv  ->  "Sample Show One (2001)"
+      /media/tv/Sample Show (2001)/Season 1/ep.mkv  ->  "Sample Show (2001)"
       /media/movies/movie.mkv                   ->  "movie.mkv"
   """
   def series_root(%{file_path: file_path, watch_directory: nil}), do: file_path

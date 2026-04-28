@@ -5,17 +5,17 @@ defmodule MediaCentarr.Acquisition.QualityTest do
 
   describe "parse/1" do
     test "detects 2160p marker" do
-      title = "Oppenheimer.2023.2160p.UHD.BluRay.REMUX.HDR10.HEVC.TrueHD.7.1.Atmos-FGT"
+      title = "Sample.Movie.2023.2160p.UHD.BluRay.REMUX.HDR10.HEVC.TrueHD.7.1.Atmos-FGT"
       assert Quality.parse(title) == :uhd_4k
     end
 
     test "detects 4K marker" do
-      title = "Sample Movie Thirteen.Part.Two.2024.4K.BluRay.REMUX.HDR10.HEVC.TrueHD"
+      title = "Sample.Movie.2024.4K.BluRay.REMUX.HDR10.HEVC.TrueHD"
       assert Quality.parse(title) == :uhd_4k
     end
 
     test "detects UHD marker without resolution number" do
-      title = "Avatar.The.Way.of.Water.2022.UHD.BluRay.TrueHD.Atmos.7.1-FGT"
+      title = "Other.Sample.Movie.2022.UHD.BluRay.TrueHD.Atmos.7.1-FGT"
       assert Quality.parse(title) == :uhd_4k
     end
 
@@ -25,12 +25,12 @@ defmodule MediaCentarr.Acquisition.QualityTest do
     end
 
     test "detects 1080p marker" do
-      title = "Oppenheimer.2023.1080p.BluRay.x264-SPARKS"
+      title = "Sample.Movie.2023.1080p.BluRay.x264-SPARKS"
       assert Quality.parse(title) == :hd_1080p
     end
 
     test "detects 1080p WEB-DL release" do
-      title = "Sample Movie Thirteen.Part.Two.2024.1080p.WEB-DL.DDP5.1.H264-NTG"
+      title = "Sample.Movie.2024.1080p.WEB-DL.DDP5.1.H264-NTG"
       assert Quality.parse(title) == :hd_1080p
     end
 
@@ -40,7 +40,7 @@ defmodule MediaCentarr.Acquisition.QualityTest do
     end
 
     test "returns nil for 720p" do
-      title = "Oppenheimer.2023.720p.BluRay.x264-GROUP"
+      title = "Sample.Movie.2023.720p.BluRay.x264-GROUP"
       assert Quality.parse(title) == nil
     end
 

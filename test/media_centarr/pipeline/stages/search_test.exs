@@ -25,7 +25,7 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
       stub_search_movie([
         movie_search_result(%{
           "id" => 550,
-          "title" => "Fight Club",
+          "title" => "Sample Movie",
           "release_date" => "1999-10-15"
         })
       ])
@@ -36,25 +36,25 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
       assert result.tmdb_id == 550
       assert result.tmdb_type == :movie
       assert result.confidence >= 0.85
-      assert result.match_title == "Fight Club"
+      assert result.match_title == "Sample Movie"
     end
 
     test "TV match above threshold returns {:ok, payload}" do
       stub_search_tv([
         tv_search_result(%{
           "id" => 1396,
-          "name" => "Sample Show Eight",
+          "name" => "Sample Show",
           "first_air_date" => "2008-01-20"
         })
       ])
 
-      payload = payload_with_parsed(%{title: "Sample Show Eight", year: 2008, type: :tv})
+      payload = payload_with_parsed(%{title: "Sample Show", year: 2008, type: :tv})
 
       assert {:ok, result} = Search.run(payload)
       assert result.tmdb_id == 1396
       assert result.tmdb_type == :tv
       assert result.confidence >= 0.85
-      assert result.match_title == "Sample Show Eight"
+      assert result.match_title == "Sample Show"
     end
 
     test "unknown type searches both, picks best match" do
@@ -62,11 +62,11 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
         [
           movie_search_result(%{
             "id" => 550,
-            "title" => "Fight Club",
+            "title" => "Sample Movie",
             "release_date" => "1999-10-15"
           })
         ],
-        [tv_search_result(%{"id" => 999, "name" => "Something Else"})]
+        [tv_search_result(%{"id" => 999, "name" => "Other Show"})]
       )
 
       payload = payload_with_parsed(%{type: :unknown})
@@ -84,7 +84,7 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
   describe "needs review" do
     test "low confidence returns {:needs_review, payload}" do
       stub_search_movie([
-        movie_search_result(%{"id" => 999, "title" => "Completely Different Movie"})
+        movie_search_result(%{"id" => 999, "title" => "Unrelated Title"})
       ])
 
       payload = payload_with_parsed()
@@ -113,13 +113,13 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
       stub_search_tv([
         tv_search_result(%{
           "id" => 295_778,
-          "name" => "Sample Show One",
+          "name" => "Sample Show",
           "first_air_date" => "2026-01-15"
         }),
-        tv_search_result(%{"id" => 4556, "name" => "Sample Show One", "first_air_date" => "2001-10-02"})
+        tv_search_result(%{"id" => 4556, "name" => "Sample Show", "first_air_date" => "2001-10-02"})
       ])
 
-      payload = payload_with_parsed(%{title: "Sample Show One", year: nil, type: :tv})
+      payload = payload_with_parsed(%{title: "Sample Show", year: nil, type: :tv})
 
       assert {:ok, result} = Search.run(payload)
       assert result.tmdb_id == 295_778
@@ -127,10 +127,10 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
 
     test "single result at 1.0 is still auto-approved" do
       stub_search_tv([
-        tv_search_result(%{"id" => 4556, "name" => "Sample Show One", "first_air_date" => "2001-10-02"})
+        tv_search_result(%{"id" => 4556, "name" => "Sample Show", "first_air_date" => "2001-10-02"})
       ])
 
-      payload = payload_with_parsed(%{title: "Sample Show One", year: nil, type: :tv})
+      payload = payload_with_parsed(%{title: "Sample Show", year: nil, type: :tv})
 
       assert {:ok, result} = Search.run(payload)
       assert result.confidence >= 0.85
@@ -207,18 +207,18 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
       stub_search_tv([
         tv_search_result(%{
           "id" => 106_379,
-          "name" => "Sample Show Five",
+          "name" => "Sample Show",
           "first_air_date" => "2024-04-10"
         }),
         tv_search_result(%{
           "id" => 32_366,
-          "name" => "Sample Show Five",
+          "name" => "Sample Show",
           "first_air_date" => "2006-04-23"
         })
       ])
 
       payload =
-        payload_with_parsed(%{title: "Sample Show Five", year: nil, type: :tv, season: 2, episode: 1})
+        payload_with_parsed(%{title: "Sample Show", year: nil, type: :tv, season: 2, episode: 1})
 
       assert {:ok, result} = Search.run(payload)
       assert result.tmdb_id == 106_379
@@ -254,7 +254,7 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
       stub_search_tv([
         tv_search_result(%{
           "id" => 1396,
-          "name" => "Sample Show Eight",
+          "name" => "Sample Show",
           "first_air_date" => "2008-01-20"
         })
       ])
@@ -263,21 +263,21 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
         payload_with_parsed(%{
           type: :extra,
           title: "Behind the Scenes",
-          parent_title: "Sample Show Eight",
+          parent_title: "Sample Show",
           parent_year: 2008,
           season: 1
         })
 
       assert {:ok, result} = Search.run(payload)
       assert result.tmdb_type == :tv
-      assert result.match_title == "Sample Show Eight"
+      assert result.match_title == "Sample Show"
     end
 
     test "extra without season_number searches as movie" do
       stub_search_movie([
         movie_search_result(%{
           "id" => 550,
-          "title" => "Fight Club",
+          "title" => "Sample Movie",
           "release_date" => "1999-10-15"
         })
       ])
@@ -286,14 +286,14 @@ defmodule MediaCentarr.Pipeline.Stages.SearchTest do
         payload_with_parsed(%{
           type: :extra,
           title: "Deleted Scenes",
-          parent_title: "Fight Club",
+          parent_title: "Sample Movie",
           parent_year: 1999,
           season: nil
         })
 
       assert {:ok, result} = Search.run(payload)
       assert result.tmdb_type == :movie
-      assert result.match_title == "Fight Club"
+      assert result.match_title == "Sample Movie"
     end
   end
 end

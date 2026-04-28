@@ -780,6 +780,125 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: none;
 }
 
+/* ── Home page hero (Netflix-style fluid fill) ──
+   Hero billboard fills the available width (viewport minus side-rail) with
+   a 16:9 aspect, capped at 65vh. We compute height explicitly instead of
+   using `aspect-ratio: 16/9; max-height: 65vh` because that combo causes
+   browsers to shrink WIDTH to preserve the ratio when max-height clamps,
+   leaving an empty band on the right at common viewport sizes.
+   `--side-rail` matches `#input-system > main { margin-left: 52px }`. */
+:root {
+  --side-rail: 52px;
+}
+
+.hero-fluid {
+  width: 100%;
+  height: calc((100vw - var(--side-rail)) * 0.5625);  /* 9/16 */
+  max-height: 65vh;
+  min-height: 400px;
+}
+
+/* Fade-to-base strip at the bottom of the hero — blends the hero into the
+   row container below it so the first row appears to emerge from the
+   billboard rather than sit beneath it (Netflix signature). */
+.hero-fade-bottom {
+  background: linear-gradient(
+    to top,
+    var(--color-base-100) 0%,
+    transparent 100%
+  );
+}
+
+/* ── Netflix-flavored card hover ──
+   Subtle scale + brighten + z-index pop. Animates only transform and filter
+   — both compositor-only / GPU-cheap. No box-shadow animation (per CSS
+   animation rules in the user-interface skill). */
+.card-hover {
+  transition: transform 180ms ease-out, filter 180ms ease-out;
+}
+
+.card-hover:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+  z-index: 2;
+}
+
+.card-hover:active {
+  transform: scale(1.02);
+  transition: transform 80ms ease-out;
+}
+
+/* ── Horizontally scrolling rows ──
+   Netflix-pattern row that scrolls horizontally instead of clamping to a
+   fixed grid. Each card occupies ((100% - gap × (cols - 1)) / cols) of the
+   visible row width — so `--cols` is the number of cards VISIBLE AT REST,
+   and any extras overflow to the right and become accessible via horizontal
+   scroll.
+
+   Two row shapes are defined: `.row-scroll-backdrop` (16:9 cards, 3-9 cols
+   across breakpoints) and `.row-scroll-poster` (2:3 cards, 4-12 cols). The
+   col counts are hard-coded via media queries here rather than via Tailwind
+   arbitrary properties because the v4 arbitrary-property scanner did not
+   reliably generate the per-breakpoint `[--cols:N]` utilities for this
+   pattern. Plain CSS is more predictable and the row shapes are stable.
+
+   Each row scrolls independently — that's the structural setup for future
+   keyboard/gamepad nav (one nav-zone per row). No nav wiring yet.
+
+   Vertical padding + negative margin reserves space for `card-hover` scale
+   without visually inflating the row's bounding box. Scrollbar is hidden;
+   touch/wheel/programmatic scroll all work. */
+.row-scroll {
+  --cols: 1;
+  --gap: 0.5rem;
+  display: flex;
+  gap: var(--gap);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-block: 0.75rem;
+  margin-block: -0.75rem;
+  scroll-padding-inline: 0.25rem;
+}
+
+.row-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.row-scroll > * {
+  scroll-snap-align: start;
+  flex: 0 0 calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
+}
+
+/* 16:9 backdrop rows — Continue Watching, Coming Up. */
+.row-scroll-backdrop { --cols: 3; }
+@media (min-width: 640px)  { .row-scroll-backdrop { --cols: 4; } }
+@media (min-width: 768px)  { .row-scroll-backdrop { --cols: 5; } }
+@media (min-width: 1024px) { .row-scroll-backdrop { --cols: 6; } }
+@media (min-width: 1280px) { .row-scroll-backdrop { --cols: 7; } }
+@media (min-width: 1536px) { .row-scroll-backdrop { --cols: 9; } }
+
+/* 2:3 poster rows — Recently Added, Heavy Rotation. Denser column counts
+   because portrait posters are narrower than backdrop cards. */
+.row-scroll-poster { --cols: 4; }
+@media (min-width: 640px)  { .row-scroll-poster { --cols: 6; } }
+@media (min-width: 768px)  { .row-scroll-poster { --cols: 7; } }
+@media (min-width: 1024px) { .row-scroll-poster { --cols: 8; } }
+@media (min-width: 1280px) { .row-scroll-poster { --cols: 10; } }
+@media (min-width: 1536px) { .row-scroll-poster { --cols: 12; } }
+
+/* Hero row variant — single item per "page", no inter-card gap */
+.row-scroll-hero {
+  --cols: 1;
+  --gap: 0px;
+  /* hero items are full-width siblings; no padding-block buffer needed
+     because there's no card-hover scale on heroes */
+  padding-block: 0;
+  margin-block: 0;
+}
+
 /* 4. Empty state fade-in */
 .empty-state-enter {
   animation: empty-state-in 300ms ease-out;

@@ -70,17 +70,17 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
   describe "search filter" do
     test "filter_search narrows the event list by title substring", %{conn: conn} do
       create_watch_event(%{title: "Sample Movie"})
-      create_watch_event(%{title: "Alien"})
+      create_watch_event(%{title: "Other Title"})
 
       {:ok, view, _html} = live(conn, "/history")
 
       html =
         view
         |> element("input[phx-change='filter_search']")
-        |> render_change(%{"value" => "Blade"})
+        |> render_change(%{"value" => "Sample"})
 
       assert html =~ "Sample Movie"
-      refute html =~ "Alien"
+      refute html =~ "Other Title"
     end
   end
 
@@ -88,15 +88,15 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
     test "watch_event_created broadcast re-renders with the new event", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/history")
 
-      movie = create_movie(%{name: "Sample Movie Thirteen"})
-      event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Thirteen"})
+      movie = create_movie(%{name: "Sample Movie"})
+      event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie"})
 
       send(view.pid, {:watch_event_created, event})
 
       # The handler debounces at 500ms — wait for the window to fire before asserting.
       Process.sleep(600)
 
-      assert render(view) =~ "Sample Movie Thirteen"
+      assert render(view) =~ "Sample Movie"
     end
 
     test "five rapid watch_event_created broadcasts trigger only one reload after the debounce window",
@@ -107,10 +107,10 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
       # must render correctly after the window and not crash.
       {:ok, view, _html} = live(conn, "/history")
 
-      movie = create_movie(%{name: "Sample Movie"})
+      movie = create_movie(%{name: "Other Movie"})
 
       for _ <- 1..5 do
-        event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie"})
+        event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Other Movie"})
         send(view.pid, {:watch_event_created, event})
       end
 
@@ -122,10 +122,10 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
 
   describe "rewatch count badges" do
     test "shows a rewatch count badge for entities watched 2+ times", %{conn: conn} do
-      movie = create_movie(%{name: "The Bear"})
+      movie = create_movie(%{name: "Sample Movie B"})
 
       for _ <- 1..3 do
-        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "The Bear"})
+        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie B"})
       end
 
       {:ok, _view, html} = live(conn, "/history")
@@ -134,8 +134,8 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
     end
 
     test "does not show a rewatch badge for entities watched only once", %{conn: conn} do
-      movie = create_movie(%{name: "Prior Lives"})
-      create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Prior Lives"})
+      movie = create_movie(%{name: "Other Movie"})
+      create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Other Movie"})
 
       {:ok, _view, html} = live(conn, "/history")
 

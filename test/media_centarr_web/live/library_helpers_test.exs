@@ -210,42 +210,42 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     end
 
     test "matches entity name case-insensitively" do
-      match = entry(%{name: "Sample Show Eight"})
-      miss = entry(%{name: "Sample Show"})
+      match = entry(%{name: "Sample Show"})
+      miss = entry(%{name: "Other Show"})
 
-      result = LibraryHelpers.filtered_by_text([match, miss], "breaking")
+      result = LibraryHelpers.filtered_by_text([match, miss], "sample")
       assert length(result) == 1
-      assert hd(result).entity.name == "Sample Show Eight"
+      assert hd(result).entity.name == "Sample Show"
     end
 
     test "matches nested episode names for tv_series" do
-      episode = build_episode(%{name: "Ozymandias"})
+      episode = build_episode(%{name: "Pilot Episode"})
       season = build_season(%{episodes: [episode]})
-      entity = build_entity(%{type: :tv_series, name: "Sample Show Eight", seasons: [season]})
+      entity = build_entity(%{type: :tv_series, name: "Sample Show", seasons: [season]})
       tv_entry = %{entity: entity, progress: nil, progress_records: []}
 
-      other = entry(%{name: "Sample Show"})
+      other = entry(%{name: "Other Show"})
 
-      result = LibraryHelpers.filtered_by_text([tv_entry, other], "ozyma")
+      result = LibraryHelpers.filtered_by_text([tv_entry, other], "pilot")
       assert length(result) == 1
-      assert hd(result).entity.name == "Sample Show Eight"
+      assert hd(result).entity.name == "Sample Show"
     end
 
     test "matches nested movie names for movie_series" do
-      movie = build_movie(%{name: "The Two Towers"})
-      entity = build_entity(%{type: :movie_series, name: "Lord of the Rings", movies: [movie]})
+      movie = build_movie(%{name: "Sample Sequel"})
+      entity = build_entity(%{type: :movie_series, name: "Sample Movie Series", movies: [movie]})
       series_entry = %{entity: entity, progress: nil, progress_records: []}
 
-      other = entry(%{name: "Star Wars"})
+      other = entry(%{name: "Other Series"})
 
-      result = LibraryHelpers.filtered_by_text([series_entry, other], "two towers")
+      result = LibraryHelpers.filtered_by_text([series_entry, other], "sequel")
       assert length(result) == 1
-      assert hd(result).entity.name == "Lord of the Rings"
+      assert hd(result).entity.name == "Sample Movie Series"
     end
 
     test "returns empty list when nothing matches" do
-      entries = [entry(%{name: "Sample Show Eight"})]
-      assert LibraryHelpers.filtered_by_text(entries, "sopranos") == []
+      entries = [entry(%{name: "Sample Show"})]
+      assert LibraryHelpers.filtered_by_text(entries, "nonexistent") == []
     end
   end
 
@@ -811,29 +811,29 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     test "episode with season and episode numbers includes S0xE0y" do
       payload = %{
         message: "Failed to recognize file format.",
-        entity_name: "Sample Show Sixteen",
+        entity_name: "Sample Show",
         season_number: 3,
         episode_number: 5,
         episode_name: "One Day",
-        content_url: "/mnt/tv/Sample Show Sixteen/Sample Show Sixteen.S03E05.mkv"
+        content_url: "/mnt/tv/Sample Show/Sample.Show.S03E05.mkv"
       }
 
       assert LibraryFormatters.playback_failed_flash(payload) ==
-               "Couldn't play Sample Show Sixteen S3E5 — Failed to recognize file format."
+               "Couldn't play Sample Show S3E5 — Failed to recognize file format."
     end
 
     test "movie without season/episode falls back to entity name only" do
       payload = %{
         message: "Error opening input file",
-        entity_name: "Inception",
+        entity_name: "Sample Movie",
         season_number: nil,
         episode_number: nil,
         episode_name: nil,
-        content_url: "/mnt/movies/Inception.mkv"
+        content_url: "/mnt/movies/Sample.Movie.mkv"
       }
 
       assert LibraryFormatters.playback_failed_flash(payload) ==
-               "Couldn't play Inception — Error opening input file."
+               "Couldn't play Sample Movie — Error opening input file."
     end
 
     test "unknown entity name uses filename" do

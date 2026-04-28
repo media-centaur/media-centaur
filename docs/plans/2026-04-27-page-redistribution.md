@@ -371,13 +371,13 @@ Add to `test/media_centarr_web/live/watch_history_live_test.exs`:
 
 ```elixir
 test "shows rewatch count badge for entities watched 2+ times", %{conn: conn} do
-  movie = MediaCentarr.TestFactory.create_movie(name: "The Bear")
-  for _ <- 1..3, do: MediaCentarr.TestFactory.create_watch_event(movie_id: movie.id, title: "The Bear")
+  movie = MediaCentarr.TestFactory.create_movie(name: "Sample Show")
+  for _ <- 1..3, do: MediaCentarr.TestFactory.create_watch_event(movie_id: movie.id, title: "Sample Show")
 
   {:ok, view, _html} = live(conn, "/history")
   rendered = render(view)
 
-  # The most recent event row for The Bear should display "3rd watch" or similar
+  # The most recent event row for Sample Show should display "3rd watch" or similar
   assert rendered =~ "3×"
 end
 ```
@@ -894,14 +894,14 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRowTest do
 
   test "renders one card per item with the title visible" do
     items = [
-      %{id: 1, name: "The Bear", subtitle: "S03 · E10", progress_pct: 47, backdrop_url: nil},
-      %{id: 2, name: "Sample Movie Thirteen", subtitle: "Movie", progress_pct: 22, backdrop_url: nil}
+      %{id: 1, name: "Sample Show", subtitle: "S03 · E10", progress_pct: 47, backdrop_url: nil},
+      %{id: 2, name: "Sample Movie", subtitle: "Movie", progress_pct: 22, backdrop_url: nil}
     ]
 
     html = render_component(&ContinueWatchingRow.continue_watching_row/1, items: items)
 
-    assert html =~ "The Bear"
-    assert html =~ "Sample Movie Thirteen"
+    assert html =~ "Sample Show"
+    assert html =~ "Sample Movie"
     assert html =~ "47%" or html =~ "width: 47%"
   end
 
@@ -1029,7 +1029,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       progress = [
         %{
           entity_id: 1,
-          entity_name: "The Bear",
+          entity_name: "Sample Show",
           entity_type: :tv_series,
           last_episode_label: "S03 · E10",
           progress_pct: 47,
@@ -1040,7 +1040,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       [item] = Logic.continue_watching_items(progress)
 
       assert item.id == 1
-      assert item.name == "The Bear"
+      assert item.name == "Sample Show"
       assert item.subtitle == "S03 · E10"
       assert item.progress_pct == 47
       assert item.backdrop_url == "/img/1/backdrop.jpg"
@@ -1140,12 +1140,12 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   end
 
   test "renders Continue Watching row when there is in-progress media", %{conn: conn} do
-    movie = TestFactory.create_movie(name: "Prior Lives")
+    movie = TestFactory.create_movie(name: "Sample Movie")
     TestFactory.create_watch_progress(movie_id: movie.id, percent: 0.3)
 
     {:ok, _view, html} = live(conn, "/home_preview")
 
-    assert html =~ "Prior Lives"
+    assert html =~ "Sample Movie"
   end
 end
 ```

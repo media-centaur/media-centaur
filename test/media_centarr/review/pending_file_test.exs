@@ -4,21 +4,21 @@ defmodule MediaCentarr.Review.PendingFileTest do
   alias MediaCentarr.Review
 
   @valid_attrs %{
-    file_path: "/media/movies/Inception.2010.1080p.BluRay.mkv",
+    file_path: "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv",
     watch_directory: "/media/movies",
-    parsed_title: "Inception",
+    parsed_title: "Sample Movie",
     parsed_year: 2010,
     parsed_type: "movie",
     tmdb_id: 27_205,
     tmdb_type: "movie",
     confidence: 0.72,
-    match_title: "Inception",
+    match_title: "Sample Movie",
     match_year: "2010",
     match_poster_path: "/9gk7adHYeDvHkCSEhniVJErJ0Gs.jpg",
     candidates: [
       %{
         "tmdb_id" => 27_205,
-        "title" => "Inception",
+        "title" => "Sample Movie",
         "year" => "2010",
         "score" => 0.72,
         "poster_path" => "/9gk7adHYeDvHkCSEhniVJErJ0Gs.jpg"
@@ -32,13 +32,13 @@ defmodule MediaCentarr.Review.PendingFileTest do
 
       assert pending_file.file_path == @valid_attrs.file_path
       assert pending_file.watch_directory == "/media/movies"
-      assert pending_file.parsed_title == "Inception"
+      assert pending_file.parsed_title == "Sample Movie"
       assert pending_file.parsed_year == 2010
       assert pending_file.parsed_type == "movie"
       assert pending_file.tmdb_id == 27_205
       assert pending_file.tmdb_type == "movie"
       assert pending_file.confidence == 0.72
-      assert pending_file.match_title == "Inception"
+      assert pending_file.match_title == "Sample Movie"
       assert pending_file.match_year == "2010"
       assert pending_file.status == :pending
       assert length(pending_file.candidates) == 1

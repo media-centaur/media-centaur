@@ -101,25 +101,25 @@ defmodule Mix.Tasks.Seed.Review do
 
       # Multi-file group — TV series, Episode 1: low confidence
       %{
-        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One.S01E01.mkv",
+        file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E01.mkv",
         watch_directory: "/media/tv",
-        parsed_title: "Sample Show One",
+        parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
         season_number: 1,
         episode_number: 1,
         tmdb_id: 4556,
         confidence: 0.55,
-        match_title: "Sample Show One",
+        match_title: "SampleShow",
         match_year: "2001",
         match_poster_path: "/w7ri7byEYLdciSZOwWHj6TUAX7j.jpg"
       },
 
       # Multi-file group — TV series, Episode 2: no results
       %{
-        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One.S01E02.mkv",
+        file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E02.mkv",
         watch_directory: "/media/tv",
-        parsed_title: "Sample Show One",
+        parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
         season_number: 1,
@@ -131,9 +131,9 @@ defmodule Mix.Tasks.Seed.Review do
 
       # Multi-file group — TV series, Episode 3: tied candidates
       %{
-        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One.S01E03.mkv",
+        file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E03.mkv",
         watch_directory: "/media/tv",
-        parsed_title: "Sample Show One",
+        parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
         season_number: 1,
@@ -143,14 +143,14 @@ defmodule Mix.Tasks.Seed.Review do
         candidates: [
           %{
             "tmdb_id" => 4556,
-            "title" => "Sample Show One",
+            "title" => "SampleShow",
             "year" => "2001",
             "confidence" => 0.75,
             "poster_path" => "/w7ri7byEYLdciSZOwWHj6TUAX7j.jpg"
           },
           %{
             "tmdb_id" => 295_778,
-            "title" => "Sample Show One",
+            "title" => "SampleShow",
             "year" => "2026",
             "confidence" => 0.75,
             "poster_path" => "/nNNM50G7p9C3n4vgidCiybsIdHA.jpg"
@@ -160,32 +160,32 @@ defmodule Mix.Tasks.Seed.Review do
 
       # Multi-file group — TV series, Episode 4: below threshold
       %{
-        file_path: "/media/tv/Sample Show One (2001)/Season 1/Sample Show One.S01E04.mkv",
+        file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E04.mkv",
         watch_directory: "/media/tv",
-        parsed_title: "Sample Show One",
+        parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
         season_number: 1,
         episode_number: 4,
         tmdb_id: 4556,
         confidence: 0.78,
-        match_title: "Sample Show One",
+        match_title: "SampleShow",
         match_year: "2001",
         match_poster_path: "/w7ri7byEYLdciSZOwWHj6TUAX7j.jpg"
       },
 
       # Single-file — Low confidence TV episode (standalone)
       %{
-        file_path: "/media/tv/Firefly (2002)/Season 1/Firefly.S01E01.mkv",
+        file_path: "/media/tv/Sample.Other.Show (2002)/Season 1/Sample.Other.Show.S01E01.mkv",
         watch_directory: "/media/tv",
-        parsed_title: "Firefly",
+        parsed_title: "Other Sample Show",
         parsed_year: 2002,
         parsed_type: "tv",
         season_number: 1,
         episode_number: 1,
         tmdb_id: 1437,
         confidence: 0.71,
-        match_title: "Firefly",
+        match_title: "Other Sample Show",
         match_year: "2002",
         match_poster_path: "/vZcKsy4sGAvWMVqLluwYuoi11Kj.jpg"
       },

@@ -10,17 +10,17 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
         create_entity(%{
           type: :movie,
           name: "Sample Movie",
-          content_url: "/media/movies/blade_runner.mkv"
+          content_url: "/media/movies/sample_movie.mkv"
         })
 
       _file =
         create_linked_file(%{
           movie_id: movie.id,
-          file_path: "/media/movies/blade_runner.mkv",
+          file_path: "/media/movies/sample_movie.mkv",
           watch_dir: "/media/movies"
         })
 
-      entity_ids = FileEventHandler.cleanup_removed_files(["/media/movies/blade_runner.mkv"])
+      entity_ids = FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie.mkv"])
 
       assert entity_ids == [movie.id]
       assert Library.list_watched_files() == []
@@ -28,7 +28,7 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
     end
 
     test "deletes episode and keeps TV series when one episode removed" do
-      tv_series = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       season =
         create_season(%{
@@ -152,7 +152,7 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
     end
 
     test "deletes empty season when all its episodes are removed" do
-      tv_series = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       season =
         create_season(%{
@@ -210,7 +210,7 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
     end
 
     test "deletes entire TV series when all files removed" do
-      tv_series = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       season =
         create_season(%{
@@ -243,57 +243,57 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
     end
 
     test "deletes child movie from movie series, keeps series with 2+ remaining" do
-      movie_series = create_entity(%{type: :movie_series, name: "Dark Knight Trilogy"})
+      movie_series = create_entity(%{type: :movie_series, name: "Sample Movie Series"})
 
       movie1 =
         create_movie(%{
           movie_series_id: movie_series.id,
-          name: "Batman Begins",
+          name: "Sample Movie One",
           tmdb_id: "272",
-          content_url: "/media/movies/batman_begins.mkv",
+          content_url: "/media/movies/sample_movie_one.mkv",
           position: 0
         })
 
       _movie2 =
         create_movie(%{
           movie_series_id: movie_series.id,
-          name: "The Shadowy Sentinel",
+          name: "Sample Movie Two",
           tmdb_id: "155",
-          content_url: "/media/movies/dark_knight.mkv",
+          content_url: "/media/movies/sample_movie_two.mkv",
           position: 1
         })
 
       _movie3 =
         create_movie(%{
           movie_series_id: movie_series.id,
-          name: "The Shadowy Sentinel Rises",
+          name: "Sample Movie Three",
           tmdb_id: "49026",
-          content_url: "/media/movies/dark_knight_rises.mkv",
+          content_url: "/media/movies/sample_movie_three.mkv",
           position: 2
         })
 
       _file1 =
         create_linked_file(%{
           movie_series_id: movie_series.id,
-          file_path: "/media/movies/batman_begins.mkv",
+          file_path: "/media/movies/sample_movie_one.mkv",
           watch_dir: "/media/movies"
         })
 
       _file2 =
         create_linked_file(%{
           movie_series_id: movie_series.id,
-          file_path: "/media/movies/dark_knight.mkv",
+          file_path: "/media/movies/sample_movie_two.mkv",
           watch_dir: "/media/movies"
         })
 
       _file3 =
         create_linked_file(%{
           movie_series_id: movie_series.id,
-          file_path: "/media/movies/dark_knight_rises.mkv",
+          file_path: "/media/movies/sample_movie_three.mkv",
           watch_dir: "/media/movies"
         })
 
-      FileEventHandler.cleanup_removed_files(["/media/movies/batman_begins.mkv"])
+      FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie_one.mkv"])
 
       # Movie 1 is gone, series and other movies remain
       assert {:error, _} = Library.get_movie(movie1.id)
@@ -306,7 +306,7 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
         create_entity(%{
           type: :movie,
           name: "Sample Movie",
-          content_url: "/media/movies/blade_runner.mkv"
+          content_url: "/media/movies/sample_movie.mkv"
         })
 
       extra =
@@ -319,7 +319,7 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
       _file1 =
         create_linked_file(%{
           movie_id: movie.id,
-          file_path: "/media/movies/blade_runner.mkv",
+          file_path: "/media/movies/sample_movie.mkv",
           watch_dir: "/media/movies"
         })
 
@@ -339,7 +339,7 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
     end
 
     test "handles batch deletion of multiple files" do
-      tv_series = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       season =
         create_season(%{
@@ -396,7 +396,7 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
     end
 
     test "deletes episode images from database" do
-      tv_series = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       season =
         create_season(%{

@@ -8,12 +8,12 @@ defmodule MediaCentarr.Library.ChangeLogTest do
 
   describe "record_addition/1" do
     test "creates an :added entry with correct entity snapshot" do
-      movie = create_entity(%{type: :movie, name: "Inception"})
+      movie = create_entity(%{type: :movie, name: "Sample Movie"})
       ChangeLog.record_addition(movie, :movie)
 
       [entry] = Library.list_recent_changes!(50, nil)
       assert entry.entity_id == movie.id
-      assert entry.entity_name == "Inception"
+      assert entry.entity_name == "Sample Movie"
       assert entry.entity_type == :movie
       assert entry.kind == :added
     end
@@ -21,12 +21,12 @@ defmodule MediaCentarr.Library.ChangeLogTest do
 
   describe "record_removal/1" do
     test "creates a :removed entry with correct entity snapshot" do
-      tv_series = create_entity(%{type: :tv_series, name: "Sample Show Eight"})
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
       ChangeLog.record_removal(%{id: tv_series.id, name: tv_series.name, type: :tv_series})
 
       [entry] = Library.list_recent_changes!(50, nil)
       assert entry.entity_id == tv_series.id
-      assert entry.entity_name == "Sample Show Eight"
+      assert entry.entity_name == "Sample Show"
       assert entry.entity_type == :tv_series
       assert entry.kind == :removed
     end

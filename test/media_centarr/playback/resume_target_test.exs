@@ -152,7 +152,7 @@ defmodule MediaCentarr.Playback.ResumeTargetTest do
       assert result == %{
                "action" => "begin",
                "targetId" => Enum.at(movie_ids, 0),
-               "name" => "Batman Begins",
+               "name" => "Sample Movie One",
                "ordinal" => 1,
                "total" => 3
              }
@@ -181,7 +181,7 @@ defmodule MediaCentarr.Playback.ResumeTargetTest do
       assert result == %{
                "action" => "resume",
                "targetId" => Enum.at(movie_ids, 1),
-               "name" => "The Shadowy Sentinel",
+               "name" => "Sample Movie Two",
                "ordinal" => 2,
                "total" => 3,
                "positionSeconds" => 4500.0,
@@ -205,7 +205,7 @@ defmodule MediaCentarr.Playback.ResumeTargetTest do
       assert result == %{
                "action" => "begin",
                "targetId" => Enum.at(movie_ids, 1),
-               "name" => "The Shadowy Sentinel",
+               "name" => "Sample Movie Two",
                "ordinal" => 2,
                "total" => 3
              }
@@ -340,14 +340,14 @@ defmodule MediaCentarr.Playback.ResumeTargetTest do
   end
 
   defp build_movie_series_entity do
-    m1 = build_movie(%{name: "Batman Begins", content_url: "/m1.mkv", position: 0})
-    m2 = build_movie(%{name: "The Shadowy Sentinel", content_url: "/m2.mkv", position: 1})
-    m3 = build_movie(%{name: "The Shadowy Sentinel Rises", content_url: "/m3.mkv", position: 2})
+    m1 = build_movie(%{name: "Sample Movie One", content_url: "/m1.mkv", position: 0})
+    m2 = build_movie(%{name: "Sample Movie Two", content_url: "/m2.mkv", position: 1})
+    m3 = build_movie(%{name: "Sample Movie Three", content_url: "/m3.mkv", position: 2})
 
     entity =
       build_entity(%{
         type: :movie_series,
-        name: "The Shadowy Sentinel Trilogy",
+        name: "Sample Movie Series",
         movies: [m1, m2, m3]
       })
 

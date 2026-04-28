@@ -82,7 +82,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       html =
         view
-        |> form("form[phx-change='query_change']", query: "The Pitt S02E{00-09}")
+        |> form("form[phx-change='query_change']", query: "Sample Show S01E{01-10}")
         |> render_change()
 
       assert html =~ "10 queries in parallel"
@@ -281,6 +281,129 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       refute html =~ "Cancel download?"
       assert :counters.get(delete_counter, 1) == 0
+    end
+  end
+
+  describe "retry_search (per-group)" do
+    test "a single timed-out search becomes retryable; retry resolves to results",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/download")
+
+      Req.Test.allow(:prowlarr, self(), view.pid)
+
+      # First search — every Prowlarr call fails with a transport timeout.
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.transport_error(conn, :timeout) end)
+
+      view
+      |> form("form[phx-change='query_change']", query: "Movie A")
+      |> render_submit()
+
+      html = wait_until(view, &(&1 =~ "Prowlarr timed out"))
+      # Retry affordance is present alongside the timeout message
+      assert html =~ "phx-click=\"retry_search\""
+      assert html =~ "phx-value-term=\"Movie A\""
+
+      # Now succeed on retry
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.request_path do
+          "/api/v1/search" ->
+            Req.Test.json(conn, [
+              %{
+                "title" => "Movie.A.2024.1080p",
+                "guid" => "guid-a",
+                "indexerId" => 1,
+                "seeders" => 12,
+                "indexer" => "indexer-a"
+              }
+            ])
+
+          "/api/v1/queue" ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      view
+      |> element("button[phx-click='retry_search'][phx-value-term='Movie A']")
+      |> render_click()
+
+      html = wait_until(view, &(&1 =~ "Movie.A.2024.1080p"))
+      refute html =~ "Prowlarr timed out"
+    end
+  end
+
+  describe "retry_all_timeouts (footer button)" do
+    test "appears only after every search completes and at least one timed out",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/download")
+
+      Req.Test.allow(:prowlarr, self(), view.pid)
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.transport_error(conn, :timeout) end)
+
+      view
+      |> form("form[phx-change='query_change']", query: "Sample Show S01E{01,02}")
+      |> render_submit()
+
+      html = wait_until(view, &(&1 =~ "Retry 2 timeouts"))
+      assert html =~ "phx-click=\"retry_all_timeouts\""
+
+      # Switch the stub to succeed, then bulk-retry
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.request_path do
+          "/api/v1/search" ->
+            Req.Test.json(conn, [
+              %{
+                "title" => "Sample.Show.Episode.1080p",
+                "guid" => "guid-#{System.unique_integer([:positive])}",
+                "indexerId" => 1,
+                "seeders" => 8,
+                "indexer" => "indexer-a"
+              }
+            ])
+
+          "/api/v1/queue" ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      view
+      |> element("button[phx-click='retry_all_timeouts']")
+      |> render_click()
+
+      html = wait_until(view, &(&1 =~ "Sample.Show.Episode.1080p"))
+      refute html =~ "Prowlarr timed out"
+      refute html =~ "Retry 2 timeouts"
+    end
+
+    test "does not appear when no searches timed out", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/download")
+
+      Req.Test.allow(:prowlarr, self(), view.pid)
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.request_path do
+          "/api/v1/search" ->
+            Req.Test.json(conn, [
+              %{
+                "title" => "Healthy.Result.1080p",
+                "guid" => "g",
+                "indexerId" => 1,
+                "seeders" => 5,
+                "indexer" => "indexer-a"
+              }
+            ])
+
+          "/api/v1/queue" ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      view
+      |> form("form[phx-change='query_change']", query: "Healthy")
+      |> render_submit()
+
+      html = wait_until(view, &(&1 =~ "Healthy.Result.1080p"))
+      refute html =~ "retry_all_timeouts"
     end
   end
 

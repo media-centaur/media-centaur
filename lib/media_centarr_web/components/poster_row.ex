@@ -17,9 +17,14 @@ defmodule MediaCentarrWeb.Components.PosterRow do
     <div
       :if={@items != []}
       data-component="poster-row"
-      class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-3"
+      data-scroll-row="poster-row"
+      class="row-scroll row-scroll-poster"
     >
-      <div :for={item <- @items} class="relative aspect-[2/3] rounded-lg overflow-hidden glass-inset">
+      <div
+        :for={item <- @items}
+        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset"
+        data-row-item
+      >
         <img
           :if={item.poster_url}
           src={item.poster_url}

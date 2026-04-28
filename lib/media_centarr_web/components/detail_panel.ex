@@ -15,6 +15,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   alias MediaCentarr.Library.EpisodeList
   alias MediaCentarr.Library.MovieList
+  alias MediaCentarrWeb.Components.Detail.ChipList
+  alias MediaCentarrWeb.Components.Detail.Hero
+  alias MediaCentarrWeb.Components.Detail.Logic
+  alias MediaCentarrWeb.Components.Detail.MetadataRow
+  alias MediaCentarrWeb.Components.Detail.PlayCard
+  alias MediaCentarrWeb.Components.Detail.ScoreCard
+  alias MediaCentarrWeb.Components.Detail.Section
+  alias MediaCentarrWeb.Components.Detail.StatGrid
 
   # --- Public API ---
 
@@ -86,6 +94,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         assigns.entity.type in [:tv_series, :movie_series] ||
         entity_extras(assigns.entity) != []
 
+    playback = build_playback(assigns)
+    stat_grid = build_stat_grid(assigns.entity)
+    metadata_items = build_metadata_items(assigns.entity)
+    file_path = file_path_for(assigns.entity)
+    tagline = tagline_for(assigns.entity)
+    score_visible = Logic.score_visible?(assigns.entity)
+    genres = assigns.entity.genres || []
+
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
@@ -93,6 +109,13 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:resume_episode_key, resume_episode_key)
       |> assign(:extra_progress_by_id, extra_progress_by_id)
       |> assign(:has_scrollable_content, has_scrollable_content)
+      |> assign(:playback, playback)
+      |> assign(:stat_grid, stat_grid)
+      |> assign(:metadata_items, metadata_items)
+      |> assign(:file_path, file_path)
+      |> assign(:tagline, tagline)
+      |> assign(:score_visible, score_visible)
+      |> assign(:genres, genres)
 
     ~H"""
     <div class="detail-panel flex flex-col flex-1 min-h-0">
@@ -102,25 +125,58 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         phx-hook="ScrollForward"
         data-target="detail-content"
       >
-        <.hero
-          entity={@entity}
-          tracking_status={@tracking_status}
-          available={@available}
-        />
+        <Hero.hero entity={@entity} tagline={@tagline} available={@available}>
+          <:actions :if={@tracking_status}>
+            <button
+              phx-click="toggle_tracking"
+              class="btn btn-circle btn-ghost btn-sm opacity-60 hover:opacity-100 transition-opacity"
+              title={tracking_title(@tracking_status)}
+            >
+              <.icon
+                name={tracking_icon(@tracking_status)}
+                class={"size-5 #{tracking_color(@tracking_status)}"}
+              />
+            </button>
+          </:actions>
+        </Hero.hero>
         <div class="p-4 space-y-4">
-          <.metadata_row entity={@entity} />
-          <div class="space-y-1">
-            <.description entity={@entity} />
-            <.genres entity={@entity} />
-          </div>
-          <.playback_actions
-            entity={@entity}
-            progress={@progress}
-            resume={@resume}
-            on_play={@on_play}
-            detail_view={@detail_view}
-            available={@available}
+          <MetadataRow.metadata_row
+            badge_text={format_type(@entity.type)}
+            items={@metadata_items}
           />
+          <PlayCard.play_card
+            on_play={@on_play}
+            target_id={@playback.target_id}
+            label={@playback.label}
+            color={@playback.color}
+            percent={@playback.percent}
+            remaining_text={@playback.remaining_text}
+            available={@available}
+            detail_view={@detail_view}
+          />
+          <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-4">
+            {@entity.description}
+          </p>
+          <Section.section :if={@stat_grid != []} title="At a glance">
+            <StatGrid.stat_grid stats={@stat_grid} />
+          </Section.section>
+          <Section.section :if={@genres != []} title="Genres & themes">
+            <ChipList.chip_list items={@genres} />
+          </Section.section>
+          <Section.section :if={@score_visible} title="Reception">
+            <ScoreCard.score_card
+              rating={@entity.aggregate_rating_value}
+              vote_count={Map.get(@entity, :vote_count)}
+            />
+          </Section.section>
+          <Section.section :if={@file_path} title="File">
+            <p
+              class="text-xs text-base-content/55 truncate font-mono break-all"
+              title={@file_path}
+            >
+              {@file_path}
+            </p>
+          </Section.section>
         </div>
       </div>
       <div
@@ -155,65 +211,97 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
-  # --- Hero Section (21:9) ---
+  # --- Header content builders (used in detail_panel/1) ---
 
-  defp hero(assigns) do
-    backdrop = image_url(assigns.entity, "backdrop")
-    background = backdrop || image_url(assigns.entity, "poster")
-    logo = image_url(assigns.entity, "logo")
+  defp build_playback(assigns) do
+    {label, color, target_id} = playback_button_props(assigns)
+    percent = overall_progress_percent(assigns.progress, assigns.entity)
+    remaining = progress_remaining_text(assigns.progress, assigns.entity)
 
-    assigns =
-      assigns
-      |> assign(:background, background)
-      |> assign(:logo, logo)
-
-    ~H"""
-    <div class="detail-hero relative overflow-hidden">
-      <div class="aspect-[21/9] glass-inset relative">
-        <img
-          :if={@background && @available}
-          src={@background}
-          class="w-full h-full object-cover object-top"
-        />
-        <div
-          :if={@background && !@available}
-          class="w-full h-full bg-base-content/5"
-          aria-label="Artwork unavailable — storage not mounted"
-        />
-        <div :if={!@background} class="w-full h-full flex items-center justify-center">
-          <.icon name="hero-film" class="size-12 text-base-content/20" />
-        </div>
-        <div class="absolute inset-0 bg-gradient-to-t from-base-100 via-base-100/60 via-30% to-transparent" />
-        <button
-          :if={@tracking_status}
-          phx-click="toggle_tracking"
-          class="absolute top-3 right-3 btn btn-circle btn-ghost btn-sm opacity-60 hover:opacity-100 transition-opacity"
-          title={tracking_title(@tracking_status)}
-        >
-          <.icon
-            name={tracking_icon(@tracking_status)}
-            class={"size-5 #{tracking_color(@tracking_status)}"}
-          />
-        </button>
-        <div class="absolute bottom-4 left-4 right-4">
-          <img
-            :if={@logo && @available}
-            src={@logo}
-            class="max-h-16 max-w-[80%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)]"
-          />
-          <h2
-            :if={!@logo || !@available}
-            class="text-xl font-bold leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
-          >
-            {@entity.name}
-          </h2>
-        </div>
-      </div>
-    </div>
-    """
+    %{
+      label: label,
+      color: color,
+      target_id: target_id,
+      percent: percent,
+      remaining_text: remaining
+    }
   end
 
-  # --- Tracking Status Helpers ---
+  defp build_stat_grid(%{type: :movie} = movie), do: Logic.stat_grid_for(:movie, movie)
+  defp build_stat_grid(%{type: :tv_series} = tv), do: Logic.stat_grid_for(:tv_series, tv)
+
+  defp build_stat_grid(%{type: :movie_series, movies: movies} = ms) when is_list(movies),
+    do: Logic.stat_grid_for(:movie_series, ms, movies)
+
+  defp build_stat_grid(_), do: []
+
+  defp build_metadata_items(entity) do
+    [
+      year_or_nil(entity),
+      season_count_or_nil(entity),
+      movie_count_or_nil(entity),
+      duration_or_nil(entity),
+      Map.get(entity, :content_rating),
+      country_or_nil(entity),
+      status_or_nil(entity)
+    ]
+  end
+
+  defp year_or_nil(%{date_published: date}) when is_binary(date) and date != "", do: extract_year(date)
+
+  defp year_or_nil(_), do: nil
+
+  defp season_count_or_nil(%{type: :tv_series, seasons: seasons}) when is_list(seasons) do
+    case length(seasons) do
+      0 -> nil
+      1 -> "1 season"
+      n -> "#{n} seasons"
+    end
+  end
+
+  defp season_count_or_nil(_), do: nil
+
+  defp movie_count_or_nil(%{type: :movie_series, movies: movies}) when is_list(movies) do
+    case length(movies) do
+      0 -> nil
+      1 -> "1 movie"
+      n -> "#{n} movies"
+    end
+  end
+
+  defp movie_count_or_nil(_), do: nil
+
+  defp duration_or_nil(%{duration: duration}), do: Logic.format_duration(duration)
+  defp duration_or_nil(_), do: nil
+
+  defp country_or_nil(entity) do
+    case Map.get(entity, :country_code) do
+      code when is_binary(code) and code != "" -> code
+      _ -> nil
+    end
+  end
+
+  defp status_or_nil(entity) do
+    case Map.get(entity, :status) do
+      nil -> nil
+      status -> Logic.humanize_status(status)
+    end
+  end
+
+  defp tagline_for(entity) do
+    case Map.get(entity, :tagline) do
+      tagline when is_binary(tagline) and tagline != "" -> tagline
+      _ -> nil
+    end
+  end
+
+  defp file_path_for(%{type: :movie, content_url: url}) when is_binary(url) and url != "", do: url
+
+  defp file_path_for(%{type: :video_object, content_url: url}) when is_binary(url) and url != "", do: url
+
+  defp file_path_for(_), do: nil
+
+  # --- Tracking Status Helpers (used in Hero :actions slot) ---
 
   defp tracking_icon(:watching), do: "hero-bell-solid"
   defp tracking_icon(:ignored), do: "hero-bell-slash"
@@ -227,73 +315,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   defp tracking_title(:ignored), do: "Ignoring new releases — click to track"
   defp tracking_title(_), do: "Not tracking"
 
-  # --- Playback Actions (button + progress bar) ---
-
-  defp playback_actions(assigns) do
-    {label, color, target_id} = playback_button_props(assigns)
-    percent = overall_progress_percent(assigns.progress, assigns.entity)
-    has_progress = percent > 0
-    remaining = progress_remaining_text(assigns.progress, assigns.entity)
-
-    assigns =
-      assigns
-      |> assign(:label, label)
-      |> assign(:color, color)
-      |> assign(:target_id, target_id)
-      |> assign(:percent, percent)
-      |> assign(:has_progress, has_progress)
-      |> assign(:remaining, remaining)
-
-    ~H"""
-    <div class="space-y-3 pt-1">
-      <div :if={@has_progress} class="space-y-1">
-        <div class="flex items-center gap-3">
-          <div class="flex-1 h-1 rounded-full bg-base-content/10 overflow-hidden">
-            <div
-              class={"h-full rounded-full #{if @percent >= 100, do: "bg-success", else: "bg-info"}"}
-              style={"width: #{@percent}%"}
-            />
-          </div>
-          <span :if={@remaining} class="text-xs text-base-content/40 flex-shrink-0">
-            {@remaining}
-          </span>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          :if={@available}
-          phx-click={@on_play}
-          phx-value-id={@target_id}
-          class={"btn btn-soft btn-sm btn-#{@color}"}
-          data-nav-item
-          data-entity-id={@target_id}
-          tabindex="0"
-        >
-          <.icon name="hero-play-mini" class="size-4" /> {@label}
-        </button>
-        <span
-          :if={!@available}
-          class="btn btn-sm btn-ghost text-base-content/40 cursor-not-allowed pointer-events-none"
-          title="Storage offline — check that your media drive is mounted"
-        >
-          <.icon name="hero-cloud-arrow-down-mini" class="size-4 opacity-60" /> Offline
-        </span>
-        <button
-          phx-click="toggle_detail_view"
-          class={[
-            "btn btn-sm",
-            if(@detail_view == :info, do: "btn-soft btn-primary", else: "btn-ghost")
-          ]}
-          data-nav-item
-          tabindex="0"
-        >
-          <.icon name="hero-information-circle-mini" class="size-4" />
-          {if @detail_view == :info, do: "Back", else: "More"}
-        </button>
-      </div>
-    </div>
-    """
-  end
+  # --- Playback button props (consumed by build_playback/1) ---
 
   defp playback_button_props(%{resume: %{"action" => "resume"} = resume, entity: entity}) do
     {"Resume", "success", resume["targetId"] || entity.id}
@@ -359,50 +381,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       true ->
         nil
     end
-  end
-
-  # --- Metadata Row ---
-
-  defp metadata_row(assigns) do
-    ~H"""
-    <div class="flex items-center gap-2 text-sm text-base-content/60">
-      <span class="badge badge-outline badge-sm">{format_type(@entity.type)}</span>
-      <span :if={@entity.date_published}>{extract_year(@entity.date_published)}</span>
-      <span :if={@entity.type == :tv_series && is_list(@entity.seasons)}>
-        <% season_count = length(@entity.seasons) %>
-        {season_count} season{if season_count != 1, do: "s"}
-      </span>
-      <span :if={@entity.type == :movie_series && is_list(@entity.movies)}>
-        <% movie_count = length(@entity.movies) %>
-        {movie_count} movie{if movie_count != 1, do: "s"}
-      </span>
-      <span :if={@entity.content_rating}>{@entity.content_rating}</span>
-    </div>
-    """
-  end
-
-  # --- Description ---
-
-  defp description(%{entity: %{description: nil}} = assigns) do
-    ~H"""
-    """
-  end
-
-  defp description(assigns) do
-    ~H"""
-    <p class="text-sm text-base-content/70 line-clamp-4">{@entity.description}</p>
-    """
-  end
-
-  defp genres(%{entity: %{genres: genres}} = assigns) when is_list(genres) and genres != [] do
-    ~H"""
-    <p class="text-sm text-base-content/60">{Enum.join(@entity.genres, ", ")}</p>
-    """
-  end
-
-  defp genres(assigns) do
-    ~H"""
-    """
   end
 
   # --- Content List (type-dependent) ---

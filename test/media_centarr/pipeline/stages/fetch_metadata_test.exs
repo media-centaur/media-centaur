@@ -36,9 +36,9 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
       metadata = result.metadata
 
       assert metadata.entity_type == :movie
-      assert metadata.entity_attrs.name == "Fight Club"
+      assert metadata.entity_attrs.name == "Sample Movie"
       assert metadata.entity_attrs.type == :movie
-      assert metadata.entity_attrs.content_url == "/media/Fight.Club.1999.mkv"
+      assert metadata.entity_attrs.content_url == "/media/Sample.Movie.1999.mkv"
       assert metadata.identifier == %{source: "tmdb", external_id: "550"}
       refute metadata.images == []
       assert Enum.any?(metadata.images, &(&1.role == "poster"))
@@ -67,18 +67,18 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
         {"/collection/263", collection_detail()}
       ])
 
-      payload = payload_for(%{tmdb_id: 155, title: "The Shadowy Sentinel", year: 2008})
+      payload = payload_for(%{tmdb_id: 155, title: "Sample Movie Two", year: 2008})
 
       assert {:ok, result} = FetchMetadata.run(payload)
       metadata = result.metadata
 
       assert metadata.entity_type == :movie_series
-      assert metadata.entity_attrs.name == "The Shadowy Sentinel Collection"
+      assert metadata.entity_attrs.name == "Sample Movie Collection"
       assert metadata.identifier == %{source: "tmdb_collection", external_id: "263"}
 
       child = metadata.child_movie
       assert child != nil
-      assert child.attrs.name == "The Shadowy Sentinel"
+      assert child.attrs.name == "Sample Movie Two"
       assert child.identifier == %{source: "tmdb", external_id: "155"}
       assert child.attrs.position == 1
     end
@@ -89,13 +89,13 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
         {"/collection/263", {:error, 500}}
       ])
 
-      payload = payload_for(%{tmdb_id: 155, title: "The Shadowy Sentinel", year: 2008})
+      payload = payload_for(%{tmdb_id: 155, title: "Sample Movie Two", year: 2008})
 
       assert {:ok, result} = FetchMetadata.run(payload)
       metadata = result.metadata
 
       assert metadata.entity_type == :movie_series
-      assert metadata.entity_attrs.name == "The Shadowy Sentinel Collection"
+      assert metadata.entity_attrs.name == "Sample Movie Collection"
       assert metadata.child_movie.attrs.position == 0
     end
   end
@@ -115,19 +115,19 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
         payload_for(%{
           tmdb_id: 1396,
           tmdb_type: :tv,
-          title: "Sample Show Eight",
+          title: "Sample Show",
           year: 2008,
           type: :tv,
           season: 1,
           episode: 1,
-          file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv"
+          file_path: "/media/TV/Sample.Show.S01E01.mkv"
         })
 
       assert {:ok, result} = FetchMetadata.run(payload)
       metadata = result.metadata
 
       assert metadata.entity_type == :tv_series
-      assert metadata.entity_attrs.name == "Sample Show Eight"
+      assert metadata.entity_attrs.name == "Sample Show"
       assert metadata.entity_attrs.number_of_seasons == 5
       assert metadata.identifier == %{source: "tmdb", external_id: "1396"}
 
@@ -139,7 +139,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
       episode = season.episode
       assert episode.attrs.episode_number == 1
       assert episode.attrs.name == "Pilot"
-      assert episode.attrs.content_url == "/media/TV/Sample.Show.Eight.S01E01.mkv"
+      assert episode.attrs.content_url == "/media/TV/Sample.Show.S01E01.mkv"
     end
 
     test "includes episode thumbnail when available" do
@@ -155,7 +155,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
           type: :tv,
           season: 1,
           episode: 1,
-          file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv"
+          file_path: "/media/TV/Sample.Show.S01E01.mkv"
         })
 
       assert {:ok, result} = FetchMetadata.run(payload)
@@ -178,7 +178,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
           type: :tv,
           season: 1,
           episode: 1,
-          file_path: "/media/TV/Sample.Show.Eight.S01E01.mkv"
+          file_path: "/media/TV/Sample.Show.S01E01.mkv"
         })
 
       assert {:ok, result} = FetchMetadata.run(payload)

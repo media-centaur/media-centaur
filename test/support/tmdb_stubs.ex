@@ -112,10 +112,10 @@ defmodule MediaCentarr.TmdbStubs do
     Map.merge(
       %{
         "id" => 550,
-        "title" => "Fight Club",
+        "title" => "Sample Movie",
         "release_date" => "1999-10-15",
         "poster_path" => "/pB8BM7pdSp6B6Ih7QI4S2t0POD5.jpg",
-        "overview" => "An insomniac office worker and a devil-may-care soap maker..."
+        "overview" => "A sample movie overview."
       },
       overrides
     )
@@ -125,10 +125,10 @@ defmodule MediaCentarr.TmdbStubs do
     Map.merge(
       %{
         "id" => 1396,
-        "name" => "Sample Show Eight",
+        "name" => "Sample Show",
         "first_air_date" => "2008-01-20",
         "poster_path" => "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
-        "overview" => "A high school chemistry teacher turned methamphetamine manufacturer..."
+        "overview" => "A sample show overview."
       },
       overrides
     )
@@ -138,8 +138,8 @@ defmodule MediaCentarr.TmdbStubs do
     Map.merge(
       %{
         "id" => 550,
-        "title" => "Fight Club",
-        "overview" => "An insomniac office worker and a devil-may-care soap maker...",
+        "title" => "Sample Movie",
+        "overview" => "A sample movie overview.",
         "release_date" => "1999-10-15",
         "runtime" => 139,
         "vote_average" => 8.433,
@@ -149,7 +149,7 @@ defmodule MediaCentarr.TmdbStubs do
         "belongs_to_collection" => nil,
         "credits" => %{
           "crew" => [
-            %{"department" => "Directing", "job" => "Director", "name" => "David Fincher"}
+            %{"department" => "Directing", "job" => "Director", "name" => "A. Director"}
           ]
         },
         "release_dates" => %{
@@ -170,10 +170,10 @@ defmodule MediaCentarr.TmdbStubs do
     Map.merge(
       movie_detail(%{
         "id" => 155,
-        "title" => "The Shadowy Sentinel",
+        "title" => "Sample Movie Two",
         "belongs_to_collection" => %{
           "id" => 263,
-          "name" => "The Shadowy Sentinel Collection"
+          "name" => "Sample Movie Collection"
         }
       }),
       overrides
@@ -184,14 +184,14 @@ defmodule MediaCentarr.TmdbStubs do
     Map.merge(
       %{
         "id" => 263,
-        "name" => "The Shadowy Sentinel Collection",
-        "overview" => "A collection of Batman movies directed by Christopher Nolan.",
+        "name" => "Sample Movie Collection",
+        "overview" => "A sample collection overview.",
         "poster_path" => "/bqS2lMgGkuodIXtDILFWTSWDDpa.jpg",
         "backdrop_path" => "/zuW6fOiusv4X9nnW3paHGfXcSll.jpg",
         "parts" => [
-          %{"id" => 272, "title" => "Batman Begins"},
-          %{"id" => 155, "title" => "The Shadowy Sentinel"},
-          %{"id" => 49_026, "title" => "The Shadowy Sentinel Rises"}
+          %{"id" => 272, "title" => "Sample Movie One"},
+          %{"id" => 155, "title" => "Sample Movie Two"},
+          %{"id" => 49_026, "title" => "Sample Movie Three"}
         ],
         "images" => %{"logos" => []}
       },
@@ -203,8 +203,8 @@ defmodule MediaCentarr.TmdbStubs do
     Map.merge(
       %{
         "id" => 1396,
-        "name" => "Sample Show Eight",
-        "overview" => "A high school chemistry teacher turned methamphetamine manufacturer...",
+        "name" => "Sample Show",
+        "overview" => "A sample show overview.",
         "first_air_date" => "2008-01-20",
         "number_of_seasons" => 5,
         "vote_average" => 8.9,
@@ -226,14 +226,14 @@ defmodule MediaCentarr.TmdbStubs do
           %{
             "episode_number" => 1,
             "name" => "Pilot",
-            "overview" => "Walter White begins cooking meth.",
+            "overview" => "Sample episode overview.",
             "runtime" => 58,
             "still_path" => "/ydlY3iPfeOAvu8gVqrxPoMvzNCn.jpg"
           },
           %{
             "episode_number" => 2,
-            "name" => "Cat's in the Bag...",
-            "overview" => "Walt and Jesse attempt to dispose of the bodies.",
+            "name" => "Episode Two",
+            "overview" => "Sample episode overview.",
             "runtime" => 48,
             "still_path" => "/tjMFMhGOFwyg8acoUMCmjMAdMf3.jpg"
           }

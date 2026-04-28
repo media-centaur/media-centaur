@@ -21,6 +21,11 @@ defmodule MediaCentarr.Library.Movie do
     field :content_url, :string
     field :url, :string
     field :aggregate_rating_value, :float
+    field :vote_count, :integer
+    field :tagline, :string
+    field :original_language, :string
+    field :studio, :string
+    field :country_code, :string
     field :tmdb_id, :string
     field :position, :integer
 
@@ -52,6 +57,11 @@ defmodule MediaCentarr.Library.Movie do
       :content_url,
       :url,
       :aggregate_rating_value,
+      :vote_count,
+      :tagline,
+      :original_language,
+      :studio,
+      :country_code,
       :tmdb_id,
       :genres,
       :position,

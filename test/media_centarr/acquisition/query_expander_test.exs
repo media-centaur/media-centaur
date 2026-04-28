@@ -5,7 +5,7 @@ defmodule MediaCentarr.Acquisition.QueryExpanderTest do
 
   describe "expand/1 — passthrough" do
     test "returns single-element list for plain query" do
-      assert QueryExpander.expand("Sample Movie") == {:ok, ["Sample Movie"]}
+      assert QueryExpander.expand("Sample Movie 2049") == {:ok, ["Sample Movie 2049"]}
     end
 
     test "returns single-element list for empty string" do
@@ -13,14 +13,14 @@ defmodule MediaCentarr.Acquisition.QueryExpanderTest do
     end
 
     test "returns single-element list when no braces present" do
-      assert QueryExpander.expand("The Pitt S02") == {:ok, ["The Pitt S02"]}
+      assert QueryExpander.expand("Sample Show S02") == {:ok, ["Sample Show S02"]}
     end
   end
 
   describe "expand/1 — flat list expansion" do
     test "expands comma-separated list" do
-      assert QueryExpander.expand("The Pitt S02E{00,01,02}") ==
-               {:ok, ["The Pitt S02E00", "The Pitt S02E01", "The Pitt S02E02"]}
+      assert QueryExpander.expand("Sample Show S02E{00,01,02}") ==
+               {:ok, ["Sample Show S02E00", "Sample Show S02E01", "Sample Show S02E02"]}
     end
 
     test "expands single-element list" do
@@ -50,8 +50,8 @@ defmodule MediaCentarr.Acquisition.QueryExpanderTest do
 
   describe "expand/1 — numeric range expansion" do
     test "expands two-digit zero-padded range" do
-      assert QueryExpander.expand("The Pitt S02E{00-02}") ==
-               {:ok, ["The Pitt S02E00", "The Pitt S02E01", "The Pitt S02E02"]}
+      assert QueryExpander.expand("Sample Show S02E{00-02}") ==
+               {:ok, ["Sample Show S02E00", "Sample Show S02E01", "Sample Show S02E02"]}
     end
 
     test "expands {00-09} with full padding" do

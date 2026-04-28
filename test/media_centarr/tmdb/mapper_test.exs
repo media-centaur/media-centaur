@@ -42,6 +42,55 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.content_url == "/media/dark_knight.mkv"
     end
 
+    test "extracts magazine fields: tagline, original_language, studio, country_code, vote_count" do
+      data = %{
+        "title" => "Nosferatu",
+        "tagline" => "A Symphony of Horror",
+        "original_language" => "de",
+        "vote_count" => 2341,
+        "production_companies" => [
+          %{"name" => "Prana Film"},
+          %{"name" => "Other Studio"}
+        ],
+        "production_countries" => [
+          %{"iso_3166_1" => "DE", "name" => "Germany"}
+        ]
+      }
+
+      result = Mapper.movie_attrs("653", data, nil)
+
+      assert result.tagline == "A Symphony of Horror"
+      assert result.original_language == "de"
+      assert result.studio == "Prana Film"
+      assert result.country_code == "DE"
+      assert result.vote_count == 2341
+    end
+
+    test "magazine fields are nil when TMDB omits them" do
+      data = %{"title" => "Bare Bones"}
+
+      result = Mapper.movie_attrs("1", data, nil)
+
+      assert result.tagline == nil
+      assert result.original_language == nil
+      assert result.studio == nil
+      assert result.country_code == nil
+      assert result.vote_count == nil
+    end
+
+    test "production_companies / production_countries gracefully handle empty lists" do
+      data = %{
+        "title" => "Indie",
+        "production_companies" => [],
+        "production_countries" => []
+      }
+
+      result = Mapper.movie_attrs("1", data, nil)
+
+      assert result.studio == nil
+      assert result.country_code == nil
+    end
+
     test "nil fields map to nil in result" do
       data = %{
         "title" => "Minimal",
@@ -105,6 +154,40 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.number_of_seasons == 5
       assert result.aggregate_rating_value == 8.9
       assert result.status == :ended
+    end
+
+    test "extracts magazine fields including network" do
+      data = %{
+        "name" => "Twin Peaks",
+        "tagline" => "The owls are not what they seem",
+        "original_language" => "en",
+        "vote_count" => 1502,
+        "production_companies" => [%{"name" => "Lynch/Frost Productions"}],
+        "production_countries" => [%{"iso_3166_1" => "US"}],
+        "networks" => [%{"name" => "ABC"}, %{"name" => "Showtime"}]
+      }
+
+      result = Mapper.tv_attrs("1083", data)
+
+      assert result.tagline == "The owls are not what they seem"
+      assert result.original_language == "en"
+      assert result.studio == "Lynch/Frost Productions"
+      assert result.country_code == "US"
+      assert result.vote_count == 1502
+      assert result.network == "ABC"
+    end
+
+    test "TV magazine fields are nil when TMDB omits them" do
+      data = %{"name" => "Bare TV"}
+
+      result = Mapper.tv_attrs("1", data)
+
+      assert result.tagline == nil
+      assert result.original_language == nil
+      assert result.studio == nil
+      assert result.country_code == nil
+      assert result.vote_count == nil
+      assert result.network == nil
     end
 
     test "maps returning series status" do
