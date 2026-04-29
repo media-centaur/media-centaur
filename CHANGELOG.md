@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.27.2 — 2026-04-29
+
+### Changed
+
+- **Home page row order.** Recently Added now sits above Coming Up.
+  The new order is Hero → Continue Watching → Recently Added → Coming
+  Up, putting "what's already on the box right now" before "what's
+  coming later".
+
 ## v0.27.1 — 2026-04-29
 
 ### Fixed

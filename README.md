@@ -26,7 +26,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 <div align="center">
 
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home.png"><img src="docs-site/assets/screenshots/home.png" alt="Home — cinematic landing page with Continue Watching, Coming Up, and Recently Added" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home.png"><img src="docs-site/assets/screenshots/home.png" alt="Home — cinematic landing page with Continue Watching, Recently Added, and Coming Up" width="48%"></a>
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/library-grid.png"><img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="48%"></a>
 
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/library-detail-movie.png"><img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%"></a>

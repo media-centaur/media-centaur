@@ -76,16 +76,6 @@ defmodule MediaCentarrWeb.HomeLive do
           <ContinueWatchingRow.continue_watching_row items={@continue_items} />
         </section>
 
-        <section :if={@coming_up_items != []} data-row="coming-up">
-          <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
-            <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
-              See all →
-            </.link>
-          </div>
-          <ComingUpRow.coming_up_row items={@coming_up_items} />
-        </section>
-
         <section :if={@recently_added != []} data-row="recently-added">
           <div class="flex items-baseline justify-between mb-3">
             <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
@@ -94,6 +84,16 @@ defmodule MediaCentarrWeb.HomeLive do
             </.link>
           </div>
           <PosterRow.poster_row items={@recently_added} />
+        </section>
+
+        <section :if={@coming_up_items != []} data-row="coming-up">
+          <div class="flex items-baseline justify-between mb-3">
+            <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
+            <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
+              See all →
+            </.link>
+          </div>
+          <ComingUpRow.coming_up_row items={@coming_up_items} />
         </section>
 
         <%!-- Empty state if everything is empty --%>
