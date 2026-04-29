@@ -930,13 +930,20 @@ body:has(.modal-backdrop[data-state="open"]) {
   flex: 0 0 calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
 }
 
-/* 16:9 backdrop rows — Continue Watching, Coming Up. */
+/* 16:9 backdrop rows — Coming Up (and any other backdrop row that wants
+   the standard density). */
 .row-scroll-backdrop { --cols: 3; }
 @media (min-width: 640px)  { .row-scroll-backdrop { --cols: 4; } }
 @media (min-width: 768px)  { .row-scroll-backdrop { --cols: 5; } }
 @media (min-width: 1024px) { .row-scroll-backdrop { --cols: 6; } }
 @media (min-width: 1280px) { .row-scroll-backdrop { --cols: 7; } }
 @media (min-width: 1536px) { .row-scroll-backdrop { --cols: 9; } }
+
+/* Larger 16:9 variant for the Continue Watching row — cards roughly
+   double the size of `.row-scroll-backdrop` again by halving the column
+   count from the previous large variant. */
+.row-scroll-backdrop-lg { --cols: 1; }
+@media (min-width: 1280px) { .row-scroll-backdrop-lg { --cols: 2; } }
 
 /* 2:3 poster rows — Recently Added. Denser column counts because
    portrait posters are narrower than backdrop cards. */
