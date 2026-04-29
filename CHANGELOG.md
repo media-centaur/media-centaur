@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.26.1 — 2026-04-29
+
+### Improved
+
+- **Search reliability under load.** Prowlarr searches now allow 60
+  seconds to return (up from 30), so a slow indexer no longer trips
+  the timeout on healthy hosts. The app also limits acquisition work
+  to 3 concurrent searches at a time — batching a whole season used
+  to fan out 10 simultaneous queries through one VPN tunnel, which
+  cascaded into per-search timeouts. Whole-season grabs now finish
+  reliably, just at a steadier pace.
+
 ## v0.26.0 — 2026-04-29
 
 ### New
