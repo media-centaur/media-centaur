@@ -69,11 +69,13 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
   end
 
   # Prowlarr's /api/v1/search fans out to every configured indexer in
-  # real time and can legitimately take 20s+. The client default must
-  # survive that. Lightweight calls (ping) override per-call when fast
-  # failure is appropriate. Retries are off everywhere — if the user
-  # wants to retry, they'll click again.
-  @search_timeout_ms 30_000
+  # real time. With 6+ indexers (especially when one is a meta-aggregator
+  # like Knaben that does its own fan-out) the tail can run past 30s
+  # even on a healthy host. The client default must survive that.
+  # Lightweight calls (ping) override per-call when fast failure is
+  # appropriate. Retries are off everywhere — if the user wants to
+  # retry, they'll click again.
+  @search_timeout_ms 60_000
   @ping_timeout_ms 5_000
 
   defp build_client do
