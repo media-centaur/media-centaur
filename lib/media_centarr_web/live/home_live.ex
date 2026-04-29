@@ -7,8 +7,18 @@ defmodule MediaCentarrWeb.HomeLive do
   assembly lives in `MediaCentarrWeb.HomeLive.Logic` per ADR-030.
   """
   use MediaCentarrWeb, :live_view
+  use MediaCentarrWeb.Live.EntityModal
 
-  alias MediaCentarr.{Acquisition, Capabilities, Library, ReleaseTracking, WatchHistory}
+  alias MediaCentarr.{
+    Acquisition,
+    Capabilities,
+    Library,
+    Library.Availability,
+    Playback,
+    ReleaseTracking,
+    Settings,
+    WatchHistory
+  }
 
   alias MediaCentarrWeb.Components.{
     ComingUpRow,
@@ -25,6 +35,10 @@ defmodule MediaCentarrWeb.HomeLive do
       Library.subscribe()
       ReleaseTracking.subscribe()
       WatchHistory.subscribe()
+      Playback.subscribe()
+      Settings.subscribe()
+      Availability.subscribe()
+      Capabilities.subscribe()
     end
 
     socket =
@@ -32,6 +46,13 @@ defmodule MediaCentarrWeb.HomeLive do
       |> assign(:continue_timer, nil)
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
+      |> assign(:playback, load_playback_sessions())
+      |> assign(:resume_targets, %{})
+      |> assign(:availability_map, %{})
+      |> assign(:tmdb_ready, Capabilities.tmdb_ready?())
+      |> assign(:spoiler_free, load_spoiler_free_setting())
+      |> assign(:watch_dirs, MediaCentarr.Config.get(:watch_dirs) || [])
+      |> assign_modal_defaults()
       |> assign_all()
 
     {:ok, socket}
@@ -119,6 +140,23 @@ defmodule MediaCentarrWeb.HomeLive do
             <p>Your home page will populate as you add media and watch.</p>
           </div>
         </div>
+
+        <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
+        <.entity_modal
+          selected_entry={@selected_entry}
+          selected_entity_id={@selected_entity_id}
+          detail_presentation={@detail_presentation}
+          detail_view={@detail_view}
+          detail_files={@detail_files}
+          expanded_seasons={@expanded_seasons}
+          rematch_confirm={@rematch_confirm}
+          delete_confirm={@delete_confirm}
+          tracking_status={@tracking_status}
+          resume_targets={@resume_targets}
+          availability_map={@availability_map}
+          tmdb_ready={@tmdb_ready}
+          spoiler_free={@spoiler_free}
+        />
       </div>
     </Layouts.app>
     """
@@ -139,11 +177,27 @@ defmodule MediaCentarrWeb.HomeLive do
     if destination do
       {:noreply, push_navigate(socket, to: destination <> query)}
     else
-      {:noreply, socket}
+      {:noreply, apply_modal_params(socket, params)}
     end
   end
 
-  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+  def handle_params(params, _uri, socket) do
+    {:noreply, apply_modal_params(socket, params)}
+  end
+
+  @impl true
+  def build_modal_path(socket, overrides) do
+    selected = Map.get(overrides, :selected, socket.assigns.selected_entity_id)
+    view = Map.get(overrides, :view, socket.assigns.detail_view)
+    autoplay = Map.get(overrides, :autoplay)
+
+    params = %{}
+    params = if selected, do: Map.put(params, :selected, selected), else: params
+    params = if selected && view == :info, do: Map.put(params, :view, :info), else: params
+    params = if selected && autoplay, do: Map.put(params, :autoplay, autoplay), else: params
+
+    if params == %{}, do: ~p"/", else: ~p"/?#{params}"
+  end
 
   @impl true
   def handle_info(:reload_continue_watching, socket) do
@@ -158,7 +212,43 @@ defmodule MediaCentarrWeb.HomeLive do
     {:noreply, assign_recently_added(socket)}
   end
 
-  def handle_info(message, socket) do
+  def handle_info({:entities_changed, entity_ids}, socket) do
+    socket =
+      if socket.assigns.selected_entity_id &&
+           Enum.member?(entity_ids, socket.assigns.selected_entity_id) do
+        refresh_selected_entry(socket)
+      else
+        socket
+      end
+
+    schedule_section_reloads(socket, {:entities_changed, entity_ids})
+  end
+
+  def handle_info({:playback_state_changed, entity_id, new_state, now_playing, _started_at}, socket) do
+    playback = apply_playback_change(socket.assigns.playback, entity_id, new_state, now_playing)
+    {:noreply, assign(socket, playback: playback)}
+  end
+
+  def handle_info({:playback_failed, _entity_id, _reason, payload}, socket) do
+    {:noreply,
+     put_flash(
+       socket,
+       :error,
+       MediaCentarrWeb.LibraryFormatters.playback_failed_flash(payload)
+     )}
+  end
+
+  def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
+    {:noreply, assign(socket, spoiler_free: enabled)}
+  end
+
+  def handle_info(:capabilities_changed, socket) do
+    {:noreply, assign(socket, tmdb_ready: Capabilities.tmdb_ready?())}
+  end
+
+  def handle_info(message, socket), do: schedule_section_reloads(socket, message)
+
+  defp schedule_section_reloads(socket, message) do
     socket =
       message
       |> Logic.section_reloaders()
@@ -251,4 +341,17 @@ defmodule MediaCentarrWeb.HomeLive do
   defp load_recently_added, do: Library.list_recently_added(limit: 30)
 
   defp load_hero_candidates, do: Library.list_hero_candidates(limit: 12)
+
+  defp load_playback_sessions do
+    Map.new(MediaCentarr.Playback.Sessions.list(), fn session ->
+      {session.entity_id, session}
+    end)
+  end
+
+  defp load_spoiler_free_setting do
+    case Settings.get_by_key("spoiler_free_mode") do
+      {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
+      _ -> false
+    end
+  end
 end

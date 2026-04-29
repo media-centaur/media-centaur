@@ -66,11 +66,12 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       [item] = Logic.continue_watching_items(progress)
 
       assert item.id == 1
+      assert item.entity_id == 1
       assert item.name == "Sample Show"
       assert item.subtitle == "S03 · E10"
       assert item.progress_pct == 47
       assert item.backdrop_url == "/img/1/backdrop.jpg"
-      assert item.url == "/library?selected=1&autoplay=1"
+      assert item.autoplay == true
     end
 
     test "returns empty list for empty input" do
@@ -115,10 +116,10 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       [item] = Logic.recently_added_items(entities)
 
       assert item.id == 1
+      assert item.entity_id == 1
       assert item.name == "Sample Movie"
       assert item.year == "2023"
       assert item.poster_url == "/img/1/poster.jpg"
-      assert item.url == "/library?selected=1"
     end
   end
 
@@ -138,6 +139,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       item = Logic.hero_card_item(entity)
 
       assert item.id == 1
+      assert item.entity_id == 1
       assert item.name == "Sample Movie"
       assert item.year == "2024"
       assert item.runtime == "2h 45m"
@@ -145,8 +147,6 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert item.overview == "Sample overview."
       assert item.backdrop_url == "/img/1/backdrop.jpg"
       assert item.logo_url == "/img/1/logo.png"
-      assert item.play_url =~ "/library?selected=1"
-      assert item.detail_url =~ "/library?selected=1"
     end
 
     test "passes through nil logo_url when entity has no logo image" do
