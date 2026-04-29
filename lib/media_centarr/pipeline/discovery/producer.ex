@@ -43,13 +43,16 @@ defmodule MediaCentarr.Pipeline.Discovery.Producer do
   end
 
   # Startup reconciliation (ADR-023): rescan all watch directories to re-detect
-  # files that were missed while the pipeline was down.
+  # files that were missed while the pipeline was down, and re-emit any files
+  # the watcher already knows about but the pipeline never finished ingesting
+  # (stranded by a transient TMDB/network failure on a prior run).
   def handle_info(:reconcile, state) do
     if MediaCentarr.Watcher.Supervisor.running?() do
       Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
 
       Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
         MediaCentarr.Watcher.Supervisor.scan()
+        MediaCentarr.Watcher.Supervisor.rescan_unlinked()
       end)
     end
 

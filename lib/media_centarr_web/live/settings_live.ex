@@ -527,6 +527,14 @@ defmodule MediaCentarrWeb.SettingsLive do
       Config.update(:tmdb_api_key, params["tmdb_api_key"])
       MediaCentarr.TMDB.Client.invalidate_client()
       clear_test_result(:tmdb)
+
+      # Recovery hook: a fresh key may unblock files that were stranded
+      # by an earlier TMDB auth failure. Re-emit `:file_detected` for
+      # any present watcher_files row with no library link so the
+      # pipeline gets another chance.
+      Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+        MediaCentarr.Watcher.Supervisor.rescan_unlinked()
+      end)
     end
 
     case Float.parse(params["auto_approve_threshold"] || "") do
