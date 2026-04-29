@@ -42,69 +42,82 @@ defmodule MediaCentarrWeb.HomeLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/" full_width>
-      <%!-- Hero breaks out of the Layouts.app `<main class="px-6 py-6">`
-            wrapper via negative margins so it can fill the available width
-            (viewport - side rail). The rows below pull up under the hero's
-            fade-to-base for the Netflix dissolve effect.
+      <%!-- Home page positioning context. `relative` makes this the anchor
+            for the absolutely positioned atmosphere layers, and because it
+            sizes naturally to its content (unlike Layouts.app's flex-1 inner
+            div) the side-dim's `bottom` reaches the true page bottom. --%>
+      <div class="relative">
+        <%!-- ── Page atmosphere (z-index 0) ──
+              Backdrop image fades into base-100 at the top of the page. The
+              side-dim continues the hero's left-anchored darkening down the
+              entire page height so row titles sit on the same calm band.
+              Both escape main's `px-6 py-6` padding and scroll with the page. --%>
+        <div :if={@hero && @hero.backdrop_url} class="page-backdrop" aria-hidden="true">
+          <img src={@hero.backdrop_url} alt="" />
+        </div>
+        <div :if={@hero} class="page-side-dim" aria-hidden="true"></div>
 
-            Hero is wrapped in `row-scroll-hero` so it can later hold
-            multiple featured items that swipe horizontally. Currently a
-            single item — the structural setup is for future per-row
-            keyboard/gamepad navigation. --%>
-      <div
-        :if={@hero}
-        class="-mx-6 -mt-6"
-        data-scroll-row="hero"
-      >
-        <div class="row-scroll row-scroll-hero">
-          <div class="w-full" data-row-item>
-            <HeroCard.hero_card item={@hero} />
+        <%!-- ── Hero (z-index 1) ──
+              Breaks out of main's padding to fill available width. The
+              row-scroll-hero wrapper is structural setup for future multi-item
+              featured carousels; today it holds a single item. --%>
+        <div
+          :if={@hero}
+          class="relative z-[1] -mx-6 -mt-6"
+          data-scroll-row="hero"
+        >
+          <div class="row-scroll row-scroll-hero">
+            <div class="w-full" data-row-item>
+              <HeroCard.hero_card item={@hero} />
+            </div>
           </div>
         </div>
-      </div>
-      <div class={[
-        "relative z-[2] space-y-10",
-        @hero && "-mt-8"
-      ]}>
-        <section :if={@continue_items != []} data-row="continue-watching">
-          <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
-            <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
-              See all →
-            </.link>
-          </div>
-          <ContinueWatchingRow.continue_watching_row items={@continue_items} />
-        </section>
 
-        <section :if={@recently_added != []} data-row="recently-added">
-          <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
-            <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
-              See all →
-            </.link>
-          </div>
-          <PosterRow.poster_row items={@recently_added} />
-        </section>
+        <%!-- ── Content rows (z-index 2) ── --%>
+        <div class={[
+          "relative z-[2] space-y-10",
+          @hero && "-mt-8"
+        ]}>
+          <section :if={@continue_items != []} data-row="continue-watching">
+            <div class="flex items-baseline justify-between mb-3">
+              <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
+              <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
+                See all →
+              </.link>
+            </div>
+            <ContinueWatchingRow.continue_watching_row items={@continue_items} />
+          </section>
 
-        <section :if={@coming_up_items != []} data-row="coming-up">
-          <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
-            <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
-              See all →
-            </.link>
-          </div>
-          <ComingUpRow.coming_up_row items={@coming_up_items} />
-        </section>
+          <section :if={@recently_added != []} data-row="recently-added">
+            <div class="flex items-baseline justify-between mb-3">
+              <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
+              <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
+                See all →
+              </.link>
+            </div>
+            <PosterRow.poster_row items={@recently_added} />
+          </section>
 
-        <%!-- Empty state if everything is empty --%>
-        <div
-          :if={
-            @hero == nil and @continue_items == [] and @coming_up_items == [] and
-              @recently_added == []
-          }
-          class="text-center py-16 text-base-content/50"
-        >
-          <p>Your home page will populate as you add media and watch.</p>
+          <section :if={@coming_up_items != []} data-row="coming-up">
+            <div class="flex items-baseline justify-between mb-3">
+              <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
+              <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
+                See all →
+              </.link>
+            </div>
+            <ComingUpRow.coming_up_row items={@coming_up_items} />
+          </section>
+
+          <%!-- Empty state if everything is empty --%>
+          <div
+            :if={
+              @hero == nil and @continue_items == [] and @coming_up_items == [] and
+                @recently_added == []
+            }
+            class="text-center py-16 text-base-content/50"
+          >
+            <p>Your home page will populate as you add media and watch.</p>
+          </div>
         </div>
       </div>
     </Layouts.app>
