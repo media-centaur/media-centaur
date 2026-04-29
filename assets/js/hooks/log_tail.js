@@ -28,6 +28,16 @@ export const LogTail = {
     this._observer = new MutationObserver(() => this._maintain())
     this._observer.observe(this.el, { childList: true, subtree: false })
 
+    // External re-pin trigger. The Console drawer dispatches this when it
+    // opens, because the systemd journal_list may have been laid out off
+    // the live edge while the panel was hidden by transform — opening the
+    // drawer is the user's signal that they want to see the tail.
+    this._onRepin = () => {
+      this._followTail = true
+      this._pin()
+    }
+    window.addEventListener("mc:log-tail:repin", this._onRepin)
+
     // Pin immediately in case the container was rendered with existing
     // entries (e.g. tab switch replays a snapshot). The second rAF lets
     // layout settle so scrollHeight reflects final row heights.
@@ -39,10 +49,15 @@ export const LogTail = {
     // but re-read defensively so tests and future refactors don't
     // silently regress.
     this._pinTo = this.el.dataset.pinTo === "bottom" ? "bottom" : "top"
+    // Re-pin on server-driven re-renders too. Stream resets (tab switches,
+    // filter changes) replace the children without a separate mutation
+    // event the observer can latch on to before layout finalises.
+    if (this._followTail) this._pin()
   },
 
   destroyed() {
     this.el.removeEventListener("scroll", this._onScroll)
+    window.removeEventListener("mc:log-tail:repin", this._onRepin)
     this._observer?.disconnect()
   },
 

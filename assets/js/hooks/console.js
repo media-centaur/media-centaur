@@ -54,12 +54,17 @@ export const Console = {
 
   // Phoenix LiveView calls `updated` after every server-driven re-render
   // of this element. We detect the closed→open transition and focus the
-  // search input, and open→closed to blur it.
+  // search input, and open→closed to blur it. Opening the drawer also
+  // tells the active LogTail container to re-pin, since its layout may
+  // have drifted while the panel was hidden behind a translateY(-100%).
   updated() {
     const currentState = this._root.dataset.state || "closed"
     if (currentState !== this._previousState) {
       if (currentState === "open") {
-        requestAnimationFrame(() => this._searchInput?.focus())
+        requestAnimationFrame(() => {
+          this._searchInput?.focus()
+          window.dispatchEvent(new CustomEvent("mc:log-tail:repin"))
+        })
       } else {
         this._searchInput?.blur()
       }
