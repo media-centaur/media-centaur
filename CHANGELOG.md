@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.27.4 — 2026-04-29
+
+### Fixed
+
+- **Home page cards are clickable again.** Cards in the Continue
+  Watching, Coming Up, and Recently Added rows on the Home page now
+  open the title when you click them. Previously they rendered as
+  static images that ignored clicks.
+
 ## v0.27.3 — 2026-04-29
 
 ### Changed
