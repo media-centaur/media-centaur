@@ -26,6 +26,15 @@ if (typeof requestAnimationFrame === "undefined") {
   globalThis.requestAnimationFrame = (callback) => callback(0)
 }
 
+// Stub `window` so the hook's mc:log-tail:repin listener registers in tests.
+// The dedicated repin test below replaces this with a recording stub.
+if (typeof globalThis.window === "undefined") {
+  globalThis.window = {
+    addEventListener() {},
+    removeEventListener() {},
+  }
+}
+
 function buildContainer({ scrollTop = 0, scrollHeight = 1000, clientHeight = 200, pinTo } = {}) {
   const listeners = {}
   const el = {
@@ -171,6 +180,79 @@ describe("LogTail — bottom mode (data-pin-to=bottom)", () => {
     container.scrollHeight = 1200
     stubObservers[0].fire()
     expect(container.scrollTop).toBe(1200)
+  })
+})
+
+describe("LogTail — updated() re-pin", () => {
+  test("re-pins to bottom on server-driven update when followTail is true", () => {
+    const container = buildContainer({
+      pinTo: "bottom",
+      scrollTop: 0,
+      scrollHeight: 1000,
+      clientHeight: 200,
+    })
+    const hook = mountedOn(container)
+    // Server re-render replaces the streamed content; scrollHeight grows.
+    container.scrollHeight = 2000
+    hook.updated()
+    expect(container.scrollTop).toBe(2000)
+  })
+
+  test("does NOT re-pin on update when user has scrolled away", () => {
+    const container = buildContainer({
+      pinTo: "bottom",
+      scrollTop: 0,
+      scrollHeight: 1000,
+      clientHeight: 200,
+    })
+    const hook = mountedOn(container)
+    // User scrolled away to read history.
+    container.scrollTop = 500
+    container._fireScroll()
+    expect(hook._followTail).toBe(false)
+    container.scrollHeight = 2000
+    hook.updated()
+    expect(container.scrollTop).toBe(500)
+  })
+})
+
+describe("LogTail — repin window event", () => {
+  test("forces follow-and-pin on mc:log-tail:repin", () => {
+    const events = {}
+    const originalAdd = globalThis.window?.addEventListener
+    const originalRemove = globalThis.window?.removeEventListener
+    globalThis.window = {
+      ...(globalThis.window || {}),
+      addEventListener(type, handler) {
+        events[type] = handler
+      },
+      removeEventListener(type, handler) {
+        if (events[type] === handler) delete events[type]
+      },
+    }
+
+    const container = buildContainer({
+      pinTo: "bottom",
+      scrollTop: 0,
+      scrollHeight: 1000,
+      clientHeight: 200,
+    })
+    const hook = mountedOn(container)
+    // User scrolled away → followTail goes false.
+    container.scrollTop = 500
+    container._fireScroll()
+    expect(hook._followTail).toBe(false)
+
+    // Drawer opens → repin event fires.
+    events["mc:log-tail:repin"]?.()
+    expect(hook._followTail).toBe(true)
+    expect(container.scrollTop).toBe(1000)
+
+    hook.destroyed()
+    expect(events["mc:log-tail:repin"]).toBeUndefined()
+
+    if (originalAdd) globalThis.window.addEventListener = originalAdd
+    if (originalRemove) globalThis.window.removeEventListener = originalRemove
   })
 })
 
