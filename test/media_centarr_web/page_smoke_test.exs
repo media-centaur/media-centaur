@@ -109,29 +109,6 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
   end
 
-  describe "/ with heavy rotation fixtures" do
-    # Seeds a movie with 2 completions so the Heavy Rotation branch renders.
-    # Covers the badge_label render path that empty-state can't reach.
-    setup do
-      movie = create_standalone_movie(%{name: "Heavy Rotation Movie"})
-
-      Enum.each(1..2, fn _n ->
-        create_watch_event(%{
-          entity_type: :movie,
-          movie_id: movie.id,
-          title: movie.name
-        })
-      end)
-
-      :ok
-    end
-
-    test "home page with heavy rotation renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live_within!(conn, "/")
-      assert is_binary(html)
-    end
-  end
-
   describe "/?zone=upcoming with tracked-item fixtures" do
     # Fixture covers every shape the Active card path renders so a
     # render-time crash in any branch trips the smoke. Not data-correctness

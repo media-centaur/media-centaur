@@ -556,11 +556,8 @@ defmodule MediaCentarr.Showcase do
   # Watch history events
   # ---------------------------------------------------------------------------
 
-  # Heavy-Rotation rewatches (≥2 events per entity) plus a long tail of
-  # single events distributed across the last 90 days. Drives:
+  # Watch-history seed for the showcase. Drives:
   #
-  #   - HomeLive Heavy Rotation row — `WatchHistory.top_rewatches(min: 2)`
-  #     returns ≥8 entities so the 8-up poster grid fills with `Nx` badges.
   #   - History page — populated heatmap colour ramp (a busy day with 4+
   #     completions for the deepest cell), a multi-day current-week
   #     streak, and ≥80 events overall so stats read as 3-digit hours.
@@ -577,78 +574,34 @@ defmodule MediaCentarr.Showcase do
       |> Enum.flat_map(& &1.episodes)
       |> Enum.filter(& &1.id)
 
-    rewatch_events = seed_rewatch_events!(movies_with_id, episodes_with_id, now)
     long_tail_events = seed_long_tail_events!(movies_with_id, episodes_with_id, now)
     streak_events = seed_streak_events!(movies_with_id, now)
     busy_day_events = seed_busy_day_events!(movies_with_id, episodes_with_id, now)
 
-    rewatch_events + long_tail_events + streak_events + busy_day_events
+    long_tail_events + streak_events + busy_day_events
   end
 
-  # Heavy Rotation candidates — 8 entities (6 movies + 2 episodes) with
-  # 4..10 events each. Counts vary so the `Nx` badges read as a real
-  # rewatch distribution rather than every card showing "2×". Higher
-  # ends (10×) are realistic for short-form content (Blender open
-  # movies are ~10 min — comfortable to rewatch on a loop).
-  @heavy_rotation_movie_counts [10, 8, 6, 5, 4, 4]
-  @heavy_rotation_episode_counts [5, 4]
-
-  defp seed_rewatch_events!(movies, episodes, now) do
+  # Long tail — every movie + every episode gets 5 events spread across
+  # the last ~90 days, combined with the busy-day and streak seeds the
+  # showcase comfortably clears 80 events across many distinct days.
+  defp seed_long_tail_events!(movies, episodes, now) do
     movie_count =
       movies
-      |> Enum.zip(@heavy_rotation_movie_counts)
-      |> Enum.flat_map(fn {movie, count} ->
-        for event_idx <- 0..(count - 1) do
-          create_movie_event!(
-            movie,
-            DateTime.add(now, -(7 + event_idx * 9) * 86_400, :second),
-            5400.0 + event_idx * 60
-          )
-        end
-      end)
-      |> length()
-
-    episode_count =
-      episodes
-      |> Enum.zip(@heavy_rotation_episode_counts)
-      |> Enum.flat_map(fn {episode, count} ->
-        for event_idx <- 0..(count - 1) do
-          create_episode_event!(
-            episode,
-            DateTime.add(now, -(10 + event_idx * 11) * 86_400, :second),
-            1800.0
-          )
-        end
-      end)
-      |> length()
-
-    movie_count + episode_count
-  end
-
-  # Long tail — every remaining movie + remaining episodes get 3 events
-  # each. Combined with heavy-rotation rewatches the seed comfortably
-  # clears 80 events spread across many distinct days.
-  defp seed_long_tail_events!(movies, episodes, now) do
-    tail_movies = Enum.drop(movies, length(@heavy_rotation_movie_counts))
-    tail_episodes = Enum.drop(episodes, length(@heavy_rotation_episode_counts))
-
-    movie_count =
-      tail_movies
       |> Enum.with_index()
       |> Enum.flat_map(fn {movie, movie_idx} ->
-        for event_idx <- 0..2 do
-          day_offset = 14 + movie_idx * 5 + event_idx * 13
+        for event_idx <- 0..4 do
+          day_offset = 14 + movie_idx * 5 + event_idx * 9
           create_movie_event!(movie, DateTime.add(now, -day_offset * 86_400, :second), 5400.0)
         end
       end)
       |> length()
 
     episode_count =
-      tail_episodes
+      episodes
       |> Enum.with_index()
       |> Enum.flat_map(fn {episode, episode_idx} ->
-        for event_idx <- 0..2 do
-          day_offset = 22 + episode_idx * 7 + event_idx * 17
+        for event_idx <- 0..4 do
+          day_offset = 22 + episode_idx * 7 + event_idx * 11
           create_episode_event!(episode, DateTime.add(now, -day_offset * 86_400, :second), 1800.0)
         end
       end)
