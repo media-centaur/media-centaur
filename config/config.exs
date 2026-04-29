@@ -39,11 +39,14 @@ config :media_centarr, MediaCentarrWeb.Endpoint,
 config :media_centarr, Oban,
   engine: Oban.Engines.Lite,
   repo: MediaCentarr.Repo,
-  # acquisition: Prowlarr search + download-client grabs are I/O-bound
-  # (HTTP) and not rate-limited by Oban's side, so a higher ceiling keeps
-  # the queue from becoming the bottleneck.
+  # acquisition: Prowlarr search fans out to every configured indexer in
+  # parallel, so the real concurrency is `acquisition * indexers`. With a
+  # typical 6-indexer setup, 3 workers = 18 simultaneous outbound HTTP
+  # requests, which a VPN-tunnelled Prowlarr can sustain. Going higher
+  # caused tail latencies of 30-45s per search (most of it queueing) and
+  # tripped the per-search timeout for whole-season grabs.
   # self_update: serialized because it writes to the install dir on disk.
-  queues: [acquisition: 10, self_update: 1],
+  queues: [acquisition: 3, self_update: 1],
   plugins: [
     # Offset minute (17) so every install doesn't hit the GitHub API
     # on the hour — spreads requests across the 60s window and keeps
