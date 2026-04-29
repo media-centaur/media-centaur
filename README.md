@@ -26,16 +26,15 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 <div align="center">
 
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home.png"><img src="docs-site/assets/screenshots/home.png" alt="Home — cinematic landing page with Continue Watching, Coming Up, and Heavy Rotation" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home.png"><img src="docs-site/assets/screenshots/home.png" alt="Home — cinematic landing page with Continue Watching, Coming Up, and Recently Added" width="48%"></a>
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/library-grid.png"><img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="48%"></a>
 
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/library-detail-movie.png"><img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%"></a>
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home-coming-up.png"><img src="docs-site/assets/screenshots/home-coming-up.png" alt="Coming Up — release cards with live grab-status badges" width="48%"></a>
 
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home-heavy-rotation.png"><img src="docs-site/assets/screenshots/home-heavy-rotation.png" alt="Heavy Rotation — your most-rewatched titles with play-count badges" width="48%"></a>
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/upcoming-calendar.png"><img src="docs-site/assets/screenshots/upcoming-calendar.png" alt="Upcoming — calendar of tracked releases plus active-shows panel" width="48%"></a>
-
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/history-heatmap.png"><img src="docs-site/assets/screenshots/history-heatmap.png" alt="Watch history — stats and 52-week activity heatmap" width="48%"></a>
+
 <a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/download-activity.png"><img src="docs-site/assets/screenshots/download-activity.png" alt="Downloads — Activity tab showing the full grab lifecycle" width="48%"></a>
 
 </div>

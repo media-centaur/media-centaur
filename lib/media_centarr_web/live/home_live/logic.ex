@@ -86,17 +86,6 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
     end)
   end
 
-  @doc "Shape rewatch rows + entity lookup map into PosterRow items with Nx badges."
-  @spec heavy_rotation_items([map()], %{{atom(), term()} => map()}) :: [map()]
-  def heavy_rotation_items(rewatch_rows, entity_lookup) do
-    Enum.flat_map(rewatch_rows, fn rewatch ->
-      case Map.get(entity_lookup, {rewatch.entity_type, rewatch.entity_id}) do
-        nil -> []
-        entity -> [Map.put(entity, :badge_label, "#{rewatch.count}×")]
-      end
-    end)
-  end
-
   @doc """
   Shape a single Library entity into the HeroCard item map. Returns nil
   for nil input.
@@ -175,7 +164,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   Map an inbound PubSub message to the home page sections that need reloading.
   Returns `[]` for messages the home page does not care about.
 
-  Sections: `:continue_watching`, `:coming_up`, `:recently_added`, `:heavy_rotation`.
+  Sections: `:continue_watching`, `:coming_up`, `:recently_added`.
   Hero is selected once per session and is intentionally not reloaded.
   """
   @spec section_reloaders(term()) :: [atom()]
@@ -184,7 +173,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   def section_reloaders({:item_removed, _tmdb_id, _tmdb_type}), do: [:coming_up]
   def section_reloaders({:release_ready, _item, _release}), do: [:coming_up]
 
-  def section_reloaders({:watch_event_created, _event}), do: [:heavy_rotation, :continue_watching]
+  def section_reloaders({:watch_event_created, _event}), do: [:continue_watching]
 
   def section_reloaders(_), do: []
 end

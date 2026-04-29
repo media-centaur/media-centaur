@@ -33,10 +33,10 @@ const BEVERLY_HILLBILLIES_ID = process.env.BEVERLY_HILLBILLIES_ID || ""
 /** @type {Stop[]} */
 const TOUR = [
   // ─── Home ────────────────────────────────────────────────────────────
-  // The cinematic landing page — five rows of curated content. Each
-  // section is gated by `:if` on assigned data, so the seeded showcase
-  // DB needs Continue Watching + Coming Up + Heavy Rotation to be
-  // populated for these shots to render. See lib/media_centarr/showcase.ex.
+  // The cinematic landing page. Each section is gated by `:if` on
+  // assigned data, so the seeded showcase DB needs Continue Watching
+  // and Coming Up populated for these shots to render. See
+  // lib/media_centarr/showcase.ex.
   {
     name: "home",
     url: "/",
@@ -50,18 +50,6 @@ const TOUR = [
     action: async (page) => {
       await page
         .locator("section[data-row='coming-up']")
-        .scrollIntoViewIfNeeded({ timeout: 5_000 })
-        .catch(() => {})
-    },
-    settleMs: 400,
-  },
-  {
-    name: "home-heavy-rotation",
-    url: "/",
-    waitFor: "section[data-row='heavy-rotation']",
-    action: async (page) => {
-      await page
-        .locator("section[data-row='heavy-rotation']")
         .scrollIntoViewIfNeeded({ timeout: 5_000 })
         .catch(() => {})
     },

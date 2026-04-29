@@ -10,8 +10,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     {:ok, _view, html} = live(conn, "/")
     # The page mounts and renders content — either section headings (when
     # there is data) or the empty-state message (when the test DB is empty).
-    assert html =~ "Continue Watching" or html =~ "Heavy Rotation" or
-             html =~ "Your home page will populate"
+    assert html =~ "Continue Watching" or html =~ "Your home page will populate"
   end
 
   test "section headings are visible when sections have data", %{conn: conn} do
@@ -48,7 +47,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
       Process.sleep(600)
 
-      assert render(view) =~ "Continue Watching" or render(view) =~ "Heavy Rotation" or
+      assert render(view) =~ "Continue Watching" or
                render(view) =~ "Your home page will populate"
     end
   end
@@ -93,8 +92,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       # Unknown zone params are ignored — no redirect, page mounts in place
       {:ok, _view, html} = live(conn, "/?zone=continue")
 
-      assert html =~ "Continue Watching" or html =~ "Heavy Rotation" or
-               html =~ "Your home page will populate"
+      assert html =~ "Continue Watching" or html =~ "Your home page will populate"
     end
   end
 end
