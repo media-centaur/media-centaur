@@ -6,7 +6,13 @@ defmodule MediaCentarr.Watcher.Supervisor do
   per directory from `Config.get(:watch_dirs)`.
   """
   use Supervisor
+  import Ecto.Query
   require MediaCentarr.Log, as: Log
+
+  alias MediaCentarr.Library.WatchedFile
+  alias MediaCentarr.Repo
+  alias MediaCentarr.Topics
+  alias MediaCentarr.Watcher.KnownFile
 
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
@@ -239,6 +245,47 @@ defmodule MediaCentarr.Watcher.Supervisor do
       end)
 
     {:ok, Enum.sum(results)}
+  end
+
+  @doc """
+  Re-emits `{:file_detected, ...}` events for every present file in
+  `watcher_files` that has no link in `library_watched_files`.
+
+  Recovery hook for stranded files — Discovery can drop a message when
+  a downstream service (TMDB, network) fails transiently, and PubSub
+  has no replay. Calling this after the underlying problem is resolved
+  (e.g. the user updates an invalid TMDB API key) feeds those files
+  back into the pipeline. Idempotent: Discovery's `already_linked?`
+  check filters anything that has since been ingested.
+
+  Returns `{:ok, count}` where `count` is the number of events emitted.
+  """
+  @spec rescan_unlinked() :: {:ok, non_neg_integer()}
+  def rescan_unlinked do
+    linked_paths = from(l in WatchedFile, select: l.file_path)
+
+    rows =
+      Repo.all(
+        from k in KnownFile,
+          where: k.state == :present and k.file_path not in subquery(linked_paths),
+          select: %{path: k.file_path, watch_dir: k.watch_dir}
+      )
+
+    Enum.each(rows, fn row ->
+      Phoenix.PubSub.broadcast(
+        MediaCentarr.PubSub,
+        Topics.pipeline_input(),
+        {:file_detected, %{path: row.path, watch_dir: row.watch_dir}}
+      )
+    end)
+
+    count = length(rows)
+
+    if count > 0 do
+      Log.info(:watcher, "rescan_unlinked re-emitted #{count} stranded file_detected events")
+    end
+
+    {:ok, count}
   end
 
   @doc """

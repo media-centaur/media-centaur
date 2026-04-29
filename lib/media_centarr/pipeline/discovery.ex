@@ -58,12 +58,34 @@ defmodule MediaCentarr.Pipeline.Discovery do
         Broadway.Message.update_data(message, fn _ -> payload end)
 
       {:error, reason} ->
-        Log.warning(
-          :pipeline,
-          "discovery — failed for #{Path.basename(payload.file_path)}: #{inspect(reason)}"
-        )
-
+        log_failure(reason, payload.file_path)
         Broadway.Message.failed(message, reason)
+    end
+  end
+
+  @doc """
+  True for TMDB error reasons that indicate an authentication problem
+  (HTTP 401 / 403) — operators see these as `:tmdb` error log entries
+  instead of buried `:pipeline` warnings, so a rejected API key is
+  immediately obvious in the Console drawer.
+  """
+  @spec auth_failure?(term()) :: boolean()
+  def auth_failure?({:http_error, status, _}) when status in [401, 403], do: true
+  def auth_failure?(_), do: false
+
+  defp log_failure(reason, file_path) do
+    basename = Path.basename(file_path)
+
+    if auth_failure?(reason) do
+      {:http_error, status, _} = reason
+
+      Log.error(
+        :tmdb,
+        "TMDB API key rejected (HTTP #{status}) — discovery failed for #{basename}; " <>
+          "fix Settings → TMDB and the file will retry on the next key save or BEAM restart"
+      )
+    else
+      Log.warning(:pipeline, "discovery — failed for #{basename}: #{inspect(reason)}")
     end
   end
 

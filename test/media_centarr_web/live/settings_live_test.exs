@@ -61,6 +61,53 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     assert view |> element("[data-page-behavior]") |> render() =~ "settings"
   end
 
+  describe "save_tmdb retry hook" do
+    # Saving a new TMDB key should re-emit `:file_detected` for any
+    # watcher_files row that has no library link yet — recovery from
+    # the silent-drop bug where a transient TMDB auth failure left
+    # files stranded between watcher detection and pipeline ingestion.
+    alias MediaCentarr.Topics
+    alias MediaCentarr.Watcher.FilePresence
+
+    test "re-emits file_detected for stranded files when key is updated", %{conn: conn} do
+      stranded_path = "/tmp/test/save-tmdb-stranded.mkv"
+      watch_dir = "/tmp/test"
+      FilePresence.record_file(stranded_path, watch_dir)
+
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.pipeline_input())
+
+      {:ok, view, _html} = live(conn, ~p"/settings?section=tmdb")
+
+      view
+      |> form("form[phx-submit='save_tmdb']", %{
+        "tmdb_api_key" => "freshly-rotated-key-123",
+        "auto_approve_threshold" => "0.85"
+      })
+      |> render_submit()
+
+      assert_receive {:file_detected, %{path: ^stranded_path, watch_dir: ^watch_dir}}, 1_500
+    end
+
+    test "no re-emit when the key field is left blank (no value change)", %{conn: conn} do
+      stranded_path = "/tmp/test/save-tmdb-noop.mkv"
+      watch_dir = "/tmp/test"
+      FilePresence.record_file(stranded_path, watch_dir)
+
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.pipeline_input())
+
+      {:ok, view, _html} = live(conn, ~p"/settings?section=tmdb")
+
+      view
+      |> form("form[phx-submit='save_tmdb']", %{
+        "tmdb_api_key" => "",
+        "auto_approve_threshold" => "0.85"
+      })
+      |> render_submit()
+
+      refute_receive {:file_detected, _}, 500
+    end
+  end
+
   describe "image repair button" do
     alias MediaCentarr.Library
 

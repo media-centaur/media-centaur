@@ -4,6 +4,24 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.27.1 — 2026-04-29
+
+### Fixed
+
+- **Stranded files now self-recover.** A transient TMDB or network
+  failure during ingestion used to drop affected files silently —
+  the watcher had a row, but the file never reached the library and
+  no review queue entry was created. The pipeline now re-emits these
+  stranded files in two situations: on every BEAM start as part of
+  the existing reconcile pass, and right after you save a new TMDB
+  API key. Update a rejected key and stranded grabs reprocess on
+  their own; no remsh required.
+
+- **Rejected TMDB API keys are visible in the Console.** A 401 / 403
+  from TMDB now logs at error level under the `:tmdb` component
+  instead of being buried as a generic `:pipeline` warning, so a
+  bad or expired key is immediately obvious in the Console drawer.
+
 ## v0.27.0 — 2026-04-29
 
 ### Removed
