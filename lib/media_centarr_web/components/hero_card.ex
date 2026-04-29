@@ -55,22 +55,12 @@ defmodule MediaCentarrWeb.Components.HeroCard do
     <section
       :if={@item}
       data-component="hero"
-      class="hero-fluid relative overflow-hidden bg-base-300"
+      class="hero-fluid relative overflow-hidden"
     >
-      <img
-        :if={@item.backdrop_url}
-        src={@item.backdrop_url}
-        class="absolute inset-0 w-full h-full object-cover object-top"
-      />
-      <%!-- Two-axis gradient: vertical anchors lower 70% in dark, horizontal
-            darkens the left third where the title sits. Sky-heavy backdrops
-            need both axes — single-axis fades leave the upper band too bright. --%>
-      <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent"></div>
-      <div class="absolute inset-0 bg-gradient-to-r from-black/55 via-transparent to-transparent">
-      </div>
-      <%!-- Fade-to-base bottom strip: blends the hero into the row container
-            below it so the first row appears to emerge from the billboard. --%>
-      <div class="absolute inset-x-0 bottom-0 h-32 hero-fade-bottom"></div>
+      <%!-- No own scrims: page-level atmosphere (`.page-side-dim` in
+            HomeLive) provides both the vertical fade-to-constant-dim and
+            the left-side darkening, so the effect doesn't end at the
+            hero's edge. --%>
       <div class="absolute inset-x-0 bottom-0 px-12 lg:px-16 pb-12 max-w-3xl flex flex-col gap-3">
         <div
           :if={@item.year || @item.runtime || @item.genre_label}

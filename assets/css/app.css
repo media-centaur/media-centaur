@@ -798,15 +798,73 @@ body:has(.modal-backdrop[data-state="open"]) {
   min-height: 400px;
 }
 
-/* Fade-to-base strip at the bottom of the hero — blends the hero into the
-   row container below it so the first row appears to emerge from the
-   billboard rather than sit beneath it (Netflix signature). */
-.hero-fade-bottom {
-  background: linear-gradient(
-    to top,
-    var(--color-base-100) 0%,
-    transparent 100%
-  );
+/* ── Page-level backdrop ──
+   Absolute-positioned, anchored to the top of main. Scrolls with the page
+   (not fixed) so users scroll past it into solid base-100 below. Negative
+   offsets escape main's `px-6 py-6` padding so the backdrop reaches main's
+   full width. Sits below page content (z 1+) but above the body gradient. */
+.page-backdrop {
+  position: absolute;
+  top: -1.5rem;
+  left: -1.5rem;
+  right: -1.5rem;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.page-backdrop img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* Fade from the image (clear at top) into fully opaque base-100 at the
+   bottom, so when the backdrop ends visually the page reads as solid bg. */
+.page-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 45%,
+      oklch(from var(--color-base-100) l c h / 0.55) 75%,
+      var(--color-base-100) 100%
+    );
+}
+
+/* Page-level atmosphere: combines two fixed-viewport scrims.
+   - Horizontal: left-darkening gradient (continues the hero's original
+     left-side weighting across the full page).
+   - Vertical: transparent at the top so the backdrop image reads, then
+     fades to a constant dim that holds unchanged all the way down. The
+     vertical scrim used to live inside HeroCard, where it ended at the
+     hero's bottom edge — moving it here removes the visible cliff. */
+.page-side-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to right,
+      oklch(0% 0 0 / 0.50) 0%,
+      transparent 35%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 35%,
+      oklch(0% 0 0 / 0.55) 70%,
+      oklch(0% 0 0 / 0.55) 100%
+    );
 }
 
 /* ── Netflix-flavored card hover ──
