@@ -70,6 +70,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert item.subtitle == "S03 · E10"
       assert item.progress_pct == 47
       assert item.backdrop_url == "/img/1/backdrop.jpg"
+      assert item.url == "/library?selected=1&autoplay=1"
     end
 
     test "returns empty list for empty input" do
@@ -99,6 +100,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert item.subtitle =~ "S04E01"
       assert item.badge.label == "Grabbed"
       assert item.badge.variant == :success
+      assert item.url == "/upcoming"
     end
 
     test "returns empty for empty input" do
@@ -116,6 +118,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert item.name == "Sample Movie"
       assert item.year == "2023"
       assert item.poster_url == "/img/1/poster.jpg"
+      assert item.url == "/library?selected=1"
     end
   end
 
