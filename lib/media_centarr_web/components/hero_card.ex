@@ -20,6 +20,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
       :genre_label,
       :overview,
       :backdrop_url,
+      :logo_url,
       :play_url,
       :detail_url
     ]
@@ -31,6 +32,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
       :genre_label,
       :overview,
       :backdrop_url,
+      :logo_url,
       :play_url,
       :detail_url
     ]
@@ -43,6 +45,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
             genre_label: String.t() | nil,
             overview: String.t() | nil,
             backdrop_url: String.t() | nil,
+            logo_url: String.t() | nil,
             play_url: String.t(),
             detail_url: String.t()
           }
@@ -61,10 +64,25 @@ defmodule MediaCentarrWeb.Components.HeroCard do
             HomeLive) provides both the vertical fade-to-constant-dim and
             the left-side darkening, so the effect doesn't end at the
             hero's edge. --%>
-      <div class="absolute inset-x-0 bottom-0 px-12 lg:px-16 pb-12 max-w-3xl flex flex-col gap-3">
+      <div class="absolute inset-y-0 left-0 px-12 lg:px-16 max-w-2xl flex flex-col justify-center gap-3">
+        <%!-- Logo replaces the title text when present. The PNG is sized by
+              max-height (preserves aspect) and capped on width so very wide
+              logos don't push past the hero's text column. --%>
+        <img
+          :if={@item.logo_url}
+          src={@item.logo_url}
+          alt={@item.name}
+          class="max-h-44 max-w-md object-contain object-left drop-shadow-lg"
+        />
+        <h1
+          :if={!@item.logo_url}
+          class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white drop-shadow leading-[1.05] tracking-tight"
+        >
+          {@item.name}
+        </h1>
         <div
           :if={@item.year || @item.runtime || @item.genre_label}
-          class="text-sm text-white/80 flex flex-wrap gap-2"
+          class="text-base text-white/80 flex flex-wrap gap-2"
         >
           <span :if={@item.year}>{@item.year}</span>
           <span :if={@item.year && @item.genre_label} class="text-white/40">·</span>
@@ -74,12 +92,9 @@ defmodule MediaCentarrWeb.Components.HeroCard do
           </span>
           <span :if={@item.runtime}>{@item.runtime}</span>
         </div>
-        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white drop-shadow leading-[1.05] tracking-tight">
-          {@item.name}
-        </h1>
         <p
           :if={@item.overview}
-          class="text-white/85 max-w-2xl text-base lg:text-lg leading-relaxed line-clamp-3"
+          class="text-white/85 max-w-2xl text-lg lg:text-xl leading-relaxed line-clamp-5"
         >
           {@item.overview}
         </p>
@@ -87,7 +102,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
           <.link navigate={@item.play_url} class="btn btn-primary btn-lg">
             <.icon name="hero-play-mini" class="size-5" /> Play
           </.link>
-          <.link navigate={@item.detail_url} class="btn btn-soft btn-primary btn-lg">
+          <.link navigate={@item.detail_url} class="btn btn-soft btn-primary btn-lg text-white">
             <.icon name="hero-information-circle-mini" class="size-5" /> Details
           </.link>
         </div>
