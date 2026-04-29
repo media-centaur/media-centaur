@@ -168,12 +168,6 @@ defmodule MediaCentarr.WatchHistory do
   def rewatch_count_map(type), do: Rewatch.count_per_entity(type)
 
   @doc """
-  Most-rewatched entities. See `Rewatch.top_rewatches/1` for options.
-  """
-  @spec top_rewatches(keyword()) :: [Rewatch.rewatch_row()]
-  def top_rewatches(opts \\ []), do: Rewatch.top_rewatches(opts)
-
-  @doc """
   Delete a WatchEvent from history.
 
   By default the linked `WatchProgress` is left untouched (use `remove from

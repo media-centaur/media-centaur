@@ -3,9 +3,8 @@ defmodule MediaCentarrWeb.HomeLive do
   Cinematic landing page — the app's root route (`/`).
 
   Composes data from Library, ReleaseTracking, and WatchHistory contexts:
-  hero card + Continue Watching + Coming Up + Recently Added +
-  Heavy Rotation. Pure assembly lives in `MediaCentarrWeb.HomeLive.Logic`
-  per ADR-030.
+  hero card + Continue Watching + Coming Up + Recently Added. Pure
+  assembly lives in `MediaCentarrWeb.HomeLive.Logic` per ADR-030.
   """
   use MediaCentarrWeb, :live_view
 
@@ -33,7 +32,6 @@ defmodule MediaCentarrWeb.HomeLive do
       |> assign(:continue_timer, nil)
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
-      |> assign(:heavy_rotation_timer, nil)
       |> assign_all()
 
     {:ok, socket}
@@ -98,21 +96,11 @@ defmodule MediaCentarrWeb.HomeLive do
           <PosterRow.poster_row items={@recently_added} />
         </section>
 
-        <section :if={@heavy_rotation != []} data-row="heavy-rotation">
-          <div class="flex items-baseline justify-between mb-3">
-            <h2 class="text-xl font-semibold tracking-tight">Heavy Rotation</h2>
-            <.link navigate="/history" class="text-sm text-base-content/60 hover:text-primary">
-              See all →
-            </.link>
-          </div>
-          <PosterRow.poster_row items={@heavy_rotation} />
-        </section>
-
         <%!-- Empty state if everything is empty --%>
         <div
           :if={
             @hero == nil and @continue_items == [] and @coming_up_items == [] and
-              @recently_added == [] and @heavy_rotation == []
+              @recently_added == []
           }
           class="text-center py-16 text-base-content/50"
         >
@@ -157,10 +145,6 @@ defmodule MediaCentarrWeb.HomeLive do
     {:noreply, assign_recently_added(socket)}
   end
 
-  def handle_info(:reload_heavy_rotation, socket) do
-    {:noreply, assign_heavy_rotation(socket)}
-  end
-
   def handle_info(message, socket) do
     socket =
       message
@@ -179,9 +163,6 @@ defmodule MediaCentarrWeb.HomeLive do
   defp schedule_section_reload(:recently_added, socket),
     do: debounce(socket, :recently_added_timer, :reload_recently_added, 500)
 
-  defp schedule_section_reload(:heavy_rotation, socket),
-    do: debounce(socket, :heavy_rotation_timer, :reload_heavy_rotation, 500)
-
   defp assign_all(socket) do
     today = Date.utc_today()
 
@@ -190,7 +171,6 @@ defmodule MediaCentarrWeb.HomeLive do
     |> assign_continue_watching()
     |> assign_coming_up(today)
     |> assign_recently_added()
-    |> assign_heavy_rotation()
   end
 
   defp assign_hero(socket, today) do
@@ -208,11 +188,6 @@ defmodule MediaCentarrWeb.HomeLive do
 
   defp assign_recently_added(socket) do
     assign(socket, :recently_added, Logic.recently_added_items(load_recently_added()))
-  end
-
-  defp assign_heavy_rotation(socket) do
-    {rewatches, entity_lookup} = load_heavy_rotation()
-    assign(socket, :heavy_rotation, Logic.heavy_rotation_items(rewatches, entity_lookup))
   end
 
   # --- Data loaders ---
@@ -261,13 +236,6 @@ defmodule MediaCentarrWeb.HomeLive do
   defp grab_status_atom(_), do: :scheduled
 
   defp load_recently_added, do: Library.list_recently_added(limit: 30)
-
-  defp load_heavy_rotation do
-    rewatches = WatchHistory.top_rewatches(min: 2, limit: 30)
-    refs = Enum.map(rewatches, fn rewatch -> {rewatch.entity_type, rewatch.entity_id} end)
-    entity_lookup = Library.lookup_entities_for_display(refs)
-    {rewatches, entity_lookup}
-  end
 
   defp load_hero_candidates, do: Library.list_hero_candidates(limit: 12)
 end

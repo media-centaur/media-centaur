@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.27.0 — 2026-04-29
+
+### Removed
+
+- **Heavy Rotation row.** The home page no longer shows a "most
+  rewatched" row of poster cards with `Nx` badges. Continue Watching,
+  Coming Up, and Recently Added remain. Rewatch counts still appear as
+  badges on the [Watch History](/history) page.
+
 ## v0.26.2 — 2026-04-29
 
 ### Fixed

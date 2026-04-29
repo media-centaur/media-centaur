@@ -880,8 +880,8 @@ body:has(.modal-backdrop[data-state="open"]) {
 @media (min-width: 1280px) { .row-scroll-backdrop { --cols: 7; } }
 @media (min-width: 1536px) { .row-scroll-backdrop { --cols: 9; } }
 
-/* 2:3 poster rows — Recently Added, Heavy Rotation. Denser column counts
-   because portrait posters are narrower than backdrop cards. */
+/* 2:3 poster rows — Recently Added. Denser column counts because
+   portrait posters are narrower than backdrop cards. */
 .row-scroll-poster { --cols: 4; }
 @media (min-width: 640px)  { .row-scroll-poster { --cols: 6; } }
 @media (min-width: 768px)  { .row-scroll-poster { --cols: 7; } }

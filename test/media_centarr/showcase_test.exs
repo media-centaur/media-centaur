@@ -145,12 +145,10 @@ defmodule MediaCentarr.ShowcaseTest do
     end
   end
 
-  describe "Heavy Rotation + History seed shape" do
-    # HomeLive's Heavy Rotation row queries `WatchHistory.top_rewatches(min: 2,
-    # limit: 8)` — entities with ≥2 completion events. The History page's
-    # heatmap, stats, and rewatch badges all need a populated event log
-    # spread across many days, with episodes (not just movies) so the
-    # type-filter chips look populated.
+  describe "History seed shape" do
+    # The History page's heatmap, stats, and rewatch badges all need a
+    # populated event log spread across many days, with episodes (not
+    # just movies) so the type-filter chips look populated.
 
     test "writes ≥80 watch_history_events spanning movies and episodes" do
       Showcase.seed!()
@@ -161,16 +159,6 @@ defmodule MediaCentarr.ShowcaseTest do
       types = events |> Enum.map(& &1.entity_type) |> Enum.uniq() |> Enum.sort()
       assert :movie in types, "expected movie events in history"
       assert :episode in types, "expected episode events in history (Videos filter chip)"
-    end
-
-    test "produces at least 8 entities with ≥2 completion events for Heavy Rotation" do
-      Showcase.seed!()
-
-      rewatches = WatchHistory.top_rewatches(min: 2, limit: 16)
-      assert length(rewatches) >= 8
-
-      counts = Enum.map(rewatches, & &1.count)
-      assert Enum.max(counts) >= 3, "expected at least one entity with 3+ rewatches for badge variety"
     end
 
     test "spreads completion events across many days for the heatmap colour ramp" do

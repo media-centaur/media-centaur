@@ -119,39 +119,6 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
     end
   end
 
-  describe "heavy_rotation_items/2" do
-    test "shapes rewatch rows + lookup into PosterRow items with badges" do
-      rewatches = [
-        %{entity_type: :movie, entity_id: "m1", count: 3, last_watched_at: ~U[2026-04-27 12:00:00Z]},
-        %{entity_type: :episode, entity_id: "e1", count: 5, last_watched_at: ~U[2026-04-26 12:00:00Z]}
-      ]
-
-      lookup = %{
-        {:movie, "m1"} => %{id: "m1", name: "Sample Movie", year: "2023", poster_url: "/img/m1.jpg"},
-        {:episode, "e1"} => %{id: "e1", name: "Sample Show", year: "2024", poster_url: "/img/e1.jpg"}
-      }
-
-      [first, second] = Logic.heavy_rotation_items(rewatches, lookup)
-
-      assert first.name == "Sample Movie"
-      assert first.badge_label == "3×"
-      assert second.name == "Sample Show"
-      assert second.badge_label == "5×"
-    end
-
-    test "drops entries with no matching entity" do
-      rewatches = [
-        %{entity_type: :movie, entity_id: "missing", count: 4, last_watched_at: ~U[2026-04-27 12:00:00Z]}
-      ]
-
-      assert Logic.heavy_rotation_items(rewatches, %{}) == []
-    end
-
-    test "returns empty list for empty rewatches" do
-      assert Logic.heavy_rotation_items([], %{}) == []
-    end
-  end
-
   describe "hero_card_item/1" do
     test "shapes a Library entity into the hero item map" do
       entity = %{
@@ -200,10 +167,9 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
                [:coming_up]
     end
 
-    test "watch_event_created reloads heavy_rotation and continue_watching" do
-      sections = Logic.section_reloaders({:watch_event_created, %{id: "event-1"}})
-      assert :heavy_rotation in sections
-      assert :continue_watching in sections
+    test "watch_event_created reloads continue_watching only" do
+      assert Logic.section_reloaders({:watch_event_created, %{id: "event-1"}}) ==
+               [:continue_watching]
     end
 
     test "unknown messages route to nothing" do

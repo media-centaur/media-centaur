@@ -961,25 +961,6 @@ defmodule MediaCentarr.Library do
     Enum.take(movies ++ tv_series ++ movie_series ++ video_objects, limit)
   end
 
-  @doc """
-  Look up display info for a list of entities given their types and IDs.
-  Used by HomeLive's Heavy Rotation row to enrich rewatch counts.
-
-  Takes a list of `{entity_type, entity_id}` tuples where `entity_type` is
-  one of `:movie`, `:episode`, or `:video_object`. Returns a map keyed by
-  `{entity_type, entity_id}` with values `%{id, name, year, poster_url}`.
-
-  For episodes, the display name and poster come from the parent TV series.
-  Missing or unknown IDs are silently omitted from the result.
-  """
-  @spec lookup_entities_for_display([{atom(), term()}]) :: %{{atom(), term()} => map()}
-  def lookup_entities_for_display(refs) do
-    refs
-    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-    |> Enum.flat_map(fn {type, ids} -> fetch_display_records(type, ids) end)
-    |> Map.new()
-  end
-
   # --- Private fetchers for list_hero_candidates ---
 
   defp fetch_hero_candidates_movies(limit) do
@@ -1416,92 +1397,6 @@ defmodule MediaCentarr.Library do
   end
 
   defp progress_episode_label(_entity, _summary), do: nil
-
-  # --- Private fetchers for lookup_entities_for_display ---
-
-  # Movies: batch-query by IDs, preload images, shape into display maps.
-  defp fetch_display_records(:movie, ids) do
-    Movie
-    |> where([m], m.id in ^ids)
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(fn movie ->
-      poster_url =
-        case Enum.find(movie.images || [], &(&1.role == "poster")) do
-          %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
-          _ -> nil
-        end
-
-      year =
-        case movie.date_published do
-          <<year::binary-size(4), _::binary>> -> year
-          _ -> nil
-        end
-
-      {{:movie, movie.id}, %{id: movie.id, name: movie.name, year: year, poster_url: poster_url}}
-    end)
-  end
-
-  # Episodes: batch-query by IDs, join through season → tv_series for display
-  # name and poster. The TV series name + poster is more recognisable than the
-  # individual episode name on a small poster card.
-  defp fetch_display_records(:episode, ids) do
-    Episode
-    |> where([episode], episode.id in ^ids)
-    |> Repo.all()
-    |> Repo.preload(season: [tv_series: :images])
-    |> Enum.map(fn episode ->
-      tv_series = episode.season && episode.season.tv_series
-
-      {name, year, poster_url} =
-        if tv_series do
-          poster =
-            case Enum.find(tv_series.images || [], &(&1.role == "poster")) do
-              %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
-              _ -> nil
-            end
-
-          year =
-            case tv_series.date_published do
-              <<year_str::binary-size(4), _::binary>> -> year_str
-              _ -> nil
-            end
-
-          {tv_series.name, year, poster}
-        else
-          {episode.name, nil, nil}
-        end
-
-      {{:episode, episode.id}, %{id: episode.id, name: name, year: year, poster_url: poster_url}}
-    end)
-  end
-
-  # VideoObjects: batch-query by IDs, preload images, shape into display maps.
-  defp fetch_display_records(:video_object, ids) do
-    VideoObject
-    |> where([video_object], video_object.id in ^ids)
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(fn video_object ->
-      poster_url =
-        case Enum.find(video_object.images || [], &(&1.role == "poster")) do
-          %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
-          _ -> nil
-        end
-
-      year =
-        case video_object.date_published do
-          <<year::binary-size(4), _::binary>> -> year
-          _ -> nil
-        end
-
-      {{:video_object, video_object.id},
-       %{id: video_object.id, name: video_object.name, year: year, poster_url: poster_url}}
-    end)
-  end
-
-  # Unknown entity types produce no results.
-  defp fetch_display_records(_type, _ids), do: []
 
   # Shapes a record (Movie, TVSeries, MovieSeries, VideoObject struct) into
   # the recently-added plain map. Carries `__inserted_at__` for merge-sort,
