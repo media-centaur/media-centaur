@@ -8,19 +8,20 @@ defmodule MediaCentarrWeb.Components.HeroCardTest do
   test "renders title and overview" do
     item = %Item{
       id: 1,
-      name: "The Grand Budapest Hotel",
+      name: "Sample Movie",
       year: "2014",
       runtime: "1h 39m",
       genre_label: "Comedy",
       overview: "A concierge teams up with a lobby boy.",
       backdrop_url: nil,
+      logo_url: nil,
       play_url: "/play/1",
       detail_url: "/library?selected=1"
     }
 
     html = render_component(&HeroCard.hero_card/1, item: item)
 
-    assert html =~ "The Grand Budapest Hotel"
+    assert html =~ "Sample Movie"
     assert html =~ "concierge"
     assert html =~ "/play/1"
   end

@@ -131,7 +131,8 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
         runtime_minutes: 165,
         genres: ["Sci-Fi", "Adventure"],
         overview: "Sample overview.",
-        backdrop_url: "/img/1/backdrop.jpg"
+        backdrop_url: "/img/1/backdrop.jpg",
+        logo_url: "/img/1/logo.png"
       }
 
       item = Logic.hero_card_item(entity)
@@ -143,8 +144,26 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert item.genre_label == "Sci-Fi · Adventure"
       assert item.overview == "Sample overview."
       assert item.backdrop_url == "/img/1/backdrop.jpg"
+      assert item.logo_url == "/img/1/logo.png"
       assert item.play_url =~ "/library?selected=1"
       assert item.detail_url =~ "/library?selected=1"
+    end
+
+    test "passes through nil logo_url when entity has no logo image" do
+      entity = %{
+        id: 1,
+        name: "Sample Movie",
+        year: 2024,
+        runtime_minutes: 100,
+        genres: nil,
+        overview: nil,
+        backdrop_url: "/img/1/backdrop.jpg",
+        logo_url: nil
+      }
+
+      item = Logic.hero_card_item(entity)
+
+      assert item.logo_url == nil
     end
 
     test "returns nil for nil input" do

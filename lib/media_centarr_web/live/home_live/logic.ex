@@ -98,6 +98,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
       genre_label: format_genres(entity.genres),
       overview: entity.overview,
       backdrop_url: entity.backdrop_url,
+      logo_url: Map.get(entity, :logo_url),
       play_url: "/library?selected=#{entity.id}&autoplay=1",
       detail_url: "/library?selected=#{entity.id}"
     }
