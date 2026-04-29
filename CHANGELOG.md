@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.26.2 — 2026-04-29
+
+### Fixed
+
+- **Console drawer now follows the tail of the logs reliably.** The
+  systemd journal tab could end up scrolled away from the live edge
+  when the drawer was reopened — new entries arrive at the bottom but
+  the panel was sometimes left at the top. Opening the drawer now
+  forces both the app log and the systemd journal back to their live
+  edge, and stream resets (from tab or filter changes) re-pin too.
+
 ## v0.26.1 — 2026-04-29
 
 ### Improved
