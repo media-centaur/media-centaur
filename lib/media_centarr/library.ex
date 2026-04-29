@@ -1426,11 +1426,8 @@ defmodule MediaCentarr.Library do
   # Shapes a record (Movie, TVSeries, MovieSeries, VideoObject struct with
   # images preloaded) into the hero candidate plain map.
   defp shape_hero_record(record) do
-    backdrop_url =
-      case Enum.find(record.images || [], &(&1.role == "backdrop")) do
-        %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
-        _ -> nil
-      end
+    backdrop_url = image_url(record.images, "backdrop")
+    logo_url = image_url(record.images, "logo")
 
     year =
       case Map.get(record, :date_published) do
@@ -1457,8 +1454,16 @@ defmodule MediaCentarr.Library do
       runtime_minutes: runtime_minutes,
       genres: Map.get(record, :genres),
       overview: record.description,
-      backdrop_url: backdrop_url
+      backdrop_url: backdrop_url,
+      logo_url: logo_url
     }
+  end
+
+  defp image_url(images, role) do
+    case Enum.find(images || [], &(&1.role == role)) do
+      %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
+      _ -> nil
+    end
   end
 
   # ---------------------------------------------------------------------------
