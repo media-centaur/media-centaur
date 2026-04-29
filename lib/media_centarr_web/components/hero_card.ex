@@ -22,7 +22,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
       <img
         :if={@item.backdrop_url}
         src={@item.backdrop_url}
-        class="absolute inset-0 w-full h-full object-cover"
+        class="absolute inset-0 w-full h-full object-cover object-top"
       />
       <%!-- Two-axis gradient: vertical anchors lower 70% in dark, horizontal
             darkens the left third where the title sits. Sky-heavy backdrops

@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.27.3 — 2026-04-29
+
+### Changed
+
+- **Hero backdrop top-aligned.** The Home page hero now anchors the
+  backdrop image to the top of the card so faces and logos in the
+  upper portion of the frame stay visible, instead of being pushed
+  off the top by center-cropping. Card height is unchanged.
+
 ## v0.27.2 — 2026-04-29
 
 ### Changed
