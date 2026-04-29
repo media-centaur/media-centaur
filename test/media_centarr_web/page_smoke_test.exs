@@ -23,6 +23,51 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
   alias MediaCentarr.{Config, Secret}
 
+  # Aggressive mount-time budget for every smoke. Media Centarr is a
+  # local-first app; mounts should be near-instant. Steady-state mounts
+  # observed locally cluster at 3–25ms; 100ms is ~4× headroom with
+  # enough slack for CI/jitter that the budget catches real
+  # regressions instead of flapping. Do not loosen casually. (Tested
+  # at 75ms — flaked once in 5 runs at /settings = 79ms; 100ms is the
+  # tightest reliable line.)
+  @render_budget_ms 100
+
+  # Cold-start cost (BEAM JIT, schema caching, first-DB-query overhead)
+  # is paid by whichever mount runs first. Without a warmup, that test
+  # becomes flaky as the budget tightens. We pay the cold-start cost
+  # once per `mix test` invocation and gate further runs with
+  # :persistent_term so subsequent tests measure steady-state only.
+  @warmup_flag {__MODULE__, :warmed_up?}
+
+  setup %{conn: conn} = context do
+    warmup_once(conn)
+    context
+  end
+
+  defp warmup_once(conn) do
+    if :persistent_term.get(@warmup_flag, false) do
+      :ok
+    else
+      {:ok, _view, _html} = live(conn, "/")
+      :persistent_term.put(@warmup_flag, true)
+      :ok
+    end
+  end
+
+  defp live_within!(conn, path, budget_ms \\ @render_budget_ms) do
+    {micros, result} = :timer.tc(fn -> live(conn, path) end)
+    ms = div(micros, 1000)
+
+    if ms > budget_ms do
+      flunk(
+        "Page #{path} mount took #{ms}ms, exceeds budget of #{budget_ms}ms. " <>
+          "This is a local app — mounts should be near-instant."
+      )
+    end
+
+    result
+  end
+
   for {path, label} <- [
         {"/", "home"},
         {"/library", "library browse"},
@@ -34,7 +79,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         {"/upcoming", "upcoming"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live(conn, unquote(path))
+      assert {:ok, _view, html} = live_within!(conn, unquote(path))
       assert is_binary(html)
     end
   end
@@ -59,7 +104,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "library detail panel mounts for a movie with ISO 8601 duration",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = live(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
     end
   end
@@ -82,7 +127,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
 
     test "home page with heavy rotation renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live(conn, "/")
+      assert {:ok, _view, html} = live_within!(conn, "/")
       assert is_binary(html)
     end
   end
@@ -196,8 +241,10 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "upcoming zone renders without crashing", %{conn: conn} do
       # /?zone=upcoming redirects to /upcoming (HomeLive handles zone params).
-      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
-      assert {:ok, _view, html} = live(conn, "/upcoming")
+      assert {:error, {:live_redirect, %{to: "/upcoming"}}} =
+               live_within!(conn, "/?zone=upcoming")
+
+      assert {:ok, _view, html} = live_within!(conn, "/upcoming")
       assert is_binary(html)
     end
   end
@@ -225,7 +272,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
 
     test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
-      assert {:ok, _view, html} = live(conn, "/download")
+      assert {:ok, _view, html} = live_within!(conn, "/download")
       assert is_binary(html)
     end
   end
