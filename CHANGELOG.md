@@ -4,6 +4,42 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.26.0 — 2026-04-29
+
+### New
+
+- **Prowlarr search retry.** When a manual search times out on one or
+  more indexers, each failed group now shows a per-group **Retry**
+  link, and a footer **Retry N timeouts** button appears once all
+  searches finish. The bulk button only retries true timeouts, so
+  config errors (connection refused, 401, etc.) won't be silently
+  re-thrown at the indexer.
+
+- **Detail panel surfaces more from TMDB.** Movies and TV shows now
+  show tagline, studio / network, original language, country of
+  production, and vote count alongside the existing reception data.
+  A new "reception" card groups score and votes for an at-a-glance
+  read.
+
+### Improved
+
+- **Home page redesign.** The landing page is now full-bleed
+  cinematic: a fluid 16:9 hero with a two-axis gradient and bottom
+  fade, larger typography, and rows that scroll horizontally with
+  snap. Cards lift, brighten, and pop forward on hover.
+
+- **Continue Watching matches the Library's in-progress filter.**
+  Earlier the home row dropped titles whose files had moved off disk
+  and didn't include TV or movie series that still had episodes to
+  watch. Both surfaces now show the same in-progress set.
+
+- **Coming Up now shows the next 90 days, scrollable.** Up to 30
+  upcoming items (was 8, was capped at this week). The row was
+  renamed from "Coming Up This Week" to "Coming Up".
+
+- **More content per row.** Continue Watching shows up to 24 (was 8),
+  Recently Added 30 (was 16), and Heavy Rotation 30 (was 8).
+
 ## v0.25.0 — 2026-04-28
 
 ### New
