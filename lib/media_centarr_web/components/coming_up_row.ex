@@ -3,12 +3,28 @@ defmodule MediaCentarrWeb.Components.ComingUpRow do
   Horizontal-scrolling row of upcoming tracked releases. Used on Home as a
   "Coming Up" preview that links to /upcoming.
 
-  Each item is a map: `%{id, name, subtitle, badge, backdrop_url}`.
-  `badge` is `%{label, variant}` with variant in `:success | :info | :default`.
+  Each item is an `Item` struct (see below).
   """
   use Phoenix.Component
 
-  attr :items, :list, required: true
+  defmodule Item do
+    @moduledoc "View-model for a single Coming Up card."
+    @enforce_keys [:id, :name, :subtitle, :badge, :backdrop_url, :url]
+    defstruct [:id, :name, :subtitle, :badge, :backdrop_url, :url]
+
+    @type badge :: %{label: String.t(), variant: :success | :info | :default}
+
+    @type t :: %__MODULE__{
+            id: term(),
+            name: String.t(),
+            subtitle: String.t(),
+            badge: badge(),
+            backdrop_url: String.t() | nil,
+            url: String.t()
+          }
+  end
+
+  attr :items, :list, required: true, doc: "list of `Item.t()`"
 
   def coming_up_row(assigns) do
     ~H"""
@@ -18,9 +34,10 @@ defmodule MediaCentarrWeb.Components.ComingUpRow do
       data-scroll-row="coming-up"
       class="row-scroll row-scroll-backdrop"
     >
-      <div
+      <.link
         :for={item <- @items}
-        class="card-hover relative aspect-[16/9] rounded overflow-hidden glass-inset"
+        navigate={item.url}
+        class="card-hover relative aspect-[16/9] rounded overflow-hidden glass-inset block"
         data-row-item
       >
         <img
@@ -43,7 +60,7 @@ defmodule MediaCentarrWeb.Components.ComingUpRow do
           </div>
           <div class="text-sm font-semibold text-white drop-shadow truncate">{item.name}</div>
         </div>
-      </div>
+      </.link>
     </div>
     """
   end

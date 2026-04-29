@@ -9,14 +9,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   ComingUpRow, PosterRow, HeroCard}`).
   """
 
-  @typedoc "ContinueWatchingRow item shape"
-  @type continue_item :: %{
-          id: term(),
-          name: String.t(),
-          subtitle: String.t(),
-          progress_pct: 0..100,
-          backdrop_url: String.t() | nil
-        }
+  alias MediaCentarrWeb.Components.{ComingUpRow, ContinueWatchingRow, HeroCard, PosterRow}
 
   @doc """
   Returns `{monday, sunday}` of the week containing `date`. Defaults to today.
@@ -43,15 +36,16 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   end
 
   @doc "Shape Library progress rows into ContinueWatchingRow items."
-  @spec continue_watching_items([map()]) :: [continue_item()]
+  @spec continue_watching_items([map()]) :: [ContinueWatchingRow.Item.t()]
   def continue_watching_items(progress_rows) do
     Enum.map(progress_rows, fn row ->
-      %{
+      %ContinueWatchingRow.Item{
         id: row.entity_id,
         name: row.entity_name,
         subtitle: row.last_episode_label,
         progress_pct: row.progress_pct,
-        backdrop_url: row.backdrop_url
+        backdrop_url: row.backdrop_url,
+        url: "/library?selected=#{row.entity_id}&autoplay=1"
       }
     end)
   end
@@ -60,41 +54,43 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   Shape ReleaseTracking releases into ComingUpRow items. `today` is used
   to format the relative day prefix in the subtitle (e.g. "MON · S04E01").
   """
-  @spec coming_up_items([map()], Date.t()) :: [map()]
+  @spec coming_up_items([map()], Date.t()) :: [ComingUpRow.Item.t()]
   def coming_up_items(releases, today) do
     Enum.map(releases, fn release ->
-      %{
+      %ComingUpRow.Item{
         id: release.item.id,
         name: release.item.name,
         subtitle: subtitle_for_release(release, today),
         badge: badge_for_status(release.status),
-        backdrop_url: release.backdrop_url
+        backdrop_url: release.backdrop_url,
+        url: "/upcoming"
       }
     end)
   end
 
   @doc "Shape Library entity rows into PosterRow items."
-  @spec recently_added_items([map()]) :: [map()]
+  @spec recently_added_items([map()]) :: [PosterRow.Item.t()]
   def recently_added_items(entities) do
     Enum.map(entities, fn entity ->
-      %{
+      %PosterRow.Item{
         id: entity.id,
         name: entity.name,
         year: format_year(entity.year),
-        poster_url: entity.poster_url
+        poster_url: entity.poster_url,
+        url: "/library?selected=#{entity.id}"
       }
     end)
   end
 
   @doc """
-  Shape a single Library entity into the HeroCard item map. Returns nil
-  for nil input.
+  Shape a single Library entity into the HeroCard item. Returns nil for
+  nil input.
   """
-  @spec hero_card_item(map() | nil) :: map() | nil
+  @spec hero_card_item(map() | nil) :: HeroCard.Item.t() | nil
   def hero_card_item(nil), do: nil
 
   def hero_card_item(entity) do
-    %{
+    %HeroCard.Item{
       id: entity.id,
       name: entity.name,
       year: format_year(entity.year),

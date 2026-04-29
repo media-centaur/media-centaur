@@ -1,7 +1,7 @@
 defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
   @moduledoc """
   Horizontal-scrolling row of backdrop cards for in-progress titles. Used
-  on Home. Each item is a map: `%{id, name, subtitle, progress_pct, backdrop_url}`.
+  on Home. Each item is a `Item` struct (see below).
 
   All loaded items render — the row scrolls horizontally so callers can
   pass as many as they like. A "See all" placeholder appears as the last
@@ -11,7 +11,22 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
   use Phoenix.Component
   import MediaCentarrWeb.CoreComponents, only: [icon: 1]
 
-  attr :items, :list, required: true
+  defmodule Item do
+    @moduledoc "View-model for a single Continue Watching card."
+    @enforce_keys [:id, :name, :subtitle, :progress_pct, :backdrop_url, :url]
+    defstruct [:id, :name, :subtitle, :progress_pct, :backdrop_url, :url]
+
+    @type t :: %__MODULE__{
+            id: term(),
+            name: String.t(),
+            subtitle: String.t(),
+            progress_pct: 0..100,
+            backdrop_url: String.t() | nil,
+            url: String.t()
+          }
+  end
+
+  attr :items, :list, required: true, doc: "list of `Item.t()`"
 
   def continue_watching_row(assigns) do
     ~H"""
@@ -21,9 +36,10 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
       data-scroll-row="continue-watching"
       class="row-scroll row-scroll-backdrop"
     >
-      <div
+      <.link
         :for={item <- @items}
-        class="card-hover relative aspect-[16/9] rounded overflow-hidden glass-inset"
+        navigate={item.url}
+        class="card-hover relative aspect-[16/9] rounded overflow-hidden glass-inset block"
         data-row-item
       >
         <img
@@ -43,7 +59,7 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
         <div class="absolute left-0 right-0 bottom-0 h-1 bg-black/50">
           <div class="h-full bg-primary" style={"width: #{item.progress_pct}%"}></div>
         </div>
-      </div>
+      </.link>
 
       <.link
         navigate="/library?in_progress=1"

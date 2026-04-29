@@ -79,6 +79,77 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     end
   end
 
+  describe "row card click navigation" do
+    test "clicking a Continue Watching card navigates to library with autoplay", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 30.0,
+        duration_seconds: 100.0
+      })
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert {:error, {:live_redirect, %{to: to}}} =
+               view
+               |> element(
+                 ~s|[data-component="continue-watching"] a[data-row-item]|,
+                 "Sample Movie"
+               )
+               |> render_click()
+
+      assert to =~ "/library?selected=#{movie.id}"
+      assert to =~ "autoplay=1"
+    end
+
+    test "clicking a Coming Up card navigates to /upcoming", %{conn: conn} do
+      today = Date.utc_today()
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: :rand.uniform(999_999),
+          media_type: :tv_series,
+          name: "Sample Show"
+        })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 1,
+        air_date: Date.add(today, 7),
+        released: false
+      })
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert {:error, {:live_redirect, %{to: "/upcoming" <> _}}} =
+               view
+               |> element(
+                 ~s|[data-component="coming-up"] a[data-row-item]|,
+                 "Sample Show"
+               )
+               |> render_click()
+    end
+
+    test "clicking a Recently Added card navigates to library with selection", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      {:ok, view, _html} = live(conn, "/")
+
+      assert {:error, {:live_redirect, %{to: to}}} =
+               view
+               |> element(~s|[data-component="poster-row"] a[data-row-item]|, "Sample Movie")
+               |> render_click()
+
+      assert to =~ "/library?selected=#{movie.id}"
+    end
+  end
+
   describe "zone redirects" do
     test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
       assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")

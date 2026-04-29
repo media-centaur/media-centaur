@@ -3,14 +3,52 @@ defmodule MediaCentarrWeb.Components.HeroCard do
   Full-bleed hero card for the Home page. One large title with backdrop,
   meta line, overview, and Play / Details actions.
 
-  Item is a map with `:id, :name, :year, :runtime, :genre_label, :overview,
-  :backdrop_url, :play_url, :detail_url`. All fields except `:name` may
-  be nil — the template hides absent ones.
+  Item is an `Item` struct (see below). All fields except `:id`, `:name`,
+  `:play_url`, and `:detail_url` may be nil — the template hides absent
+  ones.
   """
   use Phoenix.Component
   import MediaCentarrWeb.CoreComponents, only: [icon: 1]
 
-  attr :item, :map, required: true
+  defmodule Item do
+    @moduledoc "View-model for the HeroCard."
+    @enforce_keys [
+      :id,
+      :name,
+      :year,
+      :runtime,
+      :genre_label,
+      :overview,
+      :backdrop_url,
+      :play_url,
+      :detail_url
+    ]
+    defstruct [
+      :id,
+      :name,
+      :year,
+      :runtime,
+      :genre_label,
+      :overview,
+      :backdrop_url,
+      :play_url,
+      :detail_url
+    ]
+
+    @type t :: %__MODULE__{
+            id: term(),
+            name: String.t(),
+            year: String.t() | nil,
+            runtime: String.t() | nil,
+            genre_label: String.t() | nil,
+            overview: String.t() | nil,
+            backdrop_url: String.t() | nil,
+            play_url: String.t(),
+            detail_url: String.t()
+          }
+  end
+
+  attr :item, :any, required: true, doc: "an `Item.t()` or nil"
 
   def hero_card(assigns) do
     ~H"""
@@ -56,14 +94,10 @@ defmodule MediaCentarrWeb.Components.HeroCard do
           {@item.overview}
         </p>
         <div class="flex gap-3 mt-2">
-          <.link :if={@item.play_url} navigate={@item.play_url} class="btn btn-primary btn-lg">
+          <.link navigate={@item.play_url} class="btn btn-primary btn-lg">
             <.icon name="hero-play-mini" class="size-5" /> Play
           </.link>
-          <.link
-            :if={@item.detail_url}
-            navigate={@item.detail_url}
-            class="btn btn-soft btn-primary btn-lg"
-          >
+          <.link navigate={@item.detail_url} class="btn btn-soft btn-primary btn-lg">
             <.icon name="hero-information-circle-mini" class="size-5" /> Details
           </.link>
         </div>

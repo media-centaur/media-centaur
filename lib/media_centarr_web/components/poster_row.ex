@@ -2,12 +2,26 @@ defmodule MediaCentarrWeb.Components.PosterRow do
   @moduledoc """
   Horizontal poster row (8-up). Used on Home for the "Recently Added" row.
 
-  Each item is a map: `%{id, name, year, poster_url}`.
-  `year` may be a string like "2023" or "S2 · 2026".
+  Each item is an `Item` struct (see below). `year` may be a string like
+  "2023" or "S2 · 2026".
   """
   use Phoenix.Component
 
-  attr :items, :list, required: true
+  defmodule Item do
+    @moduledoc "View-model for a single PosterRow card."
+    @enforce_keys [:id, :name, :year, :poster_url, :url]
+    defstruct [:id, :name, :year, :poster_url, :url]
+
+    @type t :: %__MODULE__{
+            id: term(),
+            name: String.t(),
+            year: String.t() | nil,
+            poster_url: String.t() | nil,
+            url: String.t()
+          }
+  end
+
+  attr :items, :list, required: true, doc: "list of `Item.t()`"
 
   def poster_row(assigns) do
     ~H"""
@@ -17,9 +31,10 @@ defmodule MediaCentarrWeb.Components.PosterRow do
       data-scroll-row="poster-row"
       class="row-scroll row-scroll-poster"
     >
-      <div
+      <.link
         :for={item <- @items}
-        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset"
+        navigate={item.url}
+        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset block"
         data-row-item
       >
         <img
@@ -33,7 +48,7 @@ defmodule MediaCentarrWeb.Components.PosterRow do
           <div class="text-xs font-semibold text-white drop-shadow truncate">{item.name}</div>
           <div :if={item.year} class="text-[10px] text-white/70">{item.year}</div>
         </div>
-      </div>
+      </.link>
     </div>
     """
   end
