@@ -41,11 +41,12 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
     Enum.map(progress_rows, fn row ->
       %ContinueWatchingRow.Item{
         id: row.entity_id,
+        entity_id: row.entity_id,
         name: row.entity_name,
         subtitle: row.last_episode_label,
         progress_pct: row.progress_pct,
         backdrop_url: row.backdrop_url,
-        url: "/library?selected=#{row.entity_id}&autoplay=1"
+        autoplay: true
       }
     end)
   end
@@ -74,10 +75,10 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
     Enum.map(entities, fn entity ->
       %PosterRow.Item{
         id: entity.id,
+        entity_id: entity.id,
         name: entity.name,
         year: format_year(entity.year),
-        poster_url: entity.poster_url,
-        url: "/library?selected=#{entity.id}"
+        poster_url: entity.poster_url
       }
     end)
   end
@@ -92,15 +93,14 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   def hero_card_item(entity) do
     %HeroCard.Item{
       id: entity.id,
+      entity_id: entity.id,
       name: entity.name,
       year: format_year(entity.year),
       runtime: format_runtime(entity.runtime_minutes),
       genre_label: format_genres(entity.genres),
       overview: entity.overview,
       backdrop_url: entity.backdrop_url,
-      logo_url: Map.get(entity, :logo_url),
-      play_url: "/library?selected=#{entity.id}&autoplay=1",
-      detail_url: "/library?selected=#{entity.id}"
+      logo_url: Map.get(entity, :logo_url)
     }
   end
 

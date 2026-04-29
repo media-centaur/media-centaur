@@ -387,4 +387,98 @@ defmodule MediaCentarr.LibraryTest do
       refute Enum.any?(results, &(&1.name == "Orphan With Hero Metadata"))
     end
   end
+
+  describe "load_modal_entry/1" do
+    test "returns shaped entry for a standalone movie with extras populated" do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      record_present(create_linked_file(%{movie_id: movie.id}))
+
+      create_extra(%{movie_id: movie.id, name: "Behind the Scenes", kind: :featurette})
+
+      assert {:ok, entry} = Library.load_modal_entry(movie.id)
+      assert entry.entity.id == movie.id
+      assert entry.entity.type == :movie
+      assert Enum.map(entry.entity.extras, & &1.name) == ["Behind the Scenes"]
+      # No watch_progress yet, so summary is nil — but the key exists.
+      assert Map.has_key?(entry, :progress)
+      assert is_list(entry.progress_records)
+    end
+
+    test "returns shaped entry for a TV series with season-level extras" do
+      series = create_tv_series(%{name: "Sample Show"})
+      record_present(create_linked_file(%{tv_series_id: series.id}))
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+      _episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+
+      create_extra(%{tv_series_id: series.id, name: "Series Trailer", kind: :trailer})
+      create_extra(%{season_id: season.id, name: "Season Recap", kind: :featurette})
+
+      assert {:ok, entry} = Library.load_modal_entry(series.id)
+      assert entry.entity.id == series.id
+      assert entry.entity.type == :tv_series
+      assert Enum.map(entry.entity.extras, & &1.name) == ["Series Trailer"]
+
+      [loaded_season] = entry.entity.seasons
+      assert Enum.map(loaded_season.extras, & &1.name) == ["Season Recap"]
+    end
+
+    test "returns shaped entry for a movie series" do
+      series = create_movie_series(%{name: "Sample Saga"})
+      record_present(create_linked_file(%{movie_series_id: series.id}))
+
+      _movie =
+        Library.create_movie!(%{name: "Saga Part 1", movie_series_id: series.id, position: 0})
+
+      assert {:ok, entry} = Library.load_modal_entry(series.id)
+      assert entry.entity.id == series.id
+    end
+
+    test "returns shaped entry for a video object" do
+      video = create_video_object(%{name: "Sample Clip"})
+      record_present(create_linked_file(%{video_object_id: video.id}))
+
+      assert {:ok, entry} = Library.load_modal_entry(video.id)
+      assert entry.entity.id == video.id
+      assert entry.entity.type == :video_object
+    end
+
+    test "returns :not_found for a missing UUID" do
+      assert Library.load_modal_entry(Ecto.UUID.generate()) == :not_found
+    end
+
+    test "returns :not_found when no file is present for the entity" do
+      orphan = create_standalone_movie(%{name: "Orphan"})
+      assert Library.load_modal_entry(orphan.id) == :not_found
+    end
+
+    test "issues a bounded number of queries (no N+1 regression)" do
+      series = create_tv_series(%{name: "Bounded Query Show"})
+      record_present(create_linked_file(%{tv_series_id: series.id}))
+
+      for season_num <- 1..3 do
+        season =
+          create_season(%{
+            tv_series_id: series.id,
+            season_number: season_num,
+            name: "S#{season_num}"
+          })
+
+        for ep_num <- 1..5 do
+          create_episode(%{
+            season_id: season.id,
+            episode_number: ep_num,
+            name: "S#{season_num}E#{ep_num}"
+          })
+        end
+      end
+
+      query_count = count_queries(fn -> Library.load_modal_entry(series.id) end)
+
+      # Browser fetch (~6 queries: 4 type-table existence checks + preloads) +
+      # extras (1 union query). Bound at 15 to leave room for incidental
+      # queries; cap is well below any N+1 explosion.
+      assert query_count <= 15,
+             "Expected ≤15 queries, got #{query_count} — possible N+1 regression"
+    end
+  end
 end

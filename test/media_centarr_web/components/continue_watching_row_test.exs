@@ -8,11 +8,12 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRowTest do
   defp build_item(attrs) do
     defaults = %{
       id: 1,
+      entity_id: "uuid-1",
       name: "Sample Show",
       subtitle: "S01 · E01",
       progress_pct: 50,
       backdrop_url: nil,
-      url: "/library?selected=1&autoplay=1"
+      autoplay: true
     }
 
     struct!(Item, Map.merge(defaults, Map.new(attrs)))
@@ -61,7 +62,7 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRowTest do
     refute html =~ ~s(data-component="continue-watching")
   end
 
-  test "Item struct enforces a :url field at construction time" do
+  test "Item struct enforces an :entity_id field at construction time" do
     assert_raise ArgumentError, fn ->
       struct!(Item, %{
         id: 1,

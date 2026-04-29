@@ -14,40 +14,37 @@ defmodule MediaCentarrWeb.Components.HeroCard do
     @moduledoc "View-model for the HeroCard."
     @enforce_keys [
       :id,
+      :entity_id,
       :name,
       :year,
       :runtime,
       :genre_label,
       :overview,
       :backdrop_url,
-      :logo_url,
-      :play_url,
-      :detail_url
+      :logo_url
     ]
     defstruct [
       :id,
+      :entity_id,
       :name,
       :year,
       :runtime,
       :genre_label,
       :overview,
       :backdrop_url,
-      :logo_url,
-      :play_url,
-      :detail_url
+      :logo_url
     ]
 
     @type t :: %__MODULE__{
             id: term(),
+            entity_id: String.t(),
             name: String.t(),
             year: String.t() | nil,
             runtime: String.t() | nil,
             genre_label: String.t() | nil,
             overview: String.t() | nil,
             backdrop_url: String.t() | nil,
-            logo_url: String.t() | nil,
-            play_url: String.t(),
-            detail_url: String.t()
+            logo_url: String.t() | nil
           }
   end
 
@@ -99,12 +96,23 @@ defmodule MediaCentarrWeb.Components.HeroCard do
           {@item.overview}
         </p>
         <div class="flex gap-3 mt-2">
-          <.link navigate={@item.play_url} class="btn btn-primary btn-lg">
+          <button
+            type="button"
+            phx-click="select_entity"
+            phx-value-id={@item.entity_id}
+            phx-value-autoplay="1"
+            class="btn btn-primary btn-lg"
+          >
             <.icon name="hero-play-mini" class="size-5" /> Play
-          </.link>
-          <.link navigate={@item.detail_url} class="btn btn-soft btn-primary btn-lg text-white">
+          </button>
+          <button
+            type="button"
+            phx-click="select_entity"
+            phx-value-id={@item.entity_id}
+            class="btn btn-soft btn-primary btn-lg text-white"
+          >
             <.icon name="hero-information-circle-mini" class="size-5" /> Details
-          </.link>
+          </button>
         </div>
       </div>
     </section>

@@ -283,6 +283,28 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
+  Loads a single library entry shaped for the detail modal. Returns the same
+  `%{entity, progress, progress_records}` map `Library.Browser` produces for
+  the catalog grid, but for one ID and with extras already populated.
+
+  Returns `:not_found` when no entity matches the ID *and* has at least one
+  present file (the same gating `Browser.fetch_typed_entries_by_ids/1`
+  applies — orphan entities don't appear in the modal).
+  """
+  @spec load_modal_entry(Ecto.UUID.t()) ::
+          {:ok, %{entity: map(), progress: map(), progress_records: list()}}
+          | :not_found
+  def load_modal_entry(id) when is_binary(id) do
+    case __MODULE__.Browser.fetch_typed_entries_by_ids([id]) do
+      {[entry], _gone} ->
+        {:ok, %{entry | entity: load_extras_for_entity(entry.entity)}}
+
+      {[], _gone} ->
+        :not_found
+    end
+  end
+
+  @doc """
   Populates `extras` on a normalized entity map (and `extras` on each season for
   TV series) without reloading the full entity. Issues at most two queries.
 

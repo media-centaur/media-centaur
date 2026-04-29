@@ -9,26 +9,18 @@ defmodule MediaCentarrWeb.LibraryLive do
   - Upcoming → UpcomingLive (`/upcoming`)
   """
   use MediaCentarrWeb, :live_view
-
-  require MediaCentarr.Log, as: Log
+  use MediaCentarrWeb.Live.EntityModal
 
   alias MediaCentarr.{
     Capabilities,
-    Format,
     Library,
     Library.Availability,
-    Library.FileEventHandler,
     Playback,
-    Playback.ProgressBroadcaster,
     Playback.ResumeTarget,
     Settings
   }
 
-  alias MediaCentarrWeb.Components.{
-    DetailPanel,
-    LibraryCards,
-    ModalShell
-  }
+  alias MediaCentarrWeb.Components.LibraryCards
 
   import MediaCentarrWeb.LibraryHelpers
   import MediaCentarrWeb.LibraryFormatters
@@ -47,13 +39,12 @@ defmodule MediaCentarrWeb.LibraryLive do
     end
 
     {:ok,
-     assign(socket,
+     socket
+     |> assign(
        entries: [],
        entries_by_id: %{},
        resume_targets: %{},
        playback: %{},
-       selected_entity_id: nil,
-       detail_presentation: nil,
        active_tab: :all,
        sort_order: :recent,
        sort_open: false,
@@ -64,19 +55,15 @@ defmodule MediaCentarrWeb.LibraryLive do
        grid_count: 0,
        reload_timer: nil,
        pending_entity_ids: MapSet.new(),
-       rematch_confirm: nil,
-       delete_confirm: nil,
-       detail_view: :main,
-       detail_files: [],
        spoiler_free: load_spoiler_free_setting(),
        tmdb_ready: Capabilities.tmdb_ready?(),
        unavailable_count: 0,
        availability_map: %{},
-       tracking_status: nil,
        watch_dirs: MediaCentarr.Config.get(:watch_dirs) || [],
        watch_dirs_configured: watch_dirs_configured?(),
        dir_status: Availability.dir_status()
      )
+     |> assign_modal_defaults()
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
   end
@@ -106,10 +93,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     sort = parse_sort(params["sort"])
     filter_text = params["filter"] || ""
     in_progress_filter = params["in_progress"] == "1"
-    selected_id = params["selected"]
-    detail_view = parse_view(params["view"])
-
-    presentation = if selected_id, do: :modal
 
     grid_changed =
       just_loaded ||
@@ -118,58 +101,15 @@ defmodule MediaCentarrWeb.LibraryLive do
         filter_text != socket.assigns.filter_text ||
         in_progress_filter != socket.assigns.in_progress_filter
 
-    selection_changed = selected_id != socket.assigns.selected_entity_id
-
-    # Reset to main view when switching entities, but not on initial mount
-    # (nil → id) so the URL's view param is honored on reload.
-    entity_switched =
-      selection_changed && socket.assigns.selected_entity_id != nil
-
-    detail_view = if entity_switched, do: :main, else: detail_view
-
-    detail_files =
-      if selection_changed do
-        []
-      else
-        socket.assigns.detail_files
-      end
-
-    detail_files =
-      if detail_view == :info && detail_files == [] && selected_id do
-        load_entity_files(selected_id)
-      else
-        detail_files
-      end
-
-    tracking_status =
-      if selection_changed do
-        selected_entry = socket.assigns.entries_by_id[selected_id]
-        if selected_entry, do: load_tracking_status(selected_entry)
-      else
-        socket.assigns.tracking_status
-      end
-
-    entries_by_id =
-      if selection_changed && selected_id do
-        load_extras_into_entry(socket.assigns.entries_by_id, selected_id)
-      else
-        socket.assigns.entries_by_id
-      end
-
     socket =
       socket
       |> assign(
         active_tab: tab,
         sort_order: sort,
         filter_text: filter_text,
-        in_progress_filter: in_progress_filter,
-        selected_entity_id: selected_id,
-        detail_presentation: presentation,
-        detail_view: detail_view,
-        detail_files: detail_files,
-        tracking_status: tracking_status,
-        entries_by_id: entries_by_id
+        in_progress_filter: in_progress_filter
       )
+      |> apply_modal_params(params)
       |> then(fn socket -> if grid_changed, do: reset_stream(socket), else: socket end)
 
     {:noreply, socket}
@@ -178,37 +118,6 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Events ---
 
   @impl true
-  def handle_event("select_entity", %{"id" => id}, socket) do
-    new_id = if socket.assigns.selected_entity_id != id, do: id
-
-    socket =
-      if new_id == socket.assigns.selected_entity_id do
-        socket
-      else
-        entry = socket.assigns.entries_by_id[new_id]
-
-        expanded_seasons =
-          if entry,
-            do: DetailPanel.auto_expand_season(entry.entity, entry.progress),
-            else: MapSet.new()
-
-        assign(socket, expanded_seasons: expanded_seasons)
-      end
-
-    {:noreply, push_patch(socket, to: build_path(socket, %{selected: new_id}))}
-  end
-
-  def handle_event("close_detail", _params, socket) do
-    if socket.assigns.detail_view == :info do
-      {:noreply, push_patch(socket, to: build_path(socket, %{view: :main}))}
-    else
-      {:noreply,
-       socket
-       |> assign(rematch_confirm: nil)
-       |> push_patch(to: build_path(socket, %{selected: nil, view: :main}))}
-    end
-  end
-
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
     {:noreply,
      push_patch(socket,
@@ -258,226 +167,6 @@ defmodule MediaCentarrWeb.LibraryLive do
      )}
   end
 
-  def handle_event("play", %{"id" => id}, socket) do
-    case Playback.play(id) do
-      :ok ->
-        {:noreply, socket}
-
-      {:error, :file_not_found} ->
-        {:noreply, put_flash(socket, :error, "File not available — is your media drive mounted?")}
-
-      {:error, :already_playing} ->
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Couldn't start playback.")}
-    end
-  end
-
-  def handle_event(
-        "toggle_watched",
-        %{"entity-id" => entity_id, "season" => season_str, "episode" => episode_str},
-        socket
-      ) do
-    season_number = String.to_integer(season_str)
-    episode_number = String.to_integer(episode_str)
-
-    # Resolve the FK in the LiveView process using the cached entity from
-    # `entries_by_id` — avoiding a redundant deep preload inside the async
-    # task. The task body now only has to hit the (indexed) watch_progress
-    # row and broadcast the result.
-    {fk_key, fk_id} =
-      resolve_progress_fk(
-        socket.assigns.entries_by_id,
-        entity_id,
-        season_number,
-        episode_number
-      )
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      update_watch_progress(entity_id, fk_key, fk_id)
-    end)
-
-    {:noreply, socket}
-  end
-
-  def handle_event("toggle_extra_watched", %{"extra-id" => extra_id, "entity-id" => entity_id}, socket) do
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      toggle_extra_watched(entity_id, extra_id)
-    end)
-
-    {:noreply, socket}
-  end
-
-  def handle_event("rematch", %{"id" => entity_id}, socket) do
-    if socket.assigns.rematch_confirm == entity_id do
-      Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-        MediaCentarr.Review.Rematch.rematch_entity(entity_id)
-      end)
-
-      {:noreply,
-       socket
-       |> assign(rematch_confirm: nil)
-       |> push_navigate(to: ~p"/review")}
-    else
-      {:noreply, assign(socket, rematch_confirm: entity_id)}
-    end
-  end
-
-  def handle_event("toggle_detail_view", _params, socket) do
-    new_view = if socket.assigns.detail_view == :main, do: :info, else: :main
-    {:noreply, push_patch(socket, to: build_path(socket, %{view: new_view}))}
-  end
-
-  def handle_event("toggle_tracking", _params, socket) do
-    selected_entry = socket.assigns.entries_by_id[socket.assigns.selected_entity_id]
-
-    case {socket.assigns.tracking_status, find_tmdb_id(selected_entry)} do
-      {:watching, {tmdb_id, media_type}} ->
-        item = MediaCentarr.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
-        if item, do: MediaCentarr.ReleaseTracking.ignore_item(item)
-        {:noreply, assign(socket, tracking_status: :ignored)}
-
-      {:ignored, {tmdb_id, media_type}} ->
-        item = MediaCentarr.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
-        if item, do: MediaCentarr.ReleaseTracking.watch_item(item)
-        {:noreply, assign(socket, tracking_status: :watching)}
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
-  def handle_event("delete_file_prompt", %{"path" => file_path}, socket) do
-    if playing?(socket.assigns.playback, socket.assigns.selected_entity_id) do
-      {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
-    else
-      file_info =
-        Enum.find(socket.assigns.detail_files, fn %{file: file} -> file.file_path == file_path end)
-
-      size = if file_info, do: file_info.size
-
-      {:noreply,
-       assign(socket,
-         delete_confirm: {:file, %{path: file_path, name: Path.basename(file_path), size: size}}
-       )}
-    end
-  end
-
-  def handle_event("delete_folder_prompt", %{"path" => folder_path, "count" => _count}, socket) do
-    cond do
-      playing?(socket.assigns.playback, socket.assigns.selected_entity_id) ->
-        {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
-
-      folder_path in socket.assigns.watch_dirs ->
-        {:noreply, put_flash(socket, :error, "Cannot delete a watch directory")}
-
-      true ->
-        folder_files =
-          socket.assigns.detail_files
-          |> Enum.filter(fn %{file: file} -> Path.dirname(file.file_path) == folder_path end)
-          |> Enum.map(fn %{file: file, size: size} ->
-            %{name: Path.basename(file.file_path), size: size}
-          end)
-
-        total_size = Enum.reduce(folder_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
-
-        {:noreply,
-         assign(socket,
-           delete_confirm:
-             {:folder,
-              %{
-                path: folder_path,
-                name: Path.basename(folder_path),
-                files: folder_files,
-                total_size: total_size
-              }}
-         )}
-    end
-  end
-
-  def handle_event("delete_all_prompt", _params, socket) do
-    if playing?(socket.assigns.playback, socket.assigns.selected_entity_id) do
-      {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
-    else
-      payload =
-        DetailPanel.build_delete_all_payload(
-          socket.assigns.detail_files,
-          MapSet.new(socket.assigns.watch_dirs)
-        )
-
-      {:noreply, assign(socket, delete_confirm: {:all, payload})}
-    end
-  end
-
-  def handle_event("delete_confirm", _params, socket) do
-    entity_id = socket.assigns.selected_entity_id
-
-    result =
-      case socket.assigns.delete_confirm do
-        {:file, %{path: file_path}} ->
-          FileEventHandler.delete_file(file_path)
-
-        {:folder, %{path: folder_path}} ->
-          file_paths =
-            socket.assigns.detail_files
-            |> Enum.map(& &1.file.file_path)
-            |> Enum.filter(&String.starts_with?(&1, folder_path <> "/"))
-
-          FileEventHandler.delete_folder(folder_path, file_paths)
-
-        {:all, %{file_groups: file_groups}} ->
-          Enum.each(file_groups, fn group ->
-            if group.is_watch_dir do
-              Enum.each(group.files, fn %{path: path} -> FileEventHandler.delete_file(path) end)
-            else
-              file_paths = Enum.map(group.files, & &1.path)
-              FileEventHandler.delete_folder(group.dir, file_paths)
-            end
-          end)
-
-          {:ok, []}
-
-        nil ->
-          {:ok, []}
-      end
-
-    socket = assign(socket, delete_confirm: nil)
-
-    case result do
-      {:ok, _entity_ids} ->
-        # Check if entity still exists (cascade may have deleted it)
-        files = Library.list_watched_files_by_entity_id(entity_id)
-
-        if files == [] do
-          # Entity was cascade-deleted — close modal
-          {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil, view: :main}))}
-        else
-          detail_files = load_entity_files(entity_id)
-          {:noreply, assign(socket, detail_files: detail_files)}
-        end
-
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Delete failed: #{reason}")}
-    end
-  end
-
-  def handle_event("delete_cancel", _params, socket) do
-    {:noreply, assign(socket, delete_confirm: nil)}
-  end
-
-  def handle_event("toggle_season", %{"season" => season_str}, socket) do
-    season_number = String.to_integer(season_str)
-    expanded = socket.assigns[:expanded_seasons] || MapSet.new()
-
-    expanded =
-      if MapSet.member?(expanded, season_number),
-        do: MapSet.delete(expanded, season_number),
-        else: MapSet.put(expanded, season_number)
-
-    {:noreply, assign(socket, expanded_seasons: expanded)}
-  end
-
   # --- PubSub Handlers ---
 
   @impl true
@@ -520,16 +209,13 @@ defmodule MediaCentarrWeb.LibraryLive do
       |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
       |> recompute_counts()
 
-    # If the selected entity was among the updated entries, re-apply on-demand
-    # extras so the detail panel stays correct after a PubSub-triggered reload.
     selected_id = socket.assigns.selected_entity_id
 
     socket =
       if selected_id && MapSet.member?(changed_ids, selected_id) do
-        updated_by_id = load_extras_into_entry(socket.assigns.entries_by_id, selected_id)
-        assign(socket, entries_by_id: updated_by_id)
+        refresh_selected_entry(socket)
       else
-        socket
+        sync_selected_entry(socket)
       end
 
     # Additions need a full reset so new entries land in the correct sort
@@ -572,7 +258,9 @@ defmodule MediaCentarrWeb.LibraryLive do
              end
            ) do
         {:ok, {new_entries, new_by_id}} ->
-          assign(socket, entries: new_entries, entries_by_id: new_by_id)
+          socket
+          |> assign(entries: new_entries, entries_by_id: new_by_id)
+          |> sync_selected_entry()
 
         :not_found ->
           socket
@@ -612,7 +300,9 @@ defmodule MediaCentarrWeb.LibraryLive do
              end
            ) do
         {:ok, {new_entries, new_by_id}} ->
-          assign(socket, entries: new_entries, entries_by_id: new_by_id)
+          socket
+          |> assign(entries: new_entries, entries_by_id: new_by_id)
+          |> sync_selected_entry()
 
         :not_found ->
           socket
@@ -672,13 +362,9 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   @impl true
   def render(assigns) do
-    selected_entry = assigns.entries_by_id[assigns.selected_entity_id]
     offline_summary = offline_summary(assigns.dir_status, assigns.unavailable_count)
 
-    assigns =
-      assigns
-      |> assign(:selected_entry, selected_entry)
-      |> assign(:offline_summary, offline_summary)
+    assigns = assign(assigns, :offline_summary, offline_summary)
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
@@ -749,26 +435,20 @@ defmodule MediaCentarrWeb.LibraryLive do
         </section>
 
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
-        <ModalShell.modal_shell
-          open={@selected_entry != nil && @detail_presentation == :modal}
-          entity={(@selected_entry && @selected_entry.entity) || nil}
-          progress={@selected_entry && @selected_entry.progress}
-          resume={@selected_entry && Map.get(@resume_targets, @selected_entry.entity.id)}
-          progress_records={(@selected_entry && @selected_entry.progress_records) || []}
-          expanded_seasons={assigns[:expanded_seasons]}
-          rematch_confirm={@rematch_confirm == @selected_entity_id}
+        <.entity_modal
+          selected_entry={@selected_entry}
+          selected_entity_id={@selected_entity_id}
+          detail_presentation={@detail_presentation}
           detail_view={@detail_view}
           detail_files={@detail_files}
+          expanded_seasons={@expanded_seasons}
+          rematch_confirm={@rematch_confirm}
           delete_confirm={@delete_confirm}
-          spoiler_free={@spoiler_free}
           tracking_status={@tracking_status}
-          available={
-            @selected_entry == nil ||
-              Map.get(@availability_map, @selected_entry.entity.id, true)
-          }
+          resume_targets={@resume_targets}
+          availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
-          on_play="play"
-          on_close="close_detail"
+          spoiler_free={@spoiler_free}
         />
       </div>
     </Layouts.app>
@@ -776,18 +456,6 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   # --- Data Loading ---
-
-  defp load_entity_files(entity_id) do
-    Enum.map(Library.list_watched_files_by_entity_id(entity_id), fn file ->
-      size =
-        case File.stat(file.file_path) do
-          {:ok, %{size: size}} -> size
-          _ -> nil
-        end
-
-      %{file: file, size: size}
-    end)
-  end
 
   defp load_library(socket) do
     entries = Library.Browser.fetch_all_typed_entries()
@@ -807,50 +475,20 @@ defmodule MediaCentarrWeb.LibraryLive do
     |> recompute_counts()
   end
 
-  defp load_tracking_status(entry) do
-    case find_tmdb_id(entry) do
-      {tmdb_id, media_type} ->
-        MediaCentarr.ReleaseTracking.tracking_status({tmdb_id, media_type})
-
-      nil ->
-        nil
-    end
-  end
-
-  defp find_tmdb_id(%{entity: %{type: :tv_series} = entity}) do
-    case Enum.find(entity.external_ids, &(&1.source == "tmdb")) do
-      nil -> nil
-      ext_id -> {String.to_integer(ext_id.external_id), :tv_series}
-    end
-  end
-
-  defp find_tmdb_id(%{entity: %{type: :movie_series} = entity}) do
-    case Enum.find(entity.external_ids, &(&1.source == "tmdb_collection")) do
-      nil -> nil
-      ext_id -> {String.to_integer(ext_id.external_id), :movie}
-    end
-  end
-
-  defp find_tmdb_id(_), do: nil
-
   defp compute_resume_targets(entries) do
     Map.new(entries, fn entry ->
       {entry.entity.id, ResumeTarget.compute(entry.entity, entry.progress_records)}
     end)
   end
 
-  # Loads extras for a selected entity and merges them into entries_by_id so
-  # the detail panel can render them without a full catalog reload. Called
-  # on-demand when the selection changes to avoid loading extras for every
-  # entity during catalog scan.
-  defp load_extras_into_entry(entries_by_id, entity_id) do
-    case entries_by_id[entity_id] do
-      nil ->
-        entries_by_id
+  # Re-snap `:selected_entry` from the in-memory `entries_by_id` so the
+  # detail modal reflects PubSub-driven progress updates without a DB hit.
+  defp sync_selected_entry(%{assigns: %{selected_entity_id: nil}} = socket), do: socket
 
-      entry ->
-        entity_with_extras = Library.load_extras_for_entity(entry.entity)
-        Map.put(entries_by_id, entity_id, %{entry | entity: entity_with_extras})
+  defp sync_selected_entry(socket) do
+    case Map.get(socket.assigns.entries_by_id, socket.assigns.selected_entity_id) do
+      nil -> socket
+      entry -> assign(socket, :selected_entry, entry)
     end
   end
 
@@ -979,8 +617,8 @@ defmodule MediaCentarrWeb.LibraryLive do
   defp parse_sort("year"), do: :year
   defp parse_sort(_), do: :recent
 
-  defp parse_view("info"), do: :info
-  defp parse_view(_), do: :main
+  @impl true
+  def build_modal_path(socket, overrides), do: build_path(socket, overrides)
 
   # Build a URL path preserving current socket state with overrides
   defp build_path(socket, overrides) do
@@ -1013,88 +651,5 @@ defmodule MediaCentarrWeb.LibraryLive do
       {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
       _ -> false
     end
-  end
-
-  # Runs inside Task.Supervisor — socket is not available here. The caller
-  # resolved {fk_key, fk_id} from the cached entity via
-  # LibraryHelpers.resolve_progress_fk/4 before spawning the task.
-  defp update_watch_progress(entity_id, fk_key, fk_id) do
-    progress = load_progress_by_fk(fk_key, fk_id)
-    changed_record = apply_progress_transition(progress, fk_key, fk_id)
-    ProgressBroadcaster.broadcast(entity_id, changed_record)
-  end
-
-  defp load_progress_by_fk(_fk_key, nil), do: nil
-
-  defp load_progress_by_fk(fk_key, fk_id) do
-    case Library.get_watch_progress_by_fk(fk_key, fk_id) do
-      {:ok, record} -> record
-      _ -> nil
-    end
-  end
-
-  defp apply_progress_transition(%{completed: true} = progress, _fk_key, _fk_id) do
-    Log.info(
-      :library,
-      "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
-    )
-
-    Library.mark_watch_incomplete!(progress)
-  end
-
-  defp apply_progress_transition(%{completed: false} = progress, _fk_key, _fk_id) do
-    Log.info(:library, fn ->
-      "toggled completed — was #{completion_percentage(progress)} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
-    end)
-
-    Library.mark_watch_completed!(progress)
-  end
-
-  defp apply_progress_transition(nil, fk_key, fk_id) when not is_nil(fk_id) do
-    Log.info(:library, "toggled completed — no prior progress, created fresh record")
-
-    params = %{fk_key => fk_id, position_seconds: 0.0, duration_seconds: 0.0}
-    {:ok, record} = create_progress_by_fk(fk_key, params)
-    Library.mark_watch_completed!(record)
-  end
-
-  defp apply_progress_transition(nil, _fk_key, nil), do: nil
-
-  defp create_progress_by_fk(:movie_id, params),
-    do: Library.find_or_create_watch_progress_for_movie(params)
-
-  defp create_progress_by_fk(:episode_id, params),
-    do: Library.find_or_create_watch_progress_for_episode(params)
-
-  defp toggle_extra_watched(entity_id, extra_id) do
-    progress =
-      case Library.get_extra_progress_by_extra(extra_id) do
-        {:ok, record} -> record
-      end
-
-    case progress do
-      %{completed: true} ->
-        Log.info(:library, "extra toggled incomplete")
-        Library.mark_extra_incomplete!(progress)
-
-      %{completed: false} ->
-        Log.info(:library, "extra toggled completed")
-        Library.mark_extra_completed!(progress)
-
-      nil ->
-        Log.info(:library, "extra toggled completed — no prior progress, created fresh record")
-
-        {:ok, record} =
-          Library.find_or_create_extra_progress(%{
-            extra_id: extra_id,
-            entity_id: entity_id,
-            position_seconds: 0.0,
-            duration_seconds: 0.0
-          })
-
-        Library.mark_extra_completed!(record)
-    end
-
-    ProgressBroadcaster.broadcast_extra(entity_id, extra_id)
   end
 end
