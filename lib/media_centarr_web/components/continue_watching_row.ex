@@ -34,12 +34,12 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
       :if={@items != []}
       data-component="continue-watching"
       data-scroll-row="continue-watching"
-      class="row-scroll row-scroll-backdrop"
+      class="row-scroll row-scroll-backdrop-lg"
     >
       <.link
         :for={item <- @items}
         navigate={item.url}
-        class="card-hover relative aspect-[16/9] rounded overflow-hidden glass-inset block"
+        class="card-hover relative aspect-[16/9] rounded-lg overflow-hidden glass-inset block"
         data-row-item
       >
         <img
@@ -50,25 +50,25 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
         />
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent">
         </div>
-        <div class="absolute bottom-2 left-2 right-2">
-          <div class="text-[10px] uppercase tracking-wider text-white/70 truncate">
+        <div class="absolute bottom-6 left-6 right-6">
+          <div class="text-sm uppercase tracking-wider text-white/70 truncate">
             {item.subtitle}
           </div>
-          <div class="text-sm font-semibold text-white drop-shadow truncate">{item.name}</div>
+          <div class="text-3xl font-semibold text-white drop-shadow truncate">{item.name}</div>
         </div>
-        <div class="absolute left-0 right-0 bottom-0 h-1 bg-black/50">
+        <div class="absolute left-0 right-0 bottom-0 h-2 bg-black/50">
           <div class="h-full bg-primary" style={"width: #{item.progress_pct}%"}></div>
         </div>
       </.link>
 
       <.link
         navigate="/library?in_progress=1"
-        class="card-hover relative aspect-[16/9] rounded overflow-hidden glass-inset flex flex-col items-center justify-center gap-1 text-base-content/60 hover:text-primary hover:bg-base-content/5"
+        class="card-hover relative aspect-[16/9] rounded-lg overflow-hidden glass-inset flex flex-col items-center justify-center gap-3 text-base-content/60 hover:text-primary hover:bg-base-content/5"
         data-component="continue-watching-see-all"
         data-row-item
       >
-        <.icon name="hero-arrow-right-circle" class="size-7" />
-        <span class="text-xs font-medium">See all</span>
+        <.icon name="hero-arrow-right-circle" class="size-14" />
+        <span class="text-base font-medium">See all</span>
       </.link>
     </div>
     """
