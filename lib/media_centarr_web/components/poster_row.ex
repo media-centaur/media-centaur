@@ -9,15 +9,15 @@ defmodule MediaCentarrWeb.Components.PosterRow do
 
   defmodule Item do
     @moduledoc "View-model for a single PosterRow card."
-    @enforce_keys [:id, :name, :year, :poster_url, :url]
-    defstruct [:id, :name, :year, :poster_url, :url]
+    @enforce_keys [:id, :entity_id, :name, :year, :poster_url]
+    defstruct [:id, :entity_id, :name, :year, :poster_url]
 
     @type t :: %__MODULE__{
             id: term(),
+            entity_id: String.t(),
             name: String.t(),
             year: String.t() | nil,
-            poster_url: String.t() | nil,
-            url: String.t()
+            poster_url: String.t() | nil
           }
   end
 
@@ -31,10 +31,12 @@ defmodule MediaCentarrWeb.Components.PosterRow do
       data-scroll-row="poster-row"
       class="row-scroll row-scroll-poster"
     >
-      <.link
+      <button
         :for={item <- @items}
-        navigate={item.url}
-        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset block"
+        type="button"
+        phx-click="select_entity"
+        phx-value-id={item.entity_id}
+        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset block w-full text-left"
         data-row-item
       >
         <img
@@ -48,7 +50,7 @@ defmodule MediaCentarrWeb.Components.PosterRow do
           <div class="text-xs font-semibold text-white drop-shadow truncate">{item.name}</div>
           <div :if={item.year} class="text-[10px] text-white/70">{item.year}</div>
         </div>
-      </.link>
+      </button>
     </div>
     """
   end

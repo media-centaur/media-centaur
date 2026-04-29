@@ -79,8 +79,8 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     end
   end
 
-  describe "row card click navigation" do
-    test "clicking a Continue Watching card navigates to library with autoplay", %{conn: conn} do
+  describe "row card click opens detail modal in place" do
+    test "clicking a Continue Watching card patches URL and loads the modal", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       file = create_linked_file(%{movie_id: movie.id})
       FilePresence.record_file(file.file_path, file.watch_dir)
@@ -93,19 +93,18 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
       {:ok, view, _html} = live(conn, "/")
 
-      assert {:error, {:live_redirect, %{to: to}}} =
-               view
-               |> element(
-                 ~s|[data-component="continue-watching"] a[data-row-item]|,
-                 "Sample Movie"
-               )
-               |> render_click()
+      view
+      |> element(
+        ~s|[data-component="continue-watching"] button[data-row-item]|,
+        "Sample Movie"
+      )
+      |> render_click()
 
-      assert to =~ "/library?selected=#{movie.id}"
-      assert to =~ "autoplay=1"
+      assert_patched(view, "/?selected=#{movie.id}&autoplay=1")
+      assert render(view) =~ ~s|data-state="open"|
     end
 
-    test "clicking a Coming Up card navigates to /upcoming", %{conn: conn} do
+    test "clicking a Coming Up card still navigates to /upcoming", %{conn: conn} do
       today = Date.utc_today()
 
       item =
@@ -134,19 +133,29 @@ defmodule MediaCentarrWeb.HomeLiveTest do
                |> render_click()
     end
 
-    test "clicking a Recently Added card navigates to library with selection", %{conn: conn} do
+    test "clicking a Recently Added card patches URL and opens modal", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       file = create_linked_file(%{movie_id: movie.id})
       FilePresence.record_file(file.file_path, file.watch_dir)
 
       {:ok, view, _html} = live(conn, "/")
 
-      assert {:error, {:live_redirect, %{to: to}}} =
-               view
-               |> element(~s|[data-component="poster-row"] a[data-row-item]|, "Sample Movie")
-               |> render_click()
+      view
+      |> element(~s|[data-component="poster-row"] button[data-row-item]|, "Sample Movie")
+      |> render_click()
 
-      assert to =~ "/library?selected=#{movie.id}"
+      assert_patched(view, "/?selected=#{movie.id}")
+      assert render(view) =~ ~s|data-state="open"|
+    end
+
+    test "navigating directly to /?selected=UUID mounts modal open", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      {:ok, _view, html} = live(conn, "/?selected=#{movie.id}")
+
+      assert html =~ ~s|data-state="open"|
     end
   end
 
