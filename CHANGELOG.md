@@ -13,6 +13,15 @@ see the git history for the full engineering trail.
   Coming Up, and Recently Added remain. Rewatch counts still appear as
   badges on the [Watch History](/history) page.
 
+### Fixed
+
+- **Update modal no longer goes silent during install/restart.** Once
+  the updater hit the install-and-restart phase, the cancel button
+  vanished and the footer was empty while the BEAM was actually
+  restarting — easy to read as "stuck". The modal now shows a disabled
+  "Installing…" button with a spinner for the rest of the run, so it's
+  clear work is still in progress while the page reconnects.
+
 ## v0.26.2 — 2026-04-29
 
 ### Fixed
