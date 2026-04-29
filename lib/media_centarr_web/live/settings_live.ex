@@ -2592,10 +2592,11 @@ defmodule MediaCentarrWeb.SettingsLive do
         </ol>
 
         <div
-          :if={SystemSection.apply_cancelable?(@apply_phase)}
+          :if={SystemSection.apply_cancelable?(@apply_phase) or @apply_phase in [:handing_off, :done]}
           class="flex justify-end pt-2"
         >
           <button
+            :if={SystemSection.apply_cancelable?(@apply_phase)}
             type="button"
             phx-click="cancel_update"
             data-nav-item
@@ -2603,6 +2604,19 @@ defmodule MediaCentarrWeb.SettingsLive do
             class="btn btn-ghost btn-sm"
           >
             <.icon name="hero-x-mark-mini" class="size-4" /> Cancel update
+          </button>
+          <%!-- Once the install/restart begins the cancel option is gone, but
+                we keep the slot occupied with a disabled spinner so the user
+                sees that work is still happening while the BEAM restarts. --%>
+          <button
+            :if={@apply_phase in [:handing_off, :done]}
+            type="button"
+            disabled
+            tabindex="-1"
+            aria-live="polite"
+            class="btn btn-ghost btn-sm pointer-events-none"
+          >
+            <span class="loading loading-spinner loading-xs"></span> Installing…
           </button>
         </div>
 
