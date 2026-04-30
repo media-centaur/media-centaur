@@ -118,13 +118,8 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:genres, genres)
 
     ~H"""
-    <div class="detail-panel flex flex-col flex-1 min-h-0">
-      <div
-        class="flex-shrink-0"
-        id="detail-header"
-        phx-hook="ScrollForward"
-        data-target="detail-content"
-      >
+    <div class="detail-panel">
+      <div id="detail-header">
         <Hero.hero entity={@entity} tagline={@tagline} available={@available}>
           <:actions :if={@tracking_status}>
             <button
@@ -182,7 +177,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       <div
         :if={@has_scrollable_content}
         id="detail-content"
-        class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4 bg-base-300/40 thin-scrollbar"
+        class="px-4 pb-4"
         phx-hook="ScrollToResume"
         data-entity-id={@entity.id}
       >

@@ -418,8 +418,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: min(700px, 92vw);
-  max-height: 90vh;
+  width: min(1200px, 95vw);
+  max-height: 92vh;
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
@@ -434,6 +434,70 @@ body:has(.modal-backdrop[data-state="open"]) {
   opacity: 1;
   transform: scale(1) translateY(0);
   transition: opacity 250ms ease-out, transform 250ms ease-out;
+}
+
+/* ── Modal page-level backdrop ──
+   Mirror of `.page-backdrop` (HomeLive) but scoped to the modal panel.
+   Anchored to the top of the panel and fades into base-100 — the image
+   continues past the hero region into the metadata area before
+   resolving to a clean surface for the dense content below. */
+.modal-page-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 70%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.modal-page-backdrop img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.modal-page-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 45%,
+    oklch(from var(--color-base-100) l c h / 0.55) 75%,
+    var(--color-base-100) 100%
+  );
+}
+
+/* ── Modal page-level atmosphere ──
+   Mirror of `.page-side-dim` (HomeLive) but absolute (panel-scoped). A
+   left-side weight + a vertical scrim that fades to a constant dim and
+   holds it to the panel bottom. Matches the home page intensities so
+   the modal feels like a continuation of the page treatment. */
+.modal-page-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to right,
+      oklch(0% 0 0 / 0.50) 0%,
+      transparent 35%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 35%,
+      oklch(0% 0 0 / 0.55) 70%,
+      oklch(0% 0 0 / 0.55) 100%
+    );
 }
 
 /* Small modal panel — delete confirmations, alerts */
