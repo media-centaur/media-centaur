@@ -15,7 +15,11 @@ defmodule MediaCentarr.Acquisition.SearchSession do
 
   use GenServer
 
+  alias MediaCentarr.Acquisition.QueryExpander
   alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Topics
+
+  require MediaCentarr.Log, as: Log
 
   @type group_status :: :loading | :ready | {:failed, term()} | :abandoned
 
@@ -33,7 +37,8 @@ defmodule MediaCentarr.Acquisition.SearchSession do
           selections: %{String.t() => String.t()},
           grab_message: nil | {:ok | :partial | :error, String.t()},
           grabbing?: boolean(),
-          searching_pid: nil | pid()
+          searching_pid: nil | pid(),
+          monitor_ref: nil | reference()
         }
 
   defstruct query: "",
@@ -42,7 +47,8 @@ defmodule MediaCentarr.Acquisition.SearchSession do
             selections: %{},
             grab_message: nil,
             grabbing?: false,
-            searching_pid: nil
+            searching_pid: nil,
+            monitor_ref: nil
 
   # ---------------------------------------------------------------------------
   # Public API
@@ -59,6 +65,26 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     GenServer.call(server, :current)
   end
 
+  @doc """
+  Starts a new search session, replacing any existing one.
+
+  Returns `{:ok, %{session: session, queries: queries}}` on success — the
+  caller spawns Tasks for each `query` and sends results back via
+  `record_search_result/3`.
+
+  Returns `{:error, :invalid_syntax}` for malformed brace expansion. The
+  existing session is unchanged in that case.
+
+  The caller's pid becomes the monitored `searching_pid`. If the caller
+  dies, any group still in `:loading` is swept to `:abandoned`.
+  """
+  @spec start_search(GenServer.server(), String.t()) ::
+          {:ok, %{session: t(), queries: [String.t()]}}
+          | {:error, :invalid_syntax}
+  def start_search(server \\ __MODULE__, query) when is_binary(query) do
+    GenServer.call(server, {:start_search, query, self()})
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer
   # ---------------------------------------------------------------------------
@@ -71,5 +97,59 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   @impl GenServer
   def handle_call(:current, _from, state) do
     {:reply, state, state}
+  end
+
+  def handle_call({:start_search, query, caller_pid}, _from, state) do
+    trimmed = String.trim(query)
+
+    case QueryExpander.expand(trimmed) do
+      {:ok, [_ | _] = queries} ->
+        groups =
+          Enum.map(queries, fn term ->
+            %{term: term, status: :loading, results: [], expanded?: false}
+          end)
+
+        new_state =
+          swap_monitor(
+            %__MODULE__{
+              query: trimmed,
+              expansion_preview: {:ok, length(queries)},
+              groups: groups,
+              selections: %{},
+              grab_message: nil,
+              grabbing?: false,
+              searching_pid: caller_pid
+            },
+            state
+          )
+
+        broadcast(new_state)
+        Log.info(:acquisition, "search started — #{length(queries)} queries")
+        {:reply, {:ok, %{session: new_state, queries: queries}}, new_state}
+
+      {:ok, []} ->
+        {:reply, {:error, :invalid_syntax}, state}
+
+      {:error, _reason} ->
+        {:reply, {:error, :invalid_syntax}, state}
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Private helpers
+  # ---------------------------------------------------------------------------
+
+  defp swap_monitor(%__MODULE__{searching_pid: new_pid} = new_state, %__MODULE__{monitor_ref: old_ref}) do
+    if old_ref, do: Process.demonitor(old_ref, [:flush])
+    new_ref = if new_pid, do: Process.monitor(new_pid)
+    %{new_state | monitor_ref: new_ref}
+  end
+
+  defp broadcast(%__MODULE__{} = session) do
+    Phoenix.PubSub.broadcast(
+      MediaCentarr.PubSub,
+      Topics.acquisition_search(),
+      {:search_session, session}
+    )
   end
 end
