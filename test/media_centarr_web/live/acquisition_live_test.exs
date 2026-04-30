@@ -50,9 +50,14 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     Capabilities.save_test_result(:prowlarr, :ok)
     Capabilities.save_test_result(:download_client, :ok)
 
+    # The SearchSession GenServer is a singleton — reset it between tests
+    # so leaked state from a prior test doesn't leak into the next one.
+    MediaCentarr.Acquisition.clear_search_session()
+
     on_exit(fn ->
       :persistent_term.erase({Prowlarr, :client})
       :persistent_term.put({MediaCentarr.Config, :config}, config)
+      MediaCentarr.Acquisition.clear_search_session()
     end)
 
     :ok
@@ -474,29 +479,32 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       assert html2 =~ "Sample.Show.S01E01"
     end
 
-    test "selection persists across navigation", %{conn: conn} do
-      stub_prowlarr_with([sample_release()])
+    test "user-changed selection persists across navigation", %{conn: conn} do
+      stub_prowlarr_with([
+        sample_release(guid: "guid-1", title: "Sample.Show.S01E01.720p.WEB-DL.mkv"),
+        sample_release(guid: "guid-2", title: "Sample.Show.S01E01.1080p.WEB-DL.mkv")
+      ])
 
       {:ok, view, _html} = live(conn, "/download")
+      Req.Test.allow(:prowlarr, self(), view.pid)
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
       |> render_submit()
 
-      :timer.sleep(100)
+      _ = wait_until(view, &(&1 =~ "Sample.Show.S01E01"))
 
-      view
-      |> element("button[phx-click='select_result'][phx-value-guid='guid-1']")
-      |> render_click()
+      # Override the auto-default selection with a user-driven choice.
+      MediaCentarr.Acquisition.set_selection("Sample Show", "guid-2")
 
       session_before = MediaCentarr.Acquisition.current_search_session()
-      assert session_before.selections == %{"Sample Show" => "guid-1"}
+      assert session_before.selections == %{"Sample Show" => "guid-2"}
 
       {:ok, _other_view, _other_html} = live(conn, "/")
       {:ok, _view2, _html2} = live(conn, "/download")
 
       session_after = MediaCentarr.Acquisition.current_search_session()
-      assert session_after.selections == %{"Sample Show" => "guid-1"}
+      assert session_after.selections == %{"Sample Show" => "guid-2"}
     end
 
     test "groups in :loading become :abandoned with retry affordance after LV crash", %{conn: conn} do
