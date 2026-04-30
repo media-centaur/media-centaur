@@ -103,6 +103,79 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Subscribes the calling process to search session updates. Receivers get
+  `{:search_session, %SearchSession{}}` on every state change.
+  """
+  @spec subscribe_search() :: :ok
+  def subscribe_search do
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_search())
+  end
+
+  @doc "Returns the current search session struct (always present; may be empty)."
+  @spec current_search_session() :: MediaCentarr.Acquisition.SearchSession.t()
+  defdelegate current_search_session,
+    to: MediaCentarr.Acquisition.SearchSession,
+    as: :current
+
+  @doc """
+  Starts a new search session, replacing any existing one. Returns
+  `{:ok, %{session: ..., queries: [...]}}` so the caller (the LiveView)
+  can spawn Tasks for each expanded query.
+  """
+  @spec start_search(String.t()) ::
+          {:ok, %{session: MediaCentarr.Acquisition.SearchSession.t(), queries: [String.t()]}}
+          | {:error, :invalid_syntax}
+  defdelegate start_search(query), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Records a per-query Prowlarr result against the current session."
+  @spec record_search_result(
+          String.t(),
+          {:ok, [SearchResult.t()]} | {:error, term()}
+        ) :: :ok
+  defdelegate record_search_result(term, outcome),
+    to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Updates the query input box value and recomputes the expansion preview."
+  @spec set_query_preview(String.t()) :: :ok
+  defdelegate set_query_preview(query), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Sets `term => guid` in the session selections map."
+  @spec set_selection(String.t(), String.t()) :: :ok
+  defdelegate set_selection(term, guid), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Removes `term` from the session selections map."
+  @spec clear_selection(String.t()) :: :ok
+  defdelegate clear_selection(term), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Empties the session selections map."
+  @spec clear_selections() :: :ok
+  defdelegate clear_selections(), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Toggles `expanded?` on the named group."
+  @spec toggle_group(String.t()) :: :ok
+  defdelegate toggle_group(term), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Sets the boolean `grabbing?` flag on the session."
+  @spec set_grabbing(boolean()) :: :ok
+  defdelegate set_grabbing(value), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Sets the last-grab outcome message on the session."
+  @spec set_grab_message({:ok | :partial | :error, String.t()}) :: :ok
+  defdelegate set_grab_message(message), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc "Resets the entire search session to the default empty state."
+  @spec clear_search_session() :: :ok
+  defdelegate clear_search_session(), to: MediaCentarr.Acquisition.SearchSession, as: :clear
+
+  @doc """
+  Re-arms named groups (`:abandoned` / `{:failed, _}` -> `:loading`). The
+  caller's pid becomes the monitored `searching_pid`. The caller is
+  responsible for spawning Tasks for these terms.
+  """
+  @spec retry_search_terms([String.t()]) :: :ok
+  defdelegate retry_search_terms(terms), to: MediaCentarr.Acquisition.SearchSession
+
+  @doc """
   Returns the latest cached download-client queue snapshot. Synchronous;
   reads `:persistent_term`, no GenServer call. Returns `[]` before the
   first successful poll or when no download client is configured.
