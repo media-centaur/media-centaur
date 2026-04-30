@@ -45,18 +45,30 @@ defmodule MediaCentarrWeb.HomeLive do
 
     socket =
       socket
+      |> assign(:loaded?, false)
       |> assign(:continue_timer, nil)
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
-      |> assign(:playback, load_playback_sessions())
+      |> assign(:playback, %{})
       |> assign(:availability_map, %{})
       |> assign_tmdb_ready()
       |> assign_spoiler_free()
       |> assign(:watch_dirs, MediaCentarr.Config.get(:watch_dirs) || [])
       |> assign_modal_defaults()
-      |> assign_all()
+      |> assign_empty_sections()
 
     {:ok, socket}
+  end
+
+  defp assign_empty_sections(socket) do
+    socket
+    |> assign(:hero, nil)
+    |> assign(:continue_items, [])
+    |> assign(:coming_up_marquee, %MediaCentarrWeb.Components.ComingUpMarquee.Marquee{
+      hero: nil,
+      secondaries: []
+    })
+    |> assign(:recently_added, [])
   end
 
   @impl true
@@ -177,12 +189,26 @@ defmodule MediaCentarrWeb.HomeLive do
     if destination do
       {:noreply, push_navigate(socket, to: destination <> query)}
     else
-      {:noreply, apply_modal_params(socket, params)}
+      {:noreply, socket |> ensure_loaded() |> apply_modal_params(params)}
     end
   end
 
   def handle_params(params, _uri, socket) do
-    {:noreply, apply_modal_params(socket, params)}
+    {:noreply, socket |> ensure_loaded() |> apply_modal_params(params)}
+  end
+
+  # First-render data load — gated by `connected?` so the static HTTP render
+  # ships empty defaults and the WebSocket render fills them in once. This is
+  # the canonical "Iron Law" pattern (see CLAUDE.md → LiveView Callbacks).
+  defp ensure_loaded(socket) do
+    if connected?(socket) and not socket.assigns.loaded? do
+      socket
+      |> assign(:playback, load_playback_sessions())
+      |> assign_all()
+      |> assign(:loaded?, true)
+    else
+      socket
+    end
   end
 
   @impl true
