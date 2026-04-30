@@ -32,13 +32,15 @@ defmodule MediaCentarrWeb.Components.TrackModal do
           <%!-- Header --%>
           <div class="flex items-center justify-between px-5 py-4 border-b border-base-content/10">
             <h2 class="text-lg font-semibold">Track New Releases</h2>
-            <button
+            <.button
+              variant="dismiss"
+              size="sm"
+              shape="circle"
               phx-click="close_track_modal"
-              class="btn btn-ghost btn-circle btn-sm"
               aria-label="Close"
             >
               <.icon name="hero-x-mark-mini" class="size-5" />
-            </button>
+            </.button>
           </div>
 
           <div class="flex-1 overflow-y-auto p-5 space-y-5">
@@ -219,17 +221,18 @@ defmodule MediaCentarrWeb.Components.TrackModal do
           <span :if={@result.already_tracked} class="text-xs text-success/70 font-medium">
             Tracking
           </span>
-          <button
+          <.button
             :if={!@result.already_tracked}
+            variant="secondary"
+            size="xs"
             phx-click="select_search_result"
             phx-value-tmdb-id={@result.tmdb_id}
             phx-value-media-type={@result.media_type}
             phx-value-name={@result.name}
             phx-value-poster-path={@result.poster_path}
-            class="btn btn-soft btn-primary btn-xs"
           >
             Track
-          </button>
+          </.button>
         </div>
       </div>
 
@@ -290,9 +293,9 @@ defmodule MediaCentarrWeb.Components.TrackModal do
         </label>
 
         <div class="pt-1">
-          <button type="submit" class="btn btn-soft btn-primary btn-sm">
+          <.button type="submit" variant="secondary" size="sm">
             Confirm
-          </button>
+          </.button>
         </div>
       </form>
     </div>
@@ -308,28 +311,30 @@ defmodule MediaCentarrWeb.Components.TrackModal do
     <div class="border-t border-base-content/10 bg-base-200/30 p-3 space-y-3">
       <p class="text-sm font-medium">This movie is part of a collection</p>
       <div class="flex gap-2">
-        <button
+        <.button
+          variant="secondary"
+          size="sm"
           phx-click="confirm_track"
           phx-value-tmdb-id={@item.tmdb_id}
           phx-value-media-type="movie"
           phx-value-name={@item.name}
           phx-value-poster-path={@item.poster_path}
           phx-value-scope="movie_only"
-          class="btn btn-soft btn-primary btn-sm"
         >
           Just this movie
-        </button>
-        <button
+        </.button>
+        <.button
+          variant="info"
+          size="sm"
           phx-click="confirm_track"
           phx-value-tmdb-id={@item.collection_id}
           phx-value-media-type="movie"
           phx-value-name={@item.collection_name}
           phx-value-poster-path={@item.poster_path}
           phx-value-scope="collection"
-          class="btn btn-soft btn-info btn-sm"
         >
           Whole collection
-        </button>
+        </.button>
       </div>
     </div>
     """

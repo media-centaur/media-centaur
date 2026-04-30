@@ -209,16 +209,16 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                 onkeydown="if (event.key === 'Escape') { event.preventDefault(); this.form.querySelector('button[type=submit]').focus() }"
               />
             </div>
-            <button
+            <.button
               type="submit"
-              class="btn btn-soft btn-primary"
+              variant="secondary"
               disabled={expansion_blocked?(@expansion_preview)}
               data-nav-item
               tabindex="0"
             >
               <span :if={@searching?} class="loading loading-spinner loading-sm"></span>
               <.icon :if={!@searching?} name="hero-magnifying-glass" class="size-4" /> Search
-            </button>
+            </.button>
           </form>
 
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
@@ -308,24 +308,25 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
             <%!-- Failed-search helpers: retry the same term, jump to settings --%>
             <div :if={match?({:failed, _}, group.status)} class="pl-44 flex items-center gap-2">
-              <button
-                type="button"
-                class="btn btn-soft btn-warning btn-xs"
+              <.button
+                variant="risky"
+                size="xs"
                 phx-click="retry_search"
                 phx-value-term={group.term}
                 data-nav-item
                 tabindex="0"
               >
                 <.icon name="hero-arrow-path-mini" class="size-3" /> Retry
-              </button>
-              <.link
+              </.button>
+              <.button
+                variant="secondary"
+                size="xs"
                 patch={~p"/settings?section=acquisition"}
-                class="btn btn-soft btn-primary btn-xs"
                 data-nav-item
                 tabindex="0"
               >
                 Open Prowlarr settings <.icon name="hero-chevron-right-mini" class="size-3" />
-              </.link>
+              </.button>
             </div>
 
             <%!-- Expanded alternatives --%>
@@ -374,19 +375,17 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           <%!-- Footer actions: bulk-retry + grab --%>
           <% timeouts = Logic.timeout_terms(@groups) %>
           <div class="flex justify-end items-center gap-2">
-            <button
+            <.button
               :if={!@searching? && timeouts != []}
-              type="button"
-              class="btn btn-soft btn-warning"
+              variant="risky"
               phx-click="retry_all_timeouts"
               data-nav-item
               tabindex="0"
             >
               <.icon name="hero-arrow-path-mini" class="size-4" /> Retry {length(timeouts)} timeouts
-            </button>
-            <button
-              type="button"
-              class="btn btn-soft btn-success"
+            </.button>
+            <.button
+              variant="action"
               phx-click="grab_selected"
               disabled={@grabbing? || map_size(@selections) == 0}
               data-nav-item
@@ -395,7 +394,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               <span :if={@grabbing?} class="loading loading-spinner loading-sm"></span>
               <.icon :if={!@grabbing?} name="hero-arrow-down-tray-mini" class="size-4" />
               Grab {map_size(@selections)} selected
-            </button>
+            </.button>
           </div>
         </section>
       </div>
@@ -737,9 +736,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         <span :if={@item.timeleft} class="text-xs text-base-content/40 tabular-nums">
           {@item.timeleft}
         </span>
-        <button
-          type="button"
-          class="btn btn-ghost btn-xs btn-circle text-base-content/40 hover:text-error"
+        <.button
+          variant="destructive_inline"
+          size="xs"
+          shape="circle"
+          class="text-base-content/40 hover:text-error"
           phx-click="cancel_download_prompt"
           phx-value-id={@item.id}
           phx-value-title={@item.title}
@@ -748,7 +749,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           tabindex="0"
         >
           <.icon name="hero-x-mark-mini" class="size-4" />
-        </button>
+        </.button>
       </div>
 
       <div :if={@item.progress} class="h-[3px] bg-base-content/10 rounded-full overflow-hidden">
@@ -793,16 +794,16 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           {@cancel_confirm.title}
         </div>
         <div class="mt-4 flex justify-end gap-2">
-          <button type="button" phx-click="cancel_download_cancel" class="btn btn-ghost btn-sm">
+          <.button variant="dismiss" size="sm" phx-click="cancel_download_cancel">
             Keep
-          </button>
-          <button
-            type="button"
+          </.button>
+          <.button
+            variant="danger"
+            size="sm"
             phx-click="cancel_download_confirm"
-            class="btn btn-soft btn-error btn-sm"
           >
             Cancel download
-          </button>
+          </.button>
         </div>
       </div>
     </div>

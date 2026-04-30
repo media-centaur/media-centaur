@@ -8,6 +8,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   on disk and broadcasting `Settings` updates.
   """
   use MediaCentarrWeb, :live_view
+  use MediaCentarrWeb.Live.SpoilerFreeAware
 
   alias MediaCentarr.{Capabilities, Config, SelfUpdate, Settings, Version}
   alias MediaCentarr.SelfUpdate.UpdateChecker
@@ -76,7 +77,7 @@ defmodule MediaCentarrWeb.SettingsLive do
         |> assign(image_pipeline_running: false)
       end
 
-    spoiler_free = load_spoiler_free_setting()
+    socket = assign_spoiler_free(socket)
 
     {:ok,
      assign(socket,
@@ -94,7 +95,6 @@ defmodule MediaCentarrWeb.SettingsLive do
        repairing_images: false,
        repair_last_result: nil,
        missing_images_summary: Maintenance.missing_images_summary(),
-       spoiler_free: spoiler_free,
        tmdb_test: load_test_result(:tmdb),
        tmdb_testing: false,
        prowlarr_test: load_test_result(:prowlarr),
@@ -856,11 +856,6 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> put_flash(:info, msg)}
   end
 
-  # Cross-tab sync — another tab toggled spoiler_free
-  def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
-    {:noreply, assign(socket, spoiler_free: enabled)}
-  end
-
   # Watcher/pipeline state change — refresh service toggle states
   def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
     {:noreply,
@@ -1251,16 +1246,17 @@ defmodule MediaCentarrWeb.SettingsLive do
               Check GitHub for a newer release.
             </p>
           </div>
-          <button
-            type="button"
+          <.button
+            variant="secondary"
+            size="sm"
+            class="shrink-0"
             phx-click="check_updates"
             disabled={@update_status == :checking}
             data-nav-item
             tabindex="0"
-            class="btn btn-soft btn-primary btn-sm shrink-0"
           >
             {if @update_status == :checking, do: "Checking…", else: "Check for updates"}
-          </button>
+          </.button>
         </div>
 
         <div :if={@update_status != :idle} class="mt-4 pt-4 border-t border-base-content/10">
@@ -1271,16 +1267,16 @@ defmodule MediaCentarrWeb.SettingsLive do
             :if={@update_status == :update_available and @latest_release}
             class="flex items-center gap-3 mt-2"
           >
-            <button
-              type="button"
+            <.button
+              variant="primary"
+              size="sm"
               phx-click="apply_update"
               disabled={@apply_phase != nil}
               data-nav-item
               tabindex="0"
-              class="btn btn-primary btn-sm"
             >
               Update now
-            </button>
+            </.button>
             <a
               href={@latest_release.html_url}
               target="_blank"
@@ -1333,17 +1329,18 @@ defmodule MediaCentarrWeb.SettingsLive do
                   <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
                     {SystemSection.terminal_recovery_command()}
                   </code>
-                  <button
+                  <.button
                     id="copy-terminal-update"
-                    type="button"
+                    variant="dismiss"
+                    size="xs"
+                    class="shrink-0"
                     phx-hook="CopyButton"
                     data-copy-text={SystemSection.terminal_recovery_command()}
-                    class="btn btn-xs btn-ghost shrink-0"
                     data-nav-item
                     tabindex="0"
                   >
                     Copy
-                  </button>
+                  </.button>
                 </div>
               </div>
 
@@ -1355,17 +1352,18 @@ defmodule MediaCentarrWeb.SettingsLive do
                   <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
                     {SystemSection.force_recovery_command()}
                   </code>
-                  <button
+                  <.button
                     id="copy-terminal-force"
-                    type="button"
+                    variant="dismiss"
+                    size="xs"
+                    class="shrink-0"
                     phx-hook="CopyButton"
                     data-copy-text={SystemSection.force_recovery_command()}
-                    class="btn btn-xs btn-ghost shrink-0"
                     data-nav-item
                     tabindex="0"
                   >
                     Copy
-                  </button>
+                  </.button>
                 </div>
               </div>
 
@@ -1377,17 +1375,18 @@ defmodule MediaCentarrWeb.SettingsLive do
                   <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
                     {SystemSection.bootstrap_install_command()}
                   </code>
-                  <button
+                  <.button
                     id="copy-terminal-bootstrap"
-                    type="button"
+                    variant="dismiss"
+                    size="xs"
+                    class="shrink-0"
                     phx-hook="CopyButton"
                     data-copy-text={SystemSection.bootstrap_install_command()}
-                    class="btn btn-xs btn-ghost shrink-0"
                     data-nav-item
                     tabindex="0"
                   >
                     Copy
-                  </button>
+                  </.button>
                 </div>
               </div>
             </div>
@@ -1412,13 +1411,15 @@ defmodule MediaCentarrWeb.SettingsLive do
             Add one to fetch posters, backdrops, and metadata for your library.
           </p>
         </div>
-        <.link
+        <.button
+          variant="primary"
+          size="sm"
+          class="shrink-0"
           navigate={~p"/settings?section=tmdb"}
-          class="btn btn-sm btn-primary shrink-0"
           data-nav-item
         >
           Add key
-        </.link>
+        </.button>
       </div>
 
       <div class="p-5 rounded-lg glass-surface">
@@ -1527,25 +1528,27 @@ defmodule MediaCentarrWeb.SettingsLive do
           Manually scan all watch directories for new media files.
         </p>
         <div class="flex items-center gap-2 shrink-0">
-          <button
+          <.button
             :if={@scanning}
+            variant="dismiss"
+            size="sm"
             phx-click="cancel_scan"
             data-nav-item
             tabindex="0"
-            class="btn btn-ghost btn-sm"
           >
             Cancel
-          </button>
-          <button
+          </.button>
+          <.button
+            variant="action"
+            size="sm"
             phx-click="scan"
             disabled={@scanning}
             data-nav-item
             tabindex="0"
-            class="btn btn-soft btn-success btn-sm"
           >
             <span :if={@scanning} class="loading loading-spinner loading-xs"></span>
             {if @scanning, do: "Scanning…", else: "Scan now"}
-          </button>
+          </.button>
         </div>
       </div>
     </div>
@@ -1595,14 +1598,16 @@ defmodule MediaCentarrWeb.SettingsLive do
             The Movie Database API — required for metadata scraping and artwork.
           </p>
         </div>
-        <button
+        <.button
           type="submit"
-          class="btn btn-soft btn-primary btn-sm shrink-0"
+          variant="secondary"
+          size="sm"
+          class="shrink-0"
           data-nav-item
           tabindex="0"
         >
           Save
-        </button>
+        </.button>
       </div>
 
       <div class="space-y-3">
@@ -1660,11 +1665,13 @@ defmodule MediaCentarrWeb.SettingsLive do
           ok_label="Connected"
           error_label="Unreachable"
         />
-        <button
+        <.button
           type="submit"
+          variant="neutral"
+          size="sm"
+          class="shrink-0"
           name="_action"
           value="test"
-          class="btn btn-soft btn-sm shrink-0"
           disabled={@tmdb_testing}
           data-nav-item
           tabindex="0"
@@ -1672,7 +1679,7 @@ defmodule MediaCentarrWeb.SettingsLive do
           <span :if={@tmdb_testing} class="loading loading-spinner loading-xs"></span>
           <.icon :if={!@tmdb_testing} name="hero-signal-mini" class="size-4" />
           {if @tmdb_testing, do: "Testing…", else: "Test connection"}
-        </button>
+        </.button>
       </div>
     </form>
     """
@@ -1719,14 +1726,16 @@ defmodule MediaCentarrWeb.SettingsLive do
               Indexer proxy that searches for media and forwards grabs.
             </p>
           </div>
-          <button
+          <.button
             type="submit"
-            class="btn btn-soft btn-primary btn-sm shrink-0"
+            variant="secondary"
+            size="sm"
+            class="shrink-0"
             data-nav-item
             tabindex="0"
           >
             Save
-          </button>
+          </.button>
         </div>
 
         <div class="space-y-3">
@@ -1770,11 +1779,13 @@ defmodule MediaCentarrWeb.SettingsLive do
             ok_label="Connected"
             error_label="Unreachable"
           />
-          <button
+          <.button
             type="submit"
+            variant="neutral"
+            size="sm"
+            class="shrink-0"
             name="_action"
             value="test"
-            class="btn btn-soft btn-sm shrink-0"
             disabled={@prowlarr_testing}
             data-nav-item
             tabindex="0"
@@ -1782,7 +1793,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             <span :if={@prowlarr_testing} class="loading loading-spinner loading-xs"></span>
             <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" />
             {if @prowlarr_testing, do: "Testing…", else: "Test connection"}
-          </button>
+          </.button>
         </div>
       </form>
 
@@ -1802,9 +1813,9 @@ defmodule MediaCentarrWeb.SettingsLive do
             </p>
           </div>
           <div class="flex flex-wrap gap-2 shrink-0">
-            <button
-              type="button"
-              class="btn btn-soft btn-sm"
+            <.button
+              variant="neutral"
+              size="sm"
               phx-click="detect_download_client"
               disabled={@download_client_detecting || !@prowlarr_configured}
               data-nav-item
@@ -1818,10 +1829,10 @@ defmodule MediaCentarrWeb.SettingsLive do
                 class="size-4"
               />
               {if @download_client_detecting, do: "Detecting…", else: "Detect"}
-            </button>
-            <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+            </.button>
+            <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
               Save
-            </button>
+            </.button>
           </div>
         </div>
 
@@ -1912,11 +1923,13 @@ defmodule MediaCentarrWeb.SettingsLive do
             ok_label="Connected"
             error_label="Unreachable / auth failed"
           />
-          <button
+          <.button
             type="submit"
+            variant="neutral"
+            size="sm"
+            class="shrink-0"
             name="_action"
             value="test"
-            class="btn btn-soft btn-sm shrink-0"
             disabled={@download_client_testing}
             data-nav-item
             tabindex="0"
@@ -1924,7 +1937,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             <span :if={@download_client_testing} class="loading loading-spinner loading-xs"></span>
             <.icon :if={!@download_client_testing} name="hero-signal-mini" class="size-4" />
             {if @download_client_testing, do: "Testing…", else: "Test connection"}
-          </button>
+          </.button>
         </div>
       </form>
 
@@ -1943,14 +1956,16 @@ defmodule MediaCentarrWeb.SettingsLive do
             Controls how files are classified during ingestion.
           </p>
         </div>
-        <button
+        <.button
           type="submit"
-          class="btn btn-soft btn-primary btn-sm shrink-0"
+          variant="secondary"
+          size="sm"
+          class="shrink-0"
           data-nav-item
           tabindex="0"
         >
           Save
-        </button>
+        </.button>
       </div>
 
       <div class="space-y-3">
@@ -2004,14 +2019,16 @@ defmodule MediaCentarrWeb.SettingsLive do
             MPV player configuration.
           </p>
         </div>
-        <button
+        <.button
           type="submit"
-          class="btn btn-soft btn-primary btn-sm shrink-0"
+          variant="secondary"
+          size="sm"
+          class="shrink-0"
           data-nav-item
           tabindex="0"
         >
           Save
-        </button>
+        </.button>
       </div>
 
       <div class="space-y-3">
@@ -2083,9 +2100,9 @@ defmodule MediaCentarrWeb.SettingsLive do
           <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
             Data directory
           </h3>
-          <button type="submit" class="btn btn-soft btn-primary btn-sm" data-nav-item tabindex="0">
+          <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
             Save
-          </button>
+          </.button>
         </div>
 
         <p class="text-xs text-base-content/50">
@@ -2115,14 +2132,15 @@ defmodule MediaCentarrWeb.SettingsLive do
           <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
             Watch Directories
           </h3>
-          <button
-            class="btn btn-soft btn-success btn-sm"
+          <.button
+            variant="action"
+            size="sm"
             phx-click="watch_dir:open_add"
             data-nav-item
             tabindex="0"
           >
             <.icon name="hero-plus" class="size-4" /> Add
-          </button>
+          </.button>
         </div>
 
         <div :if={@watch_dirs == []} class="text-base-content/60 py-4">
@@ -2153,8 +2171,9 @@ defmodule MediaCentarrWeb.SettingsLive do
             </div>
 
             <div class="flex gap-1 shrink-0">
-              <button
-                class="btn btn-ghost btn-sm"
+              <.button
+                variant="dismiss"
+                size="sm"
                 phx-click="watch_dir:open_edit"
                 phx-value-id={entry["id"]}
                 aria-label="Edit watch directory"
@@ -2162,28 +2181,31 @@ defmodule MediaCentarrWeb.SettingsLive do
                 tabindex="0"
               >
                 <.icon name="hero-pencil-square" class="size-4" />
-              </button>
+              </.button>
               <%= if @watch_dir_delete_confirm == entry["id"] do %>
-                <button
-                  class="btn btn-soft btn-error btn-sm"
+                <.button
+                  variant="danger"
+                  size="sm"
                   phx-click="watch_dir:delete"
                   phx-value-id={entry["id"]}
                   data-nav-item
                   tabindex="0"
                 >
                   Confirm
-                </button>
-                <button
-                  class="btn btn-ghost btn-sm"
+                </.button>
+                <.button
+                  variant="dismiss"
+                  size="sm"
                   phx-click="watch_dir:delete_cancel"
                   data-nav-item
                   tabindex="0"
                 >
                   Cancel
-                </button>
+                </.button>
               <% else %>
-                <button
-                  class="btn btn-ghost btn-sm text-error"
+                <.button
+                  variant="destructive_inline"
+                  size="sm"
                   phx-click="watch_dir:delete_confirm"
                   phx-value-id={entry["id"]}
                   aria-label="Remove watch directory"
@@ -2191,7 +2213,7 @@ defmodule MediaCentarrWeb.SettingsLive do
                   tabindex="0"
                 >
                   <.icon name="hero-trash" class="size-4" />
-                </button>
+                </.button>
               <% end %>
             </div>
           </li>
@@ -2216,8 +2238,10 @@ defmodule MediaCentarrWeb.SettingsLive do
             class="glass-inset rounded-lg p-3 flex items-center gap-3"
           >
             <span class="flex-1 min-w-0 text-sm truncate" title={path}>{path}</span>
-            <button
-              class="btn btn-ghost btn-sm text-error shrink-0"
+            <.button
+              variant="destructive_inline"
+              size="sm"
+              class="shrink-0"
               phx-click="exclude_dir:delete"
               phx-value-path={path}
               data-confirm={"Remove #{path} from excluded directories?"}
@@ -2226,7 +2250,7 @@ defmodule MediaCentarrWeb.SettingsLive do
               tabindex="0"
             >
               <.icon name="hero-trash" class="size-4" />
-            </button>
+            </.button>
           </li>
         </ul>
 
@@ -2250,15 +2274,17 @@ defmodule MediaCentarrWeb.SettingsLive do
               data-nav-item
               tabindex="0"
             />
-            <button
+            <.button
               type="submit"
-              class="btn btn-soft btn-success btn-sm shrink-0"
+              variant="action"
+              size="sm"
+              class="shrink-0"
               disabled={exclude_dir_add_disabled?(@exclude_dir_input, @exclude_dir_error)}
               data-nav-item
               tabindex="0"
             >
               <.icon name="hero-plus" class="size-4" /> Add
-            </button>
+            </.button>
           </div>
           <p :if={is_binary(@exclude_dir_error)} class="text-error text-xs">
             {@exclude_dir_error}
@@ -2278,14 +2304,16 @@ defmodule MediaCentarrWeb.SettingsLive do
               Cleanup and status display tuning.
             </p>
           </div>
-          <button
+          <.button
             type="submit"
-            class="btn btn-soft btn-primary btn-sm shrink-0"
+            variant="secondary"
+            size="sm"
+            class="shrink-0"
             data-nav-item
             tabindex="0"
           >
             Save
-          </button>
+          </.button>
         </div>
 
         <div class="space-y-3">
@@ -2343,14 +2371,16 @@ defmodule MediaCentarrWeb.SettingsLive do
             How often to poll TMDB for upcoming release dates.
           </p>
         </div>
-        <button
+        <.button
           type="submit"
-          class="btn btn-soft btn-primary btn-sm shrink-0"
+          variant="secondary"
+          size="sm"
+          class="shrink-0"
           data-nav-item
           tabindex="0"
         >
           Save
-        </button>
+        </.button>
       </div>
 
       <div>
@@ -2411,15 +2441,17 @@ defmodule MediaCentarrWeb.SettingsLive do
                 <% end %>
               </p>
             </div>
-            <button
+            <.button
+              variant="neutral"
+              size="sm"
+              class="shrink-0"
               phx-click="repair_missing_images"
               disabled={@repairing_images or @missing_images_summary.missing == 0}
               data-nav-item
               tabindex="0"
-              class="btn btn-soft btn-sm shrink-0"
             >
               {if @repairing_images, do: "Repairing…", else: "Repair"}
-            </button>
+            </.button>
           </div>
         </div>
       </div>
@@ -2443,16 +2475,18 @@ defmodule MediaCentarrWeb.SettingsLive do
                 Permanently deletes all entities, files, images, and progress.
               </p>
             </div>
-            <button
+            <.button
+              variant="danger"
+              size="sm"
+              class="shrink-0"
               phx-click="clear_database"
               disabled={@clearing_database}
               data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
               data-nav-item
               tabindex="0"
-              class="btn btn-soft btn-error btn-sm shrink-0"
             >
               {if @clearing_database, do: "Clearing…", else: "Clear"}
-            </button>
+            </.button>
           </div>
 
           <div class="flex items-start justify-between gap-4 py-3">
@@ -2462,7 +2496,10 @@ defmodule MediaCentarrWeb.SettingsLive do
                 Deletes all cached artwork and re-downloads from TMDB. May take a while.
               </p>
             </div>
-            <button
+            <.button
+              variant="risky"
+              size="sm"
+              class="shrink-0"
               phx-click="refresh_image_cache"
               disabled={@refreshing_images}
               data-confirm={
@@ -2473,10 +2510,9 @@ defmodule MediaCentarrWeb.SettingsLive do
               }
               data-nav-item
               tabindex="0"
-              class="btn btn-soft btn-warning btn-sm shrink-0"
             >
               {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
-            </button>
+            </.button>
           </div>
         </div>
       </div>
@@ -2603,29 +2639,30 @@ defmodule MediaCentarrWeb.SettingsLive do
           :if={SystemSection.apply_cancelable?(@apply_phase) or @apply_phase in [:handing_off, :done]}
           class="flex justify-end pt-2"
         >
-          <button
+          <.button
             :if={SystemSection.apply_cancelable?(@apply_phase)}
-            type="button"
+            variant="dismiss"
+            size="sm"
             phx-click="cancel_update"
             data-nav-item
             tabindex="0"
-            class="btn btn-ghost btn-sm"
           >
             <.icon name="hero-x-mark-mini" class="size-4" /> Cancel update
-          </button>
+          </.button>
           <%!-- Once the install/restart begins the cancel option is gone, but
                 we keep the slot occupied with a disabled spinner so the user
                 sees that work is still happening while the BEAM restarts. --%>
-          <button
+          <.button
             :if={@apply_phase in [:handing_off, :done]}
-            type="button"
+            variant="dismiss"
+            size="sm"
+            class="pointer-events-none"
             disabled
             tabindex="-1"
             aria-live="polite"
-            class="btn btn-ghost btn-sm pointer-events-none"
           >
             <span class="loading loading-spinner loading-xs"></span> Installing…
-          </button>
+          </.button>
         </div>
 
         <div
@@ -2649,17 +2686,18 @@ defmodule MediaCentarrWeb.SettingsLive do
               <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
                 {SystemSection.terminal_recovery_command()}
               </code>
-              <button
+              <.button
                 id="copy-terminal-recovery"
-                type="button"
+                variant="dismiss"
+                size="xs"
+                class="shrink-0"
                 phx-hook="CopyButton"
                 data-copy-text={SystemSection.terminal_recovery_command()}
-                class="btn btn-xs btn-ghost shrink-0"
                 data-nav-item
                 tabindex="0"
               >
                 Copy
-              </button>
+              </.button>
             </div>
           </div>
         </div>
@@ -2681,17 +2719,18 @@ defmodule MediaCentarrWeb.SettingsLive do
             <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
               systemctl --user restart media-centarr
             </code>
-            <button
+            <.button
               id="copy-stuck-restart"
-              type="button"
+              variant="dismiss"
+              size="xs"
+              class="shrink-0"
               phx-hook="CopyButton"
               data-copy-text="systemctl --user restart media-centarr"
-              class="btn btn-xs btn-ghost shrink-0"
               data-nav-item
               tabindex="0"
             >
               Copy
-            </button>
+            </.button>
           </div>
         </div>
 
@@ -2699,25 +2738,25 @@ defmodule MediaCentarrWeb.SettingsLive do
           :if={@apply_phase in [:failed, :done_stuck]}
           class="flex justify-end gap-2 pt-2"
         >
-          <button
-            type="button"
+          <.button
+            variant="dismiss"
+            size="sm"
             phx-click="dismiss_apply_modal"
             data-nav-item
             tabindex="0"
-            class="btn btn-ghost btn-sm"
           >
             Close
-          </button>
-          <button
+          </.button>
+          <.button
             :if={@apply_phase == :failed}
-            type="button"
+            variant="primary"
+            size="sm"
             phx-click="apply_update"
             data-nav-item
             tabindex="0"
-            class="btn btn-primary btn-sm"
           >
             Retry
-          </button>
+          </.button>
         </div>
       </div>
     </div>
@@ -2752,25 +2791,25 @@ defmodule MediaCentarrWeb.SettingsLive do
         </div>
 
         <div class="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
+          <.button
+            variant="dismiss"
+            size="sm"
             phx-click="service_cancel"
             data-nav-item
             tabindex="0"
-            class="btn btn-ghost btn-sm"
           >
             Cancel
-          </button>
-          <button
-            type="button"
+          </.button>
+          <.button
+            variant={service_confirm_button_variant(@action)}
+            size="sm"
             phx-click="service_execute"
             phx-value-action={@action || ""}
             data-nav-item
             tabindex="0"
-            class={service_confirm_button_class(@action)}
           >
             {service_confirm_cta(@action)}
-          </button>
+          </.button>
         </div>
       </div>
     </div>
@@ -2795,13 +2834,16 @@ defmodule MediaCentarrWeb.SettingsLive do
         class="modal-panel modal-panel-sm p-6"
         phx-click-away={@watch_dir_dialog && "watch_dir:close"}
       >
-        <button
+        <.button
+          variant="dismiss"
+          size="sm"
+          shape="circle"
+          class="absolute top-3 right-3 z-10"
           phx-click="watch_dir:close"
-          class="absolute top-3 right-3 z-10 btn btn-ghost btn-circle btn-sm"
           aria-label="Close"
         >
           <.icon name="hero-x-mark-mini" class="size-5" />
-        </button>
+        </.button>
 
         <h3 id="watch-dir-dialog-title" class="text-lg font-semibold mb-4">
           {if @watch_dir_dialog &&
@@ -2881,16 +2923,16 @@ defmodule MediaCentarrWeb.SettingsLive do
           </div>
 
           <div class="flex justify-end gap-2 pt-2">
-            <button type="button" class="btn btn-ghost" phx-click="watch_dir:close">
+            <.button variant="dismiss" phx-click="watch_dir:close">
               Cancel
-            </button>
-            <button
+            </.button>
+            <.button
               type="submit"
-              class="btn btn-primary"
+              variant="primary"
               disabled={not WatchDirsLogic.saveable?(@watch_dir_dialog.validation)}
             >
               Save
-            </button>
+            </.button>
           </div>
         </form>
       </div>
@@ -2916,9 +2958,9 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp service_confirm_cta("stop"), do: "Stop"
   defp service_confirm_cta(_), do: ""
 
-  defp service_confirm_button_class("restart"), do: "btn btn-primary btn-sm"
-  defp service_confirm_button_class("stop"), do: "btn btn-soft btn-warning btn-sm"
-  defp service_confirm_button_class(_), do: "btn btn-sm"
+  defp service_confirm_button_variant("restart"), do: "primary"
+  defp service_confirm_button_variant("stop"), do: "risky"
+  defp service_confirm_button_variant(_), do: "neutral"
 
   # Inline Service card — rendered inside the overview section.
   attr :service_state, :map, required: true
@@ -2961,30 +3003,30 @@ defmodule MediaCentarrWeb.SettingsLive do
         class="space-y-3"
       >
         <div class="flex flex-wrap gap-2">
-          <button
+          <.button
             :if={@service_state.active}
-            type="button"
+            variant="secondary"
+            size="sm"
             phx-click="service_confirm"
             phx-value-action="restart"
             data-nav-item
             tabindex="0"
             disabled={@service_action_pending != nil}
-            class="btn btn-soft btn-primary btn-sm"
           >
             <.icon name="hero-arrow-path-mini" class="size-4" /> Restart
-          </button>
-          <button
+          </.button>
+          <.button
             :if={@service_state.active}
-            type="button"
+            variant="risky"
+            size="sm"
             phx-click="service_confirm"
             phx-value-action="stop"
             data-nav-item
             tabindex="0"
             disabled={@service_action_pending != nil}
-            class="btn btn-soft btn-warning btn-sm"
           >
             <.icon name="hero-stop-mini" class="size-4" /> Stop
-          </button>
+          </.button>
         </div>
 
         <details class="release-notes-disclosure" open={@service_status_visible}>
@@ -3359,13 +3401,6 @@ defmodule MediaCentarrWeb.SettingsLive do
     Enum.reject(list, &(&1["id"] == entry["id"]))
   end
 
-  defp load_spoiler_free_setting do
-    case Settings.get_by_key("spoiler_free_mode") do
-      {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
-      _ -> false
-    end
-  end
-
   # --- Watch-dir function components ---
 
   attr :errors, :list, required: true
@@ -3435,14 +3470,16 @@ defmodule MediaCentarrWeb.SettingsLive do
             overrides on individual tracking entries take precedence.
           </p>
         </div>
-        <button
+        <.button
           type="submit"
-          class="btn btn-soft btn-primary btn-sm shrink-0"
+          variant="secondary"
+          size="sm"
+          class="shrink-0"
           data-nav-item
           tabindex="0"
         >
           Save
-        </button>
+        </.button>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

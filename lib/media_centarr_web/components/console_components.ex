@@ -191,15 +191,16 @@ defmodule MediaCentarrWeb.ConsoleComponents do
       >
         Systemd
       </button>
-      <button
+      <.button
         :if={@active_source == :systemd and @journal_available}
-        type="button"
+        variant="dismiss"
+        size="xs"
+        class="console-source-reconnect"
         phx-click="reconnect_journal"
-        class="console-source-reconnect btn btn-xs btn-ghost"
         title="Force-respawn journalctl"
       >
         Reconnect
-      </button>
+      </.button>
     </nav>
     """
   end
@@ -224,28 +225,30 @@ defmodule MediaCentarrWeb.ConsoleComponents do
   def action_footer(assigns) do
     ~H"""
     <footer class="console-footer">
-      <button type="button" class="btn btn-xs" phx-click="toggle_pause">
+      <.button variant="neutral" size="xs" phx-click="toggle_pause">
         {View.pause_button_label(@paused)}
-      </button>
-      <button
-        type="button"
-        class="btn btn-xs"
+      </.button>
+      <.button
+        variant="neutral"
+        size="xs"
         phx-click="clear_buffer"
         data-confirm="Clear the diagnostic log buffer? Recent entries will be lost."
       >
         clear
-      </button>
-      <button type="button" class="btn btn-xs" phx-click="copy_visible">copy</button>
-      <button type="button" class="btn btn-xs" phx-click="download_buffer">download</button>
-      <.link :if={@show_fullpage_link} navigate={~p"/console"} class="btn btn-xs">full page</.link>
-      <button
-        type="button"
-        class="btn btn-xs btn-primary"
+      </.button>
+      <.button variant="neutral" size="xs" phx-click="copy_visible">copy</.button>
+      <.button variant="neutral" size="xs" phx-click="download_buffer">download</.button>
+      <.button :if={@show_fullpage_link} variant="neutral" size="xs" navigate={~p"/console"}>
+        full page
+      </.button>
+      <.button
+        variant="primary"
+        size="xs"
         phx-click="rescan_library"
         phx-disable-with="scanning…"
       >
         rescan
-      </button>
+      </.button>
       <div class="console-buffer-size">
         <form phx-change="resize_buffer">
           <input

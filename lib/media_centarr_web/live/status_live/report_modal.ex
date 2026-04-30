@@ -122,13 +122,13 @@ defmodule MediaCentarrWeb.StatusLive.ReportModal do
         </div>
 
         <div class="px-6 pt-4 pb-6 flex flex-col items-center gap-2 border-t border-base-300">
-          <button
-            class="btn btn-primary"
+          <.button
+            variant="primary"
             phx-click={JS.push("report_confirm", value: %{fingerprint: @selected})}
             disabled={is_nil(@selected)}
           >
             Confirm &amp; open GitHub
-          </button>
+          </.button>
           <a
             href="#"
             class="link link-hover text-sm text-base-content/60"
