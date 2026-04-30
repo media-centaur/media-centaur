@@ -59,7 +59,8 @@ defmodule MediaCentarr.Application do
         },
         MediaCentarr.Watcher.FilePresence,
         MediaCentarr.Library.FileEventHandler,
-        MediaCentarr.SelfUpdate.Updater
+        MediaCentarr.SelfUpdate.Updater,
+        MediaCentarr.Acquisition.SearchSession
       ] ++
         pubsub_listeners(Application.get_env(:media_centarr, :environment)) ++
         [
