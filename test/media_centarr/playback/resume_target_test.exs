@@ -139,6 +139,31 @@ defmodule MediaCentarr.Playback.ResumeTargetTest do
 
       assert ResumeTarget.compute(entity, progress) == nil
     end
+
+    test "first 4 of 8 episodes completed (regression: large remainder) → begin next" do
+      {entity, episode_ids} = build_tv_entity_8()
+
+      now = DateTime.utc_now()
+
+      progress =
+        for {episode_id, offset} <- Enum.zip(Enum.take(episode_ids, 4), [-180, -120, -60, 0]) do
+          build_progress(%{
+            episode_id: episode_id,
+            completed: true,
+            last_watched_at: DateTime.add(now, offset, :second)
+          })
+        end
+
+      result = ResumeTarget.compute(entity, progress)
+
+      assert result == %{
+               "action" => "begin",
+               "targetId" => Enum.at(episode_ids, 4),
+               "name" => "Episode 5",
+               "seasonNumber" => 1,
+               "episodeNumber" => 5
+             }
+    end
   end
 
   # --- MovieSeries ---
@@ -337,6 +362,28 @@ defmodule MediaCentarr.Playback.ResumeTargetTest do
       })
 
     {entity, [ep1.id, ep2.id, ep3.id]}
+  end
+
+  defp build_tv_entity_8 do
+    episodes =
+      for n <- 1..8 do
+        build_episode(%{
+          episode_number: n,
+          name: "Episode #{n}",
+          content_url: "/s1e#{n}.mkv"
+        })
+      end
+
+    season = build_season(%{season_number: 1, episodes: episodes})
+
+    entity =
+      build_entity(%{
+        type: :tv_series,
+        name: "Test Show 8",
+        seasons: [season]
+      })
+
+    {entity, Enum.map(episodes, & &1.id)}
   end
 
   defp build_movie_series_entity do

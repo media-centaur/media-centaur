@@ -15,14 +15,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   alias MediaCentarr.Library.EpisodeList
   alias MediaCentarr.Library.MovieList
-  alias MediaCentarrWeb.Components.Detail.ChipList
+  alias MediaCentarrWeb.Components.Detail.FacetStrip
   alias MediaCentarrWeb.Components.Detail.Hero
   alias MediaCentarrWeb.Components.Detail.Logic
   alias MediaCentarrWeb.Components.Detail.MetadataRow
   alias MediaCentarrWeb.Components.Detail.PlayCard
-  alias MediaCentarrWeb.Components.Detail.ScoreCard
   alias MediaCentarrWeb.Components.Detail.Section
-  alias MediaCentarrWeb.Components.Detail.StatGrid
 
   # --- Public API ---
 
@@ -95,12 +93,10 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         entity_extras(assigns.entity) != []
 
     playback = build_playback(assigns)
-    stat_grid = build_stat_grid(assigns.entity)
+    facets = build_facets(assigns.entity)
     metadata_items = build_metadata_items(assigns.entity)
     file_path = file_path_for(assigns.entity)
     tagline = tagline_for(assigns.entity)
-    score_visible = Logic.score_visible?(assigns.entity)
-    genres = assigns.entity.genres || []
 
     assigns =
       assigns
@@ -110,28 +106,29 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:extra_progress_by_id, extra_progress_by_id)
       |> assign(:has_scrollable_content, has_scrollable_content)
       |> assign(:playback, playback)
-      |> assign(:stat_grid, stat_grid)
+      |> assign(:facets, facets)
       |> assign(:metadata_items, metadata_items)
       |> assign(:file_path, file_path)
       |> assign(:tagline, tagline)
-      |> assign(:score_visible, score_visible)
-      |> assign(:genres, genres)
 
     ~H"""
     <div class="detail-panel">
       <div id="detail-header">
         <Hero.hero entity={@entity} tagline={@tagline} available={@available}>
           <:actions :if={@tracking_status}>
-            <button
+            <.button
+              variant="dismiss"
+              size="sm"
+              shape="circle"
+              class="opacity-60 hover:opacity-100 transition-opacity"
               phx-click="toggle_tracking"
-              class="btn btn-circle btn-ghost btn-sm opacity-60 hover:opacity-100 transition-opacity"
               title={tracking_title(@tracking_status)}
             >
               <.icon
                 name={tracking_icon(@tracking_status)}
                 class={"size-5 #{tracking_color(@tracking_status)}"}
               />
-            </button>
+            </.button>
           </:actions>
         </Hero.hero>
         <div class="p-4 space-y-4">
@@ -143,7 +140,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             on_play={@on_play}
             target_id={@playback.target_id}
             label={@playback.label}
-            color={@playback.color}
             percent={@playback.percent}
             remaining_text={@playback.remaining_text}
             available={@available}
@@ -152,18 +148,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-4">
             {@entity.description}
           </p>
-          <Section.section :if={@stat_grid != []} title="At a glance">
-            <StatGrid.stat_grid stats={@stat_grid} />
-          </Section.section>
-          <Section.section :if={@genres != []} title="Genres & themes">
-            <ChipList.chip_list items={@genres} />
-          </Section.section>
-          <Section.section :if={@score_visible} title="Reception">
-            <ScoreCard.score_card
-              rating={@entity.aggregate_rating_value}
-              vote_count={Map.get(@entity, :vote_count)}
-            />
-          </Section.section>
+          <FacetStrip.facet_strip facets={@facets} />
           <Section.section :if={@file_path} title="File">
             <p
               class="text-xs text-base-content/55 truncate font-mono break-all"
@@ -209,26 +194,27 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   # --- Header content builders (used in detail_panel/1) ---
 
   defp build_playback(assigns) do
-    {label, color, target_id} = playback_button_props(assigns)
+    {label, target_id} =
+      Logic.playback_props(assigns.entity, assigns.resume, assigns.progress)
+
     percent = overall_progress_percent(assigns.progress, assigns.entity)
     remaining = progress_remaining_text(assigns.progress, assigns.entity)
 
     %{
       label: label,
-      color: color,
       target_id: target_id,
       percent: percent,
       remaining_text: remaining
     }
   end
 
-  defp build_stat_grid(%{type: :movie} = movie), do: Logic.stat_grid_for(:movie, movie)
-  defp build_stat_grid(%{type: :tv_series} = tv), do: Logic.stat_grid_for(:tv_series, tv)
+  defp build_facets(%{type: :movie} = movie), do: Logic.facets_for(:movie, movie)
+  defp build_facets(%{type: :tv_series} = tv), do: Logic.facets_for(:tv_series, tv)
 
-  defp build_stat_grid(%{type: :movie_series, movies: movies} = ms) when is_list(movies),
-    do: Logic.stat_grid_for(:movie_series, ms, movies)
+  defp build_facets(%{type: :movie_series, movies: movies} = ms) when is_list(movies),
+    do: Logic.facets_for(:movie_series, ms, movies)
 
-  defp build_stat_grid(_), do: []
+  defp build_facets(_), do: []
 
   defp build_metadata_items(entity) do
     [
@@ -309,20 +295,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   defp tracking_title(:watching), do: "Tracking new releases — click to ignore"
   defp tracking_title(:ignored), do: "Ignoring new releases — click to track"
   defp tracking_title(_), do: "Not tracking"
-
-  # --- Playback button props (consumed by build_playback/1) ---
-
-  defp playback_button_props(%{resume: %{"action" => "resume"} = resume, entity: entity}) do
-    {"Resume", "success", resume["targetId"] || entity.id}
-  end
-
-  defp playback_button_props(%{resume: %{"action" => "begin"} = resume, entity: entity}) do
-    {"Play", "primary", resume["targetId"] || entity.id}
-  end
-
-  defp playback_button_props(%{entity: entity}) do
-    {"Play", "primary", entity.id}
-  end
 
   def overall_progress_percent(nil, _entity), do: 0
 
@@ -979,16 +951,18 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             <span class="text-xs text-base-content/40">
               {file_summary(@file_count, @total_size)}
             </span>
-            <button
+            <.button
               :if={@file_count > 1}
+              variant="destructive_inline"
+              size="xs"
+              class="text-error/60 hover:text-error opacity-0 group-hover/files:opacity-100 focus:opacity-100 transition-opacity"
               phx-click="delete_all_prompt"
-              class="btn btn-ghost btn-xs text-error/60 hover:text-error opacity-0 group-hover/files:opacity-100 focus:opacity-100 transition-opacity"
               data-nav-item
               tabindex="0"
               aria-label="Delete all files"
             >
               <.icon name="hero-trash-mini" class="size-3.5" /> Delete all
-            </button>
+            </.button>
           </div>
         </div>
         <div class="space-y-3">
@@ -1001,12 +975,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
               >
                 {group.name}
               </span>
-              <button
+              <.button
                 :if={!group.is_watch_dir}
+                variant="destructive_inline"
+                size="xs"
+                class="text-error/60 hover:text-error ml-auto flex-shrink-0 opacity-0 group-hover/folder:opacity-100 focus:opacity-100 transition-opacity"
                 phx-click="delete_folder_prompt"
                 phx-value-path={group.dir}
                 phx-value-count={length(group.files)}
-                class="btn btn-ghost btn-xs text-error/60 hover:text-error ml-auto flex-shrink-0 opacity-0 group-hover/folder:opacity-100 focus:opacity-100 transition-opacity"
                 data-nav-item
                 tabindex="0"
               >
@@ -1014,7 +990,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 Delete ({length(group.files)} {if length(group.files) == 1,
                   do: "file",
                   else: "files"})
-              </button>
+              </.button>
             </div>
             <div class="space-y-1.5">
               <.file_row :for={file_info <- group.files} file_info={file_info} />
@@ -1147,16 +1123,18 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           {format_file_size(@size)}
         </span>
         <span :if={@absent} class="text-xs text-warning flex-shrink-0">absent</span>
-        <button
+        <.button
+          variant="destructive_inline"
+          size="xs"
+          class="size-6 min-h-0 p-0 text-base-content/30 hover:text-error flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
           phx-click="delete_file_prompt"
           phx-value-path={@file_path}
-          class="btn btn-ghost btn-xs size-6 min-h-0 p-0 text-base-content/30 hover:text-error flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
           aria-label="Delete file"
           data-nav-item
           tabindex="0"
         >
           <.icon name="hero-trash-mini" class="size-3.5" />
-        </button>
+        </.button>
       </div>
     </div>
     """
@@ -1271,17 +1249,24 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         <p class="mt-3 text-sm text-warning">This file will be permanently deleted from disk.</p>
         <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
         <div class="mt-4 flex justify-end gap-2">
-          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm" data-nav-item tabindex="0">
+          <.button
+            variant="dismiss"
+            size="sm"
+            phx-click="delete_cancel"
+            data-nav-item
+            tabindex="0"
+          >
             Cancel
-          </button>
-          <button
+          </.button>
+          <.button
+            variant="danger"
+            size="sm"
             phx-click="delete_confirm"
-            class="btn btn-soft btn-error btn-sm"
             data-nav-item
             tabindex="0"
           >
             Delete
-          </button>
+          </.button>
         </div>
       </div>
     </div>
@@ -1335,17 +1320,24 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         </p>
         <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
         <div class="mt-4 flex justify-end gap-2">
-          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm" data-nav-item tabindex="0">
+          <.button
+            variant="dismiss"
+            size="sm"
+            phx-click="delete_cancel"
+            data-nav-item
+            tabindex="0"
+          >
             Cancel
-          </button>
-          <button
+          </.button>
+          <.button
+            variant="danger"
+            size="sm"
             phx-click="delete_confirm"
-            class="btn btn-soft btn-error btn-sm"
             data-nav-item
             tabindex="0"
           >
             Delete folder
-          </button>
+          </.button>
         </div>
       </div>
     </div>
@@ -1405,17 +1397,24 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         </p>
         <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
         <div class="mt-4 flex justify-end gap-2">
-          <button phx-click="delete_cancel" class="btn btn-ghost btn-sm" data-nav-item tabindex="0">
+          <.button
+            variant="dismiss"
+            size="sm"
+            phx-click="delete_cancel"
+            data-nav-item
+            tabindex="0"
+          >
             Cancel
-          </button>
-          <button
+          </.button>
+          <.button
+            variant="danger"
+            size="sm"
             phx-click="delete_confirm"
-            class="btn btn-soft btn-error btn-sm"
             data-nav-item
             tabindex="0"
           >
             Delete all
-          </button>
+          </.button>
         </div>
       </div>
     </div>

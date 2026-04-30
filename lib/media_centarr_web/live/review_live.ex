@@ -673,17 +673,19 @@ defmodule MediaCentarrWeb.ReviewLive do
 
         <%!-- Episode list for multi-file groups --%>
         <div :if={@file_count > 1} class="space-y-2">
-          <button
+          <.button
+            variant="dismiss"
+            size="sm"
+            class="gap-1"
             phx-click="toggle_files"
             phx-value-key={@encoded_key}
-            class="btn btn-ghost btn-sm gap-1"
           >
             <span class="badge badge-sm badge-neutral">{@file_count} episodes</span>
             <.icon
               name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-down"}
               class="size-4"
             />
-          </button>
+          </.button>
           <div :if={@expanded} class="glass-inset rounded-lg p-3">
             <ul class="space-y-1">
               <li :for={file <- @group.files} class="flex items-center gap-2">
@@ -706,38 +708,41 @@ defmodule MediaCentarrWeb.ReviewLive do
 
         <%!-- Action buttons --%>
         <div class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6">
-          <button
+          <.button
             :if={@file.tmdb_id && !@tied}
+            variant="action"
+            size="sm"
             phx-click="approve"
             phx-value-key={@encoded_key}
             disabled={@processing}
-            class="btn btn-soft btn-success btn-sm"
             data-nav-item
             tabindex="0"
           >
             {if @file_count > 1, do: "Approve All", else: "Approve"}
-          </button>
-          <button
+          </.button>
+          <.button
             :if={@tmdb_ready}
+            variant="info"
+            size="sm"
             phx-click="open_search"
             phx-value-key={@encoded_key}
             disabled={@processing}
-            class="btn btn-soft btn-info btn-sm"
             data-nav-item
             tabindex="0"
           >
             Search TMDB
-          </button>
-          <button
+          </.button>
+          <.button
+            variant="dismiss"
+            size="sm"
             phx-click="dismiss"
             phx-value-key={@encoded_key}
             disabled={@processing}
-            class="btn btn-ghost btn-sm"
             data-nav-item
             tabindex="0"
           >
             {if @file_count > 1, do: "Dismiss All", else: "Dismiss"}
-          </button>
+          </.button>
         </div>
 
         <%!-- Search panel --%>
@@ -806,17 +811,18 @@ defmodule MediaCentarrWeb.ReviewLive do
               TMDB #{candidate["tmdb_id"]}
               <.icon name="hero-arrow-top-right-on-square" class="size-3" />
             </a>
-            <button
+            <.button
+              variant="info"
+              size="sm"
               phx-click="select_match"
               phx-value-key={@encoded_key}
               phx-value-tmdb-id={candidate["tmdb_id"]}
               phx-value-title={candidate["title"]}
               phx-value-year={candidate["year"]}
               phx-value-poster-path={candidate["poster_path"]}
-              class="btn btn-sm btn-soft btn-info"
             >
               Select
-            </button>
+            </.button>
           </div>
         </div>
       </div>
@@ -834,9 +840,9 @@ defmodule MediaCentarrWeb.ReviewLive do
             TMDB Search
           </span>
         </div>
-        <button phx-click="close_search" class="btn btn-ghost btn-xs btn-circle">
+        <.button variant="dismiss" size="xs" shape="circle" phx-click="close_search">
           <.icon name="hero-x-mark" class="size-4" />
-        </button>
+        </.button>
       </div>
 
       <p :if={@type == :tv} class="text-sm text-base-content/70">
@@ -873,9 +879,9 @@ defmodule MediaCentarrWeb.ReviewLive do
             <option value="tv" selected={@type == :tv}>TV</option>
           </select>
         </div>
-        <button type="submit" class="btn btn-primary btn-sm" disabled={@searching}>
+        <.button type="submit" variant="primary" size="sm" disabled={@searching}>
           {if @searching, do: "Searching...", else: "Search"}
-        </button>
+        </.button>
       </form>
 
       <p class="text-xs text-base-content/50">
@@ -917,17 +923,19 @@ defmodule MediaCentarrWeb.ReviewLive do
             </p>
           </div>
 
-          <button
+          <.button
+            variant="info"
+            size="sm"
+            class="shrink-0"
             phx-click="select_match"
             phx-value-key={@encoded_key}
             phx-value-tmdb-id={result.tmdb_id}
             phx-value-title={result.title}
             phx-value-year={result.year}
             phx-value-poster-path={result.poster_path}
-            class="btn btn-sm btn-soft btn-info shrink-0"
           >
             Select
-          </button>
+          </.button>
         </div>
       </div>
     </div>

@@ -10,13 +10,14 @@ defmodule MediaCentarrWeb.LibraryLive do
   """
   use MediaCentarrWeb, :live_view
   use MediaCentarrWeb.Live.EntityModal
+  use MediaCentarrWeb.Live.SpoilerFreeAware
+  use MediaCentarrWeb.Live.CapabilitiesAware
 
   alias MediaCentarr.{
     Capabilities,
     Library,
     Library.Availability,
     Playback,
-    Playback.ResumeTarget,
     Settings
   }
 
@@ -43,7 +44,6 @@ defmodule MediaCentarrWeb.LibraryLive do
      |> assign(
        entries: [],
        entries_by_id: %{},
-       resume_targets: %{},
        playback: %{},
        active_tab: :all,
        sort_order: :recent,
@@ -55,14 +55,14 @@ defmodule MediaCentarrWeb.LibraryLive do
        grid_count: 0,
        reload_timer: nil,
        pending_entity_ids: MapSet.new(),
-       spoiler_free: load_spoiler_free_setting(),
-       tmdb_ready: Capabilities.tmdb_ready?(),
        unavailable_count: 0,
        availability_map: %{},
        watch_dirs: MediaCentarr.Config.get(:watch_dirs) || [],
        watch_dirs_configured: watch_dirs_configured?(),
        dir_status: Availability.dir_status()
      )
+     |> assign_tmdb_ready()
+     |> assign_spoiler_free()
      |> assign_modal_defaults()
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -245,8 +245,6 @@ defmodule MediaCentarrWeb.LibraryLive do
          }},
         socket
       ) do
-    resume_targets = Map.put(socket.assigns.resume_targets, entity_id, resume_target)
-
     socket =
       case apply_entry_update(
              socket.assigns.entries,
@@ -254,7 +252,12 @@ defmodule MediaCentarrWeb.LibraryLive do
              entity_id,
              fn entry ->
                records = merge_progress_record(entry.progress_records, changed_record)
-               %{entry | progress: summary, progress_records: records}
+
+               Map.put(
+                 %{entry | progress: summary, progress_records: records},
+                 :resume_target,
+                 resume_target
+               )
              end
            ) do
         {:ok, {new_entries, new_by_id}} ->
@@ -266,10 +269,7 @@ defmodule MediaCentarrWeb.LibraryLive do
           socket
       end
 
-    {:noreply,
-     socket
-     |> assign(resume_targets: resume_targets)
-     |> touch_stream_entries([entity_id])}
+    {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
   def handle_info({:playback_state_changed, entity_id, new_state, now_playing, _started_at}, socket) do
@@ -311,10 +311,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
-  def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
-    {:noreply, assign(socket, spoiler_free: enabled)}
-  end
-
   def handle_info({:availability_changed, dir, state}, socket) do
     availability_map =
       MediaCentarrWeb.LibraryAvailability.availability_for_dir(
@@ -340,10 +336,6 @@ defmodule MediaCentarrWeb.LibraryLive do
       end
 
     {:noreply, socket}
-  end
-
-  def handle_info(:capabilities_changed, socket) do
-    {:noreply, assign(socket, tmdb_ready: Capabilities.tmdb_ready?())}
   end
 
   def handle_info({:config_updated, :watch_dirs, _entries}, socket) do
@@ -405,13 +397,14 @@ defmodule MediaCentarrWeb.LibraryLive do
               <p class="text-base-content/80">
                 No media yet — tell Media Centarr where your files live.
               </p>
-              <.link
+              <.button
+                variant="primary"
+                size="sm"
                 navigate={~p"/settings?section=library"}
-                class="btn btn-primary btn-sm"
                 data-nav-item
               >
                 Configure library
-              </.link>
+              </.button>
             </div>
           </div>
 
@@ -445,7 +438,6 @@ defmodule MediaCentarrWeb.LibraryLive do
           rematch_confirm={@rematch_confirm}
           delete_confirm={@delete_confirm}
           tracking_status={@tracking_status}
-          resume_targets={@resume_targets}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}
@@ -458,37 +450,22 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Data Loading ---
 
   defp load_library(socket) do
-    entries = Library.Browser.fetch_all_typed_entries()
-    resume_targets = compute_resume_targets(entries)
-
-    playback =
-      Map.new(MediaCentarr.Playback.Sessions.list(), fn session ->
-        {session.entity_id, session}
-      end)
-
     socket
-    |> assign_entries(entries)
-    |> assign(
-      resume_targets: resume_targets,
-      playback: playback
-    )
+    |> assign_entries(Library.Browser.fetch_all_typed_entries())
+    |> assign(playback: load_playback_sessions())
     |> recompute_counts()
-  end
-
-  defp compute_resume_targets(entries) do
-    Map.new(entries, fn entry ->
-      {entry.entity.id, ResumeTarget.compute(entry.entity, entry.progress_records)}
-    end)
   end
 
   # Re-snap `:selected_entry` from the in-memory `entries_by_id` so the
   # detail modal reflects PubSub-driven progress updates without a DB hit.
+  # Stamping the resume target on the entry keeps the modal decoupled
+  # from how this LiveView tracks state for the rest of its UI (ADR-038).
   defp sync_selected_entry(%{assigns: %{selected_entity_id: nil}} = socket), do: socket
 
   defp sync_selected_entry(socket) do
     case Map.get(socket.assigns.entries_by_id, socket.assigns.selected_entity_id) do
       nil -> socket
-      entry -> assign(socket, :selected_entry, entry)
+      entry -> assign(socket, :selected_entry, EntityModal.put_resume_target(entry))
     end
   end
 
@@ -645,11 +622,4 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Helpers ---
 
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
-
-  defp load_spoiler_free_setting do
-    case Settings.get_by_key("spoiler_free_mode") do
-      {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
-      _ -> false
-    end
-  end
 end

@@ -10,6 +10,8 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
   """
   use Phoenix.Component
 
+  import MediaCentarrWeb.CoreComponents, only: [button: 1]
+
   alias MediaCentarrWeb.AcquisitionLive.ActivityLogic
 
   attr :grabs, :list, required: true
@@ -93,26 +95,28 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
                 </td>
                 <td class="text-right tabular-nums">{grab.attempt_count}</td>
                 <td class="text-right space-x-1">
-                  <button
+                  <.button
                     :if={grab.status in ["searching", "snoozed"]}
+                    variant="dismiss"
+                    size="xs"
                     phx-click="cancel_activity_grab"
                     phx-value-id={grab.id}
-                    class="btn btn-ghost btn-xs"
                     data-nav-item
                     tabindex="0"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </.button>
+                  <.button
                     :if={grab.status in ["cancelled", "abandoned"]}
+                    variant="secondary"
+                    size="xs"
                     phx-click="rearm_activity_grab"
                     phx-value-id={grab.id}
-                    class="btn btn-soft btn-primary btn-xs"
                     data-nav-item
                     tabindex="0"
                   >
                     Re-arm
-                  </button>
+                  </.button>
                 </td>
               </tr>
             </tbody>

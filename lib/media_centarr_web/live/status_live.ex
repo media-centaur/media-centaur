@@ -741,13 +741,14 @@ defmodule MediaCentarrWeb.StatusLive do
         <div class="flex justify-between items-start gap-4">
           <h2 class="card-title text-lg">Errors</h2>
 
-          <button
+          <.button
             :if={@buckets != []}
-            class="btn btn-sm btn-outline"
+            variant="outline"
+            size="sm"
             phx-click="open_error_report_modal"
           >
             Report errors
-          </button>
+          </.button>
         </div>
 
         <p :if={@buckets == []} class="text-base-content/60">
