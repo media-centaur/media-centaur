@@ -106,14 +106,18 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       assert render(view) =~ ~s|data-state="open"|
     end
 
-    test "clicking a Coming Up card still navigates to /upcoming", %{conn: conn} do
+    test "clicking a Coming Up marquee card with no library entity navigates to /upcoming",
+         %{conn: conn} do
       today = Date.utc_today()
 
+      # No library_entity_id → marquee renders an <a> fallback link rather
+      # than a phx-click button (no entity to open in the modal).
       item =
         create_tracking_item(%{
           tmdb_id: :rand.uniform(999_999),
           media_type: :tv_series,
-          name: "Sample Show"
+          name: "Sample Show",
+          library_entity_id: nil
         })
 
       create_tracking_release(%{
@@ -128,10 +132,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
       assert {:error, {:live_redirect, %{to: "/upcoming" <> _}}} =
                view
-               |> element(
-                 ~s|[data-component="coming-up"] a[data-row-item]|,
-                 "Sample Show"
-               )
+               |> element(~s|[data-component="coming-up-marquee"] a[data-card="hero"]|)
                |> render_click()
     end
 

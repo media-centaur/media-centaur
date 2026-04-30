@@ -582,9 +582,12 @@ defmodule MediaCentarr.ReleaseTracking do
   for watching items only. Used by HomeLive's "Coming Up" digest.
 
   Returns plain maps in the shape:
-    `%{item: %{id, name, tmdb_id, media_type}, air_date, season_number, episode_number, status, backdrop_url}`
+    `%{item: %{id, entity_id, name, tmdb_id, media_type}, air_date, season_number, episode_number, status, backdrop_url, logo_url}`
 
-  `status` is `:scheduled` — callers may enrich this with live grab status from Acquisition.
+  `entity_id` is the paired Library entity UUID (nil if the item is not yet
+  in the library). `logo_url` is currently always `nil` — reserved for a
+  future logo-fetch path. `status` is `:scheduled` — callers may enrich this
+  with live grab status from Acquisition.
   """
   @spec list_releases_between(Date.t(), Date.t(), keyword()) :: [map()]
   def list_releases_between(from_date, to_date, opts \\ []) do
@@ -614,6 +617,7 @@ defmodule MediaCentarr.ReleaseTracking do
       %{
         item: %{
           id: release.item.id,
+          entity_id: release.item.library_entity_id,
           name: release.item.name,
           tmdb_id: release.item.tmdb_id,
           media_type: release.item.media_type
@@ -622,7 +626,8 @@ defmodule MediaCentarr.ReleaseTracking do
         season_number: release.season_number,
         episode_number: release.episode_number,
         status: :scheduled,
-        backdrop_url: backdrop_url
+        backdrop_url: backdrop_url,
+        logo_url: nil
       }
     end)
   end

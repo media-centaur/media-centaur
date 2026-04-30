@@ -21,7 +21,7 @@ defmodule MediaCentarrWeb.HomeLive do
   }
 
   alias MediaCentarrWeb.Components.{
-    ComingUpRow,
+    ComingUpMarquee,
     ContinueWatchingRow,
     HeroCard,
     PosterRow
@@ -119,20 +119,20 @@ defmodule MediaCentarrWeb.HomeLive do
             <PosterRow.poster_row items={@recently_added} />
           </section>
 
-          <section :if={@coming_up_items != []} data-row="coming-up">
+          <section :if={@coming_up_marquee.hero != nil} data-row="coming-up">
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
               <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
                 See all →
               </.link>
             </div>
-            <ComingUpRow.coming_up_row items={@coming_up_items} />
+            <ComingUpMarquee.coming_up_marquee marquee={@coming_up_marquee} />
           </section>
 
           <%!-- Empty state if everything is empty --%>
           <div
             :if={
-              @hero == nil and @continue_items == [] and @coming_up_items == [] and
+              @hero == nil and @continue_items == [] and @coming_up_marquee.hero == nil and
                 @recently_added == []
             }
             class="text-center py-16 text-base-content/50"
@@ -286,7 +286,7 @@ defmodule MediaCentarrWeb.HomeLive do
   end
 
   defp assign_coming_up(socket, today) do
-    assign(socket, :coming_up_items, Logic.coming_up_items(load_coming_up(today), today))
+    assign(socket, :coming_up_marquee, Logic.coming_up_marquee(load_coming_up(today), today))
   end
 
   defp assign_recently_added(socket) do

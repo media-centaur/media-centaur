@@ -85,6 +85,38 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
       assert hd(releases).released == false
     end
 
+    test "falls back to /movie/{id} when /collection/{id} returns 404 (solo-movie tracker)" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 1_226_863,
+          media_type: :movie,
+          name: "Solo Movie"
+        })
+
+      # No /collection/1226863 stub → TmdbStubs returns 404. The /movie/{id}
+      # endpoint succeeds, exercising the fallback path.
+      stub_routes([
+        {"/movie/1226863",
+         %{
+           "id" => 1_226_863,
+           "title" => "Solo Movie",
+           "release_date" => "2027-12-25",
+           "poster_path" => "/sm.jpg",
+           "backdrop_path" => "/sm-bd.jpg"
+         }}
+      ])
+
+      :ok = Refresher.refresh_item(item)
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert length(releases) == 1
+      assert hd(releases).air_date == ~D[2027-12-25]
+      assert hd(releases).title == "Solo Movie"
+
+      reloaded = ReleaseTracking.get_item(item.id)
+      assert reloaded.name == "Solo Movie"
+    end
+
     test "marks past releases as released" do
       item = create_tracking_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show Eight"})
 

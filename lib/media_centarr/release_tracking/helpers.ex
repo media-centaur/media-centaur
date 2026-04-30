@@ -82,6 +82,28 @@ defmodule MediaCentarr.ReleaseTracking.Helpers do
   end
 
   @doc """
+  Fetch a single release row from a TMDB `/movie/{id}` response. Used by
+  the solo-movie tracking fallback (when `/collection/{id}` 404s the
+  refresher tries `/movie/{id}` and the response shape is a single movie
+  rather than a list of `parts`).
+  """
+  def fetch_movie_releases(response) do
+    alias MediaCentarr.ReleaseTracking.Extractor
+
+    response
+    |> Extractor.extract_movie_release_dates()
+    |> Enum.map(fn release ->
+      %{
+        air_date: release.air_date,
+        title: release.title,
+        season_number: nil,
+        episode_number: nil
+      }
+    end)
+    |> mark_released()
+  end
+
+  @doc """
   Sets `:released` flag on each release based on whether `air_date` is today or earlier.
   """
   def mark_released(releases) do

@@ -93,23 +93,46 @@ defmodule MediaCentarr.ImagesTest do
 
   describe "download_raw/2" do
     test "writes bytes directly without image processing", %{tmp_dir: tmp_dir} do
-      stub_http_success("raw image bytes here")
+      body = :binary.copy("x", 2_000)
+      stub_http_success(body)
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
       assert {:ok, ^dest} = Images.download_raw("https://example.com/img.jpg", dest)
-      assert File.read!(dest) == "raw image bytes here"
+      assert File.read!(dest) == body
     end
 
     test "returns permanent error for empty body", %{tmp_dir: tmp_dir} do
       stub_http_success("")
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
-      assert {:error, :permanent, {:empty_body, _}} =
+      assert {:error, :permanent, {:body_too_small, _url, 0}} =
                Images.download_raw("https://example.com/img.jpg", dest)
+
+      refute File.exists?(dest)
+    end
+
+    test "rejects bodies below the 1024-byte floor (catches error envelopes / placeholder GIFs)",
+         %{tmp_dir: tmp_dir} do
+      stub_http_success(:binary.copy("x", 200))
+      dest = Path.join(tmp_dir, "test/poster.jpg")
+
+      assert {:error, :permanent, {:body_too_small, _url, 200}} =
+               Images.download_raw("https://example.com/img.jpg", dest)
+
+      refute File.exists?(dest)
+    end
+
+    test "accepts a body exactly at the floor", %{tmp_dir: tmp_dir} do
+      body = :binary.copy("x", 1024)
+      stub_http_success(body)
+      dest = Path.join(tmp_dir, "test/poster.jpg")
+
+      assert {:ok, ^dest} = Images.download_raw("https://example.com/img.jpg", dest)
+      assert File.read!(dest) == body
     end
 
     test "creates destination directory", %{tmp_dir: tmp_dir} do
-      stub_http_success("data")
+      stub_http_success(:binary.copy("d", 1500))
       dest = Path.join([tmp_dir, "new", "dir", "img.jpg"])
 
       assert {:ok, ^dest} = Images.download_raw("https://example.com/img.jpg", dest)
