@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.28.1 — 2026-05-01
+
+### Improved
+
+- **Faster initial page rendering.** Library, Home, Upcoming, History,
+  Review, Settings, and Downloads now skip the duplicate data fetch
+  that previously ran on the first paint — pages reach their
+  interactive state with less redundant work, most noticeable on
+  larger libraries.
+
 ## v0.28.0 — 2026-04-30
 
 ### New
