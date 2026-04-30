@@ -1378,11 +1378,8 @@ defmodule MediaCentarr.Library do
   end
 
   defp shape_in_progress_row(%{entity: entity, progress: summary, progress_records: records}) do
-    backdrop_url =
-      case Enum.find(entity.images || [], &(&1.role == "backdrop")) do
-        %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
-        _ -> nil
-      end
+    backdrop_url = image_url(entity.images, "backdrop")
+    logo_url = image_url(entity.images, "logo")
 
     last_episode_label = progress_episode_label(entity, summary)
 
@@ -1402,6 +1399,7 @@ defmodule MediaCentarr.Library do
       last_episode_label: last_episode_label,
       progress_pct: progress_pct,
       backdrop_url: backdrop_url,
+      logo_url: logo_url,
       last_watched_at: last_watched_at
     }
   end
