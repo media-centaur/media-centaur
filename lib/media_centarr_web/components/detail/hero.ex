@@ -15,7 +15,11 @@ defmodule MediaCentarrWeb.Components.Detail.Hero do
 
   import MediaCentarrWeb.LiveHelpers, only: [image_url: 2]
 
-  attr :entity, :map, required: true
+  attr :entity, :map,
+    required: true,
+    doc:
+      "polymorphic library entity — Movie, TVSeries, MovieSeries, or VideoObject — with `:images` preloaded for `image_url/2` lookup. The component reads `:name` and image roles only, so the union is intentionally untyped at this layer; tightening to a typed Subject struct is deferred to Phase 5 when DetailPanel itself reshapes its assigns."
+
   attr :tagline, :string, default: nil
   attr :available, :boolean, default: true
   slot :actions, doc: "top-right overlay actions (tracking bell, etc.)"

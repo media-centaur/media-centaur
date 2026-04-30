@@ -9,7 +9,11 @@ defmodule MediaCentarrWeb.Components.Detail.MetadataRow do
   use MediaCentarrWeb, :html
 
   attr :badge_text, :string, required: true
-  attr :items, :list, default: []
+
+  attr :items, :list,
+    default: [],
+    doc:
+      "list of display strings (year, runtime, rating, status, country). `nil` and blank entries are silently dropped. Element type is `String.t()` — primitive, no struct needed."
 
   def metadata_row(assigns) do
     items =
