@@ -69,8 +69,9 @@ Shipped overrides live in `defaults/`:
 
 | TOML | Purpose | Binds |
 |------|---------|-------|
-| `defaults/media-centarr-dev.toml` | Dev systemd unit | :1080 |
 | `defaults/media-centarr-showcase.toml` | Demo instance, public-domain media | :4003 |
+
+The dev systemd unit at `defaults/media-centarr-dev.service` does not use a config override — it reads the default `media-centarr.toml` and binds :1080.
 
 ```bash
 # Showcase demo — public-domain media for screenshots, fully contained
@@ -186,7 +187,7 @@ The library uses **type-specific tables** instead of a single polymorphic Entity
 - WatchProgress tracks playable items directly via `movie_id`, `episode_id`, or `video_object_id`
 - Image directories use the type record's UUID: `data/images/{movie.id}/`, `data/images/{tv_series.id}/`
 
-**Transition state:** The old `library_entities` table still exists with dual-written data. New code should use type-specific tables. Entity will be dropped once all callers are fully migrated.
+**Decomposition is complete.** The old `library_entities` table was dropped on 2026-04-03 (`priv/repo/migrations/20260403000002_drop_entity_table.exs`); type-specific tables are the only data path. `library_entity_id` columns survive in unrelated tables (release_tracking, etc.) as references to type-specific UUIDs that were preserved across the data migration — those columns are correct, just legacy-named.
 
 ## Bounded Contexts
 
@@ -451,7 +452,7 @@ Framework components (`:phoenix`, `:ecto`, `:live_view`) default to HIDDEN in th
 
 - **Annotate every callback group with `@impl true`.** Place `@impl true` before the first clause of each callback function name (`mount`, `render`, `handle_event`, `handle_info`, `handle_params`). This is the convention used across all LiveViews in this project.
 - **Distinguish mount from selection change in `handle_params`.** On mount, `selected_entity_id` is `nil`. When a URL param like `selected=X` is present, `handle_params` sees `nil → X` as a "change." If you need to reset state only when the user *switches* entities (not on initial load), check that the previous value was non-nil: `selection_changed && socket.assigns.selected_entity_id != nil`. This ensures URL params like `view=info` survive page reload.
-- **Iron Law: no DB queries in `mount/3`.** `mount/3` runs twice — once for the static HTTP render and once after the WebSocket connects. Any DB query placed there fires twice on every page load. The canonical pattern is: subscriptions only in mount, data loading in `handle_params/3` gated by `connected?(socket) and not socket.assigns.loaded?`. `library_live.ex:84-90` is the reference implementation. *Why:* doubled queries scale linearly with traffic and degrade as data grows; the Iron Law is a Phoenix-wide invariant, not a project preference. Cheap state setup (struct defaults, MapSet.new(), assigning `nil`) belongs in mount; anything that touches the DB, an ETS table, or a GenServer in another supervision tree belongs in handle_params.
+- **Iron Law: no DB queries in `mount/3`.** `mount/3` runs twice — once for the static HTTP render and once after the WebSocket connects. The real risk is firing the same query on both paths. The canonical pattern is: subscriptions only in mount, data loading in `handle_params/3` (or a small `ensure_loaded/1` helper called from it) gated by `connected?(socket) and not socket.assigns.loaded?`. `home_live.ex:198-212` is the reference implementation; `acquisition_live.ex:67-79`, `upcoming_live.ex:80-92`, and `watch_history_live.ex:43-58` follow the same shape. *Why:* doubled queries scale linearly with traffic and degrade as data grows; the Iron Law is a Phoenix-wide invariant, not a project preference. Cheap state setup (struct defaults, MapSet.new(), assigning `nil`) belongs in mount; anything that touches the DB, an ETS table, or a GenServer in another supervision tree belongs in handle_params. **Note:** `library_live.ex:84-90`, `review_live.ex` mount, and `settings_live.ex` mount currently use older variants (content-empty gate or load-in-mount-when-connected) that achieve the same one-load-per-process outcome by different mechanics. Those are pending migration to the canonical pattern.
 
 ## LiveView Real-Time Updates
 
