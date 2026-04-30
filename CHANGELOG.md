@@ -4,6 +4,27 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.28.0 — 2026-04-30
+
+### New
+
+- **Searches survive navigation.** Acquisition searches and their
+  results now persist when you leave the page. Start a search,
+  navigate anywhere else in the app, and when you come back the
+  query, results, and selections are right where you left them.
+  Searches reset only when the server restarts.
+
+### Improved
+
+- **Cinematic detail modal on the home page.** The home page detail
+  panel now opens as a single-scroll cinematic surface — the
+  same controls (Play, Mark watched, seasons, tracking) presented
+  in a more immersive page-style layout.
+
+- **Coming Up marquee on the home page.** A new cinematic marquee
+  highlights upcoming releases on the home page, with sharper
+  artwork rendering for hero and card images throughout the page.
+
 ## v0.27.5 — 2026-04-30
 
 ### Improved
