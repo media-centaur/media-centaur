@@ -26,7 +26,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.{QueryExpander, Quality}
+  alias MediaCentarr.Acquisition.Quality
   alias MediaCentarr.Capabilities
   alias MediaCentarrWeb.AcquisitionLive.{Activity, Logic}
 
@@ -37,19 +37,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     if Capabilities.prowlarr_ready?() do
       if connected?(socket) do
         Acquisition.subscribe()
+        Acquisition.subscribe_search()
         Capabilities.subscribe()
         Process.send_after(self(), :poll_queue, 0)
       end
 
       {:ok,
        assign(socket,
-         query: "",
-         expansion_preview: :idle,
-         searching?: false,
-         groups: [],
-         selections: %{},
-         grabbing?: false,
-         grab_message: nil,
+         search_session: Acquisition.current_search_session(),
          active_queue: [],
          queue_loaded?: false,
          cancel_confirm: nil,
@@ -101,21 +96,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         socket
 
       trimmed ->
-        case QueryExpander.expand(trimmed) do
-          {:ok, [_ | _] = queries} ->
+        case Acquisition.start_search(trimmed) do
+          {:ok, %{queries: queries}} ->
             Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
+            socket
 
-            assign(socket,
-              query: trimmed,
-              searching?: true,
-              groups: Logic.placeholder_groups(queries),
-              selections: %{},
-              grab_message: nil,
-              expansion_preview: {:ok, length(queries)}
-            )
-
-          _ ->
-            assign(socket, query: trimmed)
+          {:error, _} ->
+            socket
         end
     end
   end
@@ -198,7 +185,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               <input
                 type="text"
                 name="query"
-                value={@query}
+                value={@search_session.query}
                 class="input input-bordered w-full font-mono text-sm"
                 placeholder="Title S01E{01-10}"
                 autofocus
@@ -212,12 +199,20 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             <.button
               type="submit"
               variant="secondary"
-              disabled={expansion_blocked?(@expansion_preview)}
+              disabled={expansion_blocked?(@search_session.expansion_preview)}
               data-nav-item
               tabindex="0"
             >
-              <span :if={@searching?} class="loading loading-spinner loading-sm"></span>
-              <.icon :if={!@searching?} name="hero-magnifying-glass" class="size-4" /> Search
+              <span
+                :if={Logic.any_loading?(@search_session.groups)}
+                class="loading loading-spinner loading-sm"
+              >
+              </span>
+              <.icon
+                :if={!Logic.any_loading?(@search_session.groups)}
+                name="hero-magnifying-glass"
+                class="size-4"
+              /> Search
             </.button>
           </form>
 
@@ -238,26 +233,26 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             <span class="text-base-content/30">— each expansion runs as its own search</span>
           </div>
 
-          <p class={["text-xs", expansion_color(@expansion_preview)]}>
-            {expansion_text(@expansion_preview)}
+          <p class={["text-xs", expansion_color(@search_session.expansion_preview)]}>
+            {expansion_text(@search_session.expansion_preview)}
           </p>
         </section>
 
         <%!-- Grab feedback --%>
         <div
-          :if={@grab_message}
+          :if={@search_session.grab_message}
           class={[
             "glass-inset rounded-lg px-4 py-3 text-sm flex items-center gap-2",
-            grab_message_color(@grab_message)
+            grab_message_color(@search_session.grab_message)
           ]}
         >
-          <.icon name={grab_message_icon(@grab_message)} class="size-4 shrink-0" />
-          {grab_message_text(@grab_message)}
+          <.icon name={grab_message_icon(@search_session.grab_message)} class="size-4 shrink-0" />
+          {grab_message_text(@search_session.grab_message)}
         </div>
 
         <%!-- Results --%>
-        <section :if={@groups != []} data-nav-zone="grid" class="space-y-3">
-          <div :for={group <- @groups} class="space-y-1">
+        <section :if={@search_session.groups != []} data-nav-zone="grid" class="space-y-3">
+          <div :for={group <- @search_session.groups} class="space-y-1">
             <%!-- Group header (top-seeder summary) --%>
             <button
               type="button"
@@ -284,10 +279,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                   <span class="flex-1 text-sm text-error/70">
                     {Logic.format_search_error(reason)}
                   </span>
+                <% {:abandoned, _} -> %>
+                  <span class="flex-1 text-sm text-base-content/40">
+                    Search was interrupted — Retry to resume
+                  </span>
                 <% {:ready, []} -> %>
                   <span class="flex-1 text-sm text-base-content/40">No results</span>
                 <% {:ready, [_ | _]} -> %>
-                  <% featured = Logic.featured_result(group, @selections) %>
+                  <% featured = Logic.featured_result(group, @search_session.selections) %>
                   <span class={[
                     "text-xs font-bold w-10 shrink-0",
                     quality_color(featured.quality)
@@ -306,8 +305,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               <% end %>
             </button>
 
-            <%!-- Failed-search helpers: retry the same term, jump to settings --%>
-            <div :if={match?({:failed, _}, group.status)} class="pl-44 flex items-center gap-2">
+            <%!-- Failed/abandoned-search helpers: retry the same term, jump to settings --%>
+            <div
+              :if={match?({:failed, _}, group.status) or group.status == :abandoned}
+              class="pl-44 flex items-center gap-2"
+            >
               <.button
                 variant="risky"
                 size="xs"
@@ -319,6 +321,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                 <.icon name="hero-arrow-path-mini" class="size-3" /> Retry
               </.button>
               <.button
+                :if={match?({:failed, _}, group.status)}
                 variant="secondary"
                 size="xs"
                 patch={~p"/settings?section=acquisition"}
@@ -336,8 +339,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                 type="button"
                 class={[
                   "glass-surface rounded-lg w-full px-4 py-2 flex items-center gap-3 text-left text-sm",
-                  selected?(@selections, group.term, result.guid) && "bg-primary/10",
-                  !selected?(@selections, group.term, result.guid) && "hover:bg-base-content/5"
+                  selected?(@search_session.selections, group.term, result.guid) && "bg-primary/10",
+                  !selected?(@search_session.selections, group.term, result.guid) &&
+                    "hover:bg-base-content/5"
                 ]}
                 phx-click="select_result"
                 phx-value-term={group.term}
@@ -347,11 +351,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               >
                 <.icon
                   name={
-                    if selected?(@selections, group.term, result.guid),
+                    if selected?(@search_session.selections, group.term, result.guid),
                       do: "hero-check-circle-mini",
                       else: "hero-minus-circle-mini"
                   }
-                  class={selection_icon_class(@selections, group.term, result.guid)}
+                  class={selection_icon_class(@search_session.selections, group.term, result.guid)}
                 />
                 <span class={["text-xs font-bold w-10 shrink-0", quality_color(result.quality)]}>
                   {Quality.label(result.quality)}
@@ -373,10 +377,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </div>
 
           <%!-- Footer actions: bulk-retry + grab --%>
-          <% timeouts = Logic.timeout_terms(@groups) %>
+          <% timeouts = Logic.timeout_terms(@search_session.groups) %>
           <div class="flex justify-end items-center gap-2">
             <.button
-              :if={!@searching? && timeouts != []}
+              :if={!Logic.any_loading?(@search_session.groups) && timeouts != []}
               variant="risky"
               phx-click="retry_all_timeouts"
               data-nav-item
@@ -387,13 +391,16 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             <.button
               variant="action"
               phx-click="grab_selected"
-              disabled={@grabbing? || map_size(@selections) == 0}
+              disabled={@search_session.grabbing? || map_size(@search_session.selections) == 0}
               data-nav-item
               tabindex="0"
             >
-              <span :if={@grabbing?} class="loading loading-spinner loading-sm"></span>
-              <.icon :if={!@grabbing?} name="hero-arrow-down-tray-mini" class="size-4" />
-              Grab {map_size(@selections)} selected
+              <span :if={@search_session.grabbing?} class="loading loading-spinner loading-sm"></span>
+              <.icon
+                :if={!@search_session.grabbing?}
+                name="hero-arrow-down-tray-mini"
+                class="size-4"
+              /> Grab {map_size(@search_session.selections)} selected
             </.button>
           </div>
         </section>
@@ -410,56 +417,49 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   @impl true
   def handle_event("query_change", %{"query" => query}, socket) do
-    {:noreply, assign(socket, query: query, expansion_preview: Logic.expansion_preview(query))}
-  end
-
-  def handle_event("submit_search", _params, %{assigns: %{searching?: true}} = socket) do
-    {:noreply, socket}
+    Acquisition.set_query_preview(query)
+    {:noreply, refresh_search_session(socket)}
   end
 
   def handle_event("submit_search", %{"query" => query}, socket) do
-    trimmed = String.trim(query)
+    if socket.assigns.search_session.grabbing? do
+      {:noreply, socket}
+    else
+      Acquisition.set_query_preview(query)
 
-    case QueryExpander.expand(trimmed) do
-      {:ok, queries} when queries != [] ->
-        Enum.each(queries, fn query -> send(self(), {:run_search_one, query}) end)
+      case Acquisition.start_search(query) do
+        {:ok, %{queries: queries}} ->
+          Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
+          {:noreply, refresh_search_session(socket)}
 
-        {:noreply,
-         assign(socket,
-           query: trimmed,
-           searching?: true,
-           groups: Logic.placeholder_groups(queries),
-           selections: %{},
-           grab_message: nil,
-           expansion_preview: {:ok, length(queries)}
-         )}
-
-      _ ->
-        {:noreply, socket}
+        {:error, _} ->
+          {:noreply, refresh_search_session(socket)}
+      end
     end
   end
 
   def handle_event("retry_search", %{"term" => term}, socket) do
-    {:noreply, retry_terms(socket, [term])}
+    retry_terms(socket, [term])
+    {:noreply, refresh_search_session(socket)}
   end
 
   def handle_event("retry_all_timeouts", _params, socket) do
-    {:noreply, retry_terms(socket, Logic.timeout_terms(socket.assigns.groups))}
+    retry_terms(socket, Logic.timeout_terms(socket.assigns.search_session.groups))
+    {:noreply, refresh_search_session(socket)}
   end
 
   def handle_event("toggle_group", %{"term" => term}, socket) do
-    {:noreply, assign(socket, groups: Logic.toggle_group(socket.assigns.groups, term))}
+    Acquisition.toggle_group(term)
+    {:noreply, refresh_search_session(socket)}
   end
 
   def handle_event("select_result", %{"term" => term, "guid" => guid}, socket) do
-    selections =
-      if Map.get(socket.assigns.selections, term) == guid do
-        Map.delete(socket.assigns.selections, term)
-      else
-        Map.put(socket.assigns.selections, term, guid)
-      end
+    case Map.get(socket.assigns.search_session.selections, term) do
+      ^guid -> Acquisition.clear_selection(term)
+      _ -> Acquisition.set_selection(term, guid)
+    end
 
-    {:noreply, assign(socket, selections: selections)}
+    {:noreply, refresh_search_session(socket)}
   end
 
   def handle_event("cancel_download_prompt", %{"id" => id, "title" => title}, socket) do
@@ -495,7 +495,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_event("grab_selected", _params, socket) do
-    selections = socket.assigns.selections
+    selections = socket.assigns.search_session.selections
 
     if map_size(selections) == 0 do
       {:noreply, socket}
@@ -503,11 +503,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       results =
         selections
         |> Map.values()
-        |> Enum.map(&Logic.find_result(socket.assigns.groups, &1))
+        |> Enum.map(&Logic.find_result(socket.assigns.search_session.groups, &1))
         |> Enum.reject(&is_nil/1)
 
+      Acquisition.set_grabbing(true)
       send(self(), {:run_grabs, results})
-      {:noreply, assign(socket, grabbing?: true, grab_message: nil)}
+      {:noreply, refresh_search_session(socket)}
     end
   end
 
@@ -558,8 +559,6 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_info({:run_search_one, query}, socket) do
-    parent = self()
-
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
       outcome =
         try do
@@ -568,33 +567,18 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           kind, reason -> {:error, {kind, reason}}
         end
 
-      send(parent, {:search_result, query, outcome})
+      Acquisition.record_search_result(query, outcome)
     end)
 
     {:noreply, socket}
   end
 
-  def handle_info({:search_result, query, outcome}, socket) do
-    groups = Logic.apply_search_result(socket.assigns.groups, query, outcome)
-
-    selections =
-      case Enum.find(groups, &(&1.term == query)) do
-        nil -> socket.assigns.selections
-        group -> Logic.add_default_selection(socket.assigns.selections, group)
-      end
-
-    searching? = not Logic.all_loaded?(groups)
-
-    if not searching? do
-      Log.info(:acquisition, "search complete — #{length(groups)} groups")
-    end
-
-    {:noreply, assign(socket, groups: groups, selections: selections, searching?: searching?)}
+  def handle_info({:search_session, session}, socket) do
+    {:noreply, assign(socket, search_session: session)}
   end
 
   def handle_info({:run_grabs, results}, socket) do
-    query = socket.assigns.query
-
+    query = socket.assigns.search_session.query
     pairs = Enum.map(results, fn result -> {result, Acquisition.grab(result, query)} end)
 
     Enum.each(pairs, fn
@@ -609,8 +593,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     err_count = length(pairs) - ok_count
     Log.info(:acquisition, "grab batch complete — #{ok_count} ok, #{err_count} failed")
 
-    message = Logic.build_grab_message(pairs)
-    {:noreply, assign(socket, grabbing?: false, grab_message: message, selections: %{})}
+    Acquisition.set_grab_message(Logic.build_grab_message(pairs))
+    Acquisition.clear_selections()
+    Acquisition.set_grabbing(false)
+
+    {:noreply, socket}
   end
 
   def handle_info(:poll_queue, socket) do
@@ -669,12 +656,21 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     assign(socket, activity_grabs: grabs)
   end
 
-  defp retry_terms(socket, []), do: socket
+  defp retry_terms(_socket, []), do: :ok
 
-  defp retry_terms(socket, terms) do
+  defp retry_terms(_socket, terms) do
+    Acquisition.retry_search_terms(terms)
     Enum.each(terms, fn term -> send(self(), {:run_search_one, term}) end)
-    groups = Enum.reduce(terms, socket.assigns.groups, &Logic.mark_group_loading(&2, &1))
-    assign(socket, groups: groups, searching?: true)
+    :ok
+  end
+
+  # LiveView's main loop renders between mailbox messages. After a session
+  # mutation, the broadcast lands in the mailbox but isn't processed until
+  # AFTER the post-handle_event render — so without this helper that render
+  # would show stale assigns. The follow-up {:search_session, _} message
+  # then lands the same struct (a no-op assign).
+  defp refresh_search_session(socket) do
+    assign(socket, search_session: Acquisition.current_search_session())
   end
 
   # ---------------------------------------------------------------------------

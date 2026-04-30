@@ -4,94 +4,6 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   alias MediaCentarr.Acquisition.SearchResult
   alias MediaCentarrWeb.AcquisitionLive.Logic
 
-  describe "expansion_preview/1" do
-    test "returns :idle for empty query" do
-      assert Logic.expansion_preview("") == :idle
-      assert Logic.expansion_preview("   ") == :idle
-    end
-
-    test "returns {:ok, 1} for query without braces" do
-      assert Logic.expansion_preview("Sample Movie 2049") == {:ok, 1}
-    end
-
-    test "returns {:ok, n} for valid expansion" do
-      assert Logic.expansion_preview("Sample Show S01E{01-10}") == {:ok, 10}
-      assert Logic.expansion_preview("X{a,b,c}") == {:ok, 3}
-    end
-
-    test "returns {:error, :invalid_syntax} for malformed brace" do
-      assert Logic.expansion_preview("foo {a-}") == {:error, :invalid_syntax}
-      assert Logic.expansion_preview("{a,b}{c,d}") == {:error, :invalid_syntax}
-    end
-  end
-
-  describe "build_groups/1" do
-    test "returns empty list for empty input" do
-      assert Logic.build_groups([]) == []
-    end
-
-    test "groups results by term, sorted by quality desc then seeders desc" do
-      r4k = result(guid: "a", quality: :uhd_4k, seeders: 5)
-      r1080_high = result(guid: "b", quality: :hd_1080p, seeders: 100)
-      r1080_low = result(guid: "c", quality: :hd_1080p, seeders: 1)
-      rnil = result(guid: "d", quality: nil, seeders: 50)
-
-      input = [{"Movie A", [r1080_low, r4k, rnil, r1080_high]}]
-
-      [group] = Logic.build_groups(input)
-
-      assert group.term == "Movie A"
-      assert group.expanded? == false
-      assert Enum.map(group.results, & &1.guid) == ["a", "b", "c", "d"]
-    end
-
-    test "preserves term order from input" do
-      r1 = result(guid: "1")
-      r2 = result(guid: "2")
-
-      input = [{"Term One", [r1]}, {"Term Two", [r2]}]
-      groups = Logic.build_groups(input)
-
-      assert Enum.map(groups, & &1.term) == ["Term One", "Term Two"]
-    end
-
-    test "handles nil seeders by treating as 0 for sort" do
-      a = result(guid: "a", quality: :hd_1080p, seeders: nil)
-      b = result(guid: "b", quality: :hd_1080p, seeders: 1)
-
-      [group] = Logic.build_groups([{"X", [a, b]}])
-
-      assert Enum.map(group.results, & &1.guid) == ["b", "a"]
-    end
-  end
-
-  describe "default_selections/1" do
-    test "selects the first (top-ranked) result per group with results" do
-      r_a = result(guid: "a-top")
-      r_b = result(guid: "b-top")
-
-      groups = [
-        %{term: "A", expanded?: false, results: [r_a, result(guid: "a-2")]},
-        %{term: "B", expanded?: false, results: [r_b]}
-      ]
-
-      assert Logic.default_selections(groups) == %{"A" => "a-top", "B" => "b-top"}
-    end
-
-    test "skips groups with no results" do
-      groups = [
-        %{term: "A", expanded?: false, results: [result(guid: "a")]},
-        %{term: "B", expanded?: false, results: []}
-      ]
-
-      assert Logic.default_selections(groups) == %{"A" => "a"}
-    end
-
-    test "returns empty map for no groups" do
-      assert Logic.default_selections([]) == %{}
-    end
-  end
-
   describe "format_grab_reason/1" do
     test "extracts errorMessage from a Prowlarr JSON body" do
       reason = {:http_error, 400, %{"errorMessage" => "Indexer not found"}}
@@ -180,81 +92,6 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     end
   end
 
-  describe "placeholder_groups/1" do
-    test "returns one :loading group per query, in order, with empty results" do
-      groups = Logic.placeholder_groups(["A", "B", "C"])
-
-      assert Enum.map(groups, & &1.term) == ["A", "B", "C"]
-      assert Enum.all?(groups, &(&1.status == :loading))
-      assert Enum.all?(groups, &(&1.results == []))
-      assert Enum.all?(groups, &(&1.expanded? == false))
-    end
-
-    test "returns empty list for empty input" do
-      assert Logic.placeholder_groups([]) == []
-    end
-  end
-
-  describe "apply_search_result/3" do
-    test "fills in matching group's results, sorts, and flips status to :ready" do
-      groups = Logic.placeholder_groups(["X", "Y"])
-
-      r_low = result(guid: "low", quality: :hd_1080p, seeders: 1)
-      r_high = result(guid: "high", quality: :uhd_4k, seeders: 5)
-
-      [x, y] = Logic.apply_search_result(groups, "X", {:ok, [r_low, r_high]})
-
-      assert x.status == :ready
-      assert Enum.map(x.results, & &1.guid) == ["high", "low"]
-
-      # Other group untouched
-      assert y.status == :loading
-      assert y.results == []
-    end
-
-    test "marks matching group :failed on error and clears results, preserving reason" do
-      groups = Logic.placeholder_groups(["X"])
-
-      [x] = Logic.apply_search_result(groups, "X", {:error, :boom})
-
-      assert x.status == {:failed, :boom}
-      assert x.results == []
-    end
-
-    test "is a no-op when term is unknown (e.g. result from a stale search)" do
-      groups = Logic.placeholder_groups(["X"])
-
-      assert Logic.apply_search_result(groups, "OTHER", {:ok, [result(guid: "r")]}) == groups
-    end
-  end
-
-  describe "add_default_selection/2" do
-    test "adds top result guid when group is ready and term not yet selected" do
-      group = %{term: "T", expanded?: false, status: :ready, results: [result(guid: "top")]}
-
-      assert Logic.add_default_selection(%{}, group) == %{"T" => "top"}
-    end
-
-    test "does not overwrite an existing selection for the term" do
-      group = %{term: "T", expanded?: false, status: :ready, results: [result(guid: "top")]}
-
-      assert Logic.add_default_selection(%{"T" => "user-pick"}, group) == %{"T" => "user-pick"}
-    end
-
-    test "no-op when group has no results" do
-      group = %{term: "T", expanded?: false, status: :ready, results: []}
-      assert Logic.add_default_selection(%{}, group) == %{}
-    end
-
-    test "no-op for loading or failed groups" do
-      loading = %{term: "T", expanded?: false, status: :loading, results: []}
-      failed = %{term: "T", expanded?: false, status: {:failed, :boom}, results: []}
-
-      assert Logic.add_default_selection(%{}, loading) == %{}
-      assert Logic.add_default_selection(%{}, failed) == %{}
-    end
-  end
-
   describe "all_loaded?/1" do
     test "true when no group is :loading" do
       groups = [
@@ -276,6 +113,30 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
 
     test "true for empty groups list" do
       assert Logic.all_loaded?([]) == true
+    end
+  end
+
+  describe "any_loading?/1" do
+    test "false when no group is :loading" do
+      groups = [
+        %{term: "A", expanded?: false, status: :ready, results: []},
+        %{term: "B", expanded?: false, status: :abandoned, results: []}
+      ]
+
+      assert Logic.any_loading?(groups) == false
+    end
+
+    test "true when any group is :loading" do
+      groups = [
+        %{term: "A", expanded?: false, status: :ready, results: []},
+        %{term: "B", expanded?: false, status: :loading, results: []}
+      ]
+
+      assert Logic.any_loading?(groups) == true
+    end
+
+    test "false for empty groups list" do
+      assert Logic.any_loading?([]) == false
     end
   end
 
@@ -306,28 +167,6 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     test "returns nil when group has no results" do
       group = %{term: "T", expanded?: false, status: :ready, results: []}
       assert Logic.featured_result(group, %{"T" => "anything"}) == nil
-    end
-  end
-
-  describe "toggle_group/2" do
-    test "flips expanded? for matching term, leaves others alone" do
-      groups = [
-        %{term: "A", expanded?: false, results: []},
-        %{term: "B", expanded?: true, results: []}
-      ]
-
-      [a, b] = Logic.toggle_group(groups, "A")
-      assert a.expanded? == true
-      assert b.expanded? == true
-
-      [a2, b2] = Logic.toggle_group([a, b], "B")
-      assert a2.expanded? == true
-      assert b2.expanded? == false
-    end
-
-    test "no-op for unknown term" do
-      groups = [%{term: "A", expanded?: false, results: []}]
-      assert Logic.toggle_group(groups, "Z") == groups
     end
   end
 
@@ -436,39 +275,6 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
 
     test "falls back to a generic message for unknown reasons" do
       assert Logic.format_search_error(:boom) == "Search failed"
-    end
-  end
-
-  describe "mark_group_loading/2" do
-    test "flips the matching group to :loading and clears its results" do
-      ready = %{
-        term: "X",
-        expanded?: true,
-        status: :ready,
-        results: [result(guid: "r")]
-      }
-
-      failed = %{
-        term: "Y",
-        expanded?: false,
-        status: {:failed, %Req.TransportError{reason: :timeout}},
-        results: []
-      }
-
-      [x, y] = Logic.mark_group_loading([ready, failed], "X")
-
-      assert x.status == :loading
-      assert x.results == []
-      # expanded? is preserved so a manual retry doesn't collapse the group
-      assert x.expanded? == true
-
-      # Other group untouched
-      assert y == failed
-    end
-
-    test "no-op when term is unknown" do
-      groups = Logic.placeholder_groups(["X"])
-      assert Logic.mark_group_loading(groups, "OTHER") == groups
     end
   end
 
