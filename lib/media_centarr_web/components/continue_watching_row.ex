@@ -14,7 +14,7 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
   defmodule Item do
     @moduledoc "View-model for a single Continue Watching card."
     @enforce_keys [:id, :entity_id, :name, :subtitle, :progress_pct, :backdrop_url]
-    defstruct [:id, :entity_id, :name, :subtitle, :progress_pct, :backdrop_url, autoplay: true]
+    defstruct [:id, :entity_id, :name, :subtitle, :progress_pct, :backdrop_url, autoplay: false]
 
     @type t :: %__MODULE__{
             id: term(),

@@ -46,7 +46,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
         subtitle: row.last_episode_label,
         progress_pct: row.progress_pct,
         backdrop_url: row.backdrop_url,
-        autoplay: true
+        autoplay: false
       }
     end)
   end

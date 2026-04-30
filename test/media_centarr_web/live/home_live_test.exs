@@ -100,7 +100,9 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       )
       |> render_click()
 
-      assert_patched(view, "/?selected=#{movie.id}&autoplay=1")
+      # Modal opens; user clicks Play in the modal to resume — clicking the
+      # card itself does not auto-start playback.
+      assert_patched(view, "/?selected=#{movie.id}")
       assert render(view) =~ ~s|data-state="open"|
     end
 
