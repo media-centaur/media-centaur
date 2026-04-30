@@ -69,12 +69,41 @@ defmodule MediaCentarrWeb.SettingsLive do
         |> assign(watchers_running: Watcher.Supervisor.running?())
         |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
         |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())
+        |> assign(watch_dirs: MediaCentarr.Config.watch_dirs_entries())
+        |> assign(exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [])
+        |> assign(missing_images_summary: Maintenance.missing_images_summary())
+        |> assign(tmdb_test: load_test_result(:tmdb))
+        |> assign(prowlarr_test: load_test_result(:prowlarr))
+        |> assign(download_client_test: load_test_result(:download_client))
+        |> assign(tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)))
+        |> assign(service_state: SelfUpdate.service_state())
+        |> assign(bindings: Controls.get())
+        |> assign(glyph_style: Controls.glyph_style())
       else
         socket
         |> assign(config: %{})
         |> assign(watchers_running: false)
         |> assign(pipeline_running: false)
         |> assign(image_pipeline_running: false)
+        |> assign(watch_dirs: [])
+        |> assign(exclude_dirs: [])
+        |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
+        |> assign(tmdb_test: nil)
+        |> assign(prowlarr_test: nil)
+        |> assign(download_client_test: nil)
+        |> assign(tmdb_missing: false)
+        |> assign(
+          service_state: %{
+            under_systemd: false,
+            unit_name: nil,
+            systemd_available: false,
+            unit_installed: false,
+            active: false,
+            enabled: false
+          }
+        )
+        |> assign(bindings: %{})
+        |> assign(glyph_style: nil)
       end
 
     socket = assign_spoiler_free(socket)
@@ -82,8 +111,6 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:ok,
      assign(socket,
        sections: @sections,
-       watch_dirs: MediaCentarr.Config.watch_dirs_entries(),
-       exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [],
        exclude_dir_input: "",
        exclude_dir_error: nil,
        watch_dir_dialog: nil,
@@ -94,12 +121,8 @@ defmodule MediaCentarrWeb.SettingsLive do
        refreshing_images: false,
        repairing_images: false,
        repair_last_result: nil,
-       missing_images_summary: Maintenance.missing_images_summary(),
-       tmdb_test: load_test_result(:tmdb),
        tmdb_testing: false,
-       prowlarr_test: load_test_result(:prowlarr),
        prowlarr_testing: false,
-       download_client_test: load_test_result(:download_client),
        download_client_testing: false,
        download_client_detect_status: nil,
        download_client_detecting: false,
@@ -112,14 +135,10 @@ defmodule MediaCentarrWeb.SettingsLive do
        apply_progress: nil,
        apply_error: nil,
        apply_failed_at: nil,
-       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
-       service_state: SelfUpdate.service_state(),
        service_action_confirm: nil,
        service_action_pending: nil,
        service_status_visible: false,
        service_status_output: nil,
-       bindings: Controls.get(),
-       glyph_style: Controls.glyph_style(),
        listening: nil
      )}
   end

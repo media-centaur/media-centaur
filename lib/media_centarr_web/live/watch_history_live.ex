@@ -13,28 +13,50 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   def mount(_params, _session, socket) do
     if connected?(socket), do: WatchHistory.subscribe()
 
-    stats = WatchHistory.stats()
-    heatmap_cells_by_type = WatchHistory.heatmap_cells_by_type()
-    rewatch_counts = fetch_rewatch_counts()
-
     socket =
       assign(socket,
-        stats: stats,
-        heatmap_cells_by_type: heatmap_cells_by_type,
-        rewatch_counts: rewatch_counts,
+        loaded?: false,
+        stats: %{total_count: 0, total_seconds: 0.0, streak: 0},
+        heatmap_cells_by_type: %{nil => [], movie: [], episode: [], video_object: []},
+        rewatch_counts: %{movie: %{}, episode: %{}, video_object: %{}},
         pending_rewatch_types: MapSet.new(),
         filter_type: nil,
         filter_search: "",
         filter_date: nil,
         page: 1,
+        events: [],
+        has_next: false,
         deleting_event: nil,
         deleted_event: nil,
         reload_timer: nil
       )
 
-    {events, has_next} = fetch_page(socket)
+    {:ok, socket}
+  end
 
-    {:ok, assign(socket, events: events, has_next: has_next)}
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    {:noreply, ensure_loaded(socket)}
+  end
+
+  # First-render data load — gated by `connected?` so the static HTTP render
+  # ships empty defaults and the WebSocket render fills them in once. See
+  # CLAUDE.md → LiveView Callbacks (Iron Law).
+  defp ensure_loaded(socket) do
+    if connected?(socket) and not socket.assigns.loaded? do
+      socket =
+        assign(socket,
+          stats: WatchHistory.stats(),
+          heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type(),
+          rewatch_counts: fetch_rewatch_counts(),
+          loaded?: true
+        )
+
+      {events, has_next} = fetch_page(socket)
+      assign(socket, events: events, has_next: has_next)
+    else
+      socket
+    end
   end
 
   @impl true

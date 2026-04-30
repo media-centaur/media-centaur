@@ -28,7 +28,8 @@ defmodule MediaCentarr.Acquisition.SearchSession do
           term: String.t(),
           status: group_status(),
           results: [SearchResult.t()],
-          expanded?: boolean()
+          expanded?: boolean(),
+          featured: SearchResult.t() | nil
         }
 
   @type t :: %__MODULE__{
@@ -193,7 +194,7 @@ defmodule MediaCentarr.Acquisition.SearchSession do
       {:ok, [_ | _] = queries} ->
         groups =
           Enum.map(queries, fn term ->
-            %{term: term, status: :loading, results: [], expanded?: false}
+            %{term: term, status: :loading, results: [], expanded?: false, featured: nil}
           end)
 
         new_state =
@@ -235,19 +236,22 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   end
 
   def handle_call({:set_selection, term, guid}, _from, state) do
-    new_state = %{state | selections: Map.put(state.selections, term, guid)}
+    new_state = stamp_featured(%{state | selections: Map.put(state.selections, term, guid)})
+
     broadcast(new_state)
     {:reply, :ok, new_state}
   end
 
   def handle_call({:clear_selection, term}, _from, state) do
-    new_state = %{state | selections: Map.delete(state.selections, term)}
+    new_state = stamp_featured(%{state | selections: Map.delete(state.selections, term)})
+
     broadcast(new_state)
     {:reply, :ok, new_state}
   end
 
   def handle_call(:clear_selections, _from, state) do
-    new_state = %{state | selections: %{}}
+    new_state = stamp_featured(%{state | selections: %{}})
+
     broadcast(new_state)
     {:reply, :ok, new_state}
   end
@@ -307,12 +311,12 @@ defmodule MediaCentarr.Acquisition.SearchSession do
       Enum.map(state.groups, fn
         %{term: term, status: :abandoned} = group ->
           if MapSet.member?(terms_set, term),
-            do: %{group | status: :loading, results: []},
+            do: %{group | status: :loading, results: [], featured: nil},
             else: group
 
         %{term: term, status: {:failed, _}} = group ->
           if MapSet.member?(terms_set, term),
-            do: %{group | status: :loading, results: []},
+            do: %{group | status: :loading, results: [], featured: nil},
             else: group
 
         group ->
@@ -384,17 +388,38 @@ defmodule MediaCentarr.Acquisition.SearchSession do
         [] -> state.selections
       end
 
-    %{state | groups: groups, selections: selections}
+    stamp_featured(%{state | groups: groups, selections: selections})
   end
 
   defp apply_search_result(state, index, {:error, reason}) do
     group = Enum.at(state.groups, index)
-    updated_group = %{group | status: {:failed, reason}, results: []}
+    updated_group = %{group | status: {:failed, reason}, results: [], featured: nil}
     groups = List.replace_at(state.groups, index, updated_group)
     %{state | groups: groups}
   end
 
   defp sort_results(results) do
     Enum.sort_by(results, fn r -> {Quality.rank(r.quality), r.seeders || 0} end, :desc)
+  end
+
+  # Stamp `:featured` onto every group based on the current `selections` map.
+  # The featured result is the user's selected guid (when present and still in
+  # the result list); otherwise the top-ranked result. Computed server-side so
+  # the LiveView reads it as data instead of recomputing on every render.
+  @spec stamp_featured(t()) :: t()
+  defp stamp_featured(%__MODULE__{groups: groups, selections: selections} = state) do
+    %{state | groups: Enum.map(groups, &stamp_featured_group(&1, selections))}
+  end
+
+  defp stamp_featured_group(%{results: []} = group, _selections), do: %{group | featured: nil}
+
+  defp stamp_featured_group(%{term: term, results: [first | _] = results} = group, selections) do
+    featured =
+      case Map.get(selections, term) do
+        nil -> first
+        guid -> Enum.find(results, first, &(&1.guid == guid))
+      end
+
+    %{group | featured: featured}
   end
 end

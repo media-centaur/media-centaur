@@ -22,10 +22,12 @@ defmodule MediaCentarrWeb.ReviewLive do
         socket
         |> assign(groups: groups)
         |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+        |> assign(tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())
       else
         socket
         |> assign(groups: [])
         |> assign(groups_by_key: %{})
+        |> assign(tmdb_ready: false)
       end
 
     {:ok,
@@ -39,7 +41,6 @@ defmodule MediaCentarrWeb.ReviewLive do
      |> assign(searching: false)
      |> assign(searched: false)
      |> assign(reload_timer: nil)
-     |> assign(tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())
      |> apply_group_stats()
      |> ensure_selection()}
   end
