@@ -4,6 +4,37 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.27.5 — 2026-04-30
+
+### Improved
+
+- **Detail panel opens on the home page.** Clicking a card in
+  Continue Watching or Recently Added now opens the title's
+  detail panel right there on the home page — no more bounce to
+  the Library page. Hit Play, mark watched, expand seasons,
+  manage tracking; everything that worked in the Library detail
+  panel works on the home page now.
+
+- **Hero uses each title's logo when available.** The home page
+  hero now displays the title's logo image when one is on file,
+  with refined typography as the fallback for titles that don't
+  have one.
+
+- **Continue Watching card sizing tuned for distance.** Cards in
+  the Continue Watching row are now sized for comfortable scanning
+  from across the room.
+
+- **Page-level atmosphere on the home page.** The backdrop fade and
+  side dim now run the full length of the home page instead of
+  ending at the hero, so the rows below sit on the same calm band.
+
+### Fixed
+
+- **Continue Watching no longer auto-plays on click.** Clicking a
+  Continue Watching card now opens the detail panel and waits for
+  you to hit Play — it was unexpectedly starting playback as soon
+  as the panel appeared.
+
 ## v0.27.4 — 2026-04-29
 
 ### Fixed
