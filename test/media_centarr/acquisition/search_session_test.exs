@@ -363,4 +363,212 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       assert hd(session.groups).status == :loading
     end
   end
+
+  describe "featured field" do
+    alias MediaCentarr.Acquisition.SearchResult
+
+    setup do
+      name = :"sess_#{System.unique_integer([:positive])}"
+      start_supervised!({SearchSession, name: name})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      {:ok, _} = SearchSession.start_search(name, "Show S01E{01-02}")
+      assert_receive {:search_session, _}
+      {:ok, name: name}
+    end
+
+    defp build_result(guid, quality, seeders) do
+      %SearchResult{
+        guid: guid,
+        title: "Result #{guid}",
+        indexer_id: 1,
+        quality: quality,
+        seeders: seeders,
+        size_bytes: 1_000_000,
+        indexer_name: "Test"
+      }
+    end
+
+    test "initial groups from start_search have featured: nil", %{name: name} do
+      session = SearchSession.current(name)
+      assert Enum.all?(session.groups, &(&1.featured == nil))
+    end
+
+    test "record_search_result with no prior selection stamps top-ranked as featured", %{name: name} do
+      lower = build_result("lower", nil, 1)
+      higher = build_result("higher", :hd_1080p, 50)
+
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [lower, higher]})
+
+      assert_receive {:search_session, session}
+      group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
+      assert group.featured.guid == "higher"
+    end
+
+    test "record_search_result with empty results leaves featured: nil", %{name: name} do
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, []})
+
+      assert_receive {:search_session, session}
+      group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
+      assert group.featured == nil
+    end
+
+    test "record_search_result with {:error, _} leaves featured: nil", %{name: name} do
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:error, :timeout})
+
+      assert_receive {:search_session, session}
+      group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
+      assert group.featured == nil
+    end
+
+    test "set_selection stamps featured = matching result on the targeted group only", %{name: name} do
+      a = build_result("a", :hd_1080p, 50)
+      b = build_result("b", :hd_1080p, 30)
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [a, b]})
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.set_selection(name, "Show S01E01", "b")
+
+      assert_receive {:search_session, session}
+      group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
+      assert group.featured.guid == "b"
+
+      # Other group is untouched
+      other = Enum.find(session.groups, &(&1.term == "Show S01E02"))
+      assert other.featured == nil
+    end
+
+    test "set_selection with a guid not in results falls back to top-ranked", %{name: name} do
+      top = build_result("top", :hd_1080p, 50)
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [top]})
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.set_selection(name, "Show S01E01", "ghost")
+
+      assert_receive {:search_session, session}
+      group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
+      assert group.featured.guid == "top"
+    end
+
+    test "clear_selection reverts featured to top-ranked", %{name: name} do
+      a = build_result("a", :hd_1080p, 50)
+      b = build_result("b", :hd_1080p, 30)
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [a, b]})
+      assert_receive {:search_session, _}
+      :ok = SearchSession.set_selection(name, "Show S01E01", "b")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.clear_selection(name, "Show S01E01")
+
+      assert_receive {:search_session, session}
+      group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
+      assert group.featured.guid == "a"
+    end
+
+    test "clear_selections reverts featured on every group", %{name: name} do
+      a = build_result("a", :hd_1080p, 50)
+      b = build_result("b", :hd_1080p, 30)
+      c = build_result("c", :hd_1080p, 50)
+      d = build_result("d", :hd_1080p, 30)
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [a, b]})
+      assert_receive {:search_session, _}
+      :ok = SearchSession.record_search_result(name, "Show S01E02", {:ok, [c, d]})
+      assert_receive {:search_session, _}
+      :ok = SearchSession.set_selection(name, "Show S01E01", "b")
+      assert_receive {:search_session, _}
+      :ok = SearchSession.set_selection(name, "Show S01E02", "d")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.clear_selections(name)
+
+      assert_receive {:search_session, session}
+      [g1, g2] = session.groups
+      assert g1.featured.guid == "a"
+      assert g2.featured.guid == "c"
+    end
+
+    test "retry_search_terms resets featured to nil for retried groups", %{name: name} do
+      :ok = SearchSession.record_search_result(name, "Show S01E01", {:error, :timeout})
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.retry_search_terms(name, ["Show S01E01"])
+
+      assert_receive {:search_session, session}
+      group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
+      assert group.status == :loading
+      assert group.featured == nil
+    end
+
+    test ":DOWN sweep preserves featured on already-:ready groups", %{name: _name} do
+      # Run a fresh session with a separate caller pid we can kill.
+      separate = :"sess_#{System.unique_integer([:positive])}"
+      start_supervised!({SearchSession, name: separate}, id: :sess_separate)
+      parent = self()
+
+      child =
+        spawn(fn ->
+          {:ok, _} = SearchSession.start_search(separate, "{A,B}")
+          send(parent, :ready)
+
+          receive do
+            :die -> :ok
+          end
+        end)
+
+      assert_receive :ready
+
+      # Different topic/process — the parent test subscribed already, so we just
+      # poll until the started session is visible.
+      started = wait_for_groups(separate, 2)
+      assert Enum.all?(started.groups, &(&1.status == :loading))
+
+      result = build_result("a-top", :hd_1080p, 50)
+      :ok = SearchSession.record_search_result(separate, "A", {:ok, [result]})
+
+      Process.exit(child, :kill)
+
+      swept = wait_for_status(separate, "B", :abandoned)
+      a = Enum.find(swept.groups, &(&1.term == "A"))
+      b = Enum.find(swept.groups, &(&1.term == "B"))
+
+      assert a.status == :ready
+      assert a.featured.guid == "a-top"
+      assert b.status == :abandoned
+      assert b.featured == nil
+    end
+
+    defp wait_for_groups(name, count, attempts \\ 50) do
+      session = SearchSession.current(name)
+
+      cond do
+        length(session.groups) == count ->
+          session
+
+        attempts == 0 ->
+          flunk("timed out waiting for #{count} groups; got #{length(session.groups)}")
+
+        true ->
+          Process.sleep(10)
+          wait_for_groups(name, count, attempts - 1)
+      end
+    end
+
+    defp wait_for_status(name, term, status, attempts \\ 50) do
+      session = SearchSession.current(name)
+      group = Enum.find(session.groups, &(&1.term == term))
+
+      cond do
+        group && group.status == status ->
+          session
+
+        attempts == 0 ->
+          flunk(
+            "timed out waiting for #{term} → #{inspect(status)}; got #{inspect(group && group.status)}"
+          )
+
+        true ->
+          Process.sleep(10)
+          wait_for_status(name, term, status, attempts - 1)
+      end
+    end
+  end
 end

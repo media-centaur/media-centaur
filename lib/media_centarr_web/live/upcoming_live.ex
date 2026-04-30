@@ -40,14 +40,14 @@ defmodule MediaCentarrWeb.UpcomingLive do
     today = Date.utc_today()
 
     socket =
-      socket
-      |> assign(
+      assign(socket,
+        loaded?: false,
         calendar_month: {today.year, today.month},
         selected_day: nil,
         confirm_stop_item: nil,
-        tmdb_ready: Capabilities.tmdb_ready?(),
-        acquisition_ready: Capabilities.prowlarr_ready?(),
-        queue_items: Acquisition.queue_snapshot(),
+        tmdb_ready: false,
+        acquisition_ready: false,
+        queue_items: [],
         track_modal_open: false,
         track_suggestions: [],
         track_suggestions_loading: false,
@@ -65,9 +65,30 @@ defmodule MediaCentarrWeb.UpcomingLive do
         reload_timer: nil,
         grab_statuses_timer: nil
       )
-      |> load_upcoming()
 
     {:ok, socket}
+  end
+
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    {:noreply, ensure_loaded(socket)}
+  end
+
+  # First-render data load — gated by `connected?` so the static HTTP render
+  # ships empty defaults and the WebSocket render fills them in once. See
+  # CLAUDE.md → LiveView Callbacks (Iron Law).
+  defp ensure_loaded(socket) do
+    if connected?(socket) and not socket.assigns.loaded? do
+      socket
+      |> assign(
+        tmdb_ready: Capabilities.tmdb_ready?(),
+        queue_items: Acquisition.queue_snapshot()
+      )
+      |> load_upcoming()
+      |> assign(:loaded?, true)
+    else
+      socket
+    end
   end
 
   @impl true

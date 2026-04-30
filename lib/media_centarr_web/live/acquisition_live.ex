@@ -34,6 +34,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    # The Prowlarr-readiness gate is the only DB read on the static HTTP
+    # mount path — without it we can't decide whether to render or
+    # redirect. All other state (search session, download-client gate)
+    # is loaded after the WebSocket connects via `ensure_loaded/1`.
     if Capabilities.prowlarr_ready?() do
       if connected?(socket) do
         Acquisition.subscribe()
@@ -44,17 +48,33 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
       {:ok,
        assign(socket,
-         search_session: Acquisition.current_search_session(),
+         loaded?: false,
+         search_session: %Acquisition.SearchSession{},
          active_queue: [],
          queue_loaded?: false,
          cancel_confirm: nil,
-         download_client_ready: Capabilities.download_client_ready?(),
+         download_client_ready: false,
          activity_filter: :active,
          activity_search: "",
+         activity_grabs: [],
          reload_timer: nil
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
+    end
+  end
+
+  # First-render data load — gated by `connected?` so the static HTTP
+  # render ships empty defaults and the WebSocket render fills them in
+  # once. See CLAUDE.md → LiveView Callbacks (Iron Law).
+  defp ensure_loaded(socket) do
+    if connected?(socket) and not socket.assigns.loaded? do
+      socket
+      |> assign(:search_session, Acquisition.current_search_session())
+      |> assign(:download_client_ready, Capabilities.download_client_ready?())
+      |> assign(:loaded?, true)
+    else
+      socket
     end
   end
 
@@ -67,6 +87,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   def handle_params(params, _uri, socket) do
     socket =
       socket
+      |> ensure_loaded()
       |> assign(
         activity_search: Map.get(params, "search", ""),
         activity_filter: parse_activity_filter(params)
@@ -111,6 +132,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   @impl true
   def render(assigns) do
+    # Derive once per render — these values are read in multiple places
+    # (the search-button spinner, the bulk-retry footer, etc.) and were
+    # being recomputed two-to-three times per render.
+    assigns =
+      assigns
+      |> Phoenix.Component.assign(:any_loading?, Logic.any_loading?(assigns.search_session.groups))
+      |> Phoenix.Component.assign(:timeout_terms, Logic.timeout_terms(assigns.search_session.groups))
+
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/download">
@@ -203,16 +232,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               data-nav-item
               tabindex="0"
             >
-              <span
-                :if={Logic.any_loading?(@search_session.groups)}
-                class="loading loading-spinner loading-sm"
-              >
-              </span>
-              <.icon
-                :if={!Logic.any_loading?(@search_session.groups)}
-                name="hero-magnifying-glass"
-                class="size-4"
-              /> Search
+              <span :if={@any_loading?} class="loading loading-spinner loading-sm"></span>
+              <.icon :if={!@any_loading?} name="hero-magnifying-glass" class="size-4" /> Search
             </.button>
           </form>
 
@@ -286,21 +307,23 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                 <% {:ready, []} -> %>
                   <span class="flex-1 text-sm text-base-content/40">No results</span>
                 <% {:ready, [_ | _]} -> %>
-                  <% featured = Logic.featured_result(group, @search_session.selections) %>
                   <span class={[
                     "text-xs font-bold w-10 shrink-0",
-                    quality_color(featured.quality)
+                    quality_color(group.featured.quality)
                   ]}>
-                    {Quality.label(featured.quality)}
+                    {Quality.label(group.featured.quality)}
                   </span>
-                  <span class="flex-1 min-w-0 text-sm truncate" title={featured.title}>
-                    {featured.title}
+                  <span class="flex-1 min-w-0 text-sm truncate" title={group.featured.title}>
+                    {group.featured.title}
                   </span>
                   <span
-                    :if={featured.seeders}
-                    class={["text-xs tabular-nums shrink-0", seeder_color(featured.seeders)]}
+                    :if={group.featured.seeders}
+                    class={[
+                      "text-xs tabular-nums shrink-0",
+                      seeder_color(group.featured.seeders)
+                    ]}
                   >
-                    {featured.seeders}S
+                    {group.featured.seeders}S
                   </span>
               <% end %>
             </button>
@@ -377,16 +400,16 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </div>
 
           <%!-- Footer actions: bulk-retry + grab --%>
-          <% timeouts = Logic.timeout_terms(@search_session.groups) %>
           <div class="flex justify-end items-center gap-2">
             <.button
-              :if={!Logic.any_loading?(@search_session.groups) && timeouts != []}
+              :if={!@any_loading? && @timeout_terms != []}
               variant="risky"
               phx-click="retry_all_timeouts"
               data-nav-item
               tabindex="0"
             >
-              <.icon name="hero-arrow-path-mini" class="size-4" /> Retry {length(timeouts)} timeouts
+              <.icon name="hero-arrow-path-mini" class="size-4" />
+              Retry {length(@timeout_terms)} timeouts
             </.button>
             <.button
               variant="action"

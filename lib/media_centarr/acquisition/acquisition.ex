@@ -13,6 +13,7 @@ defmodule MediaCentarr.Acquisition do
       QueryExpander,
       QueueItem,
       Prowlarr,
+      SearchSession,
       DownloadClient.QBittorrent
     ]
 

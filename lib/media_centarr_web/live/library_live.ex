@@ -44,6 +44,7 @@ defmodule MediaCentarrWeb.LibraryLive do
      |> assign(
        entries: [],
        entries_by_id: %{},
+       visible_ids: MapSet.new(),
        playback: %{},
        active_tab: :all,
        sort_order: :recent,
@@ -109,6 +110,7 @@ defmodule MediaCentarrWeb.LibraryLive do
         filter_text: filter_text,
         in_progress_filter: in_progress_filter
       )
+      |> then(fn socket -> if grid_changed, do: cache_visible_ids(socket), else: socket end)
       |> apply_modal_params(params)
       |> then(fn socket -> if grid_changed, do: reset_stream(socket), else: socket end)
 
@@ -478,12 +480,14 @@ defmodule MediaCentarrWeb.LibraryLive do
   defp assign_entries(socket, entries) do
     availability_map = MediaCentarrWeb.LibraryAvailability.availability_map(entries)
 
-    assign(socket,
+    socket
+    |> assign(
       entries: entries,
       entries_by_id: Map.new(entries, fn entry -> {entry.entity.id, entry} end),
       availability_map: availability_map,
       unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end)
     )
+    |> cache_visible_ids()
   end
 
   # --- Stream Management ---
@@ -497,7 +501,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   defp touch_stream_entries(socket, entity_ids) do
-    filtered_ids = compute_visible_ids(socket)
+    filtered_ids = socket.assigns.visible_ids
     by_id = socket.assigns.entries_by_id
 
     Enum.reduce(entity_ids, socket, fn id, sock ->
@@ -532,14 +536,21 @@ defmodule MediaCentarrWeb.LibraryLive do
     end
   end
 
-  defp compute_visible_ids(socket) do
+  # Caches the filtered visible-ID set so subsequent `touch_stream_entries`
+  # calls (one per PubSub event burst) read O(1) from assigns instead of
+  # rescanning `entries`. Invalidate by calling this whenever `entries` or
+  # any filter assign (active_tab, filter_text, in_progress_filter) changes.
+  defp cache_visible_ids(socket) do
     assigns = socket.assigns
 
-    assigns.entries
-    |> filtered_by_tab(assigns.active_tab)
-    |> filtered_by_text(assigns.filter_text)
-    |> filtered_by_in_progress(assigns.in_progress_filter)
-    |> MapSet.new(& &1.entity.id)
+    visible_ids =
+      assigns.entries
+      |> filtered_by_tab(assigns.active_tab)
+      |> filtered_by_text(assigns.filter_text)
+      |> filtered_by_in_progress(assigns.in_progress_filter)
+      |> MapSet.new(& &1.entity.id)
+
+    assign(socket, visible_ids: visible_ids)
   end
 
   # --- Sort Dropdown Keyboard ---
