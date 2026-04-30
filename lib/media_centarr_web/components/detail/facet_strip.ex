@@ -11,7 +11,10 @@ defmodule MediaCentarrWeb.Components.Detail.FacetStrip do
 
   alias MediaCentarrWeb.Components.Detail.Facet
 
-  attr :facets, :list, default: []
+  attr :facets, :list,
+    default: [],
+    doc:
+      "list of `MediaCentarrWeb.Components.Detail.Facet.t()` structs (constructed via `Detail.Logic.facets_for/2,3` or the `Facet.text/2`, `Facet.chips/2`, `Facet.rating/3` helpers). Phoenix has no list-of-typed-structs attr; element type is enforced via the inner `attr :facet, Facet`."
 
   def facet_strip(assigns) do
     ~H"""
