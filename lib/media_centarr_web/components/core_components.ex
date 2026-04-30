@@ -80,26 +80,65 @@ defmodule MediaCentarrWeb.CoreComponents do
   end
 
   @doc """
-  Renders a button with navigation support.
+  Renders a button or link styled per UIDR-003.
+
+  All site buttons should go through this component — raw daisyUI `btn`
+  classes in templates are flagged by `MediaCentarr.Credo.Checks.RawButtonClass`.
+
+  ## Variants
+
+  | Variant | Use |
+  |---------|-----|
+  | `"primary"` | Solid CTA — at most one per view (hero Play, modal confirm) |
+  | `"secondary"` (default) | Soft blue — default action, navigation, hero "More info" |
+  | `"action"` | Soft green — approve, install, scan |
+  | `"info"` | Soft cyan — TMDB/track related |
+  | `"risky"` | Soft amber — rematch, stop tracking |
+  | `"danger"` | Soft red — delete, destroy |
+  | `"dismiss"` | Ghost — cancel, close, back |
+  | `"destructive_inline"` | Ghost + red text — trash icons inline |
+  | `"neutral"` | Soft no-color — used for muted toggle pills |
+  | `"outline"` | Outline — used for low-emphasis switches |
+
+  ## Sizes & shapes
+
+  `size`: `"xs"`, `"sm"`, `"md"` (default), `"lg"`.
+  `shape`: `"circle"` or `"square"` for icon-only buttons.
+
+  Pass extra Tailwind utilities via `class` (appended). `phx-*`, `data-*`,
+  `aria-*`, `tabindex`, `disabled`, `type`, `form`, `name`, `value`,
+  `href`/`navigate`/`patch` are all forwarded through `:rest`.
 
   ## Examples
 
-      <.button>Send!</.button>
-      <.button phx-click="go" variant="primary">Send!</.button>
+      <.button phx-click="save">Save</.button>
+      <.button variant="primary" size="lg" phx-click="play">Play</.button>
+      <.button variant="dismiss" phx-click="close">Cancel</.button>
+      <.button variant="danger" size="sm" phx-click="delete">Delete</.button>
       <.button navigate={~p"/"}>Home</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :string
-  attr :variant, :string, values: ~w(primary)
+  attr :variant, :string,
+    default: "secondary",
+    values: ~w(primary secondary action info risky danger dismiss destructive_inline neutral outline)
+
+  attr :size, :string, default: "md", values: ~w(xs sm md lg)
+  attr :shape, :string, default: nil, values: [nil, "circle", "square"]
+  attr :class, :any, default: nil
+
+  attr :rest, :global, include: ~w(href navigate patch method download name value disabled type form)
+
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    classes = [
+      "btn",
+      variant_classes(assigns.variant),
+      size_classes(assigns.size),
+      shape_classes(assigns.shape),
+      assigns.class
+    ]
 
-    assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+    assigns = assign(assigns, :class, classes)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
@@ -115,6 +154,26 @@ defmodule MediaCentarrWeb.CoreComponents do
       """
     end
   end
+
+  defp variant_classes("primary"), do: "btn-primary"
+  defp variant_classes("secondary"), do: "btn-soft btn-primary"
+  defp variant_classes("action"), do: "btn-soft btn-success"
+  defp variant_classes("info"), do: "btn-soft btn-info"
+  defp variant_classes("risky"), do: "btn-soft btn-warning"
+  defp variant_classes("danger"), do: "btn-soft btn-error"
+  defp variant_classes("dismiss"), do: "btn-ghost"
+  defp variant_classes("destructive_inline"), do: "btn-ghost text-error"
+  defp variant_classes("neutral"), do: "btn-soft"
+  defp variant_classes("outline"), do: "btn-outline"
+
+  defp size_classes("xs"), do: "btn-xs"
+  defp size_classes("sm"), do: "btn-sm"
+  defp size_classes("md"), do: nil
+  defp size_classes("lg"), do: "btn-lg"
+
+  defp shape_classes(nil), do: nil
+  defp shape_classes("circle"), do: "btn-circle"
+  defp shape_classes("square"), do: "btn-square"
 
   @doc """
   Renders an input with label and error messages.

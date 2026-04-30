@@ -224,15 +224,17 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             <span class="text-xs text-base-content/40 whitespace-nowrap shrink-0 tabular-nums w-14 text-right">
               {Format.format_seconds(round(event.duration_seconds))}
             </span>
-            <button
-              class="btn btn-ghost btn-xs text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+            <.button
+              variant="destructive_inline"
+              size="xs"
+              class="text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
               phx-click="remove_event"
               phx-value-id={event.id}
               tabindex="-1"
               aria-label="Remove from history"
             >
               <.icon name="hero-x-mark-mini" class="size-3" />
-            </button>
+            </.button>
           </div>
         </div>
 
@@ -242,25 +244,27 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
           data-nav-zone="grid"
           class="flex items-center justify-center gap-4 py-2"
         >
-          <button
+          <.button
             :if={@page > 1}
-            class="btn btn-ghost btn-sm"
+            variant="dismiss"
+            size="sm"
             data-nav-item
             tabindex="0"
             phx-click="prev_page"
           >
             ← Previous
-          </button>
+          </.button>
           <span class="text-sm text-base-content/40">Page {@page}</span>
-          <button
+          <.button
             :if={@has_next}
-            class="btn btn-ghost btn-sm"
+            variant="dismiss"
+            size="sm"
             data-nav-item
             tabindex="0"
             phx-click="next_page"
           >
             Next →
-          </button>
+          </.button>
         </div>
       </div>
 
@@ -301,9 +305,9 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             </div>
           </div>
           <div class="flex justify-end">
-            <button class="btn btn-ghost btn-sm" phx-click="dismiss_deleted_event">
+            <.button variant="dismiss" size="sm" phx-click="dismiss_deleted_event">
               Close
-            </button>
+            </.button>
           </div>
         </div>
       </div>

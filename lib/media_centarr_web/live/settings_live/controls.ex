@@ -25,14 +25,15 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
           <h2 class="text-2xl font-semibold">Controls</h2>
           <p class="text-base-content/60 mt-1">Customize keyboard and gamepad bindings.</p>
         </div>
-        <button
+        <.button
+          variant="dismiss"
+          size="sm"
           phx-click="controls:reset_all"
-          class="btn btn-sm btn-ghost"
           data-nav-item
           tabindex="0"
         >
           Reset all to defaults
-        </button>
+        </.button>
       </div>
 
       <div class="flex items-center gap-2 mb-6">

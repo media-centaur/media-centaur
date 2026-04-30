@@ -118,12 +118,9 @@ defmodule MediaCentarr.Playback.Resume do
         find_next_unwatched(items, progress_by_key)
 
       index ->
-        remaining = Enum.drop(items, index + 1)
-
-        case remaining do
+        case Enum.drop(items, index + 1) do
           [] ->
-            {first_url, _id} = List.first(items)
-            {:restart, first_url, 0.0}
+            find_next_unwatched(items, progress_by_key)
 
           [{url, _id} | _] ->
             {:play_next, url, 0.0}

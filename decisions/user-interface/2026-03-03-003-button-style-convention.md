@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-03-03
-last-updated: 2026-04-06
+last-updated: 2026-04-30
 ---
 # Button style convention
 
@@ -23,6 +23,12 @@ Rules:
 4. **Solid-fill buttons**: acceptable only for `btn-primary` (theme accent) where a single dominant call-to-action is needed (e.g. form submit on the Review search panel).
 
 Never use solid-fill `btn-success` / `btn-info` / `btn-warning` / `btn-error` without `btn-soft` — the saturated background washes out the text on glassmorphism surfaces.
+
+### Component-enforced (2026-04-30 amendment)
+
+These rules now live in the `<.button>` component (`MediaCentarrWeb.CoreComponents.button/1`) as named `variant` values: `primary`, `secondary`, `action`, `info`, `risky`, `danger`, `dismiss`, `destructive_inline`, `neutral`, `outline`. The `MediaCentarr.Credo.Checks.RawButtonClass` Credo check (precommit) flags any raw `class="btn ..."` string in templates under `lib/media_centarr_web/`. The button component file (`core_components.ex`) is exempt — it owns the literal `btn` token.
+
+**Standard labels.** `"More info"` is the canonical label for the secondary action that opens an entity's detail / info view. The hero CTA pair is **Play** + **More info**. Avoid synonyms (`Details`, `More`, `Info`) that drift the visual language across the app.
 
 ### Consequences
 

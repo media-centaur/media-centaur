@@ -51,14 +51,17 @@ defmodule MediaCentarrWeb.Components.ModalShell do
       <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
         <%!-- Close button — pinned to the panel, sits above the scroll
               surface so it stays in place while content scrolls. --%>
-        <button
+        <.button
           :if={@entity}
+          variant="dismiss"
+          size="sm"
+          shape="circle"
+          class="absolute top-3 right-3 z-20"
           phx-click={@on_close}
-          class="absolute top-3 right-3 z-20 btn btn-ghost btn-circle btn-sm"
           aria-label="Close"
         >
           <.icon name="hero-x-mark-mini" class="size-5" />
-        </button>
+        </.button>
 
         <%!-- Single scroll surface for the entire detail. Backdrop image
               and atmospheric scrim live inside the scroll container so
@@ -72,26 +75,33 @@ defmodule MediaCentarrWeb.Components.ModalShell do
           <div :if={@backdrop_url} class="modal-page-backdrop" aria-hidden="true">
             <img src={@backdrop_url} alt="" />
           </div>
-          <div class="modal-page-atmosphere" aria-hidden="true"></div>
 
-          <div class="relative z-[2]">
-            <DetailPanel.detail_panel
-              entity={@entity}
-              progress={@progress}
-              resume={@resume}
-              progress_records={@progress_records}
-              expanded_seasons={@expanded_seasons}
-              on_play={@on_play}
-              on_close={@on_close}
-              rematch_confirm={@rematch_confirm}
-              detail_view={@detail_view}
-              detail_files={@detail_files}
-              delete_confirm={@delete_confirm}
-              spoiler_free={@spoiler_free}
-              tracking_status={@tracking_status}
-              available={@available}
-              tmdb_ready={@tmdb_ready}
-            />
+          <%!-- Atmosphere + content share a positioning anchor that grows
+                with the content, so the absolute atmosphere covers the full
+                scroll height (not just the viewport-sized scroll padding box,
+                which would scroll off and cut the dim partway down). --%>
+          <div class="modal-page-content">
+            <div class="modal-page-atmosphere" aria-hidden="true"></div>
+
+            <div class="relative z-[2]">
+              <DetailPanel.detail_panel
+                entity={@entity}
+                progress={@progress}
+                resume={@resume}
+                progress_records={@progress_records}
+                expanded_seasons={@expanded_seasons}
+                on_play={@on_play}
+                on_close={@on_close}
+                rematch_confirm={@rematch_confirm}
+                detail_view={@detail_view}
+                detail_files={@detail_files}
+                delete_confirm={@delete_confirm}
+                spoiler_free={@spoiler_free}
+                tracking_status={@tracking_status}
+                available={@available}
+                tmdb_ready={@tmdb_ready}
+              />
+            </div>
           </div>
         </div>
       </div>

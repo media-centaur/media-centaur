@@ -474,15 +474,29 @@ body:has(.modal-backdrop[data-state="open"]) {
   );
 }
 
+/* ── Modal page-level content anchor ──
+   Positioning context for the atmosphere. Grows with the content so the
+   absolute atmosphere inside it covers the full scroll height — not just
+   the visible scroll padding box, which would scroll off and end the dim
+   partway down. `min-height: 100%` keeps the atmosphere covering the
+   viewport for short entries (e.g. a single Movie). */
+.modal-page-content {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+}
+
 /* ── Modal page-level atmosphere ──
    Mirror of `.page-side-dim` (HomeLive) but absolute (panel-scoped). A
    left-side weight + a vertical scrim that fades to a constant dim and
-   holds it to the panel bottom. Matches the home page intensities so
-   the modal feels like a continuation of the page treatment. */
+   holds it to the panel bottom. Vertical stops are vh-based so the
+   transparent → dim transition lands near the bottom of the hero (matching
+   the original 70% of a ~92vh panel) and the constant-dim region holds
+   regardless of how tall the content gets. */
 .modal-page-atmosphere {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 0;
   pointer-events: none;
   background:
     linear-gradient(
@@ -493,9 +507,9 @@ body:has(.modal-backdrop[data-state="open"]) {
     ),
     linear-gradient(
       to bottom,
-      transparent 0%,
-      transparent 35%,
-      oklch(0% 0 0 / 0.55) 70%,
+      transparent 0,
+      transparent 32vh,
+      oklch(0% 0 0 / 0.55) 64vh,
       oklch(0% 0 0 / 0.55) 100%
     );
 }

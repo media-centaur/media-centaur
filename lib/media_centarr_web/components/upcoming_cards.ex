@@ -69,29 +69,44 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <button phx-click="prev_month" class="btn btn-ghost btn-sm btn-square" tabindex="-1">
+              <.button
+                variant="dismiss"
+                size="sm"
+                shape="square"
+                phx-click="prev_month"
+                tabindex="-1"
+              >
                 <.icon name="hero-chevron-left-mini" class="size-5" />
-              </button>
+              </.button>
               <h2 class="text-lg font-semibold min-w-[10rem] text-center">{@month_label}</h2>
-              <button phx-click="next_month" class="btn btn-ghost btn-sm btn-square" tabindex="-1">
+              <.button
+                variant="dismiss"
+                size="sm"
+                shape="square"
+                phx-click="next_month"
+                tabindex="-1"
+              >
                 <.icon name="hero-chevron-right-mini" class="size-5" />
-              </button>
-              <button
+              </.button>
+              <.button
+                variant="dismiss"
+                size="xs"
+                class="ml-2 text-base-content/50"
                 phx-click="jump_today"
-                class="btn btn-ghost btn-xs ml-2 text-base-content/50"
                 tabindex="-1"
               >
                 Today
-              </button>
+              </.button>
             </div>
-            <button
+            <.button
               :if={@tmdb_ready}
+              variant="secondary"
+              size="sm"
               phx-click={JS.push("open_track_modal") |> JS.focus(to: "#track-search-input")}
-              class="btn btn-soft btn-primary btn-sm"
               tabindex="-1"
             >
               <.icon name="hero-plus-mini" class="size-4" /> Track New Releases
-            </button>
+            </.button>
           </div>
 
           <div class="rounded-xl overflow-hidden border border-base-content/15">
@@ -413,9 +428,9 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         <h3 class="text-sm font-semibold">
           {Calendar.strftime(@day, "%A, %B %-d")}
         </h3>
-        <button phx-click="select_day" phx-value-date="" class="btn btn-ghost btn-xs btn-square">
+        <.button variant="dismiss" size="xs" shape="square" phx-click="select_day" phx-value-date="">
           <.icon name="hero-x-mark-mini" class="size-4" />
-        </button>
+        </.button>
       </div>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,360px))] gap-3">
         <.day_release_card
@@ -805,16 +820,16 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
               :if={@pending_count >= 2}
               class="flex justify-end pt-1"
             >
-              <button
-                type="button"
+              <.button
+                variant="secondary"
+                size="xs"
                 phx-click="queue_all_show"
                 phx-value-item-id={@item.id}
-                class="btn btn-soft btn-primary btn-xs"
                 aria-label={"Queue all #{@pending_count} pending episodes"}
                 tabindex="-1"
               >
                 <.icon name="hero-arrow-down-tray-mini" class="size-3.5" /> Queue all {@pending_count}
-              </button>
+              </.button>
             </div>
             <div
               :if={@released != [] and @upcoming != []}
@@ -1052,12 +1067,16 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       <span class="font-medium truncate">{@item.name}</span>
       <span class="text-base-content/50 text-right">{@item.status_text}</span>
       <div class="flex items-center gap-1 justify-end">
-        <span
-          class="btn btn-ghost btn-xs btn-square opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none"
+        <.button
+          variant="dismiss"
+          size="xs"
+          shape="square"
+          class="opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none"
+          tabindex="-1"
           aria-hidden="true"
         >
           <.icon name="hero-x-mark-mini" class="size-4" />
-        </span>
+        </.button>
       </div>
     </div>
     """
@@ -1091,22 +1110,24 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
             You won't see upcoming releases for this title anymore.
           </p>
           <div class="mt-4 flex justify-end gap-2">
-            <button
+            <.button
+              variant="dismiss"
+              size="sm"
               data-nav-item
               tabindex="0"
               phx-click="cancel_stop_tracking"
-              class="btn btn-ghost btn-sm"
             >
               Cancel
-            </button>
-            <button
+            </.button>
+            <.button
+              variant="danger"
+              size="sm"
               data-nav-item
               tabindex="0"
               phx-click="confirm_stop_tracking"
-              class="btn btn-soft btn-error btn-sm"
             >
               Stop tracking
-            </button>
+            </.button>
           </div>
         </div>
       </div>

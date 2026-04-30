@@ -1,14 +1,14 @@
 defmodule MediaCentarrWeb.Components.HeroCard do
   @moduledoc """
   Full-bleed hero card for the Home page. One large title with backdrop,
-  meta line, overview, and Play / Details actions.
+  meta line, overview, and Play / More info actions.
 
   Item is an `Item` struct (see below). All fields except `:id`, `:name`,
   `:play_url`, and `:detail_url` may be nil — the template hides absent
   ones.
   """
   use Phoenix.Component
-  import MediaCentarrWeb.CoreComponents, only: [icon: 1]
+  import MediaCentarrWeb.CoreComponents, only: [button: 1, icon: 1]
 
   defmodule Item do
     @moduledoc "View-model for the HeroCard."
@@ -96,23 +96,24 @@ defmodule MediaCentarrWeb.Components.HeroCard do
           {@item.overview}
         </p>
         <div class="flex gap-3 mt-2">
-          <button
-            type="button"
+          <.button
+            variant="primary"
+            size="lg"
             phx-click="select_entity"
             phx-value-id={@item.entity_id}
             phx-value-autoplay="1"
-            class="btn btn-primary btn-lg"
           >
             <.icon name="hero-play-mini" class="size-5" /> Play
-          </button>
-          <button
-            type="button"
+          </.button>
+          <.button
+            variant="secondary"
+            size="lg"
+            class="text-white"
             phx-click="select_entity"
             phx-value-id={@item.entity_id}
-            class="btn btn-soft btn-primary btn-lg text-white"
           >
-            <.icon name="hero-information-circle-mini" class="size-5" /> Details
-          </button>
+            <.icon name="hero-information-circle-mini" class="size-5" /> More info
+          </.button>
         </div>
       </div>
     </section>

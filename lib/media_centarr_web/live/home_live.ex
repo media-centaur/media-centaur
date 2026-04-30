@@ -8,6 +8,8 @@ defmodule MediaCentarrWeb.HomeLive do
   """
   use MediaCentarrWeb, :live_view
   use MediaCentarrWeb.Live.EntityModal
+  use MediaCentarrWeb.Live.SpoilerFreeAware
+  use MediaCentarrWeb.Live.CapabilitiesAware
 
   alias MediaCentarr.{
     Acquisition,
@@ -47,10 +49,9 @@ defmodule MediaCentarrWeb.HomeLive do
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
       |> assign(:playback, load_playback_sessions())
-      |> assign(:resume_targets, %{})
       |> assign(:availability_map, %{})
-      |> assign(:tmdb_ready, Capabilities.tmdb_ready?())
-      |> assign(:spoiler_free, load_spoiler_free_setting())
+      |> assign_tmdb_ready()
+      |> assign_spoiler_free()
       |> assign(:watch_dirs, MediaCentarr.Config.get(:watch_dirs) || [])
       |> assign_modal_defaults()
       |> assign_all()
@@ -152,7 +153,6 @@ defmodule MediaCentarrWeb.HomeLive do
           rematch_confirm={@rematch_confirm}
           delete_confirm={@delete_confirm}
           tracking_status={@tracking_status}
-          resume_targets={@resume_targets}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}
@@ -236,14 +236,6 @@ defmodule MediaCentarrWeb.HomeLive do
        :error,
        MediaCentarrWeb.LibraryFormatters.playback_failed_flash(payload)
      )}
-  end
-
-  def handle_info({:setting_changed, "spoiler_free_mode", enabled}, socket) do
-    {:noreply, assign(socket, spoiler_free: enabled)}
-  end
-
-  def handle_info(:capabilities_changed, socket) do
-    {:noreply, assign(socket, tmdb_ready: Capabilities.tmdb_ready?())}
   end
 
   def handle_info(message, socket), do: schedule_section_reloads(socket, message)
@@ -341,17 +333,4 @@ defmodule MediaCentarrWeb.HomeLive do
   defp load_recently_added, do: Library.list_recently_added(limit: 30)
 
   defp load_hero_candidates, do: Library.list_hero_candidates(limit: 12)
-
-  defp load_playback_sessions do
-    Map.new(MediaCentarr.Playback.Sessions.list(), fn session ->
-      {session.entity_id, session}
-    end)
-  end
-
-  defp load_spoiler_free_setting do
-    case Settings.get_by_key("spoiler_free_mode") do
-      {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
-      _ -> false
-    end
-  end
 end

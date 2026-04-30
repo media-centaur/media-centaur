@@ -4,16 +4,18 @@ defmodule MediaCentarrWeb.Components.Detail.PlayCard do
   text + a "More info" toggle that flips the panel between `:main` and
   `:info` views.
 
-  Pure presentation: the per-type panel computes label/color/percent/
-  remaining text and passes them in. When `available` is false (storage
-  offline), the play button is replaced with a disabled "Offline" pill.
+  Mirrors the home hero CTA pair: the play button is always the primary
+  variant (solid blue), the "More info" toggle is always the secondary
+  variant (soft blue). The label ("Play", "Resume Episode 5", "Watch
+  again", …) comes from `Detail.Logic.playback_props/3`. When `available`
+  is false (storage offline), the play button is replaced with a disabled
+  "Offline" pill.
   """
   use MediaCentarrWeb, :html
 
   attr :on_play, :string, required: true
   attr :target_id, :string, required: true
   attr :label, :string, required: true
-  attr :color, :string, required: true
   attr :percent, :integer, default: 0
   attr :remaining_text, :string, default: nil
   attr :available, :boolean, default: true
@@ -39,36 +41,37 @@ defmodule MediaCentarrWeb.Components.Detail.PlayCard do
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button
+        <.button
           :if={@available}
+          variant="primary"
+          size="sm"
           phx-click={@on_play}
           phx-value-id={@target_id}
-          class={"btn btn-soft btn-sm btn-#{@color}"}
           data-nav-item
           data-entity-id={@target_id}
           tabindex="0"
         >
           <.icon name="hero-play-mini" class="size-4" /> {@label}
-        </button>
-        <span
+        </.button>
+        <.button
           :if={!@available}
-          class="btn btn-sm btn-ghost text-base-content/40 cursor-not-allowed pointer-events-none"
+          variant="dismiss"
+          size="sm"
+          class="text-base-content/40 cursor-not-allowed pointer-events-none"
           title="Storage offline — check that your media drive is mounted"
         >
           <.icon name="hero-cloud-arrow-down-mini" class="size-4 opacity-60" /> Offline
-        </span>
-        <button
+        </.button>
+        <.button
+          variant="secondary"
+          size="sm"
           phx-click="toggle_detail_view"
-          class={[
-            "btn btn-sm",
-            if(@detail_view == :info, do: "btn-soft btn-primary", else: "btn-ghost")
-          ]}
           data-nav-item
           tabindex="0"
         >
           <.icon name="hero-information-circle-mini" class="size-4" />
-          {if @detail_view == :info, do: "Back", else: "More"}
-        </button>
+          {if @detail_view == :info, do: "Back", else: "More info"}
+        </.button>
       </div>
     </div>
     """

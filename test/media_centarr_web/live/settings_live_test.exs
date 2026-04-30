@@ -116,8 +116,12 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
 
       assert html =~ "Repair missing images"
       assert html =~ "All image files are present on disk"
-      # Button is disabled
-      assert html =~ ~r/phx-click="repair_missing_images"[^>]*disabled/s
+      # Button is disabled (attr order is component-dependent — match the
+      # whole tag and assert both attributes are present on it).
+      [button_tag] =
+        Regex.run(~r/<button[^>]*phx-click="repair_missing_images"[^>]*>/, html) || [""]
+
+      assert button_tag =~ "disabled"
     end
 
     test "renders enabled with badge when images are missing", %{conn: conn} do

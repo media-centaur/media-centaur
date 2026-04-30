@@ -46,17 +46,33 @@ Body has a fixed two-tone radial gradient background. Glass surfaces float above
 
 ### Buttons ([UIDR-003])
 
-| Context | Recipe | Example |
-|---------|--------|---------|
-| **Action** (approve, search, scan) | `btn btn-soft btn-success` | Soft tinted bg + colored text |
-| **Primary CTA** (single dominant) | `btn btn-primary` | Solid fill — only one per view |
-| **Dangerous** (delete, clear DB) | `btn btn-soft btn-error` | Red-tinted soft |
-| **Risky** (rematch, stop tracking) | `btn btn-soft btn-warning` | Amber-tinted soft |
-| **Dismiss/cancel** (close, cancel) | `btn btn-ghost` | Minimal weight, recedes |
-| **Destructive inline** (trash icon) | `btn btn-ghost text-error` | Ghost + red text |
-| **Navigation** (default) | `btn btn-soft btn-primary` | Soft blue |
+**Always** use the `<.button>` component with a `variant` and `size`. Raw `class="btn ..."` strings in templates are flagged by `MediaCentarr.Credo.Checks.RawButtonClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
+
+| Variant | Use | Daisy classes (under the hood) |
+|---------|-----|--------------------------------|
+| `"primary"` | Solid CTA — one per view (hero Play, modal confirm) | `btn-primary` |
+| `"secondary"` (default) | Soft blue — default action, navigation, hero "More info" | `btn-soft btn-primary` |
+| `"action"` | Approve, install, scan | `btn-soft btn-success` |
+| `"info"` | TMDB / track-related | `btn-soft btn-info` |
+| `"risky"` | Rematch, stop tracking, restart | `btn-soft btn-warning` |
+| `"danger"` | Delete, clear DB | `btn-soft btn-error` |
+| `"dismiss"` | Cancel, close, back, page nav | `btn-ghost` |
+| `"destructive_inline"` | Inline trash icons | `btn-ghost text-error` |
+| `"neutral"` | Quiet pill (test connection, repair) | `btn-soft` |
+| `"outline"` | Low-emphasis switch (status report) | `btn-outline` |
+
+Sizes: `"xs"`, `"sm"`, `"md"` (default), `"lg"`. Shapes: `"circle"`, `"square"` for icon-only buttons.
+
+```html
+<.button variant="primary" size="lg" phx-click="play">Play</.button>
+<.button variant="secondary" size="lg" phx-click="open">More info</.button>
+<.button variant="dismiss" size="sm" phx-click="cancel">Cancel</.button>
+<.button variant="danger" size="sm" phx-click="delete">Delete</.button>
+```
 
 **Never** use solid-fill semantic buttons (`btn-success`, `btn-error` alone) — text washes out on glass.
+
+**Standard labels.** Use `"More info"` (not `"Details"`, `"More"`, or `"Info"`) for the secondary action that opens an entity's detail / info view. The hero CTA pair is always **Play** + **More info**.
 
 ### Badges ([UIDR-002])
 

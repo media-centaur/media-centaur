@@ -17,8 +17,14 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   - Call `apply_modal_params/2` from the LiveView's `handle_params/3`.
   - Maintain these assigns (the modal renderer reads them directly):
     `:playback`, `:watch_dirs`, `:availability_map`, `:tmdb_ready`,
-    `:spoiler_free`, `:resume_targets`. Each LiveView already has its
-    own routes for keeping those up to date via PubSub.
+    `:spoiler_free`. Most are kept in sync via shared traits
+    (`SpoilerFreeAware`, `CapabilitiesAware`) — see ADR-038.
+  - Stamp `:resume_target` on every `:selected_entry` via
+    `EntityModal.put_resume_target/1`. Done automatically by the
+    `load_entry_and_expand/1` and `refresh_selected_entry/1` paths
+    inside this module; LiveViews that re-snap the selected entry
+    from their own in-memory store (e.g. LibraryLive's
+    `entries_by_id`) call `put_resume_target/1` themselves.
   - Render `<.entity_modal modal={@modal} />` once in the template.
 
   ## What the macro injects
@@ -396,7 +402,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   def refresh_selected_entry(socket) do
     case Library.load_modal_entry(socket.assigns.selected_entity_id) do
       {:ok, entry} ->
-        Phoenix.Component.assign(socket, :selected_entry, entry)
+        Phoenix.Component.assign(socket, :selected_entry, put_resume_target(entry))
 
       :not_found ->
         Phoenix.Component.assign(socket,
@@ -414,8 +420,12 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   @doc """
   Renders the entity detail modal. Reads everything it needs from the
   host LiveView's modal-related assigns plus a few shared assigns
-  (`@playback`, `@availability_map`, `@tmdb_ready`, `@spoiler_free`,
-  `@resume_targets`).
+  (`@playback`, `@availability_map`, `@tmdb_ready`, `@spoiler_free`).
+
+  The resume target is read directly from the loaded entry — every place
+  that assigns `:selected_entry` is responsible for stamping it via
+  `put_resume_target/1`. This keeps the modal decoupled from how each
+  host LiveView tracks resume state for the rest of its UI.
   """
   attr :selected_entry, :any, required: true
   attr :selected_entity_id, :any, required: true
@@ -426,7 +436,6 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   attr :rematch_confirm, :any, required: true
   attr :delete_confirm, :any, required: true
   attr :tracking_status, :atom, required: true
-  attr :resume_targets, :map, default: %{}
   attr :availability_map, :map, default: %{}
   attr :tmdb_ready, :boolean, default: true
   attr :spoiler_free, :boolean, default: false
@@ -437,7 +446,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       open={@selected_entry != nil && @detail_presentation == :modal}
       entity={(@selected_entry && @selected_entry.entity) || nil}
       progress={@selected_entry && @selected_entry.progress}
-      resume={@selected_entry && Map.get(@resume_targets, @selected_entry.entity.id)}
+      resume={@selected_entry && Map.get(@selected_entry, :resume_target)}
       progress_records={(@selected_entry && @selected_entry.progress_records) || []}
       expanded_seasons={@expanded_seasons}
       rematch_confirm={@rematch_confirm == @selected_entity_id}
@@ -661,15 +670,22 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     case Library.load_modal_entry(id) do
       {:ok, entry} ->
         expanded = DetailPanel.auto_expand_season(entry.entity, entry.progress)
-
-        entry_with_resume =
-          Map.put(entry, :resume_target, ResumeTarget.compute(entry.entity, entry.progress_records))
-
-        {entry_with_resume, expanded}
+        {put_resume_target(entry), expanded}
 
       :not_found ->
         {nil, MapSet.new()}
     end
+  end
+
+  @doc """
+  Stamps `:resume_target` on a loaded entry. Every host LiveView's path
+  to `:selected_entry` must run through this so the modal sees the
+  current hint without each host having to maintain its own
+  resume-target map (per ADR-038).
+  """
+  @spec put_resume_target(map()) :: map()
+  def put_resume_target(entry) do
+    Map.put(entry, :resume_target, ResumeTarget.compute(entry.entity, entry.progress_records))
   end
 
   defp load_tracking_status(entry) do

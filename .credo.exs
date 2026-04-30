@@ -180,7 +180,8 @@
           {MediaCentarr.Credo.Checks.ContextSubscribeFacade, []},
           {MediaCentarr.Credo.Checks.NoSysIntrospection, []},
           {MediaCentarr.Credo.Checks.LogMacroPreferred, []},
-          {MediaCentarr.Credo.Checks.ModalPanelNoClickAway, []}
+          {MediaCentarr.Credo.Checks.ModalPanelNoClickAway, []},
+          {MediaCentarr.Credo.Checks.RawButtonClass, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

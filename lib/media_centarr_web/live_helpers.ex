@@ -76,6 +76,19 @@ defmodule MediaCentarrWeb.LiveHelpers do
   end
 
   @doc """
+  Snapshots the current `Playback.Sessions` registry as a map keyed by
+  entity id. Used by every LiveView that renders live playback state
+  (Home, Library, Status). Pair with `apply_playback_change/5` to keep
+  the snapshot in sync via PubSub.
+  """
+  @spec load_playback_sessions() :: %{optional(String.t()) => map()}
+  def load_playback_sessions do
+    Map.new(MediaCentarr.Playback.Sessions.list(), fn session ->
+      {session.entity_id, session}
+    end)
+  end
+
+  @doc """
   Formats a `DateTime` or `NaiveDateTime` as a relative time string.
 
   Returns "just now" for < 1 minute, "Xm ago" for < 1 hour, "Xh ago" for < 1 day,
