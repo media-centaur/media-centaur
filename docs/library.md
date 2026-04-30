@@ -78,7 +78,7 @@ graph TD
 
 The `Movie` schema serves both standalone movies and MovieSeries children. The `movie_series_id` column distinguishes them.
 
-> A legacy `library_entities` table still exists with dual-written data for the in-flight migration. New code uses the type-specific tables. The Entity table will be dropped once all callers have migrated.
+> The old `library_entities` table was dropped on 2026-04-03 (migration `20260403000002_drop_entity_table.exs`). Type-specific tables are the only data path. `library_entity_id` columns survive in unrelated tables (release_tracking, etc.) as references to type-specific UUIDs that were preserved across the data migration — legacy-named columns, correct values.
 
 **One image per role per owner.** Roles: `poster`, `backdrop`, `logo`, `thumb`. Enforced by per-owner-type unique indexes on `(<owner_id>, role)`.
 
