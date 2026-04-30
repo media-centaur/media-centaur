@@ -159,6 +159,19 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     GenServer.call(server, :clear)
   end
 
+  @doc """
+  Re-arms named groups: any term currently in `:abandoned` or `{:failed, _}`
+  flips back to `:loading`. Other states are no-ops for that term. The
+  caller's pid becomes the new monitored `searching_pid`.
+
+  The caller is responsible for spawning Tasks for these terms after the
+  call returns.
+  """
+  @spec retry_search_terms(GenServer.server(), [String.t()]) :: :ok
+  def retry_search_terms(server \\ __MODULE__, terms) when is_list(terms) do
+    GenServer.call(server, {:retry_search_terms, terms, self()})
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer
   # ---------------------------------------------------------------------------
@@ -285,6 +298,60 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     new_state = swap_monitor(%__MODULE__{}, state)
     broadcast(new_state)
     {:reply, :ok, new_state}
+  end
+
+  def handle_call({:retry_search_terms, terms, caller_pid}, _from, state) do
+    terms_set = MapSet.new(terms)
+
+    groups =
+      Enum.map(state.groups, fn
+        %{term: term, status: :abandoned} = group ->
+          if MapSet.member?(terms_set, term),
+            do: %{group | status: :loading, results: []},
+            else: group
+
+        %{term: term, status: {:failed, _}} = group ->
+          if MapSet.member?(terms_set, term),
+            do: %{group | status: :loading, results: []},
+            else: group
+
+        group ->
+          group
+      end)
+
+    new_state =
+      swap_monitor(%{state | groups: groups, searching_pid: caller_pid}, state)
+
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  @impl GenServer
+  def handle_info(
+        {:DOWN, ref, :process, pid, _reason},
+        %__MODULE__{monitor_ref: ref, searching_pid: pid} = state
+      ) do
+    {groups, abandoned_count} =
+      Enum.map_reduce(state.groups, 0, fn
+        %{status: :loading} = group, acc -> {%{group | status: :abandoned}, acc + 1}
+        group, acc -> {group, acc}
+      end)
+
+    new_state = %{state | groups: groups, searching_pid: nil, monitor_ref: nil}
+
+    if abandoned_count > 0 do
+      Log.info(
+        :acquisition,
+        "search abandoned — #{abandoned_count} group(s), query=#{inspect(state.query)}"
+      )
+    end
+
+    broadcast(new_state)
+    {:noreply, new_state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
+    {:noreply, state}
   end
 
   # ---------------------------------------------------------------------------
