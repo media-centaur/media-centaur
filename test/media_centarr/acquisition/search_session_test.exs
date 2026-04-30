@@ -117,10 +117,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       assert SearchSession.current(name) == before
     end
 
-    @tag :skip
     test "is a silent no-op for a terminal group (e.g. abandoned)", %{name: name} do
-      # This test depends on :DOWN-driven sweep behavior implemented in Task 5.
-      # The test will be unskipped when Task 5 lands.
       parent = self()
 
       child =
@@ -236,6 +233,134 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       :ok = SearchSession.clear(name)
       assert_receive {:search_session, session}
       assert session == %SearchSession{}
+    end
+  end
+
+  describe "monitor + abandonment" do
+    setup do
+      name = :"sess_#{System.unique_integer([:positive])}"
+      start_supervised!({SearchSession, name: name})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      {:ok, name: name}
+    end
+
+    test "kills sweep :loading -> :abandoned and clear searching_pid", %{name: name} do
+      parent = self()
+
+      child =
+        spawn(fn ->
+          {:ok, _} = SearchSession.start_search(name, "Show {01-03}")
+          send(parent, :ready)
+
+          receive do
+            :die -> :ok
+          end
+        end)
+
+      assert_receive :ready
+      assert_receive {:search_session, before_session}
+      assert before_session.searching_pid == child
+      assert Enum.all?(before_session.groups, fn group -> group.status == :loading end)
+
+      Process.exit(child, :kill)
+
+      assert_receive {:search_session, after_session}, 500
+      assert Enum.all?(after_session.groups, fn group -> group.status == :abandoned end)
+      assert after_session.searching_pid == nil
+      assert after_session.monitor_ref == nil
+    end
+
+    test ":ready groups are not swept on :DOWN", %{name: name} do
+      alias MediaCentarr.Acquisition.SearchResult
+      parent = self()
+
+      child =
+        spawn(fn ->
+          {:ok, _} = SearchSession.start_search(name, "{A,B}")
+          send(parent, :started)
+
+          receive do
+            :die -> :ok
+          end
+        end)
+
+      assert_receive :started
+      assert_receive {:search_session, _}
+
+      :ok =
+        SearchSession.record_search_result(
+          name,
+          "A",
+          {:ok,
+           [
+             %SearchResult{guid: "g", title: "T", indexer_id: 1, quality: :hd_1080p, seeders: 1}
+           ]}
+        )
+
+      assert_receive {:search_session, _}
+
+      Process.exit(child, :kill)
+
+      assert_receive {:search_session, swept}, 500
+      assert Enum.find(swept.groups, &(&1.term == "A")).status == :ready
+      assert Enum.find(swept.groups, &(&1.term == "B")).status == :abandoned
+    end
+  end
+
+  describe "retry_search_terms/2" do
+    setup do
+      name = :"sess_#{System.unique_integer([:positive])}"
+      start_supervised!({SearchSession, name: name})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      {:ok, name: name}
+    end
+
+    test "transitions named :abandoned and {:failed, _} groups to :loading and re-monitors", %{
+      name: name
+    } do
+      parent = self()
+
+      child =
+        spawn(fn ->
+          {:ok, _} = SearchSession.start_search(name, "{A,B,C}")
+          send(parent, :started)
+
+          receive do
+            :die -> :ok
+          end
+        end)
+
+      assert_receive :started
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.record_search_result(name, "B", {:error, :timeout})
+      assert_receive {:search_session, _}
+
+      Process.exit(child, :kill)
+      assert_receive {:search_session, swept}, 500
+      # A, C are :abandoned; B is {:failed, :timeout}.
+      assert Enum.find(swept.groups, &(&1.term == "A")).status == :abandoned
+      assert Enum.find(swept.groups, &(&1.term == "B")).status == {:failed, :timeout}
+      assert Enum.find(swept.groups, &(&1.term == "C")).status == :abandoned
+
+      :ok = SearchSession.retry_search_terms(name, ["A", "B"])
+      assert_receive {:search_session, after_retry}, 500
+
+      assert Enum.find(after_retry.groups, &(&1.term == "A")).status == :loading
+      assert Enum.find(after_retry.groups, &(&1.term == "B")).status == :loading
+      assert Enum.find(after_retry.groups, &(&1.term == "C")).status == :abandoned
+      assert after_retry.searching_pid == self()
+      assert after_retry.monitor_ref != nil
+    end
+
+    test "no-op for terms that aren't :abandoned or {:failed, _}", %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "X")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.retry_search_terms(name, ["X"])
+
+      assert_receive {:search_session, session}
+      assert hd(session.groups).status == :loading
     end
   end
 end
