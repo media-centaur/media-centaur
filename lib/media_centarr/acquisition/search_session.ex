@@ -104,6 +104,61 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     GenServer.call(server, {:record_search_result, term, outcome})
   end
 
+  @doc "Sets `term => guid` in the selections map."
+  @spec set_selection(GenServer.server(), String.t(), String.t()) :: :ok
+  def set_selection(server \\ __MODULE__, term, guid) when is_binary(term) and is_binary(guid) do
+    GenServer.call(server, {:set_selection, term, guid})
+  end
+
+  @doc "Removes `term` from the selections map."
+  @spec clear_selection(GenServer.server(), String.t()) :: :ok
+  def clear_selection(server \\ __MODULE__, term) when is_binary(term) do
+    GenServer.call(server, {:clear_selection, term})
+  end
+
+  @doc "Empties the selections map."
+  @spec clear_selections(GenServer.server()) :: :ok
+  def clear_selections(server \\ __MODULE__) do
+    GenServer.call(server, :clear_selections)
+  end
+
+  @doc "Flips `expanded?` on the group whose term matches; no-op for unknown terms."
+  @spec toggle_group(GenServer.server(), String.t()) :: :ok
+  def toggle_group(server \\ __MODULE__, term) when is_binary(term) do
+    GenServer.call(server, {:toggle_group, term})
+  end
+
+  @doc """
+  Updates `query` and `expansion_preview` from a live input value, without
+  touching any other field. Used by the LiveView's `phx-change` handler so
+  the user sees the brace-expanded count update as they type.
+  """
+  @spec set_query_preview(GenServer.server(), String.t()) :: :ok
+  def set_query_preview(server \\ __MODULE__, query) when is_binary(query) do
+    GenServer.call(server, {:set_query_preview, query})
+  end
+
+  @doc "Sets the boolean `grabbing?` flag."
+  @spec set_grabbing(GenServer.server(), boolean()) :: :ok
+  def set_grabbing(server \\ __MODULE__, value) when is_boolean(value) do
+    GenServer.call(server, {:set_grabbing, value})
+  end
+
+  @doc "Sets the last-grab outcome message."
+  @spec set_grab_message(
+          GenServer.server(),
+          {:ok | :partial | :error, String.t()}
+        ) :: :ok
+  def set_grab_message(server \\ __MODULE__, message) do
+    GenServer.call(server, {:set_grab_message, message})
+  end
+
+  @doc "Resets the entire session to the default empty state."
+  @spec clear(GenServer.server()) :: :ok
+  def clear(server \\ __MODULE__) do
+    GenServer.call(server, :clear)
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer
   # ---------------------------------------------------------------------------
@@ -164,6 +219,72 @@ defmodule MediaCentarr.Acquisition.SearchSession do
         broadcast(new_state)
         {:reply, :ok, new_state}
     end
+  end
+
+  def handle_call({:set_selection, term, guid}, _from, state) do
+    new_state = %{state | selections: Map.put(state.selections, term, guid)}
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:clear_selection, term}, _from, state) do
+    new_state = %{state | selections: Map.delete(state.selections, term)}
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(:clear_selections, _from, state) do
+    new_state = %{state | selections: %{}}
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:toggle_group, term}, _from, state) do
+    groups =
+      Enum.map(state.groups, fn
+        %{term: ^term} = group -> %{group | expanded?: not group.expanded?}
+        group -> group
+      end)
+
+    new_state = %{state | groups: groups}
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:set_query_preview, query}, _from, state) do
+    preview =
+      case String.trim(query) do
+        "" ->
+          :idle
+
+        trimmed ->
+          case QueryExpander.expand(trimmed) do
+            {:ok, queries} -> {:ok, length(queries)}
+            {:error, _reason} -> {:error, :invalid_syntax}
+          end
+      end
+
+    new_state = %{state | query: query, expansion_preview: preview}
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:set_grabbing, value}, _from, state) do
+    new_state = %{state | grabbing?: value}
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call({:set_grab_message, message}, _from, state) do
+    new_state = %{state | grab_message: message}
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(:clear, _from, state) do
+    new_state = swap_monitor(%__MODULE__{}, state)
+    broadcast(new_state)
+    {:reply, :ok, new_state}
   end
 
   # ---------------------------------------------------------------------------

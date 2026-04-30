@@ -151,4 +151,91 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       assert SearchSession.current(name).groups == swept_session.groups
     end
   end
+
+  describe "simple mutators" do
+    setup do
+      name = :"sess_#{System.unique_integer([:positive])}"
+      start_supervised!({SearchSession, name: name})
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      {:ok, name: name}
+    end
+
+    test "set_selection/3 puts and replaces; clear_selection/2 removes", %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "Show")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.set_selection(name, "Show", "guid-1")
+      assert_receive {:search_session, %{selections: %{"Show" => "guid-1"}}}
+
+      :ok = SearchSession.set_selection(name, "Show", "guid-2")
+      assert_receive {:search_session, %{selections: %{"Show" => "guid-2"}}}
+
+      :ok = SearchSession.clear_selection(name, "Show")
+      assert_receive {:search_session, %{selections: selections}}
+      assert selections == %{}
+    end
+
+    test "clear_selections/1 wipes the map", %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "Show")
+      assert_receive {:search_session, _}
+      :ok = SearchSession.set_selection(name, "Show", "guid-1")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.clear_selections(name)
+
+      assert_receive {:search_session, %{selections: %{}}}
+    end
+
+    test "toggle_group/2 flips expanded? on the matching group only", %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "Show")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.toggle_group(name, "Show")
+      assert_receive {:search_session, session}
+      assert hd(session.groups).expanded? == true
+
+      :ok = SearchSession.toggle_group(name, "Show")
+      assert_receive {:search_session, session}
+      assert hd(session.groups).expanded? == false
+    end
+
+    test "set_query_preview/2 updates query and expansion_preview without touching groups", %{name: name} do
+      :ok = SearchSession.set_query_preview(name, "Show {01-03}")
+
+      assert_receive {:search_session, session}
+      assert session.query == "Show {01-03}"
+      assert session.expansion_preview == {:ok, 3}
+      assert session.groups == []
+    end
+
+    test "set_query_preview/2 reports invalid syntax", %{name: name} do
+      :ok = SearchSession.set_query_preview(name, "Show {")
+      assert_receive {:search_session, %{expansion_preview: {:error, :invalid_syntax}}}
+    end
+
+    test "set_query_preview/2 with blank input -> :idle", %{name: name} do
+      :ok = SearchSession.set_query_preview(name, "")
+      assert_receive {:search_session, %{expansion_preview: :idle, query: ""}}
+    end
+
+    test "set_grabbing/2 + set_grab_message/2 round-trip", %{name: name} do
+      :ok = SearchSession.set_grabbing(name, true)
+      assert_receive {:search_session, %{grabbing?: true}}
+
+      :ok = SearchSession.set_grab_message(name, {:ok, "1 grab(s) submitted"})
+      assert_receive {:search_session, %{grab_message: {:ok, "1 grab(s) submitted"}}}
+
+      :ok = SearchSession.set_grabbing(name, false)
+      assert_receive {:search_session, %{grabbing?: false, grab_message: {:ok, _}}}
+    end
+
+    test "clear/1 resets to default state", %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "Show")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.clear(name)
+      assert_receive {:search_session, session}
+      assert session == %SearchSession{}
+    end
+  end
 end
