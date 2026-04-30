@@ -8,6 +8,25 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Secret
 
+  defp stub_prowlarr_with(results) do
+    Req.Test.stub(:prowlarr, fn conn ->
+      Req.Test.json(conn, results)
+    end)
+  end
+
+  defp sample_release(opts \\ []) do
+    %{
+      "guid" => Keyword.get(opts, :guid, "guid-1"),
+      "title" => Keyword.get(opts, :title, "Sample.Show.S01E01.1080p.WEB-DL.mkv"),
+      "indexerId" => 1,
+      "size" => 1_073_741_824,
+      "seeders" => 42,
+      "leechers" => 0,
+      "indexer" => "Test Indexer",
+      "publishDate" => "2026-04-01T00:00:00Z"
+    }
+  end
+
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
@@ -423,6 +442,87 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       Process.sleep(600)
 
       assert render(view) =~ "Download"
+    end
+  end
+
+  describe "search session persistence" do
+    setup do
+      MediaCentarr.Acquisition.clear_search_session()
+      :ok
+    end
+
+    test "search query and results persist across navigation", %{conn: conn} do
+      stub_prowlarr_with([sample_release()])
+
+      {:ok, view, _html} = live(conn, "/download")
+
+      view
+      |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
+      |> render_submit()
+
+      _ = render(view)
+      :timer.sleep(100)
+      html = render(view)
+      assert html =~ "Sample Show"
+      assert html =~ "Sample.Show.S01E01"
+
+      {:ok, _other_view, _other_html} = live(conn, "/")
+
+      {:ok, _view2, html2} = live(conn, "/download")
+
+      assert html2 =~ "Sample Show"
+      assert html2 =~ "Sample.Show.S01E01"
+    end
+
+    test "selection persists across navigation", %{conn: conn} do
+      stub_prowlarr_with([sample_release()])
+
+      {:ok, view, _html} = live(conn, "/download")
+
+      view
+      |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
+      |> render_submit()
+
+      :timer.sleep(100)
+
+      view
+      |> element("button[phx-click='select_result'][phx-value-guid='guid-1']")
+      |> render_click()
+
+      session_before = MediaCentarr.Acquisition.current_search_session()
+      assert session_before.selections == %{"Sample Show" => "guid-1"}
+
+      {:ok, _other_view, _other_html} = live(conn, "/")
+      {:ok, _view2, _html2} = live(conn, "/download")
+
+      session_after = MediaCentarr.Acquisition.current_search_session()
+      assert session_after.selections == %{"Sample Show" => "guid-1"}
+    end
+
+    test "groups in :loading become :abandoned with retry affordance after LV crash", %{conn: conn} do
+      Req.Test.stub(:prowlarr, fn _conn ->
+        :timer.sleep(:infinity)
+      end)
+
+      {:ok, view, _html} = live(conn, "/download")
+
+      view
+      |> form("form[phx-change='query_change']", %{"query" => "Pending Show"})
+      |> render_submit()
+
+      :timer.sleep(50)
+      session_before = MediaCentarr.Acquisition.current_search_session()
+      assert Enum.all?(session_before.groups, fn group -> group.status == :loading end)
+
+      GenServer.stop(view.pid, :normal)
+
+      :timer.sleep(100)
+
+      session_after = MediaCentarr.Acquisition.current_search_session()
+      assert Enum.all?(session_after.groups, fn group -> group.status == :abandoned end)
+
+      {:ok, _view2, html2} = live(conn, "/download")
+      assert html2 =~ "Retry"
     end
   end
 
