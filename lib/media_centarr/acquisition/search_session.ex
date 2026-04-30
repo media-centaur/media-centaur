@@ -16,6 +16,7 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   use GenServer
 
   alias MediaCentarr.Acquisition.QueryExpander
+  alias MediaCentarr.Acquisition.Quality
   alias MediaCentarr.Acquisition.SearchResult
   alias MediaCentarr.Topics
 
@@ -85,6 +86,24 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     GenServer.call(server, {:start_search, query, self()})
   end
 
+  @doc """
+  Records the outcome of a per-query Prowlarr search.
+
+  Idempotent: a result for a term whose group is already in a terminal
+  state (`:ready`, `{:failed, _}`, `:abandoned`) is silently dropped, as
+  is a result for a term not in the current session. This handles the
+  late-arriving Task case where the LiveView crashed and the group was
+  swept to `:abandoned` before the Task's HTTP request returned.
+  """
+  @spec record_search_result(
+          GenServer.server(),
+          String.t(),
+          {:ok, [SearchResult.t()]} | {:error, term()}
+        ) :: :ok
+  def record_search_result(server \\ __MODULE__, term, outcome) when is_binary(term) do
+    GenServer.call(server, {:record_search_result, term, outcome})
+  end
+
   # ---------------------------------------------------------------------------
   # GenServer
   # ---------------------------------------------------------------------------
@@ -135,6 +154,18 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     end
   end
 
+  def handle_call({:record_search_result, term, outcome}, _from, state) do
+    case Enum.find_index(state.groups, &(&1.term == term and &1.status == :loading)) do
+      nil ->
+        {:reply, :ok, state}
+
+      index ->
+        new_state = apply_search_result(state, index, outcome)
+        broadcast(new_state)
+        {:reply, :ok, new_state}
+    end
+  end
+
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
@@ -151,5 +182,31 @@ defmodule MediaCentarr.Acquisition.SearchSession do
       Topics.acquisition_search(),
       {:search_session, session}
     )
+  end
+
+  defp apply_search_result(state, index, {:ok, results}) do
+    sorted = sort_results(results)
+    group = Enum.at(state.groups, index)
+    updated_group = %{group | status: :ready, results: sorted}
+    groups = List.replace_at(state.groups, index, updated_group)
+
+    selections =
+      case sorted do
+        [first | _] -> Map.put_new(state.selections, group.term, first.guid)
+        [] -> state.selections
+      end
+
+    %{state | groups: groups, selections: selections}
+  end
+
+  defp apply_search_result(state, index, {:error, reason}) do
+    group = Enum.at(state.groups, index)
+    updated_group = %{group | status: {:failed, reason}, results: []}
+    groups = List.replace_at(state.groups, index, updated_group)
+    %{state | groups: groups}
+  end
+
+  defp sort_results(results) do
+    Enum.sort_by(results, fn r -> {Quality.rank(r.quality), r.seeders || 0} end, :desc)
   end
 end
