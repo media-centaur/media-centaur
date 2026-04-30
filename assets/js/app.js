@@ -58,15 +58,6 @@ const liveSocket = new LiveSocket("/live", Socket, {
         }
       }
     },
-    ScrollForward: {
-      mounted() {
-        const target = document.getElementById(this.el.dataset.target)
-        this.el.addEventListener("wheel", (e) => {
-          e.preventDefault()
-          target.scrollBy({top: e.deltaY, left: e.deltaX})
-        }, {passive: false})
-      }
-    },
   },
 })
 
