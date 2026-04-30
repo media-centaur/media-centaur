@@ -132,10 +132,24 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   end
 
   defp fetch_for_item(%{media_type: :movie} = item) do
+    # `:movie` items conflate two distinct TMDB resources — series-style
+    # collections (e.g. the Mario Bros collection) and solo movies (e.g.
+    # the Mascot Cosmos movie). The schema enum can't tell them apart, so
+    # we try /collection/{id} first and fall back to /movie/{id} on 404.
     case Client.get_collection(item.tmdb_id) do
       {:ok, response} ->
         new_releases = Helpers.fetch_collection_releases(response)
         {:ok, item, response, new_releases}
+
+      {:error, {:http_error, 404, _}} ->
+        case Client.get_movie(item.tmdb_id) do
+          {:ok, response} ->
+            new_releases = Helpers.fetch_movie_releases(response)
+            {:ok, item, response, new_releases}
+
+          {:error, reason} ->
+            {:error, item, reason}
+        end
 
       {:error, reason} ->
         {:error, item, reason}

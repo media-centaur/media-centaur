@@ -13,16 +13,24 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
 
   defmodule Item do
     @moduledoc "View-model for a single Continue Watching card."
-    @enforce_keys [:id, :entity_id, :name, :subtitle, :progress_pct, :backdrop_url]
-    defstruct [:id, :entity_id, :name, :subtitle, :progress_pct, :backdrop_url, autoplay: false]
+    @enforce_keys [:id, :entity_id, :name, :progress_pct, :backdrop_url]
+    defstruct [
+      :id,
+      :entity_id,
+      :name,
+      :progress_pct,
+      :backdrop_url,
+      logo_url: nil,
+      autoplay: false
+    ]
 
     @type t :: %__MODULE__{
             id: term(),
             entity_id: String.t(),
             name: String.t(),
-            subtitle: String.t(),
             progress_pct: 0..100,
             backdrop_url: String.t() | nil,
+            logo_url: String.t() | nil,
             autoplay: boolean()
           }
   end
@@ -55,10 +63,18 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent">
         </div>
         <div class="absolute bottom-4 left-4 right-4">
-          <div class="text-xs uppercase tracking-wider text-white/70 truncate">
-            {item.subtitle}
+          <img
+            :if={item.logo_url}
+            src={item.logo_url}
+            alt={item.name}
+            class="max-h-20 max-w-[80%] object-contain object-left drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+          />
+          <div
+            :if={!item.logo_url}
+            class="text-2xl font-semibold text-white drop-shadow truncate"
+          >
+            {item.name}
           </div>
-          <div class="text-xl font-semibold text-white drop-shadow truncate">{item.name}</div>
         </div>
         <div class="absolute left-0 right-0 bottom-0 h-1.5 bg-black/50">
           <div class="h-full bg-primary" style={"width: #{item.progress_pct}%"}></div>

@@ -28,11 +28,71 @@ defmodule MediaCentarr.ReleaseTracking.ImageStore do
   @tmdb_backdrop_url "https://image.tmdb.org/t/p/original"
   @tracking_subdir "images/tracking"
 
+  # Files written before the switch to `original` were typically
+  # 10-20KB w300/w185 thumbnails. TMDB `original` backdrops/posters
+  # land in the 80KB-500KB+ range, so 50KB cleanly separates the two.
+  @stale_threshold_bytes 50_000
+
   def download_poster(tmdb_id, tmdb_path),
     do: download_role(tmdb_id, tmdb_path, :poster, @tmdb_poster_url, "poster.jpg")
 
   def download_backdrop(tmdb_id, tmdb_path),
     do: download_role(tmdb_id, tmdb_path, :backdrop, @tmdb_backdrop_url, "backdrop.jpg")
+
+  @doc """
+  Returns true if `path` is missing, empty, or under
+  `#{@stale_threshold_bytes}` bytes — the size class of legacy
+  `w300`/`w185` thumbnails fetched before the switch to `original`.
+  """
+  @spec stale_image?(String.t()) :: boolean
+  def stale_image?(path) when is_binary(path) do
+    case File.stat(path) do
+      {:ok, %{size: size}} -> size < @stale_threshold_bytes
+      {:error, _} -> true
+    end
+  end
+
+  @doc """
+  Returns the on-disk absolute path for a given role on a tmdb_id, even
+  if the file does not yet exist. Useful for staleness checks that do
+  not need a TMDB lookup.
+  """
+  @spec on_disk_path(:backdrop | :poster, integer()) :: String.t()
+  def on_disk_path(:backdrop, tmdb_id), do: absolute_image_path(tmdb_id, "backdrop.jpg")
+  def on_disk_path(:poster, tmdb_id), do: absolute_image_path(tmdb_id, "poster.jpg")
+
+  @doc """
+  Re-downloads a tracking image only if the on-disk copy is stale per
+  `stale_image?/1`. Pass `nil` for `tmdb_path` and the call no-ops with
+  `:skipped` (no source URL to refetch from).
+
+  Returns `:refreshed` after a successful re-download, `:current` when
+  the file was already a healthy size, `:failed` when the download
+  errored, or `:skipped` when there was nothing to do.
+  """
+  @spec refresh_if_stale(:backdrop | :poster, integer(), String.t() | nil) ::
+          :refreshed | :current | :failed | :skipped
+  def refresh_if_stale(_role, _tmdb_id, nil), do: :skipped
+
+  def refresh_if_stale(role, tmdb_id, tmdb_path)
+      when role in [:backdrop, :poster] and is_binary(tmdb_path) do
+    {filename, downloader} =
+      case role do
+        :backdrop -> {"backdrop.jpg", &download_backdrop/2}
+        :poster -> {"poster.jpg", &download_poster/2}
+      end
+
+    dest = absolute_image_path(tmdb_id, filename)
+
+    if stale_image?(dest) do
+      case downloader.(tmdb_id, tmdb_path) do
+        {:ok, path} when is_binary(path) -> :refreshed
+        _ -> :failed
+      end
+    else
+      :current
+    end
+  end
 
   defp download_role(_tmdb_id, nil, _role, _url_prefix, _filename), do: {:ok, nil}
 

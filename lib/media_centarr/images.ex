@@ -35,9 +35,21 @@ defmodule MediaCentarr.Images do
     end
   end
 
+  # Smallest legitimate image we expect to see on the wire. Logo PNGs
+  # land in the 3-30 KB range; even a 16x16 favicon is well over 1 KB.
+  # Anything under this is overwhelmingly an error envelope (TMDB JSON
+  # error ~200B), an HTML 4xx page, or a placeholder GIF (43B). We
+  # treat them as permanent failures so they never land on disk.
+  @raw_min_bytes 1024
+
   @doc """
   Downloads raw bytes from `url` and writes directly to `dest_path`.
   No image processing — just HTTP fetch + disk write.
+
+  Rejects responses smaller than #{@raw_min_bytes} bytes (no real
+  image we serve is that small) with
+  `{:error, :permanent, {:body_too_small, url, byte_size}}` so partial
+  / error-envelope downloads can't masquerade as valid images.
 
   Returns `{:ok, dest_path}` or `{:error, category, reason}`.
   """
@@ -45,12 +57,12 @@ defmodule MediaCentarr.Images do
     dest_path |> Path.dirname() |> File.mkdir_p!()
 
     case fetch(url) do
-      {:ok, body} when is_binary(body) and byte_size(body) > 0 ->
+      {:ok, body} when is_binary(body) and byte_size(body) >= @raw_min_bytes ->
         File.write!(dest_path, body)
         {:ok, dest_path}
 
-      {:ok, _} ->
-        {:error, :permanent, {:empty_body, url}}
+      {:ok, body} when is_binary(body) ->
+        {:error, :permanent, {:body_too_small, url, byte_size(body)}}
 
       {:error, reason} ->
         {:error, categorize(reason), reason}

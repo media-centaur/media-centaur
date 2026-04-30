@@ -6,10 +6,10 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   HomeLive composes data from Library, ReleaseTracking, and WatchHistory
   contexts; this module shapes that data into the item maps each row
   component expects (see `MediaCentarrWeb.Components.{ContinueWatchingRow,
-  ComingUpRow, PosterRow, HeroCard}`).
+  ComingUpMarquee, PosterRow, HeroCard}`).
   """
 
-  alias MediaCentarrWeb.Components.{ComingUpRow, ContinueWatchingRow, HeroCard, PosterRow}
+  alias MediaCentarrWeb.Components.{ComingUpMarquee, ContinueWatchingRow, HeroCard, PosterRow}
 
   @doc """
   Returns `{monday, sunday}` of the week containing `date`. Defaults to today.
@@ -43,30 +43,71 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
         id: row.entity_id,
         entity_id: row.entity_id,
         name: row.entity_name,
-        subtitle: row.last_episode_label,
         progress_pct: row.progress_pct,
         backdrop_url: row.backdrop_url,
+        logo_url: Map.get(row, :logo_url),
         autoplay: false
       }
     end)
   end
 
   @doc """
-  Shape ReleaseTracking releases into ComingUpRow items. `today` is used
-  to format the relative day prefix in the subtitle (e.g. "MON · S04E01").
+  Shape ReleaseTracking releases into a `ComingUpMarquee.Marquee` view-model.
+
+  Behaviour:
+
+    * Deduplicates releases by series (a single show with seven upcoming
+      episodes appears once, not seven times).
+    * The soonest release becomes the hero. Up to three other distinct
+      shows fill the secondary tiles, ordered by air date.
+    * The hero carries a `rollup` line ("+ 6 more this season",
+      "season premiere", or both); secondary tiles carry a `sub`
+      ("S0xE0y" or "+ N more").
+    * Eyebrow text is "Tonight" / "Tomorrow" / abbreviated weekday /
+      absolute "Mon DD" relative to `today`. Hero eyebrows include the
+      season/episode label; secondary eyebrows just carry the day part
+      and put the episode label in `sub`.
+    * An empty input returns `%Marquee{hero: nil, secondaries: []}` so
+      the caller can render nothing without special-casing.
   """
-  @spec coming_up_items([map()], Date.t()) :: [ComingUpRow.Item.t()]
-  def coming_up_items(releases, today) do
-    Enum.map(releases, fn release ->
-      %ComingUpRow.Item{
-        id: release.item.id,
-        name: release.item.name,
-        subtitle: subtitle_for_release(release, today),
-        badge: badge_for_status(release.status),
-        backdrop_url: release.backdrop_url,
-        url: "/upcoming"
-      }
-    end)
+  @spec coming_up_marquee([map()], Date.t()) :: ComingUpMarquee.Marquee.t()
+  def coming_up_marquee(releases, today) do
+    by_series = Enum.group_by(releases, & &1.item.id)
+
+    earliest_per_series =
+      by_series
+      |> Enum.map(fn {_series_id, releases} ->
+        Enum.min_by(releases, & &1.air_date, Date)
+      end)
+      |> Enum.sort_by(& &1.air_date, Date)
+
+    case earliest_per_series do
+      [] ->
+        %ComingUpMarquee.Marquee{hero: nil, secondaries: []}
+
+      [hero_release | rest] ->
+        hero =
+          build_marquee_item(
+            hero_release,
+            length(by_series[hero_release.item.id]),
+            today,
+            :hero
+          )
+
+        secondaries =
+          rest
+          |> Enum.take(3)
+          |> Enum.map(fn release ->
+            build_marquee_item(
+              release,
+              length(by_series[release.item.id]),
+              today,
+              :secondary
+            )
+          end)
+
+        %ComingUpMarquee.Marquee{hero: hero, secondaries: secondaries}
+    end
   end
 
   @doc "Shape Library entity rows into PosterRow items."
@@ -106,23 +147,60 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
 
   # --- Private helpers ---
 
-  defp subtitle_for_release(release, today) do
-    day_prefix = day_prefix_for(release.air_date, today)
-    season_episode = season_episode_label(release)
+  defp build_marquee_item(release, series_count, today, role) do
+    more_count = series_count - 1
+    episode_label = season_episode_label(release)
+    day_part = day_part_for(release.air_date, today)
 
-    [day_prefix, season_episode]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join(" · ")
+    eyebrow =
+      case role do
+        :hero -> [day_part, episode_label] |> Enum.reject(&is_nil/1) |> Enum.join(" · ")
+        :secondary -> day_part
+      end
+
+    rollup = if role == :hero, do: rollup_text(release, more_count)
+    sub = if role == :secondary, do: sub_text(more_count, episode_label)
+
+    %ComingUpMarquee.Item{
+      id: release.item.id,
+      entity_id: Map.get(release.item, :entity_id),
+      name: release.item.name,
+      eyebrow: eyebrow,
+      badge: badge_for_status(release.status),
+      backdrop_url: Map.get(release, :backdrop_url),
+      logo_url: Map.get(release, :logo_url),
+      rollup: rollup,
+      sub: sub
+    }
   end
 
-  defp day_prefix_for(nil, _today), do: nil
+  defp day_part_for(nil, _today), do: nil
 
-  defp day_prefix_for(%Date{} = date, today) do
+  defp day_part_for(%Date{} = date, today) do
     case Date.diff(date, today) do
-      0 -> "TODAY"
-      1 -> "TOMORROW"
-      n when n in 2..6 -> date |> Calendar.strftime("%a") |> String.upcase()
-      _ -> date |> Calendar.strftime("%b %d") |> String.upcase()
+      0 -> "Tonight"
+      1 -> "Tomorrow"
+      n when n in 2..6 -> Calendar.strftime(date, "%a")
+      _ -> Calendar.strftime(date, "%b %-d")
+    end
+  end
+
+  defp rollup_text(release, more_count) do
+    premiere? = release.episode_number == 1
+
+    cond do
+      more_count > 0 and premiere? -> "+ #{more_count} more · season premiere"
+      more_count > 0 -> "+ #{more_count} more this season"
+      premiere? -> "season premiere"
+      true -> nil
+    end
+  end
+
+  defp sub_text(more_count, episode_label) do
+    cond do
+      more_count > 0 -> "+ #{more_count} more"
+      episode_label -> episode_label
+      true -> nil
     end
   end
 
