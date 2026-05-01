@@ -42,6 +42,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:ok,
      socket
      |> assign(
+       loaded?: false,
        entries: [],
        entries_by_id: %{},
        visible_ids: MapSet.new(),
@@ -83,12 +84,9 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
-    {socket, just_loaded} =
-      if connected?(socket) && socket.assigns.entries == [] do
-        {load_library(socket), true}
-      else
-        {socket, false}
-      end
+    was_loaded? = socket.assigns.loaded?
+    socket = ensure_loaded(socket)
+    just_loaded = not was_loaded? and socket.assigns.loaded?
 
     tab = parse_tab(params["tab"])
     sort = parse_sort(params["sort"])
@@ -450,6 +448,19 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   # --- Data Loading ---
+
+  # First-render data load — gated by `connected?` so the static HTTP
+  # render ships empty defaults and the WebSocket render fills them in
+  # once. See CLAUDE.md → LiveView Callbacks (Iron Law).
+  defp ensure_loaded(socket) do
+    if connected?(socket) and not socket.assigns.loaded? do
+      socket
+      |> load_library()
+      |> assign(loaded?: true)
+    else
+      socket
+    end
+  end
 
   defp load_library(socket) do
     socket
