@@ -7,9 +7,16 @@ defmodule MediaCentarr.Acquisition.QueueItem do
   unknown values surface in the UI rather than being silently dropped.
 
   `state` is a normalized atom for UI grouping. Drivers map their
-  client-specific status strings to one of `:downloading | :stalled |
-  :paused | :completed | :error | :other`. The UI groups by `state`
-  and shows the raw `status` as a tooltip / detail.
+  client-specific status strings to one of `:downloading | :queued |
+  :stalled | :paused | :completed | :error | :other`. The UI groups by
+  `state` and shows the raw `status` as a tooltip / detail.
+
+  `:queued` (qBittorrent's `queuedDL`) and `:stalled` (qBittorrent's
+  `stalledDL`) are intentionally separate. `:queued` means the
+  download is waiting in the client's internal queue for a slot to
+  open and has not started — passive waiting. `:stalled` means the
+  download is active but cannot make progress (no peers, no source) —
+  needs attention.
   """
 
   @enforce_keys [:id, :title]
@@ -26,7 +33,7 @@ defmodule MediaCentarr.Acquisition.QueueItem do
     :timeleft
   ]
 
-  @type state :: :downloading | :stalled | :paused | :completed | :error | :other
+  @type state :: :downloading | :queued | :stalled | :paused | :completed | :error | :other
 
   @type t :: %__MODULE__{
           id: integer() | String.t(),
@@ -68,7 +75,8 @@ defmodule MediaCentarr.Acquisition.QueueItem do
        when state in ~w(uploading forcedUP pausedUP queuedUP stalledUP checkingUP), do: :completed
 
   defp state_from_qbittorrent("pausedDL"), do: :paused
-  defp state_from_qbittorrent(state) when state in ~w(stalledDL queuedDL), do: :stalled
+  defp state_from_qbittorrent("queuedDL"), do: :queued
+  defp state_from_qbittorrent("stalledDL"), do: :stalled
   defp state_from_qbittorrent(state) when state in ~w(error missingFiles), do: :error
   defp state_from_qbittorrent(_), do: :other
 
