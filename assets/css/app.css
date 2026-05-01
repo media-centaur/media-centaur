@@ -19,14 +19,14 @@
   themes: false;
 }
 
-/* Media Centarr themes — slate-based cool grays (hue 264).
-   Dark-first design. See the user-interface skill for color philosophy.
+/* Media Centarr theme — slate-based cool grays (hue 264).
+   Dark-only design. See the user-interface skill for color philosophy.
    Build your own at: https://daisyui.com/theme-generator/ */
 
-/* Dark theme (primary) — comfortable dark slate, not pure black */
+/* Dark theme — comfortable dark slate, not pure black */
 @plugin "../vendor/daisyui-theme" {
   name: "dark";
-  default: false;
+  default: true;
   prefersdark: true;
   color-scheme: "dark";
   /* Base: slate grays with blue undertone */
@@ -64,54 +64,10 @@
   --noise: 0;
 }
 
-/* Light theme — cool slate, genuinely good (not an afterthought) */
-@plugin "../vendor/daisyui-theme" {
-  name: "light";
-  default: true;
-  prefersdark: false;
-  color-scheme: "light";
-  /* Base: light slate with cool tint */
-  --color-base-100: oklch(98.5% 0.003 264);
-  --color-base-200: oklch(95.5% 0.006 264);
-  --color-base-300: oklch(91% 0.010 264);
-  --color-base-content: oklch(23% 0.020 264);
-  /* Interactive: blue accent (darker for light bg) */
-  --color-primary: oklch(50% 0.18 250);
-  --color-primary-content: oklch(97% 0.008 250);
-  --color-secondary: oklch(48% 0.12 280);
-  --color-secondary-content: oklch(97% 0.008 280);
-  --color-accent: oklch(50% 0.10 210);
-  --color-accent-content: oklch(97% 0.008 210);
-  /* Neutral: dark for badges and containers */
-  --color-neutral: oklch(35% 0.015 264);
-  --color-neutral-content: oklch(96% 0.003 264);
-  /* Status: same semantic colors, clear against light bg */
-  --color-info: oklch(70% 0.14 240);
-  --color-info-content: oklch(25% 0.06 240);
-  --color-success: oklch(72% 0.13 158);
-  --color-success-content: oklch(25% 0.05 158);
-  --color-warning: oklch(80% 0.14 80);
-  --color-warning-content: oklch(30% 0.06 80);
-  --color-error: oklch(68% 0.18 25);
-  --color-error-content: oklch(25% 0.07 25);
-  /* Shape */
-  --radius-selector: 0.375rem;
-  --radius-field: 0.25rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 1;
-  --noise: 0;
-}
-
 /* Add variants based on LiveView classes */
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);
 @custom-variant phx-change-loading (.phx-change-loading&, .phx-change-loading &);
-
-/* Use the data attribute for dark mode  */
-@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
@@ -141,7 +97,7 @@ html { scrollbar-gutter: stable; }
    Translucent frosted-glass surfaces over gradient backdrops.
    Three tiers: .glass-nav (navbar), .glass-surface (cards), .glass-inset (inner panels). */
 
-/* Glass custom properties — dark theme (default) */
+/* Glass custom properties */
 :root {
   --glass-bg: oklch(20% 0.02 264 / 0.45);
   --glass-border: oklch(90% 0.005 264 / 0.09);
@@ -150,30 +106,6 @@ html { scrollbar-gutter: stable; }
   --glass-nav-bg: oklch(14% 0.015 264 / 0.8);
   --glass-gradient-a: oklch(40% 0.16 250 / 0.2);
   --glass-gradient-b: oklch(38% 0.14 300 / 0.15);
-}
-
-/* Light theme overrides */
-[data-theme=light] {
-  --glass-bg: oklch(98.5% 0.003 264 / 0.55);
-  --glass-border: oklch(23% 0.020 264 / 0.06);
-  --glass-shadow: oklch(0% 0 0 / 0.05);
-  --glass-inset-bg: oklch(91% 0.010 264 / 0.4);
-  --glass-nav-bg: oklch(95.5% 0.006 264 / 0.82);
-  --glass-gradient-a: oklch(70% 0.06 250 / 0.10);
-  --glass-gradient-b: oklch(70% 0.06 300 / 0.08);
-}
-
-/* System theme (no data-theme attribute) — follow OS preference */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-    --glass-bg: oklch(98.5% 0.003 264 / 0.55);
-    --glass-border: oklch(23% 0.020 264 / 0.06);
-    --glass-shadow: oklch(0% 0 0 / 0.05);
-    --glass-inset-bg: oklch(91% 0.010 264 / 0.4);
-    --glass-nav-bg: oklch(95.5% 0.006 264 / 0.82);
-    --glass-gradient-a: oklch(70% 0.06 250 / 0.10);
-    --glass-gradient-b: oklch(70% 0.06 300 / 0.08);
-  }
 }
 
 /* Gradient backdrop — gives the glass something to show through */
@@ -198,20 +130,10 @@ body {
 }
 
 /* Centaur logo — source artwork is dark navy on transparent.
-   On dark themes we invert to near-white so the silhouette reads.
-   On light themes the original navy looks correct and is left alone. */
+   Inverted to near-white so the silhouette reads against the dark theme. */
 .centaur-logo {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
-}
-[data-theme=dark] .centaur-logo {
   filter: invert(1) hue-rotate(180deg) brightness(1.1)
     drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .centaur-logo {
-    filter: invert(1) hue-rotate(180deg) brightness(1.1)
-      drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
-  }
 }
 
 /* Glass navbar — more opaque, stronger blur, sticky-ready */
@@ -353,32 +275,6 @@ body {
 [data-sidebar=collapsed] .sidebar-link:hover::before,
 [data-sidebar=collapsed] .sidebar-link:hover::after {
   display: block !important;
-}
-
-/* Theme nav wrapper — single nav item containing both theme widgets.
-   Focus ring goes on whichever child is visible (pill when expanded, icon when collapsed). */
-.sidebar-theme-nav {
-  display: flex;
-  flex-direction: column;
-}
-
-
-/* Theme toggle: full pill when expanded, hidden when collapsed */
-.sidebar-theme-wrap {
-  overflow: hidden;
-}
-
-[data-sidebar=collapsed] .sidebar-theme-wrap {
-  display: none;
-}
-
-/* Theme cycle button: hidden when expanded, visible when collapsed */
-.sidebar-theme-cycle {
-  display: none;
-}
-
-[data-sidebar=collapsed] .sidebar-theme-cycle {
-  display: flex;
 }
 
 /* ── Detail Shell ──
@@ -564,16 +460,6 @@ body:has(.modal-backdrop[data-state="open"]) {
 .release-row:hover {
   background-color: oklch(from var(--color-base-content) l c h / 0.05);
 }
-
-/* Show only the active theme icon */
-.theme-icon { display: none; }
-.theme-icon-system { display: block; }
-
-[data-theme=light] .theme-icon-system { display: none; }
-[data-theme=light] .theme-icon-light { display: block; }
-
-[data-theme=dark] .theme-icon-system { display: none; }
-[data-theme=dark] .theme-icon-dark { display: block; }
 
 /* ── Zone Tabs (plain text, no container) ── */
 
@@ -1321,13 +1207,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   background: oklch(0.78 var(--chip-c, 0.02) var(--chip-h, 264) / 0.18);
   color: oklch(0.85 var(--chip-c, 0.14) var(--chip-h, 264));
   border: 1px solid oklch(0.78 var(--chip-c, 0.14) var(--chip-h, 264) / 0.35);
-}
-
-[data-theme=light] .console-chip,
-[data-theme=light] .console-component-badge {
-  background: oklch(0.55 var(--chip-c, 0.02) var(--chip-h, 264) / 0.14);
-  color: oklch(0.38 var(--chip-c, 0.16) var(--chip-h, 264));
-  border-color: oklch(0.55 var(--chip-c, 0.14) var(--chip-h, 264) / 0.35);
 }
 
 /* Inactive filter chip: drop the hue entirely so the active set stands
