@@ -585,9 +585,9 @@ defmodule MediaCentarr.ReleaseTracking do
     `%{item: %{id, entity_id, name, tmdb_id, media_type}, air_date, season_number, episode_number, status, backdrop_url, logo_url}`
 
   `entity_id` is the paired Library entity UUID (nil if the item is not yet
-  in the library). `logo_url` is currently always `nil` — reserved for a
-  future logo-fetch path. `status` is `:scheduled` — callers may enrich this
-  with live grab status from Acquisition.
+  in the library). `logo_url` is filled when the paired Library entity has a
+  `logo` image, otherwise `nil`. `status` is `:scheduled` — callers may
+  enrich this with live grab status from Acquisition.
   """
   @spec list_releases_between(Date.t(), Date.t(), keyword()) :: [map()]
   def list_releases_between(from_date, to_date, opts \\ []) do
@@ -608,11 +608,20 @@ defmodule MediaCentarr.ReleaseTracking do
         )
       )
 
+    logo_urls =
+      releases
+      |> Enum.flat_map(fn r ->
+        if r.item.library_entity_id, do: [{r.item.media_type, r.item.library_entity_id}], else: []
+      end)
+      |> MediaCentarr.Library.logo_urls_for_entities()
+
     Enum.map(releases, fn release ->
       backdrop_url =
         if release.item.backdrop_path do
           "/media-images/#{release.item.backdrop_path}"
         end
+
+      logo_url = release.item.library_entity_id && Map.get(logo_urls, release.item.library_entity_id)
 
       %{
         item: %{
@@ -627,7 +636,7 @@ defmodule MediaCentarr.ReleaseTracking do
         episode_number: release.episode_number,
         status: :scheduled,
         backdrop_url: backdrop_url,
-        logo_url: nil
+        logo_url: logo_url
       }
     end)
   end
