@@ -4,6 +4,21 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.29.2 — 2026-05-01
+
+### Fixed
+
+- **Drives mounted after Media Centarr starts are now picked up
+  automatically.** If your media drive came online after Media Centarr
+  had already booted — typical after a reboot, where the app starts
+  before an external or network drive finishes mounting — the
+  watcher would attach to the empty mountpoint and never notice when
+  the real filesystem appeared on top of it. The library would stay
+  in placeholder mode until you restarted the app or hit "Scan
+  directories" by hand. The watcher now detects when the filesystem
+  under a watched directory has changed and re-attaches on its own,
+  which also re-resolves artwork for every entity on the drive.
+
 ## v0.29.1 — 2026-05-01
 
 ### Improved
