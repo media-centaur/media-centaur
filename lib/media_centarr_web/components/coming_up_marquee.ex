@@ -49,7 +49,7 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
             entity_id: String.t() | nil,
             name: String.t(),
             eyebrow: String.t(),
-            badge: badge(),
+            badge: badge() | nil,
             backdrop_url: String.t() | nil,
             logo_url: String.t() | nil,
             rollup: String.t() | nil,
@@ -84,8 +84,12 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
       ]}
     >
       <.hero_card item={@marquee.hero} />
-      <div :if={@marquee.secondaries != []} class="flex flex-col gap-2.5">
-        <.secondary_tile :for={item <- @marquee.secondaries} item={item} />
+      <div :if={@marquee.secondaries != []} class="flex flex-col gap-2.5 min-h-0">
+        <.secondary_tile
+          :for={item <- @marquee.secondaries}
+          item={item}
+          fill?={length(@marquee.secondaries) > 1}
+        />
       </div>
     </div>
     """
@@ -124,15 +128,16 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
         >
           {@item.name}
         </div>
-        <div class="flex items-center gap-2.5">
-          <span class={[
-            "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded",
+        <span
+          :if={@item.badge}
+          class={[
+            "inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded",
             badge_class(@item.badge.variant)
-          ]}>
-            {@item.badge.label}
-          </span>
-        </div>
-        <div :if={@item.rollup} class="mt-3 text-sm text-white/70 tracking-wide">
+          ]}
+        >
+          {@item.badge.label}
+        </span>
+        <div :if={@item.rollup} class={[@item.badge && "mt-3", "text-sm text-white/70 tracking-wide"]}>
           {@item.rollup}
         </div>
       </div>
@@ -141,13 +146,18 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
   end
 
   attr :item, Item, required: true
+  attr :fill?, :boolean, default: true
 
   defp secondary_tile(assigns) do
     ~H"""
     <.tile_link
       item={@item}
       data_card="secondary"
-      class="card-hover relative rounded-lg overflow-hidden glass-inset flex items-stretch flex-1 text-left min-h-0"
+      class={[
+        "card-hover relative rounded-lg overflow-hidden glass-inset flex items-end text-left",
+        @fill? && "flex-1 min-h-0",
+        !@fill? && "aspect-video my-auto"
+      ]}
     >
       <img
         :if={@item.backdrop_url}
@@ -156,32 +166,35 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
         class="absolute inset-0 w-full h-full object-cover object-top"
         loading="lazy"
       />
-      <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent"></div>
-      <div class="relative z-10 px-4 py-3 flex items-center justify-between gap-3 w-full">
-        <div class="min-w-0 flex-1">
-          <div class="text-[10px] tracking-[0.2em] uppercase font-bold text-primary mb-1 truncate">
-            {@item.eyebrow}
-          </div>
-          <img
-            :if={@item.logo_url}
-            src={@item.logo_url}
-            alt={@item.name}
-            class="max-h-8 max-w-[70%] object-contain object-left drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]"
-          />
-          <div
-            :if={!@item.logo_url}
-            class="text-base font-bold text-white truncate drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]"
-          >
-            {@item.name}
-          </div>
-          <div :if={@item.sub} class="text-xs text-white/65 truncate mt-1">
-            {@item.sub}
-          </div>
+      <%!-- Diagonal scrim — strongest at bottom-left where content sits, --%>
+      <%!-- letting the artwork breathe on the top-right. Survives bright artwork. --%>
+      <div class="absolute inset-0 bg-gradient-to-tr from-black/85 via-black/30 to-transparent"></div>
+      <div class="relative z-10 px-4 pb-3 pt-4 max-w-[80%]">
+        <div class="text-[10px] tracking-[0.22em] uppercase font-bold text-primary mb-1.5 truncate">
+          {@item.eyebrow}
         </div>
-        <span class={[
-          "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
-          badge_class(@item.badge.variant)
-        ]}>
+        <img
+          :if={@item.logo_url}
+          src={@item.logo_url}
+          alt={@item.name}
+          class="max-h-9 max-w-full object-contain object-left drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+        />
+        <div
+          :if={!@item.logo_url}
+          class="text-lg font-bold text-white truncate drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+        >
+          {@item.name}
+        </div>
+        <div :if={@item.sub} class="text-xs text-white/70 truncate mt-1.5 tracking-wide">
+          {@item.sub}
+        </div>
+        <span
+          :if={@item.badge}
+          class={[
+            "inline-block mt-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded",
+            badge_class(@item.badge.variant)
+          ]}
+        >
           {@item.badge.label}
         </span>
       </div>
@@ -193,7 +206,7 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
   # can open in place) or a navigate link to /upcoming as the fallback.
   attr :item, Item, required: true
   attr :data_card, :string, required: true
-  attr :class, :string, required: true
+  attr :class, :any, required: true
   slot :inner_block, required: true
 
   defp tile_link(%{item: %Item{entity_id: entity_id}} = assigns) when is_binary(entity_id) do
@@ -204,7 +217,7 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
       phx-value-id={@item.entity_id}
       data-card={@data_card}
       data-row-item
-      class={@class <> " w-full"}
+      class={[@class, "w-full"]}
     >
       {render_slot(@inner_block)}
     </button>
@@ -213,12 +226,7 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
 
   defp tile_link(assigns) do
     ~H"""
-    <.link
-      navigate="/upcoming"
-      data-card={@data_card}
-      data-row-item
-      class={@class}
-    >
+    <.link navigate="/upcoming" data-card={@data_card} data-row-item class={@class}>
       {render_slot(@inner_block)}
     </.link>
     """
