@@ -898,8 +898,12 @@ body:has(.modal-backdrop[data-state="open"]) {
 @media (min-width: 1536px) { .row-scroll-backdrop { --cols: 9; } }
 
 /* Larger 16:9 variant for the Continue Watching row — cards land
-   between the standard backdrop density and a hero-sized card. */
-.row-scroll-backdrop-lg { --cols: 2; }
+   between the standard backdrop density and a hero-sized card.
+   A slightly bigger gap keeps the larger cards from feeling crowded. */
+.row-scroll-backdrop-lg {
+  --cols: 2;
+  --gap: 0.625rem;
+}
 @media (min-width: 1280px) { .row-scroll-backdrop-lg { --cols: 4; } }
 
 /* 2:3 poster rows — Recently Added. Denser column counts because
