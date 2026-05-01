@@ -161,6 +161,17 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   end
 
   @doc """
+  Clears search results (groups + selections) but keeps the user's
+  query and expansion preview. Used after a grab batch completes so the
+  results disappear without losing what the user typed in the search
+  bar. Any in-flight search task is dropped.
+  """
+  @spec clear_results(GenServer.server()) :: :ok
+  def clear_results(server \\ __MODULE__) do
+    GenServer.call(server, :clear_results)
+  end
+
+  @doc """
   Re-arms named groups: any term currently in `:abandoned` or `{:failed, _}`
   flips back to `:loading`. Other states are no-ops for that term. The
   caller's pid becomes the new monitored `searching_pid`.
@@ -236,7 +247,21 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   end
 
   def handle_call({:set_selection, term, guid}, _from, state) do
-    new_state = stamp_featured(%{state | selections: Map.put(state.selections, term, guid)})
+    # Choosing a release for a term implies the user is done browsing it —
+    # collapse the group so the surface stays compact while they pick the
+    # rest of their selections.
+    groups =
+      Enum.map(state.groups, fn
+        %{term: ^term} = group -> %{group | expanded?: false}
+        group -> group
+      end)
+
+    new_state =
+      stamp_featured(%{
+        state
+        | selections: Map.put(state.selections, term, guid),
+          groups: groups
+      })
 
     broadcast(new_state)
     {:reply, :ok, new_state}
@@ -300,6 +325,21 @@ defmodule MediaCentarr.Acquisition.SearchSession do
 
   def handle_call(:clear, _from, state) do
     new_state = swap_monitor(%__MODULE__{}, state)
+    broadcast(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(:clear_results, _from, state) do
+    # Only the groups + selections go — the user's query, expansion
+    # preview, last grab message, and grabbing flag are preserved so the
+    # surface keeps the shape the user expects after a successful grab.
+    # Any in-flight search task is dropped via `swap_monitor`.
+    new_state =
+      swap_monitor(
+        %{state | groups: [], selections: %{}, searching_pid: nil, monitor_ref: nil},
+        state
+      )
+
     broadcast(new_state)
     {:reply, :ok, new_state}
   end

@@ -648,7 +648,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     Log.info(:acquisition, "grab batch complete — #{ok_count} ok, #{err_count} failed")
 
     Acquisition.set_grab_message(Logic.build_grab_message(pairs))
-    Acquisition.clear_selections()
+    Acquisition.clear_search_results()
     Acquisition.set_grabbing(false)
 
     {:noreply, socket}
@@ -851,7 +851,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       data-nav-item
       tabindex="0"
     >
-      <.icon name="hero-chevron-right-mini" class="size-3.5 shrink-0" />
+      <.icon name="hero-chevron-down-mini" class="size-3.5 shrink-0" />
       <span class="flex-1 min-w-0 text-left">
         + {@summary.hidden_count} more {Logic.state_label(@summary.state) |> String.downcase()}
       </span>
@@ -872,7 +872,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       data-nav-item
       tabindex="0"
     >
-      <.icon name="hero-chevron-down-mini" class="size-3.5 shrink-0" />
+      <.icon name="hero-chevron-up-mini" class="size-3.5 shrink-0" />
       <span class="flex-1 min-w-0 text-left">
         Show fewer
       </span>

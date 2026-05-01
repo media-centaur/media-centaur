@@ -172,6 +172,21 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       assert selections == %{}
     end
 
+    test "set_selection/3 also collapses the group whose term matches", %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "Show")
+      assert_receive {:search_session, _}
+
+      :ok = SearchSession.toggle_group(name, "Show")
+      assert_receive {:search_session, session}
+      assert hd(session.groups).expanded? == true
+
+      :ok = SearchSession.set_selection(name, "Show", "guid-1")
+
+      assert_receive {:search_session, session}
+      assert hd(session.groups).expanded? == false
+      assert session.selections == %{"Show" => "guid-1"}
+    end
+
     test "clear_selections/1 wipes the map", %{name: name} do
       {:ok, _} = SearchSession.start_search(name, "Show")
       assert_receive {:search_session, _}
@@ -181,6 +196,21 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       :ok = SearchSession.clear_selections(name)
 
       assert_receive {:search_session, %{selections: %{}}}
+    end
+
+    test "clear_results/1 empties groups and selections but preserves the query and grab_message",
+         %{name: name} do
+      {:ok, _} = SearchSession.start_search(name, "Show {01-03}")
+      :ok = SearchSession.set_selection(name, "Show 01", "guid-1")
+      :ok = SearchSession.set_grab_message(name, {:ok, "1 grab(s) submitted"})
+
+      :ok = SearchSession.clear_results(name)
+
+      session = SearchSession.current(name)
+      assert session.query == "Show {01-03}"
+      assert session.groups == []
+      assert session.selections == %{}
+      assert session.grab_message == {:ok, "1 grab(s) submitted"}
     end
 
     test "toggle_group/2 flips expanded? on the matching group only", %{name: name} do

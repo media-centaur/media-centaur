@@ -169,6 +169,13 @@ defmodule MediaCentarr.Acquisition do
   defdelegate clear_search_session(), to: MediaCentarr.Acquisition.SearchSession, as: :clear
 
   @doc """
+  Clears search results (groups + selections) but preserves the user's
+  query string and expansion preview. Used after a grab batch completes.
+  """
+  @spec clear_search_results() :: :ok
+  defdelegate clear_search_results(), to: MediaCentarr.Acquisition.SearchSession, as: :clear_results
+
+  @doc """
   Re-arms named groups (`:abandoned` / `{:failed, _}` -> `:loading`). The
   caller's pid becomes the monitored `searching_pid`. The caller is
   responsible for spawning Tasks for these terms.
