@@ -22,6 +22,9 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 > [!WARNING]
 > **Alpha.** Functional for daily use but under active development. Expect rough edges and occasional breaking changes between releases.
 
+> [!NOTE]
+> **UI overhaul in progress (this week).** A complete pass over the visual design is shipping in small increments — every release this week is a noticeable step up for mouse-driven use, so updating now is worth it. Keyboard and gamepad navigation are paused while the UI settles and will resume next week; if you drive Media Centarr from the couch, hold off on updating, or update and accept that some focus rings and shortcut behaviour will be temporarily off.
+
 ---
 
 <div align="center">
