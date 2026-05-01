@@ -94,9 +94,15 @@ The v0.21.0 crash fix lives in the same path: previously, creating or modifying 
 ### Mount Recovery
 
 1. Health check runs every 30 seconds
-2. If directory becomes accessible again, state transitions to `:watching`
-3. Auto-scan runs to detect any files added while the directory was unavailable
-4. State change broadcast to `"watcher:state"` PubSub topic
+2. The watcher captures the path's device id (`{major_device, minor_device}` from `File.stat/1`) when it starts watching
+3. Each tick re-stats the path and feeds the result through `Watcher.MountStatus.action/3`:
+   - directory disappeared → transition to `:unavailable`
+   - device id changed under `:watching` (drive mounted onto an existing empty mountpoint, or a different filesystem swapped in) → tear down the inotify watcher and re-init with `was_unavailable: true` so the recovery scan re-broadcasts entities for image re-resolution
+   - directory accessible after `:unavailable` → re-init
+4. Auto-scan runs after re-init to detect any files added while the directory was unavailable or while inotify was attached to a stale inode
+5. State change broadcast to `"watcher:state"` PubSub topic
+
+Why device-id tracking matters: inotify watches inodes, not paths. If a watcher attaches to an empty mountpoint at startup and a drive is mounted on top later, no inotify events ever fire — the watch is on the now-shadowed pre-mount inode. The device-id check is the only kernel-level signal that a remount happened.
 
 ### Manual Scan
 
@@ -123,3 +129,4 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Superviso
 | `MediaCentarr.Watcher.DirValidator` | Dialog-time path validation (exists / readable / not nested) | `lib/media_centarr/watcher/dir_validator.ex` |
 | `MediaCentarr.Watcher.Reconciler` | Startup reconciliation against persisted state | `lib/media_centarr/watcher/reconciler.ex` |
 | `MediaCentarr.Watcher.KnownFile` | Struct + helpers for the per-directory known-file set | `lib/media_centarr/watcher/known_file.ex` |
+| `MediaCentarr.Watcher.MountStatus` | Pure decision logic for the health check (device-id tracking) | `lib/media_centarr/watcher/mount_status.ex` |

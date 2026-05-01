@@ -40,6 +40,7 @@ defmodule MediaCentarr.Watcher do
   alias MediaCentarr.Topics
   alias MediaCentarr.Watcher.ExcludeDirs
   alias MediaCentarr.Watcher.FilePresence
+  alias MediaCentarr.Watcher.MountStatus
 
   @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
   @health_check_interval 30_000
@@ -50,6 +51,7 @@ defmodule MediaCentarr.Watcher do
     :dir,
     :watcher_pid,
     :deletion_timer,
+    :device_id,
     state: :initializing,
     was_unavailable: false,
     pending_files: %{},
@@ -119,6 +121,8 @@ defmodule MediaCentarr.Watcher do
 
   @impl true
   def handle_info(:start_watching, state) do
+    state = teardown_file_system(state)
+
     case FileSystem.start_link(dirs: [state.dir], recursive: true) do
       {:ok, pid} ->
         FileSystem.subscribe(pid)
@@ -129,7 +133,14 @@ defmodule MediaCentarr.Watcher do
         # Always scan on startup to catch files added while we were down (ADR-023)
         send(self(), {:auto_scan, recovery: state.was_unavailable})
 
-        {:noreply, %{state | watcher_pid: pid, state: :watching, was_unavailable: false}}
+        {:noreply,
+         %{
+           state
+           | watcher_pid: pid,
+             state: :watching,
+             was_unavailable: false,
+             device_id: read_device_id(state.dir)
+         }}
 
       {:error, reason} ->
         Log.warning(
@@ -139,13 +150,13 @@ defmodule MediaCentarr.Watcher do
 
         schedule_health_check()
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable, was_unavailable: true}}
+        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
 
       :ignore ->
         Log.warning(:watcher, "watcher unavailable — inotify-tools missing?")
         schedule_health_check()
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable, was_unavailable: true}}
+        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
     end
   end
 
@@ -154,7 +165,7 @@ defmodule MediaCentarr.Watcher do
       Enum.member?(events, :unmounted) ->
         Log.warning(:watcher, "directory unmounted — #{state.dir}")
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable, was_unavailable: true}}
+        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
 
       (:created in events or :modified in events) and video_file?(path) and
         not ExcludeDirs.excluded?(path, state.exclude_dirs) and
@@ -194,32 +205,33 @@ defmodule MediaCentarr.Watcher do
     end
   end
 
-  def handle_info(:health_check, %{state: :watching} = state) do
-    schedule_health_check()
-    {:noreply, state}
-  end
-
   def handle_info(:health_check, state) do
-    case File.stat(state.dir) do
-      {:ok, _} ->
-        if state.state == :unavailable do
-          Log.info(:watcher, "directory restored — re-watching #{state.dir}")
-          send(self(), :start_watching)
-          {:noreply, %{state | state: :initializing}}
-        else
-          schedule_health_check()
-          {:noreply, state}
-        end
+    current_device_id = read_device_id(state.dir)
 
-      {:error, _} ->
-        if state.state == :unavailable do
-          schedule_health_check()
-          {:noreply, state}
-        else
-          Log.warning(:watcher, "directory inaccessible — #{state.dir}")
-          broadcast_state(state.dir, :unavailable)
-          {:noreply, %{state | state: :unavailable, was_unavailable: true}}
-        end
+    case MountStatus.action(state.state, state.device_id, current_device_id) do
+      :keep_watching ->
+        schedule_health_check()
+        {:noreply, state}
+
+      :keep_unavailable ->
+        schedule_health_check()
+        {:noreply, state}
+
+      :reinit_restored ->
+        Log.info(:watcher, "directory restored — re-watching #{state.dir}")
+        send(self(), :start_watching)
+        {:noreply, %{state | state: :initializing}}
+
+      :reinit_remount ->
+        Log.info(:watcher, "device id changed — remount detected, re-watching #{state.dir}")
+        send(self(), :start_watching)
+        {:noreply, %{state | state: :initializing, was_unavailable: true}}
+
+      :transition_unavailable ->
+        Log.warning(:watcher, "directory inaccessible — #{state.dir}")
+        broadcast_state(state.dir, :unavailable)
+        schedule_health_check()
+        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
     end
   end
 
@@ -389,6 +401,26 @@ defmodule MediaCentarr.Watcher do
 
   defp schedule_health_check do
     Process.send_after(self(), :health_check, @health_check_interval)
+  end
+
+  defp read_device_id(path) do
+    case File.stat(path) do
+      {:ok, %{major_device: major, minor_device: minor}} -> {major, minor}
+      {:error, _} -> nil
+    end
+  end
+
+  defp teardown_file_system(%{watcher_pid: nil} = state), do: state
+
+  defp teardown_file_system(%{watcher_pid: pid} = state) do
+    if Process.alive?(pid) do
+      # Unlink first so the resulting EXIT signal isn't delivered as an
+      # unhandled message to this trap_exit'd GenServer.
+      Process.unlink(pid)
+      Process.exit(pid, :shutdown)
+    end
+
+    %{state | watcher_pid: nil}
   end
 
   defp load_skip_dirs do
