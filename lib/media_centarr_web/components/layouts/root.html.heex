@@ -12,29 +12,7 @@
     </script>
     <script>
       (() => {
-        const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.removeAttribute("data-theme");
-          } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-          }
-        };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
-        }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
-
-        // Cycle theme: system → light → dark → system
-        window.addEventListener("phx:cycle-theme", () => {
-          const current = localStorage.getItem("phx:theme");
-          setTheme(current === null ? "light" : current === "light" ? "dark" : "system");
-        });
-
-        // Sidebar collapsed state — mirrors the theme pattern
+        // Sidebar collapsed state
         const sidebarState = localStorage.getItem("phx:sidebar-collapsed");
         if (sidebarState === "true") {
           document.documentElement.setAttribute("data-sidebar", "collapsed");
