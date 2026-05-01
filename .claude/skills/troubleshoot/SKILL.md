@@ -107,6 +107,40 @@ scripts/troubleshoot logs                   # tail systemd journal
 scripts/troubleshoot errors 24h             # error-level journal entries, last 24h
 ```
 
+For arbitrary state queries against the running production node, use the
+`mc-rpc` wrapper (`~/scripts/mc-rpc`) — it pipes an Elixir expression to
+`bin/media_centarr rpc` on the installed release and prints the result.
+Same `Diagnostics.*` helpers as dev work; non-interactive, scripts cleanly:
+
+```bash
+mc-rpc 'MediaCentarr.Diagnostics.services()'
+mc-rpc 'alias MediaCentarr.{Library, Repo}; import Ecto.Query; Repo.aggregate(Library.Movie, :count)'
+echo 'MediaCentarr.Console.snapshot()' | mc-rpc
+```
+
+Set `MC_BIN` to override the release path on hosts with a non-default install.
+
+For browser-side diagnostics against the production install, use the
+`mc-debug-browser` wrapper (`~/scripts/mc-debug-browser`) — it launches a
+headless Chromium with remote debugging on port 9223 and a tmp profile,
+isolated from the user's normal browser (no extensions, no shared state).
+Idempotent; reuses the running instance if already attached. The
+`chrome-devtools` MCP server picks it up automatically.
+
+```bash
+mc-debug-browser                      # launch (or reuse) — defaults to http://localhost:2160
+mc-debug-browser --headed             # show the window for visual inspection
+mc-debug-browser --url http://localhost:1080   # point at the dev server instead
+mc-debug-browser --status             # is it running?
+mc-debug-browser --kill               # tear it down
+```
+
+Override defaults with `MC_DEBUG_PORT`, `MC_DEBUG_URL`, `MC_DEBUG_PROFILE`,
+or `MC_DEBUG_BIN`. The isolated profile means a clean session every time —
+useful when a user reports a bug you can't reproduce, since their main
+profile may carry stale storage, service workers, or extensions that the
+debug browser won't.
+
 ### Dev (via Tidewave MCP)
 
 Call functions directly on the running dev node:
