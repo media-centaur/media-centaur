@@ -9,9 +9,10 @@ defmodule MediaCentarr.Watcher.Supervisor do
   import Ecto.Query
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Library.WatchedFile
+  alias MediaCentarr.Library
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
+  alias MediaCentarr.Watcher.DirMonitor
   alias MediaCentarr.Watcher.KnownFile
 
   def start_link(opts) do
@@ -74,32 +75,60 @@ defmodule MediaCentarr.Watcher.Supervisor do
 
   defp currently_running_entries do
     MediaCentarr.Watcher.Registry
-    |> Registry.select([{{:"$1", :_, :_}, [], [:"$1"]}])
+    |> registered_keys()
     |> Enum.map(fn dir ->
       %{"id" => dir, "dir" => dir, "images_dir" => nil, "name" => nil}
     end)
   end
 
   defp start_dir(dir) do
-    case DynamicSupervisor.start_child(
-           MediaCentarr.Watcher.DynamicSupervisor,
-           {MediaCentarr.Watcher, dir}
-         ) do
-      {:ok, _} ->
-        :ok
-
-      {:error, {:already_started, _}} ->
-        :ok
-
-      {:error, reason} ->
-        Log.warning(:watcher, "reconcile: failed to start #{dir}: #{inspect(reason)}")
-    end
+    start_under(
+      MediaCentarr.Watcher.DynamicSupervisor,
+      {MediaCentarr.Watcher, dir},
+      "watcher",
+      dir
+    )
   end
 
   defp stop_dir(dir) do
     case Registry.lookup(MediaCentarr.Watcher.Registry, dir) do
       [{pid, _}] -> DynamicSupervisor.terminate_child(MediaCentarr.Watcher.DynamicSupervisor, pid)
       [] -> :ok
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
+
+  # Match-spec returning every {key, pid} pair from a Registry. The ugly
+  # `[{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}]` form is named once
+  # here so `statuses/0`, `scan/0`, and `image_dir_statuses/0` don't have
+  # to re-derive it.
+  defp registered_pids(registry) do
+    Registry.select(registry, [{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+  end
+
+  defp registered_keys(registry) do
+    Registry.select(registry, [{{:"$1", :_, :_}, [], [:"$1"]}])
+  end
+
+  # Common shape for `DynamicSupervisor.start_child` + already-started + log.
+  # `kind` is a short label used in the log message; `name` is the human
+  # identifier (the watch dir or image dir).
+  defp start_under(supervisor, child_spec, kind, name) do
+    case DynamicSupervisor.start_child(supervisor, child_spec) do
+      {:ok, _pid} ->
+        Log.info(:watcher, "started #{kind} — #{name}")
+        :ok
+
+      {:error, {:already_started, _pid}} ->
+        Log.info(:watcher, "#{kind} already running — #{name}")
+        :ok
+
+      {:error, reason} ->
+        Log.warning(:watcher, "failed to start #{kind} — #{name}: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 
@@ -116,19 +145,12 @@ defmodule MediaCentarr.Watcher.Supervisor do
     dirs = MediaCentarr.Config.get(:watch_dirs) || []
 
     Enum.each(dirs, fn dir ->
-      case DynamicSupervisor.start_child(
-             MediaCentarr.Watcher.DynamicSupervisor,
-             {MediaCentarr.Watcher, dir}
-           ) do
-        {:ok, _pid} ->
-          Log.info(:watcher, "started watcher — #{dir}")
-
-        {:error, {:already_started, _pid}} ->
-          Log.info(:watcher, "watcher already running — #{dir}")
-
-        {:error, reason} ->
-          Log.warning(:watcher, "failed to start watcher — #{dir}: #{inspect(reason)}")
-      end
+      start_under(
+        MediaCentarr.Watcher.DynamicSupervisor,
+        {MediaCentarr.Watcher, dir},
+        "watcher",
+        dir
+      )
     end)
   end
 
@@ -137,23 +159,66 @@ defmodule MediaCentarr.Watcher.Supervisor do
   """
   def start_image_dir_monitors do
     pairs = MediaCentarr.Config.image_dirs_needing_monitoring()
+    Enum.each(pairs, &start_image_monitor/1)
+  end
 
-    Enum.each(pairs, fn {watch_dir, image_dir} ->
-      case DynamicSupervisor.start_child(
-             MediaCentarr.Watcher.DirMonitor.DynamicSupervisor,
-             {MediaCentarr.Watcher.DirMonitor, {image_dir, watch_dir}}
-           ) do
-        {:ok, _pid} ->
-          Log.info(:watcher, "started image dir monitor — #{image_dir}")
+  @doc """
+  Reconciles running image-dir monitors with the desired set computed
+  from `Config.image_dirs_needing_monitoring/0`. Called by
+  `Watcher.ConfigListener` whenever watch_dirs change so that editing
+  `images_dir` on a watch entry takes effect without an app restart.
+  """
+  @spec reconcile_image_dir_monitors() :: :ok
+  def reconcile_image_dir_monitors do
+    actions =
+      MediaCentarr.Watcher.Reconciler.diff_image_monitors(
+        currently_running_image_pairs(),
+        MediaCentarr.Config.image_dirs_needing_monitoring()
+      )
 
-        {:error, {:already_started, _pid}} ->
-          Log.info(:watcher, "image dir monitor already running — #{image_dir}")
+    Enum.each(actions.to_stop, &stop_image_monitor/1)
+    Enum.each(actions.to_start, &start_image_monitor/1)
 
-        {:error, reason} ->
-          Log.warning(
-            :watcher,
-            "failed to start image dir monitor for #{image_dir}: #{inspect(reason)}"
-          )
+    if actions.to_start != [] or actions.to_stop != [] do
+      Log.info(
+        :watcher,
+        "reconcile image monitors — start=#{length(actions.to_start)} stop=#{length(actions.to_stop)}"
+      )
+    end
+
+    :ok
+  end
+
+  defp start_image_monitor({watch_dir, image_dir}) do
+    start_under(
+      MediaCentarr.Watcher.DirMonitor.DynamicSupervisor,
+      {MediaCentarr.Watcher.DirMonitor, {image_dir, watch_dir}},
+      "image dir monitor",
+      image_dir
+    )
+  end
+
+  defp stop_image_monitor(image_dir) do
+    case Registry.lookup(MediaCentarr.Watcher.DirMonitor.Registry, image_dir) do
+      [{pid, _}] ->
+        DynamicSupervisor.terminate_child(
+          MediaCentarr.Watcher.DirMonitor.DynamicSupervisor,
+          pid
+        )
+
+      [] ->
+        :ok
+    end
+  end
+
+  defp currently_running_image_pairs do
+    DirMonitor.Registry
+    |> registered_pids()
+    |> Enum.flat_map(fn {image_dir, pid} ->
+      try do
+        [{DirMonitor.watch_dir(pid), image_dir}]
+      catch
+        :exit, _ -> []
       end
     end)
   end
@@ -162,15 +227,15 @@ defmodule MediaCentarr.Watcher.Supervisor do
   Returns a list of `%{dir: path, watch_dir: path, state: atom}` for all running DirMonitors.
   """
   def image_dir_statuses do
-    MediaCentarr.Watcher.DirMonitor.Registry
-    |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+    DirMonitor.Registry
+    |> registered_pids()
     |> Enum.flat_map(fn {dir, pid} ->
       try do
         [
           %{
             dir: dir,
-            watch_dir: MediaCentarr.Watcher.DirMonitor.watch_dir(pid),
-            state: MediaCentarr.Watcher.DirMonitor.status(pid)
+            watch_dir: DirMonitor.watch_dir(pid),
+            state: DirMonitor.status(pid)
           }
         ]
       catch
@@ -218,7 +283,7 @@ defmodule MediaCentarr.Watcher.Supervisor do
   """
   def statuses do
     MediaCentarr.Watcher.Registry
-    |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+    |> registered_pids()
     |> Enum.flat_map(fn {dir, pid} ->
       try do
         [%{dir: dir, state: MediaCentarr.Watcher.status(pid)}]
@@ -236,7 +301,7 @@ defmodule MediaCentarr.Watcher.Supervisor do
   def scan do
     results =
       MediaCentarr.Watcher.Registry
-      |> Registry.select([{{:"$1", :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
+      |> registered_pids()
       |> Enum.map(fn {_dir, pid} ->
         case MediaCentarr.Watcher.scan(pid) do
           {:ok, count} -> count
@@ -262,7 +327,7 @@ defmodule MediaCentarr.Watcher.Supervisor do
   """
   @spec rescan_unlinked() :: {:ok, non_neg_integer()}
   def rescan_unlinked do
-    linked_paths = from(l in WatchedFile, select: l.file_path)
+    linked_paths = Library.linked_file_paths_subquery()
 
     rows =
       Repo.all(
