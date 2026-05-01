@@ -1,14 +1,14 @@
 defmodule MediaCentarrWeb.Components.LibraryCards do
   @moduledoc """
-  Presentation components for the library page — poster cards, continue-watching
-  cards, and the browse toolbar.
+  Presentation components for the library page — poster cards and the browse
+  toolbar.
   """
   use MediaCentarrWeb, :html
 
   import MediaCentarrWeb.LiveHelpers, only: [image_url: 2]
 
   import MediaCentarrWeb.LibraryFormatters, only: [format_type: 1, extract_year: 1]
-  import MediaCentarrWeb.LibraryProgress, only: [compute_progress_fraction: 1, format_resume_parts: 2]
+  import MediaCentarrWeb.LibraryProgress, only: [compute_progress_fraction: 1]
 
   # --- Poster Card ---
 
@@ -92,114 +92,6 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
     ~H"""
     <div :if={@fraction > 0} class="absolute bottom-0 left-0 right-0 h-[3px] bg-base-content/20">
       <div class="h-full bg-primary progress-fill" style={"width: #{@fraction}%"} />
-    </div>
-    """
-  end
-
-  # --- Continue Watching Card ---
-
-  attr :entry, :map, required: true
-  attr :resume, :map, default: nil
-  attr :playing, :boolean, default: false
-  attr :available, :boolean, default: true
-
-  def cw_card(assigns) do
-    entity = assigns.entry.entity
-    backdrop = image_url(entity, "backdrop")
-    background = backdrop || image_url(entity, "poster")
-    logo = image_url(entity, "logo")
-    progress_fraction = compute_progress_fraction(assigns.entry.progress)
-    entry = assigns.entry
-    {resume_label, time_remaining} = format_resume_parts(assigns.resume, entry)
-
-    assigns =
-      assign(assigns,
-        background: background,
-        logo: logo,
-        progress_fraction: progress_fraction,
-        resume_label: resume_label,
-        time_remaining: time_remaining
-      )
-
-    ~H"""
-    <div
-      phx-click="select_cw_entity"
-      phx-value-id={@entry.entity.id}
-      phx-mounted={
-        JS.transition({"", "opacity-0 translate-y-1", "opacity-100 translate-y-0"}, time: 200)
-      }
-      data-nav-item
-      data-entity-id={@entry.entity.id}
-      tabindex="0"
-      class={[
-        "relative rounded-lg overflow-hidden cursor-pointer group",
-        "hover:scale-[1.02] hover:shadow-xl transition-transform"
-      ]}
-    >
-      <div class="aspect-video glass-inset relative">
-        <img
-          :if={@background && @available}
-          src={@background}
-          class="w-full h-full object-cover object-top"
-          loading="lazy"
-        />
-        <div
-          :if={@background && !@available}
-          class="w-full h-full bg-base-content/5"
-          aria-label="Artwork unavailable — storage not mounted"
-        />
-        <div :if={!@background} class="w-full h-full flex items-center justify-center">
-          <.icon name="hero-film" class="size-12 text-base-content/20" />
-        </div>
-
-        <div class="absolute inset-0 bg-gradient-to-t from-black/88 via-black/40 via-40% to-transparent" />
-
-        <div class="absolute bottom-4 left-4 right-4">
-          <img
-            :if={@logo && @available}
-            src={@logo}
-            class="max-h-14 max-w-[70%] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.7)] mb-2"
-          />
-          <h3
-            :if={!@logo || !@available}
-            class="text-lg font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] mb-2"
-          >
-            {@entry.entity.name}
-          </h3>
-
-          <div class="flex items-center justify-between">
-            <span :if={@resume_label} class="text-sm text-primary font-medium drop-shadow">
-              {@resume_label}
-            </span>
-            <span
-              :if={@time_remaining}
-              class="text-sm text-base-content/70 font-medium drop-shadow ml-auto"
-            >
-              {@time_remaining}
-            </span>
-          </div>
-        </div>
-
-        <div
-          :if={@playing}
-          class="absolute top-3 right-3 size-3 rounded-full bg-primary animate-pulse"
-        />
-
-        <div
-          :if={@progress_fraction > 0}
-          class="absolute bottom-0 left-0 right-0 h-1 bg-base-content/20"
-        >
-          <div class="h-full bg-primary progress-fill" style={"width: #{@progress_fraction}%"} />
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  def cw_empty(assigns) do
-    ~H"""
-    <div class="text-base-content/50 py-6 text-center text-sm empty-state-enter">
-      Nothing in progress. Switch to the Library tab to start watching.
     </div>
     """
   end
