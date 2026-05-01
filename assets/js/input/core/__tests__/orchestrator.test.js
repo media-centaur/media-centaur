@@ -1513,7 +1513,7 @@ describe("Orchestrator", () => {
       const dispatchedEvents = []
       const mockItem = {
         click: mock(() => {}),
-        dataset: { navAction: "phx:cycle-theme" },
+        dataset: { navAction: "phx:nav-action" },
         hasAttribute: (attr) => attr === "data-nav-defer-activate",
         dispatchEvent(event) { dispatchedEvents.push(event) },
       }
@@ -1540,7 +1540,7 @@ describe("Orchestrator", () => {
       // Should activate (dispatch custom event), not exit sidebar
       expect(system.focusMachine.context).toBe("sidebar")
       expect(dispatchedEvents.length).toBe(1)
-      expect(dispatchedEvents[0].type).toBe("phx:cycle-theme")
+      expect(dispatchedEvents[0].type).toBe("phx:nav-action")
       expect(mockItem.click).not.toHaveBeenCalled()
     })
 
@@ -1892,7 +1892,7 @@ describe("Orchestrator", () => {
       const clickMock = mock(() => {})
       const dispatchedEvents = []
       const focusedItem = {
-        dataset: { navAction: "phx:cycle-theme" },
+        dataset: { navAction: "phx:nav-action" },
         click: clickMock,
         hasAttribute: () => false,
         dispatchEvent(event) { dispatchedEvents.push(event) },
@@ -1910,7 +1910,7 @@ describe("Orchestrator", () => {
 
       expect(clickMock).not.toHaveBeenCalled()
       expect(dispatchedEvents.length).toBe(1)
-      expect(dispatchedEvents[0].type).toBe("phx:cycle-theme")
+      expect(dispatchedEvents[0].type).toBe("phx:nav-action")
       expect(dispatchedEvents[0].bubbles).toBe(true)
     })
 

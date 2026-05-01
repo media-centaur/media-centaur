@@ -2,9 +2,9 @@
  * Controls page — scoped styles for keycap glyphs, gamepad glyphs, and
  * listening state. Only applies within [data-page="controls"].
  *
- * Color values use daisyUI tokens (base-100, base-300, primary) so they
- * adapt to any dark theme. Keycap-specific look is parameterized by
- * three custom props defined globally under [data-theme].
+ * Color values use daisyUI tokens (base-100, base-300, primary). The
+ * keycap-specific look is parameterized by three custom props defined
+ * globally under :root.
  */
 
 :root {

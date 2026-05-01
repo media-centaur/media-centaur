@@ -223,14 +223,12 @@ const TOUR = [
   //   showcase. Capture manually if needed.
 ]
 
-// Seed localStorage before every page load so every shot renders in
-// dark theme with the sidebar collapsed. Both keys are owned by
-// root.html.heex — phx:theme drives data-theme on <html> (dark-first
-// design); phx:sidebar-collapsed drives data-sidebar="collapsed".
+// Seed localStorage before every page load so every shot renders with
+// the sidebar collapsed. The key is owned by root.html.heex —
+// phx:sidebar-collapsed drives data-sidebar="collapsed" on <html>.
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
     try {
-      localStorage.setItem("phx:theme", "dark")
       localStorage.setItem("phx:sidebar-collapsed", "true")
     } catch {}
   })
