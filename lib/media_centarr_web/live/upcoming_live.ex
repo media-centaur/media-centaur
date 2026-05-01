@@ -471,14 +471,24 @@ defmodule MediaCentarrWeb.UpcomingLive do
   end
 
   defp load_tracking_images(%{upcoming: upcoming, released: released}) do
-    (upcoming ++ released)
-    |> Enum.map(& &1.item)
-    |> Enum.uniq_by(& &1.id)
-    |> Enum.reduce(%{}, fn item, acc ->
+    items =
+      (upcoming ++ released)
+      |> Enum.map(& &1.item)
+      |> Enum.uniq_by(& &1.id)
+
+    logo_urls =
+      items
+      |> Enum.flat_map(fn item ->
+        if item.library_entity_id, do: [{item.media_type, item.library_entity_id}], else: []
+      end)
+      |> MediaCentarr.Library.logo_urls_for_entities()
+
+    Enum.reduce(items, %{}, fn item, acc ->
       images =
         %{}
         |> maybe_put_image(:backdrop, item.backdrop_path)
         |> maybe_put_image(:poster, item.poster_path)
+        |> maybe_put_logo(logo_urls, item.library_entity_id)
 
       if images == %{}, do: acc, else: Map.put(acc, item.id, images)
     end)
@@ -486,4 +496,13 @@ defmodule MediaCentarrWeb.UpcomingLive do
 
   defp maybe_put_image(map, _role, nil), do: map
   defp maybe_put_image(map, role, path), do: Map.put(map, role, "/media-images/#{path}")
+
+  defp maybe_put_logo(map, _logo_urls, nil), do: map
+
+  defp maybe_put_logo(map, logo_urls, entity_id) do
+    case Map.fetch(logo_urls, entity_id) do
+      {:ok, url} -> Map.put(map, :logo, url)
+      :error -> map
+    end
+  end
 end
