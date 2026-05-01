@@ -28,6 +28,16 @@ defmodule MediaCentarr.Watcher.FilePresenceTest do
       assert file.state == :present
       assert is_nil(file.absent_since)
     end
+
+    test "is idempotent — repeated calls do not duplicate or error" do
+      Enum.each(1..5, fn _ ->
+        FilePresence.record_file("/media/drive1/movie.mkv", "/media/drive1")
+      end)
+
+      rows = Repo.all(from(k in KnownFile, where: k.file_path == "/media/drive1/movie.mkv"))
+      assert length(rows) == 1
+      assert hd(rows).state == :present
+    end
   end
 
   describe "known_file_paths/1" do

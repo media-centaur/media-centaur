@@ -81,14 +81,23 @@ defmodule MediaCentarr.Library.Availability do
     # already depends on Library).
     :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.dir_state())
 
+    # Watcher.statuses/0 surfaces internal vocabulary (`:watching` /
+    # `:initializing`); broadcasts emit `:available` / `:unavailable`.
+    # Normalize to broadcast vocabulary so this module's state map and
+    # `available?/1` predicate see only one set of values regardless of
+    # whether the value came from the seed snapshot or a live update.
     state =
-      Map.new(MediaCentarr.WatcherStatus.statuses(), fn %{dir: dir, state: state} ->
-        {dir, state}
+      Map.new(MediaCentarr.WatcherStatus.statuses(), fn %{dir: dir, state: status} ->
+        {dir, broadcast_state(status)}
       end)
 
     :persistent_term.put({__MODULE__, :state}, state)
     {:ok, state}
   end
+
+  defp broadcast_state(:watching), do: :available
+  defp broadcast_state(:initializing), do: :available
+  defp broadcast_state(other), do: other
 
   @impl true
   def handle_info({:dir_state_changed, dir, :watch_dir, new_state}, state) do

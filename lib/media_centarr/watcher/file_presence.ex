@@ -29,21 +29,18 @@ defmodule MediaCentarr.Watcher.FilePresence do
 
   @doc """
   Records a newly detected file as present in watcher_files.
-  Upserts: if the file already exists (e.g., was absent), restores it to present.
+  Upserts atomically: if the row already exists (e.g., was absent), restores it
+  to present. Single SQL statement — safe under concurrent callers.
   """
   @spec record_file(String.t(), String.t()) :: :ok
   def record_file(file_path, watch_dir) do
     now = DateTime.utc_now(:second)
 
-    case Repo.get_by(KnownFile, file_path: file_path) do
-      nil ->
-        Repo.insert!(KnownFile.record_changeset(%{file_path: file_path, watch_dir: watch_dir}))
-
-      existing ->
-        existing
-        |> Ecto.Changeset.change(state: :present, absent_since: nil, updated_at: now)
-        |> Repo.update!()
-    end
+    Repo.insert!(
+      KnownFile.record_changeset(%{file_path: file_path, watch_dir: watch_dir}),
+      on_conflict: [set: [state: :present, absent_since: nil, updated_at: now]],
+      conflict_target: :file_path
+    )
 
     :ok
   end
