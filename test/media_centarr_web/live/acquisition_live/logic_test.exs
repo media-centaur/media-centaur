@@ -213,9 +213,218 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     end
   end
 
+  describe "sort_downloads/1" do
+    alias MediaCentarr.Acquisition.QueueItem
+
+    test "orders by activity: error → downloading → stalled → paused → queued → other" do
+      items = [
+        %QueueItem{id: "q", title: "q", state: :queued},
+        %QueueItem{id: "p", title: "p", state: :paused},
+        %QueueItem{id: "d", title: "d", state: :downloading, timeleft: "1m"},
+        %QueueItem{id: "o", title: "o", state: :other},
+        %QueueItem{id: "e", title: "e", state: :error},
+        %QueueItem{id: "s", title: "s", state: :stalled}
+      ]
+
+      assert Enum.map(Logic.sort_downloads(items), & &1.id) == ~w(e d s p q o)
+    end
+
+    test "within :downloading, sorts by ETA ascending (closest-to-done first)" do
+      items = [
+        %QueueItem{id: "slow", title: "slow", state: :downloading, timeleft: "2h 30m"},
+        %QueueItem{id: "fast", title: "fast", state: :downloading, timeleft: "35s"},
+        %QueueItem{id: "mid", title: "mid", state: :downloading, timeleft: "14m"}
+      ]
+
+      assert Enum.map(Logic.sort_downloads(items), & &1.id) == ~w(fast mid slow)
+    end
+
+    test "items with nil timeleft sort after items with a known ETA" do
+      items = [
+        %QueueItem{id: "unknown", title: "unknown", state: :downloading, timeleft: nil},
+        %QueueItem{id: "known", title: "known", state: :downloading, timeleft: "5m"}
+      ]
+
+      assert Enum.map(Logic.sort_downloads(items), & &1.id) == ~w(known unknown)
+    end
+
+    test "preserves input order within non-downloading groups" do
+      items = [
+        %QueueItem{id: "q1", title: "q1", state: :queued},
+        %QueueItem{id: "q2", title: "q2", state: :queued},
+        %QueueItem{id: "q3", title: "q3", state: :queued}
+      ]
+
+      assert Enum.map(Logic.sort_downloads(items), & &1.id) == ~w(q1 q2 q3)
+    end
+
+    test "nil state sorts as :other (defensive)" do
+      items = [
+        %QueueItem{id: "n", title: "n", state: nil},
+        %QueueItem{id: "d", title: "d", state: :downloading, timeleft: "1m"}
+      ]
+
+      assert Enum.map(Logic.sort_downloads(items), & &1.id) == ~w(d n)
+    end
+
+    test "empty input returns empty list" do
+      assert Logic.sort_downloads([]) == []
+    end
+  end
+
+  describe "partition_collapsible_group/3" do
+    alias MediaCentarr.Acquisition.QueueItem
+
+    test "returns {items, nil} when count is below collapse threshold" do
+      items = [
+        %QueueItem{id: "1", title: "1", state: :queued},
+        %QueueItem{id: "2", title: "2", state: :queued}
+      ]
+
+      assert Logic.partition_collapsible_group(items, :queued, false) == {items, nil}
+    end
+
+    test "splits into head + summary when count exceeds threshold and collapsed" do
+      items =
+        for i <- 1..5 do
+          %QueueItem{id: "q#{i}", title: "q#{i}", state: :queued}
+        end
+
+      {head, summary} = Logic.partition_collapsible_group(items, :queued, false)
+
+      assert length(head) == 2
+      assert Enum.map(head, & &1.id) == ~w(q1 q2)
+      assert summary.kind == :collapsed
+      assert summary.state == :queued
+      assert summary.hidden_count == 3
+      assert Enum.map(summary.hidden, & &1.id) == ~w(q3 q4 q5)
+    end
+
+    test "returns full list with expanded marker when expanded?=true and count exceeds threshold" do
+      items =
+        for i <- 1..5 do
+          %QueueItem{id: "q#{i}", title: "q#{i}", state: :queued}
+        end
+
+      {visible, summary} = Logic.partition_collapsible_group(items, :queued, true)
+
+      assert length(visible) == 5
+      assert summary.kind == :expanded
+      assert summary.state == :queued
+      assert summary.total == 5
+    end
+
+    test "applies to :error groups too" do
+      items =
+        for i <- 1..4 do
+          %QueueItem{id: "e#{i}", title: "e#{i}", state: :error}
+        end
+
+      {head, summary} = Logic.partition_collapsible_group(items, :error, false)
+
+      assert length(head) == 2
+      assert summary.state == :error
+      assert summary.hidden_count == 2
+    end
+
+    test "empty input returns {[], nil}" do
+      assert Logic.partition_collapsible_group([], :queued, false) == {[], nil}
+    end
+  end
+
+  describe "prepare_queue_for_render/2" do
+    alias MediaCentarr.Acquisition.QueueItem
+
+    test "returns a flat list of {:item, item} ops in activity order when no group exceeds the head size" do
+      items = [
+        %QueueItem{id: "q", title: "q", state: :queued},
+        %QueueItem{id: "d", title: "d", state: :downloading, timeleft: "1m"},
+        %QueueItem{id: "e", title: "e", state: :error}
+      ]
+
+      ops = Logic.prepare_queue_for_render(items, MapSet.new())
+
+      assert Enum.map(ops, fn {:item, item} -> item.id end) == ~w(e d q)
+    end
+
+    test "collapses :queued group when count exceeds head size and not expanded" do
+      items =
+        for i <- 1..5 do
+          %QueueItem{id: "q#{i}", title: "q#{i}", state: :queued}
+        end
+
+      ops = Logic.prepare_queue_for_render(items, MapSet.new())
+
+      # head + summary
+      assert length(ops) == 3
+
+      [{:item, q1}, {:item, q2}, {:summary, summary}] = ops
+      assert q1.id == "q1"
+      assert q2.id == "q2"
+      assert summary.kind == :collapsed
+      assert summary.hidden_count == 3
+    end
+
+    test "renders all items + expanded summary when state is in the expanded set" do
+      items =
+        for i <- 1..5 do
+          %QueueItem{id: "q#{i}", title: "q#{i}", state: :queued}
+        end
+
+      ops = Logic.prepare_queue_for_render(items, MapSet.new([:queued]))
+
+      assert length(ops) == 6
+      [a, b, c, d, e, summary] = ops
+      assert {:item, %{id: "q1"}} = a
+      assert {:item, %{id: "q2"}} = b
+      assert {:item, %{id: "q3"}} = c
+      assert {:item, %{id: "q4"}} = d
+      assert {:item, %{id: "q5"}} = e
+      assert {:summary, %{kind: :expanded, total: 5}} = summary
+    end
+
+    test "collapsibility is independent per group — :error can be expanded while :queued is collapsed" do
+      errors = for i <- 1..3, do: %QueueItem{id: "e#{i}", title: "e#{i}", state: :error}
+      queued = for i <- 1..4, do: %QueueItem{id: "q#{i}", title: "q#{i}", state: :queued}
+      items = errors ++ queued
+
+      ops = Logic.prepare_queue_for_render(items, MapSet.new([:error]))
+
+      # :error fully expanded (3 items + summary), then :queued head + summary
+      error_ops = Enum.take(ops, 4)
+      queued_ops = Enum.drop(ops, 4)
+
+      assert Enum.map(error_ops, fn
+               {:item, item} -> item.id
+               {:summary, summary} -> {:summary, summary.state, summary.kind}
+             end) == ["e1", "e2", "e3", {:summary, :error, :expanded}]
+
+      assert length(queued_ops) == 3
+      [{:item, q1}, {:item, q2}, {:summary, summary}] = queued_ops
+      assert {q1.id, q2.id, summary.state, summary.kind} == {"q1", "q2", :queued, :collapsed}
+    end
+
+    test "non-collapsible states render every item with no summary even at high count" do
+      items =
+        for i <- 1..6 do
+          %QueueItem{id: "d#{i}", title: "d#{i}", state: :downloading, timeleft: "1m"}
+        end
+
+      ops = Logic.prepare_queue_for_render(items, MapSet.new())
+
+      assert length(ops) == 6
+      assert Enum.all?(ops, &match?({:item, _}, &1))
+    end
+
+    test "empty input returns empty ops list" do
+      assert Logic.prepare_queue_for_render([], MapSet.new()) == []
+    end
+  end
+
   describe "state_label/1" do
     test "returns user-facing label per state atom" do
       assert Logic.state_label(:downloading) == "Downloading"
+      assert Logic.state_label(:queued) == "Queued"
       assert Logic.state_label(:stalled) == "Stalled"
       assert Logic.state_label(:paused) == "Paused"
       assert Logic.state_label(:completed) == "Completed"
@@ -236,6 +445,12 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
       assert Logic.state_badge_class(:error) =~ "error"
       assert Logic.state_badge_class(:paused) =~ "warning"
       assert Logic.state_badge_class(:stalled) =~ "warning"
+    end
+
+    test ":queued uses a neutral/ghost class to read as passive waiting, not the warning yellow of :stalled" do
+      class = Logic.state_badge_class(:queued)
+      assert class =~ "ghost" or class =~ "neutral"
+      refute class =~ "warning"
     end
 
     test "returns a neutral class for nil or unknown states" do

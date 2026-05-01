@@ -52,6 +52,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          search_session: %Acquisition.SearchSession{},
          active_queue: [],
          queue_loaded?: false,
+         expanded_queue_groups: MapSet.new(),
          cancel_confirm: nil,
          download_client_ready: false,
          activity_filter: :active,
@@ -178,7 +179,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </p>
 
           <div :if={@active_queue != []}>
-            <.queue_row :for={item <- @active_queue} item={item} />
+            <%= for op <- Logic.prepare_queue_for_render(@active_queue, @expanded_queue_groups) do %>
+              <.queue_render_op op={op} />
+            <% end %>
           </div>
         </section>
 
@@ -523,6 +526,28 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, assign(socket, cancel_confirm: nil)}
   end
 
+  def handle_event("toggle_queue_group", %{"state" => state}, socket) do
+    state_atom =
+      case state do
+        "queued" -> :queued
+        "error" -> :error
+        _ -> nil
+      end
+
+    if state_atom do
+      expanded =
+        if MapSet.member?(socket.assigns.expanded_queue_groups, state_atom) do
+          MapSet.delete(socket.assigns.expanded_queue_groups, state_atom)
+        else
+          MapSet.put(socket.assigns.expanded_queue_groups, state_atom)
+        end
+
+      {:noreply, assign(socket, expanded_queue_groups: expanded)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_event("grab_selected", _params, socket) do
     selections = socket.assigns.search_session.selections
 
@@ -791,6 +816,70 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         <span :if={@item.progress} class="tabular-nums">{@item.progress}%</span>
       </div>
     </div>
+    """
+  end
+
+  attr :op, :any, required: true, doc: "render op tuple from `Logic.prepare_queue_for_render/2`"
+
+  defp queue_render_op(%{op: {:item, item}} = assigns) do
+    assigns = Map.put(assigns, :item, item)
+
+    ~H"""
+    <.queue_row item={@item} />
+    """
+  end
+
+  defp queue_render_op(%{op: {:summary, summary}} = assigns) do
+    assigns = Map.put(assigns, :summary, summary)
+
+    ~H"""
+    <.queue_summary_row summary={@summary} />
+    """
+  end
+
+  attr :summary, :any,
+    required: true,
+    doc: "group summary returned by `Logic.partition_collapsible_group/3`"
+
+  defp queue_summary_row(%{summary: %{kind: :collapsed}} = assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click="toggle_queue_group"
+      phx-value-state={@summary.state}
+      class="w-full px-4 py-2 border-b border-base-content/5 last:border-0 flex items-center gap-3 text-xs text-base-content/50 hover:bg-base-content/5"
+      data-nav-item
+      tabindex="0"
+    >
+      <.icon name="hero-chevron-right-mini" class="size-3.5 shrink-0" />
+      <span class="flex-1 min-w-0 text-left">
+        + {@summary.hidden_count} more {Logic.state_label(@summary.state) |> String.downcase()}
+      </span>
+      <span class={["text-xs", Logic.state_badge_class(@summary.state)]}>
+        {Logic.state_label(@summary.state)}
+      </span>
+    </button>
+    """
+  end
+
+  defp queue_summary_row(%{summary: %{kind: :expanded}} = assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click="toggle_queue_group"
+      phx-value-state={@summary.state}
+      class="w-full px-4 py-2 border-b border-base-content/5 last:border-0 flex items-center gap-3 text-xs text-base-content/50 hover:bg-base-content/5"
+      data-nav-item
+      tabindex="0"
+    >
+      <.icon name="hero-chevron-down-mini" class="size-3.5 shrink-0" />
+      <span class="flex-1 min-w-0 text-left">
+        Show fewer
+      </span>
+      <span class={["text-xs", Logic.state_badge_class(@summary.state)]}>
+        {@summary.total} {Logic.state_label(@summary.state) |> String.downcase()}
+      </span>
+    </button>
     """
   end
 

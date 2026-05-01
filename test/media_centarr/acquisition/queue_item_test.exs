@@ -50,9 +50,12 @@ defmodule MediaCentarr.Acquisition.QueueItemTest do
       assert item.state == :paused
     end
 
-    test "maps stalledDL and queuedDL to :stalled" do
+    test "maps stalledDL to :stalled" do
       assert QueueItem.from_qbittorrent(base_torrent(%{"state" => "stalledDL"})).state == :stalled
-      assert QueueItem.from_qbittorrent(base_torrent(%{"state" => "queuedDL"})).state == :stalled
+    end
+
+    test "maps queuedDL to :queued — distinct from :stalled (waiting in qBittorrent's queue, not started yet)" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"state" => "queuedDL"})).state == :queued
     end
 
     test "maps error and missingFiles to :error" do

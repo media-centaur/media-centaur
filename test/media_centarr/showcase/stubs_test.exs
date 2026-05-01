@@ -49,7 +49,7 @@ defmodule MediaCentarr.Showcase.StubsTest do
       assert {:ok, items} = QBittorrent.list_downloads(:all, client)
 
       assert Enum.any?(items, fn i -> i.state == :downloading end)
-      assert Enum.any?(items, fn i -> i.state == :stalled end)
+      assert Enum.any?(items, fn i -> i.state == :queued end)
       assert Enum.all?(items, fn i -> is_binary(i.id) and i.id != "" end)
     end
 
