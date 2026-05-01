@@ -11,7 +11,7 @@ defmodule MediaCentarr.Library.ChangeLogTest do
       movie = create_entity(%{type: :movie, name: "Sample Movie"})
       ChangeLog.record_addition(movie, :movie)
 
-      [entry] = Library.list_recent_changes!(50, nil)
+      [entry] = Library.list_recent_changes(50, nil)
       assert entry.entity_id == movie.id
       assert entry.entity_name == "Sample Movie"
       assert entry.entity_type == :movie
@@ -24,7 +24,7 @@ defmodule MediaCentarr.Library.ChangeLogTest do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
       ChangeLog.record_removal(%{id: tv_series.id, name: tv_series.name, type: :tv_series})
 
-      [entry] = Library.list_recent_changes!(50, nil)
+      [entry] = Library.list_recent_changes(50, nil)
       assert entry.entity_id == tv_series.id
       assert entry.entity_name == "Sample Show"
       assert entry.entity_type == :tv_series
@@ -45,11 +45,11 @@ defmodule MediaCentarr.Library.ChangeLogTest do
         })
       end
 
-      assert length(Library.list_recent_changes!(150, nil)) == 110
+      assert length(Library.list_recent_changes(150, nil)) == 110
 
       ChangeLog.prune()
 
-      remaining = Library.list_recent_changes!(150, nil)
+      remaining = Library.list_recent_changes(150, nil)
       assert length(remaining) == 100
     end
   end
@@ -61,7 +61,7 @@ defmodule MediaCentarr.Library.ChangeLogTest do
       movie_b = create_entity(%{name: "Second"})
       ChangeLog.record_addition(movie_b, :movie)
 
-      [newest, oldest] = Library.list_recent_changes!(50, nil)
+      [newest, oldest] = Library.list_recent_changes(50, nil)
       assert newest.entity_name == "Second"
       assert oldest.entity_name == "First"
     end

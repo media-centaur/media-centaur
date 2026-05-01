@@ -14,7 +14,7 @@ defmodule MediaCentarr.Library.ExtraProgressTest do
         duration_seconds: 300.0
       })
 
-      {:ok, found} = Library.get_extra_progress_by_extra(extra.id)
+      found = Library.get_extra_progress_by_extra(extra.id)
 
       assert found.extra_id == extra.id
       assert found.position_seconds == 45.0
@@ -39,7 +39,7 @@ defmodule MediaCentarr.Library.ExtraProgressTest do
         duration_seconds: 120.0
       })
 
-      {:ok, found} = Library.get_extra_progress_by_extra(extra.id)
+      found = Library.get_extra_progress_by_extra(extra.id)
       assert found.position_seconds == 80.0
     end
 
@@ -62,7 +62,7 @@ defmodule MediaCentarr.Library.ExtraProgressTest do
         duration_seconds: 300.0
       })
 
-      {:ok, updated} = Library.get_extra_progress_by_extra(extra.id)
+      updated = Library.get_extra_progress_by_extra(extra.id)
 
       assert updated.completed == true
       assert updated.position_seconds == 10.0
@@ -85,8 +85,8 @@ defmodule MediaCentarr.Library.ExtraProgressTest do
         duration_seconds: 180.0
       })
 
-      {:ok, found_1} = Library.get_extra_progress_by_extra(extra_1.id)
-      {:ok, found_2} = Library.get_extra_progress_by_extra(extra_2.id)
+      found_1 = Library.get_extra_progress_by_extra(extra_1.id)
+      found_2 = Library.get_extra_progress_by_extra(extra_2.id)
 
       assert found_1 != nil
       assert found_2 != nil

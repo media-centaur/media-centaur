@@ -36,7 +36,7 @@ defmodule MediaCentarr.Status do
   def fetch_recent_changes do
     days = MediaCentarr.Config.get(:recent_changes_days) || 3
     since = DateTime.add(DateTime.utc_now(), -days, :day)
-    Library.list_recent_changes!(10, since)
+    Library.list_recent_changes(10, since)
   end
 
   def fetch_library_stats do

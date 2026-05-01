@@ -67,7 +67,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   Loads the current ExtraProgress record and broadcasts it.
   """
   def broadcast_extra(entity_id, extra_id) do
-    {:ok, progress} = MediaCentarr.Library.get_extra_progress_by_extra(extra_id)
+    progress = MediaCentarr.Library.get_extra_progress_by_extra(extra_id)
 
     Log.info(:playback, "broadcast extra progress — #{Format.short_id(extra_id)}")
 

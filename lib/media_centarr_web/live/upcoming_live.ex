@@ -197,7 +197,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
       name = params["name"]
 
       {last_season, last_episode} =
-        ReleaseTracking.Helpers.find_last_library_episode(tv_series_id)
+        ReleaseTracking.find_last_library_episode(tv_series_id)
 
       Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
         ReleaseTracking.track_from_search(

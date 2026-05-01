@@ -12,7 +12,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
 
   describe "refresh_item/1" do
     test "updates releases and detects date changes for TV series" do
-      item = create_tracking_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show Eight"})
+      item = create_tracking_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show"})
 
       ReleaseTracking.create_release!(%{
         item_id: item.id,
@@ -26,7 +26,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
         {"/tv/1396",
          %{
            "id" => 1396,
-           "name" => "Sample Show Eight",
+           "name" => "Sample Show",
            "status" => "Returning Series",
            "poster_path" => "/bb.jpg",
            "next_episode_to_air" => %{
@@ -49,25 +49,25 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
 
     test "refreshes movie collection releases" do
       item =
-        create_tracking_item(%{tmdb_id: 263, media_type: :movie, name: "Dark Knight Collection"})
+        create_tracking_item(%{tmdb_id: 263, media_type: :movie, name: "Sample Collection"})
 
       ReleaseTracking.create_release!(%{
         item_id: item.id,
         air_date: ~D[2028-07-01],
-        title: "The Shadowy Sentinel Returns"
+        title: "Sample Movie B"
       })
 
       stub_routes([
         {"/collection/263",
          %{
            "id" => 263,
-           "name" => "Dark Knight Collection",
+           "name" => "Sample Collection",
            "poster_path" => "/dk.jpg",
            "parts" => [
-             %{"id" => 155, "title" => "The Shadowy Sentinel", "release_date" => "2008-07-18"},
+             %{"id" => 155, "title" => "Sample Movie A", "release_date" => "2008-07-18"},
              %{
                "id" => 99_999,
-               "title" => "The Shadowy Sentinel Returns",
+               "title" => "Sample Movie B",
                "release_date" => "2028-12-25"
              }
            ]
@@ -118,7 +118,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
     end
 
     test "marks past releases as released" do
-      item = create_tracking_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show Eight"})
+      item = create_tracking_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show"})
 
       ReleaseTracking.create_release!(%{
         item_id: item.id,
@@ -132,7 +132,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
         {"/tv/1396",
          %{
            "id" => 1396,
-           "name" => "Sample Show Eight",
+           "name" => "Sample Show",
            "status" => "Returning Series",
            "poster_path" => "/bb.jpg",
            "next_episode_to_air" => nil
@@ -253,7 +253,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
 
   describe "update_last_episodes_for — auto-linking" do
     test "links a manually-tracked item to a library entity by TMDB ID and updates episode progress" do
-      tv_series = create_tv_series(%{name: "The Pitt"})
+      tv_series = create_tv_series(%{name: "Sample Drama"})
 
       create_external_id(%{
         tv_series_id: tv_series.id,
@@ -273,7 +273,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
         create_tracking_item(%{
           tmdb_id: 250_307,
           media_type: :tv_series,
-          name: "The Pitt",
+          name: "Sample Drama",
           source: :manual,
           last_library_season: 2,
           last_library_episode: 13
@@ -455,7 +455,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
     end
 
     test "marks releases in_library and broadcasts when new episode added" do
-      tv_series = create_tv_series(%{name: "Shrinking"})
+      tv_series = create_tv_series(%{name: "Sample Comedy"})
 
       season =
         create_season(%{tv_series_id: tv_series.id, season_number: 3, number_of_episodes: 9})
@@ -468,7 +468,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
         create_tracking_item(%{
           tmdb_id: 4321,
           media_type: :tv_series,
-          name: "Shrinking",
+          name: "Sample Comedy",
           library_entity_id: tv_series.id,
           last_library_season: 3,
           last_library_episode: 8

@@ -26,7 +26,7 @@ defmodule MediaCentarr.Library.WatchProgress do
   end
 
   @impl true
-  def upsert_changeset(attrs) do
+  def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
       :movie_id,

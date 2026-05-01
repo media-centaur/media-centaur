@@ -429,7 +429,9 @@ defmodule MediaCentarr.Acquisition do
             pending_releases: pending
           }} <- ReleaseTracking.list_pending_acquirable_releases_for_item(item_id) do
       keys =
-        Enum.map(pending, fn r -> {tmdb_id, tmdb_type, r.season_number, r.episode_number} end)
+        Enum.map(pending, fn release ->
+          {tmdb_id, tmdb_type, release.season_number, release.episode_number}
+        end)
 
       grab_map = statuses_for_releases(keys)
 
