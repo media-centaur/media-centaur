@@ -4,6 +4,53 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.29.0 — 2026-05-01
+
+> **UI overhaul in progress this week.** A complete pass over the visual
+> design is shipping in small increments — every release this week is a
+> noticeable step up for mouse-driven use. Keyboard and gamepad navigation
+> are paused while the UI settles and resume next week; if you drive Media
+> Centarr from the couch, hold off on updating, or update and accept that
+> some focus rings and shortcut behaviour will be temporarily off.
+
+### Improved
+
+- **Show logos in Coming Up.** The Coming Up marquee on the home page
+  now displays each show's logo when one is on file, falling back to
+  refined typography otherwise.
+
+- **Show logos on Upcoming Active cards.** The Active section on the
+  Upcoming page does the same — show logos lead the card, with the
+  show name as the fallback.
+
+- **Continue Watching breathing room.** Continue Watching cards on the
+  home page now have a small extra gap between them so they're easier
+  to scan, and the cards no longer scale-grow on hover.
+
+- **Tighter Downloads activity.** Long groups in the Downloads activity
+  list collapse when there are many entries, so a single noisy series
+  no longer dominates the view.
+
+- **Searches show file size.** The featured row in an acquisition
+  search result now shows file size at a glance.
+
+- **Post-grab Downloads UX.** The Downloads page tightens up after you
+  pick a result and trigger a grab — fewer extra clicks to confirm
+  what just happened.
+
+- **Better stalled vs queued signal.** Acquisition shows a clearer
+  difference between a download that's actively waiting in the queue
+  and one that's gone quiet, so you know when to nudge it.
+
+### Removed
+
+- **Light theme and theme switcher removed.** Media Centarr is now
+  dark-only. The theme picker in the sidebar is gone. The dark theme
+  is genuinely good and tuned for couch-distance reading; a future
+  light theme will return only if it can match that bar. If you were
+  on light, you'll see dark on next launch — your other preferences
+  are unchanged.
+
 ## v0.28.1 — 2026-05-01
 
 ### Improved
