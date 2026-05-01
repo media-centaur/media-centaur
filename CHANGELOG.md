@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.29.1 — 2026-05-01
+
+### Improved
+
+- **Coming Up marquee polish.** Secondary tiles in the Coming Up section
+  on the home page now anchor their show logos at the bottom-left with
+  a diagonal scrim, so they stay legible on bright artwork instead of
+  washing out. The redundant "Scheduled" badge that appeared on every
+  tile is gone — the badge is reserved for states that actually mean
+  something different, like Grabbed, Downloading, and Pending. When
+  only one other show is upcoming alongside the hero, the tile no
+  longer stretches to fill the full column height; it sits at a
+  natural 16:9 with breathing room above and below.
+
 ## v0.29.0 — 2026-05-01
 
 > **UI overhaul in progress this week.** A complete pass over the visual
