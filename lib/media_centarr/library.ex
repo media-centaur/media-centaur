@@ -372,6 +372,38 @@ defmodule MediaCentarr.Library do
   def destroy_image(image), do: Repo.delete(image)
   def destroy_image!(image), do: destroy_bang!(image)
 
+  @doc """
+  Resolves logo URLs for a list of `{media_type, entity_id}` pairs in a single
+  query. Returns a `%{entity_id => "/media-images/<content_url>"}` map for any
+  pair whose corresponding entity has a logo image. Entries without a logo are
+  simply absent from the result.
+
+  Used by views that render tracked-show cards (Upcoming, Coming Up) so they
+  can fall back from typography to the show logo without per-card lookups.
+  """
+  @spec logo_urls_for_entities([{:movie | :tv_series, Ecto.UUID.t()}]) :: %{
+          Ecto.UUID.t() => String.t()
+        }
+  def logo_urls_for_entities([]), do: %{}
+
+  def logo_urls_for_entities(pairs) when is_list(pairs) do
+    movie_ids = for {:movie, id} <- pairs, is_binary(id), do: id
+    tv_ids = for {:tv_series, id} <- pairs, is_binary(id), do: id
+
+    rows =
+      Repo.all(
+        from i in Image,
+          where:
+            i.role == "logo" and
+              (i.movie_id in ^movie_ids or i.tv_series_id in ^tv_ids),
+          select: {coalesce(i.movie_id, i.tv_series_id), i.content_url}
+      )
+
+    Map.new(rows, fn {entity_id, content_url} ->
+      {entity_id, "/media-images/#{content_url}"}
+    end)
+  end
+
   # ---------------------------------------------------------------------------
   # ExternalId
   # ---------------------------------------------------------------------------
