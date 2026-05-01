@@ -317,6 +317,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
                     {group.featured.title}
                   </span>
                   <span
+                    :if={group.featured.size_bytes}
+                    class="text-xs tabular-nums shrink-0 text-base-content/60"
+                  >
+                    {format_bytes(group.featured.size_bytes)}
+                  </span>
+                  <span
                     :if={group.featured.seeders}
                     class={[
                       "text-xs tabular-nums shrink-0",
