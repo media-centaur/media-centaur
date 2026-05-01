@@ -101,12 +101,12 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
   describe "coming_up_marquee/2" do
     test "single release in window → hero populated, no secondaries" do
       today = ~D[2026-04-27]
-      releases = [release("Sample Show Sixteen", today, season: 5, episode: 4, status: :grabbed)]
+      releases = [release("Sample Show A", today, season: 5, episode: 4, status: :grabbed)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
       assert marquee.hero != nil
-      assert marquee.hero.name == "Sample Show Sixteen"
+      assert marquee.hero.name == "Sample Show A"
       assert marquee.secondaries == []
     end
 
@@ -119,28 +119,28 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
     test "deduplicates by series, hero has rollup, secondaries are distinct shows" do
       today = ~D[2026-04-27]
 
-      hacks_releases =
+      show_a_releases =
         for week <- 0..6 do
-          release("Sample Show Sixteen", Date.add(today, week * 7), season: 5, episode: 4 + week)
+          release("Sample Show A", Date.add(today, week * 7), season: 5, episode: 4 + week)
         end
 
       other_releases = [
-        release("Severance", Date.add(today, 1), season: 2, episode: 8),
-        release("Doc Now", Date.add(today, 5), season: 4, episode: 1),
-        release("The Pitt", Date.add(today, 8), season: 1, episode: 3)
+        release("Sample Show B", Date.add(today, 1), season: 2, episode: 8),
+        release("Sample Show C", Date.add(today, 5), season: 4, episode: 1),
+        release("Sample Show D", Date.add(today, 8), season: 1, episode: 3)
       ]
 
-      marquee = Logic.coming_up_marquee(hacks_releases ++ other_releases, today)
+      marquee = Logic.coming_up_marquee(show_a_releases ++ other_releases, today)
 
-      assert marquee.hero.name == "Sample Show Sixteen"
+      assert marquee.hero.name == "Sample Show A"
       assert marquee.hero.rollup =~ "6 more"
 
       assert length(marquee.secondaries) == 3
       secondary_names = Enum.map(marquee.secondaries, & &1.name)
-      assert "Severance" in secondary_names
-      assert "Doc Now" in secondary_names
-      assert "The Pitt" in secondary_names
-      refute "Sample Show Sixteen" in secondary_names
+      assert "Sample Show B" in secondary_names
+      assert "Sample Show C" in secondary_names
+      assert "Sample Show D" in secondary_names
+      refute "Sample Show A" in secondary_names
     end
 
     test "secondaries ordered by air_date ascending" do
@@ -161,7 +161,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "today's release → hero eyebrow says 'Tonight' and contains S0xE0y" do
       today = ~D[2026-04-27]
-      releases = [release("Sample Show Sixteen", today, season: 5, episode: 4)]
+      releases = [release("Sample Show A", today, season: 5, episode: 4)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
@@ -171,7 +171,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "tomorrow's release → hero eyebrow says 'Tomorrow'" do
       today = ~D[2026-04-27]
-      releases = [release("Sample Show Sixteen", Date.add(today, 1), season: 5, episode: 4)]
+      releases = [release("Sample Show A", Date.add(today, 1), season: 5, episode: 4)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
@@ -181,7 +181,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "release within 6 days → eyebrow uses weekday name, no 'Tonight'/'Tomorrow'" do
       today = ~D[2026-04-27]
-      releases = [release("Sample Show Sixteen", Date.add(today, 4), season: 5, episode: 4)]
+      releases = [release("Sample Show A", Date.add(today, 4), season: 5, episode: 4)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
@@ -194,7 +194,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "release more than 6 days out → eyebrow uses absolute date" do
       today = ~D[2026-04-27]
-      releases = [release("Sample Show Sixteen", Date.add(today, 14), season: 5, episode: 4)]
+      releases = [release("Sample Show A", Date.add(today, 14), season: 5, episode: 4)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
@@ -205,9 +205,9 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       today = ~D[2026-04-27]
 
       releases = [
-        release("Sample Show Sixteen", today, status: :grabbed),
-        release("Severance", Date.add(today, 1), status: :scheduled),
-        release("Doc Now", Date.add(today, 2), status: :scheduled)
+        release("Sample Show A", today, status: :grabbed),
+        release("Sample Show B", Date.add(today, 1), status: :scheduled),
+        release("Sample Show C", Date.add(today, 2), status: :scheduled)
       ]
 
       marquee = Logic.coming_up_marquee(releases, today)
@@ -223,8 +223,8 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       today = ~D[2026-04-27]
 
       releases = [
-        release("Severance", today, status: :downloading),
-        release("Doc Now", Date.add(today, 1), status: :pending)
+        release("Sample Show B", today, status: :downloading),
+        release("Sample Show C", Date.add(today, 1), status: :pending)
       ]
 
       marquee = Logic.coming_up_marquee(releases, today)
@@ -238,7 +238,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "release with no logo_url → item logo_url is nil (component falls back to typography)" do
       today = ~D[2026-04-27]
-      releases = [release("Sample Show Sixteen", today, logo_url: nil)]
+      releases = [release("Sample Show A", today, logo_url: nil)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
@@ -249,7 +249,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "season premiere (episode 1) → rollup mentions 'season premiere'" do
       today = ~D[2026-04-27]
-      releases = [release("Doc Now", today, season: 4, episode: 1)]
+      releases = [release("Sample Show C", today, season: 4, episode: 1)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
@@ -258,7 +258,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "single release with no upcoming siblings → no rollup count" do
       today = ~D[2026-04-27]
-      releases = [release("Severance", today, season: 2, episode: 8)]
+      releases = [release("Sample Show B", today, season: 2, episode: 8)]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
@@ -270,31 +270,31 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
     test "secondary tile with multiple upcoming → sub mentions count" do
       today = ~D[2026-04-27]
 
-      hacks_a = release("Sample Show Sixteen", today)
+      show_a = release("Sample Show A", today)
 
       pitt_releases =
         for week <- 0..2 do
-          release("The Pitt", Date.add(today, 1 + week * 7),
+          release("Sample Show D", Date.add(today, 1 + week * 7),
             season: 1,
             episode: 3 + week
           )
         end
 
-      marquee = Logic.coming_up_marquee([hacks_a | pitt_releases], today)
+      marquee = Logic.coming_up_marquee([show_a | pitt_releases], today)
 
       [secondary] = marquee.secondaries
-      assert secondary.name == "The Pitt"
+      assert secondary.name == "Sample Show D"
       # 3 Pitt releases total; the secondary represents the soonest, so 2 more.
       assert secondary.sub =~ "2 more"
     end
 
     test "entity_id passes through for click target" do
       today = ~D[2026-04-27]
-      releases = [release("Sample Show Sixteen", today, entity_id: "library-uuid-hacks")]
+      releases = [release("Sample Show A", today, entity_id: "library-uuid-sample-a")]
 
       marquee = Logic.coming_up_marquee(releases, today)
 
-      assert marquee.hero.entity_id == "library-uuid-hacks"
+      assert marquee.hero.entity_id == "library-uuid-sample-a"
     end
   end
 

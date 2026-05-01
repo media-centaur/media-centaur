@@ -28,7 +28,7 @@ defmodule MediaCentarr.Library.ExtraProgress do
   end
 
   @impl true
-  def upsert_changeset(attrs) do
+  def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [:extra_id, :position_seconds, :duration_seconds])
     |> validate_required([:extra_id])

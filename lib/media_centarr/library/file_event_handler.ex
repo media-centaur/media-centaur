@@ -87,7 +87,7 @@ defmodule MediaCentarr.Library.FileEventHandler do
   def cleanup_removed_files([]), do: []
 
   def cleanup_removed_files(file_paths) do
-    watched_files = Library.list_files_by_paths!(file_paths)
+    watched_files = Library.list_files_by_paths(file_paths)
 
     if watched_files == [] do
       []
@@ -173,7 +173,7 @@ defmodule MediaCentarr.Library.FileEventHandler do
     Enum.each(seasons, fn season ->
       matched_episodes =
         Enum.filter(
-          Library.list_episodes_for_season!(season.id, load: [:images, :watch_progress]),
+          Library.list_episodes_for_season(season.id, load: [:images, :watch_progress]),
           &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
         )
 
@@ -211,8 +211,8 @@ defmodule MediaCentarr.Library.FileEventHandler do
 
   defp cleanup_empty_seasons(seasons) do
     Enum.each(seasons, fn season ->
-      if Library.list_episodes_for_season!(season.id) == [] do
-        bulk_destroy(Library.list_extras_for_season!(season.id), Library.Extra)
+      if Library.list_episodes_for_season(season.id) == [] do
+        bulk_destroy(Library.list_extras_for_season(season.id), Library.Extra)
         Library.destroy_season!(season)
       end
     end)

@@ -42,7 +42,7 @@ defmodule MediaCentarr.Library.ChangeLog do
   Deletes entries beyond the most recent #{@max_entries}.
   """
   def prune do
-    all_entries = Library.list_recent_changes!(@max_entries + 50, nil)
+    all_entries = Library.list_recent_changes(@max_entries + 50, nil)
     overflow = Enum.drop(all_entries, @max_entries)
 
     if overflow != [] do

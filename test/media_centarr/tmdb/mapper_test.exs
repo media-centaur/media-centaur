@@ -6,15 +6,15 @@ defmodule MediaCentarr.TMDB.MapperTest do
   describe "movie_attrs/3" do
     test "maps full TMDB movie response to domain attributes" do
       data = %{
-        "title" => "The Shadowy Sentinel",
-        "overview" => "Batman raises the stakes.",
+        "title" => "Sample Movie",
+        "overview" => "A sample movie overview.",
         "release_date" => "2008-07-18",
         "genres" => [%{"name" => "Action"}, %{"name" => "Drama"}],
         "runtime" => 152,
         "vote_average" => 9.0,
         "credits" => %{
           "crew" => [
-            %{"department" => "Directing", "job" => "Director", "name" => "Christopher Nolan"}
+            %{"department" => "Directing", "job" => "Director", "name" => "Sample Director"}
           ]
         },
         "release_dates" => %{
@@ -27,29 +27,29 @@ defmodule MediaCentarr.TMDB.MapperTest do
         }
       }
 
-      result = Mapper.movie_attrs("155", data, "/media/dark_knight.mkv")
+      result = Mapper.movie_attrs("155", data, "/media/sample_movie.mkv")
 
       assert result.type == :movie
-      assert result.name == "The Shadowy Sentinel"
-      assert result.description == "Batman raises the stakes."
+      assert result.name == "Sample Movie"
+      assert result.description == "A sample movie overview."
       assert result.date_published == "2008-07-18"
       assert result.genres == ["Action", "Drama"]
       assert result.url == "https://www.themoviedb.org/movie/155"
       assert result.duration == "PT2H32M"
-      assert result.director == "Christopher Nolan"
+      assert result.director == "Sample Director"
       assert result.content_rating == "PG-13"
       assert result.aggregate_rating_value == 9.0
-      assert result.content_url == "/media/dark_knight.mkv"
+      assert result.content_url == "/media/sample_movie.mkv"
     end
 
     test "extracts magazine fields: tagline, original_language, studio, country_code, vote_count" do
       data = %{
-        "title" => "Nosferatu",
-        "tagline" => "A Symphony of Horror",
+        "title" => "Sample Movie B",
+        "tagline" => "A Sample Tagline",
         "original_language" => "de",
         "vote_count" => 2341,
         "production_companies" => [
-          %{"name" => "Prana Film"},
+          %{"name" => "Sample Studio"},
           %{"name" => "Other Studio"}
         ],
         "production_countries" => [
@@ -59,9 +59,9 @@ defmodule MediaCentarr.TMDB.MapperTest do
 
       result = Mapper.movie_attrs("653", data, nil)
 
-      assert result.tagline == "A Symphony of Horror"
+      assert result.tagline == "A Sample Tagline"
       assert result.original_language == "de"
-      assert result.studio == "Prana Film"
+      assert result.studio == "Sample Studio"
       assert result.country_code == "DE"
       assert result.vote_count == 2341
     end
@@ -341,15 +341,15 @@ defmodule MediaCentarr.TMDB.MapperTest do
   describe "movie_series_attrs/2" do
     test "maps collection data" do
       data = %{
-        "name" => "The Shadowy Sentinel Trilogy",
-        "overview" => "Three Batman films."
+        "name" => "Sample Trilogy",
+        "overview" => "Three sample films."
       }
 
       result = Mapper.movie_series_attrs("263", data)
 
       assert result.type == :movie_series
-      assert result.name == "The Shadowy Sentinel Trilogy"
-      assert result.description == "Three Batman films."
+      assert result.name == "Sample Trilogy"
+      assert result.description == "Three sample films."
       assert result.url == "https://www.themoviedb.org/collection/263"
     end
   end
@@ -357,27 +357,27 @@ defmodule MediaCentarr.TMDB.MapperTest do
   describe "child_movie_attrs/5" do
     test "includes entity_id, tmdb_id as string, and position" do
       data = %{
-        "title" => "Batman Begins",
+        "title" => "Sample Origin",
         "overview" => "Origin story.",
         "release_date" => "2005-06-15",
         "runtime" => 140,
         "vote_average" => 7.7,
         "credits" => %{
           "crew" => [
-            %{"department" => "Directing", "job" => "Director", "name" => "Christopher Nolan"}
+            %{"department" => "Directing", "job" => "Director", "name" => "Sample Director"}
           ]
         },
         "release_dates" => nil
       }
 
-      result = Mapper.child_movie_attrs("entity-uuid", 272, data, "/media/begins.mkv", 0)
+      result = Mapper.child_movie_attrs("entity-uuid", 272, data, "/media/sample_origin.mkv", 0)
 
       assert result.entity_id == "entity-uuid"
       assert result.tmdb_id == "272"
-      assert result.name == "Batman Begins"
+      assert result.name == "Sample Origin"
       assert result.position == 0
-      assert result.content_url == "/media/begins.mkv"
-      assert result.director == "Christopher Nolan"
+      assert result.content_url == "/media/sample_origin.mkv"
+      assert result.director == "Sample Director"
     end
   end
 

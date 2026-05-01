@@ -201,7 +201,7 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp find_existing_entity(%{source: "tmdb_collection", external_id: value}) do
     case Library.find_by_tmdb_collection_for_movie_series(value) do
-      {:ok, %{movie_series_id: id}} when not is_nil(id) ->
+      %{movie_series_id: id} when not is_nil(id) ->
         {:ok, Library.get_movie_series!(id)}
 
       _ ->
@@ -211,12 +211,12 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp find_existing_entity(%{source: _source, external_id: value}) do
     case Library.find_by_tmdb_id_for_tv_series(value) do
-      {:ok, %{tv_series_id: id}} when not is_nil(id) ->
+      %{tv_series_id: id} when not is_nil(id) ->
         {:ok, Library.get_tv_series!(id)}
 
       _ ->
         case Library.find_by_tmdb_id_for_movie(value) do
-          {:ok, %{movie_id: id}} when not is_nil(id) ->
+          %{movie_id: id} when not is_nil(id) ->
             {:ok, Library.get_movie!(id)}
 
           _ ->

@@ -181,7 +181,7 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   # for episodes.
 
   defp find_tmdb_context(entity_id, :movie) do
-    case Library.get_movie(entity_id) do
+    case Library.fetch_movie(entity_id) do
       {:ok, %{tmdb_id: tmdb_id}} when is_binary(tmdb_id) and tmdb_id != "" ->
         {:ok, tmdb_id}
 
@@ -199,7 +199,7 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
     do: find_tmdb_from_external_ids(entity_id, :video_object)
 
   defp find_tmdb_context(episode_id, :episode) do
-    with {:ok, episode} <- Library.get_episode(episode_id),
+    with {:ok, episode} <- Library.fetch_episode(episode_id),
          %Season{} = season <- Repo.get(Season, episode.season_id),
          {:ok, tmdb_id} <- find_tmdb_from_external_ids(season.tv_series_id, :tv_series) do
       {:ok, {tmdb_id, season.season_number, episode.episode_number, season.tv_series_id}}
@@ -233,7 +233,7 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   # -- watch_dir lookup ----------------------------------------------------
 
   defp find_watch_dir(episode_id, :episode) do
-    with {:ok, %Episode{} = episode} <- Library.get_episode(episode_id),
+    with {:ok, %Episode{} = episode} <- Library.fetch_episode(episode_id),
          %Season{} = season <- Repo.get(Season, episode.season_id) do
       find_watch_dir(season.tv_series_id, :tv_series)
     else

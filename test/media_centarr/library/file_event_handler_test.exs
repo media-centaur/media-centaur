@@ -73,15 +73,15 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
       assert entity_ids == [tv_series.id]
 
       # Episode 1 is gone
-      assert {:error, _} = Library.get_episode(ep1.id)
+      assert {:error, _} = Library.fetch_episode(ep1.id)
 
       # Episode 2, season, and TV series remain
       remaining_episodes = Library.list_episodes()
       assert length(remaining_episodes) == 1
       assert hd(remaining_episodes).episode_number == 2
 
-      assert {:ok, _} = Library.get_season(season.id)
-      assert {:ok, _} = Library.get_tv_series(tv_series.id)
+      assert {:ok, _} = Library.fetch_season(season.id)
+      assert {:ok, _} = Library.fetch_tv_series(tv_series.id)
 
       # Only 1 WatchedFile remains
       assert length(Library.list_watched_files()) == 1
@@ -146,9 +146,9 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
         FileEventHandler.cleanup_removed_files(["/media/tv/pluribus/s01e01.mkv"])
 
       assert entity_ids == [tv_series.id]
-      assert {:error, _} = Library.get_episode(ep1.id)
-      assert {:error, :not_found} = Library.get_watch_progress_by_fk(:episode_id, ep1.id)
-      assert {:ok, _} = Library.get_tv_series(tv_series.id)
+      assert {:error, _} = Library.fetch_episode(ep1.id)
+      assert {:error, :not_found} = Library.fetch_watch_progress_by_fk(:episode_id, ep1.id)
+      assert {:ok, _} = Library.fetch_tv_series(tv_series.id)
     end
 
     test "deletes empty season when all its episodes are removed" do
@@ -204,9 +204,9 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
       FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       # Season 1 should be gone (empty), season 2 should remain
-      assert {:error, _} = Library.get_season(season.id)
-      assert {:ok, _} = Library.get_season(season2.id)
-      assert {:ok, _} = Library.get_tv_series(tv_series.id)
+      assert {:error, _} = Library.fetch_season(season.id)
+      assert {:ok, _} = Library.fetch_season(season2.id)
+      assert {:ok, _} = Library.fetch_tv_series(tv_series.id)
     end
 
     test "deletes entire TV series when all files removed" do
@@ -296,9 +296,9 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
       FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie_one.mkv"])
 
       # Movie 1 is gone, series and other movies remain
-      assert {:error, _} = Library.get_movie(movie1.id)
+      assert {:error, _} = Library.fetch_movie(movie1.id)
       assert length(Library.list_movies()) == 2
-      assert {:ok, _} = Library.get_movie_series(movie_series.id)
+      assert {:ok, _} = Library.fetch_movie_series(movie_series.id)
     end
 
     test "deletes extra when its file is removed" do
@@ -333,8 +333,8 @@ defmodule MediaCentarr.Library.FileEventHandlerTest do
       FileEventHandler.cleanup_removed_files(["/media/movies/Extras/bts.mkv"])
 
       # Extra is gone, movie entity remains
-      assert {:error, _} = Library.get_extra(extra.id)
-      assert {:ok, _} = Library.get_movie(movie.id)
+      assert {:error, _} = Library.fetch_extra(extra.id)
+      assert {:ok, _} = Library.fetch_movie(movie.id)
       assert length(Library.list_watched_files()) == 1
     end
 
