@@ -128,15 +128,11 @@ defmodule MediaCentarr.Library.FileEventHandler do
     file_path_set = MapSet.new(file_paths)
 
     watched_files
-    |> Enum.group_by(&owner_id/1)
+    |> Enum.group_by(&WatchedFile.owner_id/1)
     |> Enum.flat_map(fn {entity_id, files} ->
       cleanup_entity_files(entity_id, files, file_path_set)
     end)
     |> Enum.uniq()
-  end
-
-  defp owner_id(file) do
-    file.tv_series_id || file.movie_series_id || file.movie_id || file.video_object_id
   end
 
   defp cleanup_entity_files(entity_id, watched_files, removed_paths) do

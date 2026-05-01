@@ -15,6 +15,8 @@ defmodule MediaCentarr.Watcher.SupervisorReconcileTest do
     :ok
   end
 
+  alias MediaCentarr.Watcher.ConfigListener
+
   test "name-only change keeps the same watcher pid (no stop/start)" do
     tmp = Path.join(System.tmp_dir!(), "watcher-name-only-test-#{System.unique_integer([:positive])}")
 
@@ -26,7 +28,7 @@ defmodule MediaCentarr.Watcher.SupervisorReconcileTest do
         %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => nil}
       ])
 
-    Process.sleep(150)
+    ConfigListener.__sync_for_test__()
     [{pid1, _}] = Registry.lookup(MediaCentarr.Watcher.Registry, tmp)
 
     :ok =
@@ -34,7 +36,7 @@ defmodule MediaCentarr.Watcher.SupervisorReconcileTest do
         %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => "Movies"}
       ])
 
-    Process.sleep(150)
+    ConfigListener.__sync_for_test__()
     [{pid2, _}] = Registry.lookup(MediaCentarr.Watcher.Registry, tmp)
 
     assert pid1 == pid2, "name-only change should not restart the watcher"
@@ -51,14 +53,13 @@ defmodule MediaCentarr.Watcher.SupervisorReconcileTest do
         %{"id" => "t1", "dir" => tmp, "images_dir" => nil, "name" => nil}
       ])
 
-    # ConfigListener processes the broadcast asynchronously.
-    Process.sleep(100)
+    ConfigListener.__sync_for_test__()
 
     dirs = Enum.map(WatcherSup.statuses(), & &1.dir)
     assert tmp in dirs
 
     :ok = Config.put_watch_dirs([])
-    Process.sleep(100)
+    ConfigListener.__sync_for_test__()
 
     refute tmp in Enum.map(WatcherSup.statuses(), & &1.dir)
   end

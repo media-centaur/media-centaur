@@ -61,4 +61,37 @@ defmodule MediaCentarr.Watcher.ReconcilerTest do
     assert result.to_stop == ["/mnt/c"]
     assert [%{old_dir: "/mnt/b", new: %{"dir" => "/mnt/b2"}}] = result.to_replace
   end
+
+  describe "diff_image_monitors/2" do
+    test "no change returns empty actions" do
+      pairs = [{"/mnt/a", "/mnt/ssd/images-a"}]
+      assert %{to_start: [], to_stop: []} = Reconciler.diff_image_monitors(pairs, pairs)
+    end
+
+    test "new pair → to_start" do
+      old = []
+      new = [{"/mnt/a", "/mnt/ssd/images-a"}]
+
+      assert %{to_start: [{"/mnt/a", "/mnt/ssd/images-a"}], to_stop: []} =
+               Reconciler.diff_image_monitors(old, new)
+    end
+
+    test "removed pair → to_stop carries image_dir" do
+      old = [{"/mnt/a", "/mnt/ssd/images-a"}]
+      new = []
+
+      assert %{to_start: [], to_stop: ["/mnt/ssd/images-a"]} =
+               Reconciler.diff_image_monitors(old, new)
+    end
+
+    test "image_dir changed for the same watch_dir → stop old + start new" do
+      old = [{"/mnt/a", "/mnt/ssd/images-a"}]
+      new = [{"/mnt/a", "/mnt/nvme/images-a"}]
+
+      assert %{
+               to_start: [{"/mnt/a", "/mnt/nvme/images-a"}],
+               to_stop: ["/mnt/ssd/images-a"]
+             } = Reconciler.diff_image_monitors(old, new)
+    end
+  end
 end

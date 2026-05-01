@@ -2,19 +2,45 @@ defmodule MediaCentarr.Watcher do
   use Boundary, deps: [MediaCentarr.Library], exports: [Supervisor, FilePresence]
 
   @moduledoc """
-  Watches a single directory for new video files via inotify.
+  Per-directory inotify GenServer plus the watcher subsystem's module-level
+  public functions.
 
-  Each instance is started by `MediaCentarr.Watcher.Supervisor` and registers
-  itself in `MediaCentarr.Watcher.Registry` with its directory path as key.
+  This module wears two hats:
+
+  - **GenServer:** one process per watched directory, registered in
+    `MediaCentarr.Watcher.Registry`. Started by `MediaCentarr.Watcher.Supervisor`.
+    Per-pid functions (`status/1`, `dir/1`, `scan/1`) are mostly internal —
+    callers go through the supervisor's aggregate APIs (`statuses/0`, `scan/0`).
+
+  - **Module-level facade:** stateless entry points that don't need a pid:
+
+      MediaCentarr.Watcher.validate_dir(entry, existing)
+      MediaCentarr.Watcher.record_seen(attrs)
+
+    Aggregate operations (subscribe, statuses, scan all dirs, pause_during,
+    start/stop, reconcile, image-dir monitors, rescan_unlinked) live on
+    `MediaCentarr.Watcher.Supervisor` — the supervisor module is the
+    operational facade for "do this across every running watcher".
 
   ## Event-driven pipeline integration
 
   Instead of creating database records, the watcher broadcasts PubSub events
-  to `MediaCentarr.Topics.pipeline_input()`. The Pipeline Producer subscribes to this topic and
-  converts events into Payloads for Broadway processing.
+  to `MediaCentarr.Topics.pipeline_input()`. The Pipeline Producer subscribes
+  to this topic and converts events into Payloads for Broadway processing.
 
   - `detect_file/2` broadcasts `{:file_detected, %{path, watch_dir}}`
-  - `scan_directory/1` reads existing WatchedFile file_paths to skip already-processed files
+  - scans read existing WatchedFile file_paths to skip already-processed files
+
+  ## Internal helpers
+
+  Pure modules pulled out of this GenServer to keep the file focused on
+  inotify-event routing and lifecycle management:
+
+  - `Watcher.DeletionBuffer` — debouncing buffer for deleted-path events
+  - `Watcher.Walk` — recursive directory walk with FS adapter
+  - `Watcher.MountStatus` — health-check decision logic
+  - `Watcher.ExcludeDirs` — precompiled prefix-match filter
+  - `Watcher.VideoFile` — canonical video extension list and predicate
 
   ## Mount Resilience
 
@@ -33,16 +59,16 @@ defmodule MediaCentarr.Watcher do
   use GenServer
   require MediaCentarr.Log, as: Log
 
-  import Ecto.Query
-
+  alias MediaCentarr.Library
   alias MediaCentarr.Library.WatchedFile
-  alias MediaCentarr.Repo
   alias MediaCentarr.Topics
+  alias MediaCentarr.Watcher.DeletionBuffer
   alias MediaCentarr.Watcher.ExcludeDirs
   alias MediaCentarr.Watcher.FilePresence
   alias MediaCentarr.Watcher.MountStatus
+  alias MediaCentarr.Watcher.VideoFile
+  alias MediaCentarr.Watcher.Walk
 
-  @video_extensions ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
   @health_check_interval 30_000
   @size_stability_interval 5_000
   @size_stability_checks 2
@@ -55,7 +81,7 @@ defmodule MediaCentarr.Watcher do
     state: :initializing,
     was_unavailable: false,
     pending_files: %{},
-    deletion_buffer: %{},
+    deletion_buffer: %DeletionBuffer{},
     skip_dirs: [],
     exclude_dirs: %ExcludeDirs.Prepared{entries: []}
   ]
@@ -87,6 +113,31 @@ defmodule MediaCentarr.Watcher do
       existing_entries,
       MediaCentarr.Watcher.DirValidator.real_fs()
     )
+  end
+
+  @doc """
+  Records a file as seen by the watcher AND linked to a library entity, in
+  a single transaction. Used by the showcase seeder and any future caller
+  that needs both rows written atomically — historically these were two
+  unrelated calls and could leave a `library_watched_files` row without a
+  corresponding `watcher_files` row, exactly the state `rescan_unlinked`
+  exists to recover from.
+
+  `attrs` must include `file_path`, `watch_dir`, and one of the entity FK
+  columns (`movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id`).
+  """
+  @spec record_seen(map()) :: {:ok, %WatchedFile{}} | {:error, term()}
+  def record_seen(%{file_path: file_path, watch_dir: watch_dir} = attrs) do
+    MediaCentarr.Repo.transaction(fn ->
+      case Library.link_file(attrs) do
+        {:ok, file} ->
+          FilePresence.record_file(file_path, watch_dir)
+          file
+
+        {:error, reason} ->
+          MediaCentarr.Repo.rollback(reason)
+      end
+    end)
   end
 
   @impl true
@@ -162,21 +213,20 @@ defmodule MediaCentarr.Watcher do
 
   def handle_info({:file_event, _pid, {path, events}}, state) do
     cond do
-      Enum.member?(events, :unmounted) ->
+      :unmounted in events ->
         Log.warning(:watcher, "directory unmounted — #{state.dir}")
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
 
-      (:created in events or :modified in events) and video_file?(path) and
-        not ExcludeDirs.excluded?(path, state.exclude_dirs) and
-          not in_skip_dir?(path, state.skip_dirs) ->
+      not interesting?(path, state) ->
+        {:noreply, state}
+
+      :created in events or :modified in events ->
         Log.info(:watcher, "detected file event — #{Path.basename(path)}, checking size")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
-      :deleted in events and video_file?(path) and
-        not ExcludeDirs.excluded?(path, state.exclude_dirs) and
-          not in_skip_dir?(path, state.skip_dirs) ->
+      :deleted in events ->
         {:noreply, buffer_deletion(state, path)}
 
       true ->
@@ -261,27 +311,22 @@ defmodule MediaCentarr.Watcher do
   def handle_info({:config_updated, _key, _value}, state), do: {:noreply, state}
 
   def handle_info(:flush_deletions, state) do
-    if map_size(state.deletion_buffer) > 0 do
-      paths = Map.keys(state.deletion_buffer)
-      Log.info(:watcher, "flushed #{length(paths)} deletion events")
-
-      FilePresence.mark_files_absent(paths)
-
-      Phoenix.PubSub.broadcast(
-        MediaCentarr.PubSub,
-        MediaCentarr.Topics.library_file_events(),
-        {:files_removed, paths}
-      )
-    end
-
-    {:noreply, %{state | deletion_buffer: %{}, deletion_timer: nil}}
+    flush_deletions(state, "flushed #{deletion_count(state)} deletion events")
+    {:noreply, %{state | deletion_buffer: DeletionBuffer.new(), deletion_timer: nil}}
   end
 
   @impl true
   def terminate(_reason, state) do
-    if map_size(state.deletion_buffer) > 0 do
-      paths = Map.keys(state.deletion_buffer)
-      Log.info(:watcher, "flushed #{length(paths)} buffered deletions — shutdown")
+    flush_deletions(state, "flushed #{deletion_count(state)} buffered deletions — shutdown")
+    :ok
+  end
+
+  defp deletion_count(state), do: state.deletion_buffer |> DeletionBuffer.paths() |> length()
+
+  defp flush_deletions(state, log_message) do
+    if not DeletionBuffer.empty?(state.deletion_buffer) do
+      paths = DeletionBuffer.paths(state.deletion_buffer)
+      Log.info(:watcher, log_message)
 
       FilePresence.mark_files_absent(paths)
 
@@ -291,12 +336,16 @@ defmodule MediaCentarr.Watcher do
         {:files_removed, paths}
       )
     end
+  end
 
-    :ok
+  defp interesting?(path, state) do
+    VideoFile.video?(path) and
+      not ExcludeDirs.excluded?(path, state.exclude_dirs) and
+      not in_skip_dir?(path, state.skip_dirs)
   end
 
   defp buffer_deletion(state, path) do
-    buffer = Map.put(state.deletion_buffer, path, state.dir)
+    buffer = DeletionBuffer.add(state.deletion_buffer, path, state.dir)
 
     # Cancel existing timer and start a new one (sliding window debounce)
     if state.deletion_timer, do: Process.cancel_timer(state.deletion_timer)
@@ -319,8 +368,8 @@ defmodule MediaCentarr.Watcher do
 
     video_files =
       dir
-      |> walk_files(exclude_dirs, skip_dirs)
-      |> Enum.filter(&video_file?/1)
+      |> Walk.walk(exclude_dirs, skip_dirs)
+      |> Enum.filter(&VideoFile.video?/1)
 
     new_files = Enum.reject(video_files, fn path -> MapSet.member?(known_paths, path) end)
 
@@ -337,7 +386,7 @@ defmodule MediaCentarr.Watcher do
       if restored_paths == [] do
         []
       else
-        unique_entity_ids(files_by_paths(restored_paths))
+        unique_entity_ids(Library.list_files_by_paths(restored_paths))
       end
 
     broadcast_entities_changed(restored_entity_ids)
@@ -345,7 +394,7 @@ defmodule MediaCentarr.Watcher do
     # On recovery from :unavailable, re-push ALL entities for this watch dir
     # so the channel re-serializes with now-available image paths
     if Keyword.get(opts, :recovery, false) do
-      all_files = files_by_watch_dir(dir)
+      all_files = Library.list_files_by_watch_dir(dir)
       all_entity_ids = unique_entity_ids(all_files)
       additional_ids = all_entity_ids -- restored_entity_ids
 
@@ -392,11 +441,6 @@ defmodule MediaCentarr.Watcher do
     )
 
     :ok
-  end
-
-  defp video_file?(path) do
-    ext = path |> Path.extname() |> String.downcase()
-    ext in @video_extensions
   end
 
   defp schedule_health_check do
@@ -449,25 +493,6 @@ defmodule MediaCentarr.Watcher do
     Enum.uniq(configured ++ auto_excludes)
   end
 
-  defp walk_files(dir, exclude_dirs, skip_dirs) do
-    case File.ls(dir) do
-      {:ok, entries} ->
-        Enum.flat_map(entries, fn entry ->
-          path = Path.join(dir, entry)
-
-          cond do
-            ExcludeDirs.excluded?(path, exclude_dirs) -> []
-            File.dir?(path) and String.downcase(entry) in skip_dirs -> []
-            File.dir?(path) -> walk_files(path, exclude_dirs, skip_dirs)
-            true -> [path]
-          end
-        end)
-
-      {:error, _} ->
-        []
-    end
-  end
-
   defp broadcast_state(dir, internal_state) do
     state = if internal_state == :watching, do: :available, else: :unavailable
 
@@ -478,21 +503,9 @@ defmodule MediaCentarr.Watcher do
     )
   end
 
-  # ---------------------------------------------------------------------------
-  # Library table reads (direct Repo queries, no context coupling)
-  # ---------------------------------------------------------------------------
-
-  defp files_by_paths(paths) do
-    Repo.all(from(w in WatchedFile, where: w.file_path in ^paths))
-  end
-
-  defp files_by_watch_dir(watch_dir) do
-    Repo.all(from(w in WatchedFile, where: w.watch_dir == ^watch_dir))
-  end
-
   defp unique_entity_ids(records) do
     records
-    |> Enum.map(&(&1.tv_series_id || &1.movie_series_id || &1.movie_id || &1.video_object_id))
+    |> Enum.map(&WatchedFile.owner_id/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
   end

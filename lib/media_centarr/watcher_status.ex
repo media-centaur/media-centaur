@@ -2,17 +2,32 @@ defmodule MediaCentarr.WatcherStatus do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
-  Read-only snapshot of per-watch-dir state.
+  Boundary-neutral pass-through for `Watcher.Supervisor.statuses/0`.
 
-  Neutral top-level helper so modules outside the Watcher boundary
-  (e.g. `MediaCentarr.Library.Availability`) can consult current state
-  without creating a Boundary cycle — Library cannot directly depend on
-  Watcher because Watcher already depends on Library.
+  Library.Availability needs to consult per-watch-dir state on init, but
+  Library cannot directly `dep:` on Watcher because Watcher already
+  `dep:`s on Library (for `WatchedFile` reads in the recovery rebroadcast
+  path). Adding the dep would create a Boundary cycle.
 
-  Precedent: `MediaCentarr.Topics` uses the same `check: [in: false, out: false]`
-  escape hatch for cross-context PubSub topic strings.
+  This module is the neutral middle: it sits at the top level with
+  `check: [in: false, out: false]` so any context can call it. Same
+  escape-hatch pattern as `MediaCentarr.Topics` for PubSub topic strings.
 
-  When Watcher's internal representation of status changes, update here.
+  ## Future cleanup
+
+  If the recovery rebroadcast in `MediaCentarr.Watcher` ever moves to
+  Library (e.g. by having Library subscribe to a watcher event and load
+  its own data), Watcher would no longer need Library as a dep, the
+  cycle would dissolve, and this module could be deleted. Until then,
+  it is the only file Library can read live watcher state from.
+
+  ## When changing Watcher's status vocabulary
+
+  `Watcher.Supervisor.statuses/0` returns internal vocabulary
+  (`:watching | :initializing | :unavailable`); broadcasts use
+  (`:available | :unavailable`). `Library.Availability.init/1`
+  normalises the snapshot to broadcast vocabulary so downstream code
+  sees one set of values. Keep that in mind when adding new states here.
   """
 
   @doc """

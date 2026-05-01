@@ -38,7 +38,7 @@ defmodule MediaCentarr.Watcher.DirValidator do
   Use `real_fs/0` in production code.
   """
 
-  @video_exts ~w(.mkv .mp4 .avi .mov .wmv .m4v .ts .m2ts)
+  alias MediaCentarr.Watcher.VideoFile
 
   @type rule :: atom()
   @type error :: {atom(), rule()} | {atom(), rule(), any()}
@@ -215,11 +215,7 @@ defmodule MediaCentarr.Watcher.DirValidator do
   defp build_preview(dir, fs) do
     case fs.ls.(dir) do
       {:ok, entries} ->
-        video_count =
-          Enum.count(entries, fn name ->
-            ext = name |> Path.extname() |> String.downcase()
-            ext in @video_exts
-          end)
+        video_count = Enum.count(entries, &VideoFile.video?/1)
 
         subdir_count =
           Enum.count(entries, fn name -> fs.dir?.(Path.join(dir, name)) end)

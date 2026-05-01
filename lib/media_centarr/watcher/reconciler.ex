@@ -15,6 +15,32 @@ defmodule MediaCentarr.Watcher.Reconciler do
           to_replace: [%{old_dir: String.t(), new: entry()}]
         }
 
+  @doc """
+  Computes start/stop actions for image-directory monitors.
+
+  Each pair is `{watch_dir, image_dir}` — `image_dir` is what the
+  DirMonitor uses as its registry key, so `to_stop` carries the
+  image_dir directly. A change to either field for a given watch_dir
+  emits one stop and one start (image_dirs are the natural identity
+  here — there's no stable "id" the way there is for watch_dirs).
+  """
+  @spec diff_image_monitors([{String.t(), String.t()}], [{String.t(), String.t()}]) :: %{
+          to_start: [{String.t(), String.t()}],
+          to_stop: [String.t()]
+        }
+  def diff_image_monitors(old_pairs, new_pairs) do
+    old_set = MapSet.new(old_pairs)
+    new_set = MapSet.new(new_pairs)
+
+    %{
+      to_start: Enum.to_list(MapSet.difference(new_set, old_set)),
+      to_stop:
+        old_set
+        |> MapSet.difference(new_set)
+        |> Enum.map(fn {_watch_dir, image_dir} -> image_dir end)
+    }
+  end
+
   @spec diff([entry()], [entry()]) :: diff()
   def diff(old_entries, new_entries) do
     old_by_id = Map.new(old_entries, &{&1["id"], &1})

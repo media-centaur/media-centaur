@@ -63,7 +63,6 @@ defmodule MediaCentarr.Showcase do
   alias MediaCentarr.Review
   alias MediaCentarr.Showcase.Catalog
   alias MediaCentarr.TMDB
-  alias MediaCentarr.Watcher.FilePresence
   alias MediaCentarr.WatchHistory
 
   require MediaCentarr.Log, as: Log
@@ -1061,16 +1060,13 @@ defmodule MediaCentarr.Showcase do
   # the showcase can't ship real video files. If the user drops a real
   # file at that path later, mpv plays it; if not, the stub at least
   # makes the detail screenshots look like a populated library.
-  # Both helpers are idempotent (Library.link_file and
-  # FilePresence.record_file use get_by + upsert; File.touch! is a no-op
-  # on existing files).
+  # `Watcher.record_seen/1` is idempotent (atomic upsert under the hood);
+  # `File.touch!` is a no-op on existing files.
   defp seed_presence!(entity_id, fk_column, file_path) do
     watch_dir = showcase_watch_dir()
-
     attrs = Map.put(%{file_path: file_path, watch_dir: watch_dir}, fk_column, entity_id)
 
-    Library.link_file!(attrs)
-    FilePresence.record_file(file_path, watch_dir)
+    {:ok, _} = MediaCentarr.Watcher.record_seen(attrs)
 
     File.mkdir_p!(Path.dirname(file_path))
     File.touch!(file_path)

@@ -237,6 +237,20 @@ defmodule MediaCentarr.Library do
     Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths))
   end
 
+  def list_files_by_watch_dir(watch_dir) do
+    Repo.all(from(w in WatchedFile, where: w.watch_dir == ^watch_dir))
+  end
+
+  @doc """
+  Returns an Ecto subquery selecting `file_path` from every linked
+  WatchedFile. Exposed so cross-context queries (Watcher's
+  `rescan_unlinked`) can compose against linked-file state without
+  reaching into the WatchedFile schema directly.
+  """
+  def linked_file_paths_subquery do
+    from(w in WatchedFile, select: w.file_path)
+  end
+
   @doc """
   Lists watched files where any type-specific FK matches the given ID.
   Used when you have an entity UUID but don't know which type table it lives in.

@@ -48,4 +48,16 @@ defmodule MediaCentarr.Library.WatchedFile do
       :video_object_id
     ])
   end
+
+  @doc """
+  Returns the entity id this file is linked to (whichever FK is set), or nil.
+
+  TV series and movie series take precedence over the leaf types — a single
+  WatchedFile should only have one FK set, but the precedence is documented
+  here so the contract is explicit.
+  """
+  @spec owner_id(%__MODULE__{}) :: String.t() | nil
+  def owner_id(%__MODULE__{} = file) do
+    file.tv_series_id || file.movie_series_id || file.movie_id || file.video_object_id
+  end
 end
