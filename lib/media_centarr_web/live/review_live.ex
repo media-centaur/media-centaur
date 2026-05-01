@@ -13,25 +13,17 @@ defmodule MediaCentarrWeb.ReviewLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket =
-      if connected?(socket) do
-        Review.subscribe()
-        MediaCentarr.Capabilities.subscribe()
-        groups = Review.fetch_pending_groups()
-
-        socket
-        |> assign(groups: groups)
-        |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-        |> assign(tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())
-      else
-        socket
-        |> assign(groups: [])
-        |> assign(groups_by_key: %{})
-        |> assign(tmdb_ready: false)
-      end
+    if connected?(socket) do
+      Review.subscribe()
+      MediaCentarr.Capabilities.subscribe()
+    end
 
     {:ok,
      socket
+     |> assign(loaded?: false)
+     |> assign(groups: [])
+     |> assign(groups_by_key: %{})
+     |> assign(tmdb_ready: false)
      |> assign(processing: MapSet.new())
      |> assign(selected_key: nil)
      |> assign(search_open: nil)
@@ -43,6 +35,30 @@ defmodule MediaCentarrWeb.ReviewLive do
      |> assign(reload_timer: nil)
      |> apply_group_stats()
      |> ensure_selection()}
+  end
+
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    {:noreply, ensure_loaded(socket)}
+  end
+
+  # First-render data load — gated by `connected?` so the static HTTP render
+  # ships empty defaults and the WebSocket render fills them in once. See
+  # CLAUDE.md → LiveView Callbacks (Iron Law).
+  defp ensure_loaded(socket) do
+    if connected?(socket) and not socket.assigns.loaded? do
+      groups = Review.fetch_pending_groups()
+
+      socket
+      |> assign(groups: groups)
+      |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+      |> assign(tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())
+      |> assign(loaded?: true)
+      |> apply_group_stats()
+      |> ensure_selection()
+    else
+      socket
+    end
   end
 
   @impl true
