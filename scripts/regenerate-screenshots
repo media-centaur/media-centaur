@@ -15,6 +15,17 @@
 # Output (as documented in scripts/screenshot-tour):
 #   docs-site/assets/screenshots/<name>.png       — web-resolution (1400×900)
 #   docs-site/assets/screenshots/4k/<name>.png    — supersampled ~3840px wide
+#
+# Flags:
+#   --push    After the tour succeeds, commit + push the screenshot diffs
+#             in both repos (assets repo for 4K shots, main repo for
+#             web-resolution shots). Refuses to run if either working
+#             copy contains unrelated changes — stash or commit those
+#             first to avoid folding them into a marketing-screenshots
+#             commit.
+#
+# Any other args pass through to scripts/screenshot-tour (and on to
+# Playwright), so `--project=…` and grep filters still work.
 
 set -euo pipefail
 
@@ -25,6 +36,16 @@ SHOWCASE_PORT=4003
 SHOWCASE_DB="priv/showcase/media-centarr.db"
 LOG_FILE="$(mktemp -t showcase-server.XXXXXX.log)"
 SERVER_PID=""
+
+# Peel --push off the arg list before forwarding to screenshot-tour.
+PUSH_AFTER=0
+TOUR_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --push) PUSH_AFTER=1 ;;
+    *) TOUR_ARGS+=("$arg") ;;
+  esac
+done
 
 cleanup() {
   if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
@@ -97,7 +118,7 @@ fi
 # Hand off to the existing tour script — it manages BASE_URL, hyprland
 # windowrules, fixture-id lookups from the showcase DB, and Playwright.
 exec_status=0
-scripts/screenshot-tour "$@" || exec_status=$?
+scripts/screenshot-tour "${TOUR_ARGS[@]}" || exec_status=$?
 
 if [ "$exec_status" -ne 0 ]; then
   echo "screenshot-tour exited with status $exec_status" >&2
@@ -117,14 +138,88 @@ if [ -d "$ASSETS_REPO" ] && [ -d "$LOCAL_4K_DIR" ]; then
   mv "$LOCAL_4K_DIR"/*.png "$ASSETS_REPO/screenshots/" 2>/dev/null || true
   rmdir "$LOCAL_4K_DIR" 2>/dev/null || true
   echo "moved 4K screenshots into $ASSETS_REPO/screenshots/"
-  echo ""
-  echo "Next step: commit + push the assets repo:"
-  echo "  cd $ASSETS_REPO && jj desc -m 'docs: regenerate marketing screenshots' && jj new && jj bookmark set main -r @- && jj git push --bookmark main"
 elif [ -d "$LOCAL_4K_DIR" ]; then
   echo "warning: $ASSETS_REPO not present; 4K shots remain at $LOCAL_4K_DIR" >&2
   echo "         Clone media-centarr/media-centarr-assets as a sibling of this repo," >&2
   echo "         then re-run to publish 4K shots through jsDelivr." >&2
 fi
 
+# Commits + pushes the screenshot diff in $1 to its `main` bookmark. Refuses
+# to run if the working copy contains anything outside $3, or if @ already
+# carries a description we'd clobber. Returns 0 on success, 2 if there's
+# nothing to commit, 1 on any other failure.
+commit_and_push() {
+  local dir="$1" label="$2" allow_prefix="$3"
+  local desc="docs: regenerate marketing screenshots"
+
+  if ! cd "$dir" 2>/dev/null; then
+    echo "error: $label: cannot cd to $dir" >&2
+    return 1
+  fi
+
+  local summary
+  summary=$(jj diff --summary 2>/dev/null || true)
+
+  if [ -z "$summary" ]; then
+    echo "$label: no screenshot changes to commit, skipping push"
+    return 2
+  fi
+
+  local stray
+  stray=$(printf '%s\n' "$summary" | awk '{print $2}' | grep -v "^$allow_prefix" || true)
+  if [ -n "$stray" ]; then
+    echo "error: $label has unrelated changes in the working copy:" >&2
+    printf '         %s\n' $stray >&2
+    echo "       Refusing to fold these into a marketing-screenshots commit." >&2
+    echo "       Stash or commit them first, then push manually:" >&2
+    echo "         cd $dir && jj desc -m '$desc' && jj new && jj bookmark set main -r @- && jj git push --bookmark main" >&2
+    return 1
+  fi
+
+  local existing_desc
+  existing_desc=$(jj log -r @ --no-graph -T 'description' 2>/dev/null | tr -d '\n' || true)
+  if [ -n "$existing_desc" ] && [ "$existing_desc" != "$desc" ]; then
+    echo "error: $label working-copy change @ already has a description:" >&2
+    printf '         %s\n' "$existing_desc" >&2
+    echo "       Run \`jj new\` to start a fresh change before re-running with --push." >&2
+    return 1
+  fi
+
+  echo "$label: committing and pushing…"
+  if ! jj desc -m "$desc" >/dev/null \
+     || ! jj new >/dev/null \
+     || ! jj bookmark set main -r @- >/dev/null \
+     || ! jj git push --bookmark main; then
+    echo "error: $label push failed. Recover with:" >&2
+    echo "         cd $dir && jj git push --bookmark main" >&2
+    return 1
+  fi
+  echo "$label: pushed."
+  return 0
+}
+
+if [ "$PUSH_AFTER" -eq 1 ]; then
+  echo ""
+  echo "═══ Pushing screenshot commits ═══"
+  rc=0
+
+  if [ -d "$ASSETS_REPO" ]; then
+    commit_and_push "$ASSETS_REPO" "assets repo" "screenshots/" || rc=$?
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit 1; fi
+    rc=0
+  fi
+
+  commit_and_push "$REPO_ROOT" "main repo" "docs-site/assets/screenshots/" || rc=$?
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit 1; fi
+else
+  echo ""
+  echo "Next step: commit + push both repos (or re-run with --push):"
+  if [ -d "$ASSETS_REPO" ]; then
+    echo "  cd $ASSETS_REPO && jj desc -m 'docs: regenerate marketing screenshots' && jj new && jj bookmark set main -r @- && jj git push --bookmark main"
+  fi
+  echo "  cd $REPO_ROOT && jj desc -m 'docs: regenerate marketing screenshots' && jj new && jj bookmark set main -r @- && jj git push --bookmark main"
+fi
+
+echo ""
 echo "screenshots regenerated: docs-site/assets/screenshots/*.png (web)"
 [ -d "$ASSETS_REPO" ] && echo "                          $ASSETS_REPO/screenshots/*.png (4K)"
