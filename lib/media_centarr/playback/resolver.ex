@@ -118,7 +118,7 @@ defmodule MediaCentarr.Playback.Resolver do
   # --- Episode resolution ---
 
   defp resolve_episode(uuid) do
-    case Library.get_episode(uuid) do
+    case Library.fetch_episode(uuid) do
       {:ok, episode} ->
         resolve_episode_playback(episode)
 
@@ -133,8 +133,8 @@ defmodule MediaCentarr.Playback.Resolver do
   end
 
   defp resolve_episode_playback(episode) do
-    with {:ok, season} <- Library.get_season(episode.season_id),
-         {:ok, tv_series} <- Library.get_tv_series_with_associations(season.tv_series_id) do
+    with {:ok, season} <- Library.fetch_season(episode.season_id),
+         {:ok, tv_series} <- Library.fetch_tv_series_with_associations(season.tv_series_id) do
       entity = EntityShape.normalize(tv_series, :tv_series)
       progress_records = EntityShape.extract_progress(tv_series, :tv_series)
 
@@ -174,7 +174,7 @@ defmodule MediaCentarr.Playback.Resolver do
   # --- Movie (child) resolution ---
 
   defp resolve_movie(uuid) do
-    case Library.get_movie(uuid) do
+    case Library.fetch_movie(uuid) do
       {:ok, movie} ->
         resolve_movie_playback(movie)
 
@@ -239,7 +239,7 @@ defmodule MediaCentarr.Playback.Resolver do
 
   defp resolve_movie_parent(movie) do
     if movie.movie_series_id do
-      case Library.get_movie_series_with_associations(movie.movie_series_id) do
+      case Library.fetch_movie_series_with_associations(movie.movie_series_id) do
         {:ok, ms} ->
           entity = EntityShape.normalize(ms, :movie_series)
           progress = EntityShape.extract_progress(ms, :movie_series)
@@ -250,7 +250,7 @@ defmodule MediaCentarr.Playback.Resolver do
       end
     else
       # Standalone movie — resolve as its own entity
-      case Library.get_movie_with_associations(movie.id) do
+      case Library.fetch_movie_with_associations(movie.id) do
         {:ok, m} ->
           progress = EntityShape.extract_progress(m, :movie)
           {:ok, EntityShape.normalize(m, :movie), progress}
@@ -264,7 +264,7 @@ defmodule MediaCentarr.Playback.Resolver do
   # --- Extra resolution ---
 
   defp resolve_extra(uuid) do
-    case Library.get_extra(uuid) do
+    case Library.fetch_extra(uuid) do
       {:ok, extra} ->
         resolve_extra_playback(extra)
 
@@ -313,9 +313,9 @@ defmodule MediaCentarr.Playback.Resolver do
 
   defp extra_resume_position(extra_id) do
     case Library.get_extra_progress_by_extra(extra_id) do
-      {:ok, nil} -> 0.0
-      {:ok, %{completed: true}} -> 0.0
-      {:ok, %{position_seconds: pos}} when is_number(pos) -> pos
+      nil -> 0.0
+      %{completed: true} -> 0.0
+      %{position_seconds: pos} when is_number(pos) -> pos
       _ -> 0.0
     end
   end

@@ -1,5 +1,5 @@
 defmodule MediaCentarr.ReleaseTracking do
-  use Boundary, deps: [MediaCentarr.TMDB, MediaCentarr.Library], exports: [Helpers]
+  use Boundary, deps: [MediaCentarr.TMDB, MediaCentarr.Library]
 
   @moduledoc """
   Bounded context for tracking upcoming movie and TV releases via TMDB.
@@ -86,6 +86,16 @@ defmodule MediaCentarr.ReleaseTracking do
       {:item_removed, tmdb_id, tmdb_type}
     )
   end
+
+  @doc """
+  Finds the highest season/episode pair for a TV series in the library.
+  Returns `{season_number, episode_number}`, or `{0, 0}` if the series has
+  no episodes (or `library_entity_id` is nil). Used by the Upcoming page
+  to compute "next up" markers against the user's library state.
+  """
+  @spec find_last_library_episode(library_entity_id :: Ecto.UUID.t() | nil) ::
+          {non_neg_integer(), non_neg_integer()}
+  defdelegate find_last_library_episode(library_entity_id), to: Helpers
 
   def list_watching_items do
     Repo.all(

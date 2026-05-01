@@ -528,7 +528,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   defp load_progress_by_fk(_fk_key, nil), do: nil
 
   defp load_progress_by_fk(fk_key, fk_id) do
-    case Library.get_watch_progress_by_fk(fk_key, fk_id) do
+    case Library.fetch_watch_progress_by_fk(fk_key, fk_id) do
       {:ok, record} -> record
       _ -> nil
     end
@@ -569,10 +569,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
   @doc false
   def toggle_extra_watched(entity_id, extra_id) do
-    progress =
-      case Library.get_extra_progress_by_extra(extra_id) do
-        {:ok, record} -> record
-      end
+    progress = Library.get_extra_progress_by_extra(extra_id)
 
     case progress do
       %{completed: true} ->

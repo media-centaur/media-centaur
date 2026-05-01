@@ -135,12 +135,12 @@ defmodule MediaCentarr.Library.InboundTest do
       assert movie.content_url == "/media/Sample.Movie.1999.mkv"
 
       # Type-specific Movie record created directly
-      assert {:ok, reloaded} = Library.get_movie(movie.id)
+      assert {:ok, reloaded} = Library.fetch_movie(movie.id)
       assert reloaded.name == "Sample Movie"
       assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
 
       # Identifier created with movie_id
-      assert {:ok, identifier} = Library.find_by_tmdb_id_for_movie("550")
+      identifier = Library.find_by_tmdb_id_for_movie("550")
       assert identifier.movie_id == movie.id
 
       # WatchedFile linked with movie_id
@@ -188,11 +188,11 @@ defmodule MediaCentarr.Library.InboundTest do
       assert series.name == "Sample Movie Collection"
 
       # Type-specific MovieSeries record created directly
-      assert {:ok, reloaded} = Library.get_movie_series(series.id)
+      assert {:ok, reloaded} = Library.fetch_movie_series(series.id)
       assert reloaded.name == "Sample Movie Collection"
 
       # Collection identifier with movie_series_id
-      assert {:ok, collection_id} = Library.find_by_tmdb_collection_for_movie_series("263")
+      collection_id = Library.find_by_tmdb_collection_for_movie_series("263")
       assert collection_id.movie_series_id == series.id
 
       # Movie-level TMDB identifier created with movie_series_id FK
@@ -254,7 +254,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert entity.id == series.id
 
       # Child movie created with movie_series_id FK, load via MovieSeries
-      assert {:ok, movie_series} = Library.get_movie_series(entity.id)
+      assert {:ok, movie_series} = Library.fetch_movie_series(entity.id)
       movie_series = MediaCentarr.Repo.preload(movie_series, :movies)
       assert length(movie_series.movies) == 1
       movie = hd(movie_series.movies)
@@ -276,7 +276,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert tv_series.number_of_seasons == 5
 
       # Identifier with tv_series_id
-      assert {:ok, identifier} = Library.find_by_tmdb_id_for_tv_series("1396")
+      identifier = Library.find_by_tmdb_id_for_tv_series("1396")
       assert identifier.tv_series_id == tv_series.id
 
       # Season + Episode (via tv_series preload)
@@ -327,7 +327,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert entity.id == existing.id
 
       # Season/Episode created with tv_series_id FK, load via TVSeries
-      assert {:ok, tv_series} = Library.get_tv_series(entity.id)
+      assert {:ok, tv_series} = Library.fetch_tv_series(entity.id)
       tv_series = MediaCentarr.Repo.preload(tv_series, seasons: :episodes)
       assert length(tv_series.seasons) == 1
       episode = hd(hd(tv_series.seasons).episodes)
@@ -358,7 +358,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
-      {:ok, reloaded} = Library.get_movie(entity.id)
+      {:ok, reloaded} = Library.fetch_movie(entity.id)
       assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
     end
 
@@ -371,7 +371,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
-      {:ok, reloaded} = Library.get_movie(entity.id)
+      {:ok, reloaded} = Library.fetch_movie(entity.id)
       assert reloaded.content_url == "/media/original.mkv"
     end
   end
@@ -449,7 +449,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert entity.id == existing.id
 
       # Extra created with movie_id FK, load via the Movie type record
-      assert {:ok, movie} = Library.get_movie(entity.id)
+      assert {:ok, movie} = Library.fetch_movie(entity.id)
       movie = MediaCentarr.Repo.preload(movie, :extras)
       assert length(movie.extras) == 1
       assert hd(movie.extras).name == "Deleted Scenes"
@@ -618,7 +618,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert :ok = Inbound.handle_rematch(movie.id)
 
       # Entity destroyed
-      assert {:error, _} = Library.get_movie(movie.id)
+      assert {:error, _} = Library.fetch_movie(movie.id)
 
       # WatchedFiles destroyed
       assert Library.list_watched_files_by_entity_id(movie.id) == []
@@ -682,7 +682,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert :ok = Inbound.handle_rematch(tv_series.id)
 
       # Entity fully destroyed
-      assert {:error, _} = Library.get_tv_series(tv_series.id)
+      assert {:error, _} = Library.fetch_tv_series(tv_series.id)
 
       # Both files sent to review
       assert_received {:files_for_review, files}

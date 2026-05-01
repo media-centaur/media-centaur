@@ -103,7 +103,7 @@ defmodule MediaCentarr.Library do
   # TVSeries
   # ---------------------------------------------------------------------------
 
-  def get_tv_series(id) do
+  def fetch_tv_series(id) do
     case Repo.get(TVSeries, id) do
       nil -> {:error, :not_found}
       tv_series -> {:ok, tv_series}
@@ -112,7 +112,7 @@ defmodule MediaCentarr.Library do
 
   def get_tv_series!(id), do: Repo.get!(TVSeries, id)
 
-  def get_tv_series_with_associations(id) do
+  def fetch_tv_series_with_associations(id) do
     case Repo.get(TVSeries, id) do
       nil -> {:error, :not_found}
       tv_series -> {:ok, Repo.preload(tv_series, @tv_series_full_preloads)}
@@ -142,7 +142,7 @@ defmodule MediaCentarr.Library do
   # MovieSeries
   # ---------------------------------------------------------------------------
 
-  def get_movie_series(id) do
+  def fetch_movie_series(id) do
     case Repo.get(MovieSeries, id) do
       nil -> {:error, :not_found}
       movie_series -> {:ok, movie_series}
@@ -151,7 +151,7 @@ defmodule MediaCentarr.Library do
 
   def get_movie_series!(id), do: Repo.get!(MovieSeries, id)
 
-  def get_movie_series_with_associations(id) do
+  def fetch_movie_series_with_associations(id) do
     case Repo.get(MovieSeries, id) do
       nil -> {:error, :not_found}
       movie_series -> {:ok, Repo.preload(movie_series, @movie_series_full_preloads)}
@@ -181,7 +181,7 @@ defmodule MediaCentarr.Library do
   # VideoObject
   # ---------------------------------------------------------------------------
 
-  def get_video_object(id) do
+  def fetch_video_object(id) do
     case Repo.get(VideoObject, id) do
       nil -> {:error, :not_found}
       video_object -> {:ok, video_object}
@@ -190,7 +190,7 @@ defmodule MediaCentarr.Library do
 
   def get_video_object!(id), do: Repo.get!(VideoObject, id)
 
-  def get_video_object_with_associations(id) do
+  def fetch_video_object_with_associations(id) do
     case Repo.get(VideoObject, id) do
       nil -> {:error, :not_found}
       video_object -> {:ok, Repo.preload(video_object, @video_object_full_preloads)}
@@ -234,10 +234,8 @@ defmodule MediaCentarr.Library do
   def link_file!(attrs), do: Repo.bang!(link_file(attrs))
 
   def list_files_by_paths(file_paths) do
-    {:ok, Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths))}
+    Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths))
   end
-
-  def list_files_by_paths!(file_paths), do: Repo.bang!(list_files_by_paths(file_paths))
 
   @doc """
   Lists watched files where any type-specific FK matches the given ID.
@@ -409,13 +407,11 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
 
   def find_or_create_external_id(attrs) do
-    source = attrs[:source] || attrs["source"]
-    external_id = attrs[:external_id] || attrs["external_id"]
-
-    case Repo.get_by(ExternalId, source: source, external_id: external_id) do
-      nil -> Repo.insert(ExternalId.create_changeset(attrs))
-      existing -> {:ok, existing}
-    end
+    find_or_insert_by(
+      ExternalId,
+      [source: lookup_attr(attrs, :source), external_id: lookup_attr(attrs, :external_id)],
+      attrs
+    )
   end
 
   def find_or_create_external_id!(attrs), do: Repo.bang!(find_or_create_external_id(attrs))
@@ -430,35 +426,32 @@ defmodule MediaCentarr.Library do
   def destroy_external_id!(external_id), do: destroy_bang!(external_id)
 
   def find_by_tmdb_id_for_movie(tmdb_id) do
-    {:ok,
-     Repo.one(
-       from(i in ExternalId,
-         where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.movie_id),
-         limit: 1
-       )
-     )}
+    Repo.one(
+      from(i in ExternalId,
+        where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.movie_id),
+        limit: 1
+      )
+    )
   end
 
   def find_by_tmdb_id_for_tv_series(tmdb_id) do
-    {:ok,
-     Repo.one(
-       from(i in ExternalId,
-         where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.tv_series_id),
-         limit: 1
-       )
-     )}
+    Repo.one(
+      from(i in ExternalId,
+        where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.tv_series_id),
+        limit: 1
+      )
+    )
   end
 
   def find_by_tmdb_collection_for_movie_series(collection_id) do
-    {:ok,
-     Repo.one(
-       from(i in ExternalId,
-         where:
-           i.source == "tmdb_collection" and i.external_id == ^collection_id and
-             not is_nil(i.movie_series_id),
-         limit: 1
-       )
-     )}
+    Repo.one(
+      from(i in ExternalId,
+        where:
+          i.source == "tmdb_collection" and i.external_id == ^collection_id and
+            not is_nil(i.movie_series_id),
+        limit: 1
+      )
+    )
   end
 
   @doc """
@@ -500,7 +493,7 @@ defmodule MediaCentarr.Library do
 
   def list_movies, do: Repo.all(Movie)
 
-  def get_movie(id) do
+  def fetch_movie(id) do
     case Repo.get(Movie, id) do
       nil -> {:error, :not_found}
       movie -> {:ok, movie}
@@ -524,7 +517,7 @@ defmodule MediaCentarr.Library do
   def destroy_movie(movie), do: Repo.delete(movie)
   def destroy_movie!(movie), do: destroy_bang!(movie)
 
-  def get_movie_with_associations(id) do
+  def fetch_movie_with_associations(id) do
     case Repo.get(Movie, id) do
       nil -> {:error, :not_found}
       movie -> {:ok, Repo.preload(movie, @movie_full_preloads)}
@@ -536,24 +529,19 @@ defmodule MediaCentarr.Library do
   end
 
   def find_or_create_movie_for_series(attrs) do
-    movie_series_id = attrs[:movie_series_id] || attrs["movie_series_id"]
-    tmdb_id = attrs[:tmdb_id] || attrs["tmdb_id"]
-
-    case Repo.get_by(Movie, movie_series_id: movie_series_id, tmdb_id: tmdb_id) do
-      nil -> Repo.insert(Movie.create_changeset(attrs))
-      existing -> {:ok, existing}
-    end
+    find_or_insert_by(
+      Movie,
+      [movie_series_id: lookup_attr(attrs, :movie_series_id), tmdb_id: lookup_attr(attrs, :tmdb_id)],
+      attrs
+    )
   end
 
   def list_movies_for_series(movie_series_id, opts \\ []) do
     preloads = Keyword.get(opts, :load, [])
 
-    result =
-      from(m in Movie, where: m.movie_series_id == ^movie_series_id)
-      |> Repo.all()
-      |> maybe_preload(preloads)
-
-    {:ok, result}
+    from(m in Movie, where: m.movie_series_id == ^movie_series_id)
+    |> Repo.all()
+    |> maybe_preload(preloads)
   end
 
   # ---------------------------------------------------------------------------
@@ -561,12 +549,10 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
 
   def list_extras_for_season(season_id) do
-    {:ok, Repo.all(from(x in Extra, where: x.season_id == ^season_id))}
+    Repo.all(from(x in Extra, where: x.season_id == ^season_id))
   end
 
-  def list_extras_for_season!(season_id), do: Repo.bang!(list_extras_for_season(season_id))
-
-  def get_extra(id) do
+  def fetch_extra(id) do
     case Repo.get(Extra, id) do
       nil -> {:error, :not_found}
       extra -> {:ok, extra}
@@ -579,19 +565,12 @@ defmodule MediaCentarr.Library do
   Find or create an extra by type-specific FK + content_url.
   The `type_fk` is the FK key atom (e.g. `:movie_id`, `:tv_series_id`).
   """
-  def find_or_create_extra_by_type(attrs, type_fk) do
-    owner_id = attrs[type_fk] || attrs[Atom.to_string(type_fk)]
-    content_url = attrs[:content_url] || attrs["content_url"]
-
-    existing =
-      if owner_id && content_url do
-        Repo.get_by(Extra, [{type_fk, owner_id}, {:content_url, content_url}])
-      end
-
-    case existing do
-      nil -> Repo.insert(Extra.create_changeset(attrs))
-      record -> {:ok, record}
-    end
+  def find_or_create_extra_by_type(attrs, type_fk) when is_atom(type_fk) do
+    find_or_insert_by(
+      Extra,
+      [{type_fk, lookup_attr(attrs, type_fk)}, {:content_url, lookup_attr(attrs, :content_url)}],
+      attrs
+    )
   end
 
   def create_extra(attrs) do
@@ -609,7 +588,7 @@ defmodule MediaCentarr.Library do
 
   def list_seasons, do: Repo.all(Season)
 
-  def get_season(id) do
+  def fetch_season(id) do
     case Repo.get(Season, id) do
       nil -> {:error, :not_found}
       season -> {:ok, season}
@@ -628,22 +607,18 @@ defmodule MediaCentarr.Library do
   def destroy_season!(season), do: destroy_bang!(season)
 
   def find_or_create_season_for_tv_series(attrs) do
-    tv_series_id = attrs[:tv_series_id] || attrs["tv_series_id"]
-    season_number = attrs[:season_number] || attrs["season_number"]
-
-    existing =
-      if tv_series_id && season_number do
-        Repo.get_by(Season, tv_series_id: tv_series_id, season_number: season_number)
-      end
-
-    case existing do
-      nil -> Repo.insert(Season.create_changeset(attrs))
-      record -> {:ok, record}
-    end
+    find_or_insert_by(
+      Season,
+      [
+        tv_series_id: lookup_attr(attrs, :tv_series_id),
+        season_number: lookup_attr(attrs, :season_number)
+      ],
+      attrs
+    )
   end
 
   def list_seasons_for_tv_series(tv_series_id) do
-    {:ok, Repo.all(from(s in Season, where: s.tv_series_id == ^tv_series_id))}
+    Repo.all(from(s in Season, where: s.tv_series_id == ^tv_series_id))
   end
 
   # ---------------------------------------------------------------------------
@@ -655,19 +630,12 @@ defmodule MediaCentarr.Library do
   def list_episodes_for_season(season_id, opts \\ []) do
     preloads = Keyword.get(opts, :load, [])
 
-    result =
-      from(e in Episode, where: e.season_id == ^season_id)
-      |> Repo.all()
-      |> maybe_preload(preloads)
-
-    {:ok, result}
+    from(e in Episode, where: e.season_id == ^season_id)
+    |> Repo.all()
+    |> maybe_preload(preloads)
   end
 
-  def list_episodes_for_season!(season_id, opts \\ []) do
-    Repo.bang!(list_episodes_for_season(season_id, opts))
-  end
-
-  def get_episode(id) do
+  def fetch_episode(id) do
     case Repo.get(Episode, id) do
       nil -> {:error, :not_found}
       episode -> {:ok, episode}
@@ -677,13 +645,11 @@ defmodule MediaCentarr.Library do
   def get_episode!(id), do: Repo.get!(Episode, id)
 
   def find_or_create_episode(attrs) do
-    season_id = attrs[:season_id] || attrs["season_id"]
-    episode_number = attrs[:episode_number] || attrs["episode_number"]
-
-    case Repo.get_by(Episode, season_id: season_id, episode_number: episode_number) do
-      nil -> Repo.insert(Episode.create_changeset(attrs))
-      existing -> {:ok, existing}
-    end
+    find_or_insert_by(
+      Episode,
+      [season_id: lookup_attr(attrs, :season_id), episode_number: lookup_attr(attrs, :episode_number)],
+      attrs
+    )
   end
 
   def find_or_create_episode!(attrs), do: Repo.bang!(find_or_create_episode(attrs))
@@ -739,40 +705,25 @@ defmodule MediaCentarr.Library do
   def destroy_watch_progress!(progress), do: destroy_bang!(progress)
 
   @doc """
-  Gets a watch progress record by a specific FK key and value.
+  Fetches a watch progress record by a specific FK key and value.
   """
-  def get_watch_progress_by_fk(fk_key, fk_id) do
+  def fetch_watch_progress_by_fk(fk_key, fk_id) do
     case Repo.get_by(WatchProgress, [{fk_key, fk_id}]) do
       nil -> {:error, :not_found}
       record -> {:ok, record}
     end
   end
 
-  def find_or_create_watch_progress_for_movie(attrs) do
-    movie_id = attrs[:movie_id] || attrs["movie_id"]
+  def find_or_create_watch_progress_for_movie(attrs), do: find_or_create_watch_progress(:movie_id, attrs)
 
-    case Repo.get_by(WatchProgress, movie_id: movie_id) do
-      nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
-      existing -> Repo.update(WatchProgress.update_changeset(existing, attrs))
-    end
-  end
+  def find_or_create_watch_progress_for_episode(attrs),
+    do: find_or_create_watch_progress(:episode_id, attrs)
 
-  def find_or_create_watch_progress_for_episode(attrs) do
-    episode_id = attrs[:episode_id] || attrs["episode_id"]
+  def find_or_create_watch_progress_for_video_object(attrs),
+    do: find_or_create_watch_progress(:video_object_id, attrs)
 
-    case Repo.get_by(WatchProgress, episode_id: episode_id) do
-      nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
-      existing -> Repo.update(WatchProgress.update_changeset(existing, attrs))
-    end
-  end
-
-  def find_or_create_watch_progress_for_video_object(attrs) do
-    video_object_id = attrs[:video_object_id] || attrs["video_object_id"]
-
-    case Repo.get_by(WatchProgress, video_object_id: video_object_id) do
-      nil -> Repo.insert(WatchProgress.upsert_changeset(attrs))
-      existing -> Repo.update(WatchProgress.update_changeset(existing, attrs))
-    end
+  defp find_or_create_watch_progress(fk, attrs) when is_atom(fk) do
+    upsert_by(WatchProgress, [{fk, lookup_attr(attrs, fk)}], attrs)
   end
 
   # ---------------------------------------------------------------------------
@@ -780,19 +731,11 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
 
   def get_extra_progress_by_extra(extra_id) do
-    {:ok, Repo.get_by(ExtraProgress, extra_id: extra_id)}
+    Repo.get_by(ExtraProgress, extra_id: extra_id)
   end
 
   def find_or_create_extra_progress(attrs) do
-    extra_id = attrs[:extra_id] || attrs["extra_id"]
-
-    case Repo.get_by(ExtraProgress, extra_id: extra_id) do
-      nil ->
-        Repo.insert(ExtraProgress.upsert_changeset(attrs))
-
-      existing ->
-        Repo.update(ExtraProgress.update_changeset(existing, attrs))
-    end
+    upsert_by(ExtraProgress, [extra_id: lookup_attr(attrs, :extra_id)], attrs)
   end
 
   def find_or_create_extra_progress!(attrs), do: Repo.bang!(find_or_create_extra_progress(attrs))
@@ -836,10 +779,8 @@ defmodule MediaCentarr.Library do
         query
       end
 
-    {:ok, Repo.all(query)}
+    Repo.all(query)
   end
-
-  def list_recent_changes!(limit, since), do: Repo.bang!(list_recent_changes(limit, since))
 
   # ---------------------------------------------------------------------------
   # PubSub
@@ -1529,4 +1470,38 @@ defmodule MediaCentarr.Library do
 
   defp maybe_preload(records, []), do: records
   defp maybe_preload(records, preloads), do: Repo.preload(records, preloads)
+
+  # Find an existing record by `lookup` (a keyword list of field/value pairs)
+  # or insert a new one from `attrs` via `schema.create_changeset/1`. Returns
+  # the existing record unchanged on hit.
+  defp find_or_insert_by(schema, lookup, attrs) do
+    case existing_by(schema, lookup) do
+      nil -> Repo.insert(schema.create_changeset(attrs))
+      existing -> {:ok, existing}
+    end
+  end
+
+  # Find an existing record by `lookup` (a keyword list of field/value pairs)
+  # or insert a new one from `attrs`. Updates the existing record via
+  # `schema.update_changeset/2` on hit. Used for progress upserts.
+  defp upsert_by(schema, lookup, attrs) do
+    case existing_by(schema, lookup) do
+      nil -> Repo.insert(schema.create_changeset(attrs))
+      existing -> Repo.update(schema.update_changeset(existing, attrs))
+    end
+  end
+
+  # `Repo.get_by(Schema, key: nil)` matches the first row whose key is NULL,
+  # silently corrupting partial-input requests. Treat any nil lookup value as
+  # "no match" and fall through to insert; the changeset will validate
+  # required fields.
+  defp existing_by(schema, lookup) do
+    if !Enum.any?(lookup, fn {_key, value} -> is_nil(value) end) do
+      Repo.get_by(schema, lookup)
+    end
+  end
+
+  defp lookup_attr(attrs, key) when is_atom(key) do
+    attrs[key] || attrs[Atom.to_string(key)]
+  end
 end

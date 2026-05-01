@@ -245,8 +245,8 @@ defmodule MediaCentarr.Showcase do
           })
 
         episodes =
-          Enum.map(season_data["episodes"] || [], fn ep_data ->
-            seed_episode!(season, ep_data, series.name)
+          Enum.map(season_data["episodes"] || [], fn episode_data ->
+            seed_episode!(season, episode_data, series.name)
           end)
 
         Map.put(season, :episodes, episodes)
@@ -257,17 +257,17 @@ defmodule MediaCentarr.Showcase do
     end
   end
 
-  defp seed_episode!(season, ep_data, series_name) do
-    episode_number = ep_data["episode_number"]
-    episode_name = ep_data["name"] || "Episode #{episode_number}"
+  defp seed_episode!(season, episode_data, series_name) do
+    episode_number = episode_data["episode_number"]
+    episode_name = episode_data["name"] || "Episode #{episode_number}"
 
     episode =
       Library.create_episode!(%{
         season_id: season.id,
         episode_number: episode_number,
         name: episode_name,
-        description: ep_data["overview"],
-        duration: minutes_to_iso(ep_data["runtime"]),
+        description: episode_data["overview"],
+        duration: minutes_to_iso(episode_data["runtime"]),
         content_url: fake_episode_path(series_name, season.season_number, episode_number)
       })
 
@@ -279,7 +279,7 @@ defmodule MediaCentarr.Showcase do
     # bundled gradient fixture so the TV detail modal still renders a
     # varied strip of thumbs. Regenerate fixtures via
     # `scripts/generate-showcase-thumbs`.
-    case ep_data["still_path"] do
+    case episode_data["still_path"] do
       path when is_binary(path) and path != "" ->
         download_image_role!(episode.id, :episode_id, season.tv_series_id, :thumb, path)
 

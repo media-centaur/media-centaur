@@ -13,7 +13,7 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, found} = Library.get_watch_progress_by_fk(:movie_id, movie.id)
+      {:ok, found} = Library.fetch_watch_progress_by_fk(:movie_id, movie.id)
 
       assert found.movie_id == movie.id
       assert found.position_seconds == 120.5
@@ -55,7 +55,7 @@ defmodule MediaCentarr.Library.WatchProgressTest do
       })
 
       # Mark completed via dedicated action
-      {:ok, record} = Library.get_watch_progress_by_fk(:episode_id, episode.id)
+      {:ok, record} = Library.fetch_watch_progress_by_fk(:episode_id, episode.id)
       {:ok, _} = Library.mark_watch_completed(record)
 
       # Now upsert with a lower position (re-watching from earlier)
@@ -65,7 +65,7 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, updated} = Library.get_watch_progress_by_fk(:episode_id, episode.id)
+      {:ok, updated} = Library.fetch_watch_progress_by_fk(:episode_id, episode.id)
 
       # completed stays true — never regresses
       assert updated.completed == true
@@ -149,7 +149,7 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, updated} = Library.get_watch_progress_by_fk(:episode_id, episode.id)
+      {:ok, updated} = Library.fetch_watch_progress_by_fk(:episode_id, episode.id)
 
       assert DateTime.compare(updated.last_watched_at, first.last_watched_at) in [:gt, :eq]
       assert updated.position_seconds == 300.0

@@ -12,7 +12,7 @@ defmodule MediaCentarr.Library.ProgressTracker do
 
   import Ecto.Changeset
 
-  @callback upsert_changeset(attrs :: map()) :: Ecto.Changeset.t()
+  @callback create_changeset(attrs :: map()) :: Ecto.Changeset.t()
   @callback update_changeset(record :: Ecto.Schema.t(), attrs :: map()) :: Ecto.Changeset.t()
   @callback mark_completed_changeset(record :: Ecto.Schema.t()) :: Ecto.Changeset.t()
   @callback mark_incomplete_changeset(record :: Ecto.Schema.t()) :: Ecto.Changeset.t()
