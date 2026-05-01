@@ -55,61 +55,44 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket =
-      if connected?(socket) do
-        Settings.subscribe()
-        Watcher.Supervisor.subscribe()
-        SelfUpdate.subscribe()
-        SelfUpdate.subscribe_progress()
-        Config.subscribe()
-        Controls.subscribe()
-
-        socket
-        |> assign(config: load_config())
-        |> assign(watchers_running: Watcher.Supervisor.running?())
-        |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
-        |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())
-        |> assign(watch_dirs: MediaCentarr.Config.watch_dirs_entries())
-        |> assign(exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [])
-        |> assign(missing_images_summary: Maintenance.missing_images_summary())
-        |> assign(tmdb_test: load_test_result(:tmdb))
-        |> assign(prowlarr_test: load_test_result(:prowlarr))
-        |> assign(download_client_test: load_test_result(:download_client))
-        |> assign(tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)))
-        |> assign(service_state: SelfUpdate.service_state())
-        |> assign(bindings: Controls.get())
-        |> assign(glyph_style: Controls.glyph_style())
-      else
-        socket
-        |> assign(config: %{})
-        |> assign(watchers_running: false)
-        |> assign(pipeline_running: false)
-        |> assign(image_pipeline_running: false)
-        |> assign(watch_dirs: [])
-        |> assign(exclude_dirs: [])
-        |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
-        |> assign(tmdb_test: nil)
-        |> assign(prowlarr_test: nil)
-        |> assign(download_client_test: nil)
-        |> assign(tmdb_missing: false)
-        |> assign(
-          service_state: %{
-            under_systemd: false,
-            unit_name: nil,
-            systemd_available: false,
-            unit_installed: false,
-            active: false,
-            enabled: false
-          }
-        )
-        |> assign(bindings: %{})
-        |> assign(glyph_style: nil)
-      end
+    if connected?(socket) do
+      Settings.subscribe()
+      Watcher.Supervisor.subscribe()
+      SelfUpdate.subscribe()
+      SelfUpdate.subscribe_progress()
+      Config.subscribe()
+      Controls.subscribe()
+    end
 
     socket = assign_spoiler_free(socket)
 
     {:ok,
-     assign(socket,
+     socket
+     |> assign(loaded?: false)
+     |> assign(config: %{})
+     |> assign(watchers_running: false)
+     |> assign(pipeline_running: false)
+     |> assign(image_pipeline_running: false)
+     |> assign(watch_dirs: [])
+     |> assign(exclude_dirs: [])
+     |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
+     |> assign(tmdb_test: nil)
+     |> assign(prowlarr_test: nil)
+     |> assign(download_client_test: nil)
+     |> assign(tmdb_missing: false)
+     |> assign(
+       service_state: %{
+         under_systemd: false,
+         unit_name: nil,
+         systemd_available: false,
+         unit_installed: false,
+         active: false,
+         enabled: false
+       }
+     )
+     |> assign(bindings: %{})
+     |> assign(glyph_style: nil)
+     |> assign(
        sections: @sections,
        exclude_dir_input: "",
        exclude_dir_error: nil,
@@ -149,6 +132,7 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     socket =
       socket
+      |> ensure_loaded()
       |> assign(active_section: section)
       |> maybe_auto_check_updates(section)
       |> open_watch_dir_dialog(WatchDirsLogic.new_entry())
@@ -167,10 +151,37 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     socket =
       socket
+      |> ensure_loaded()
       |> assign(active_section: section)
       |> maybe_auto_check_updates(section)
 
     {:noreply, socket}
+  end
+
+  # First-render data load — gated by `connected?` so the static HTTP render
+  # ships empty defaults and the WebSocket render fills them in once. See
+  # CLAUDE.md → LiveView Callbacks (Iron Law).
+  defp ensure_loaded(socket) do
+    if connected?(socket) and not socket.assigns.loaded? do
+      socket
+      |> assign(config: load_config())
+      |> assign(watchers_running: Watcher.Supervisor.running?())
+      |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
+      |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())
+      |> assign(watch_dirs: MediaCentarr.Config.watch_dirs_entries())
+      |> assign(exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [])
+      |> assign(missing_images_summary: Maintenance.missing_images_summary())
+      |> assign(tmdb_test: load_test_result(:tmdb))
+      |> assign(prowlarr_test: load_test_result(:prowlarr))
+      |> assign(download_client_test: load_test_result(:download_client))
+      |> assign(tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)))
+      |> assign(service_state: SelfUpdate.service_state())
+      |> assign(bindings: Controls.get())
+      |> assign(glyph_style: Controls.glyph_style())
+      |> assign(loaded?: true)
+    else
+      socket
+    end
   end
 
   defp maybe_auto_check_updates(socket, "system") do
