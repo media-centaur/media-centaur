@@ -4,6 +4,31 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.30.0 — 2026-05-02
+
+### Improved
+
+- **Editing the image directory for a watched library now takes effect
+  immediately.** When a watch entry's image directory lives on a
+  separate drive, Media Centarr runs a small health monitor that
+  watches that mount. Previously the monitor was started once at boot
+  and would keep watching the old path until the next app restart if
+  you edited it from Settings. Changing the image directory is now
+  reconciled live alongside the watch directory itself — start a new
+  monitor for the new path, stop the one for the old.
+
+### Fixed
+
+- **Library lookups by nil identifiers no longer match the wrong row.**
+  Several internal helpers that look up entities by key didn't guard
+  against a `nil` key, which can happen when a record's optional FK is
+  unset. The default Ecto behaviour for that case treats `nil` as a
+  match against any nullable column, which could quietly load an
+  unrelated record. The helpers now refuse `nil` keys and return
+  not-found, eliminating a class of silent corruption that mostly
+  hadn't been observed but could surface during cleanup cascades or
+  bulk operations.
+
 ## v0.29.2 — 2026-05-01
 
 ### Fixed
