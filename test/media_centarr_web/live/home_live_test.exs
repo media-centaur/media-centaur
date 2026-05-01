@@ -53,12 +53,11 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   end
 
   describe "Coming Up grab status enrichment" do
-    test "Coming Up section renders with Scheduled badge when Prowlarr is not configured", %{
-      conn: conn
-    } do
+    test "Coming Up section renders without a status badge for scheduled items", %{conn: conn} do
       # In the test environment Prowlarr is never configured, so load_coming_up/1
       # skips Acquisition.statuses_for_releases/1 and every release falls back to
-      # :scheduled. This confirms the no-Prowlarr path renders correctly.
+      # :scheduled. "Scheduled" is the implicit baseline — we render no badge for
+      # it so the marquee reserves badge real estate for actionable states only.
       today = Date.utc_today()
 
       tmdb_id = :rand.uniform(999_999)
@@ -74,8 +73,9 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
       {:ok, _view, html} = live(conn, "/")
 
-      assert html =~ "Scheduled"
       assert html =~ "Coming Up"
+      assert html =~ "Slow Mares"
+      refute html =~ "Scheduled"
     end
   end
 

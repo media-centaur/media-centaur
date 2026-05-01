@@ -214,7 +214,9 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   defp badge_for_status(:grabbed), do: %{label: "Grabbed", variant: :success}
   defp badge_for_status(:downloading), do: %{label: "Downloading", variant: :info}
   defp badge_for_status(:pending), do: %{label: "Pending", variant: :info}
-  defp badge_for_status(_), do: %{label: "Scheduled", variant: :default}
+  # Scheduled is the implicit baseline of every Coming Up tile — render no
+  # badge for it. Reserve the badge for differentiating action states.
+  defp badge_for_status(_), do: nil
 
   defp format_year(nil), do: nil
   defp format_year(year) when is_integer(year), do: Integer.to_string(year)
