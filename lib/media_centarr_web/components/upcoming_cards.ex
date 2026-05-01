@@ -678,6 +678,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   defp active_card(assigns) do
     item_images = Map.get(assigns.images, assigns.item.id, %{})
     backdrop = item_images[:backdrop] || item_images[:poster]
+    logo = item_images[:logo]
 
     # Card kind decided by what's actually being rendered. If there are
     # released movie rows, prefer streaming/theatrical decision over
@@ -710,6 +711,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     assigns =
       assigns
       |> assign(backdrop: backdrop)
+      |> assign(logo: logo)
       |> assign(kind: kind)
       |> assign(card_destination: card_destination)
 
@@ -725,6 +727,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           upcoming={@upcoming}
           upcoming_overflow={@upcoming_overflow}
           backdrop={@backdrop}
+          logo={@logo}
           kind={@kind}
           grab_statuses={@grab_statuses}
           queue_items={@queue_items}
@@ -738,6 +741,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         upcoming={@upcoming}
         upcoming_overflow={@upcoming_overflow}
         backdrop={@backdrop}
+        logo={@logo}
         kind={@kind}
         grab_statuses={@grab_statuses}
         queue_items={@queue_items}
@@ -755,6 +759,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :upcoming, :list, default: []
   attr :upcoming_overflow, :integer, default: 0
   attr :backdrop, :string, default: nil
+  attr :logo, :string, default: nil
   attr :kind, :atom, required: true
   attr :grab_statuses, :map, default: %{}
   attr :queue_items, :list, default: []
@@ -795,7 +800,16 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         </div>
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 via-40% to-transparent" />
         <div class="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-2">
-          <p class="text-sm font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] leading-tight truncate">
+          <img
+            :if={@logo}
+            src={@logo}
+            alt={@item.name}
+            class="max-h-10 max-w-[70%] object-contain object-left drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+          />
+          <p
+            :if={!@logo}
+            class="text-sm font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] leading-tight truncate"
+          >
             {@item.name}
           </p>
           <.kind_badge kind={@kind} />
