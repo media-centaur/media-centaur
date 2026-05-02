@@ -4,6 +4,30 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.31.0 — 2026-05-03
+
+### Improved
+
+- **Show titles on the Upcoming page now use the official logo where
+  available.** Previously, only shows whose logo had already been
+  fetched for the main Library card showed it on Upcoming — anything
+  else fell back to plain typography, leading to a mixed look. The
+  logo is now fetched and stored alongside the rest of the metadata
+  when a tracked show or movie refreshes, so the visual treatment is
+  consistent across pages.
+
+### Fixed
+
+- **"Queue all" on the Upcoming page now re-arms grabs that were
+  previously cancelled or marked as failed.** Before, any release that
+  had a terminal grab on record was silently treated as "already in
+  progress," so a cancelled or abandoned download couldn't be retried
+  from the Queue All button — the toast claimed success while nothing
+  actually happened. The action now distinguishes between in-flight
+  searches, completed grabs, and terminal states, re-queues the
+  terminal ones, and reports an accurate summary (e.g. "Queued 2,
+  re-armed 1, 3 already grabbed").
+
 ## v0.30.3 — 2026-05-02
 
 Maintenance release. No user-visible changes — closes out the internal
