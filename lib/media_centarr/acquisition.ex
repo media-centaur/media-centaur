@@ -192,6 +192,15 @@ defmodule MediaCentarr.Acquisition do
   defdelegate queue_snapshot, to: MediaCentarr.Acquisition.QueueMonitor, as: :snapshot
 
   @doc """
+  Asks the QueueMonitor to poll the download client immediately. Use when
+  external state (e.g. a freshly configured download client) means the
+  cached snapshot is likely stale and waiting up to 30 s for the next
+  idle-cadence tick is too slow.
+  """
+  @spec poll_queue_now() :: :ok
+  defdelegate poll_queue_now, to: MediaCentarr.Acquisition.QueueMonitor, as: :poll_now
+
+  @doc """
   Searches Prowlarr for releases matching the query.
 
   Returns `{:error, :not_configured}` when Prowlarr is not configured.
