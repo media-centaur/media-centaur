@@ -38,6 +38,7 @@ Full long-form: [`docs/storybook.md`](../../docs/storybook.md). Abridged:
 | **Backend module guard** | `if Mix.env() == :dev` wraps `defmodule MediaCentarrWeb.Storybook` | Without the guard, `:test` and `:prod` compile fails to find `PhoenixStorybook`. |
 | **Tailwind source** | `assets/css/app.css` has `@source "../../storybook"` | Utilities used in stories must be scanned by Tailwind v4. New top-level dirs need the same treatment. |
 | **Formatter** | `.formatter.exs` includes `"storybook/**/*.exs"` | Stories format alongside the rest of the code. |
+| **Component coverage** | Every component module without a story must declare `@storybook_status :skip / :pending / :static_example` + `@storybook_reason "..."` | Enforced by `MediaCentarr.Credo.Checks.StorybookCoverage` (`mix precommit`). The reason lives next to the code so it can't drift. |
 
 ## Story types — choose the right one
 
@@ -340,6 +341,34 @@ Sizing/spacing classes inside icons must be `psb:`-prefixed because they live in
 11. `mix precommit` → push.
 
 The seed example is `storybook/core_components/button.story.exs`. Copy its shape (variant matrix, size matrix, hero pair, destructive group, icon-only, disabled) when adding a multi-axis story.
+
+## Coverage status (when not adding a story)
+
+If you add a component but **don't** add a story (sticky state, orchestration-only, awaiting contract refactor), declare the status on the module immediately so the Credo check passes:
+
+```elixir
+defmodule MediaCentarrWeb.Components.Foo do
+  @moduledoc "..."
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+
+  @storybook_status :pending
+  @storybook_reason "Awaiting typed-attr contract refactor — see plan"
+
+  # ...
+end
+```
+
+Statuses:
+
+- `:skip` — never going to have a story (sticky LiveView state, orchestration-only, view-model struct, helpers). Always paired with a reason.
+- `:static_example` — depends on context state in ways that prevent live rendering; a static visual specimen will be added.
+- `:pending` — story is planned but not yet written. The check warns (does not fail precommit) until the story exists.
+
+The `Module.register_attribute(..., persist: true)` calls are required to silence "unused module attribute" warnings under `--warnings-as-errors`. They also persist the attributes into the BEAM file so they're inspectable at runtime via `Module.get_attribute/2`.
+
+Omit all four lines (the two `register_attribute` and the two `@` declarations) once a story is in place — the existence of the story file at `storybook/<area>/<func>.story.exs` is what marks the component as covered.
 
 ## Anti-patterns
 
