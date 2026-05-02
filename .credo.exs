@@ -179,6 +179,7 @@
           {MediaCentarr.Credo.Checks.NoAbbreviatedNames, []},
           {MediaCentarr.Credo.Checks.ContextSubscribeFacade, []},
           {MediaCentarr.Credo.Checks.EntityModalContract, []},
+          {MediaCentarr.Credo.Checks.PlaybackEventsContract, []},
           {MediaCentarr.Credo.Checks.NoSysIntrospection, []},
           {MediaCentarr.Credo.Checks.LogMacroPreferred, []},
           {MediaCentarr.Credo.Checks.ModalPanelNoClickAway, []},

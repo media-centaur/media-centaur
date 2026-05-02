@@ -261,13 +261,13 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
-  def handle_info({:playback_state_changed, entity_id, _new_state, _now_playing, _started_at}, socket) do
+  def handle_info({:playback_state_changed, %{entity_id: entity_id}}, socket) do
     # The EntityModal hook owns the `:playback` map. Here we only re-render
     # the affected poster card so the "playing" badge appears/disappears.
     {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
-  def handle_info({:playback_failed, _entity_id, _reason, payload}, socket) do
+  def handle_info({:playback_failed, %{payload: payload}}, socket) do
     {:noreply, put_flash(socket, :error, playback_failed_flash(payload))}
   end
 
