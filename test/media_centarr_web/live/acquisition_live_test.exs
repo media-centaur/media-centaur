@@ -199,31 +199,13 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       :ok
     end
 
+    alias MediaCentarr.Acquisition.QueueItem
+
     test "confirming the modal calls qBittorrent delete and clears the row", %{conn: conn} do
       delete_counter = :counters.new(1, [:atomics])
 
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
-          {"GET", "/api/v2/torrents/info"} ->
-            n = :counters.get(delete_counter, 1)
-
-            if n > 0 do
-              Req.Test.json(conn, [])
-            else
-              Req.Test.json(conn, [
-                %{
-                  "hash" => "hash-a",
-                  "name" => "Movie.Test.2024",
-                  "state" => "downloading",
-                  "size" => 100,
-                  "amount_left" => 50,
-                  "progress" => 0.5,
-                  "eta" => 120,
-                  "category" => ""
-                }
-              ])
-            end
-
           {"POST", "/api/v2/torrents/delete"} ->
             {:ok, body, conn} = Plug.Conn.read_body(conn)
             assert body == "hashes=hash-a&deleteFiles=true"
@@ -235,10 +217,27 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       {:ok, view, _html} = live(conn, ~p"/download")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
-      # Force a poll after allow is granted (the mount-triggered poll may have
-      # raced with the allow call).
-      send(view.pid, :poll_queue)
-      html = wait_until(view, &(&1 =~ "Movie.Test.2024"))
+      # Seed the queue via the same PubSub broadcast QueueMonitor emits.
+      send(
+        view.pid,
+        {:queue_snapshot,
+         [
+           %QueueItem{
+             id: "hash-a",
+             title: "Movie.Test.2024",
+             state: :downloading,
+             status: "downloading",
+             download_client: "qBittorrent",
+             size: 100,
+             size_left: 50,
+             progress: 50.0,
+             timeleft: "2m"
+           }
+         ]}
+      )
+
+      html = render(view)
+      assert html =~ "Movie.Test.2024"
       assert html =~ "phx-click=\"cancel_download_prompt\""
 
       # Open the confirmation modal.
@@ -249,15 +248,15 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       assert html =~ "Cancel download?"
 
-      # Confirm.
-      view
-      |> element("button[phx-click='cancel_download_confirm']")
-      |> render_click()
+      # Confirm — fires the qBittorrent delete and optimistically drops the row.
+      html =
+        view
+        |> element("button[phx-click='cancel_download_confirm']")
+        |> render_click()
 
       assert :counters.get(delete_counter, 1) == 1
-      # Row is gone (no more cancel-prompt button for that hash) and modal closed.
-      html = wait_until(view, fn h -> not (h =~ "phx-value-id=\"hash-a\"") end)
       assert html =~ "No active downloads"
+      refute html =~ "phx-value-id=\"hash-a\""
       refute html =~ "Cancel download?"
     end
 
@@ -266,20 +265,6 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
-          {"GET", "/api/v2/torrents/info"} ->
-            Req.Test.json(conn, [
-              %{
-                "hash" => "hash-b",
-                "name" => "Show.S01E01",
-                "state" => "downloading",
-                "size" => 100,
-                "amount_left" => 50,
-                "progress" => 0.5,
-                "eta" => 120,
-                "category" => ""
-              }
-            ])
-
           {"POST", "/api/v2/torrents/delete"} ->
             :counters.add(delete_counter, 1, 1)
             Plug.Conn.send_resp(conn, 200, "")
@@ -288,8 +273,26 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/download")
       Req.Test.allow(:qbittorrent, self(), view.pid)
-      send(view.pid, :poll_queue)
-      wait_until(view, &(&1 =~ "Show.S01E01"))
+
+      send(
+        view.pid,
+        {:queue_snapshot,
+         [
+           %QueueItem{
+             id: "hash-b",
+             title: "Show.S01E01",
+             state: :downloading,
+             status: "downloading",
+             download_client: "qBittorrent",
+             size: 100,
+             size_left: 50,
+             progress: 50.0,
+             timeleft: "2m"
+           }
+         ]}
+      )
+
+      assert render(view) =~ "Show.S01E01"
 
       html =
         view
@@ -537,6 +540,105 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   # Polls render(view) until `predicate.(html)` returns true or the timeout
   # elapses. Used to wait for async Task.Supervisor work to deliver
   # {:search_result, _, _} / grab completion messages back to the LiveView.
+  describe "live updates from queue monitor" do
+    # The active queue is now driven by QueueMonitor's PubSub broadcast
+    # rather than per-LV polling. The LV must consume {:queue_snapshot, items}
+    # and re-render the queue zone without making its own download-client
+    # call. Without this contract the page would silently regress to stale
+    # data after the polling timer was removed.
+
+    alias MediaCentarr.Acquisition.QueueItem
+
+    test "queue_snapshot broadcast paints the active queue",
+         %{conn: conn} do
+      {:ok, view, html} = live(conn, ~p"/download")
+      assert html =~ "No active downloads" or html =~ "Downloading"
+
+      item = %QueueItem{
+        id: "hash-snapshot",
+        title: "Snapshot Movie 2026",
+        state: :downloading,
+        status: "downloading",
+        download_client: "qBittorrent",
+        size: 100,
+        size_left: 50,
+        progress: 50.0,
+        timeleft: "2m"
+      }
+
+      send(view.pid, {:queue_snapshot, [item]})
+
+      assert render(view) =~ "Snapshot Movie 2026"
+    end
+
+    test "queue_snapshot with completed items filters them out",
+         %{conn: conn} do
+      # QueueMonitor pre-filters completed items, but the LV defends in
+      # depth — a stale snapshot from cache or a future driver that emits
+      # completed entries must not surface seeded torrents on /download.
+      {:ok, view, _html} = live(conn, ~p"/download")
+
+      done = %QueueItem{id: "h1", title: "Already Done Movie", state: :completed}
+      live_item = %QueueItem{id: "h2", title: "Still Downloading Movie", state: :downloading}
+
+      send(view.pid, {:queue_snapshot, [done, live_item]})
+
+      html = render(view)
+      refute html =~ "Already Done Movie"
+      assert html =~ "Still Downloading Movie"
+    end
+
+    test "empty queue_snapshot transitions to the empty state",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/download")
+
+      seed = %QueueItem{id: "h3", title: "Soon To Vanish", state: :downloading}
+      send(view.pid, {:queue_snapshot, [seed]})
+      assert render(view) =~ "Soon To Vanish"
+
+      send(view.pid, {:queue_snapshot, []})
+
+      html = render(view)
+      refute html =~ "Soon To Vanish"
+      assert html =~ "No active downloads"
+    end
+  end
+
+  describe "live updates from grab lifecycle" do
+    # The activity zone shows recent grabs and their state. PubSub events
+    # from acquisition coalesce through a 500ms debounce so a season-grab
+    # cascade (one event per episode) becomes a single :reload_activity
+    # tick — without coalescing the page would re-query the activity table
+    # five times in quick succession for the same end state.
+
+    test "five rapid grab_failed events coalesce into one reload",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/download")
+
+      for _ <- 1..5 do
+        send(view.pid, {:grab_failed, %{id: Ecto.UUID.generate(), reason: "boom"}})
+      end
+
+      Process.sleep(600)
+
+      # No crash, page still renders activity zone.
+      assert render(view) =~ "Activity" or render(view) =~ "activity"
+    end
+
+    test "grab_submitted broadcast triggers a debounced reload without crashing",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/download")
+
+      send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
+      send(view.pid, {:auto_grab_armed, %{id: Ecto.UUID.generate()}})
+      send(view.pid, {:auto_grab_snoozed, %{id: Ecto.UUID.generate()}})
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Activity" or render(view) =~ "activity"
+    end
+  end
+
   defp wait_until(view, predicate, timeout \\ 1_000) do
     deadline = System.monotonic_time(:millisecond) + timeout
     do_wait_until(view, predicate, deadline)

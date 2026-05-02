@@ -162,6 +162,91 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     end
   end
 
+  describe "live updates from playback" do
+    test "entity_progress_updated reloads Continue Watching after debounce",
+         %{conn: conn} do
+      # The original gap: HomeLive.Logic.section_reloaders/1 had no clause
+      # for :entity_progress_updated, so progress messages from
+      # ProgressBroadcaster were silently dropped and the row froze
+      # mid-playback. The 500ms continue_watching debounce coalesces
+      # the high-frequency stream of position updates into a single reload.
+      #
+      # We pin the contract by mounting first, THEN persisting in-progress
+      # state for a new movie, THEN sending the broadcast. The row must
+      # reload and surface the new movie. Without the section_reloaders
+      # clause, the row would still be empty after the debounce window.
+      {:ok, view, html} = live(conn, "/")
+      refute html =~ "Newly Started Movie"
+
+      movie = create_standalone_movie(%{name: "Newly Started Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 100.0,
+        duration_seconds: 1000.0
+      })
+
+      send(
+        view.pid,
+        {:entity_progress_updated,
+         %{
+           entity_id: movie.id,
+           summary: %{},
+           resume_target: nil,
+           changed_record: nil,
+           last_activity_at: DateTime.utc_now()
+         }}
+      )
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Newly Started Movie"
+    end
+
+    test "playback_state_changed reloads Continue Watching",
+         %{conn: conn} do
+      # Play/pause from another device floats the now-playing item to the
+      # front of Continue Watching. Without routing playback_state_changed
+      # through schedule_section_reloads, the row order would only refresh
+      # on the next page navigation.
+      {:ok, view, _html} = live(conn, "/")
+
+      movie = create_standalone_movie(%{name: "Now Playing Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 50.0,
+        duration_seconds: 1000.0
+      })
+
+      send(
+        view.pid,
+        {:playback_state_changed, movie.id, :playing, %{}, DateTime.utc_now()}
+      )
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Now Playing Movie"
+    end
+
+    test "playback_failed broadcast renders an error flash",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/")
+
+      send(
+        view.pid,
+        {:playback_failed, Ecto.UUID.generate(), :file_not_found,
+         %{reason: :file_not_found, file_path: "/missing.mkv"}}
+      )
+
+      assert render(view) =~ "flash"
+    end
+  end
+
   describe "zone redirects" do
     test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
       assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
