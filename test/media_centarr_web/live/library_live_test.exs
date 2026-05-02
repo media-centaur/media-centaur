@@ -5,6 +5,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.{Library, Watcher.FilePresence}
+  alias MediaCentarr.Playback.ProgressBroadcaster
 
   describe "zone tabs removed" do
     test "library page has no zone tabs", %{conn: conn} do
@@ -127,6 +128,93 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal [phx-click-away]")
+    end
+  end
+
+  describe "live updates from playback" do
+    setup do
+      movie = create_standalone_movie(%{name: "Live Update Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+      {:ok, movie: movie}
+    end
+
+    test "entity_progress_updated broadcast paints the progress bar without remount",
+         %{conn: conn, movie: movie} do
+      # Pin the live-update contract: when MpvSession persists progress and
+      # ProgressBroadcaster fires, the LibraryLive grid card must reflect
+      # the new progress without the user reloading the page. Without this,
+      # users start a movie and the catalog still shows it as untouched.
+      {:ok, view, html} = live(conn, "/library")
+      assert html =~ "Live Update Movie"
+      refute html =~ "progress-fill"
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 600.0,
+        duration_seconds: 1000.0
+      })
+
+      ProgressBroadcaster.broadcast(movie.id)
+
+      html = render(view)
+      assert html =~ "progress-fill"
+      assert html =~ "width: 60"
+    end
+
+    test "playback_state_changed broadcast surfaces the now-playing pulse",
+         %{conn: conn, movie: movie} do
+      # The pulse dot in the top-right of the card is a high-signal "this
+      # is playing right now" indicator. It must light up the moment another
+      # device reports playback, not on the next page load.
+      {:ok, view, html} = live(conn, "/library")
+      refute html =~ "animate-pulse"
+
+      Phoenix.PubSub.broadcast(
+        MediaCentarr.PubSub,
+        MediaCentarr.Topics.playback_events(),
+        {:playback_state_changed, movie.id, :playing, %{}, DateTime.utc_now()}
+      )
+
+      assert render(view) =~ "animate-pulse"
+    end
+
+    test "playback_failed broadcast renders an error flash",
+         %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live(conn, "/library")
+
+      Phoenix.PubSub.broadcast(
+        MediaCentarr.PubSub,
+        MediaCentarr.Topics.playback_events(),
+        {:playback_failed, movie.id, :file_not_found,
+         %{reason: :file_not_found, file_path: "/missing.mkv"}}
+      )
+
+      assert render(view) =~ "flash"
+    end
+  end
+
+  describe "live updates from availability" do
+    test "availability_changed broadcast does not crash and re-renders",
+         %{conn: conn} do
+      # When a watch dir goes offline (USB unplug, NFS drop), the LV must
+      # consume the broadcast and re-render. The banner itself depends on
+      # Availability GenServer state mutations that the LV does not own,
+      # so this test pins the LV-side contract: subscribe + handle_info
+      # without crashing and with a clean re-render.
+      movie = create_standalone_movie(%{name: "Availability Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      {:ok, view, _html} = live(conn, "/library")
+
+      Phoenix.PubSub.broadcast(
+        MediaCentarr.PubSub,
+        "library:availability",
+        {:availability_changed, file.watch_dir, :unavailable}
+      )
+
+      assert render(view) =~ "Availability Movie"
     end
   end
 end

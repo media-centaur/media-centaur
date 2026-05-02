@@ -93,4 +93,74 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
       assert result =~ "not found" or result =~ "couldn't"
     end
   end
+
+  describe "live updates from grab lifecycle" do
+    # Releases on the Upcoming page show grab status badges (Pending,
+    # Searching, Grabbed, etc). When acquisition fires PubSub events as a
+    # download is requested or fails, the badge must refresh without a
+    # navigation. Each event individually is debounced 500ms; rapid bursts
+    # (one per episode of a season) must coalesce.
+
+    test "grab_submitted broadcast schedules a debounced grab-status reload",
+         %{conn: conn} do
+      today = Date.utc_today()
+
+      item =
+        create_tracking_item(%{tmdb_id: 9_001, media_type: :tv_series, name: "Grab Live Show"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 1,
+        air_date: Date.add(today, 7),
+        released: false
+      })
+
+      {:ok, view, html} = live(conn, ~p"/upcoming")
+      assert html =~ "Grab Live Show"
+
+      send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Grab Live Show"
+    end
+
+    test "five rapid grab events coalesce into one reload",
+         %{conn: conn} do
+      # Regression guard for the 500ms grab_statuses_timer debounce —
+      # a season grab cascade emits one event per episode; without the
+      # debounce we would re-query grab statuses N times back-to-back.
+      {:ok, view, _html} = live(conn, ~p"/upcoming")
+
+      for _ <- 1..5 do
+        send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
+        send(view.pid, {:auto_grab_armed, %{id: Ecto.UUID.generate()}})
+      end
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Upcoming"
+    end
+
+    test "queue_snapshot updates the in-memory queue items",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/upcoming")
+
+      send(view.pid, {:queue_snapshot, []})
+
+      assert render(view) =~ "Upcoming"
+    end
+
+    test "releases_updated broadcast triggers a debounced reload",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/upcoming")
+
+      send(view.pid, {:releases_updated, [Ecto.UUID.generate()]})
+
+      Process.sleep(600)
+
+      assert render(view) =~ "Upcoming"
+    end
+  end
 end

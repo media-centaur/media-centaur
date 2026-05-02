@@ -383,6 +383,25 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
                [:continue_watching]
     end
 
+    test "entity_progress_updated reloads continue_watching only" do
+      # Without this, the Continue Watching row freezes mid-playback because
+      # progress messages from Playback.ProgressBroadcaster only flow while
+      # MpvSession is reporting position. The 500ms debounce on
+      # :continue_watching reload coalesces the high-frequency stream.
+      msg =
+        {:entity_progress_updated,
+         %{entity_id: "abc", summary: %{}, resume_target: nil, changed_record: nil}}
+
+      assert Logic.section_reloaders(msg) == [:continue_watching]
+    end
+
+    test "playback_state_changed reloads continue_watching only" do
+      # Play/pause from another device must reorder Continue Watching so
+      # the now-playing item floats to the front of the row.
+      msg = {:playback_state_changed, "abc", :playing, %{}, DateTime.utc_now()}
+      assert Logic.section_reloaders(msg) == [:continue_watching]
+    end
+
     test "unknown messages route to nothing" do
       assert Logic.section_reloaders({:something_else, :data}) == []
       assert Logic.section_reloaders(:bare_atom) == []
