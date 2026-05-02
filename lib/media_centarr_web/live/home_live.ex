@@ -17,7 +17,6 @@ defmodule MediaCentarrWeb.HomeLive do
     Library,
     Library.Availability,
     ReleaseTracking,
-    Settings,
     WatchHistory
   }
 
@@ -34,10 +33,12 @@ defmodule MediaCentarrWeb.HomeLive do
   def mount(_params, _session, socket) do
     # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
     # the EntityModal on_mount callback — do not duplicate them here.
+    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
+    # the EntityModal on_mount callback; `Settings.subscribe()` is auto-
+    # wired by SpoilerFreeAware. Do not duplicate them here.
     if connected?(socket) do
       ReleaseTracking.subscribe()
       WatchHistory.subscribe()
-      Settings.subscribe()
       Availability.subscribe()
       Capabilities.subscribe()
     end
@@ -50,7 +51,6 @@ defmodule MediaCentarrWeb.HomeLive do
       |> assign(:recently_added_timer, nil)
       |> assign(:availability_map, %{})
       |> assign_tmdb_ready()
-      |> assign_spoiler_free()
       |> assign(:watch_dirs, MediaCentarr.Config.get(:watch_dirs) || [])
       |> assign_empty_sections()
 

@@ -3,21 +3,26 @@ defmodule MediaCentarrWeb.Live.SpoilerFreeAware do
   Shared `:spoiler_free` lifecycle for any LiveView that hides spoilery
   detail when the setting is on (Home, Library, Settings).
 
-  `use MediaCentarrWeb.Live.SpoilerFreeAware` injects:
+  `use MediaCentarrWeb.Live.SpoilerFreeAware` registers an `on_mount`
+  callback that:
 
-    * a `handle_info/2` clause for `{:setting_changed, "spoiler_free_mode", enabled}`
-      that re-assigns `:spoiler_free`
-    * an `import` for `assign_spoiler_free/1`, called once from the host
-      LiveView's `mount/3` to seed the assign
+    * subscribes to `MediaCentarr.Settings` (when connected) so live
+      updates flow into this LiveView
+    * seeds `:spoiler_free` from the current value
+    * attaches a `:handle_info` hook that re-assigns `:spoiler_free`
+      whenever `{:setting_changed, "spoiler_free_mode", _}` arrives, then
+      returns `{:cont, socket}` so the host's own `handle_info/2` clauses
+      still run for any other setting keys it cares about
 
-  Subscribing to `MediaCentarr.Settings` is left to the host because each
-  LiveView already has its own subscription list and may listen for
-  several setting keys for unrelated reasons.
+  The host cannot forget any of this — it is structurally impossible to
+  mount the trait without the wiring. Hosts MUST NOT call
+  `Settings.subscribe()` themselves; the `EntityModalContract` Credo
+  check (which covers all auto-wiring traits) flags the duplicate.
 
-  Decoupling rationale: see ADR-038. Before this module existed, three
-  LiveViews each privately defined `load_spoiler_free_setting/0`,
-  assigned it in mount, and pattern-matched the same PubSub message —
-  exactly the duplication the second-copy rule prohibits.
+  Decoupling rationale: see ADR-038. Before the on_mount migration each
+  host had to remember to subscribe, seed the assign, AND not collide
+  with another `handle_info(:setting_changed, ...)` clause — a contract
+  the EntityModal class-of-bug exposed as fragile.
   """
 
   alias MediaCentarr.Settings
@@ -26,23 +31,38 @@ defmodule MediaCentarrWeb.Live.SpoilerFreeAware do
 
   defmacro __using__(_opts) do
     quote do
-      import MediaCentarrWeb.Live.SpoilerFreeAware, only: [assign_spoiler_free: 1]
-
-      @impl true
-      def handle_info({:setting_changed, unquote(@setting_key), enabled}, socket) do
-        {:noreply, Phoenix.Component.assign(socket, :spoiler_free, enabled == true)}
-      end
+      on_mount {MediaCentarrWeb.Live.SpoilerFreeAware, :default}
     end
   end
 
   @doc """
-  Seeds `:spoiler_free` from the `Settings` context. Call once from
-  `mount/3` (after subscribing to `Settings` if you want live updates).
+  Auto-wires every host that `use`s this module. Subscribes once,
+  seeds the assign, and attaches the PubSub hook.
   """
-  @spec assign_spoiler_free(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  def assign_spoiler_free(socket) do
-    Phoenix.Component.assign(socket, :spoiler_free, current_value())
+  def on_mount(:default, _params, _session, socket) do
+    socket = Phoenix.Component.assign(socket, :spoiler_free, current_value())
+
+    if Phoenix.LiveView.connected?(socket) do
+      Settings.subscribe()
+    end
+
+    socket =
+      Phoenix.LiveView.attach_hook(
+        socket,
+        :spoiler_free_aware,
+        :handle_info,
+        &__MODULE__.handle_setting_changed/2
+      )
+
+    {:cont, socket}
   end
+
+  @doc false
+  def handle_setting_changed({:setting_changed, @setting_key, enabled}, socket) do
+    {:cont, Phoenix.Component.assign(socket, :spoiler_free, enabled == true)}
+  end
+
+  def handle_setting_changed(_msg, socket), do: {:cont, socket}
 
   defp current_value do
     case Settings.get_by_key(@setting_key) do
