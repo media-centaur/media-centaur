@@ -16,7 +16,6 @@ defmodule MediaCentarrWeb.HomeLive do
     Capabilities,
     Library,
     Library.Availability,
-    Playback,
     ReleaseTracking,
     Settings,
     WatchHistory
@@ -33,11 +32,11 @@ defmodule MediaCentarrWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
+    # the EntityModal on_mount callback — do not duplicate them here.
     if connected?(socket) do
-      Library.subscribe()
       ReleaseTracking.subscribe()
       WatchHistory.subscribe()
-      Playback.subscribe()
       Settings.subscribe()
       Availability.subscribe()
       Capabilities.subscribe()
@@ -49,12 +48,10 @@ defmodule MediaCentarrWeb.HomeLive do
       |> assign(:continue_timer, nil)
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
-      |> assign(:playback, %{})
       |> assign(:availability_map, %{})
       |> assign_tmdb_ready()
       |> assign_spoiler_free()
       |> assign(:watch_dirs, MediaCentarr.Config.get(:watch_dirs) || [])
-      |> assign_modal_defaults()
       |> assign_empty_sections()
 
     {:ok, socket}
@@ -238,25 +235,10 @@ defmodule MediaCentarrWeb.HomeLive do
     {:noreply, assign_recently_added(socket)}
   end
 
-  def handle_info({:entities_changed, entity_ids}, socket) do
-    socket =
-      if socket.assigns.selected_entity_id &&
-           Enum.member?(entity_ids, socket.assigns.selected_entity_id) do
-        refresh_selected_entry(socket)
-      else
-        socket
-      end
-
-    schedule_section_reloads(socket, {:entities_changed, entity_ids})
-  end
-
-  def handle_info(
-        {:playback_state_changed, entity_id, new_state, now_playing, _started_at} = message,
-        socket
-      ) do
-    playback = apply_playback_change(socket.assigns.playback, entity_id, new_state, now_playing)
-    schedule_section_reloads(assign(socket, playback: playback), message)
-  end
+  # Modal-state messages (`:entities_changed`, `:playback_state_changed`,
+  # `:entity_progress_updated`, `:extra_progress_updated`) are handled by
+  # the EntityModal `:handle_info` hook before they land here. Host-level
+  # work (section reloads) happens via the catch-all below.
 
   def handle_info({:playback_failed, _entity_id, _reason, payload}, socket) do
     {:noreply,
