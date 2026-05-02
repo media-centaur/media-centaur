@@ -210,7 +210,11 @@ defmodule MediaCentarrWeb.StatusLive do
     {:noreply, debounce(socket, :stats_timer, :refresh_stats, 1_000)}
   end
 
-  def handle_info({:playback_state_changed, entity_id, new_state, now_playing, started_at}, socket) do
+  def handle_info(
+        {:playback_state_changed,
+         %{entity_id: entity_id, state: new_state, now_playing: now_playing, started_at: started_at}},
+        socket
+      ) do
     sessions = socket.assigns.playback.sessions
     existing = Map.get(sessions, entity_id)
     kept_started_at = (existing && existing[:started_at]) || started_at

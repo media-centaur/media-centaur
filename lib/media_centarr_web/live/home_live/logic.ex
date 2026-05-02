@@ -278,8 +278,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
 
   def section_reloaders({:entity_progress_updated, _payload}), do: [:continue_watching]
 
-  def section_reloaders({:playback_state_changed, _id, _state, _now_playing, _started_at}),
-    do: [:continue_watching]
+  def section_reloaders({:playback_state_changed, _payload}), do: [:continue_watching]
 
   def section_reloaders(_), do: []
 end

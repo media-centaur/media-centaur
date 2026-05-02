@@ -239,7 +239,7 @@ defmodule MediaCentarrWeb.HomeLive do
   # the EntityModal `:handle_info` hook before they land here. Host-level
   # work (section reloads) happens via the catch-all below.
 
-  def handle_info({:playback_failed, _entity_id, _reason, payload}, socket) do
+  def handle_info({:playback_failed, %{payload: payload}}, socket) do
     {:noreply,
      put_flash(
        socket,

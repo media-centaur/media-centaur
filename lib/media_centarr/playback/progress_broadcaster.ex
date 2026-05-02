@@ -11,6 +11,8 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   alias MediaCentarr.Format
   alias MediaCentarr.Library
   alias MediaCentarr.Library.{EntityShape, TypeResolver}
+  alias MediaCentarr.Playback.Events
+  alias MediaCentarr.Playback.Events.{EntityProgressUpdated, ExtraProgressUpdated}
 
   @doc """
   Loads entity progress and broadcasts an `:entity_progress_updated` message.
@@ -29,19 +31,13 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
 
         Log.info(:playback, "broadcast progress — #{Format.short_id(entity_id)}")
 
-        Phoenix.PubSub.broadcast(
-          MediaCentarr.PubSub,
-          MediaCentarr.Topics.playback_events(),
-          {:entity_progress_updated,
-           %{
-             entity_id: entity_id,
-             summary: summary,
-             resume_target: resume_target,
-             child_targets_delta: nil,
-             changed_record: changed_record,
-             last_activity_at: DateTime.utc_now()
-           }}
-        )
+        Events.broadcast(%EntityProgressUpdated{
+          entity_id: entity_id,
+          summary: summary,
+          resume_target: resume_target,
+          changed_record: changed_record,
+          last_activity_at: DateTime.utc_now()
+        })
 
       :not_found ->
         :ok
@@ -71,15 +67,10 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
 
     Log.info(:playback, "broadcast extra progress — #{Format.short_id(extra_id)}")
 
-    Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
-      MediaCentarr.Topics.playback_events(),
-      {:extra_progress_updated,
-       %{
-         entity_id: entity_id,
-         extra_id: extra_id,
-         progress: progress
-       }}
-    )
+    Events.broadcast(%ExtraProgressUpdated{
+      entity_id: entity_id,
+      extra_id: extra_id,
+      progress: progress
+    })
   end
 end

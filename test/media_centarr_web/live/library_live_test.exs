@@ -5,7 +5,8 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.{Library, Watcher.FilePresence}
-  alias MediaCentarr.Playback.ProgressBroadcaster
+  alias MediaCentarr.Playback.{Events, ProgressBroadcaster}
+  alias MediaCentarr.Playback.Events.{PlaybackFailed, PlaybackStateChanged}
 
   describe "zone tabs removed" do
     test "library page has no zone tabs", %{conn: conn} do
@@ -170,11 +171,12 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       {:ok, view, html} = live(conn, "/library")
       refute html =~ "animate-pulse"
 
-      Phoenix.PubSub.broadcast(
-        MediaCentarr.PubSub,
-        MediaCentarr.Topics.playback_events(),
-        {:playback_state_changed, movie.id, :playing, %{}, DateTime.utc_now()}
-      )
+      Events.broadcast(%PlaybackStateChanged{
+        entity_id: movie.id,
+        state: :playing,
+        now_playing: %{},
+        started_at: DateTime.utc_now()
+      })
 
       assert render(view) =~ "animate-pulse"
     end
@@ -183,12 +185,11 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
          %{conn: conn, movie: movie} do
       {:ok, view, _html} = live(conn, "/library")
 
-      Phoenix.PubSub.broadcast(
-        MediaCentarr.PubSub,
-        MediaCentarr.Topics.playback_events(),
-        {:playback_failed, movie.id, :file_not_found,
-         %{reason: :file_not_found, file_path: "/missing.mkv"}}
-      )
+      Events.broadcast(%PlaybackFailed{
+        entity_id: movie.id,
+        reason: :file_not_found,
+        payload: %{reason: :file_not_found, file_path: "/missing.mkv"}
+      })
 
       assert render(view) =~ "flash"
     end

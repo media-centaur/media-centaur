@@ -381,7 +381,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   end
 
   def handle_modal_pubsub(
-        {:playback_state_changed, entity_id, new_state, now_playing, _started_at},
+        {:playback_state_changed, %{entity_id: entity_id, state: new_state, now_playing: now_playing}},
         socket
       ) do
     playback =

@@ -472,7 +472,15 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
     test "playback_state_changed reloads continue_watching only" do
       # Play/pause from another device must reorder Continue Watching so
       # the now-playing item floats to the front of the row.
-      msg = {:playback_state_changed, "abc", :playing, %{}, DateTime.utc_now()}
+      msg =
+        {:playback_state_changed,
+         %MediaCentarr.Playback.Events.PlaybackStateChanged{
+           entity_id: "abc",
+           state: :playing,
+           now_playing: %{},
+           started_at: DateTime.utc_now()
+         }}
+
       assert Logic.section_reloaders(msg) == [:continue_watching]
     end
 
