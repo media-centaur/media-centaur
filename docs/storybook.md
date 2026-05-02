@@ -10,7 +10,7 @@ Eight rules. Read them before adding a story or changing a component.
 
 ### 1. Components, not pages
 
-Storybook catalogs **function components** — `<.button>`, `<.poster_card>`, `<.cw_card>`, `<.modal_shell>`, badge/header recipes. Full LiveViews stay covered by page smoke tests + the screenshot tour. They depend on PubSub, contexts, and the input system in ways that don't survive isolation; faking those dependencies turns the story into a lie.
+Storybook catalogs **function components** — `<.button>`, `<.poster_card>`, `<.toolbar>`, `<.modal_shell>`, badge/header recipes. Full LiveViews stay covered by page smoke tests + the screenshot tour. They depend on PubSub, contexts, and the input system in ways that don't survive isolation; faking those dependencies turns the story into a lie.
 
 ### 2. Stories follow the component contract
 
@@ -97,29 +97,43 @@ The `<.button>` story (`storybook/core_components/button.story.exs`) is the seed
 
 ## Component triage
 
-What belongs and what doesn't. Reassess as the contract layer matures.
+What belongs and what doesn't. Status mirrors the `@storybook_status` module attribute on each component module — when this table and the source disagree, the source is correct.
 
-| Component | Story? | Notes |
+| Component | Status | Notes |
 |-----------|--------|-------|
-| `core_components.button/1` | ✅ Seed story; full matrix |
-| `core_components.icon/1` | ✅ Stub generated; expand with the heroicon set we actually use |
-| `core_components.input/1` | ✅ Stub generated; expand with each input type and error/no-error |
-| `core_components.flash/1` | ✅ Stub generated; expand with each level |
-| `core_components.header/1` | ✅ Stub generated |
-| `core_components.list/1` | ✅ Stub generated |
-| `core_components.table/1` | ✅ Stub generated; cover empty/loaded/long-row states |
-| `library_cards.poster_card/1` | ⏳ Pending — exemplifies typed-attr/ViewModel value |
-| `library_cards.cw_card/1` | ⏳ Pending — needs progress bar + paused state |
-| `library_cards.toolbar/1` | ⏳ Pending — type tabs × sort × filter axes |
-| `detail_panel/1` | ⏳ Pending — many states (no artwork, no plot, episode list) |
-| `modal_shell/1` | ⏳ Pending — open/closed (always-in-DOM pattern) |
-| `hero_card/1` | ⏳ Pending |
-| `track_modal/1` | ⏳ Static example only — depends on TMDB context |
-| `console_components.*` | ⚠️ Skip — log stream is sticky LiveView state |
-| `coming_up_marquee/1` | ⚠️ Skip — depends on release-tracking timer state |
-| `continue_watching_row/1` | ⚠️ Skip — depends on watch-history feed |
+| `core_components.button/1` | ✅ covered | Seed story; full matrix |
+| `core_components.icon/1` | ✅ covered | Sizes + colors + motion |
+| `core_components.input/1` | ✅ covered | Each input type, error/no-error |
+| `core_components.flash/1` | ✅ covered | Each level |
+| `core_components.header/1` | ✅ covered | Header recipes |
+| `core_components.list/1` | ✅ covered | Description list |
+| `core_components.table/1` | ✅ covered | Empty/loaded/long-row states |
+| `detail.facet_strip/1` | ⏳ pending | Phase 4 — facet row above metadata |
+| `detail.hero/1` | ⏳ pending | Phase 4 — backdrop + title block |
+| `detail.metadata_row/1` | ⏳ pending | Phase 4 — badge + items row |
+| `detail.play_card/1` | ⏳ pending | Phase 4 — primary play CTA + progress |
+| `detail.section/1` | ⏳ pending | Phase 4 — titled section wrapper |
+| `hero_card/1` | ⏳ pending | Phase 4 — featured-item card |
+| `modal_shell/1` | ⏳ pending | Phase 4 — open/closed (always-in-DOM pattern) |
+| `detail_panel/1` | ⏳ pending | Phase 5 — many states (no artwork, no plot, episode list) |
+| `library_cards.poster_card/1` | ⏳ pending | Phase 5 — exemplifies typed-attr/ViewModel value |
+| `library_cards.storage_offline_banner/1` | ⏳ pending | Phase 5 — single summary string |
+| `library_cards.toolbar/1` | ⏳ pending | Phase 5 — type tabs × sort × filter axes |
+| `poster_row/1` | ⏳ pending | Phase 5 — horizontal item row |
+| `upcoming_cards.upcoming_zone/1` | ⏳ pending | Phase 5 — calendar + active shows zone |
+| `track_modal/1` | 🖼 static example | Depends on TMDB context |
+| `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
+| `console_components.chip_row/1` | ⚠️ skip | Log stream is sticky LiveView state |
+| `console_components.log_list/1` | ⚠️ skip | Log stream is sticky LiveView state |
+| `console_components.journal_list/1` | ⚠️ skip | Log stream is sticky LiveView state |
+| `console_components.source_tabs/1` | ⚠️ skip | Log stream is sticky LiveView state |
+| `console_components.action_footer/1` | ⚠️ skip | Log stream is sticky LiveView state |
+| `continue_watching_row/1` | ⚠️ skip | Depends on watch-history feed |
+| `detail/facet.ex` | ⚠️ skip | Typed view-model struct, not a function component |
+| `detail/logic.ex` | ⚠️ skip | Pure helpers, not a function component |
+| `layouts.app/1`, `layouts.flash_group/1`, `layouts.console_mount/1` | ⚠️ skip | Page layouts, not catalog material |
 
-Skill rule: any "Pending" entry above is a candidate for the next story PR. Closing all of them is the definition of "the storybook is the design system."
+Closing all "pending" rows is the definition of "the storybook is the design system."
 
 ## Pitfalls and gotchas
 
