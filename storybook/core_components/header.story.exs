@@ -16,39 +16,56 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Header do
   def variations do
     [
       %Variation{
-        id: :default,
-        description: "With a title",
-        slots: [
-          "Section title"
-        ]
+        id: :title_only,
+        description: "Title only",
+        slots: ["Library"]
       },
       %Variation{
-        id: :subtitle,
-        description: "With a subtitle",
+        id: :with_subtitle,
+        description: "Title + subtitle",
         slots: [
-          "Section title",
+          "Settings",
           """
           <:subtitle>
-            Here a subtitle
+            Configure how Media Centarr behaves on this device.
           </:subtitle>
           """
         ]
       },
       %Variation{
-        id: :actions,
-        description: "With a subtitle and actions",
+        id: :with_actions,
+        description: "Title + actions",
         slots: [
-          "Section title",
+          "Watch History",
+          """
+          <:actions>
+            <.button>Clear</.button>
+          </:actions>
+          """
+        ]
+      },
+      %Variation{
+        id: :full,
+        description: "Title + subtitle + actions",
+        slots: [
+          "Library",
           """
           <:subtitle>
-            Here a subtitle
+            Browse everything ready to watch.
           </:subtitle>
           """,
           """
           <:actions>
-            <.button>Action!</.button>
+            <.button>Refresh</.button>
           </:actions>
           """
+        ]
+      },
+      %Variation{
+        id: :long_title,
+        description: "Long title that wraps",
+        slots: [
+          "A Very Long Section Title That Demonstrates How The Header Wraps When The Text Exceeds A Single Line Of Width"
         ]
       }
     ]
