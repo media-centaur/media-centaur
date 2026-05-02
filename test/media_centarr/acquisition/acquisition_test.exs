@@ -390,7 +390,9 @@ defmodule MediaCentarr.AcquisitionTest do
 
       assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
       assert summary.queued == 3
-      assert summary.skipped_in_flight == 0
+      assert summary.rearmed == 0
+      assert summary.in_progress == 0
+      assert summary.already_grabbed == 0
       assert summary.failed == []
 
       grabs =
@@ -405,7 +407,7 @@ defmodule MediaCentarr.AcquisitionTest do
       assert Enum.map(grabs, & &1.episode_number) == [1, 2, 3]
     end
 
-    test "skips releases that already have a grab (in-flight)" do
+    test "skips releases with an active (searching/snoozed) grab as in_progress" do
       item =
         create_tracking_item(%{
           tmdb_id: 7_002,
@@ -431,7 +433,84 @@ defmodule MediaCentarr.AcquisitionTest do
 
       assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
       assert summary.queued == 2
-      assert summary.skipped_in_flight == 1
+      assert summary.in_progress == 1
+      assert summary.rearmed == 0
+      assert summary.already_grabbed == 0
+    end
+
+    test "re-arms cancelled and abandoned grabs back to searching" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_006,
+          media_type: :tv_series,
+          name: "Reanimate"
+        })
+
+      Enum.each(1..3, fn episode ->
+        create_tracking_release(%{
+          item_id: item.id,
+          season_number: 1,
+          episode_number: episode,
+          released: true
+        })
+      end)
+
+      {:ok, ep1} =
+        Acquisition.enqueue("7006", "tv", "Reanimate", season_number: 1, episode_number: 1)
+
+      {:ok, ep2} =
+        Acquisition.enqueue("7006", "tv", "Reanimate", season_number: 1, episode_number: 2)
+
+      {:ok, _} = Acquisition.cancel_grab(ep1.id, "user_cancelled")
+
+      {:ok, _} =
+        ep2
+        |> Ecto.Changeset.change(status: "abandoned")
+        |> MediaCentarr.Repo.update()
+
+      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+      assert summary.queued == 1
+      assert summary.rearmed == 2
+      assert summary.in_progress == 0
+      assert summary.already_grabbed == 0
+
+      # Re-armed grabs are active again. Oban runs the SearchAndGrab job
+      # inline in tests, so they may have already transitioned from
+      # `searching` → `snoozed` if the prowlarr stub returned no results.
+      ep1_after = MediaCentarr.Repo.get(Grab, ep1.id)
+      ep2_after = MediaCentarr.Repo.get(Grab, ep2.id)
+      assert ep1_after.status in ["searching", "snoozed"]
+      assert ep2_after.status in ["searching", "snoozed"]
+    end
+
+    test "skips successfully grabbed releases as already_grabbed" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_007,
+          media_type: :tv_series,
+          name: "Done Already"
+        })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 1,
+        episode_number: 1,
+        released: true
+      })
+
+      {:ok, grab} =
+        Acquisition.enqueue("7007", "tv", "Done Already", season_number: 1, episode_number: 1)
+
+      {:ok, _} =
+        grab
+        |> Ecto.Changeset.change(status: "grabbed")
+        |> MediaCentarr.Repo.update()
+
+      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+      assert summary.queued == 0
+      assert summary.rearmed == 0
+      assert summary.in_progress == 0
+      assert summary.already_grabbed == 1
     end
 
     test "ignores not-released and already-in-library releases" do
@@ -514,7 +593,9 @@ defmodule MediaCentarr.AcquisitionTest do
 
       assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
       assert summary.queued == 0
-      assert summary.skipped_in_flight == 0
+      assert summary.rearmed == 0
+      assert summary.in_progress == 0
+      assert summary.already_grabbed == 0
     end
   end
 end

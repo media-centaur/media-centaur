@@ -588,6 +588,36 @@ defmodule MediaCentarr.ReleaseTracking do
   defp tmdb_type_for(:movie), do: "movie"
 
   @doc """
+  Resolves the best available logo URL for a tracking item.
+
+  Prefers the paired Library entity's logo (most authoritative — it's the same
+  asset that drives the rest of the library); falls back to the tracking
+  item's own `logo_path` (fetched directly from TMDB by the refresher for
+  shows not yet imported); returns `nil` if neither is available.
+
+  `library_logos` is the map returned by
+  `MediaCentarr.Library.logo_urls_for_entities/1`, batched by the caller so
+  a single query covers many items.
+
+  Single source of truth for "what logo should this card show?" — both
+  `upcoming_live` and `list_releases_between/3` route through here so the
+  precedence rule lives in exactly one place.
+  """
+  @spec logo_url_for_item(%Item{}, %{Ecto.UUID.t() => String.t()}) :: String.t() | nil
+  def logo_url_for_item(%Item{} = item, library_logos) do
+    cond do
+      item.library_entity_id && Map.get(library_logos, item.library_entity_id) ->
+        Map.get(library_logos, item.library_entity_id)
+
+      is_binary(item.logo_path) ->
+        "/media-images/#{item.logo_path}"
+
+      true ->
+        nil
+    end
+  end
+
+  @doc """
   List tracked releases with `air_date` between `from_date` and `to_date` (inclusive),
   for watching items only. Used by HomeLive's "Coming Up" digest.
 
@@ -631,7 +661,7 @@ defmodule MediaCentarr.ReleaseTracking do
           "/media-images/#{release.item.backdrop_path}"
         end
 
-      logo_url = release.item.library_entity_id && Map.get(logo_urls, release.item.library_entity_id)
+      logo_url = logo_url_for_item(release.item, logo_urls)
 
       %{
         item: %{

@@ -26,6 +26,9 @@ defmodule MediaCentarr.ReleaseTracking.ImageStore do
   # `original`. Storage cost is trivial — one file per tracked item.
   @tmdb_poster_url "https://image.tmdb.org/t/p/original"
   @tmdb_backdrop_url "https://image.tmdb.org/t/p/original"
+  # Logos are PNG with transparency on TMDB; same `original` size class as the
+  # rest. Stored as `logo.png` so the extension matches the actual asset.
+  @tmdb_logo_url "https://image.tmdb.org/t/p/original"
   @tracking_subdir "images/tracking"
 
   # Files written before the switch to `original` were typically
@@ -38,6 +41,9 @@ defmodule MediaCentarr.ReleaseTracking.ImageStore do
 
   def download_backdrop(tmdb_id, tmdb_path),
     do: download_role(tmdb_id, tmdb_path, :backdrop, @tmdb_backdrop_url, "backdrop.jpg")
+
+  def download_logo(tmdb_id, tmdb_path),
+    do: download_role(tmdb_id, tmdb_path, :logo, @tmdb_logo_url, "logo.png")
 
   @doc """
   Returns true if `path` is missing, empty, or under
@@ -57,9 +63,10 @@ defmodule MediaCentarr.ReleaseTracking.ImageStore do
   if the file does not yet exist. Useful for staleness checks that do
   not need a TMDB lookup.
   """
-  @spec on_disk_path(:backdrop | :poster, integer()) :: String.t()
+  @spec on_disk_path(:backdrop | :poster | :logo, integer()) :: String.t()
   def on_disk_path(:backdrop, tmdb_id), do: absolute_image_path(tmdb_id, "backdrop.jpg")
   def on_disk_path(:poster, tmdb_id), do: absolute_image_path(tmdb_id, "poster.jpg")
+  def on_disk_path(:logo, tmdb_id), do: absolute_image_path(tmdb_id, "logo.png")
 
   @doc """
   Re-downloads a tracking image only if the on-disk copy is stale per
@@ -70,16 +77,17 @@ defmodule MediaCentarr.ReleaseTracking.ImageStore do
   the file was already a healthy size, `:failed` when the download
   errored, or `:skipped` when there was nothing to do.
   """
-  @spec refresh_if_stale(:backdrop | :poster, integer(), String.t() | nil) ::
+  @spec refresh_if_stale(:backdrop | :poster | :logo, integer(), String.t() | nil) ::
           :refreshed | :current | :failed | :skipped
   def refresh_if_stale(_role, _tmdb_id, nil), do: :skipped
 
   def refresh_if_stale(role, tmdb_id, tmdb_path)
-      when role in [:backdrop, :poster] and is_binary(tmdb_path) do
+      when role in [:backdrop, :poster, :logo] and is_binary(tmdb_path) do
     {filename, downloader} =
       case role do
         :backdrop -> {"backdrop.jpg", &download_backdrop/2}
         :poster -> {"poster.jpg", &download_poster/2}
+        :logo -> {"logo.png", &download_logo/2}
       end
 
     dest = absolute_image_path(tmdb_id, filename)
