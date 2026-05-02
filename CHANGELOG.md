@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.31.1 — 2026-05-03
+
+### Fixed
+
+- **The detail modal on the Home page now stays in sync with playback.**
+  If you opened a show or movie's detail card from the Home page, watched
+  it, and closed the player, the modal still showed the pre-watch state —
+  no updated play position, no "watched" indication, no "Watch again"
+  button. Closing and reopening the modal worked around it. The modal
+  now refreshes from playback events the same way it always did on the
+  Library page.
+
 ## v0.31.0 — 2026-05-03
 
 ### Improved
