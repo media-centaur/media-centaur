@@ -379,7 +379,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
     end
   end
 
-  def handle_info({:entities_changed, _entity_ids}, socket) do
+  def handle_info({:entities_changed, %{entity_ids: _entity_ids}}, socket) do
     {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
   end
 

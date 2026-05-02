@@ -1,10 +1,11 @@
 defmodule MediaCentarr.Library.Helpers do
   @moduledoc false
 
-  alias MediaCentarr.Topics
+  alias MediaCentarr.Library.Events
+  alias MediaCentarr.Library.Events.EntitiesChanged
 
   @doc """
-  Broadcasts `{:entities_changed, entity_ids}` to the `"library:updates"` PubSub topic.
+  Broadcasts an `EntitiesChanged` event on the `"library:updates"` topic.
 
   In production/dev, routes through the coalescer (200ms batching window).
   In `:test`, broadcasts immediately so tests stay isolated and deterministic
@@ -18,13 +19,7 @@ defmodule MediaCentarr.Library.Helpers do
     if Application.get_env(:media_centarr, :coalesce_broadcasts?, true) do
       MediaCentarr.Library.BroadcastCoalescer.enqueue(entity_ids)
     else
-      Phoenix.PubSub.broadcast(
-        MediaCentarr.PubSub,
-        Topics.library_updates(),
-        {:entities_changed, entity_ids}
-      )
-
-      :ok
+      Events.broadcast(%EntitiesChanged{entity_ids: entity_ids})
     end
   end
 end

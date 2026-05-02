@@ -61,7 +61,6 @@ defmodule MediaCentarr.Watcher do
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.WatchedFile
-  alias MediaCentarr.Topics
   alias MediaCentarr.Watcher.DeletionBuffer
   alias MediaCentarr.Watcher.ExcludeDirs
   alias MediaCentarr.Watcher.FilePresence
@@ -513,10 +512,8 @@ defmodule MediaCentarr.Watcher do
   defp broadcast_entities_changed([]), do: :ok
 
   defp broadcast_entities_changed(entity_ids) do
-    Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
-      Topics.library_updates(),
-      {:entities_changed, entity_ids}
-    )
+    MediaCentarr.Library.Events.broadcast(%MediaCentarr.Library.Events.EntitiesChanged{
+      entity_ids: entity_ids
+    })
   end
 end

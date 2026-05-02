@@ -163,7 +163,7 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- PubSub Handlers ---
 
   @impl true
-  def handle_info({:entities_changed, entity_ids}, socket) do
+  def handle_info({:entities_changed, %{entity_ids: entity_ids}}, socket) do
     pending = MapSet.union(socket.assigns.pending_entity_ids, MapSet.new(entity_ids))
 
     {:noreply,

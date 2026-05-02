@@ -269,7 +269,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   Hero is selected once per session and is intentionally not reloaded.
   """
   @spec section_reloaders(term()) :: [atom()]
-  def section_reloaders({:entities_changed, _ids}), do: [:recently_added]
+  def section_reloaders({:entities_changed, %{entity_ids: _ids}}), do: [:recently_added]
   def section_reloaders({:releases_updated, _ids}), do: [:coming_up]
   def section_reloaders({:item_removed, _tmdb_id, _tmdb_type}), do: [:coming_up]
   def section_reloaders({:release_ready, _item, _release}), do: [:coming_up]

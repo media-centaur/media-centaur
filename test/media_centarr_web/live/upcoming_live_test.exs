@@ -35,7 +35,10 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
       {:ok, view, _html} = live(conn, "/upcoming")
 
       for _ <- 1..5 do
-        send(view.pid, {:entities_changed, []})
+        send(
+          view.pid,
+          {:entities_changed, %MediaCentarr.Library.Events.EntitiesChanged{entity_ids: []}}
+        )
       end
 
       Process.sleep(600)

@@ -511,7 +511,7 @@ defmodule MediaCentarr.Library.InboundTest do
 
       assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
 
-      assert_receive {:entities_changed, entity_ids}, 500
+      assert_receive {:entities_changed, %{entity_ids: entity_ids}}, 500
       assert movie.id in entity_ids
     end
 
@@ -588,7 +588,7 @@ defmodule MediaCentarr.Library.InboundTest do
         entity_id: movie.id
       })
 
-      assert_receive {:entities_changed, entity_ids}, 500
+      assert_receive {:entities_changed, %{entity_ids: entity_ids}}, 500
       assert movie.id in entity_ids
     end
   end
@@ -626,7 +626,7 @@ defmodule MediaCentarr.Library.InboundTest do
       # Broadcasts entities_changed (via coalescer — allow flush window).
       # Coalescer may bundle this entity's ID with IDs from concurrent tests'
       # broadcasts in the same 200ms window — assert membership, not exact list.
-      assert_receive {:entities_changed, ids}, 500
+      assert_receive {:entities_changed, %{entity_ids: ids}}, 500
       assert movie.id in ids
 
       # Sends file list to review:intake

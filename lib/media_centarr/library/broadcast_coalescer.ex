@@ -9,7 +9,8 @@ defmodule MediaCentarr.Library.BroadcastCoalescer do
   """
   use GenServer
 
-  alias MediaCentarr.Topics
+  alias MediaCentarr.Library.Events
+  alias MediaCentarr.Library.Events.EntitiesChanged
 
   @flush_interval 200
 
@@ -39,11 +40,7 @@ defmodule MediaCentarr.Library.BroadcastCoalescer do
   @impl true
   def handle_info(:flush, state) do
     if MapSet.size(state.pending) > 0 do
-      Phoenix.PubSub.broadcast(
-        MediaCentarr.PubSub,
-        Topics.library_updates(),
-        {:entities_changed, MapSet.to_list(state.pending)}
-      )
+      Events.broadcast(%EntitiesChanged{entity_ids: MapSet.to_list(state.pending)})
     end
 
     {:noreply, %{pending: MapSet.new(), timer: nil}}

@@ -7,6 +7,8 @@ defmodule MediaCentarr.Library do
       EntityShape,
       Episode,
       EpisodeList,
+      Events,
+      Events.EntitiesChanged,
       ExternalId,
       FileEventHandler,
       Image,

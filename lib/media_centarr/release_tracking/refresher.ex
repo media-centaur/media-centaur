@@ -56,7 +56,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   end
 
   @impl true
-  def handle_info({:entities_changed, entity_ids}, state) do
+  def handle_info({:entities_changed, %{entity_ids: entity_ids}}, state) do
     update_last_episodes_for(entity_ids)
     auto_track_new_entities(entity_ids)
     {:noreply, state}
