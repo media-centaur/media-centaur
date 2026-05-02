@@ -122,6 +122,10 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverageTest do
       |> assert_issue(fn issue ->
         # priority drops below default for warnings
         assert issue.priority < 0
+        # :pending is a non-blocking warning — it must not contribute to
+        # the credo exit status, otherwise mix precommit fails on pending
+        # components even though they're explicitly opt-in deferred.
+        assert issue.exit_status == 0
       end)
     end
 
