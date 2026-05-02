@@ -1,4 +1,9 @@
 defmodule MediaCentarrWeb.Storybook.CoreComponents.Table do
+  @moduledoc """
+  Rubric-bar story for `table/1` — empty, default, long-rows,
+  `row_id`/`row_item` callbacks, and the `:action` slot.
+  """
+
   use PhoenixStorybook.Story, :component
 
   def function, do: &MediaCentarrWeb.CoreComponents.table/1
@@ -17,16 +22,37 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Table do
   def variations do
     [
       %Variation{
-        id: :default,
+        id: :empty,
+        description: "No rows — header still rendered",
         attributes: %{
+          id: "users-empty",
+          rows: []
+        },
+        slots: table_slots()
+      },
+      %Variation{
+        id: :default,
+        description: "Two rows — basic case",
+        attributes: %{
+          id: "users-default",
           rows: table_rows()
         },
         slots: table_slots()
       },
       %Variation{
-        id: :with_function,
-        description: "Applying functions to row items",
+        id: :long_rows,
+        description: "Twelve rows — verifies vertical density",
         attributes: %{
+          id: "users-long",
+          rows: long_rows()
+        },
+        slots: table_slots()
+      },
+      %Variation{
+        id: :with_function,
+        description: "row_id and row_item callbacks transform each row",
+        attributes: %{
+          id: "users-with-fn",
           rows: table_rows(),
           row_id: {:eval, ~S|&"user-#{&1.id}"|},
           row_item: {:eval, ~S"&%{&1 | last_name: String.upcase(&1.last_name)}"}
@@ -35,8 +61,9 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Table do
       },
       %Variation{
         id: :with_actions,
-        description: "With an action slot",
+        description: "Action slot adds a trailing button column",
         attributes: %{
+          id: "users-with-actions",
           rows: table_rows()
         },
         slots: [
@@ -53,9 +80,20 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Table do
 
   defp table_rows do
     [
-      %{id: 1, first_name: "Jean", last_name: "Dupont", city: "Paris"},
-      %{id: 2, first_name: "Sam", last_name: "Smith", city: "NY"}
+      %{id: 1, first_name: "Ada", last_name: "Lovelace", city: "London"},
+      %{id: 2, first_name: "Grace", last_name: "Hopper", city: "New York"}
     ]
+  end
+
+  defp long_rows do
+    for n <- 1..12 do
+      %{
+        id: n,
+        first_name: "First #{n}",
+        last_name: "Last #{n}",
+        city: "City #{n}"
+      }
+    end
   end
 
   defp table_slots do
