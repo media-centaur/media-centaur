@@ -151,6 +151,17 @@ Closing all "pending" rows is the definition of "the storybook is the design sys
 | `/storybook/core_components/button` | Button variations |
 | `/storybook/welcome` | Philosophy landing page (mirrors this doc) |
 
+## Foundations
+
+Four `:page` stories under `storybook/foundations/` document the design system itself:
+
+- `/storybook/foundations/colors` — daisyUI palette + surface treatments
+- `/storybook/foundations/typography` — type scale, weights, numeric guidance
+- `/storybook/foundations/spacing` — spacing scale, glass surface, hover/focus rules
+- `/storybook/foundations/uidr_index` — browseable UIDR rules with links to component stories
+
+The UIDR index is the design-system entry point. Skill files keep the prose; storybook owns the visuals.
+
 ## See also
 
 - [`user-interface`](../.claude/skills/user-interface/SKILL.md) skill — recipes and design values
