@@ -608,7 +608,7 @@ defmodule MediaCentarrWeb.ReviewLive do
           <span :if={@file.parsed_year} class="text-sm text-base-content/50">
             ({@file.parsed_year})
           </span>
-          <span class="badge badge-sm badge-outline">{format_type(@file.parsed_type)}</span>
+          <.badge variant="type">{format_type(@file.parsed_type)}</.badge>
           <span
             :if={@file.season_number && @file.episode_number}
             class="text-sm text-base-content/60"
@@ -697,7 +697,7 @@ defmodule MediaCentarrWeb.ReviewLive do
             phx-click="toggle_files"
             phx-value-key={@encoded_key}
           >
-            <span class="badge badge-sm badge-neutral">{@file_count} episodes</span>
+            <.badge>{@file_count} episodes</.badge>
             <.icon
               name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-down"}
               class="size-4"
@@ -706,12 +706,14 @@ defmodule MediaCentarrWeb.ReviewLive do
           <div :if={@expanded} class="glass-inset rounded-lg p-3">
             <ul class="space-y-1">
               <li :for={file <- @group.files} class="flex items-center gap-2">
-                <span
+                <.badge
                   :if={file.season_number && file.episode_number}
-                  class="badge badge-xs badge-ghost font-mono"
+                  variant="ghost"
+                  size="xs"
+                  class="font-mono"
                 >
                   S{zero_pad(file.season_number)}E{zero_pad(file.episode_number)}
-                </span>
+                </.badge>
                 <span
                   class="font-mono text-xs text-base-content/70 truncate-left"
                   title={relative_file_path(file)}

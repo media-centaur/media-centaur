@@ -200,16 +200,18 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
             tabindex="0"
           />
 
-          <button
+          <.button
             :if={@filter_date}
-            class="badge badge-primary badge-sm gap-1 cursor-pointer py-3 px-2.5"
+            variant="primary"
+            size="xs"
+            class="gap-1"
             data-nav-item
             tabindex="0"
             phx-click="clear_date_filter"
           >
             {Calendar.strftime(@filter_date, "%b %-d, %Y")}
             <.icon name="hero-x-mark-mini" class="size-3" />
-          </button>
+          </.button>
         </div>
 
         <%!-- Event list --%>
@@ -230,12 +232,13 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
           >
             <span class="flex-1 min-w-0 flex items-baseline gap-2 min-w-0">
               <span class="text-sm font-medium truncate">{event.title}</span>
-              <span
+              <.badge
                 :if={rewatch_count_for_event(event, @rewatch_counts) >= 2}
-                class="badge badge-soft badge-primary text-xs shrink-0"
+                variant="soft_primary"
+                class="text-xs shrink-0"
               >
                 {rewatch_count_for_event(event, @rewatch_counts)}×
-              </span>
+              </.badge>
             </span>
             <span class="text-xs text-base-content/50 whitespace-nowrap shrink-0">
               {type_label(event.entity_type)}

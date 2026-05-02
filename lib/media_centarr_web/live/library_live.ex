@@ -377,7 +377,7 @@ defmodule MediaCentarrWeb.LibraryLive do
           />
 
           <div :if={@in_progress_filter} class="mt-3 flex items-center gap-2">
-            <span class="badge badge-neutral gap-1">
+            <.badge size="md" class="gap-1">
               In progress
               <.link
                 patch={~p"/library"}
@@ -386,7 +386,7 @@ defmodule MediaCentarrWeb.LibraryLive do
               >
                 ×
               </.link>
-            </span>
+            </.badge>
           </div>
 
           <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">

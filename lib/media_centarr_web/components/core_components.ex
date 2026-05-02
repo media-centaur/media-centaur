@@ -176,6 +176,86 @@ defmodule MediaCentarrWeb.CoreComponents do
   defp shape_classes("square"), do: "btn-square"
 
   @doc """
+  Renders a badge.
+
+  Use `variant` and `size` rather than raw daisyUI `badge-*` classes — the
+  `MediaCentarr.Credo.Checks.RawBadgeClass` precommit check rejects the latter
+  in templates under `lib/media_centarr_web/`. Pass extra Tailwind utilities
+  via the `class` attribute.
+
+  See [UIDR-002](decisions/user-interface/2026-03-03-002-badge-style-convention.md)
+  for the underlying rules.
+
+  ## Variants
+
+  | Variant | Use | Daisy classes |
+  |---------|-----|---------------|
+  | `"metric"` (default) | Solid neutral count/score chip | `badge` |
+  | `"type"` | Outline classification (Movie, TV, Extra) | `badge-outline` |
+  | `"info"` | Solid info — neutral state (downloading, queued type) | `badge-info` |
+  | `"success"` | Solid success — completed, healthy | `badge-success` |
+  | `"warning"` | Solid warning — paused, stalled | `badge-warning` |
+  | `"error"` | Solid error — failed, broken | `badge-error` |
+  | `"ghost"` | Muted/quiet count, low-emphasis | `badge-ghost` |
+  | `"primary"` | Solid primary — active filter pill, attention-grabbing label | `badge-primary` |
+  | `"soft_primary"` | Soft primary — tonal annotation (rewatch count, manual origin) | `badge-soft badge-primary` |
+
+  > For *status reasons* (review reasons, free-text entity states), UIDR-002
+  > requires plain colored text — `<span class="text-error">…</span>` — **not**
+  > a badge. This component covers the metric/type/state-chip cases only.
+
+  ## Sizes
+
+  `"xs"`, `"sm"` (default — matches the bulk of existing usage), `"md"`.
+
+  ## Examples
+
+      <.badge>{@count}</.badge>
+      <.badge variant="type">Movie</.badge>
+      <.badge variant="success">Completed</.badge>
+      <.badge variant="warning" size="xs">Paused</.badge>
+  """
+  attr :variant, :string,
+    default: "metric",
+    values: ~w(metric type info success warning error ghost primary soft_primary)
+
+  attr :size, :string, default: "sm", values: ~w(xs sm md)
+  attr :class, :any, default: nil
+
+  attr :rest, :global
+
+  slot :inner_block, required: true
+
+  def badge(assigns) do
+    classes = [
+      "badge",
+      badge_variant_classes(assigns.variant),
+      badge_size_classes(assigns.size),
+      assigns.class
+    ]
+
+    assigns = assign(assigns, :class, classes)
+
+    ~H"""
+    <span class={@class} {@rest}>{render_slot(@inner_block)}</span>
+    """
+  end
+
+  defp badge_variant_classes("metric"), do: nil
+  defp badge_variant_classes("type"), do: "badge-outline"
+  defp badge_variant_classes("info"), do: "badge-info"
+  defp badge_variant_classes("success"), do: "badge-success"
+  defp badge_variant_classes("warning"), do: "badge-warning"
+  defp badge_variant_classes("error"), do: "badge-error"
+  defp badge_variant_classes("ghost"), do: "badge-ghost"
+  defp badge_variant_classes("primary"), do: "badge-primary"
+  defp badge_variant_classes("soft_primary"), do: "badge-soft badge-primary"
+
+  defp badge_size_classes("xs"), do: "badge-xs"
+  defp badge_size_classes("sm"), do: "badge-sm"
+  defp badge_size_classes("md"), do: nil
+
+  @doc """
   Renders an input with label and error messages.
 
   A `Phoenix.HTML.FormField` may be passed as argument,

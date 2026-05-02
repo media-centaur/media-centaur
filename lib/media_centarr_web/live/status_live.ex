@@ -766,7 +766,7 @@ defmodule MediaCentarrWeb.StatusLive do
               <span class="font-mono text-xs truncate" title={bucket.display_title}>
                 {bucket.display_title}
               </span>
-              <span class="badge badge-sm badge-ghost ml-1">×{bucket.count}</span>
+              <.badge variant="ghost" class="ml-1">×{bucket.count}</.badge>
               <span class="text-xs text-base-content/50 ml-1">
                 {bucket.component} · {relative_time(bucket.last_seen)}
               </span>

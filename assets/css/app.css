@@ -1214,6 +1214,15 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 .console-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--radius-selector, 0.25rem);
   cursor: pointer;
   user-select: none;
   transition: background-color 150ms ease-out, color 150ms ease-out,
@@ -1316,6 +1325,15 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 .console-component-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1rem;
+  padding: 0 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--radius-selector, 0.25rem);
   flex-shrink: 0;
 }
 

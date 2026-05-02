@@ -3,6 +3,7 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents do
 
   def folder_open?, do: true
 
+  def entry("badge"), do: [icon: {:fa, "tag", :thin}]
   def entry("button"), do: [icon: {:fa, "rectangle-ad", :thin}]
   def entry("flash"), do: [icon: {:fa, "bolt", :thin}]
   def entry("header"), do: [icon: {:fa, "heading", :thin}]
