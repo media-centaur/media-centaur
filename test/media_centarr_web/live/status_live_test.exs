@@ -161,7 +161,11 @@ defmodule MediaCentarrWeb.StatusLiveTest do
          %{conn: conn} do
       {:ok, view, _html} = live(conn, "/status")
 
-      send(view.pid, {:entities_changed, [Ecto.UUID.generate()]})
+      send(
+        view.pid,
+        {:entities_changed,
+         %MediaCentarr.Library.Events.EntitiesChanged{entity_ids: [Ecto.UUID.generate()]}}
+      )
 
       assert render(view) =~ "Playback"
     end

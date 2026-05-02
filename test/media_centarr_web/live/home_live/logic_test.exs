@@ -436,7 +436,10 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
   describe "section_reloaders/1" do
     test "entities_changed reloads recently_added only" do
-      assert Logic.section_reloaders({:entities_changed, ["abc", "def"]}) == [:recently_added]
+      assert Logic.section_reloaders(
+               {:entities_changed,
+                %MediaCentarr.Library.Events.EntitiesChanged{entity_ids: ["abc", "def"]}}
+             ) == [:recently_added]
     end
 
     test "releases_updated reloads coming_up only" do

@@ -370,7 +370,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     end
   end
 
-  def handle_modal_pubsub({:entities_changed, ids}, socket) do
+  def handle_modal_pubsub({:entities_changed, %{entity_ids: ids}}, socket) do
     selected = socket.assigns[:selected_entity_id]
 
     if selected != nil and selected in ids do
