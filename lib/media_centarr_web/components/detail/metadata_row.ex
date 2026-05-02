@@ -26,7 +26,7 @@ defmodule MediaCentarrWeb.Components.Detail.MetadataRow do
 
     ~H"""
     <div class="flex items-center flex-wrap gap-x-2 gap-y-1 text-sm text-base-content/60">
-      <span class="badge badge-outline badge-sm">{@badge_text}</span>
+      <.badge variant="type">{@badge_text}</.badge>
       <%= for {item, idx} <- @indexed_items do %>
         <span :if={idx > 0} class="text-base-content/30 select-none">·</span>
         <span>{item}</span>

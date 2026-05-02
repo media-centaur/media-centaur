@@ -333,14 +333,17 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   def state_label(:other), do: "Other"
   def state_label(_), do: "Unknown"
 
-  @doc "daisyUI badge color class for a `QueueItem` state."
-  @spec state_badge_class(QueueItem.state() | nil) :: String.t()
-  def state_badge_class(:downloading), do: "badge badge-info"
-  def state_badge_class(:completed), do: "badge badge-success"
-  def state_badge_class(:error), do: "badge badge-error"
-  def state_badge_class(:paused), do: "badge badge-warning"
-  def state_badge_class(:stalled), do: "badge badge-warning"
+  @doc """
+  Maps a `QueueItem` state to a `<.badge>` variant (UIDR-002 /
+  `MediaCentarrWeb.CoreComponents.badge/1`).
+  """
+  @spec state_badge_variant(QueueItem.state() | nil) :: String.t()
+  def state_badge_variant(:downloading), do: "info"
+  def state_badge_variant(:completed), do: "success"
+  def state_badge_variant(:error), do: "error"
+  def state_badge_variant(:paused), do: "warning"
+  def state_badge_variant(:stalled), do: "warning"
   # :queued reads as passive "waiting in qBittorrent's queue" — neutral, not warning
-  def state_badge_class(:queued), do: "badge badge-ghost"
-  def state_badge_class(_), do: "badge badge-neutral"
+  def state_badge_variant(:queued), do: "ghost"
+  def state_badge_variant(_), do: "metric"
 end

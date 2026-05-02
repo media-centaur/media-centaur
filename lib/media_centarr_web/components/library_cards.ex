@@ -147,7 +147,7 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
           tabindex="0"
         >
           {label}
-          <span class="badge badge-sm ml-1">{@counts[tab] || 0}</span>
+          <.badge class="ml-1">{@counts[tab] || 0}</.badge>
         </button>
       </div>
 

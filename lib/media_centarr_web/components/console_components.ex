@@ -36,7 +36,7 @@ defmodule MediaCentarrWeb.ConsoleComponents do
           :for={component <- @app_components}
           type="button"
           class={[
-            "badge badge-sm console-chip",
+            "console-chip",
             View.component_badge_class(component),
             View.chip_state_class(@filter, component)
           ]}
@@ -54,7 +54,7 @@ defmodule MediaCentarrWeb.ConsoleComponents do
           :for={component <- @framework_components}
           type="button"
           class={[
-            "badge badge-sm console-chip",
+            "console-chip",
             View.component_badge_class(component),
             View.chip_state_class(@filter, component)
           ]}
@@ -119,7 +119,7 @@ defmodule MediaCentarrWeb.ConsoleComponents do
       >
         <span class="console-timestamp">{View.format_timestamp(entry.timestamp)}</span>
         <span class={[
-          "badge badge-xs console-component-badge",
+          "console-component-badge",
           View.component_badge_class(entry.component)
         ]}>
           {View.component_label(entry.component)}
