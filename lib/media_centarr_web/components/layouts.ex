@@ -3,6 +3,12 @@ defmodule MediaCentarrWeb.Layouts do
   This module holds layouts and related functionality
   used by your application.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :skip
+  @storybook_reason "Page layouts, not catalog material"
+
   use MediaCentarrWeb, :html
 
   # Embed all files in layouts/* within this module.
