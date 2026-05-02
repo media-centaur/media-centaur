@@ -8,7 +8,12 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
       Every Phoenix function component in `lib/media_centarr_web/components/**`
       must have either:
 
-        1. A corresponding story file at `storybook/<area>/<func>.story.exs`, OR
+        1. A story file matching `<func>.story.exs` somewhere under `storybook/`.
+           The conventional placement is `storybook/<area>/<func>.story.exs`
+           (where `<area>` is the component file's directory under
+           `lib/media_centarr_web/components/`), but cross-cutting areas like
+           `storybook/composites/` or `storybook/foundations/` are also
+           discovered by basename.
         2. A `@storybook_status` module attribute with a `@storybook_reason`
            explaining why no story exists.
 
@@ -74,7 +79,7 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
             []
 
           # Story file exists for at least one of the components → covered
-          any_story_exists?(functions, source_file, params) ->
+          any_story_exists?(functions, params) ->
             []
 
           # Status declared
@@ -136,43 +141,35 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
 
   defp extract_def_name(_), do: :error
 
-  defp any_story_exists?(functions, source_file, params) do
-    # `params[:story_paths]` is a test-only override for File.exists?/1.
-    case story_paths_override(params) do
-      {:ok, paths} ->
-        Enum.any?(functions, fn fname ->
-          Enum.any?(paths, fn path ->
-            String.ends_with?(path, "/#{fname}.story.exs")
-          end)
-        end)
+  defp any_story_exists?(functions, params) do
+    basenames = story_basenames(params)
 
-      :error ->
-        Enum.any?(functions, fn fname ->
-          # Convention path first (cheap stat), then fall back to a
-          # repo-wide scan for the basename so stories grouped under
-          # cross-cutting areas (e.g. `storybook/composites/`) are also
-          # discovered. The scan result is memoized via :persistent_term
-          # so we pay the directory walk once per `mix credo` run.
-          File.exists?(derive_story_path(source_file.filename, fname)) or
-            MapSet.member?(all_story_basenames(), "#{fname}.story.exs")
-        end)
+    Enum.any?(functions, fn fname ->
+      MapSet.member?(basenames, "#{fname}.story.exs")
+    end)
+  end
+
+  # Lists every `*.story.exs` file under `storybook/` and reduces them to a
+  # set of basenames. Matching by basename means stories under cross-cutting
+  # directories (e.g. `storybook/composites/`) cover components that don't
+  # share their parent directory.
+  #
+  # `params[:story_paths]` is a test-only override that injects the path list
+  # directly. Both the override and the production call site flow through
+  # `story_basenames_from/1` so they exercise the same matching logic.
+  #
+  # No memoization: `Path.wildcard/1` over ~30 paths is sub-millisecond and
+  # disappears in the noise floor of Credo's AST work. Avoiding a process- or
+  # node-scoped cache keeps the check stateless across long-lived iex sessions.
+  defp story_basenames(params) do
+    case story_paths_override(params) do
+      {:ok, paths} -> story_basenames_from(paths)
+      :error -> story_basenames_from(Path.wildcard("storybook/**/*.story.exs"))
     end
   end
 
-  defp all_story_basenames do
-    case :persistent_term.get(__MODULE__, :unset) do
-      :unset ->
-        basenames =
-          "storybook/**/*.story.exs"
-          |> Path.wildcard()
-          |> MapSet.new(&Path.basename/1)
-
-        :persistent_term.put(__MODULE__, basenames)
-        basenames
-
-      basenames ->
-        basenames
-    end
+  defp story_basenames_from(paths) do
+    MapSet.new(paths, &Path.basename/1)
   end
 
   # Credo passes params as a keyword list when constructed via run_check/3 in
@@ -183,37 +180,6 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
   end
 
   defp story_paths_override(_), do: :error
-
-  # lib/media_centarr_web/components/library_cards.ex + :poster_card
-  #   → storybook/library_cards/poster_card.story.exs
-  # lib/media_centarr_web/components/detail/play_card.ex + :play_card
-  #   → storybook/detail/play_card.story.exs
-  # lib/media_centarr_web/components/sample.ex + :sample
-  #   → storybook/sample/sample.story.exs
-  defp derive_story_path(component_filename, func_name) do
-    relative_dir =
-      component_filename
-      |> strip_components_prefix()
-      |> Path.dirname()
-
-    area =
-      case relative_dir do
-        "." ->
-          Path.basename(component_filename, ".ex")
-
-        sub ->
-          sub
-      end
-
-    Path.join(["storybook", area, "#{func_name}.story.exs"])
-  end
-
-  defp strip_components_prefix(filename) do
-    case String.split(filename, "lib/media_centarr_web/components/", parts: 2) do
-      [_prefix, rest] -> rest
-      [only] -> only
-    end
-  end
 
   defp validate_status(status, reason, issue_meta) do
     cond do

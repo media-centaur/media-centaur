@@ -166,6 +166,75 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverageTest do
   end
 
   # =============================================================
+  # V1 — CROSS-CUTTING STORY DIRECTORIES
+  # =============================================================
+  #
+  # The component-to-story match is by basename, so a story can live in any
+  # subdirectory of `storybook/` and still cover the component. These tests
+  # exercise the matching logic by passing a representative `story_paths`
+  # override — the same code path the production wildcard scan flows through.
+
+  describe "v1 coverage — cross-cutting story directories" do
+    test "covers a component when its story lives in a cross-cutting area (storybook/composites/)" do
+      """
+      defmodule MediaCentarrWeb.Components.ModalShell do
+        attr :id, :string, required: true
+
+        def modal_shell(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/modal_shell.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: [
+          "storybook/composites/modal_shell.story.exs",
+          "storybook/core_components/button.story.exs"
+        ]
+      )
+      |> refute_issues()
+    end
+
+    test "covers a component when its story sits at the conventional path" do
+      """
+      defmodule MediaCentarrWeb.CoreComponents do
+        attr :label, :string, required: true
+
+        def button(assigns), do: ~H"<button></button>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/core_components.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: [
+          "storybook/core_components/button.story.exs",
+          "storybook/composites/modal_shell.story.exs"
+        ]
+      )
+      |> refute_issues()
+    end
+
+    test "errors when no path in the wildcard list matches the component's basename" do
+      """
+      defmodule MediaCentarrWeb.Components.Orphan do
+        attr :label, :string, required: true
+
+        def orphan(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/orphan.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: [
+          "storybook/composites/modal_shell.story.exs",
+          "storybook/core_components/button.story.exs",
+          "storybook/foundations/colors.story.exs"
+        ]
+      )
+      |> assert_issue(fn issue ->
+        assert issue.message =~ ~r/no story/i
+        assert issue.message =~ ":orphan"
+      end)
+    end
+  end
+
+  # =============================================================
   # V2 — STORY SHAPE
   # =============================================================
 
