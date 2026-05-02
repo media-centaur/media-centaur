@@ -15,7 +15,7 @@ defmodule MediaCentarr.Library.BroadcastCoalescerTest do
     for i <- 1..100, do: BroadcastCoalescer.enqueue([i])
 
     # Should receive exactly one broadcast within the flush window.
-    assert_receive {:entities_changed, ids}, 500
+    assert_receive {:entities_changed, %{entity_ids: ids}}, 500
     assert length(ids) == 100
     assert Enum.sort(ids) == Enum.to_list(1..100)
 
@@ -28,16 +28,16 @@ defmodule MediaCentarr.Library.BroadcastCoalescerTest do
     BroadcastCoalescer.enqueue([2, 3, 4])
     BroadcastCoalescer.enqueue([4, 5])
 
-    assert_receive {:entities_changed, ids}, 500
+    assert_receive {:entities_changed, %{entity_ids: ids}}, 500
     assert Enum.sort(ids) == [1, 2, 3, 4, 5]
   end
 
   test "starts a new flush window after the previous flushed" do
     BroadcastCoalescer.enqueue([1])
-    assert_receive {:entities_changed, [1]}, 500
+    assert_receive {:entities_changed, %{entity_ids: [1]}}, 500
 
     # Wait for the timer to clear, then enqueue again — should produce a new broadcast.
     BroadcastCoalescer.enqueue([2])
-    assert_receive {:entities_changed, [2]}, 500
+    assert_receive {:entities_changed, %{entity_ids: [2]}}, 500
   end
 end

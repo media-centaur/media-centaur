@@ -172,7 +172,7 @@ defmodule MediaCentarrWeb.StatusLive do
      |> assign(image_dir_statuses: MediaCentarr.Watcher.Supervisor.image_dir_statuses())}
   end
 
-  def handle_info({:entities_changed, _entity_ids}, socket) do
+  def handle_info({:entities_changed, %{entity_ids: _entity_ids}}, socket) do
     {:noreply, debounce(socket, :stats_timer, :refresh_stats, 1_000)}
   end
 

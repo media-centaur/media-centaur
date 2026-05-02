@@ -24,7 +24,7 @@ defmodule MediaCentarr.Library.HelpersTest do
       # The coalescer may bundle our IDs with IDs from concurrent test
       # broadcasts in the same 200ms window — assert each of our IDs is
       # present, not that the received list equals our list.
-      assert_receive {:entities_changed, received_ids}, 500
+      assert_receive {:entities_changed, %{entity_ids: received_ids}}, 500
       for id <- entity_ids, do: assert(id in received_ids)
     end
   end
