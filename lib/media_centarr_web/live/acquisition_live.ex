@@ -30,20 +30,19 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   alias MediaCentarr.Capabilities
   alias MediaCentarrWeb.AcquisitionLive.{Activity, Logic}
 
-  @queue_poll_interval_ms 5_000
-
   @impl true
   def mount(_params, _session, socket) do
     # The Prowlarr-readiness gate is the only DB read on the static HTTP
     # mount path — without it we can't decide whether to render or
-    # redirect. All other state (search session, download-client gate)
-    # is loaded after the WebSocket connects via `ensure_loaded/1`.
+    # redirect. All other state (search session, download-client gate,
+    # active queue) is loaded after the WebSocket connects via
+    # `ensure_loaded/1`.
     if Capabilities.prowlarr_ready?() do
       if connected?(socket) do
         Acquisition.subscribe()
+        Acquisition.subscribe_queue()
         Acquisition.subscribe_search()
         Capabilities.subscribe()
-        Process.send_after(self(), :poll_queue, 0)
       end
 
       {:ok,
@@ -73,10 +72,18 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       socket
       |> assign(:search_session, Acquisition.current_search_session())
       |> assign(:download_client_ready, Capabilities.download_client_ready?())
+      |> assign_queue_from_snapshot(Acquisition.queue_snapshot())
       |> assign(:loaded?, true)
     else
       socket
     end
+  end
+
+  # QueueMonitor pre-filters completed items, but defend in depth: an
+  # unconfigured client returns [], a future driver may differ.
+  defp assign_queue_from_snapshot(socket, items) do
+    active = Enum.reject(items, &(&1.state == :completed))
+    assign(socket, active_queue: active, queue_loaded?: true)
   end
 
   # `?search=…` and `?filter=…` deep-link from the upcoming-zone badges
@@ -509,10 +516,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       case Acquisition.cancel_download(id) do
         :ok ->
           Log.info(:acquisition, "cancelled download — #{title}")
-          # Refresh the queue now so the row disappears without waiting for
-          # the next 5 s poll.
-          send(self(), :poll_queue)
-          put_flash(socket, :info, "Cancelled “#{title}”.")
+          # Optimistically drop the row so the user sees feedback now;
+          # QueueMonitor's next broadcast (≤5 s) reconciles authoritatively.
+          remaining = Enum.reject(socket.assigns.active_queue, &(&1.id == id))
+
+          socket
+          |> assign(active_queue: remaining)
+          |> put_flash(:info, "Cancelled “#{title}”.")
 
         {:error, reason} ->
           Log.warning(:acquisition, "cancel failed — #{title} — #{inspect(reason)}")
@@ -654,31 +664,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, socket}
   end
 
-  def handle_info(:poll_queue, socket) do
-    if socket.assigns.download_client_ready do
-      queue =
-        case Acquisition.list_downloads(:all) do
-          {:ok, items} ->
-            Enum.reject(items, &(&1.state == :completed))
-
-          {:error, :not_configured} ->
-            # Download client not set up — show empty list, no log noise.
-            []
-
-          {:error, reason} ->
-            Log.warning(:acquisition, "download client poll failed: #{inspect(reason)}")
-            socket.assigns.active_queue
-        end
-
-      Process.send_after(self(), :poll_queue, @queue_poll_interval_ms)
-
-      {:noreply, assign(socket, active_queue: queue, queue_loaded?: true)}
-    else
-      # Skip this tick; :capabilities_changed will re-arm polling when the
-      # download client comes online. Avoid hammering an unreachable endpoint.
-      Process.send_after(self(), :poll_queue, @queue_poll_interval_ms)
-      {:noreply, socket}
-    end
+  def handle_info({:queue_snapshot, items}, socket) do
+    {:noreply, assign_queue_from_snapshot(socket, items)}
   end
 
   # Acquisition PubSub events — refresh the activity zone so lifecycle

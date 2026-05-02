@@ -199,7 +199,7 @@ defmodule MediaCentarrWeb.HomeLive do
 
   # First-render data load — gated by `connected?` so the static HTTP render
   # ships empty defaults and the WebSocket render fills them in once. This is
-  # the canonical "Iron Law" pattern (see CLAUDE.md → LiveView Callbacks).
+  # the canonical "Iron Law" pattern (see AGENTS.md → LiveView callbacks).
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
       socket
@@ -250,9 +250,12 @@ defmodule MediaCentarrWeb.HomeLive do
     schedule_section_reloads(socket, {:entities_changed, entity_ids})
   end
 
-  def handle_info({:playback_state_changed, entity_id, new_state, now_playing, _started_at}, socket) do
+  def handle_info(
+        {:playback_state_changed, entity_id, new_state, now_playing, _started_at} = message,
+        socket
+      ) do
     playback = apply_playback_change(socket.assigns.playback, entity_id, new_state, now_playing)
-    {:noreply, assign(socket, playback: playback)}
+    schedule_section_reloads(assign(socket, playback: playback), message)
   end
 
   def handle_info({:playback_failed, _entity_id, _reason, payload}, socket) do
