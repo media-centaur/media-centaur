@@ -9,32 +9,49 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
   ## Host LiveView contract
 
-  The host must:
+  Adopt the modal with `use MediaCentarrWeb.Live.EntityModal`. That single
+  line:
+
+  - Registers an `on_mount` callback that subscribes to `library:updates`
+    and `playback:events`, seeds the modal-default assigns, and attaches
+    a `:handle_info` hook that keeps `:selected_entry` and `:playback`
+    in sync with PubSub events. **The host cannot forget to wire any of
+    this — it is structurally impossible to mount the modal without it.**
+  - Injects `handle_event/3` clauses for every modal interaction
+    (select / close / play / toggle_* / delete_* / rematch / toggle_tracking).
+  - Imports the `entity_modal/1` function component.
+
+  Beyond the `use`, the host must:
 
   - Implement the `build_modal_path/2` callback returning the LiveView's
     own path with the given URL overrides applied.
-  - Call `assign_modal_defaults/1` in `mount/3`.
-  - Call `apply_modal_params/2` from the LiveView's `handle_params/3`.
-  - Maintain these assigns (the modal renderer reads them directly):
-    `:playback`, `:watch_dirs`, `:availability_map`, `:tmdb_ready`,
-    `:spoiler_free`. Most are kept in sync via shared traits
-    (`SpoilerFreeAware`, `CapabilitiesAware`) — see ADR-038.
-  - Stamp `:resume_target` on every `:selected_entry` via
-    `EntityModal.put_resume_target/1`. Done automatically by the
-    `load_entry_and_expand/1` and `refresh_selected_entry/1` paths
-    inside this module; LiveViews that re-snap the selected entry
-    from their own in-memory store (e.g. LibraryLive's
-    `entries_by_id`) call `put_resume_target/1` themselves.
-  - Render `<.entity_modal modal={@modal} />` once in the template.
+  - Call `apply_modal_params/2` from `handle_params/3`.
+  - Render `<.entity_modal ... />` once in the template.
+  - Maintain these adjacent assigns (read by the modal renderer but owned
+    by the host's surrounding context): `:watch_dirs`, `:availability_map`,
+    `:tmdb_ready`, `:spoiler_free`. Most are kept in sync via the
+    `SpoilerFreeAware` / `CapabilitiesAware` traits (see ADR-038).
 
-  ## What the macro injects
+  The on_mount hook subscribes for the host. Hosts MUST NOT call
+  `Library.subscribe()` or `Playback.subscribe()` themselves — the
+  `EntityModalContract` Credo check enforces this so messages are not
+  delivered twice.
 
-  - `handle_event/3` clauses for every modal interaction (select / close /
-    play / toggle_* / delete_* / rematch / toggle_tracking).
-  - The `entity_modal/1` function component (imported, not generated).
+  ## How the PubSub hook keeps the modal honest
 
-  Pure helpers (`assign_modal_defaults/1`, `apply_modal_params/2`) live
-  in this module and are imported by the macro.
+  Four messages can mutate modal-visible state. The hook handles all of
+  them in one place so a future host can never silently drop one:
+
+  | Message | Topic | Hook does |
+  |---|---|---|
+  | `{:entity_progress_updated, payload}` | `playback:events` | merge `summary` / `resume_target` / `changed_record` into `:selected_entry` if the entity matches |
+  | `{:extra_progress_updated, payload}` | `playback:events` | merge new `ExtraProgress` into `:selected_entry.entity.extra_progress` if it matches |
+  | `{:entities_changed, ids}` | `library:updates` | re-fetch `:selected_entry` from the DB if `selected_entity_id ∈ ids` (entity-level mutation needs a full reload) |
+  | `{:playback_state_changed, ...}` | `playback:events` | apply the change to the `:playback` map (used by `playing?/2` for delete-prompt protection) |
+
+  In every case the hook returns `{:cont, socket}` so the host's own
+  `handle_info/2` clauses still fire (e.g. LibraryLive updates its grid
+  cache; HomeLive schedules section reloads).
   """
 
   use Phoenix.Component
@@ -45,6 +62,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   alias MediaCentarr.Library.{FileEventHandler, MovieList}
   alias MediaCentarr.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentarrWeb.Components.{DetailPanel, ModalShell}
+  alias MediaCentarrWeb.{LibraryProgress, LiveHelpers}
 
   import MediaCentarrWeb.LibraryProgress, only: [completion_percentage: 1]
 
@@ -55,13 +73,14 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     quote do
       @behaviour MediaCentarrWeb.Live.EntityModal
 
+      on_mount {MediaCentarrWeb.Live.EntityModal, :default}
+
       alias MediaCentarr.Playback
       alias MediaCentarrWeb.Components.DetailPanel
       alias MediaCentarrWeb.Live.EntityModal
 
       import MediaCentarrWeb.Live.EntityModal,
         only: [
-          assign_modal_defaults: 1,
           apply_modal_params: 2,
           entity_modal: 1,
           refresh_selected_entry: 1
@@ -303,11 +322,140 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   end
 
   # ---------------------------------------------------------------------------
+  # on_mount + PubSub hook (auto-wired by `use EntityModal`)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Auto-wires every host that `use`s this module. Runs once per LiveView
+  mount (HTTP and WebSocket). Subscribes to the modal's PubSub topics on
+  the connected pass, seeds modal-default assigns, and attaches a
+  `:handle_info` hook so message handling lives here, not duplicated
+  across hosts.
+  """
+  def on_mount(:default, _params, _session, socket) do
+    socket = assign_modal_defaults(socket)
+
+    if Phoenix.LiveView.connected?(socket) do
+      Library.subscribe()
+      Playback.subscribe()
+    end
+
+    socket =
+      Phoenix.LiveView.attach_hook(
+        socket,
+        :entity_modal_pubsub,
+        :handle_info,
+        &__MODULE__.handle_modal_pubsub/2
+      )
+
+    {:cont, socket}
+  end
+
+  @doc false
+  # The hook. Public only so attach_hook can capture it; not part of the
+  # contract — host LiveViews never call this directly.
+  def handle_modal_pubsub({:entity_progress_updated, %{entity_id: id} = payload}, socket) do
+    if selected?(socket, id) do
+      {:cont, refresh_from_progress_payload(socket, payload)}
+    else
+      {:cont, socket}
+    end
+  end
+
+  def handle_modal_pubsub({:extra_progress_updated, %{entity_id: id} = payload}, socket) do
+    if selected?(socket, id) do
+      {:cont, refresh_from_extra_payload(socket, payload)}
+    else
+      {:cont, socket}
+    end
+  end
+
+  def handle_modal_pubsub({:entities_changed, ids}, socket) do
+    selected = socket.assigns[:selected_entity_id]
+
+    if selected != nil and selected in ids do
+      {:cont, refresh_selected_entry(socket)}
+    else
+      {:cont, socket}
+    end
+  end
+
+  def handle_modal_pubsub(
+        {:playback_state_changed, entity_id, new_state, now_playing, _started_at},
+        socket
+      ) do
+    playback =
+      LiveHelpers.apply_playback_change(
+        socket.assigns[:playback] || %{},
+        entity_id,
+        new_state,
+        now_playing
+      )
+
+    {:cont, Phoenix.Component.assign(socket, :playback, playback)}
+  end
+
+  def handle_modal_pubsub(_msg, socket), do: {:cont, socket}
+
+  defp selected?(socket, entity_id) do
+    socket.assigns[:selected_entity_id] != nil and
+      socket.assigns[:selected_entity_id] == entity_id
+  end
+
+  # In-memory merge from the broadcast payload. Avoids a DB hit on every
+  # progress tick (MpvSession persists every few seconds during playback).
+  # Falls back to a DB refresh when the entry isn't loaded yet or the
+  # payload lacks a summary (defensive — current ProgressBroadcaster
+  # always sends both).
+  defp refresh_from_progress_payload(socket, %{
+         summary: summary,
+         resume_target: resume_target,
+         changed_record: changed_record
+       })
+       when is_map(summary) do
+    case socket.assigns[:selected_entry] do
+      nil ->
+        refresh_selected_entry(socket)
+
+      entry ->
+        records = LibraryProgress.merge_progress_record(entry.progress_records, changed_record)
+
+        updated = %{
+          entry
+          | progress: summary,
+            progress_records: records,
+            resume_target: resume_target
+        }
+
+        Phoenix.Component.assign(socket, :selected_entry, updated)
+    end
+  end
+
+  defp refresh_from_progress_payload(socket, _payload), do: refresh_selected_entry(socket)
+
+  defp refresh_from_extra_payload(socket, %{progress: progress}) when not is_nil(progress) do
+    case socket.assigns[:selected_entry] do
+      nil ->
+        refresh_selected_entry(socket)
+
+      %{entity: entity} = entry ->
+        extra_progress =
+          LibraryProgress.merge_extra_progress(entity.extra_progress || [], progress)
+
+        updated = %{entry | entity: %{entity | extra_progress: extra_progress}}
+        Phoenix.Component.assign(socket, :selected_entry, updated)
+    end
+  end
+
+  defp refresh_from_extra_payload(socket, _payload), do: refresh_selected_entry(socket)
+
+  # ---------------------------------------------------------------------------
   # Public helpers (called from the host LiveView)
   # ---------------------------------------------------------------------------
 
   @doc """
-  Initial assigns for the modal slice. Call from `mount/3`.
+  Initial assigns for the modal slice. Called automatically from the
+  on_mount callback — hosts no longer invoke this directly.
   """
   @spec assign_modal_defaults(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def assign_modal_defaults(socket) do
@@ -320,7 +468,8 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       expanded_seasons: MapSet.new(),
       rematch_confirm: nil,
       delete_confirm: nil,
-      tracking_status: nil
+      tracking_status: nil,
+      playback: %{}
     )
   end
 
