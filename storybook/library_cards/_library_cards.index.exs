@@ -5,5 +5,9 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards do
   def folder_icon, do: {:fa, "table-cells", :light, "psb:mr-1"}
 
   def entry("poster_card"), do: [icon: {:fa, "image", :thin}, name: "Poster card"]
+
+  def entry("storage_offline_banner"),
+    do: [icon: {:fa, "triangle-exclamation", :thin}, name: "Storage offline banner"]
+
   def entry("toolbar"), do: [icon: {:fa, "sliders", :thin}, name: "Toolbar"]
 end

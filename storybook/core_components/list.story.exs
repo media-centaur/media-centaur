@@ -15,10 +15,6 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.List do
   def variations do
     [
       %Variation{
-        id: :empty,
-        slots: []
-      },
-      %Variation{
         id: :single_item,
         slots: [
           ~s|<:item title="Title">Sample Show</:item>|

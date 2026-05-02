@@ -36,6 +36,20 @@ defmodule MediaCentarrWeb.Storybook.PosterRow.PosterRow do
   # is too narrow to show 8 cards side-by-side, so go full-bleed.
   def layout, do: :one_column
 
+  # The Phoenix Storybook sandbox wraps each preview in a `flex flex-col
+  # items-center` container, which shrinks block children to their
+  # intrinsic content size. `.row-scroll` defines its children's widths
+  # with `flex: 0 0 calc(100% / var(--cols) ...)` — without an explicit
+  # full-width wrapper that math resolves against `width: 0` and the
+  # cards collapse. The wrapper restores the production width context.
+  def template do
+    """
+    <div class="w-full" psb-code-hidden>
+      <.psb-variation/>
+    </div>
+    """
+  end
+
   def variations do
     [
       %Variation{
@@ -117,81 +131,48 @@ defmodule MediaCentarrWeb.Storybook.PosterRow.PosterRow do
             end
         }
       },
-      %VariationGroup{
-        id: :edge_cases,
+      %Variation{
+        id: :fallback_edge_cases,
         description:
-          "Single-item variations exercising the fallback overlay's edge cases. " <>
-            "All four pass `poster_url: nil` so the overlay renders.",
-        variations: [
-          %Variation{
-            id: :long_name,
-            description:
-              "Very long name — `truncate` on the fallback overlay should clip " <>
-                "it on a single line without pushing the card wider.",
-            attributes: %{
-              items: [
-                %Item{
-                  id: "long",
-                  entity_id: "entity-long",
-                  name: "An Extraordinarily Long Sample Title That Definitely Exceeds The Card Width",
-                  year: "1923",
-                  poster_url: nil
-                }
-              ]
+          "Fallback-overlay edge cases rendered side-by-side in a single row " <>
+            "(all `poster_url: nil`). Left to right: very long name (truncate), " <>
+            "no year (year sub-line suppressed), TV-style year string, plain " <>
+            "numeric year. Production rows are always dense, so testing edge " <>
+            "cases as siblings — rather than as one-item rows — matches the " <>
+            "real card width and lets the truncate / suppression behaviour be " <>
+            "compared at a glance.",
+        attributes: %{
+          items: [
+            %Item{
+              id: "long",
+              entity_id: "entity-long",
+              name: "An Extraordinarily Long Sample Title That Definitely Exceeds The Card Width",
+              year: "1923",
+              poster_url: nil
+            },
+            %Item{
+              id: "no-year",
+              entity_id: "entity-no-year",
+              name: "Sample Without Year",
+              year: nil,
+              poster_url: nil
+            },
+            %Item{
+              id: "tv-year",
+              entity_id: "entity-tv-year",
+              name: "Sample TV Show",
+              year: "S2 · 2026",
+              poster_url: nil
+            },
+            %Item{
+              id: "num-year",
+              entity_id: "entity-num-year",
+              name: "Sample Movie",
+              year: "1923",
+              poster_url: nil
             }
-          },
-          %Variation{
-            id: :no_year,
-            description:
-              "`year: nil` — the year sub-line `<div>` is suppressed; only the " <>
-                "name renders in the fallback overlay.",
-            attributes: %{
-              items: [
-                %Item{
-                  id: "no-year",
-                  entity_id: "entity-no-year",
-                  name: "Sample Without Year",
-                  year: nil,
-                  poster_url: nil
-                }
-              ]
-            }
-          },
-          %Variation{
-            id: :tv_style_year,
-            description:
-              "TV-style year string `\"S2 · 2026\"` (per moduledoc) — the `year` " <>
-                "field is opaque to the component; whatever string is passed renders.",
-            attributes: %{
-              items: [
-                %Item{
-                  id: "tv-year",
-                  entity_id: "entity-tv-year",
-                  name: "Sample TV Show",
-                  year: "S2 · 2026",
-                  poster_url: nil
-                }
-              ]
-            }
-          },
-          %Variation{
-            id: :numeric_year,
-            description:
-              "Standard movie case — `year: \"1923\"`. Mirrors the most common " <>
-                "production shape.",
-            attributes: %{
-              items: [
-                %Item{
-                  id: "num-year",
-                  entity_id: "entity-num-year",
-                  name: "Sample Movie",
-                  year: "1923",
-                  poster_url: nil
-                }
-              ]
-            }
-          }
-        ]
+          ]
+        }
       }
     ]
   end
