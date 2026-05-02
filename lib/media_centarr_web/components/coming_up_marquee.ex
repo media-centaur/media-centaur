@@ -15,6 +15,12 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
   `entity_id` fall back to navigating to `/upcoming` so a click is never
   inert.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :skip
+  @storybook_reason "Depends on release-tracking timer state — covered by page smoke tests"
+
   use Phoenix.Component
 
   defmodule Item do

@@ -5,6 +5,12 @@ defmodule MediaCentarrWeb.Components.TrackModal do
   Always present in the DOM (like ModalShell). Toggled via
   `data-state="open"/"closed"` — no first-frame blur jank.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :static_example
+  @storybook_reason "Depends on TMDB context lookups — static specimen forthcoming"
+
   use MediaCentarrWeb, :html
 
   attr :open, :boolean, default: false

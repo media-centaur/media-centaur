@@ -2,6 +2,12 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   @moduledoc """
   Components for the Upcoming releases zone — calendar view with release cards.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :pending
+  @storybook_reason "Phase 5 — see docs/superpowers/plans/2026-05-02-storybook-fleshout.md"
+
   use Phoenix.Component
   alias Phoenix.LiveView.JS
   import MediaCentarrWeb.CoreComponents

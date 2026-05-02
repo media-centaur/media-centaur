@@ -11,6 +11,12 @@ defmodule MediaCentarrWeb.Components.Detail.PlayCard do
   is false (storage offline), the play button is replaced with a disabled
   "Offline" pill.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :pending
+  @storybook_reason "Phase 4 — see docs/superpowers/plans/2026-05-02-storybook-fleshout.md"
+
   use MediaCentarrWeb, :html
 
   attr :on_play, :string, required: true

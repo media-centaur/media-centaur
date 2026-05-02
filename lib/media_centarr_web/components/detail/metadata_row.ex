@@ -6,6 +6,12 @@ defmodule MediaCentarrWeb.Components.Detail.MetadataRow do
   `items` is a list of strings; nil and blank strings are silently dropped
   so the calling template doesn't need to defend against missing data.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :pending
+  @storybook_reason "Phase 4 — see docs/superpowers/plans/2026-05-02-storybook-fleshout.md"
+
   use MediaCentarrWeb, :html
 
   attr :badge_text, :string, required: true

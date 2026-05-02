@@ -7,6 +7,12 @@ defmodule MediaCentarrWeb.Components.HeroCard do
   `:play_url`, and `:detail_url` may be nil — the template hides absent
   ones.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :pending
+  @storybook_reason "Phase 4 — see docs/superpowers/plans/2026-05-02-storybook-fleshout.md"
+
   use Phoenix.Component
   import MediaCentarrWeb.CoreComponents, only: [button: 1, icon: 1]
 
