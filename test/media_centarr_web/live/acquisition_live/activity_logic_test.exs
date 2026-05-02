@@ -60,17 +60,17 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogicTest do
     end
   end
 
-  describe "status_class/1" do
-    test "maps statuses to DaisyUI badge classes" do
-      assert Logic.status_class("searching") == "badge-info"
-      assert Logic.status_class("snoozed") == "badge-warning"
-      assert Logic.status_class("grabbed") == "badge-success"
-      assert Logic.status_class("abandoned") == "badge-error"
-      assert Logic.status_class("cancelled") == "badge-ghost"
+  describe "status_variant/1" do
+    test "maps statuses to `<.badge>` variants" do
+      assert Logic.status_variant("searching") == "info"
+      assert Logic.status_variant("snoozed") == "warning"
+      assert Logic.status_variant("grabbed") == "success"
+      assert Logic.status_variant("abandoned") == "error"
+      assert Logic.status_variant("cancelled") == "ghost"
     end
 
     test "unknown status falls through to ghost" do
-      assert Logic.status_class("future_status") == "badge-ghost"
+      assert Logic.status_variant("future_status") == "ghost"
     end
   end
 
@@ -88,13 +88,13 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogicTest do
     end
   end
 
-  describe "origin_class/1" do
-    test "manual gets a primary outline" do
-      assert Logic.origin_class(grab(%{origin: "manual"})) =~ "badge-primary"
+  describe "origin_variant/1" do
+    test "manual gets soft_primary emphasis" do
+      assert Logic.origin_variant(grab(%{origin: "manual"})) == "soft_primary"
     end
 
-    test "auto gets a plain outline" do
-      assert Logic.origin_class(grab(%{origin: "auto"})) == "badge-outline"
+    test "auto gets the neutral type variant (outline, no color)" do
+      assert Logic.origin_variant(grab(%{origin: "auto"})) == "type"
     end
   end
 

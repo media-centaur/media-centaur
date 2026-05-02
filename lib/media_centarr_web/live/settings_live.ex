@@ -2453,12 +2453,13 @@ defmodule MediaCentarrWeb.SettingsLive do
             <div class="min-w-0">
               <p class="text-sm font-medium">
                 Repair missing images
-                <span
+                <.badge
                   :if={@missing_images_summary.missing > 0}
-                  class="ml-2 badge badge-sm badge-warning"
+                  variant="warning"
+                  class="ml-2"
                 >
                   {@missing_images_summary.missing} missing
-                </span>
+                </.badge>
               </p>
               <p class="text-xs text-base-content/50 mt-0.5">
                 <%= if @missing_images_summary.missing > 0 do %>

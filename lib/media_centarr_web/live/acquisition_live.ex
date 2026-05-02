@@ -771,9 +771,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         <span class="flex-1 min-w-0 text-sm truncate" title={@item.title}>
           {@item.title}
         </span>
-        <span :if={@item.state} class={["text-xs", Logic.state_badge_class(@item.state)]}>
+        <.badge
+          :if={@item.state}
+          variant={Logic.state_badge_variant(@item.state)}
+          size="md"
+          class="text-xs"
+        >
           {Logic.state_label(@item.state)}
-        </span>
+        </.badge>
         <span :if={@item.timeleft} class="text-xs text-base-content/40 tabular-nums">
           {@item.timeleft}
         </span>
@@ -846,9 +851,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       <span class="flex-1 min-w-0 text-left">
         + {@summary.hidden_count} more {Logic.state_label(@summary.state) |> String.downcase()}
       </span>
-      <span class={["text-xs", Logic.state_badge_class(@summary.state)]}>
+      <.badge variant={Logic.state_badge_variant(@summary.state)} size="md" class="text-xs">
         {Logic.state_label(@summary.state)}
-      </span>
+      </.badge>
     </button>
     """
   end
@@ -867,9 +872,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       <span class="flex-1 min-w-0 text-left">
         Show fewer
       </span>
-      <span class={["text-xs", Logic.state_badge_class(@summary.state)]}>
+      <.badge variant={Logic.state_badge_variant(@summary.state)} size="md" class="text-xs">
         {@summary.total} {Logic.state_label(@summary.state) |> String.downcase()}
-      </span>
+      </.badge>
     </button>
     """
   end

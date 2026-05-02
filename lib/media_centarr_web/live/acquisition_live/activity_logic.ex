@@ -50,13 +50,16 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogic do
 
   def status_label(%Grab{status: status}), do: status
 
-  @spec status_class(String.t()) :: String.t()
-  def status_class("searching"), do: "badge-info"
-  def status_class("snoozed"), do: "badge-warning"
-  def status_class("grabbed"), do: "badge-success"
-  def status_class("abandoned"), do: "badge-error"
-  def status_class("cancelled"), do: "badge-ghost"
-  def status_class(_), do: "badge-ghost"
+  @doc """
+  Maps a grab status to a `<.badge>` variant (UIDR-002 / `MediaCentarrWeb.CoreComponents.badge/1`).
+  """
+  @spec status_variant(String.t()) :: String.t()
+  def status_variant("searching"), do: "info"
+  def status_variant("snoozed"), do: "warning"
+  def status_variant("grabbed"), do: "success"
+  def status_variant("abandoned"), do: "error"
+  def status_variant("cancelled"), do: "ghost"
+  def status_variant(_), do: "ghost"
 
   @doc """
   Short tag for the row's origin. `"auto"` for system-initiated grabs
@@ -68,9 +71,14 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogic do
   def origin_label(%Grab{origin: "manual"}), do: "manual"
   def origin_label(%Grab{}), do: "auto"
 
-  @spec origin_class(Grab.t()) :: String.t()
-  def origin_class(%Grab{origin: "manual"}), do: "badge-outline badge-primary"
-  def origin_class(%Grab{}), do: "badge-outline"
+  @doc """
+  Maps a grab's origin to a `<.badge>` variant. Manual grabs get a soft-primary
+  emphasis (the user reached for them deliberately); auto grabs get a neutral
+  outline ("type" — passive classification).
+  """
+  @spec origin_variant(Grab.t()) :: String.t()
+  def origin_variant(%Grab{origin: "manual"}), do: "soft_primary"
+  def origin_variant(%Grab{}), do: "type"
 
   @spec last_attempt_summary(Grab.t()) :: String.t()
   def last_attempt_summary(%Grab{last_attempt_at: nil}), do: "never"

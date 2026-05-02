@@ -182,6 +182,7 @@
           {MediaCentarr.Credo.Checks.LogMacroPreferred, []},
           {MediaCentarr.Credo.Checks.ModalPanelNoClickAway, []},
           {MediaCentarr.Credo.Checks.RawButtonClass, []},
+          {MediaCentarr.Credo.Checks.RawBadgeClass, []},
           {MediaCentarr.Credo.Checks.StorybookCoverage, []}
         ],
         disabled: [

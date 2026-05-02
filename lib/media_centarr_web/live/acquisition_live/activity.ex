@@ -10,7 +10,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
   """
   use Phoenix.Component
 
-  import MediaCentarrWeb.CoreComponents, only: [button: 1]
+  import MediaCentarrWeb.CoreComponents, only: [badge: 1, button: 1]
 
   alias MediaCentarrWeb.AcquisitionLive.ActivityLogic
 
@@ -81,14 +81,14 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
                   {ActivityLogic.episode_label(grab)}
                 </td>
                 <td>
-                  <span class={["badge badge-sm", ActivityLogic.origin_class(grab)]}>
+                  <.badge variant={ActivityLogic.origin_variant(grab)}>
                     {ActivityLogic.origin_label(grab)}
-                  </span>
+                  </.badge>
                 </td>
                 <td>
-                  <span class={["badge badge-sm", ActivityLogic.status_class(grab.status)]}>
+                  <.badge variant={ActivityLogic.status_variant(grab.status)}>
                     {ActivityLogic.status_label(grab)}
-                  </span>
+                  </.badge>
                 </td>
                 <td class="text-base-content/60 text-xs">
                   {ActivityLogic.last_attempt_summary(grab)}

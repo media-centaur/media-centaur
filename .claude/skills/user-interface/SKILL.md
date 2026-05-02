@@ -84,11 +84,30 @@ Sizes: `"xs"`, `"sm"`, `"md"` (default), `"lg"`. Shapes: `"circle"`, `"square"` 
 
 ### Badges ([UIDR-002])
 
-| Context | Recipe |
-|---------|--------|
-| **Status labels** (review reasons, entity states) | Plain colored text: `text-error`, `text-warning`, `text-info` — no badge |
-| **Metric values** (confidence, counts) | `badge badge-sm` with solid fill — data values need weight |
-| **Type classification** (Movie, TV, Extra) | `badge badge-outline` — neutral, no color |
+**Always** use the `<.badge>` component with a `variant` and `size` for any `badge`-styled element. Raw `class="badge ..."` strings (and `class={["badge ...", ...]}` list expressions) in templates are flagged by `MediaCentarr.Credo.Checks.RawBadgeClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
+
+| Variant | Use | Daisy classes |
+|---------|-----|---------------|
+| `"metric"` (default) | Solid neutral count/score chip | `badge` |
+| `"type"` | Outline classification (Movie, TV, Extra) | `badge-outline` |
+| `"info"` | Solid info — neutral state (downloading, queued type) | `badge-info` |
+| `"success"` | Solid success — completed, healthy | `badge-success` |
+| `"warning"` | Solid warning — paused, stalled | `badge-warning` |
+| `"error"` | Solid error — failed, broken | `badge-error` |
+| `"ghost"` | Muted/quiet count, low-emphasis | `badge-ghost` |
+| `"primary"` | Solid primary — active filter pill, attention-grabbing label | `badge-primary` |
+| `"soft_primary"` | Soft primary — tonal annotation (rewatch count, manual origin) | `badge-soft badge-primary` |
+
+Sizes: `"xs"`, `"sm"` (default), `"md"`.
+
+```html
+<.badge>{@count}</.badge>
+<.badge variant="type">Movie</.badge>
+<.badge variant="success">Completed</.badge>
+<.badge variant="ghost" class="ml-1">×{bucket.count}</.badge>
+```
+
+**Status / reason labels** (review reasons, entity states) remain **plain colored text**, not a badge: `<span class="text-error">…</span>`. The `<.badge>` component covers metric/type/state-chip cases only — UIDR-002 #1 deliberately has no badge element.
 
 ### Cards
 
@@ -269,6 +288,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 |-----------|------|---------|-------|
 | `flash/1` | `core_components.ex` | Toast notifications | ✅ stub |
 | `button/1` | `core_components.ex` | Links and buttons (default: soft primary) | ✅ seed |
+| `badge/1` | `core_components.ex` | Metric / type / state chip (UIDR-002) | ✅ |
 | `input/1` | `core_components.ex` | Form fields with label + errors | ✅ stub |
 | `header/1` | `core_components.ex` | Page title bar with actions slot | ✅ stub |
 | `table/1` | `core_components.ex` | Zebra-striped data tables | ✅ stub |

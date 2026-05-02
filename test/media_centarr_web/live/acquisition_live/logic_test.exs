@@ -438,24 +438,22 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     end
   end
 
-  describe "state_badge_class/1" do
-    test "returns a daisyUI badge color class per state" do
-      assert Logic.state_badge_class(:downloading) =~ "info"
-      assert Logic.state_badge_class(:completed) =~ "success"
-      assert Logic.state_badge_class(:error) =~ "error"
-      assert Logic.state_badge_class(:paused) =~ "warning"
-      assert Logic.state_badge_class(:stalled) =~ "warning"
+  describe "state_badge_variant/1" do
+    test "returns a `<.badge>` variant per state" do
+      assert Logic.state_badge_variant(:downloading) == "info"
+      assert Logic.state_badge_variant(:completed) == "success"
+      assert Logic.state_badge_variant(:error) == "error"
+      assert Logic.state_badge_variant(:paused) == "warning"
+      assert Logic.state_badge_variant(:stalled) == "warning"
     end
 
-    test ":queued uses a neutral/ghost class to read as passive waiting, not the warning yellow of :stalled" do
-      class = Logic.state_badge_class(:queued)
-      assert class =~ "ghost" or class =~ "neutral"
-      refute class =~ "warning"
+    test ":queued uses ghost to read as passive waiting, not the warning yellow of :stalled" do
+      assert Logic.state_badge_variant(:queued) == "ghost"
     end
 
-    test "returns a neutral class for nil or unknown states" do
-      assert Logic.state_badge_class(nil) =~ "neutral"
-      assert Logic.state_badge_class(:other) =~ "neutral"
+    test "returns the metric (default) variant for nil or unknown states" do
+      assert Logic.state_badge_variant(nil) == "metric"
+      assert Logic.state_badge_variant(:other) == "metric"
     end
   end
 
