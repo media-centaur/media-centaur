@@ -15,13 +15,38 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.List do
   def variations do
     [
       %Variation{
-        id: :default,
+        id: :empty,
+        slots: []
+      },
+      %Variation{
+        id: :single_item,
         slots: [
-          ~s|<:item title="Apples">two</:item>|,
-          ~s|<:item title="Bananas">five</:item>|,
-          ~s|<:item title="Carrots">a lot</:item>|,
-          ~s|<:item title="Potatoes">even more</:item>|
+          ~s|<:item title="Title">Sample Show</:item>|
         ]
+      },
+      %Variation{
+        id: :many_items,
+        slots:
+          for {label, value} <- [
+                {"Title", "Sample Show"},
+                {"Year", "2024"},
+                {"Genre", "Drama"},
+                {"Runtime", "48 min"},
+                {"Rating", "TV-14"}
+              ] do
+            ~s|<:item title="#{label}">#{value}</:item>|
+          end
+      },
+      %Variation{
+        id: :long_value,
+        slots:
+          for {label, value} <- [
+                {"Title", "Sample Show With A Considerably Longer Display Title"},
+                {"Tags",
+                 "drama, mystery, slow-burn, ensemble cast, character study, period piece, critically acclaimed, multi-season arc, anthology format, award-winning"}
+              ] do
+            ~s|<:item title="#{label}">#{value}</:item>|
+          end
       }
     ]
   end
