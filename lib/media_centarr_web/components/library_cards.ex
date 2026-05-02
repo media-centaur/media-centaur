@@ -4,11 +4,6 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   toolbar.
   """
 
-  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
-  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
-  @storybook_status :pending
-  @storybook_reason "Phase 5 — see docs/superpowers/plans/2026-05-02-storybook-fleshout.md"
-
   use MediaCentarrWeb, :html
 
   import MediaCentarrWeb.LiveHelpers, only: [image_url: 2]

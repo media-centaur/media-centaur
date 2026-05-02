@@ -117,7 +117,7 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `modal_shell/1` | ✅ covered | Open/closed (always-in-DOM pattern) |
 | `detail_panel/1` | ✅ covered | Movie / TV / movie series + modals + offline |
 | `library_cards.poster_card/1` | ✅ covered | Type matrix + selection / progress / artwork states |
-| `library_cards.storage_offline_banner/1` | ⏳ pending | Single summary string — covered by module-level pending until story added |
+| `library_cards.storage_offline_banner/1` | ✅ covered | Single/multi-dir + long-path stress |
 | `library_cards.toolbar/1` | ✅ covered | Tabs × sort × filter axes |
 | `poster_row/1` | ✅ covered | Horizontal 8-up row + artwork fallback |
 | `upcoming_cards.upcoming_zone/1` | ✅ covered | Calendar + active shows + tracked items + modal |
@@ -133,7 +133,7 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `detail/logic.ex` | ⚠️ skip | Pure helpers, not a function component |
 | `layouts.app/1`, `layouts.flash_group/1`, `layouts.console_mount/1` | ⚠️ skip | Page layouts, not catalog material |
 
-Closing all "pending" rows is the definition of "the storybook is the design system."
+Every function component is either covered, deliberately skipped with a reason, or scheduled as a static example. Keep this table in sync with the source-of-truth `@storybook_status` attributes — when a new component lands, add the row in the same change.
 
 ## Pitfalls and gotchas
 

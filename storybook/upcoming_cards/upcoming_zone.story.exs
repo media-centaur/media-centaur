@@ -69,6 +69,13 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   # production layout.
   def layout, do: :one_column
 
+  # The `:confirm_stop_modal` variation renders a `position: fixed; inset: 0`
+  # backdrop that would otherwise escape the variation block and cover the
+  # whole storybook chrome (and the `body:has(.modal-backdrop[data-state=open])`
+  # rule would lock the page scroll). Iframing every variation isolates each
+  # preview so the modal only covers its own zone.
+  def container, do: {:iframe, style: "width: 100%; height: 1800px;"}
+
   def variations do
     [
       %Variation{

@@ -32,8 +32,7 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
         * Define `function/0` for `:component` stories.
         * Use `render_source :function` for `:component` stories (or omit it).
 
-      Source: `docs/superpowers/specs/2026-05-02-storybook-fleshout-design.md`,
-      `docs/storybook.md`, `.claude/skills/storybook/SKILL.md`.
+      Source: `docs/storybook.md`, `.claude/skills/storybook/SKILL.md`.
       """
     ]
 
