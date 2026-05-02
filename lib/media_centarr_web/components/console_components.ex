@@ -4,6 +4,12 @@ defmodule MediaCentarrWeb.ConsoleComponents do
   and `ConsolePageLive` (full-page `/console` route). Pure render functions
   driven entirely by assigns — no state, no PubSub.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :skip
+  @storybook_reason "Log stream is sticky LiveView state — covered by page smoke tests"
+
   use MediaCentarrWeb, :html
 
   alias MediaCentarr.Console.View

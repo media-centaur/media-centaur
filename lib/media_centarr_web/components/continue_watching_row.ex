@@ -8,6 +8,12 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
   slot. Per-row keyboard/gamepad navigation is planned (each row will
   become its own nav-zone) but not yet wired.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :skip
+  @storybook_reason "Depends on watch-history feed — covered by page smoke tests"
+
   use Phoenix.Component
   import MediaCentarrWeb.CoreComponents, only: [icon: 1]
 

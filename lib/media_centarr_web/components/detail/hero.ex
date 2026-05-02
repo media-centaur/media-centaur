@@ -11,6 +11,12 @@ defmodule MediaCentarrWeb.Components.Detail.Hero do
 
   Type-agnostic — takes an `entity` for image lookup and name fallback only.
   """
+
+  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
+  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
+  @storybook_status :pending
+  @storybook_reason "Phase 4 — see docs/superpowers/plans/2026-05-02-storybook-fleshout.md"
+
   use MediaCentarrWeb, :html
 
   import MediaCentarrWeb.LiveHelpers, only: [image_url: 2]
