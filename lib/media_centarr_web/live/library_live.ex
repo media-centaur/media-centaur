@@ -17,7 +17,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     Capabilities,
     Library,
     Library.Availability,
-    Playback,
     Settings
   }
 
@@ -30,9 +29,9 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
+    # the EntityModal on_mount callback — do not duplicate them here.
     if connected?(socket) do
-      Library.subscribe()
-      Playback.subscribe()
       Settings.subscribe()
       Availability.subscribe()
       Capabilities.subscribe()
@@ -46,7 +45,6 @@ defmodule MediaCentarrWeb.LibraryLive do
        entries: [],
        entries_by_id: %{},
        visible_ids: MapSet.new(),
-       playback: %{},
        active_tab: :all,
        sort_order: :recent,
        sort_open: false,
@@ -65,7 +63,6 @@ defmodule MediaCentarrWeb.LibraryLive do
      )
      |> assign_tmdb_ready()
      |> assign_spoiler_free()
-     |> assign_modal_defaults()
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
   end
@@ -209,14 +206,9 @@ defmodule MediaCentarrWeb.LibraryLive do
       |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
       |> recompute_counts()
 
-    selected_id = socket.assigns.selected_entity_id
-
-    socket =
-      if selected_id && MapSet.member?(changed_ids, selected_id) do
-        refresh_selected_entry(socket)
-      else
-        sync_selected_entry(socket)
-      end
+    # `:selected_entry` is kept fresh by the EntityModal hook (which fires
+    # on the original `:entities_changed` message). This handler only owns
+    # `entries_by_id` and the grid stream.
 
     # Additions need a full reset so new entries land in the correct sort
     # position — stream_insert without :at appends. Deletions and in-place
@@ -245,6 +237,9 @@ defmodule MediaCentarrWeb.LibraryLive do
          }},
         socket
       ) do
+    # The EntityModal hook already refreshed `:selected_entry`. This
+    # handler updates the grid-side cache (`entries_by_id`) so the poster
+    # card reflects the same change.
     socket =
       case apply_entry_update(
              socket.assigns.entries,
@@ -261,9 +256,7 @@ defmodule MediaCentarrWeb.LibraryLive do
              end
            ) do
         {:ok, {new_entries, new_by_id}} ->
-          socket
-          |> assign(entries: new_entries, entries_by_id: new_by_id)
-          |> sync_selected_entry()
+          assign(socket, entries: new_entries, entries_by_id: new_by_id)
 
         :not_found ->
           socket
@@ -272,13 +265,10 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
-  def handle_info({:playback_state_changed, entity_id, new_state, now_playing, _started_at}, socket) do
-    playback = apply_playback_change(socket.assigns.playback, entity_id, new_state, now_playing)
-
-    {:noreply,
-     socket
-     |> assign(playback: playback)
-     |> touch_stream_entries([entity_id])}
+  def handle_info({:playback_state_changed, entity_id, _new_state, _now_playing, _started_at}, socket) do
+    # The EntityModal hook owns the `:playback` map. Here we only re-render
+    # the affected poster card so the "playing" badge appears/disappears.
+    {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
   def handle_info({:playback_failed, _entity_id, _reason, payload}, socket) do
@@ -300,9 +290,7 @@ defmodule MediaCentarrWeb.LibraryLive do
              end
            ) do
         {:ok, {new_entries, new_by_id}} ->
-          socket
-          |> assign(entries: new_entries, entries_by_id: new_by_id)
-          |> sync_selected_entry()
+          assign(socket, entries: new_entries, entries_by_id: new_by_id)
 
         :not_found ->
           socket
@@ -467,19 +455,6 @@ defmodule MediaCentarrWeb.LibraryLive do
     |> assign_entries(Library.Browser.fetch_all_typed_entries())
     |> assign(playback: load_playback_sessions())
     |> recompute_counts()
-  end
-
-  # Re-snap `:selected_entry` from the in-memory `entries_by_id` so the
-  # detail modal reflects PubSub-driven progress updates without a DB hit.
-  # Stamping the resume target on the entry keeps the modal decoupled
-  # from how this LiveView tracks state for the rest of its UI (ADR-038).
-  defp sync_selected_entry(%{assigns: %{selected_entity_id: nil}} = socket), do: socket
-
-  defp sync_selected_entry(socket) do
-    case Map.get(socket.assigns.entries_by_id, socket.assigns.selected_entity_id) do
-      nil -> socket
-      entry -> assign(socket, :selected_entry, EntityModal.put_resume_target(entry))
-    end
   end
 
   defp recompute_counts(socket) do

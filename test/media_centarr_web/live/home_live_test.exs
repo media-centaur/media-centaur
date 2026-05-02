@@ -4,6 +4,8 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   import MediaCentarr.TestFactory
   import Phoenix.LiveViewTest
 
+  alias MediaCentarr.Library
+  alias MediaCentarr.Playback.ProgressBroadcaster
   alias MediaCentarr.Watcher.FilePresence
 
   test "GET / renders without crashing", %{conn: conn} do
@@ -231,6 +233,34 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       Process.sleep(600)
 
       assert render(view) =~ "Now Playing Movie"
+    end
+
+    test "modal selected_entry refreshes when entity_progress_updated arrives",
+         %{conn: conn} do
+      # Class-of-bug regression: a modal opened on HomeLive must reflect
+      # progress broadcasts on `playback:events`. Without the central
+      # EntityModal hook, the catch-all only schedules section reloads —
+      # `:selected_entry` would freeze on the pre-watch state until the
+      # user closed and reopened the modal. The user-visible signal is
+      # the play-button label flipping from "Play" to "Watch again".
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+
+      {:ok, view, html} = live(conn, "/?selected=#{movie.id}")
+      refute html =~ "Watch again"
+
+      {:ok, progress} =
+        Library.find_or_create_watch_progress_for_movie(%{
+          movie_id: movie.id,
+          position_seconds: 100.0,
+          duration_seconds: 100.0
+        })
+
+      Library.mark_watch_completed!(progress)
+      ProgressBroadcaster.broadcast(movie.id)
+
+      assert render(view) =~ "Watch again"
     end
 
     test "playback_failed broadcast renders an error flash",
