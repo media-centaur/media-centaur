@@ -20,6 +20,7 @@
 | General coding standards, naming, structure | `coding-guidelines` |
 | Production debugging, service health, runtime logs | `troubleshoot` |
 | UI work — components, CSS, styling, layout, modals, cards, themes | `user-interface` |
+| Adding/changing a function component or writing a story | `storybook` |
 | mpv Lua scripts, overlays, key bindings, playback UI | `mpv-extensions` |
 
 Invoke the skill **first**, then explore the codebase, then write code.
@@ -36,6 +37,7 @@ Map of contributor docs:
 | Pipeline (Broadway: discovery, import, image) | [`docs/pipeline.md`](docs/pipeline.md) |
 | Library data model (type-specific schemas, file tracking, deletion) | [`docs/library.md`](docs/library.md) |
 | Other domains | [`docs/watcher.md`](docs/watcher.md), [`docs/tmdb.md`](docs/tmdb.md), [`docs/playback.md`](docs/playback.md), [`docs/input-system.md`](docs/input-system.md), [`docs/mpv.md`](docs/mpv.md) |
+| Component catalog (Phoenix Storybook, dev-only) | [`docs/storybook.md`](docs/storybook.md) |
 | Protocol specs (data format, image caching) | [`specs/`](specs/) |
 | Decision records | [`decisions/`](decisions/) |
 
