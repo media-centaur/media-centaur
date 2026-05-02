@@ -51,6 +51,11 @@ config :media_centarr, :environment, :test
 config :media_centarr, :image_http_client, MediaCentarr.NoopImageDownloader
 config :media_centarr, :skip_user_config, true
 config :media_centarr, :start_pipeline, false
+# Skip mpv socket recovery — otherwise the recovery task scans
+# `mpv_socket_dir` (a real /tmp path on dev machines) and attaches to live
+# mpv instances, leaking the user's playback session into every LiveView
+# test that subscribes to playback events.
+config :media_centarr, :start_playback_recovery, false
 config :media_centarr, :start_watchers, false
 config :media_centarr, :watch_dirs, []
 
