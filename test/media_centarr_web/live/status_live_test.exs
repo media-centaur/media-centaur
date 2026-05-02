@@ -3,6 +3,8 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentarr.Playback.Events.PlaybackStateChanged
+
   describe "GET /status" do
     test "renders without crashing", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/status")
@@ -29,14 +31,19 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
       send(
         view.pid,
-        {:playback_state_changed, movie_id, :playing,
-         %{
+        {:playback_state_changed,
+         %PlaybackStateChanged{
            entity_id: movie_id,
-           movie_id: movie_id,
-           movie_name: "Sample Status Movie",
-           position_seconds: 100.0,
-           duration_seconds: 1000.0
-         }, DateTime.utc_now()}
+           state: :playing,
+           now_playing: %{
+             entity_id: movie_id,
+             movie_id: movie_id,
+             movie_name: "Sample Status Movie",
+             position_seconds: 100.0,
+             duration_seconds: 1000.0
+           },
+           started_at: DateTime.utc_now()
+         }}
       )
 
       html = render(view)
@@ -56,14 +63,19 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
       send(
         view.pid,
-        {:playback_state_changed, movie_id, :playing,
-         %{
+        {:playback_state_changed,
+         %PlaybackStateChanged{
            entity_id: movie_id,
-           movie_id: movie_id,
-           movie_name: "Position Update Movie",
-           position_seconds: 100.0,
-           duration_seconds: 1000.0
-         }, DateTime.utc_now()}
+           state: :playing,
+           now_playing: %{
+             entity_id: movie_id,
+             movie_id: movie_id,
+             movie_name: "Position Update Movie",
+             position_seconds: 100.0,
+             duration_seconds: 1000.0
+           },
+           started_at: DateTime.utc_now()
+         }}
       )
 
       html = render(view)
@@ -99,19 +111,33 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
       send(
         view.pid,
-        {:playback_state_changed, movie_id, :playing,
-         %{
+        {:playback_state_changed,
+         %PlaybackStateChanged{
            entity_id: movie_id,
-           movie_id: movie_id,
-           movie_name: "Soon To Stop Movie",
-           position_seconds: 0.0,
-           duration_seconds: 1000.0
-         }, DateTime.utc_now()}
+           state: :playing,
+           now_playing: %{
+             entity_id: movie_id,
+             movie_id: movie_id,
+             movie_name: "Soon To Stop Movie",
+             position_seconds: 0.0,
+             duration_seconds: 1000.0
+           },
+           started_at: DateTime.utc_now()
+         }}
       )
 
       assert render(view) =~ "Soon To Stop Movie"
 
-      send(view.pid, {:playback_state_changed, movie_id, :stopped, nil, DateTime.utc_now()})
+      send(
+        view.pid,
+        {:playback_state_changed,
+         %PlaybackStateChanged{
+           entity_id: movie_id,
+           state: :stopped,
+           now_playing: nil,
+           started_at: DateTime.utc_now()
+         }}
+      )
 
       refute render(view) =~ "Soon To Stop Movie"
     end

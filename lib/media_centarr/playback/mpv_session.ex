@@ -14,7 +14,14 @@ defmodule MediaCentarr.Playback.MpvSession do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Format
-  alias MediaCentarr.Playback.{MpvExitClassifier, ProgressBroadcaster, SessionRegistry, WatchingTracker}
+
+  alias MediaCentarr.Playback.{
+    Events,
+    MpvExitClassifier,
+    ProgressBroadcaster,
+    SessionRegistry,
+    WatchingTracker
+  }
 
   @db_write_interval_ms 10_000
   @socket_retry_interval_ms 200
@@ -520,11 +527,12 @@ defmodule MediaCentarr.Playback.MpvSession do
   defp broadcast_state_changed(new_state, session) do
     now_playing = build_now_playing_for_broadcast(new_state, session)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
-      MediaCentarr.Topics.playback_events(),
-      {:playback_state_changed, session.entity_id, new_state, now_playing, session.started_at}
-    )
+    Events.broadcast(%Events.PlaybackStateChanged{
+      entity_id: session.entity_id,
+      state: new_state,
+      now_playing: now_playing,
+      started_at: session.started_at
+    })
   end
 
   defp build_now_playing_for_broadcast(new_state, session) when new_state in [:playing, :paused] do
@@ -612,19 +620,18 @@ defmodule MediaCentarr.Playback.MpvSession do
   end
 
   defp broadcast_playback_failed(session, reason, message) do
-    Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
-      MediaCentarr.Topics.playback_events(),
-      {:playback_failed, session.entity_id, reason,
-       %{
-         message: message,
-         entity_name: session.entity_name,
-         season_number: session.season_number,
-         episode_number: session.episode_number,
-         episode_name: session.episode_name,
-         content_url: session.content_url
-       }}
-    )
+    Events.broadcast(%Events.PlaybackFailed{
+      entity_id: session.entity_id,
+      reason: reason,
+      payload: %{
+        message: message,
+        entity_name: session.entity_name,
+        season_number: session.season_number,
+        episode_number: session.episode_number,
+        episode_name: session.episode_name,
+        content_url: session.content_url
+      }
+    })
   end
 
   defp log_mpv_lines(data) do

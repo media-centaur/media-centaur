@@ -5,7 +5,8 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.Library
-  alias MediaCentarr.Playback.ProgressBroadcaster
+  alias MediaCentarr.Playback.{Events, ProgressBroadcaster}
+  alias MediaCentarr.Playback.Events.{PlaybackFailed, PlaybackStateChanged}
   alias MediaCentarr.Watcher.FilePresence
 
   test "GET / renders without crashing", %{conn: conn} do
@@ -225,10 +226,12 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         duration_seconds: 1000.0
       })
 
-      send(
-        view.pid,
-        {:playback_state_changed, movie.id, :playing, %{}, DateTime.utc_now()}
-      )
+      Events.broadcast(%PlaybackStateChanged{
+        entity_id: movie.id,
+        state: :playing,
+        now_playing: %{},
+        started_at: DateTime.utc_now()
+      })
 
       Process.sleep(600)
 
@@ -267,11 +270,11 @@ defmodule MediaCentarrWeb.HomeLiveTest do
          %{conn: conn} do
       {:ok, view, _html} = live(conn, "/")
 
-      send(
-        view.pid,
-        {:playback_failed, Ecto.UUID.generate(), :file_not_found,
-         %{reason: :file_not_found, file_path: "/missing.mkv"}}
-      )
+      Events.broadcast(%PlaybackFailed{
+        entity_id: Ecto.UUID.generate(),
+        reason: :file_not_found,
+        payload: %{reason: :file_not_found, file_path: "/missing.mkv"}
+      })
 
       assert render(view) =~ "flash"
     end
