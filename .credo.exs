@@ -181,7 +181,8 @@
           {MediaCentarr.Credo.Checks.NoSysIntrospection, []},
           {MediaCentarr.Credo.Checks.LogMacroPreferred, []},
           {MediaCentarr.Credo.Checks.ModalPanelNoClickAway, []},
-          {MediaCentarr.Credo.Checks.RawButtonClass, []}
+          {MediaCentarr.Credo.Checks.RawButtonClass, []},
+          {MediaCentarr.Credo.Checks.StorybookCoverage, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the
