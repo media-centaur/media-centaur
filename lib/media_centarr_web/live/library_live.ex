@@ -14,7 +14,6 @@ defmodule MediaCentarrWeb.LibraryLive do
   use MediaCentarrWeb.Live.CapabilitiesAware
 
   alias MediaCentarr.{
-    Capabilities,
     Library,
     Library.Availability
   }
@@ -29,11 +28,11 @@ defmodule MediaCentarrWeb.LibraryLive do
   @impl true
   def mount(_params, _session, socket) do
     # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
-    # the EntityModal on_mount callback; `Settings.subscribe()` is auto-
-    # wired by SpoilerFreeAware. Do not duplicate them here.
+    # the EntityModal on_mount callback; `Settings.subscribe()` by
+    # SpoilerFreeAware; `Capabilities.subscribe()` by CapabilitiesAware.
+    # Do not duplicate any of them here.
     if connected?(socket) do
       Availability.subscribe()
-      Capabilities.subscribe()
       MediaCentarr.Config.subscribe()
     end
 
@@ -60,7 +59,6 @@ defmodule MediaCentarrWeb.LibraryLive do
        watch_dirs_configured: watch_dirs_configured?(),
        dir_status: Availability.dir_status()
      )
-     |> assign_tmdb_ready()
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
   end

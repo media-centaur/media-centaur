@@ -34,13 +34,13 @@ defmodule MediaCentarrWeb.HomeLive do
     # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
     # the EntityModal on_mount callback — do not duplicate them here.
     # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
-    # the EntityModal on_mount callback; `Settings.subscribe()` is auto-
-    # wired by SpoilerFreeAware. Do not duplicate them here.
+    # the EntityModal on_mount callback; `Settings.subscribe()` by
+    # SpoilerFreeAware; `Capabilities.subscribe()` by CapabilitiesAware.
+    # Do not duplicate any of them here.
     if connected?(socket) do
       ReleaseTracking.subscribe()
       WatchHistory.subscribe()
       Availability.subscribe()
-      Capabilities.subscribe()
     end
 
     socket =
@@ -50,7 +50,6 @@ defmodule MediaCentarrWeb.HomeLive do
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
       |> assign(:availability_map, %{})
-      |> assign_tmdb_ready()
       |> assign(:watch_dirs, MediaCentarr.Config.get(:watch_dirs) || [])
       |> assign_empty_sections()
 
