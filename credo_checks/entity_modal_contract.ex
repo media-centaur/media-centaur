@@ -5,19 +5,22 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
     category: :design,
     explanations: [
       check: """
-      A LiveView that `use`s `MediaCentarrWeb.Live.EntityModal` must not
-      call `Library.subscribe/0` or `Playback.subscribe/0` itself. The
-      modal's `on_mount` callback subscribes to both topics automatically;
-      a second subscribe in the host means every PubSub message is
-      delivered twice.
+      A LiveView that `use`s one of the auto-wiring traits below must not
+      call the trait's underlying context `subscribe/0` itself. Each trait
+      registers an `on_mount` callback that subscribes for the host
+      automatically; a second subscribe in the host means every PubSub
+      message is delivered twice.
 
-      The historical bug this prevents: a host that mounted the modal but
-      forgot to wire one of the four PubSub messages
-      (`:entity_progress_updated`, `:extra_progress_updated`,
-      `:entities_changed`, `:playback_state_changed`) silently let the
-      modal's `:selected_entry` go stale after playback ended. Centralising
-      the subscriptions inside `EntityModal.on_mount/4` made that failure
-      mode impossible — but only as long as no host re-subscribes here.
+          Trait                                         Forbidden subscribes
+          MediaCentarrWeb.Live.EntityModal              Library, Playback
+          MediaCentarrWeb.Live.SpoilerFreeAware         Settings
+
+      The historical bug this prevents (the EntityModal case): a host that
+      mounted the modal but forgot to wire one of the four PubSub messages
+      silently let `:selected_entry` go stale after playback ended.
+      Centralising the subscription + handler in the trait's `on_mount`
+      callback made that failure mode impossible — but only as long as no
+      host re-subscribes.
 
           # preferred
           use MediaCentarrWeb.Live.EntityModal
@@ -38,16 +41,33 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
             end
             {:ok, socket}
           end
+
+      A host that needs the trait's underlying context for additional
+      reasons does NOT need to subscribe twice — the on_mount subscription
+      delivers every message on the topic, so the host's own
+      `handle_info/2` clauses for other variants flow through the same
+      single subscription.
       """
     ]
 
-  @forbidden [:Library, :Playback]
+  # Mapping of trait module → context modules whose `subscribe/0` the
+  # trait owns. Add new entries as new auto-wiring traits are introduced.
+  @trait_subscribes %{
+    [:MediaCentarrWeb, :Live, :EntityModal] => [:Library, :Playback],
+    [:MediaCentarrWeb, :Live, :SpoilerFreeAware] => [:Settings]
+  }
 
   @impl true
   def run(%SourceFile{filename: filename} = source_file, params) do
-    if liveview_path?(filename) and uses_entity_modal?(source_file) do
-      issue_meta = IssueMeta.for(source_file, params)
-      Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
+    if liveview_path?(filename) do
+      forbidden = forbidden_subscribes_for(source_file)
+
+      if forbidden == [] do
+        []
+      else
+        issue_meta = IssueMeta.for(source_file, params)
+        Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta, forbidden))
+      end
     else
       []
     end
@@ -57,41 +77,45 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
     String.contains?(filename, "lib/media_centarr_web/live/")
   end
 
-  defp uses_entity_modal?(source_file) do
-    Credo.Code.prewalk(
-      source_file,
-      fn ast, acc -> {ast, acc or use_entity_modal_node?(ast)} end,
-      false
-    )
+  # Returns the deduplicated list of forbidden subscribe modules for this
+  # file, based on which traits it `use`s.
+  defp forbidden_subscribes_for(source_file) do
+    Enum.uniq(Credo.Code.prewalk(source_file, fn ast, acc -> {ast, collect_forbidden(ast, acc)} end, []))
   end
 
-  # use MediaCentarrWeb.Live.EntityModal
-  defp use_entity_modal_node?(
-         {:use, _, [{:__aliases__, _, [:MediaCentarrWeb, :Live, :EntityModal]} | _]}
-       ), do: true
+  defp collect_forbidden({:use, _, [{:__aliases__, _, alias_path} | _]}, acc) do
+    case Map.get(@trait_subscribes, alias_path) do
+      nil -> acc
+      forbidden -> forbidden ++ acc
+    end
+  end
 
-  defp use_entity_modal_node?(_), do: false
+  defp collect_forbidden(_ast, acc), do: acc
 
-  # Library.subscribe() / Playback.subscribe()
+  # Looks for `Foo.subscribe(...)` where `Foo` is in the forbidden list.
   defp traverse(
          {{:., meta, [{:__aliases__, _, [module]}, :subscribe]}, _, _args} = ast,
          issues,
-         issue_meta
-       )
-       when module in @forbidden do
-    {ast, [issue_for(issue_meta, "#{module}.subscribe", meta[:line]) | issues]}
+         issue_meta,
+         forbidden
+       ) do
+    if module in forbidden do
+      {ast, [issue_for(issue_meta, "#{module}.subscribe", meta[:line]) | issues]}
+    else
+      {ast, issues}
+    end
   end
 
-  defp traverse(ast, issues, _issue_meta), do: {ast, issues}
+  defp traverse(ast, issues, _issue_meta, _forbidden), do: {ast, issues}
 
   defp issue_for(issue_meta, trigger, line_no) do
     format_issue(
       issue_meta,
       message:
-        "Hosts that `use MediaCentarrWeb.Live.EntityModal` must not call " <>
-          "`Library.subscribe/0` or `Playback.subscribe/0` — the modal's on_mount " <>
-          "callback already subscribes for them. Duplicate subscribes deliver each " <>
-          "PubSub message twice.",
+        "Hosts that `use` an auto-wiring LiveView trait must not call " <>
+          "the trait's underlying `subscribe/0` themselves — the trait's " <>
+          "on_mount callback already subscribes. Duplicate subscribes deliver " <>
+          "each PubSub message twice. See the check explanation for the trait/context map.",
       trigger: trigger,
       line_no: line_no
     )
