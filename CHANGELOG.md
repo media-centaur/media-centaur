@@ -4,6 +4,14 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.30.2 — 2026-05-02
+
+Maintenance release. No user-visible changes — Phase 5 of the internal
+component catalog (Phoenix Storybook) added stories for the library
+poster card, toolbar, the home-page poster row, the upcoming-releases
+zone, and the entity detail panel. Each story documents the
+contract observations a future typed-attr migration will act on.
+
 ## v0.30.1 — 2026-05-02
 
 Maintenance release. No user-visible changes — internal developer
