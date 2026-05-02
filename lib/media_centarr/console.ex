@@ -13,8 +13,9 @@ defmodule MediaCentarr.Console do
 
   Console owns no database table. The filter state and buffer cap are
   persisted via `MediaCentarr.Settings.Entry`, the sanctioned ADR-029
-  exception for shared key/value infrastructure (see the Bounded Contexts
-  section of `CLAUDE.md`). No per-console table is justified.
+  exception for shared key/value infrastructure — Settings is treated
+  as shared infrastructure in addition to being a bounded context (see
+  `docs/architecture.md`). No per-console table is justified.
   """
 
   alias MediaCentarr.Console.{Buffer, Entry, Filter, JournalSource, View}

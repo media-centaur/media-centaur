@@ -93,7 +93,7 @@ custom classes must fully style the input
 - To debug test failures, run tests in a specific file with `mix test test/my_test.exs` or run all previously failed tests with `mix test --failed`
 - `mix deps.clean --all` is **almost never needed**. **Avoid** using it unless you have good reason
 - `mix precommit` is the merge gate: it runs `compile --warning-as-errors`, `format` (with **Quokka** auto-rewrites), `credo --strict`, the JS `boundaries` task, `deps.audit`, `sobelow`, and `test`. Run before finishing any change.
-- Static analysis configuration: `.credo.exs` (lint rules), `.sobelow-conf` (security scan), `.formatter.exs` (formatter + Quokka). House-rule custom Credo checks live under `lib/media_centarr/credo/checks/`. Each tuned/disabled check has a comment explaining why. See `CLAUDE.md` "Static Analysis" for the full picture.
+- Static analysis configuration: `.credo.exs` (lint rules), `.sobelow-conf` (security scan), `.formatter.exs` (formatter + Quokka), `.dependency-cruiser.cjs` (JS boundaries). House-rule custom Credo checks live under `credo_checks/` — each `.ex` file's moduledoc explains its rule. **Boundary** is enforced by a Mix compiler; read each context's `use Boundary, deps: [...]` declaration as the canonical inter-context dependency list.
 <!-- phoenix:elixir-end -->
 
 <!-- phoenix:phoenix-start -->
@@ -259,3 +259,22 @@ All non-trivial logic in LiveViews and function components must be extracted int
 - **Never** assert on rendered HTML output — no `render_component`, no `=~` on markup, no CSS selector assertions on DOM content
 - Form tests use `render_submit/2` and `render_change/2`
 - Focus on testing outcomes (assigns changed, event dispatched, redirect occurred) rather than DOM structure
+
+### LiveView callbacks
+
+- **Annotate every callback group with `@impl true`.** Place it before the first clause of each callback name (`mount`, `render`, `handle_event`, `handle_info`, `handle_params`).
+- **Iron Law: no DB queries in `mount/3`.** `mount/3` runs twice — once for the static HTTP render and once after the WebSocket connects. The real risk is firing the same query on both paths. Canonical pattern: subscriptions only in mount; data loading in `handle_params/3` (or a small `ensure_loaded/1` helper) gated by `connected?(socket) and not socket.assigns.loaded?`. Cheap state setup (struct defaults, `MapSet.new/0`, assigning `nil`) belongs in mount; anything that touches the DB, an ETS table, or a GenServer in another supervision tree belongs in `handle_params`. *Why:* doubled queries scale linearly with traffic and degrade as data grows — the Iron Law is a Phoenix-wide invariant, not a project preference.
+- **Distinguish mount from selection change in `handle_params`.** On mount, `selected_entity_id` is `nil`; a URL param like `selected=X` makes `handle_params` see `nil → X` as a "change." If you need to reset state only when the user *switches* entities (not on initial load), check that the previous value was non-nil: `selection_changed && socket.assigns.selected_entity_id != nil`. This ensures URL params like `view=info` survive page reload.
+
+### LiveView real-time updates
+
+All LiveViews stay current via PubSub — no manual page refreshes.
+
+1. **Subscribe in `mount/3`** (inside `if connected?(socket)`) using context facade helpers: `Library.subscribe()`, `Playback.subscribe()`, etc. Direct `Phoenix.PubSub.subscribe/2` is flagged by the `ContextSubscribeFacade` Credo check.
+2. **Handle PubSub messages in `handle_info/2`** with pattern-matched clauses. Every LiveView ends with a catch-all `def handle_info(_msg, socket)`.
+3. **Debounce rapid changes** with `debounce(socket, timer_assign, message, delay_ms)` from `LiveHelpers`. Callers that accumulate data (e.g. LibraryLive's pending entity IDs) do so before calling debounce — the utility only manages the timer lifecycle.
+4. **Update streams surgically** — `touch_stream_entries` for in-place changes, full `reset_stream` only when sort position may change.
+
+Shared utilities in `LiveHelpers`:
+- `debounce/4` — cancel-old-timer + schedule-new-timer
+- `apply_playback_change/5` — pure `Map.put`/`Map.delete` on a playback sessions map

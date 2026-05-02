@@ -45,7 +45,8 @@ bun test assets/js/input/
 ## Internal contributor docs
 
 - [`AGENTS.md`](AGENTS.md) — Elixir/Phoenix/LiveView/Ecto conventions specific to this codebase.
-- [`CLAUDE.md`](CLAUDE.md) — architecture principles, bounded contexts, testing strategy, and Claude-Code-specific notes.
+- [`CLAUDE.md`](CLAUDE.md) — high-level orientation: skills routing, build/release workflow, doc surfaces.
+- [`docs/`](docs/) — architecture, pipeline, library, watcher, TMDB, playback, input system.
 - [`decisions/`](decisions/) — MADR-format architecture decision records.
 - [`.claude/skills/`](.claude/skills/) — task-specific skills for AI-assisted development.
 
