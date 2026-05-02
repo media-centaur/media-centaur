@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.30.3 — 2026-05-02
+
+Maintenance release. No user-visible changes — closes out the internal
+component catalog (Phoenix Storybook) initiative: every component is
+now either covered, deliberately skipped with a reason, or has a
+static-example placeholder. Three rendering bugs surfaced during the
+final review were fixed (a crashing list variation, a collapsed
+poster-row layout in the catalog sandbox, and a modal that escaped
+its preview block). The completed roadmap and design doc were
+removed.
+
 ## v0.30.2 — 2026-05-02
 
 Maintenance release. No user-visible changes — Phase 5 of the internal
