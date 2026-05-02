@@ -4,6 +4,14 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.30.1 — 2026-05-02
+
+Maintenance release. No user-visible changes — internal developer
+catalog (Phoenix Storybook) was expanded with foundation pages,
+deepened component stories, and a Credo check that prevents coverage
+drift. A production build issue introduced by the catalog work was
+fixed so future releases continue to ship cleanly.
+
 ## v0.30.0 — 2026-05-02
 
 ### Improved
