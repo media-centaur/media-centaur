@@ -42,6 +42,14 @@ Two themes via daisyUI plugin. Colors use oklch color space with hue 264 (cool s
 
 Body has a fixed two-tone radial gradient background. Glass surfaces float above it.
 
+## Storybook (live catalog)
+
+Every recipe below has a runnable counterpart in **Phoenix Storybook** at <http://localhost:1080/storybook> (dev-only). When adding a recipe, add a story; when changing a component, update its story in the same PR.
+
+The full philosophy and triage table live at [`docs/storybook.md`](../../docs/storybook.md). The dedicated [`storybook`](../storybook/SKILL.md) skill covers conventions and anti-patterns.
+
+**Story rule.** Story modules must live under `MediaCentarrWeb.Storybook.*` — that places them inside the `MediaCentarrWeb` boundary. The default `Storybook.*` namespace from the generator is wrong for this repo.
+
 ## Component Recipes
 
 ### Buttons ([UIDR-003])
@@ -255,15 +263,17 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 
 ## Component Inventory
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| `flash/1` | `core_components.ex` | Toast notifications |
-| `button/1` | `core_components.ex` | Links and buttons (default: soft primary) |
-| `input/1` | `core_components.ex` | Form fields with label + errors |
-| `header/1` | `core_components.ex` | Page title bar with actions slot |
-| `table/1` | `core_components.ex` | Zebra-striped data tables |
-| `list/1` | `core_components.ex` | Key-value display list |
-| `icon/1` | `core_components.ex` | Heroicon rendering |
+Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intentionally skipped (state too coupled). See [`docs/storybook.md`](../../docs/storybook.md) for the full triage.
+
+| Component | File | Purpose | Story |
+|-----------|------|---------|-------|
+| `flash/1` | `core_components.ex` | Toast notifications | ✅ stub |
+| `button/1` | `core_components.ex` | Links and buttons (default: soft primary) | ✅ seed |
+| `input/1` | `core_components.ex` | Form fields with label + errors | ✅ stub |
+| `header/1` | `core_components.ex` | Page title bar with actions slot | ✅ stub |
+| `table/1` | `core_components.ex` | Zebra-striped data tables | ✅ stub |
+| `list/1` | `core_components.ex` | Key-value display list | ✅ stub |
+| `icon/1` | `core_components.ex` | Heroicon rendering | ✅ stub |
 | `app/1` | `layouts.ex` | Root layout (sidebar + content) |
 | `theme_toggle/1` | `layouts.ex` | System/Light/Dark picker |
 | `poster_card/1` | `library_cards.ex` | 2:3 poster grid card |

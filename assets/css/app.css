@@ -5,6 +5,7 @@
 @source "../css";
 @source "../js";
 @source "../../lib/media_centarr_web";
+@source "../../storybook";
 
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
@@ -108,12 +109,52 @@ html { scrollbar-gutter: stable; }
   --glass-gradient-b: oklch(38% 0.14 300 / 0.15);
 }
 
-/* Gradient backdrop — gives the glass something to show through */
-body {
+/* Gradient backdrop — gives the glass something to show through.
+   Scoped to .media-centarr (sandbox class) so the gradient applies to both
+   the live app body and the storybook component iframe (whose sandbox_class
+   adds the same class), but NOT the storybook chrome body — where our
+   gradient and dark theme would make the light chrome unreadable. */
+body.media-centarr {
   background-image:
     radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
     radial-gradient(ellipse at 80% 80%, var(--glass-gradient-b), transparent 60%);
   background-attachment: fixed;
+}
+
+/* Storybook chrome readability override.
+   Phoenix Storybook loads our app.css via `:css_path`. Our daisyUI dark
+   theme on `:root` sets `color-scheme: dark` and a near-white
+   `--color-base-content`, which makes the chrome's white panels show
+   light-on-light text. The chrome's `<html>` carries the `psb` class.
+   Force a light browser scheme + dark body text for the chrome itself —
+   then restore the dark theme inside the sandbox container
+   `.media-centarr` so component previews still render with the real
+   theme, glass gradient, and daisyUI variants. */
+html.psb {
+  color-scheme: light;
+}
+
+html.psb body {
+  background-color: white;
+  background-image: none;
+  color: oklch(20% 0.015 264);
+}
+
+/* Restore dark theme ONLY inside component preview sandboxes
+   (`.psb-variation-block` is on component story pages only — `:page` stories
+   like the welcome doc have a `.media-centarr` wrapper too, but no
+   `.psb-variation-block`, so they stay light like the chrome). This gives
+   us light docs + dark component previews — visually consistent with
+   storybook's chrome design while still showing components in their real
+   theme. */
+html.psb .psb-variation-block .media-centarr {
+  color-scheme: dark;
+  color: var(--color-base-content);
+  background:
+    radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
+    radial-gradient(ellipse at 80% 80%, var(--glass-gradient-b), transparent 60%),
+    var(--color-base-100);
+  border-radius: 0.375rem;
 }
 
 /* Primary glass surface — cards */

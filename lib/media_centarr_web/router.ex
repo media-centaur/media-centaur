@@ -36,6 +36,20 @@ defmodule MediaCentarrWeb.Router do
     get "/download/auto-grabs", AcquisitionRedirectController, :auto_grabs
   end
 
+  # Phoenix Storybook — dev-only component catalog. See docs/storybook.md.
+  if Mix.env() == :dev do
+    import PhoenixStorybook.Router
+
+    scope "/" do
+      storybook_assets()
+    end
+
+    scope "/", MediaCentarrWeb do
+      pipe_through :browser
+      live_storybook("/storybook", backend_module: MediaCentarrWeb.Storybook)
+    end
+  end
+
   # Other scopes may use custom stacks.
   # scope "/api", MediaCentarrWeb do
   #   pipe_through :api
