@@ -112,11 +112,19 @@ defmodule MediaCentarr.Library.ProgressSummary do
       record ->
         record_key = record.episode_id || record.movie_id
 
-        if record.completed do
-          advance_from(record_key, items, progress_by_key)
-        else
-          label = find_label_for_key(items, record_key)
-          {label, record}
+        cond do
+          record.completed ->
+            advance_from(record_key, items, progress_by_key)
+
+          find_label_for_key(items, record_key) == nil ->
+            # Partial record references an item that no longer exists
+            # (e.g. episode delisted from the season). Fall back to the
+            # first unwatched item rather than leaking the orphan's
+            # position into the UI.
+            first_unwatched_or_last(items, progress_by_key, record_key)
+
+          true ->
+            {find_label_for_key(items, record_key), record}
         end
     end
   end

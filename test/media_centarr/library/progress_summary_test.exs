@@ -181,6 +181,230 @@ defmodule MediaCentarr.Library.ProgressSummaryTest do
     end
   end
 
+  describe "find_current_item resume precedence (TVSeries)" do
+    # These cases cover the non-obvious edges of "where does Continue
+    # Watching resume?" — orphaned FKs, non-monotonic completion order,
+    # and competing partial vs. completed records. Each test pins one
+    # rule that would otherwise have to be re-discovered by reading
+    # `find_current_item/2` and `advance_from/3`.
+
+    test "progress FK that matches no available item → first unwatched item, nil progress" do
+      # Episode was deleted (or never made it into the items list) but
+      # the WatchProgress row survives. Resume must not crash and must
+      # not credit the orphan — it falls through to the first unwatched
+      # item in the series.
+      {entity, _episode_ids} = build_tv_entity_with_episodes()
+
+      progress = [
+        build_progress(%{
+          episode_id: 999_999,
+          position_seconds: 600.0,
+          duration_seconds: 2400.0,
+          completed: false,
+          last_watched_at: DateTime.utc_now()
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 1, episode: 1}
+      assert result.episode_position_seconds == 0.0
+      assert result.episode_duration_seconds == 0.0
+    end
+
+    test "orphan FK is completed → first unwatched item, nil progress" do
+      # Same as above but the orphaned record is `completed: true`. The
+      # "advance from current" path can't find an index, so it falls
+      # back to first-unwatched; the orphan's position is discarded.
+      {entity, _episode_ids} = build_tv_entity_with_episodes()
+
+      progress = [
+        build_progress(%{
+          episode_id: 999_999,
+          position_seconds: 2400.0,
+          duration_seconds: 2400.0,
+          completed: true,
+          last_watched_at: DateTime.utc_now()
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 1, episode: 1}
+      assert result.episode_position_seconds == 0.0
+    end
+
+    test "non-monotonic completion: most recent completed is mid-series → advances from THERE, not from end" do
+      # User watched E03, then went back and watched E01. Most recent
+      # completed = E01. Resume must advance to E02 (the item AFTER
+      # the most-recent record), not to "the first unwatched" (E02
+      # would be the same here, but the rule is about following
+      # advance-from-most-recent, not scanning for unwatched).
+      {entity, episode_ids} = build_tv_entity_with_episodes()
+
+      now = DateTime.utc_now()
+
+      progress = [
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 2),
+          completed: true,
+          last_watched_at: DateTime.add(now, -120, :second)
+        }),
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 0),
+          completed: true,
+          last_watched_at: now
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 1, episode: 2}
+    end
+
+    test "most recent completed mid-series, next item also completed → still advances (does not skip)" do
+      # User watched E01, E02, E03 in order and the most recent record
+      # is E02 (e.g., they re-watched it). advance_from(E02) lands on
+      # E03 — even though E03 is already completed. The rule is "next
+      # item in the list after the most recent record", not "next
+      # unwatched item". This pins the surprising behaviour so a future
+      # refactor doesn't silently change it.
+      {entity, episode_ids} = build_tv_entity_with_episodes()
+
+      now = DateTime.utc_now()
+
+      progress = [
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 0),
+          completed: true,
+          last_watched_at: DateTime.add(now, -180, :second)
+        }),
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 2),
+          completed: true,
+          position_seconds: 2400.0,
+          duration_seconds: 2400.0,
+          last_watched_at: DateTime.add(now, -120, :second)
+        }),
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 1),
+          completed: true,
+          last_watched_at: now
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 1, episode: 3}
+    end
+
+    test "most recent is partial, even with older completed records → resumes the partial" do
+      # An older completed E01 plus a newer partial E02 → resume E02
+      # at its position. The "most recent record" wins regardless of
+      # completion state.
+      {entity, episode_ids} = build_tv_entity_with_episodes()
+
+      now = DateTime.utc_now()
+
+      progress = [
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 0),
+          completed: true,
+          last_watched_at: DateTime.add(now, -3600, :second)
+        }),
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 1),
+          position_seconds: 800.0,
+          duration_seconds: 2400.0,
+          completed: false,
+          last_watched_at: now
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 1, episode: 2}
+      assert result.episode_position_seconds == 800.0
+    end
+
+    test "sparse progress: completed E01, completely unwatched E02, partial E03 → resumes E03" do
+      # Non-contiguous viewing pattern (skipped E02, started E03). The
+      # most-recent rule resumes E03 at its position; we do not try to
+      # nag the user about the unwatched gap.
+      {entity, episode_ids} = build_tv_entity_with_episodes()
+
+      now = DateTime.utc_now()
+
+      progress = [
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 0),
+          completed: true,
+          last_watched_at: DateTime.add(now, -3600, :second)
+        }),
+        build_progress(%{
+          episode_id: Enum.at(episode_ids, 2),
+          position_seconds: 1200.0,
+          duration_seconds: 2400.0,
+          completed: false,
+          last_watched_at: now
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 1, episode: 3}
+      assert result.episode_position_seconds == 1200.0
+    end
+  end
+
+  describe "find_current_item resume precedence (MovieSeries)" do
+    test "progress FK that matches no available movie → first unwatched movie, nil progress" do
+      # Same orphan-FK scenario for movie series — e.g. a movie was
+      # delisted from the collection but its progress row remained.
+      {entity, _movie_ids} = build_movie_series_entity()
+
+      progress = [
+        build_progress(%{
+          movie_id: 999_999,
+          position_seconds: 1000.0,
+          duration_seconds: 7200.0,
+          completed: false,
+          last_watched_at: DateTime.utc_now()
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 0, episode: 1}
+      assert result.episode_position_seconds == 0.0
+      assert result.episodes_completed == 0
+    end
+
+    test "non-monotonic completion in movie series advances from most-recent, not from end" do
+      # Watched M3 first, then M1. Most recent = M1 → advances to M2.
+      {entity, movie_ids} = build_movie_series_entity()
+
+      now = DateTime.utc_now()
+
+      progress = [
+        build_progress(%{
+          movie_id: Enum.at(movie_ids, 2),
+          completed: true,
+          last_watched_at: DateTime.add(now, -120, :second)
+        }),
+        build_progress(%{
+          movie_id: Enum.at(movie_ids, 0),
+          completed: true,
+          last_watched_at: now
+        })
+      ]
+
+      result = ProgressSummary.compute(entity, progress)
+
+      assert result.current_episode == %{season: 0, episode: 2}
+    end
+  end
+
   describe "MovieSeries" do
     test "per-movie progress tracks total and completed" do
       {entity, movie_ids} = build_movie_series_entity()
