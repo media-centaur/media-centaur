@@ -273,25 +273,12 @@ defmodule MediaCentarrWeb.UpcomingLive do
 
   def handle_event("queue_all_show", %{"item-id" => item_id}, socket) do
     case Acquisition.enqueue_all_pending_for_item(item_id) do
-      {:ok, %{queued: 0, skipped_in_flight: skipped}} when skipped > 0 ->
-        {:noreply, put_flash(socket, :info, "Already queued — #{skipped} pending")}
-
-      {:ok, %{queued: queued, failed: []}} ->
-        word = if queued == 1, do: "episode", else: "episodes"
-        {:noreply, put_flash(socket, :info, "Queued #{queued} #{word}")}
-
-      {:ok, %{queued: queued, failed: failed}} ->
-        total = queued + length(failed)
-
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Queued #{queued} of #{total} — #{length(failed)} failed"
-         )}
-
       {:error, :not_found} ->
         {:noreply, put_flash(socket, :error, "Show not found — couldn't queue")}
+
+      {:ok, summary} ->
+        {kind, message} = queue_all_summary_message(summary)
+        {:noreply, put_flash(socket, kind, message)}
     end
   end
 
@@ -412,6 +399,46 @@ defmodule MediaCentarrWeb.UpcomingLive do
 
   # --- Private ---
 
+  defp queue_all_summary_message(%{
+         queued: queued,
+         rearmed: rearmed,
+         in_progress: in_progress,
+         already_grabbed: already_grabbed,
+         failed: failed
+       }) do
+    action = queued + rearmed
+    total = action + in_progress + already_grabbed + length(failed)
+
+    cond do
+      total == 0 ->
+        {:info, "Nothing to queue"}
+
+      failed != [] ->
+        {:error, "Queued #{action} of #{total} — #{length(failed)} failed"}
+
+      action == 0 and in_progress > 0 and already_grabbed == 0 ->
+        {:info, "Already in progress — #{in_progress} #{pluralize("release", in_progress)} searching"}
+
+      action == 0 and already_grabbed > 0 and in_progress == 0 ->
+        {:info, "All #{already_grabbed} #{pluralize("release", already_grabbed)} already grabbed"}
+
+      action == 0 ->
+        {:info, "Nothing new — #{in_progress} in progress, #{already_grabbed} already grabbed"}
+
+      queued > 0 and rearmed > 0 ->
+        {:info, "Queued #{queued}, re-armed #{rearmed}"}
+
+      rearmed > 0 ->
+        {:info, "Re-armed #{rearmed} #{pluralize("release", rearmed)}"}
+
+      true ->
+        {:info, "Queued #{queued} #{pluralize("episode", queued)}"}
+    end
+  end
+
+  defp pluralize(word, 1), do: word
+  defp pluralize(word, _), do: word <> "s"
+
   defp load_upcoming(socket) do
     releases = ReleaseTracking.list_releases()
     events = ReleaseTracking.list_recent_events(10)
@@ -488,7 +515,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
         %{}
         |> maybe_put_image(:backdrop, item.backdrop_path)
         |> maybe_put_image(:poster, item.poster_path)
-        |> maybe_put_logo(logo_urls, item.library_entity_id)
+        |> maybe_put_logo(item, logo_urls)
 
       if images == %{}, do: acc, else: Map.put(acc, item.id, images)
     end)
@@ -497,12 +524,10 @@ defmodule MediaCentarrWeb.UpcomingLive do
   defp maybe_put_image(map, _role, nil), do: map
   defp maybe_put_image(map, role, path), do: Map.put(map, role, "/media-images/#{path}")
 
-  defp maybe_put_logo(map, _logo_urls, nil), do: map
-
-  defp maybe_put_logo(map, logo_urls, entity_id) do
-    case Map.fetch(logo_urls, entity_id) do
-      {:ok, url} -> Map.put(map, :logo, url)
-      :error -> map
+  defp maybe_put_logo(map, item, logo_urls) do
+    case ReleaseTracking.logo_url_for_item(item, logo_urls) do
+      nil -> map
+      url -> Map.put(map, :logo, url)
     end
   end
 end

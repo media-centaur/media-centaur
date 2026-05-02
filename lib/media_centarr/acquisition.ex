@@ -414,22 +414,27 @@ defmodule MediaCentarr.Acquisition do
 
   @doc """
   Bulk-enqueues grabs for every release of a tracked item that is released,
-  not in the library, and of an acquirable type, skipping any that already
-  have a grab row (in any state — terminal grabs are intentionally not
-  re-armed by this path; the user must re-arm them individually).
+  not in the library, and of an acquirable type. Behaviour by grab state:
 
-  Returns a summary so the caller can decide what to flash:
+  - **No grab** → enqueue a new one (`queued`)
+  - **Cancelled / abandoned** → re-arm back to `searching` (`rearmed`)
+  - **Active** (`searching` / `snoozed`) → skip (`in_progress`)
+  - **Grabbed** (already succeeded) → skip (`already_grabbed`)
 
-      {:ok, %{queued: 3, skipped_in_flight: 1, failed: []}}
+  Returns a summary so the caller can flash an accurate message:
 
-  Idempotent — calling twice for the same item without intervening state
-  changes yields `queued: 0, skipped_in_flight: N` on the second call.
+      {:ok, %{queued: 3, rearmed: 1, in_progress: 0, already_grabbed: 0, failed: []}}
+
+  Idempotent given stable state — the second call yields all-zeros for the
+  action buckets and shifts those releases into `in_progress`.
   """
   @spec enqueue_all_pending_for_item(item_id :: String.t()) ::
           {:ok,
            %{
              queued: non_neg_integer(),
-             skipped_in_flight: non_neg_integer(),
+             rearmed: non_neg_integer(),
+             in_progress: non_neg_integer(),
+             already_grabbed: non_neg_integer(),
              failed: [{tuple(), term()}]
            }}
           | {:error, :not_found}
@@ -448,26 +453,48 @@ defmodule MediaCentarr.Acquisition do
 
       grab_map = statuses_for_releases(keys)
 
+      empty_summary = %{
+        queued: 0,
+        rearmed: 0,
+        in_progress: 0,
+        already_grabbed: 0,
+        failed: []
+      }
+
       summary =
-        Enum.reduce(pending, %{queued: 0, skipped_in_flight: 0, failed: []}, fn release, acc ->
+        Enum.reduce(pending, empty_summary, fn release, acc ->
           key = {tmdb_id, tmdb_type, release.season_number, release.episode_number}
-
-          case Map.get(grab_map, key) do
-            nil ->
-              case enqueue(tmdb_id, tmdb_type, name,
-                     season_number: release.season_number,
-                     episode_number: release.episode_number
-                   ) do
-                {:ok, _grab} -> %{acc | queued: acc.queued + 1}
-                {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
-              end
-
-            _grab ->
-              %{acc | skipped_in_flight: acc.skipped_in_flight + 1}
-          end
+          classify_and_apply(acc, key, release, tmdb_id, tmdb_type, name, Map.get(grab_map, key))
         end)
 
       {:ok, summary}
+    end
+  end
+
+  defp classify_and_apply(acc, key, release, tmdb_id, tmdb_type, name, nil) do
+    case enqueue(tmdb_id, tmdb_type, name,
+           season_number: release.season_number,
+           episode_number: release.episode_number
+         ) do
+      {:ok, _grab} -> %{acc | queued: acc.queued + 1}
+      {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
+    end
+  end
+
+  defp classify_and_apply(acc, _key, _release, _tmdb_id, _tmdb_type, _name, %Grab{status: status})
+       when status in @cancellable_statuses do
+    %{acc | in_progress: acc.in_progress + 1}
+  end
+
+  defp classify_and_apply(acc, _key, _release, _tmdb_id, _tmdb_type, _name, %Grab{status: "grabbed"}) do
+    %{acc | already_grabbed: acc.already_grabbed + 1}
+  end
+
+  defp classify_and_apply(acc, key, _release, _tmdb_id, _tmdb_type, _name, %Grab{} = grab) do
+    # Terminal but rearmable: cancelled or abandoned.
+    case rearm_grab(grab.id) do
+      {:ok, _} -> %{acc | rearmed: acc.rearmed + 1}
+      {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
     end
   end
 

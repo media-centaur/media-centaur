@@ -19,6 +19,7 @@ defmodule MediaCentarr.ReleaseTracking.Item do
     field :last_refreshed_at, :utc_datetime
     field :poster_path, :string
     field :backdrop_path, :string
+    field :logo_path, :string
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
@@ -53,6 +54,8 @@ defmodule MediaCentarr.ReleaseTracking.Item do
       :library_entity_id,
       :last_refreshed_at,
       :poster_path,
+      :backdrop_path,
+      :logo_path,
       :last_library_season,
       :last_library_episode
     ])
@@ -70,6 +73,7 @@ defmodule MediaCentarr.ReleaseTracking.Item do
       :last_refreshed_at,
       :poster_path,
       :backdrop_path,
+      :logo_path,
       :last_library_season,
       :last_library_episode,
       :dismiss_released_before

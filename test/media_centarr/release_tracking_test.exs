@@ -962,4 +962,54 @@ defmodule MediaCentarr.ReleaseTrackingTest do
       assert_received {:item_removed, "8888", "movie"}
     end
   end
+
+  describe "logo_url_for_item/2" do
+    test "prefers the library entity's logo when present" do
+      entity_id = Ecto.UUID.generate()
+
+      item =
+        create_tracking_item(%{
+          name: "Has both",
+          library_entity_id: entity_id,
+          logo_path: "images/tracking/9001/logo.png"
+        })
+
+      library_logos = %{entity_id => "/media-images/library/some-other-logo.png"}
+
+      assert ReleaseTracking.logo_url_for_item(item, library_logos) ==
+               "/media-images/library/some-other-logo.png"
+    end
+
+    test "falls back to the tracking item's logo_path when no library logo is available" do
+      item =
+        create_tracking_item(%{
+          name: "Tracked but not imported",
+          logo_path: "images/tracking/9002/logo.png"
+        })
+
+      assert ReleaseTracking.logo_url_for_item(item, %{}) ==
+               "/media-images/images/tracking/9002/logo.png"
+    end
+
+    test "falls back to the tracking item's logo when the library entity has no logo" do
+      entity_id = Ecto.UUID.generate()
+
+      item =
+        create_tracking_item(%{
+          name: "Imported but no library logo",
+          library_entity_id: entity_id,
+          logo_path: "images/tracking/9003/logo.png"
+        })
+
+      # library_logos has no entry for this entity_id
+      assert ReleaseTracking.logo_url_for_item(item, %{}) ==
+               "/media-images/images/tracking/9003/logo.png"
+    end
+
+    test "returns nil when neither library logo nor tracking logo is available" do
+      item = create_tracking_item(%{name: "No logos at all"})
+
+      assert ReleaseTracking.logo_url_for_item(item, %{}) == nil
+    end
+  end
 end
