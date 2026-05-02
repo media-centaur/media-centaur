@@ -76,7 +76,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
 
   # First-render data load — gated by `connected?` so the static HTTP render
   # ships empty defaults and the WebSocket render fills them in once. See
-  # CLAUDE.md → LiveView Callbacks (Iron Law).
+  # AGENTS.md → LiveView callbacks (Iron Law).
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
       socket
