@@ -34,6 +34,7 @@ defmodule MediaCentarr.Library do
 
   alias MediaCentarr.Library.{
     ChangeEntry,
+    ContinueWatchingProgress,
     Episode,
     Extra,
     ExtraProgress,
@@ -1142,11 +1143,15 @@ defmodule MediaCentarr.Library do
             duration: movie.duration
           }
 
-          progress = %{
-            episodes_completed:
-              if(movie.watch_progress && movie.watch_progress.completed, do: 1, else: 0),
-            episodes_total: 1
-          }
+          progress =
+            Map.merge(
+              %{
+                episodes_completed:
+                  if(movie.watch_progress && movie.watch_progress.completed, do: 1, else: 0),
+                episodes_total: 1
+              },
+              ContinueWatchingProgress.current_position_summary(progress_records)
+            )
 
           %{entity: entity, progress: progress, progress_records: progress_records}
         end
@@ -1231,7 +1236,11 @@ defmodule MediaCentarr.Library do
             duration: nil
           }
 
-          progress = %{episodes_completed: episodes_completed, episodes_total: episodes_total}
+          progress =
+            Map.merge(
+              %{episodes_completed: episodes_completed, episodes_total: episodes_total},
+              ContinueWatchingProgress.current_position_summary(progress_records)
+            )
 
           %{entity: entity, progress: progress, progress_records: progress_records}
         end
@@ -1280,11 +1289,18 @@ defmodule MediaCentarr.Library do
             duration: nil
           }
 
-          progress = %{
-            episodes_completed:
-              if(video_object.watch_progress && video_object.watch_progress.completed, do: 1, else: 0),
-            episodes_total: 1
-          }
+          progress =
+            Map.merge(
+              %{
+                episodes_completed:
+                  if(video_object.watch_progress && video_object.watch_progress.completed,
+                    do: 1,
+                    else: 0
+                  ),
+                episodes_total: 1
+              },
+              ContinueWatchingProgress.current_position_summary(progress_records)
+            )
 
           %{entity: entity, progress: progress, progress_records: progress_records}
         end
@@ -1348,7 +1364,11 @@ defmodule MediaCentarr.Library do
             duration: nil
           }
 
-          progress = %{episodes_completed: movies_completed, episodes_total: movies_total}
+          progress =
+            Map.merge(
+              %{episodes_completed: movies_completed, episodes_total: movies_total},
+              ContinueWatchingProgress.current_position_summary(progress_records)
+            )
 
           %{entity: entity, progress: progress, progress_records: progress_records}
         end
@@ -1370,13 +1390,7 @@ defmodule MediaCentarr.Library do
 
     last_episode_label = progress_episode_label(entity, summary)
 
-    progress_pct =
-      if summary && summary.episodes_total > 0 do
-        completed_fraction = summary.episodes_completed / summary.episodes_total
-        trunc(completed_fraction * 100)
-      else
-        0
-      end
+    progress_pct = ContinueWatchingProgress.compute_pct(summary)
 
     last_watched_at = entry_last_watched_at(%{progress_records: records})
 

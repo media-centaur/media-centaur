@@ -52,6 +52,15 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
     end
   end
 
+  @doc """
+  Triggers an immediate poll without disturbing the scheduled cadence.
+  Used when an external event makes us suspect the cached snapshot is
+  stale — e.g. a user just configured the download client and we'd
+  otherwise wait up to 30s for the next idle-cadence tick.
+  """
+  @spec poll_now() :: :ok
+  def poll_now, do: GenServer.cast(__MODULE__, :poll_now)
+
   @impl GenServer
   def init(_opts) do
     Process.send_after(self(), :poll, 0)
@@ -67,6 +76,12 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
       Process.send_after(self(), :poll, @poll_idle_ms)
     end
 
+    {:noreply, state}
+  end
+
+  @impl GenServer
+  def handle_cast(:poll_now, state) do
+    if Capabilities.download_client_ready?(), do: poll_and_broadcast()
     {:noreply, state}
   end
 
