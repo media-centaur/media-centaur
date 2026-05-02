@@ -59,12 +59,13 @@ defmodule MediaCentarr.MixProject do
       {:ecto_sql, "~> 3.13"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      # Available in :test too because `import PhoenixStorybook.Router` inside
+      # Included in all envs because `import PhoenixStorybook.Router` inside
       # an `if Mix.env() == :dev` block is still validated at compile time
-      # (Elixir does not dead-code-eliminate import directives). The router
-      # only mounts the storybook routes in :dev — :test merely needs the
-      # module to load.
-      {:phoenix_storybook, "~> 1.0", only: [:dev, :test]},
+      # (Elixir does not dead-code-eliminate import directives — both branches
+      # of the resulting case expression are compiled). The router only mounts
+      # the storybook routes in :dev; :test and :prod just need the module to
+      # load. The bytecode footprint is small and no routes are exposed.
+      {:phoenix_storybook, "~> 1.0"},
       {:ex_code_view, path: "../../ex_code_view", only: :dev},
       {:phoenix_live_view, "~> 1.1.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
