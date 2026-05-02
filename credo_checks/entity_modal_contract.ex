@@ -14,6 +14,7 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
           Trait                                         Forbidden subscribes
           MediaCentarrWeb.Live.EntityModal              Library, Playback
           MediaCentarrWeb.Live.SpoilerFreeAware         Settings
+          MediaCentarrWeb.Live.CapabilitiesAware        Capabilities
 
       The historical bug this prevents (the EntityModal case): a host that
       mounted the modal but forgot to wire one of the four PubSub messages
@@ -54,7 +55,8 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
   # trait owns. Add new entries as new auto-wiring traits are introduced.
   @trait_subscribes %{
     [:MediaCentarrWeb, :Live, :EntityModal] => [:Library, :Playback],
-    [:MediaCentarrWeb, :Live, :SpoilerFreeAware] => [:Settings]
+    [:MediaCentarrWeb, :Live, :SpoilerFreeAware] => [:Settings],
+    [:MediaCentarrWeb, :Live, :CapabilitiesAware] => [:Capabilities]
   }
 
   @impl true
