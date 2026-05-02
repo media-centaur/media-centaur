@@ -162,6 +162,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     write_events(item, events)
     replace_releases(item, new_releases)
     update_item_metadata(item, response)
+    download_images_async(item, item.tmdb_id, response)
     broadcast_releases_ready(item)
     :ok
   end
@@ -355,29 +356,43 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     end
   end
 
+  # Async backfill of images that are missing from the item but available in
+  # the TMDB response. Called both from auto-track (where the item is brand
+  # new with no images) and from `commit_refresh/3` (where existing items
+  # may have gained a logo/poster/backdrop on TMDB since they were tracked).
+  # The `pending_image_downloads/2` filter is what makes this idempotent —
+  # already-fetched images skip the network entirely.
   defp download_images_async(item, tmdb_id, response) do
-    poster_path = ReleaseTracking.Extractor.extract_poster_path(response)
-    backdrop_path = response["backdrop_path"]
+    pending = pending_image_downloads(item, response)
 
-    if poster_path || backdrop_path do
+    if pending != [] do
       Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-        attrs = %{}
-
         attrs =
-          case ReleaseTracking.ImageStore.download_poster(tmdb_id, poster_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :poster_path, path)
-            _ -> attrs
-          end
-
-        attrs =
-          case ReleaseTracking.ImageStore.download_backdrop(tmdb_id, backdrop_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :backdrop_path, path)
-            _ -> attrs
-          end
+          Enum.reduce(pending, %{}, fn {tmdb_path, attr_key, downloader}, acc ->
+            case downloader.(tmdb_id, tmdb_path) do
+              {:ok, path} when is_binary(path) -> Map.put(acc, attr_key, path)
+              _ -> acc
+            end
+          end)
 
         if attrs != %{}, do: ReleaseTracking.update_item(item, attrs)
       end)
     end
+  end
+
+  # Returns `[{tmdb_source_path, attr_key, downloader}]` for every image role
+  # the item still lacks AND that TMDB has a path for.
+  defp pending_image_downloads(item, response) do
+    [
+      {item.poster_path, ReleaseTracking.Extractor.extract_poster_path(response), :poster_path,
+       &ReleaseTracking.ImageStore.download_poster/2},
+      {item.backdrop_path, response["backdrop_path"], :backdrop_path,
+       &ReleaseTracking.ImageStore.download_backdrop/2},
+      {item.logo_path, ReleaseTracking.Extractor.extract_logo_path(response), :logo_path,
+       &ReleaseTracking.ImageStore.download_logo/2}
+    ]
+    |> Enum.filter(fn {current, tmdb_path, _, _} -> is_nil(current) and is_binary(tmdb_path) end)
+    |> Enum.map(fn {_, tmdb_path, attr_key, downloader} -> {tmdb_path, attr_key, downloader} end)
   end
 
   defp broadcast_tracking_update(item_ids) do

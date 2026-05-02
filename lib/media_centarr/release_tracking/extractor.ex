@@ -136,6 +136,21 @@ defmodule MediaCentarr.ReleaseTracking.Extractor do
 
   def extract_poster_path(response), do: response["poster_path"]
 
+  @doc """
+  Picks the best logo from a TMDB response's `images.logos` array. Prefers
+  the English-localised logo (`iso_639_1 == "en"`); falls back to the first
+  available logo. Returns `nil` if no logos are present.
+
+  Requires the response to have been fetched with `append_to_response: "images"`
+  (the `MediaCentarr.TMDB.Client` calls do this).
+  """
+  @spec extract_logo_path(map()) :: String.t() | nil
+  def extract_logo_path(response) do
+    logos = get_in(response, ["images", "logos"]) || []
+    logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
+    logo && logo["file_path"]
+  end
+
   defp parse_episode_release(episode) do
     %{
       air_date: parse_date(episode["air_date"]),

@@ -335,4 +335,41 @@ defmodule MediaCentarr.ReleaseTracking.ExtractorTest do
       assert Extractor.extract_poster_path(%{}) == nil
     end
   end
+
+  describe "extract_logo_path/1" do
+    test "prefers the English-localised logo when present" do
+      response = %{
+        "images" => %{
+          "logos" => [
+            %{"iso_639_1" => "ja", "file_path" => "/jp.png"},
+            %{"iso_639_1" => "en", "file_path" => "/en.png"},
+            %{"iso_639_1" => "fr", "file_path" => "/fr.png"}
+          ]
+        }
+      }
+
+      assert Extractor.extract_logo_path(response) == "/en.png"
+    end
+
+    test "falls back to the first logo when no English variant is present" do
+      response = %{
+        "images" => %{
+          "logos" => [
+            %{"iso_639_1" => "ja", "file_path" => "/jp.png"},
+            %{"iso_639_1" => "fr", "file_path" => "/fr.png"}
+          ]
+        }
+      }
+
+      assert Extractor.extract_logo_path(response) == "/jp.png"
+    end
+
+    test "returns nil when the logos array is empty" do
+      assert Extractor.extract_logo_path(%{"images" => %{"logos" => []}}) == nil
+    end
+
+    test "returns nil when the response has no images key" do
+      assert Extractor.extract_logo_path(%{}) == nil
+    end
+  end
 end
