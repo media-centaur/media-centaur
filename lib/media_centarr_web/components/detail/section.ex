@@ -4,11 +4,6 @@ defmodule MediaCentarrWeb.Components.Detail.Section do
   header followed by an `inner_block` slot for the section's body.
   """
 
-  Module.register_attribute(__MODULE__, :storybook_status, persist: true)
-  Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
-  @storybook_status :pending
-  @storybook_reason "Phase 4 — see docs/superpowers/plans/2026-05-02-storybook-fleshout.md"
-
   use MediaCentarrWeb, :html
 
   attr :title, :string, required: true
