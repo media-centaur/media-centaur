@@ -616,6 +616,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   @impl true
   def handle_info(:capabilities_changed, socket) do
     if Capabilities.prowlarr_ready?() do
+      # Ping QueueMonitor in case the user just configured the download
+      # client — without this nudge we would wait up to 30 s (idle cadence)
+      # for the queue to populate.
+      Acquisition.poll_queue_now()
       {:noreply, assign(socket, download_client_ready: Capabilities.download_client_ready?())}
     else
       {:noreply, push_navigate(socket, to: "/")}

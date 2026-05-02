@@ -73,6 +73,61 @@ defmodule MediaCentarr.LibraryTest do
       assert Map.has_key?(row, :backdrop_url)
     end
 
+    test "movie progress_pct reflects in-episode position, not just completion" do
+      # Continue Watching's progress bar must show how far through the
+      # movie the user actually is. The previous `episodes_completed /
+      # episodes_total` formula yielded 0 % for any in-progress movie
+      # (movies are 1 episode and never completed mid-watch), so the bar
+      # was always empty until the moment they finished — at which point
+      # the row disappeared from Continue Watching anyway. Useless.
+      movie = create_standalone_movie(%{name: "Halfway Movie"})
+      record_present(create_linked_file(%{movie_id: movie.id}))
+      create_watch_progress(%{movie_id: movie.id, position_seconds: 50.0, duration_seconds: 100.0})
+
+      [row] = Library.list_in_progress()
+      assert row.progress_pct == 50
+    end
+
+    test "tv_series progress_pct weights current-episode position into the overall fraction" do
+      # 5 of 10 episodes completed plus halfway through the 6th = 55 %
+      # overall. The simpler "completion only" model would have shown 50 %.
+      series = create_tv_series(%{name: "Weighted Show"})
+      record_present(create_linked_file(%{tv_series_id: series.id}))
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+
+      episodes =
+        for ep <- 1..10 do
+          create_episode(%{
+            season_id: season.id,
+            episode_number: ep,
+            name: "S1E#{ep}",
+            content_url: "/tv/weighted/s01e#{ep}.mkv"
+          })
+        end
+
+      # First five episodes completed.
+      for ep <- Enum.take(episodes, 5) do
+        create_watch_progress(%{
+          episode_id: ep.id,
+          position_seconds: 1000.0,
+          duration_seconds: 1000.0,
+          completed: true
+        })
+      end
+
+      # Sixth episode in progress at 50 %.
+      sixth = Enum.at(episodes, 5)
+
+      create_watch_progress(%{
+        episode_id: sixth.id,
+        position_seconds: 500.0,
+        duration_seconds: 1000.0
+      })
+
+      [row] = Library.list_in_progress()
+      assert row.progress_pct == 55
+    end
+
     test "does not return completed progress" do
       movie = create_standalone_movie(%{name: "Watched Movie"})
       record_present(create_linked_file(%{movie_id: movie.id}))

@@ -602,6 +602,43 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       refute html =~ "Soon To Vanish"
       assert html =~ "No active downloads"
     end
+
+    test "capabilities_changed pings QueueMonitor for an immediate poll",
+         %{conn: conn} do
+      # Without this, a user who just configured their download client would
+      # wait up to 30s (QueueMonitor's idle cadence) before the queue
+      # populated. Ping QueueMonitor when the LV learns capabilities changed
+      # so the queue surfaces within one round-trip.
+      test_pid = self()
+
+      Req.Test.stub(:qbittorrent, fn conn ->
+        send(test_pid, :qbit_called)
+        Req.Test.json(conn, [])
+      end)
+
+      qbit_client =
+        Req.new(plug: {Req.Test, :qbittorrent}, retry: false, base_url: "http://qbit.test")
+
+      :persistent_term.put({QBittorrent, :client}, qbit_client)
+      on_exit(fn -> QBittorrent.invalidate_client() end)
+
+      monitor = start_supervised!(MediaCentarr.Acquisition.QueueMonitor)
+      Req.Test.allow(:qbittorrent, self(), monitor)
+
+      {:ok, view, _html} = live(conn, ~p"/download")
+
+      # Drain any racing mount-time poll so the subsequent assert_receive
+      # observes the post-:capabilities_changed call specifically.
+      receive do
+        :qbit_called -> :ok
+      after
+        500 -> :ok
+      end
+
+      send(view.pid, :capabilities_changed)
+
+      assert_receive :qbit_called, 1_000
+    end
   end
 
   describe "live updates from grab lifecycle" do
