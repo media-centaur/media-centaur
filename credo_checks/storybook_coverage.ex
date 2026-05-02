@@ -148,9 +148,30 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
 
       :error ->
         Enum.any?(functions, fn fname ->
-          path = derive_story_path(source_file.filename, fname)
-          File.exists?(path)
+          # Convention path first (cheap stat), then fall back to a
+          # repo-wide scan for the basename so stories grouped under
+          # cross-cutting areas (e.g. `storybook/composites/`) are also
+          # discovered. The scan result is memoized via :persistent_term
+          # so we pay the directory walk once per `mix credo` run.
+          File.exists?(derive_story_path(source_file.filename, fname)) or
+            MapSet.member?(all_story_basenames(), "#{fname}.story.exs")
         end)
+    end
+  end
+
+  defp all_story_basenames do
+    case :persistent_term.get(__MODULE__, :unset) do
+      :unset ->
+        basenames =
+          "storybook/**/*.story.exs"
+          |> Path.wildcard()
+          |> MapSet.new(&Path.basename/1)
+
+        :persistent_term.put(__MODULE__, basenames)
+        basenames
+
+      basenames ->
+        basenames
     end
   end
 
