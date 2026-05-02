@@ -1,9 +1,8 @@
 defmodule MediaCentarr.Acquisition.QueueMonitor do
   @moduledoc """
-  Polls the configured download client every 5 seconds and broadcasts
-  the resulting queue snapshot. Replaces per-LiveView polling so multiple
-  consumers (Downloads page + Library upcoming zone) can react to the
-  same data without each opening its own connection.
+  Polls the configured download client and broadcasts the resulting
+  queue snapshot. Replaces per-LiveView polling so multiple consumers
+  (Downloads page + Library upcoming zone) share a single connection.
 
   ## Cache + broadcast
 
@@ -12,11 +11,20 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   - Each successful poll also broadcasts `{:queue_snapshot, items}` on
     `Topics.acquisition_queue()` so subscribers can refresh live.
 
-  ## Polling cadence
+  ## Subscriber-aware cadence
 
-  - 5 seconds when `Capabilities.download_client_ready?/0` is true
-  - 30 seconds otherwise (avoids hammering an unconfigured client; gives
-    the user time to wire one up without missing many polls)
+  The poll interval scales with whether anyone is watching:
+
+  - **1 s** when at least one LiveView is subscribed AND the download
+    client is ready — the row needs to feel real-time.
+  - **5 s** when ready but nobody is watching — keeps the cache warm
+    without burning request budget on the client.
+  - **30 s** when the client is offline — back off so the eventual
+    reconfigure picks up within a reasonable window.
+
+  Subscribers register implicitly via `Acquisition.subscribe_queue/0`,
+  which calls `register_subscriber/1`. We `Process.monitor/1` each one
+  and drop them on `:DOWN`.
 
   ## Failure handling
 
@@ -33,8 +41,9 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   alias MediaCentarr.Topics
 
   @cache_key {__MODULE__, :snapshot}
-  @poll_active_ms 5_000
-  @poll_idle_ms 30_000
+  @poll_watched_ms 1_000
+  @poll_idle_ms 5_000
+  @poll_offline_ms 30_000
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -61,28 +70,58 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   @spec poll_now() :: :ok
   def poll_now, do: GenServer.cast(__MODULE__, :poll_now)
 
+  @doc """
+  Registers `pid` as an active subscriber so the next poll uses the
+  watched cadence. Idempotent — re-registering the same pid is a no-op.
+  Pid is dropped automatically when the process exits.
+
+  Called from `Acquisition.subscribe_queue/0`; LiveViews should not
+  call this directly.
+  """
+  @spec register_subscriber(pid()) :: :ok
+  def register_subscriber(pid) when is_pid(pid), do: GenServer.cast(__MODULE__, {:register, pid})
+
+  @doc """
+  Returns the poll cadence in milliseconds for the given subscriber
+  count and download-client-ready flag. Pure — extracted for unit
+  testing the contract without spinning up a GenServer.
+  """
+  @spec cadence_ms(non_neg_integer(), boolean()) :: pos_integer()
+  def cadence_ms(_subscribers, false), do: @poll_offline_ms
+  def cadence_ms(0, true), do: @poll_idle_ms
+  def cadence_ms(_subscribers, true), do: @poll_watched_ms
+
   @impl GenServer
   def init(_opts) do
     Process.send_after(self(), :poll, 0)
-    {:ok, %{}}
+    {:ok, %{subscribers: %{}}}
   end
 
   @impl GenServer
   def handle_info(:poll, state) do
-    if Capabilities.download_client_ready?() do
-      poll_and_broadcast()
-      Process.send_after(self(), :poll, @poll_active_ms)
-    else
-      Process.send_after(self(), :poll, @poll_idle_ms)
-    end
-
+    ready? = Capabilities.download_client_ready?()
+    if ready?, do: poll_and_broadcast()
+    Process.send_after(self(), :poll, cadence_ms(map_size(state.subscribers), ready?))
     {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    {:noreply, %{state | subscribers: Map.delete(state.subscribers, pid)}}
   end
 
   @impl GenServer
   def handle_cast(:poll_now, state) do
     if Capabilities.download_client_ready?(), do: poll_and_broadcast()
     {:noreply, state}
+  end
+
+  def handle_cast({:register, pid}, state) do
+    if Map.has_key?(state.subscribers, pid) do
+      {:noreply, state}
+    else
+      ref = Process.monitor(pid)
+      {:noreply, %{state | subscribers: Map.put(state.subscribers, pid, ref)}}
+    end
   end
 
   defp poll_and_broadcast do
@@ -98,8 +137,6 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
         )
 
       {:error, :not_configured} ->
-        # Lost configuration mid-flight — clear cache so subscribers
-        # don't render stale rows.
         :persistent_term.put(@cache_key, [])
 
       {:error, reason} ->

@@ -52,6 +52,30 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   end
 
   @doc """
+  Same as `continue_watching_items/1`, but pins entities the user is
+  currently playing (any non-stopped state in `playback`) to the front
+  of the row, preserving the original Continue Watching order both
+  among the pinned items and among the rest.
+
+  `playback` is the `apply_playback_change/5`-shaped map keyed by
+  `entity_id`; the value's `:state` is what we read.
+  """
+  @spec continue_watching_items([map()], map()) :: [ContinueWatchingRow.Item.t()]
+  def continue_watching_items(progress_rows, playback) when is_map(playback) do
+    items = continue_watching_items(progress_rows)
+    {pinned, rest} = Enum.split_with(items, &active_session?(&1.entity_id, playback))
+    pinned ++ rest
+  end
+
+  defp active_session?(entity_id, playback) do
+    case Map.get(playback, entity_id) do
+      nil -> false
+      %{state: :stopped} -> false
+      _entry -> true
+    end
+  end
+
+  @doc """
   Shape ReleaseTracking releases into a `ComingUpMarquee.Marquee` view-model.
 
   Behaviour:

@@ -3,6 +3,20 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
   alias MediaCentarrWeb.HomeLive.Logic
 
+  defp progress_row(id) do
+    %{
+      entity_id: id,
+      entity_name: "Show #{id}",
+      progress_pct: 50,
+      backdrop_url: "/img/#{id}/backdrop.jpg",
+      logo_url: "/img/#{id}/logo.png"
+    }
+  end
+
+  defp playing_session(state \\ :playing) do
+    %{state: state, now_playing: %{}}
+  end
+
   # Releases in the shape ReleaseTracking.list_releases_between/3 returns,
   # with the additional logo_url + entity_id fields this redesign adds.
   defp release(name, air_date, opts \\ []) do
@@ -95,6 +109,66 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
     test "returns empty list for empty input" do
       assert Logic.continue_watching_items([]) == []
+    end
+  end
+
+  describe "continue_watching_items/2 (playback-aware ordering)" do
+    # The /2 arity pins entities the user is currently playing (any
+    # non-stopped state) to the front of Continue Watching. The signal
+    # is loud — if mpv is open right now and you tab back to Home, the
+    # thing you're watching should be the first card on the row.
+
+    test "empty playback map preserves /1 ordering" do
+      progress = [progress_row(1), progress_row(2), progress_row(3)]
+      assert Logic.continue_watching_items(progress, %{}) == Logic.continue_watching_items(progress)
+    end
+
+    test "active entity in the middle of the list is pinned to front" do
+      progress = [progress_row(1), progress_row(2), progress_row(3)]
+      playback = %{2 => playing_session()}
+
+      result = Logic.continue_watching_items(progress, playback)
+      assert Enum.map(result, & &1.id) == [2, 1, 3]
+    end
+
+    test "active entity already at front is a no-op" do
+      progress = [progress_row(1), progress_row(2), progress_row(3)]
+      playback = %{1 => playing_session()}
+
+      result = Logic.continue_watching_items(progress, playback)
+      assert Enum.map(result, & &1.id) == [1, 2, 3]
+    end
+
+    test "paused entity is also pinned (any non-stopped state counts)" do
+      # Pausing is "still actively watching, just not pressing play right
+      # now" — the user expects the card to remain front-of-mind.
+      progress = [progress_row(1), progress_row(2)]
+      playback = %{2 => playing_session(:paused)}
+
+      result = Logic.continue_watching_items(progress, playback)
+      assert Enum.map(result, & &1.id) == [2, 1]
+    end
+
+    test "multiple active entities — preserve relative order at the front" do
+      # Concurrent sessions are unusual (one mpv instance) but possible
+      # in the future / multi-room. The pin order should match the
+      # original Continue Watching order, not arbitrary map order.
+      progress = [progress_row(1), progress_row(2), progress_row(3), progress_row(4)]
+      playback = %{4 => playing_session(), 2 => playing_session()}
+
+      result = Logic.continue_watching_items(progress, playback)
+      assert Enum.map(result, & &1.id) == [2, 4, 1, 3]
+    end
+
+    test "active entity not in continue list — no promotion, list unchanged" do
+      # The user might be watching a brand-new entity that hasn't yet
+      # propagated into the Continue Watching query result. Don't
+      # invent a row; just leave the list alone.
+      progress = [progress_row(1), progress_row(2)]
+      playback = %{99 => playing_session()}
+
+      result = Logic.continue_watching_items(progress, playback)
+      assert Enum.map(result, & &1.id) == [1, 2]
     end
   end
 

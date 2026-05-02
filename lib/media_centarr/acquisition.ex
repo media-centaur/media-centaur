@@ -96,11 +96,15 @@ defmodule MediaCentarr.Acquisition do
   @doc """
   Subscribes to download-client queue snapshots. Receivers get
   `{:queue_snapshot, [QueueItem.t()]}` whenever the QueueMonitor polls
-  successfully (every 5s with a configured download client, 30s when
-  the client is offline).
+  successfully.
+
+  Also registers the caller with `QueueMonitor` so the next poll uses
+  the watched cadence (1 s vs. 5 s when nobody is rendering the queue).
+  Registration auto-cleans on process exit via `Process.monitor/1`.
   """
   def subscribe_queue do
-    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_queue())
+    :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_queue())
+    MediaCentarr.Acquisition.QueueMonitor.register_subscriber(self())
   end
 
   @doc """

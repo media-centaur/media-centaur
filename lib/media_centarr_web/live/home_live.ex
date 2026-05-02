@@ -303,7 +303,11 @@ defmodule MediaCentarrWeb.HomeLive do
   end
 
   defp assign_continue_watching(socket) do
-    assign(socket, :continue_items, Logic.continue_watching_items(load_progress()))
+    assign(
+      socket,
+      :continue_items,
+      Logic.continue_watching_items(load_progress(), socket.assigns.playback)
+    )
   end
 
   defp assign_coming_up(socket, today) do
