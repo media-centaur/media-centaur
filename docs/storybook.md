@@ -108,19 +108,19 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `core_components.header/1` | ✅ covered | Header recipes |
 | `core_components.list/1` | ✅ covered | Description list |
 | `core_components.table/1` | ✅ covered | Empty/loaded/long-row states |
-| `detail.facet_strip/1` | ⏳ pending | Phase 4 — facet row above metadata |
-| `detail.hero/1` | ⏳ pending | Phase 4 — backdrop + title block |
-| `detail.metadata_row/1` | ⏳ pending | Phase 4 — badge + items row |
-| `detail.play_card/1` | ⏳ pending | Phase 4 — primary play CTA + progress |
-| `detail.section/1` | ⏳ pending | Phase 4 — titled section wrapper |
-| `hero_card/1` | ⏳ pending | Phase 4 — featured-item card |
-| `modal_shell/1` | ⏳ pending | Phase 4 — open/closed (always-in-DOM pattern) |
-| `detail_panel/1` | ⏳ pending | Phase 5 — many states (no artwork, no plot, episode list) |
-| `library_cards.poster_card/1` | ⏳ pending | Phase 5 — exemplifies typed-attr/ViewModel value |
-| `library_cards.storage_offline_banner/1` | ⏳ pending | Phase 5 — single summary string |
-| `library_cards.toolbar/1` | ⏳ pending | Phase 5 — type tabs × sort × filter axes |
-| `poster_row/1` | ⏳ pending | Phase 5 — horizontal item row |
-| `upcoming_cards.upcoming_zone/1` | ⏳ pending | Phase 5 — calendar + active shows zone |
+| `detail.facet_strip/1` | ✅ covered | Facet row above metadata |
+| `detail.hero/1` | ✅ covered | Backdrop + title block |
+| `detail.metadata_row/1` | ✅ covered | Badge + items row |
+| `detail.play_card/1` | ✅ covered | Primary play CTA + progress |
+| `detail.section/1` | ✅ covered | Titled section wrapper |
+| `hero_card/1` | ✅ covered | Featured-item card |
+| `modal_shell/1` | ✅ covered | Open/closed (always-in-DOM pattern) |
+| `detail_panel/1` | ✅ covered | Movie / TV / movie series + modals + offline |
+| `library_cards.poster_card/1` | ✅ covered | Type matrix + selection / progress / artwork states |
+| `library_cards.storage_offline_banner/1` | ⏳ pending | Single summary string — covered by module-level pending until story added |
+| `library_cards.toolbar/1` | ✅ covered | Tabs × sort × filter axes |
+| `poster_row/1` | ✅ covered | Horizontal 8-up row + artwork fallback |
+| `upcoming_cards.upcoming_zone/1` | ✅ covered | Calendar + active shows + tracked items + modal |
 | `track_modal/1` | 🖼 static example | Depends on TMDB context |
 | `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
 | `console_components.chip_row/1` | ⚠️ skip | Log stream is sticky LiveView state |
