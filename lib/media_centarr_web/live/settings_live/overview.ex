@@ -65,7 +65,8 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
       items: [
         service_item(:watchers, "Watchers", input.watchers_running),
         service_item(:pipeline, "Pipeline", input.pipeline_running),
-        service_item(:image_pipeline, "Image Pipeline", input.image_pipeline_running)
+        service_item(:image_pipeline, "Image Pipeline", input.image_pipeline_running),
+        service_item(:acquisition, "Auto-grab", input.acquisition_running)
       ]
     }
   end

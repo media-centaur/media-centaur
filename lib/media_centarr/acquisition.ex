@@ -73,6 +73,7 @@ defmodule MediaCentarr.Acquisition do
   alias MediaCentarr.Capabilities
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.Repo
+  alias MediaCentarr.Settings
   alias MediaCentarr.Topics
 
   alias MediaCentarr.Acquisition.GrabStatus
@@ -88,6 +89,78 @@ defmodule MediaCentarr.Acquisition do
   @doc "Returns true when Prowlarr is configured and acquisition features are available."
   @spec available?() :: boolean()
   def available?, do: Config.available?()
+
+  @doc """
+  Returns true when the auto-grab service is currently active. Reads
+  the `services:<env>:start_acquisition` Settings row — the same per-env
+  persistence the watcher and pipeline toggles use. Defaults to true so
+  fresh installs auto-arm out of the box.
+
+  Manual grabs and `:item_removed` cancellation always work regardless
+  of this flag; it gates only `:release_ready`-triggered arming and the
+  Oban-driven search/snooze loop.
+  """
+  @spec auto_grab_running?() :: boolean()
+  def auto_grab_running? do
+    case Settings.get_by_key(service_flag_key()) do
+      {:ok, %{value: %{"enabled" => false}}} -> false
+      _ -> true
+    end
+  end
+
+  @doc """
+  Pauses the auto-grab service. Persists `enabled: false` in Settings
+  so the choice survives restarts, and pauses the Oban `:acquisition`
+  queue so pre-existing snoozed/searching grabs stop firing. Future
+  `:release_ready` events are dropped without arming a grab. Idempotent.
+  """
+  @spec pause_auto_grab() :: :ok
+  def pause_auto_grab do
+    persist_service_flag(false)
+    pause_queue()
+    :ok
+  end
+
+  @doc """
+  Resumes the auto-grab service. Persists `enabled: true` in Settings,
+  resumes the Oban `:acquisition` queue, and arms incoming
+  `:release_ready` events again. Idempotent.
+  """
+  @spec resume_auto_grab() :: :ok
+  def resume_auto_grab do
+    persist_service_flag(true)
+    resume_queue()
+    :ok
+  end
+
+  defp service_flag_key do
+    env = Application.get_env(:media_centarr, :environment, :dev)
+    "services:#{env}:start_acquisition"
+  end
+
+  defp persist_service_flag(enabled?) do
+    Settings.find_or_create_entry!(%{
+      key: service_flag_key(),
+      value: %{"enabled" => enabled?}
+    })
+  end
+
+  # Inline Oban testing mode doesn't run real queue processes, so
+  # `Oban.pause_queue/1` raises. Skip it there — `auto_grab_running?/0`
+  # is the source of truth for tests; production has both.
+  defp pause_queue do
+    if oban_queue_running?(), do: Oban.pause_queue(queue: :acquisition)
+    :ok
+  end
+
+  defp resume_queue do
+    if oban_queue_running?(), do: Oban.resume_queue(queue: :acquisition)
+    :ok
+  end
+
+  defp oban_queue_running? do
+    Application.get_env(:media_centarr, Oban)[:testing] != :inline
+  end
 
   @doc "Subscribes to acquisition PubSub updates."
   def subscribe do
@@ -619,6 +692,14 @@ defmodule MediaCentarr.Acquisition do
   """
   @spec handle_release_ready_event(struct(), struct()) :: :ok
   def handle_release_ready_event(item, release) do
+    if auto_grab_running?() do
+      do_handle_release_ready_event(item, release)
+    end
+
+    :ok
+  end
+
+  defp do_handle_release_ready_event(item, release) do
     settings = AutoGrabSettings.load()
 
     existing_grab =

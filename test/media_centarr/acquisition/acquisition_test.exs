@@ -664,4 +664,80 @@ defmodule MediaCentarr.AcquisitionTest do
       assert grab.tmdb_type == "movie"
     end
   end
+
+  describe "auto-grab service toggle" do
+    # The auto-grab service is on by default but can be turned off per
+    # environment (e.g. dev paused while prod runs) via the Settings page.
+    # `pause_auto_grab/0` pauses the Oban :acquisition queue; while paused,
+    # `:release_ready` events are dropped without arming a grab — manual
+    # grabs and `:item_removed` cancellation keep working.
+    setup do
+      MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
+
+      on_exit(fn ->
+        # Defensive — ensure we never leave the queue paused for a later test.
+        Acquisition.resume_auto_grab()
+      end)
+
+      :ok
+    end
+
+    test "auto_grab_running?/0 reflects pause/resume" do
+      assert Acquisition.auto_grab_running?()
+      Acquisition.pause_auto_grab()
+      refute Acquisition.auto_grab_running?()
+      Acquisition.resume_auto_grab()
+      assert Acquisition.auto_grab_running?()
+    end
+
+    test "handle_release_ready_event/2 is a no-op while paused — no grab row created" do
+      Acquisition.pause_auto_grab()
+
+      item =
+        create_tracking_item(%{tmdb_id: 9001, media_type: :tv_series, name: "Paused Show"})
+
+      release =
+        create_tracking_release(%{
+          item_id: item.id,
+          air_date: Date.add(Date.utc_today(), -1),
+          title: "S01E01",
+          season_number: 1,
+          episode_number: 1,
+          released: true,
+          in_library: false,
+          release_type: "digital"
+        })
+
+      assert :ok = Acquisition.handle_release_ready_event(item, release)
+
+      assert Repo.all(from g in Grab, where: g.tmdb_id == "9001") == []
+    end
+
+    test "after resume, handle_release_ready_event/2 arms grabs again" do
+      Acquisition.pause_auto_grab()
+      Acquisition.resume_auto_grab()
+
+      item =
+        create_tracking_item(%{tmdb_id: 9002, media_type: :tv_series, name: "Resumed Show"})
+
+      release =
+        create_tracking_release(%{
+          item_id: item.id,
+          air_date: Date.add(Date.utc_today(), -1),
+          title: "S01E01",
+          season_number: 1,
+          episode_number: 1,
+          released: true,
+          in_library: false,
+          release_type: "digital"
+        })
+
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        assert :ok = Acquisition.handle_release_ready_event(item, release)
+      end)
+
+      [grab] = Repo.all(from g in Grab, where: g.tmdb_id == "9002")
+      assert grab.tmdb_type == "tv"
+    end
+  end
 end

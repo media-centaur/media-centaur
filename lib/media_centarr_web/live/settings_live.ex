@@ -74,6 +74,7 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> assign(watchers_running: false)
      |> assign(pipeline_running: false)
      |> assign(image_pipeline_running: false)
+     |> assign(acquisition_running: false)
      |> assign(watch_dirs: [])
      |> assign(exclude_dirs: [])
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
@@ -169,6 +170,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       |> assign(watchers_running: Watcher.Supervisor.running?())
       |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
       |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())
+      |> assign(acquisition_running: Acquisition.auto_grab_running?())
       |> assign(watch_dirs: MediaCentarr.Config.watch_dirs_entries())
       |> assign(exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [])
       |> assign(missing_images_summary: Maintenance.missing_images_summary())
@@ -526,6 +528,16 @@ defmodule MediaCentarrWeb.SettingsLive do
     end
 
     {:noreply, assign(socket, image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
+  end
+
+  def handle_event("toggle_acquisition", _params, socket) do
+    if socket.assigns.acquisition_running do
+      Acquisition.pause_auto_grab()
+    else
+      Acquisition.resume_auto_grab()
+    end
+
+    {:noreply, assign(socket, acquisition_running: Acquisition.auto_grab_running?())}
   end
 
   def handle_event("toggle_spoiler_free", _params, socket) do
@@ -1160,6 +1172,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             watchers_running={@watchers_running}
             pipeline_running={@pipeline_running}
             image_pipeline_running={@image_pipeline_running}
+            acquisition_running={@acquisition_running}
             scanning={@scanning}
             config={@config}
             clearing_database={@clearing_database}
@@ -1235,6 +1248,7 @@ defmodule MediaCentarrWeb.SettingsLive do
           watchers_running: assigns.watchers_running,
           pipeline_running: assigns.pipeline_running,
           image_pipeline_running: assigns.image_pipeline_running,
+          acquisition_running: assigns.acquisition_running,
           prowlarr_test: assigns.prowlarr_test,
           download_client_test: assigns.download_client_test,
           config: assigns.config
@@ -1550,6 +1564,13 @@ defmodule MediaCentarrWeb.SettingsLive do
           description="Artwork downloading and processing"
           checked={@image_pipeline_running}
           event="toggle_image_pipeline"
+          color="info"
+        />
+        <.settings_row
+          label="Auto-grab"
+          description="Search and grab releases as tracked episodes air"
+          checked={@acquisition_running}
+          event="toggle_acquisition"
           color="info"
         />
       </div>

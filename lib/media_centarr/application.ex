@@ -143,6 +143,10 @@ defmodule MediaCentarr.Application do
       MediaCentarr.Pipeline.Supervisor.stop_pipeline()
       MediaCentarr.Pipeline.Image.Supervisor.stop_pipeline()
     end
+
+    if !should_start?(env, :start_acquisition) do
+      MediaCentarr.Acquisition.pause_auto_grab()
+    end
   end
 
   # PubSub listener GenServers — thin wrappers that route messages to public
