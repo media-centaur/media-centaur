@@ -1198,7 +1198,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # at-a-glance visual cue without itself being clickable.
   # ---------------------------------------------------------------------------
 
-  alias MediaCentarr.Acquisition.{Grab, QueueItem}
+  alias MediaCentarr.Acquisition.{Grab, GrabStatus, QueueItem}
 
   @doc """
   Resolves a release's acquisition state from its library presence, the
@@ -1243,13 +1243,13 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   end
 
   def release_status(false, %Grab{status: "grabbed"}, nil), do: :downloading
-
-  def release_status(false, %Grab{status: status}, _queue) when status in ["searching", "snoozed"],
-    do: :searching
-
   def release_status(false, %Grab{status: "abandoned"}, _queue), do: :abandoned
   def release_status(false, %Grab{status: "cancelled"}, _queue), do: :cancelled
   def release_status(false, nil, _queue), do: :none
+
+  def release_status(false, %Grab{status: status}, _queue) do
+    if GrabStatus.in_flight?(status), do: :searching, else: :none
+  end
 
   @doc """
   Walks a movie's release rows once and picks the earliest air_date per

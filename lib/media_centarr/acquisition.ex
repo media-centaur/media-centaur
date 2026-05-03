@@ -9,6 +9,7 @@ defmodule MediaCentarr.Acquisition do
     exports: [
       AutoGrabSettings,
       Grab,
+      GrabStatus,
       Quality,
       QueryExpander,
       QueueItem,
@@ -74,7 +75,7 @@ defmodule MediaCentarr.Acquisition do
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
 
-  @cancellable_statuses ["searching", "snoozed"]
+  alias MediaCentarr.Acquisition.GrabStatus
 
   # ---------------------------------------------------------------------------
   # Public API
@@ -354,14 +355,15 @@ defmodule MediaCentarr.Acquisition do
     }
 
     case get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, snapshot) do
-      {:ok, %Grab{status: status} = grab} when status in ["grabbed", "abandoned", "cancelled"] ->
-        # Terminal — don't re-enqueue an Oban job. Caller decides whether
-        # to call cancel_grab/2 or accept the existing terminal state.
-        {:ok, grab}
-
-      {:ok, grab} ->
-        Oban.insert(SearchAndGrab.new(%{"grab_id" => grab.id}))
-        {:ok, grab}
+      {:ok, %Grab{} = grab} ->
+        if GrabStatus.terminal?(grab.status) do
+          # Terminal — don't re-enqueue an Oban job. Caller decides whether
+          # to call cancel_grab/2 or accept the existing terminal state.
+          {:ok, grab}
+        else
+          Oban.insert(SearchAndGrab.new(%{"grab_id" => grab.id}))
+          {:ok, grab}
+        end
 
       {:error, reason} ->
         {:error, reason}
@@ -481,20 +483,19 @@ defmodule MediaCentarr.Acquisition do
     end
   end
 
-  defp classify_and_apply(acc, _key, _release, _tmdb_id, _tmdb_type, _name, %Grab{status: status})
-       when status in @cancellable_statuses do
-    %{acc | in_progress: acc.in_progress + 1}
-  end
-
-  defp classify_and_apply(acc, _key, _release, _tmdb_id, _tmdb_type, _name, %Grab{status: "grabbed"}) do
-    %{acc | already_grabbed: acc.already_grabbed + 1}
-  end
-
   defp classify_and_apply(acc, key, _release, _tmdb_id, _tmdb_type, _name, %Grab{} = grab) do
-    # Terminal but rearmable: cancelled or abandoned.
-    case rearm_grab(grab.id) do
-      {:ok, _} -> %{acc | rearmed: acc.rearmed + 1}
-      {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
+    case GrabStatus.bucket(grab.status) do
+      :in_flight ->
+        %{acc | in_progress: acc.in_progress + 1}
+
+      :terminal_success ->
+        %{acc | already_grabbed: acc.already_grabbed + 1}
+
+      :terminal_failure ->
+        case rearm_grab(grab.id) do
+          {:ok, _} -> %{acc | rearmed: acc.rearmed + 1}
+          {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
+        end
     end
   end
 
@@ -516,7 +517,7 @@ defmodule MediaCentarr.Acquisition do
   end
 
   defp auto_grabs_filter(query, :all), do: query
-  defp auto_grabs_filter(query, :active), do: where(query, [g], g.status in ^@cancellable_statuses)
+  defp auto_grabs_filter(query, :active), do: where(query, [g], g.status in ^GrabStatus.in_flight())
   defp auto_grabs_filter(query, status), do: where(query, [g], g.status == ^to_string(status))
 
   @doc """
@@ -534,26 +535,27 @@ defmodule MediaCentarr.Acquisition do
       nil ->
         {:error, :not_found}
 
-      %Grab{status: status} = grab when status in ["cancelled", "abandoned"] ->
-        {:ok, rearmed} =
-          grab
-          |> Ecto.Changeset.change(
-            status: "searching",
-            attempt_count: 0,
-            cancelled_at: nil,
-            cancelled_reason: nil,
-            last_attempt_outcome: nil
-          )
-          |> Repo.update()
+      %Grab{} = grab ->
+        if GrabStatus.rearmable?(grab.status) do
+          {:ok, rearmed} =
+            grab
+            |> Ecto.Changeset.change(
+              status: "searching",
+              attempt_count: 0,
+              cancelled_at: nil,
+              cancelled_reason: nil,
+              last_attempt_outcome: nil
+            )
+            |> Repo.update()
 
-        Oban.insert(SearchAndGrab.new(%{"grab_id" => rearmed.id}))
-        broadcast({:auto_grab_armed, rearmed})
-        Log.info(:library, "auto-grab re-armed — #{rearmed.title}")
-        {:ok, rearmed}
-
-      grab ->
-        # Already active or already grabbed — nothing to re-arm.
-        {:ok, grab}
+          Oban.insert(SearchAndGrab.new(%{"grab_id" => rearmed.id}))
+          broadcast({:auto_grab_armed, rearmed})
+          Log.info(:library, "auto-grab re-armed — #{rearmed.title}")
+          {:ok, rearmed}
+        else
+          # Already active or already grabbed — nothing to re-arm.
+          {:ok, grab}
+        end
     end
   end
 
@@ -572,15 +574,16 @@ defmodule MediaCentarr.Acquisition do
       nil ->
         {:error, :not_found}
 
-      %Grab{status: status} = grab when status not in @cancellable_statuses ->
-        # Already terminal — nothing to do.
-        {:ok, grab}
-
-      grab ->
-        {:ok, cancelled} = Repo.update(Grab.cancelled_changeset(grab, reason))
-        broadcast({:auto_grab_cancelled, cancelled})
-        Log.info(:library, "acquisition cancelled — #{grab.title} (#{reason})")
-        {:ok, cancelled}
+      %Grab{} = grab ->
+        if GrabStatus.in_flight?(grab.status) do
+          {:ok, cancelled} = Repo.update(Grab.cancelled_changeset(grab, reason))
+          broadcast({:auto_grab_cancelled, cancelled})
+          Log.info(:library, "acquisition cancelled — #{grab.title} (#{reason})")
+          {:ok, cancelled}
+        else
+          # Already terminal — nothing to do.
+          {:ok, grab}
+        end
     end
   end
 
@@ -683,7 +686,7 @@ defmodule MediaCentarr.Acquisition do
         from(g in Grab,
           where:
             g.tmdb_id == ^tmdb_id and g.tmdb_type == ^tmdb_type and
-              g.status in ^@cancellable_statuses
+              g.status in ^GrabStatus.in_flight()
         )
       )
 
