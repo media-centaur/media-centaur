@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.32.3 — 2026-05-03
+
+Maintenance release. No user-visible changes — Phase 5 of the internal
+component-contract migration: the entity detail panel (the modal that
+opens when you click a card) and the modal shell that wraps it now
+document every attribute they accept and tighten the season-expansion
+state to a typed `MapSet`. No behaviour changes; the contracts make
+future regressions in the detail UI easier to catch in tests.
+
 ## v0.32.2 — 2026-05-03
 
 Maintenance release. No user-visible changes — Phase 3 of the internal
