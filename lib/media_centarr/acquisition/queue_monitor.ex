@@ -30,12 +30,20 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
 
   Errors from the download client are logged and the previous snapshot
   is kept in cache. Transient failures don't blank the UI.
+
+  ## Health classification
+
+  After each successful poll the cached snapshot is enriched with a
+  `:health` field per item via `MediaCentarr.Acquisition.HealthHistory`.
+  The throughput history needed to classify items lives in this
+  GenServer's state; only this module updates it.
   """
   use GenServer
 
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition
+  alias MediaCentarr.Acquisition.HealthHistory
   alias MediaCentarr.Acquisition.QueueItem
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Topics
@@ -94,13 +102,13 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   @impl GenServer
   def init(_opts) do
     Process.send_after(self(), :poll, 0)
-    {:ok, %{subscribers: %{}}}
+    {:ok, %{subscribers: %{}, history: %{}}}
   end
 
   @impl GenServer
   def handle_info(:poll, state) do
     ready? = Capabilities.download_client_ready?()
-    if ready?, do: poll_and_broadcast()
+    state = if ready?, do: poll_and_broadcast(state), else: state
     Process.send_after(self(), :poll, cadence_ms(map_size(state.subscribers), ready?))
     {:noreply, state}
   end
@@ -111,7 +119,7 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
 
   @impl GenServer
   def handle_cast(:poll_now, state) do
-    if Capabilities.download_client_ready?(), do: poll_and_broadcast()
+    state = if Capabilities.download_client_ready?(), do: poll_and_broadcast(state), else: state
     {:noreply, state}
   end
 
@@ -124,23 +132,30 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
     end
   end
 
-  defp poll_and_broadcast do
+  defp poll_and_broadcast(state) do
     case Acquisition.list_downloads(:all) do
       {:ok, items} ->
         active = Enum.reject(items, &(&1.state == :completed))
-        :persistent_term.put(@cache_key, active)
+        now = System.monotonic_time(:microsecond)
+        {history, enriched} = HealthHistory.update(state.history, active, now)
+
+        :persistent_term.put(@cache_key, enriched)
 
         Phoenix.PubSub.broadcast(
           MediaCentarr.PubSub,
           Topics.acquisition_queue(),
-          {:queue_snapshot, active}
+          {:queue_snapshot, enriched}
         )
+
+        %{state | history: history}
 
       {:error, :not_configured} ->
         :persistent_term.put(@cache_key, [])
+        %{state | history: %{}}
 
       {:error, reason} ->
         Log.warning(:library, "queue monitor poll failed: #{inspect(reason)}")
+        state
     end
   end
 end

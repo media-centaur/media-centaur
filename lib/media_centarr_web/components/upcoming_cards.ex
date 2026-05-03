@@ -1288,6 +1288,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   @spec release_status(boolean(), Grab.t() | nil, QueueItem.t() | nil) ::
           :completed
           | :downloading
+          | :downloading_stuck
           | :paused
           | :errored
           | :searching
@@ -1296,11 +1297,21 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           | :none
   def release_status(true, _grab, _queue), do: :completed
 
-  def release_status(false, %Grab{status: "grabbed"}, %QueueItem{state: state}) do
+  def release_status(false, %Grab{status: "grabbed"}, %QueueItem{state: state, health: health}) do
     case state do
-      :paused -> :paused
-      :error -> :errored
-      _ -> :downloading
+      :paused ->
+        :paused
+
+      :error ->
+        :errored
+
+      :downloading ->
+        if MediaCentarr.Acquisition.Health.degraded?(health),
+          do: :downloading_stuck,
+          else: :downloading
+
+      _ ->
+        :downloading
     end
   end
 
@@ -1494,6 +1505,10 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   defp status_icon_name(:completed), do: "hero-check-circle-mini"
   defp status_icon_name(:downloading), do: "hero-arrow-down-tray-mini"
+  # Same glyph as :downloading — escalation is the colour + tooltip,
+  # not a different shape, so it still reads as "this is downloading"
+  # at a glance.
+  defp status_icon_name(:downloading_stuck), do: "hero-arrow-down-tray-mini"
   defp status_icon_name(:paused), do: "hero-pause-circle-mini"
   defp status_icon_name(:errored), do: "hero-exclamation-triangle-mini"
   defp status_icon_name(:searching), do: "hero-clock-mini"
@@ -1501,6 +1516,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   defp status_color(:completed), do: "text-success"
   defp status_color(:downloading), do: "text-primary"
+  defp status_color(:downloading_stuck), do: "text-warning"
   defp status_color(:paused), do: "text-base-content/60"
   defp status_color(:errored), do: "text-warning"
   defp status_color(:searching), do: "text-info"
@@ -1508,6 +1524,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   defp status_tooltip(:completed), do: "Completed — in library"
   defp status_tooltip(:downloading), do: "Downloading"
+  defp status_tooltip(:downloading_stuck), do: "Downloading — stuck"
   defp status_tooltip(:paused), do: "Paused"
   defp status_tooltip(:errored), do: "Download error"
   defp status_tooltip(:searching), do: "Searching for a release"

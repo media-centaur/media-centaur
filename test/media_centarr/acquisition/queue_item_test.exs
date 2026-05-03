@@ -31,6 +31,11 @@ defmodule MediaCentarr.Acquisition.QueueItemTest do
       assert item.timeleft == "30m"
     end
 
+    test "leaves :health nil — only QueueMonitor sets it (it's the only thing with history)" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{}))
+      assert item.health == nil
+    end
+
     test "maps qbittorrent active states to :downloading" do
       for state <- ~w(downloading metaDL forcedDL allocating checkingResumeData checkingDL) do
         item = QueueItem.from_qbittorrent(base_torrent(%{"state" => state}))

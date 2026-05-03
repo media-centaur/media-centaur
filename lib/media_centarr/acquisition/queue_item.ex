@@ -17,6 +17,15 @@ defmodule MediaCentarr.Acquisition.QueueItem do
   open and has not started — passive waiting. `:stalled` means the
   download is active but cannot make progress (no peers, no source) —
   needs attention.
+
+  ## `:health`
+
+  Orthogonal to `state`. `state` is what the download client says;
+  `health` is `MediaCentarr.Acquisition.Health.classify/3`'s judgement
+  on whether progress is actually being made. Drivers
+  (`from_qbittorrent/1`) leave it `nil` — only
+  `MediaCentarr.Acquisition.QueueMonitor` sets it, because
+  classification needs throughput history that only the monitor has.
   """
 
   @enforce_keys [:id, :title]
@@ -30,7 +39,8 @@ defmodule MediaCentarr.Acquisition.QueueItem do
     :size,
     :size_left,
     :progress,
-    :timeleft
+    :timeleft,
+    :health
   ]
 
   @type state :: :downloading | :queued | :stalled | :paused | :completed | :error | :other
@@ -45,7 +55,8 @@ defmodule MediaCentarr.Acquisition.QueueItem do
           size: integer() | nil,
           size_left: integer() | nil,
           progress: float() | nil,
-          timeleft: String.t() | nil
+          timeleft: String.t() | nil,
+          health: MediaCentarr.Acquisition.Health.status() | nil
         }
 
   @qbit_infinite_eta 8_640_000
