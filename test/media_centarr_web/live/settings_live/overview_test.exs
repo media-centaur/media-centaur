@@ -16,6 +16,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.OverviewTest do
       watchers_running: true,
       pipeline_running: true,
       image_pipeline_running: true,
+      acquisition_running: true,
       prowlarr_test: nil,
       download_client_test: nil,
       config: %{
@@ -69,7 +70,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.OverviewTest do
   end
 
   describe "Services group" do
-    test "all three services running → all :ok" do
+    test "all services running → all :ok" do
       groups = Overview.build(input())
       services = Enum.find(groups, &(&1.id == :services)).items
 
