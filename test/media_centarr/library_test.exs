@@ -498,6 +498,39 @@ defmodule MediaCentarr.LibraryTest do
     end
   end
 
+  describe "list_hero_candidates/1 collection hoist" do
+    test "single-child movie_series surfaces as the child movie, not the collection" do
+      ms = create_movie_series(%{name: "Mascot Collection"})
+
+      child =
+        create_movie(%{
+          movie_series_id: ms.id,
+          name: "Mascot Cosmos",
+          position: 0,
+          description: "A space-faring plumber adventure",
+          date_published: "2007-11-01"
+        })
+
+      record_present(create_linked_file(%{movie_id: child.id}))
+
+      create_image(%{
+        movie_id: child.id,
+        role: "backdrop",
+        content_url: "#{child.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      results = Library.list_hero_candidates(limit: 10)
+
+      hoisted = Enum.find(results, fn r -> r.name == "Mascot Cosmos" end)
+      assert hoisted, "expected the child movie to surface as a hero candidate"
+      assert hoisted.id == child.id
+
+      refute Enum.any?(results, fn r -> r.name == "Mascot Collection" end),
+             "expected the singleton collection container to be hidden, but it appeared"
+    end
+  end
+
   describe "load_modal_entry/1" do
     test "returns shaped entry for a standalone movie with extras populated" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
