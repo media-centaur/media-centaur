@@ -44,6 +44,7 @@ defmodule MediaCentarr.Library do
     Image,
     Movie,
     MovieSeries,
+    PresentableQueries,
     Season,
     TVSeries,
     VideoObject,
@@ -862,29 +863,29 @@ defmodule MediaCentarr.Library do
     limit = Keyword.get(opts, :limit, 16)
 
     movies = fetch_recently_added_movies(limit)
+    hoisted = fetch_recently_added_hoisted_movies(limit)
     tv_series = fetch_recently_added_tv_series(limit)
     movie_series = fetch_recently_added_movie_series(limit)
     video_objects = fetch_recently_added_video_objects(limit)
 
-    (movies ++ tv_series ++ movie_series ++ video_objects)
+    (movies ++ hoisted ++ tv_series ++ movie_series ++ video_objects)
     |> Enum.sort_by(& &1.__inserted_at__, {:desc, DateTime})
     |> Enum.take(limit)
     |> Enum.map(&Map.delete(&1, :__inserted_at__))
   end
 
   defp fetch_recently_added_movies(limit) do
-    from(m in Movie,
-      as: :item,
-      where:
-        is_nil(m.movie_series_id) and
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.movie_id == parent_as(:item).id and kf.state == "present",
-              select: 1
-            )
-          ),
+    from([m] in PresentableQueries.standalone_movies(),
+      order_by: [{:desc, m.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_recently_added_record/1)
+  end
+
+  defp fetch_recently_added_hoisted_movies(limit) do
+    from([m] in PresentableQueries.singleton_collection_movies(),
       order_by: [{:desc, m.inserted_at}],
       limit: ^limit
     )
@@ -914,17 +915,7 @@ defmodule MediaCentarr.Library do
   end
 
   defp fetch_recently_added_movie_series(limit) do
-    from(ms in MovieSeries,
-      as: :item,
-      where:
-        exists(
-          from(wf in "library_watched_files",
-            join: kf in "watcher_files",
-            on: kf.file_path == wf.file_path,
-            where: wf.movie_series_id == parent_as(:item).id and kf.state == "present",
-            select: 1
-          )
-        ),
+    from([ms] in PresentableQueries.multi_child_movie_series(),
       order_by: [{:desc, ms.inserted_at}],
       limit: ^limit
     )
