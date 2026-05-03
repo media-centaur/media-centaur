@@ -576,16 +576,39 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   `put_resume_target/1`. This keeps the modal decoupled from how each
   host LiveView tracks resume state for the rest of its UI.
   """
-  attr :selected_entry, :any, required: true
-  attr :selected_entity_id, :any, required: true
-  attr :detail_presentation, :any, required: true
+  attr :selected_entry, :any,
+    required: true,
+    doc:
+      "the loaded library entry map (`%{entity, progress, progress_records, ...}`) or `nil` when no entity is open. Same shape as `LibraryCards.poster_card/1`'s `:entry`."
+
+  attr :selected_entity_id, :any,
+    required: true,
+    doc: "the currently-selected entity id (`Ecto.UUID.t()`) or `nil`."
+
+  attr :detail_presentation, :any,
+    required: true,
+    doc:
+      "presentation mode atom — `:modal`, `:inline`, or `nil`. Each host LiveView decides; `:any` keeps the door open for future modes."
+
   attr :detail_view, :atom, required: true
-  attr :detail_files, :list, required: true
-  attr :expanded_seasons, :any, required: true
-  attr :rematch_confirm, :any, required: true
-  attr :delete_confirm, :any, required: true
+  attr :detail_files, :list, required: true, doc: "list of file-info maps for the Files sub-view."
+
+  attr :expanded_seasons, MapSet, required: true
+
+  attr :rematch_confirm, :any,
+    required: true,
+    doc: "`true | false` — confirmation flag for the rematch destructive action."
+
+  attr :delete_confirm, :any,
+    required: true,
+    doc: "transient delete-confirmation state — see `DetailPanel`'s contract."
+
   attr :tracking_status, :atom, required: true
-  attr :availability_map, :map, default: %{}
+
+  attr :availability_map, :map,
+    default: %{},
+    doc: "`%{entity_id => boolean}` from `MediaCentarrWeb.LibraryAvailability.availability_map/1`."
+
   attr :tmdb_ready, :boolean, default: true
   attr :spoiler_free, :boolean, default: false
 

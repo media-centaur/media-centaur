@@ -212,7 +212,11 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
   # can open in place) or a navigate link to /upcoming as the fallback.
   attr :item, Item, required: true
   attr :data_card, :string, required: true
-  attr :class, :any, required: true
+
+  attr :class, :any,
+    required: true,
+    doc: "Tailwind class string or list — passed through to the rendered link/button."
+
   slot :inner_block, required: true
 
   defp tile_link(%{item: %Item{entity_id: entity_id}} = assigns) when is_binary(entity_id) do
