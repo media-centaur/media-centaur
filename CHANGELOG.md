@@ -4,6 +4,37 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.32.0 — 2026-05-03
+
+### Improved
+
+- **Movies that belong to a TMDB collection now appear as the movie itself
+  in your Library and on Home — not wrapped in a collection container —
+  when you only own one movie from that collection.** Adding a single
+  film from a multi-film franchise (for example, one *Super Mario* movie
+  out of a TMDB-listed *Sample Mascot Collection*) used to surface as a
+  one-item "collection" tile, which forced an extra click and didn't
+  match the mental model. Single-movie cases now show as a regular
+  movie tile across the Library, Home → Recently added, Home → Continue
+  watching, and the Home hero. If you later add a second movie from the
+  same collection, the two group back together as a multi-movie
+  collection.
+
+- **Continue watching now reflects what you're actually watching, even
+  when a file is temporarily unavailable.** If you unmount a drive or
+  move a file mid-session, the show or movie stays in your Continue
+  watching list — your progress isn't erased by a transient file
+  change. Movies, episodes, and standalone videos all behave the same
+  way on this surface.
+
+### Fixed
+
+- **Clicking a single-movie collection tile now opens the movie's detail,
+  not a collection wrapper.** Previously, even when the Library tile
+  visually represented "the movie," clicking it opened the collection
+  page (which contained one item). The tile and detail now agree on
+  what's behind it.
+
 ## v0.31.1 — 2026-05-03
 
 ### Fixed
