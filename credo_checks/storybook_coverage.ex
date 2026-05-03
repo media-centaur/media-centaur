@@ -32,6 +32,21 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
         * Define `function/0` for `:component` stories.
         * Use `render_source :function` for `:component` stories (or omit it).
 
+      Additionally, for every `attr :name, _type, values: [...]` declaration in
+      a covered component, every value in the list must appear *somewhere* in
+      the corresponding story source. This catches the common drift where a
+      new `values:` entry is added to a component's attr but no variation
+      is added to exercise it (the story file exists, so v1 coverage passes,
+      but the new variant is silently un-storied).
+
+      The matcher is intentionally a textual literal scan, not a Variation-
+      attribute walk. Stories idiomatically use comprehensions
+      (`for v <- ~w(primary secondary), do: %Variation{...}`) to generate
+      matrices, and the source-text scan handles those without trying to
+      evaluate sigils or partially evaluate the AST. False positives — where
+      the literal appears in a docstring or comment but not in a Variation —
+      are accepted as a tradeoff for keeping the check simple and robust.
+
       Source: `docs/storybook.md`, `.claude/skills/storybook/SKILL.md`.
       """
     ]
@@ -71,15 +86,19 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
     case Credo.Code.ast(source_file) do
       {:ok, ast} ->
         {functions, status, reason} = scan_component_module(ast)
+        attr_values = scan_component_attr_values(ast)
 
         cond do
           # No function components in this file → skip silently
           functions == [] ->
             []
 
-          # Story file exists for at least one of the components → covered
+          # Story file exists for at least one of the components → covered.
+          # Layer the attr-value coverage check on top: every constrained
+          # `values:` value in the component must appear in at least one
+          # corresponding story source.
           any_story_exists?(functions, params) ->
-            []
+            check_attr_value_coverage(functions, attr_values, issue_meta, params)
 
           # Status declared
           status != nil ->
@@ -212,6 +231,173 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
         "Component(s) #{names} have no story file and no @storybook_status attribute. " <>
           "Add a story under storybook/ or declare @storybook_status :skip / " <>
           ":pending / :static_example with a @storybook_reason.",
+      line_no: 1
+    )
+  end
+
+  # =============================================================
+  # ATTR-VALUE COVERAGE CHECK (v3)
+  # =============================================================
+  # For every `attr :name, _type, values: [...]` in a covered component,
+  # check that each value appears textually in at least one corresponding
+  # story source. Catches the "story file exists but new attr value is
+  # un-storied" drift that v1 missed.
+
+  # Returns `[{attr_name, [literal_value, ...]}, ...]`. Skips attrs without
+  # a `values:` constraint, and skips values whose AST shape we can't
+  # statically evaluate (module attrs, function calls, etc).
+  defp scan_component_attr_values(ast) do
+    {_, attrs} = Macro.prewalk(ast, [], &attr_value_walker/2)
+    Enum.reverse(attrs)
+  end
+
+  # Phoenix `attr` macro: `attr name, type, opts \\ []`
+  # AST: {:attr, _, [name_atom, type_atom, opts_keyword_list]}
+  defp attr_value_walker({:attr, _, [name | rest]} = node, acc) when is_atom(name) and rest != [] do
+    case extract_values_constraint(rest) do
+      [] -> {node, acc}
+      values -> {node, [{name, values} | acc]}
+    end
+  end
+
+  defp attr_value_walker(node, acc), do: {node, acc}
+
+  defp extract_values_constraint(args) do
+    case List.last(args) do
+      kw when is_list(kw) ->
+        if Keyword.keyword?(kw) do
+          kw |> Keyword.get(:values) |> evaluate_values_ast()
+        else
+          []
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  # Plain literal list: `values: [:row, :stacked]`
+  defp evaluate_values_ast(list) when is_list(list) do
+    list
+    |> Enum.map(&literal_value/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Sigil_w: `values: ~w(primary secondary)` (strings) or `~w(primary secondary)a` (atoms).
+  # AST shape: {:sigil_w, _, [{:<<>>, _, parts}, modifiers]}
+  defp evaluate_values_ast({:sigil_w, _, [{:<<>>, _, parts}, modifiers]}) do
+    cond do
+      not Enum.all?(parts, &is_binary/1) ->
+        # Interpolated sigil — can't evaluate statically.
+        []
+
+      modifiers == [?a] ->
+        parts |> Enum.join() |> String.split(~r/\s+/, trim: true) |> Enum.map(&String.to_atom/1)
+
+      modifiers == [] ->
+        parts |> Enum.join() |> String.split(~r/\s+/, trim: true)
+
+      true ->
+        # 'c' charlists, 's' strings (default), other modifiers — leave alone.
+        []
+    end
+  end
+
+  defp evaluate_values_ast(_), do: []
+
+  defp literal_value(atom) when is_atom(atom), do: atom
+  defp literal_value(str) when is_binary(str), do: str
+  defp literal_value(int) when is_integer(int), do: int
+  defp literal_value(_), do: nil
+
+  defp check_attr_value_coverage(_functions, [], _issue_meta, _params), do: []
+
+  defp check_attr_value_coverage(functions, attr_values, issue_meta, params) do
+    case combined_story_source(functions, params) do
+      "" ->
+        # No story content available (production path with no FS access, or
+        # tests omitting :story_sources). Don't second-guess v1 coverage.
+        []
+
+      source ->
+        Enum.flat_map(attr_values, fn {attr_name, values} ->
+          Enum.flat_map(values, fn value ->
+            if literal_in_source?(value, source) do
+              []
+            else
+              [missing_attr_value_issue(issue_meta, attr_name, value)]
+            end
+          end)
+        end)
+    end
+  end
+
+  # Pull every story source that matches one of the component's function
+  # names by basename, concatenated. Multiple components in one module
+  # (e.g. core_components.ex) share their stories' search space.
+  defp combined_story_source(functions, params) do
+    sources_map = story_sources_map(params)
+
+    functions
+    |> Enum.map(fn fname -> Map.get(sources_map, "#{fname}.story.exs") end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join("\n")
+  end
+
+  # Tests inject `:story_sources` directly as a `%{basename => content}` map.
+  # In production we read from disk via `:story_paths` (or wildcard the FS).
+  defp story_sources_map(params) when is_list(params) do
+    case Keyword.get(params, :story_sources) do
+      map when is_map(map) ->
+        map
+
+      nil ->
+        case story_paths_override(params) do
+          {:ok, paths} -> read_story_sources(paths)
+          :error -> read_story_sources(Path.wildcard("storybook/**/*.story.exs"))
+        end
+    end
+  end
+
+  defp story_sources_map(_), do: %{}
+
+  defp read_story_sources(paths) do
+    paths
+    |> Enum.flat_map(fn path ->
+      case File.read(path) do
+        {:ok, content} -> [{Path.basename(path), content}]
+        {:error, _} -> []
+      end
+    end)
+    |> Map.new()
+  end
+
+  # Negative lookbehind/lookahead on `[a-zA-Z0-9_]` enforces a complete-token
+  # match. `:stacked` matches `:stacked` but not `:stacked_v2`; `primary`
+  # matches the bare word in `~w(primary secondary)` and inside `"primary"`
+  # but not inside `primary_color`.
+  defp literal_in_source?(atom, source) when is_atom(atom) do
+    pattern = ~r/(?<![a-zA-Z0-9_]):#{Regex.escape(Atom.to_string(atom))}(?![a-zA-Z0-9_])/
+    Regex.match?(pattern, source)
+  end
+
+  defp literal_in_source?(str, source) when is_binary(str) do
+    pattern = ~r/(?<![a-zA-Z0-9_])#{Regex.escape(str)}(?![a-zA-Z0-9_])/
+    Regex.match?(pattern, source)
+  end
+
+  defp literal_in_source?(int, source) when is_integer(int) do
+    pattern = ~r/(?<![a-zA-Z0-9_])#{int}(?![a-zA-Z0-9_])/
+    Regex.match?(pattern, source)
+  end
+
+  defp missing_attr_value_issue(issue_meta, attr_name, value) do
+    format_issue(issue_meta,
+      message:
+        "attr #{inspect(attr_name)} value #{inspect(value)} is not exercised in the " <>
+          "corresponding story. Add a Variation with " <>
+          "`attributes: %{#{attr_name}: #{inspect(value)}}` or include #{inspect(value)} " <>
+          "in a comprehension over a literal collection.",
       line_no: 1
     )
   end
