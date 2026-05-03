@@ -48,8 +48,8 @@ defmodule MediaCentarr.Library.BrowserTest do
 
     test "unwraps a movie_series with a single child into a flat movie" do
       series = create_movie_series(%{name: "Series Name"})
-      create_present_file(%{movie_series_id: series.id})
-      create_movie(%{movie_series_id: series.id, name: "Only Child", position: 0})
+      child = create_movie(%{movie_series_id: series.id, name: "Only Child", position: 0})
+      create_present_file(%{movie_id: child.id})
 
       [%{entity: fetched}] = Browser.fetch_all_typed_entries()
 
@@ -60,9 +60,10 @@ defmodule MediaCentarr.Library.BrowserTest do
 
     test "preserves a movie_series with multiple children" do
       series = create_movie_series(%{name: "Trilogy"})
-      create_present_file(%{movie_series_id: series.id})
-      create_movie(%{movie_series_id: series.id, name: "Part 1", position: 0})
-      create_movie(%{movie_series_id: series.id, name: "Part 2", position: 1})
+      part1 = create_movie(%{movie_series_id: series.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: series.id, name: "Part 2", position: 1})
+      create_present_file(%{movie_id: part1.id})
+      create_present_file(%{movie_id: part2.id})
 
       [%{entity: fetched}] = Browser.fetch_all_typed_entries()
 
@@ -104,15 +105,69 @@ defmodule MediaCentarr.Library.BrowserTest do
 
     test "does not preload extras on movie series" do
       collection = create_movie_series(%{name: "No Extras Collection"})
-      create_present_file(%{movie_series_id: collection.id})
-      create_movie(%{movie_series_id: collection.id, name: "Part 1", position: 0})
-      create_movie(%{movie_series_id: collection.id, name: "Part 2", position: 1})
+      part1 = create_movie(%{movie_series_id: collection.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: collection.id, name: "Part 2", position: 1})
+      create_present_file(%{movie_id: part1.id})
+      create_present_file(%{movie_id: part2.id})
       create_extra(%{movie_series_id: collection.id, name: "Making Of"})
 
       [%{entity: fetched}] = Browser.fetch_all_typed_entries()
 
       assert match?(%Ecto.Association.NotLoaded{}, fetched.extras),
              "expected extras to be NotLoaded, but got: #{inspect(fetched.extras)}"
+    end
+  end
+
+  describe "collection hoist" do
+    test "single-child movie_series surfaces as the child Movie with the Movie's id" do
+      ms = create_movie_series(%{name: "Singleton Collection"})
+      child = create_movie(%{movie_series_id: ms.id, name: "Only Child", position: 0})
+      create_present_file(%{movie_id: child.id})
+
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
+
+      assert fetched.type == :movie
+      assert fetched.id == child.id
+      assert fetched.name == "Only Child"
+      assert fetched.collection == %{id: ms.id, name: "Singleton Collection"}
+    end
+
+    test "multi-child movie_series remains a collection container" do
+      ms = create_movie_series(%{name: "Trilogy Container"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
+      create_present_file(%{movie_id: part1.id})
+      create_present_file(%{movie_id: part2.id})
+
+      [%{entity: fetched}] = Browser.fetch_all_typed_entries()
+
+      assert fetched.type == :movie_series
+      assert fetched.id == ms.id
+      assert length(fetched.movies) == 2
+    end
+
+    test "fetch_typed_entries_by_ids/1 resolves a Movie.id for a hoisted singleton" do
+      ms = create_movie_series(%{name: "Singleton Collection By Id"})
+      child = create_movie(%{movie_series_id: ms.id, name: "Sole Child", position: 0})
+      create_present_file(%{movie_id: child.id})
+
+      {entries, gone_ids} = Browser.fetch_typed_entries_by_ids([child.id])
+
+      assert [%{entity: fetched}] = entries
+      assert fetched.type == :movie
+      assert fetched.id == child.id
+      assert MapSet.size(gone_ids) == 0
+    end
+
+    test "fetch_typed_entries_by_ids/1 reports the MovieSeries id as gone when the collection is hoisted away" do
+      ms = create_movie_series(%{name: "Hoisted Away"})
+      child = create_movie(%{movie_series_id: ms.id, name: "Sole Child", position: 0})
+      create_present_file(%{movie_id: child.id})
+
+      {entries, gone_ids} = Browser.fetch_typed_entries_by_ids([ms.id])
+
+      assert entries == []
+      assert MapSet.member?(gone_ids, ms.id)
     end
   end
 
@@ -220,9 +275,10 @@ defmodule MediaCentarr.Library.BrowserTest do
       create_episode(%{season_id: season2.id, episode_number: 1, name: "S2E1"})
 
       collection = create_movie_series(%{name: "Trilogy"})
-      create_present_file(%{movie_series_id: collection.id})
-      create_movie(%{movie_series_id: collection.id, name: "Part 1", position: 0})
-      create_movie(%{movie_series_id: collection.id, name: "Part 2", position: 1})
+      part1 = create_movie(%{movie_series_id: collection.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: collection.id, name: "Part 2", position: 1})
+      create_present_file(%{movie_id: part1.id})
+      create_present_file(%{movie_id: part2.id})
 
       video = create_video_object(%{name: "A Clip"})
       create_present_file(%{video_object_id: video.id})
@@ -270,14 +326,16 @@ defmodule MediaCentarr.Library.BrowserTest do
 
       for n <- 1..2 do
         collection = create_movie_series(%{name: "Collection #{n}"})
-        create_present_file(%{movie_series_id: collection.id})
 
         for part <- 1..3 do
-          create_movie(%{
-            movie_series_id: collection.id,
-            name: "C#{n} P#{part}",
-            position: part - 1
-          })
+          movie =
+            create_movie(%{
+              movie_series_id: collection.id,
+              name: "C#{n} P#{part}",
+              position: part - 1
+            })
+
+          create_present_file(%{movie_id: movie.id})
         end
       end
 

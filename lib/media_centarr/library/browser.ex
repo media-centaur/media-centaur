@@ -7,7 +7,7 @@ defmodule MediaCentarr.Library.Browser do
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Library.{EntityShape, Movie, MovieSeries, TVSeries, VideoObject}
+  alias MediaCentarr.Library.{EntityShape, Movie, MovieSeries, PresentableQueries, TVSeries, VideoObject}
   alias MediaCentarr.Library.{EpisodeList, MovieList, ProgressSummary}
   alias MediaCentarr.Repo
   alias MediaCentarr.Watcher.KnownFile
@@ -20,18 +20,22 @@ defmodule MediaCentarr.Library.Browser do
   """
   def fetch_all_typed_entries do
     standalone_movies = fetch_standalone_movies()
+    hoisted_movies = fetch_hoisted_movies()
     tv_series = fetch_all_tv_series()
     movie_series = fetch_all_movie_series()
     video_objects = fetch_all_video_objects()
 
     entries =
-      standalone_movies ++ tv_series ++ movie_series ++ video_objects
+      standalone_movies ++ hoisted_movies ++ tv_series ++ movie_series ++ video_objects
 
     Log.info(
       :library,
       "loaded #{length(entries)} typed entries for browser " <>
-        "(#{length(standalone_movies)} movies, #{length(tv_series)} tv, " <>
-        "#{length(movie_series)} movie series, #{length(video_objects)} video objects)"
+        "(#{length(standalone_movies)} standalone movies, " <>
+        "#{length(hoisted_movies)} hoisted-collection movies, " <>
+        "#{length(tv_series)} tv, " <>
+        "#{length(movie_series)} multi-child movie series, " <>
+        "#{length(video_objects)} video objects)"
     )
 
     entries
@@ -49,11 +53,13 @@ defmodule MediaCentarr.Library.Browser do
     id_list = if is_list(ids), do: ids, else: MapSet.to_list(ids)
 
     movies = fetch_standalone_movies_by_ids(id_list)
+    hoisted = fetch_hoisted_movies_by_ids(id_list)
     tv = fetch_tv_series_by_ids(id_list)
     ms = fetch_movie_series_by_ids(id_list)
     vo = fetch_video_objects_by_ids(id_list)
 
-    entries = Enum.map(movies ++ tv ++ ms ++ vo, &build_typed_entry/1)
+    entries =
+      Enum.map(movies ++ hoisted ++ tv ++ ms ++ vo, &build_typed_entry/1)
 
     present_ids = MapSet.new(entries, fn entry -> entry.entity.id end)
     requested = MapSet.new(id_list)
@@ -72,21 +78,15 @@ defmodule MediaCentarr.Library.Browser do
   # "query count (N+1 regression guard)" describe block.
 
   defp fetch_standalone_movies do
-    from(m in Movie,
-      as: :item,
-      where: is_nil(m.movie_series_id),
-      where:
-        exists(
-          from(wf in "library_watched_files",
-            join: kf in KnownFile,
-            on: kf.file_path == wf.file_path,
-            where: wf.movie_id == parent_as(:item).id and kf.state == :present,
-            select: 1
-          )
-        )
-    )
+    PresentableQueries.standalone_movies()
     |> Repo.all()
     |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])
+  end
+
+  defp fetch_hoisted_movies do
+    PresentableQueries.singleton_collection_movies()
+    |> Repo.all()
+    |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress, :movie_series])
   end
 
   defp fetch_all_tv_series do
@@ -112,18 +112,7 @@ defmodule MediaCentarr.Library.Browser do
   end
 
   defp fetch_all_movie_series do
-    from(ms in MovieSeries,
-      as: :item,
-      where:
-        exists(
-          from(wf in "library_watched_files",
-            join: kf in KnownFile,
-            on: kf.file_path == wf.file_path,
-            where: wf.movie_series_id == parent_as(:item).id and kf.state == :present,
-            select: 1
-          )
-        )
-    )
+    PresentableQueries.multi_child_movie_series()
     |> Repo.all()
     |> Repo.preload([
       :images,
@@ -162,13 +151,15 @@ defmodule MediaCentarr.Library.Browser do
   end
 
   defp fetch_standalone_movies_by_ids(ids) do
-    from(m in Movie,
-      as: :item,
-      where: m.id in ^ids and is_nil(m.movie_series_id),
-      where: exists(present_file_subquery(:movie_id))
-    )
+    from([m] in PresentableQueries.standalone_movies(), where: m.id in ^ids)
     |> Repo.all()
     |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])
+  end
+
+  defp fetch_hoisted_movies_by_ids(ids) do
+    from([m] in PresentableQueries.singleton_collection_movies(), where: m.id in ^ids)
+    |> Repo.all()
+    |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress, :movie_series])
   end
 
   defp fetch_tv_series_by_ids(ids) do
@@ -187,11 +178,7 @@ defmodule MediaCentarr.Library.Browser do
   end
 
   defp fetch_movie_series_by_ids(ids) do
-    from(ms in MovieSeries,
-      as: :item,
-      where: ms.id in ^ids,
-      where: exists(present_file_subquery(:movie_series_id))
-    )
+    from([ms] in PresentableQueries.multi_child_movie_series(), where: ms.id in ^ids)
     |> Repo.all()
     |> Repo.preload([
       :images,
@@ -241,7 +228,7 @@ defmodule MediaCentarr.Library.Browser do
   end
 
   defp build_entry_from_normalized(entity, progress_records) do
-    entity = entity |> pre_sort_children() |> maybe_unwrap_single_movie()
+    entity = pre_sort_children(entity)
 
     summary = ProgressSummary.compute(entity, progress_records)
 
@@ -249,19 +236,6 @@ defmodule MediaCentarr.Library.Browser do
   end
 
   # --- Private Helpers ---
-
-  defp maybe_unwrap_single_movie(%{type: :movie_series, movies: [movie]} = entity) do
-    %{
-      entity
-      | type: :movie,
-        name: movie.name || entity.name,
-        date_published: movie.date_published || entity.date_published,
-        content_url: movie.content_url,
-        movies: []
-    }
-  end
-
-  defp maybe_unwrap_single_movie(entity), do: entity
 
   defp pre_sort_children(entity) do
     seasons =
