@@ -61,25 +61,29 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
 
   describe "select_hero/2" do
     test "returns nil for an empty candidate list" do
-      assert Logic.select_hero([], ~D[2026-04-27]) == nil
+      assert Logic.select_hero([], ~U[2026-04-27 12:00:00Z]) == nil
     end
 
     test "returns a candidate from the list" do
       candidates = [%{id: 1}, %{id: 2}, %{id: 3}]
-      assert Logic.select_hero(candidates, ~D[2026-04-27]) in candidates
+      assert Logic.select_hero(candidates, ~U[2026-04-27 12:00:00Z]) in candidates
     end
 
-    test "is stable across calls on the same day" do
+    test "is stable within the same 7-hour rotation window" do
       candidates = for i <- 1..10, do: %{id: i}
-      a = Logic.select_hero(candidates, ~D[2026-04-27])
-      b = Logic.select_hero(candidates, ~D[2026-04-27])
+      reference = ~U[2026-04-27 12:00:00Z]
+      block_start_unix = div(DateTime.to_unix(reference), 7 * 3600) * 7 * 3600
+      block_start = DateTime.from_unix!(block_start_unix)
+      a = Logic.select_hero(candidates, block_start)
+      b = Logic.select_hero(candidates, DateTime.add(block_start, 7 * 3600 - 1, :second))
       assert a == b
     end
 
-    test "different dates can produce different picks" do
-      candidates = for i <- 1..10, do: %{id: i}
-      picks = for d <- 0..9, do: Logic.select_hero(candidates, Date.add(~D[2026-04-27], d))
-      assert length(Enum.uniq(picks)) > 1
+    test "rotates across the 7-hour window boundary" do
+      candidates = for i <- 1..3, do: %{id: i}
+      base = ~U[2026-04-27 00:00:00Z]
+      picks = for i <- 0..2, do: Logic.select_hero(candidates, DateTime.add(base, i * 7 * 3600, :second))
+      assert length(Enum.uniq(picks)) == 3
     end
   end
 

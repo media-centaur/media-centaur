@@ -272,15 +272,15 @@ defmodule MediaCentarrWeb.HomeLive do
     today = Date.utc_today()
 
     socket
-    |> assign_hero(today)
+    |> assign_hero()
     |> assign_continue_watching()
     |> assign_coming_up(today)
     |> assign_recently_added()
   end
 
-  defp assign_hero(socket, today) do
+  defp assign_hero(socket) do
     hero_candidates = load_hero_candidates()
-    assign(socket, :hero, Logic.hero_card_item(Logic.select_hero(hero_candidates, today)))
+    assign(socket, :hero, Logic.hero_card_item(Logic.select_hero(hero_candidates)))
   end
 
   defp assign_continue_watching(socket) do
