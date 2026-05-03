@@ -350,4 +350,251 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverageTest do
       |> refute_issues()
     end
   end
+
+  # =============================================================
+  # V3 — ATTR-VALUE COVERAGE
+  # =============================================================
+  #
+  # For every `attr :name, _, values: [...]` in a covered component, every
+  # value must appear (textually) in the corresponding story source. This
+  # catches the "story exists but new attr value isn't exercised" drift
+  # that v1 missed.
+
+  describe "v3 attr-value coverage — literal value lists" do
+    test "passes when every value appears in the story (literal atoms)" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :layout, :atom, default: :row, values: [:row, :stacked]
+
+        def sample(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          %Variation{id: :row_default, attributes: %{layout: :row}},
+          %Variation{id: :stacked, attributes: %{layout: :stacked}}
+          """
+        }
+      )
+      |> refute_issues()
+    end
+
+    test "errors when a value is missing from the story (literal atoms)" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :layout, :atom, default: :row, values: [:row, :stacked]
+
+        def sample(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          %Variation{id: :row_default, attributes: %{layout: :row}}
+          """
+        }
+      )
+      |> assert_issue(fn issue ->
+        assert issue.message =~ ":layout"
+        assert issue.message =~ ":stacked"
+      end)
+    end
+
+    test "passes when every value appears (literal strings)" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :variant, :string, values: ["primary", "secondary"]
+
+        def sample(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          %Variation{attributes: %{variant: "primary"}},
+          %Variation{attributes: %{variant: "secondary"}}
+          """
+        }
+      )
+      |> refute_issues()
+    end
+
+    test "passes when every value appears (literal integers)" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :level, :integer, values: [1, 2, 3]
+
+        def sample(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          %Variation{attributes: %{level: 1}},
+          %Variation{attributes: %{level: 2}},
+          %Variation{attributes: %{level: 3}}
+          """
+        }
+      )
+      |> refute_issues()
+    end
+  end
+
+  describe "v3 attr-value coverage — sigil_w value lists" do
+    test "evaluates ~w(...) string sigil" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :variant, :string, values: ~w(primary secondary action)
+
+        def sample(assigns), do: ~H"<button></button>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          for v <- ~w(primary secondary action) do
+            %Variation{attributes: %{variant: v}}
+          end
+          """
+        }
+      )
+      |> refute_issues()
+    end
+
+    test "evaluates ~w(...)a atom sigil" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :variant, :atom, values: ~w(primary secondary)a
+
+        def sample(assigns), do: ~H"<button></button>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          %Variation{attributes: %{variant: :primary}},
+          %Variation{attributes: %{variant: :secondary}}
+          """
+        }
+      )
+      |> refute_issues()
+    end
+
+    test "errors when one sigil-listed value is missing" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :variant, :string, values: ~w(primary secondary action)
+
+        def sample(assigns), do: ~H"<button></button>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          for v <- ~w(primary secondary) do
+            %Variation{attributes: %{variant: v}}
+          end
+          """
+        }
+      )
+      |> assert_issue(fn issue ->
+        assert issue.message =~ ":variant"
+        assert issue.message =~ "action"
+      end)
+    end
+  end
+
+  describe "v3 attr-value coverage — non-applicable cases" do
+    test "ignores attrs without a values: constraint" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :label, :string, required: true
+
+        def sample(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{"sample.story.exs" => "%Variation{}"}
+      )
+      |> refute_issues()
+    end
+
+    test "passes silently when values: is dynamic (module attr / fn call)" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        @valid ~w(a b c)
+        attr :variant, :string, values: @valid
+
+        def sample(assigns), do: ~H"<button></button>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{"sample.story.exs" => "%Variation{}"}
+      )
+      |> refute_issues()
+    end
+
+    test "doesn't conflate similar-looking identifiers" do
+      # `:stacked` value must not be considered covered because of `:stacked_v2`
+      # appearing in the source. The negative-lookahead boundary in
+      # `literal_in_source?/2` enforces full-token match.
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :layout, :atom, values: [:row, :stacked]
+
+        def sample(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage,
+        story_paths: ["storybook/sample/sample.story.exs"],
+        story_sources: %{
+          "sample.story.exs" => """
+          %Variation{attributes: %{layout: :row, theme: :stacked_v2}}
+          """
+        }
+      )
+      |> assert_issue(fn issue ->
+        assert issue.message =~ ":stacked"
+      end)
+    end
+
+    test "is silent when the v1 missing-story branch handles things" do
+      # If there's no story at all, v1 fires for missing-story.
+      # The attr-value layer must not double-report.
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :layout, :atom, values: [:row, :stacked]
+
+        def sample(assigns), do: ~H"<div></div>"
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(StorybookCoverage, story_paths: [], story_sources: %{})
+      |> assert_issue(fn issue ->
+        # Single issue from the v1 missing-story branch — not three
+        # (one missing-story + two missing-value).
+        assert issue.message =~ ~r/no story/i
+      end)
+    end
+  end
 end
