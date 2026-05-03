@@ -952,7 +952,10 @@ defmodule MediaCentarr.ReleaseTrackingTest do
       assert {:ok, _} = ReleaseTracking.delete_item(item)
 
       assert_received {:releases_updated, [_]}
-      assert_received {:item_removed, "7777", "tv_series"}
+      # `:item_removed` carries the TMDB-standard tmdb_type ("tv"), the same
+      # form Acquisition stores in `Grab.tmdb_type` — so the consumer's
+      # cancel-by-key lookup matches. See `tmdb_type_for/1`.
+      assert_received {:item_removed, "7777", "tv"}
     end
 
     test "broadcasts :item_removed with movie type for movie items" do
@@ -1010,6 +1013,16 @@ defmodule MediaCentarr.ReleaseTrackingTest do
       item = create_tracking_item(%{name: "No logos at all"})
 
       assert ReleaseTracking.logo_url_for_item(item, %{}) == nil
+    end
+  end
+
+  describe "tmdb_type_for/1" do
+    test ":tv_series translates to TMDB-standard \"tv\"" do
+      assert ReleaseTracking.tmdb_type_for(:tv_series) == "tv"
+    end
+
+    test ":movie translates to \"movie\"" do
+      assert ReleaseTracking.tmdb_type_for(:movie) == "movie"
     end
   end
 end

@@ -1260,6 +1260,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # ---------------------------------------------------------------------------
 
   alias MediaCentarr.Acquisition.{Grab, GrabStatus, QueueItem}
+  alias MediaCentarr.ReleaseTracking
 
   @doc """
   Resolves a release's acquisition state from its library presence, the
@@ -1440,8 +1441,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   defp lookup_grab(release, grab_statuses) do
     key =
-      {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
-       release.episode_number}
+      {to_string(release.item.tmdb_id), ReleaseTracking.tmdb_type_for(release.item.media_type),
+       release.season_number, release.episode_number}
 
     Map.get(grab_statuses, key)
   end
