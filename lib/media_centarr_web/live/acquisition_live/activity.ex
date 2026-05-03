@@ -14,7 +14,11 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
 
   alias MediaCentarrWeb.AcquisitionLive.ActivityLogic
 
-  attr :grabs, :list, required: true
+  attr :grabs, :list,
+    required: true,
+    doc:
+      "list of `MediaCentarr.Acquisition.Grab.t()` rows preloaded with the fields read by `ActivityLogic` (status, attempt_count, title, etc.). Phoenix `attr` has no list-of-typed-structs validator; element shape is locked at the schema layer."
+
   attr :filter, :atom, required: true
   attr :search, :string, required: true
 

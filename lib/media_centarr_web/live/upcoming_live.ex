@@ -216,20 +216,27 @@ defmodule MediaCentarrWeb.UpcomingLive do
     name = params["name"]
     poster_path = params["poster-path"]
 
-    result = %{tmdb_id: tmdb_id, media_type: media_type, name: name, poster_path: poster_path}
-
     case media_type do
       :tv_series ->
-        {:noreply, assign(socket, track_scope_item: result, track_collection_item: nil)}
+        scope_item = %TrackModal.ScopeItem{
+          tmdb_id: tmdb_id,
+          name: name,
+          poster_path: poster_path
+        }
+
+        {:noreply, assign(socket, track_scope_item: scope_item, track_collection_item: nil)}
 
       :movie ->
         Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          ReleaseTracking.track_from_search(result, %{})
+          ReleaseTracking.track_from_search(
+            %{tmdb_id: tmdb_id, media_type: :movie, name: name, poster_path: poster_path},
+            %{}
+          )
         end)
 
         results =
           Enum.map(socket.assigns.track_search_results, fn r ->
-            if r.tmdb_id == tmdb_id, do: Map.put(r, :already_tracked, true), else: r
+            if r.tmdb_id == tmdb_id, do: %{r | already_tracked: true}, else: r
           end)
 
         {:noreply, assign(socket, track_search_results: results, track_collection_item: nil)}
@@ -260,7 +267,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
 
     results =
       Enum.map(socket.assigns.track_search_results, fn r ->
-        if r.tmdb_id == tmdb_id, do: Map.put(r, :already_tracked, true), else: r
+        if r.tmdb_id == tmdb_id, do: %{r | already_tracked: true}, else: r
       end)
 
     {:noreply, assign(socket, track_search_results: results, track_scope_item: nil)}
@@ -366,13 +373,16 @@ defmodule MediaCentarrWeb.UpcomingLive do
   end
 
   def handle_info(:load_track_suggestions, socket) do
-    suggestions = ReleaseTracking.suggest_trackable_items()
+    suggestions =
+      Enum.map(ReleaseTracking.suggest_trackable_items(), &struct!(TrackModal.Suggestion, &1))
+
     {:noreply, assign(socket, track_suggestions: suggestions, track_suggestions_loading: false)}
   end
 
   def handle_info({:do_track_search, query}, socket) do
     if query == socket.assigns.track_search_query do
-      results = ReleaseTracking.search_tmdb(query)
+      results = Enum.map(ReleaseTracking.search_tmdb(query), &struct!(TrackModal.SearchResult, &1))
+
       {:noreply, assign(socket, track_search_results: results, track_search_loading: false)}
     else
       {:noreply, socket}

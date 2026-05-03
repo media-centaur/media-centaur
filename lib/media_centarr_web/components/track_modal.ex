@@ -13,15 +13,84 @@ defmodule MediaCentarrWeb.Components.TrackModal do
 
   use MediaCentarrWeb, :html
 
+  defmodule Suggestion do
+    @moduledoc "View-model for a single suggested-trackable show card."
+    @enforce_keys [:tv_series_id, :tmdb_id, :name, :media_type, :poster_url]
+    defstruct [:tv_series_id, :tmdb_id, :name, :media_type, :poster_url]
+
+    @type t :: %__MODULE__{
+            tv_series_id: integer(),
+            tmdb_id: String.t(),
+            name: String.t(),
+            media_type: :tv_series,
+            poster_url: String.t() | nil
+          }
+  end
+
+  defmodule SearchResult do
+    @moduledoc "View-model for a single TMDB search result row."
+    @enforce_keys [:tmdb_id, :media_type, :name, :year, :poster_path, :already_tracked]
+    defstruct [:tmdb_id, :media_type, :name, :year, :poster_path, :already_tracked]
+
+    @type t :: %__MODULE__{
+            tmdb_id: integer(),
+            media_type: :movie | :tv_series,
+            name: String.t(),
+            year: String.t() | nil,
+            poster_path: String.t() | nil,
+            already_tracked: boolean()
+          }
+  end
+
+  defmodule ScopeItem do
+    @moduledoc "View-model for the inline TV scope picker."
+    @enforce_keys [:tmdb_id, :name, :poster_path]
+    defstruct [:tmdb_id, :name, :poster_path]
+
+    @type t :: %__MODULE__{
+            tmdb_id: integer(),
+            name: String.t(),
+            poster_path: String.t() | nil
+          }
+  end
+
+  defmodule CollectionItem do
+    @moduledoc """
+    View-model for the inline collection prompt (movie was found in a TMDB
+    collection — user picks "just this movie" vs "whole collection"). No
+    producer wires this up today; the contract is locked here for the day
+    one does.
+    """
+    @enforce_keys [:tmdb_id, :name, :poster_path, :collection_id, :collection_name]
+    defstruct [:tmdb_id, :name, :poster_path, :collection_id, :collection_name]
+
+    @type t :: %__MODULE__{
+            tmdb_id: integer(),
+            name: String.t(),
+            poster_path: String.t() | nil,
+            collection_id: integer(),
+            collection_name: String.t()
+          }
+  end
+
   attr :open, :boolean, default: false
-  attr :suggestions, :list, default: []
+
+  attr :suggestions, :list,
+    default: [],
+    doc:
+      "list of `Suggestion.t()` structs. Phoenix `attr` has no list-of-typed-structs validator; element shape is enforced at construction in `UpcomingLive`."
+
   attr :suggestions_loading, :boolean, default: false
   attr :search_query, :string, default: ""
-  attr :search_results, :list, default: []
+
+  attr :search_results, :list,
+    default: [],
+    doc: "list of `SearchResult.t()` structs."
+
   attr :search_loading, :boolean, default: false
-  attr :scope_item, :map, default: nil
-  attr :collection_item, :map, default: nil
-  attr :confirmed_ids, :any, default: nil
+  attr :scope_item, ScopeItem, default: nil
+  attr :collection_item, CollectionItem, default: nil
+  attr :confirmed_ids, MapSet, default: nil
 
   def track_modal(assigns) do
     ~H"""
@@ -102,9 +171,12 @@ defmodule MediaCentarrWeb.Components.TrackModal do
 
   # --- Suggestions ---
 
-  attr :suggestions, :list, required: true
+  attr :suggestions, :list,
+    required: true,
+    doc: "list of `Suggestion.t()` structs."
+
   attr :loading, :boolean, required: true
-  attr :confirmed_ids, :any, default: nil
+  attr :confirmed_ids, MapSet, default: nil
 
   defp suggestions_section(%{suggestions: [], loading: false} = assigns) do
     ~H"""
@@ -133,7 +205,7 @@ defmodule MediaCentarrWeb.Components.TrackModal do
     """
   end
 
-  attr :suggestion, :map, required: true
+  attr :suggestion, Suggestion, required: true
   attr :confirming, :boolean, default: false
 
   defp suggestion_card(%{confirming: true} = assigns) do
@@ -185,9 +257,9 @@ defmodule MediaCentarrWeb.Components.TrackModal do
 
   # --- Search Results ---
 
-  attr :result, :map, required: true
-  attr :scope_item, :map, default: nil
-  attr :collection_item, :map, default: nil
+  attr :result, SearchResult, required: true
+  attr :scope_item, ScopeItem, default: nil
+  attr :collection_item, CollectionItem, default: nil
 
   defp search_result(assigns) do
     type_label = if assigns.result.media_type == :movie, do: "Movie", else: "TV"
@@ -259,7 +331,7 @@ defmodule MediaCentarrWeb.Components.TrackModal do
 
   # --- TV Scope Picker ---
 
-  attr :item, :map, required: true
+  attr :item, ScopeItem, required: true
 
   defp tv_scope_picker(assigns) do
     ~H"""
@@ -310,7 +382,7 @@ defmodule MediaCentarrWeb.Components.TrackModal do
 
   # --- Collection Prompt ---
 
-  attr :item, :map, required: true
+  attr :item, CollectionItem, required: true
 
   defp collection_prompt(assigns) do
     ~H"""
