@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.32.4 — 2026-05-03
+
+Maintenance release. No user-visible changes — closes the internal
+component-contract migration: every Phoenix function-component
+attribute in the app now carries a typed module or a documented
+waiver, and a Credo check (`TypedComponentAttrs`) is now active to
+prevent regression. Future contributors who add a `attr :foo, :map`
+without explaining what it accepts will get a build-time nudge to
+either tighten the type or document why it's loose.
+
 ## v0.32.3 — 2026-05-03
 
 Maintenance release. No user-visible changes — Phase 5 of the internal
