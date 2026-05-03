@@ -798,6 +798,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         </.button>
       </div>
 
+      <div
+        :if={Logic.render_health_line?(@item)}
+        class={"text-xs #{Logic.health_text_class(@item.health)}"}
+      >
+        {MediaCentarr.Acquisition.Health.label(@item.health)}
+      </div>
+
       <div :if={@item.progress} class="h-[3px] bg-base-content/10 rounded-full overflow-hidden">
         <div
           class="progress-fill h-full bg-primary rounded-full"

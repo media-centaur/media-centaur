@@ -14,7 +14,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   Per ADR-030 (LiveView logic extraction).
   """
 
-  alias MediaCentarr.Acquisition.{QueueItem, SearchResult}
+  alias MediaCentarr.Acquisition.{Health, QueueItem, SearchResult}
 
   @type status :: :loading | :ready | {:failed, term()} | :abandoned
   @type group :: %{
@@ -176,26 +176,46 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   # the "+ N more" disclosure. See `partition_collapsible_group/3`.
   @collapsible_head_size 2
 
+  # Within `:downloading`, surface items that need attention before
+  # items that are merely slow before items that are healthy. Tier 0
+  # captures degraded health (`:soft_stall`, `:frozen`, `:meta_stuck`),
+  # tier 1 is `:slow`, tier 2 is everything else.
+  @health_tier_degraded 0
+  @health_tier_slow 1
+  @health_tier_normal 2
+
   @doc """
   Sorts a queue list by activity priority, with downloading items
-  sub-sorted by ascending ETA so the closest-to-done sits at the top.
+  sub-sorted by health tier (degraded → slow → normal) and then by
+  ascending ETA within each tier so the closest-to-done sits at the
+  top of its tier.
 
-  Order: `:error` → `:downloading` (by ETA) → `:stalled` → `:paused` →
-  `:queued` → `:other`. Items with `nil` state are treated as `:other`.
-  Items with `nil` `timeleft` within `:downloading` sort after items
-  with a known ETA.
+  Order: `:error` → `:downloading` (degraded → slow → normal, each by
+  ETA) → `:stalled` → `:paused` → `:queued` → `:other`. Items with
+  `nil` state are treated as `:other`. Items with `nil` `timeleft`
+  within `:downloading` sort after items with a known ETA.
   """
   @spec sort_downloads([QueueItem.t()]) :: [QueueItem.t()]
   def sort_downloads(items) when is_list(items) do
     items
     |> Enum.with_index()
     |> Enum.sort_by(fn {item, idx} ->
-      {state_rank(item.state), eta_seconds(item), idx}
+      {state_rank(item.state), health_tier(item), eta_seconds(item), idx}
     end)
     |> Enum.map(fn {item, _idx} -> item end)
   end
 
   defp state_rank(state), do: Map.get(@state_rank, state, @state_rank.other)
+
+  defp health_tier(%QueueItem{state: :downloading, health: health}) do
+    cond do
+      Health.degraded?(health) -> @health_tier_degraded
+      Health.slow?(health) -> @health_tier_slow
+      true -> @health_tier_normal
+    end
+  end
+
+  defp health_tier(_), do: @health_tier_normal
 
   # Used as a secondary sort key — only meaningful for :downloading items
   # (where ETA orders closest-to-done first). For other states, every item
@@ -346,4 +366,31 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   # :queued reads as passive "waiting in qBittorrent's queue" — neutral, not warning
   def state_badge_variant(:queued), do: "ghost"
   def state_badge_variant(_), do: "metric"
+
+  @doc """
+  Whether the Downloads page should render a health-secondary line for
+  this item. Suppresses the line for items where `Acquisition.Health`
+  has nothing actionable to add (`:healthy`, `:warming_up`, or `nil`).
+  """
+  @spec render_health_line?(QueueItem.t()) :: boolean()
+  def render_health_line?(%QueueItem{health: health}) do
+    health not in [nil, :healthy, :warming_up]
+  end
+
+  @doc """
+  Tailwind text-color class for the Downloads page health-secondary
+  line. Translates the semantic variant from
+  `Health.badge_variant/1` to a project CSS
+  class.
+  """
+  @spec health_text_class(Health.status() | nil) :: String.t()
+  def health_text_class(nil), do: "text-base-content/40"
+
+  def health_text_class(status) do
+    case Health.badge_variant(status) do
+      "warning" -> "text-warning"
+      "ghost" -> "text-base-content/60"
+      _ -> "text-base-content/40"
+    end
+  end
 end
