@@ -4,6 +4,21 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.37.0 — 2026-05-04
+
+### Fixed
+
+Cancelling a download on the Downloads page now actually removes the
+row and keeps it gone. Previously the row would vanish for a moment and
+then reappear when the download client's next status snapshot arrived —
+because the cancellation hadn't fully propagated client-side yet, so the
+snapshot still listed the torrent. The page now remembers your in-flight
+cancels and filters those rows out of incoming snapshots for a short
+grace window, while also asking the queue monitor to refresh
+immediately. If the cancel actually fails, the row reappears after the
+grace window so you can see something went wrong instead of staring at
+a silent empty list.
+
 ## v0.36.1 — 2026-05-03
 
 ### Fixed
