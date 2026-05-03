@@ -397,16 +397,16 @@ defmodule MediaCentarr.LibraryTest do
   end
 
   describe "list_in_progress/1 mirrors the /library?in_progress=1 surface" do
-    # Continue Watching is the user's mental list of "things I'm watching".
-    # An absent file does not erase that intent — and matching this query to
-    # the broader `/library?in_progress=1` filter (which only checks for
-    # incomplete progress) keeps the two surfaces consistent.
-    test "includes movies with watch_progress even when no file is present" do
+    # Movie rows are sourced through `PresentableQueries.standalone_movies/0`,
+    # which excludes movies whose watched_files are not in `:present` state —
+    # matching browse-surface semantics. (TV series and video objects retain
+    # their relaxed progress-only filter; see the cases below.)
+    test "excludes orphan movies with watch_progress when no file is present" do
       orphan = create_standalone_movie(%{name: "Orphan With Progress"})
       create_watch_progress(%{movie_id: orphan.id, position_seconds: 30.0, duration_seconds: 100.0})
 
       results = Library.list_in_progress(limit: 10)
-      assert Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
+      refute Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
     end
 
     test "includes a TV series whose watched episodes are all completed but not every episode is watched" do
@@ -451,6 +451,30 @@ defmodule MediaCentarr.LibraryTest do
 
       results = Library.list_in_progress(limit: 10)
       refute Enum.any?(results, &(&1.entity_name == "Fully Watched Show"))
+    end
+  end
+
+  describe "list_in_progress/1 collection hoist" do
+    test "single-child movie_series with in-progress child surfaces as the child movie" do
+      ms = create_movie_series(%{name: "Mascot Collection"})
+      child = create_movie(%{movie_series_id: ms.id, name: "Mascot Cosmos", position: 0})
+      record_present(create_linked_file(%{movie_id: child.id}))
+
+      create_watch_progress(%{
+        movie_id: child.id,
+        position_seconds: 100.0,
+        duration_seconds: 1000.0,
+        completed: false
+      })
+
+      results = Library.list_in_progress(limit: 10)
+
+      hoisted = Enum.find(results, fn r -> r.entity_name == "Mascot Cosmos" end)
+      assert hoisted, "expected the child movie to surface in Continue Watching"
+      assert hoisted.entity_id == child.id
+
+      refute Enum.any?(results, fn r -> r.entity_name == "Mascot Collection" end),
+             "expected the singleton collection container to be hidden, but it appeared"
     end
   end
 
