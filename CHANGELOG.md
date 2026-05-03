@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.34.0 — 2026-05-03
+
+### New
+
+Settings → Services has a new **Auto-grab** toggle, alongside the
+existing Watchers, Pipeline, and Image Pipeline switches. When off,
+the system stops searching for tracked episodes as they air, and any
+snoozed searches pause until you turn it back on. Manual grabs from
+the Downloads search box keep working regardless. Useful if you run a
+second instance for testing or want to take auto-grab quiet without
+clearing your tracked items. Defaults to on.
+
 ## v0.33.1 — 2026-05-03
 
 ### Fixed
