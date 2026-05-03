@@ -837,11 +837,13 @@ defmodule MediaCentarr.Library do
     limit = Keyword.get(opts, :limit, 12)
 
     movie_entries = fetch_in_progress_movies(limit)
+    hoisted_entries = fetch_in_progress_hoisted_movies(limit)
     tv_series_entries = fetch_in_progress_tv_series(limit)
     video_object_entries = fetch_in_progress_video_objects(limit)
     movie_series_entries = fetch_in_progress_movie_series(limit)
 
-    (movie_entries ++ tv_series_entries ++ video_object_entries ++ movie_series_entries)
+    (movie_entries ++
+       hoisted_entries ++ tv_series_entries ++ video_object_entries ++ movie_series_entries)
     |> Enum.sort_by(
       fn entry -> entry_last_watched_at(entry) || @epoch_datetime end,
       {:desc, DateTime}
@@ -1097,13 +1099,11 @@ defmodule MediaCentarr.Library do
   # Returns `%{entity: entity_map, progress: progress_map, progress_records: [record]}`.
   defp fetch_in_progress_movies(limit) do
     movies =
-      from(m in Movie,
-        as: :movie,
-        where: is_nil(m.movie_series_id),
+      from([m] in PresentableQueries.standalone_movies(),
         where:
           exists(
             from(wp in WatchProgress,
-              where: wp.movie_id == parent_as(:movie).id and wp.completed == false,
+              where: wp.movie_id == parent_as(:item).id and wp.completed == false,
               select: 1
             )
           ),
@@ -1119,38 +1119,65 @@ defmodule MediaCentarr.Library do
       |> Repo.all()
       |> Repo.preload([:images, :watch_progress])
 
-    Enum.reject(
-      Enum.map(movies, fn movie ->
-        progress_records = if movie.watch_progress, do: [movie.watch_progress], else: []
+    Enum.reject(Enum.map(movies, &build_in_progress_movie_entry/1), &is_nil/1)
+  end
 
-        in_progress_records = Enum.reject(progress_records, & &1.completed)
-
-        if in_progress_records != [] do
-          entity = %{
-            id: movie.id,
-            type: :movie,
-            name: movie.name,
-            description: movie.description,
-            images: movie.images || [],
-            genres: movie.genres,
-            duration: movie.duration
-          }
-
-          progress =
-            Map.merge(
-              %{
-                episodes_completed:
-                  if(movie.watch_progress && movie.watch_progress.completed, do: 1, else: 0),
-                episodes_total: 1
-              },
-              ContinueWatchingProgress.current_position_summary(progress_records)
+  # Fetches singleton-collection movies (the sole present child of their MovieSeries)
+  # with an incomplete WatchProgress record. Surfaces the child movie at the top
+  # level instead of the collection container.
+  defp fetch_in_progress_hoisted_movies(limit) do
+    movies =
+      from([m] in PresentableQueries.singleton_collection_movies(),
+        where:
+          exists(
+            from(wp in WatchProgress,
+              where: wp.movie_id == parent_as(:item).id and wp.completed == false,
+              select: 1
             )
+          ),
+        order_by: [
+          desc:
+            fragment(
+              "(SELECT last_watched_at FROM library_watch_progress WHERE movie_id = ? LIMIT 1)",
+              m.id
+            )
+        ],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Repo.preload([:images, :movie_series, :watch_progress])
 
-          %{entity: entity, progress: progress, progress_records: progress_records}
-        end
-      end),
-      &is_nil/1
-    )
+    Enum.reject(Enum.map(movies, &build_in_progress_movie_entry/1), &is_nil/1)
+  end
+
+  defp build_in_progress_movie_entry(movie) do
+    progress_records = if movie.watch_progress, do: [movie.watch_progress], else: []
+
+    in_progress_records = Enum.reject(progress_records, & &1.completed)
+
+    if in_progress_records != [] do
+      entity = %{
+        id: movie.id,
+        type: :movie,
+        name: movie.name,
+        description: movie.description,
+        images: movie.images || [],
+        genres: movie.genres,
+        duration: movie.duration
+      }
+
+      progress =
+        Map.merge(
+          %{
+            episodes_completed:
+              if(movie.watch_progress && movie.watch_progress.completed, do: 1, else: 0),
+            episodes_total: 1
+          },
+          ContinueWatchingProgress.current_position_summary(progress_records)
+        )
+
+      %{entity: entity, progress: progress, progress_records: progress_records}
+    end
   end
 
   # Fetches TV series that have at least one incomplete episode WatchProgress record.
@@ -1302,17 +1329,18 @@ defmodule MediaCentarr.Library do
     )
   end
 
-  # Fetches movie series where child movies have at least one incomplete WatchProgress record.
+  # Fetches multi-child movie series where child movies have at least one
+  # incomplete WatchProgress record. Singleton-collection movies are surfaced
+  # via `fetch_in_progress_hoisted_movies/1` instead.
   defp fetch_in_progress_movie_series(limit) do
     series_list =
-      from(ms in MovieSeries,
-        as: :series,
+      from([ms] in PresentableQueries.multi_child_movie_series(),
         where:
           exists(
             from(wp in WatchProgress,
               join: m in Movie,
               on: m.id == wp.movie_id,
-              where: m.movie_series_id == parent_as(:series).id,
+              where: m.movie_series_id == parent_as(:item).id,
               select: 1
             )
           ),
