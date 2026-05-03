@@ -35,6 +35,7 @@ defmodule MediaCentarr.Library.EntityShape do
       country_code: Map.get(record, :country_code),
       network: Map.get(record, :network),
       status: Map.get(record, :status),
+      collection: collection_from(record, type),
       images: Map.get(record, :images, []),
       external_ids: Map.get(record, :external_ids, []),
       extras: Map.get(record, :extras, []),
@@ -82,4 +83,8 @@ defmodule MediaCentarr.Library.EntityShape do
 
   defp wrap_progress(nil), do: []
   defp wrap_progress(progress), do: [progress]
+
+  defp collection_from(%{movie_series: %{id: id, name: name}}, :movie), do: %{id: id, name: name}
+
+  defp collection_from(_record, _type), do: nil
 end
