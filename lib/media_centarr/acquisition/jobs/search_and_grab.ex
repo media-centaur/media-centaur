@@ -36,7 +36,8 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
     Prowlarr,
     QualityWindow,
     QueryBuilder,
-    Quality
+    Quality,
+    TitleMatcher
   }
 
   alias MediaCentarr.Repo
@@ -64,7 +65,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
 
     bounds = effective_bounds(grab)
 
-    case search_until_match(QueryBuilder.build(grab), bounds) do
+    case search_until_match(grab, QueryBuilder.build(grab), bounds) do
       {:ok, best} -> handle_found(grab, best)
       {:no_match, outcome} -> handle_no_results(grab, outcome)
       {:error, reason} -> handle_prowlarr_error(grab, reason)
@@ -93,19 +94,29 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
   end
 
   # Tries each candidate query in order. First acceptable hit wins.
-  # On exhaustion, returns the most-informative outcome we observed:
-  # `"no_acceptable_quality"` if any query returned results-but-none-passed,
-  # otherwise `"no_results"`. A Prowlarr error short-circuits the loop.
-  defp search_until_match(queries, bounds) do
+  # On exhaustion, returns the most-informative outcome we observed.
+  # A Prowlarr error short-circuits the loop.
+  #
+  # Outcomes (last one observed wins, except `no_results` is always
+  # superseded since "we got something but rejected it" is more useful
+  # diagnostically than "nothing came back"):
+  #
+  #   * `"no_results"`           — Prowlarr returned an empty list
+  #   * `"no_title_match"`       — results came back but none parsed to
+  #                                 the right show/movie (the bug fix
+  #                                 introduced in TitleMatcher)
+  #   * `"no_acceptable_quality"` — title matched but quality fell outside
+  #                                  the configured bounds
+  defp search_until_match(grab, queries, bounds) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
       case Prowlarr.search(query, opts) do
         {:ok, []} ->
           {:cont, acc}
 
         {:ok, results} ->
-          case best_acceptable(results, bounds) do
-            nil -> {:cont, {:no_match, "no_acceptable_quality"}}
-            best -> {:halt, {:ok, best}}
+          case best_match(results, grab, bounds) do
+            {:found, best} -> {:halt, {:ok, best}}
+            {:none, outcome} -> {:cont, {:no_match, outcome}}
           end
 
         {:error, reason} ->
@@ -114,11 +125,22 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
     end)
   end
 
-  defp best_acceptable(results, {min, max}) do
-    results
-    |> Enum.filter(fn result -> Quality.acceptable?(result.quality, min, max) end)
-    |> Enum.sort_by(fn result -> Quality.rank(result.quality) end, :desc)
-    |> List.first()
+  defp best_match(results, grab, {min, max}) do
+    matched = Enum.filter(results, &TitleMatcher.matches?(&1, grab))
+
+    if matched == [] do
+      {:none, "no_title_match"}
+    else
+      acceptable =
+        matched
+        |> Enum.filter(fn result -> Quality.acceptable?(result.quality, min, max) end)
+        |> Enum.sort_by(fn result -> Quality.rank(result.quality) end, :desc)
+
+      case acceptable do
+        [] -> {:none, "no_acceptable_quality"}
+        [best | _] -> {:found, best}
+      end
+    end
   end
 
   defp handle_found(grab, result) do

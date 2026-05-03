@@ -20,6 +20,13 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   defp job_for(grab), do: %Oban.Job{args: %{"grab_id" => grab.id}}
 
+  # Default grab the suite uses targets a 2024 movie called "Sample Movie"
+  # so the canned Sample.Movie.* release titles below pass title-matching.
+  defp create_movie_grab(attrs \\ %{}) do
+    defaults = %{title: "Sample Movie", year: 2024}
+    create_grab(Map.merge(defaults, attrs))
+  end
+
   defp four_kay_response do
     [
       %{
@@ -33,7 +40,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — 4K result found" do
     test "grabs the result, marks grab as grabbed with 4K quality, broadcasts" do
-      grab = create_grab()
+      grab = create_movie_grab()
 
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, four_kay_response()) end)
 
@@ -51,7 +58,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — only 1080p found" do
     test "grabs the 1080p result and marks grab as grabbed" do
-      grab = create_grab()
+      grab = create_movie_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -74,7 +81,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — 4K preferred over 1080p when both available" do
     test "grabs the 4K result, not the 1080p" do
-      grab = create_grab()
+      grab = create_movie_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -96,7 +103,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — nothing acceptable found" do
     test "first attempt: snoozes 4h, increments attempt_count, marks status snoozed, broadcasts" do
-      grab = create_grab()
+      grab = create_movie_grab()
 
       assert {:snooze, snooze_seconds} = SearchAndGrab.perform(job_for(grab))
       assert snooze_seconds == 4 * 60 * 60
@@ -110,25 +117,25 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
     end
 
     test "exponential backoff: attempt 2 → 8h, attempt 3 → 16h, attempt 4 → 24h cap" do
-      grab = create_grab(%{attempt_count: 1})
+      grab = create_movie_grab(%{attempt_count: 1})
       assert {:snooze, seconds} = SearchAndGrab.perform(job_for(grab))
       assert seconds == 8 * 60 * 60
 
-      grab = create_grab(%{tmdb_id: "22222", attempt_count: 2})
+      grab = create_movie_grab(%{tmdb_id: "22222", attempt_count: 2})
       assert {:snooze, seconds} = SearchAndGrab.perform(job_for(grab))
       assert seconds == 16 * 60 * 60
 
-      grab = create_grab(%{tmdb_id: "33333", attempt_count: 3})
+      grab = create_movie_grab(%{tmdb_id: "33333", attempt_count: 3})
       assert {:snooze, seconds} = SearchAndGrab.perform(job_for(grab))
       assert seconds == 24 * 60 * 60
 
-      grab = create_grab(%{tmdb_id: "44444", attempt_count: 9})
+      grab = create_movie_grab(%{tmdb_id: "44444", attempt_count: 9})
       assert {:snooze, seconds} = SearchAndGrab.perform(job_for(grab))
       assert seconds == 24 * 60 * 60
     end
 
     test "only 720p available — does not grab, marks no_acceptable_quality, increments attempt" do
-      grab = create_grab()
+      grab = create_movie_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -150,7 +157,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — abandonment" do
     test "after max_attempts no-results: marks abandoned, broadcasts, returns :ok (no snooze)" do
-      grab = create_grab(%{attempt_count: 11})
+      grab = create_movie_grab(%{attempt_count: 11})
 
       assert :ok = SearchAndGrab.perform(job_for(grab))
 
@@ -164,7 +171,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
   describe "perform/1 — Prowlarr error" do
     test "snoozes 1h, does NOT increment attempt_count, marks prowlarr_error" do
-      grab = create_grab(%{attempt_count: 3})
+      grab = create_movie_grab(%{attempt_count: 3})
 
       Req.Test.stub(:prowlarr, fn conn -> Plug.Conn.send_resp(conn, 503, "down") end)
 
@@ -228,13 +235,97 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       Req.Test.stub(:prowlarr, fn conn ->
         query = conn.query_params["query"]
         :ets.insert(received_queries, {System.unique_integer([:monotonic]), query})
-        Req.Test.json(conn, four_kay_response())
+
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Show.S03E04.2160p.UHD.WEB-DL.DDP5.1.H.265-GROUP",
+            "guid" => "tv-uhd-guid",
+            "indexerId" => 1,
+            "seeders" => 10
+          }
+        ])
       end)
 
       assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
 
       [{_, first_query}] = :ets.lookup(received_queries, :ets.first(received_queries))
       assert first_query == "Sample Show S03E04"
+    end
+  end
+
+  describe "perform/1 — title-match gating" do
+    test "rejects results that do not parse to the requested show (the Sample Show Fifteen bug)" do
+      # User tracks a show called "Sample Show Fifteen". Prowlarr returns garbage:
+      # an episode of an unrelated show whose episode title is "Sample Show Fifteen",
+      # and a different show that just contains the word.
+      # Pre-fix the worker grabbed the first 1080p result regardless;
+      # post-fix every result must parse to the requested show.
+      grab =
+        create_grab(%{
+          tmdb_id: "paradise-1",
+          tmdb_type: "tv",
+          title: "Sample Show Fifteen",
+          season_number: 1,
+          episode_number: 1
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Show.S01E05.Sample Show Fifteen.1080p.WEB-DL.x264-GROUP",
+            "guid" => "wrong-show-guid",
+            "indexerId" => 1,
+            "seeders" => 50
+          },
+          %{
+            "title" => "Sample Show Fifteen.PD.S01E01.1080p.WEB-DL.x264-GROUP",
+            "guid" => "wrong-paradise-guid",
+            "indexerId" => 1,
+            "seeders" => 30
+          }
+        ])
+      end)
+
+      assert {:snooze, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "snoozed"
+      assert updated.last_attempt_outcome == "no_title_match"
+      assert updated.attempt_count == 1
+    end
+
+    test "accepts the matching result even when junk results outrank it" do
+      grab =
+        create_grab(%{
+          tmdb_id: "paradise-2",
+          tmdb_type: "tv",
+          title: "Sample Show Fifteen",
+          season_number: 1,
+          episode_number: 1
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Show.S01E05.Sample Show Fifteen.1080p.WEB-DL.x264-GROUP",
+            "guid" => "wrong-show-guid",
+            "indexerId" => 1,
+            "seeders" => 200
+          },
+          %{
+            "title" => "Sample Show Fifteen.S01E01.1080p.WEB-DL.x264-GROUP",
+            "guid" => "right-guid",
+            "indexerId" => 1,
+            "seeders" => 5
+          }
+        ])
+      end)
+
+      assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "grabbed"
+      assert updated.quality == "1080p"
     end
   end
 
@@ -248,7 +339,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
   describe "perform/1 — 4K patience window" do
     test "within patience window with max=4K: 1080p result is REJECTED, snoozes" do
       grab =
-        create_grab(%{
+        create_movie_grab(%{
           tmdb_id: "patience-1",
           min_quality: "hd_1080p",
           max_quality: "uhd_4k",
@@ -259,7 +350,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
-          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+          %{"title" => "Sample.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
         ])
       end)
 
@@ -272,7 +363,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
     test "outside patience window: 1080p result is ACCEPTED" do
       grab =
-        create_grab(%{
+        create_movie_grab(%{
           tmdb_id: "patience-2",
           min_quality: "hd_1080p",
           max_quality: "uhd_4k",
@@ -282,7 +373,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
-          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+          %{"title" => "Sample.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
         ])
       end)
 
@@ -295,7 +386,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
     test "patience disabled (0 hours): 1080p accepted immediately even with 4K max" do
       grab =
-        create_grab(%{
+        create_movie_grab(%{
           tmdb_id: "patience-3",
           min_quality: "hd_1080p",
           max_quality: "uhd_4k",
@@ -305,7 +396,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
-          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+          %{"title" => "Sample.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
         ])
       end)
 
@@ -317,7 +408,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
     test "even within patience, a 4K result IS grabbed (only 1080p is held back)" do
       grab =
-        create_grab(%{
+        create_movie_grab(%{
           tmdb_id: "patience-4",
           min_quality: "hd_1080p",
           max_quality: "uhd_4k",
@@ -336,7 +427,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
     test "1080p-only bounds (max=hd_1080p): patience irrelevant, 1080p accepted immediately" do
       grab =
-        create_grab(%{
+        create_movie_grab(%{
           tmdb_id: "patience-5",
           min_quality: "hd_1080p",
           max_quality: "hd_1080p",
@@ -346,7 +437,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
-          %{"title" => "Patience.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
+          %{"title" => "Sample.Movie.2024.1080p.WEB-DL", "guid" => "h", "indexerId" => 1}
         ])
       end)
 
