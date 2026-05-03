@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.34.1 — 2026-05-03
+
+### Improved
+
+The home page hero now rotates every 7 hours instead of once a day, so
+the featured title at the top of Home changes more often. The 7-hour
+interval is chosen so that even if you only open the app at a
+consistent time each evening, you'll still cycle through your full pool
+of eligible heroes over a few days rather than landing on the same one
+repeatedly.
+
 ## v0.34.0 — 2026-05-03
 
 ### New
