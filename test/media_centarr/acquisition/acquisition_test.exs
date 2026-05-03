@@ -598,4 +598,70 @@ defmodule MediaCentarr.AcquisitionTest do
       assert summary.already_grabbed == 0
     end
   end
+
+  describe "handle_release_ready_event/2 — media_type → tmdb_type translation" do
+    # Regression: an earlier version stringified item.media_type with
+    # to_string/1, persisting the Ecto enum form ("tv_series") into Grab.tmdb_type.
+    # QueryBuilder.build/1 only matches the TMDB-standard "tv" / "movie", so every
+    # auto-armed TV grab crashed on the first SearchAndGrab wake — the row stayed
+    # at attempts: 0, last_attempt_at: nil while Oban silently retried.
+    setup do
+      MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
+      :ok
+    end
+
+    test ~s{a :tv_series item produces a grab with tmdb_type="tv" (not "tv_series")} do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 4242,
+          media_type: :tv_series,
+          name: "TV Show"
+        })
+
+      release =
+        create_tracking_release(%{
+          item_id: item.id,
+          air_date: Date.add(Date.utc_today(), -1),
+          title: "S01E01",
+          season_number: 1,
+          episode_number: 1,
+          released: true,
+          in_library: false,
+          release_type: "digital"
+        })
+
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        assert :ok = Acquisition.handle_release_ready_event(item, release)
+      end)
+
+      [grab] = Repo.all(from g in Grab, where: g.tmdb_id == "4242")
+      assert grab.tmdb_type == "tv"
+    end
+
+    test "a :movie item produces a grab with tmdb_type=\"movie\"" do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 4243,
+          media_type: :movie,
+          name: "A Movie"
+        })
+
+      release =
+        create_tracking_release(%{
+          item_id: item.id,
+          air_date: Date.add(Date.utc_today(), -1),
+          title: "A Movie",
+          released: true,
+          in_library: false,
+          release_type: "digital"
+        })
+
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        assert :ok = Acquisition.handle_release_ready_event(item, release)
+      end)
+
+      [grab] = Repo.all(from g in Grab, where: g.tmdb_id == "4243")
+      assert grab.tmdb_type == "movie"
+    end
+  end
 end

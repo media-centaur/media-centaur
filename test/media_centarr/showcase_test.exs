@@ -223,7 +223,8 @@ defmodule MediaCentarr.ShowcaseTest do
 
       keys =
         Enum.map(releases, fn release ->
-          {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
+          {to_string(release.item.tmdb_id),
+           MediaCentarr.ReleaseTracking.tmdb_type_for(release.item.media_type), release.season_number,
            release.episode_number}
         end)
 

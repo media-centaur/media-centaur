@@ -72,7 +72,7 @@ defmodule MediaCentarr.ReleaseTracking do
   def delete_item(%Item{} = item) do
     item_id = item.id
     tmdb_id = to_string(item.tmdb_id)
-    tmdb_type = to_string(item.media_type)
+    tmdb_type = tmdb_type_for(item.media_type)
     result = Repo.delete(item)
     broadcast_releases_updated([item_id])
     broadcast_item_removed(tmdb_id, tmdb_type)
@@ -584,8 +584,18 @@ defmodule MediaCentarr.ReleaseTracking do
     end
   end
 
-  defp tmdb_type_for(:tv_series), do: "tv"
-  defp tmdb_type_for(:movie), do: "movie"
+  @doc """
+  Translates a tracking-item `media_type` atom to the TMDB-standard
+  string consumed by `MediaCentarr.Acquisition.Grab.tmdb_type` and
+  `MediaCentarr.Acquisition.QueryBuilder.build/1`.
+
+  Inverse of the Ecto-stringified form (`"tv_series"`), which would
+  break QueryBuilder downstream — every auto-grab caller that hands
+  TV item structs to Acquisition MUST run them through this translator.
+  """
+  @spec tmdb_type_for(:tv_series | :movie) :: String.t()
+  def tmdb_type_for(:tv_series), do: "tv"
+  def tmdb_type_for(:movie), do: "movie"
 
   @doc """
   Resolves the best available logo URL for a tracking item.

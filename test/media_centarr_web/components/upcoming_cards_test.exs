@@ -309,7 +309,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
       r2 = pending_release(1, 2, item: item)
 
       grab_map = %{
-        {to_string(item.tmdb_id), to_string(item.media_type), 1, 1} => grab("searching")
+        {to_string(item.tmdb_id), MediaCentarr.ReleaseTracking.tmdb_type_for(item.media_type), 1, 1} =>
+          grab("searching")
       }
 
       assert UpcomingCards.pending_grab_count([r1, r2], grab_map) == 1

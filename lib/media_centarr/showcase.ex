@@ -731,7 +731,7 @@ defmodule MediaCentarr.Showcase do
         if status do
           insert_grab!(%{
             tmdb_id: to_string(item.tmdb_id),
-            tmdb_type: to_string(item.media_type),
+            tmdb_type: ReleaseTracking.tmdb_type_for(item.media_type),
             title: "#{item.name} S#{season_number}E#{episode_number}",
             season_number: season_number,
             episode_number: episode_number,
