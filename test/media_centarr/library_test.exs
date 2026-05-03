@@ -479,10 +479,15 @@ defmodule MediaCentarr.LibraryTest do
 
     test "returns shaped entry for a movie series" do
       series = create_movie_series(%{name: "Sample Saga"})
-      record_present(create_linked_file(%{movie_series_id: series.id}))
 
-      _movie =
+      part1 =
         Library.create_movie!(%{name: "Saga Part 1", movie_series_id: series.id, position: 0})
+
+      part2 =
+        Library.create_movie!(%{name: "Saga Part 2", movie_series_id: series.id, position: 1})
+
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
 
       assert {:ok, entry} = Library.load_modal_entry(series.id)
       assert entry.entity.id == series.id
