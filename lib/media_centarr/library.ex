@@ -959,36 +959,51 @@ defmodule MediaCentarr.Library do
     limit = Keyword.get(opts, :limit, 12)
 
     movies = fetch_hero_candidates_movies(limit)
+    hoisted = fetch_hero_candidates_hoisted_movies(limit)
     tv_series = fetch_hero_candidates_tv_series(limit)
     movie_series = fetch_hero_candidates_movie_series(limit)
     video_objects = fetch_hero_candidates_video_objects(limit)
 
-    Enum.take(movies ++ tv_series ++ movie_series ++ video_objects, limit)
+    Enum.take(movies ++ hoisted ++ tv_series ++ movie_series ++ video_objects, limit)
   end
 
   # --- Private fetchers for list_hero_candidates ---
 
   defp fetch_hero_candidates_movies(limit) do
-    from(m in Movie,
-      as: :entity,
+    from([m] in PresentableQueries.standalone_movies(),
       where:
-        is_nil(m.movie_series_id) and
-          not is_nil(m.description) and
+        not is_nil(m.description) and
           fragment("TRIM(?)", m.description) != "" and
           exists(
             from(img in Image,
               where:
-                img.movie_id == parent_as(:entity).id and
+                img.movie_id == parent_as(:item).id and
                   img.role == "backdrop" and
                   not is_nil(img.content_url),
               select: 1
             )
-          ) and
+          ),
+      order_by: [{:desc, m.inserted_at}],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(:images)
+    |> Enum.map(&shape_hero_record/1)
+  end
+
+  # Hoists singleton-collection movies (the sole present child of their MovieSeries)
+  # so a 1-child collection container is replaced by the child movie itself.
+  defp fetch_hero_candidates_hoisted_movies(limit) do
+    from([m] in PresentableQueries.singleton_collection_movies(),
+      where:
+        not is_nil(m.description) and
+          fragment("TRIM(?)", m.description) != "" and
           exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.movie_id == parent_as(:entity).id and kf.state == "present",
+            from(img in Image,
+              where:
+                img.movie_id == parent_as(:item).id and
+                  img.role == "backdrop" and
+                  not is_nil(img.content_url),
               select: 1
             )
           ),
@@ -1032,25 +1047,16 @@ defmodule MediaCentarr.Library do
   end
 
   defp fetch_hero_candidates_movie_series(limit) do
-    from(ms in MovieSeries,
-      as: :entity,
+    from([ms] in PresentableQueries.multi_child_movie_series(),
       where:
         not is_nil(ms.description) and
           fragment("TRIM(?)", ms.description) != "" and
           exists(
             from(img in Image,
               where:
-                img.movie_series_id == parent_as(:entity).id and
+                img.movie_series_id == parent_as(:item).id and
                   img.role == "backdrop" and
                   not is_nil(img.content_url),
-              select: 1
-            )
-          ) and
-          exists(
-            from(wf in "library_watched_files",
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
-              where: wf.movie_series_id == parent_as(:entity).id and kf.state == "present",
               select: 1
             )
           ),
