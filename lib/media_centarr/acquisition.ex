@@ -163,28 +163,68 @@ defmodule MediaCentarr.Acquisition do
     Application.get_env(:media_centarr, Oban)[:testing] != :inline
   end
 
-  @doc "Subscribes to acquisition PubSub updates."
+  @typedoc """
+  Messages broadcast on `Topics.acquisition_updates/0`. Subscribe with
+  `subscribe/0`.
+
+  All payloads carry the affected `Grab.t()` so the receiver can re-render
+  without an extra DB round-trip. New variants must be added to this union
+  AND to the documenting comments here.
+  """
+  @type updates_message ::
+          {:grab_submitted, Grab.t()}
+          | {:grab_failed, %{grab: Grab.t(), reason: term()}}
+          | {:auto_grab_armed, Grab.t()}
+          | {:auto_grab_snoozed, Grab.t()}
+          | {:auto_grab_abandoned, Grab.t()}
+          | {:auto_grab_cancelled, Grab.t()}
+
+  @typedoc """
+  Messages broadcast on `Topics.acquisition_queue/0`. Subscribe with
+  `subscribe_queue/0`.
+
+  Snapshots are AUTHORITATIVE — every poll overwrites the LiveView's
+  notion of the queue. Subscribers that mirror queue state to UI must
+  reconcile against in-flight optimistic mutations (see the
+  "External-state reconciliation" section in
+  `MediaCentarrWeb.AcquisitionLive`'s moduledoc).
+  """
+  @type queue_message ::
+          {:queue_snapshot, [MediaCentarr.Acquisition.QueueItem.t()]}
+
+  @typedoc """
+  Messages broadcast on `Topics.acquisition_search/0`. Subscribe with
+  `subscribe_search/0`. Each broadcast carries the entire current
+  session — there are no incremental deltas.
+  """
+  @type search_message ::
+          {:search_session, MediaCentarr.Acquisition.SearchSession.t()}
+
+  @doc """
+  Subscribes the caller to grab lifecycle events. Receives `t:updates_message/0`.
+  """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_updates())
   end
 
   @doc """
-  Subscribes to download-client queue snapshots. Receivers get
-  `{:queue_snapshot, [QueueItem.t()]}` whenever the QueueMonitor polls
-  successfully.
+  Subscribes the caller to download-client queue snapshots. Receives
+  `t:queue_message/0` whenever `QueueMonitor` polls successfully.
 
   Also registers the caller with `QueueMonitor` so the next poll uses
   the watched cadence (1 s vs. 5 s when nobody is rendering the queue).
   Registration auto-cleans on process exit via `Process.monitor/1`.
   """
+  @spec subscribe_queue() :: :ok
   def subscribe_queue do
     :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_queue())
     MediaCentarr.Acquisition.QueueMonitor.register_subscriber(self())
   end
 
   @doc """
-  Subscribes the calling process to search session updates. Receivers get
-  `{:search_session, %SearchSession{}}` on every state change.
+  Subscribes the caller to search session updates. Receives
+  `t:search_message/0` on every state change.
   """
   @spec subscribe_search() :: :ok
   def subscribe_search do

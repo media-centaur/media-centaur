@@ -260,6 +260,48 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       refute html =~ "Cancel download?"
     end
 
+    test "ghost row from a stale snapshot does not reappear after cancel", %{conn: conn} do
+      # Regression: the LiveView used to overwrite active_queue on every
+      # snapshot. If qBittorrent's DELETE took >1 polling cycle to
+      # propagate, the next snapshot brought the cancelled row back —
+      # the user saw "they just sit there".
+      Req.Test.stub(:qbittorrent, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"POST", "/api/v2/torrents/delete"} -> Plug.Conn.send_resp(conn, 200, "")
+        end
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/download")
+      Req.Test.allow(:qbittorrent, self(), view.pid)
+
+      stale_item = %QueueItem{
+        id: "ghost-1",
+        title: "Ghost.Movie.2024",
+        state: :downloading,
+        status: "downloading",
+        download_client: "qBittorrent",
+        size: 100,
+        size_left: 50,
+        progress: 50.0,
+        timeleft: "2m"
+      }
+
+      send(view.pid, {:queue_snapshot, [stale_item]})
+      assert render(view) =~ "phx-value-id=\"ghost-1\""
+
+      view |> element("button[phx-click='cancel_download_prompt']") |> render_click()
+      view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
+
+      # Simulate the next poll arriving before qBittorrent has propagated
+      # the deletion — the same item shows up in the snapshot. The LiveView
+      # must keep it hidden during the cancel grace window.
+      send(view.pid, {:queue_snapshot, [stale_item]})
+
+      # Use the row's phx-value-id rather than the title — the title also
+      # appears in the post-cancel flash, which would mask a real failure.
+      refute render(view) =~ "phx-value-id=\"ghost-1\""
+    end
+
     test "dismissing the modal does not call qBittorrent delete", %{conn: conn} do
       delete_counter = :counters.new(1, [:atomics])
 
