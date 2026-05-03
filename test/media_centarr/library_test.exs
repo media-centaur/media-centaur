@@ -397,16 +397,18 @@ defmodule MediaCentarr.LibraryTest do
   end
 
   describe "list_in_progress/1 mirrors the /library?in_progress=1 surface" do
-    # Movie rows are sourced through `PresentableQueries.standalone_movies/0`,
-    # which excludes movies whose watched_files are not in `:present` state —
-    # matching browse-surface semantics. (TV series and video objects retain
-    # their relaxed progress-only filter; see the cases below.)
-    test "excludes orphan movies with watch_progress when no file is present" do
+    # Continue Watching is the user's mental list of "things I'm watching".
+    # An absent file does not erase that intent — and matching this query to
+    # the broader `/library?in_progress=1` filter (which only checks for
+    # incomplete progress) keeps the two surfaces consistent. The hoist
+    # categorization is presence-agnostic on this surface (by Movie record
+    # count) so transient file-presence changes don't shuffle rows in or out.
+    test "includes orphan movies with watch_progress when no file is present" do
       orphan = create_standalone_movie(%{name: "Orphan With Progress"})
       create_watch_progress(%{movie_id: orphan.id, position_seconds: 30.0, duration_seconds: 100.0})
 
       results = Library.list_in_progress(limit: 10)
-      refute Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
+      assert Enum.any?(results, &(&1.entity_name == "Orphan With Progress"))
     end
 
     test "includes a TV series whose watched episodes are all completed but not every episode is watched" do
@@ -475,6 +477,23 @@ defmodule MediaCentarr.LibraryTest do
 
       refute Enum.any?(results, fn r -> r.entity_name == "Mascot Collection" end),
              "expected the singleton collection container to be hidden, but it appeared"
+    end
+
+    test "includes hoisted singleton-collection movies with watch_progress even when file is absent" do
+      ms = create_movie_series(%{name: "Mascot Collection"})
+      child = create_movie(%{movie_series_id: ms.id, name: "Mascot Cosmos"})
+      # No present file — the file is absent / never imported
+      create_watch_progress(%{
+        movie_id: child.id,
+        position_seconds: 100.0,
+        duration_seconds: 1000.0,
+        completed: false
+      })
+
+      results = MediaCentarr.Library.list_in_progress(limit: 50)
+
+      assert Enum.any?(results, &(&1.entity_name == "Mascot Cosmos"))
+      refute Enum.any?(results, &(&1.entity_name == "Mascot Collection"))
     end
   end
 
