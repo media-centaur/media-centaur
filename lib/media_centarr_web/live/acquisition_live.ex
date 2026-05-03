@@ -19,6 +19,45 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   syntax, `MediaCentarrWeb.AcquisitionLive.Logic` for search/group
   helpers, and `MediaCentarrWeb.AcquisitionLive.ActivityLogic` for the
   activity table helpers.
+
+  ## External-state reconciliation
+
+  This LiveView mirrors three external sources of truth — qBittorrent's
+  queue (via `QueueMonitor` polls), the in-memory `SearchSession`, and
+  the `acquisition_grabs` table. Each lives behind its own PubSub
+  subscription, declared in `mount/3`:
+
+      Acquisition.subscribe()        # acquisition:updates  → grab lifecycle
+      Acquisition.subscribe_queue()  # acquisition:queue    → queue snapshots
+      Acquisition.subscribe_search() # acquisition:search   → search session
+
+  See the matching `subscribe_*/0` functions on `MediaCentarr.Acquisition`
+  for the message types each topic carries.
+
+  ### Optimistic UI + snapshot reconciliation pattern
+
+  Snapshots from `QueueMonitor` are **authoritative** — every poll
+  overwrites `active_queue`. User actions that mutate external state
+  (cancel, future pause/resume) cannot just `assign(socket, ...)` and
+  walk away: the next snapshot will undo the local change while the
+  external system is still propagating.
+
+  The convention is:
+
+  1. Apply the change optimistically to the local socket assign.
+  2. Record the in-flight intent in a `pending_*` map keyed by item id
+     with a monotonic timestamp.
+  3. In the snapshot handler, run the snapshot through a pure helper
+     (`Logic.apply_pending_cancels/3` is the canonical example) that
+     filters out items whose intent is still pending and ages out
+     expired entries. The grace window is short enough that a *failed*
+     mutation surfaces visibly rather than ghosting forever.
+  4. Trigger `Acquisition.poll_queue_now/0` so reconciliation is fast,
+     not "wait for the next 5s tick".
+
+  Adding a new mutating action against an external mirror? Repeat this
+  shape — the bug class is "the snapshot blew away the optimistic
+  change", and the antidote is a pending-state map + a pure filter.
   """
 
   use MediaCentarrWeb, :live_view
@@ -53,6 +92,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          queue_loaded?: false,
          expanded_queue_groups: MapSet.new(),
          cancel_confirm: nil,
+         pending_cancels: %{},
          download_client_ready: false,
          activity_filter: :active,
          activity_search: "",
@@ -81,9 +121,24 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   # QueueMonitor pre-filters completed items, but defend in depth: an
   # unconfigured client returns [], a future driver may differ.
+  # Pending-cancel suppression is applied here so EVERY snapshot pass
+  # (initial load + every QueueMonitor broadcast) honours the user's
+  # in-flight cancellations — see Logic.apply_pending_cancels/3.
   defp assign_queue_from_snapshot(socket, items) do
     active = Enum.reject(items, &(&1.state == :completed))
-    assign(socket, active_queue: active, queue_loaded?: true)
+
+    {visible, pending_cancels} =
+      Logic.apply_pending_cancels(
+        active,
+        socket.assigns.pending_cancels,
+        System.monotonic_time(:second)
+      )
+
+    assign(socket,
+      active_queue: visible,
+      pending_cancels: pending_cancels,
+      queue_loaded?: true
+    )
   end
 
   # `?search=…` and `?filter=…` deep-link from the upcoming-zone badges
@@ -516,12 +571,27 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       case Acquisition.cancel_download(id) do
         :ok ->
           Log.info(:acquisition, "cancelled download — #{title}")
-          # Optimistically drop the row so the user sees feedback now;
-          # QueueMonitor's next broadcast (≤5 s) reconciles authoritatively.
+          # Optimistically drop the row so the user sees feedback now,
+          # AND remember the id so the next snapshot — which may still
+          # contain the row if qBittorrent's DELETE hasn't propagated —
+          # can't ghost it back. Logic.apply_pending_cancels/3 expires
+          # the entry after a short grace window so a failed cancel
+          # eventually surfaces.
           remaining = Enum.reject(socket.assigns.active_queue, &(&1.id == id))
 
+          pending_cancels =
+            Map.put(
+              socket.assigns.pending_cancels,
+              id,
+              System.monotonic_time(:second)
+            )
+
+          # Hurry the next reconciliation along instead of waiting for
+          # QueueMonitor's idle cadence.
+          Acquisition.poll_queue_now()
+
           socket
-          |> assign(active_queue: remaining)
+          |> assign(active_queue: remaining, pending_cancels: pending_cancels)
           |> put_flash(:info, "Cancelled “#{title}”.")
 
         {:error, reason} ->
