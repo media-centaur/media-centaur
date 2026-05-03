@@ -13,18 +13,46 @@ defmodule MediaCentarrWeb.Components.ModalShell do
 
   alias MediaCentarrWeb.Components.DetailPanel
 
+  # ModalShell is a thin wrapper around DetailPanel — these attrs forward
+  # one-to-one. The contracts live on DetailPanel; this layer just passes
+  # them through.
+
   attr :open, :boolean, default: false
-  attr :entity, :map, default: nil
-  attr :progress, :map, default: nil
-  attr :resume, :map, default: nil
-  attr :progress_records, :list, default: []
-  attr :expanded_seasons, :any, default: nil
+
+  attr :entity, :map,
+    default: nil,
+    doc:
+      "polymorphic Library schema (`Movie | TVSeries | MovieSeries | VideoObject`) — see `DetailPanel.detail_panel/1` for the field contract."
+
+  attr :progress, :map,
+    default: nil,
+    doc: "`MediaCentarr.Library.ProgressSummary.t() | nil` — produced by `Library.Browser`."
+
+  attr :resume, :map,
+    default: nil,
+    doc:
+      "resume target map `%{kind, season, episode, ...} | nil` describing where playback would resume; see `LibraryProgress.resume_target_for/1` for the producer."
+
+  attr :progress_records, :list,
+    default: [],
+    doc: "list of `MediaCentarr.Library.ProgressRecord.t()` rows preloaded from the entity."
+
+  attr :expanded_seasons, MapSet, default: nil
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_detail"
   attr :rematch_confirm, :boolean, default: false
   attr :detail_view, :atom, default: :main
-  attr :detail_files, :list, default: []
-  attr :delete_confirm, :any, default: nil
+
+  attr :detail_files, :list,
+    default: [],
+    doc:
+      "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2` for the Files sub-view."
+
+  attr :delete_confirm, :any,
+    default: nil,
+    doc:
+      "transient delete-confirmation state — `nil`, `:entity`, or a `%{file_id: id}` map. Heterogeneous tag-or-map shape; `:any` is intentional."
+
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
   attr :available, :boolean, default: true
