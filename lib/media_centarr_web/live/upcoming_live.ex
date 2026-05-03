@@ -481,8 +481,8 @@ defmodule MediaCentarrWeb.UpcomingLive do
   end
 
   defp release_grab_key(release) do
-    {to_string(release.item.tmdb_id), to_string(release.item.media_type), release.season_number,
-     release.episode_number}
+    {to_string(release.item.tmdb_id), ReleaseTracking.tmdb_type_for(release.item.media_type),
+     release.season_number, release.episode_number}
   end
 
   defp build_tracked_items_from_watching do

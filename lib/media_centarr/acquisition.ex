@@ -599,7 +599,7 @@ defmodule MediaCentarr.Acquisition do
 
   @impl GenServer
   def handle_info({:release_ready, item, release}, state) do
-    handle_release_ready(item, release)
+    handle_release_ready_event(item, release)
     {:noreply, state}
   end
 
@@ -610,17 +610,21 @@ defmodule MediaCentarr.Acquisition do
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  # ---------------------------------------------------------------------------
-  # Private helpers
-  # ---------------------------------------------------------------------------
-
-  defp handle_release_ready(item, release) do
+  @doc """
+  Processes a `{:release_ready, item, release}` event — the same logic the
+  GenServer's `handle_info({:release_ready, …})` clause runs, exposed as a
+  function so callers (and tests) can drive it without going through the
+  message bus. Looks up any existing grab, asks `AutoGrabPolicy.decide/3`,
+  and applies the resulting decision (enqueue / skip / cancel).
+  """
+  @spec handle_release_ready_event(struct(), struct()) :: :ok
+  def handle_release_ready_event(item, release) do
     settings = AutoGrabSettings.load()
 
     existing_grab =
       find_grab(
         to_string(item.tmdb_id),
-        to_string(item.media_type),
+        ReleaseTracking.tmdb_type_for(item.media_type),
         release.season_number,
         release.episode_number
       )
@@ -636,10 +640,14 @@ defmodule MediaCentarr.Acquisition do
       )
 
     apply_decision(decision, item, release, settings, existing_grab)
+    :ok
   end
 
   defp apply_decision(:enqueue, item, release, settings, _existing_grab) do
-    case enqueue(to_string(item.tmdb_id), to_string(item.media_type), item.name,
+    case enqueue(
+           to_string(item.tmdb_id),
+           ReleaseTracking.tmdb_type_for(item.media_type),
+           item.name,
            season_number: release.season_number,
            episode_number: release.episode_number,
            min_quality: AutoGrabSettings.effective_min_quality(item.min_quality, settings),
