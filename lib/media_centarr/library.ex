@@ -1103,9 +1103,12 @@ defmodule MediaCentarr.Library do
 
   # Fetches standalone movies with at least one incomplete WatchProgress record.
   # Returns `%{entity: entity_map, progress: progress_map, progress_records: [record]}`.
+  #
+  # Uses the by-record-count variant of `standalone_movies` so a transiently
+  # absent file does not erase the user's intent to keep watching.
   defp fetch_in_progress_movies(limit) do
     movies =
-      from([m] in PresentableQueries.standalone_movies(),
+      from([m] in PresentableQueries.standalone_movies_by_record_count(),
         where:
           exists(
             from(wp in WatchProgress,
@@ -1128,12 +1131,16 @@ defmodule MediaCentarr.Library do
     Enum.reject(Enum.map(movies, &build_in_progress_movie_entry/1), &is_nil/1)
   end
 
-  # Fetches singleton-collection movies (the sole present child of their MovieSeries)
-  # with an incomplete WatchProgress record. Surfaces the child movie at the top
-  # level instead of the collection container.
+  # Fetches singleton-collection movies (the sole child Movie record of their
+  # MovieSeries) with an incomplete WatchProgress record. Surfaces the child
+  # movie at the top level instead of the collection container.
+  #
+  # Uses the by-record-count variant so categorization is stable against
+  # transient file-presence changes — the user's engagement signal, not file
+  # presence, drives row inclusion on this surface.
   defp fetch_in_progress_hoisted_movies(limit) do
     movies =
-      from([m] in PresentableQueries.singleton_collection_movies(),
+      from([m] in PresentableQueries.singleton_collection_movies_by_record_count(),
         where:
           exists(
             from(wp in WatchProgress,
@@ -1338,9 +1345,13 @@ defmodule MediaCentarr.Library do
   # Fetches multi-child movie series where child movies have at least one
   # incomplete WatchProgress record. Singleton-collection movies are surfaced
   # via `fetch_in_progress_hoisted_movies/1` instead.
+  #
+  # Uses the by-record-count variant so a collection with 2+ children
+  # categorizes consistently regardless of how many of those children have
+  # present files right now.
   defp fetch_in_progress_movie_series(limit) do
     series_list =
-      from([ms] in PresentableQueries.multi_child_movie_series(),
+      from([ms] in PresentableQueries.multi_child_movie_series_by_record_count(),
         where:
           exists(
             from(wp in WatchProgress,
