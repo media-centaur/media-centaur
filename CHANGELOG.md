@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.33.1 — 2026-05-03
+
+### Fixed
+
+TV episodes auto-armed from the Upcoming tracker sometimes sat in the
+Downloads list forever, showing "Attempts: 0" and "Last attempt: never"
+even when the system was busy retrying behind the scenes. Searches for
+those episodes now run as expected. Existing stuck rows heal
+automatically the first time you launch this version — affected
+downloads will start showing real attempt activity within minutes.
+
 ## v0.33.0 — 2026-05-03
 
 Version-marker release. No code or user-visible changes since v0.32.4
