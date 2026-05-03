@@ -166,10 +166,24 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             available={@available}
             detail_view={@detail_view}
           />
-          <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-4">
-            {@entity.description}
-          </p>
-          <FacetStrip.facet_strip facets={@facets} />
+          <%!-- Synopsis + structured-metadata sidebar.
+                Below xl: stacks single-column (synopsis full width, then
+                facet strip horizontal).
+                At xl:+ reflows to two columns: synopsis capped at a
+                readable measure on the left, facets stacked on the right —
+                keeps prose at a comfortable line length on wide displays
+                without leaving the right side empty. The file path stays
+                full-width below so the long path stays visible without
+                being truncated into the narrow sidebar. --%>
+          <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,65ch)_minmax(0,1fr)] xl:gap-8 xl:items-start">
+            <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-4">
+              {@entity.description}
+            </p>
+            <div class="min-w-0">
+              <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
+              <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
+            </div>
+          </div>
           <Section.section :if={@file_path} title="File">
             <p
               class="text-xs text-base-content/55 truncate font-mono break-all"
