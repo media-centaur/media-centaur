@@ -879,7 +879,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     """
   end
 
-  attr :cancel_confirm, :any, required: true
+  attr :cancel_confirm, :any,
+    required: true,
+    doc:
+      "transient cancel-confirmation state — `nil` or a `%{queue_item_id: id}` map. Heterogeneous nil-or-map shape; `:any` is intentional."
 
   defp cancel_confirmation(%{cancel_confirm: nil} = assigns), do: ~H""
 

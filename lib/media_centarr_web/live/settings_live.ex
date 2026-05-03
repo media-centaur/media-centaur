@@ -2573,7 +2573,11 @@ defmodule MediaCentarrWeb.SettingsLive do
   attr :phase, :atom, required: true
   attr :current, :atom, required: true
   attr :failed_at, :atom, default: nil
-  attr :progress, :any, default: nil
+
+  attr :progress, :any,
+    default: nil,
+    doc:
+      "transient downloading-phase progress: `nil` or `%{percent: 0..100, bytes: integer(), total: integer()}`. Heterogeneous nil-or-map shape; `:any` is intentional."
 
   defp apply_phase_row(assigns) do
     state = SystemSection.phase_state(assigns.phase, assigns.current, assigns.failed_at)
@@ -2630,10 +2634,22 @@ defmodule MediaCentarrWeb.SettingsLive do
   # wrapper. Same placement pattern as `ModalShell.modal_shell` in
   # library_live — proven to render over the full viewport.
   attr :apply_phase, :atom, default: nil
-  attr :apply_progress, :any, default: nil
-  attr :apply_error, :any, default: nil
+
+  attr :apply_progress, :any,
+    default: nil,
+    doc: "transient apply-phase progress — same shape as `:progress` on `apply_phase_row/1`."
+
+  attr :apply_error, :any,
+    default: nil,
+    doc:
+      "transient apply-phase error: `nil`, a string message, or `%{stage: atom, message: string}`. Heterogeneous shape; `:any` is intentional."
+
   attr :apply_failed_at, :atom, default: nil
-  attr :latest_release, :map, default: nil
+
+  attr :latest_release, :map,
+    default: nil,
+    doc:
+      "the GitHub release map fetched by `MediaCentarr.SelfUpdate.latest_release/0` — keys vary; treat as an opaque struct, not a typed shape."
 
   defp apply_progress_modal(assigns) do
     ~H"""
@@ -2798,7 +2814,10 @@ defmodule MediaCentarrWeb.SettingsLive do
   # Service action confirmation modal. Always in DOM; opens when
   # `@action` is set to "restart" or "stop". Destructive actions get an
   # amber soft button; restart (recoverable) gets primary.
-  attr :action, :any, default: nil
+  attr :action, :any,
+    default: nil,
+    doc:
+      ~s(the pending service action — `nil`, `"restart"`, or `"stop"`. String-or-nil shape; `:any` keeps the door open for future tagged variants.)
 
   defp service_action_modal(assigns) do
     ~H"""
@@ -2848,8 +2867,14 @@ defmodule MediaCentarrWeb.SettingsLive do
     """
   end
 
-  attr :watch_dir_dialog, :any, default: nil
-  attr :watch_dirs, :list, default: []
+  attr :watch_dir_dialog, :any,
+    default: nil,
+    doc:
+      "transient watch-directory dialog state — `nil` or `%{mode: :add | :remove, path: String.t()}`. Heterogeneous nil-or-map shape; `:any` is intentional."
+
+  attr :watch_dirs, :list,
+    default: [],
+    doc: "list of configured watch directory paths (strings)."
 
   defp watch_dir_dialog(assigns) do
     ~H"""
@@ -2995,9 +3020,17 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp service_confirm_button_variant(_), do: "neutral"
 
   # Inline Service card — rendered inside the overview section.
-  attr :service_state, :map, required: true
+  attr :service_state, :map,
+    required: true,
+    doc:
+      "service status map from `MediaCentarr.SystemControl.service_state/0` — keys: `:installed?`, `:active?`, `:enabled?`, `:loaded?`, etc. Treated as opaque shape."
+
   attr :service_status_visible, :boolean, default: false
-  attr :service_status_output, :any, default: nil
+
+  attr :service_status_output, :any,
+    default: nil,
+    doc: "raw `systemctl status` output string, or `nil` when not yet fetched."
+
   attr :service_action_pending, :atom, default: nil
 
   defp service_card(assigns) do
@@ -3200,11 +3233,14 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   # --- Shared components ---
 
-  attr :label, :any, required: true
+  attr :label, :any,
+    required: true,
+    doc: "label content — accepts a string or a HEEx slot/AST. `:any` covers both."
+
   attr :description, :string, required: true
   attr :checked, :boolean, required: true
   attr :event, :string, required: true
-  attr :event_value, :map, default: %{}
+  attr :event_value, :map, default: %{}, doc: "phx-value-* params map (string-keyed)."
   attr :color, :string, default: "info"
 
   defp settings_row(assigns) do
@@ -3248,7 +3284,11 @@ defmodule MediaCentarrWeb.SettingsLive do
     """
   end
 
-  attr :path, :any, required: true
+  attr :path, :any,
+    required: true,
+    doc:
+      "path string OR a `{label, path}` tuple — `PathCheck.check/2` accepts both forms. `:any` covers the union."
+
   attr :kind, :atom, required: true, values: [:file, :directory, :executable]
 
   defp path_status(assigns) do
@@ -3282,7 +3322,11 @@ defmodule MediaCentarrWeb.SettingsLive do
     """
   end
 
-  attr :test, :any, required: true
+  attr :test, :any,
+    required: true,
+    doc:
+      "connection test result — `nil`, `%{status: :ok | :error, tested_at: DateTime.t(), ...}`, or atom shorthand. Heterogeneous shape; `:any` is intentional."
+
   attr :ok_label, :string, required: true
   attr :error_label, :string, required: true
 
@@ -3435,7 +3479,10 @@ defmodule MediaCentarrWeb.SettingsLive do
 
   # --- Watch-dir function components ---
 
-  attr :errors, :list, required: true
+  attr :errors, :list,
+    required: true,
+    doc: "list of `{field :: atom, message :: String.t()}` keyword tuples from changeset errors."
+
   attr :field, :atom, required: true
 
   defp watch_dir_errors(assigns) do
