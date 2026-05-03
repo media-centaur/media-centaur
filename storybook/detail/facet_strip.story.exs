@@ -8,6 +8,16 @@ defmodule MediaCentarrWeb.Storybook.Detail.FacetStrip do
   hand-builds `%Facet{kind: ...}` literals. This is the cleanest example
   of the storybook initiative's typed-attr / view-model contract.
 
+  Two layouts are catalogued:
+
+    * `:row` (default) — auto-fit horizontal grid with vertical dividers.
+       The detail panel uses this below the `xl:` breakpoint, where the
+       strip spans the full panel width.
+
+    * `:stacked` — 2-column compact grid. The detail panel switches to
+       this at `xl:+`, where the strip lives in a narrow right-hand
+       sidebar beside the synopsis.
+
   An empty `facets` list is a valid input and renders nothing — the
   `:empty` variation pins that contract.
   """
@@ -96,6 +106,61 @@ defmodule MediaCentarrWeb.Storybook.Detail.FacetStrip do
           "Empty `facets` list — graceful degradation: the component renders nothing " <>
             "(no border, no grid), so calling templates don't need to guard.",
         attributes: %{facets: []}
+      },
+      %VariationGroup{
+        id: :stacked,
+        description:
+          "`:stacked` layout — compact 2-column mini-grid for narrow sidebar contexts. " <>
+            "The detail panel uses this at `xl:+` where the strip lives beside the synopsis " <>
+            "instead of below it. 4 facets become a 2×2; 3 facets become a 2+1 with one " <>
+            "empty cell; a single facet sits alone.",
+        template: ~s|<div class="w-[540px]"><.psb-variation/></div>|,
+        variations: [
+          %Variation{
+            id: :stacked_four_facets,
+            description:
+              "TV-series shape (Network, Original Language, Genres, Rating) — fills the " <>
+                "2×2 grid exactly. Roughly the height of a 4-line synopsis at `text-sm`, " <>
+                "which is what the detail-panel reflow is tuned to balance.",
+            attributes: %{
+              layout: :stacked,
+              facets: [
+                Facet.text("Network", "Sample Network"),
+                Facet.text("Original Language", "en"),
+                Facet.chips("Genres", ["Drama", "Comedy"]),
+                Facet.rating("Rating", 8.3, 1342)
+              ]
+            }
+          },
+          %Variation{
+            id: :stacked_three_facets,
+            description:
+              "Movie shape (Director, Genres, Rating) — 2+1 layout with one empty cell on " <>
+                "the second row. The empty cell is intentional: keeping a stable column " <>
+                "axis makes the sidebar feel consistent across entity types.",
+            attributes: %{
+              layout: :stacked,
+              facets: [
+                Facet.text("Director", "Director Name"),
+                Facet.chips("Genres", ["Drama", "Comedy"]),
+                Facet.rating("Rating", 7.4, 142)
+              ]
+            }
+          },
+          %Variation{
+            id: :stacked_single_facet,
+            description:
+              "Single-facet edge case — sits alone in the first cell, second cell of the row " <>
+                "is empty. No left-border specialisation here (unlike `:row`'s `first:border-l-0`) " <>
+                "because `:stacked` separates rows with grid gaps, not vertical rules.",
+            attributes: %{
+              layout: :stacked,
+              facets: [
+                Facet.text("Year", "2024")
+              ]
+            }
+          }
+        ]
       }
     ]
   end

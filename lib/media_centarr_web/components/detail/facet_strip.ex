@@ -17,11 +17,44 @@ defmodule MediaCentarrWeb.Components.Detail.FacetStrip do
     doc:
       "list of `MediaCentarrWeb.Components.Detail.Facet.t()` structs (constructed via `Detail.Logic.facets_for/2,3` or the `Facet.text/2`, `Facet.chips/2`, `Facet.rating/3` helpers). Phoenix has no list-of-typed-structs attr; element type is enforced via the inner `attr :facet, Facet`."
 
+  attr :layout, :atom,
+    default: :row,
+    values: [:row, :stacked],
+    doc:
+      "`:row` lays facets horizontally with vertical dividers (default). `:stacked` lays them vertically — for narrow sidebar contexts where a horizontal strip would crowd or wrap awkwardly."
+
+  attr :class, :string,
+    default: nil,
+    doc:
+      "extra classes appended to the root container — used by callers to apply responsive show/hide (e.g. `xl:hidden`) when swapping between layout variants."
+
+  def facet_strip(%{layout: :stacked} = assigns) do
+    ~H"""
+    <div
+      :if={@facets != []}
+      class={[
+        "grid grid-cols-2 gap-x-4 gap-y-3 py-2.5 border-y border-base-content/[0.07]",
+        @class
+      ]}
+    >
+      <div :for={facet <- @facets} class="flex flex-col gap-0.5 min-w-0">
+        <span class="text-[0.65rem] uppercase tracking-wider text-base-content/40 font-semibold">
+          {facet.label}
+        </span>
+        <.facet_value facet={facet} />
+      </div>
+    </div>
+    """
+  end
+
   def facet_strip(assigns) do
     ~H"""
     <div
       :if={@facets != []}
-      class="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-y-3 py-2.5 border-y border-base-content/[0.07]"
+      class={[
+        "grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-y-3 py-2.5 border-y border-base-content/[0.07]",
+        @class
+      ]}
     >
       <div
         :for={facet <- @facets}
