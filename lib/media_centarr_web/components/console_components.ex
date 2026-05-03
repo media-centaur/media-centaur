@@ -12,7 +12,7 @@ defmodule MediaCentarrWeb.ConsoleComponents do
 
   use MediaCentarrWeb, :html
 
-  alias MediaCentarr.Console.View
+  alias MediaCentarr.Console.{Filter, View}
 
   @doc """
   Header row with component chips, level filter, and search input.
@@ -23,9 +23,17 @@ defmodule MediaCentarrWeb.ConsoleComponents do
   - `:app_components` — list of app component atoms
   - `:framework_components` — list of framework component atoms
   """
-  attr :filter, :any, required: true
-  attr :app_components, :list, required: true
-  attr :framework_components, :list, required: true
+  attr :filter, Filter, required: true
+
+  attr :app_components, :list,
+    required: true,
+    doc:
+      "list of app component atoms (`:watcher`, `:pipeline`, `:tmdb`, …). Element type is `atom()` — primitive list, no struct needed."
+
+  attr :framework_components, :list,
+    required: true,
+    doc:
+      "list of framework component atoms (`:phoenix`, `:ecto`, `:live_view`, …). Element type is `atom()` — primitive list."
 
   def chip_row(assigns) do
     ~H"""
@@ -104,7 +112,10 @@ defmodule MediaCentarrWeb.ConsoleComponents do
 
   - `:streams` — the socket streams map; must contain `:entries`
   """
-  attr :streams, :any, required: true
+  attr :streams, :any,
+    required: true,
+    doc:
+      "Phoenix LiveView Streams map (`%Phoenix.LiveView.LiveStream{}` per key). Iterated via `phx-update=\"stream\"`. Phoenix attr has no Streams type — `:any` with this waiver is the canonical pattern."
 
   def log_list(assigns) do
     ~H"""
@@ -136,7 +147,10 @@ defmodule MediaCentarrWeb.ConsoleComponents do
   we skip the component badge and only render the message line — the
   journalctl timestamp is already baked into `entry.message`.
   """
-  attr :streams, :any, required: true
+  attr :streams, :any,
+    required: true,
+    doc:
+      "Phoenix LiveView Streams map; reads `@streams.journal`. Same `phx-update=\"stream\"` pattern as `log_list/1` — see that attr's note for the type rationale."
 
   def journal_list(assigns) do
     ~H"""
