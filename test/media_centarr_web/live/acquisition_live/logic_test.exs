@@ -270,6 +270,82 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     test "empty input returns empty list" do
       assert Logic.sort_downloads([]) == []
     end
+
+    test "within :downloading, degraded health (soft_stall/frozen/meta_stuck) bubbles to the top of the group" do
+      # ETA-only sort would put "fast" first. Degraded items should
+      # surface above all healthy items because they need attention.
+      items = [
+        %QueueItem{
+          id: "fast",
+          title: "fast",
+          state: :downloading,
+          timeleft: "30s",
+          health: :healthy
+        },
+        %QueueItem{
+          id: "stuck",
+          title: "stuck",
+          state: :downloading,
+          timeleft: "8h",
+          health: :soft_stall
+        },
+        %QueueItem{
+          id: "frozen",
+          title: "frozen",
+          state: :downloading,
+          timeleft: nil,
+          health: :frozen
+        },
+        %QueueItem{
+          id: "slowish",
+          title: "slowish",
+          state: :downloading,
+          timeleft: "1h",
+          health: :slow
+        }
+      ]
+
+      sorted_ids = Enum.map(Logic.sort_downloads(items), & &1.id)
+
+      # Degraded (stuck, frozen) first; then :slow; then healthy.
+      # Within each tier, ETA ascending.
+      degraded_indices =
+        Enum.map(["stuck", "frozen"], &Enum.find_index(sorted_ids, fn id -> id == &1 end))
+
+      slow_index = Enum.find_index(sorted_ids, fn id -> id == "slowish" end)
+      healthy_index = Enum.find_index(sorted_ids, fn id -> id == "fast" end)
+
+      assert Enum.all?(degraded_indices, fn i -> i < slow_index end)
+      assert slow_index < healthy_index
+    end
+
+    test "within :downloading, healthy items still sort by ETA ascending" do
+      items = [
+        %QueueItem{
+          id: "slow",
+          title: "slow",
+          state: :downloading,
+          timeleft: "2h 30m",
+          health: :healthy
+        },
+        %QueueItem{
+          id: "fast",
+          title: "fast",
+          state: :downloading,
+          timeleft: "35s",
+          health: :healthy
+        },
+        %QueueItem{
+          id: "warming",
+          title: "warming",
+          state: :downloading,
+          timeleft: "14m",
+          health: :warming_up
+        }
+      ]
+
+      assert Enum.map(Logic.sort_downloads(items), & &1.id) == ~w(fast warming slow)
+    end
   end
 
   describe "partition_collapsible_group/3" do
@@ -418,6 +494,53 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
 
     test "empty input returns empty ops list" do
       assert Logic.prepare_queue_for_render([], MapSet.new()) == []
+    end
+  end
+
+  describe "render_health_line?/1" do
+    alias MediaCentarr.Acquisition.QueueItem
+
+    test "true for degraded and slow statuses" do
+      for status <- [:soft_stall, :frozen, :meta_stuck, :slow, :queued_long] do
+        assert Logic.render_health_line?(%QueueItem{
+                 id: "x",
+                 title: "x",
+                 state: :downloading,
+                 health: status
+               }),
+               "expected #{inspect(status)} to render"
+      end
+    end
+
+    test "false for nil, :healthy, :warming_up" do
+      for status <- [nil, :healthy, :warming_up] do
+        refute Logic.render_health_line?(%QueueItem{
+                 id: "x",
+                 title: "x",
+                 state: :downloading,
+                 health: status
+               }),
+               "expected #{inspect(status)} to suppress the line"
+      end
+    end
+  end
+
+  describe "health_text_class/1" do
+    test "warning statuses → text-warning" do
+      assert Logic.health_text_class(:soft_stall) == "text-warning"
+      assert Logic.health_text_class(:frozen) == "text-warning"
+      assert Logic.health_text_class(:meta_stuck) == "text-warning"
+    end
+
+    test "ghost statuses → muted text class" do
+      assert Logic.health_text_class(:slow) == "text-base-content/60"
+      assert Logic.health_text_class(:queued_long) == "text-base-content/60"
+    end
+
+    test "non-degraded statuses fall back to the muted-faint class" do
+      assert Logic.health_text_class(:healthy) == "text-base-content/40"
+      assert Logic.health_text_class(:warming_up) == "text-base-content/40"
+      assert Logic.health_text_class(nil) == "text-base-content/40"
     end
   end
 

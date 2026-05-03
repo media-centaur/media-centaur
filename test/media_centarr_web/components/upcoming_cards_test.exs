@@ -44,6 +44,27 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
     test ":downloading when grab is grabbed but no matching queue item (queued or imported)" do
       assert UpcomingCards.release_status(false, grab("grabbed"), nil) == :downloading
     end
+
+    test ":downloading_stuck when queue item is :downloading and Health.degraded?/1 is true" do
+      for health <- [:soft_stall, :frozen, :meta_stuck] do
+        item = queue(:downloading, %{health: health})
+
+        assert UpcomingCards.release_status(false, grab("grabbed"), item) == :downloading_stuck,
+               "expected health=#{inspect(health)} to surface as :downloading_stuck"
+      end
+    end
+
+    test ":downloading when health is :slow — slow is informational, not enough for a card-level escalation" do
+      item = queue(:downloading, %{health: :slow})
+      assert UpcomingCards.release_status(false, grab("grabbed"), item) == :downloading
+    end
+
+    test ":downloading when health is :healthy or :warming_up" do
+      for health <- [:healthy, :warming_up, nil] do
+        item = queue(:downloading, %{health: health})
+        assert UpcomingCards.release_status(false, grab("grabbed"), item) == :downloading
+      end
+    end
   end
 
   describe "release_status/3 — searching states" do

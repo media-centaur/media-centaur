@@ -10,6 +10,7 @@ defmodule MediaCentarr.Acquisition do
       AutoGrabSettings,
       Grab,
       GrabStatus,
+      Health,
       Quality,
       QueryExpander,
       QueueItem,
