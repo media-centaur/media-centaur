@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.32.1 — 2026-05-03
+
+Maintenance release. No user-visible changes — Phase 4 of the internal
+component-contract migration: the Track New Releases modal, the
+Downloads Activity table, and the diagnostic Console drawer now pass
+typed structs and documented contracts to their components instead of
+plain maps, so a future regression that omits a required field crashes
+at the data layer (where it's catchable in tests) instead of silently
+rendering broken UI.
+
 ## v0.32.0 — 2026-05-03
 
 ### Improved
