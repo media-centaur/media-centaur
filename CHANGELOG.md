@@ -4,6 +4,12 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.33.0 — 2026-05-03
+
+Version-marker release. No code or user-visible changes since v0.32.4
+— the minor bump tags the close of the multi-week component-contract
+migration (see the v0.32.1 → v0.32.4 entries) as a single milestone.
+
 ## v0.32.4 — 2026-05-03
 
 Maintenance release. No user-visible changes — closes the internal
