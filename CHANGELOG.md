@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.35.0 — 2026-05-03
+
+### Improved
+
+The detail panel — the modal that opens when you click a card — now
+reflows on wide displays. On 4K and other high-resolution monitors,
+the synopsis sits on the left at a comfortable reading width, while
+director, genres, rating, network, and similar metadata stack into a
+compact 2-column grid on the right instead of running edge to edge in
+a long, hard-to-track line. On standard-width displays the layout is
+unchanged.
+
 ## v0.34.1 — 2026-05-03
 
 ### Improved
