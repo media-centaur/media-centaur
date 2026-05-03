@@ -59,20 +59,40 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     end
   end
 
+  # Shared doc strings for the recurring loose-attr shapes in this module.
+  # Each points at the typed producer in the data layer (Library) so the
+  # contract stays inspectable without exporting internal schemas across
+  # the boundary.
+  @doc_entity "polymorphic Library schema — `Movie | TVSeries | MovieSeries | VideoObject` (see `MediaCentarr.Library`). Reads `:type`, `:name`, `:images`, `:seasons`/`:movies`/`:extras` per branch. Tightening to a typed Subject struct is deferred until shared `MediaCentarrWeb.ViewModels.*` lands."
+  @doc_progress "`MediaCentarr.Library.ProgressSummary.t() | nil` — produced by `Library.Browser`."
+  @doc_progress_records "list of `MediaCentarr.Library.ProgressRecord.t()` rows preloaded from the entity."
+  @doc_resume "resume target map `%{kind, season, episode, ...} | nil` — see `LibraryProgress.resume_target_for/1`."
+  @doc_resume_episode_key "`{season_number, episode_number}` tuple | `nil` — derived from `:resume`."
+  @doc_progress_by_key "`%{{season_number, episode_number} => ProgressRecord.t()}` — built by `EpisodeList.index_progress_by_key/1`."
+  @doc_extra_progress_by_id "`%{Ecto.UUID.t() => ProgressRecord.t()}` keyed by extra id."
+  @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
+  @doc_delete_confirm "transient delete-confirmation state — `nil`, `:entity`, or a `%{file_id: id}` map. Heterogeneous tag-or-map shape; `:any` is intentional."
+  @doc_season "`MediaCentarr.Library.Season.t()` (Ecto schema) preloaded with `:episodes`."
+  @doc_episode "`MediaCentarr.Library.Episode.t()` (Ecto schema)."
+  @doc_movie "`MediaCentarr.Library.Movie.t()` (Ecto schema) — used inside `MovieSeries` content lists."
+  @doc_extra "`MediaCentarr.Library.Extra.t()` (Ecto schema) — TV bonus content."
+  @doc_files_list "list of file-info maps — same shape as `:detail_files`."
+  @doc_file_info "single file-info map — `%{file: KnownFile.t(), entity_id, role, …}`."
+
   # --- Main Component ---
 
-  attr :entity, :map, required: true
-  attr :progress, :map, default: nil
-  attr :resume, :map, default: nil
-  attr :progress_records, :list, default: []
-  attr :expanded_seasons, :any, default: nil
+  attr :entity, :map, required: true, doc: @doc_entity
+  attr :progress, :map, default: nil, doc: @doc_progress
+  attr :resume, :map, default: nil, doc: @doc_resume
+  attr :progress_records, :list, default: [], doc: @doc_progress_records
+  attr :expanded_seasons, MapSet, default: nil
   attr :available, :boolean, default: true
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
   attr :rematch_confirm, :boolean, default: false
   attr :detail_view, :atom, default: :main
-  attr :detail_files, :list, default: []
-  attr :delete_confirm, :any, default: nil
+  attr :detail_files, :list, default: [], doc: @doc_detail_files
+  attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
   attr :tmdb_ready, :boolean, default: true
@@ -421,11 +441,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Season Section ---
 
-  attr :season, :map, required: true
+  attr :season, :map, required: true, doc: @doc_season
   attr :expanded, :boolean, required: true
-  attr :progress_by_key, :map, required: true
-  attr :resume_episode_key, :any, default: nil
-  attr :extra_progress_by_id, :map, default: %{}
+  attr :progress_by_key, :map, required: true, doc: @doc_progress_by_key
+  attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
+  attr :extra_progress_by_id, :map, default: %{}, doc: @doc_extra_progress_by_id
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
@@ -496,10 +516,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Episode Row ---
 
-  attr :episode, :map, required: true
+  attr :episode, :map, required: true, doc: @doc_episode
   attr :season_number, :integer, required: true
-  attr :progress, :map, default: nil
-  attr :resume_episode_key, :any, default: nil
+
+  attr :progress, :map,
+    default: nil,
+    doc: "`MediaCentarr.Library.ProgressRecord.t() | nil` for this episode."
+
+  attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
@@ -685,11 +709,15 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Movie Row ---
 
-  attr :movie, :map, required: true
+  attr :movie, :map, required: true, doc: @doc_movie
   attr :ordinal, :integer, required: true
-  attr :progress, :map, default: nil
+
+  attr :progress, :map,
+    default: nil,
+    doc: "`MediaCentarr.Library.ProgressRecord.t() | nil` for this movie."
+
   attr :available, :boolean, default: true
-  attr :resume_episode_key, :any, default: nil
+  attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
@@ -791,8 +819,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Extra Row ---
 
-  attr :extra, :map, required: true
-  attr :progress, :map, default: nil
+  attr :extra, :map, required: true, doc: @doc_extra
+
+  attr :progress, :map,
+    default: nil,
+    doc: "`MediaCentarr.Library.ProgressRecord.t() | nil` for this extra."
+
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
 
@@ -915,10 +947,10 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Info View ---
 
-  attr :entity, :map, required: true
-  attr :files, :list, default: []
+  attr :entity, :map, required: true, doc: @doc_entity
+  attr :files, :list, default: [], doc: @doc_files_list
   attr :rematch_confirm, :boolean, default: false
-  attr :delete_confirm, :any, default: nil
+  attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
   attr :tmdb_ready, :boolean, default: true
 
   defp info_view(assigns) do
@@ -1095,7 +1127,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
-  attr :file_info, :map, required: true
+  attr :file_info, :map, required: true, doc: @doc_file_info
 
   defp file_row(assigns) do
     file = assigns.file_info.file
@@ -1212,7 +1244,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Delete Confirmation ---
 
-  attr :delete_confirm, :any, default: nil
+  attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
 
   defp delete_confirmation(%{delete_confirm: nil} = assigns) do
     ~H"""
