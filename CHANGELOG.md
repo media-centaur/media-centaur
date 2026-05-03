@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.36.1 — 2026-05-03
+
+### Fixed
+
+Auto-grab now verifies that each search result actually matches the
+show or movie you're tracking. Previously, tracking an item with a
+short or common name (e.g. "Sample Show Fifteen") could trigger downloads of
+unrelated releases — other shows whose name contained the word, or
+even episodes of completely different shows whose episode title
+happened to be "Sample Show Fifteen". The system trusted the indexer's relevance
+ranking and accepted any acceptable-quality result; now it rejects
+results that don't parse to the requested title and season/episode (or
+movie + year) and keeps searching for a real match.
+
 ## v0.36.0 — 2026-05-03
 
 ### New
