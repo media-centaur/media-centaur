@@ -1,7 +1,7 @@
 defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Acquisition.{QueueItem, SearchResult}
   alias MediaCentarrWeb.AcquisitionLive.Logic
 
   describe "format_grab_reason/1" do
@@ -679,5 +679,43 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
       indexer_name: Keyword.get(opts, :indexer_name, "indexer"),
       publish_date: nil
     }
+  end
+
+  describe "apply_pending_cancels/3" do
+    # When the user cancels a download, qBittorrent's DELETE may take a poll
+    # cycle or two to propagate. During the gap, the next QueueMonitor
+    # snapshot still contains the cancelled item — without suppression the
+    # ghost row reappears, which is the symptom the user reported as
+    # "downloads just sit there when I cancel them".
+    test "filters items whose ids are in the pending-cancel map" do
+      items = [
+        %QueueItem{id: "a", title: "Keep", state: :downloading},
+        %QueueItem{id: "b", title: "Cancelled", state: :downloading}
+      ]
+
+      pending = %{"b" => 1000}
+
+      {visible, active} = Logic.apply_pending_cancels(items, pending, 1005)
+
+      assert Enum.map(visible, & &1.id) == ["a"]
+      assert Map.has_key?(active, "b")
+    end
+
+    test "drops a pending entry past its grace window so a stuck cancel surfaces" do
+      items = [%QueueItem{id: "b", title: "Stuck", state: :downloading}]
+      pending = %{"b" => 1000}
+
+      # 16s after cancel — past the 15s grace, so the item must reappear and
+      # the pending entry must be cleared so we don't hide it forever.
+      {visible, active} = Logic.apply_pending_cancels(items, pending, 1016)
+
+      assert Enum.map(visible, & &1.id) == ["b"]
+      assert active == %{}
+    end
+
+    test "leaves snapshot untouched when there are no pending cancels" do
+      items = [%QueueItem{id: "a", title: "x", state: :downloading}]
+      assert Logic.apply_pending_cancels(items, %{}, 1000) == {items, %{}}
+    end
   end
 end

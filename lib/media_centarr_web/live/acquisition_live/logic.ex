@@ -16,6 +16,13 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
 
   alias MediaCentarr.Acquisition.{Health, QueueItem, SearchResult}
 
+  # How long after a user-initiated cancel we keep suppressing the
+  # affected row from incoming snapshots. qBittorrent's DELETE typically
+  # propagates within one polling cycle; the window is intentionally
+  # generous so a slow client doesn't ghost the row, while short enough
+  # that a *failed* cancel surfaces visibly to the user.
+  @cancel_grace_seconds 15
+
   @type status :: :loading | :ready | {:failed, term()} | :abandoned
   @type group :: %{
           term: String.t(),
@@ -48,6 +55,32 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   @doc "True when any group is still in `:loading`."
   @spec any_loading?([group()]) :: boolean()
   def any_loading?(groups), do: not all_loaded?(groups)
+
+  @doc """
+  Suppresses snapshot rows the user just cancelled, for a short grace
+  window (`#{@cancel_grace_seconds}s`).
+
+  Returns `{visible_items, active_pending_cancels}` — the second element
+  is the pending-cancel map with expired entries dropped, ready to be
+  written back to the socket. After the window elapses, a row that's
+  still in the snapshot reappears, surfacing a cancel that didn't take.
+  """
+  @spec apply_pending_cancels(
+          [QueueItem.t()],
+          %{String.t() => integer()},
+          integer()
+        ) :: {[QueueItem.t()], %{String.t() => integer()}}
+  def apply_pending_cancels(items, pending_cancels, now_seconds) do
+    active =
+      pending_cancels
+      |> Enum.filter(fn {_id, cancelled_at} ->
+        now_seconds - cancelled_at < @cancel_grace_seconds
+      end)
+      |> Map.new()
+
+    visible = Enum.reject(items, &Map.has_key?(active, &1.id))
+    {visible, active}
+  end
 
   @doc """
   Formats a Prowlarr grab error reason into a short user-facing string.
