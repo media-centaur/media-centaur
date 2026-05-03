@@ -154,4 +154,63 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       assert EntityShape.extract_progress(series, :movie_series) == []
     end
   end
+
+  describe "normalize/2 with :collection field" do
+    test "movie with preloaded movie_series populates :collection" do
+      ms = %MediaCentarr.Library.MovieSeries{
+        id: "ms-uuid",
+        name: "Mascot Collection"
+      }
+
+      record = %MediaCentarr.Library.Movie{
+        id: "m-uuid",
+        name: "Mascot Cosmos",
+        movie_series_id: "ms-uuid",
+        movie_series: ms,
+        inserted_at: ~U[2026-01-01 00:00:00Z],
+        updated_at: ~U[2026-01-01 00:00:00Z]
+      }
+
+      result = EntityShape.normalize(record, :movie)
+
+      assert result.collection == %{id: "ms-uuid", name: "Mascot Collection"}
+    end
+
+    test "standalone movie has nil :collection" do
+      record = %MediaCentarr.Library.Movie{
+        id: "m-uuid",
+        name: "Standalone",
+        movie_series_id: nil,
+        movie_series: nil,
+        inserted_at: ~U[2026-01-01 00:00:00Z],
+        updated_at: ~U[2026-01-01 00:00:00Z]
+      }
+
+      assert EntityShape.normalize(record, :movie).collection == nil
+    end
+
+    test "non-movie types have nil :collection" do
+      record = %MediaCentarr.Library.TVSeries{
+        id: "tv-uuid",
+        name: "Show",
+        inserted_at: ~U[2026-01-01 00:00:00Z],
+        updated_at: ~U[2026-01-01 00:00:00Z]
+      }
+
+      assert EntityShape.normalize(record, :tv_series).collection == nil
+    end
+
+    test "movie with movie_series_id but unloaded association has nil :collection" do
+      record = %MediaCentarr.Library.Movie{
+        id: "m-uuid",
+        name: "Mascot Cosmos",
+        movie_series_id: "ms-uuid",
+        movie_series: %Ecto.Association.NotLoaded{},
+        inserted_at: ~U[2026-01-01 00:00:00Z],
+        updated_at: ~U[2026-01-01 00:00:00Z]
+      }
+
+      assert EntityShape.normalize(record, :movie).collection == nil
+    end
+  end
 end
