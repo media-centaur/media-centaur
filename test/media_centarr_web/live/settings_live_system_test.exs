@@ -38,6 +38,23 @@ defmodule MediaCentarrWeb.SettingsLiveSystemTest do
     UpdateChecker.clear_cache()
 
     on_exit(fn ->
+      # Wait for in-flight TaskSupervisor children spawned by
+      # `start_update_check/1` to complete before the sandbox owner is
+      # checked back in. Without this, the Task's DB write to
+      # `Settings.find_or_create_entry!` races with sandbox teardown and
+      # raises `DBConnection.OwnershipError`. See flaky-tests.md #3.
+      MediaCentarr.TaskSupervisor
+      |> Task.Supervisor.children()
+      |> Enum.each(fn pid ->
+        ref = Process.monitor(pid)
+
+        receive do
+          {:DOWN, ^ref, _, _, _} -> :ok
+        after
+          2_000 -> :ok
+        end
+      end)
+
       :persistent_term.erase({UpdateChecker, :client})
       UpdateChecker.clear_cache()
     end)
