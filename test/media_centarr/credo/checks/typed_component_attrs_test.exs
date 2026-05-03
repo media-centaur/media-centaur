@@ -113,6 +113,65 @@ defmodule MediaCentarr.Credo.Checks.TypedComponentAttrsTest do
       |> refute_issues()
     end
 
+    test "sigil ~s(...) doc is allowed (Quokka rewrites quoted strings)" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :items, :list,
+          required: true,
+          doc: ~s(list of Item.t structs)
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(TypedComponentAttrs)
+      |> refute_issues()
+    end
+
+    test "sigil ~S(...) doc is allowed" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        attr :items, :list, required: true, doc: ~S(raw doc)
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(TypedComponentAttrs)
+      |> refute_issues()
+    end
+
+    test "module-attribute doc reference is allowed" do
+      """
+      defmodule MediaCentarrWeb.Components.Sample do
+        @doc_items "list of Item.t() structs"
+        attr :items, :list, required: true, doc: @doc_items
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/sample.ex")
+      |> run_check(TypedComponentAttrs)
+      |> refute_issues()
+    end
+
+    test "core_components.ex is excluded from the check" do
+      """
+      defmodule MediaCentarrWeb.CoreComponents do
+        attr :rest, :global, default: %{}
+        attr :class, :any, default: nil
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/core_components.ex")
+      |> run_check(TypedComponentAttrs)
+      |> refute_issues()
+    end
+
+    test "layouts.ex is excluded from the check" do
+      """
+      defmodule MediaCentarrWeb.Layouts do
+        attr :flash, :map, required: true
+      end
+      """
+      |> to_source_file("lib/media_centarr_web/components/layouts.ex")
+      |> run_check(TypedComponentAttrs)
+      |> refute_issues()
+    end
+
     test "non-attr code is not flagged" do
       """
       defmodule MediaCentarrWeb.Components.Sample do

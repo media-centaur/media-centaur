@@ -53,7 +53,18 @@ defmodule MediaCentarr.Credo.Checks.TypedComponentAttrs do
 
   defp applies_to?(filename) do
     String.contains?(filename, "lib/media_centarr_web/") and
-      String.ends_with?(filename, ".ex")
+      String.ends_with?(filename, ".ex") and
+      not excluded_file?(filename)
+  end
+
+  # `core_components.ex` and `layouts.ex` are Phoenix-generated bases
+  # whose attrs (`attr :rest, :global`, `attr :class, :any`) are
+  # intentionally generic and predate the contract migration. They sit
+  # outside the scope of `~/src/media-centarr/component-contract-plan.md`
+  # and would only generate noise.
+  defp excluded_file?(filename) do
+    String.ends_with?(filename, "core_components.ex") or
+      String.ends_with?(filename, "layouts.ex")
   end
 
   # `attr :name, :type` — 2 args, no opts → loose type without doc is a violation.
@@ -94,6 +105,16 @@ defmodule MediaCentarr.Credo.Checks.TypedComponentAttrs do
   defp doc_value_present?({:<<>>, _, _}), do: true
   # Concatenation via `<>`: `doc: "foo " <> "bar"` → AST is `{:<>, _, [...]}`.
   defp doc_value_present?({:<>, _, _}), do: true
+  # Sigils: `doc: ~s(text)` and `doc: ~S(text)` (Quokka rewrites strings
+  # containing quotes to `~s(...)`). AST is `{:sigil_s, _, _}` /
+  # `{:sigil_S, _, _}`. Trust the sigil to be non-empty in practice.
+  defp doc_value_present?({:sigil_s, _, _}), do: true
+  defp doc_value_present?({:sigil_S, _, _}), do: true
+  # Module-attribute reference: `doc: @doc_some_shape`. Common for
+  # consolidating shared waiver text across many attrs in a module.
+  # AST is `{:@, _, [{name, _, ctx}]}` — trust the attr to resolve to
+  # a non-empty string (verified by the file compiling).
+  defp doc_value_present?({:@, _, [{name, _, _}]}) when is_atom(name), do: true
   defp doc_value_present?(_), do: false
 
   defp issue_for(issue_meta, name, line_no) do

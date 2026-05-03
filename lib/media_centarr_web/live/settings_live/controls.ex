@@ -11,7 +11,11 @@ defmodule MediaCentarrWeb.SettingsLive.Controls do
 
   alias MediaCentarrWeb.SettingsLive.ControlsLogic
 
-  attr :bindings, :map, required: true
+  attr :bindings, :map,
+    required: true,
+    doc:
+      "the full bindings map keyed by binding id — value is a `MediaCentarr.Controls.Binding.t()`. Produced by `MediaCentarr.Controls.list_bindings/0` and grouped via `ControlsLogic.group_for_view/1`."
+
   attr :glyph_style, :string, required: true
   attr :listening, :any, required: true, doc: "{kind, id} tuple or nil"
 

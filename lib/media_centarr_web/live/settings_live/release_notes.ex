@@ -63,7 +63,10 @@ defmodule MediaCentarrWeb.Live.SettingsLive.ReleaseNotes do
 
   # --- Internal block renderers -------------------------------------------
 
-  attr :block, :any, required: true
+  attr :block, :any,
+    required: true,
+    doc:
+      "tagged tuple block from the parsed CHANGELOG: `{:heading, level, inline}` | `{:paragraph, inline}` | `{:list, items}`. Heterogeneous tagged-union shape — `:any` is intentional."
 
   defp block(%{block: {:heading, level, inline}} = assigns) do
     assigns = assign(assign(assigns, :inline, inline), :level, level)
@@ -108,7 +111,10 @@ defmodule MediaCentarrWeb.Live.SettingsLive.ReleaseNotes do
 
   # --- Internal inline renderers ------------------------------------------
 
-  attr :node, :any, required: true
+  attr :node, :any,
+    required: true,
+    doc:
+      "tagged tuple inline node: `{:text, text}` | `{:strong, children}` | `{:em, children}` | `{:code, text}`. Heterogeneous tagged-union shape — `:any` is intentional."
 
   defp inline(%{node: {:text, text}} = assigns) do
     assigns = assign(assigns, :text, text)
