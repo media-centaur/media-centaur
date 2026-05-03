@@ -365,6 +365,37 @@ defmodule MediaCentarr.LibraryTest do
     end
   end
 
+  describe "list_recently_added/1 collection hoist" do
+    test "single-child movie_series surfaces as the child movie, not the collection" do
+      ms = create_movie_series(%{name: "Mascot Collection"})
+      child = create_movie(%{movie_series_id: ms.id, name: "Mascot Cosmos", position: 0})
+      record_present(create_linked_file(%{movie_id: child.id}))
+
+      results = Library.list_recently_added(limit: 10)
+
+      hoisted = Enum.find(results, fn r -> r.name == "Mascot Cosmos" end)
+      assert hoisted, "expected the child movie to be present in results"
+      assert hoisted.id == child.id
+
+      refute Enum.any?(results, fn r -> r.name == "Mascot Collection" end),
+             "expected the singleton collection container to be hidden, but it appeared"
+    end
+
+    test "multi-child movie_series stays as a collection row" do
+      ms = create_movie_series(%{name: "Trilogy Collection"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Trilogy Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Trilogy Part 2", position: 1})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
+
+      results = Library.list_recently_added(limit: 10)
+
+      collection = Enum.find(results, fn r -> r.name == "Trilogy Collection" end)
+      assert collection, "expected the multi-child collection to appear in results"
+      assert collection.id == ms.id
+    end
+  end
+
   describe "list_in_progress/1 mirrors the /library?in_progress=1 surface" do
     # Continue Watching is the user's mental list of "things I'm watching".
     # An absent file does not erase that intent — and matching this query to
