@@ -4,6 +4,24 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.36.0 — 2026-05-03
+
+### New
+
+The Downloads page now flags downloads that are stuck or making little
+progress, even when your download client still thinks they're
+downloading. A torrent that's been crawling along at a few KB/s for an
+hour, or hasn't moved at all in 10 minutes, gets a clear secondary
+label below the title — "Less than 100 MB in past hour", "No progress
+in 10 minutes", "Fetching metadata for over 5 min — magnet may be
+dead", or "Queued for over 30 minutes". Stuck downloads also bubble to
+the top of the list so they're immediately visible.
+
+Upcoming cards across the rest of the app pick up the same signal
+quietly: a download that's stuck shows its arrow icon in warning
+yellow with a "Stuck" tooltip instead of the usual blue, so you can
+spot a problem without having to open the Downloads page.
+
 ## v0.35.0 — 2026-05-03
 
 ### Improved
