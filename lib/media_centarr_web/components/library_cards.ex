@@ -14,7 +14,12 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   # --- Poster Card ---
 
   attr :id, :string, required: true
-  attr :entry, :map, required: true
+
+  attr :entry, :map,
+    required: true,
+    doc:
+      "library entry map `%{entity: <typed Library schema>, progress: ProgressSummary.t() | nil, progress_records: [ProgressRecord.t()]}` produced by `MediaCentarr.Library.Browser.fetch_all_typed_entries/0`. The map shape is shared by helpers in `LibraryHelpers`, `LibraryProgress`, and `LibraryAvailability` and adds optional fields (`:resume_target`) over time — a struct here would be invasive; tightening is deferred to a planned `MediaCentarrWeb.ViewModels.*` consolidation."
+
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false
   attr :available, :boolean, default: true
@@ -125,7 +130,12 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   @sort_options [{:recent, "Recently Added"}, {:alpha, "A–Z"}, {:year, "Year"}]
 
   attr :active_tab, :atom, required: true
-  attr :counts, :map, required: true
+
+  attr :counts, :map,
+    required: true,
+    doc:
+      "tab counts `%{all: integer(), movies: integer(), tv: integer()}` from `MediaCentarrWeb.LibraryHelpers.tab_counts/1`."
+
   attr :sort_order, :atom, required: true
   attr :sort_open, :boolean, required: true
   attr :sort_highlight, :integer, required: true

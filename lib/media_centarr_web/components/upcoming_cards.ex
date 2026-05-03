@@ -9,18 +9,53 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   @weekdays ~w(Mon Tue Wed Thu Fri Sat Sun)
 
+  defmodule TrackedItem do
+    @moduledoc """
+    View-model for one row in the "Tracking" list — built by
+    `UpcomingLive.build_tracked_items_from_watching/0` from each
+    `MediaCentarr.ReleaseTracking.Item` plus its release counts.
+    """
+    @enforce_keys [:item_id, :name, :media_type, :status_text]
+    defstruct [:item_id, :name, :media_type, :status_text]
+
+    @type t :: %__MODULE__{
+            item_id: Ecto.UUID.t(),
+            name: String.t(),
+            media_type: :movie | :tv_series,
+            status_text: String.t()
+          }
+  end
+
+  # Shared doc strings for repeating loose-attr shapes. Phoenix `attr` has
+  # no validators for "list of typed structs", "map keyed by tuple", or
+  # "tuple of integers", so each shape carries a prose contract pointing
+  # at its typed producer.
+  @doc_releases_map "release pair `%{upcoming: [Release.t()], released: [Release.t()]}` from `UpcomingLive.load_upcoming/0`. `Release` is `MediaCentarr.ReleaseTracking.Release` (Ecto schema) preloaded with `:item`."
+  @doc_releases_list "list of `MediaCentarr.ReleaseTracking.Release.t()` rows."
+  @doc_grab_statuses "map `%{{tmdb_id, tmdb_type, season, episode} => MediaCentarr.Acquisition.Grab.t()}` from `Acquisition.statuses_for_releases/1`."
+  @doc_queue_items "list of `MediaCentarr.Acquisition.QueueItem.t()` rows from `Acquisition.queue_snapshot/0`."
+  @doc_images_map "map `%{Ecto.UUID.t() => %{atom() => String.t()}}` keyed by tracked-item id, value is the image-role → URL map. Built by `UpcomingLive.load_tracking_images/1`."
+  @doc_calendar_month_tuple "tuple `{year :: integer(), month :: 1..12}` — current calendar viewport. Phoenix has no tuple type."
+  @doc_selected_day_or_nil "selected calendar day (`Date.t()`) or `nil` when no day is selected."
+  @doc_confirm_item_or_nil "the `TrackedItem.t()` pending stop-confirmation, or `nil` when the modal is closed."
+  @doc_events_list "list of `MediaCentarr.ReleaseTracking.Event.t()` rows."
+
   # --- Main component ---
 
-  attr :releases, :map, required: true
-  attr :events, :list, required: true
-  attr :images, :map, default: %{}
-  attr :calendar_month, :any, required: true
-  attr :selected_day, :any, default: nil
-  attr :tracked_items, :list, default: []
-  attr :confirm_stop_item, :any, default: nil
+  attr :releases, :map, required: true, doc: @doc_releases_map
+  attr :events, :list, required: true, doc: @doc_events_list
+  attr :images, :map, default: %{}, doc: @doc_images_map
+  attr :calendar_month, :any, required: true, doc: @doc_calendar_month_tuple
+  attr :selected_day, :any, default: nil, doc: @doc_selected_day_or_nil
+
+  attr :tracked_items, :list,
+    default: [],
+    doc: "list of `TrackedItem.t()` structs."
+
+  attr :confirm_stop_item, :any, default: nil, doc: @doc_confirm_item_or_nil
   attr :tmdb_ready, :boolean, default: true
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   def upcoming_zone(assigns) do
@@ -251,8 +286,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   attr :date, Date, required: true
   attr :month, :integer, required: true
   attr :today, Date, required: true
-  attr :releases, :list, default: []
-  attr :images, :map, default: %{}
+  attr :releases, :list, default: [], doc: @doc_releases_list
+  attr :images, :map, default: %{}, doc: @doc_images_map
   attr :selected, :boolean, default: false
 
   defp calendar_cell(assigns) do
@@ -375,8 +410,12 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   # --- Backdrop tile for calendar cell grids ---
 
-  attr :release, :any, required: true
-  attr :images, :map, default: %{}
+  attr :release, :any,
+    required: true,
+    doc:
+      "single `MediaCentarr.ReleaseTracking.Release.t()` — preloaded with `:item`. The owning context's boundary doesn't export the schema module, so the attr stays loose with this prose contract."
+
+  attr :images, :map, default: %{}, doc: @doc_images_map
 
   defp release_tile(assigns) do
     item = assigns.release.item
@@ -416,10 +455,10 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # --- Selected day detail panel ---
 
   attr :day, Date, required: true
-  attr :releases, :list, required: true
-  attr :images, :map, default: %{}
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :releases, :list, required: true, doc: @doc_releases_list
+  attr :images, :map, default: %{}, doc: @doc_images_map
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp day_detail(assigns) do
@@ -447,10 +486,14 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     """
   end
 
-  attr :release, :any, required: true
-  attr :images, :map, default: %{}
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :release, :any,
+    required: true,
+    doc:
+      "single `MediaCentarr.ReleaseTracking.Release.t()` — preloaded with `:item`. See `release_tile/1` for the prose contract rationale."
+
+  attr :images, :map, default: %{}, doc: @doc_images_map
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp day_release_card(assigns) do
@@ -563,12 +606,12 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   @upcoming_visible_per_card 3
 
-  attr :released, :list, required: true
-  attr :upcoming, :list, required: true
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :released, :list, required: true, doc: @doc_releases_list
+  attr :upcoming, :list, required: true, doc: @doc_releases_list
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
-  attr :images, :map, default: %{}
+  attr :images, :map, default: %{}, doc: @doc_images_map
 
   defp active_shows(assigns) do
     groups = merge_active_groups(assigns.released, assigns.upcoming)
@@ -667,13 +710,17 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     end
   end
 
-  attr :item, :map, required: true
-  attr :released, :list, required: true
-  attr :upcoming, :list, default: []
+  attr :item, :map,
+    required: true,
+    doc:
+      "tracked `MediaCentarr.ReleaseTracking.Item.t()` (the schema, not the view-model). Boundary doesn't export the module; contract is documented prose."
+
+  attr :released, :list, required: true, doc: @doc_releases_list
+  attr :upcoming, :list, default: [], doc: @doc_releases_list
   attr :upcoming_overflow, :integer, default: 0
-  attr :images, :map, default: %{}
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :images, :map, default: %{}, doc: @doc_images_map
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp active_card(assigns) do
@@ -755,15 +802,19 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   defp first_present([_ | _] = a, _b), do: a
   defp first_present([], b), do: b
 
-  attr :item, :map, required: true
-  attr :released, :list, required: true
-  attr :upcoming, :list, default: []
+  attr :item, :map,
+    required: true,
+    doc:
+      "tracked `MediaCentarr.ReleaseTracking.Item.t()`. Same boundary-prose contract as `active_card/1`."
+
+  attr :released, :list, required: true, doc: @doc_releases_list
+  attr :upcoming, :list, default: [], doc: @doc_releases_list
   attr :upcoming_overflow, :integer, default: 0
   attr :backdrop, :string, default: nil
   attr :logo, :string, default: nil
   attr :kind, :atom, required: true
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp active_card_inner(assigns) do
@@ -930,9 +981,13 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     """
   end
 
-  attr :release, :map, required: true
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :release, :map,
+    required: true,
+    doc:
+      "single `MediaCentarr.ReleaseTracking.Release.t()` — preloaded with `:item`. See `release_tile/1` for the boundary-prose contract rationale."
+
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp active_episode_row(assigns) do
@@ -985,7 +1040,10 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # Upcoming row: future episode in the same card, no acquisition state
   # to show, not clickable. Just date + episode info, dimmed to differentiate
   # from released/active rows visually.
-  attr :release, :map, required: true
+  attr :release, :map,
+    required: true,
+    doc:
+      "single `MediaCentarr.ReleaseTracking.Release.t()`. See `release_tile/1` for the boundary-prose contract rationale."
 
   defp upcoming_episode_row(assigns) do
     ~H"""
@@ -1031,7 +1089,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   # --- Unscheduled section content ---
 
-  attr :releases, :list, required: true
+  attr :releases, :list, required: true, doc: @doc_releases_list
 
   defp unscheduled_content(assigns) do
     ~H"""
@@ -1058,7 +1116,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   # --- Tracked item row ---
 
-  attr :item, :map, required: true
+  attr :item, TrackedItem, required: true
   attr :acquisition_ready, :boolean, default: false
 
   defp tracked_item_row(assigns) do
@@ -1099,7 +1157,10 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   # --- Stop tracking confirmation modal ---
 
-  attr :item, :any, default: nil
+  attr :item, :map,
+    default: nil,
+    doc:
+      "the `MediaCentarr.ReleaseTracking.Item.t()` pending stop-confirmation, or `nil` when the modal is closed. Template only reads `.name`."
 
   defp stop_tracking_modal(assigns) do
     open = assigns.item != nil
@@ -1397,9 +1458,13 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     end)
   end
 
-  attr :release, :map, required: true
-  attr :grab_statuses, :map, default: %{}
-  attr :queue_items, :list, default: []
+  attr :release, :map,
+    required: true,
+    doc:
+      "single `MediaCentarr.ReleaseTracking.Release.t()`. See `release_tile/1` for the boundary-prose contract rationale."
+
+  attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp release_status_icon(assigns) do

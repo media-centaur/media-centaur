@@ -3,6 +3,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
 
   alias MediaCentarr.Acquisition.{Grab, QueueItem}
   alias MediaCentarrWeb.Components.UpcomingCards
+  alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
 
   defp grab(status, overrides \\ %{}) do
     Map.merge(%Grab{status: status}, overrides)
@@ -379,6 +380,41 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
 
       assert [%{item: ^soon}, %{item: ^far}] =
                UpcomingCards.merge_active_groups([], [far_release, soon_release])
+    end
+  end
+
+  describe "TrackedItem struct" do
+    test "constructs with all enforced keys" do
+      item =
+        struct!(TrackedItem, %{
+          item_id: "00000000-0000-0000-0000-000000000001",
+          name: "Sample Show",
+          media_type: :tv_series,
+          status_text: "2 upcoming"
+        })
+
+      assert %TrackedItem{} = item
+      assert item.media_type == :tv_series
+    end
+
+    test "raises ArgumentError when item_id missing" do
+      assert_raise ArgumentError, fn ->
+        struct!(TrackedItem, %{
+          name: "Sample Show",
+          media_type: :tv_series,
+          status_text: "tracking"
+        })
+      end
+    end
+
+    test "raises ArgumentError when status_text missing" do
+      assert_raise ArgumentError, fn ->
+        struct!(TrackedItem, %{
+          item_id: "00000000-0000-0000-0000-000000000001",
+          name: "Sample Show",
+          media_type: :movie
+        })
+      end
     end
   end
 end
