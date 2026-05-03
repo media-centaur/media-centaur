@@ -30,6 +30,15 @@ defmodule MediaCentarr.Library.PresentableQueries do
   All queries name their primary binding `:item` so callers can compose with
   `from([m] in PresentableQueries.standalone_movies(), where: ...)` or use
   `parent_as(:item)` from a subquery.
+
+  ## Two categorization variants
+
+    * **By present-children count** (`standalone_movies/0`, `singleton_collection_movies/0`,
+      `multi_child_movie_series/0`) — categorization shifts as files appear and disappear.
+      Use for browse surfaces where row inclusion already requires file presence.
+    * **By Movie-record count** (`*_by_record_count/0`) — categorization is stable
+      against transient file-presence changes. Use for progress surfaces where the
+      user's engagement signal (`watch_progress`) is the inclusion rule.
   """
   import Ecto.Query
 
@@ -95,6 +104,66 @@ defmodule MediaCentarr.Library.PresentableQueries do
                   JOIN watcher_files AS kf ON kf.file_path = wf.file_path
                  WHERE wf.movie_id = m.id AND kf.state = 'present'
               )
+          ) >= 2
+          """,
+          ms.id
+        )
+    )
+  end
+
+  @doc """
+  Standalone movies, presence-agnostic: `movie_series_id IS NULL`. Used by progress
+  surfaces (e.g. Continue Watching) where the user's engagement signal is the
+  inclusion criterion, not file presence.
+  """
+  def standalone_movies_by_record_count do
+    from(m in Movie,
+      as: :item,
+      where: is_nil(m.movie_series_id)
+    )
+  end
+
+  @doc """
+  Singleton-collection movies, by Movie-record count (presence-agnostic): a movie
+  whose `MovieSeries` has exactly one child Movie record in the database, regardless
+  of file presence. Used by progress surfaces where the user's intent should not be
+  masked by a transiently absent file.
+
+  Note this differs from `singleton_collection_movies/0`: the browse-side variant
+  counts only present children (so the categorization changes when files come and
+  go); the progress-side variant counts records (stable across file states).
+  """
+  def singleton_collection_movies_by_record_count do
+    from(m in Movie,
+      as: :item,
+      where: not is_nil(m.movie_series_id),
+      where:
+        fragment(
+          """
+          (SELECT COUNT(*)
+             FROM library_movies AS m2
+            WHERE m2.movie_series_id = ?
+          ) = 1
+          """,
+          m.movie_series_id
+        )
+    )
+  end
+
+  @doc """
+  Movie series with 2+ child Movie records, by record count (presence-agnostic).
+  Used by progress surfaces. Mirror of `multi_child_movie_series/0` minus the
+  present-files requirement.
+  """
+  def multi_child_movie_series_by_record_count do
+    from(ms in MovieSeries,
+      as: :item,
+      where:
+        fragment(
+          """
+          (SELECT COUNT(*)
+             FROM library_movies AS m
+            WHERE m.movie_series_id = ?
           ) >= 2
           """,
           ms.id
