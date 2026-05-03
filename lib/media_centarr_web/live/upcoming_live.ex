@@ -15,6 +15,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
 
   alias MediaCentarr.{Acquisition, Capabilities, ReleaseTracking}
   alias MediaCentarrWeb.Components.{TrackModal, UpcomingCards}
+  alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
 
   # Acquisition events that only invalidate grab statuses — not the underlying
   # release / image / tracked-item data. Routing them to a dedicated reloader
@@ -498,7 +499,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
           {u, r} -> "#{u} upcoming, #{r} released"
         end
 
-      %{
+      %TrackedItem{
         item_id: item.id,
         name: item.name,
         media_type: item.media_type,
