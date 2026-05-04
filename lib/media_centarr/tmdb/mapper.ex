@@ -18,6 +18,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       url: tmdb_url(:movie, tmdb_id),
       duration: minutes_to_iso8601(movie["runtime"]),
       director: extract_director(movie["credits"]),
+      cast: extract_cast(movie["credits"]),
       content_rating: extract_us_rating(movie["release_dates"]),
       aggregate_rating_value: movie["vote_average"],
       vote_count: movie["vote_count"],
@@ -230,6 +231,30 @@ defmodule MediaCentarr.TMDB.Mapper do
     |> Enum.find(&(&1["department"] == "Directing" && &1["job"] == "Director"))
     |> then(&if &1, do: &1["name"])
   end
+
+  @doc """
+  Extracts the cast list from a TMDB credits payload. Returns a list of
+  maps sorted by `order` ascending — the TMDB importance ranking.
+  String keys (not atoms) so the value round-trips through SQLite/JSON
+  without atom conversion friction.
+  """
+  def extract_cast(nil), do: []
+
+  def extract_cast(%{"cast" => cast}) when is_list(cast) do
+    cast
+    |> Enum.sort_by(& &1["order"])
+    |> Enum.map(fn person ->
+      %{
+        "name" => person["name"],
+        "character" => person["character"],
+        "tmdb_person_id" => person["id"],
+        "profile_path" => person["profile_path"],
+        "order" => person["order"]
+      }
+    end)
+  end
+
+  def extract_cast(_), do: []
 
   def extract_us_rating(nil), do: nil
 
