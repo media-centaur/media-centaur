@@ -35,6 +35,7 @@ defmodule MediaCentarr.Library.EntityShape do
       country_code: Map.get(record, :country_code),
       network: Map.get(record, :network),
       status: Map.get(record, :status),
+      cast: Map.get(record, :cast) || [],
       collection: collection_from(record, type),
       images: Map.get(record, :images, []),
       external_ids: Map.get(record, :external_ids, []),
