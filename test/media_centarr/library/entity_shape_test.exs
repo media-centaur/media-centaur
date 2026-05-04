@@ -43,6 +43,27 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       assert shape.watch_progress == []
       assert shape.extra_progress == []
     end
+
+    test "carries cast through to the normalized shape" do
+      cast_data = [
+        %{
+          "name" => "Sample Actor",
+          "character" => "Sample Role",
+          "tmdb_person_id" => 1,
+          "profile_path" => "/p.jpg",
+          "order" => 0
+        }
+      ]
+
+      movie = build_standalone_movie(%{cast: cast_data})
+
+      assert EntityShape.normalize(movie, :movie).cast == cast_data
+    end
+
+    test "defaults cast to [] when the record has no cast value" do
+      shape = EntityShape.normalize(build_standalone_movie(), :movie)
+      assert shape.cast == []
+    end
   end
 
   describe "normalize/2 — tv_series" do
