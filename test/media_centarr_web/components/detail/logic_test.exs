@@ -7,7 +7,7 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
   alias MediaCentarrWeb.Components.Detail.Logic
 
   describe "facets_for/2 with :movie" do
-    test "returns Director / Original language / Studio / Genres / Rating in order" do
+    test "returns Director / Rating / Original language / Studio / Genres in order" do
       movie =
         build_movie(%{
           director: "F. W. Murnau",
@@ -20,10 +20,10 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
 
       assert Logic.facets_for(:movie, movie) == [
                %Facet{label: "Director", kind: :text, value: "F. W. Murnau"},
+               %Facet{label: "Rating", kind: :rating, value: %{rating: 7.9, vote_count: 1234}},
                %Facet{label: "Original language", kind: :text, value: "de"},
                %Facet{label: "Studio", kind: :text, value: "Prana Film"},
-               %Facet{label: "Genres", kind: :chips, value: ["Horror", "Silent"]},
-               %Facet{label: "Rating", kind: :rating, value: %{rating: 7.9, vote_count: 1234}}
+               %Facet{label: "Genres", kind: :chips, value: ["Horror", "Silent"]}
              ]
     end
 
@@ -91,7 +91,7 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
   end
 
   describe "facets_for/2 with :tv_series" do
-    test "returns Network / Original language / Genres / Rating in order" do
+    test "returns Network / Rating / Original language / Genres in order" do
       tv =
         build_tv_series(%{
           network: "ABC",
@@ -103,9 +103,9 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
 
       assert Logic.facets_for(:tv_series, tv) == [
                %Facet{label: "Network", kind: :text, value: "ABC"},
+               %Facet{label: "Rating", kind: :rating, value: %{rating: 8.2, vote_count: 5500}},
                %Facet{label: "Original language", kind: :text, value: "en"},
-               %Facet{label: "Genres", kind: :chips, value: ["Drama"]},
-               %Facet{label: "Rating", kind: :rating, value: %{rating: 8.2, vote_count: 5500}}
+               %Facet{label: "Genres", kind: :chips, value: ["Drama"]}
              ]
     end
 
