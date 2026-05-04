@@ -39,6 +39,7 @@ defmodule MediaCentarr.Library.VideoObject do
       :tmdb_id
     ])
     |> validate_required([:name])
+    |> unique_constraint(:tmdb_id, name: :library_video_objects_tmdb_id_index)
   end
 
   def update_changeset(video_object, attrs) do

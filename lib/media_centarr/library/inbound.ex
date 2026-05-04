@@ -13,7 +13,11 @@ defmodule MediaCentarr.Library.Inbound do
     then sends the file list to `"review:intake"` for re-review
 
   Entities are created as type-specific records (TVSeries, MovieSeries, Movie,
-  VideoObject). Existing entities are found by TMDB ID lookup on ExternalId records.
+  VideoObject). Existing entities are found by TMDB ID lookup on the entity's
+  own `tmdb_id` column (a unique partial index per type, see
+  `priv/repo/migrations/.._unique_indexes_on_entity_tmdb_id.exs`). Race-loss
+  during concurrent inserts is detected via that constraint and recovered by
+  looking up the winner.
   """
   use GenServer
   require MediaCentarr.Log, as: Log
@@ -200,28 +204,18 @@ defmodule MediaCentarr.Library.Inbound do
   end
 
   defp find_existing_entity(%{source: "tmdb_collection", external_id: value}) do
-    case Library.find_by_tmdb_collection_for_movie_series(value) do
-      %{movie_series_id: id} when not is_nil(id) ->
-        {:ok, Library.get_movie_series!(id)}
-
-      _ ->
-        :not_found
+    case Library.find_movie_series_by_tmdb_id(value) do
+      nil -> :not_found
+      entity -> {:ok, entity}
     end
   end
 
   defp find_existing_entity(%{source: _source, external_id: value}) do
-    case Library.find_by_tmdb_id_for_tv_series(value) do
-      %{tv_series_id: id} when not is_nil(id) ->
-        {:ok, Library.get_tv_series!(id)}
-
-      _ ->
-        case Library.find_by_tmdb_id_for_movie(value) do
-          %{movie_id: id} when not is_nil(id) ->
-            {:ok, Library.get_movie!(id)}
-
-          _ ->
-            :not_found
-        end
+    cond do
+      tv = Library.find_tv_series_by_tmdb_id(value) -> {:ok, tv}
+      movie = Library.find_movie_by_tmdb_id(value) -> {:ok, movie}
+      vo = Library.find_video_object_by_tmdb_id(value) -> {:ok, vo}
+      true -> :not_found
     end
   end
 
@@ -233,29 +227,52 @@ defmodule MediaCentarr.Library.Inbound do
     entity_attrs = strip_content_url_if_extra(event.entity_attrs, event)
     shared_id = Ecto.UUID.generate()
 
-    with {:ok, type_record} <- create_type_record(event.entity_type, entity_attrs, shared_id),
-         :ok <- create_external_id_with_race_retry(type_record, event) do
-      owner_type = owner_type_for(event.entity_type)
-      entity_images = collect_images(type_record.id, owner_type, event.images)
+    case create_type_record(event.entity_type, entity_attrs, shared_id) do
+      {:ok, type_record} ->
+        owner_type = owner_type_for(event.entity_type)
+        entity_images = collect_images(type_record.id, owner_type, event.images)
 
-      case create_children(type_record, event) do
-        {:ok, child_images} ->
-          ChangeLog.record_addition(type_record, event.entity_type)
-          {:ok, type_record, :new, entity_images ++ child_images}
+        case create_children(type_record, event) do
+          {:ok, child_images} ->
+            ChangeLog.record_addition(type_record, event.entity_type)
+            {:ok, type_record, :new, entity_images ++ child_images}
 
-        {:error, reason} ->
-          {:error, reason}
-      end
-    else
-      {:race_lost, winner_entity_id} ->
-        Log.info(:library, "race lost — using winner #{Format.short_id(winner_entity_id)}")
-        winner = resolve_type_record!(event.entity_type, winner_entity_id)
-        link_to_existing(winner, event)
+          {:error, reason} ->
+            {:error, reason}
+        end
 
-      {:error, reason} ->
-        {:error, reason}
+      {:error, %Ecto.Changeset{} = cs} = error ->
+        case race_winner(event, cs) do
+          {:ok, winner} ->
+            Log.info(:library, "race lost — using winner #{Format.short_id(winner.id)}")
+            link_to_existing(winner, event)
+
+          :not_found ->
+            error
+        end
+
+      {:error, _reason} = error ->
+        error
     end
   end
+
+  # Detects a race-loss against the entity's `tmdb_id` unique constraint
+  # and looks up the winning entity by its tmdb_id.
+  defp race_winner(%{identifier: %{external_id: value}} = event, %Ecto.Changeset{errors: errors}) do
+    if Keyword.has_key?(errors, :tmdb_id) do
+      case event.entity_type do
+        :tv_series -> wrap_winner(Library.find_tv_series_by_tmdb_id(value))
+        :movie_series -> wrap_winner(Library.find_movie_series_by_tmdb_id(value))
+        :movie -> wrap_winner(Library.find_movie_by_tmdb_id(value))
+        :video_object -> wrap_winner(Library.find_video_object_by_tmdb_id(value))
+      end
+    else
+      :not_found
+    end
+  end
+
+  defp wrap_winner(nil), do: :not_found
+  defp wrap_winner(entity), do: {:ok, entity}
 
   defp create_type_record(:tv_series, attrs, shared_id) do
     Library.create_tv_series(Map.put(attrs, :id, shared_id))
@@ -307,9 +324,9 @@ defmodule MediaCentarr.Library.Inbound do
   defp maybe_create_child_movie(entity_type, entity_id, %{child_movie: child_movie} = event) do
     child_movie = strip_child_content_url_if_extra(child_movie, event)
 
-    with {:ok, _movie, images} <- create_child_movie(entity_type, entity_id, child_movie),
-         :ok <- create_child_movie_identifier(entity_type, entity_id, child_movie) do
-      {:ok, images}
+    case create_child_movie(entity_type, entity_id, child_movie) do
+      {:ok, _movie, images} -> {:ok, images}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -361,10 +378,9 @@ defmodule MediaCentarr.Library.Inbound do
   # Movie series — ensure child movie -> :new_child
   defp do_link_to_existing(entity, %{entity_type: :movie_series} = event) do
     if event.child_movie do
-      with {:ok, _movie, images} <-
-             create_child_movie(:movie_series, entity.id, event.child_movie),
-           :ok <- create_child_movie_identifier(:movie_series, entity.id, event.child_movie) do
-        {:ok, entity, :new_child, images}
+      case create_child_movie(:movie_series, entity.id, event.child_movie) do
+        {:ok, _movie, images} -> {:ok, entity, :new_child, images}
+        {:error, reason} -> {:error, reason}
       end
     else
       {:ok, entity, :existing, []}
@@ -472,22 +488,6 @@ defmodule MediaCentarr.Library.Inbound do
     end
   end
 
-  defp create_child_movie_identifier(_entity_type, _entity_id, %{identifier: nil}), do: :ok
-
-  defp create_child_movie_identifier(entity_type, entity_id, %{identifier: identifier}) do
-    attrs =
-      put_type_fk(
-        %{source: identifier.source, external_id: identifier.external_id},
-        entity_type,
-        entity_id
-      )
-
-    case Library.find_or_create_external_id(attrs) do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
   # ---------------------------------------------------------------------------
   # Extra
   # ---------------------------------------------------------------------------
@@ -554,38 +554,6 @@ defmodule MediaCentarr.Library.Inbound do
   defp output_extension(_role), do: "jpg"
 
   # ---------------------------------------------------------------------------
-  # ExternalId with race-loss recovery
-  # ---------------------------------------------------------------------------
-
-  defp create_external_id_with_race_retry(type_record, event) do
-    type_fk = type_fk_for(event.entity_type)
-
-    attrs =
-      put_type_fk(
-        %{source: event.identifier.source, external_id: event.identifier.external_id},
-        event.entity_type,
-        type_record.id
-      )
-
-    case Library.find_or_create_external_id(attrs) do
-      {:ok, created_external_id} ->
-        # Check the type-specific FK to detect race loss. If the returned
-        # external ID belongs to a different entity, we lost the race.
-        owner_id = Map.get(created_external_id, type_fk)
-
-        if owner_id == type_record.id do
-          :ok
-        else
-          destroy_type_record(event.entity_type, type_record)
-          {:race_lost, owner_id}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  # ---------------------------------------------------------------------------
   # Content URL helpers
   # ---------------------------------------------------------------------------
 
@@ -640,18 +608,6 @@ defmodule MediaCentarr.Library.Inbound do
   defp put_type_fk(attrs, entity_type, entity_id) do
     Map.put(attrs, type_fk_for(entity_type), entity_id)
   end
-
-  # Loads a type-specific record by type + id (used for race-loss recovery).
-  defp resolve_type_record!(:tv_series, id), do: Library.get_tv_series!(id)
-  defp resolve_type_record!(:movie_series, id), do: Library.get_movie_series!(id)
-  defp resolve_type_record!(:movie, id), do: Library.get_movie!(id)
-  defp resolve_type_record!(:video_object, id), do: Library.get_video_object!(id)
-
-  # Destroys a type-specific record (used for race-loss cleanup).
-  defp destroy_type_record(:tv_series, record), do: Library.destroy_tv_series!(record)
-  defp destroy_type_record(:movie_series, record), do: Library.destroy_movie_series!(record)
-  defp destroy_type_record(:movie, record), do: Library.destroy_movie!(record)
-  defp destroy_type_record(:video_object, record), do: Library.destroy_video_object!(record)
 
   # Conditionally puts a key-value pair into a map.
   defp maybe_put(map, _key, _value, false), do: map

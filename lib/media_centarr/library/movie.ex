@@ -71,6 +71,7 @@ defmodule MediaCentarr.Library.Movie do
       :cast
     ])
     |> validate_required([:name])
+    |> unique_constraint(:tmdb_id, name: :library_movies_tmdb_id_index)
     |> coerce_cast_default()
   end
 

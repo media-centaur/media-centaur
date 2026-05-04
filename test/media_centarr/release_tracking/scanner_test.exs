@@ -12,8 +12,7 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
 
   describe "scan/0" do
     test "tracks a TV series with upcoming episodes" do
-      tv_series = create_tv_series(%{name: "Sample Show"})
-      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "1396"})
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "1396"})
 
       stub_routes([
         {"/tv/1396/season/6",
@@ -51,8 +50,7 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
     end
 
     test "tracks a TV series with gap episodes since last library episode" do
-      tv_series = create_tv_series(%{name: "The Pitt"})
-      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "2001"})
+      tv_series = create_tv_series(%{name: "Sample Show B", tmdb_id: "2001"})
 
       # Create library episodes up to S2E12
       season =
@@ -77,10 +75,10 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
         {"/tv/2001",
          %{
            "id" => 2001,
-           "name" => "The Pitt",
+           "name" => "Sample Show B",
            "status" => "Returning Series",
            "number_of_seasons" => 2,
-           "poster_path" => "/pitt.jpg",
+           "poster_path" => "/sample.jpg",
            "next_episode_to_air" => %{
              "air_date" => "2027-04-09",
              "season_number" => 2,
@@ -107,16 +105,15 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
     end
 
     test "skips ended TV series with no upcoming episodes" do
-      tv_series = create_tv_series(%{name: "Sample Show"})
-      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "1438"})
+      _tv_series = create_tv_series(%{name: "Sample Show C", tmdb_id: "1438"})
 
       stub_routes([
         {"/tv/1438",
          %{
            "id" => 1438,
-           "name" => "Sample Show",
+           "name" => "Sample Show C",
            "status" => "Ended",
-           "poster_path" => "/wire.jpg",
+           "poster_path" => "/sample.jpg",
            "next_episode_to_air" => nil
          }}
       ])
@@ -128,25 +125,19 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
     end
 
     test "tracks movie collection with unreleased parts" do
-      movie_series = create_movie_series(%{name: "Dark Knight Collection"})
-
-      create_external_id(%{
-        movie_series_id: movie_series.id,
-        source: "tmdb_collection",
-        external_id: "263"
-      })
+      _movie_series = create_movie_series(%{name: "Sample Movie Collection", tmdb_id: "263"})
 
       stub_routes([
         {"/collection/263",
          %{
            "id" => 263,
-           "name" => "Dark Knight Collection",
-           "poster_path" => "/dk.jpg",
+           "name" => "Sample Movie Collection",
+           "poster_path" => "/sample.jpg",
            "parts" => [
-             %{"id" => 155, "title" => "The Shadowy Sentinel", "release_date" => "2008-07-18"},
+             %{"id" => 155, "title" => "Sample Movie A", "release_date" => "2008-07-18"},
              %{
                "id" => 99_999,
-               "title" => "The Shadowy Sentinel Returns",
+               "title" => "Sample Movie B",
                "release_date" => "2027-07-01"
              }
            ]
@@ -161,8 +152,7 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
     end
 
     test "is idempotent — skips already tracked items" do
-      tv_series = create_tv_series(%{name: "Sample Show"})
-      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "1396"})
+      _tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "1396"})
 
       create_tracking_item(%{
         tmdb_id: 1396,

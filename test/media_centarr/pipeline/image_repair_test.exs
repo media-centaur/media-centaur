@@ -111,14 +111,8 @@ defmodule MediaCentarr.Pipeline.ImageRepairTest do
       assert entry.watch_dir == tmp
     end
 
-    test "creates a new queue row for a tv_series via external_ids", %{tmp: tmp} do
-      tv = create_tv_series_with_watched_file(tmp)
-
-      Library.find_or_create_external_id!(%{
-        tv_series_id: tv.id,
-        source: "tmdb",
-        external_id: "1396"
-      })
+    test "creates a new queue row for a tv_series via tmdb_id", %{tmp: tmp} do
+      tv = create_tv_series_with_watched_file(tmp, %{tmdb_id: "1396"})
 
       Library.create_image!(%{
         tv_series_id: tv.id,
@@ -138,14 +132,8 @@ defmodule MediaCentarr.Pipeline.ImageRepairTest do
       assert entry.source_url == "https://image.tmdb.org/t/p/original/fresh_bd.jpg"
     end
 
-    test "creates a new queue row for a movie_series via external_ids", %{tmp: tmp} do
-      movie_series = create_movie_series_with_watched_file(tmp)
-
-      Library.find_or_create_external_id!(%{
-        movie_series_id: movie_series.id,
-        source: "tmdb",
-        external_id: "263"
-      })
+    test "creates a new queue row for a movie_series via tmdb_id", %{tmp: tmp} do
+      movie_series = create_movie_series_with_watched_file(tmp, %{tmdb_id: "263"})
 
       Library.create_image!(%{
         movie_series_id: movie_series.id,
@@ -262,18 +250,12 @@ defmodule MediaCentarr.Pipeline.ImageRepairTest do
 
   describe "repair_all/0 episode via parent series" do
     test "rebuilds queue row for an episode thumb via get_season", %{tmp: tmp} do
-      tv = create_tv_series_with_watched_file(tmp)
-
-      Library.find_or_create_external_id!(%{
-        tv_series_id: tv.id,
-        source: "tmdb",
-        external_id: "1396"
-      })
+      tv = create_tv_series_with_watched_file(tmp, %{tmdb_id: "1396"})
 
       season = create_season(%{tv_series_id: tv.id, season_number: 1, number_of_episodes: 1})
 
       episode =
-        create_episode(%{season_id: season.id, episode_number: 3, name: "Bit by a Dead Bee"})
+        create_episode(%{season_id: season.id, episode_number: 3, name: "Sample Episode 3"})
 
       Library.create_image!(%{
         episode_id: episode.id,
@@ -311,15 +293,15 @@ defmodule MediaCentarr.Pipeline.ImageRepairTest do
     movie
   end
 
-  defp create_tv_series_with_watched_file(tmp) do
-    tv = create_tv_series()
+  defp create_tv_series_with_watched_file(tmp, attrs \\ %{}) do
+    tv = create_tv_series(attrs)
     file_path = Path.join(tmp, "tv-#{tv.id}.mkv")
     Library.link_file!(%{tv_series_id: tv.id, file_path: file_path, watch_dir: tmp})
     tv
   end
 
-  defp create_movie_series_with_watched_file(tmp) do
-    ms = create_movie_series()
+  defp create_movie_series_with_watched_file(tmp, attrs) do
+    ms = create_movie_series(attrs)
     file_path = Path.join(tmp, "ms-#{ms.id}.mkv")
     Library.link_file!(%{movie_series_id: ms.id, file_path: file_path, watch_dir: tmp})
     ms
