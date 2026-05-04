@@ -4,6 +4,14 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.40.1 — 2026-05-04
+
+### Fixed
+
+The new **More info** button on movie detail panels did nothing when
+clicked. The credits view never opened because the modal URL was
+silently dropping the new view state. Now it works as intended.
+
 ## v0.40.0 — 2026-05-04
 
 ### New
