@@ -171,7 +171,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 keeps prose at a comfortable line length on wide displays
                 without leaving the right side empty.
                 File paths are intentionally NOT rendered here — they
-                live in the "More info" view's Files section, grouped by
+                live in the Manage view's Files section, grouped by
                 directory with delete affordances. The main view stays
                 focused on what to watch, not where it lives on disk. --%>
           <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,65ch)_minmax(0,1fr)] xl:gap-8 xl:items-start">
@@ -955,7 +955,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   defp info_view(assigns) do
     total_size = Enum.reduce(assigns.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
     file_count = length(assigns.files)
-    genres = assigns.entity.genres || []
 
     external_ids =
       if is_list(assigns.entity.external_ids), do: assigns.entity.external_ids, else: []
@@ -967,7 +966,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       assigns
       |> assign(:total_size, total_size)
       |> assign(:file_count, file_count)
-      |> assign(:genres, genres)
       |> assign(:external_ids, external_ids)
       |> assign(:file_groups, file_groups)
 
@@ -1033,67 +1031,20 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       <%!-- Delete confirmation modal --%>
       <.delete_confirmation delete_confirm={@delete_confirm} />
 
-      <%!-- Metadata section --%>
-      <div
-        :if={@genres != [] || @entity.director || @entity.aggregate_rating_value || @entity.duration}
-        data-nav-item
-        tabindex="0"
-        class="rounded-xl outline-none"
-      >
-        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
-          Metadata
-        </span>
-        <div class="mt-2 space-y-2 text-sm">
-          <div :if={@genres != []} class="flex items-start gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0">Genres</span>
-            <span class="text-base-content/80">{Enum.join(@genres, ", ")}</span>
-          </div>
-          <div :if={@entity.director} class="flex items-baseline gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0">Director</span>
-            <span class="text-base-content/80">{@entity.director}</span>
-          </div>
-          <div :if={@entity.aggregate_rating_value} class="flex items-baseline gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0">Rating</span>
-            <span class="text-base-content/80">{@entity.aggregate_rating_value}</span>
-          </div>
-          <div :if={@entity.duration} class="flex items-baseline gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0">Duration</span>
-            <span class="text-base-content/80">{format_iso_duration(@entity.duration)}</span>
-          </div>
-          <div :if={@entity.content_rating} class="flex items-baseline gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0">Rated</span>
-            <span class="text-base-content/80">{@entity.content_rating}</span>
-          </div>
-        </div>
-      </div>
-
-      <%!-- External IDs section --%>
-      <div data-nav-item tabindex="0" class="rounded-xl outline-none">
+      <%!-- External IDs section. One row per known external source.
+            TMDB row's URL comes from `@entity.url` (built by the mapper
+            with type-aware path /movie vs /tv). Unknown sources render
+            without a link rather than guessing a URL shape. --%>
+      <div :if={@external_ids != []}>
         <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
           External IDs
         </span>
-        <div class="mt-2 space-y-2 text-sm">
-          <div :if={@entity.url} class="flex items-start gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0">TMDB</span>
-            <a
-              href={@entity.url}
-              target="_blank"
-              rel="noopener"
-              class="link link-primary text-sm truncate"
-            >
-              {@entity.url}
-            </a>
-          </div>
-          <div :for={ext_id <- @external_ids} class="flex items-start gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0 truncate">
-              {ext_id.source}
-            </span>
-            <span class="text-base-content/80 font-mono text-xs">{ext_id.external_id}</span>
-          </div>
-          <div class="flex items-start gap-2">
-            <span class="text-base-content/50 w-16 flex-shrink-0">UUID</span>
-            <span class="text-base-content/60 font-mono text-xs select-all">{@entity.id}</span>
-          </div>
+        <div class="mt-2 space-y-1">
+          <.external_id_row
+            :for={ext_id <- @external_ids}
+            ext_id={ext_id}
+            entity_url={@entity.url}
+          />
         </div>
       </div>
 
@@ -1103,17 +1054,18 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           Actions
         </span>
         <div class="mt-2 flex items-center gap-2">
-          <button
+          <.button
             :if={@tmdb_ready}
+            variant={if @rematch_confirm, do: "danger", else: "risky"}
+            size="sm"
             phx-click="rematch"
             phx-value-id={@entity.id}
-            class={"btn btn-soft btn-sm #{if @rematch_confirm, do: "btn-error", else: "btn-warning"}"}
             data-nav-item
             tabindex="0"
           >
             <.icon name="hero-arrow-path-mini" class="size-4" />
             {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
-          </button>
+          </.button>
           <p :if={!@tmdb_ready} class="text-xs text-base-content/50">
             Rematch needs a working TMDB connection. Test it in <.link
               navigate="/settings?section=tmdb"
@@ -1122,9 +1074,60 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           </p>
         </div>
       </div>
+
+      <%!-- UUID footer — debug-y, kept for support workflows but
+            visually demoted so it doesn't compete with real metadata. --%>
+      <div class="pt-1 flex items-center gap-1.5 text-xs text-base-content/30">
+        <.icon name="hero-finger-print-mini" class="size-3" />
+        <span class="uppercase tracking-wide">UUID</span>
+        <span class="font-mono select-all">{@entity.id}</span>
+      </div>
     </div>
     """
   end
+
+  attr :ext_id, :map, required: true, doc: "`MediaCentarr.Library.ExternalId.t()`"
+  attr :entity_url, :string, default: nil
+
+  defp external_id_row(assigns) do
+    url = external_id_url(assigns.ext_id.source, assigns.ext_id.external_id, assigns.entity_url)
+    label = external_id_label(assigns.ext_id.source)
+    assigns = assigns |> assign(:url, url) |> assign(:label, label)
+
+    ~H"""
+    <div class="flex items-baseline gap-2 text-sm">
+      <span class="text-base-content/50 w-16 flex-shrink-0 text-xs uppercase tracking-wide">
+        {@label}
+      </span>
+      <%= if @url do %>
+        <a
+          href={@url}
+          target="_blank"
+          rel="noopener"
+          class="inline-flex items-baseline gap-1 link link-primary font-mono text-xs"
+          data-nav-item
+          tabindex="0"
+        >
+          {@ext_id.external_id}
+          <.icon name="hero-arrow-top-right-on-square-mini" class="size-3 self-center" />
+        </a>
+      <% else %>
+        <span class="text-base-content/80 font-mono text-xs">{@ext_id.external_id}</span>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp external_id_url("tmdb", _id, entity_url) when is_binary(entity_url), do: entity_url
+  defp external_id_url("imdb", id, _), do: "https://www.imdb.com/title/#{id}/"
+  defp external_id_url("tvdb", id, _), do: "https://www.thetvdb.com/dereferrer/series/#{id}"
+  defp external_id_url(_, _, _), do: nil
+
+  defp external_id_label("tmdb"), do: "TMDB"
+  defp external_id_label("imdb"), do: "IMDb"
+  defp external_id_label("tvdb"), do: "TVDB"
+  defp external_id_label(source) when is_binary(source), do: String.upcase(source)
+  defp external_id_label(_), do: "—"
 
   attr :file_info, :map, required: true, doc: @doc_file_info
 
@@ -1133,6 +1136,8 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     size = assigns.file_info.size
     absent = is_nil(size)
     filename = Path.basename(file.file_path)
+    badges = parse_quality_badges(filename)
+    added_at = Map.get(file, :inserted_at)
 
     assigns =
       assigns
@@ -1140,6 +1145,8 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:filename, filename)
       |> assign(:size, size)
       |> assign(:absent, absent)
+      |> assign(:badges, badges)
+      |> assign(:added_at, added_at)
 
     ~H"""
     <div class={["group text-sm rounded p-2 bg-base-content/5", @absent && "opacity-60"]}>
@@ -1168,8 +1175,118 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           <.icon name="hero-trash-mini" class="size-3.5" />
         </.button>
       </div>
+      <div
+        :if={@badges != [] || @added_at}
+        class="mt-1 ml-5 flex items-center gap-1.5 text-xs text-base-content/40"
+      >
+        <%!-- Highlight HDR (a quality users actively care about) with the
+              info-blue tint; everything else stays a quiet ghost chip. --%>
+        <.badge
+          :for={badge <- @badges}
+          variant={if badge == "HDR", do: "info", else: "ghost"}
+          size="xs"
+        >
+          {badge}
+        </.badge>
+        <span :if={@added_at} class="ml-auto">added {time_ago(@added_at)}</span>
+      </div>
     </div>
     """
+  end
+
+  @doc """
+  Extracts a small, ordered list of quality/format badges from a release filename.
+
+  Returns at most one badge per category: resolution, HDR, source, codec.
+  Order is fixed (resolution → HDR → source → codec) so the row reads the same
+  shape across files. Unknown filenames return `[]` — the row simply hides the
+  badge strip.
+  """
+  def parse_quality_badges(filename) when is_binary(filename) do
+    down = String.downcase(filename)
+
+    Enum.reject(
+      [resolution_badge(down), hdr_badge(down), source_badge(down), codec_badge(down)],
+      &is_nil/1
+    )
+  end
+
+  def parse_quality_badges(_), do: []
+
+  defp resolution_badge(down) do
+    cond do
+      String.contains?(down, "2160p") or String.contains?(down, "4k") or
+          String.contains?(down, "uhd") ->
+        "4K"
+
+      String.contains?(down, "1080p") ->
+        "1080p"
+
+      String.contains?(down, "720p") ->
+        "720p"
+
+      String.contains?(down, "480p") ->
+        "480p"
+
+      true ->
+        nil
+    end
+  end
+
+  defp hdr_badge(down) do
+    cond do
+      String.contains?(down, "dolby.vision") or String.contains?(down, "dolbyvision") or
+          String.contains?(down, ".dv.") ->
+        "DV"
+
+      String.contains?(down, "hdr") ->
+        "HDR"
+
+      true ->
+        nil
+    end
+  end
+
+  defp source_badge(down) do
+    cond do
+      String.contains?(down, "remux") ->
+        "REMUX"
+
+      String.contains?(down, "bluray") or String.contains?(down, "blu-ray") or
+          String.contains?(down, "bdrip") ->
+        "BluRay"
+
+      String.contains?(down, "web-dl") or String.contains?(down, "webrip") or
+        String.contains?(down, ".web.") or String.contains?(down, "-web-") ->
+        "WEB"
+
+      String.contains?(down, "hdtv") ->
+        "HDTV"
+
+      String.contains?(down, "dvdrip") ->
+        "DVDRip"
+
+      true ->
+        nil
+    end
+  end
+
+  defp codec_badge(down) do
+    cond do
+      String.contains?(down, "h265") or String.contains?(down, "h.265") or
+        String.contains?(down, "hevc") or String.contains?(down, "x265") ->
+        "H265"
+
+      String.contains?(down, "h264") or String.contains?(down, "h.264") or
+          String.contains?(down, "x264") ->
+        "H264"
+
+      String.contains?(down, "av1") ->
+        "AV1"
+
+      true ->
+        nil
+    end
   end
 
   @doc """

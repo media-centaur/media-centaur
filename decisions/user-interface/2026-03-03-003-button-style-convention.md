@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-03-03
-last-updated: 2026-04-30
+last-updated: 2026-05-04
 ---
 # Button style convention
 
@@ -28,7 +28,7 @@ Never use solid-fill `btn-success` / `btn-info` / `btn-warning` / `btn-error` wi
 
 These rules now live in the `<.button>` component (`MediaCentarrWeb.CoreComponents.button/1`) as named `variant` values: `primary`, `secondary`, `action`, `info`, `risky`, `danger`, `dismiss`, `destructive_inline`, `neutral`, `outline`. The `MediaCentarr.Credo.Checks.RawButtonClass` Credo check (precommit) flags any raw `class="btn ..."` string in templates under `lib/media_centarr_web/`. The button component file (`core_components.ex`) is exempt — it owns the literal `btn` token.
 
-**Standard labels.** `"More info"` is the canonical label for the secondary action that opens an entity's detail / info view. The hero CTA pair is **Play** + **More info**. Avoid synonyms (`Details`, `More`, `Info`) that drift the visual language across the app.
+**Standard labels.** `"More info"` is the canonical label for the secondary action that *opens* an entity's detail view from a card or hero — the hero CTA pair is **Play** + **More info**. *Inside* the detail modal, the secondary toggle reveals the manage sub-view (files, external ids, rematch) and is labelled **Manage** (with `hero-cog-6-tooth-mini`), flipping to **Back** (with `hero-arrow-left-mini`) when the sub-view is open. Avoid synonyms (`Details`, `More`, `Info`, `Settings`, `Edit`) that drift the visual language.
 
 ### Consequences
 
