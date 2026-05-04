@@ -36,6 +36,8 @@ defmodule MediaCentarr.Library.EntityShape do
       network: Map.get(record, :network),
       status: Map.get(record, :status),
       cast: Map.get(record, :cast) || [],
+      crew: Map.get(record, :crew) || [],
+      imdb_id: Map.get(record, :imdb_id),
       collection: collection_from(record, type),
       images: Map.get(record, :images, []),
       external_ids: Map.get(record, :external_ids, []),

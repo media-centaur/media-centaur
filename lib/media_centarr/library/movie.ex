@@ -27,10 +27,12 @@ defmodule MediaCentarr.Library.Movie do
     field :studio, :string
     field :country_code, :string
     field :tmdb_id, :string
+    field :imdb_id, :string
     field :position, :integer
 
     field :genres, {:array, :string}
     field :cast, {:array, :map}, default: []
+    field :crew, {:array, :map}, default: []
 
     field :status, Ecto.Enum,
       values: [:released, :in_production, :post_production, :planned, :rumored, :canceled]
@@ -64,15 +66,18 @@ defmodule MediaCentarr.Library.Movie do
       :studio,
       :country_code,
       :tmdb_id,
+      :imdb_id,
       :genres,
       :position,
       :movie_series_id,
       :status,
-      :cast
+      :cast,
+      :crew
     ])
     |> validate_required([:name])
     |> unique_constraint(:tmdb_id, name: :library_movies_tmdb_id_index)
     |> coerce_cast_default()
+    |> coerce_crew_default()
   end
 
   def set_content_url_changeset(movie, attrs) do
@@ -82,6 +87,13 @@ defmodule MediaCentarr.Library.Movie do
   defp coerce_cast_default(changeset) do
     case get_field(changeset, :cast) do
       nil -> put_change(changeset, :cast, [])
+      _ -> changeset
+    end
+  end
+
+  defp coerce_crew_default(changeset) do
+    case get_field(changeset, :crew) do
+      nil -> put_change(changeset, :crew, [])
       _ -> changeset
     end
   end

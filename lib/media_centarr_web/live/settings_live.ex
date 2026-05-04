@@ -105,7 +105,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        clearing_database: false,
        refreshing_images: false,
        repairing_images: false,
-       refreshing_cast: false,
+       refreshing_credits: false,
        repair_last_result: nil,
        tmdb_testing: false,
        prowlarr_testing: false,
@@ -485,15 +485,15 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:noreply, assign(socket, refreshing_images: true)}
   end
 
-  def handle_event("refresh_movie_cast", _params, socket) do
+  def handle_event("refresh_movie_credits", _params, socket) do
     liveview = self()
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, result} = Maintenance.refresh_movie_cast()
-      send(liveview, {:movie_cast_refreshed, result})
+      {:ok, result} = Maintenance.refresh_movie_credits()
+      send(liveview, {:movie_credits_refreshed, result})
     end)
 
-    {:noreply, assign(socket, refreshing_cast: true)}
+    {:noreply, assign(socket, refreshing_credits: true)}
   end
 
   def handle_event("repair_missing_images", _params, socket) do
@@ -883,24 +883,27 @@ defmodule MediaCentarrWeb.SettingsLive do
      )}
   end
 
-  def handle_info({:movie_cast_refreshed, %{updated: updated, skipped: skipped, failed: failed}}, socket) do
+  def handle_info(
+        {:movie_credits_refreshed, %{updated: updated, skipped: skipped, failed: failed}},
+        socket
+      ) do
     msg =
       cond do
         updated == 0 and failed == 0 ->
-          "Movie cast already up to date — nothing to refresh."
+          "Movie credits already up to date — nothing to refresh."
 
         failed > 0 ->
-          "Refreshed cast for #{updated} movie#{if updated == 1, do: "", else: "s"} " <>
+          "Refreshed credits for #{updated} movie#{if updated == 1, do: "", else: "s"} " <>
             "(#{skipped} skipped, #{failed} failed)."
 
         true ->
-          "Refreshed cast for #{updated} movie#{if updated == 1, do: "", else: "s"}" <>
-            if(skipped > 0, do: " (#{skipped} already had cast).", else: ".")
+          "Refreshed credits for #{updated} movie#{if updated == 1, do: "", else: "s"}" <>
+            if(skipped > 0, do: " (#{skipped} already had credits).", else: ".")
       end
 
     {:noreply,
      socket
-     |> assign(refreshing_cast: false)
+     |> assign(refreshing_credits: false)
      |> put_flash(:info, msg)}
   end
 
@@ -1211,7 +1214,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
             repairing_images={@repairing_images}
-            refreshing_cast={@refreshing_cast}
+            refreshing_credits={@refreshing_credits}
             missing_images_summary={@missing_images_summary}
             spoiler_free={@spoiler_free}
             tmdb_test={@tmdb_test}
@@ -2543,21 +2546,21 @@ defmodule MediaCentarrWeb.SettingsLive do
 
           <div class="flex items-start justify-between gap-4 py-3">
             <div class="min-w-0">
-              <p class="text-sm font-medium">Refresh movie cast</p>
+              <p class="text-sm font-medium">Refresh movie credits</p>
               <p class="text-xs text-base-content/50 mt-0.5">
-                Backfills cast for movies imported before the cast strip existed. Skips movies that already have cast — safe to re-run.
+                Backfills cast, crew (director, writers, composer), and IMDb ids for movies imported before those fields existed. Skips movies that already have credits — safe to re-run.
               </p>
             </div>
             <.button
               variant="neutral"
               size="sm"
               class="shrink-0"
-              phx-click="refresh_movie_cast"
-              disabled={@refreshing_cast}
+              phx-click="refresh_movie_credits"
+              disabled={@refreshing_credits}
               data-nav-item
               tabindex="0"
             >
-              {if @refreshing_cast, do: "Refreshing…", else: "Refresh"}
+              {if @refreshing_credits, do: "Refreshing…", else: "Refresh"}
             </.button>
           </div>
         </div>
