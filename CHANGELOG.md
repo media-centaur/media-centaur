@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.39.0 — 2026-05-04
+
+### Fixed
+
+The cast strip on a standalone movie's detail panel was always
+empty, even after running **Refresh movie cast**. The internal
+cause was that standalone movies didn't carry their TMDB id on the
+movie record itself — so the backfill job had nothing to look up.
+Existing libraries are migrated automatically: every movie, TV
+series, movie series, and video object now records its TMDB id
+directly. Re-run **Settings → Danger Zone → Refresh movie cast**
+to populate cast for any standalone movie that's still empty.
+
 ## v0.38.1 — 2026-05-04
 
 ### Fixed
