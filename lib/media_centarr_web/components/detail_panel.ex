@@ -16,6 +16,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   alias MediaCentarr.Library.EpisodeList
   alias MediaCentarr.Library.MovieList
+  alias MediaCentarrWeb.Components.Detail.CastStrip
   alias MediaCentarrWeb.Components.Detail.FacetStrip
   alias MediaCentarrWeb.Components.Detail.Hero
   alias MediaCentarrWeb.Components.Detail.Logic
@@ -183,6 +184,10 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
             </div>
           </div>
+          <CastStrip.cast_strip
+            :if={@entity.type == :movie}
+            cast={Map.get(@entity, :cast) || []}
+          />
         </div>
       </div>
       <div
