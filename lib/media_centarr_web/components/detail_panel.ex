@@ -21,7 +21,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   alias MediaCentarrWeb.Components.Detail.Logic
   alias MediaCentarrWeb.Components.Detail.MetadataRow
   alias MediaCentarrWeb.Components.Detail.PlayCard
-  alias MediaCentarrWeb.Components.Detail.Section
 
   # --- Public API ---
 
@@ -116,7 +115,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     playback = build_playback(assigns)
     facets = build_facets(assigns.entity)
     metadata_items = build_metadata_items(assigns.entity)
-    file_path = file_path_for(assigns.entity)
     tagline = tagline_for(assigns.entity)
 
     assigns =
@@ -129,7 +127,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:playback, playback)
       |> assign(:facets, facets)
       |> assign(:metadata_items, metadata_items)
-      |> assign(:file_path, file_path)
       |> assign(:tagline, tagline)
 
     ~H"""
@@ -172,9 +169,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 At xl:+ reflows to two columns: synopsis capped at a
                 readable measure on the left, facets stacked on the right —
                 keeps prose at a comfortable line length on wide displays
-                without leaving the right side empty. The file path stays
-                full-width below so the long path stays visible without
-                being truncated into the narrow sidebar. --%>
+                without leaving the right side empty.
+                File paths are intentionally NOT rendered here — they
+                live in the "More info" view's Files section, grouped by
+                directory with delete affordances. The main view stays
+                focused on what to watch, not where it lives on disk. --%>
           <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,65ch)_minmax(0,1fr)] xl:gap-8 xl:items-start">
             <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-4">
               {@entity.description}
@@ -184,14 +183,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
             </div>
           </div>
-          <Section.section :if={@file_path} title="File">
-            <p
-              class="text-xs text-base-content/55 truncate font-mono break-all"
-              title={@file_path}
-            >
-              {@file_path}
-            </p>
-          </Section.section>
         </div>
       </div>
       <div
@@ -310,12 +301,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       _ -> nil
     end
   end
-
-  defp file_path_for(%{type: :movie, content_url: url}) when is_binary(url) and url != "", do: url
-
-  defp file_path_for(%{type: :video_object, content_url: url}) when is_binary(url) and url != "", do: url
-
-  defp file_path_for(_), do: nil
 
   # --- Tracking Status Helpers (used in Hero :actions slot) ---
 

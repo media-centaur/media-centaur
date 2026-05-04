@@ -18,9 +18,14 @@ defmodule MediaCentarrWeb.Components.Detail.Logic do
 
   Variants:
 
-    * `facets_for(:movie, movie)` — Director, Original language, Studio, Genres, Rating
-    * `facets_for(:tv_series, tv)` — Network, Original language, Genres, Rating
-    * `facets_for(:movie_series, ms, movies)` — Movies, First released, Latest, Genres, Rating
+    * `facets_for(:movie, movie)` — Director, Rating, Original language, Studio, Genres
+    * `facets_for(:tv_series, tv)` — Network, Rating, Original language, Genres
+    * `facets_for(:movie_series, ms, movies)` — Movies, Rating, First released, Latest, Genres
+
+  Rating sits right after the primary identity field so the stacked
+  2-column layout pairs them on the same row — keeps the eye flowing
+  left-to-right across the most asked-for metadata before falling to
+  secondary fields.
 
   Empty/nil fields drop their facet so the calling template can render the
   result unconditionally.
@@ -30,10 +35,10 @@ defmodule MediaCentarrWeb.Components.Detail.Logic do
     Enum.reject(
       [
         Facet.text("Director", movie.director),
+        Facet.rating("Rating", movie.aggregate_rating_value, Map.get(movie, :vote_count)),
         Facet.text("Original language", movie.original_language),
         Facet.text("Studio", movie.studio),
-        Facet.chips("Genres", Map.get(movie, :genres)),
-        Facet.rating("Rating", movie.aggregate_rating_value, Map.get(movie, :vote_count))
+        Facet.chips("Genres", Map.get(movie, :genres))
       ],
       &blank_facet?/1
     )
@@ -44,9 +49,9 @@ defmodule MediaCentarrWeb.Components.Detail.Logic do
     Enum.reject(
       [
         Facet.text("Network", tv.network),
+        Facet.rating("Rating", tv.aggregate_rating_value, Map.get(tv, :vote_count)),
         Facet.text("Original language", tv.original_language),
-        Facet.chips("Genres", Map.get(tv, :genres)),
-        Facet.rating("Rating", tv.aggregate_rating_value, Map.get(tv, :vote_count))
+        Facet.chips("Genres", Map.get(tv, :genres))
       ],
       &blank_facet?/1
     )
@@ -59,14 +64,14 @@ defmodule MediaCentarrWeb.Components.Detail.Logic do
     Enum.reject(
       [
         Facet.text("Movies", movie_count(movies)),
-        Facet.text("First released", List.first(years)),
-        Facet.text("Latest", List.last(years)),
-        Facet.chips("Genres", Map.get(movie_series, :genres)),
         Facet.rating(
           "Rating",
           Map.get(movie_series, :aggregate_rating_value),
           Map.get(movie_series, :vote_count)
-        )
+        ),
+        Facet.text("First released", List.first(years)),
+        Facet.text("Latest", List.last(years)),
+        Facet.chips("Genres", Map.get(movie_series, :genres))
       ],
       &blank_facet?/1
     )
