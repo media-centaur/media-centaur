@@ -37,7 +37,14 @@ defmodule MediaCentarrWeb.Components.Detail.FacetStrip do
         @class
       ]}
     >
-      <div :for={facet <- @facets} class="flex flex-col gap-0.5 min-w-0">
+      <%!-- last:odd:col-span-2 — when the final facet is the odd one out
+            in a 2-column grid (e.g. 3 facets → row1: A|B, row2: C alone),
+            let it span both columns instead of leaving dead space.
+            Genres typically lands here and wraps cleaner full-width. --%>
+      <div
+        :for={facet <- @facets}
+        class="flex flex-col gap-0.5 min-w-0 last:odd:col-span-2"
+      >
         <span class="text-[0.65rem] uppercase tracking-wider text-base-content/40 font-semibold">
           {facet.label}
         </span>
