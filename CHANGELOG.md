@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.38.1 — 2026-05-04
+
+### Fixed
+
+The cast strip introduced in v0.38.0 didn't actually appear on movie
+detail pages. The cast data was correctly fetched from TMDB and
+stored in the database, but a normalisation step in the library
+loader silently dropped the field on the way to the UI. Cast now
+shows up as intended after running **Refresh movie cast** in
+Settings.
+
 ## v0.38.0 — 2026-05-04
 
 ### New
