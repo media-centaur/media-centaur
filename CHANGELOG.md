@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.39.1 — 2026-05-04
+
+### Improved
+
+Finished the v0.39.0 TMDB-id migration: the redundant rows in the
+internal external-id table that had been left behind for safety
+during the transition are now removed automatically when you
+upgrade. No user action required.
+
 ## v0.39.0 — 2026-05-04
 
 ### Fixed
