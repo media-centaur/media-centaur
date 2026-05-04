@@ -17,6 +17,7 @@ defmodule MediaCentarr.Library.MovieSeries do
     field :genres, {:array, :string}
     field :url, :string
     field :aggregate_rating_value, :float
+    field :tmdb_id, :string
 
     has_many :movies, MediaCentarr.Library.Movie, foreign_key: :movie_series_id
     has_many :images, MediaCentarr.Library.Image, foreign_key: :movie_series_id
@@ -36,7 +37,8 @@ defmodule MediaCentarr.Library.MovieSeries do
       :date_published,
       :genres,
       :url,
-      :aggregate_rating_value
+      :aggregate_rating_value,
+      :tmdb_id
     ])
     |> validate_required([:name])
   end
@@ -48,7 +50,8 @@ defmodule MediaCentarr.Library.MovieSeries do
       :date_published,
       :genres,
       :url,
-      :aggregate_rating_value
+      :aggregate_rating_value,
+      :tmdb_id
     ])
   end
 end

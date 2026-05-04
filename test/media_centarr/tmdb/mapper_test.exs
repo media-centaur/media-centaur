@@ -39,6 +39,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       result = Mapper.movie_attrs("155", data, "/media/sample_movie.mkv")
 
       assert result.type == :movie
+      assert result.tmdb_id == "155"
       assert result.name == "Sample Movie"
       assert result.description == "A sample movie overview."
       assert result.date_published == "2008-07-18"
@@ -153,8 +154,8 @@ defmodule MediaCentarr.TMDB.MapperTest do
   describe "tv_attrs/2" do
     test "maps full TMDB TV response" do
       data = %{
-        "name" => "Sample Show Eight",
-        "overview" => "A chemistry teacher becomes a drug lord.",
+        "name" => "Sample Show",
+        "overview" => "A sample show overview.",
         "first_air_date" => "2008-01-20",
         "genres" => [%{"name" => "Drama"}],
         "number_of_seasons" => 5,
@@ -165,8 +166,9 @@ defmodule MediaCentarr.TMDB.MapperTest do
       result = Mapper.tv_attrs("1396", data)
 
       assert result.type == :tv_series
-      assert result.name == "Sample Show Eight"
-      assert result.description == "A chemistry teacher becomes a drug lord."
+      assert result.tmdb_id == "1396"
+      assert result.name == "Sample Show"
+      assert result.description == "A sample show overview."
       assert result.date_published == "2008-01-20"
       assert result.genres == ["Drama"]
       assert result.url == "https://www.themoviedb.org/tv/1396"
@@ -177,23 +179,23 @@ defmodule MediaCentarr.TMDB.MapperTest do
 
     test "extracts magazine fields including network" do
       data = %{
-        "name" => "Twin Peaks",
-        "tagline" => "The owls are not what they seem",
+        "name" => "Sample Show B",
+        "tagline" => "A sample tagline",
         "original_language" => "en",
         "vote_count" => 1502,
-        "production_companies" => [%{"name" => "Lynch/Frost Productions"}],
+        "production_companies" => [%{"name" => "Sample Studio"}],
         "production_countries" => [%{"iso_3166_1" => "US"}],
-        "networks" => [%{"name" => "ABC"}, %{"name" => "Showtime"}]
+        "networks" => [%{"name" => "Sample Network"}, %{"name" => "Other Network"}]
       }
 
       result = Mapper.tv_attrs("1083", data)
 
-      assert result.tagline == "The owls are not what they seem"
+      assert result.tagline == "A sample tagline"
       assert result.original_language == "en"
-      assert result.studio == "Lynch/Frost Productions"
+      assert result.studio == "Sample Studio"
       assert result.country_code == "US"
       assert result.vote_count == 1502
-      assert result.network == "ABC"
+      assert result.network == "Sample Network"
     end
 
     test "TV magazine fields are nil when TMDB omits them" do
@@ -367,6 +369,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       result = Mapper.movie_series_attrs("263", data)
 
       assert result.type == :movie_series
+      assert result.tmdb_id == "263"
       assert result.name == "Sample Trilogy"
       assert result.description == "Three sample films."
       assert result.url == "https://www.themoviedb.org/collection/263"

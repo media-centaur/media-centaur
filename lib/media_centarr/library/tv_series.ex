@@ -24,6 +24,7 @@ defmodule MediaCentarr.Library.TVSeries do
     field :country_code, :string
     field :network, :string
     field :number_of_seasons, :integer
+    field :tmdb_id, :string
     field :status, Ecto.Enum, values: [:returning, :ended, :canceled, :in_production, :planned]
 
     has_many :seasons, MediaCentarr.Library.Season, foreign_key: :tv_series_id
@@ -52,6 +53,7 @@ defmodule MediaCentarr.Library.TVSeries do
       :country_code,
       :network,
       :number_of_seasons,
+      :tmdb_id,
       :status
     ])
     |> validate_required([:name])
@@ -72,6 +74,7 @@ defmodule MediaCentarr.Library.TVSeries do
       :country_code,
       :network,
       :number_of_seasons,
+      :tmdb_id,
       :status
     ])
   end
