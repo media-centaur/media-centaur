@@ -4,6 +4,24 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.40.0 — 2026-05-04
+
+### New
+
+Movie detail panels now have a **More info** button between Play and
+Manage that opens a credits view with the director, writers, and full
+cast laid out as a grid (no more horizontal scroll). Names link to
+their TMDB person pages where available, and the panel ends with
+external links to TMDB and IMDb (when known).
+
+### Improved
+
+The Settings → Danger Zone refresh button is now **Refresh movie
+credits** — one click backfills cast, crew (director, writers,
+composer, etc.), and IMDb ids together for any movies imported before
+those fields existed. Safe to re-run; movies that already have
+credits are skipped.
+
 ## v0.39.1 — 2026-05-04
 
 ### Improved
