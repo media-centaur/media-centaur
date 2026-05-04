@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.37.2 — 2026-05-04
+
+### Improved
+
+When the metadata sidebar of the detail panel has an odd number of
+facets, the trailing one (typically Genres) now spans both columns
+instead of squeezing into a single column with dead space beside it.
+For movies showing only Director, Rating, and Genres, that means
+Genres lays out on a single line where it used to wrap.
+
 ## v0.37.1 — 2026-05-04
 
 ### Improved
