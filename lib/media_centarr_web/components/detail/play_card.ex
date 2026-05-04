@@ -1,15 +1,20 @@
 defmodule MediaCentarrWeb.Components.Detail.PlayCard do
   @moduledoc """
   Playback action row — Play/Resume button + thin progress bar + remaining
-  text + a "More info" toggle that flips the panel between `:main` and
-  `:info` views.
+  text + a "Manage" toggle that flips the panel between `:main` (watch)
+  and `:info` (manage) views.
 
   Mirrors the home hero CTA pair: the play button is always the primary
-  variant (solid blue), the "More info" toggle is always the secondary
-  variant (soft blue). The label ("Play", "Resume Episode 5", "Watch
+  variant (solid blue), the "Manage" toggle is always the secondary
+  variant (soft blue). The play label ("Play", "Resume Episode 5", "Watch
   again", …) comes from `Detail.Logic.playback_props/3`. When `available`
   is false (storage offline), the play button is replaced with a disabled
   "Offline" pill.
+
+  Naming distinction (UIDR-003): the home hero uses "More info" to *open*
+  the modal; once inside the modal, the secondary toggle reveals the
+  *manage* sub-view (files, external ids, rematch) and is labelled
+  "Manage" + back-arrow → "Back".
   """
 
   use MediaCentarrWeb, :html
@@ -70,8 +75,11 @@ defmodule MediaCentarrWeb.Components.Detail.PlayCard do
           data-nav-item
           tabindex="0"
         >
-          <.icon name="hero-information-circle-mini" class="size-4" />
-          {if @detail_view == :info, do: "Back", else: "More info"}
+          <.icon
+            name={if @detail_view == :info, do: "hero-arrow-left-mini", else: "hero-cog-6-tooth-mini"}
+            class="size-4"
+          />
+          {if @detail_view == :info, do: "Back", else: "Manage"}
         </.button>
       </div>
     </div>
