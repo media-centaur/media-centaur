@@ -215,7 +215,7 @@ defmodule MediaCentarrWeb.HomeLive do
 
     params = %{}
     params = if selected, do: Map.put(params, :selected, selected), else: params
-    params = if selected && view == :info, do: Map.put(params, :view, :info), else: params
+    params = if selected && view in [:info, :credits], do: Map.put(params, :view, view), else: params
     params = if selected && autoplay, do: Map.put(params, :autoplay, autoplay), else: params
 
     if params == %{}, do: ~p"/", else: ~p"/?#{params}"
