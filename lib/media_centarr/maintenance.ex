@@ -1,5 +1,6 @@
 defmodule MediaCentarr.Maintenance do
-  use Boundary, deps: [MediaCentarr.Library, MediaCentarr.Pipeline, MediaCentarr.Watcher]
+  use Boundary,
+    deps: [MediaCentarr.Library, MediaCentarr.Pipeline, MediaCentarr.TMDB, MediaCentarr.Watcher]
 
   @moduledoc """
   Operator-driven destructive operations — Settings → Danger Zone and the
@@ -12,6 +13,8 @@ defmodule MediaCentarr.Maintenance do
   Settings is intentionally one-directional. Cross-context orchestration
   belongs in a dedicated context, not bolted onto a configuration store.
   """
+  import Ecto.Query
+
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Repo
@@ -33,6 +36,7 @@ defmodule MediaCentarr.Maintenance do
   }
 
   alias MediaCentarr.Review.PendingFile
+  alias MediaCentarr.TMDB.{Client, Mapper}
 
   @doc """
   Destroys all records from every library resource in FK-safe order,
@@ -98,6 +102,64 @@ defmodule MediaCentarr.Maintenance do
   end
 
   @doc """
+  Backfills the `cast` field on movies that were imported before the
+  field existed. Iterates movies with a non-nil `tmdb_id`, re-fetches
+  TMDB metadata for ones with empty `cast`, and updates `cast` in
+  place via a focused changeset — no images, watch progress, or files
+  are touched.
+
+  Idempotent: subsequent runs skip movies that already have non-empty
+  cast. Rate-limited automatically by `MediaCentarr.TMDB.RateLimiter`
+  inside `Client.get_movie/1`.
+
+  Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
+  """
+  @spec refresh_movie_cast() ::
+          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
+  def refresh_movie_cast do
+    Log.info(:library, "refreshing movie cast")
+
+    movies = Repo.all(from m in Movie, where: not is_nil(m.tmdb_id))
+
+    result =
+      Enum.reduce(movies, %{updated: 0, skipped: 0, failed: 0}, &process_cast_refresh/2)
+
+    Log.info(
+      :library,
+      "movie cast refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
+    )
+
+    {:ok, result}
+  end
+
+  defp process_cast_refresh(%Movie{cast: cast} = _movie, acc) when cast not in [nil, []] do
+    Map.update!(acc, :skipped, &(&1 + 1))
+  end
+
+  defp process_cast_refresh(%Movie{} = movie, acc) do
+    case Client.get_movie(movie.tmdb_id) do
+      {:ok, body} ->
+        cast = Mapper.extract_cast(body["credits"])
+
+        movie
+        |> Ecto.Changeset.change(cast: cast)
+        |> Repo.update()
+        |> case do
+          {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
+          {:error, _} -> Map.update!(acc, :failed, &(&1 + 1))
+        end
+
+      {:error, reason} ->
+        Log.warning(
+          :library,
+          "cast refresh failed for movie #{movie.id}: #{inspect(reason)}"
+        )
+
+        Map.update!(acc, :failed, &(&1 + 1))
+    end
+  end
+
+  @doc """
   Detects `library_images` rows whose files are absent on disk and
   re-queues each one into `pipeline_image_queue` so the pipeline can
   re-download. Uses the existing stored `source_url` when a queue row
@@ -152,8 +214,6 @@ defmodule MediaCentarr.Maintenance do
   end
 
   defp collect_all_entity_ids do
-    import Ecto.Query
-
     Repo.all(from(t in TVSeries, select: t.id)) ++
       Repo.all(from(m in MovieSeries, select: m.id)) ++
       Repo.all(from(m in Movie, where: is_nil(m.movie_series_id), select: m.id)) ++
@@ -161,8 +221,6 @@ defmodule MediaCentarr.Maintenance do
   end
 
   defp collect_entities_with_images_and_files do
-    import Ecto.Query
-
     tv = Repo.preload(Repo.all(TVSeries), [:images, :watched_files])
     ms = Repo.preload(Repo.all(MovieSeries), [:images, :watched_files])
 

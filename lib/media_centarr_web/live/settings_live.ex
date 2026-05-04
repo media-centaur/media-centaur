@@ -105,6 +105,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        clearing_database: false,
        refreshing_images: false,
        repairing_images: false,
+       refreshing_cast: false,
        repair_last_result: nil,
        tmdb_testing: false,
        prowlarr_testing: false,
@@ -482,6 +483,17 @@ defmodule MediaCentarrWeb.SettingsLive do
     end)
 
     {:noreply, assign(socket, refreshing_images: true)}
+  end
+
+  def handle_event("refresh_movie_cast", _params, socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      {:ok, result} = Maintenance.refresh_movie_cast()
+      send(liveview, {:movie_cast_refreshed, result})
+    end)
+
+    {:noreply, assign(socket, refreshing_cast: true)}
   end
 
   def handle_event("repair_missing_images", _params, socket) do
@@ -871,6 +883,27 @@ defmodule MediaCentarrWeb.SettingsLive do
      )}
   end
 
+  def handle_info({:movie_cast_refreshed, %{updated: updated, skipped: skipped, failed: failed}}, socket) do
+    msg =
+      cond do
+        updated == 0 and failed == 0 ->
+          "Movie cast already up to date — nothing to refresh."
+
+        failed > 0 ->
+          "Refreshed cast for #{updated} movie#{if updated == 1, do: "", else: "s"} " <>
+            "(#{skipped} skipped, #{failed} failed)."
+
+        true ->
+          "Refreshed cast for #{updated} movie#{if updated == 1, do: "", else: "s"}" <>
+            if(skipped > 0, do: " (#{skipped} already had cast).", else: ".")
+      end
+
+    {:noreply,
+     socket
+     |> assign(refreshing_cast: false)
+     |> put_flash(:info, msg)}
+  end
+
   def handle_info({:image_repair_complete, result}, socket) do
     %{enqueued: enqueued, queue_reused: reused, queue_rebuilt: rebuilt, skipped: skipped} =
       result
@@ -1178,6 +1211,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
             repairing_images={@repairing_images}
+            refreshing_cast={@refreshing_cast}
             missing_images_summary={@missing_images_summary}
             spoiler_free={@spoiler_free}
             tmdb_test={@tmdb_test}
@@ -2504,6 +2538,26 @@ defmodule MediaCentarrWeb.SettingsLive do
               tabindex="0"
             >
               {if @repairing_images, do: "Repairing…", else: "Repair"}
+            </.button>
+          </div>
+
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium">Refresh movie cast</p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Backfills cast for movies imported before the cast strip existed. Skips movies that already have cast — safe to re-run.
+              </p>
+            </div>
+            <.button
+              variant="neutral"
+              size="sm"
+              class="shrink-0"
+              phx-click="refresh_movie_cast"
+              disabled={@refreshing_cast}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @refreshing_cast, do: "Refreshing…", else: "Refresh"}
             </.button>
           </div>
         </div>
