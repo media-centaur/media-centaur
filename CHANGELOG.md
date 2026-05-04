@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.37.1 — 2026-05-04
+
+### Improved
+
+The detail panel reads more naturally now. Rating sits next to Director
+on the metadata sidebar instead of dropping to its own row, so the
+two most-asked-for fields share a line and the eye doesn't have to
+zig-zag. The full file path no longer takes up space on the main
+detail view either — it lived inside a labelled box that competed for
+attention with synopsis and metadata. File details (paths, sizes,
+delete affordances) are still one click away in the "More info" view,
+which is where the rest of the per-file controls already live.
+
 ## v0.37.0 — 2026-05-04
 
 ### Fixed
