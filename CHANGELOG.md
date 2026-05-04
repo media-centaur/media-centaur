@@ -4,6 +4,25 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.38.0 — 2026-05-04
+
+### New
+
+The movie detail panel now shows a **Cast** strip at the bottom — a
+horizontally scrollable row of poster-style cards, one per actor.
+Each card carries the actor's photo, their name, and the character
+they played. Click any card to open the actor's TMDB page in a new
+tab. Cast members without a profile photo on TMDB get a silhouette
+icon so the layout stays steady.
+
+### Improved
+
+Settings → Library Maintenance now has a **Refresh movie cast**
+button. Use it once to backfill cast data for movies that were
+imported before this release; new movies pick up cast automatically
+on import. The action is safe to re-run — it skips movies that
+already have cast.
+
 ## v0.37.5 — 2026-05-04
 
 ### Improved
