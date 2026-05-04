@@ -11,6 +11,7 @@ defmodule MediaCentarr.TMDB.Mapper do
   def movie_attrs(tmdb_id, movie, file_path) do
     %{
       type: :movie,
+      tmdb_id: to_string(tmdb_id),
       name: movie["title"],
       description: movie["overview"],
       date_published: movie["release_date"],
@@ -37,6 +38,7 @@ defmodule MediaCentarr.TMDB.Mapper do
   def tv_attrs(tmdb_id, show) do
     %{
       type: :tv_series,
+      tmdb_id: to_string(tmdb_id),
       name: show["name"],
       description: show["overview"],
       date_published: show["first_air_date"],
@@ -96,6 +98,7 @@ defmodule MediaCentarr.TMDB.Mapper do
   def movie_series_attrs(collection_id, collection) do
     %{
       type: :movie_series,
+      tmdb_id: to_string(collection_id),
       name: collection["name"],
       description: collection["overview"],
       url: tmdb_url(:collection, collection_id)

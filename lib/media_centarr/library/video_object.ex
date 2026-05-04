@@ -17,6 +17,7 @@ defmodule MediaCentarr.Library.VideoObject do
     field :date_published, :string
     field :content_url, :string
     field :url, :string
+    field :tmdb_id, :string
 
     has_many :images, MediaCentarr.Library.Image, foreign_key: :video_object_id
     has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :video_object_id
@@ -34,12 +35,13 @@ defmodule MediaCentarr.Library.VideoObject do
       :description,
       :date_published,
       :content_url,
-      :url
+      :url,
+      :tmdb_id
     ])
     |> validate_required([:name])
   end
 
   def update_changeset(video_object, attrs) do
-    cast(video_object, attrs, [:name, :description, :date_published, :content_url, :url])
+    cast(video_object, attrs, [:name, :description, :date_published, :content_url, :url, :tmdb_id])
   end
 end
