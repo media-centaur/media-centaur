@@ -4,6 +4,7 @@ defmodule MediaCentarrWeb.Storybook.Detail do
   def folder_open?, do: true
   def folder_icon, do: {:fa, "layer-group", :light, "psb:mr-1"}
 
+  def entry("cast_strip"), do: [icon: {:fa, "users", :thin}, name: "Cast strip"]
   def entry("facet_strip"), do: [icon: {:fa, "table-columns", :thin}, name: "Facet strip"]
   def entry("metadata_row"), do: [icon: {:fa, "list", :thin}, name: "Metadata row"]
   def entry("play_card"), do: [icon: {:fa, "play", :thin}, name: "Play card"]
