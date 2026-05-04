@@ -4,6 +4,22 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.37.5 — 2026-05-04
+
+### Improved
+
+The Manage view's delete confirmations are now *inline* — no more
+modal-on-modal. Click the prominent danger button once and it flips
+to "Click again to confirm — Delete all files (size)" with a Cancel
+link beside it; click it again to commit. Per-folder and per-file
+delete buttons follow the same pattern (text changes to "Click again
+to confirm" / "Click to confirm", with the file row picking up a
+tinted background to mark which row is armed). This matches how
+Rematch already worked in the same view, and removes the secondary
+overlay that was making the modal feel cluttered. Switching to a
+different delete button re-targets the pending confirmation; only
+one is armed at a time.
+
 ## v0.37.4 — 2026-05-04
 
 ### Improved
