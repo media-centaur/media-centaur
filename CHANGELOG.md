@@ -4,6 +4,26 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.37.3 — 2026-05-04
+
+### Improved
+
+The "More info" toggle inside the detail modal is now called "Manage"
+with a cog icon — because the entry's main view already shows the
+synopsis, genres, director, rating, and runtime, the secondary view is
+really for managing what's behind it: files, identifiers, and
+rematching. Inside, the redundant Metadata block (which just repeated
+the hero row) is gone. External IDs collapse to one tight row per
+source instead of duplicating the TMDB url and id on separate lines,
+with the entity UUID demoted to a quiet footer chip — still copyable
+for support, no longer competing with real metadata.
+
+Each media file in the Manage view now also shows the technical badges
+parsed from its filename — 4K, HDR, WEB, H265 and so on — plus an
+"added on" date so you can see at a glance what kind of release each
+file is and when it landed in your library. HDR rides a blue chip; the
+rest are quiet ghost badges so the row stays scannable.
+
 ## v0.37.2 — 2026-05-04
 
 ### Improved
