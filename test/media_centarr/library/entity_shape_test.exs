@@ -64,6 +64,31 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       shape = EntityShape.normalize(build_standalone_movie(), :movie)
       assert shape.cast == []
     end
+
+    test "carries crew through to the normalized shape" do
+      crew_data = [
+        %{
+          "tmdb_person_id" => 1,
+          "name" => "Sample Director",
+          "job" => "Director",
+          "department" => "Directing",
+          "profile_path" => "/d.jpg"
+        }
+      ]
+
+      movie = build_standalone_movie(%{crew: crew_data})
+      assert EntityShape.normalize(movie, :movie).crew == crew_data
+    end
+
+    test "defaults crew to [] when the record has no crew value" do
+      shape = EntityShape.normalize(build_standalone_movie(), :movie)
+      assert shape.crew == []
+    end
+
+    test "carries imdb_id through to the normalized shape" do
+      movie = build_standalone_movie(%{imdb_id: "tt0000001"})
+      assert EntityShape.normalize(movie, :movie).imdb_id == "tt0000001"
+    end
   end
 
   describe "normalize/2 — tv_series" do

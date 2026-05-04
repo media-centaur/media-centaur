@@ -149,6 +149,114 @@ defmodule MediaCentarr.TMDB.MapperTest do
       result = Mapper.movie_attrs("1", data, nil)
       assert result.status == :released
     end
+
+    test "extracts imdb_id from movie response" do
+      data = %{"title" => "Sample", "imdb_id" => "tt0000001"}
+      result = Mapper.movie_attrs("1", data, nil)
+      assert result.imdb_id == "tt0000001"
+    end
+
+    test "imdb_id is nil when TMDB omits it" do
+      data = %{"title" => "Sample"}
+      result = Mapper.movie_attrs("1", data, nil)
+      assert result.imdb_id == nil
+    end
+
+    test "extracts structured crew with director, writers, composer" do
+      data = %{
+        "title" => "Sample Movie",
+        "credits" => %{
+          "crew" => [
+            %{
+              "id" => 1,
+              "name" => "Sample Director",
+              "department" => "Directing",
+              "job" => "Director",
+              "profile_path" => "/d.jpg"
+            },
+            %{
+              "id" => 2,
+              "name" => "Sample Writer A",
+              "department" => "Writing",
+              "job" => "Screenplay",
+              "profile_path" => nil
+            },
+            %{
+              "id" => 3,
+              "name" => "Sample Writer B",
+              "department" => "Writing",
+              "job" => "Story",
+              "profile_path" => nil
+            },
+            %{
+              "id" => 4,
+              "name" => "Sample Composer",
+              "department" => "Sound",
+              "job" => "Original Music Composer",
+              "profile_path" => nil
+            },
+            %{
+              "id" => 5,
+              "name" => "Sample Grip",
+              "department" => "Camera",
+              "job" => "Key Grip",
+              "profile_path" => nil
+            }
+          ]
+        }
+      }
+
+      result = Mapper.movie_attrs("1", data, nil)
+
+      jobs = Enum.map(result.crew, & &1["job"])
+      assert "Director" in jobs
+      assert "Screenplay" in jobs
+      assert "Story" in jobs
+      assert "Original Music Composer" in jobs
+      # Below-the-line crew (Key Grip) is filtered out — we only keep
+      # roles users care about on the More info panel.
+      refute "Key Grip" in jobs
+
+      director = Enum.find(result.crew, &(&1["job"] == "Director"))
+      assert director["tmdb_person_id"] == 1
+      assert director["name"] == "Sample Director"
+      assert director["profile_path"] == "/d.jpg"
+      assert director["department"] == "Directing"
+    end
+
+    test "crew is empty list when TMDB credits are missing" do
+      result = Mapper.movie_attrs("1", %{"title" => "Sample"}, nil)
+      assert result.crew == []
+    end
+
+    test "preserves multiple directors in crew (Coens / Wachowskis pattern)" do
+      data = %{
+        "title" => "Sample Movie",
+        "credits" => %{
+          "crew" => [
+            %{
+              "id" => 1,
+              "name" => "Sample Co-Director A",
+              "department" => "Directing",
+              "job" => "Director"
+            },
+            %{
+              "id" => 2,
+              "name" => "Sample Co-Director B",
+              "department" => "Directing",
+              "job" => "Director"
+            }
+          ]
+        }
+      }
+
+      result = Mapper.movie_attrs("1", data, nil)
+      directors = Enum.filter(result.crew, &(&1["job"] == "Director"))
+      assert length(directors) == 2
+      # Denormalised :director string keeps the first for backward-compat
+      # consumers (list rows, search). New UI reads structured crew.
+      assert result.director == "Sample Co-Director A"
+    end
   end
 
   describe "tv_attrs/2" do

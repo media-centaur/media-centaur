@@ -12,6 +12,7 @@ defmodule MediaCentarr.TMDB.Mapper do
     %{
       type: :movie,
       tmdb_id: to_string(tmdb_id),
+      imdb_id: presence(movie["imdb_id"]),
       name: movie["title"],
       description: movie["overview"],
       date_published: movie["release_date"],
@@ -20,6 +21,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       duration: minutes_to_iso8601(movie["runtime"]),
       director: extract_director(movie["credits"]),
       cast: extract_cast(movie["credits"]),
+      crew: extract_crew(movie["credits"]),
       content_rating: extract_us_rating(movie["release_dates"]),
       aggregate_rating_value: movie["vote_average"],
       vote_count: movie["vote_count"],
@@ -258,6 +260,43 @@ defmodule MediaCentarr.TMDB.Mapper do
   end
 
   def extract_cast(_), do: []
+
+  @crew_jobs %{
+    "Director" => 0,
+    "Screenplay" => 1,
+    "Writer" => 2,
+    "Story" => 3,
+    "Original Music Composer" => 4,
+    "Director of Photography" => 5,
+    "Editor" => 6,
+    "Producer" => 7
+  }
+
+  @doc """
+  Extracts the structured crew list from a TMDB credits payload. Filters
+  to roles users care about on the More info panel (director, writers,
+  composer, DP, editor, producer) and sorts by a fixed display priority
+  so directors appear above writers, etc. String keys (not atoms) so the
+  value round-trips through SQLite/JSON without atom conversion friction.
+  """
+  def extract_crew(nil), do: []
+
+  def extract_crew(%{"crew" => crew}) when is_list(crew) do
+    crew
+    |> Enum.filter(&Map.has_key?(@crew_jobs, &1["job"]))
+    |> Enum.sort_by(&{Map.fetch!(@crew_jobs, &1["job"]), &1["name"]})
+    |> Enum.map(fn person ->
+      %{
+        "tmdb_person_id" => person["id"],
+        "name" => person["name"],
+        "job" => person["job"],
+        "department" => person["department"],
+        "profile_path" => person["profile_path"]
+      }
+    end)
+  end
+
+  def extract_crew(_), do: []
 
   def extract_us_rating(nil), do: nil
 

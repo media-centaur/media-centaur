@@ -100,7 +100,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       end
 
       def handle_event("close_detail", _params, socket) do
-        if socket.assigns.detail_view == :info do
+        if socket.assigns.detail_view in [:info, :credits] do
           {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: :main}))}
         else
           {:noreply,
@@ -111,7 +111,12 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       end
 
       def handle_event("toggle_detail_view", _params, socket) do
-        new_view = if socket.assigns.detail_view == :main, do: :info, else: :main
+        new_view = if socket.assigns.detail_view == :info, do: :main, else: :info
+        {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: new_view}))}
+      end
+
+      def handle_event("toggle_credits_view", _params, socket) do
+        new_view = if socket.assigns.detail_view == :credits, do: :main, else: :credits
         {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: new_view}))}
       end
 
@@ -838,6 +843,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   # --- Private helpers ---
 
   defp parse_view("info"), do: :info
+  defp parse_view("credits"), do: :credits
   defp parse_view(_), do: :main
 
   defp load_entry_and_expand(id) do

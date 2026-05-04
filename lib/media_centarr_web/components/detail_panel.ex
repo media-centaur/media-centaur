@@ -16,11 +16,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   alias MediaCentarr.Library.EpisodeList
   alias MediaCentarr.Library.MovieList
-  alias MediaCentarrWeb.Components.Detail.CastStrip
   alias MediaCentarrWeb.Components.Detail.FacetStrip
   alias MediaCentarrWeb.Components.Detail.Hero
   alias MediaCentarrWeb.Components.Detail.Logic
   alias MediaCentarrWeb.Components.Detail.MetadataRow
+  alias MediaCentarrWeb.Components.Detail.MoreInfoPanel
   alias MediaCentarrWeb.Components.Detail.PlayCard
 
   # --- Public API ---
@@ -109,7 +109,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     extra_progress_by_id = index_extra_progress(assigns.entity)
 
     has_scrollable_content =
-      assigns.detail_view == :info ||
+      assigns.detail_view in [:info, :credits] ||
         assigns.entity.type in [:tv_series, :movie_series] ||
         entity_extras(assigns.entity) != []
 
@@ -163,6 +163,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             remaining_text={@playback.remaining_text}
             available={@available}
             detail_view={@detail_view}
+            show_more_info={@entity.type == :movie}
           />
           <%!-- Synopsis + structured-metadata sidebar.
                 Below xl: stacks single-column (synopsis full width, then
@@ -184,10 +185,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
             </div>
           </div>
-          <CastStrip.cast_strip
-            :if={@entity.type == :movie}
-            cast={Map.get(@entity, :cast) || []}
-          />
         </div>
       </div>
       <div
@@ -197,25 +194,28 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         phx-hook="ScrollToResume"
         data-entity-id={@entity.id}
       >
-        <%= if @detail_view == :main do %>
-          <.content_list
-            entity={@entity}
-            expanded_seasons={@expanded_seasons}
-            progress_by_key={@progress_by_key}
-            resume_episode_key={@resume_episode_key}
-            extra_progress_by_id={@extra_progress_by_id}
-            on_play={@on_play}
-            spoiler_free={@spoiler_free}
-            available={@available}
-          />
-        <% else %>
-          <.info_view
-            entity={@entity}
-            files={@detail_files}
-            rematch_confirm={@rematch_confirm}
-            delete_confirm={@delete_confirm}
-            tmdb_ready={@tmdb_ready}
-          />
+        <%= case @detail_view do %>
+          <% :credits -> %>
+            <MoreInfoPanel.more_info_panel entity={@entity} />
+          <% :info -> %>
+            <.info_view
+              entity={@entity}
+              files={@detail_files}
+              rematch_confirm={@rematch_confirm}
+              delete_confirm={@delete_confirm}
+              tmdb_ready={@tmdb_ready}
+            />
+          <% _ -> %>
+            <.content_list
+              entity={@entity}
+              expanded_seasons={@expanded_seasons}
+              progress_by_key={@progress_by_key}
+              resume_episode_key={@resume_episode_key}
+              extra_progress_by_id={@extra_progress_by_id}
+              on_play={@on_play}
+              spoiler_free={@spoiler_free}
+              available={@available}
+            />
         <% end %>
       </div>
     </div>

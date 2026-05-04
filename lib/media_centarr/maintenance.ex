@@ -102,47 +102,52 @@ defmodule MediaCentarr.Maintenance do
   end
 
   @doc """
-  Backfills the `cast` field on movies that were imported before the
-  field existed. Iterates movies with a non-nil `tmdb_id`, re-fetches
-  TMDB metadata for ones with empty `cast`, and updates `cast` in
-  place via a focused changeset — no images, watch progress, or files
-  are touched.
+  Backfills the `cast`, `crew`, and `imdb_id` fields on movies imported
+  before those fields existed. Iterates movies with a non-nil `tmdb_id`,
+  re-fetches TMDB metadata for any with empty `cast` *or* empty `crew`,
+  and updates all three credit-related columns in place — no images,
+  watch progress, or files are touched.
 
   Idempotent: subsequent runs skip movies that already have non-empty
-  cast. Rate-limited automatically by `MediaCentarr.TMDB.RateLimiter`
-  inside `Client.get_movie/1`.
+  cast and non-empty crew. Rate-limited automatically by
+  `MediaCentarr.TMDB.RateLimiter` inside `Client.get_movie/1`.
 
   Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
   """
-  @spec refresh_movie_cast() ::
+  @spec refresh_movie_credits() ::
           {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
-  def refresh_movie_cast do
-    Log.info(:library, "refreshing movie cast")
+  def refresh_movie_credits do
+    Log.info(:library, "refreshing movie credits")
 
     movies = Repo.all(from m in Movie, where: not is_nil(m.tmdb_id))
 
     result =
-      Enum.reduce(movies, %{updated: 0, skipped: 0, failed: 0}, &process_cast_refresh/2)
+      Enum.reduce(movies, %{updated: 0, skipped: 0, failed: 0}, &process_credits_refresh/2)
 
     Log.info(
       :library,
-      "movie cast refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
+      "movie credits refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
     )
 
     {:ok, result}
   end
 
-  defp process_cast_refresh(%Movie{cast: cast} = _movie, acc) when cast not in [nil, []] do
+  defp process_credits_refresh(%Movie{cast: cast, crew: crew} = _movie, acc)
+       when cast not in [nil, []] and crew not in [nil, []] do
     Map.update!(acc, :skipped, &(&1 + 1))
   end
 
-  defp process_cast_refresh(%Movie{} = movie, acc) do
+  defp process_credits_refresh(%Movie{} = movie, acc) do
     case Client.get_movie(movie.tmdb_id) do
       {:ok, body} ->
-        cast = Mapper.extract_cast(body["credits"])
+        attrs = %{
+          cast: Mapper.extract_cast(body["credits"]),
+          crew: Mapper.extract_crew(body["credits"]),
+          imdb_id: body["imdb_id"]
+        }
 
         movie
-        |> Ecto.Changeset.change(cast: cast)
+        |> Ecto.Changeset.change(attrs)
         |> Repo.update()
         |> case do
           {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
@@ -152,7 +157,7 @@ defmodule MediaCentarr.Maintenance do
       {:error, reason} ->
         Log.warning(
           :library,
-          "cast refresh failed for movie #{movie.id}: #{inspect(reason)}"
+          "credits refresh failed for movie #{movie.id}: #{inspect(reason)}"
         )
 
         Map.update!(acc, :failed, &(&1 + 1))
