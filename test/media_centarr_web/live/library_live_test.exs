@@ -130,6 +130,21 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal [phx-click-away]")
     end
+
+    test "More info button opens the credits view via ?view=credits URL", %{
+      conn: conn,
+      movie: movie
+    } do
+      # Regression: build_modal_path/2 must encode `view=credits` into
+      # the URL, not just `view=info`. Without this the toggle handler
+      # round-trips through `parse_view` and lands on `:main`, making
+      # the More info button look broken.
+      {:ok, view, _html} = live(conn, ~p"/library?selected=#{movie.id}")
+
+      view |> element("button[phx-click='toggle_credits_view']") |> render_click()
+
+      assert_patched(view, ~p"/library?selected=#{movie.id}&view=credits")
+    end
   end
 
   describe "live updates from playback" do
