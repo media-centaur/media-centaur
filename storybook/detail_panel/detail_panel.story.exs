@@ -2,14 +2,11 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
   @moduledoc """
   Shared entity detail content rendered inside the entity modal — hero,
   metadata row, play card, facet strip, and the type-specific content
-  list (movie / TV seasons + episodes / movie series). Also surfaces the
-  rematch + delete confirmation modals and the files/info drawer.
-
-  This is the second-most complex Phase 5 component (1475 lines, 14
-  attrs). Like `upcoming_zone`, the catalog covers representative
-  shapes rather than every interesting cross-product — many states
-  collapse onto the same render when the active branch doesn't reach
-  them.
+  list (movie / TV seasons + episodes / movie series). The Manage
+  sub-view (`detail_view: :info`) layers files (grouped by directory,
+  with quality badges + an "added on" date), External IDs, the
+  Rematch action, and a quiet UUID footer. Delete confirmations are
+  *inline* — there is no secondary modal.
 
   ## Variations covered
 
@@ -26,15 +23,24 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
        and the missing-episode fallback for a gap in the episode list.
     4. `:movie_series` — `:movie_series` with three child movies, one
        partially watched. Hits the chronological movie row.
-    5. `:info_view_with_files` — `detail_view: :info`, populated
-       `detail_files`. Renders the drawer with grouped files,
-       Metadata + External IDs sections, and the Rematch action.
+    5. `:info_view_with_files` — `detail_view: :info` with grouped
+       files. Renders the prominent "Delete this/all files" danger
+       button at the top, always-visible per-folder + per-file delete
+       affordances, quality badges parsed from filenames (4K / HDR /
+       WEB / H265 …), an "added Xd ago" stamp per file, the External
+       IDs section, the Rematch action, and the muted UUID footer.
     6. `:rematch_confirm` — `rematch_confirm: true` flips the Rematch
        action to its confirm state ("Confirm?" copy, `btn-error`
        styling). Captures the confirmation toggle.
-    7. `:delete_confirm_open` — `delete_confirm: {:file, …}` opens the
-       per-file delete modal layered over the info drawer.
-    8. `:offline` — `available: false`, `tmdb_ready: false`. Play
+    7. `:delete_pending_all_inline` — `delete_confirm: :all` flips the
+       prominent danger button to "Click again to confirm — Delete
+       all files (size)" with an inline Cancel link. No separate
+       modal; the gesture lives where the button does.
+    8. `:delete_pending_file_inline` — `delete_confirm: {:file, path}`
+       targeting one of the rows in `detail_files`. That file row
+       gets a danger-tinted background + the trash button widens to
+       show "Click to confirm".
+    9. `:offline` — `available: false`, `tmdb_ready: false`. Play
        button collapses to the "Offline" pill, episode thumbnails
        become empty placeholder rectangles, the Rematch action is
        replaced with the "needs TMDB" hint.
@@ -71,12 +77,12 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       Lifting both into named structs documents the boundary
       between server-computed progress and client-derived resume
       hints.
-    * `delete_confirm: :any` — actually a tagged tuple union:
-      `nil | {:file, %{path:, name:, size:}} | {:folder, %{...}} |
-      {:all, %{file_groups:, total_size:, file_count:}}`. The `:any`
-      hides this entirely; even the moduledoc doesn't enumerate
-      it. A small `DeletePrompt` struct (or an ADT) would surface
-      what calls into `delete_confirmation/1` need to construct.
+    * `delete_confirm: :any` — actually a sum type identifying the
+      pending inline-confirm target: `nil | :all | {:file, path} |
+      {:folder, path}`. The `:any` hides the discriminator; a tagged
+      union (or `Ecto.Enum`-style atom + path payload struct) would
+      let dialyzer catch the per-button match expressions in the
+      template.
     * `tracking_status: :atom, default: nil` — observed values are
       `nil | :watching | :ignored | :unknown` (see `tracking_icon/1`
       catch-all). Should be a typed enum.
@@ -108,10 +114,12 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
   # card and facet strip stretch to whatever the storybook column
   # gives them.
   #
-  # `transform: translateZ(0)` creates a containing block for any
-  # `position: fixed` descendants — which is what the delete-confirm
-  # modal in `:delete_confirm_open` is. Without this the modal
-  # backdrop escapes its variation and overlays every variation below.
+  # `transform: translateZ(0)` creates a containing block scope so any
+  # future `position: fixed` descendant (a flash, a popover) stays
+  # inside its variation card instead of escaping to overlay every
+  # variation below. Cheap insurance even without modals on screen
+  # right now — the inline-confirm pattern killed the per-variation
+  # delete-confirm modal that originally needed it.
   def template do
     """
     <div
@@ -186,9 +194,15 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :info_view_with_files,
         description:
-          "`detail_view: :info` swaps the content list for the info drawer — " <>
-            "files grouped by folder, Metadata, External IDs, and the **Rematch** " <>
-            "action. Files use `detail_files: [%{file: %WatchedFile{}, size: bytes}]`.",
+          "`detail_view: :info` swaps the content list for the Manage drawer. " <>
+            "Top: prominent **Delete this/all files (size)** danger button, always " <>
+            "visible. Per-folder + per-file delete affordances also always visible " <>
+            "(not hover-gated). Each file row carries a quality-badge strip parsed " <>
+            "from its filename (4K / HDR / WEB / H265 …) plus an `added Xd ago` " <>
+            "stamp on the right. Below the file list: External IDs (one row per " <>
+            "source, linked when known), the Rematch action, and a muted UUID " <>
+            "footer chip. Files use `detail_files: " <>
+            "[%{file: %WatchedFile{}, size: bytes}]`.",
         attributes: %{
           entity: sample_movie_entity(),
           progress: nil,
@@ -221,11 +235,13 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
-        id: :delete_confirm_open,
+        id: :delete_pending_all_inline,
         description:
-          "`delete_confirm: {:file, %{path:, name:, size:}}` while in the info " <>
-            "view — the per-file delete confirmation modal renders over the " <>
-            "drawer. Cancel + Delete buttons render at the bottom.",
+          "`delete_confirm: :all` — first click on the prominent danger button " <>
+            "set the pending target. Button text flips to **Click again to " <>
+            "confirm — Delete all files (size)** and an inline **Cancel** link " <>
+            "appears beside it. No secondary modal — the gesture lives where the " <>
+            "button does.",
         attributes: %{
           entity: sample_movie_entity(),
           progress: nil,
@@ -235,13 +251,27 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
           tmdb_ready: true,
           detail_view: :info,
           detail_files: sample_detail_files(),
-          delete_confirm:
-            {:file,
-             %{
-               path: "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.mkv",
-               name: "Sample.Movie.1922.1080p.mkv",
-               size: 4_294_967_296
-             }},
+          delete_confirm: :all,
+          expanded_seasons: MapSet.new()
+        }
+      },
+      %Variation{
+        id: :delete_pending_file_inline,
+        description:
+          "`delete_confirm: {:file, path}` targeting one of the rows. That " <>
+            "row's background switches to the danger tint, gets a thin error " <>
+            "ring, and its trash button widens from the resting icon-only state " <>
+            "to **🗑 Click to confirm**.",
+        attributes: %{
+          entity: sample_movie_entity(),
+          progress: nil,
+          resume: nil,
+          progress_records: [],
+          available: true,
+          tmdb_ready: true,
+          detail_view: :info,
+          detail_files: sample_detail_files(),
+          delete_confirm: {:file, "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.mkv"},
           expanded_seasons: MapSet.new()
         }
       },

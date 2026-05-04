@@ -70,7 +70,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   @doc_progress_by_key "`%{{season_number, episode_number} => ProgressRecord.t()}` — built by `EpisodeList.index_progress_by_key/1`."
   @doc_extra_progress_by_id "`%{Ecto.UUID.t() => ProgressRecord.t()}` keyed by extra id."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
-  @doc_delete_confirm "transient delete-confirmation state — `nil`, `:entity`, or a `%{file_id: id}` map. Heterogeneous tag-or-map shape; `:any` is intentional."
+  @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."
   @doc_season "`MediaCentarr.Library.Season.t()` (Ecto schema) preloaded with `:episodes`."
   @doc_episode "`MediaCentarr.Library.Episode.t()` (Ecto schema)."
   @doc_movie "`MediaCentarr.Library.Movie.t()` (Ecto schema) — used inside `MovieSeries` content lists."
@@ -977,7 +977,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             delete affordances stay always-visible (not hover-gated) so
             granular cleanup is equally discoverable. The folder-level
             button never appears for the watch_dir itself — deleting a
-            watch root would be catastrophic. --%>
+            watch root would be catastrophic.
+
+            Confirmation is INLINE — first click on any delete button
+            sets `@delete_confirm` to that target and the button flips
+            its label to "Confirm?". Second click executes. Clicking a
+            different delete button re-targets. There is no separate
+            confirmation modal (we deliberately killed it because
+            modal-on-modal noise is uglier than the in-place gesture). --%>
       <div :if={@files != []}>
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
@@ -987,7 +994,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             {file_summary(@file_count, @total_size)}
           </span>
         </div>
-        <div class="mb-3">
+        <div class="mb-3 flex items-center gap-2">
           <.button
             variant="danger"
             size="sm"
@@ -997,7 +1004,21 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             aria-label={delete_all_aria_label(@file_count)}
           >
             <.icon name="hero-trash-mini" class="size-4" />
-            {delete_all_label(@file_count)} ({format_file_size(@total_size)})
+            <%= if @delete_confirm == :all do %>
+              Click again to confirm — {delete_all_label(@file_count)} ({format_file_size(@total_size)})
+            <% else %>
+              {delete_all_label(@file_count)} ({format_file_size(@total_size)})
+            <% end %>
+          </.button>
+          <.button
+            :if={@delete_confirm == :all}
+            variant="dismiss"
+            size="sm"
+            phx-click="delete_cancel"
+            data-nav-item
+            tabindex="0"
+          >
+            Cancel
           </.button>
         </div>
         <div class="space-y-3">
@@ -1014,7 +1035,13 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 :if={!group.is_watch_dir}
                 variant="destructive_inline"
                 size="xs"
-                class="text-error/70 hover:text-error ml-auto flex-shrink-0"
+                class={[
+                  "ml-auto flex-shrink-0",
+                  if(@delete_confirm == {:folder, group.dir},
+                    do: "text-error font-medium",
+                    else: "text-error/70 hover:text-error"
+                  )
+                ]}
                 phx-click="delete_folder_prompt"
                 phx-value-path={group.dir}
                 phx-value-count={length(group.files)}
@@ -1022,19 +1049,25 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 tabindex="0"
               >
                 <.icon name="hero-folder-minus-mini" class="size-3.5" />
-                Delete ({length(group.files)} {if length(group.files) == 1,
-                  do: "file",
-                  else: "files"})
+                <%= if @delete_confirm == {:folder, group.dir} do %>
+                  Click again to confirm
+                <% else %>
+                  Delete ({length(group.files)} {if length(group.files) == 1,
+                    do: "file",
+                    else: "files"})
+                <% end %>
               </.button>
             </div>
             <div class="space-y-1.5">
-              <.file_row :for={file_info <- group.files} file_info={file_info} />
+              <.file_row
+                :for={file_info <- group.files}
+                file_info={file_info}
+                delete_confirm={@delete_confirm}
+              />
             </div>
           </div>
         </div>
       </div>
-      <%!-- Delete confirmation modal --%>
-      <.delete_confirmation delete_confirm={@delete_confirm} />
 
       <%!-- External IDs section. One row per known external source.
             TMDB row's URL comes from `@entity.url` (built by the mapper
@@ -1136,6 +1169,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   attr :file_info, :map, required: true, doc: @doc_file_info
 
+  attr :delete_confirm, :any,
+    default: nil,
+    doc:
+      "current pending-delete target — `{:file, path}` flips this row's trash button into confirm state."
+
   defp file_row(assigns) do
     file = assigns.file_info.file
     size = assigns.file_info.size
@@ -1143,6 +1181,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     filename = Path.basename(file.file_path)
     badges = parse_quality_badges(filename)
     added_at = Map.get(file, :inserted_at)
+    is_pending = assigns.delete_confirm == {:file, file.file_path}
 
     assigns =
       assigns
@@ -1152,9 +1191,14 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:absent, absent)
       |> assign(:badges, badges)
       |> assign(:added_at, added_at)
+      |> assign(:is_pending, is_pending)
 
     ~H"""
-    <div class={["text-sm rounded p-2 bg-base-content/5", @absent && "opacity-60"]}>
+    <div class={[
+      "text-sm rounded p-2",
+      @absent && "opacity-60",
+      if(@is_pending, do: "bg-error/15 ring-1 ring-error/40", else: "bg-base-content/5")
+    ]}>
       <div class="flex items-center gap-2">
         <.icon
           name={if @absent, do: "hero-exclamation-triangle-mini", else: "hero-document-mini"}
@@ -1170,14 +1214,21 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         <.button
           variant="destructive_inline"
           size="xs"
-          class="size-6 min-h-0 p-0 text-error/70 hover:text-error flex-shrink-0"
+          class={[
+            "min-h-0 flex-shrink-0",
+            if(@is_pending,
+              do: "px-2 text-error font-medium",
+              else: "size-6 p-0 text-error/70 hover:text-error"
+            )
+          ]}
           phx-click="delete_file_prompt"
           phx-value-path={@file_path}
-          aria-label="Delete file"
+          aria-label={if @is_pending, do: "Click again to confirm delete", else: "Delete file"}
           data-nav-item
           tabindex="0"
         >
           <.icon name="hero-trash-mini" class="size-3.5" />
+          <span :if={@is_pending}>Click to confirm</span>
         </.button>
       </div>
       <div
@@ -1373,218 +1424,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   end
 
   def format_file_size(bytes), do: "#{bytes} B"
-
-  # --- Delete Confirmation ---
-
-  attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
-
-  defp delete_confirmation(%{delete_confirm: nil} = assigns) do
-    ~H"""
-    """
-  end
-
-  defp delete_confirmation(%{delete_confirm: {:file, file}} = assigns) do
-    assigns = assign(assigns, :file, file)
-
-    ~H"""
-    <div
-      class="modal-backdrop"
-      data-state="open"
-      data-detail-mode="modal"
-      data-dismiss-event="delete_cancel"
-      phx-click="delete_cancel"
-      phx-window-keydown="delete_cancel"
-      phx-key="Escape"
-      style="z-index: 60;"
-    >
-      <div class="modal-panel modal-panel-sm p-6" phx-click={%Phoenix.LiveView.JS{}}>
-        <h3 class="text-lg font-bold text-error">Delete file?</h3>
-        <div class="mt-3 rounded-lg bg-base-content/5 p-3">
-          <div class="flex items-center gap-2">
-            <.icon name="hero-document-mini" class="size-4 text-base-content/40 flex-shrink-0" />
-            <span class="font-mono text-xs text-base-content/80 truncate">{@file.name}</span>
-            <span :if={@file.size} class="text-xs text-base-content/40 flex-shrink-0 ml-auto">
-              {format_file_size(@file.size)}
-            </span>
-          </div>
-          <p class="mt-1 ml-6 text-xs text-base-content/30 truncate-left" title={@file.path}>
-            <bdo dir="ltr">{@file.path}</bdo>
-          </p>
-        </div>
-        <p class="mt-3 text-sm text-warning">This file will be permanently deleted from disk.</p>
-        <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
-        <div class="mt-4 flex justify-end gap-2">
-          <.button
-            variant="dismiss"
-            size="sm"
-            phx-click="delete_cancel"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel
-          </.button>
-          <.button
-            variant="danger"
-            size="sm"
-            phx-click="delete_confirm"
-            data-nav-item
-            tabindex="0"
-          >
-            Delete
-          </.button>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp delete_confirmation(%{delete_confirm: {:folder, folder}} = assigns) do
-    assigns = assign(assigns, :folder, folder)
-
-    ~H"""
-    <div
-      class="modal-backdrop"
-      data-state="open"
-      data-detail-mode="modal"
-      data-dismiss-event="delete_cancel"
-      phx-click="delete_cancel"
-      phx-window-keydown="delete_cancel"
-      phx-key="Escape"
-      style="z-index: 60;"
-    >
-      <div class="modal-panel p-6" phx-click={%Phoenix.LiveView.JS{}}>
-        <h3 class="text-lg font-bold text-error">Delete folder?</h3>
-        <div class="mt-3 rounded-lg bg-base-content/5 p-3">
-          <div class="flex items-center gap-2">
-            <.icon name="hero-folder-mini" class="size-4 text-base-content/40 flex-shrink-0" />
-            <span class="font-medium text-sm text-base-content/80">{@folder.name}</span>
-            <span class="text-xs text-base-content/40 flex-shrink-0 ml-auto">
-              {format_file_size(@folder.total_size)}
-            </span>
-          </div>
-          <p class="mt-1 ml-6 text-xs text-base-content/30 truncate-left" title={@folder.path}>
-            <bdo dir="ltr">{@folder.path}</bdo>
-          </p>
-          <div class="mt-2 ml-6 space-y-0.5">
-            <div
-              :for={file <- @folder.files}
-              class="flex items-center gap-2 text-xs text-base-content/60"
-            >
-              <.icon name="hero-document-mini" class="size-3 text-base-content/30 flex-shrink-0" />
-              <span class="truncate font-mono">{file.name}</span>
-              <span :if={file.size} class="text-base-content/30 flex-shrink-0 ml-auto">
-                {format_file_size(file.size)}
-              </span>
-            </div>
-          </div>
-        </div>
-        <p class="mt-3 text-sm text-warning">
-          The entire folder including {length(@folder.files)} media {if length(@folder.files) == 1,
-            do: "file",
-            else: "files"} and all other contents will be permanently deleted.
-        </p>
-        <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
-        <div class="mt-4 flex justify-end gap-2">
-          <.button
-            variant="dismiss"
-            size="sm"
-            phx-click="delete_cancel"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel
-          </.button>
-          <.button
-            variant="danger"
-            size="sm"
-            phx-click="delete_confirm"
-            data-nav-item
-            tabindex="0"
-          >
-            Delete folder
-          </.button>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp delete_confirmation(%{delete_confirm: {:all, all_info}} = assigns) do
-    assigns = assign(assigns, :all_info, all_info)
-
-    ~H"""
-    <div
-      class="modal-backdrop"
-      data-state="open"
-      data-detail-mode="modal"
-      data-dismiss-event="delete_cancel"
-      phx-click="delete_cancel"
-      phx-window-keydown="delete_cancel"
-      phx-key="Escape"
-      style="z-index: 60;"
-    >
-      <div class="modal-panel p-6" phx-click={%Phoenix.LiveView.JS{}}>
-        <h3 class="text-lg font-bold text-error">Delete all files?</h3>
-        <p class="mt-1 text-sm text-base-content/60">
-          {file_summary(@all_info.file_count, @all_info.total_size)} across {length(
-            @all_info.file_groups
-          )} {if length(@all_info.file_groups) == 1,
-            do: "folder",
-            else: "folders"}
-        </p>
-        <div class="mt-3 rounded-lg bg-base-content/5 p-3 max-h-64 overflow-y-auto thin-scrollbar space-y-2">
-          <div :for={group <- @all_info.file_groups}>
-            <div class="flex items-center gap-1.5 mb-1">
-              <.icon name="hero-folder-mini" class="size-3.5 text-base-content/40 flex-shrink-0" />
-              <span class="text-xs font-medium text-base-content/60 truncate" title={group.dir}>
-                {group.name}
-              </span>
-            </div>
-            <div class="ml-5 space-y-0.5">
-              <div
-                :for={file <- group.files}
-                class="flex items-center gap-2 text-xs text-base-content/60"
-              >
-                <.icon
-                  name="hero-document-mini"
-                  class="size-3 text-base-content/30 flex-shrink-0"
-                />
-                <span class="truncate font-mono">{file.name}</span>
-                <span :if={file.size} class="text-base-content/30 flex-shrink-0 ml-auto">
-                  {format_file_size(file.size)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <p class="mt-3 text-sm text-warning">
-          All files will be permanently deleted from disk.
-        </p>
-        <p class="text-xs text-base-content/40 mt-1">This action cannot be undone.</p>
-        <div class="mt-4 flex justify-end gap-2">
-          <.button
-            variant="dismiss"
-            size="sm"
-            phx-click="delete_cancel"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel
-          </.button>
-          <.button
-            variant="danger"
-            size="sm"
-            phx-click="delete_confirm"
-            data-nav-item
-            tabindex="0"
-          >
-            Delete all
-          </.button>
-        </div>
-      </div>
-    </div>
-    """
-  end
 
   # --- Episode List Builder ---
 

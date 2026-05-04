@@ -44,7 +44,7 @@ Body has a fixed two-tone radial gradient background. Glass surfaces float above
 
 ## Storybook (live catalog)
 
-Every recipe below has a runnable counterpart in **Phoenix Storybook** at <http://localhost:1080/storybook> (dev-only). When adding a recipe, add a story; when changing a component, update its story in the same PR.
+Every recipe below has a runnable counterpart in **Phoenix Storybook** at <http://localhost:1080/storybook> (dev-only). When adding a recipe, add a story; when changing a component that already has a story, **edit the story variation first** and treat it as the acceptance criterion before editing the component itself. See `storybook` skill → *Storybook-first for visual changes*.
 
 The full philosophy and triage table live at [`docs/storybook.md`](../../docs/storybook.md). The dedicated [`storybook`](../storybook/SKILL.md) skill covers conventions and anti-patterns.
 
