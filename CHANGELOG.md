@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.37.4 — 2026-05-04
+
+### Improved
+
+The Manage view now leads with a prominent "Delete all files" danger
+button (or "Delete this file" when there's only one) showing the total
+size up front, so wiping a title from disk no longer requires hunting
+for a hidden affordance. Per-folder and per-file delete buttons are
+also always visible now instead of appearing only on hover — useful
+for movie collections that sit loose at the root, and for trimming a
+single stray file out of a TV series folder. The single watch root
+itself never gets a delete button (deleting the watch dir would be
+catastrophic), but everything inside it does.
+
 ## v0.37.3 — 2026-05-04
 
 ### Improved
