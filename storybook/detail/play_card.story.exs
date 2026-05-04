@@ -1,7 +1,7 @@
 defmodule MediaCentarrWeb.Storybook.Detail.PlayCard do
   @moduledoc """
   Playback action row in the entity detail panel — Play/Resume button,
-  thin progress bar with optional "remaining" text, and a "More info"
+  thin progress bar with optional "remaining" text, and a "Manage"
   toggle.
 
   The component is pure presentation: callers pre-compute `label`,
@@ -19,7 +19,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.PlayCard do
     * When `available: false` the play button is replaced with a disabled
       "Offline" pill — see `:offline`.
     * When `detail_view == :info` the secondary toggle reads "Back"
-      instead of "More info" — see `:info_view_open`.
+      instead of "Manage" — see `:info_view_open`.
   """
 
   use PhoenixStorybook.Story, :component
@@ -134,7 +134,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.PlayCard do
         description:
           "Storage offline (`available: false`) — the primary play button " <>
             "is replaced with a disabled \"Offline\" pill carrying the " <>
-            "explanatory tooltip. The \"More info\" toggle still works.",
+            "explanatory tooltip. The \"Manage\" toggle still works.",
         attributes: %{
           on_play: "play",
           target_id: "entity-7",
@@ -165,7 +165,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.PlayCard do
         id: :info_view_open,
         description:
           "`detail_view: :info` — the secondary toggle's label flips from " <>
-            ~s("More info" to "Back" so users can return to the main view.),
+            ~s("Manage" to "Back" so users can return to the main view.),
         attributes: %{
           on_play: "play",
           target_id: "entity-9",
