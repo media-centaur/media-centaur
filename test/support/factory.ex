@@ -98,6 +98,7 @@ defmodule MediaCentarr.TestFactory do
       tmdb_id: nil,
       position: 0,
       status: nil,
+      cast: [],
       images: []
     }
 

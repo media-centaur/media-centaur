@@ -30,6 +30,7 @@ defmodule MediaCentarr.Library.Movie do
     field :position, :integer
 
     field :genres, {:array, :string}
+    field :cast, {:array, :map}, default: []
 
     field :status, Ecto.Enum,
       values: [:released, :in_production, :post_production, :planned, :rumored, :canceled]
@@ -66,12 +67,21 @@ defmodule MediaCentarr.Library.Movie do
       :genres,
       :position,
       :movie_series_id,
-      :status
+      :status,
+      :cast
     ])
     |> validate_required([:name])
+    |> coerce_cast_default()
   end
 
   def set_content_url_changeset(movie, attrs) do
     cast(movie, attrs, [:content_url])
+  end
+
+  defp coerce_cast_default(changeset) do
+    case get_field(changeset, :cast) do
+      nil -> put_change(changeset, :cast, [])
+      _ -> changeset
+    end
   end
 end
