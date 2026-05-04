@@ -41,6 +41,7 @@ defmodule MediaCentarr.Library.MovieSeries do
       :tmdb_id
     ])
     |> validate_required([:name])
+    |> unique_constraint(:tmdb_id, name: :library_movie_series_tmdb_id_index)
   end
 
   def update_changeset(movie_series, attrs) do

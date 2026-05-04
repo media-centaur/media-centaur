@@ -10,10 +10,11 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
       `retry_count: 0` and broadcast.
 
     * **Rebuild** — no queue row exists (legacy DBs, showcase pre-queue
-      seeds). Walk the entity up to TMDB via `tmdb_id` on movies or
-      `library_external_ids` on other types, fetch metadata, pull the
-      `poster_path` / `backdrop_path` / `still_path` for the role, and
-      insert a fresh queue row.
+      seeds). Walk the entity up to TMDB via the entity's `tmdb_id`
+      column (movies, TV series, movie series, video objects). Episodes
+      derive their TMDB id from the parent TV series. Fetch metadata,
+      pull the `poster_path` / `backdrop_path` / `still_path` for the
+      role, and insert a fresh queue row.
 
   Broadcasts `{:images_pending, %{entity_id, watch_dir}}` on
   `Topics.pipeline_images/0`, deduped per `(entity_id, watch_dir)` so one
@@ -25,7 +26,6 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.Episode
-  alias MediaCentarr.Library.ExternalId
   alias MediaCentarr.Library.ImageHealth
   alias MediaCentarr.Library.Season
   alias MediaCentarr.Library.WatchedFile
@@ -180,50 +180,30 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   # {:ok, {tmdb_id, season_number, episode_number, parent_tv_series_id}}
   # for episodes.
 
-  defp find_tmdb_context(entity_id, :movie) do
-    case Library.fetch_movie(entity_id) do
-      {:ok, %{tmdb_id: tmdb_id}} when is_binary(tmdb_id) and tmdb_id != "" ->
-        {:ok, tmdb_id}
+  defp find_tmdb_context(entity_id, :movie), do: tmdb_from_entity(Library.fetch_movie(entity_id))
 
-      _ ->
-        find_tmdb_from_external_ids(entity_id, :movie)
-    end
-  end
-
-  defp find_tmdb_context(entity_id, :tv_series), do: find_tmdb_from_external_ids(entity_id, :tv_series)
+  defp find_tmdb_context(entity_id, :tv_series), do: tmdb_from_entity(Library.fetch_tv_series(entity_id))
 
   defp find_tmdb_context(entity_id, :movie_series),
-    do: find_tmdb_from_external_ids(entity_id, :movie_series)
+    do: tmdb_from_entity(Library.fetch_movie_series(entity_id))
 
   defp find_tmdb_context(entity_id, :video_object),
-    do: find_tmdb_from_external_ids(entity_id, :video_object)
+    do: tmdb_from_entity(Library.fetch_video_object(entity_id))
 
   defp find_tmdb_context(episode_id, :episode) do
     with {:ok, episode} <- Library.fetch_episode(episode_id),
          %Season{} = season <- Repo.get(Season, episode.season_id),
-         {:ok, tmdb_id} <- find_tmdb_from_external_ids(season.tv_series_id, :tv_series) do
+         {:ok, tmdb_id} <- find_tmdb_context(season.tv_series_id, :tv_series) do
       {:ok, {tmdb_id, season.season_number, episode.episode_number, season.tv_series_id}}
     else
       _ -> {:skip, :no_tmdb_id}
     end
   end
 
-  defp find_tmdb_from_external_ids(entity_id, entity_type) do
-    fk = fk_for(entity_type)
+  defp tmdb_from_entity({:ok, %{tmdb_id: tmdb_id}}) when is_binary(tmdb_id) and tmdb_id != "",
+    do: {:ok, tmdb_id}
 
-    case Repo.one(
-           from(e in ExternalId,
-             where: e.source == "tmdb" and field(e, ^fk) == ^entity_id
-           )
-         ) do
-      %ExternalId{external_id: external_id}
-      when is_binary(external_id) and external_id != "" ->
-        {:ok, external_id}
-
-      _ ->
-        {:skip, :no_tmdb_id}
-    end
-  end
+  defp tmdb_from_entity(_), do: {:skip, :no_tmdb_id}
 
   defp fk_for(:movie), do: :movie_id
   defp fk_for(:tv_series), do: :tv_series_id

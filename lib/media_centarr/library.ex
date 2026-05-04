@@ -443,66 +443,94 @@ defmodule MediaCentarr.Library do
   def destroy_external_id(external_id), do: Repo.delete(external_id)
   def destroy_external_id!(external_id), do: destroy_bang!(external_id)
 
-  def find_by_tmdb_id_for_movie(tmdb_id) do
-    Repo.one(
-      from(i in ExternalId,
-        where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.movie_id),
-        limit: 1
-      )
-    )
+  @doc """
+  Returns the `Movie` with the given TMDB id, or `nil`. Each entity now
+  carries `tmdb_id` directly (see ADR-style note in
+  `feat(library): hoist tmdb_id onto every entity`); these helpers query
+  the entity table rather than the historical `library_external_ids`
+  rows. `external_ids` is reserved for non-TMDB sources (imdb/tvdb/etc).
+  """
+  def find_movie_by_tmdb_id(tmdb_id) do
+    Repo.one(from(m in Movie, where: m.tmdb_id == ^tmdb_id, limit: 1))
   end
 
-  def find_by_tmdb_id_for_tv_series(tmdb_id) do
-    Repo.one(
-      from(i in ExternalId,
-        where: i.source == "tmdb" and i.external_id == ^tmdb_id and not is_nil(i.tv_series_id),
-        limit: 1
-      )
-    )
+  def find_tv_series_by_tmdb_id(tmdb_id) do
+    Repo.one(from(t in TVSeries, where: t.tmdb_id == ^tmdb_id, limit: 1))
   end
 
-  def find_by_tmdb_collection_for_movie_series(collection_id) do
-    Repo.one(
-      from(i in ExternalId,
-        where:
-          i.source == "tmdb_collection" and i.external_id == ^collection_id and
-            not is_nil(i.movie_series_id),
-        limit: 1
+  def find_movie_series_by_tmdb_id(tmdb_id) do
+    Repo.one(from(ms in MovieSeries, where: ms.tmdb_id == ^tmdb_id, limit: 1))
+  end
+
+  def find_video_object_by_tmdb_id(tmdb_id) do
+    Repo.one(from(v in VideoObject, where: v.tmdb_id == ^tmdb_id, limit: 1))
+  end
+
+  @doc """
+  Returns `{tv_series_id, tmdb_id}` pairs for TV series in the given
+  list whose `tmdb_id` is set.
+  """
+  def tmdb_ids_for_tv_series(tv_series_ids) when is_list(tv_series_ids) do
+    Repo.all(
+      from(t in TVSeries,
+        where: t.id in ^tv_series_ids and not is_nil(t.tmdb_id),
+        select: {t.id, t.tmdb_id}
       )
     )
   end
 
   @doc """
-  Returns `{tv_series_id, external_id}` pairs for TV series in the given list
-  that have a TMDB external identifier.
-  """
-  def tmdb_external_ids_for_tv_series(tv_series_ids) when is_list(tv_series_ids) do
-    Repo.all(
-      from(ext in ExternalId,
-        where: ext.tv_series_id in ^tv_series_ids and ext.source == "tmdb",
-        select: {ext.tv_series_id, ext.external_id}
-      )
-    )
-  end
+  Returns every entity in the library that has a TMDB id, tagged with
+  its type. Used by ReleaseTracking to scan for tracking candidates.
 
-  @doc """
-  Returns every TMDB-style external ID in the library with its owning FK columns.
-  Includes both `"tmdb"` (movies, TV, standalone movies) and `"tmdb_collection"`
-  (movie series) sources. Used by ReleaseTracking to scan for tracking candidates.
+  The `:source` key matches the legacy external_id source convention
+  (`"tmdb"` for movies/TV, `"tmdb_collection"` for movie series) so
+  consumers that branched on it didn't need to change shape.
   """
-  def list_tmdb_external_ids do
-    Repo.all(
-      from(ext in ExternalId,
-        where: ext.source in ["tmdb", "tmdb_collection"],
-        select: %{
-          source: ext.source,
-          external_id: ext.external_id,
-          tv_series_id: ext.tv_series_id,
-          movie_series_id: ext.movie_series_id,
-          movie_id: ext.movie_id
-        }
+  def list_tmdb_entities do
+    tv =
+      Repo.all(
+        from(t in TVSeries,
+          where: not is_nil(t.tmdb_id),
+          select: %{
+            source: "tmdb",
+            external_id: t.tmdb_id,
+            tv_series_id: t.id,
+            movie_series_id: nil,
+            movie_id: nil
+          }
+        )
       )
-    )
+
+    movies =
+      Repo.all(
+        from(m in Movie,
+          where: not is_nil(m.tmdb_id) and is_nil(m.movie_series_id),
+          select: %{
+            source: "tmdb",
+            external_id: m.tmdb_id,
+            tv_series_id: nil,
+            movie_series_id: nil,
+            movie_id: m.id
+          }
+        )
+      )
+
+    movie_series =
+      Repo.all(
+        from(ms in MovieSeries,
+          where: not is_nil(ms.tmdb_id),
+          select: %{
+            source: "tmdb_collection",
+            external_id: ms.tmdb_id,
+            tv_series_id: nil,
+            movie_series_id: ms.id,
+            movie_id: nil
+          }
+        )
+      )
+
+    tv ++ movies ++ movie_series
   end
 
   # ---------------------------------------------------------------------------

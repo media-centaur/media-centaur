@@ -253,13 +253,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
 
   describe "update_last_episodes_for — auto-linking" do
     test "links a manually-tracked item to a library entity by TMDB ID and updates episode progress" do
-      tv_series = create_tv_series(%{name: "Sample Drama"})
-
-      create_external_id(%{
-        tv_series_id: tv_series.id,
-        source: "tmdb",
-        external_id: "250307"
-      })
+      tv_series = create_tv_series(%{name: "Sample Drama", tmdb_id: "250307"})
 
       season =
         create_season(%{tv_series_id: tv_series.id, season_number: 2, number_of_episodes: 14})
@@ -299,13 +293,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
     end
 
     test "does not affect items already linked to a library entity" do
-      tv_series = create_tv_series(%{name: "Already Linked"})
-
-      create_external_id(%{
-        tv_series_id: tv_series.id,
-        source: "tmdb",
-        external_id: "11111"
-      })
+      tv_series = create_tv_series(%{name: "Already Linked", tmdb_id: "11111"})
 
       season =
         create_season(%{tv_series_id: tv_series.id, season_number: 1, number_of_episodes: 5})

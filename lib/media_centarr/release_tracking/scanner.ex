@@ -12,11 +12,11 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
   alias MediaCentarr.TMDB.Client
 
   def scan do
-    external_ids = Library.list_tmdb_external_ids()
-    Log.info(:library, "release tracking scan: #{length(external_ids)} TMDB IDs found")
+    candidates = Library.list_tmdb_entities()
+    Log.info(:library, "release tracking scan: #{length(candidates)} TMDB IDs found")
 
     results =
-      Enum.reduce(external_ids, %{tracked: 0, skipped: 0, errors: 0}, fn ext_id, acc ->
+      Enum.reduce(candidates, %{tracked: 0, skipped: 0, errors: 0}, fn ext_id, acc ->
         case process_external_id(ext_id) do
           :tracked -> %{acc | tracked: acc.tracked + 1}
           :skipped -> %{acc | skipped: acc.skipped + 1}

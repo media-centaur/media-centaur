@@ -11,8 +11,6 @@ defmodule MediaCentarr.Library.InboundTest do
   """
   use MediaCentarr.DataCase, async: false
 
-  import Ecto.Query
-
   alias MediaCentarr.Library
   alias MediaCentarr.Library.Inbound
   alias MediaCentarr.Library.WatchedFile
@@ -30,7 +28,8 @@ defmodule MediaCentarr.Library.InboundTest do
         description: "A sample movie description.",
         date_published: "1999-10-15",
         content_url: "/media/Sample.Movie.1999.mkv",
-        url: "https://www.themoviedb.org/movie/550"
+        url: "https://www.themoviedb.org/movie/550",
+        tmdb_id: "550"
       },
       images: [
         %{role: "poster", url: "https://image.tmdb.org/poster.jpg"},
@@ -52,7 +51,8 @@ defmodule MediaCentarr.Library.InboundTest do
       entity_type: :movie_series,
       entity_attrs: %{
         type: :movie_series,
-        name: "Sample Movie Collection"
+        name: "Sample Movie Collection",
+        tmdb_id: "263"
       },
       images: [
         %{role: "poster", url: "https://image.tmdb.org/coll_poster.jpg"}
@@ -90,7 +90,8 @@ defmodule MediaCentarr.Library.InboundTest do
         name: "Sample Show",
         description: "A sample show description.",
         number_of_seasons: 5,
-        url: "https://www.themoviedb.org/tv/1396"
+        url: "https://www.themoviedb.org/tv/1396",
+        tmdb_id: "1396"
       },
       images: [
         %{role: "poster", url: "https://image.tmdb.org/bb_poster.jpg"}
@@ -139,9 +140,8 @@ defmodule MediaCentarr.Library.InboundTest do
       assert reloaded.name == "Sample Movie"
       assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
 
-      # Identifier created with movie_id
-      identifier = Library.find_by_tmdb_id_for_movie("550")
-      assert identifier.movie_id == movie.id
+      # tmdb_id stored directly on the Movie row
+      assert Library.find_movie_by_tmdb_id("550").id == movie.id
 
       # WatchedFile linked with movie_id
       [file] = MediaCentarr.Repo.all(WatchedFile)
@@ -191,20 +191,8 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, reloaded} = Library.fetch_movie_series(series.id)
       assert reloaded.name == "Sample Movie Collection"
 
-      # Collection identifier with movie_series_id
-      collection_id = Library.find_by_tmdb_collection_for_movie_series("263")
-      assert collection_id.movie_series_id == series.id
-
-      # Movie-level TMDB identifier created with movie_series_id FK
-      movie_tmdb_external_id =
-        MediaCentarr.Repo.one(
-          from(i in MediaCentarr.Library.ExternalId,
-            where: i.source == "tmdb" and i.external_id == "155"
-          )
-        )
-
-      assert movie_tmdb_external_id != nil
-      assert movie_tmdb_external_id.movie_series_id == series.id
+      # tmdb_id stored directly on MovieSeries
+      assert Library.find_movie_series_by_tmdb_id("263").id == series.id
 
       # Child movie with movie_series_id FK
       series = MediaCentarr.Repo.preload(series, [:movies])
@@ -225,14 +213,9 @@ defmodule MediaCentarr.Library.InboundTest do
     end
 
     test "existing movie series — adds new child movie" do
-      # Pre-create the series entity and collection identifier
-      series = create_entity(%{type: :movie_series, name: "Sample Movie Collection"})
-
-      create_external_id(%{
-        movie_series_id: series.id,
-        source: "tmdb_collection",
-        external_id: "263"
-      })
+      # Pre-create the series with the canonical TMDB id on the entity
+      series =
+        create_entity(%{type: :movie_series, name: "Sample Movie Collection", tmdb_id: "263"})
 
       event =
         collection_event(
@@ -275,9 +258,8 @@ defmodule MediaCentarr.Library.InboundTest do
       assert tv_series.name == "Sample Show"
       assert tv_series.number_of_seasons == 5
 
-      # Identifier with tv_series_id
-      identifier = Library.find_by_tmdb_id_for_tv_series("1396")
-      assert identifier.tv_series_id == tv_series.id
+      # tmdb_id stored directly on TVSeries
+      assert Library.find_tv_series_by_tmdb_id("1396").id == tv_series.id
 
       # Season + Episode (via tv_series preload)
       tv_series = MediaCentarr.Repo.preload(tv_series, seasons: :episodes)
@@ -301,8 +283,7 @@ defmodule MediaCentarr.Library.InboundTest do
     end
 
     test "existing TV series — adds new episode to existing season" do
-      existing = create_entity(%{type: :tv_series, name: "Sample Show"})
-      create_external_id(%{tv_series_id: existing.id, source: "tmdb", external_id: "1396"})
+      existing = create_entity(%{type: :tv_series, name: "Sample Show", tmdb_id: "1396"})
 
       event =
         tv_event(
@@ -313,10 +294,10 @@ defmodule MediaCentarr.Library.InboundTest do
             episode: %{
               attrs: %{
                 episode_number: 2,
-                name: "Cat's in the Bag...",
-                description: "Walt and Jesse attempt to dispose of the bodies.",
+                name: "Sample Episode 2",
+                description: "Sample episode description.",
                 duration: "PT48M",
-                content_url: "/media/TV/Sample.Show.Eight.S01E02.mkv"
+                content_url: "/media/TV/Sample.Show.S01E02.mkv"
               },
               images: []
             }
@@ -332,7 +313,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert length(tv_series.seasons) == 1
       episode = hd(hd(tv_series.seasons).episodes)
       assert episode.episode_number == 2
-      assert episode.content_url == "/media/TV/Sample.Show.Eight.S01E02.mkv"
+      assert episode.content_url == "/media/TV/Sample.Show.S01E02.mkv"
     end
 
     test "TV without season/episode — no-op" do
@@ -352,8 +333,7 @@ defmodule MediaCentarr.Library.InboundTest do
 
   describe "existing entity reuse" do
     test "existing movie sets content_url if nil" do
-      existing = create_entity(%{type: :movie, name: "Sample Movie"})
-      create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
+      existing = create_entity(%{type: :movie, name: "Sample Movie", tmdb_id: "550"})
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
@@ -364,9 +344,12 @@ defmodule MediaCentarr.Library.InboundTest do
 
     test "existing movie with content_url is returned unchanged" do
       existing =
-        create_entity(%{type: :movie, name: "Sample Movie", content_url: "/media/original.mkv"})
-
-      create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
+        create_entity(%{
+          type: :movie,
+          name: "Sample Movie",
+          content_url: "/media/original.mkv",
+          tmdb_id: "550"
+        })
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
@@ -433,8 +416,7 @@ defmodule MediaCentarr.Library.InboundTest do
     end
 
     test "extra on existing entity — reuses parent, creates extra only" do
-      existing = create_entity(%{type: :movie, name: "Sample Movie"})
-      create_external_id(%{movie_id: existing.id, source: "tmdb", external_id: "550"})
+      existing = create_entity(%{type: :movie, name: "Sample Movie", tmdb_id: "550"})
 
       event =
         movie_event(
@@ -461,18 +443,17 @@ defmodule MediaCentarr.Library.InboundTest do
   # ---------------------------------------------------------------------------
 
   describe "race-loss recovery" do
-    test "detects race loss, destroys duplicate, returns winner" do
-      # Pre-create a "winner" entity with the same TMDB identifier
-      winner = create_entity(%{type: :movie, name: "Sample Movie (Winner)"})
-      create_external_id(%{movie_id: winner.id, source: "tmdb", external_id: "550"})
+    test "detects race loss via tmdb_id unique constraint, returns winner" do
+      # Pre-create a "winner" entity with the same TMDB id on the row.
+      # find_existing_entity hits this directly — the link_to_existing
+      # path runs without ever attempting an insert, but the constraint
+      # remains the safety net for a true race.
+      winner = create_entity(%{type: :movie, name: "Sample Movie (Winner)", tmdb_id: "550"})
 
-      # Inbound will create a new type record, then when creating the identifier
-      # it'll find the existing one belongs to winner. It destroys the duplicate
-      # and returns the winner via link_to_existing.
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == winner.id
 
-      # The duplicate entity was destroyed — only the winner remains
+      # No duplicate was created — only the winner remains.
       movies = Library.list_movies()
       assert length(movies) == 1
       assert hd(movies).id == winner.id
