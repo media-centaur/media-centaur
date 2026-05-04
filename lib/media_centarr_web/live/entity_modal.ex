@@ -219,25 +219,30 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       end
 
       # --- Delete ---
+      #
+      # Inline-confirm pattern (mirrors Rematch): each delete button is
+      # its own two-step gesture. First click sets `delete_confirm` to a
+      # target identifier (`{:file, path} | {:folder, path} | :all`) so
+      # the button flips its label to "Confirm?". Second click on the
+      # *same* target executes. Clicking a different delete button
+      # re-targets — only one pending confirmation at a time. There is
+      # no separate confirmation modal — we deliberately killed it
+      # because modal-on-modal is ugly and the inline gesture matches
+      # how Rematch already works in the same view.
 
       def handle_event("delete_file_prompt", %{"path" => file_path}, socket) do
-        if EntityModal.playing?(
-             socket.assigns.playback,
-             socket.assigns.selected_entity_id
-           ) do
-          {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
-        else
-          file_info =
-            Enum.find(socket.assigns.detail_files, fn %{file: file} ->
-              file.file_path == file_path
-            end)
+        cond do
+          EntityModal.playing?(
+            socket.assigns.playback,
+            socket.assigns.selected_entity_id
+          ) ->
+            {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
 
-          size = if file_info, do: file_info.size
+          socket.assigns.delete_confirm == {:file, file_path} ->
+            EntityModal.run_pending_delete(socket)
 
-          {:noreply,
-           assign(socket,
-             delete_confirm: {:file, %{path: file_path, name: Path.basename(file_path), size: size}}
-           )}
+          true ->
+            {:noreply, assign(socket, delete_confirm: {:file, file_path})}
         end
       end
 
@@ -252,66 +257,27 @@ defmodule MediaCentarrWeb.Live.EntityModal do
           folder_path in socket.assigns.watch_dirs ->
             {:noreply, put_flash(socket, :error, "Cannot delete a watch directory")}
 
+          socket.assigns.delete_confirm == {:folder, folder_path} ->
+            EntityModal.run_pending_delete(socket)
+
           true ->
-            folder_files =
-              socket.assigns.detail_files
-              |> Enum.filter(fn %{file: file} -> Path.dirname(file.file_path) == folder_path end)
-              |> Enum.map(fn %{file: file, size: size} ->
-                %{name: Path.basename(file.file_path), size: size}
-              end)
-
-            total_size =
-              Enum.reduce(folder_files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
-
-            {:noreply,
-             assign(socket,
-               delete_confirm:
-                 {:folder,
-                  %{
-                    path: folder_path,
-                    name: Path.basename(folder_path),
-                    files: folder_files,
-                    total_size: total_size
-                  }}
-             )}
+            {:noreply, assign(socket, delete_confirm: {:folder, folder_path})}
         end
       end
 
       def handle_event("delete_all_prompt", _params, socket) do
-        if EntityModal.playing?(
-             socket.assigns.playback,
-             socket.assigns.selected_entity_id
-           ) do
-          {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
-        else
-          payload =
-            MediaCentarrWeb.Components.DetailPanel.build_delete_all_payload(
-              socket.assigns.detail_files,
-              MapSet.new(socket.assigns.watch_dirs)
-            )
+        cond do
+          EntityModal.playing?(
+            socket.assigns.playback,
+            socket.assigns.selected_entity_id
+          ) ->
+            {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
 
-          {:noreply, assign(socket, delete_confirm: {:all, payload})}
-        end
-      end
+          socket.assigns.delete_confirm == :all ->
+            EntityModal.run_pending_delete(socket)
 
-      def handle_event("delete_confirm", _params, socket) do
-        entity_id = socket.assigns.selected_entity_id
-        result = EntityModal.run_delete(socket.assigns)
-        socket = assign(socket, delete_confirm: nil)
-
-        case result do
-          {:ok, _entity_ids} ->
-            files = MediaCentarr.Library.list_watched_files_by_entity_id(entity_id)
-
-            if files == [] do
-              {:noreply, push_patch(socket, to: build_modal_path(socket, %{selected: nil, view: :main}))}
-            else
-              detail_files = EntityModal.load_entity_files(entity_id)
-              {:noreply, assign(socket, detail_files: detail_files)}
-            end
-
-          {:error, reason} ->
-            {:noreply, put_flash(socket, :error, "Delete failed: #{reason}")}
+          true ->
+            {:noreply, assign(socket, delete_confirm: :all)}
         end
       end
 
@@ -800,12 +766,12 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   end
 
   @doc false
-  def run_delete(%{delete_confirm: delete_confirm, detail_files: detail_files}) do
+  def run_delete(%{delete_confirm: delete_confirm, detail_files: detail_files, watch_dirs: watch_dirs}) do
     case delete_confirm do
-      {:file, %{path: file_path}} ->
+      {:file, file_path} ->
         FileEventHandler.delete_file(file_path)
 
-      {:folder, %{path: folder_path}} ->
+      {:folder, folder_path} ->
         file_paths =
           detail_files
           |> Enum.map(& &1.file.file_path)
@@ -813,8 +779,14 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
         FileEventHandler.delete_folder(folder_path, file_paths)
 
-      {:all, %{file_groups: file_groups}} ->
-        Enum.each(file_groups, fn group ->
+      :all ->
+        payload =
+          MediaCentarrWeb.Components.DetailPanel.build_delete_all_payload(
+            detail_files,
+            MapSet.new(watch_dirs)
+          )
+
+        Enum.each(payload.file_groups, fn group ->
           if group.is_watch_dir do
             Enum.each(group.files, fn %{path: path} -> FileEventHandler.delete_file(path) end)
           else
@@ -827,6 +799,39 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
       nil ->
         {:ok, []}
+    end
+  end
+
+  @doc """
+  Executes the pending delete in `socket.assigns.delete_confirm`,
+  clears the pending state, and refreshes (or closes) the modal based
+  on what's left on disk. Returns the same `{:noreply, socket}` shape
+  the calling `handle_event/3` returns so the host LV can pipe through.
+
+  Public only so the macro-injected handlers can call it; not part of
+  the host contract.
+  """
+  def run_pending_delete(socket) do
+    entity_id = socket.assigns.selected_entity_id
+    result = run_delete(socket.assigns)
+    socket = Phoenix.Component.assign(socket, delete_confirm: nil)
+
+    case result do
+      {:ok, _entity_ids} ->
+        files = MediaCentarr.Library.list_watched_files_by_entity_id(entity_id)
+
+        if files == [] do
+          {:noreply,
+           Phoenix.LiveView.push_patch(socket,
+             to: socket.view.build_modal_path(socket, %{selected: nil, view: :main})
+           )}
+        else
+          detail_files = load_entity_files(entity_id)
+          {:noreply, Phoenix.Component.assign(socket, detail_files: detail_files)}
+        end
+
+      {:error, reason} ->
+        {:noreply, Phoenix.LiveView.put_flash(socket, :error, "Delete failed: #{reason}")}
     end
   end
 

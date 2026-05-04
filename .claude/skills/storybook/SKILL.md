@@ -8,10 +8,44 @@ description: "Use this skill when adding or changing a function component, writi
 ## Triggers and the rule
 
 ```
-component change → story update in same PR → namespace MediaCentarrWeb.Storybook.* → mix precommit
+existing component change → story variation FIRST → implement until it renders → wire into LV → mix precommit
+new component → component + story in the same PR → mix precommit
 ```
 
-A PR that adds or modifies a function component **must** add or update its story in the same change. Same rule we apply to wiki sync. Drift kills the value.
+A PR that adds or modifies a function component **must** add or update its story in the same change. Same rule we apply to wiki sync. Drift kills the value. **For existing components, the story edit comes BEFORE the component edit** — see *Storybook-first* below.
+
+## Storybook-first for visual changes
+
+When changing a function component **that already has a story**, edit the story *first* — not at the end. The catalog is the source of truth for visual states; if you implement in the LiveView first, stale variations silently keep "working" because they render the resting state instead of the new state, and the drift is invisible until the next person opens the story.
+
+### Flow
+
+1. **Open the story.** Add or modify the `%Variation{}` describing the desired end-state — including its `attributes` map with the new prop shapes.
+2. **Implement the component** until that variation renders correctly at `/storybook/<area>/<component>`. Treat the variation as the acceptance criterion.
+3. **Then** wire the new contract into the LiveView event handlers / templates.
+4. `mix precommit` → push.
+
+### Why
+
+Story-first makes the catalog the gate: if the variation doesn't render the new state, the implementation isn't done. App-first lets the catalog rot silently because nothing forces you to look at it.
+
+### When this rule does NOT apply
+
+- **New component, no story yet.** Build the component, then add the story in the same PR.
+- **Pure interaction change** (event-handler logic, debounce timing, optimistic updates) with no new visual state. Storybook only renders frozen states; it can't exercise click-once-then-click-twice. Add a variation per *state* in the interaction's machine (resting / pending / confirming), but the wiring still belongs in the LV.
+- **App-level layout / composition** changes — moving a component between pages, reflowing a multi-component layout. Storybook isolates components; cross-component layout lives in page smoke tests and live testing.
+- **Trivial one-line tweaks** (a color swap, a typo). Use judgement; if it doesn't change a prop shape or add a state, it doesn't need a story round-trip.
+
+### Worked example — adding an inline-confirm pending state
+
+**Wrong order (what bit us in v0.37.5):** edit `info_view`, add the `:all` pending render, push — *then* notice `storybook/detail_panel/detail_panel.story.exs` still has `delete_confirm: {:file, %{path:, name:, size:}}` from the old modal-payload contract, silently rendering the resting state because the new code's `==` match never hits the old shape.
+
+**Right order:**
+1. Open `storybook/detail_panel/detail_panel.story.exs`.
+2. Replace the stale variation with `:delete_pending_all_inline` carrying `delete_confirm: :all`.
+3. Run dev, navigate to the variation. It crashes or renders the resting state because the component doesn't handle `:all` yet.
+4. Edit the component until the variation renders the desired pending state.
+5. *Then* write the LiveView `delete_all_prompt` handler that produces `delete_confirm: :all`.
 
 ## Philosophy (eight rules)
 
@@ -20,7 +54,7 @@ Full long-form: [`docs/storybook.md`](../../docs/storybook.md). Abridged:
 1. **Components, not pages.** Catalog `<.button>`, `<.poster_card>`, `<.modal_shell>`. Skip full LiveViews — page smoke tests cover them.
 2. **Stories follow the contract.** Variations are struct/map literals matching typed `attr`s. If you can't story without faking context, fix the contract.
 3. **Every meaningful state.** Loading / empty / error / loaded; variant × size × shape. Use `VariationGroup` for matrices.
-4. **Same unit of work.** Story updates ship in the same PR as the component change.
+4. **Same unit of work, story first.** Story updates ship in the same PR as the component change. For *existing* components, the story variation is edited *before* the component (see *Storybook-first* above).
 5. **Dev-only.** Mounted under `if Mix.env() == :dev`. Dep is `only: [:dev, :test]`.
 6. **Visuals only.** No assertions, no logic — that's `automated-testing`'s job.
 7. **Skill linkage.** `user-interface` recipes link to stories; stories cite UIDR numbers.
