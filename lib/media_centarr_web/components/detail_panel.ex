@@ -971,33 +971,38 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
     ~H"""
     <div class="pt-3 space-y-5">
-      <%!-- Files section --%>
+      <%!-- Files section. Layout intent: a prominent entity-wide delete
+            sits at the top so the user can see the "nuke everything"
+            option without hunting; underneath, per-folder and per-file
+            delete affordances stay always-visible (not hover-gated) so
+            granular cleanup is equally discoverable. The folder-level
+            button never appears for the watch_dir itself — deleting a
+            watch root would be catastrophic. --%>
       <div :if={@files != []}>
-        <div class="group/files flex items-center justify-between mb-2">
+        <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
             Files
           </span>
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-base-content/40">
-              {file_summary(@file_count, @total_size)}
-            </span>
-            <.button
-              :if={@file_count > 1}
-              variant="destructive_inline"
-              size="xs"
-              class="text-error/60 hover:text-error opacity-0 group-hover/files:opacity-100 focus:opacity-100 transition-opacity"
-              phx-click="delete_all_prompt"
-              data-nav-item
-              tabindex="0"
-              aria-label="Delete all files"
-            >
-              <.icon name="hero-trash-mini" class="size-3.5" /> Delete all
-            </.button>
-          </div>
+          <span class="text-xs text-base-content/40">
+            {file_summary(@file_count, @total_size)}
+          </span>
+        </div>
+        <div class="mb-3">
+          <.button
+            variant="danger"
+            size="sm"
+            phx-click="delete_all_prompt"
+            data-nav-item
+            tabindex="0"
+            aria-label={delete_all_aria_label(@file_count)}
+          >
+            <.icon name="hero-trash-mini" class="size-4" />
+            {delete_all_label(@file_count)} ({format_file_size(@total_size)})
+          </.button>
         </div>
         <div class="space-y-3">
           <div :for={group <- @file_groups}>
-            <div class="group/folder flex items-center gap-1.5 mb-1.5">
+            <div class="flex items-center gap-1.5 mb-1.5">
               <.icon name="hero-folder-mini" class="size-3.5 text-base-content/40 flex-shrink-0" />
               <span
                 class="text-xs font-medium text-base-content/60 truncate"
@@ -1009,7 +1014,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 :if={!group.is_watch_dir}
                 variant="destructive_inline"
                 size="xs"
-                class="text-error/60 hover:text-error ml-auto flex-shrink-0 opacity-0 group-hover/folder:opacity-100 focus:opacity-100 transition-opacity"
+                class="text-error/70 hover:text-error ml-auto flex-shrink-0"
                 phx-click="delete_folder_prompt"
                 phx-value-path={group.dir}
                 phx-value-count={length(group.files)}
@@ -1149,7 +1154,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:added_at, added_at)
 
     ~H"""
-    <div class={["group text-sm rounded p-2 bg-base-content/5", @absent && "opacity-60"]}>
+    <div class={["text-sm rounded p-2 bg-base-content/5", @absent && "opacity-60"]}>
       <div class="flex items-center gap-2">
         <.icon
           name={if @absent, do: "hero-exclamation-triangle-mini", else: "hero-document-mini"}
@@ -1165,7 +1170,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         <.button
           variant="destructive_inline"
           size="xs"
-          class="size-6 min-h-0 p-0 text-base-content/30 hover:text-error flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          class="size-6 min-h-0 p-0 text-error/70 hover:text-error flex-shrink-0"
           phx-click="delete_file_prompt"
           phx-value-path={@file_path}
           aria-label="Delete file"
@@ -1343,6 +1348,17 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     size_str = format_file_size(total_size)
     "#{count} #{if count == 1, do: "file", else: "files"}, #{size_str}"
   end
+
+  @doc """
+  Label for the prominent entity-wide delete button. Single-file
+  entities read "Delete this file" because "Delete all" reads as
+  awkward when there's only one.
+  """
+  def delete_all_label(1), do: "Delete this file"
+  def delete_all_label(_), do: "Delete all files"
+
+  defp delete_all_aria_label(1), do: "Delete the file for this entry"
+  defp delete_all_aria_label(_), do: "Delete all files for this entry"
 
   def format_file_size(bytes) when bytes >= 1_073_741_824 do
     "#{Float.round(bytes / 1_073_741_824, 1)} GB"
