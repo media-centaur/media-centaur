@@ -15,6 +15,15 @@ defmodule MediaCentarr.TMDB.MapperTest do
         "credits" => %{
           "crew" => [
             %{"department" => "Directing", "job" => "Director", "name" => "Sample Director"}
+          ],
+          "cast" => [
+            %{
+              "name" => "Sample Actor",
+              "character" => "Sample Role",
+              "id" => 99,
+              "profile_path" => "/p.jpg",
+              "order" => 0
+            }
           ]
         },
         "release_dates" => %{
@@ -40,6 +49,16 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.content_rating == "PG-13"
       assert result.aggregate_rating_value == 9.0
       assert result.content_url == "/media/sample_movie.mkv"
+
+      assert result.cast == [
+               %{
+                 "name" => "Sample Actor",
+                 "character" => "Sample Role",
+                 "tmdb_person_id" => 99,
+                 "profile_path" => "/p.jpg",
+                 "order" => 0
+               }
+             ]
     end
 
     test "extracts magazine fields: tagline, original_language, studio, country_code, vote_count" do
@@ -462,6 +481,72 @@ defmodule MediaCentarr.TMDB.MapperTest do
       }
 
       assert Mapper.extract_director(credits) == nil
+    end
+  end
+
+  describe "extract_cast/1" do
+    test "extracts cast members ordered by :order ascending" do
+      credits = %{
+        "cast" => [
+          %{
+            "name" => "Actor B",
+            "character" => "Char B",
+            "id" => 2,
+            "profile_path" => "/b.jpg",
+            "order" => 1
+          },
+          %{
+            "name" => "Actor A",
+            "character" => "Char A",
+            "id" => 1,
+            "profile_path" => "/a.jpg",
+            "order" => 0
+          },
+          %{
+            "name" => "Actor C",
+            "character" => "Char C",
+            "id" => 3,
+            "profile_path" => nil,
+            "order" => 2
+          }
+        ]
+      }
+
+      assert Mapper.extract_cast(credits) == [
+               %{
+                 "name" => "Actor A",
+                 "character" => "Char A",
+                 "tmdb_person_id" => 1,
+                 "profile_path" => "/a.jpg",
+                 "order" => 0
+               },
+               %{
+                 "name" => "Actor B",
+                 "character" => "Char B",
+                 "tmdb_person_id" => 2,
+                 "profile_path" => "/b.jpg",
+                 "order" => 1
+               },
+               %{
+                 "name" => "Actor C",
+                 "character" => "Char C",
+                 "tmdb_person_id" => 3,
+                 "profile_path" => nil,
+                 "order" => 2
+               }
+             ]
+    end
+
+    test "returns [] when credits is nil" do
+      assert Mapper.extract_cast(nil) == []
+    end
+
+    test "returns [] when cast key is missing" do
+      assert Mapper.extract_cast(%{"crew" => []}) == []
+    end
+
+    test "returns [] when cast is empty list" do
+      assert Mapper.extract_cast(%{"cast" => []}) == []
     end
   end
 
