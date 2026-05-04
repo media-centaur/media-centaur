@@ -156,11 +156,11 @@ defmodule MediaCentarrWeb.CoreComponents do
   end
 
   defp variant_classes("primary"), do: "btn-primary"
-  defp variant_classes("secondary"), do: "btn-soft btn-primary"
-  defp variant_classes("action"), do: "btn-soft btn-success"
-  defp variant_classes("info"), do: "btn-soft btn-info"
-  defp variant_classes("risky"), do: "btn-soft btn-warning"
-  defp variant_classes("danger"), do: "btn-soft btn-error"
+  defp variant_classes("secondary"), do: "btn-soft btn-primary text-base-content"
+  defp variant_classes("action"), do: "btn-soft btn-success text-base-content"
+  defp variant_classes("info"), do: "btn-soft btn-info text-base-content"
+  defp variant_classes("risky"), do: "btn-soft btn-warning text-base-content"
+  defp variant_classes("danger"), do: "btn-soft btn-error text-base-content"
   defp variant_classes("dismiss"), do: "btn-ghost"
   defp variant_classes("destructive_inline"), do: "btn-ghost text-error"
   defp variant_classes("neutral"), do: "btn-soft"
