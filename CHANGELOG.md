@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.40.2 — 2026-05-04
+
+### Improved
+
+Buttons across the app now read clearly. The soft-tinted variants
+(secondary blue, action green, info cyan, risky amber, danger red)
+previously used a same-colour label on a same-colour tinted
+background, which made them hard to read. Labels now use the theme's
+default foreground colour so the tint still signals intent without
+sacrificing legibility.
+
 ## v0.40.1 — 2026-05-04
 
 ### Fixed
