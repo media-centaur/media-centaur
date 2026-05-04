@@ -607,7 +607,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     params = if filter == "", do: params, else: Map.put(params, :filter, filter)
     params = if in_progress, do: Map.put(params, :in_progress, 1), else: params
     params = if selected, do: Map.put(params, :selected, selected), else: params
-    params = if selected && view == :info, do: Map.put(params, :view, :info), else: params
+    params = if selected && view in [:info, :credits], do: Map.put(params, :view, view), else: params
 
     if params == %{}, do: ~p"/library", else: ~p"/library?#{params}"
   end
