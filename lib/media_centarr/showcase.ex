@@ -154,12 +154,6 @@ defmodule MediaCentarr.Showcase do
 
       download_images!(movie.id, movie_data, :movie_id)
 
-      Library.find_or_create_external_id!(%{
-        movie_id: movie.id,
-        source: "tmdb",
-        external_id: to_string(tmdb_id)
-      })
-
       seed_presence!(movie.id, :movie_id, fake_movie_path(movie.name))
 
       movie
@@ -190,16 +184,11 @@ defmodule MediaCentarr.Showcase do
           genres: extract_genre_names(tv_data["genres"]),
           url: "https://www.themoviedb.org/tv/#{tmdb_id}",
           aggregate_rating_value: tv_data["vote_average"],
-          number_of_seasons: tv_data["number_of_seasons"]
+          number_of_seasons: tv_data["number_of_seasons"],
+          tmdb_id: to_string(tmdb_id)
         })
 
       download_images!(series.id, tv_data, :tv_series_id)
-
-      Library.find_or_create_external_id!(%{
-        tv_series_id: series.id,
-        source: "tmdb",
-        external_id: to_string(tmdb_id)
-      })
 
       seasons =
         Enum.map(season_numbers, fn season_number ->
