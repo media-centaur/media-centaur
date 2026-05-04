@@ -49,7 +49,9 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Button do
           },
           %Variation{
             id: :more_info,
-            attributes: %{variant: "secondary", size: "lg"},
+            description:
+              ~s(Hero variant — `class="text-white"` because the button sits over a backdrop image. Without it the soft-primary text reads blue, which doesn't match the home hero's actual appearance.),
+            attributes: %{variant: "secondary", size: "lg", class: "text-white"},
             slots: ["More info"]
           }
         ]
