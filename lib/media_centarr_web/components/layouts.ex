@@ -37,6 +37,20 @@ defmodule MediaCentarrWeb.Layouts do
 
   slot :inner_block, required: true
 
+  slot :overlays,
+    doc: """
+    Layout-level overlays — modals, dialogs, drawers — rendered as a sibling
+    of `<main>`, OUTSIDE the spacing container.
+
+    Why this exists: the content wrapper carries `space-y-4`, which applies
+    `margin-bottom: 1rem` to every non-last child. CSS layout for a
+    `position: fixed` element with both `top` and `bottom` set folds margins
+    into the height calc — so a modal that ends up as a non-last child
+    silently renders 16px shorter than the viewport, leaving an undimmed
+    strip at the bottom of the page. Overlays placed in this slot escape
+    the spacing container entirely and fill the viewport correctly.
+    """
+
   def app(assigns) do
     ~H"""
     <div
@@ -160,6 +174,8 @@ defmodule MediaCentarrWeb.Layouts do
           {render_slot(@inner_block)}
         </div>
       </main>
+
+      {render_slot(@overlays)}
     </div>
 
     <.flash_group flash={@flash} />

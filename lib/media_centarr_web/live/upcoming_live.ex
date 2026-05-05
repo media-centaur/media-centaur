@@ -97,6 +97,20 @@ defmodule MediaCentarrWeb.UpcomingLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/upcoming" full_width>
+      <:overlays>
+        <%!-- Track New Show modal (always in DOM) --%>
+        <TrackModal.track_modal
+          open={@track_modal_open}
+          suggestions={@track_suggestions}
+          suggestions_loading={@track_suggestions_loading}
+          search_query={@track_search_query}
+          search_results={@track_search_results}
+          search_loading={@track_search_loading}
+          scope_item={@track_scope_item}
+          collection_item={@track_collection_item}
+          confirmed_ids={@track_confirmed_ids}
+        />
+      </:overlays>
       <div class="space-y-6 py-2">
         <div class="flex items-baseline justify-between">
           <h1 class="text-2xl font-bold">Upcoming</h1>
@@ -114,19 +128,6 @@ defmodule MediaCentarrWeb.UpcomingLive do
           grab_statuses={@release_grab_statuses}
           queue_items={@queue_items}
           acquisition_ready={@acquisition_ready}
-        />
-
-        <%!-- Track New Show modal (always in DOM) --%>
-        <TrackModal.track_modal
-          open={@track_modal_open}
-          suggestions={@track_suggestions}
-          suggestions_loading={@track_suggestions_loading}
-          search_query={@track_search_query}
-          search_results={@track_search_results}
-          search_loading={@track_search_loading}
-          scope_item={@track_scope_item}
-          collection_item={@track_collection_item}
-          confirmed_ids={@track_confirmed_ids}
         />
       </div>
     </Layouts.app>
