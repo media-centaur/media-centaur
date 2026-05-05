@@ -2,6 +2,8 @@
 >
 > Read [`AGENTS.md`](AGENTS.md) for Elixir/Phoenix/LiveView/Ecto/CSS/JS conventions. Read [`docs/architecture.md`](docs/architecture.md) for the architectural deep-dive (bounded contexts, PubSub topics, supervision tree, key principles).
 
+Critically, any user interface design additions or changes need to be made to the storybook first, then to the actual app. The storybook should be considered the primary authority for design. This serves to prevent drift between implementations in the application. If a button style must change -- for example -- it should be changed in the storybook first, then be applied to ALL instances of that kind of button in the app uniformly.
+
 ## Skills-First Development
 
 **Always invoke the appropriate thinking skill BEFORE exploring code or writing implementation.** Skills contain paradigm-shifting insights that guide what patterns to look for and what anti-patterns to avoid.
