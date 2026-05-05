@@ -49,8 +49,13 @@ defmodule MediaCentarrWeb.HomeLive do
       |> assign(:continue_timer, nil)
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
+      |> assign(:hero_timer, nil)
       |> assign(:availability_map, %{})
       |> assign(:watch_dirs, MediaCentarr.Config.get(:watch_dirs) || [])
+      # Bumped on every `:availability_changed` so /media-images/* URLs get a
+      # fresh `?v=` and the browser refetches artwork that may have flipped
+      # between placeholder and real file. See `Logic.with_image_version/2`.
+      |> assign(:image_version, 0)
       |> assign_empty_sections()
 
     {:ok, socket}
@@ -222,6 +227,10 @@ defmodule MediaCentarrWeb.HomeLive do
   end
 
   @impl true
+  def handle_info(:reload_hero, socket) do
+    {:noreply, assign_hero(socket)}
+  end
+
   def handle_info(:reload_continue_watching, socket) do
     {:noreply, assign_continue_watching(socket)}
   end
@@ -248,6 +257,15 @@ defmodule MediaCentarrWeb.HomeLive do
      )}
   end
 
+  # Drive mounted/unmounted: bump `:image_version` so the next render of
+  # any section emits cache-busted /media-images/* URLs, then schedule the
+  # affected sections to reload via the normal debounced path.
+  def handle_info({:availability_changed, _dir, _state} = message, socket) do
+    socket
+    |> update(:image_version, &(&1 + 1))
+    |> schedule_section_reloads(message)
+  end
+
   def handle_info(message, socket), do: schedule_section_reloads(socket, message)
 
   defp schedule_section_reloads(socket, message) do
@@ -258,6 +276,8 @@ defmodule MediaCentarrWeb.HomeLive do
 
     {:noreply, socket}
   end
+
+  defp schedule_section_reload(:hero, socket), do: debounce(socket, :hero_timer, :reload_hero, 500)
 
   defp schedule_section_reload(:continue_watching, socket),
     do: debounce(socket, :continue_timer, :reload_continue_watching, 500)
@@ -280,14 +300,23 @@ defmodule MediaCentarrWeb.HomeLive do
 
   defp assign_hero(socket) do
     hero_candidates = load_hero_candidates()
-    assign(socket, :hero, Logic.hero_card_item(Logic.select_hero(hero_candidates)))
+
+    assign(
+      socket,
+      :hero,
+      Logic.hero_card_item(Logic.select_hero(hero_candidates), socket.assigns.image_version)
+    )
   end
 
   defp assign_continue_watching(socket) do
     assign(
       socket,
       :continue_items,
-      Logic.continue_watching_items(load_progress(), socket.assigns.playback)
+      Logic.continue_watching_items(
+        load_progress(),
+        socket.assigns.playback,
+        socket.assigns.image_version
+      )
     )
   end
 
@@ -296,7 +325,11 @@ defmodule MediaCentarrWeb.HomeLive do
   end
 
   defp assign_recently_added(socket) do
-    assign(socket, :recently_added, Logic.recently_added_items(load_recently_added()))
+    assign(
+      socket,
+      :recently_added,
+      Logic.recently_added_items(load_recently_added(), socket.assigns.image_version)
+    )
   end
 
   # --- Data loaders ---

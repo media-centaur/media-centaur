@@ -47,19 +47,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
 
   @doc "Shape Library progress rows into ContinueWatchingRow items."
   @spec continue_watching_items([map()]) :: [ContinueWatchingRow.Item.t()]
-  def continue_watching_items(progress_rows) do
-    Enum.map(progress_rows, fn row ->
-      %ContinueWatchingRow.Item{
-        id: row.entity_id,
-        entity_id: row.entity_id,
-        name: row.entity_name,
-        progress_pct: row.progress_pct,
-        backdrop_url: row.backdrop_url,
-        logo_url: Map.get(row, :logo_url),
-        autoplay: false
-      }
-    end)
-  end
+  def continue_watching_items(progress_rows), do: shape_continue_watching(progress_rows, 0)
 
   @doc """
   Same as `continue_watching_items/1`, but pins entities the user is
@@ -71,10 +59,35 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   `entity_id`; the value's `:state` is what we read.
   """
   @spec continue_watching_items([map()], map()) :: [ContinueWatchingRow.Item.t()]
-  def continue_watching_items(progress_rows, playback) when is_map(playback) do
-    items = continue_watching_items(progress_rows)
+  def continue_watching_items(progress_rows, playback) when is_map(playback),
+    do: continue_watching_items(progress_rows, playback, 0)
+
+  @doc """
+  Same as `continue_watching_items/2` plus an `image_version` integer that
+  cache-busts `/media-images/*` URLs. Bumped on each watch-dir availability
+  change (see `section_reloaders/1`) so the browser refetches artwork that
+  may have flipped between placeholder and real file.
+  """
+  @spec continue_watching_items([map()], map(), non_neg_integer()) ::
+          [ContinueWatchingRow.Item.t()]
+  def continue_watching_items(progress_rows, playback, image_version) when is_map(playback) do
+    items = shape_continue_watching(progress_rows, image_version)
     {pinned, rest} = Enum.split_with(items, &active_session?(&1.entity_id, playback))
     pinned ++ rest
+  end
+
+  defp shape_continue_watching(progress_rows, image_version) do
+    Enum.map(progress_rows, fn row ->
+      %ContinueWatchingRow.Item{
+        id: row.entity_id,
+        entity_id: row.entity_id,
+        name: row.entity_name,
+        progress_pct: row.progress_pct,
+        backdrop_url: with_image_version(row.backdrop_url, image_version),
+        logo_url: with_image_version(Map.get(row, :logo_url), image_version),
+        autoplay: false
+      }
+    end)
   end
 
   defp active_session?(entity_id, playback) do
@@ -144,28 +157,33 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
     end
   end
 
-  @doc "Shape Library entity rows into PosterRow items."
-  @spec recently_added_items([map()]) :: [PosterRow.Item.t()]
-  def recently_added_items(entities) do
+  @doc """
+  Shape Library entity rows into PosterRow items. `image_version` cache-busts
+  `/media-images/*` URLs (see `section_reloaders/1`).
+  """
+  @spec recently_added_items([map()], non_neg_integer()) :: [PosterRow.Item.t()]
+  def recently_added_items(entities, image_version \\ 0) do
     Enum.map(entities, fn entity ->
       %PosterRow.Item{
         id: entity.id,
         entity_id: entity.id,
         name: entity.name,
         year: format_year(entity.year),
-        poster_url: entity.poster_url
+        poster_url: with_image_version(entity.poster_url, image_version)
       }
     end)
   end
 
   @doc """
   Shape a single Library entity into the HeroCard item. Returns nil for
-  nil input.
+  nil input. `image_version` cache-busts `/media-images/*` URLs (see
+  `section_reloaders/1`).
   """
-  @spec hero_card_item(map() | nil) :: HeroCard.Item.t() | nil
-  def hero_card_item(nil), do: nil
+  @spec hero_card_item(map() | nil, non_neg_integer()) :: HeroCard.Item.t() | nil
+  def hero_card_item(entity, image_version \\ 0)
+  def hero_card_item(nil, _image_version), do: nil
 
-  def hero_card_item(entity) do
+  def hero_card_item(entity, image_version) do
     %HeroCard.Item{
       id: entity.id,
       entity_id: entity.id,
@@ -174,8 +192,8 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
       runtime: format_runtime(entity.runtime_minutes),
       genre_label: format_genres(entity.genres),
       overview: entity.overview,
-      backdrop_url: entity.backdrop_url,
-      logo_url: Map.get(entity, :logo_url)
+      backdrop_url: with_image_version(entity.backdrop_url, image_version),
+      logo_url: with_image_version(Map.get(entity, :logo_url), image_version)
     }
   end
 
@@ -271,12 +289,23 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   defp format_genres(genres) when is_list(genres), do: Enum.join(genres, " · ")
   defp format_genres(genres) when is_binary(genres), do: genres
 
+  # Appends ?v=<n> to a /media-images/* URL so a cache-busting bump on
+  # availability change forces the browser to refetch — the same URL can
+  # serve either the placeholder SVG or the real artwork depending on
+  # whether the watch dir is mounted, and morphdom only re-fetches when
+  # the `src` attribute actually changes.
+  defp with_image_version(nil, _image_version), do: nil
+  defp with_image_version(url, 0), do: url
+  defp with_image_version(url, image_version), do: "#{url}?v=#{image_version}"
+
   @doc """
   Map an inbound PubSub message to the home page sections that need reloading.
   Returns `[]` for messages the home page does not care about.
 
-  Sections: `:continue_watching`, `:coming_up`, `:recently_added`.
-  Hero is selected once per session and is intentionally not reloaded.
+  Sections: `:hero`, `:continue_watching`, `:coming_up`, `:recently_added`.
+  Hero is normally stable for the duration of a 7-hour rotation window,
+  but reloads on availability changes so a cache-busted re-render replaces
+  any placeholder thumbnails left over from a drive-down period.
   """
   @spec section_reloaders(term()) :: [atom()]
   def section_reloaders({:entities_changed, %{entity_ids: _ids}}), do: [:recently_added]
@@ -289,6 +318,15 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   def section_reloaders({:entity_progress_updated, _payload}), do: [:continue_watching]
 
   def section_reloaders({:playback_state_changed, _payload}), do: [:continue_watching]
+
+  # Drive mounted/unmounted: every section that renders /media-images/* may
+  # have stale placeholder thumbnails (hero and continue-watching are
+  # presence-agnostic, so their rows persist with broken images when the
+  # drive goes away; recently-added re-evaluates its files-present filter).
+  # Reloading them re-renders with cache-busted URLs (see
+  # `with_image_version/2` and HomeLive's `:image_version` assign).
+  def section_reloaders({:availability_changed, _dir, _state}),
+    do: [:hero, :continue_watching, :recently_added]
 
   def section_reloaders(_), do: []
 end
