@@ -206,6 +206,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/download">
+      <:overlays>
+        <.cancel_confirmation cancel_confirm={@cancel_confirm} />
+      </:overlays>
       <div
         data-page-behavior="download"
         data-nav-default-zone="download"
@@ -499,8 +502,6 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           </div>
         </section>
       </div>
-
-      <.cancel_confirmation cancel_confirm={@cancel_confirm} />
     </Layouts.app>
     """
   end
@@ -836,7 +837,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   defp queue_row(assigns) do
     ~H"""
-    <div class="px-4 py-3 border-b border-base-content/5 last:border-0 space-y-1.5">
+    <div
+      id={"queue-item-#{@item.id}"}
+      class="px-4 py-3 border-b border-base-content/5 last:border-0 space-y-1.5"
+    >
       <div class="flex items-center gap-3">
         <span class="flex-1 min-w-0 text-sm truncate" title={@item.title}>
           {@item.title}
@@ -917,6 +921,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   defp queue_summary_row(%{summary: %{kind: :collapsed}} = assigns) do
     ~H"""
     <button
+      id={"queue-summary-#{@summary.state}"}
       type="button"
       phx-click="toggle_queue_group"
       phx-value-state={@summary.state}
@@ -938,6 +943,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   defp queue_summary_row(%{summary: %{kind: :expanded}} = assigns) do
     ~H"""
     <button
+      id={"queue-summary-#{@summary.state}"}
       type="button"
       phx-click="toggle_queue_group"
       phx-value-state={@summary.state}

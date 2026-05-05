@@ -64,6 +64,51 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/history">
+      <:overlays>
+        <%!-- Deleting in-progress modal --%>
+        <div class="modal-backdrop" data-state={if @deleting_event, do: "open", else: "closed"}>
+          <div class="modal-panel modal-panel-sm p-6 flex flex-col items-center gap-4">
+            <span class="loading loading-spinner loading-md text-base-content/50"></span>
+            <div class="text-center">
+              <p class="text-sm font-medium text-base-content/70">Removing from history…</p>
+              <p class="text-xs text-base-content/40 mt-1 truncate max-w-xs">
+                {@deleting_event && @deleting_event.title}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <%!-- Deleted summary modal --%>
+        <div
+          class="modal-backdrop"
+          data-state={if @deleted_event, do: "open", else: "closed"}
+          phx-click-away={@deleted_event && "dismiss_deleted_event"}
+          phx-window-keydown={@deleted_event && "dismiss_deleted_event"}
+          phx-key="Escape"
+        >
+          <div class="modal-panel modal-panel-sm p-6 space-y-4">
+            <div class="flex items-start gap-3">
+              <div class="rounded-full bg-error/10 p-2 shrink-0">
+                <.icon name="hero-trash-mini" class="size-4 text-error" />
+              </div>
+              <div class="min-w-0">
+                <h3 class="font-semibold">Removed from history</h3>
+                <p class="text-sm text-base-content/60 truncate mt-0.5">
+                  {@deleted_event && @deleted_event.title}
+                </p>
+                <p class="text-xs text-base-content/40 mt-1">
+                  {@deleted_event && type_label(@deleted_event.entity_type)}
+                </p>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <.button variant="dismiss" size="sm" phx-click="dismiss_deleted_event">
+                Close
+              </.button>
+            </div>
+          </div>
+        </div>
+      </:overlays>
       <div
         class="max-w-5xl mx-auto space-y-6 py-6"
         data-page-behavior="watch-history"
@@ -290,50 +335,6 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
           >
             Next →
           </.button>
-        </div>
-      </div>
-
-      <%!-- Deleting in-progress modal --%>
-      <div class="modal-backdrop" data-state={if @deleting_event, do: "open", else: "closed"}>
-        <div class="modal-panel modal-panel-sm p-6 flex flex-col items-center gap-4">
-          <span class="loading loading-spinner loading-md text-base-content/50"></span>
-          <div class="text-center">
-            <p class="text-sm font-medium text-base-content/70">Removing from history…</p>
-            <p class="text-xs text-base-content/40 mt-1 truncate max-w-xs">
-              {@deleting_event && @deleting_event.title}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <%!-- Deleted summary modal --%>
-      <div
-        class="modal-backdrop"
-        data-state={if @deleted_event, do: "open", else: "closed"}
-        phx-click-away={@deleted_event && "dismiss_deleted_event"}
-        phx-window-keydown={@deleted_event && "dismiss_deleted_event"}
-        phx-key="Escape"
-      >
-        <div class="modal-panel modal-panel-sm p-6 space-y-4">
-          <div class="flex items-start gap-3">
-            <div class="rounded-full bg-error/10 p-2 shrink-0">
-              <.icon name="hero-trash-mini" class="size-4 text-error" />
-            </div>
-            <div class="min-w-0">
-              <h3 class="font-semibold">Removed from history</h3>
-              <p class="text-sm text-base-content/60 truncate mt-0.5">
-                {@deleted_event && @deleted_event.title}
-              </p>
-              <p class="text-xs text-base-content/40 mt-1">
-                {@deleted_event && type_label(@deleted_event.entity_type)}
-              </p>
-            </div>
-          </div>
-          <div class="flex justify-end">
-            <.button variant="dismiss" size="sm" phx-click="dismiss_deleted_event">
-              Close
-            </.button>
-          </div>
         </div>
       </div>
     </Layouts.app>
