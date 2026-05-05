@@ -104,7 +104,10 @@ defmodule MediaCentarr.TMDB.Client do
 
     get(client,
       url: "/tv/#{tmdb_id}",
-      params: [append_to_response: "images", include_image_language: "en,null"]
+      params: [
+        append_to_response: "aggregate_credits,external_ids,images",
+        include_image_language: "en,null"
+      ]
     )
   end
 

@@ -133,4 +133,165 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
       assert html =~ "en"
     end
   end
+
+  defp tv_entity(overrides \\ %{}) do
+    Map.merge(
+      %{
+        type: :tv_series,
+        name: "Sample Series",
+        url: "https://www.themoviedb.org/tv/1",
+        imdb_id: nil,
+        date_published: nil,
+        network: nil,
+        status: nil,
+        country_code: nil,
+        original_language: nil,
+        cast: [],
+        crew: []
+      },
+      overrides
+    )
+  end
+
+  describe "more_info_panel/1 — TV series" do
+    test "renders Created by row with linked creators" do
+      crew = [
+        %{
+          "tmdb_person_id" => 11,
+          "name" => "Sample Creator A",
+          "job" => "Creator",
+          "department" => "Creator",
+          "profile_path" => nil
+        },
+        %{
+          "tmdb_person_id" => 12,
+          "name" => "Sample Creator B",
+          "job" => "Creator",
+          "department" => "Creator",
+          "profile_path" => nil
+        }
+      ]
+
+      html = render_panel(%{entity: tv_entity(%{crew: crew})})
+
+      assert html =~ "Created by"
+      assert html =~ "Sample Creator A"
+      assert html =~ "Sample Creator B"
+      assert html =~ "themoviedb.org/person/11"
+      assert html =~ "themoviedb.org/person/12"
+    end
+
+    test "does not render Directed by / Written by for tv_series" do
+      crew = [
+        %{
+          "tmdb_person_id" => 11,
+          "name" => "Sample Creator",
+          "job" => "Creator",
+          "department" => "Creator",
+          "profile_path" => nil
+        }
+      ]
+
+      html = render_panel(%{entity: tv_entity(%{crew: crew})})
+
+      refute html =~ "Directed by"
+      refute html =~ "Written by"
+    end
+
+    test "Created by row is omitted when crew has no creators" do
+      html = render_panel(%{entity: tv_entity()})
+      refute html =~ "Created by"
+    end
+
+    test "renders aggregate cast as the same grid shape as movies" do
+      cast = [
+        %{
+          "name" => "Sample Actor",
+          "character" => "Sample Role",
+          "tmdb_person_id" => 9,
+          "profile_path" => nil,
+          "order" => 0
+        }
+      ]
+
+      html = render_panel(%{entity: tv_entity(%{cast: cast})})
+
+      assert html =~ "Sample Actor"
+      assert html =~ "Sample Role"
+      assert html =~ "grid"
+      refute html =~ "overflow-x-auto"
+    end
+
+    test "renders TV-shaped meta block (Network, First aired, Status)" do
+      html =
+        render_panel(%{
+          entity:
+            tv_entity(%{
+              network: "Sample Network",
+              date_published: "2020-01-15",
+              status: :returning,
+              country_code: "US",
+              original_language: "en"
+            })
+        })
+
+      assert html =~ "Network"
+      assert html =~ "Sample Network"
+      assert html =~ "First aired"
+      assert html =~ "2020-01-15"
+      assert html =~ "Status"
+      # Status atom is humanised in the panel — TV statuses include
+      # :returning, :ended, :canceled, :in_production, :planned.
+      assert html =~ "Returning"
+      assert html =~ "US"
+      assert html =~ "en"
+    end
+
+    test "TV meta block omits movie-only fields (Studio, Runtime, Released)" do
+      # TV series entity has no `:duration`, no `:studio`, and uses
+      # `:date_published` for first-aired (relabelled "First aired"
+      # in the TV meta block, not "Released"). Confirm those movie
+      # labels never appear.
+      html =
+        render_panel(%{
+          entity:
+            tv_entity(%{
+              network: "Sample Network",
+              date_published: "2020-01-15",
+              status: :returning
+            })
+        })
+
+      refute html =~ "Studio"
+      refute html =~ "Runtime"
+      refute html =~ "Released"
+    end
+
+    test "links out to TMDB" do
+      html = render_panel(%{entity: tv_entity()})
+      assert html =~ "TMDB"
+      assert html =~ "themoviedb.org/tv/1"
+    end
+
+    test "renders IMDb link when imdb_id is set" do
+      with_imdb = render_panel(%{entity: tv_entity(%{imdb_id: "tt0000200"})})
+      assert with_imdb =~ "IMDb"
+      assert with_imdb =~ "imdb.com/title/tt0000200"
+
+      without_imdb = render_panel(%{entity: tv_entity()})
+      refute without_imdb =~ "imdb.com/title"
+    end
+
+    test "empty cast and crew — credit lines collapse, meta + links remain" do
+      html =
+        render_panel(%{
+          entity: tv_entity(%{network: "Sample Network", imdb_id: "tt0000200"})
+        })
+
+      refute html =~ "Created by"
+      assert html =~ "Network"
+      assert html =~ "TMDB"
+      assert html =~ "IMDb"
+    end
+  end
 end

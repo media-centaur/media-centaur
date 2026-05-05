@@ -25,10 +25,11 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
       assert html =~ "toggle_credits_view"
     end
 
-    test "does not render More info button for tv_series" do
+    test "renders More info button on the play card for tv_series" do
       tv = build_entity(%{type: :tv_series, seasons: []})
       html = render_panel(tv)
-      refute html =~ "toggle_credits_view"
+      assert html =~ "More info"
+      assert html =~ "toggle_credits_view"
     end
 
     test "main view does NOT inline cast — cast lives behind More info" do
@@ -49,6 +50,48 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
       html = render_panel(movie)
       refute html =~ "Sample Actor"
       refute html =~ "Sample Role"
+    end
+
+    test "credits view renders Created by + cast + meta for a tv_series" do
+      tv =
+        build_entity(%{
+          type: :tv_series,
+          seasons: [],
+          network: "Sample Network",
+          date_published: "2020-01-15",
+          status: :returning,
+          imdb_id: "tt0000200",
+          cast: [
+            %{
+              "name" => "Sample Actor",
+              "character" => "Sample Role",
+              "tmdb_person_id" => 7,
+              "profile_path" => nil,
+              "order" => 0
+            }
+          ],
+          crew: [
+            %{
+              "tmdb_person_id" => 11,
+              "name" => "Sample Creator",
+              "job" => "Creator",
+              "department" => "Creator",
+              "profile_path" => nil
+            }
+          ]
+        })
+
+      html = render_panel(tv, %{detail_view: :credits})
+
+      assert html =~ "Created by"
+      assert html =~ "Sample Creator"
+      assert html =~ "Sample Actor"
+      assert html =~ "Sample Role"
+      assert html =~ "Network"
+      assert html =~ "Sample Network"
+      assert html =~ "First aired"
+      assert html =~ "Returning"
+      assert html =~ "imdb.com/title/tt0000200"
     end
 
     test "credits view renders cast and crew for a movie" do

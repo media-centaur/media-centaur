@@ -336,6 +336,144 @@ defmodule MediaCentarr.TMDB.MapperTest do
       result = Mapper.tv_attrs("100", data)
       assert result.status == nil
     end
+
+    test "extracts imdb_id from external_ids" do
+      data = %{"name" => "Sample Show", "external_ids" => %{"imdb_id" => "tt0903747"}}
+      result = Mapper.tv_attrs("1", data)
+      assert result.imdb_id == "tt0903747"
+    end
+
+    test "imdb_id is nil when external_ids is missing" do
+      data = %{"name" => "Sample Show"}
+      result = Mapper.tv_attrs("1", data)
+      assert result.imdb_id == nil
+    end
+
+    test "imdb_id is nil when external_ids has no imdb_id" do
+      data = %{"name" => "Sample Show", "external_ids" => %{"freebase_id" => "/m/abc"}}
+      result = Mapper.tv_attrs("1", data)
+      assert result.imdb_id == nil
+    end
+
+    test "imdb_id treats empty string as nil" do
+      data = %{"name" => "Sample Show", "external_ids" => %{"imdb_id" => ""}}
+      result = Mapper.tv_attrs("1", data)
+      assert result.imdb_id == nil
+    end
+
+    test "maps created_by entries to Creator crew rows" do
+      data = %{
+        "name" => "Sample Show",
+        "created_by" => [
+          %{"id" => 11, "name" => "Creator A", "profile_path" => "/a.jpg"},
+          %{"id" => 12, "name" => "Creator B", "profile_path" => nil}
+        ]
+      }
+
+      result = Mapper.tv_attrs("1", data)
+
+      assert result.crew == [
+               %{
+                 "tmdb_person_id" => 11,
+                 "name" => "Creator A",
+                 "job" => "Creator",
+                 "department" => "Creator",
+                 "profile_path" => "/a.jpg"
+               },
+               %{
+                 "tmdb_person_id" => 12,
+                 "name" => "Creator B",
+                 "job" => "Creator",
+                 "department" => "Creator",
+                 "profile_path" => nil
+               }
+             ]
+    end
+
+    test "crew is empty list when created_by is missing" do
+      data = %{"name" => "Sample Show"}
+      result = Mapper.tv_attrs("1", data)
+      assert result.crew == []
+    end
+
+    test "crew is empty list when created_by is empty" do
+      data = %{"name" => "Sample Show", "created_by" => []}
+      result = Mapper.tv_attrs("1", data)
+      assert result.crew == []
+    end
+
+    test "extracts aggregate cast (with roles[0].character) sorted by order" do
+      data = %{
+        "name" => "Sample Show",
+        "aggregate_credits" => %{
+          "cast" => [
+            %{
+              "id" => 2,
+              "name" => "Actor B",
+              "profile_path" => "/b.jpg",
+              "order" => 1,
+              "roles" => [%{"character" => "Char B", "episode_count" => 80}]
+            },
+            %{
+              "id" => 1,
+              "name" => "Actor A",
+              "profile_path" => "/a.jpg",
+              "order" => 0,
+              "roles" => [
+                %{"character" => "Char A", "episode_count" => 100},
+                %{"character" => "Char A (older)", "episode_count" => 5}
+              ]
+            }
+          ]
+        }
+      }
+
+      result = Mapper.tv_attrs("1", data)
+
+      assert result.cast == [
+               %{
+                 "name" => "Actor A",
+                 "character" => "Char A",
+                 "tmdb_person_id" => 1,
+                 "profile_path" => "/a.jpg",
+                 "order" => 0
+               },
+               %{
+                 "name" => "Actor B",
+                 "character" => "Char B",
+                 "tmdb_person_id" => 2,
+                 "profile_path" => "/b.jpg",
+                 "order" => 1
+               }
+             ]
+    end
+
+    test "cast is empty list when aggregate_credits is missing" do
+      data = %{"name" => "Sample Show"}
+      result = Mapper.tv_attrs("1", data)
+      assert result.cast == []
+    end
+
+    test "cast is empty list when aggregate_credits has empty cast" do
+      data = %{"name" => "Sample Show", "aggregate_credits" => %{"cast" => []}}
+      result = Mapper.tv_attrs("1", data)
+      assert result.cast == []
+    end
+
+    test "cast handles missing roles by leaving character nil" do
+      data = %{
+        "name" => "Sample Show",
+        "aggregate_credits" => %{
+          "cast" => [
+            %{"id" => 1, "name" => "Actor A", "profile_path" => nil, "order" => 0}
+          ]
+        }
+      }
+
+      result = Mapper.tv_attrs("1", data)
+
+      assert [%{"character" => nil, "name" => "Actor A"}] = result.cast
+    end
   end
 
   describe "season_attrs/2" do

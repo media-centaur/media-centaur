@@ -165,6 +165,69 @@ defmodule MediaCentarr.Maintenance do
   end
 
   @doc """
+  Backfills the `cast`, `crew` (creators), and `imdb_id` fields on TV
+  series imported before those fields existed. Iterates series with a
+  non-nil `tmdb_id`, re-fetches TMDB metadata for any with empty `cast`
+  *or* empty `crew`, and updates all three credit-related columns in
+  place — no images, watch progress, or files are touched.
+
+  Idempotent: subsequent runs skip series that already have non-empty
+  cast and non-empty crew. Rate-limited automatically by
+  `MediaCentarr.TMDB.RateLimiter` inside `Client.get_tv/1`.
+
+  Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
+  """
+  @spec refresh_series_credits() ::
+          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
+  def refresh_series_credits do
+    Log.info(:library, "refreshing series credits")
+
+    series_list = Repo.all(from t in TVSeries, where: not is_nil(t.tmdb_id))
+
+    result =
+      Enum.reduce(series_list, %{updated: 0, skipped: 0, failed: 0}, &process_series_credits_refresh/2)
+
+    Log.info(
+      :library,
+      "series credits refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
+    )
+
+    {:ok, result}
+  end
+
+  defp process_series_credits_refresh(%TVSeries{cast: cast, crew: crew} = _series, acc)
+       when cast not in [nil, []] and crew not in [nil, []] do
+    Map.update!(acc, :skipped, &(&1 + 1))
+  end
+
+  defp process_series_credits_refresh(%TVSeries{} = series, acc) do
+    case Client.get_tv(series.tmdb_id) do
+      {:ok, body} ->
+        attrs = %{
+          cast: Mapper.extract_cast(body["aggregate_credits"]),
+          crew: Mapper.extract_creators(body["created_by"]),
+          imdb_id: get_in(body, ["external_ids", "imdb_id"])
+        }
+
+        series
+        |> Ecto.Changeset.change(attrs)
+        |> Repo.update()
+        |> case do
+          {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
+          {:error, _} -> Map.update!(acc, :failed, &(&1 + 1))
+        end
+
+      {:error, reason} ->
+        Log.warning(
+          :library,
+          "credits refresh failed for series #{series.id}: #{inspect(reason)}"
+        )
+
+        Map.update!(acc, :failed, &(&1 + 1))
+    end
+  end
+
+  @doc """
   Detects `library_images` rows whose files are absent on disk and
   re-queues each one into `pipeline_image_queue` so the pipeline can
   re-download. Uses the existing stored `source_url` when a queue row

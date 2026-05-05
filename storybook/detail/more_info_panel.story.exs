@@ -51,6 +51,37 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
     crew: @crew
   }
 
+  @creators [
+    %{
+      "tmdb_person_id" => 11,
+      "name" => "Sample Creator A",
+      "job" => "Creator",
+      "department" => "Creator",
+      "profile_path" => nil
+    },
+    %{
+      "tmdb_person_id" => 12,
+      "name" => "Sample Creator B",
+      "job" => "Creator",
+      "department" => "Creator",
+      "profile_path" => nil
+    }
+  ]
+
+  @tv_entity %{
+    type: :tv_series,
+    name: "Sample Series",
+    url: "https://www.themoviedb.org/tv/1",
+    imdb_id: "tt0000200",
+    date_published: "2020-01-15",
+    network: "Sample Network",
+    status: :returning,
+    country_code: "US",
+    original_language: "en",
+    cast: @cast,
+    crew: @creators
+  }
+
   def variations do
     [
       %PhoenixStorybook.Variation{
@@ -66,6 +97,16 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
         id: :empty_credits,
         description: "no crew or cast — credit lines collapse, meta + links remain",
         attributes: %{entity: %{@entity | crew: [], cast: []}}
+      },
+      %PhoenixStorybook.Variation{
+        id: :tv_series,
+        description: "TV series — Created by row, aggregate cast, network/first-aired/status meta",
+        attributes: %{entity: @tv_entity}
+      },
+      %PhoenixStorybook.Variation{
+        id: :tv_series_empty_credits,
+        description: "TV series with no creators or cast — meta + links still render",
+        attributes: %{entity: %{@tv_entity | crew: [], cast: []}}
       }
     ]
   end

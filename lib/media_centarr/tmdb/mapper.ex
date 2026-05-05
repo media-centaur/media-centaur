@@ -36,11 +36,17 @@ defmodule MediaCentarr.TMDB.Mapper do
 
   @doc """
   Extracts domain attributes for a TV series entity from TMDB TV data.
+
+  Expects `show` to optionally include `aggregate_credits` (cast across
+  all seasons), `external_ids` (for `imdb_id`), and `created_by` (the
+  show's creators). These are populated by `TMDB.Client.get_tv/2` via
+  `append_to_response`.
   """
   def tv_attrs(tmdb_id, show) do
     %{
       type: :tv_series,
       tmdb_id: to_string(tmdb_id),
+      imdb_id: extract_tv_imdb_id(show),
       name: show["name"],
       description: show["overview"],
       date_published: show["first_air_date"],
@@ -54,9 +60,14 @@ defmodule MediaCentarr.TMDB.Mapper do
       studio: extract_first_company(show["production_companies"]),
       country_code: extract_first_country(show["production_countries"]),
       network: extract_first_network(show["networks"]),
-      status: parse_tv_status(show["status"])
+      status: parse_tv_status(show["status"]),
+      cast: extract_cast(show["aggregate_credits"]),
+      crew: extract_creators(show["created_by"])
     }
   end
+
+  defp extract_tv_imdb_id(%{"external_ids" => %{"imdb_id" => imdb_id}}), do: presence(imdb_id)
+  defp extract_tv_imdb_id(_), do: nil
 
   @doc """
   Extracts season attributes from TMDB season data.
@@ -240,6 +251,14 @@ defmodule MediaCentarr.TMDB.Mapper do
   @doc """
   Extracts the cast list from a TMDB credits payload. Returns a list of
   maps sorted by `order` ascending — the TMDB importance ranking.
+
+  Handles both shapes:
+
+    * Movie `credits.cast`: each entry has a top-level `character`.
+    * TV `aggregate_credits.cast`: each entry has `roles: [{character,
+      episode_count}]` — we pick the first role (highest episode count
+      by TMDB convention) for the displayed character name.
+
   String keys (not atoms) so the value round-trips through SQLite/JSON
   without atom conversion friction.
   """
@@ -251,7 +270,7 @@ defmodule MediaCentarr.TMDB.Mapper do
     |> Enum.map(fn person ->
       %{
         "name" => person["name"],
-        "character" => person["character"],
+        "character" => extract_cast_character(person),
         "tmdb_person_id" => person["id"],
         "profile_path" => person["profile_path"],
         "order" => person["order"]
@@ -260,6 +279,33 @@ defmodule MediaCentarr.TMDB.Mapper do
   end
 
   def extract_cast(_), do: []
+
+  defp extract_cast_character(%{"character" => character}) when is_binary(character), do: character
+
+  defp extract_cast_character(%{"roles" => [%{"character" => character} | _]}), do: character
+  defp extract_cast_character(_), do: nil
+
+  @doc """
+  Maps TMDB TV `created_by` entries into the same crew-row shape used
+  for movie crew. Each creator becomes a `Creator`-job row so the More
+  info panel can render them with the same `Enum.filter(crew, &(&1["job"] == "..."))`
+  pattern movies use for directors and writers.
+  """
+  def extract_creators(nil), do: []
+
+  def extract_creators(creators) when is_list(creators) do
+    Enum.map(creators, fn person ->
+      %{
+        "tmdb_person_id" => person["id"],
+        "name" => person["name"],
+        "job" => "Creator",
+        "department" => "Creator",
+        "profile_path" => person["profile_path"]
+      }
+    end)
+  end
+
+  def extract_creators(_), do: []
 
   @crew_jobs %{
     "Director" => 0,

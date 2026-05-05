@@ -25,7 +25,11 @@ defmodule MediaCentarr.Library.TVSeries do
     field :network, :string
     field :number_of_seasons, :integer
     field :tmdb_id, :string
+    field :imdb_id, :string
     field :status, Ecto.Enum, values: [:returning, :ended, :canceled, :in_production, :planned]
+
+    field :cast, {:array, :map}, default: []
+    field :crew, {:array, :map}, default: []
 
     has_many :seasons, MediaCentarr.Library.Season, foreign_key: :tv_series_id
     has_many :images, MediaCentarr.Library.Image, foreign_key: :tv_series_id
@@ -54,14 +58,20 @@ defmodule MediaCentarr.Library.TVSeries do
       :network,
       :number_of_seasons,
       :tmdb_id,
-      :status
+      :imdb_id,
+      :status,
+      :cast,
+      :crew
     ])
     |> validate_required([:name])
     |> unique_constraint(:tmdb_id, name: :library_tv_series_tmdb_id_index)
+    |> coerce_cast_default()
+    |> coerce_crew_default()
   end
 
   def update_changeset(tv_series, attrs) do
-    cast(tv_series, attrs, [
+    tv_series
+    |> cast(attrs, [
       :name,
       :description,
       :date_published,
@@ -76,7 +86,26 @@ defmodule MediaCentarr.Library.TVSeries do
       :network,
       :number_of_seasons,
       :tmdb_id,
-      :status
+      :imdb_id,
+      :status,
+      :cast,
+      :crew
     ])
+    |> coerce_cast_default()
+    |> coerce_crew_default()
+  end
+
+  defp coerce_cast_default(changeset) do
+    case get_field(changeset, :cast) do
+      nil -> put_change(changeset, :cast, [])
+      _ -> changeset
+    end
+  end
+
+  defp coerce_crew_default(changeset) do
+    case get_field(changeset, :crew) do
+      nil -> put_change(changeset, :crew, [])
+      _ -> changeset
+    end
   end
 end

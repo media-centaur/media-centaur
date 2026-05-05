@@ -163,7 +163,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             remaining_text={@playback.remaining_text}
             available={@available}
             detail_view={@detail_view}
-            show_more_info={@entity.type == :movie}
+            show_more_info={@entity.type in [:movie, :tv_series]}
           />
           <%!-- Synopsis + structured-metadata sidebar.
                 Below xl: stacks single-column (synopsis full width, then
