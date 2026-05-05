@@ -62,12 +62,18 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid do
         data-empty-state-id="cast-grid-empty"
         class="mb-3"
       >
-        <input
-          type="search"
-          class="library-filter w-full"
-          placeholder="Filter cast"
-          aria-label="Filter cast members"
-        />
+        <div class="relative w-64 max-w-full">
+          <.icon
+            name="hero-magnifying-glass-mini"
+            class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/40 pointer-events-none"
+          />
+          <input
+            type="search"
+            class="library-filter w-full pl-9 bg-base-content/5"
+            placeholder="Filter cast"
+            aria-label="Filter cast members"
+          />
+        </div>
       </div>
 
       <div
