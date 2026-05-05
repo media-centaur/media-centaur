@@ -30,6 +30,16 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.CastGrid do
     }
   ]
 
+  @long_cast Enum.map(0..59, fn i ->
+               %{
+                 "name" => "Sample Cast Member #{i + 1}",
+                 "character" => "Sample Role #{i + 1}",
+                 "tmdb_person_id" => 2000 + i,
+                 "profile_path" => nil,
+                 "order" => i
+               }
+             end)
+
   def variations do
     [
       %PhoenixStorybook.Variation{
@@ -46,6 +56,15 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.CastGrid do
         id: :no_tmdb_person_ids,
         description: "Cards without `tmdb_person_id` render as plain text instead of links.",
         attributes: %{cast: @no_links}
+      },
+      %PhoenixStorybook.Variation{
+        id: :long_cast_with_filter,
+        description:
+          "60 cast entries — exceeds the visible cap, so the inline filter input " <>
+            "appears above the grid. Type to filter in real time; the visible count " <>
+            "stays capped even after filtering. (JS hook runs in the storybook " <>
+            "iframe — try typing 'Cast Member 4' or 'Role 12'.)",
+        attributes: %{cast: @long_cast}
       }
     ]
   end

@@ -28,6 +28,7 @@ import {Console} from "./hooks/console"
 import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
 import {ErrorReport} from "./hooks/error_report"
+import {CastGridFilter} from "./hooks/cast_grid_filter"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -41,6 +42,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     LogTail,
     CopyButton,
     ErrorReport,
+    CastGridFilter,
     ScrollToResume: {
       mounted() { this._scrollToTarget() },
       updated() {
