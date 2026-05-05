@@ -491,9 +491,112 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert Logic.section_reloaders(msg) == [:continue_watching]
     end
 
+    test "availability_changed reloads every image-bearing section" do
+      # When a watch dir flips between :available and :unavailable, every
+      # surface that renders /media-images/* URLs has potentially-stale
+      # artwork — hero and continue-watching are presence-agnostic so their
+      # rows persist with broken thumbnails when the drive disappears, and
+      # recently-added has its own files-present filter to re-evaluate.
+      # All three need to re-render with cache-busted URLs so the browser
+      # actually refetches.
+      assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :available}) ==
+               [:hero, :continue_watching, :recently_added]
+
+      assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :unavailable}) ==
+               [:hero, :continue_watching, :recently_added]
+    end
+
     test "unknown messages route to nothing" do
       assert Logic.section_reloaders({:something_else, :data}) == []
       assert Logic.section_reloaders(:bare_atom) == []
+    end
+  end
+
+  describe "image cache-busting via image_version" do
+    # The placeholder served at /media-images/<path> when the file is offline
+    # has the same URL as the real artwork. To force the browser to refetch
+    # when a drive comes back online, we re-render with a cache-busting
+    # ?v=<n> query string that bumps on every availability change.
+
+    test "hero_card_item/2 with version 0 emits unchanged URLs" do
+      entity = %{
+        id: 1,
+        name: "Sample Movie",
+        year: 2024,
+        runtime_minutes: 100,
+        genres: nil,
+        overview: nil,
+        backdrop_url: "/media-images/ent-1/backdrop.jpg",
+        logo_url: "/media-images/ent-1/logo.png"
+      }
+
+      item = Logic.hero_card_item(entity, 0)
+
+      assert item.backdrop_url == "/media-images/ent-1/backdrop.jpg"
+      assert item.logo_url == "/media-images/ent-1/logo.png"
+    end
+
+    test "hero_card_item/2 with non-zero version appends ?v= to image URLs" do
+      entity = %{
+        id: 1,
+        name: "Sample Movie",
+        year: 2024,
+        runtime_minutes: 100,
+        genres: nil,
+        overview: nil,
+        backdrop_url: "/media-images/ent-1/backdrop.jpg",
+        logo_url: "/media-images/ent-1/logo.png"
+      }
+
+      item = Logic.hero_card_item(entity, 7)
+
+      assert item.backdrop_url == "/media-images/ent-1/backdrop.jpg?v=7"
+      assert item.logo_url == "/media-images/ent-1/logo.png?v=7"
+    end
+
+    test "hero_card_item/2 leaves nil URLs alone regardless of version" do
+      entity = %{
+        id: 1,
+        name: "Sample Movie",
+        year: 2024,
+        runtime_minutes: 100,
+        genres: nil,
+        overview: nil,
+        backdrop_url: nil,
+        logo_url: nil
+      }
+
+      item = Logic.hero_card_item(entity, 9)
+
+      assert item.backdrop_url == nil
+      assert item.logo_url == nil
+    end
+
+    test "continue_watching_items/3 cache-busts backdrop and logo URLs" do
+      progress = [
+        %{
+          entity_id: 1,
+          entity_name: "Sample Show",
+          progress_pct: 47,
+          backdrop_url: "/media-images/show-1/backdrop.jpg",
+          logo_url: "/media-images/show-1/logo.png"
+        }
+      ]
+
+      [item] = Logic.continue_watching_items(progress, %{}, 4)
+
+      assert item.backdrop_url == "/media-images/show-1/backdrop.jpg?v=4"
+      assert item.logo_url == "/media-images/show-1/logo.png?v=4"
+    end
+
+    test "recently_added_items/2 cache-busts poster URLs" do
+      entities = [
+        %{id: 1, name: "Sample Movie", year: 2023, poster_url: "/media-images/ent-1/poster.jpg"}
+      ]
+
+      [item] = Logic.recently_added_items(entities, 3)
+
+      assert item.poster_url == "/media-images/ent-1/poster.jpg?v=3"
     end
   end
 end

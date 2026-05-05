@@ -85,9 +85,15 @@ defmodule MediaCentarrWeb.Plugs.ImageServer do
   defp send_placeholder(conn, relative) do
     role = role_from_filename(relative)
 
+    # The same URL maps to either the placeholder OR the real artwork
+    # depending on whether the watch dir is mounted. Caching the placeholder
+    # would shadow the real file once the drive comes back, so the browser
+    # would keep serving stale placeholders. `no-store` is the only correct
+    # directive for a response whose body can flip on the next request
+    # without the URL changing.
     conn
     |> put_resp_content_type("image/svg+xml")
-    |> put_resp_header("cache-control", "public, max-age=300")
+    |> put_resp_header("cache-control", "no-store")
     |> send_resp(200, placeholder_svg(role))
     |> halt()
   end

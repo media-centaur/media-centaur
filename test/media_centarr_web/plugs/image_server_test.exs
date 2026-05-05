@@ -56,11 +56,18 @@ defmodule MediaCentarrWeb.Plugs.ImageServerTest do
       assert conn.resp_body =~ ~r/viewBox="0 0 200 200"/
     end
 
-    test "placeholder response has Cache-Control so browsers don't spam retries", %{conn: conn} do
+    test "placeholder response is uncached so a recovered drive serves real artwork on next fetch",
+         %{conn: conn} do
+      # Same URL maps to either the placeholder OR the real file depending on
+      # whether the watch dir is mounted right now. Caching the placeholder
+      # response shadows the real file once the drive comes back — the browser
+      # keeps serving the cached placeholder for the same URL until expiry.
+      # `no-store` is the only correct cache directive for a response whose
+      # body can flip on the next request without the URL changing.
       conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/poster.jpg")
 
       [cache_control] = Plug.Conn.get_resp_header(conn, "cache-control")
-      assert cache_control =~ "public"
+      assert cache_control =~ "no-store"
     end
   end
 
