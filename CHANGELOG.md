@@ -4,6 +4,26 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.42.0 — 2026-05-05
+
+### New
+
+TV series detail panels now have a **More info** button between Play
+and Manage that opens a credits view, mirroring the one movies got in
+v0.40.0. The series credits view shows **Created by** at the top
+(creators pulled from TMDB), an aggregate cast grid covering the
+whole show (not per-season), and a meta block with network, first
+aired, status, country and language. Names link to TMDB person pages,
+and the panel ends with external links to TMDB and IMDb when known.
+
+### Improved
+
+Settings → Library Maintenance has a new **Refresh series credits**
+button next to the existing Refresh movie credits one. One click
+backfills creators, aggregate cast, and IMDb ids for any TV series
+imported before those fields existed. Safe to re-run; series that
+already have credits are skipped.
+
 ## v0.41.0 — 2026-05-05
 
 ### Fixed
