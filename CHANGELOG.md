@@ -4,6 +4,27 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.42.2 — 2026-05-05
+
+### Fixed
+
+Modal dialogs (the update-progress modal, service-action confirmations,
+the watch-history delete prompt, the upcoming "track new show" picker,
+and others) no longer leave a thin un-dimmed strip at the bottom of the
+page. The backdrop now covers the full viewport.
+
+Canceling a download from the Downloads page no longer appears to
+remove a different download from the list. The queue now matches each
+row by identity instead of position, so cancellations update the
+correct entry without needing a page reload.
+
+### Improved
+
+The cast filter on a TV show's **More info** panel is narrower and now
+clearly reads as a search input — it has a leading magnifying-glass
+icon and a subtle field background, instead of spanning the full panel
+width.
+
 ## v0.42.1 — 2026-05-05
 
 ### Improved
