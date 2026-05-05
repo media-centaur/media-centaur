@@ -4,6 +4,33 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.41.0 — 2026-05-05
+
+### Fixed
+
+Your library is now safe when a drive stays unmounted. Previously, if
+a watched drive was offline for more than 30 days, the cleanup pass
+would treat every file on it as "missing too long" and silently delete
+the corresponding entries — including entire shows and movies whose
+files all lived on that drive. The cleanup now refuses to remove
+anything until the drive is back online and confirmed visible. When a
+drive does come back, every absent file gets a fresh 30-day grace
+window starting from the moment the drive reappears, giving you time
+to verify state on a now-visible disk.
+
+The Status page's storage section now surfaces drives that are
+offline with files at risk: file count, drive name, and projected
+purge date. If a drive disappears unexpectedly, you see it before the
+clock runs out.
+
+### Improved
+
+Hero artwork and continue-watching thumbnails on the Home page now
+repopulate as soon as a drive comes back online. Previously only the
+small "Recently Added" posters refreshed after a remount; the larger
+hero and continue-watching tiles kept showing stale placeholder art
+until the page was reloaded by hand.
+
 ## v0.40.2 — 2026-05-04
 
 ### Improved
