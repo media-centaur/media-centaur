@@ -281,6 +281,14 @@ defmodule MediaCentarrWeb.StatusLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/status">
+      <:overlays>
+        <.live_component
+          :if={@show_report_modal}
+          id="report-modal-component"
+          module={ReportModal}
+          buckets={@error_buckets}
+        />
+      </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
         <h1 class="text-2xl font-bold">Status</h1>
 
@@ -327,13 +335,6 @@ defmodule MediaCentarrWeb.StatusLive do
           </.link>
         </div>
       </div>
-
-      <.live_component
-        :if={@show_report_modal}
-        id="report-modal-component"
-        module={ReportModal}
-        buckets={@error_buckets}
-      />
     </Layouts.app>
     """
   end

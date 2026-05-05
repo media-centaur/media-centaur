@@ -1210,6 +1210,28 @@ defmodule MediaCentarrWeb.SettingsLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app flash={@flash} current_path="/settings">
+      <:overlays>
+        <%!--
+          Layout-level overlays. Rendered outside the page's spacing container
+          so `space-y-4`'s margins don't fold into the fixed-position height
+          calc and clip the backdrop. See `Layouts.app`'s `:overlays` doc.
+        --%>
+        <.apply_progress_modal
+          apply_phase={@apply_phase}
+          apply_progress={@apply_progress}
+          apply_error={@apply_error}
+          apply_failed_at={@apply_failed_at}
+          latest_release={@latest_release}
+        />
+
+        <.service_action_modal action={@service_action_confirm} />
+
+        <%!--
+          Watch-dir dialog — always in DOM so backdrop-filter compositing
+          layer is kept warm.
+        --%>
+        <.watch_dir_dialog watch_dir_dialog={@watch_dir_dialog} watch_dirs={@watch_dirs} />
+      </:overlays>
       <div
         data-page-behavior="settings"
         data-nav-default-zone="settings"
@@ -1284,29 +1306,6 @@ defmodule MediaCentarrWeb.SettingsLive do
           />
         </div>
       </div>
-
-      <%!--
-        Apply-progress modal is a LAYOUT-LEVEL overlay, not a content
-        row. Keeping it here — a sibling of the page's content root —
-        matches the pattern used elsewhere in the app (see
-        `modal_shell` in library_live) so its `position: fixed`
-        containing block is the viewport, not some content wrapper.
-      --%>
-      <.apply_progress_modal
-        apply_phase={@apply_phase}
-        apply_progress={@apply_progress}
-        apply_error={@apply_error}
-        apply_failed_at={@apply_failed_at}
-        latest_release={@latest_release}
-      />
-
-      <.service_action_modal action={@service_action_confirm} />
-
-      <%!--
-        Watch-dir dialog — always in DOM so backdrop-filter compositing
-        layer is kept warm (same pattern as apply_progress_modal above).
-      --%>
-      <.watch_dir_dialog watch_dir_dialog={@watch_dir_dialog} watch_dirs={@watch_dirs} />
     </Layouts.app>
     """
   end
