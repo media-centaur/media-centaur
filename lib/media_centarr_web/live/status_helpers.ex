@@ -142,4 +142,56 @@ defmodule MediaCentarrWeb.StatusHelpers do
   def usage_text_class(percent) when percent >= 90, do: "text-error"
   def usage_text_class(percent) when percent >= 75, do: "text-warning"
   def usage_text_class(_percent), do: "text-success"
+
+  # --- At-risk file warning (drive-offline durability surface) ---
+
+  @doc """
+  Shapes the per-dir at-risk row rendered by the directories component.
+  Returns `nil` when nothing should be rendered for the dir, otherwise
+  a view-model map.
+
+  We deliberately suppress the row for dirs that are currently
+  `:available`: their absent-file count is accurate but
+  uninteresting (the watcher will resolve it on its next scan, no
+  user action needed). The warning exists for offline dirs whose
+  absence clock is ticking without the user's awareness.
+
+  - `at_risk_summary` — the map returned by
+    `MediaCentarr.Watcher.AbsencePolicy.at_risk_summary/0`.
+  - `dir_status` — the map returned by
+    `MediaCentarr.Library.Availability.dir_status/0` (or `%{}` if not
+    yet seeded — treat unknown dirs as offline so the warning isn't
+    silently suppressed).
+  - `now` and `ttl_days` — usually `DateTime.utc_now()` and the
+    project's `:file_absence_ttl_days` config; passed in so the
+    formatter is async-testable per ADR-030.
+  """
+  @spec format_at_risk_for_dir(
+          String.t(),
+          %{String.t() => %{file_count: non_neg_integer(), earliest_absent_since: DateTime.t()}},
+          %{String.t() => atom()},
+          DateTime.t(),
+          non_neg_integer()
+        ) ::
+          nil
+          | %{
+              file_count: non_neg_integer(),
+              earliest_absent_since: DateTime.t(),
+              purge_in_days: non_neg_integer()
+            }
+  def format_at_risk_for_dir(dir, at_risk_summary, dir_status, now, ttl_days) do
+    case Map.get(at_risk_summary, dir) do
+      nil ->
+        nil
+
+      %{file_count: count, earliest_absent_since: earliest} ->
+        if Map.get(dir_status, dir, :unavailable) == :unavailable do
+          %{
+            file_count: count,
+            earliest_absent_since: earliest,
+            purge_in_days: max(ttl_days - DateTime.diff(now, earliest, :day), 0)
+          }
+        end
+    end
+  end
 end

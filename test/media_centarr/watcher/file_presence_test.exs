@@ -147,4 +147,69 @@ defmodule MediaCentarr.Watcher.FilePresenceTest do
       assert FilePresence.restore_present_files("/media/drive1", []) == []
     end
   end
+
+  describe "reset_absence_clock_for_dir/1" do
+    # Used by AbsencePolicy on watch-dir remount: gives users a fresh
+    # full TTL window from the moment the drive becomes visible again,
+    # rather than counting absence accumulated while the drive was
+    # offline (and we couldn't have verified the file either way).
+
+    test "advances absent_since to now() for every :absent file in the dir" do
+      FilePresence.record_file("/media/drive1/movie1.mkv", "/media/drive1")
+      FilePresence.record_file("/media/drive1/movie2.mkv", "/media/drive1")
+      FilePresence.mark_absent_for_watch_dir("/media/drive1")
+
+      # Backdate absent_since on both rows so we can confirm the reset
+      # actually moves the clock forward.
+      old_timestamp = DateTime.add(DateTime.utc_now(), -100, :day)
+
+      Repo.update_all(
+        from(k in KnownFile, where: k.watch_dir == "/media/drive1"),
+        set: [absent_since: old_timestamp]
+      )
+
+      count = FilePresence.reset_absence_clock_for_dir("/media/drive1")
+      assert count == 2
+
+      rows = Repo.all(from(k in KnownFile, where: k.watch_dir == "/media/drive1"))
+
+      Enum.each(rows, fn row ->
+        assert row.state == :absent
+        # The reset must produce a timestamp newer than the one we backdated.
+        assert DateTime.after?(row.absent_since, old_timestamp)
+      end)
+    end
+
+    test "leaves :present rows untouched" do
+      FilePresence.record_file("/media/drive1/present.mkv", "/media/drive1")
+      FilePresence.record_file("/media/drive1/absent.mkv", "/media/drive1")
+      FilePresence.mark_files_absent(["/media/drive1/absent.mkv"])
+
+      FilePresence.reset_absence_clock_for_dir("/media/drive1")
+
+      present_row = Repo.get_by!(KnownFile, file_path: "/media/drive1/present.mkv")
+      assert present_row.state == :present
+      assert is_nil(present_row.absent_since)
+    end
+
+    test "scopes to the named dir — does not touch other dirs" do
+      FilePresence.record_file("/media/drive1/movie.mkv", "/media/drive1")
+      FilePresence.record_file("/media/drive2/movie.mkv", "/media/drive2")
+      FilePresence.mark_files_absent(["/media/drive1/movie.mkv", "/media/drive2/movie.mkv"])
+
+      old_timestamp = DateTime.add(DateTime.utc_now(), -100, :day)
+
+      Repo.update_all(KnownFile, set: [absent_since: old_timestamp])
+
+      FilePresence.reset_absence_clock_for_dir("/media/drive1")
+
+      drive2_row = Repo.get_by!(KnownFile, file_path: "/media/drive2/movie.mkv")
+      assert DateTime.compare(drive2_row.absent_since, old_timestamp) == :eq
+    end
+
+    test "returns 0 when no absent rows exist for the dir" do
+      FilePresence.record_file("/media/drive1/movie.mkv", "/media/drive1")
+      assert FilePresence.reset_absence_clock_for_dir("/media/drive1") == 0
+    end
+  end
 end
