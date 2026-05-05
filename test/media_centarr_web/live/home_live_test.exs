@@ -55,6 +55,43 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     end
   end
 
+  describe "drive-recovery image refresh" do
+    test "availability_changed bumps image cache-bust on continue-watching URLs",
+         %{conn: conn} do
+      # Bug: when the app starts before a watch dir is mounted, hero and
+      # continue-watching populate (they don't filter by file presence) but
+      # their /media-images/* URLs return placeholder SVGs. Once the drive
+      # comes back, the same URLs would still be served from the browser
+      # cache. The fix bumps :image_version on every :availability_changed
+      # so the next render emits cache-busted URLs (?v=N) — morphdom diffs
+      # the `src` attribute and the browser refetches.
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg"
+      })
+
+      file = create_linked_file(%{movie_id: movie.id})
+      FilePresence.record_file(file.file_path, file.watch_dir)
+      create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+
+      {:ok, view, html} = live(conn, "/")
+
+      # Initial render: image_version is 0, URLs have no ?v= param.
+      assert html =~ "/media-images/#{movie.id}/backdrop.jpg"
+      refute html =~ "?v="
+
+      send(view.pid, {:availability_changed, "/mnt/movies", :available})
+      # 500ms debounce + slack
+      Process.sleep(700)
+
+      html_after = render(view)
+      assert html_after =~ "/media-images/#{movie.id}/backdrop.jpg?v=1"
+    end
+  end
+
   describe "Coming Up grab status enrichment" do
     test "Coming Up section renders without a status badge for scheduled items", %{conn: conn} do
       # In the test environment Prowlarr is never configured, so load_coming_up/1
