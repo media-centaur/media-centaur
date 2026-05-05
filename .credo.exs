@@ -188,7 +188,8 @@
           {MediaCentarr.Credo.Checks.RawButtonClass, []},
           {MediaCentarr.Credo.Checks.RawBadgeClass, []},
           {MediaCentarr.Credo.Checks.StorybookCoverage, []},
-          {MediaCentarr.Credo.Checks.TypedComponentAttrs, []}
+          {MediaCentarr.Credo.Checks.TypedComponentAttrs, []},
+          {MediaCentarr.Credo.Checks.DestructiveFileQuery, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

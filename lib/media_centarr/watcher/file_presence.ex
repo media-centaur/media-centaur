@@ -1,31 +1,23 @@
 defmodule MediaCentarr.Watcher.FilePresence do
   @moduledoc """
-  Tracks file presence on the filesystem via the `watcher_files` table.
+  Data primitives over `MediaCentarr.Watcher.KnownFile`.
 
-  Two responsibilities:
-  - **Presence tracking**: records which files the watcher has seen, marks
-    them absent when drives disconnect, restores them when drives return.
-  - **TTL expiration**: periodically checks for files that have been absent
-    longer than the configured TTL and triggers library cleanup.
+  Records files the watcher has seen, marks them absent when they
+  disappear or their drive disconnects, restores them when they're
+  back on disk, resets the absence clock on remount. Pure data
+  operations — no timers, no policy decisions, no PubSub.
 
-  Subscribes to PubSub for watcher state changes (drive unavailable).
+  Lifecycle policy (TTL expiration, dir-state event handling, the
+  `{:files_removed, paths}` broadcast contract) lives in
+  `MediaCentarr.Watcher.AbsencePolicy`. The relationship is one-way:
+  AbsencePolicy uses these primitives; this module is unaware of the
+  policy.
   """
-  use GenServer
   require MediaCentarr.Log, as: Log
   import Ecto.Query
 
-  alias MediaCentarr.{Config, Repo}
+  alias MediaCentarr.Repo
   alias MediaCentarr.Watcher.KnownFile
-
-  @ttl_check_interval :timer.hours(24)
-
-  def start_link(_opts) do
-    GenServer.start_link(__MODULE__, [], name: __MODULE__)
-  end
-
-  # ---------------------------------------------------------------------------
-  # Public API
-  # ---------------------------------------------------------------------------
 
   @doc """
   Records a newly detected file as present in watcher_files.
@@ -123,78 +115,28 @@ defmodule MediaCentarr.Watcher.FilePresence do
     :ok
   end
 
-  # ---------------------------------------------------------------------------
-  # GenServer callbacks
-  # ---------------------------------------------------------------------------
+  @doc """
+  Resets `absent_since` to `now()` for every `:absent` row in the
+  given watch dir. Returns the number of rows touched.
 
-  @impl true
-  def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.dir_state())
-    schedule_ttl_check()
-    {:ok, %{}, {:continue, :initial_ttl_check}}
-  end
+  Called by `MediaCentarr.Watcher.AbsencePolicy` on a dir's
+  `:available` transition so users get a guaranteed full TTL window
+  from the moment the drive becomes visible again, instead of
+  counting absence accumulated while the drive was unverifiable.
+  Files actually found on the next scan are then restored to
+  `:present` (with `absent_since: nil`) by `restore_present_files/2`;
+  this reset only matters for files that remain missing.
+  """
+  @spec reset_absence_clock_for_dir(String.t()) :: non_neg_integer()
+  def reset_absence_clock_for_dir(watch_dir) do
+    now = DateTime.utc_now()
 
-  @impl true
-  def handle_continue(:initial_ttl_check, state) do
-    check_ttl_expirations()
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:dir_state_changed, dir, :watch_dir, :unavailable}, state) do
-    Log.info(:watcher, "marked files absent — drive unavailable for #{dir}")
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      mark_absent_for_watch_dir(dir)
-    end)
-
-    {:noreply, state}
-  end
-
-  def handle_info({:dir_state_changed, _dir, _role, _state}, state) do
-    {:noreply, state}
-  end
-
-  def handle_info(:ttl_check, state) do
-    check_ttl_expirations()
-    schedule_ttl_check()
-    {:noreply, state}
-  end
-
-  def handle_info(_message, state), do: {:noreply, state}
-
-  # ---------------------------------------------------------------------------
-  # TTL expiration
-  # ---------------------------------------------------------------------------
-
-  defp check_ttl_expirations do
-    ttl_days = Config.get(:file_absence_ttl_days) || 30
-    cutoff = DateTime.add(DateTime.utc_now(), -ttl_days, :day)
-
-    expired =
-      Repo.all(
-        from(k in KnownFile,
-          where: k.state == :absent and k.absent_since < ^cutoff,
-          select: k.file_path
-        )
+    {count, _} =
+      Repo.update_all(
+        from(k in KnownFile, where: k.watch_dir == ^watch_dir and k.state == :absent),
+        set: [absent_since: now, updated_at: now]
       )
 
-    if expired != [] do
-      Log.info(:watcher, "TTL expired — #{length(expired)} absent files")
-
-      # Delete expired records from watcher_files
-      Repo.delete_all(from(k in KnownFile, where: k.file_path in ^expired))
-
-      # Broadcast for Library to clean up its records
-      Phoenix.PubSub.broadcast(
-        MediaCentarr.PubSub,
-        MediaCentarr.Topics.library_file_events(),
-        {:files_removed, expired}
-      )
-    end
-  end
-
-  defp schedule_ttl_check do
-    Process.send_after(self(), :ttl_check, @ttl_check_interval)
+    count
   end
 end

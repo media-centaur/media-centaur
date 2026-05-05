@@ -9,6 +9,37 @@ description: "Use this skill for any implementation task — adding features, fi
 2. **Implement the minimum change** to make the tests pass.
 3. **Run `mix precommit`** before finishing. Fix all warnings and failures — zero warnings policy.
 
+## Modular Cohesion
+
+Before adding a function, handler, or piece of state to an existing
+module, **read the moduledoc**. If it already names more than one
+responsibility — look for "and" between concerns, numbered lists like
+"Two responsibilities:", or `# ---` section dividers separating
+distinct domains — that's a smell, and the new code is the cheapest
+moment to fix it. Split the module into collaborators *as part of the
+change*, not as follow-up work.
+
+The split rule:
+
+- Each module's `@moduledoc` names **one** thing it owns.
+- Relationships are **one-way**: the consumer module names the
+  data-source module in its moduledoc; the data-source module says
+  nothing about the consumer.
+- Tests live next to the module they describe. Integration tests
+  assert the *contract* between modules, never the internals (per
+  ADR-026).
+
+**Canonical examples in this repo:**
+
+| Consumer | Data source | Pattern |
+|---|---|---|
+| `MediaCentarr.Watcher.AbsencePolicy` | `MediaCentarr.Watcher.FilePresence` | TTL/lifecycle policy uses presence-tracking primitives. |
+| `MediaCentarr.Library.Availability` | `MediaCentarr.WatcherStatus` | Library reads watcher state through a boundary-neutral helper. |
+
+When in doubt: write the moduledoc you'd want to see for the new code
+*first*. If you can't fit it in one short sentence, the work belongs
+in (or as) a separate module.
+
 ## Test Patterns by Domain
 
 ### Ecto Schemas (Movie, TVSeries, MovieSeries, VideoObject, WatchedFile, WatchProgress, Image)

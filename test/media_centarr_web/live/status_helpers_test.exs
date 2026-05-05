@@ -299,4 +299,81 @@ defmodule MediaCentarrWeb.StatusHelpersTest do
       refute StatusHelpers.progress_matches_session?(progress, now_playing)
     end
   end
+
+  # --- format_at_risk_for_dir/3 ---
+
+  describe "format_at_risk_for_dir/3" do
+    # The status page only surfaces an at-risk warning for dirs the
+    # user can do something about — i.e. dirs that are currently
+    # offline, since those are the ones whose absence clock is ticking
+    # without the user's awareness. An online dir's at-risk count is
+    # accurate-but-uninteresting (the watcher will resolve it on its
+    # next scan), so we deliberately suppress the row for those.
+
+    test "returns nil when the dir has no absent files" do
+      assert StatusHelpers.format_at_risk_for_dir(
+               "/mnt/cold",
+               %{},
+               %{"/mnt/cold" => :unavailable},
+               DateTime.utc_now(),
+               30
+             ) == nil
+    end
+
+    test "returns nil when the dir is currently :available (not user-actionable)" do
+      summary = %{
+        "/mnt/cold" => %{
+          file_count: 5,
+          earliest_absent_since: DateTime.add(DateTime.utc_now(), -20, :day)
+        }
+      }
+
+      assert StatusHelpers.format_at_risk_for_dir(
+               "/mnt/cold",
+               summary,
+               %{"/mnt/cold" => :available},
+               DateTime.utc_now(),
+               30
+             ) == nil
+    end
+
+    test "returns a row when the dir is unavailable and has at-risk files" do
+      now = ~U[2026-05-05 12:00:00Z]
+      earliest = DateTime.add(now, -10, :day)
+
+      summary = %{"/mnt/cold" => %{file_count: 12, earliest_absent_since: earliest}}
+      dir_status = %{"/mnt/cold" => :unavailable}
+
+      assert %{
+               file_count: 12,
+               earliest_absent_since: ^earliest,
+               purge_in_days: 20
+             } = StatusHelpers.format_at_risk_for_dir("/mnt/cold", summary, dir_status, now, 30)
+    end
+
+    test "purge_in_days is 0 when the file is already past the TTL" do
+      now = ~U[2026-05-05 12:00:00Z]
+      # Absent for 45 days — past the 30-day TTL.
+      earliest = DateTime.add(now, -45, :day)
+
+      summary = %{"/mnt/cold" => %{file_count: 1, earliest_absent_since: earliest}}
+      dir_status = %{"/mnt/cold" => :unavailable}
+
+      row = StatusHelpers.format_at_risk_for_dir("/mnt/cold", summary, dir_status, now, 30)
+      assert row.purge_in_days == 0
+    end
+
+    test "treats a dir absent from the status map as unavailable (optimistic display)" do
+      # If the dir flipped offline before Availability seeded its
+      # cache, we'd rather show the at-risk warning than hide it.
+      now = DateTime.utc_now()
+
+      summary = %{
+        "/mnt/orphan" => %{file_count: 3, earliest_absent_since: DateTime.add(now, -5, :day)}
+      }
+
+      assert %{file_count: 3} =
+               StatusHelpers.format_at_risk_for_dir("/mnt/orphan", summary, %{}, now, 30)
+    end
+  end
 end

@@ -1,5 +1,7 @@
 defmodule MediaCentarr.Watcher do
-  use Boundary, deps: [MediaCentarr.Library], exports: [Supervisor, FilePresence]
+  use Boundary,
+    deps: [MediaCentarr.Library],
+    exports: [Supervisor, FilePresence, AbsencePolicy]
 
   @moduledoc """
   Per-directory inotify GenServer plus the watcher subsystem's module-level
