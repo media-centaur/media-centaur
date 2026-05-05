@@ -106,6 +106,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        refreshing_images: false,
        repairing_images: false,
        refreshing_credits: false,
+       refreshing_series_credits: false,
        repair_last_result: nil,
        tmdb_testing: false,
        prowlarr_testing: false,
@@ -494,6 +495,17 @@ defmodule MediaCentarrWeb.SettingsLive do
     end)
 
     {:noreply, assign(socket, refreshing_credits: true)}
+  end
+
+  def handle_event("refresh_series_credits", _params, socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      {:ok, result} = Maintenance.refresh_series_credits()
+      send(liveview, {:series_credits_refreshed, result})
+    end)
+
+    {:noreply, assign(socket, refreshing_series_credits: true)}
   end
 
   def handle_event("repair_missing_images", _params, socket) do
@@ -907,6 +919,30 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> put_flash(:info, msg)}
   end
 
+  def handle_info(
+        {:series_credits_refreshed, %{updated: updated, skipped: skipped, failed: failed}},
+        socket
+      ) do
+    msg =
+      cond do
+        updated == 0 and failed == 0 ->
+          "Series credits already up to date — nothing to refresh."
+
+        failed > 0 ->
+          "Refreshed credits for #{updated} series " <>
+            "(#{skipped} skipped, #{failed} failed)."
+
+        true ->
+          "Refreshed credits for #{updated} series" <>
+            if(skipped > 0, do: " (#{skipped} already had credits).", else: ".")
+      end
+
+    {:noreply,
+     socket
+     |> assign(refreshing_series_credits: false)
+     |> put_flash(:info, msg)}
+  end
+
   def handle_info({:image_repair_complete, result}, socket) do
     %{enqueued: enqueued, queue_reused: reused, queue_rebuilt: rebuilt, skipped: skipped} =
       result
@@ -1215,6 +1251,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             refreshing_images={@refreshing_images}
             repairing_images={@repairing_images}
             refreshing_credits={@refreshing_credits}
+            refreshing_series_credits={@refreshing_series_credits}
             missing_images_summary={@missing_images_summary}
             spoiler_free={@spoiler_free}
             tmdb_test={@tmdb_test}
@@ -2561,6 +2598,26 @@ defmodule MediaCentarrWeb.SettingsLive do
               tabindex="0"
             >
               {if @refreshing_credits, do: "Refreshing…", else: "Refresh"}
+            </.button>
+          </div>
+
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium">Refresh series credits</p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Backfills creators, aggregate cast, and IMDb ids for TV series imported before those fields existed. Skips series that already have credits — safe to re-run.
+              </p>
+            </div>
+            <.button
+              variant="neutral"
+              size="sm"
+              class="shrink-0"
+              phx-click="refresh_series_credits"
+              disabled={@refreshing_series_credits}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @refreshing_series_credits, do: "Refreshing…", else: "Refresh"}
             </.button>
           </div>
         </div>

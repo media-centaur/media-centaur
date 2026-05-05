@@ -2,6 +2,7 @@ defmodule MediaCentarr.MaintenanceTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Library.Movie
+  alias MediaCentarr.Library.TVSeries
   alias MediaCentarr.Maintenance
   alias MediaCentarr.Repo
   alias MediaCentarr.Review
@@ -153,6 +154,124 @@ defmodule MediaCentarr.MaintenanceTest do
         |> Repo.insert()
 
       assert {:ok, %{updated: 0, skipped: 0, failed: 0}} = Maintenance.refresh_movie_credits()
+    end
+  end
+
+  describe "refresh_series_credits/0" do
+    setup [:setup_tmdb_client]
+
+    test "populates cast, crew, and imdb_id on series with empty credits and a tmdb_id" do
+      {:ok, series} =
+        %{name: "Sample Series", tmdb_id: "200", cast: [], crew: []}
+        |> TVSeries.create_changeset()
+        |> Repo.insert()
+
+      stub_get_tv("200", %{
+        "external_ids" => %{"imdb_id" => "tt0000200"},
+        "created_by" => [
+          %{"id" => 11, "name" => "Sample Creator", "profile_path" => "/c.jpg"}
+        ],
+        "aggregate_credits" => %{
+          "cast" => [
+            %{
+              "id" => 7,
+              "name" => "Sample Actor",
+              "profile_path" => "/p.jpg",
+              "order" => 0,
+              "roles" => [%{"character" => "Sample Role", "episode_count" => 50}]
+            }
+          ]
+        }
+      })
+
+      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
+
+      reloaded = Repo.get!(TVSeries, series.id)
+
+      assert reloaded.imdb_id == "tt0000200"
+
+      assert reloaded.cast == [
+               %{
+                 "name" => "Sample Actor",
+                 "character" => "Sample Role",
+                 "tmdb_person_id" => 7,
+                 "profile_path" => "/p.jpg",
+                 "order" => 0
+               }
+             ]
+
+      assert reloaded.crew == [
+               %{
+                 "tmdb_person_id" => 11,
+                 "name" => "Sample Creator",
+                 "job" => "Creator",
+                 "department" => "Creator",
+                 "profile_path" => "/c.jpg"
+               }
+             ]
+    end
+
+    test "skips series that already have non-empty cast and crew" do
+      existing_cast = [
+        %{
+          "name" => "Existing",
+          "character" => "Existing",
+          "tmdb_person_id" => 1,
+          "profile_path" => nil,
+          "order" => 0
+        }
+      ]
+
+      existing_crew = [
+        %{
+          "tmdb_person_id" => 2,
+          "name" => "Existing Creator",
+          "job" => "Creator",
+          "department" => "Creator",
+          "profile_path" => nil
+        }
+      ]
+
+      {:ok, _} =
+        %{name: "Sample Series", tmdb_id: "201", cast: existing_cast, crew: existing_crew}
+        |> TVSeries.create_changeset()
+        |> Repo.insert()
+
+      assert {:ok, %{updated: 0, skipped: 1, failed: 0}} = Maintenance.refresh_series_credits()
+    end
+
+    test "refetches a series that has cast but no crew" do
+      cast = [
+        %{
+          "name" => "Existing",
+          "character" => "Existing",
+          "tmdb_person_id" => 1,
+          "profile_path" => nil,
+          "order" => 0
+        }
+      ]
+
+      {:ok, _} =
+        %{name: "Sample Series", tmdb_id: "202", cast: cast, crew: []}
+        |> TVSeries.create_changeset()
+        |> Repo.insert()
+
+      stub_get_tv("202", %{
+        "external_ids" => %{"imdb_id" => "tt0000202"},
+        "created_by" => [%{"id" => 11, "name" => "Sample Creator", "profile_path" => nil}],
+        "aggregate_credits" => %{"cast" => []}
+      })
+
+      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
+    end
+
+    test "skips series without a tmdb_id" do
+      {:ok, _} =
+        %{name: "Sample Series", tmdb_id: nil, cast: [], crew: []}
+        |> TVSeries.create_changeset()
+        |> Repo.insert()
+
+      assert {:ok, %{updated: 0, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
     end
   end
 end

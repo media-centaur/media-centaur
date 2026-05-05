@@ -276,6 +276,15 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
+        id: :tv_series_credits_view,
+        description:
+          "`detail_view: :credits` on a TV series — opens the More info panel " <>
+            "with **Created by** at the top, an aggregate-cast grid, a " <>
+            "network/first-aired/status meta block, and TMDB + IMDb external " <>
+            "links. Series-shaped counterpart to the movie credits view.",
+        attributes: Map.put(tv_series_attrs(), :detail_view, :credits)
+      },
+      %Variation{
         id: :offline,
         description:
           "`available: false` + `tmdb_ready: false` — the play CTA collapses to " <>
@@ -425,6 +434,33 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       genres: ["Drama", "Anthology"],
       images: [],
       external_ids: [%{source: "tmdb", external_id: "2002"}],
+      imdb_id: "tt0000200",
+      cast:
+        Enum.map(0..7, fn i ->
+          %{
+            "name" => "Sample Actor #{i + 1}",
+            "character" => "Sample Role #{i + 1}",
+            "tmdb_person_id" => 1000 + i,
+            "profile_path" => nil,
+            "order" => i
+          }
+        end),
+      crew: [
+        %{
+          "tmdb_person_id" => 11,
+          "name" => "Sample Creator A",
+          "job" => "Creator",
+          "department" => "Creator",
+          "profile_path" => nil
+        },
+        %{
+          "tmdb_person_id" => 12,
+          "name" => "Sample Creator B",
+          "job" => "Creator",
+          "department" => "Creator",
+          "profile_path" => nil
+        }
+      ],
       extras: [],
       seasons: [
         sample_season(@s1_id, 1, "Season 1", 5, [
