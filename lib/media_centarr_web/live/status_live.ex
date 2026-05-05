@@ -11,10 +11,12 @@ defmodule MediaCentarrWeb.StatusLive do
 
   import MediaCentarrWeb.StatusHelpers
 
-  alias MediaCentarr.{ErrorReports, Library, Playback, Status, Storage, WatchHistory}
+  alias MediaCentarr.{Config, ErrorReports, Library, Playback, Status, Storage, WatchHistory}
+  alias MediaCentarr.Library.Availability
   alias MediaCentarr.Pipeline.Stats
   alias MediaCentarr.Pipeline.Image, as: ImagePipeline
   alias MediaCentarr.Watcher
+  alias MediaCentarr.Watcher.AbsencePolicy
   alias MediaCentarrWeb.StatusLive.ReportModal
 
   @storage_refresh_ms 5 * 60 * 1_000
@@ -85,6 +87,7 @@ defmodule MediaCentarrWeb.StatusLive do
     |> assign(history_stats: %{total_count: 0, total_seconds: 0.0, streak: 0, heatmap: %{}})
     |> assign(error_buckets: [])
     |> assign(storage_drives: [])
+    |> assign(at_risk_summary: %{})
     |> assign(show_report_modal: false)
   end
 
@@ -109,6 +112,7 @@ defmodule MediaCentarrWeb.StatusLive do
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
       send(parent, {:status_storage_loaded, Storage.measure_all()})
+      send(parent, {:status_at_risk_loaded, AbsencePolicy.at_risk_summary()})
     end)
   end
 
@@ -166,6 +170,13 @@ defmodule MediaCentarrWeb.StatusLive do
   end
 
   def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
+    # Reload the at-risk summary too: a flip to :unavailable triggers
+    # AbsencePolicy to mark files absent (count goes up), and a flip
+    # to :available resets the absence clock (earliest_absent_since
+    # advances). The badge that drives the user's "drive offline N
+    # days, X files at risk" warning needs both reflected promptly.
+    start_async_storage()
+
     {:noreply,
      socket
      |> assign(watcher_statuses: MediaCentarr.Watcher.Supervisor.statuses())
@@ -200,6 +211,10 @@ defmodule MediaCentarrWeb.StatusLive do
      socket
      |> assign(:history_events, history_events)
      |> assign(:history_stats, history_stats)}
+  end
+
+  def handle_info({:status_at_risk_loaded, summary}, socket) do
+    {:noreply, assign(socket, at_risk_summary: summary)}
   end
 
   def handle_info({:status_storage_loaded, drives}, socket) do
@@ -306,6 +321,8 @@ defmodule MediaCentarrWeb.StatusLive do
               dir_health={@dir_health}
               watcher_statuses={@watcher_statuses}
               storage_drives={@storage_drives}
+              at_risk_summary={@at_risk_summary}
+              ttl_days={Config.get(:file_absence_ttl_days) || 30}
             />
           </.link>
         </div>
@@ -598,7 +615,11 @@ defmodule MediaCentarrWeb.StatusLive do
         Enum.any?(drive.roles, &(&1.label == "Database"))
       end)
 
-    assigns = assign(assigns, :db_drive, db_drive)
+    assigns =
+      assigns
+      |> assign(:db_drive, db_drive)
+      |> assign(:dir_status, Availability.dir_status())
+      |> assign(:now, DateTime.utc_now())
 
     ~H"""
     <div class="card glass-surface">
@@ -613,6 +634,14 @@ defmodule MediaCentarrWeb.StatusLive do
           <div :for={health <- @dir_health}>
             <% status = resolve_dir_status(health, @watcher_statuses) %>
             <% drive = find_drive_for_dir(@storage_drives, health.dir) %>
+            <% at_risk =
+              format_at_risk_for_dir(
+                health.dir,
+                @at_risk_summary,
+                @dir_status,
+                @now,
+                @ttl_days
+              ) %>
 
             <div class="flex items-center gap-3 mb-1">
               <span
@@ -659,6 +688,23 @@ defmodule MediaCentarrWeb.StatusLive do
                 usage_text_class(drive.usage_percent)
               ]}>
                 {drive.usage_percent}%
+              </span>
+            </div>
+
+            <div
+              :if={at_risk}
+              class="mt-2 flex items-center gap-2 text-xs text-warning"
+              data-component="at-risk-row"
+            >
+              <.icon name="hero-exclamation-triangle-mini" class="size-4 shrink-0" />
+              <span>
+                {at_risk.file_count} {if at_risk.file_count == 1, do: "file", else: "files"} at risk of TTL purge
+                <span :if={at_risk.purge_in_days > 0}>
+                  in {at_risk.purge_in_days} {if at_risk.purge_in_days == 1, do: "day", else: "days"}
+                </span>
+                <span :if={at_risk.purge_in_days == 0} class="text-error font-medium">
+                  — purge eligible now (waiting for drive to come back online)
+                </span>
               </span>
             </div>
           </div>
