@@ -293,5 +293,54 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
       assert html =~ "TMDB"
       assert html =~ "IMDb"
     end
+
+    test "cast filter input is hidden when cast count is at or below the cap" do
+      cast = build_cast(24)
+      html = render_panel(%{entity: tv_entity(%{cast: cast})})
+
+      # Filter input + hook only render when cast > cap. With exactly 24
+      # cards, the user has the full cast in front of them already.
+      refute html =~ ~s(phx-hook="CastGridFilter")
+      refute html =~ "Filter cast"
+      refute html =~ "No cast members match"
+    end
+
+    test "cast filter input renders when cast count exceeds the cap" do
+      cast = build_cast(30)
+      html = render_panel(%{entity: tv_entity(%{cast: cast})})
+
+      assert html =~ ~s(phx-hook="CastGridFilter")
+      assert html =~ "Filter cast"
+      assert html =~ "No cast members match"
+
+      # Server still renders all 30 entries — the JS hook hides the
+      # ones past the cap client-side. This is what gives the filter
+      # something to search.
+      Enum.each(cast, fn person ->
+        assert html =~ person["name"]
+      end)
+    end
+
+    test "cards past the cap are server-rendered with display: none" do
+      # Belt-and-suspenders: even before the JS hook mounts, the 25th
+      # card onwards must be hidden so users don't see a flash of the
+      # full 30-card grid before JS catches up.
+      cast = build_cast(30)
+      html = render_panel(%{entity: tv_entity(%{cast: cast})})
+
+      assert html =~ ~s(style="display: none")
+    end
+  end
+
+  defp build_cast(count) do
+    Enum.map(0..(count - 1), fn i ->
+      %{
+        "name" => "Sample Cast Member #{i + 1}",
+        "character" => "Sample Role #{i + 1}",
+        "tmdb_person_id" => 5000 + i,
+        "profile_path" => nil,
+        "order" => i
+      }
+    end)
   end
 end
