@@ -4,6 +4,22 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.42.1 — 2026-05-05
+
+### Improved
+
+The TV credits panel no longer falls over on long-running shows. Series
+like *The Simpsons* return hundreds of cast members from TMDB across
+their full run, which made the **More info** panel scroll forever. The
+grid is now capped at 24 cards (the show's regulars + main recurring
+cast, by TMDB billing order) and surfaces an inline filter input above
+the grid whenever the underlying cast exceeds that count. Type to
+filter the visible 24 in real time — the visible count stays capped
+even as you narrow, so the panel never blooms.
+
+Cast under 24 entries (movies, short-run series) is unchanged — no
+filter input, all entries visible.
+
 ## v0.42.0 — 2026-05-05
 
 ### New
