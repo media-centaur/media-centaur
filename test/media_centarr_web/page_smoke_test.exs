@@ -71,6 +71,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         {"/library", "library browse"},
         {"/status", "status"},
         {"/settings", "settings"},
+        {"/setup", "setup tour"},
         {"/review", "review"},
         {"/console", "console"},
         {"/history", "watch history"},

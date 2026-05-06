@@ -20,17 +20,17 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.People do
 
   def variations do
     [
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :all_linked,
         description: "Every entry has a `tmdb_person_id` — all names are TMDB links.",
         attributes: %{people: @linked}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :no_links,
         description: "No `tmdb_person_id` anywhere — names render as plain text.",
         attributes: %{people: @plain}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :mixed,
         description: "Mix of linked and plain — comma-separator behaves the same regardless.",
         attributes: %{people: @mixed}

@@ -9,6 +9,7 @@ defmodule MediaCentarrWeb.Router do
     plug :put_root_layout, html: {MediaCentarrWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug MediaCentarrWeb.Plugs.SetupRedirect
   end
 
   pipeline :api do
@@ -26,6 +27,7 @@ defmodule MediaCentarrWeb.Router do
       live "/library", LibraryLive, :index
       live "/review", ReviewLive, :index
       live "/settings", SettingsLive, :index
+      live "/setup", SetupLive, :index
       live "/status", StatusLive, :index
       live "/upcoming", UpcomingLive, :index
     end
@@ -36,8 +38,10 @@ defmodule MediaCentarrWeb.Router do
     get "/download/auto-grabs", AcquisitionRedirectController, :auto_grabs
   end
 
-  # Phoenix Storybook — dev-only component catalog. See docs/storybook.md.
-  if Mix.env() == :dev do
+  # Phoenix Storybook — dev component catalog (also mounted in :test so
+  # storybook_render_test.exs can smoke each story URL end-to-end). See
+  # docs/storybook.md.
+  if Mix.env() in [:dev, :test] do
     import PhoenixStorybook.Router
 
     scope "/" do

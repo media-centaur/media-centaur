@@ -7,6 +7,19 @@ Application.ensure_all_started(:credo)
 
 Ecto.Adapters.SQL.Sandbox.mode(MediaCentarr.Repo, :manual)
 
+# Default to "wizard already dismissed" in tests so `SetupRedirect` doesn't
+# divert every existing page-smoke test to /setup. Tests that exercise the
+# redirect itself (`setup_redirect_test.exs`) flip this back to false in
+# their own setup.
+:persistent_term.put(
+  {MediaCentarr.Config, :config},
+  Map.put(
+    :persistent_term.get({MediaCentarr.Config, :config}),
+    :setup_wizard_dismissed,
+    true
+  )
+)
+
 # Prime the update-check cache so the Settings > Overview LiveView's
 # auto-check-on-mount sees :fresh and does not dial out to GitHub during
 # tests that haven't wired a stub. Tests that exercise the auto-check flow
