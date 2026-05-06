@@ -17,6 +17,12 @@ defmodule MediaCentarr.Library.WatchedFile do
     field :file_path, :string
     field :watch_dir, :string
 
+    # Detected subtitles (embedded ffprobe streams + sidecar files). Each
+    # map matches `MediaCentarr.Subtitles.Track`'s shape (kind, language,
+    # source). Stored as plain maps in the JSON-serialised array; the
+    # Subtitles context owns the typed-struct conversion at read time.
+    field :subtitle_tracks, {:array, :map}, default: []
+
     belongs_to :movie, MediaCentarr.Library.Movie
     belongs_to :tv_series, MediaCentarr.Library.TVSeries
     belongs_to :movie_series, MediaCentarr.Library.MovieSeries
@@ -30,6 +36,7 @@ defmodule MediaCentarr.Library.WatchedFile do
     |> cast(attrs, [
       :file_path,
       :watch_dir,
+      :subtitle_tracks,
       :movie_id,
       :tv_series_id,
       :movie_series_id,
@@ -42,6 +49,7 @@ defmodule MediaCentarr.Library.WatchedFile do
     cast(watched_file, attrs, [
       :file_path,
       :watch_dir,
+      :subtitle_tracks,
       :movie_id,
       :tv_series_id,
       :movie_series_id,

@@ -1,6 +1,12 @@
 defmodule MediaCentarr.Maintenance do
   use Boundary,
-    deps: [MediaCentarr.Library, MediaCentarr.Pipeline, MediaCentarr.TMDB, MediaCentarr.Watcher]
+    deps: [
+      MediaCentarr.Library,
+      MediaCentarr.Pipeline,
+      MediaCentarr.Subtitles,
+      MediaCentarr.TMDB,
+      MediaCentarr.Watcher
+    ]
 
   @moduledoc """
   Operator-driven destructive operations — Settings → Danger Zone and the
@@ -224,6 +230,61 @@ defmodule MediaCentarr.Maintenance do
         )
 
         Map.update!(acc, :failed, &(&1 + 1))
+    end
+  end
+
+  @doc """
+  Backfills `WatchedFile.subtitle_tracks` for movie files that have
+  none yet — picks up libraries imported before subtitle detection
+  shipped, or movies whose subs changed since import.
+
+  Iterates only files linked to a movie (`movie_id` not nil) whose
+  `subtitle_tracks` is empty, calls `Subtitles.detect/1`, and updates
+  the row. Idempotent: subsequent runs skip files that already have
+  tracks.
+
+  Survives a missing `ffprobe` — only sidecars are detected in that
+  case, exactly as during normal import.
+
+  Returns `{:ok, %{updated: n, skipped: n}}`.
+  """
+  @spec refresh_movie_subtitles() ::
+          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer()}}
+  def refresh_movie_subtitles do
+    Log.info(:library, "refreshing movie subtitles")
+
+    files =
+      Repo.all(
+        from f in WatchedFile,
+          where: not is_nil(f.movie_id) and f.subtitle_tracks == ^[]
+      )
+
+    result = Enum.reduce(files, %{updated: 0, skipped: 0}, &process_subtitle_refresh/2)
+
+    Log.info(
+      :library,
+      "movie subtitles refresh — #{result.updated} updated, #{result.skipped} skipped"
+    )
+
+    {:ok, result}
+  end
+
+  defp process_subtitle_refresh(%WatchedFile{file_path: path} = file, acc) do
+    tracks =
+      path
+      |> MediaCentarr.Subtitles.detect()
+      |> Enum.map(&MediaCentarr.Subtitles.Track.to_map/1)
+
+    if tracks == [] do
+      Map.update!(acc, :skipped, &(&1 + 1))
+    else
+      file
+      |> Ecto.Changeset.change(%{subtitle_tracks: tracks})
+      |> Repo.update()
+      |> case do
+        {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
+        {:error, _} -> Map.update!(acc, :skipped, &(&1 + 1))
+      end
     end
   end
 

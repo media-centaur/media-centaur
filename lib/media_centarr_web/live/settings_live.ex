@@ -107,6 +107,7 @@ defmodule MediaCentarrWeb.SettingsLive do
        repairing_images: false,
        refreshing_credits: false,
        refreshing_series_credits: false,
+       refreshing_movie_subtitles: false,
        repair_last_result: nil,
        tmdb_testing: false,
        prowlarr_testing: false,
@@ -506,6 +507,17 @@ defmodule MediaCentarrWeb.SettingsLive do
     end)
 
     {:noreply, assign(socket, refreshing_series_credits: true)}
+  end
+
+  def handle_event("refresh_movie_subtitles", _params, socket) do
+    liveview = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      {:ok, result} = Maintenance.refresh_movie_subtitles()
+      send(liveview, {:movie_subtitles_refreshed, result})
+    end)
+
+    {:noreply, assign(socket, refreshing_movie_subtitles: true)}
   end
 
   def handle_event("repair_missing_images", _params, socket) do
@@ -943,6 +955,22 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> put_flash(:info, msg)}
   end
 
+  def handle_info({:movie_subtitles_refreshed, %{updated: updated, skipped: skipped}}, socket) do
+    msg =
+      if updated == 0 do
+        "No new subtitles detected — every movie file already had its tracks " <>
+          "(or none were available)."
+      else
+        "Detected subtitles on #{updated} movie file#{if updated == 1, do: "", else: "s"}" <>
+          if(skipped > 0, do: " (#{skipped} skipped).", else: ".")
+      end
+
+    {:noreply,
+     socket
+     |> assign(refreshing_movie_subtitles: false)
+     |> put_flash(:info, msg)}
+  end
+
   def handle_info({:image_repair_complete, result}, socket) do
     %{enqueued: enqueued, queue_reused: reused, queue_rebuilt: rebuilt, skipped: skipped} =
       result
@@ -1274,6 +1302,7 @@ defmodule MediaCentarrWeb.SettingsLive do
             repairing_images={@repairing_images}
             refreshing_credits={@refreshing_credits}
             refreshing_series_credits={@refreshing_series_credits}
+            refreshing_movie_subtitles={@refreshing_movie_subtitles}
             missing_images_summary={@missing_images_summary}
             spoiler_free={@spoiler_free}
             tmdb_test={@tmdb_test}
@@ -2617,6 +2646,26 @@ defmodule MediaCentarrWeb.SettingsLive do
               tabindex="0"
             >
               {if @refreshing_series_credits, do: "Refreshing…", else: "Refresh"}
+            </.button>
+          </div>
+
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
+              <p class="text-sm font-medium">Refresh movie subtitles</p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Detects subtitle tracks (embedded streams via ffprobe + sidecar files) for movies imported before subtitle detection shipped. Skips files that already have tracks — safe to re-run.
+              </p>
+            </div>
+            <.button
+              variant="neutral"
+              size="sm"
+              class="shrink-0"
+              phx-click="refresh_movie_subtitles"
+              disabled={@refreshing_movie_subtitles}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @refreshing_movie_subtitles, do: "Refreshing…", else: "Refresh"}
             </.button>
           </div>
         </div>

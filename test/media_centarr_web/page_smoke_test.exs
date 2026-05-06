@@ -107,6 +107,35 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
   end
 
+  describe "/library?selected=<id> with movie that has detected subtitles" do
+    # SubtitlesRow renders a row from `WatchedFile.subtitle_tracks` (an
+    # `{:array, :map}` Ecto field). A render-path bug — bad map-key
+    # access, missing struct/string conversion, nil-language pattern
+    # mismatch — would crash the modal mount. This smoke pins the
+    # branch that has a non-empty subtitle list with a mix of known
+    # languages and an unknown sidecar (the rare-but-real case).
+    setup do
+      movie = create_standalone_movie(%{name: "Smoke Movie With Subtitles"})
+
+      create_linked_file(%{
+        movie_id: movie.id,
+        file_path: "/media/test/Smoke.Movie.With.Subtitles.mkv",
+        subtitle_tracks: [
+          %{"kind" => "embedded", "language" => "en", "source" => "stream:2"},
+          %{"kind" => "sidecar", "language" => nil, "source" => "/media/test/forced.srt"}
+        ]
+      })
+
+      {:ok, movie: movie}
+    end
+
+    test "library detail panel mounts when a linked file has subtitle_tracks",
+         %{conn: conn, movie: movie} do
+      assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{movie.id}")
+      assert is_binary(html)
+    end
+  end
+
   describe "/?zone=upcoming with tracked-item fixtures" do
     # Fixture covers every shape the Active card path renders so a
     # render-time crash in any branch trips the smoke. Not data-correctness
