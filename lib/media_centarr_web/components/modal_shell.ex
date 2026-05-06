@@ -35,7 +35,7 @@ defmodule MediaCentarrWeb.Components.ModalShell do
 
   attr :progress_records, :list,
     default: [],
-    doc: "list of `MediaCentarr.Library.ProgressRecord.t()` rows preloaded from the entity."
+    doc: "list of `MediaCentarr.Library.WatchProgress.t()` rows preloaded from the entity."
 
   attr :expanded_seasons, MapSet, default: nil
   attr :on_play, :string, default: "play"

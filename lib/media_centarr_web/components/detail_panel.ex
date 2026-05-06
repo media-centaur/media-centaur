@@ -68,11 +68,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   # the boundary.
   @doc_entity "polymorphic Library schema — `Movie | TVSeries | MovieSeries | VideoObject` (see `MediaCentarr.Library`). Reads `:type`, `:name`, `:images`, `:seasons`/`:movies`/`:extras` per branch. Tightening to a typed Subject struct is deferred until shared `MediaCentarrWeb.ViewModels.*` lands."
   @doc_progress "`MediaCentarr.Library.ProgressSummary.t() | nil` — produced by `Library.Browser`."
-  @doc_progress_records "list of `MediaCentarr.Library.ProgressRecord.t()` rows preloaded from the entity."
+  @doc_progress_records "list of `MediaCentarr.Library.WatchProgress.t()` rows preloaded from the entity."
   @doc_resume "resume target map `%{kind, season, episode, ...} | nil` — see `LibraryProgress.resume_target_for/1`."
   @doc_resume_episode_key "`{season_number, episode_number}` tuple | `nil` — derived from `:resume`."
-  @doc_progress_by_key "`%{{season_number, episode_number} => ProgressRecord.t()}` — built by `EpisodeList.index_progress_by_key/1`."
-  @doc_extra_progress_by_id "`%{Ecto.UUID.t() => ProgressRecord.t()}` keyed by extra id."
+  @doc_progress_by_key "`%{{season_number, episode_number} => WatchProgress.t()}` — built by `EpisodeList.index_progress_by_key/1`."
+  @doc_extra_progress_by_id "`%{Ecto.UUID.t() => WatchProgress.t()}` keyed by extra id."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."
   @doc_season "`MediaCentarr.Library.Season.t()` (Ecto schema) preloaded with `:episodes`."
@@ -541,7 +541,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   attr :progress, :map,
     default: nil,
-    doc: "`MediaCentarr.Library.ProgressRecord.t() | nil` for this episode."
+    doc: "`MediaCentarr.Library.WatchProgress.t() | nil` for this episode."
 
   attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
   attr :entity_id, :string, required: true
@@ -734,7 +734,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   attr :progress, :map,
     default: nil,
-    doc: "`MediaCentarr.Library.ProgressRecord.t() | nil` for this movie."
+    doc: "`MediaCentarr.Library.WatchProgress.t() | nil` for this movie."
 
   attr :available, :boolean, default: true
   attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
@@ -843,7 +843,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   attr :progress, :map,
     default: nil,
-    doc: "`MediaCentarr.Library.ProgressRecord.t() | nil` for this extra."
+    doc: "`MediaCentarr.Library.WatchProgress.t() | nil` for this extra."
 
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true

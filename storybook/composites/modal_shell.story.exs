@@ -21,8 +21,6 @@ defmodule MediaCentarrWeb.Storybook.Composites.ModalShell do
 
   use PhoenixStorybook.Story, :component
 
-  alias Phoenix.LiveView.JS
-
   def function, do: &MediaCentarrWeb.Components.ModalShell.modal_shell/1
   def render_source, do: :function
   def layout, do: :one_column
@@ -38,7 +36,7 @@ defmodule MediaCentarrWeb.Storybook.Composites.ModalShell do
       <button
         type="button"
         class="btn btn-sm btn-primary"
-        phx-click={JS.push("psb-assign", value: %{open: true})}
+        phx-click={Phoenix.LiveView.JS.push("psb-assign", value: %{open: true})}
         psb-code-hidden
       >
         Open modal
@@ -109,7 +107,8 @@ defmodule MediaCentarrWeb.Storybook.Composites.ModalShell do
   # --- Fixtures ----------------------------------------------------------
 
   defp close_event(variation_id) do
-    {:eval, ~s|JS.push("psb-assign", value: %{variation_id: #{inspect(variation_id)}, open: false})|}
+    {:eval,
+     ~s|Phoenix.LiveView.JS.push("psb-assign", value: %{variation_id: #{inspect(variation_id)}, open: false})|}
   end
 
   defp sample_movie do
