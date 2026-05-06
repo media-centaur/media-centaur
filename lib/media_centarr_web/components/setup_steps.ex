@@ -171,7 +171,17 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
           placeholder={"/usr/bin/" <> @binary_name}
           class="input input-bordered flex-1 font-mono text-sm"
         />
-        <.button type="submit" variant="primary" size="sm">Save</.button>
+        <.button type="submit" variant="primary" size="sm">
+          {save_label(@result)}
+        </.button>
+        <.button
+          variant="dismiss"
+          size="sm"
+          phx-click="setup:recheck"
+          phx-value-id={@result.id}
+        >
+          Re-check
+        </.button>
       </form>
 
       <div :if={candidates_to_show(@result) != []} class="space-y-2">
@@ -203,22 +213,18 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
       >
         <span>
           No <code>{@binary_name}</code>
-          found on this system. Install it via your OS package manager and click "Re-check".
+          found on this system. Install it via your OS package manager and click <strong>Re-check</strong>.
         </span>
       </div>
-
-      <.button
-        variant="dismiss"
-        size="sm"
-        class="self-start"
-        phx-click="setup:recheck"
-        phx-value-id={@result.id}
-      >
-        Re-check
-      </.button>
     </.step_shell>
     """
   end
+
+  # Save vs Update — communicates whether the user is creating new
+  # state or modifying existing state.
+  defp save_label(%Probe.Result{current_value: nil}), do: "Save"
+  defp save_label(%Probe.Result{current_value: ""}), do: "Save"
+  defp save_label(%Probe.Result{}), do: "Update"
 
   # If the configured path is already the only candidate, hide the
   # "Use this" list — there's nothing to switch to.
@@ -249,16 +255,6 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
       <div class="space-y-3">
         {render_slot(@form)}
       </div>
-
-      <.button
-        variant="dismiss"
-        size="sm"
-        class="self-start"
-        phx-click="setup:test_connection"
-        phx-value-id={@result.id}
-      >
-        Test connection
-      </.button>
     </.step_shell>
     """
   end

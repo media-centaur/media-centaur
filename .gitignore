@@ -90,6 +90,8 @@ npm-debug.log
 
 # Local AI tooling state (machine-specific)
 /.claude/settings.json
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
 
 # Internal project backlog
 /todo/
