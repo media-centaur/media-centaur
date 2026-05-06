@@ -15,6 +15,7 @@ defmodule MediaCentarrWeb do
       MediaCentarr.Capabilities,
       MediaCentarr.WatchHistory,
       MediaCentarr.SelfUpdate,
+      MediaCentarr.Subtitles,
       MediaCentarr.TMDB,
       MediaCentarr.Controls
     ],
