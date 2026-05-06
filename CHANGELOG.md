@@ -4,6 +4,33 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.43.0 — 2026-05-06
+
+### New
+
+The movie detail panel now shows what subtitles are actually available
+on the file, so you can decide whether to play it without launching mpv
+first. Two sources are detected:
+
+- **Embedded tracks** in the video container (MKV/MP4) — read from the
+  file's stream metadata via `ffprobe`. Each track's language is shown
+  as its ISO code (`en`, `es`, `fr`, …).
+- **Sidecar files** in the same directory — `Movie.en.srt`,
+  `Movie.spa.srt`, etc. Languages are inferred from the filename
+  suffix; sidecars without a recognisable language code surface as
+  `external` so you know they're there but not what they are.
+
+If `ffprobe` isn't installed, the feature gracefully degrades to
+sidecar-only detection — nothing crashes, nothing complains beyond a
+single boot-time log line.
+
+A new **Refresh movie subtitles** button in Settings → Library
+backfills tracks for movies imported before this release. Safe to
+re-run; it skips files that already have detected tracks.
+
+TV series are out of scope for this release — per-episode aggregation
+needs a different display story and will land separately.
+
 ## v0.42.2 — 2026-05-05
 
 ### Fixed
