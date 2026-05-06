@@ -18,7 +18,7 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
   attr :entry, :map,
     required: true,
     doc:
-      "library entry map `%{entity: <typed Library schema>, progress: ProgressSummary.t() | nil, progress_records: [ProgressRecord.t()]}` produced by `MediaCentarr.Library.Browser.fetch_all_typed_entries/0`. The map shape is shared by helpers in `LibraryHelpers`, `LibraryProgress`, and `LibraryAvailability` and adds optional fields (`:resume_target`) over time — a struct here would be invasive; tightening is deferred to a planned `MediaCentarrWeb.ViewModels.*` consolidation."
+      "library entry map `%{entity: <typed Library schema>, progress: ProgressSummary.t() | nil, progress_records: [WatchProgress.t()]}` produced by `MediaCentarr.Library.Browser.fetch_all_typed_entries/0`. The map shape is shared by helpers in `LibraryHelpers`, `LibraryProgress`, and `LibraryAvailability` and adds optional fields (`:resume_target`) over time — a struct here would be invasive; tightening is deferred to a planned `MediaCentarrWeb.ViewModels.*` consolidation."
 
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false

@@ -204,4 +204,64 @@ defmodule MediaCentarrWeb.Live.SettingsLive.OverviewTest do
       assert Overview.issue_count(groups) == 0
     end
   end
+
+  describe "critical_failures/1" do
+    alias MediaCentarrWeb.Live.SetupLive.Probe
+
+    test "returns critical probes that are :error" do
+      probes = [
+        %Probe.Result{id: :tmdb, status: :error, critical?: true},
+        %Probe.Result{id: :mpv, status: :error, critical?: false},
+        %Probe.Result{id: :watch_dirs, status: :ok, critical?: true}
+      ]
+
+      [failure] = Overview.critical_failures(probes)
+      assert failure.id == :tmdb
+    end
+
+    test "ignores non-critical errors" do
+      probes = [
+        %Probe.Result{id: :ffprobe, status: :error, critical?: false},
+        %Probe.Result{id: :prowlarr, status: :error, critical?: false}
+      ]
+
+      assert Overview.critical_failures(probes) == []
+    end
+
+    test "ignores critical probes that are not :error" do
+      probes = [
+        %Probe.Result{id: :tmdb, status: :not_configured, critical?: true},
+        %Probe.Result{id: :watch_dirs, status: :warning, critical?: true},
+        %Probe.Result{id: :mpv, status: :ok, critical?: true}
+      ]
+
+      assert Overview.critical_failures(probes) == []
+    end
+
+    test "returns empty list for empty input" do
+      assert Overview.critical_failures([]) == []
+    end
+  end
+
+  describe "show_setup_banner?/3" do
+    alias MediaCentarrWeb.Live.SetupLive.Probe
+
+    @critical_failure %Probe.Result{id: :tmdb, status: :error, critical?: true}
+
+    test "true when wizard dismissed, has critical failures, banner not session-dismissed" do
+      assert Overview.show_setup_banner?(true, [@critical_failure], false)
+    end
+
+    test "false when wizard not dismissed (user is still in the tour flow)" do
+      refute Overview.show_setup_banner?(false, [@critical_failure], false)
+    end
+
+    test "false when no critical failures" do
+      refute Overview.show_setup_banner?(true, [], false)
+    end
+
+    test "false when user has dismissed for this session" do
+      refute Overview.show_setup_banner?(true, [@critical_failure], true)
+    end
+  end
 end

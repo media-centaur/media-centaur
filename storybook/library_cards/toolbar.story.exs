@@ -149,7 +149,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.Toolbar do
   # --- Fixtures ----------------------------------------------------------
 
   # Default attribute set; pass keyword overrides for the axis under test.
-  defp base_attrs(overrides \\ []) do
+  defp base_attrs(overrides) do
     defaults = [
       active_tab: :all,
       counts: %{all: 42, movies: 18, tv: 24},
