@@ -4,6 +4,38 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.45.0 — 2026-05-06
+
+### Improved
+
+The Setup Tour you saw in v0.44.0 is now a full eight-step
+walkthrough. It opens with a Welcome page that introduces the
+process and outlines what you're about to configure. Every step
+in the middle now carries three short blocks: **What this is**
+(what the dependency does), **Why it matters** (what breaks
+without it), and **What you'll need** (a concrete bullet list of
+prerequisites — install commands, URLs, credentials).
+
+A prominent color-coded callout above each form makes the current
+state impossible to miss — green "This step is configured", amber
+"Partially configured", red "This step needs attention", or grey
+"Not yet configured". The compact pill in the header stays for
+at-a-glance scanning.
+
+The tour now ends with a **Summary** screen listing every
+component with a status glyph (✓ / ! / ✗ / —), a *Required* badge
+on the components the app can't function without, and an Edit
+link that jumps you straight back to any step that needs more
+work. Required-step counts in the headline copy adapt to your
+actual progress.
+
+### Fixed
+
+If you finished or skipped the Setup Tour with critical pieces
+still broken (no TMDB key, no watch directories), Settings →
+Overview now shows a dismissible red banner so the situation
+doesn't quietly persist.
+
 ## v0.44.0 — 2026-05-06
 
 ### New
