@@ -5,7 +5,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.ExternalLinks do
 
   def variations do
     [
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :tmdb_and_imdb,
         description: "Both TMDB and IMDb — the typical state for a fully-credited title.",
         attributes: %{
@@ -13,7 +13,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.ExternalLinks do
           imdb_id: "tt0000001"
         }
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :tmdb_only,
         description: "IMDb id is missing (common for TV series with no `external_ids.imdb_id`).",
         attributes: %{
@@ -21,7 +21,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.ExternalLinks do
           imdb_id: nil
         }
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :nothing,
         description: "Neither URL nor id — both links collapse, the row stays blank.",
         attributes: %{tmdb_url: nil, imdb_id: nil}

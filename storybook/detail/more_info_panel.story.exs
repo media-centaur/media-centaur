@@ -84,26 +84,26 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
 
   def variations do
     [
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :default,
         attributes: %{entity: @entity}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :no_imdb,
         description: "imdb_id missing — IMDb link is hidden",
         attributes: %{entity: %{@entity | imdb_id: nil}}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :empty_credits,
         description: "no crew or cast — credit lines collapse, meta + links remain",
         attributes: %{entity: %{@entity | crew: [], cast: []}}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :tv_series,
         description: "TV series — Created by row, aggregate cast, network/first-aired/status meta",
         attributes: %{entity: @tv_entity}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :tv_series_empty_credits,
         description: "TV series with no creators or cast — meta + links still render",
         attributes: %{entity: %{@tv_entity | crew: [], cast: []}}

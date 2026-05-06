@@ -97,7 +97,12 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Library.{WatchedFile, WatchProgress}
+  # Per the data-decoupling policy (ADR-029), `WatchProgress` is private
+  # to `MediaCentarr.Library` — its boundary doesn't export the schema.
+  # The component declares `attr :progress_records, :list` (loose-typed),
+  # so this story uses plain maps with the same fields. `WatchedFile` IS
+  # exported and stays aliased.
+  alias MediaCentarr.Library.WatchedFile
 
   def function, do: &MediaCentarrWeb.Components.DetailPanel.detail_panel/1
   def render_source, do: :function
@@ -347,10 +352,17 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
     }
   end
 
+  # Plain-map progress records mirror `MediaCentarr.Library.WatchProgress`
+  # — all three foreign keys (`movie_id`, `episode_id`, `video_object_id`)
+  # included with explicit `nil` for the unused ones, since plain maps
+  # don't get the schema's struct defaults and the consuming code does
+  # `record.episode_id` which would otherwise raise KeyError.
   defp movie_progress_record(movie_id, partial: true) do
-    %WatchProgress{
+    %{
       id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       movie_id: movie_id,
+      episode_id: nil,
+      video_object_id: nil,
       position_seconds: 1800.0,
       duration_seconds: 5400.0,
       completed: false,
@@ -375,17 +387,21 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
     [ep1, ep2 | _] = season_one_episodes
 
     progress_records = [
-      %WatchProgress{
+      %{
         id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb01",
+        movie_id: nil,
         episode_id: ep1.id,
+        video_object_id: nil,
         position_seconds: 0.0,
         duration_seconds: 1500.0,
         completed: true,
         last_watched_at: ~U[2026-04-28 21:00:00Z]
       },
-      %WatchProgress{
+      %{
         id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb02",
+        movie_id: nil,
         episode_id: ep2.id,
+        video_object_id: nil,
         position_seconds: 600.0,
         duration_seconds: 1500.0,
         completed: false,
@@ -521,17 +537,21 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
     [m1, m2, _m3] = entity.movies
 
     progress_records = [
-      %WatchProgress{
+      %{
         id: "cccccccc-cccc-cccc-cccc-cccccccccc01",
         movie_id: m1.id,
+        episode_id: nil,
+        video_object_id: nil,
         position_seconds: 0.0,
         duration_seconds: 5400.0,
         completed: true,
         last_watched_at: ~U[2026-04-20 21:00:00Z]
       },
-      %WatchProgress{
+      %{
         id: "cccccccc-cccc-cccc-cccc-cccccccccc02",
         movie_id: m2.id,
+        episode_id: nil,
+        video_object_id: nil,
         position_seconds: 1500.0,
         duration_seconds: 5700.0,
         completed: false,

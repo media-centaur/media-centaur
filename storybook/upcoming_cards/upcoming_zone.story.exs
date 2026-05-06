@@ -57,8 +57,16 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
 
   use PhoenixStorybook.Story, :component
 
+  # Per the component's `@doc_releases_*` / `@doc_events_list` contracts on
+  # `MediaCentarrWeb.Components.UpcomingCards`, the schema modules
+  # `MediaCentarr.ReleaseTracking.{Item,Release,Event}` are intentionally
+  # NOT exported from their boundary — the attrs stay loose-typed (`:map` /
+  # `:list`) with prose contracts. So this story uses plain maps with the
+  # same fields rather than aliasing the schemas, matching the policy.
+  # `Grab` is exported and `TrackedItem` is a web-layer view-model — both
+  # safe to alias.
   alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarr.ReleaseTracking.{Event, Item, Release}
+  alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
 
   def function, do: &MediaCentarrWeb.Components.UpcomingCards.upcoming_zone/1
   def render_source, do: :function
@@ -226,8 +234,11 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   # builds. `library_entity_id: nil` matches a freshly-tracked item that
   # hasn't been linked to a library entity yet.
 
+  # Plain maps mirroring `MediaCentarr.ReleaseTracking.Item`'s schema
+  # fields. Components accept loose `:map`/`:list` attrs (see header
+  # comment), so structs aren't required.
   defp sample_item_tv do
-    %Item{
+    %{
       id: "00000000-0000-0000-0000-000000000001",
       tmdb_id: 1001,
       media_type: :tv_series,
@@ -243,7 +254,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   end
 
   defp sample_item_movie do
-    %Item{
+    %{
       id: "00000000-0000-0000-0000-000000000002",
       tmdb_id: 2002,
       media_type: :movie,
@@ -259,9 +270,10 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   end
 
   # --- Releases ---------------------------------------------------------
+  # Plain maps mirroring `MediaCentarr.ReleaseTracking.Release`'s fields.
 
   defp tv_release(item, air_date, season, episode, title, opts \\ []) do
-    %Release{
+    %{
       id: Ecto.UUID.generate(),
       air_date: air_date,
       title: title,
@@ -276,7 +288,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   end
 
   defp movie_release(item, air_date, release_type) do
-    %Release{
+    %{
       id: Ecto.UUID.generate(),
       air_date: air_date,
       title: nil,
@@ -291,24 +303,25 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   end
 
   # --- Events -----------------------------------------------------------
+  # Plain maps mirroring `MediaCentarr.ReleaseTracking.Event`'s fields.
 
   defp sample_events do
     [
-      %Event{
+      %{
         id: Ecto.UUID.generate(),
         event_type: :began_tracking,
         description: "began tracking Sample Show",
         item_name: "Sample Show",
         inserted_at: ~U[2026-04-28 14:00:00Z]
       },
-      %Event{
+      %{
         id: Ecto.UUID.generate(),
         event_type: :new_episodes_announced,
         description: "3 new episodes announced for Sample Show",
         item_name: "Sample Show",
         inserted_at: ~U[2026-04-29 09:30:00Z]
       },
-      %Event{
+      %{
         id: Ecto.UUID.generate(),
         event_type: :stopped_tracking,
         description: "stopped tracking Old Sample Series",
@@ -320,25 +333,26 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
 
   # --- Tracked items ----------------------------------------------------
 
-  # Mirrors the shape produced by
-  # `UpcomingLive.build_tracked_items_from_watching/0` — a list of bespoke
-  # maps, NOT `Item` structs. Keys: `item_id`, `name`, `media_type`,
-  # `status_text`.
+  # Built as `%TrackedItem{}` view-model structs because
+  # `tracked_item_row/1` declares `attr :item, TrackedItem, required: true`
+  # — Phoenix.Component runtime checks reject a plain map there.
+  # `TrackedItem` is the web-layer view-model, not the
+  # `MediaCentarr.ReleaseTracking.Item` schema (which stays private).
   defp sample_tracked_items(item_tv, item_movie) do
     [
-      %{
+      %TrackedItem{
         item_id: item_tv.id,
         name: item_tv.name,
         media_type: :tv_series,
         status_text: "3 upcoming, 1 released"
       },
-      %{
+      %TrackedItem{
         item_id: item_movie.id,
         name: item_movie.name,
         media_type: :movie,
         status_text: "1 upcoming"
       },
-      %{
+      %TrackedItem{
         item_id: "00000000-0000-0000-0000-000000000003",
         name: "Quiet Sample",
         media_type: :tv_series,

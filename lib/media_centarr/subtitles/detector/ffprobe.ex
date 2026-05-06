@@ -12,11 +12,12 @@ defmodule MediaCentarr.Subtitles.Detector.Ffprobe do
   `:media_centarr, :subtitles_runner` to return canned output.
   """
 
+  alias MediaCentarr.Config
   alias MediaCentarr.Subtitles.Detector.Runner
   alias MediaCentarr.Subtitles.LanguageCode
   alias MediaCentarr.Subtitles.Track
 
-  @executable "ffprobe"
+  @default_executable "ffprobe"
 
   # `-v error` mutes the friendly chatter; `-select_streams s` filters
   # to subtitle streams only; `-show_entries` keeps the JSON small;
@@ -25,11 +26,13 @@ defmodule MediaCentarr.Subtitles.Detector.Ffprobe do
 
   @spec probe(String.t()) :: [Track.t()]
   def probe(file_path) when is_binary(file_path) do
-    case Runner.run(@executable, @args ++ [file_path]) do
+    case Runner.run(executable(), @args ++ [file_path]) do
       {stdout, 0} -> parse(stdout)
       _ -> []
     end
   end
+
+  defp executable, do: Config.get(:ffprobe_path) || @default_executable
 
   defp parse(stdout) do
     case Jason.decode(stdout) do

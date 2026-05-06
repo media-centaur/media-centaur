@@ -1,17 +1,27 @@
 defmodule MediaCentarr.Subtitles.Detector.FfprobeTest do
   use ExUnit.Case, async: false
 
+  alias MediaCentarr.Config
   alias MediaCentarr.Subtitles.Detector.Ffprobe
   alias MediaCentarr.Subtitles.Track
 
   setup do
-    # Override the runner seam for this test process. Each test sets the
-    # runner to whatever shape it needs, then we restore the default.
-    on_exit(fn -> Application.delete_env(:media_centarr, :subtitles_runner) end)
+    original_config = :persistent_term.get({Config, :config})
+
+    on_exit(fn ->
+      Application.delete_env(:media_centarr, :subtitles_runner)
+      :persistent_term.put({Config, :config}, original_config)
+    end)
+
     :ok
   end
 
   defp set_runner(fun), do: Application.put_env(:media_centarr, :subtitles_runner, fun)
+
+  defp set_ffprobe_path(path) do
+    config = :persistent_term.get({Config, :config})
+    :persistent_term.put({Config, :config}, Map.put(config, :ffprobe_path, path))
+  end
 
   describe "probe/1 — happy paths" do
     test "parses ffprobe JSON with multiple subtitle streams" do
@@ -23,7 +33,7 @@ defmodule MediaCentarr.Subtitles.Detector.FfprobeTest do
         ]
       })
 
-      set_runner(fn "ffprobe", _args -> {json, 0} end)
+      set_runner(fn _executable, _args -> {json, 0} end)
 
       assert [
                %Track{kind: :embedded, language: "en", source: "stream:2"},
@@ -71,6 +81,7 @@ defmodule MediaCentarr.Subtitles.Detector.FfprobeTest do
   describe "probe/1 — command construction" do
     test "passes the file path as the last arg with the documented flags" do
       test_pid = self()
+      set_ffprobe_path("/usr/bin/ffprobe")
 
       set_runner(fn executable, args ->
         send(test_pid, {:invoked, executable, args})
@@ -79,12 +90,40 @@ defmodule MediaCentarr.Subtitles.Detector.FfprobeTest do
 
       Ffprobe.probe("/path/to/Movie.mkv")
 
-      assert_received {:invoked, "ffprobe", args}
+      assert_received {:invoked, "/usr/bin/ffprobe", args}
       assert "/path/to/Movie.mkv" == List.last(args)
       assert "-of" in args
       assert "json" in args
       assert "-select_streams" in args
       assert "s" in args
+    end
+
+    test "uses the configured ffprobe_path" do
+      test_pid = self()
+      set_ffprobe_path("/opt/custom/bin/ffprobe")
+
+      set_runner(fn executable, _args ->
+        send(test_pid, {:invoked, executable})
+        {~s({"streams": []}), 0}
+      end)
+
+      Ffprobe.probe("/path/to/Movie.mkv")
+
+      assert_received {:invoked, "/opt/custom/bin/ffprobe"}
+    end
+
+    test "falls back to bare 'ffprobe' when ffprobe_path is unset" do
+      test_pid = self()
+      set_ffprobe_path(nil)
+
+      set_runner(fn executable, _args ->
+        send(test_pid, {:invoked, executable})
+        {~s({"streams": []}), 0}
+      end)
+
+      Ffprobe.probe("/path/to/Movie.mkv")
+
+      assert_received {:invoked, "ffprobe"}
     end
   end
 end

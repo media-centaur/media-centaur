@@ -1,17 +1,15 @@
-if Mix.env() == :dev do
+if Mix.env() in [:dev, :test] do
   defmodule MediaCentarrWeb.Storybook do
     @moduledoc """
-    Phoenix Storybook backend — dev-only component catalog.
+    Phoenix Storybook backend — component catalog mounted in :dev (for
+    interactive use) and :test (so storybook_render_test.exs can smoke
+    each story URL end-to-end). Loads the same `app.css` the real UI
+    uses, so components render with their real glass surfaces, theme
+    tokens, and daisyUI variants. See [`docs/storybook.md`](../../docs/storybook.md)
+    for philosophy and conventions.
 
-    Mounted at `/storybook` only when `Mix.env() == :dev` (see Router). Loads
-    the same `app.css` the real UI uses, so components render with their
-    real glass surfaces, theme tokens, and daisyUI variants. See
-    [`docs/storybook.md`](../../docs/storybook.md) for philosophy and
-    conventions.
-
-    Wrapped in `if Mix.env() == :dev` because `phoenix_storybook` is a
-    dev-only dependency. Without the guard, `mix compile` in `:test` and
-    `:prod` fails to find `PhoenixStorybook`.
+    The env guard exists because `phoenix_storybook` is `only: [:dev, :test]` —
+    `mix compile` in `:prod` would otherwise fail to find `PhoenixStorybook`.
     """
 
     use PhoenixStorybook,
