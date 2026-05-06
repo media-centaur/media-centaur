@@ -22,6 +22,9 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   alias MediaCentarrWeb.Components.Detail.MetadataRow
   alias MediaCentarrWeb.Components.Detail.MoreInfoPanel
   alias MediaCentarrWeb.Components.Detail.PlayCard
+  alias MediaCentarrWeb.Components.Detail.SubtitlesRow
+
+  alias MediaCentarr.Subtitles
 
   # --- Public API ---
 
@@ -117,6 +120,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     facets = build_facets(assigns.entity)
     metadata_items = build_metadata_items(assigns.entity)
     tagline = tagline_for(assigns.entity)
+    subtitle_languages = subtitle_languages_for(assigns.entity)
 
     assigns =
       assigns
@@ -129,6 +133,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:facets, facets)
       |> assign(:metadata_items, metadata_items)
       |> assign(:tagline, tagline)
+      |> assign(:subtitle_languages, subtitle_languages)
 
     ~H"""
     <div class="detail-panel">
@@ -180,9 +185,10 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-4">
               {@entity.description}
             </p>
-            <div class="min-w-0">
+            <div class="min-w-0 space-y-3">
               <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
+              <SubtitlesRow.subtitles_row languages={@subtitle_languages} />
             </div>
           </div>
         </div>
@@ -238,6 +244,16 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       remaining_text: remaining
     }
   end
+
+  # Movies are the only type with detected subtitles for v1. Series'
+  # episodes each carry their own WatchedFile with its own
+  # `subtitle_tracks`; aggregating across episodes needs a different
+  # display story (per-season? show-wide?). Skip non-movies entirely
+  # so the row never renders for them.
+  defp subtitle_languages_for(%{type: :movie, watched_files: files}) when is_list(files),
+    do: Subtitles.aggregate_languages(files)
+
+  defp subtitle_languages_for(_), do: []
 
   defp build_facets(%{type: :movie} = movie), do: Logic.facets_for(:movie, movie)
   defp build_facets(%{type: :tv_series} = tv), do: Logic.facets_for(:tv_series, tv)

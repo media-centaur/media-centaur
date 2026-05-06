@@ -1,6 +1,6 @@
 defmodule MediaCentarr.Library do
   use Boundary,
-    deps: [],
+    deps: [MediaCentarr.Subtitles],
     exports: [
       Availability,
       Browser,

@@ -580,9 +580,18 @@ defmodule MediaCentarr.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp link_file(entity, event) do
+    subtitle_tracks =
+      event.file_path
+      |> MediaCentarr.Subtitles.detect()
+      |> Enum.map(&MediaCentarr.Subtitles.Track.to_map/1)
+
     attrs =
       put_type_fk(
-        %{file_path: event.file_path, watch_dir: event.watch_dir},
+        %{
+          file_path: event.file_path,
+          watch_dir: event.watch_dir,
+          subtitle_tracks: subtitle_tracks
+        },
         event.entity_type,
         entity.id
       )
