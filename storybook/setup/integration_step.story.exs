@@ -28,7 +28,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :tmdb_not_configured,
         description: "TMDB step on first visit — no key entered yet.",
         attributes: %{
-          title: "TMDB (metadata)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:tmdb),
           step_index: 2,
           total_steps: 6,
           result: %Probe.Result{
@@ -55,7 +55,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :tmdb_connected,
         description: "TMDB key configured and verified.",
         attributes: %{
-          title: "TMDB (metadata)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:tmdb),
           step_index: 2,
           total_steps: 6,
           result: %Probe.Result{
@@ -82,7 +82,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :prowlarr_auth_failed,
         description: "Prowlarr URL set but key rejected.",
         attributes: %{
-          title: "Prowlarr (indexer)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:prowlarr),
           step_index: 5,
           total_steps: 6,
           result: %Probe.Result{
@@ -115,7 +115,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :download_client_skipped,
         description: "Download client step — fully optional, easy to skip.",
         attributes: %{
-          title: "Download client",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:download_client),
           step_index: 6,
           total_steps: 6,
           result: %Probe.Result{
