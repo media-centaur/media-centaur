@@ -21,17 +21,12 @@ defmodule MediaCentarrWeb.SetupLive do
   alias MediaCentarr.Config
   alias MediaCentarr.Secret
   alias MediaCentarrWeb.Components.SetupSteps
-  alias MediaCentarrWeb.Live.SetupLive.{Probe, Probes}
+  alias MediaCentarrWeb.Live.SetupLive.{Content, Probes}
 
-  @step_order Probes.step_order()
-  @step_titles %{
-    watch_dirs: "Watch directories",
-    tmdb: "TMDB (metadata)",
-    mpv: "mpv (media player)",
-    ffprobe: "ffprobe (subtitle detection)",
-    prowlarr: "Prowlarr (optional indexer)",
-    download_client: "Download client"
-  }
+  # Tour steps in order. `:welcome` and `:summary` are wrapper steps
+  # owned by this LiveView (no probe). The middle slice is sourced from
+  # `Probes.step_order/0` so the probe-list and step-list stay in sync.
+  @step_order [:welcome] ++ Probes.step_order() ++ [:summary]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -282,15 +277,13 @@ defmodule MediaCentarrWeb.SetupLive do
 
   @impl true
   def render(assigns) do
-    probe = current_probe(assigns.probes, assigns.current_step)
-    title = Map.fetch!(@step_titles, assigns.current_step)
     step_index = step_index(assigns.current_step)
     total = length(@step_order)
 
     assigns =
       assigns
-      |> assign(:probe, probe)
-      |> assign(:title, title)
+      |> assign(:probe, current_probe(assigns.probes, assigns.current_step))
+      |> assign(:content, content_for(assigns.current_step))
       |> assign(:step_index, step_index)
       |> assign(:total, total)
 
@@ -301,7 +294,8 @@ defmodule MediaCentarrWeb.SetupLive do
       <.step_for
         step={@current_step}
         probe={@probe}
-        title={@title}
+        probes={@probes}
+        content={@content}
         step_index={@step_index}
         total={@total}
       />
@@ -309,17 +303,53 @@ defmodule MediaCentarrWeb.SetupLive do
     """
   end
 
+  # Welcome / summary steps have no probe → no content lookup. Real
+  # steps map 1:1 to a Content entry.
+  defp content_for(:welcome), do: nil
+  defp content_for(:summary), do: nil
+  defp content_for(step), do: Content.for(step)
+
   attr :step, :atom, required: true
-  attr :probe, Probe.Result, required: true
-  attr :title, :string, required: true
+
+  attr :probe, :any,
+    required: true,
+    doc:
+      "the probe result for the current step — `Probe.Result.t() | nil`. `nil` for `:welcome` and `:summary` steps which have no probe."
+
+  attr :probes, :list,
+    required: true,
+    doc:
+      "list of `Probe.Result.t()` for every probed step, in step order. Used by the summary step to show the full status table."
+
+  attr :content, :any,
+    required: true,
+    doc:
+      "step copy — `Content.t() | nil`. `nil` for `:welcome` and `:summary` steps which render their own static content."
+
   attr :step_index, :integer, required: true
   attr :total, :integer, required: true
+
+  defp step_for(%{step: :welcome} = assigns) do
+    ~H"""
+    <SetupSteps.welcome_step step_index={@step_index} total_steps={@total} />
+    """
+  end
+
+  defp step_for(%{step: :summary} = assigns) do
+    ~H"""
+    <SetupSteps.summary_step
+      probes={@probes}
+      step_index={@step_index}
+      total_steps={@total}
+    />
+    """
+  end
 
   defp step_for(%{step: :watch_dirs} = assigns) do
     ~H"""
     <SetupSteps.watch_dirs_step
       result={@probe}
-      title={@title}
+      content={@content}
       step_index={@step_index}
       total_steps={@total}
     />
@@ -330,7 +360,7 @@ defmodule MediaCentarrWeb.SetupLive do
     ~H"""
     <SetupSteps.binary_step
       result={@probe}
-      title={@title}
+      content={@content}
       binary_name="mpv"
       step_index={@step_index}
       total_steps={@total}
@@ -342,7 +372,7 @@ defmodule MediaCentarrWeb.SetupLive do
     ~H"""
     <SetupSteps.binary_step
       result={@probe}
-      title={@title}
+      content={@content}
       binary_name="ffprobe"
       step_index={@step_index}
       total_steps={@total}
@@ -354,7 +384,7 @@ defmodule MediaCentarrWeb.SetupLive do
     ~H"""
     <SetupSteps.integration_step
       result={@probe}
-      title={@title}
+      content={@content}
       step_index={@step_index}
       total_steps={@total}
     >
@@ -382,7 +412,7 @@ defmodule MediaCentarrWeb.SetupLive do
     ~H"""
     <SetupSteps.integration_step
       result={@probe}
-      title={@title}
+      content={@content}
       step_index={@step_index}
       total_steps={@total}
     >
@@ -419,7 +449,7 @@ defmodule MediaCentarrWeb.SetupLive do
     ~H"""
     <SetupSteps.integration_step
       result={@probe}
-      title={@title}
+      content={@content}
       step_index={@step_index}
       total_steps={@total}
     >

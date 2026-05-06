@@ -35,7 +35,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :ok,
         description: "Path configured and executable found.",
         attributes: %{
-          title: "mpv (media player)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:mpv),
           binary_name: "mpv",
           step_index: 3,
           total_steps: 6,
@@ -53,7 +53,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :not_executable,
         description: "File exists but lacks the exec bit.",
         attributes: %{
-          title: "mpv (media player)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:mpv),
           binary_name: "mpv",
           step_index: 3,
           total_steps: 6,
@@ -71,7 +71,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :missing_with_candidates,
         description: "Configured path missing, but other candidates were detected.",
         attributes: %{
-          title: "ffprobe (subtitle detection)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:ffprobe),
           binary_name: "ffprobe",
           step_index: 4,
           total_steps: 6,
@@ -89,7 +89,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :missing_no_candidates,
         description: "Nothing detected anywhere — install hint shown.",
         attributes: %{
-          title: "ffprobe (subtitle detection)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:ffprobe),
           binary_name: "ffprobe",
           step_index: 4,
           total_steps: 6,
@@ -107,7 +107,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :not_configured,
         description: "Fresh state — no path entered yet.",
         attributes: %{
-          title: "ffprobe (subtitle detection)",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:ffprobe),
           binary_name: "ffprobe",
           step_index: 4,
           total_steps: 6,
