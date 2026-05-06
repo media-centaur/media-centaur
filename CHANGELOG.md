@@ -4,6 +4,30 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.44.0 — 2026-05-06
+
+### New
+
+Media Centarr now opens with a guided **Setup Tour** the first time
+you launch after upgrading. It walks you through configuring
+everything the app needs — your watch directories, TMDB API key,
+mpv, ffprobe, Prowlarr, and your download client. Each step shows
+what's currently configured, auto-detects binaries on common
+Linux/macOS paths (`/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin`,
+`/snap/bin`, `~/.local/bin`), and lets you skip any step you'd
+rather come back to later.
+
+Once you finish or skip the tour, it stays out of the way — but you
+can re-run it anytime from **Settings → Overview → Run setup tour**.
+
+The tour also surfaces a previously-hidden setting: **the path to
+your `ffprobe` binary**. Earlier releases shelled out to bare
+`ffprobe` from `$PATH`; if it wasn't there, embedded-subtitle
+detection silently fell back to sidecar-only without telling you
+why. You can now point Media Centarr explicitly at
+`/usr/local/bin/ffprobe` (or wherever yours lives) — from the tour
+or under **Settings → Playback**.
+
 ## v0.43.0 — 2026-05-06
 
 ### New
