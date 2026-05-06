@@ -4,6 +4,28 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.45.1 — 2026-05-07
+
+### Improved
+
+Setup Tour forms are easier to read at a glance. The submit
+button now reads **Save** when a field is empty and **Update**
+when you're changing an existing value — no more wondering
+whether your previous TMDB key is still in there. Every
+**Test connection** button now sits inline with its Save button
+instead of dangling on its own line below the form.
+
+The TMDB step links you straight to themoviedb.org for signup
+and to the API settings page for your token, and makes it
+clear that TMDB API access is **free**. The mpv step's
+**Re-check** button moves inline with Save so the layout stops
+breaking awkwardly. The ffprobe step now spells out that
+sidecar subtitle files (e.g. `movie.en.srt`) work without
+ffprobe — only embedded tracks need it. The download client
+step now shows a proper select box with qBittorrent as the
+single supported option, instead of a confusing free-text
+field.
+
 ## v0.45.0 — 2026-05-06
 
 ### Improved
