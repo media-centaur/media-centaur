@@ -25,6 +25,7 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
   """
 
   alias MediaCentarrWeb.Live.SettingsLive.{ConnectionTest, PathCheck}
+  alias MediaCentarrWeb.Live.SetupLive.Probe
 
   @type status :: :ok | :warning | :error | :neutral
 
@@ -54,6 +55,31 @@ defmodule MediaCentarrWeb.Live.SettingsLive.Overview do
     groups
     |> Enum.flat_map(& &1.items)
     |> Enum.count(&(&1.status in [:warning, :error]))
+  end
+
+  @doc """
+  Filters a list of `Probe.Result` to those that are `critical? == true`
+  and `status == :error`. These are the failures the post-tour banner
+  surfaces — non-critical errors (mpv missing, ffprobe missing, etc.)
+  are real but degrade gracefully so they don't warrant a banner.
+  """
+  @spec critical_failures([Probe.Result.t()]) :: [Probe.Result.t()]
+  def critical_failures(probes) when is_list(probes) do
+    Enum.filter(probes, &(&1.critical? and &1.status == :error))
+  end
+
+  @doc """
+  Should the post-tour critical-failure banner render?
+
+  True only when:
+  - the wizard has been dismissed (otherwise the user is in the tour
+    flow and the banner would be redundant), AND
+  - at least one critical probe is `:error`, AND
+  - the user has not dismissed the banner for this session.
+  """
+  @spec show_setup_banner?(boolean(), [Probe.Result.t()], boolean()) :: boolean()
+  def show_setup_banner?(wizard_dismissed?, critical_failures, banner_dismissed?) do
+    wizard_dismissed? and critical_failures != [] and not banner_dismissed?
   end
 
   # --- Services ---

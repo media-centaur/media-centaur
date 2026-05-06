@@ -70,6 +70,9 @@ defmodule MediaCentarrWeb.SettingsLive do
     {:ok,
      socket
      |> assign(loaded?: false)
+     |> assign(setup_banner_dismissed?: false)
+     |> assign(show_setup_banner?: false)
+     |> assign(critical_failures: [])
      |> assign(config: %{})
      |> assign(watchers_running: false)
      |> assign(pipeline_running: false)
@@ -184,6 +187,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       |> assign(service_state: SelfUpdate.service_state())
       |> assign(bindings: Controls.get())
       |> assign(glyph_style: Controls.glyph_style())
+      |> assign_setup_banner_state()
       |> assign(loaded?: true)
     else
       socket
@@ -341,6 +345,13 @@ defmodule MediaCentarrWeb.SettingsLive do
       end
 
     {:noreply, assign(socket, service_status_visible: visible, service_status_output: output)}
+  end
+
+  def handle_event("setup:dismiss_banner", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(setup_banner_dismissed?: true)
+     |> assign_setup_banner_state()}
   end
 
   def handle_event("dismiss_apply_modal", _params, socket) do
@@ -1320,6 +1331,8 @@ defmodule MediaCentarrWeb.SettingsLive do
             latest_release={@latest_release}
             apply_phase={@apply_phase}
             tmdb_missing={@tmdb_missing}
+            show_setup_banner?={@show_setup_banner?}
+            critical_failures={@critical_failures}
             service_state={@service_state}
             service_status_visible={@service_status_visible}
             service_status_output={@service_status_output}
@@ -1567,6 +1580,42 @@ defmodule MediaCentarrWeb.SettingsLive do
         >
           Add key
         </.button>
+      </div>
+
+      <div
+        :if={@show_setup_banner?}
+        class="p-4 rounded-lg border border-error/30 bg-error/10 text-sm flex items-start justify-between gap-4"
+      >
+        <div>
+          <p class="font-medium">
+            Setup is incomplete: {Enum.map_join(
+              @critical_failures,
+              ", ",
+              &(&1.id |> Atom.to_string() |> String.replace("_", " "))
+            )}
+          </p>
+          <p class="text-base-content/70 mt-0.5">
+            One or more required dependencies aren't working. Run the setup tour to fix them.
+          </p>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <.button
+            variant="primary"
+            size="sm"
+            navigate={~p"/setup"}
+            data-nav-item
+          >
+            Run tour
+          </.button>
+          <.button
+            variant="dismiss"
+            size="sm"
+            phx-click="setup:dismiss_banner"
+            data-nav-item
+          >
+            Dismiss
+          </.button>
+        </div>
       </div>
 
       <div class="p-5 rounded-lg glass-surface">
@@ -3556,6 +3605,40 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   # --- Private helpers ---
+
+  # Computes the probe-driven setup banner state and assigns
+  # `critical_failures` + `show_setup_banner?`. Called from
+  # `ensure_loaded/1` (once per session) and after any config save —
+  # probes are pure (config + filesystem) so cost is negligible.
+  defp assign_setup_banner_state(socket) do
+    probes = MediaCentarrWeb.Live.SetupLive.Probes.all(probe_input(socket.assigns.config))
+    critical_failures = Overview.critical_failures(probes)
+
+    show_banner? =
+      Overview.show_setup_banner?(
+        Config.get(:setup_wizard_dismissed) == true,
+        critical_failures,
+        socket.assigns.setup_banner_dismissed?
+      )
+
+    socket
+    |> assign(critical_failures: critical_failures)
+    |> assign(show_setup_banner?: show_banner?)
+  end
+
+  # Mirrors the input map `MediaCentarrWeb.SetupLive` builds — same shape
+  # the probes expect.
+  defp probe_input(loaded_config) do
+    %{
+      tmdb_api_key_configured?: Map.get(loaded_config, :tmdb_api_key_configured?, false),
+      prowlarr_api_key_configured?: Map.get(loaded_config, :prowlarr_api_key_configured?, false),
+      download_client_password_configured?:
+        Map.get(loaded_config, :download_client_password_configured?, false),
+      mpv_path: Map.get(loaded_config, :mpv_path),
+      ffprobe_path: Config.get(:ffprobe_path),
+      watch_dirs_entries: Config.watch_dirs_entries()
+    }
+  end
 
   # Spawns a connection-test under TaskSupervisor and forwards the
   # `:ok | :error` result to the LiveView's mailbox under
