@@ -26,7 +26,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.WatchDirsStep do
         id: :empty,
         description: "Fresh state — no directories configured.",
         attributes: %{
-          title: "Watch directories",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:watch_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
@@ -42,7 +42,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.WatchDirsStep do
         id: :one_dir,
         description: "Single watch directory configured and reachable.",
         attributes: %{
-          title: "Watch directories",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:watch_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
@@ -58,7 +58,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.WatchDirsStep do
         id: :several_dirs,
         description: "Multiple directories, all reachable.",
         attributes: %{
-          title: "Watch directories",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:watch_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
@@ -78,7 +78,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.WatchDirsStep do
         id: :one_missing,
         description: "Some directories unreachable — partial warning.",
         attributes: %{
-          title: "Watch directories",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:watch_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
@@ -97,7 +97,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.WatchDirsStep do
         id: :all_missing,
         description: "All directories unreachable — likely an unmounted drive.",
         attributes: %{
-          title: "Watch directories",
+          content: MediaCentarrWeb.Live.SetupLive.Content.for(:watch_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
