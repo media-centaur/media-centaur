@@ -42,22 +42,22 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.CastGrid do
 
   def variations do
     [
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :populated,
         description: "Eight cast cards with TMDB person ids — each card is a TMDB link.",
         attributes: %{cast: @populated}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :empty,
         description: "Empty cast — entire grid (heading + cards) is hidden.",
         attributes: %{cast: []}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :no_tmdb_person_ids,
         description: "Cards without `tmdb_person_id` render as plain text instead of links.",
         attributes: %{cast: @no_links}
       },
-      %PhoenixStorybook.Variation{
+      %Variation{
         id: :long_cast_with_filter,
         description:
           "60 cast entries — exceeds the visible cap, so the inline filter input " <>

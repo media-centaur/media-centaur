@@ -127,15 +127,21 @@ body.media-centarr {
    `--color-base-content`, which makes the chrome's white panels show
    light-on-light text. The chrome's `<html>` carries the `psb` class.
    Force a light browser scheme + dark body text for the chrome itself —
-   then restore the dark theme inside the sandbox container
-   `.media-centarr` so component previews still render with the real
-   theme, glass gradient, and daisyUI variants. */
+   storybook's own sidebar/header keep their `psb:bg-white` utility
+   styles regardless. Then restore the dark theme inside the sandbox
+   container `.media-centarr` so component previews still render with
+   the real theme, glass gradient, and daisyUI variants.
+
+   Body bg is set to the app's dark base so the surrounding "frame"
+   matches the live UI — going from app → storybook is a tonal shift,
+   not a black→white flip. The chrome's own panels still render light
+   for readability; component previews still render dark. */
 html.psb {
   color-scheme: light;
 }
 
 html.psb body {
-  background-color: white;
+  background-color: var(--color-base-100);
   background-image: none;
   color: oklch(20% 0.015 264);
 }

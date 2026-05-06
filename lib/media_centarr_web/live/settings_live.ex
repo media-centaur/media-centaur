@@ -1577,18 +1577,28 @@ defmodule MediaCentarrWeb.SettingsLive do
               {overview_summary(@issue_count)}
             </p>
           </div>
-          <div
-            :if={@issue_count > 0}
-            class="shrink-0 flex items-center gap-2 text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning"
-          >
-            <.icon name="hero-exclamation-triangle-mini" class="size-3.5" />
-            {@issue_count} {if @issue_count == 1, do: "issue", else: "issues"}
-          </div>
-          <div
-            :if={@issue_count == 0 and @config != %{}}
-            class="shrink-0 flex items-center gap-2 text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success"
-          >
-            <.icon name="hero-check-circle-mini" class="size-3.5" /> All good
+          <div class="shrink-0 flex items-center gap-2">
+            <.button
+              variant="dismiss"
+              size="xs"
+              navigate={~p"/setup"}
+              data-nav-item
+            >
+              Run setup tour
+            </.button>
+            <div
+              :if={@issue_count > 0}
+              class="flex items-center gap-2 text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning"
+            >
+              <.icon name="hero-exclamation-triangle-mini" class="size-3.5" />
+              {@issue_count} {if @issue_count == 1, do: "issue", else: "issues"}
+            </div>
+            <div
+              :if={@issue_count == 0 and @config != %{}}
+              class="flex items-center gap-2 text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success"
+            >
+              <.icon name="hero-check-circle-mini" class="size-3.5" /> All good
+            </div>
           </div>
         </div>
       </div>

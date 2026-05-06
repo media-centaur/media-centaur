@@ -36,6 +36,34 @@ defmodule MediaCentarr.Config do
 
   @sensitive_keys [:tmdb_api_key, :prowlarr_api_key, :download_client_password]
 
+  # Runtime-settable keys: tunable via `update/2` and persisted to the
+  # Settings DB. Excludes structural values (database_path, port,
+  # watch_dirs) that need a restart. Defined once as a module attribute
+  # so the function and the `update/2` guard can't drift apart.
+  @runtime_settable_keys [
+    :tmdb_api_key,
+    :auto_approve_threshold,
+    :prowlarr_url,
+    :prowlarr_api_key,
+    :download_client_type,
+    :download_client_url,
+    :download_client_username,
+    :download_client_password,
+    :mpv_path,
+    :mpv_socket_dir,
+    :mpv_socket_timeout_ms,
+    :ffprobe_path,
+    :file_absence_ttl_days,
+    :recent_changes_days,
+    :release_tracking_refresh_interval_hours,
+    :extras_dirs,
+    :skip_dirs,
+    :exclude_dirs,
+    :showcase_mode,
+    :data_dir,
+    :setup_wizard_dismissed
+  ]
+
   @doc """
   Returns the absolute path to the active TOML config file.
   `MEDIA_CENTARR_CONFIG_OVERRIDE` fully replaces the default — used by
@@ -81,29 +109,7 @@ defmodule MediaCentarr.Config do
   persisted to the Settings database. Excludes structural values that
   require a restart (`database_path`, `watch_dirs`, etc.).
   """
-  def runtime_settable_keys do
-    [
-      :tmdb_api_key,
-      :auto_approve_threshold,
-      :prowlarr_url,
-      :prowlarr_api_key,
-      :download_client_type,
-      :download_client_url,
-      :download_client_username,
-      :download_client_password,
-      :mpv_path,
-      :mpv_socket_dir,
-      :mpv_socket_timeout_ms,
-      :file_absence_ttl_days,
-      :recent_changes_days,
-      :release_tracking_refresh_interval_hours,
-      :extras_dirs,
-      :skip_dirs,
-      :exclude_dirs,
-      :showcase_mode,
-      :data_dir
-    ]
-  end
+  def runtime_settable_keys, do: @runtime_settable_keys
 
   @doc """
   Loads runtime overrides from the Settings database and overlays them
@@ -141,28 +147,7 @@ defmodule MediaCentarr.Config do
   `{:config_updated, key, value}` on the config topic so subscribers can
   refresh any derived caches.
   """
-  def update(key, value)
-      when key in [
-             :tmdb_api_key,
-             :auto_approve_threshold,
-             :prowlarr_url,
-             :prowlarr_api_key,
-             :download_client_type,
-             :download_client_url,
-             :download_client_username,
-             :download_client_password,
-             :mpv_path,
-             :mpv_socket_dir,
-             :mpv_socket_timeout_ms,
-             :file_absence_ttl_days,
-             :recent_changes_days,
-             :release_tracking_refresh_interval_hours,
-             :extras_dirs,
-             :skip_dirs,
-             :exclude_dirs,
-             :showcase_mode,
-             :data_dir
-           ] do
+  def update(key, value) when key in @runtime_settable_keys do
     config = :persistent_term.get({__MODULE__, :config})
     :persistent_term.put({__MODULE__, :config}, Map.put(config, key, maybe_wrap(key, value)))
 
@@ -420,6 +405,8 @@ defmodule MediaCentarr.Config do
       mpv_path: "/usr/bin/mpv",
       mpv_socket_dir: "/tmp",
       mpv_socket_timeout_ms: 5000,
+      ffprobe_path: "/usr/bin/ffprobe",
+      setup_wizard_dismissed: false,
       exclude_dirs: [],
       extras_dirs: [
         "Extras",
