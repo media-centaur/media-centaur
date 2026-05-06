@@ -131,7 +131,7 @@ defmodule MediaCentarrWeb.SetupLive do
 
   def handle_event("setup:save_integration", params, socket) do
     Enum.each(params, fn
-      {"_target", _} ->
+      {"_" <> _, _} ->
         :ok
 
       {key, value} when is_binary(key) ->
@@ -145,7 +145,16 @@ defmodule MediaCentarrWeb.SetupLive do
     QBittorrent.invalidate_client()
     MediaCentarr.TMDB.Client.invalidate_client()
 
-    {:noreply, refresh_probes(socket)}
+    socket = refresh_probes(socket)
+
+    case {params["_action"], params["_integration"]} do
+      {"test", integration} when integration in ~w(tmdb prowlarr download_client) ->
+        kick_off_test(integration)
+        {:noreply, put_flash(socket, :info, "Saved. Testing #{integration}…")}
+
+      _ ->
+        {:noreply, put_flash(socket, :info, "Saved.")}
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -153,12 +162,7 @@ defmodule MediaCentarrWeb.SetupLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("setup:test_connection", %{"id" => id}, socket) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      result = run_connection_test(id)
-      send(parent, {:setup_test_result, id, result})
-    end)
+    kick_off_test(id)
 
     {:noreply, put_flash(socket, :info, "Testing #{id}…")}
   end
@@ -240,6 +244,18 @@ defmodule MediaCentarrWeb.SetupLive do
 
   defp save_integration_field(_, _), do: :ok
 
+  # Spawns an async connection-test for the given integration id.
+  # Result is delivered via `{:setup_test_result, id, :ok | {:error, _}}`.
+  defp kick_off_test(id) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      send(parent, {:setup_test_result, id, run_connection_test(id)})
+    end)
+
+    :ok
+  end
+
   defp run_connection_test("tmdb") do
     case MediaCentarr.TMDB.Client.configuration() do
       {:ok, _} -> :ok
@@ -264,8 +280,6 @@ defmodule MediaCentarrWeb.SetupLive do
   defp run_connection_test(_), do: {:error, :unsupported}
 
   defp prowlarr_url, do: Config.get(:prowlarr_url) || ""
-
-  defp download_client_type, do: Config.get(:download_client_type) || "qbittorrent"
 
   defp download_client_url, do: Config.get(:download_client_url) || ""
 
@@ -390,7 +404,25 @@ defmodule MediaCentarrWeb.SetupLive do
     >
       <:form>
         <form phx-submit="setup:save_integration" class="space-y-2">
-          <label class="text-xs uppercase tracking-wide opacity-60">
+          <input type="hidden" name="_integration" value="tmdb" />
+          <p class="text-sm opacity-80">
+            TMDB API access is <strong>free</strong>. Create an account at
+            <.link
+              href="https://www.themoviedb.org/signup"
+              target="_blank"
+              rel="noopener"
+              class="link link-primary"
+            >
+              themoviedb.org
+            </.link>
+            and copy your v4 read-access token from <.link
+              href="https://www.themoviedb.org/settings/api"
+              target="_blank"
+              rel="noopener"
+              class="link link-primary"
+            >Settings → API</.link>.
+          </p>
+          <label class="text-xs uppercase tracking-wide opacity-60 block">
             API key (v4 read-access token)
           </label>
           <input
@@ -399,7 +431,20 @@ defmodule MediaCentarrWeb.SetupLive do
             placeholder="paste your TMDB v4 read-access token"
             class="input input-bordered w-full font-mono text-sm"
           />
-          <.button type="submit" variant="primary" size="sm">Save</.button>
+          <div class="flex gap-2">
+            <.button type="submit" variant="primary" size="sm">
+              {save_label(@probe)}
+            </.button>
+            <.button
+              type="submit"
+              name="_action"
+              value="test"
+              variant="dismiss"
+              size="sm"
+            >
+              Test connection
+            </.button>
+          </div>
         </form>
       </:form>
     </SetupSteps.integration_step>
@@ -418,7 +463,8 @@ defmodule MediaCentarrWeb.SetupLive do
     >
       <:form>
         <form phx-submit="setup:save_integration" class="space-y-2">
-          <label class="text-xs uppercase tracking-wide opacity-60">URL</label>
+          <input type="hidden" name="_integration" value="prowlarr" />
+          <label class="text-xs uppercase tracking-wide opacity-60 block">URL</label>
           <input
             type="text"
             name="prowlarr_url"
@@ -432,7 +478,20 @@ defmodule MediaCentarrWeb.SetupLive do
             name="prowlarr_api_key"
             class="input input-bordered w-full font-mono text-sm"
           />
-          <.button type="submit" variant="primary" size="sm">Save</.button>
+          <div class="flex gap-2 mt-2">
+            <.button type="submit" variant="primary" size="sm">
+              {save_label(@probe)}
+            </.button>
+            <.button
+              type="submit"
+              name="_action"
+              value="test"
+              variant="dismiss"
+              size="sm"
+            >
+              Test connection
+            </.button>
+          </div>
         </form>
       </:form>
     </SetupSteps.integration_step>
@@ -442,7 +501,6 @@ defmodule MediaCentarrWeb.SetupLive do
   defp step_for(%{step: :download_client} = assigns) do
     assigns =
       assigns
-      |> assign(:dc_type, download_client_type())
       |> assign(:dc_url, download_client_url())
       |> assign(:dc_username, download_client_username())
 
@@ -455,13 +513,17 @@ defmodule MediaCentarrWeb.SetupLive do
     >
       <:form>
         <form phx-submit="setup:save_integration" class="space-y-2">
-          <label class="text-xs uppercase tracking-wide opacity-60">Type</label>
-          <input
-            type="text"
+          <input type="hidden" name="_integration" value="download_client" />
+          <label class="text-xs uppercase tracking-wide opacity-60 block">Type</label>
+          <select
             name="download_client_type"
-            value={@dc_type}
-            class="input input-bordered w-full font-mono text-sm"
-          />
+            class="select select-bordered w-full font-mono text-sm"
+          >
+            <option value="qbittorrent" selected>qBittorrent</option>
+          </select>
+          <p class="text-xs opacity-70 mt-1">
+            qBittorrent is currently the only supported download client.
+          </p>
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">URL</label>
           <input
             type="text"
@@ -483,10 +545,29 @@ defmodule MediaCentarrWeb.SetupLive do
             name="download_client_password"
             class="input input-bordered w-full font-mono text-sm"
           />
-          <.button type="submit" variant="primary" size="sm">Save</.button>
+          <div class="flex gap-2 mt-2">
+            <.button type="submit" variant="primary" size="sm">
+              {save_label(@probe)}
+            </.button>
+            <.button
+              type="submit"
+              name="_action"
+              value="test"
+              variant="dismiss"
+              size="sm"
+            >
+              Test connection
+            </.button>
+          </div>
         </form>
       </:form>
     </SetupSteps.integration_step>
     """
   end
+
+  # Save vs Update. Probes return :not_configured only when the
+  # backing value is empty/missing — anything else means there's
+  # already a saved value and the form is editing it.
+  defp save_label(%{status: :not_configured}), do: "Save"
+  defp save_label(_), do: "Update"
 end

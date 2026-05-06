@@ -80,15 +80,16 @@ defmodule MediaCentarrWeb.Live.SetupLive.Content do
   def for(:ffprobe) do
     %__MODULE__{
       title: "ffprobe",
-      short: "Embedded subtitle detection",
+      short: "Embedded subtitle detection (optional)",
       what:
         "ffprobe (part of the FFmpeg toolkit) reads the metadata stream of a video file. " <>
           "Media Centarr uses it to discover embedded subtitle tracks inside MKV/MP4 containers " <>
           "without playing the file.",
       why:
-        "Without ffprobe, Media Centarr only sees sidecar subtitle files (`movie.en.srt`). " <>
-          "Embedded tracks stay invisible until you launch the file in mpv. The feature " <>
-          "degrades gracefully — nothing crashes, just less subtitle info.",
+        "Subtitles still work without ffprobe — sidecar files like `movie.en.srt` are detected " <>
+          "by filename and play normally. What you lose is visibility into tracks embedded " <>
+          "inside the video container itself: they're invisible to the library UI until you " <>
+          "launch the file in mpv. Skip this step if all your subtitles are already sidecar files.",
       requirements: [
         "ffmpeg installed on this machine (ffprobe ships with it) — `pacman -S ffmpeg`, " <>
           "`apt install ffmpeg`, `brew install ffmpeg`",
