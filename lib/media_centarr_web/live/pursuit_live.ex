@@ -1,0 +1,205 @@
+defmodule MediaCentarrWeb.PursuitLive do
+  @moduledoc """
+  Detail page for a single pursuit at `/download/:pursuit_id`.
+
+  Renders the header, the full event timeline, and (when the pursuit is
+  in `:needs_decision` state) the alternatives picker. Subscribes to
+  `acquisition:updates` and re-assembles its ViewModels whenever a
+  pursuit event for this id arrives.
+  """
+
+  use MediaCentarrWeb, :live_view
+
+  require MediaCentarr.Log, as: Log
+
+  alias MediaCentarr.Acquisition
+  alias MediaCentarr.Acquisition.Prowlarr
+  alias MediaCentarr.Acquisition.Pursuits
+  alias MediaCentarr.Acquisition.Pursuits.Pursuit
+  alias MediaCentarr.Acquisition.Pursuits.Commands.{Cancel, RecordUserChoice}
+  alias MediaCentarr.Acquisition.ViewModels
+  alias MediaCentarr.Acquisition.ViewModels.Alternative
+  alias MediaCentarrWeb.Components.Acquisition.DecisionCard, as: DecisionCardComponent
+  alias MediaCentarrWeb.Components.Acquisition.{PursuitHeader, PursuitTimeline}
+  alias MediaCentarrWeb.Layouts
+
+  @impl true
+  def mount(%{"pursuit_id" => id}, _session, socket) do
+    if connected?(socket), do: Acquisition.subscribe()
+
+    socket =
+      socket
+      |> assign(pursuit_id: id, decision_card: nil)
+      |> load_pursuit()
+
+    {:ok, socket}
+  end
+
+  @impl true
+  def render(%{not_found?: true} = assigns) do
+    ~H"""
+    <Layouts.app flash={@flash} current_path="/download">
+      <div class="max-w-2xl mx-auto py-8 text-center text-base-content/60">
+        Pursuit not found.
+        <.link navigate="/download" class="link link-primary ml-2">Back to Downloads</.link>
+      </div>
+    </Layouts.app>
+    """
+  end
+
+  def render(assigns) do
+    ~H"""
+    <Layouts.app flash={@flash} current_path="/download">
+      <div class="max-w-2xl mx-auto space-y-6 py-6">
+        <div>
+          <.link navigate="/download" class="text-xs text-base-content/60 hover:text-base-content">
+            ← Back to Downloads
+          </.link>
+        </div>
+
+        <PursuitHeader.pursuit_header vm={@header} on_cancel="cancel_pursuit" />
+
+        <DecisionCardComponent.decision_card :if={@decision_card} vm={@decision_card} />
+
+        <PursuitTimeline.timeline vm={@timeline} />
+      </div>
+    </Layouts.app>
+    """
+  end
+
+  @impl true
+  def handle_event("cancel_pursuit", _params, socket) do
+    case Cancel.execute(%{
+           pursuit_id: socket.assigns.pursuit_id,
+           cancelled_by: :user,
+           reason: "user_request"
+         }) do
+      {:ok, _pursuit} ->
+        {:noreply, socket |> put_flash(:info, "Pursuit cancelled.") |> load_pursuit()}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "pursuit cancel failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not cancel pursuit.")}
+    end
+  end
+
+  def handle_event(
+        "pick_alternative",
+        %{"pursuit-id" => pursuit_id, "guid" => guid, "label" => label},
+        socket
+      ) do
+    case RecordUserChoice.execute(%{
+           pursuit_id: pursuit_id,
+           chosen_guid: guid,
+           choice_label: label
+         }) do
+      {:ok, _pursuit} ->
+        {:noreply, socket |> put_flash(:info, "Trying alternative…") |> load_pursuit()}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "record user choice failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not pick that alternative.")}
+    end
+  end
+
+  @impl true
+  def handle_info(%struct{pursuit_id: pid}, %{assigns: %{pursuit_id: pid}} = socket) do
+    if pursuit_event?(struct) do
+      {:noreply, load_pursuit(socket)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  # --- private ---------------------------------------------------------------
+
+  defp load_pursuit(socket) do
+    case Pursuits.get(socket.assigns.pursuit_id) do
+      {:ok, %Pursuit{} = pursuit} ->
+        {:ok, header} = Pursuits.header_for(pursuit.id)
+        timeline = Pursuits.timeline_for(pursuit.id)
+        decision_card = build_decision_card(pursuit)
+
+        socket
+        |> assign(:pursuit, pursuit)
+        |> assign(:header, header)
+        |> assign(:timeline, timeline)
+        |> assign(:decision_card, decision_card)
+        |> assign(:not_found?, false)
+
+      {:error, :not_found} ->
+        assign(socket, :not_found?, true)
+    end
+  end
+
+  defp build_decision_card(%Pursuit{state: "needs_decision"} = pursuit) do
+    %ViewModels.DecisionCard{
+      pursuit_id: pursuit.id,
+      prompt: "Pick an alternative release.",
+      alternatives: fetch_alternatives(pursuit),
+      loading?: false
+    }
+  end
+
+  defp build_decision_card(_pursuit), do: nil
+
+  defp fetch_alternatives(%Pursuit{} = pursuit) do
+    if Acquisition.available?() do
+      query = pursuit.title
+
+      opts =
+        []
+        |> maybe_put(:type, search_type_for(pursuit.tmdb_type))
+        |> maybe_put(:year, pursuit.year)
+
+      case Prowlarr.search(query, opts) do
+        {:ok, results} ->
+          excluded = MapSet.new(pursuit.tried_release_guids)
+
+          results
+          |> Enum.reject(fn r -> MapSet.member?(excluded, r.guid) end)
+          |> Enum.take(8)
+          |> Enum.map(&search_result_to_alternative/1)
+
+        {:error, _reason} ->
+          []
+      end
+    else
+      []
+    end
+  end
+
+  defp search_type_for("tv"), do: :tv
+  defp search_type_for("movie"), do: :movie
+  defp search_type_for(_), do: nil
+
+  defp maybe_put(opts, _key, nil), do: opts
+  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
+
+  defp search_result_to_alternative(result) do
+    %Alternative{
+      guid: result.guid,
+      title: result.title,
+      indexer: indexer_name(result),
+      quality: quality_label(result),
+      size_bytes: Map.get(result, :size_bytes),
+      seeders: Map.get(result, :seeders),
+      indexer_id: Map.get(result, :indexer_id)
+    }
+  end
+
+  defp indexer_name(%{indexer: indexer}) when is_binary(indexer), do: indexer
+  defp indexer_name(_), do: "Unknown"
+
+  defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentarr.Acquisition.Quality.label(q)
+  defp quality_label(_), do: nil
+
+  defp pursuit_event?(module) do
+    case Atom.to_string(module) do
+      "Elixir.MediaCentarr.Acquisition.Pursuits.Events." <> _ -> true
+      _ -> false
+    end
+  end
+end
