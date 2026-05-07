@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.45.2 — 2026-05-07
+
+### Fixed
+
+The Setup Tour pages now fill the full window. Previously, on
+short pages like the Welcome step, the dark gradient backdrop
+stopped partway down and revealed a flat strip below.
+
+Setup Tour forms look right at a glance. The **Re-check** and
+**Test connection** buttons used to render as bare text — now
+they have a visible outline so they read as buttons. The text
+inputs also size correctly next to their buttons, instead of
+sitting noticeably taller and forcing the buttons to stretch.
+
 ## v0.45.1 — 2026-05-07
 
 ### Improved
