@@ -6,39 +6,50 @@ defmodule MediaCentarr.Acquisition.Pursuits.Policy do
   I/O, no DB access, no PubSub. Every code path is exercised by
   `PolicyTest` against constructed snapshots.
 
-  ## v1 scope
+  Rules, in evaluation order:
 
-  Implements the **exhaustion** rule (`attempt_count` ≥ threshold AND
-  pursuit older than deadline → `{:exhaust, :max_attempts}`).
+  1. Pursuit already terminal → `:no_action`
+  2. Pursuit awaiting user input → `:no_action`
+  3. Sustained zero-seeders confirmed → `{:auto_cancel, :zero_seeders}`
+  4. Sustained stall confirmed → `{:request_decision, prompt}`
+  5. Exhaustion budget reached → `{:exhaust, :max_attempts}`
+  6. Otherwise → `:no_action`
 
-  Stall and zero-seeder rules are intentionally **deferred to a follow-up
-  iteration** because correct sliding-window detection requires
-  persistence we don't yet have (per-pursuit health-observation history).
-  Until that lands, the Watcher records the pursuit's `attempt_count` and
-  age; user-visible stall handling happens manually via the decision
-  card. The architectural shape — Snapshot → Policy → Action → Command —
-  is in place so adding the rules later is purely additive.
+  Stall and zero-seeders rules fire only when the corresponding window has
+  elapsed (`*_window_elapsed?` derived in `Snapshots`). Until observation
+  state is populated by the Watcher, those flags are `nil` (cond branches
+  short-circuit safely on falsy).
   """
 
   alias MediaCentarr.Acquisition.Pursuits.{Action, Snapshot, State}
 
-  # Default thresholds. Configurable via `MediaCentarr.Config` in a
-  # follow-up; for now these are baked in so Policy stays pure.
-  @max_attempts 4
-  @min_age_days 6
-
   @spec evaluate(Snapshot.t()) :: Action.t()
-  def evaluate(%Snapshot{pursuit: pursuit, now: now}) do
+  def evaluate(%Snapshot{} = snapshot) do
     cond do
-      State.terminal?(pursuit.state) -> :no_action
-      pursuit.state == "needs_decision" -> :no_action
-      exhaustion_reached?(pursuit, now) -> {:exhaust, :max_attempts}
+      State.terminal?(snapshot.pursuit.state) -> :no_action
+      snapshot.pursuit.state == "needs_decision" -> :no_action
+      zero_seeders_confirmed?(snapshot) -> {:auto_cancel, :zero_seeders}
+      stall_confirmed?(snapshot) -> {:request_decision, stall_prompt(snapshot)}
+      exhaustion_reached?(snapshot) -> {:exhaust, :max_attempts}
       true -> :no_action
     end
   end
 
-  defp exhaustion_reached?(pursuit, now) do
-    pursuit.attempt_count >= @max_attempts and
-      DateTime.diff(now, pursuit.inserted_at, :day) >= @min_age_days
+  defp zero_seeders_confirmed?(%Snapshot{
+         zero_seeders_observed?: true,
+         zero_seeders_window_elapsed?: true
+       }), do: true
+
+  defp zero_seeders_confirmed?(_), do: false
+
+  defp stall_confirmed?(%Snapshot{stall_observed?: true, stall_window_elapsed?: true}), do: true
+  defp stall_confirmed?(_), do: false
+
+  defp stall_prompt(%Snapshot{thresholds: %{stall_window_hours: hours}}),
+    do: "Download stalled for #{hours}+ hours — pick an alternative release."
+
+  defp exhaustion_reached?(%Snapshot{pursuit: pursuit, now: now, thresholds: thresholds}) do
+    pursuit.attempt_count >= thresholds.max_attempts and
+      DateTime.diff(now, pursuit.inserted_at, :day) >= thresholds.min_age_days
   end
 end
