@@ -4,6 +4,34 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.46.1 — 2026-05-08
+
+### New
+
+Pursuits now react to download trouble on their own. When a
+torrent stalls for a sustained window, the pursuit moves to
+**needs your input** so you can pick an alternative release
+without having to babysit the queue. When a torrent goes a
+long stretch with no peers — the strongest "this release is
+dead" signal we have — Media Centarr cancels it automatically
+and the pursuit stays open for fallback.
+
+Files that arrive on disk are now matched back to the pursuit
+that asked for them. If the filename matches the release that
+was grabbed, the pursuit closes successfully. If a misnamed
+torrent slips through and the filename is wrong for what was
+expected, the pursuit cancels itself with an identity mismatch
+note, and the file is left in place for you to handle through
+the existing review surface.
+
+### Improved
+
+Stall and zero-seeder detection windows are now configurable.
+The defaults (a long stall window before asking you, a shorter
+one before auto-cancelling clearly dead torrents) match what
+felt right in testing, but the underlying values are
+settings-backed so they can be tuned without a release.
+
 ## v0.46.0 — 2026-05-08
 
 ### New
