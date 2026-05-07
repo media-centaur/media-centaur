@@ -18,6 +18,7 @@ defmodule MediaCentarr.Acquisition do
       Pursuits,
       Pursuits.Commands.Cancel,
       Pursuits.Commands.RecordUserChoice,
+      Pursuits.InboundListener,
       Pursuits.Pursuit,
       SearchSession,
       DownloadClient.QBittorrent,

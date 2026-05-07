@@ -89,6 +89,50 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     |> Repo.all()
   end
 
+  @doc """
+  Returns active pursuits whose target matches the given map.
+
+  Accepts `%{tmdb_id, tmdb_type}` and optional `:season_number` / `:episode_number`.
+  TV pursuits without a season pin (e.g., season-pack pursuits) match any
+  episode for that series; movie pursuits match by `tmdb_id` alone.
+
+  Used by `Pursuits.InboundListener` to dispatch identity verification when
+  a file lands for a tracked target.
+  """
+  @spec find_active_for_target(map()) :: [Pursuit.t()]
+  def find_active_for_target(%{tmdb_id: tmdb_id, tmdb_type: "movie"}) when is_binary(tmdb_id) do
+    Pursuit
+    |> where([p], p.state == "active")
+    |> where([p], p.tmdb_id == ^tmdb_id and p.tmdb_type == "movie")
+    |> Repo.all()
+  end
+
+  def find_active_for_target(%{tmdb_id: tmdb_id, tmdb_type: "tv"} = target) when is_binary(tmdb_id) do
+    season = Map.get(target, :season_number)
+    episode = Map.get(target, :episode_number)
+
+    Pursuit
+    |> where([p], p.state == "active")
+    |> where([p], p.tmdb_id == ^tmdb_id and p.tmdb_type == "tv")
+    |> match_season(season)
+    |> match_episode(episode)
+    |> Repo.all()
+  end
+
+  def find_active_for_target(_), do: []
+
+  defp match_season(query, nil), do: query
+
+  defp match_season(query, season) do
+    where(query, [p], is_nil(p.season_number) or p.season_number == ^season)
+  end
+
+  defp match_episode(query, nil), do: query
+
+  defp match_episode(query, episode) do
+    where(query, [p], is_nil(p.episode_number) or p.episode_number == ^episode)
+  end
+
   @doc "Returns the most recently inserted grab linked to a pursuit."
   @spec latest_grab(Ecto.UUID.t()) :: {:ok, Grab.t()} | {:error, :not_found}
   def latest_grab(pursuit_id) do

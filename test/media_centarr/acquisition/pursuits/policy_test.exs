@@ -1,9 +1,9 @@
 defmodule MediaCentarr.Acquisition.Pursuits.PolicyTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.Pursuits.{Policy, Pursuit, Snapshot}
+  alias MediaCentarr.Acquisition.Pursuits.{Policy, Pursuit, Snapshot, Thresholds}
 
-  defp build_snapshot(pursuit_overrides) do
+  defp build_snapshot(pursuit_overrides, snapshot_overrides \\ %{}) do
     pursuit_attrs =
       Map.merge(
         %{
@@ -16,35 +16,34 @@ defmodule MediaCentarr.Acquisition.Pursuits.PolicyTest do
         pursuit_overrides
       )
 
-    %Snapshot{
+    base = %Snapshot{
       pursuit: struct(Pursuit, pursuit_attrs),
       latest_grab: nil,
       queue_state: :unknown,
-      now: ~U[2026-04-10 00:00:00Z]
+      now: ~U[2026-04-10 00:00:00Z],
+      thresholds: Thresholds.defaults()
     }
+
+    Map.merge(base, snapshot_overrides)
   end
 
   describe "evaluate/1 — terminal states" do
     test "satisfied returns :no_action" do
-      snapshot = build_snapshot(%{state: "satisfied"})
-      assert Policy.evaluate(snapshot) == :no_action
+      assert Policy.evaluate(build_snapshot(%{state: "satisfied"})) == :no_action
     end
 
     test "exhausted returns :no_action" do
-      snapshot = build_snapshot(%{state: "exhausted"})
-      assert Policy.evaluate(snapshot) == :no_action
+      assert Policy.evaluate(build_snapshot(%{state: "exhausted"})) == :no_action
     end
 
     test "cancelled returns :no_action" do
-      snapshot = build_snapshot(%{state: "cancelled"})
-      assert Policy.evaluate(snapshot) == :no_action
+      assert Policy.evaluate(build_snapshot(%{state: "cancelled"})) == :no_action
     end
   end
 
   describe "evaluate/1 — needs_decision" do
     test "needs_decision returns :no_action (waiting on user)" do
-      snapshot = build_snapshot(%{state: "needs_decision"})
-      assert Policy.evaluate(snapshot) == :no_action
+      assert Policy.evaluate(build_snapshot(%{state: "needs_decision"})) == :no_action
     end
   end
 
@@ -91,6 +90,126 @@ defmodule MediaCentarr.Acquisition.Pursuits.PolicyTest do
         })
 
       assert Policy.evaluate(snapshot) == {:exhaust, :max_attempts}
+    end
+
+    test "honours custom thresholds from the snapshot (Settings-driven override)" do
+      thresholds = %Thresholds{
+        max_attempts: 2,
+        min_age_days: 1,
+        stall_window_hours: 24,
+        zero_seeders_window_hours: 6
+      }
+
+      snapshot =
+        build_snapshot(
+          %{state: "active", attempt_count: 2, inserted_at: ~U[2026-04-08 00:00:00Z]},
+          %{thresholds: thresholds}
+        )
+
+      assert Policy.evaluate(snapshot) == {:exhaust, :max_attempts}
+    end
+  end
+
+  describe "evaluate/1 — zero seeders" do
+    test "observed but window not yet elapsed returns :no_action" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{zero_seeders_observed?: true, zero_seeders_window_elapsed?: false}
+        )
+
+      assert Policy.evaluate(snapshot) == :no_action
+    end
+
+    test "observed AND window elapsed returns {:auto_cancel, :zero_seeders}" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{zero_seeders_observed?: true, zero_seeders_window_elapsed?: true}
+        )
+
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :zero_seeders}
+    end
+
+    test "not observed → no auto-cancel even if elapsed flag is true" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{zero_seeders_observed?: false, zero_seeders_window_elapsed?: true}
+        )
+
+      assert Policy.evaluate(snapshot) == :no_action
+    end
+
+    test "zero seeders takes precedence over stall when both are confirmed" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{
+            zero_seeders_observed?: true,
+            zero_seeders_window_elapsed?: true,
+            stall_observed?: true,
+            stall_window_elapsed?: true
+          }
+        )
+
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :zero_seeders}
+    end
+  end
+
+  describe "evaluate/1 — stall" do
+    test "observed but window not yet elapsed returns :no_action" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{stall_observed?: true, stall_window_elapsed?: false}
+        )
+
+      assert Policy.evaluate(snapshot) == :no_action
+    end
+
+    test "observed AND window elapsed returns {:request_decision, prompt}" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{stall_observed?: true, stall_window_elapsed?: true}
+        )
+
+      assert {:request_decision, prompt} = Policy.evaluate(snapshot)
+      assert prompt =~ "stalled"
+      assert prompt =~ "24+"
+    end
+
+    test "stall does not fire while the pursuit is already in needs_decision" do
+      snapshot =
+        build_snapshot(
+          %{state: "needs_decision"},
+          %{stall_observed?: true, stall_window_elapsed?: true}
+        )
+
+      assert Policy.evaluate(snapshot) == :no_action
+    end
+
+    test "prompt reflects the threshold value carried on the snapshot" do
+      thresholds = %Thresholds{
+        max_attempts: 4,
+        min_age_days: 6,
+        stall_window_hours: 12,
+        zero_seeders_window_hours: 6
+      }
+
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{
+            thresholds: thresholds,
+            stall_observed?: true,
+            stall_window_elapsed?: true
+          }
+        )
+
+      assert {:request_decision, prompt} = Policy.evaluate(snapshot)
+      assert prompt =~ "12+"
     end
   end
 
