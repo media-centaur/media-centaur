@@ -15,8 +15,18 @@ defmodule MediaCentarr.Acquisition do
       QueryExpander,
       QueueItem,
       Prowlarr,
+      Pursuits,
+      Pursuits.Commands.Cancel,
+      Pursuits.Commands.RecordUserChoice,
+      Pursuits.Pursuit,
       SearchSession,
-      DownloadClient.QBittorrent
+      DownloadClient.QBittorrent,
+      ViewModels.Alternative,
+      ViewModels.DecisionCard,
+      ViewModels.PursuitHeader,
+      ViewModels.PursuitRow,
+      ViewModels.Timeline,
+      ViewModels.TimelineEntry
     ]
 
   @moduledoc """

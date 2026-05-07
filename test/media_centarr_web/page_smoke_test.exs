@@ -281,4 +281,51 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       assert is_binary(html)
     end
   end
+
+  describe "/download/:pursuit_id" do
+    setup do
+      original = :persistent_term.get({Config, :config}, %{})
+
+      :persistent_term.put(
+        {Config, :config},
+        Map.merge(original, %{
+          prowlarr_url: "http://prowlarr.test",
+          prowlarr_api_key: Secret.wrap("test-key")
+        })
+      )
+
+      MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
+
+      {:ok, pursuit} =
+        MediaCentarr.Repo.insert(
+          MediaCentarr.Acquisition.Pursuits.Pursuit.create_changeset(%{
+            tmdb_id: "smoke",
+            tmdb_type: "movie",
+            title: "Sample Movie",
+            origin: "auto"
+          })
+        )
+
+      on_exit(fn ->
+        MediaCentarr.Capabilities.clear_test_result(:prowlarr)
+        :persistent_term.put({Config, :config}, original)
+      end)
+
+      %{pursuit_id: pursuit.id}
+    end
+
+    test "renders without crashing for an existing pursuit", %{
+      conn: conn,
+      pursuit_id: pursuit_id
+    } do
+      assert {:ok, _view, html} = live_within!(conn, "/download/#{pursuit_id}")
+      assert is_binary(html)
+      assert html =~ "Sample Movie"
+    end
+
+    test "renders the not-found state for an unknown pursuit_id", %{conn: conn} do
+      assert {:ok, _view, html} = live_within!(conn, "/download/#{Ecto.UUID.generate()}")
+      assert html =~ "Pursuit not found"
+    end
+  end
 end
