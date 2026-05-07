@@ -68,6 +68,8 @@ defmodule MediaCentarr.Acquisition.Grab do
     field :origin, :string, default: "auto"
     field :prowlarr_guid, :string
     field :manual_query, :string
+    field :pursuit_id, Ecto.UUID
+    field :excluded_release_guids, {:array, :string}, default: []
 
     timestamps()
   end
