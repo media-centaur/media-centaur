@@ -447,4 +447,74 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       assert updated.status == "grabbed"
     end
   end
+
+  describe "perform/1 — excluded_release_guids" do
+    test "skips releases whose guid is in the grab's excluded list, picks the next best" do
+      grab =
+        create_movie_grab(%{
+          excluded_release_guids: ["uhd-guid"]
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Movie.2024.2160p.UHD.BluRay.REMUX-FGT",
+            "guid" => "uhd-guid",
+            "indexerId" => 1,
+            "seeders" => 10
+          },
+          %{
+            "title" => "Sample.Movie.2024.1080p.WEB-DL.H264-NTG",
+            "guid" => "hd-guid",
+            "indexerId" => 1,
+            "seeders" => 25
+          }
+        ])
+      end)
+
+      assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "grabbed"
+      # 1080p result picked because UHD result was excluded
+      assert updated.quality == "1080p"
+    end
+
+    test "snoozes when every result is excluded" do
+      grab =
+        create_movie_grab(%{
+          excluded_release_guids: ["only-guid"]
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Movie.2024.2160p.UHD.BluRay.REMUX-FGT",
+            "guid" => "only-guid",
+            "indexerId" => 1,
+            "seeders" => 10
+          }
+        ])
+      end)
+
+      assert {:snooze, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "snoozed"
+    end
+
+    test "empty excluded list leaves behavior unchanged (default)" do
+      grab = create_movie_grab()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, four_kay_response())
+      end)
+
+      assert {:ok, _} = SearchAndGrab.perform(job_for(grab))
+
+      updated = Repo.get!(Grab, grab.id)
+      assert updated.status == "grabbed"
+      assert updated.quality == "4K"
+    end
+  end
 end
