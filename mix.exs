@@ -79,7 +79,7 @@ defmodule MediaCentarr.MixProject do
        compile: false,
        depth: 1},
       {:req, "~> 0.5"},
-      {:gettext, "~> 0.26"},
+      {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       {:file_system, "~> 1.0"},
