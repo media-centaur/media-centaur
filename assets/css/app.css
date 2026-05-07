@@ -115,6 +115,7 @@ html { scrollbar-gutter: stable; }
    adds the same class), but NOT the storybook chrome body — where our
    gradient and dark theme would make the light chrome unreadable. */
 body.media-centarr {
+  min-height: 100dvh;
   background-image:
     radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
     radial-gradient(ellipse at 80% 80%, var(--glass-gradient-b), transparent 60%);
