@@ -70,6 +70,8 @@ defmodule MediaCentarr.Acquisition do
     SearchResult
   }
 
+  alias MediaCentarr.Acquisition.Pursuits.Commands.Start, as: StartPursuit
+
   alias MediaCentarr.Acquisition.DownloadClient.Dispatcher
   alias MediaCentarr.Capabilities
   alias MediaCentarr.ReleaseTracking
@@ -357,7 +359,18 @@ defmodule MediaCentarr.Acquisition do
   def grab(%SearchResult{} = result, query) when is_binary(query) do
     if available?() do
       with :ok <- Prowlarr.grab(result),
-           {:ok, grab} <- Repo.insert(Grab.manual_grabbed_changeset(result, query)) do
+           {:ok, pursuit} <-
+             StartPursuit.execute(%{
+               tmdb_id: result.guid,
+               tmdb_type: "manual",
+               title: result.title,
+               origin: "manual"
+             }),
+           {:ok, grab} <-
+             result
+             |> Grab.manual_grabbed_changeset(query)
+             |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
+             |> Repo.insert() do
         broadcast({:grab_submitted, grab})
         Log.info(:library, "manual grab submitted — #{result.title}")
         {:ok, grab}
@@ -839,7 +852,28 @@ defmodule MediaCentarr.Acquisition do
             snapshot
           )
 
-        Repo.insert(Grab.create_changeset(attrs))
+        with {:ok, pursuit} <-
+               StartPursuit.execute(%{
+                 tmdb_id: tmdb_id,
+                 tmdb_type: tmdb_type,
+                 title: title,
+                 year: year,
+                 season_number: season,
+                 episode_number: episode,
+                 origin: snapshot[:origin] || "auto",
+                 criteria:
+                   %{
+                     "min_quality" => snapshot[:min_quality],
+                     "max_quality" => snapshot[:max_quality]
+                   }
+                   |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+                   |> Map.new()
+               }) do
+          attrs
+          |> Grab.create_changeset()
+          |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
+          |> Repo.insert()
+        end
 
       grab ->
         {:ok, grab}
