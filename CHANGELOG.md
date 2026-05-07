@@ -4,6 +4,38 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.46.0 — 2026-05-08
+
+### New
+
+Downloads now track each acquisition goal as a **pursuit** —
+a single thread that follows the goal from search through
+arrival, surviving cancellations and retries. The Downloads
+page shows an **Active pursuits** section above the existing
+activity list, and clicking **Open full →** on any pursuit
+opens a detail page with the complete event timeline:
+every search, release pick, decision, and outcome appears
+as a labelled entry you can scan top to bottom.
+
+A new detail page at `/download/<pursuit-id>` shows the full
+state of one pursuit — origin, attempt count, criteria,
+tried-releases count, and a vertical timeline of everything
+that's happened. From this page you can cancel the pursuit
+at any time.
+
+### Improved
+
+Cancelling a download and trying again no longer leaves two
+unrelated rows in the activity list — the new pursuit is
+recorded alongside the original attempts under one timeline,
+so you can see the full history of what was tried in one
+place.
+
+Pursuits give up gracefully. After enough failed attempts
+over enough time, a pursuit marks itself **exhausted** and
+stops retrying — dead releases no longer churn in the
+background forever.
+
 ## v0.45.3 — 2026-05-07
 
 ### Fixed
