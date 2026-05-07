@@ -80,7 +80,7 @@ The backend is organised into eleven bounded contexts plus a TMDB adapter, all e
 | `MediaCentarr.ReleaseTracking` | `release_tracking_*` tables | Periodic TMDB refresh of upcoming items in the user's library. |
 | `MediaCentarr.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
 | `MediaCentarr.Console` | `console_*` (filter/buffer-cap settings) + in-memory ring buffer + journal source | Drives the `/console` page and the Guake-style drawer. |
-| `MediaCentarr.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs | Optional — gated by `MediaCentarr.Capabilities`. |
+| `MediaCentarr.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs. **Sub-namespace `Acquisition.Pursuits`** introduces a goal-level aggregate with append-only event log and a hybrid-autonomy decision pipeline (`Snapshot → Policy → Action → Command`); workers (`Pursuits.Watcher`, `Pursuits.IdentityVerifier`) orchestrate, commands execute. See [ADR-039](../decisions/architecture/2026-05-07-039-acquisition-pursuits.md). | Optional — gated by `MediaCentarr.Capabilities`. |
 | `MediaCentarr.WatchHistory` | `watch_history_*` table | Append-only stream of playback events. |
 | `MediaCentarr.SelfUpdate` | GitHub release polling, in-app updater | Disabled in dev. |
 | `MediaCentarr.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |

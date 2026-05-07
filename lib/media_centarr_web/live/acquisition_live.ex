@@ -97,6 +97,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          activity_filter: :active,
          activity_search: "",
          activity_grabs: [],
+         pursuit_rows: [],
+         pursuits_reload_timer: nil,
          reload_timer: nil
        )}
     else
@@ -113,10 +115,15 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       |> assign(:search_session, Acquisition.current_search_session())
       |> assign(:download_client_ready, Capabilities.download_client_ready?())
       |> assign_queue_from_snapshot(Acquisition.queue_snapshot())
+      |> load_pursuit_rows()
       |> assign(:loaded?, true)
     else
       socket
     end
+  end
+
+  defp load_pursuit_rows(socket) do
+    assign(socket, pursuit_rows: MediaCentarr.Acquisition.Pursuits.list_active_rows())
   end
 
   # QueueMonitor pre-filters completed items, but defend in depth: an
@@ -259,6 +266,18 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             Settings
           </.link>
           to see the active queue.
+        </section>
+
+        <section :if={@pursuit_rows != []} data-nav-zone="pursuits" class="space-y-3">
+          <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            Active pursuits
+          </h2>
+          <div class="grid gap-3">
+            <MediaCentarrWeb.Components.Acquisition.PursuitRow.pursuit_row
+              :for={vm <- @pursuit_rows}
+              vm={vm}
+            />
+          </div>
         </section>
 
         <Activity.activity_zone
@@ -761,7 +780,29 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, load_activity(socket)}
   end
 
+  # Typed pursuit-event structs ride the same `acquisition:updates` topic
+  # the legacy grab tuples use. Pattern-match on the namespace prefix and
+  # trigger a debounced pursuit-row refresh.
+  def handle_info(%struct{} = _event, socket) do
+    if pursuit_event?(struct) do
+      {:noreply, debounce(socket, :pursuits_reload_timer, :reload_pursuits, 500)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(:reload_pursuits, socket) do
+    {:noreply, load_pursuit_rows(socket)}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  defp pursuit_event?(module) do
+    case Atom.to_string(module) do
+      "Elixir.MediaCentarr.Acquisition.Pursuits.Events." <> _ -> true
+      _ -> false
+    end
+  end
 
   defp load_activity(socket) do
     grabs =

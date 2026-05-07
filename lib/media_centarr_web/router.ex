@@ -23,6 +23,7 @@ defmodule MediaCentarrWeb.Router do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index
       live "/download", AcquisitionLive, :index
+      live "/download/:pursuit_id", PursuitLive, :show
       live "/history", WatchHistoryLive, :index
       live "/library", LibraryLive, :index
       live "/review", ReviewLive, :index
