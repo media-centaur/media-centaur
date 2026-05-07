@@ -162,20 +162,20 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
       <form
         phx-submit="setup:save_path"
         phx-value-id={@result.id}
-        class="flex gap-2 items-stretch"
+        class="flex gap-2 items-center"
       >
         <input
           type="text"
           name="path"
           value={@result.current_value || ""}
           placeholder={"/usr/bin/" <> @binary_name}
-          class="input input-bordered flex-1 font-mono text-sm"
+          class="input input-bordered input-sm flex-1 font-mono text-sm"
         />
         <.button type="submit" variant="primary" size="sm">
           {save_label(@result)}
         </.button>
         <.button
-          variant="dismiss"
+          variant="outline"
           size="sm"
           phx-click="setup:recheck"
           phx-value-id={@result.id}
@@ -297,12 +297,12 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
         No watch directories yet — add one below.
       </p>
 
-      <form phx-submit="setup:add_watch_dir" class="flex gap-2 items-stretch">
+      <form phx-submit="setup:add_watch_dir" class="flex gap-2 items-center">
         <input
           type="text"
           name="dir"
           placeholder="/mnt/media/movies"
-          class="input input-bordered flex-1 font-mono text-sm"
+          class="input input-bordered input-sm flex-1 font-mono text-sm"
           required
         />
         <.button type="submit" variant="primary" size="sm">Add</.button>
