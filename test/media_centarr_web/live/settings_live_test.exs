@@ -31,6 +31,37 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
   end
 
+  describe "post-tour critical-failure banner" do
+    # Banner fires only for configured-but-broken critical probes
+    # (`status == :error`), not for `:not_configured`. Both tests put
+    # `watch_dirs` in `:error` state by configuring a path that does not
+    # exist on disk — `Probes.watch_dirs/1` returns `:error` when every
+    # configured dir is unreachable. Restored on exit.
+    setup do
+      previous = MediaCentarr.Config.get(:watch_dirs) || []
+      :ok = MediaCentarr.Config.put_watch_dirs([%{"dir" => "/var/empty/nope/missing"}])
+      on_exit(fn -> MediaCentarr.Config.put_watch_dirs(previous) end)
+      :ok
+    end
+
+    test "renders when a critical probe is :error", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/settings")
+
+      assert html =~ "Setup is incomplete"
+      assert html =~ "Run tour"
+      assert html =~ "watch dirs"
+    end
+
+    test "dismiss event hides the banner for the session", %{conn: conn} do
+      {:ok, view, html} = live(conn, ~p"/settings")
+      assert html =~ "Setup is incomplete"
+
+      view |> element("button[phx-click='setup:dismiss_banner']") |> render_click()
+
+      refute render(view) =~ "Setup is incomplete"
+    end
+  end
+
   test "receives cross-tab spoiler_free sync via PubSub", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/settings")
 
