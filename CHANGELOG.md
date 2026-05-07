@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.45.3 — 2026-05-07
+
+### Fixed
+
+Updated the Bandit web server to 1.11.0 to pick up upstream
+fixes for three memory-exhaustion vulnerabilities reachable
+via crafted WebSocket / HTTP/2 traffic. No exploit was observed
+against Media Centarr — the upgrade is precautionary.
+
 ## v0.45.2 — 2026-05-07
 
 ### Fixed
