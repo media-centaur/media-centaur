@@ -429,7 +429,7 @@ defmodule MediaCentarrWeb.SetupLive do
             type="password"
             name="tmdb_api_key"
             placeholder="paste your TMDB v4 read-access token"
-            class="input input-bordered w-full font-mono text-sm"
+            class="input input-bordered input-sm w-full font-mono text-sm"
           />
           <div class="flex gap-2">
             <.button type="submit" variant="primary" size="sm">
@@ -439,7 +439,7 @@ defmodule MediaCentarrWeb.SetupLive do
               type="submit"
               name="_action"
               value="test"
-              variant="dismiss"
+              variant="outline"
               size="sm"
             >
               Test connection
@@ -470,13 +470,13 @@ defmodule MediaCentarrWeb.SetupLive do
             name="prowlarr_url"
             value={@prowlarr_url_value}
             placeholder="http://localhost:9696"
-            class="input input-bordered w-full font-mono text-sm"
+            class="input input-bordered input-sm w-full font-mono text-sm"
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">API key</label>
           <input
             type="password"
             name="prowlarr_api_key"
-            class="input input-bordered w-full font-mono text-sm"
+            class="input input-bordered input-sm w-full font-mono text-sm"
           />
           <div class="flex gap-2 mt-2">
             <.button type="submit" variant="primary" size="sm">
@@ -486,7 +486,7 @@ defmodule MediaCentarrWeb.SetupLive do
               type="submit"
               name="_action"
               value="test"
-              variant="dismiss"
+              variant="outline"
               size="sm"
             >
               Test connection
@@ -517,7 +517,7 @@ defmodule MediaCentarrWeb.SetupLive do
           <label class="text-xs uppercase tracking-wide opacity-60 block">Type</label>
           <select
             name="download_client_type"
-            class="select select-bordered w-full font-mono text-sm"
+            class="select select-bordered select-sm w-full font-mono text-sm"
           >
             <option value="qbittorrent" selected>qBittorrent</option>
           </select>
@@ -530,20 +530,20 @@ defmodule MediaCentarrWeb.SetupLive do
             name="download_client_url"
             value={@dc_url}
             placeholder="http://localhost:8080"
-            class="input input-bordered w-full font-mono text-sm"
+            class="input input-bordered input-sm w-full font-mono text-sm"
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Username</label>
           <input
             type="text"
             name="download_client_username"
             value={@dc_username}
-            class="input input-bordered w-full font-mono text-sm"
+            class="input input-bordered input-sm w-full font-mono text-sm"
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Password</label>
           <input
             type="password"
             name="download_client_password"
-            class="input input-bordered w-full font-mono text-sm"
+            class="input input-bordered input-sm w-full font-mono text-sm"
           />
           <div class="flex gap-2 mt-2">
             <.button type="submit" variant="primary" size="sm">
@@ -553,7 +553,7 @@ defmodule MediaCentarrWeb.SetupLive do
               type="submit"
               name="_action"
               value="test"
-              variant="dismiss"
+              variant="outline"
               size="sm"
             >
               Test connection
