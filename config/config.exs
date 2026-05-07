@@ -53,7 +53,10 @@ config :media_centarr, Oban,
     # us far under the 60/h unauthenticated rate limit.
     {Oban.Plugins.Cron,
      crontab: [
-       {"17 */6 * * *", MediaCentarr.SelfUpdate.CheckerJob}
+       {"17 */6 * * *", MediaCentarr.SelfUpdate.CheckerJob},
+       # Drives `Pursuits.Policy` for every active pursuit every 15 minutes.
+       # Idempotent re-reads on every wake; terminal pursuits are skipped.
+       {"*/15 * * * *", MediaCentarr.Acquisition.Pursuits.Watcher}
      ]}
   ]
 

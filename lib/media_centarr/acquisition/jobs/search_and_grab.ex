@@ -126,7 +126,9 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
   end
 
   defp best_match(results, grab, {min, max}) do
-    matched = Enum.filter(results, &TitleMatcher.matches?(&1, grab))
+    excluded = MapSet.new(grab.excluded_release_guids || [])
+    not_excluded = Enum.reject(results, fn result -> MapSet.member?(excluded, result.guid) end)
+    matched = Enum.filter(not_excluded, &TitleMatcher.matches?(&1, grab))
 
     if matched == [] do
       {:none, "no_title_match"}

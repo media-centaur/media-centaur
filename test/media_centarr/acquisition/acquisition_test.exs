@@ -740,4 +740,57 @@ defmodule MediaCentarr.AcquisitionTest do
       assert grab.tmdb_type == "tv"
     end
   end
+
+  describe "pursuit linkage" do
+    alias MediaCentarr.Acquisition.Pursuits.Pursuit
+
+    test "enqueue/4 creates a pursuit and links the new grab to it" do
+      assert {:ok, grab} = Acquisition.enqueue("8001", "movie", "Sample Movie")
+
+      refute is_nil(grab.pursuit_id)
+
+      pursuit = Repo.get!(Pursuit, grab.pursuit_id)
+      assert pursuit.tmdb_id == "8001"
+      assert pursuit.tmdb_type == "movie"
+      assert pursuit.title == "Sample Movie"
+      assert pursuit.state == "active"
+      assert pursuit.origin == "auto"
+    end
+
+    test "enqueue/4 idempotency: second call for same key returns existing grab and same pursuit" do
+      assert {:ok, first} = Acquisition.enqueue("8002", "movie", "Sample Movie")
+      assert {:ok, second} = Acquisition.enqueue("8002", "movie", "Sample Movie")
+
+      assert first.id == second.id
+      assert first.pursuit_id == second.pursuit_id
+
+      # Only one pursuit exists for this key
+      pursuits =
+        Repo.all(
+          from p in Pursuit,
+            where: p.tmdb_id == "8002" and p.tmdb_type == "movie"
+        )
+
+      assert length(pursuits) == 1
+    end
+
+    test "grab/2 (manual) creates a pursuit linked to the grab" do
+      result = %SearchResult{
+        title: "Sample.Movie.2010.2160p.UHD.BluRay-FGT",
+        guid: "manual-guid-9001",
+        indexer_id: 1,
+        quality: :uhd_4k
+      }
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
+
+      assert {:ok, grab} = Acquisition.grab(result, "Sample Movie 2010")
+
+      refute is_nil(grab.pursuit_id)
+
+      pursuit = Repo.get!(Pursuit, grab.pursuit_id)
+      assert pursuit.origin == "manual"
+      assert pursuit.title == "Sample.Movie.2010.2160p.UHD.BluRay-FGT"
+    end
+  end
 end
