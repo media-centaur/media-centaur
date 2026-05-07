@@ -161,7 +161,8 @@ defmodule MediaCentarr.Application do
       MediaCentarr.ReleaseTracking.Refresher,
       MediaCentarr.WatchHistory.Recorder,
       MediaCentarr.Acquisition,
-      MediaCentarr.Acquisition.QueueMonitor
+      MediaCentarr.Acquisition.QueueMonitor,
+      MediaCentarr.Acquisition.Pursuits.InboundListener
     ]
   end
 

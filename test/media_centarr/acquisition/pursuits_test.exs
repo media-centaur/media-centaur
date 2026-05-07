@@ -134,6 +134,96 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
     end
   end
 
+  describe "find_active_for_target/1" do
+    test "returns active movie pursuits matching tmdb_id + tmdb_type" do
+      match = insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie"})
+      _other = insert_pursuit(%{tmdb_id: "999", tmdb_type: "movie"})
+
+      [result] = Pursuits.find_active_for_target(%{tmdb_id: "555", tmdb_type: "movie"})
+      assert result.id == match.id
+    end
+
+    test "excludes terminal-state pursuits" do
+      pursuit = insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie"})
+      set_state(pursuit, "satisfied")
+
+      assert [] = Pursuits.find_active_for_target(%{tmdb_id: "555", tmdb_type: "movie"})
+    end
+
+    test "excludes needs_decision pursuits (paused, awaiting user)" do
+      pursuit = insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie"})
+      set_state(pursuit, "needs_decision")
+
+      assert [] = Pursuits.find_active_for_target(%{tmdb_id: "555", tmdb_type: "movie"})
+    end
+
+    test "matches TV pursuits by tmdb_id, season_number, and episode_number" do
+      match =
+        insert_pursuit(%{
+          tmdb_id: "777",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 2,
+          episode_number: 5
+        })
+
+      _wrong_episode =
+        insert_pursuit(%{
+          tmdb_id: "777",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 2,
+          episode_number: 6
+        })
+
+      [result] =
+        Pursuits.find_active_for_target(%{
+          tmdb_id: "777",
+          tmdb_type: "tv",
+          season_number: 2,
+          episode_number: 5
+        })
+
+      assert result.id == match.id
+    end
+
+    test "TV pursuit without season pin matches any episode (e.g., season-pack pursuit)" do
+      match =
+        insert_pursuit(%{
+          tmdb_id: "777",
+          tmdb_type: "tv",
+          title: "Sample Show"
+        })
+
+      [result] =
+        Pursuits.find_active_for_target(%{
+          tmdb_id: "777",
+          tmdb_type: "tv",
+          season_number: 2,
+          episode_number: 5
+        })
+
+      assert result.id == match.id
+    end
+
+    test "does not cross movie pursuits to tv events" do
+      _movie = insert_pursuit(%{tmdb_id: "777", tmdb_type: "movie"})
+
+      assert [] =
+               Pursuits.find_active_for_target(%{
+                 tmdb_id: "777",
+                 tmdb_type: "tv",
+                 season_number: 1,
+                 episode_number: 1
+               })
+    end
+
+    test "returns [] for malformed targets" do
+      assert [] = Pursuits.find_active_for_target(%{})
+      assert [] = Pursuits.find_active_for_target(%{tmdb_id: nil, tmdb_type: "movie"})
+    end
+  end
+
   describe "list_active_rows/0" do
     alias MediaCentarr.Acquisition.ViewModels.{PursuitRow, TimelineEntry}
 

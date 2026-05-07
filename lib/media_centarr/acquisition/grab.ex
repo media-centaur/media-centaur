@@ -70,6 +70,7 @@ defmodule MediaCentarr.Acquisition.Grab do
     field :manual_query, :string
     field :pursuit_id, Ecto.UUID
     field :excluded_release_guids, {:array, :string}, default: []
+    field :release_title, :string
 
     timestamps()
   end
@@ -130,6 +131,7 @@ defmodule MediaCentarr.Acquisition.Grab do
     |> change(
       status: "grabbed",
       quality: quality_label,
+      release_title: result.title,
       grabbed_at: now,
       last_attempt_at: now,
       last_attempt_outcome: "grabbed"
@@ -140,12 +142,13 @@ defmodule MediaCentarr.Acquisition.Grab do
     )
   end
 
-  def grabbed_changeset(grab, quality) do
+  def grabbed_changeset(grab, quality, release_title \\ nil) do
     now = DateTime.utc_now(:second)
 
     change(grab,
       status: "grabbed",
       quality: quality,
+      release_title: release_title,
       grabbed_at: now,
       last_attempt_at: now,
       last_attempt_outcome: "grabbed"

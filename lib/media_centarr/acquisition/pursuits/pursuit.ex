@@ -35,6 +35,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Pursuit do
     field :criteria, :map, default: %{}
     field :tried_release_guids, {:array, :string}, default: []
     field :attempt_count, :integer, default: 0
+    field :stall_first_seen_at, :utc_datetime
+    field :zero_seeders_first_seen_at, :utc_datetime
 
     timestamps()
   end

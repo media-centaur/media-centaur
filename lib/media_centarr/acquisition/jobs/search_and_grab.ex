@@ -149,7 +149,10 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
     case Prowlarr.grab(result) do
       :ok ->
         quality_label = Quality.label(result.quality)
-        {:ok, updated} = Repo.update(Grab.grabbed_changeset(grab, quality_label))
+
+        {:ok, updated} =
+          Repo.update(Grab.grabbed_changeset(grab, quality_label, result.title))
+
         broadcast({:grab_submitted, updated})
         Log.info(:library, "acquisition grabbed #{quality_label} — #{grab.title}")
         {:ok, quality_label}
