@@ -21,12 +21,18 @@ defmodule MediaCentarr.Acquisition.QueueState do
 
   @type t :: %__MODULE__{
           items: [QueueItem.t()],
+          torrents: %{required(String.t()) => map()},
+          rid: non_neg_integer(),
+          server_state: map(),
           last_polled_at: DateTime.t() | nil,
           last_successful_poll_at: DateTime.t() | nil,
           last_error: error_reason()
         }
 
   defstruct items: [],
+            torrents: %{},
+            rid: 0,
+            server_state: %{},
             last_polled_at: nil,
             last_successful_poll_at: nil,
             last_error: nil
