@@ -56,6 +56,7 @@ defmodule MediaCentarr.Config do
     :file_absence_ttl_days,
     :recent_changes_days,
     :release_tracking_refresh_interval_hours,
+    :release_tracking_sweep_interval_minutes,
     :extras_dirs,
     :skip_dirs,
     :exclude_dirs,
@@ -419,7 +420,8 @@ defmodule MediaCentarr.Config do
       skip_dirs: ["Sample"],
       file_absence_ttl_days: 30,
       recent_changes_days: 3,
-      release_tracking_refresh_interval_hours: 24,
+      release_tracking_refresh_interval_hours: 6,
+      release_tracking_sweep_interval_minutes: 15,
       prowlarr_url: nil,
       prowlarr_api_key: nil,
       download_client_type: nil,
@@ -507,6 +509,9 @@ defmodule MediaCentarr.Config do
       release_tracking_refresh_interval_hours:
         get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
           defaults.release_tracking_refresh_interval_hours,
+      release_tracking_sweep_interval_minutes:
+        get_in(toml, ["release_tracking", "sweep_interval_minutes"]) ||
+          defaults.release_tracking_sweep_interval_minutes,
       prowlarr_url: get_in(toml, ["prowlarr", "url"]),
       prowlarr_api_key: Secret.wrap(get_in(toml, ["prowlarr", "api_key"])),
       download_client_type: get_in(toml, ["download_client", "type"]),

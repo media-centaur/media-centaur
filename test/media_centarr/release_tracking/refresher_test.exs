@@ -486,4 +486,72 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
       assert_received {:releases_updated, _item_ids}
     end
   end
+
+  describe "sweep_now/0" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, "release_tracking:updates")
+      :ok
+    end
+
+    test "marks releases with past air dates as released" do
+      item = create_tracking_item(%{tmdb_id: 7777, media_type: :tv_series, name: "Sweep Target"})
+      yesterday = Date.add(Date.utc_today(), -1)
+      tomorrow = Date.add(Date.utc_today(), 1)
+
+      past_release =
+        ReleaseTracking.create_release!(%{
+          item_id: item.id,
+          air_date: yesterday,
+          title: "Aired",
+          season_number: 1,
+          episode_number: 1,
+          released: false
+        })
+
+      future_release =
+        ReleaseTracking.create_release!(%{
+          item_id: item.id,
+          air_date: tomorrow,
+          title: "Upcoming",
+          season_number: 1,
+          episode_number: 2,
+          released: false
+        })
+
+      Refresher.sweep_now()
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert Enum.find(releases, &(&1.id == past_release.id)).released == true
+      assert Enum.find(releases, &(&1.id == future_release.id)).released == false
+    end
+
+    test "broadcasts release_ready for available, not-in-library releases" do
+      item = create_tracking_item(%{tmdb_id: 7778, media_type: :tv_series, name: "Sweep Broadcast"})
+      yesterday = Date.add(Date.utc_today(), -1)
+
+      available =
+        ReleaseTracking.create_release!(%{
+          item_id: item.id,
+          air_date: yesterday,
+          title: "Available",
+          season_number: 1,
+          episode_number: 1,
+          released: false,
+          in_library: false
+        })
+
+      Refresher.sweep_now()
+
+      available_id = available.id
+      assert_received {:release_ready, _item, %{id: ^available_id}}
+    end
+
+    test "persists last_swept_at in Settings as a parseable ISO8601 timestamp" do
+      Refresher.sweep_now()
+
+      {:ok, entry} = MediaCentarr.Settings.get_by_key("release_tracking:last_swept_at")
+      assert %{value: %{"timestamp" => timestamp_string}} = entry
+      assert {:ok, %DateTime{}, 0} = DateTime.from_iso8601(timestamp_string)
+    end
+  end
 end
