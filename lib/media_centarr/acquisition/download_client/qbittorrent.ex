@@ -71,6 +71,43 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent do
     end)
   end
 
+  @doc """
+  Fetches incremental queue state via `/api/v2/sync/maindata?rid=N`.
+
+  Pass `rid: 0` for the first call or after an error. The server
+  returns `{"full_update": true, "torrents": {...}}` for a full
+  snapshot or partial deltas otherwise. The response always carries a
+  `"rid"` integer the caller must echo on the next request.
+
+  This is qBittorrent's native incremental sync — the same mechanism
+  the webUI uses, optimised for sub-second cadence with minimal
+  bandwidth.
+  """
+  @spec sync_maindata(non_neg_integer(), Req.Request.t()) :: {:ok, map()} | {:error, term()}
+  def sync_maindata(rid \\ 0, client \\ default_client()) when is_integer(rid) and rid >= 0 do
+    attempt(client, fn c ->
+      case Req.get(c, url: "/api/v2/sync/maindata", params: [rid: rid]) do
+        {:ok, %{status: 200, body: body}} when is_map(body) ->
+          {:ok, body}
+
+        {:ok, %{status: 403, body: body}} ->
+          {:error, {:http_error, 403, body}}
+
+        {:ok, %{status: status, body: body}} ->
+          Log.warning(
+            :acquisition,
+            "qbittorrent sync_maindata failed — status=#{status} body=#{inspect(body)}"
+          )
+
+          {:error, {:http_error, status, body}}
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "qbittorrent sync_maindata error — #{inspect(reason)}")
+          {:error, reason}
+      end
+    end)
+  end
+
   @impl true
   def cancel_download(id, client \\ default_client()) do
     attempt(client, fn c ->

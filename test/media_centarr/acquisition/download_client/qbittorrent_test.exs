@@ -152,6 +152,60 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrentTest do
     end
   end
 
+  describe "sync_maindata/2" do
+    test "GETs /api/v2/sync/maindata with rid", %{client: client} do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        assert conn.method == "GET"
+        assert conn.request_path == "/api/v2/sync/maindata"
+        assert conn.params == %{"rid" => "0"}
+
+        Req.Test.json(conn, %{
+          "rid" => 1,
+          "full_update" => true,
+          "torrents" => %{}
+        })
+      end)
+
+      assert {:ok, %{"rid" => 1, "full_update" => true}} =
+               QBittorrent.sync_maindata(0, client)
+    end
+
+    test "passes a non-zero rid through to the request", %{client: client} do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        assert conn.params == %{"rid" => "42"}
+        Req.Test.json(conn, %{"rid" => 43})
+      end)
+
+      assert {:ok, %{"rid" => 43}} = QBittorrent.sync_maindata(42, client)
+    end
+
+    test "re-auths on 403 then retries", %{client: client} do
+      counter = :counters.new(1, [:atomics])
+
+      Req.Test.stub(:qbittorrent, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v2/sync/maindata"} ->
+            n = :counters.get(counter, 1)
+            :counters.add(counter, 1, 1)
+
+            if n == 0 do
+              Plug.Conn.send_resp(conn, 403, "Forbidden")
+            else
+              Req.Test.json(conn, %{"rid" => 1, "full_update" => true, "torrents" => %{}})
+            end
+
+          {"POST", "/api/v2/auth/login"} ->
+            conn
+            |> Plug.Conn.put_resp_header("set-cookie", "SID=xyz")
+            |> Plug.Conn.send_resp(200, "Ok.")
+        end
+      end)
+
+      assert {:ok, %{"rid" => 1}} = QBittorrent.sync_maindata(0, client)
+      assert :counters.get(counter, 1) == 2
+    end
+  end
+
   describe "cancel_download/2" do
     test "POSTs /api/v2/torrents/delete with hash and deleteFiles=true", %{client: client} do
       Req.Test.stub(:qbittorrent, fn conn ->
