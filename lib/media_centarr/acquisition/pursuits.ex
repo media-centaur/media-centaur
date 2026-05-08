@@ -210,7 +210,19 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   defp summary_for("release_picked", _), do: "Release picked"
   defp summary_for("release_no_match", _), do: "No acceptable release found"
   defp summary_for("download_started", _), do: "Download started"
-  defp summary_for("health_changed", %{"to_state" => to}), do: "Health changed → #{to}"
+
+  defp summary_for("health_changed", payload) when is_map(payload) do
+    state_part = transition_phrase(payload["from_state"], payload["to_state"])
+    health_part = transition_phrase(payload["from_health"], payload["to_health"])
+
+    case {state_part, health_part} do
+      {nil, nil} -> "Health changed"
+      {state, nil} -> "State #{state}"
+      {nil, health} -> "Health #{health}"
+      {state, health} -> "State #{state}, health #{health}"
+    end
+  end
+
   defp summary_for("health_changed", _), do: "Health changed"
   defp summary_for("stall_confirmed", _), do: "Stall confirmed"
   defp summary_for("zero_seeders_confirmed", _), do: "Zero seeders confirmed"
@@ -227,6 +239,11 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   defp summary_for("pursuit_exhausted", _), do: "Pursuit exhausted"
   defp summary_for("pursuit_cancelled", _), do: "Pursuit cancelled"
   defp summary_for(kind, _), do: kind
+
+  defp transition_phrase(same, same), do: nil
+  defp transition_phrase(nil, to) when is_binary(to), do: to
+  defp transition_phrase(from, to) when is_binary(from) and is_binary(to), do: "#{from} → #{to}"
+  defp transition_phrase(_, _), do: nil
 
   defp severity_for(kind) when kind in ~w(stall_confirmed zero_seeders_confirmed), do: :warning
   defp severity_for(kind) when kind in ~w(identity_mismatch pursuit_exhausted), do: :error
