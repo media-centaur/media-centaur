@@ -1,5 +1,5 @@
 defmodule MediaCentarr.ReleaseTracking do
-  use Boundary, deps: [MediaCentarr.TMDB, MediaCentarr.Library]
+  use Boundary, deps: [MediaCentarr.TMDB, MediaCentarr.Library, MediaCentarr.Settings]
 
   @moduledoc """
   Bounded context for tracking upcoming movie and TV releases via TMDB.
