@@ -21,26 +21,45 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
        expanded via `expanded_seasons: MapSet.new([1])`. Hits the
        season header, the watched/current/unwatched episode row mix,
        and the missing-episode fallback for a gap in the episode list.
-    4. `:movie_series` — `:movie_series` with three child movies, one
+       The `seasons_view` attr is a `[%SeasonView{}]` carrying typed
+       `%EpisodeListItem.Library{}` and `%EpisodeListItem.Missing{}`
+       items — the TV-series content list reads exclusively from this
+       structure (per ADR ViewModel migration).
+    4. `:tv_series_with_upcoming_inline` — same shape as 3 but with
+       `%EpisodeListItem.Upcoming{}` items mixed in: one replacing a
+       Missing slot, one appended after the last library episode in
+       S1. Pill copy reads "in Xd" because `air_date` is in the
+       future.
+    5. `:tv_series_aired_not_in_library` — TV variation with an
+       Upcoming item whose `sub_status: :aired_not_in_library`
+       (released but file not yet imported). Pill copy reads
+       "aired Xd ago".
+    6. `:tv_series_only_future` — entity has zero library seasons;
+       releases project a synthetic `kind: :future` SeasonView. Hits
+       the no-watched-count branch on the season header.
+    7. `:tv_series_untracked` — same library shape as 3 but
+       `tracking_status: nil`. Confirms the bell-icon affordance is
+       absent and no upcoming/future-season content renders.
+    8. `:movie_series` — `:movie_series` with three child movies, one
        partially watched. Hits the chronological movie row.
-    5. `:info_view_with_files` — `detail_view: :info` with grouped
+    9. `:info_view_with_files` — `detail_view: :info` with grouped
        files. Renders the prominent "Delete this/all files" danger
        button at the top, always-visible per-folder + per-file delete
        affordances, quality badges parsed from filenames (4K / HDR /
        WEB / H265 …), an "added Xd ago" stamp per file, the External
        IDs section, the Rematch action, and the muted UUID footer.
-    6. `:rematch_confirm` — `rematch_confirm: true` flips the Rematch
+    10. `:rematch_confirm` — `rematch_confirm: true` flips the Rematch
        action to its confirm state ("Confirm?" copy, `btn-error`
        styling). Captures the confirmation toggle.
-    7. `:delete_pending_all_inline` — `delete_confirm: :all` flips the
+    11. `:delete_pending_all_inline` — `delete_confirm: :all` flips the
        prominent danger button to "Click again to confirm — Delete
        all files (size)" with an inline Cancel link. No separate
        modal; the gesture lives where the button does.
-    8. `:delete_pending_file_inline` — `delete_confirm: {:file, path}`
+    12. `:delete_pending_file_inline` — `delete_confirm: {:file, path}`
        targeting one of the rows in `detail_files`. That file row
        gets a danger-tinted background + the trash button widens to
        show "Click to confirm".
-    9. `:offline` — `available: false`, `tmdb_ready: false`. Play
+    13. `:offline` — `available: false`, `tmdb_ready: false`. Play
        button collapses to the "Offline" pill, episode thumbnails
        become empty placeholder rectangles, the Rematch action is
        replaced with the "needs TMDB" hint.
@@ -61,13 +80,17 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
 
   Recorded as input for `~/src/media-centarr/component-contract-plan.md`:
 
-    * `entity: :map` — the single biggest smell. The same component
-      renders three structurally different shapes (movie /
-      tv_series / movie_series), each branched on `entity.type`. A
-      `MediaCentarr.Library.Entity` ADT (or per-type variant struct)
-      would let `attr` carry a real signature and let dialyzer catch
-      the missing-field branches that plain `Map.get/3` swallows
-      today.
+    * **TV-series episode-list path migrated** to
+      `MediaCentarrWeb.ViewModel.{SeriesDetail, SeasonView,
+      EpisodeListItem.{Library, Missing, Upcoming}}` — `seasons_view`
+      attr is the typed contract `season_section/1`,
+      `episode_row/1`, `missing_episode_row/1`, and the new
+      `upcoming_episode_row/1` consume. Movie / movie_series paths
+      remain map-based; their migration is separate work.
+    * `entity: :map` — still the biggest remaining smell on the
+      top-level component. Movie and movie_series renders dispatch on
+      `entity.type` with `Map.get/3` field access. Same `Entity` ADT
+      idea applies; the TV-series migration is a working blueprint.
     * `progress: :map` and `resume: :map` — two distinct map shapes
       pretending to be one type. `progress` is
       `ProgressSummary.t()` (already typespecced); `resume` is the
@@ -103,6 +126,8 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
   # so this story uses plain maps with the same fields. `WatchedFile` IS
   # exported and stays aliased.
   alias MediaCentarr.Library.WatchedFile
+  alias MediaCentarrWeb.ViewModel.EpisodeListItem
+  alias MediaCentarrWeb.ViewModel.SeasonView
 
   def function, do: &MediaCentarrWeb.Components.DetailPanel.detail_panel/1
   def render_source, do: :function
@@ -184,8 +209,47 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
             "expands season 1 to show watched / current / unwatched episode rows + a " <>
             "missing-episode placeholder for the gap at episode 4. Season 2 stays " <>
             "collapsed showing only its header. The Resume CTA reads **Resume " <>
-            "Episode 2** — driven by `resume_label_from_progress/2`.",
+            "Episode 2** — driven by `resume_label_from_progress/2`. " <>
+            "`seasons_view` is the typed `[%SeasonView{}]` contract.",
         attributes: tv_series_attrs()
+      },
+      %Variation{
+        id: :tv_series_with_upcoming_inline,
+        description:
+          "Same library shape as 3, but with three `%EpisodeListItem.Upcoming{}` " <>
+            "rows mixed in: one fills the S1 episode-4 gap (replacing the missing " <>
+            "row), one extends S1 past `number_of_episodes`, and one populates a " <>
+            "future S2. All have `sub_status: :unaired` and `air_date` in the " <>
+            "future, so the date pill reads \"in Xd\". The Upcoming row has " <>
+            "no thumbnail, no watched toggle, and `data-nav-item` is omitted.",
+        attributes: tv_series_with_upcoming_attrs()
+      },
+      %Variation{
+        id: :tv_series_aired_not_in_library,
+        description:
+          "TV variation with one `%EpisodeListItem.Upcoming{sub_status: " <>
+            ":aired_not_in_library}` carrying a past `air_date` — TMDB knows it " <>
+            "aired but the file hasn't been imported. Pill copy reads " <>
+            "\"aired Xd ago\" instead of the future-tense form.",
+        attributes: tv_series_aired_not_in_library_attrs()
+      },
+      %Variation{
+        id: :tv_series_only_future,
+        description:
+          "Library has one minimal season; releases project a synthetic " <>
+            "`%SeasonView{kind: :future}` for an upcoming Season 2. The future " <>
+            "season's header omits the watched-count copy (`watched_count: " <>
+            "nil`) — only library seasons display \"X remaining\".",
+        attributes: tv_series_only_future_attrs()
+      },
+      %Variation{
+        id: :tv_series_untracked,
+        description:
+          "Same library shape as 3 but `tracking_status: nil`: the show isn't " <>
+            "tracked in `ReleaseTracking`, so the bell affordance in the hero " <>
+            "actions slot is absent and `seasons_view` carries no Upcoming items " <>
+            "or future seasons. Confirms no-regression for the untracked case.",
+        attributes: tv_series_untracked_attrs()
       },
       %Variation{
         id: :movie_series,
@@ -378,15 +442,180 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
 
   defp tv_series_attrs do
     entity = sample_tv_entity()
-    season_one_episodes = entity.seasons |> Enum.at(0) |> Map.get(:episodes)
+    progress_records = sample_tv_progress_records(entity)
 
-    # Episode 1 watched, episode 2 currently being watched (the resume
-    # target), episode 3 unwatched, episode 4 missing entirely (gap in
-    # the episode list — exercises the missing_episode_row branch via
-    # number_of_episodes: 5).
+    %{
+      entity: entity,
+      progress: %{
+        current_episode: %{season: 1, episode: 2},
+        episode_position_seconds: 600.0,
+        episode_duration_seconds: 1500.0,
+        episodes_completed: 1,
+        episodes_total: 8
+      },
+      resume: nil,
+      progress_records: progress_records,
+      available: true,
+      tmdb_ready: true,
+      tracking_status: :watching,
+      expanded_seasons: MapSet.new([1]),
+      seasons_view: build_library_only_seasons_view(entity, progress_records, {1, 2})
+    }
+  end
+
+  # S1 has releases for the missing slot (episode 4, replaces the
+  # Missing) and one episode beyond number_of_episodes (episode 6, the
+  # season grows by one row). A second future season (S3) appears as
+  # its own collapsible — episodes 1 and 2 unaired.
+  defp tv_series_with_upcoming_attrs do
+    base = tv_series_attrs()
+    entity = base.entity
+
+    [s1_view, s2_view] = base.seasons_view
+
+    # Replace Missing(4) with Upcoming(4); add Upcoming(6) past
+    # number_of_episodes.
+    new_items =
+      Enum.map(s1_view.items, fn
+        %EpisodeListItem.Missing{episode_number: 4} ->
+          %EpisodeListItem.Upcoming{
+            season_number: 1,
+            episode_number: 4,
+            title: "The Far Hike",
+            air_date: Date.add(Date.utc_today(), 7),
+            sub_status: :unaired
+          }
+
+        other ->
+          other
+      end) ++
+        [
+          %EpisodeListItem.Upcoming{
+            season_number: 1,
+            episode_number: 6,
+            title: "After the Snow",
+            air_date: Date.add(Date.utc_today(), 21),
+            sub_status: :unaired
+          }
+        ]
+
+    s1_view = %{s1_view | items: new_items}
+
+    s3_future = %SeasonView{
+      season_number: 3,
+      name: nil,
+      kind: :future,
+      items: [
+        %EpisodeListItem.Upcoming{
+          season_number: 3,
+          episode_number: 1,
+          title: "Spring Returns",
+          air_date: Date.add(Date.utc_today(), 60),
+          sub_status: :unaired
+        },
+        %EpisodeListItem.Upcoming{
+          season_number: 3,
+          episode_number: 2,
+          title: "An Old Letter",
+          air_date: Date.add(Date.utc_today(), 67),
+          sub_status: :unaired
+        }
+      ],
+      extras: [],
+      watched_count: nil,
+      total_count: 2
+    }
+
+    %{
+      base
+      | entity: entity,
+        # Expand S1 + S3 to actually show the new rows.
+        expanded_seasons: MapSet.new([1, 3]),
+        seasons_view: [s1_view, s2_view, s3_future]
+    }
+  end
+
+  defp tv_series_aired_not_in_library_attrs do
+    base = tv_series_attrs()
+    [s1_view, s2_view] = base.seasons_view
+
+    # Replace S1's missing(4) slot with an aired-not-in-library upcoming
+    # — air_date in the past. Pill copy reads "aired Xd ago".
+    s1_view = %{
+      s1_view
+      | items:
+          Enum.map(s1_view.items, fn
+            %EpisodeListItem.Missing{episode_number: 4} ->
+              %EpisodeListItem.Upcoming{
+                season_number: 1,
+                episode_number: 4,
+                title: "The Quiet Hour",
+                air_date: Date.add(Date.utc_today(), -3),
+                sub_status: :aired_not_in_library
+              }
+
+            other ->
+              other
+          end)
+    }
+
+    %{base | seasons_view: [s1_view, s2_view]}
+  end
+
+  defp tv_series_only_future_attrs do
+    entity =
+      sample_tv_entity()
+      |> Map.put(:seasons, [])
+      |> Map.put(:number_of_seasons, 1)
+
+    s1_future = %SeasonView{
+      season_number: 1,
+      name: nil,
+      kind: :future,
+      items: [
+        %EpisodeListItem.Upcoming{
+          season_number: 1,
+          episode_number: 1,
+          title: "Pilot",
+          air_date: Date.add(Date.utc_today(), 14),
+          sub_status: :unaired
+        },
+        %EpisodeListItem.Upcoming{
+          season_number: 1,
+          episode_number: 2,
+          title: "The Letter",
+          air_date: Date.add(Date.utc_today(), 21),
+          sub_status: :unaired
+        }
+      ],
+      extras: [],
+      watched_count: nil,
+      total_count: 2
+    }
+
+    %{
+      entity: entity,
+      progress: nil,
+      resume: nil,
+      progress_records: [],
+      available: true,
+      tmdb_ready: true,
+      tracking_status: :watching,
+      expanded_seasons: MapSet.new([1]),
+      seasons_view: [s1_future]
+    }
+  end
+
+  defp tv_series_untracked_attrs do
+    base = tv_series_attrs()
+    %{base | tracking_status: nil}
+  end
+
+  defp sample_tv_progress_records(entity) do
+    season_one_episodes = entity.seasons |> Enum.at(0) |> Map.get(:episodes)
     [ep1, ep2 | _] = season_one_episodes
 
-    progress_records = [
+    [
       %{
         id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb01",
         movie_id: nil,
@@ -408,23 +637,78 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
         last_watched_at: ~U[2026-04-30 21:30:00Z]
       }
     ]
+  end
 
-    %{
-      entity: entity,
-      progress: %{
-        current_episode: %{season: 1, episode: 2},
-        episode_position_seconds: 600.0,
-        episode_duration_seconds: 1500.0,
-        episodes_completed: 1,
-        episodes_total: 8
-      },
-      resume: nil,
-      progress_records: progress_records,
-      available: true,
-      tmdb_ready: true,
-      expanded_seasons: MapSet.new([1])
+  defp build_library_only_seasons_view(entity, progress_records, resume_episode_key) do
+    progress_by_episode_id =
+      progress_records
+      |> Enum.filter(& &1.episode_id)
+      |> Map.new(&{&1.episode_id, &1})
+
+    Enum.map(entity.seasons, fn season ->
+      build_library_season_view(season, progress_by_episode_id, resume_episode_key)
+    end)
+  end
+
+  defp build_library_season_view(season, progress_by_episode_id, resume_episode_key) do
+    items = build_library_items(season, progress_by_episode_id, resume_episode_key)
+    watched = Enum.count(season.episodes, &watched?(&1, progress_by_episode_id))
+
+    %SeasonView{
+      season_number: season.season_number,
+      name: season.name,
+      kind: :library,
+      items: items,
+      extras: season.extras,
+      watched_count: watched,
+      total_count: max(length(season.episodes), season.number_of_episodes)
     }
   end
+
+  defp build_library_items(season, progress_by_episode_id, resume_episode_key) do
+    episode_map = Map.new(season.episodes, &{&1.episode_number, &1})
+    upper = max(season.number_of_episodes, length(season.episodes))
+
+    if upper == 0 do
+      []
+    else
+      for n <- 1..upper do
+        case Map.get(episode_map, n) do
+          nil ->
+            %EpisodeListItem.Missing{
+              season_number: season.season_number,
+              episode_number: n
+            }
+
+          episode ->
+            progress = Map.get(progress_by_episode_id, episode.id)
+
+            %EpisodeListItem.Library{
+              episode: episode,
+              season_number: season.season_number,
+              progress: progress,
+              state: episode_state(progress),
+              is_resume_target: resume_episode_key == {season.season_number, episode.episode_number}
+            }
+        end
+      end
+    end
+  end
+
+  defp watched?(episode, progress_by_episode_id) do
+    case Map.get(progress_by_episode_id, episode.id) do
+      %{completed: true} -> true
+      _ -> false
+    end
+  end
+
+  defp episode_state(nil), do: :unwatched
+
+  defp episode_state(%{completed: true}), do: :watched
+
+  defp episode_state(%{position_seconds: pos}) when is_number(pos) and pos > 0.0, do: :current
+
+  defp episode_state(_), do: :unwatched
 
   defp sample_tv_entity do
     %{

@@ -58,10 +58,11 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.{Format, Library, Playback}
+  alias MediaCentarr.{Format, Library, Playback, ReleaseTracking}
   alias MediaCentarr.Library.{FileEventHandler, MovieList}
   alias MediaCentarr.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentarrWeb.Components.{DetailPanel, ModalShell}
+  alias MediaCentarrWeb.ViewModel.SeriesDetail
   alias MediaCentarrWeb.{LibraryProgress, LiveHelpers}
 
   import MediaCentarrWeb.LibraryProgress, only: [completion_percentage: 1]
@@ -309,6 +310,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     if Phoenix.LiveView.connected?(socket) do
       Library.subscribe()
       Playback.subscribe()
+      ReleaseTracking.subscribe()
     end
 
     socket =
@@ -366,7 +368,37 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     {:cont, Phoenix.Component.assign(socket, :playback, playback)}
   end
 
+  # Release-tracking updates: refetch the open entry when the open
+  # entity is a TV series so its `seasons_view` reflects the new
+  # releases. The selectivity check is loose (we refetch on any
+  # releases_updated for any item) — release updates are infrequent
+  # compared to playback ticks, so the extra query is a fair price for
+  # not threading a library-entity-id resolver through the broadcast
+  # message.
+  def handle_modal_pubsub({:releases_updated, _item_ids}, socket) do
+    if tv_series_selected?(socket) do
+      {:cont, refresh_selected_entry(socket)}
+    else
+      {:cont, socket}
+    end
+  end
+
+  def handle_modal_pubsub({:item_removed, _tmdb_id, _tmdb_type}, socket) do
+    if tv_series_selected?(socket) do
+      {:cont, refresh_selected_entry(socket)}
+    else
+      {:cont, socket}
+    end
+  end
+
   def handle_modal_pubsub(_msg, socket), do: {:cont, socket}
+
+  defp tv_series_selected?(socket) do
+    case socket.assigns[:selected_entry] do
+      %{entity: %{type: :tv_series}} -> true
+      _ -> false
+    end
+  end
 
   defp selected?(socket, entity_id) do
     socket.assigns[:selected_entity_id] != nil and
@@ -387,6 +419,11 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     case socket.assigns[:selected_entry] do
       nil ->
         refresh_selected_entry(socket)
+
+      %SeriesDetail{} = sd ->
+        records = LibraryProgress.merge_progress_record(sd.progress_records, changed_record)
+        updated = SeriesDetail.with_progress(sd, summary, records, resume_target)
+        Phoenix.Component.assign(socket, :selected_entry, updated)
 
       entry ->
         records = LibraryProgress.merge_progress_record(entry.progress_records, changed_record)
@@ -492,9 +529,17 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       end
 
     tracking_status =
-      if selection_changed && selected_entry,
-        do: load_tracking_status(selected_entry),
-        else: socket.assigns.tracking_status
+      cond do
+        selection_changed && match?(%SeriesDetail{}, selected_entry) ->
+          # Composer already resolved tracking_status; trust the struct.
+          selected_entry.tracking_status
+
+        selection_changed && selected_entry ->
+          load_tracking_status(selected_entry)
+
+        true ->
+          socket.assigns.tracking_status
+      end
 
     if autoplay? && selected_entry do
       _ = Playback.play(selected_id)
@@ -591,6 +636,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       progress={@selected_entry && @selected_entry.progress}
       resume={@selected_entry && Map.get(@selected_entry, :resume_target)}
       progress_records={(@selected_entry && @selected_entry.progress_records) || []}
+      seasons_view={MediaCentarrWeb.Live.EntityModal.seasons_view_from_entry(@selected_entry)}
       expanded_seasons={@expanded_seasons}
       rematch_confirm={@rematch_confirm == @selected_entity_id}
       detail_view={@detail_view}
@@ -608,6 +654,15 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     />
     """
   end
+
+  @doc """
+  Extracts the typed `[%SeasonView{}]` list from a `selected_entry`.
+  Returns `nil` for non-TV entries (movie / movie_series / no entry),
+  triggering the existing fallback in `DetailPanel.content_list/1`.
+  """
+  @spec seasons_view_from_entry(SeriesDetail.t() | map() | nil) :: list() | nil
+  def seasons_view_from_entry(%SeriesDetail{seasons: seasons}), do: seasons
+  def seasons_view_from_entry(_), do: nil
 
   # ---------------------------------------------------------------------------
   # Internals shared with the macro (callable from injected handle_event)
@@ -846,7 +901,27 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   defp parse_view("credits"), do: :credits
   defp parse_view(_), do: :main
 
+  # TV series go through `SeriesDetail.compose/1` and become
+  # `%SeriesDetail{}` structs carrying a typed `seasons` list +
+  # cached `releases`. Other types stay as the existing
+  # `%{entity, progress, progress_records, resume_target}` map shape.
+  # Both shapes carry the same fields the modal renderer reads,
+  # so the template doesn't branch on entry type.
   defp load_entry_and_expand(id) do
+    case SeriesDetail.compose(id) do
+      {:ok, %SeriesDetail{} = sd} ->
+        expanded = DetailPanel.auto_expand_season(sd.entity, sd.progress)
+        {sd, expanded}
+
+      {:error, :wrong_type} ->
+        load_non_tv_entry(id)
+
+      :not_found ->
+        {nil, MapSet.new()}
+    end
+  end
+
+  defp load_non_tv_entry(id) do
     case Library.load_modal_entry(id) do
       {:ok, entry} ->
         expanded = DetailPanel.auto_expand_season(entry.entity, entry.progress)
