@@ -4,6 +4,25 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.47.1 — 2026-05-08
+
+### Improved
+
+The pursuit timeline now tells the full story of a download. Earlier
+versions showed the start ("Release picked") and the eventual outcome
+("Stall confirmed", "Pursuit satisfied") but nothing in between. With
+this release, every state change observed by the watcher — the torrent
+arriving in the queue, transitioning from queued to downloading, going
+slow, stalling out, recovering, completing — is recorded as its own
+entry on the pursuit's timeline.
+
+The practical effect: when a download is sitting at "grabbed" and you
+open its detail page, you now see the actual status. A torrent stuck
+fetching metadata reads as "Download started — queued" instead of
+silence. A download that briefly stalled and recovered reads its
+ups and downs in order. The timeline stays clean — heartbeat ticks
+where nothing changed are not recorded, only real transitions.
+
 ## v0.47.0 — 2026-05-08
 
 ### New
