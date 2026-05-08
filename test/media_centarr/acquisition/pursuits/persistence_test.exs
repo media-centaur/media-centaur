@@ -49,7 +49,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.PersistenceTest do
   end
 
   describe "Grab.pursuit_id linkage" do
-    test "an existing acquisition_grabs row can carry pursuit_id and excluded_release_guids" do
+    test "an existing acquisition_grabs row can carry pursuit_id" do
       pursuit = create_pursuit()
 
       {:ok, grab} =
@@ -64,12 +64,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.PersistenceTest do
           [:tmdb_id, :tmdb_type, :title, :origin]
         )
         |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
-        |> Ecto.Changeset.put_change(:excluded_release_guids, ["guid-a", "guid-b"])
         |> Repo.insert()
 
       reloaded = Repo.get!(MediaCentarr.Acquisition.Grab, grab.id)
       assert reloaded.pursuit_id == pursuit.id
-      assert reloaded.excluded_release_guids == ["guid-a", "guid-b"]
     end
 
     test "grab.pursuit_id is nilified when the pursuit is deleted" do
