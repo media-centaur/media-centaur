@@ -22,6 +22,7 @@ defmodule MediaCentarr.Acquisition do
       Pursuits.Events,
       Pursuits.InboundListener,
       Pursuits.Pursuit,
+      Reactor,
       SearchSession,
       DownloadClient.QBittorrent,
       ViewModels.Alternative,
@@ -39,23 +40,18 @@ defmodule MediaCentarr.Acquisition do
   When Prowlarr is not configured, `available?/0` returns false and search/grab
   return `{:error, :not_configured}`.
 
-  ## Automated acquisition
+  ## Module split
 
-  This module is also a `GenServer` that subscribes to release-tracking
-  PubSub events:
-
-  - `{:release_ready, item, release}` — a tracked release is now available.
-    The capability gate is enforced via `Capabilities.prowlarr_ready?/0` —
-    if false, the message is dropped (logged) and nothing is enqueued.
-    Otherwise the message is translated through `AutoGrabPolicy.decide/3`
-    into either a grab enqueue, a no-op skip, or a cancellation.
-  - `{:item_removed, tmdb_id, tmdb_type}` — a tracked item was removed.
-    Active (`searching`/`snoozed`) grabs for that key are cancelled.
+  - This module is the public API: search, grab, enqueue, cancel, list.
+  - `Acquisition.AutoGrabService` owns the persistent on/off lever
+    (`pause_auto_grab/0` / `resume_auto_grab/0` / `auto_grab_running?/0`).
+  - `Acquisition.Reactor` is the supervised GenServer that subscribes to
+    `release_tracking:updates` and routes events back to this facade.
 
   ## Manual search
 
   Call `search/2` with a query string. Pass the chosen `%SearchResult{}` to
-  `grab/1` to submit it to Prowlarr.
+  `grab/2` to submit it to Prowlarr.
 
   ## PubSub broadcasts
 
@@ -67,14 +63,13 @@ defmodule MediaCentarr.Acquisition do
   - `{:auto_grab_cancelled, grab}` — `cancel_grab/2` was called
   """
 
-  use GenServer
-
   import Ecto.Query
 
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition.{
     AutoGrabPolicy,
+    AutoGrabService,
     AutoGrabSettings,
     CancelReasons,
     Config,
@@ -91,7 +86,6 @@ defmodule MediaCentarr.Acquisition do
   alias MediaCentarr.Format
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.Repo
-  alias MediaCentarr.Settings
   alias MediaCentarr.Topics
 
   alias MediaCentarr.Acquisition.GrabStatus
@@ -100,85 +94,21 @@ defmodule MediaCentarr.Acquisition do
   # Public API
   # ---------------------------------------------------------------------------
 
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
   @doc "Returns true when Prowlarr is configured and acquisition features are available."
   @spec available?() :: boolean()
   def available?, do: Config.available?()
 
-  @doc """
-  Returns true when the auto-grab service is currently active. Reads
-  the `services:<env>:start_acquisition` Settings row — the same per-env
-  persistence the watcher and pipeline toggles use. Defaults to true so
-  fresh installs auto-arm out of the box.
-
-  Manual grabs and `:item_removed` cancellation always work regardless
-  of this flag; it gates only `:release_ready`-triggered arming and the
-  Oban-driven search/snooze loop.
-  """
+  @doc "True when auto-grab is enabled. Delegates to `AutoGrabService.running?/0`."
   @spec auto_grab_running?() :: boolean()
-  def auto_grab_running? do
-    case Settings.get_by_key(service_flag_key()) do
-      {:ok, %{value: %{"enabled" => false}}} -> false
-      _ -> true
-    end
-  end
+  defdelegate auto_grab_running?, to: AutoGrabService, as: :running?
 
-  @doc """
-  Pauses the auto-grab service. Persists `enabled: false` in Settings
-  so the choice survives restarts, and pauses the Oban `:acquisition`
-  queue so pre-existing snoozed/searching grabs stop firing. Future
-  `:release_ready` events are dropped without arming a grab. Idempotent.
-  """
+  @doc "Pauses the auto-grab service. Delegates to `AutoGrabService.pause/0`."
   @spec pause_auto_grab() :: :ok
-  def pause_auto_grab do
-    persist_service_flag(false)
-    pause_queue()
-    :ok
-  end
+  defdelegate pause_auto_grab, to: AutoGrabService, as: :pause
 
-  @doc """
-  Resumes the auto-grab service. Persists `enabled: true` in Settings,
-  resumes the Oban `:acquisition` queue, and arms incoming
-  `:release_ready` events again. Idempotent.
-  """
+  @doc "Resumes the auto-grab service. Delegates to `AutoGrabService.resume/0`."
   @spec resume_auto_grab() :: :ok
-  def resume_auto_grab do
-    persist_service_flag(true)
-    resume_queue()
-    :ok
-  end
-
-  defp service_flag_key do
-    env = Application.get_env(:media_centarr, :environment, :dev)
-    "services:#{env}:start_acquisition"
-  end
-
-  defp persist_service_flag(enabled?) do
-    Settings.find_or_create_entry!(%{
-      key: service_flag_key(),
-      value: %{"enabled" => enabled?}
-    })
-  end
-
-  # Inline Oban testing mode doesn't run real queue processes, so
-  # `Oban.pause_queue/1` raises. Skip it there — `auto_grab_running?/0`
-  # is the source of truth for tests; production has both.
-  defp pause_queue do
-    if oban_queue_running?(), do: Oban.pause_queue(queue: :acquisition)
-    :ok
-  end
-
-  defp resume_queue do
-    if oban_queue_running?(), do: Oban.resume_queue(queue: :acquisition)
-    :ok
-  end
-
-  defp oban_queue_running? do
-    Application.get_env(:media_centarr, Oban)[:testing] != :inline
-  end
+  defdelegate resume_auto_grab, to: AutoGrabService, as: :resume
 
   @typedoc """
   Messages broadcast on `Topics.acquisition_updates/0`. Subscribe with
@@ -730,34 +660,15 @@ defmodule MediaCentarr.Acquisition do
   end
 
   # ---------------------------------------------------------------------------
-  # GenServer — subscribes to release_tracking:updates
+  # Reactor entrypoints — driven by `Acquisition.Reactor` from PubSub
   # ---------------------------------------------------------------------------
 
-  @impl GenServer
-  def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.release_tracking_updates())
-    {:ok, %{}}
-  end
-
-  @impl GenServer
-  def handle_info({:release_ready, item, release}, state) do
-    handle_release_ready_event(item, release)
-    {:noreply, state}
-  end
-
-  def handle_info({:item_removed, tmdb_id, tmdb_type}, state) do
-    cancel_active_grabs_for(tmdb_id, tmdb_type, CancelReasons.item_removed())
-    {:noreply, state}
-  end
-
-  def handle_info(_msg, state), do: {:noreply, state}
-
   @doc """
-  Processes a `{:release_ready, item, release}` event — the same logic the
-  GenServer's `handle_info({:release_ready, …})` clause runs, exposed as a
-  function so callers (and tests) can drive it without going through the
-  message bus. Looks up any existing grab, asks `AutoGrabPolicy.decide/3`,
-  and applies the resulting decision (enqueue / skip / cancel).
+  Processes a `{:release_ready, item, release}` event. Looks up any
+  existing grab, asks `AutoGrabPolicy.decide/3`, and applies the
+  resulting decision (enqueue / skip / cancel). Exposed as a function
+  so callers (the `Reactor` and tests) can drive it without going
+  through the message bus.
   """
   @spec handle_release_ready_event(struct(), struct()) :: :ok
   def handle_release_ready_event(item, release) do
@@ -832,7 +743,13 @@ defmodule MediaCentarr.Acquisition do
   defp describe_release(%{season_number: season, episode_number: episode}),
     do: Format.episode_label(season, episode)
 
-  defp cancel_active_grabs_for(tmdb_id, tmdb_type, reason) do
+  @doc """
+  Cancels every active grab for `(tmdb_id, tmdb_type)`. Used by the
+  `Reactor` when a tracked item is removed. `reason` is recorded on
+  each cancelled grab row.
+  """
+  @spec cancel_active_grabs_for(String.t(), String.t(), String.t()) :: :ok
+  def cancel_active_grabs_for(tmdb_id, tmdb_type, reason) do
     grabs =
       Repo.all(
         from(g in Grab,
