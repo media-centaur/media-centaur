@@ -4,6 +4,26 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.49.0 — 2026-05-08
+
+### New
+
+The TV series detail panel now shows upcoming episodes inline with
+the season list. Open any tracked show and you'll see scheduled
+episodes interleaved among the ones you already have on disk — each
+upcoming row carries the air date, formatted as "in 7d" for the near
+future, "aired 3d ago" for episodes that aired but haven't landed in
+your library yet, or the bare month/day for further-out releases.
+
+When TMDB knows about a future season that doesn't have any local
+files yet, that whole season appears as its own collapsible block at
+the bottom of the list, so you can see what's coming next even
+before the first file arrives. Untracked shows render exactly as
+before — no extra rows, no empty headers.
+
+The upcoming rows are deliberately quiet: muted, no thumbnail, no
+watched toggle. They're informational, not actionable.
+
 ## v0.48.0 — 2026-05-08
 
 ### Fixed
