@@ -9,8 +9,11 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
 
   alias MediaCentarr.Library
   alias MediaCentarr.ReleaseTracking
-  alias MediaCentarr.ReleaseTracking.{Differ, Helpers}
+  alias MediaCentarr.ReleaseTracking.{Differ, Helpers, RefreshSchedule}
+  alias MediaCentarr.Settings
   alias MediaCentarr.TMDB.Client
+
+  @last_swept_at_key "release_tracking:last_swept_at"
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -31,6 +34,16 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     end
   end
 
+  @doc """
+  Run the cheap sweep synchronously: mark past releases as released
+  and broadcast `:release_ready` for available, not-in-library
+  releases. Persists `last_swept_at`. Safe to call without the
+  GenServer running — used by the timer, by tests, and by ops.
+  """
+  def sweep_now do
+    do_sweep()
+  end
+
   @doc "Update tracking items when library entities change. Testable without GenServer."
   def refresh_item_tracking_for(entity_ids) do
     update_last_episodes_for(entity_ids)
@@ -44,7 +57,8 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   @impl true
   def init(_opts) do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.library_updates())
-    schedule_refresh(refresh_interval_ms())
+    schedule_sweep(RefreshSchedule.next_delay_ms(last_swept_at(), sweep_interval_ms()))
+    schedule_refresh(RefreshSchedule.next_delay_ms(last_refresh_completed_at(), refresh_interval_ms()))
     {:ok, %{}}
   end
 
@@ -52,6 +66,13 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   def handle_info(:refresh, state) do
     do_refresh_all()
     schedule_refresh(refresh_interval_ms())
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:sweep, state) do
+    do_sweep()
+    schedule_sweep(sweep_interval_ms())
     {:noreply, state}
   end
 
@@ -205,9 +226,66 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     Process.send_after(self(), :refresh, interval)
   end
 
+  defp schedule_sweep(interval) do
+    Process.send_after(self(), :sweep, interval)
+  end
+
   defp refresh_interval_ms do
-    hours = MediaCentarr.Config.get(:release_tracking_refresh_interval_hours) || 24
+    hours = MediaCentarr.Config.get(:release_tracking_refresh_interval_hours) || 6
     hours * 60 * 60 * 1000
+  end
+
+  defp sweep_interval_ms do
+    minutes = MediaCentarr.Config.get(:release_tracking_sweep_interval_minutes) || 15
+    minutes * 60 * 1000
+  end
+
+  defp do_sweep do
+    Log.info(:library, "release tracking: sweep")
+    ReleaseTracking.mark_past_releases_as_released()
+    Enum.each(ReleaseTracking.list_watching_items(), &broadcast_releases_ready/1)
+    persist_last_swept_at()
+    :ok
+  end
+
+  defp last_swept_at do
+    case Settings.get_by_key(@last_swept_at_key) do
+      {:ok, %{value: %{"timestamp" => iso}}} when is_binary(iso) ->
+        case DateTime.from_iso8601(iso) do
+          {:ok, dt, _offset} -> dt
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp last_refresh_completed_at do
+    case MediaCentarr.Repo.aggregate(ReleaseTracking.Item, :max, :last_refreshed_at) do
+      %DateTime{} = dt -> dt
+      _ -> nil
+    end
+  end
+
+  defp persist_last_swept_at do
+    attrs = %{
+      key: @last_swept_at_key,
+      value: %{"timestamp" => DateTime.to_iso8601(DateTime.utc_now())}
+    }
+
+    case Settings.find_or_create_entry(attrs) do
+      {:ok, _entry} ->
+        :ok
+
+      {:error, changeset} ->
+        Log.warning(
+          :library,
+          "release tracking: failed to persist last_swept_at — #{inspect(changeset.errors)}"
+        )
+
+        :ok
+    end
   end
 
   defp link_unlinked_items(entity_ids) do
