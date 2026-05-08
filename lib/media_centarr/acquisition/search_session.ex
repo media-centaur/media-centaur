@@ -348,19 +348,12 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     terms_set = MapSet.new(terms)
 
     groups =
-      Enum.map(state.groups, fn
-        %{term: term, status: :abandoned} = group ->
-          if MapSet.member?(terms_set, term),
-            do: %{group | status: :loading, results: [], featured: nil},
-            else: group
-
-        %{term: term, status: {:failed, _}} = group ->
-          if MapSet.member?(terms_set, term),
-            do: %{group | status: :loading, results: [], featured: nil},
-            else: group
-
-        group ->
+      Enum.map(state.groups, fn group ->
+        if retryable_status?(group.status) and MapSet.member?(terms_set, group.term) do
+          %{group | status: :loading, results: [], featured: nil}
+        else
           group
+        end
       end)
 
     new_state =
@@ -401,6 +394,10 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   # ---------------------------------------------------------------------------
   # Private helpers
   # ---------------------------------------------------------------------------
+
+  defp retryable_status?(:abandoned), do: true
+  defp retryable_status?({:failed, _}), do: true
+  defp retryable_status?(_), do: false
 
   defp swap_monitor(%__MODULE__{searching_pid: new_pid} = new_state, %__MODULE__{monitor_ref: old_ref}) do
     if old_ref, do: Process.demonitor(old_ref, [:flush])

@@ -12,6 +12,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
 
   import MediaCentarrWeb.CoreComponents, only: [badge: 1, button: 1]
 
+  alias MediaCentarr.Acquisition.GrabStatus
   alias MediaCentarrWeb.AcquisitionLive.ActivityLogic
 
   attr :grabs, :list,
@@ -33,7 +34,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
 
       <div class="flex flex-wrap items-center gap-2">
         <button
-          :for={f <- [:active, :abandoned, :cancelled, :grabbed, :all]}
+          :for={f <- ActivityLogic.filter_atoms()}
           phx-click="set_activity_filter"
           phx-value-filter={Atom.to_string(f)}
           class={[
@@ -100,7 +101,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
                 <td class="text-right tabular-nums">{grab.attempt_count}</td>
                 <td class="text-right space-x-1">
                   <.button
-                    :if={grab.status in ["searching", "snoozed"]}
+                    :if={GrabStatus.in_flight?(grab.status)}
                     variant="dismiss"
                     size="xs"
                     phx-click="cancel_activity_grab"
@@ -111,7 +112,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
                     Cancel
                   </.button>
                   <.button
-                    :if={grab.status in ["cancelled", "abandoned"]}
+                    :if={GrabStatus.rearmable?(grab.status)}
                     variant="secondary"
                     size="xs"
                     phx-click="rearm_activity_grab"

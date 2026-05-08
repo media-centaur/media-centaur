@@ -56,10 +56,15 @@ defmodule MediaCentarr.Acquisition.Quality do
     q >= label_rank(min) and q <= label_rank(max)
   end
 
-  @doc "Returns the numeric rank for a quality label string. Mirrors `rank/1`."
-  @spec label_rank(String.t()) :: non_neg_integer()
+  @doc """
+  Returns the numeric rank for a quality label string. Mirrors `rank/1`.
+  Unknown labels rank as 0 so a malformed Settings entry doesn't crash
+  the search worker.
+  """
+  @spec label_rank(String.t() | nil) :: non_neg_integer()
   def label_rank("uhd_4k"), do: 2
   def label_rank("hd_1080p"), do: 1
+  def label_rank(_), do: 0
 
   @doc "Returns a short human-readable label."
   @spec label(t()) :: String.t()

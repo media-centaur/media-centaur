@@ -3,22 +3,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.PersistenceTest do
 
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit}
 
-  defp create_pursuit(overrides \\ %{}) do
-    attrs =
-      Map.merge(
-        %{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        },
-        overrides
-      )
-
-    {:ok, pursuit} = Repo.insert(Pursuit.create_changeset(attrs))
-    pursuit
-  end
-
   describe "Pursuit insertion" do
     test "round-trips with all defaults applied" do
       pursuit = create_pursuit()

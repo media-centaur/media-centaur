@@ -30,6 +30,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
   alias MediaCentarr.Acquisition.Pursuits.Commands.{Cancel, Satisfy}
   alias MediaCentarr.Acquisition.Pursuits.Events.{IdentityMismatch, IdentityVerified}
   alias MediaCentarr.Acquisition.{SearchResult, TitleMatcher}
+  alias MediaCentarr.Format
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"pursuit_id" => pursuit_id, "file_path" => file_path}}) do
@@ -101,7 +102,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
 
   defp describe(%{tmdb_type: "tv", title: title, season_number: season, episode_number: episode})
        when is_integer(season) and is_integer(episode) do
-    "#{title} S#{pad2(season)}E#{pad2(episode)}"
+    "#{title} #{Format.episode_label(season, episode)}"
   end
 
   defp describe(%{title: title, year: year}) when is_integer(year) do
@@ -109,7 +110,4 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
   end
 
   defp describe(%{title: title}), do: title
-
-  defp pad2(n) when n < 10, do: "0" <> Integer.to_string(n)
-  defp pad2(n), do: Integer.to_string(n)
 end

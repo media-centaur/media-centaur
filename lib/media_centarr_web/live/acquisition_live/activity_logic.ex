@@ -10,6 +10,9 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogic do
   """
 
   alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Format
+
+  @filter_atoms [:active, :abandoned, :cancelled, :grabbed, :all]
 
   @spec filter_by_search([Grab.t()], String.t()) :: [Grab.t()]
   def filter_by_search(grabs, ""), do: grabs
@@ -18,6 +21,23 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogic do
     needle = String.downcase(search)
     Enum.filter(grabs, fn grab -> String.contains?(String.downcase(grab.title), needle) end)
   end
+
+  @doc """
+  Parses a `?filter=` URL value or a `phx-value-filter` event value into the
+  filter atom. Unknown values fall back to `:active` — the page's default.
+  """
+  @spec parse_filter(String.t() | nil) ::
+          :active | :abandoned | :cancelled | :grabbed | :all
+  def parse_filter("active"), do: :active
+  def parse_filter("abandoned"), do: :abandoned
+  def parse_filter("cancelled"), do: :cancelled
+  def parse_filter("grabbed"), do: :grabbed
+  def parse_filter("all"), do: :all
+  def parse_filter(_), do: :active
+
+  @doc "Every filter atom in the order the chips render."
+  @spec filter_atoms() :: [atom()]
+  def filter_atoms, do: @filter_atoms
 
   @spec filter_label(atom()) :: String.t()
   def filter_label(:active), do: "Active"
@@ -36,10 +56,8 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogic do
   @spec episode_label(Grab.t()) :: String.t()
   def episode_label(%Grab{season_number: nil, episode_number: nil}), do: "—"
 
-  def episode_label(%Grab{season_number: season, episode_number: nil}), do: "Season #{season}"
-
   def episode_label(%Grab{season_number: season, episode_number: episode}),
-    do: "S#{pad2(season)}E#{pad2(episode)}"
+    do: Format.episode_label(season, episode)
 
   @spec status_label(Grab.t()) :: String.t()
   def status_label(%Grab{status: "grabbed", quality: quality}) when is_binary(quality),
@@ -85,20 +103,6 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogic do
 
   def last_attempt_summary(%Grab{last_attempt_at: at, last_attempt_outcome: outcome}) do
     outcome = outcome || "—"
-    "#{outcome} • #{relative_time(at)}"
-  end
-
-  defp pad2(n) when n < 10, do: "0" <> Integer.to_string(n)
-  defp pad2(n), do: Integer.to_string(n)
-
-  defp relative_time(%DateTime{} = at) do
-    seconds = DateTime.diff(DateTime.utc_now(), at, :second)
-
-    cond do
-      seconds < 60 -> "#{seconds}s ago"
-      seconds < 3600 -> "#{div(seconds, 60)}m ago"
-      seconds < 86_400 -> "#{div(seconds, 3600)}h ago"
-      true -> "#{div(seconds, 86_400)}d ago"
-    end
+    "#{outcome} • #{Format.relative_ago(at)}"
   end
 end
