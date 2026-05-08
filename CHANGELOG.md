@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.48.0 — 2026-05-08
+
+### Fixed
+
+When you pick an alternative release on a stalled pursuit, the next
+search now correctly skips releases you've already tried. Previously
+the system could return to the same release the user had just
+rejected, since the user's pick was recorded on the pursuit but never
+reached the search worker. The pursuit aggregate is now the single
+source of truth for tried releases, and the search worker reads from
+it directly.
+
 ## v0.47.1 — 2026-05-08
 
 ### Improved
