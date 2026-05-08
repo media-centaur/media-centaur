@@ -5,6 +5,17 @@ ExUnit.configure(exclude: [:external])
 # Credo is `runtime: false`, so its application is not started automatically.
 Application.ensure_all_started(:credo)
 
+# Data migrations live under priv/repo/data_migrations/ and aren't on the
+# normal compile path — the migrator loads them at runtime in production.
+# Load them here so unit tests can reference each migration's helper functions
+# directly (e.g. `BackfillOrphanedPursuits.backfill/1`) without compile-time
+# undefined-module warnings.
+:media_centarr
+|> Application.app_dir("priv/repo/data_migrations")
+|> Path.join("*.exs")
+|> Path.wildcard()
+|> Enum.each(&Code.require_file/1)
+
 Ecto.Adapters.SQL.Sandbox.mode(MediaCentarr.Repo, :manual)
 
 # Default to "wizard already dismissed" in tests so `SetupRedirect` doesn't
