@@ -83,7 +83,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
       socket
       |> assign(
         tmdb_ready: Capabilities.tmdb_ready?(),
-        queue_items: Acquisition.queue_snapshot()
+        queue_items: Acquisition.queue_state().items
       )
       |> load_upcoming()
       |> assign(:loaded?, true)
@@ -370,7 +370,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
     {:noreply, assign(socket, release_grab_statuses: grab_statuses)}
   end
 
-  def handle_info({:queue_snapshot, items}, socket) do
+  def handle_info({:queue_state, %MediaCentarr.Acquisition.QueueState{items: items}}, socket) do
     {:noreply, assign(socket, queue_items: items)}
   end
 

@@ -150,7 +150,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
          %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/upcoming")
 
-      send(view.pid, {:queue_snapshot, []})
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: []}})
 
       assert render(view) =~ "Upcoming"
     end

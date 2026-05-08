@@ -1,7 +1,31 @@
 defmodule MediaCentarr.Acquisition.QueueMonitorTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
-  alias MediaCentarr.Acquisition.QueueMonitor
+  alias MediaCentarr.Acquisition.{QueueMonitor, QueueState}
+
+  describe "register_subscriber/1" do
+    setup do
+      # The application-level QueueMonitor isn't started in test env. Start
+      # a fresh one for this test; in the test config Capabilities reports
+      # the download client as unconfigured, so init's first poll is a
+      # no-op and won't fire HTTP calls.
+      start_supervised!(QueueMonitor)
+      :ok
+    end
+
+    test "sends the current queue state to the registering pid immediately" do
+      QueueMonitor.register_subscriber(self())
+      assert_receive {:queue_state, %QueueState{}}, 500
+    end
+
+    test "is idempotent — re-registering the same pid still sends state" do
+      QueueMonitor.register_subscriber(self())
+      assert_receive {:queue_state, %QueueState{}}, 500
+
+      QueueMonitor.register_subscriber(self())
+      assert_receive {:queue_state, %QueueState{}}, 500
+    end
+  end
 
   describe "cadence_ms/2" do
     # The cadence table is the contract: how often QueueMonitor hits

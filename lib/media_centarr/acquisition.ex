@@ -15,6 +15,8 @@ defmodule MediaCentarr.Acquisition do
       Quality,
       QueryExpander,
       QueueItem,
+      QueueState,
+      QueueStatus,
       Prowlarr,
       Pursuits,
       Pursuits.Commands.Cancel,
@@ -137,7 +139,7 @@ defmodule MediaCentarr.Acquisition do
   `MediaCentarrWeb.AcquisitionLive`'s moduledoc).
   """
   @type queue_message ::
-          {:queue_snapshot, [MediaCentarr.Acquisition.QueueItem.t()]}
+          {:queue_state, MediaCentarr.Acquisition.QueueState.t()}
 
   @typedoc """
   Messages broadcast on `Topics.acquisition_search/0`. Subscribe with
@@ -250,12 +252,22 @@ defmodule MediaCentarr.Acquisition do
   defdelegate retry_search_terms(terms), to: MediaCentarr.Acquisition.SearchSession
 
   @doc """
-  Returns the latest cached download-client queue snapshot. Synchronous;
-  reads `:persistent_term`, no GenServer call. Returns `[]` before the
-  first successful poll or when no download client is configured.
+  Returns the latest cached download-client queue snapshot (items only).
+  Synchronous; reads `:persistent_term`, no GenServer call. Returns `[]`
+  before the first successful poll or when no download client is configured.
+  Prefer `queue_state/0` when freshness/error metadata matters.
   """
   @spec queue_snapshot() :: [MediaCentarr.Acquisition.QueueItem.t()]
   defdelegate queue_snapshot, to: MediaCentarr.Acquisition.QueueMonitor, as: :snapshot
+
+  @doc """
+  Returns the latest cached `%QueueState{}` — items plus liveness
+  metadata (last poll timestamps, last error). Synchronous; reads
+  `:persistent_term`. Returns an empty `%QueueState{}` before the
+  first poll.
+  """
+  @spec queue_state() :: MediaCentarr.Acquisition.QueueState.t()
+  defdelegate queue_state, to: MediaCentarr.Acquisition.QueueMonitor, as: :state
 
   @doc """
   Asks the QueueMonitor to poll the download client immediately. Use when

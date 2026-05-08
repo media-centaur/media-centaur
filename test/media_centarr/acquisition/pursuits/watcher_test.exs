@@ -48,12 +48,15 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
 
   defp seed_queue(items) do
     :persistent_term.put(
-      {MediaCentarr.Acquisition.QueueMonitor, :snapshot},
-      items
+      {MediaCentarr.Acquisition.QueueMonitor, :state},
+      %MediaCentarr.Acquisition.QueueState{
+        items: items,
+        last_successful_poll_at: DateTime.utc_now()
+      }
     )
 
     on_exit(fn ->
-      :persistent_term.erase({MediaCentarr.Acquisition.QueueMonitor, :snapshot})
+      :persistent_term.erase({MediaCentarr.Acquisition.QueueMonitor, :state})
     end)
   end
 
