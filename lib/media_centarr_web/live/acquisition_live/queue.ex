@@ -15,9 +15,15 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
 
   alias MediaCentarr.Acquisition.Health
   alias MediaCentarrWeb.AcquisitionLive.Logic
+  alias MediaCentarrWeb.Components.Acquisition.QueueStatusBadge
 
   attr :download_client_ready, :boolean, required: true
   attr :queue_loaded?, :boolean, required: true
+
+  attr :queue_status, :any,
+    default: :initializing,
+    doc:
+      "QueueStatus.status() from MediaCentarr.Acquisition.QueueStatus.derive/2 — drives the freshness badge"
 
   attr :active_queue, :list,
     required: true,
@@ -34,12 +40,15 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
       data-nav-zone="queue"
       class="glass-surface rounded-xl overflow-hidden"
     >
-      <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between">
+      <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between gap-3">
         <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
           Downloading
         </h2>
-        <span :if={!@queue_loaded?} class="loading loading-spinner loading-xs text-base-content/30">
-        </span>
+        <div class="flex items-center gap-2">
+          <QueueStatusBadge.queue_status_badge status={@queue_status} />
+          <span :if={!@queue_loaded?} class="loading loading-spinner loading-xs text-base-content/30">
+          </span>
+        </div>
       </div>
 
       <p

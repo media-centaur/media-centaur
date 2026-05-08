@@ -48,14 +48,15 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Acquisition
+  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
+  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent.Sync
   alias MediaCentarr.Acquisition.HealthHistory
   alias MediaCentarr.Acquisition.QueueState
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Topics
 
   @cache_key {__MODULE__, :state}
-  @poll_watched_ms 1_000
+  @poll_watched_ms 1_500
   @poll_idle_ms 5_000
   @poll_offline_ms 30_000
 
@@ -107,13 +108,22 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
 
   @doc """
   Returns the poll cadence in milliseconds for the given subscriber
-  count and download-client-ready flag. Pure — extracted for unit
-  testing the contract without spinning up a GenServer.
+  count, download-client-ready flag, and last error reason. Pure —
+  extracted for unit testing the contract without spinning up a
+  GenServer.
+
+  `:auth_failed` deliberately overrides the watched/idle cadence:
+  `Capabilities.last_test_ok?` lags reality (a successful
+  `test_connection` at config time stays "ok" until the user re-tests),
+  so without this row, a credential rotation on the qBittorrent side
+  silently log-spams at 1.5 s against an auth-broken client until the
+  user reconfigures.
   """
-  @spec cadence_ms(non_neg_integer(), boolean()) :: pos_integer()
-  def cadence_ms(_subscribers, false), do: @poll_offline_ms
-  def cadence_ms(0, true), do: @poll_idle_ms
-  def cadence_ms(_subscribers, true), do: @poll_watched_ms
+  @spec cadence_ms(non_neg_integer(), boolean(), QueueState.error_reason()) :: pos_integer()
+  def cadence_ms(_subscribers, _ready?, :auth_failed), do: @poll_offline_ms
+  def cadence_ms(_subscribers, false, _error), do: @poll_offline_ms
+  def cadence_ms(0, true, _error), do: @poll_idle_ms
+  def cadence_ms(_subscribers, true, _error), do: @poll_watched_ms
 
   @impl GenServer
   def init(_opts) do
@@ -125,7 +135,10 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   def handle_info(:poll, state) do
     ready? = Capabilities.download_client_ready?()
     state = if ready?, do: poll_and_broadcast(state), else: state
-    Process.send_after(self(), :poll, cadence_ms(map_size(state.subscribers), ready?))
+
+    delay = cadence_ms(map_size(state.subscribers), ready?, state.queue.last_error)
+    Process.send_after(self(), :poll, delay)
+
     {:noreply, state}
   end
 
@@ -153,15 +166,25 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   defp poll_and_broadcast(state) do
     now = DateTime.utc_now()
 
-    case Acquisition.list_downloads(:all) do
-      {:ok, items} ->
-        active = Enum.reject(items, &(&1.state == :completed))
+    case QBittorrent.sync_maindata(state.queue.rid) do
+      {:ok, response} ->
+        torrents = Sync.apply_maindata(state.queue.torrents, response)
+        rid = Map.get(response, "rid", state.queue.rid)
+        server_state = Map.merge(state.queue.server_state, Map.get(response, "server_state", %{}))
+
+        log_sync_tick(response, state.queue.torrents, torrents)
+
+        all_items = Sync.to_queue_items(torrents)
+        active = Enum.reject(all_items, &(&1.state == :completed))
 
         {history, enriched} =
           HealthHistory.update(state.history, active, System.monotonic_time(:microsecond))
 
         queue = %QueueState{
           items: enriched,
+          torrents: torrents,
+          rid: rid,
+          server_state: server_state,
           last_polled_at: now,
           last_successful_poll_at: now,
           last_error: nil
@@ -173,6 +196,9 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
       {:error, :not_configured} ->
         queue = %QueueState{
           items: [],
+          torrents: %{},
+          rid: 0,
+          server_state: %{},
           last_polled_at: now,
           last_successful_poll_at: state.queue.last_successful_poll_at,
           last_error: :not_configured
@@ -187,7 +213,10 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
         queue = %{
           state.queue
           | last_polled_at: now,
-            last_error: classify_error(reason)
+            last_error: classify_error(reason),
+            # Force a full update on the next successful poll — the
+            # rid we have may be stale or the server may have lost it.
+            rid: 0
         }
 
         store_and_broadcast(queue)
@@ -208,4 +237,21 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   defp classify_error({:auth_failed, _}), do: :auth_failed
   defp classify_error(:auth_failed), do: :auth_failed
   defp classify_error(_), do: :unreachable
+
+  # One log line per successful sync — gives a grep-able "is the
+  # subsystem actually polling?" signal for production troubleshooting.
+  # `full_update` resets the count expectations; partial deltas show
+  # how much of the queue moved this tick.
+  defp log_sync_tick(response, before_torrents, after_torrents) do
+    full? = Map.get(response, "full_update", false)
+    rid = Map.get(response, "rid", 0)
+    changed = response |> Map.get("torrents", %{}) |> map_size()
+    removed = response |> Map.get("torrents_removed", []) |> length()
+    added = max(0, map_size(after_torrents) - map_size(before_torrents) + removed)
+
+    Log.info(
+      :acquisition,
+      "queue sync — rid=#{rid} full=#{full?} torrents=#{map_size(after_torrents)} added=#{added} changed=#{changed} removed=#{removed}"
+    )
+  end
 end

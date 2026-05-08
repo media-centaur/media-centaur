@@ -89,6 +89,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          loaded?: false,
          search_session: %Acquisition.SearchSession{},
          active_queue: [],
+         queue_status: :initializing,
          queue_loaded?: false,
          expanded_queue_groups: MapSet.new(),
          cancel_confirm: nil,
@@ -114,7 +115,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       socket
       |> assign(:search_session, Acquisition.current_search_session())
       |> assign(:download_client_ready, Capabilities.download_client_ready?())
-      |> assign_queue_from_snapshot(Acquisition.queue_state().items)
+      |> assign_queue_from_state(Acquisition.queue_state())
       |> load_pursuit_rows()
       |> assign(:loaded?, true)
     else
@@ -131,8 +132,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # Pending-cancel suppression is applied here so EVERY snapshot pass
   # (initial load + every QueueMonitor broadcast) honours the user's
   # in-flight cancellations — see Logic.apply_pending_cancels/3.
-  defp assign_queue_from_snapshot(socket, items) do
-    active = Enum.reject(items, &(&1.state == :completed))
+  #
+  # The 1500 ms cadence is the watched cadence — the QueueMonitor uses
+  # that whenever this LiveView is subscribed, so the staleness
+  # thresholds match what the user actually experiences here.
+  @watched_cadence_ms 1_500
+
+  defp assign_queue_from_state(socket, %MediaCentarr.Acquisition.QueueState{} = state) do
+    active = Enum.reject(state.items, &(&1.state == :completed))
 
     {visible, pending_cancels} =
       Logic.apply_pending_cancels(
@@ -141,8 +148,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         System.monotonic_time(:second)
       )
 
+    status = MediaCentarr.Acquisition.QueueStatus.derive(state, @watched_cadence_ms)
+
     assign(socket,
       active_queue: visible,
+      queue_status: status,
       pending_cancels: pending_cancels,
       queue_loaded?: true
     )
@@ -219,6 +229,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         <Queue.queue_zone
           download_client_ready={@download_client_ready}
           queue_loaded?={@queue_loaded?}
+          queue_status={@queue_status}
           active_queue={@active_queue}
           expanded_queue_groups={@expanded_queue_groups}
         />
@@ -478,8 +489,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, socket}
   end
 
-  def handle_info({:queue_state, %MediaCentarr.Acquisition.QueueState{items: items}}, socket) do
-    {:noreply, assign_queue_from_snapshot(socket, items)}
+  def handle_info({:queue_state, %MediaCentarr.Acquisition.QueueState{} = state}, socket) do
+    {:noreply, assign_queue_from_state(socket, state)}
   end
 
   # Acquisition PubSub events — refresh the activity zone so lifecycle
