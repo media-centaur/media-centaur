@@ -114,7 +114,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       socket
       |> assign(:search_session, Acquisition.current_search_session())
       |> assign(:download_client_ready, Capabilities.download_client_ready?())
-      |> assign_queue_from_snapshot(Acquisition.queue_snapshot())
+      |> assign_queue_from_snapshot(Acquisition.queue_state().items)
       |> load_pursuit_rows()
       |> assign(:loaded?, true)
     else
@@ -478,7 +478,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, socket}
   end
 
-  def handle_info({:queue_snapshot, items}, socket) do
+  def handle_info({:queue_state, %MediaCentarr.Acquisition.QueueState{items: items}}, socket) do
     {:noreply, assign_queue_from_snapshot(socket, items)}
   end
 

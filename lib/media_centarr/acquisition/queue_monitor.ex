@@ -1,15 +1,20 @@
 defmodule MediaCentarr.Acquisition.QueueMonitor do
   @moduledoc """
-  Polls the configured download client and broadcasts the resulting
-  queue snapshot. Replaces per-LiveView polling so multiple consumers
-  (Downloads page + Library upcoming zone) share a single connection.
+  Polls the configured download client and broadcasts a versioned
+  `%QueueState{}` snapshot. Replaces per-LiveView polling so multiple
+  consumers (Downloads page + Library upcoming zone) share a single
+  connection.
 
   ## Cache + broadcast
 
-  - Each successful poll caches the snapshot in `:persistent_term` for
-    cheap synchronous reads via `MediaCentarr.Acquisition.queue_snapshot/0`.
-  - Each successful poll also broadcasts `{:queue_snapshot, items}` on
+  - Each successful poll caches the `%QueueState{}` in `:persistent_term`
+    for cheap synchronous reads via
+    `MediaCentarr.Acquisition.queue_state/0`.
+  - Each successful poll also broadcasts `{:queue_state, state}` on
     `Topics.acquisition_queue()` so subscribers can refresh live.
+  - On `register_subscriber/1`, the current `%QueueState{}` is sent
+    directly to the registering pid — no waiting for the next poll
+    tick. Eliminates the mount-race that made first paint feel stale.
 
   ## Subscriber-aware cadence
 
@@ -28,14 +33,15 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
 
   ## Failure handling
 
-  Errors from the download client are logged and the previous snapshot
-  is kept in cache. Transient failures don't blank the UI.
+  Errors from the download client are logged and the previous
+  `%QueueState{}` is kept in cache, but `:last_error` is updated and
+  rebroadcast so subscribers can render a staleness indicator.
 
   ## Health classification
 
-  After each successful poll the cached snapshot is enriched with a
-  `:health` field per item via `MediaCentarr.Acquisition.HealthHistory`.
-  The throughput history needed to classify items lives in this
+  After each successful poll the items are enriched with a `:health`
+  field per item via `MediaCentarr.Acquisition.HealthHistory`. The
+  throughput history needed to classify items lives in this
   GenServer's state; only this module updates it.
   """
   use GenServer
@@ -44,11 +50,11 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
 
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.HealthHistory
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Acquisition.QueueState
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Topics
 
-  @cache_key {__MODULE__, :snapshot}
+  @cache_key {__MODULE__, :state}
   @poll_watched_ms 1_000
   @poll_idle_ms 5_000
   @poll_offline_ms 30_000
@@ -58,30 +64,40 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   end
 
   @doc """
-  Returns the latest cached queue snapshot. Synchronous, no GenServer
-  call — reads `:persistent_term`. Returns `[]` before the first poll.
+  Returns the latest cached `%QueueState{}`. Synchronous, no GenServer
+  call — reads `:persistent_term`. Returns an empty `%QueueState{}`
+  before the first poll.
   """
-  @spec snapshot() :: [QueueItem.t()]
-  def snapshot do
+  @spec state() :: QueueState.t()
+  def state do
     case :persistent_term.get(@cache_key, nil) do
-      nil -> []
-      items when is_list(items) -> items
+      %QueueState{} = state -> state
+      _ -> %QueueState{}
     end
   end
+
+  @doc """
+  Backwards-compatible accessor for the items list. New code should
+  prefer `state/0` and read `state.items` so it can reason about
+  freshness via `QueueStatus.derive/2`.
+  """
+  @spec snapshot() :: [Acquisition.QueueItem.t()]
+  def snapshot, do: state().items
 
   @doc """
   Triggers an immediate poll without disturbing the scheduled cadence.
   Used when an external event makes us suspect the cached snapshot is
   stale — e.g. a user just configured the download client and we'd
-  otherwise wait up to 30s for the next idle-cadence tick.
+  otherwise wait up to 30 s for the next idle-cadence tick.
   """
   @spec poll_now() :: :ok
   def poll_now, do: GenServer.cast(__MODULE__, :poll_now)
 
   @doc """
-  Registers `pid` as an active subscriber so the next poll uses the
-  watched cadence. Idempotent — re-registering the same pid is a no-op.
-  Pid is dropped automatically when the process exits.
+  Registers `pid` as an active subscriber and immediately sends it
+  the current `%QueueState{}`. The next poll uses the watched cadence.
+  Idempotent — re-registering re-sends the current state but doesn't
+  re-monitor. Pid is dropped automatically when the process exits.
 
   Called from `Acquisition.subscribe_queue/0`; LiveViews should not
   call this directly.
@@ -102,7 +118,7 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   @impl GenServer
   def init(_opts) do
     Process.send_after(self(), :poll, 0)
-    {:ok, %{subscribers: %{}, history: %{}}}
+    {:ok, %{queue: %QueueState{}, subscribers: %{}, history: %{}}}
   end
 
   @impl GenServer
@@ -124,6 +140,8 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   end
 
   def handle_cast({:register, pid}, state) do
+    send(pid, {:queue_state, state.queue})
+
     if Map.has_key?(state.subscribers, pid) do
       {:noreply, state}
     else
@@ -133,29 +151,61 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   end
 
   defp poll_and_broadcast(state) do
+    now = DateTime.utc_now()
+
     case Acquisition.list_downloads(:all) do
       {:ok, items} ->
         active = Enum.reject(items, &(&1.state == :completed))
-        now = System.monotonic_time(:microsecond)
-        {history, enriched} = HealthHistory.update(state.history, active, now)
 
-        :persistent_term.put(@cache_key, enriched)
+        {history, enriched} =
+          HealthHistory.update(state.history, active, System.monotonic_time(:microsecond))
 
-        Phoenix.PubSub.broadcast(
-          MediaCentarr.PubSub,
-          Topics.acquisition_queue(),
-          {:queue_snapshot, enriched}
-        )
+        queue = %QueueState{
+          items: enriched,
+          last_polled_at: now,
+          last_successful_poll_at: now,
+          last_error: nil
+        }
 
-        %{state | history: history}
+        store_and_broadcast(queue)
+        %{state | queue: queue, history: history}
 
       {:error, :not_configured} ->
-        :persistent_term.put(@cache_key, [])
-        %{state | history: %{}}
+        queue = %QueueState{
+          items: [],
+          last_polled_at: now,
+          last_successful_poll_at: state.queue.last_successful_poll_at,
+          last_error: :not_configured
+        }
+
+        store_and_broadcast(queue)
+        %{state | queue: queue, history: %{}}
 
       {:error, reason} ->
         Log.warning(:library, "queue monitor poll failed: #{inspect(reason)}")
-        state
+
+        queue = %{
+          state.queue
+          | last_polled_at: now,
+            last_error: classify_error(reason)
+        }
+
+        store_and_broadcast(queue)
+        %{state | queue: queue}
     end
   end
+
+  defp store_and_broadcast(%QueueState{} = queue) do
+    :persistent_term.put(@cache_key, queue)
+
+    Phoenix.PubSub.broadcast(
+      MediaCentarr.PubSub,
+      Topics.acquisition_queue(),
+      {:queue_state, queue}
+    )
+  end
+
+  defp classify_error({:auth_failed, _}), do: :auth_failed
+  defp classify_error(:auth_failed), do: :auth_failed
+  defp classify_error(_), do: :unreachable
 end

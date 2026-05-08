@@ -220,20 +220,22 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       # Seed the queue via the same PubSub broadcast QueueMonitor emits.
       send(
         view.pid,
-        {:queue_snapshot,
-         [
-           %QueueItem{
-             id: "hash-a",
-             title: "Movie.Test.2024",
-             state: :downloading,
-             status: "downloading",
-             download_client: "qBittorrent",
-             size: 100,
-             size_left: 50,
-             progress: 50.0,
-             timeleft: "2m"
-           }
-         ]}
+        {:queue_state,
+         %MediaCentarr.Acquisition.QueueState{
+           items: [
+             %QueueItem{
+               id: "hash-a",
+               title: "Movie.Test.2024",
+               state: :downloading,
+               status: "downloading",
+               download_client: "qBittorrent",
+               size: 100,
+               size_left: 50,
+               progress: 50.0,
+               timeleft: "2m"
+             }
+           ]
+         }}
       )
 
       html = render(view)
@@ -286,7 +288,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         timeleft: "2m"
       }
 
-      send(view.pid, {:queue_snapshot, [stale_item]})
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [stale_item]}})
       assert render(view) =~ "phx-value-id=\"ghost-1\""
 
       view |> element("button[phx-click='cancel_download_prompt']") |> render_click()
@@ -295,7 +297,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       # Simulate the next poll arriving before qBittorrent has propagated
       # the deletion — the same item shows up in the snapshot. The LiveView
       # must keep it hidden during the cancel grace window.
-      send(view.pid, {:queue_snapshot, [stale_item]})
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [stale_item]}})
 
       # Use the row's phx-value-id rather than the title — the title also
       # appears in the post-cancel flash, which would mask a real failure.
@@ -318,20 +320,22 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       send(
         view.pid,
-        {:queue_snapshot,
-         [
-           %QueueItem{
-             id: "hash-b",
-             title: "Show.S01E01",
-             state: :downloading,
-             status: "downloading",
-             download_client: "qBittorrent",
-             size: 100,
-             size_left: 50,
-             progress: 50.0,
-             timeleft: "2m"
-           }
-         ]}
+        {:queue_state,
+         %MediaCentarr.Acquisition.QueueState{
+           items: [
+             %QueueItem{
+               id: "hash-b",
+               title: "Show.S01E01",
+               state: :downloading,
+               status: "downloading",
+               download_client: "qBittorrent",
+               size: 100,
+               size_left: 50,
+               progress: 50.0,
+               timeleft: "2m"
+             }
+           ]
+         }}
       )
 
       assert render(view) =~ "Show.S01E01"
@@ -584,7 +588,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   # {:search_result, _, _} / grab completion messages back to the LiveView.
   describe "live updates from queue monitor" do
     # The active queue is now driven by QueueMonitor's PubSub broadcast
-    # rather than per-LV polling. The LV must consume {:queue_snapshot, items}
+    # rather than per-LV polling. The LV must consume {:queue_state, %QueueState{items: items}}
     # and re-render the queue zone without making its own download-client
     # call. Without this contract the page would silently regress to stale
     # data after the polling timer was removed.
@@ -608,7 +612,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         timeleft: "2m"
       }
 
-      send(view.pid, {:queue_snapshot, [item]})
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [item]}})
 
       assert render(view) =~ "Snapshot Movie 2026"
     end
@@ -623,7 +627,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       done = %QueueItem{id: "h1", title: "Already Done Movie", state: :completed}
       live_item = %QueueItem{id: "h2", title: "Still Downloading Movie", state: :downloading}
 
-      send(view.pid, {:queue_snapshot, [done, live_item]})
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [done, live_item]}})
 
       html = render(view)
       refute html =~ "Already Done Movie"
@@ -635,10 +639,10 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       {:ok, view, _html} = live(conn, ~p"/download")
 
       seed = %QueueItem{id: "h3", title: "Soon To Vanish", state: :downloading}
-      send(view.pid, {:queue_snapshot, [seed]})
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [seed]}})
       assert render(view) =~ "Soon To Vanish"
 
-      send(view.pid, {:queue_snapshot, []})
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: []}})
 
       html = render(view)
       refute html =~ "Soon To Vanish"
