@@ -448,12 +448,26 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
     end
   end
 
-  describe "perform/1 — excluded_release_guids" do
-    test "skips releases whose guid is in the grab's excluded list, picks the next best" do
-      grab =
-        create_movie_grab(%{
-          excluded_release_guids: ["uhd-guid"]
-        })
+  # The grab row carries no exclusion array of its own — the linked
+  # pursuit's `tried_release_guids` is the source of truth, populated
+  # by `Commands.RecordUserChoice` when the user picks an alternative.
+  describe "perform/1 — pursuit tried_release_guids" do
+    defp grab_with_tried_pursuit(tried) do
+      pursuit = create_pursuit(%{title: "Sample Movie", year: 2024})
+
+      pursuit
+      |> Ecto.Changeset.change(tried_release_guids: tried)
+      |> Repo.update!()
+
+      grab = create_movie_grab()
+
+      grab
+      |> Ecto.Changeset.change(pursuit_id: pursuit.id)
+      |> Repo.update!()
+    end
+
+    test "skips releases whose guid is in the pursuit's tried list, picks the next best" do
+      grab = grab_with_tried_pursuit(["uhd-guid"])
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -480,11 +494,8 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       assert updated.quality == "1080p"
     end
 
-    test "snoozes when every result is excluded" do
-      grab =
-        create_movie_grab(%{
-          excluded_release_guids: ["only-guid"]
-        })
+    test "snoozes when every result is in the pursuit's tried list" do
+      grab = grab_with_tried_pursuit(["only-guid"])
 
       Req.Test.stub(:prowlarr, fn conn ->
         Req.Test.json(conn, [
@@ -503,7 +514,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrabTest do
       assert updated.status == "snoozed"
     end
 
-    test "empty excluded list leaves behavior unchanged (default)" do
+    test "no linked pursuit leaves behavior unchanged (legacy grab)" do
       grab = create_movie_grab()
 
       Req.Test.stub(:prowlarr, fn conn ->

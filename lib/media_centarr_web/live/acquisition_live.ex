@@ -65,9 +65,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.{CancelReasons, Quality}
+  alias MediaCentarr.Acquisition.CancelReasons
   alias MediaCentarr.Capabilities
-  alias MediaCentarrWeb.AcquisitionLive.{Activity, ActivityLogic, Logic}
+  alias MediaCentarrWeb.AcquisitionLive.{Activity, ActivityLogic, Logic, Queue, Search}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -212,50 +212,16 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       >
         <h1 class="text-2xl font-bold">Downloads</h1>
 
-        <%!-- Active queue from configured download client. Completed
+        <%!-- Active queue from the configured download client. Completed
         torrents are intentionally hidden — qBittorrent manages seeding.
-        Hidden entirely unless the download client has passed a test in
-        Settings — without a green test we can't poll the queue. --%>
-        <section
-          :if={@download_client_ready}
-          data-nav-zone="queue"
-          class="glass-surface rounded-xl overflow-hidden"
-        >
-          <div class="px-4 py-2 border-b border-base-content/5 flex items-center justify-between">
-            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-              Downloading
-            </h2>
-            <span
-              :if={!@queue_loaded?}
-              class="loading loading-spinner loading-xs text-base-content/30"
-            >
-            </span>
-          </div>
-
-          <p
-            :if={@queue_loaded? && @active_queue == []}
-            class="px-4 py-6 text-center text-sm text-base-content/40"
-          >
-            No active downloads
-          </p>
-
-          <div :if={@active_queue != []}>
-            <%= for op <- Logic.prepare_queue_for_render(@active_queue, @expanded_queue_groups) do %>
-              <.queue_render_op op={op} />
-            <% end %>
-          </div>
-        </section>
-
-        <section
-          :if={!@download_client_ready}
-          class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/50"
-        >
-          Connect a download client in
-          <.link navigate="/settings?section=acquisition" class="link link-primary">
-            Settings
-          </.link>
-          to see the active queue.
-        </section>
+        Hidden entirely unless the download client has passed a Settings
+        connection test. --%>
+        <Queue.queue_zone
+          download_client_ready={@download_client_ready}
+          queue_loaded?={@queue_loaded?}
+          active_queue={@active_queue}
+          expanded_queue_groups={@expanded_queue_groups}
+        />
 
         <section :if={@pursuit_rows != []} data-nav-zone="pursuits" class="space-y-3">
           <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
@@ -275,240 +241,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           search={@activity_search}
         />
 
-        <%!-- Search section --%>
-        <section data-nav-zone="search" class="glass-surface rounded-xl p-4 space-y-3">
-          <form
-            phx-change="query_change"
-            phx-submit="submit_search"
-            onsubmit="this.querySelector('button[type=submit]').focus()"
-            class="flex gap-3 items-end"
-          >
-            <div class="flex-1">
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-                Query
-              </label>
-              <input
-                type="text"
-                name="query"
-                value={@search_session.query}
-                class="input input-bordered w-full font-mono text-sm"
-                placeholder="Title S01E{01-10}"
-                autofocus
-                phx-debounce="200"
-                data-nav-item
-                data-captures-keys
-                tabindex="0"
-                onkeydown="if (event.key === 'Escape') { event.preventDefault(); this.form.querySelector('button[type=submit]').focus() }"
-              />
-            </div>
-            <.button
-              type="submit"
-              variant="secondary"
-              disabled={expansion_blocked?(@search_session.expansion_preview)}
-              data-nav-item
-              tabindex="0"
-            >
-              <span :if={@any_loading?} class="loading loading-spinner loading-sm"></span>
-              <.icon :if={!@any_loading?} name="hero-magnifying-glass" class="size-4" /> Search
-            </.button>
-          </form>
-
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-            <span class="text-base-content/40">Syntax:</span>
-            <span class="flex items-center gap-2">
-              <span class="text-base-content/50">List</span>
-              <code class="font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/70">
-                {"{a,b,c}"}
-              </code>
-            </span>
-            <span class="flex items-center gap-2">
-              <span class="text-base-content/50">Range</span>
-              <code class="font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/70">
-                {"{00-09}"}
-              </code>
-            </span>
-            <span class="text-base-content/30">— each expansion runs as its own search</span>
-          </div>
-
-          <p class={["text-xs", expansion_color(@search_session.expansion_preview)]}>
-            {expansion_text(@search_session.expansion_preview)}
-          </p>
-        </section>
-
-        <%!-- Grab feedback --%>
-        <div
-          :if={@search_session.grab_message}
-          class={[
-            "glass-inset rounded-lg px-4 py-3 text-sm flex items-center gap-2",
-            grab_message_color(@search_session.grab_message)
-          ]}
-        >
-          <.icon name={grab_message_icon(@search_session.grab_message)} class="size-4 shrink-0" />
-          {grab_message_text(@search_session.grab_message)}
-        </div>
-
-        <%!-- Results --%>
-        <section :if={@search_session.groups != []} data-nav-zone="grid" class="space-y-3">
-          <div :for={group <- @search_session.groups} class="space-y-1">
-            <%!-- Group header (top-seeder summary) --%>
-            <button
-              type="button"
-              class="glass-surface rounded-lg w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-base-content/5"
-              phx-click="toggle_group"
-              phx-value-term={group.term}
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon
-                name={
-                  if group.expanded?, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"
-                }
-                class="size-4 shrink-0 text-base-content/40"
-              />
-              <span class="text-xs font-medium text-base-content/50 w-32 shrink-0 truncate">
-                {group.term}
-              </span>
-              <%= case {group.status, group.results} do %>
-                <% {:loading, _} -> %>
-                  <span class="loading loading-spinner loading-xs text-base-content/40"></span>
-                  <span class="flex-1 text-sm text-base-content/40">Searching…</span>
-                <% {{:failed, reason}, _} -> %>
-                  <span class="flex-1 text-sm text-error/70">
-                    {Logic.format_search_error(reason)}
-                  </span>
-                <% {:abandoned, _} -> %>
-                  <span class="flex-1 text-sm text-base-content/40">
-                    Search was interrupted — Retry to resume
-                  </span>
-                <% {:ready, []} -> %>
-                  <span class="flex-1 text-sm text-base-content/40">No results</span>
-                <% {:ready, [_ | _]} -> %>
-                  <span class={[
-                    "text-xs font-bold w-10 shrink-0",
-                    quality_color(group.featured.quality)
-                  ]}>
-                    {Quality.label(group.featured.quality)}
-                  </span>
-                  <span class="flex-1 min-w-0 text-sm truncate" title={group.featured.title}>
-                    {group.featured.title}
-                  </span>
-                  <span
-                    :if={group.featured.size_bytes}
-                    class="text-xs tabular-nums shrink-0 text-base-content/60"
-                  >
-                    {format_bytes(group.featured.size_bytes)}
-                  </span>
-                  <span
-                    :if={group.featured.seeders}
-                    class={[
-                      "text-xs tabular-nums shrink-0",
-                      seeder_color(group.featured.seeders)
-                    ]}
-                  >
-                    {group.featured.seeders}S
-                  </span>
-              <% end %>
-            </button>
-
-            <%!-- Failed/abandoned-search helpers: retry the same term, jump to settings --%>
-            <div
-              :if={match?({:failed, _}, group.status) or group.status == :abandoned}
-              class="pl-44 flex items-center gap-2"
-            >
-              <.button
-                variant="risky"
-                size="xs"
-                phx-click="retry_search"
-                phx-value-term={group.term}
-                data-nav-item
-                tabindex="0"
-              >
-                <.icon name="hero-arrow-path-mini" class="size-3" /> Retry
-              </.button>
-              <.button
-                :if={match?({:failed, _}, group.status)}
-                variant="secondary"
-                size="xs"
-                patch={~p"/settings?section=acquisition"}
-                data-nav-item
-                tabindex="0"
-              >
-                Open Prowlarr settings <.icon name="hero-chevron-right-mini" class="size-3" />
-              </.button>
-            </div>
-
-            <%!-- Expanded alternatives --%>
-            <div :if={group.expanded? && group.results != []} class="ml-6 space-y-1">
-              <button
-                :for={result <- group.results}
-                type="button"
-                class={[
-                  "glass-surface rounded-lg w-full px-4 py-2 flex items-center gap-3 text-left text-sm",
-                  selected?(@search_session.selections, group.term, result.guid) && "bg-primary/10",
-                  !selected?(@search_session.selections, group.term, result.guid) &&
-                    "hover:bg-base-content/5"
-                ]}
-                phx-click="select_result"
-                phx-value-term={group.term}
-                phx-value-guid={result.guid}
-                data-nav-item
-                tabindex="0"
-              >
-                <.icon
-                  name={
-                    if selected?(@search_session.selections, group.term, result.guid),
-                      do: "hero-check-circle-mini",
-                      else: "hero-minus-circle-mini"
-                  }
-                  class={selection_icon_class(@search_session.selections, group.term, result.guid)}
-                />
-                <span class={["text-xs font-bold w-10 shrink-0", quality_color(result.quality)]}>
-                  {Quality.label(result.quality)}
-                </span>
-                <span class="flex-1 min-w-0 truncate" title={result.title}>
-                  {result.title}
-                </span>
-                <span class="flex items-center gap-3 shrink-0 text-xs text-base-content/50">
-                  <span :if={result.size_bytes} class="tabular-nums">
-                    {format_bytes(result.size_bytes)}
-                  </span>
-                  <span :if={result.seeders} class={["tabular-nums", seeder_color(result.seeders)]}>
-                    {result.seeders}S
-                  </span>
-                  <span class="max-w-24 truncate">{result.indexer_name}</span>
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <%!-- Footer actions: bulk-retry + grab --%>
-          <div class="flex justify-end items-center gap-2">
-            <.button
-              :if={!@any_loading? && @timeout_terms != []}
-              variant="risky"
-              phx-click="retry_all_timeouts"
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon name="hero-arrow-path-mini" class="size-4" />
-              Retry {length(@timeout_terms)} timeouts
-            </.button>
-            <.button
-              variant="action"
-              phx-click="grab_selected"
-              disabled={@search_session.grabbing? || map_size(@search_session.selections) == 0}
-              data-nav-item
-              tabindex="0"
-            >
-              <span :if={@search_session.grabbing?} class="loading loading-spinner loading-sm"></span>
-              <.icon
-                :if={!@search_session.grabbing?}
-                name="hero-arrow-down-tray-mini"
-                class="size-4"
-              /> Grab {map_size(@search_session.selections)} selected
-            </.button>
-          </div>
-        </section>
+        <Search.search_zone
+          session={@search_session}
+          any_loading?={@any_loading?}
+          timeout_terms={@timeout_terms}
+        />
       </div>
     </Layouts.app>
     """
@@ -807,182 +544,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   # ---------------------------------------------------------------------------
-  # Template helpers
+  # Cancel-confirmation modal — kept on the parent because the
+  # confirm/cancel events flip parent socket assigns (`pending_cancels`).
   # ---------------------------------------------------------------------------
-
-  defp expansion_blocked?({:error, _}), do: true
-  defp expansion_blocked?(:idle), do: true
-  defp expansion_blocked?(_), do: false
-
-  defp expansion_text(:idle), do: "Type a title and press Enter to search."
-  defp expansion_text({:ok, 1}), do: "1 query — press Enter to search."
-  defp expansion_text({:ok, n}), do: "#{n} queries in parallel — press Enter to search."
-  defp expansion_text({:error, :invalid_syntax}), do: "Invalid brace syntax — see examples above."
-
-  defp expansion_color({:error, _}), do: "text-error"
-  defp expansion_color(_), do: "text-base-content/50"
-
-  defp selected?(selections, term, guid), do: Map.get(selections, term) == guid
-
-  defp selection_icon_class(selections, term, guid) do
-    if selected?(selections, term, guid) do
-      "size-4 shrink-0 text-primary"
-    else
-      "size-4 shrink-0 text-base-content/30"
-    end
-  end
-
-  defp grab_message_color({:ok, _}), do: "text-success"
-  defp grab_message_color({:partial, _}), do: "text-warning"
-  defp grab_message_color({:error, _}), do: "text-error"
-
-  defp grab_message_icon({:ok, _}), do: "hero-check-circle-mini"
-  defp grab_message_icon({:partial, _}), do: "hero-exclamation-triangle-mini"
-  defp grab_message_icon({:error, _}), do: "hero-x-circle-mini"
-
-  defp grab_message_text({_, text}), do: text
-
-  defp quality_color(:uhd_4k), do: "text-success"
-  defp quality_color(:hd_1080p), do: "text-info"
-  defp quality_color(nil), do: "text-base-content/40"
-
-  defp seeder_color(n) when n >= 10, do: "text-success"
-  defp seeder_color(n) when n >= 3, do: "text-warning"
-  defp seeder_color(_), do: "text-error"
-
-  attr :item, MediaCentarr.Acquisition.QueueItem, required: true
-
-  defp queue_row(assigns) do
-    ~H"""
-    <div
-      id={"queue-item-#{@item.id}"}
-      class="px-4 py-3 border-b border-base-content/5 last:border-0 space-y-1.5"
-    >
-      <div class="flex items-center gap-3">
-        <span class="flex-1 min-w-0 text-sm truncate" title={@item.title}>
-          {@item.title}
-        </span>
-        <.badge
-          :if={@item.state}
-          variant={Logic.state_badge_variant(@item.state)}
-          size="md"
-          class="text-xs"
-        >
-          {Logic.state_label(@item.state)}
-        </.badge>
-        <span :if={@item.timeleft} class="text-xs text-base-content/40 tabular-nums">
-          {@item.timeleft}
-        </span>
-        <.button
-          variant="destructive_inline"
-          size="xs"
-          shape="circle"
-          class="text-base-content/40 hover:text-error"
-          phx-click="cancel_download_prompt"
-          phx-value-id={@item.id}
-          phx-value-title={@item.title}
-          title="Cancel and delete"
-          data-nav-item
-          tabindex="0"
-        >
-          <.icon name="hero-x-mark-mini" class="size-4" />
-        </.button>
-      </div>
-
-      <div
-        :if={Logic.render_health_line?(@item)}
-        class={"text-xs #{Logic.health_text_class(@item.health)}"}
-      >
-        {MediaCentarr.Acquisition.Health.label(@item.health)}
-      </div>
-
-      <div :if={@item.progress} class="h-[3px] bg-base-content/10 rounded-full overflow-hidden">
-        <div
-          class="progress-fill h-full bg-primary rounded-full"
-          style={"width: #{@item.progress}%"}
-        >
-        </div>
-      </div>
-
-      <div class="flex items-center gap-3 text-xs text-base-content/40">
-        <span :if={@item.download_client}>{@item.download_client}</span>
-        <span :if={@item.indexer}>{@item.indexer}</span>
-        <span :if={@item.progress} class="tabular-nums">{@item.progress}%</span>
-      </div>
-    </div>
-    """
-  end
-
-  attr :op, :any, required: true, doc: "render op tuple from `Logic.prepare_queue_for_render/2`"
-
-  defp queue_render_op(%{op: {:item, item}} = assigns) do
-    assigns = Map.put(assigns, :item, item)
-
-    ~H"""
-    <.queue_row item={@item} />
-    """
-  end
-
-  defp queue_render_op(%{op: {:summary, summary}} = assigns) do
-    assigns = Map.put(assigns, :summary, summary)
-
-    ~H"""
-    <.queue_summary_row summary={@summary} />
-    """
-  end
-
-  attr :summary, :any,
-    required: true,
-    doc: "group summary returned by `Logic.partition_collapsible_group/3`"
-
-  defp queue_summary_row(%{summary: %{kind: :collapsed}} = assigns) do
-    ~H"""
-    <button
-      id={"queue-summary-#{@summary.state}"}
-      type="button"
-      phx-click="toggle_queue_group"
-      phx-value-state={@summary.state}
-      class="w-full px-4 py-2 border-b border-base-content/5 last:border-0 flex items-center gap-3 text-xs text-base-content/50 hover:bg-base-content/5"
-      data-nav-item
-      tabindex="0"
-    >
-      <.icon name="hero-chevron-down-mini" class="size-3.5 shrink-0" />
-      <span class="flex-1 min-w-0 text-left">
-        + {@summary.hidden_count} more {Logic.state_label(@summary.state) |> String.downcase()}
-      </span>
-      <.badge variant={Logic.state_badge_variant(@summary.state)} size="md" class="text-xs">
-        {Logic.state_label(@summary.state)}
-      </.badge>
-    </button>
-    """
-  end
-
-  defp queue_summary_row(%{summary: %{kind: :expanded}} = assigns) do
-    ~H"""
-    <button
-      id={"queue-summary-#{@summary.state}"}
-      type="button"
-      phx-click="toggle_queue_group"
-      phx-value-state={@summary.state}
-      class="w-full px-4 py-2 border-b border-base-content/5 last:border-0 flex items-center gap-3 text-xs text-base-content/50 hover:bg-base-content/5"
-      data-nav-item
-      tabindex="0"
-    >
-      <.icon name="hero-chevron-up-mini" class="size-3.5 shrink-0" />
-      <span class="flex-1 min-w-0 text-left">
-        Show fewer
-      </span>
-      <.badge variant={Logic.state_badge_variant(@summary.state)} size="md" class="text-xs">
-        {@summary.total} {Logic.state_label(@summary.state) |> String.downcase()}
-      </.badge>
-    </button>
-    """
-  end
 
   attr :cancel_confirm, :any,
     required: true,
     doc:
-      "transient cancel-confirmation state — `nil` or a `%{queue_item_id: id}` map. Heterogeneous nil-or-map shape; `:any` is intentional."
+      "transient cancel-confirmation state — `nil` or a `%{id, title}` map. Heterogeneous nil-or-map shape; `:any` is intentional."
 
   defp cancel_confirmation(%{cancel_confirm: nil} = assigns), do: ~H""
 
@@ -1010,11 +579,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           <.button variant="dismiss" size="sm" phx-click="cancel_download_cancel">
             Keep
           </.button>
-          <.button
-            variant="danger"
-            size="sm"
-            phx-click="cancel_download_confirm"
-          >
+          <.button variant="danger" size="sm" phx-click="cancel_download_confirm">
             Cancel download
           </.button>
         </div>
@@ -1022,14 +587,4 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     </div>
     """
   end
-
-  defp format_bytes(bytes) when bytes >= 1_073_741_824 do
-    "#{Float.round(bytes / 1_073_741_824, 1)} GB"
-  end
-
-  defp format_bytes(bytes) when bytes >= 1_048_576 do
-    "#{round(bytes / 1_048_576)} MB"
-  end
-
-  defp format_bytes(bytes), do: "#{bytes} B"
 end

@@ -153,13 +153,23 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
   defp recent_events_by_pursuit([], _limit), do: %{}
 
+  # One LIMIT-bounded query per pursuit. The previous implementation
+  # loaded EVERY event for the listed pursuits, grouped in-memory, then
+  # discarded all but the head — a long-running pursuit with thousands
+  # of events would pull all of them every render. Per-pursuit
+  # subqueries keep the worst-case payload bounded by `limit` rows
+  # times the number of active pursuits.
   defp recent_events_by_pursuit(pursuit_ids, limit) do
-    Event
-    |> where([e], e.pursuit_id in ^pursuit_ids)
-    |> order_by([e], desc: e.occurred_at)
-    |> Repo.all()
-    |> Enum.group_by(& &1.pursuit_id)
-    |> Map.new(fn {pid, events} -> {pid, Enum.take(events, limit)} end)
+    Map.new(pursuit_ids, fn pursuit_id ->
+      events =
+        Event
+        |> where([e], e.pursuit_id == ^pursuit_id)
+        |> order_by([e], desc: e.occurred_at)
+        |> limit(^limit)
+        |> Repo.all()
+
+      {pursuit_id, events}
+    end)
   end
 
   defp build_row(%Pursuit{} = pursuit, events) do

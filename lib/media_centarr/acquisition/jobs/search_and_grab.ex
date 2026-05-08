@@ -42,6 +42,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
     TitleMatcher
   }
 
+  alias MediaCentarr.Acquisition.Pursuits.Pursuit
   alias MediaCentarr.Repo
 
   @max_attempts 12
@@ -141,7 +142,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
   defp rank(outcome), do: Map.get(@outcome_rank, outcome, 0)
 
   defp best_match(results, grab, {min, max}) do
-    excluded = MapSet.new(grab.excluded_release_guids || [])
+    excluded = MapSet.new(tried_release_guids(grab))
     not_excluded = Enum.reject(results, fn result -> MapSet.member?(excluded, result.guid) end)
     matched = Enum.filter(not_excluded, &TitleMatcher.matches?(&1, grab))
 
@@ -157,6 +158,19 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
         [] -> {:none, "no_acceptable_quality"}
         [best | _] -> {:found, best}
       end
+    end
+  end
+
+  # Reads from the linked pursuit's `tried_release_guids` so the user's
+  # picks in the Decision Card flow exclude the same release on the next
+  # search. The pursuit aggregate owns the goal across grab attempts; the
+  # grab row holds no per-attempt exclusion state of its own.
+  defp tried_release_guids(%Grab{pursuit_id: nil}), do: []
+
+  defp tried_release_guids(%Grab{pursuit_id: pursuit_id}) do
+    case Repo.get(Pursuit, pursuit_id) do
+      %Pursuit{tried_release_guids: guids} -> guids || []
+      nil -> []
     end
   end
 
