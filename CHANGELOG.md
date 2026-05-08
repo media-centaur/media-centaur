@@ -4,6 +4,33 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.50.0 — 2026-05-08
+
+### New
+
+The Downloads page now shows a freshness pill next to the active-queue
+header. Green "Live" with a quiet pulse means the queue you're seeing
+is current. Amber "Updated Ns ago" means the data is starting to lag.
+Red "Offline" / "Auth failed" with a Reconfigure link tells you the
+connection broke — no more guessing why the numbers stopped moving.
+
+### Improved
+
+The Downloads page feels as live as qBittorrent's own web UI. Under
+the hood, Media Centarr now talks to qBittorrent through its native
+incremental sync API instead of refetching the full torrent list
+every poll, matching the cadence the qBittorrent web UI uses (1.5 s
+when you're watching the page).
+
+### Fixed
+
+When qBittorrent's stored credentials stop working — typically after
+the user changes the qBittorrent password without updating Media
+Centarr's settings — the system no longer hammers qBittorrent once
+per 1.5 s with bad credentials. It backs off to one attempt every 30
+seconds and surfaces the auth failure right on the Downloads page,
+instead of silently leaving you with a stale-looking queue.
+
 ## v0.49.1 — 2026-05-08
 
 ### Fixed
