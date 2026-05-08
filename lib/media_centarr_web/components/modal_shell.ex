@@ -58,6 +58,10 @@ defmodule MediaCentarrWeb.Components.ModalShell do
   attr :available, :boolean, default: true
   attr :tmdb_ready, :boolean, default: true
 
+  attr :seasons_view, :list,
+    default: nil,
+    doc: "Forwarded to `DetailPanel.detail_panel/1`. See its `:seasons_view` attr."
+
   def modal_shell(assigns) do
     backdrop_url =
       if assigns.entity && assigns.available do
@@ -118,6 +122,7 @@ defmodule MediaCentarrWeb.Components.ModalShell do
                 progress={@progress}
                 resume={@resume}
                 progress_records={@progress_records}
+                seasons_view={@seasons_view}
                 expanded_seasons={@expanded_seasons}
                 on_play={@on_play}
                 on_close={@on_close}

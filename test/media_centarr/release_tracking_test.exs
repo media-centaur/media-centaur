@@ -419,6 +419,151 @@ defmodule MediaCentarr.ReleaseTrackingTest do
     end
   end
 
+  describe "list_relevant_releases_for_library_entity/2" do
+    test "returns [] when no Item is linked to the entity" do
+      tv = create_tv_series(%{name: "Untracked Show"})
+
+      assert ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series) == []
+    end
+
+    test "returns [] when the linked Item has status :ignored" do
+      tv = create_tv_series(%{name: "Ignored Show"})
+      item = create_tracking_item(%{name: "Ignored Show", library_entity_id: tv.id})
+      {:ok, _} = ReleaseTracking.ignore_item(item)
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 7),
+        season_number: 2,
+        episode_number: 1
+      })
+
+      assert ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series) == []
+    end
+
+    test "returns unaired (released: false) releases" do
+      tv = create_tv_series(%{name: "Future Show"})
+      item = create_tracking_item(%{name: "Future Show", library_entity_id: tv.id})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 14),
+        season_number: 3,
+        episode_number: 1,
+        released: false
+      })
+
+      [release] = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+      assert release.season_number == 3
+      assert release.episode_number == 1
+      assert release.released == false
+    end
+
+    test "returns aired-but-not-in-library (released: true, in_library: false) releases" do
+      tv = create_tv_series(%{name: "Aired Show"})
+      item = create_tracking_item(%{name: "Aired Show", library_entity_id: tv.id})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), -2),
+        season_number: 1,
+        episode_number: 5,
+        released: true,
+        in_library: false
+      })
+
+      [release] = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+      assert release.episode_number == 5
+      assert release.released == true
+      assert release.in_library == false
+    end
+
+    test "excludes releases already in the library (in_library: true)" do
+      tv = create_tv_series(%{name: "Have It Show"})
+      item = create_tracking_item(%{name: "Have It Show", library_entity_id: tv.id})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), -10),
+        season_number: 1,
+        episode_number: 1,
+        released: true,
+        in_library: true
+      })
+
+      assert ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series) == []
+    end
+
+    test "results are ordered by (season_number, episode_number)" do
+      tv = create_tv_series(%{name: "Ordered Show"})
+      item = create_tracking_item(%{name: "Ordered Show", library_entity_id: tv.id})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-08-01],
+        season_number: 2,
+        episode_number: 1
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-07-01],
+        season_number: 1,
+        episode_number: 5
+      })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-07-15],
+        season_number: 1,
+        episode_number: 6
+      })
+
+      results = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+
+      assert Enum.map(results, &{&1.season_number, &1.episode_number}) ==
+               [{1, 5}, {1, 6}, {2, 1}]
+    end
+
+    test "filters by media_type — a movie Item with same library_entity_id is ignored" do
+      tv = create_tv_series(%{name: "Type Filter Show"})
+
+      # Two items at the same library_entity_id is unusual but the
+      # function must still scope by media_type — query should only
+      # surface tv_series releases.
+      tv_item =
+        create_tracking_item(%{
+          name: "Type Filter Show",
+          library_entity_id: tv.id,
+          media_type: :tv_series
+        })
+
+      movie_item =
+        create_tracking_item(%{
+          name: "Type Filter Show",
+          library_entity_id: tv.id,
+          media_type: :movie,
+          tmdb_id: tv_item.tmdb_id + 1
+        })
+
+      create_tracking_release(%{
+        item_id: tv_item.id,
+        air_date: Date.add(Date.utc_today(), 7),
+        season_number: 1,
+        episode_number: 1
+      })
+
+      create_tracking_release(%{
+        item_id: movie_item.id,
+        air_date: Date.add(Date.utc_today(), 14)
+      })
+
+      results = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+      assert length(results) == 1
+      assert hd(results).season_number == 1
+    end
+  end
+
   describe "list_releases/0 filtering" do
     test "excludes in_library releases" do
       item = create_tracking_item()

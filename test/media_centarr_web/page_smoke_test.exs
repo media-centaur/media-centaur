@@ -22,6 +22,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.{Config, Secret}
+  alias MediaCentarr.Watcher.FilePresence
+
+  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
 
   # Aggressive mount-time budget for every smoke. Media Centarr is a
   # local-first app; mounts should be near-instant. Steady-state mounts
@@ -105,6 +108,68 @@ defmodule MediaCentarrWeb.PageSmokeTest do
          %{conn: conn, movie: movie} do
       assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
+    end
+  end
+
+  describe "/library?selected=<id> with TV series that has tracked upcoming releases" do
+    # The TV-series detail page composes a typed `[%SeasonView{}]` from
+    # both Library episodes and ReleaseTracking releases. A render-path
+    # bug in any of the three EpisodeListItem variants (Library /
+    # Missing / Upcoming) or in the future-season header crashes the
+    # whole modal. This smoke pins the full cross-context render path:
+    # an existing library season with a Missing slot replaced by an
+    # Upcoming, plus a synthetic future season.
+    setup do
+      tv = create_tv_series(%{name: "Smoke Tracked Show"})
+
+      record_present(
+        create_linked_file(%{tv_series_id: tv.id, file_path: "/media/test/Smoke.S01E01.mkv"})
+      )
+
+      season =
+        create_season(%{tv_series_id: tv.id, season_number: 1, number_of_episodes: 5, name: "S1"})
+
+      _episode =
+        create_episode(%{season_id: season.id, episode_number: 1, name: "Smoke Pilot"})
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 7_777,
+          name: "Smoke Tracked Show",
+          library_entity_id: tv.id,
+          media_type: :tv_series
+        })
+
+      # Future episode in S1 (Upcoming row past number_of_episodes)
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 7),
+        season_number: 1,
+        episode_number: 6,
+        title: "Smoke Future S1E6",
+        released: false
+      })
+
+      # Future season entirely (synthetic future-season bucket)
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 30),
+        season_number: 2,
+        episode_number: 1,
+        title: "Smoke Future S2E1",
+        released: false
+      })
+
+      {:ok, tv: tv}
+    end
+
+    test "library detail panel mounts for a TV series with upcoming + future-season releases",
+         %{conn: conn, tv: tv} do
+      assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{tv.id}")
+      # Confirm the upcoming-row data-role appears at least once — without
+      # the typed `seasons_view` flowing through, no upcoming row would
+      # render at all.
+      assert html =~ "data-role=\"upcoming-episode-row\""
     end
   end
 

@@ -375,55 +375,42 @@ defmodule MediaCentarrWeb.Components.DetailPanelTest do
     end
   end
 
-  # --- build_episode_list/2 ---
+  # `build_episode_list/2` and `count_watched_episodes/2` were
+  # extracted into `MediaCentarrWeb.ViewModel.SeriesDetail` (see
+  # `test/media_centarr_web/view_model/series_detail_test.exs`) when
+  # the TV-series path migrated to typed view-models. Behavioural
+  # coverage lives there now: gap-filling, watched_count, total_count.
 
-  describe "build_episode_list/2" do
-    test "maps episodes by number, filling gaps" do
-      episode1 = build_episode(%{episode_number: 1})
-      episode3 = build_episode(%{episode_number: 3})
-
-      result = DetailPanel.build_episode_list([episode1, episode3], 3)
-
-      assert [{:episode, ^episode1}, {:missing, 2}, {:episode, ^episode3}] = result
+  describe "upcoming_pill_copy/2" do
+    test "future date within 14 days reads 'in Xd'" do
+      today = ~D[2026-05-08]
+      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-15]}, today) == "in 7d"
+      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-09]}, today) == "in 1d"
     end
 
-    test "returns empty list when no episodes and zero count" do
-      assert DetailPanel.build_episode_list([], 0) == []
+    test "today reads 'today'" do
+      today = ~D[2026-05-08]
+      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-08]}, today) == "today"
     end
 
-    test "extends to number_of_episodes when higher than max episode" do
-      episode = build_episode(%{episode_number: 1})
-      result = DetailPanel.build_episode_list([episode], 3)
-
-      assert length(result) == 3
-      assert {:missing, 2} = Enum.at(result, 1)
-      assert {:missing, 3} = Enum.at(result, 2)
-    end
-  end
-
-  # --- count_watched_episodes/2 ---
-
-  describe "count_watched_episodes/2" do
-    test "counts completed episodes in a season" do
-      episode1 = build_episode(%{episode_number: 1})
-      episode2 = build_episode(%{episode_number: 2})
-      episode3 = build_episode(%{episode_number: 3})
-      season = build_season(%{season_number: 1, episodes: [episode1, episode2, episode3]})
-
-      progress_by_key = %{
-        episode1.id => %{completed: true},
-        episode3.id => %{completed: true},
-        episode2.id => %{completed: false}
-      }
-
-      assert DetailPanel.count_watched_episodes(season, progress_by_key) == 2
+    test "past date within 14 days reads 'aired Xd ago'" do
+      today = ~D[2026-05-08]
+      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-05]}, today) == "aired 3d ago"
+      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-07]}, today) == "aired 1d ago"
     end
 
-    test "returns 0 when no progress" do
-      episode = build_episode(%{episode_number: 1})
-      season = build_season(%{season_number: 1, episodes: [episode]})
+    test "further-out future date renders the formatted month/day" do
+      today = ~D[2026-05-08]
+      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-08-15]}, today) == "Aug 15"
+    end
 
-      assert DetailPanel.count_watched_episodes(season, %{}) == 0
+    test "further-out past date renders the formatted month/day" do
+      today = ~D[2026-05-08]
+      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-01-04]}, today) == "Jan 4"
+    end
+
+    test "nil air_date renders 'TBA'" do
+      assert DetailPanel.upcoming_pill_copy(%{air_date: nil}, ~D[2026-05-08]) == "TBA"
     end
   end
 end

@@ -23,6 +23,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   alias MediaCentarrWeb.Components.Detail.MoreInfoPanel
   alias MediaCentarrWeb.Components.Detail.PlayCard
   alias MediaCentarrWeb.Components.Detail.SubtitlesRow
+  alias MediaCentarrWeb.ViewModel.EpisodeListItem
 
   alias MediaCentarr.Subtitles
 
@@ -71,12 +72,9 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   @doc_progress_records "list of `MediaCentarr.Library.WatchProgress.t()` rows preloaded from the entity."
   @doc_resume "resume target map `%{kind, season, episode, ...} | nil` — see `LibraryProgress.resume_target_for/1`."
   @doc_resume_episode_key "`{season_number, episode_number}` tuple | `nil` — derived from `:resume`."
-  @doc_progress_by_key "`%{{season_number, episode_number} => WatchProgress.t()}` — built by `EpisodeList.index_progress_by_key/1`."
   @doc_extra_progress_by_id "`%{Ecto.UUID.t() => WatchProgress.t()}` keyed by extra id."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."
-  @doc_season "`MediaCentarr.Library.Season.t()` (Ecto schema) preloaded with `:episodes`."
-  @doc_episode "`MediaCentarr.Library.Episode.t()` (Ecto schema)."
   @doc_movie "`MediaCentarr.Library.Movie.t()` (Ecto schema) — used inside `MovieSeries` content lists."
   @doc_extra "`MediaCentarr.Library.Extra.t()` (Ecto schema) — TV bonus content."
   @doc_files_list "list of file-info maps — same shape as `:detail_files`."
@@ -99,6 +97,15 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
   attr :tmdb_ready, :boolean, default: true
+
+  attr :seasons_view, :list,
+    default: nil,
+    doc:
+      "`[%MediaCentarrWeb.ViewModel.SeasonView{}]` typed view-model for the TV-series " <>
+        "content list. Required when `entity.type == :tv_series`. Built by " <>
+        "`MediaCentarrWeb.ViewModel.SeriesDetail.compose/1`. Each `SeasonView` carries " <>
+        "tagged `EpisodeListItem.{Library, Missing, Upcoming}` items the renderer " <>
+        "pattern-matches on — no tuple ADTs, no shape-guessing inside the component."
 
   def detail_panel(assigns) do
     expanded_seasons =
@@ -214,6 +221,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           <% _ -> %>
             <.content_list
               entity={@entity}
+              seasons_view={@seasons_view}
               expanded_seasons={@expanded_seasons}
               progress_by_key={@progress_by_key}
               resume_episode_key={@resume_episode_key}
@@ -394,17 +402,15 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   # --- Content List (type-dependent) ---
 
   defp content_list(%{entity: %{type: :tv_series}} = assigns) do
-    seasons = assigns.entity.seasons || []
-    assigns = assign(assigns, :seasons, seasons)
+    season_views = assigns.seasons_view || []
+    assigns = assign(assigns, :season_views, season_views)
 
     ~H"""
-    <div :if={@seasons != []} class="pt-3 space-y-3">
+    <div :if={@season_views != []} class="pt-3 space-y-3">
       <.season_section
-        :for={season <- @seasons}
-        season={season}
-        expanded={MapSet.member?(@expanded_seasons, season.season_number)}
-        progress_by_key={@progress_by_key}
-        resume_episode_key={@resume_episode_key}
+        :for={season_view <- @season_views}
+        season={season_view}
+        expanded={MapSet.member?(@expanded_seasons, season_view.season_number)}
         extra_progress_by_id={@extra_progress_by_id}
         entity_id={@entity.id}
         on_play={@on_play}
@@ -461,10 +467,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Season Section ---
 
-  attr :season, :map, required: true, doc: @doc_season
+  attr :season, :map,
+    required: true,
+    doc: "`%MediaCentarrWeb.ViewModel.SeasonView{}` — typed season bucket."
+
   attr :expanded, :boolean, required: true
-  attr :progress_by_key, :map, required: true, doc: @doc_progress_by_key
-  attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
   attr :extra_progress_by_id, :map, default: %{}, doc: @doc_extra_progress_by_id
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
@@ -472,17 +479,6 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   attr :available, :boolean, default: true
 
   defp season_section(assigns) do
-    episodes = assigns.season.episodes || []
-    episode_list = build_episode_list(episodes, assigns.season.number_of_episodes)
-    watched_count = count_watched_episodes(assigns.season, assigns.progress_by_key)
-    total_count = max(length(episodes), assigns.season.number_of_episodes || 0)
-
-    assigns =
-      assigns
-      |> assign(:episode_list, episode_list)
-      |> assign(:watched_count, watched_count)
-      |> assign(:total_count, total_count)
-
     ~H"""
     <div>
       <button
@@ -497,34 +493,25 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           class="size-4"
         />
         <span>{@season.name || "Season #{@season.season_number}"}</span>
-        <span class="text-xs text-base-content/40">
-          {season_progress_label(@watched_count, @total_count)}
+        <span :if={@season.kind == :library} class="text-xs text-base-content/40">
+          {season_progress_label(@season.watched_count, @season.total_count)}
+        </span>
+        <span :if={@season.kind == :future} class="text-xs text-base-content/40">
+          upcoming
         </span>
       </button>
 
       <div :if={@expanded} class="mt-1">
-        <%= for item <- @episode_list do %>
-          <%= case item do %>
-            <% {:episode, episode} -> %>
-              <.episode_row
-                episode={episode}
-                season_number={@season.season_number}
-                progress={Map.get(@progress_by_key, episode.id)}
-                resume_episode_key={@resume_episode_key}
-                entity_id={@entity_id}
-                on_play={@on_play}
-                spoiler_free={@spoiler_free}
-                available={@available}
-              />
-            <% {:missing, episode_number} -> %>
-              <.missing_episode_row
-                episode_number={episode_number}
-                season_number={@season.season_number}
-              />
-          <% end %>
-        <% end %>
+        <.season_item
+          :for={item <- @season.items}
+          item={item}
+          entity_id={@entity_id}
+          on_play={@on_play}
+          spoiler_free={@spoiler_free}
+          available={@available}
+        />
         <.season_extras
-          extras={@season.extras}
+          extras={@season.extras || []}
           extra_progress_by_id={@extra_progress_by_id}
           entity_id={@entity_id}
           on_play={@on_play}
@@ -534,33 +521,62 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
+  # --- Season item dispatch ---
+  #
+  # Pattern-matches on the `EpisodeListItem` struct type. No tuple
+  # ADTs, no shape-guessing — the typed contract IS the dispatch
+  # criterion.
+
+  attr :item, :map, required: true, doc: "%EpisodeListItem.{Library | Missing | Upcoming}{}"
+  attr :entity_id, :string, required: true
+  attr :on_play, :string, required: true
+  attr :spoiler_free, :boolean, default: false
+  attr :available, :boolean, default: true
+
+  defp season_item(%{item: %EpisodeListItem.Library{}} = assigns) do
+    ~H"""
+    <.episode_row
+      item={@item}
+      entity_id={@entity_id}
+      on_play={@on_play}
+      spoiler_free={@spoiler_free}
+      available={@available}
+    />
+    """
+  end
+
+  defp season_item(%{item: %EpisodeListItem.Missing{}} = assigns) do
+    ~H"""
+    <.missing_episode_row item={@item} />
+    """
+  end
+
+  defp season_item(%{item: %EpisodeListItem.Upcoming{}} = assigns) do
+    ~H"""
+    <.upcoming_episode_row item={@item} />
+    """
+  end
+
   # --- Episode Row ---
 
-  attr :episode, :map, required: true, doc: @doc_episode
-  attr :season_number, :integer, required: true
+  attr :item, :map,
+    required: true,
+    doc: "`%MediaCentarrWeb.ViewModel.EpisodeListItem.Library{}` — typed library episode."
 
-  attr :progress, :map,
-    default: nil,
-    doc: "`MediaCentarr.Library.WatchProgress.t() | nil` for this episode."
-
-  attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
   attr :available, :boolean, default: true
 
   defp episode_row(assigns) do
-    state = episode_state(assigns.progress)
-
-    is_resume_target =
-      assigns.resume_episode_key != nil and
-        assigns.resume_episode_key == {assigns.season_number, assigns.episode.episode_number}
-
     assigns =
       assigns
-      |> assign(:state, state)
-      |> assign(:is_resume_target, is_resume_target)
-      |> assign(:thumbnail, image_url(assigns.episode, "thumb"))
+      |> assign(:episode, assigns.item.episode)
+      |> assign(:season_number, assigns.item.season_number)
+      |> assign(:progress, assigns.item.progress)
+      |> assign(:state, assigns.item.state)
+      |> assign(:is_resume_target, assigns.item.is_resume_target)
+      |> assign(:thumbnail, image_url(assigns.item.episode, "thumb"))
 
     ~H"""
     <div
@@ -644,8 +660,9 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   # --- Missing Episode Row ---
 
-  attr :episode_number, :integer, required: true
-  attr :season_number, :integer, required: true
+  attr :item, :map,
+    required: true,
+    doc: "`%MediaCentarrWeb.ViewModel.EpisodeListItem.Missing{}`"
 
   defp missing_episode_row(assigns) do
     ~H"""
@@ -661,9 +678,45 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         </div>
         <div class="flex-1 min-w-0">
           <span class="truncate block text-base-content/70 italic">
-            <span class="text-base-content/40 font-mono text-xs">{@episode_number}.</span>
-            Episode {@episode_number}
+            <span class="text-base-content/40 font-mono text-xs">{@item.episode_number}.</span>
+            Episode {@item.episode_number}
           </span>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  # --- Upcoming Episode Row ---
+  #
+  # Visual contract (per `defaults/storybook` `:tv_series_with_upcoming_inline`
+  # and siblings): muted opacity, no thumbnail, no description, no
+  # watched toggle, no `phx-click` (not actionable in v1). Right-side
+  # date pill carries the air-date copy. `data-nav-item` is omitted —
+  # the row isn't focusable until it becomes clickable.
+
+  attr :item, :map,
+    required: true,
+    doc: "`%MediaCentarrWeb.ViewModel.EpisodeListItem.Upcoming{}`"
+
+  defp upcoming_episode_row(assigns) do
+    ~H"""
+    <div class="p-2 rounded opacity-60" data-role="upcoming-episode-row">
+      <div class="flex items-start gap-3 text-sm">
+        <div class="w-20 flex-shrink-0">
+          <div class="w-20 aspect-video rounded bg-base-300/20" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="truncate block text-base-content/70">
+            <span class="text-base-content/40 font-mono text-xs">{@item.episode_number}.</span>
+            {@item.title || "Episode #{@item.episode_number}"}
+          </span>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <.badge variant="ghost" size="sm" class="gap-1">
+            <.icon name="hero-calendar-mini" class="size-3" />
+            {upcoming_pill_copy(@item)}
+          </.badge>
         </div>
       </div>
     </div>
@@ -677,6 +730,29 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       progress.completed -> :watched
       (progress.position_seconds || 0.0) > 0.0 -> :current
       true -> :unwatched
+    end
+  end
+
+  @doc """
+  Pill copy for an upcoming-episode row. Past dates read
+  "aired Xd ago"; future dates read "in Xd" (or the bare formatted
+  date for further-out releases). `nil` air_date renders "TBA".
+
+  Pure: extracted for unit testing without LiveView render.
+  """
+  @spec upcoming_pill_copy(map(), Date.t()) :: String.t()
+  def upcoming_pill_copy(item, today \\ Date.utc_today())
+
+  def upcoming_pill_copy(%{air_date: nil}, _today), do: "TBA"
+
+  def upcoming_pill_copy(%{air_date: %Date{} = air_date}, today) do
+    days = Date.diff(air_date, today)
+
+    cond do
+      days == 0 -> "today"
+      days > 0 and days <= 14 -> "in #{days}d"
+      days < 0 and days >= -14 -> "aired #{abs(days)}d ago"
+      true -> Calendar.strftime(air_date, "%b %-d")
     end
   end
 
@@ -1446,36 +1522,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   def format_file_size(bytes), do: "#{bytes} B"
 
-  # --- Episode List Builder ---
-
-  def build_episode_list(episodes, number_of_episodes) do
-    episode_map = Map.new(episodes, &{&1.episode_number, &1})
-    max_known = Enum.max_by(episodes, & &1.episode_number, fn -> nil end)
-
-    upper = max(number_of_episodes || 0, if(max_known, do: max_known.episode_number, else: 0))
-
-    if upper == 0 do
-      []
-    else
-      for n <- 1..upper do
-        case Map.get(episode_map, n) do
-          nil -> {:missing, n}
-          episode -> {:episode, episode}
-        end
-      end
-    end
-  end
-
   # --- Helpers ---
-
-  def count_watched_episodes(season, progress_by_key) do
-    Enum.count(season.episodes || [], fn episode ->
-      case Map.get(progress_by_key, episode.id) do
-        %{completed: true} -> true
-        _ -> false
-      end
-    end)
-  end
 
   defp season_progress_label(watched, total) when watched == total and total > 0, do: "watched"
   defp season_progress_label(watched, total), do: "#{total - watched} remaining"
