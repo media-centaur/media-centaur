@@ -12,16 +12,24 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshots do
   flags from the pursuit's persisted observation timestamps — those
   timestamps are kept current by `Pursuits.Observations.refresh!/3`,
   which the Watcher calls before invoking this builder.
+
+  Pass an explicit `queue_state` (a `[QueueItem.t()]` list or `:unknown`)
+  to reuse the same snapshot the Watcher already loaded — the no-arg form
+  reads it from `QueueMonitor`, which is convenient for tests but means
+  one extra ETS read per pursuit on the watcher's hot path.
   """
   @spec build(Pursuit.t()) :: Snapshot.t()
-  def build(%Pursuit{} = pursuit) do
+  def build(%Pursuit{} = pursuit), do: build(pursuit, read_queue_state())
+
+  @spec build(Pursuit.t(), Snapshot.queue_state()) :: Snapshot.t()
+  def build(%Pursuit{} = pursuit, queue_state) do
     now = DateTime.utc_now(:second)
     thresholds = Thresholds.load()
 
     %Snapshot{
       pursuit: pursuit,
       latest_grab: latest_grab(pursuit.id),
-      queue_state: read_queue_state(),
+      queue_state: queue_state,
       now: now,
       thresholds: thresholds,
       stall_observed?: not is_nil(pursuit.stall_first_seen_at),

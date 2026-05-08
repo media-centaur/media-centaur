@@ -30,8 +30,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events do
     ZeroSeedersConfirmed
   }
 
+  alias MediaCentarr.Acquisition
   alias MediaCentarr.Repo
-  alias MediaCentarr.Topics
 
   @kind_modules %{
     "pursuit_started" => PursuitStarted,
@@ -74,7 +74,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events do
 
     case Repo.insert(Event.create_changeset(attrs)) do
       {:ok, _row} ->
-        Phoenix.PubSub.broadcast(MediaCentarr.PubSub, Topics.acquisition_updates(), event)
+        Acquisition.broadcast_update(event)
         {:ok, event}
 
       {:error, changeset} ->
@@ -109,4 +109,14 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events do
   @doc "Lists every kind that has a registered struct module."
   @spec all_kinds() :: [String.t()]
   def all_kinds, do: Map.keys(@kind_modules)
+
+  @event_modules Map.values(@kind_modules)
+
+  @doc """
+  True when `module` is one of the registered pursuit event struct modules.
+  Use this to identify event broadcasts received over PubSub without
+  string-matching on `Atom.to_string(module)`.
+  """
+  @spec event?(module()) :: boolean()
+  def event?(module) when is_atom(module), do: module in @event_modules
 end

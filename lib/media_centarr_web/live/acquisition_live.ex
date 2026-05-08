@@ -65,9 +65,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.Quality
+  alias MediaCentarr.Acquisition.{CancelReasons, Quality}
   alias MediaCentarr.Capabilities
-  alias MediaCentarrWeb.AcquisitionLive.{Activity, Logic}
+  alias MediaCentarrWeb.AcquisitionLive.{Activity, ActivityLogic, Logic}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -160,23 +160,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       |> ensure_loaded()
       |> assign(
         activity_search: Map.get(params, "search", ""),
-        activity_filter: parse_activity_filter(params)
+        activity_filter: ActivityLogic.parse_filter(Map.get(params, "filter"))
       )
       |> load_activity()
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
     {:noreply, socket}
-  end
-
-  defp parse_activity_filter(params) do
-    case Map.get(params, "filter") do
-      "active" -> :active
-      "abandoned" -> :abandoned
-      "cancelled" -> :cancelled
-      "grabbed" -> :grabbed
-      "all" -> :all
-      _ -> :active
-    end
   end
 
   # Pre-fill + auto-fire — same code path as the user submitting the
@@ -669,16 +658,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # Activity-zone events (filter, search, cancel, re-arm).
 
   def handle_event("set_activity_filter", %{"filter" => filter}, socket) do
-    filter_atom =
-      case filter do
-        "active" -> :active
-        "abandoned" -> :abandoned
-        "cancelled" -> :cancelled
-        "grabbed" -> :grabbed
-        _ -> :all
-      end
-
-    {:noreply, socket |> assign(activity_filter: filter_atom) |> load_activity()}
+    {:noreply,
+     socket
+     |> assign(activity_filter: ActivityLogic.parse_filter(filter))
+     |> load_activity()}
   end
 
   def handle_event("set_activity_search", %{"search" => search}, socket) do
@@ -686,7 +669,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_event("cancel_activity_grab", %{"id" => id}, socket) do
-    case Acquisition.cancel_grab(id, "user_disabled") do
+    case Acquisition.cancel_grab(id, CancelReasons.user_disabled()) do
       {:ok, _} -> {:noreply, load_activity(socket)}
       {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Grab no longer exists")}
     end
@@ -784,7 +767,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # the legacy grab tuples use. Pattern-match on the namespace prefix and
   # trigger a debounced pursuit-row refresh.
   def handle_info(%struct{} = _event, socket) do
-    if pursuit_event?(struct) do
+    if MediaCentarr.Acquisition.Pursuits.Events.event?(struct) do
       {:noreply, debounce(socket, :pursuits_reload_timer, :reload_pursuits, 500)}
     else
       {:noreply, socket}
@@ -796,13 +779,6 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
-
-  defp pursuit_event?(module) do
-    case Atom.to_string(module) do
-      "Elixir.MediaCentarr.Acquisition.Pursuits.Events." <> _ -> true
-      _ -> false
-    end
-  end
 
   defp load_activity(socket) do
     grabs =

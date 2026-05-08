@@ -13,10 +13,10 @@ defmodule MediaCentarrWeb.PursuitLive do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.Prowlarr
-  alias MediaCentarr.Acquisition.Pursuits
+  alias MediaCentarr.Acquisition.{CancelReasons, Pursuits}
   alias MediaCentarr.Acquisition.Pursuits.Pursuit
   alias MediaCentarr.Acquisition.Pursuits.Commands.{Cancel, RecordUserChoice}
+  alias MediaCentarr.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentarr.Acquisition.ViewModels
   alias MediaCentarr.Acquisition.ViewModels.Alternative
   alias MediaCentarrWeb.Components.Acquisition.DecisionCard, as: DecisionCardComponent
@@ -72,7 +72,7 @@ defmodule MediaCentarrWeb.PursuitLive do
     case Cancel.execute(%{
            pursuit_id: socket.assigns.pursuit_id,
            cancelled_by: :user,
-           reason: "user_request"
+           reason: CancelReasons.user_request()
          }) do
       {:ok, _pursuit} ->
         {:noreply, socket |> put_flash(:info, "Pursuit cancelled.") |> load_pursuit()}
@@ -104,7 +104,7 @@ defmodule MediaCentarrWeb.PursuitLive do
 
   @impl true
   def handle_info(%struct{pursuit_id: pid}, %{assigns: %{pursuit_id: pid}} = socket) do
-    if pursuit_event?(struct) do
+    if PursuitEvents.event?(struct) do
       {:noreply, load_pursuit(socket)}
     else
       {:noreply, socket}
@@ -146,28 +146,22 @@ defmodule MediaCentarrWeb.PursuitLive do
   defp build_decision_card(_pursuit), do: nil
 
   defp fetch_alternatives(%Pursuit{} = pursuit) do
-    if Acquisition.available?() do
-      query = pursuit.title
-
-      opts =
-        []
-        |> maybe_put(:type, search_type_for(pursuit.tmdb_type))
-        |> maybe_put(:year, pursuit.year)
-
-      case Prowlarr.search(query, opts) do
-        {:ok, results} ->
-          excluded = MapSet.new(pursuit.tried_release_guids)
-
-          results
-          |> Enum.reject(fn r -> MapSet.member?(excluded, r.guid) end)
-          |> Enum.take(8)
-          |> Enum.map(&search_result_to_alternative/1)
-
-        {:error, _reason} ->
-          []
-      end
-    else
+    opts =
       []
+      |> put_when_present(:type, search_type_for(pursuit.tmdb_type))
+      |> put_when_present(:year, pursuit.year)
+
+    case Acquisition.search(pursuit.title, opts) do
+      {:ok, results} ->
+        excluded = MapSet.new(pursuit.tried_release_guids)
+
+        results
+        |> Enum.reject(fn r -> MapSet.member?(excluded, r.guid) end)
+        |> Enum.take(8)
+        |> Enum.map(&search_result_to_alternative/1)
+
+      {:error, _reason} ->
+        []
     end
   end
 
@@ -175,8 +169,8 @@ defmodule MediaCentarrWeb.PursuitLive do
   defp search_type_for("movie"), do: :movie
   defp search_type_for(_), do: nil
 
-  defp maybe_put(opts, _key, nil), do: opts
-  defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
+  defp put_when_present(opts, _key, nil), do: opts
+  defp put_when_present(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp search_result_to_alternative(result) do
     %Alternative{
@@ -195,11 +189,4 @@ defmodule MediaCentarrWeb.PursuitLive do
 
   defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentarr.Acquisition.Quality.label(q)
   defp quality_label(_), do: nil
-
-  defp pursuit_event?(module) do
-    case Atom.to_string(module) do
-      "Elixir.MediaCentarr.Acquisition.Pursuits.Events." <> _ -> true
-      _ -> false
-    end
-  end
 end

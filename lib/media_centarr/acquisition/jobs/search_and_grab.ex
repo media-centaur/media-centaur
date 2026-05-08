@@ -30,6 +30,8 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
 
   require MediaCentarr.Log, as: Log
 
+  alias MediaCentarr.Acquisition
+
   alias MediaCentarr.Acquisition.{
     AutoGrabSettings,
     Grab,
@@ -94,19 +96,26 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
   end
 
   # Tries each candidate query in order. First acceptable hit wins.
-  # On exhaustion, returns the most-informative outcome we observed.
+  # On exhaustion, returns the most-informative outcome observed.
   # A Prowlarr error short-circuits the loop.
   #
-  # Outcomes (last one observed wins, except `no_results` is always
-  # superseded since "we got something but rejected it" is more useful
-  # diagnostically than "nothing came back"):
+  # Outcome ranks (higher = more diagnostically useful):
   #
-  #   * `"no_results"`           — Prowlarr returned an empty list
-  #   * `"no_title_match"`       — results came back but none parsed to
-  #                                 the right show/movie (the bug fix
-  #                                 introduced in TitleMatcher)
-  #   * `"no_acceptable_quality"` — title matched but quality fell outside
-  #                                  the configured bounds
+  #   * 0  `"no_results"`            — Prowlarr returned an empty list
+  #   * 1  `"no_title_match"`        — results came back but none parsed to
+  #                                     the right show/movie
+  #   * 2  `"no_acceptable_quality"` — title matched but quality fell outside
+  #                                     the configured bounds
+  #
+  # "Quality fell outside bounds" tells the user *why* nothing was grabbed
+  # in a way "no results" cannot, so it wins over weaker outcomes.
+  @outcome_rank %{
+    "no_results" => 0,
+    "no_title_match" => 1,
+    "no_acceptable_quality" => 2,
+    "grab_failed" => 2
+  }
+
   defp search_until_match(grab, queries, bounds) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
       case Prowlarr.search(query, opts) do
@@ -116,7 +125,7 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
         {:ok, results} ->
           case best_match(results, grab, bounds) do
             {:found, best} -> {:halt, {:ok, best}}
-            {:none, outcome} -> {:cont, {:no_match, outcome}}
+            {:none, outcome} -> {:cont, keep_more_informative(acc, outcome)}
           end
 
         {:error, reason} ->
@@ -124,6 +133,12 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
       end
     end)
   end
+
+  defp keep_more_informative({:no_match, current} = acc, candidate) do
+    if rank(candidate) > rank(current), do: {:no_match, candidate}, else: acc
+  end
+
+  defp rank(outcome), do: Map.get(@outcome_rank, outcome, 0)
 
   defp best_match(results, grab, {min, max}) do
     excluded = MapSet.new(grab.excluded_release_guids || [])
@@ -206,11 +221,5 @@ defmodule MediaCentarr.Acquisition.Jobs.SearchAndGrab do
     hours * 60 * 60
   end
 
-  defp broadcast(message) do
-    Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
-      MediaCentarr.Topics.acquisition_updates(),
-      message
-    )
-  end
+  defp broadcast(message), do: Acquisition.broadcast_update(message)
 end

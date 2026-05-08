@@ -4,6 +4,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitTimeline do
   use Phoenix.Component
 
   alias MediaCentarr.Acquisition.ViewModels.Timeline
+  alias MediaCentarrWeb.Components.Acquisition.PursuitStyle
 
   attr :vm, Timeline, required: true
 
@@ -16,9 +17,11 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitTimeline do
       <% else %>
         <ol class="space-y-3">
           <li :for={entry <- @vm.entries} class="flex items-start gap-3">
-            <span class={"mt-1 block size-2 rounded-full flex-shrink-0 #{dot_class(entry.severity)}"} />
+            <span class={"mt-1 block size-2 rounded-full flex-shrink-0 #{PursuitStyle.severity_dot_class(entry.severity)}"} />
             <div class="min-w-0 flex-1">
-              <div class={"text-sm #{summary_class(entry.severity)}"}>{entry.summary}</div>
+              <div class={"text-sm #{PursuitStyle.severity_text_class(entry.severity)}"}>
+                {entry.summary}
+              </div>
               <div :if={entry.detail} class="text-xs text-base-content/50 truncate">
                 {entry.detail}
               </div>
@@ -30,16 +33,6 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitTimeline do
     </div>
     """
   end
-
-  defp dot_class(:info), do: "bg-info"
-  defp dot_class(:success), do: "bg-success"
-  defp dot_class(:warning), do: "bg-warning"
-  defp dot_class(:error), do: "bg-error"
-
-  defp summary_class(:info), do: "text-base-content/80"
-  defp summary_class(:success), do: "text-success"
-  defp summary_class(:warning), do: "text-warning"
-  defp summary_class(:error), do: "text-error"
 
   defp format_time(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%d %H:%M")
 end

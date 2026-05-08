@@ -15,28 +15,27 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.Start do
   """
   @spec execute(map()) :: {:ok, Pursuit.t()} | {:error, Ecto.Changeset.t()}
   def execute(args) when is_map(args) do
-    tap(
+    result =
       Repo.transaction(fn ->
         with {:ok, pursuit} <- Repo.insert(Pursuit.create_changeset(args)),
-             {:ok, _event} <- record_started(pursuit) do
+             {:ok, _event} <-
+               Events.record(%PursuitStarted{
+                 pursuit_id: pursuit.id,
+                 pursuit_title: pursuit.title,
+                 occurred_at: DateTime.utc_now(:second),
+                 origin: pursuit.origin
+               }) do
           pursuit
         else
           {:error, changeset} -> Repo.rollback(changeset)
         end
-      end),
-      fn
-        {:ok, %Pursuit{title: title}} -> Log.info(:acquisition, "pursuit started — #{title}")
-        _ -> :ok
-      end
-    )
-  end
+      end)
 
-  defp record_started(%Pursuit{} = pursuit) do
-    Events.record(%PursuitStarted{
-      pursuit_id: pursuit.id,
-      pursuit_title: pursuit.title,
-      occurred_at: DateTime.utc_now(:second),
-      origin: pursuit.origin
-    })
+    case result do
+      {:ok, %Pursuit{title: title}} -> Log.info(:acquisition, "pursuit started — #{title}")
+      _ -> :ok
+    end
+
+    result
   end
 end
