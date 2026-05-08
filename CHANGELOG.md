@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.51.0 — 2026-05-09
+
+### Fixed
+
+Active downloads that started before the pursuit feature shipped now
+show up correctly on the Downloads page after this update. Previously,
+an in-flight grab created on an older version could remain invisible to
+the pursuit-tracking UI — its timeline, alternative-release decisions,
+and detail page were all gated on a pursuit row that didn't exist. This
+release backfills a pursuit for every still-active grab during the
+update, so the Downloads page sees them all the moment the app
+restarts. Closed-out grabs (already grabbed, abandoned, or cancelled)
+are intentionally left alone.
+
 ## v0.50.0 — 2026-05-08
 
 ### New
