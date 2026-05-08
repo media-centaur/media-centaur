@@ -4,6 +4,25 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.49.1 — 2026-05-08
+
+### Fixed
+
+Aired episodes now reach your downloads page on time. Previously, the
+system could go more than a day without checking for episodes that had
+just aired — every restart of the app reset its 24-hour timer, so a
+recent update could push the next check almost a full day into the
+future. The release-tracking system now sweeps every 15 minutes for
+episodes whose air date has just passed, while the heavier metadata
+refresh runs every 6 hours instead of 24. The schedule survives
+restarts: when the app comes back up, it picks up where it left off
+rather than starting the timer over.
+
+The Downloads page no longer feels stale on first open. New
+subscribers (you opening `/download`, the upcoming zone in the
+Library) now receive the current queue immediately on connect,
+instead of waiting up to 5 seconds for the next poll tick.
+
 ## v0.49.0 — 2026-05-08
 
 ### New
