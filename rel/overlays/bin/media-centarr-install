@@ -386,11 +386,16 @@ EOF
 fi
 
 # 5. Run migrations against the NEW release, before the symlink flip. If
-#    this fails, the running service (pointing at old `current`) is untouched.
-banner "Running migrations against $version"
+#    either step fails, the running service (pointing at old `current`)
+#    is untouched. Schema migrations run first (fast, atomic), then data
+#    migrations (one-shot row backfills tracked in `data_migrations`).
+banner "Running schema migrations against $version"
 # shellcheck source=/dev/null
 set -a; . "$secrets_file"; set +a
 "$target/bin/media_centarr" eval "MediaCentarr.Release.migrate()"
+
+banner "Running data migrations against $version"
+"$target/bin/media_centarr" eval "MediaCentarr.Release.migrate_data()"
 
 # 6. Atomic symlink flip.
 banner "Pointing current -> releases/$version"
