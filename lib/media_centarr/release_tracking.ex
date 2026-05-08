@@ -443,6 +443,38 @@ defmodule MediaCentarr.ReleaseTracking do
     Repo.all(from(r in Release, where: r.item_id == ^item_id, order_by: [asc: r.air_date]))
   end
 
+  @doc """
+  Returns releases relevant for inline display on a Library entity's
+  detail page: unaired releases (`released: false`) plus aired-but-not-
+  in-library releases (`released: true, in_library: false`).
+
+  Excludes `in_library: true` rows — those belong on the Upcoming
+  page's recently-completed lingering window, not the per-series
+  detail. Filters to Items with `status: :watching` (matching
+  `list_releases/0`'s gating), and to the requested `media_type`.
+
+  Returns `[]` when no Item is linked to `library_entity_id`.
+
+  Ordered `(season_number ASC, episode_number ASC)` for deterministic
+  rendering and trivial grouping by season at the call site.
+  """
+  @spec list_relevant_releases_for_library_entity(Ecto.UUID.t(), :tv_series | :movie) ::
+          [Release.t()]
+  def list_relevant_releases_for_library_entity(library_entity_id, media_type) do
+    Repo.all(
+      from(r in Release,
+        join: i in assoc(r, :item),
+        where:
+          i.library_entity_id == ^library_entity_id and
+            i.media_type == ^media_type and
+            i.status == :watching and
+            (r.released == false or
+               (r.released == true and r.in_library == false)),
+        order_by: [asc: r.season_number, asc: r.episode_number]
+      )
+    )
+  end
+
   def delete_releases_for_item(item_id) do
     Repo.delete_all(from(r in Release, where: r.item_id == ^item_id))
   end
