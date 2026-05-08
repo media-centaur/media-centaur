@@ -508,6 +508,62 @@ defmodule MediaCentarr.TestFactory do
     event
   end
 
+  def create_pursuit(attrs \\ %{}) do
+    defaults = %{
+      tmdb_id: "12345",
+      tmdb_type: "movie",
+      title: "Sample Movie",
+      origin: "auto"
+    }
+
+    merged = Map.merge(defaults, attrs)
+
+    cast_keys = [
+      :tmdb_id,
+      :tmdb_type,
+      :title,
+      :year,
+      :season_number,
+      :episode_number,
+      :origin,
+      :criteria
+    ]
+
+    cast_attrs = Map.take(merged, cast_keys)
+    internal_attrs = Map.drop(merged, cast_keys)
+
+    {:ok, pursuit} =
+      MediaCentarr.Repo.insert(MediaCentarr.Acquisition.Pursuits.Pursuit.create_changeset(cast_attrs))
+
+    if internal_attrs == %{} do
+      pursuit
+    else
+      {:ok, updated} =
+        pursuit
+        |> Ecto.Changeset.change(internal_attrs)
+        |> MediaCentarr.Repo.update()
+
+      updated
+    end
+  end
+
+  def create_pursuit_event(pursuit, kind, attrs \\ %{}) do
+    defaults = %{
+      pursuit_id: pursuit.id,
+      denormalized_pursuit_title: pursuit.title,
+      kind: kind,
+      payload: %{},
+      occurred_at: DateTime.utc_now(:second)
+    }
+
+    {:ok, event} =
+      MediaCentarr.Repo.insert(
+        MediaCentarr.Acquisition.Pursuits.Event.create_changeset(Map.merge(defaults, attrs))
+      )
+
+    event
+  end
+
   def create_grab(attrs \\ %{}) do
     # Default `quality_4k_patience_hours: 0` keeps unrelated tests focused —
     # patience-window behaviour is exercised by tests that opt in explicitly.

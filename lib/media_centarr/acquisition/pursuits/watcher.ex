@@ -40,7 +40,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Watcher do
       refreshed = Observations.refresh!(pursuit, queue, now)
 
       refreshed
-      |> Snapshots.build()
+      |> Snapshots.build(queue)
       |> Policy.evaluate()
       |> dispatch(refreshed)
     end)

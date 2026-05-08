@@ -8,6 +8,7 @@ defmodule MediaCentarr.Acquisition do
     ],
     exports: [
       AutoGrabSettings,
+      CancelReasons,
       Grab,
       GrabStatus,
       Health,
@@ -18,6 +19,7 @@ defmodule MediaCentarr.Acquisition do
       Pursuits,
       Pursuits.Commands.Cancel,
       Pursuits.Commands.RecordUserChoice,
+      Pursuits.Events,
       Pursuits.InboundListener,
       Pursuits.Pursuit,
       SearchSession,
@@ -74,6 +76,7 @@ defmodule MediaCentarr.Acquisition do
   alias MediaCentarr.Acquisition.{
     AutoGrabPolicy,
     AutoGrabSettings,
+    CancelReasons,
     Config,
     Grab,
     Jobs.SearchAndGrab,
@@ -85,6 +88,7 @@ defmodule MediaCentarr.Acquisition do
 
   alias MediaCentarr.Acquisition.DownloadClient.Dispatcher
   alias MediaCentarr.Capabilities
+  alias MediaCentarr.Format
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.Repo
   alias MediaCentarr.Settings
@@ -485,14 +489,14 @@ defmodule MediaCentarr.Acquisition do
     patience_hours = Keyword.get(opts, :quality_4k_patience_hours)
     origin = Keyword.get(opts, :origin, "auto")
 
-    snapshot = %{
+    bounds = %{
       min_quality: min_quality,
       max_quality: max_quality,
       quality_4k_patience_hours: patience_hours,
       origin: origin
     }
 
-    case get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, snapshot) do
+    case get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, bounds) do
       {:ok, %Grab{} = grab} ->
         if GrabStatus.terminal?(grab.status) do
           # Terminal — don't re-enqueue an Oban job. Caller decides whether
@@ -742,7 +746,7 @@ defmodule MediaCentarr.Acquisition do
   end
 
   def handle_info({:item_removed, tmdb_id, tmdb_type}, state) do
-    cancel_active_grabs_for(tmdb_id, tmdb_type, "item_removed")
+    cancel_active_grabs_for(tmdb_id, tmdb_type, CancelReasons.item_removed())
     {:noreply, state}
   end
 
@@ -813,7 +817,7 @@ defmodule MediaCentarr.Acquisition do
   end
 
   defp apply_decision({:cancel, :user_disabled}, item, _release, _settings, existing_grab) do
-    cancel_grab(existing_grab.id, "user_disabled")
+    cancel_grab(existing_grab.id, CancelReasons.user_disabled())
     Log.info(:library, "auto-grab cancelled (user disabled) — #{item.name}")
   end
 
@@ -825,14 +829,8 @@ defmodule MediaCentarr.Acquisition do
   defp apply_decision({:skip, :already_in_library}, _item, _release, _settings, _grab), do: :ok
   defp apply_decision({:skip, :already_active}, _item, _release, _settings, _grab), do: :ok
 
-  defp describe_release(%{season_number: nil, episode_number: nil}), do: ""
-  defp describe_release(%{season_number: season, episode_number: nil}), do: "S#{season}"
-
   defp describe_release(%{season_number: season, episode_number: episode}),
-    do: "S#{pad2(season)}E#{pad2(episode)}"
-
-  defp pad2(n) when n < 10, do: "0" <> Integer.to_string(n)
-  defp pad2(n), do: Integer.to_string(n)
+    do: Format.episode_label(season, episode)
 
   defp cancel_active_grabs_for(tmdb_id, tmdb_type, reason) do
     grabs =
@@ -847,7 +845,7 @@ defmodule MediaCentarr.Acquisition do
     Enum.each(grabs, fn grab -> cancel_grab(grab.id, reason) end)
   end
 
-  defp get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, snapshot) do
+  defp get_or_create_grab(tmdb_id, tmdb_type, title, season, episode, year, bounds) do
     case find_grab(tmdb_id, tmdb_type, season, episode) do
       nil ->
         attrs =
@@ -860,7 +858,7 @@ defmodule MediaCentarr.Acquisition do
               season_number: season,
               episode_number: episode
             },
-            snapshot
+            bounds
           )
 
         with {:ok, pursuit} <-
@@ -871,11 +869,11 @@ defmodule MediaCentarr.Acquisition do
                  year: year,
                  season_number: season,
                  episode_number: episode,
-                 origin: snapshot[:origin] || "auto",
+                 origin: bounds[:origin] || "auto",
                  criteria:
                    %{
-                     "min_quality" => snapshot[:min_quality],
-                     "max_quality" => snapshot[:max_quality]
+                     "min_quality" => bounds[:min_quality],
+                     "max_quality" => bounds[:max_quality]
                    }
                    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
                    |> Map.new()
@@ -904,11 +902,19 @@ defmodule MediaCentarr.Acquisition do
   defp where_match(query, field, nil), do: where(query, [g], is_nil(field(g, ^field)))
   defp where_match(query, field, value), do: where(query, [g], field(g, ^field) == ^value)
 
-  defp broadcast(message) do
+  @doc """
+  Broadcasts an update message on `Topics.acquisition_updates/0`. Used by
+  every Acquisition writer (`SearchAndGrab`, `Pursuits.Events`, the facade
+  itself) so there is one PubSub call site for the topic.
+  """
+  @spec broadcast_update(term()) :: :ok | {:error, term()}
+  def broadcast_update(message) do
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
       Topics.acquisition_updates(),
       message
     )
   end
+
+  defp broadcast(message), do: broadcast_update(message)
 end

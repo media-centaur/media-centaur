@@ -1,9 +1,8 @@
 defmodule MediaCentarr.Acquisition.Pursuits.Commands.RecordUserChoice do
   @moduledoc "Applies the user-picked alternative."
 
-  require MediaCentarr.Log, as: Log
-
   alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
+  alias MediaCentarr.Acquisition.Pursuits.Commands.Runner
   alias MediaCentarr.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
   alias MediaCentarr.Repo
 
@@ -20,52 +19,32 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.RecordUserChoice do
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def execute(%{pursuit_id: id, chosen_guid: guid, choice_label: label})
       when is_binary(guid) and is_binary(label) do
-    case Repo.get(Pursuit, id) do
-      nil ->
-        {:error, :not_found}
+    log_label = fn pursuit -> "user picked alternative for pursuit — #{pursuit.title} — #{label}" end
 
-      %Pursuit{} = pursuit ->
-        tap(
-          Repo.transaction(fn ->
-            previous_guid = List.last(pursuit.tried_release_guids)
+    Runner.run(id, log_label, fn pursuit ->
+      previous_guid = List.last(pursuit.tried_release_guids)
+      now = DateTime.utc_now(:second)
 
-            with {:ok, attempted} <-
-                   Repo.update(Pursuit.record_attempt_changeset(pursuit, guid)),
-                 {:ok, resumed} <- Repo.update(Pursuit.resume_changeset(attempted)),
-                 {:ok, _decision_event} <- record_decision(resumed, label),
-                 {:ok, _fallback_event} <- record_fallback(resumed, previous_guid) do
-              resumed
-            else
-              {:error, changeset} -> Repo.rollback(changeset)
-            end
-          end),
-          fn
-            {:ok, %Pursuit{title: t}} ->
-              Log.info(:acquisition, "user picked alternative for pursuit — #{t} — #{label}")
-
-            _ ->
-              :ok
-          end
-        )
-    end
-  end
-
-  defp record_decision(pursuit, choice) do
-    Events.record(%UserDecisionRecorded{
-      pursuit_id: pursuit.id,
-      pursuit_title: pursuit.title,
-      occurred_at: DateTime.utc_now(:second),
-      choice: choice
-    })
-  end
-
-  defp record_fallback(pursuit, previous_guid) do
-    Events.record(%FallbackInitiated{
-      pursuit_id: pursuit.id,
-      pursuit_title: pursuit.title,
-      occurred_at: DateTime.utc_now(:second),
-      previous_guid: previous_guid,
-      reason: "user_choice"
-    })
+      with {:ok, attempted} <-
+             Repo.update(Pursuit.record_attempt_changeset(pursuit, guid)),
+           {:ok, resumed} <- Repo.update(Pursuit.resume_changeset(attempted)),
+           {:ok, _decision_event} <-
+             Events.record(%UserDecisionRecorded{
+               pursuit_id: resumed.id,
+               pursuit_title: resumed.title,
+               occurred_at: now,
+               choice: label
+             }),
+           {:ok, _fallback_event} <-
+             Events.record(%FallbackInitiated{
+               pursuit_id: resumed.id,
+               pursuit_title: resumed.title,
+               occurred_at: now,
+               previous_guid: previous_guid,
+               reason: "user_choice"
+             }) do
+        {:ok, resumed}
+      end
+    end)
   end
 end

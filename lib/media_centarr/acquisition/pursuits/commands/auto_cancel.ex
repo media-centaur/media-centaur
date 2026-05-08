@@ -3,11 +3,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.AutoCancel do
 
   import Ecto.Query
 
-  require MediaCentarr.Log, as: Log
-
   alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.GrabStatus
   alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
+  alias MediaCentarr.Acquisition.Pursuits.Commands.Runner
   alias MediaCentarr.Acquisition.Pursuits.Events.AutoCancelled
   alias MediaCentarr.Repo
 
@@ -20,29 +19,21 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.AutoCancel do
   @spec execute(map()) ::
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def execute(%{pursuit_id: id, reason: reason}) when is_atom(reason) do
-    case Repo.get(Pursuit, id) do
-      nil ->
-        {:error, :not_found}
+    label = fn pursuit -> "pursuit auto-cancelled (#{reason}) — #{pursuit.title}" end
 
-      %Pursuit{} = pursuit ->
-        tap(
-          Repo.transaction(fn ->
-            cancel_active_grab(pursuit, reason)
+    Runner.run(id, label, fn pursuit ->
+      cancel_active_grab(pursuit, reason)
 
-            case record_event(pursuit, reason) do
-              {:ok, _event} -> pursuit
-              {:error, changeset} -> Repo.rollback(changeset)
-            end
-          end),
-          fn
-            {:ok, %Pursuit{title: t}} ->
-              Log.info(:acquisition, "pursuit auto-cancelled (#{reason}) — #{t}")
-
-            _ ->
-              :ok
-          end
-        )
-    end
+      with {:ok, _event} <-
+             Events.record(%AutoCancelled{
+               pursuit_id: pursuit.id,
+               pursuit_title: pursuit.title,
+               occurred_at: DateTime.utc_now(:second),
+               reason: Atom.to_string(reason)
+             }) do
+        {:ok, pursuit}
+      end
+    end)
   end
 
   defp cancel_active_grab(pursuit, reason) do
@@ -52,14 +43,5 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.AutoCancel do
     |> Enum.each(fn grab ->
       Repo.update!(Grab.cancelled_changeset(grab, Atom.to_string(reason)))
     end)
-  end
-
-  defp record_event(pursuit, reason) do
-    Events.record(%AutoCancelled{
-      pursuit_id: pursuit.id,
-      pursuit_title: pursuit.title,
-      occurred_at: DateTime.utc_now(:second),
-      reason: Atom.to_string(reason)
-    })
   end
 end

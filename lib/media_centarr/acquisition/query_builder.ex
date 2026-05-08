@@ -11,6 +11,7 @@ defmodule MediaCentarr.Acquisition.QueryBuilder do
   """
 
   alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Format
 
   @type opt :: {:type, :movie | :tv} | {:year, integer()}
   @type query :: {String.t(), [opt()]}
@@ -48,9 +49,6 @@ defmodule MediaCentarr.Acquisition.QueryBuilder do
     [{title, [type: :tv]}]
   end
 
-  defp season_tag(season), do: "S" <> pad2(season)
-  defp episode_tag(episode), do: "E" <> pad2(episode)
-
-  defp pad2(n) when n < 10, do: "0" <> Integer.to_string(n)
-  defp pad2(n), do: Integer.to_string(n)
+  defp season_tag(season), do: "S" <> Format.pad2(season)
+  defp episode_tag(episode), do: "E" <> Format.pad2(episode)
 end

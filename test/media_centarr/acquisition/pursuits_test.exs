@@ -69,17 +69,16 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
   end
 
   describe "list_active/0" do
-    test "returns only in-flight pursuits, newest first" do
-      _terminal = set_state(insert_pursuit(), "satisfied")
+    test "returns only in-flight pursuits, excludes terminal states" do
+      terminal = set_state(insert_pursuit(), "satisfied")
       active_old = insert_pursuit(%{tmdb_id: "111", title: "Old"})
-      :timer.sleep(1100)
       active_new = insert_pursuit(%{tmdb_id: "222", title: "New"})
 
       ids = Enum.map(Pursuits.list_active(), & &1.id)
 
       assert active_new.id in ids
       assert active_old.id in ids
-      refute Enum.any?(ids, fn id -> id == _terminal.id end)
+      refute terminal.id in ids
     end
 
     test "needs_decision pursuits also count as active" do
@@ -120,8 +119,13 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
   describe "latest_grab/1" do
     test "returns the most recently inserted grab linked to the pursuit" do
       pursuit = insert_pursuit()
-      _old = insert_grab_for(pursuit)
-      :timer.sleep(1100)
+      old = insert_grab_for(pursuit)
+      # Backdate the older grab explicitly so we don't depend on per-second
+      # `inserted_at` resolution differing between two same-test inserts.
+      old
+      |> Ecto.Changeset.change(inserted_at: ~U[2026-01-01 00:00:00Z])
+      |> Repo.update!()
+
       newer = insert_grab_for(pursuit, %{title: "Newer attempt"})
 
       assert {:ok, found} = Pursuits.latest_grab(pursuit.id)

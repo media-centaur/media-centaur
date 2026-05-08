@@ -455,32 +455,34 @@ defmodule MediaCentarr.AcquisitionTest do
         })
       end)
 
-      {:ok, ep1} =
-        Acquisition.enqueue("7006", "tv", "Reanimate", season_number: 1, episode_number: 1)
+      # Manual Oban mode keeps the SearchAndGrab worker from running
+      # synchronously, so the re-arm assertions read the row in its
+      # `searching` state without racing against the worker's snooze.
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        {:ok, ep1} =
+          Acquisition.enqueue("7006", "tv", "Reanimate", season_number: 1, episode_number: 1)
 
-      {:ok, ep2} =
-        Acquisition.enqueue("7006", "tv", "Reanimate", season_number: 1, episode_number: 2)
+        {:ok, ep2} =
+          Acquisition.enqueue("7006", "tv", "Reanimate", season_number: 1, episode_number: 2)
 
-      {:ok, _} = Acquisition.cancel_grab(ep1.id, "user_cancelled")
+        {:ok, _} = Acquisition.cancel_grab(ep1.id, "user_cancelled")
 
-      {:ok, _} =
-        ep2
-        |> Ecto.Changeset.change(status: "abandoned")
-        |> MediaCentarr.Repo.update()
+        {:ok, _} =
+          ep2
+          |> Ecto.Changeset.change(status: "abandoned")
+          |> MediaCentarr.Repo.update()
 
-      assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
-      assert summary.queued == 1
-      assert summary.rearmed == 2
-      assert summary.in_progress == 0
-      assert summary.already_grabbed == 0
+        assert {:ok, summary} = Acquisition.enqueue_all_pending_for_item(item.id)
+        assert summary.queued == 1
+        assert summary.rearmed == 2
+        assert summary.in_progress == 0
+        assert summary.already_grabbed == 0
 
-      # Re-armed grabs are active again. Oban runs the SearchAndGrab job
-      # inline in tests, so they may have already transitioned from
-      # `searching` → `snoozed` if the prowlarr stub returned no results.
-      ep1_after = MediaCentarr.Repo.get(Grab, ep1.id)
-      ep2_after = MediaCentarr.Repo.get(Grab, ep2.id)
-      assert ep1_after.status in ["searching", "snoozed"]
-      assert ep2_after.status in ["searching", "snoozed"]
+        ep1_after = MediaCentarr.Repo.get(Grab, ep1.id)
+        ep2_after = MediaCentarr.Repo.get(Grab, ep2.id)
+        assert ep1_after.status == "searching"
+        assert ep2_after.status == "searching"
+      end)
     end
 
     test "skips successfully grabbed releases as already_grabbed" do
