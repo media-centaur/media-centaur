@@ -4,6 +4,23 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.51.2 — 2026-05-09
+
+### Fixed
+
+Cancelling a download from the Downloads page now removes the row you
+clicked. The previous version sometimes appeared to delete the wrong
+row visually — the actual cancellation was correct, but the UI showed
+a different row disappearing until the page was reloaded.
+
+### Improved
+
+The app stays more responsive while it scans your library for changes.
+Background work that updates pursuit health, refreshes images, and
+reconciles file presence no longer holds up the live UI, and disk
+health checks run in parallel so the upcoming-shows screen feels
+snappier on libraries with many entries.
+
 ## v0.51.1 — 2026-05-09
 
 Internal quality follow-ups on the v0.51.0 data-migrations mechanism —
