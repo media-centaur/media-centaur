@@ -41,6 +41,11 @@ defmodule MediaCentarr.Pipeline.Image.Stats do
   @saturated_threshold 3
   @max_recent_errors 20
 
+  # Periodic prune so window_completions stays bounded between snapshot
+  # reads (otherwise a busy pipeline with no Status-page observer piles up
+  # tuples until the next read). Mirrors `Pipeline.Stats`.
+  @prune_interval_ms @window_ms
+
   # --- Public API ---
 
   def start_link(opts \\ []) do
@@ -106,8 +111,21 @@ defmodule MediaCentarr.Pipeline.Image.Stats do
     }
 
     attach_telemetry()
+    schedule_prune()
 
     {:ok, state}
+  end
+
+  @impl true
+  def handle_info(:prune, state) do
+    now = System.monotonic_time(:millisecond)
+    completions = StatsHelpers.prune_window(state.window_completions, now, @window_ms)
+    schedule_prune()
+    {:noreply, %{state | window_completions: completions}}
+  end
+
+  defp schedule_prune do
+    Process.send_after(self(), :prune, @prune_interval_ms)
   end
 
   @impl true

@@ -29,11 +29,12 @@ defmodule MediaCentarr.Library.ImageHealth do
   """
   @spec list_missing(resolver()) :: [missing_entry()]
   def list_missing(resolver \\ &Config.resolve_image_path/1) do
-    Image
-    |> where([i], not is_nil(i.content_url))
-    |> Repo.all()
-    |> Enum.filter(fn image -> resolver.(image.content_url) == nil end)
-    |> Enum.map(&annotate/1)
+    resolver
+    |> rows_with_presence()
+    |> Enum.flat_map(fn
+      {image, false} -> [annotate(image)]
+      {_image, true} -> []
+    end)
   end
 
   @doc """
@@ -42,7 +43,9 @@ defmodule MediaCentarr.Library.ImageHealth do
   """
   @spec count_missing(resolver()) :: non_neg_integer()
   def count_missing(resolver \\ &Config.resolve_image_path/1) do
-    resolver |> list_missing() |> length()
+    resolver
+    |> rows_with_presence()
+    |> Enum.count(fn {_image, present?} -> not present? end)
   end
 
   @doc """
@@ -57,19 +60,42 @@ defmodule MediaCentarr.Library.ImageHealth do
           by_role: %{String.t() => non_neg_integer()}
         }
   def summary(resolver \\ &Config.resolve_image_path/1) do
+    Enum.reduce(
+      rows_with_presence(resolver),
+      %{total: 0, missing: 0, by_role: %{}},
+      fn
+        {_image, true}, acc ->
+          %{acc | total: acc.total + 1}
+
+        {image, false}, acc ->
+          %{
+            total: acc.total + 1,
+            missing: acc.missing + 1,
+            by_role: Map.update(acc.by_role, image.role, 1, &(&1 + 1))
+          }
+      end
+    )
+  end
+
+  # Single fetch + parallel disk-presence check. The check is per-file
+  # `File.exists?` (via the resolver), embarrassingly parallel — running
+  # serially turned a ~10k-image health summary into a sequential disk-stat
+  # walk. `ordered: false` lets fast checks land first; the callers don't
+  # depend on order.
+  defp rows_with_presence(resolver) do
     rows =
       Image
       |> where([i], not is_nil(i.content_url))
       |> Repo.all()
 
-    missing = Enum.filter(rows, fn image -> resolver.(image.content_url) == nil end)
-
-    by_role =
-      missing
-      |> Enum.group_by(& &1.role)
-      |> Map.new(fn {role, items} -> {role, length(items)} end)
-
-    %{total: length(rows), missing: length(missing), by_role: by_role}
+    rows
+    |> Task.async_stream(
+      fn image -> {image, resolver.(image.content_url) != nil} end,
+      max_concurrency: 16,
+      ordered: false,
+      timeout: 30_000
+    )
+    |> Enum.map(fn {:ok, result} -> result end)
   end
 
   defp annotate(%Image{} = image) do

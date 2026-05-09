@@ -167,21 +167,27 @@ defmodule MediaCentarr.Library.Inbound do
   # Callbacks
   # ---------------------------------------------------------------------------
 
+  # `ingest/1`, `process_image_ready/1`, and `handle_rematch/1` all do real
+  # DB work. Running them inline blocks the mailbox during burst ingest from
+  # the import Broadway pipeline. Offload to the task supervisor so the
+  # GenServer can drain its mailbox; SQLite single-writer semantics serialize
+  # the actual writes downstream, and `race_winner/2` already handles the
+  # rare concurrent same-entity case via the unique constraint.
   @impl true
   def handle_info({:entity_published, event}, state) do
-    ingest(event)
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn -> ingest(event) end)
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:image_ready, attrs}, state) do
-    process_image_ready(attrs)
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn -> process_image_ready(attrs) end)
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:rematch_requested, entity_id}, state) do
-    handle_rematch(entity_id)
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn -> handle_rematch(entity_id) end)
     {:noreply, state}
   end
 
