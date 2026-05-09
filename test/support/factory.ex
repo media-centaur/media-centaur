@@ -570,7 +570,7 @@ defmodule MediaCentarr.TestFactory do
     defaults = %{
       tmdb_id: "12345",
       tmdb_type: "movie",
-      title: "Sample Movie Thirteen Part Two",
+      title: "Sample Movie",
       quality_4k_patience_hours: 0
     }
 

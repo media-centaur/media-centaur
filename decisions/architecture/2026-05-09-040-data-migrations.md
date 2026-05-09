@@ -19,6 +19,8 @@ We need a sanctioned mechanism: deploys auto-apply pending row-level fix-ups, ea
 
 Chosen option: **a parallel `Ecto.Migrator` stream rooted at `priv/repo/data_migrations/`, tracked in its own `data_migrations` table, run after schema migrations on every deploy.**
 
+Small, surgical row-fixups that genuinely belong with a schema change (e.g. `priv/repo/migrations/20260503180000_heal_grabs_tmdb_type_tv_series.exs`, which heals an enum spelling drift in the same migration that makes the enum canonical) remain inlined in their schema migration. The new mechanism is for everything else — backfills that ride on top of the new schema, that are too long for the schema migration's atomicity expectations, or that need to call domain logic (via `oban_jobs` enqueue, per the rules below) to do their work.
+
 ### File layout
 
 ```
