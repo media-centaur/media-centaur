@@ -16,6 +16,10 @@ defmodule MediaCentarr.Repo.DataMigrations.BackfillOrphanedPursuits do
 
   @in_flight_statuses ["searching", "snoozed"]
 
+  # The `IN (?, ?)` placeholder count must match `length(@in_flight_statuses)`.
+  # Don't grow this list without also growing the SQL — and don't grow either
+  # in this shipped migration. Append-only: a new in-flight status would ship
+  # as a new data migration.
   @select_orphans """
   SELECT id, tmdb_id, tmdb_type, title, year, season_number, episode_number,
          origin, attempt_count, inserted_at
@@ -53,6 +57,10 @@ defmodule MediaCentarr.Repo.DataMigrations.BackfillOrphanedPursuits do
     Enum.each(rows, &backfill_one(repo, &1))
   end
 
+  # The destructure order MUST match the SELECT column order in
+  # `@select_orphans`. A column reorder there would silently misaligne this
+  # destructure — no exception, just corrupt rows. If you copy this file as
+  # a template for a new data migration, keep this comment.
   defp backfill_one(repo, [
          grab_id,
          tmdb_id,
