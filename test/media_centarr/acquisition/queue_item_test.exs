@@ -125,6 +125,25 @@ defmodule MediaCentarr.Acquisition.QueueItemTest do
       item = QueueItem.from_qbittorrent(base_torrent(%{"category" => ""}))
       assert item.indexer == nil
     end
+
+    test "substitutes a friendly placeholder when name equals the info-hash" do
+      # qBittorrent reports `name` as the info-hash itself until the
+      # `.torrent` metadata downloads (typically during `metaDL`).
+      # Showing the bare hex string in the Downloads UI confuses users
+      # — substitute a friendly placeholder until a real name arrives.
+      hash = "ad0352787544b70df51dc696b9e0f99add01acd4"
+      raw = base_torrent(%{"hash" => hash, "name" => hash, "state" => "metaDL"})
+      item = QueueItem.from_qbittorrent(raw)
+      assert item.id == hash
+      assert item.title == "Fetching torrent details…"
+    end
+
+    test "keeps a real qBittorrent name even when it's hash-shaped but not the hash" do
+      # Don't false-positive on legitimate titles that happen to look
+      # hash-like — only substitute when name == hash exactly.
+      raw = base_torrent(%{"hash" => "abc", "name" => "Sample.Show.S01E01.mkv"})
+      assert QueueItem.from_qbittorrent(raw).title == "Sample.Show.S01E01.mkv"
+    end
   end
 
   defp base_torrent(overrides) do
