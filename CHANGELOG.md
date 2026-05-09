@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.51.3 — 2026-05-09
+
+### Fixed
+
+Freshly grabbed downloads briefly showed a long string of letters and
+numbers as their title — qBittorrent's placeholder before it has
+fetched the torrent's real name. The Downloads page now says
+“Fetching torrent details…” in that window instead, then swaps in
+the actual title once it's available.
+
 ## v0.51.2 — 2026-05-09
 
 ### Fixed
