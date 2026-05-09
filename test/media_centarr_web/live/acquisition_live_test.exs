@@ -355,6 +355,61 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       refute html =~ "Cancel download?"
       assert :counters.get(delete_counter, 1) == 0
     end
+
+    test "queue list uses phx-update=stream so morphdom keys rows by id", %{conn: conn} do
+      # Regression: without `phx-update="stream"`, Phoenix's positional
+      # comprehension diff causes the row at the cancelled position to
+      # morph in place into the *next* item's data and the bottom row
+      # to disappear — visually it looks like the wrong row was deleted
+      # even though the underlying state is correct. Streams force
+      # keyed reconciliation so morphdom moves nodes by id.
+      Req.Test.stub(:qbittorrent, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"POST", "/api/v2/torrents/delete"} -> Plug.Conn.send_resp(conn, 200, "")
+        end
+      end)
+
+      {:ok, view, _html} = live(conn, ~p"/download")
+      Req.Test.allow(:qbittorrent, self(), view.pid)
+
+      items =
+        for {hash, title} <- [
+              {"hash-a", "Movie.A.2024"},
+              {"hash-b", "Movie.B.2024"},
+              {"hash-c", "Movie.C.2024"}
+            ] do
+          %QueueItem{
+            id: hash,
+            title: title,
+            state: :downloading,
+            status: "downloading",
+            download_client: "qBittorrent",
+            size: 100,
+            size_left: 50,
+            progress: 50.0,
+            timeleft: "2m"
+          }
+        end
+
+      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: items}})
+
+      html = render(view)
+      assert html =~ ~s|id="queue-list"|
+      assert html =~ ~s|phx-update="stream"|
+      assert html =~ ~s|id="queue-item-hash-a"|
+      assert html =~ ~s|id="queue-item-hash-b"|
+      assert html =~ ~s|id="queue-item-hash-c"|
+
+      view |> element("button[phx-value-id='hash-b']") |> render_click()
+      html = view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
+
+      # The middle row's id is gone, and the surviving rows keep their
+      # ids — morphdom can match them and move A and C cleanly without
+      # in-place positional morphing.
+      assert html =~ ~s|id="queue-item-hash-a"|
+      refute html =~ ~s|id="queue-item-hash-b"|
+      assert html =~ ~s|id="queue-item-hash-c"|
+    end
   end
 
   describe "retry_search (per-group)" do

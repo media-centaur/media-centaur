@@ -85,7 +85,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       end
 
       {:ok,
-       assign(socket,
+       socket
+       |> assign(
          loaded?: false,
          search_session: %Acquisition.SearchSession{},
          active_queue: [],
@@ -101,7 +102,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          pursuit_rows: [],
          pursuits_reload_timer: nil,
          reload_timer: nil
-       )}
+       )
+       |> stream_configure(:queue_ops, dom_id: &queue_op_dom_id/1)
+       |> stream(:queue_ops, [])}
     else
       {:ok, push_navigate(socket, to: "/")}
     end
@@ -150,13 +153,33 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
     status = MediaCentarr.Acquisition.QueueStatus.derive(state, @watched_cadence_ms)
 
-    assign(socket,
+    socket
+    |> assign(
       active_queue: visible,
       queue_status: status,
       pending_cancels: pending_cancels,
       queue_loaded?: true
     )
+    |> stream_queue_ops(visible)
   end
+
+  # Re-streams the queue ops using the supplied items list and the
+  # current `expanded_queue_groups`. Use `reset: true` so the stream
+  # mirrors `prepare_queue_for_render/2` exactly — Phoenix's stream
+  # client computes the minimal set of insert/move/delete ops to
+  # transition from the prior DOM to the new ordered list, keying by
+  # `queue_op_dom_id/1` so morphdom moves rows by id rather than
+  # morphing them positionally in place. The latter is the original
+  # bug: cancelling row N visually removed row N+1 because the
+  # comprehension re-rendered position N's content with N+1's data
+  # and dropped the trailing position.
+  defp stream_queue_ops(socket, items) do
+    ops = Logic.prepare_queue_for_render(items, socket.assigns.expanded_queue_groups)
+    stream(socket, :queue_ops, ops, reset: true)
+  end
+
+  defp queue_op_dom_id({:item, item}), do: "queue-item-#{item.id}"
+  defp queue_op_dom_id({:summary, summary}), do: "queue-summary-#{summary.state}"
 
   # `?search=…` and `?filter=…` deep-link from the upcoming-zone badges
   # straight to a pre-filtered activity view. `?prowlarr_search=…` from
@@ -231,7 +254,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           queue_loaded?={@queue_loaded?}
           queue_status={@queue_status}
           active_queue={@active_queue}
-          expanded_queue_groups={@expanded_queue_groups}
+          queue_ops={@streams.queue_ops}
         />
 
         <section :if={@pursuit_rows != []} data-nav-zone="pursuits" class="space-y-3">
@@ -349,6 +372,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
           socket
           |> assign(active_queue: remaining, pending_cancels: pending_cancels)
+          |> stream_queue_ops(remaining)
           |> put_flash(:info, "Cancelled “#{title}”.")
 
         {:error, reason} ->
@@ -379,7 +403,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           MapSet.put(socket.assigns.expanded_queue_groups, state_atom)
         end
 
-      {:noreply, assign(socket, expanded_queue_groups: expanded)}
+      socket =
+        socket
+        |> assign(expanded_queue_groups: expanded)
+        |> stream_queue_ops(socket.assigns.active_queue)
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
