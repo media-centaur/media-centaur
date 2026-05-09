@@ -27,11 +27,13 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
 
   attr :active_queue, :list,
     required: true,
-    doc: "List of `MediaCentarr.Acquisition.QueueItem.t()` (no Phoenix list-of-typed-structs validator)."
+    doc:
+      "List of `MediaCentarr.Acquisition.QueueItem.t()` — used only for the empty-state check; rendered rows come from `queue_ops`."
 
-  attr :expanded_queue_groups, :any,
+  attr :queue_ops, :any,
     required: true,
-    doc: "MapSet of QueueItem.state() atoms the user has clicked open"
+    doc:
+      "Phoenix Stream of `Logic.render_op()` tuples (`@streams.queue_ops`). Streamed so morphdom can move rows by id; see ADR/queue moduledoc."
 
   def queue_zone(assigns) do
     ~H"""
@@ -58,10 +60,8 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
         No active downloads
       </p>
 
-      <div :if={@active_queue != []}>
-        <%= for op <- Logic.prepare_queue_for_render(@active_queue, @expanded_queue_groups) do %>
-          <.render_op op={op} />
-        <% end %>
+      <div :if={@active_queue != []} id="queue-list" phx-update="stream">
+        <.render_op :for={{dom_id, op} <- @queue_ops} id={dom_id} op={op} />
       </div>
     </section>
 
@@ -76,13 +76,17 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
     """
   end
 
+  attr :id, :string,
+    required: true,
+    doc: "DOM id from the queue_ops stream — keyed by `queue_op_dom_id/1` in AcquisitionLive."
+
   attr :op, :any, required: true, doc: "render op tuple from `Logic.prepare_queue_for_render/2`"
 
   defp render_op(%{op: {:item, item}} = assigns) do
     assigns = Map.put(assigns, :item, item)
 
     ~H"""
-    <.row item={@item} />
+    <.row id={@id} item={@item} />
     """
   end
 
@@ -90,16 +94,17 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
     assigns = Map.put(assigns, :summary, summary)
 
     ~H"""
-    <.summary_row summary={@summary} />
+    <.summary_row id={@id} summary={@summary} />
     """
   end
 
+  attr :id, :string, required: true
   attr :item, MediaCentarr.Acquisition.QueueItem, required: true
 
   defp row(assigns) do
     ~H"""
     <div
-      id={"queue-item-#{@item.id}"}
+      id={@id}
       class="px-4 py-3 border-b border-base-content/5 last:border-0 space-y-1.5"
     >
       <div class="flex items-center gap-3">
@@ -152,6 +157,8 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
     """
   end
 
+  attr :id, :string, required: true
+
   attr :summary, :any,
     required: true,
     doc: "group summary returned by `Logic.partition_collapsible_group/3`"
@@ -159,7 +166,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
   defp summary_row(%{summary: %{kind: :collapsed}} = assigns) do
     ~H"""
     <button
-      id={"queue-summary-#{@summary.state}"}
+      id={@id}
       type="button"
       phx-click="toggle_queue_group"
       phx-value-state={@summary.state}
@@ -181,7 +188,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
   defp summary_row(%{summary: %{kind: :expanded}} = assigns) do
     ~H"""
     <button
-      id={"queue-summary-#{@summary.state}"}
+      id={@id}
       type="button"
       phx-click="toggle_queue_group"
       phx-value-state={@summary.state}
