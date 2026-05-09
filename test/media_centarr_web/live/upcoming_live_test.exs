@@ -29,9 +29,11 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
   describe "debounce on broadcast-driven reloads" do
     test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
       # Regression guard: :releases_updated, :entities_changed, and grab-event
-      # messages must be debounced (500ms) rather than calling load_upcoming on
-      # every message. Five messages in quick succession should produce one
-      # :reload_upcoming — the page must still render correctly after the window.
+      # messages must be debounced (500ms) rather than firing a reload on
+      # every message. Five messages in quick succession should produce at
+      # most one reload — the page must still render correctly after the
+      # window. (`:entities_changed` only refreshes `tracked_items` since
+      # the other assigns derive from ReleaseTracking / Acquisition.)
       {:ok, view, _html} = live(conn, "/upcoming")
 
       for _ <- 1..5 do

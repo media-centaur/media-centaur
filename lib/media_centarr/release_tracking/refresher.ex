@@ -108,16 +108,27 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     # Phase 2: serialized commits. SQLite is a single-writer database; a
     # single commit loop avoids lock contention and the rollback that
     # comes with four concurrent write transactions.
-    Enum.each(fetched, fn
-      {:ok, {:ok, item, response, new_releases}} ->
-        commit_refresh(item, response, new_releases)
+    successful =
+      Enum.flat_map(fetched, fn
+        {:ok, {:ok, item, response, new_releases}} ->
+          commit_refresh(item, response, new_releases)
+          [{item, response}]
 
-      {:ok, {:error, item, reason}} ->
-        Log.info(:library, "refresh failed for #{item.name}: #{inspect(reason)}")
+        {:ok, {:error, item, reason}} ->
+          Log.info(:library, "refresh failed for #{item.name}: #{inspect(reason)}")
+          []
 
-      {:exit, reason} ->
-        Log.info(:library, "refresh task crashed: #{inspect(reason)}")
-    end)
+        {:exit, reason} ->
+          Log.info(:library, "refresh task crashed: #{inspect(reason)}")
+          []
+      end)
+
+    # Phase 3: bounded parallel image backfill. Previously each commit
+    # spawned its own Task.Supervisor.start_child, so N refreshed items
+    # produced up to N concurrent image-download tasks competing for
+    # bandwidth. Bound the fan-out the same way Phase 1 bounds TMDB
+    # fetches.
+    bulk_download_images(successful)
 
     ReleaseTracking.mark_past_releases_as_released()
 
@@ -132,6 +143,20 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     end
 
     Log.info(:library, "release tracking: refresh complete (#{length(items)} items)")
+  end
+
+  defp bulk_download_images([]), do: :ok
+
+  defp bulk_download_images(items_with_responses) do
+    MediaCentarr.TaskSupervisor
+    |> Task.Supervisor.async_stream_nolink(
+      items_with_responses,
+      fn {item, response} -> download_images_sync(item, item.tmdb_id, response) end,
+      max_concurrency: 4,
+      timeout: 60_000,
+      on_timeout: :kill_task
+    )
+    |> Stream.run()
   end
 
   defp fetch_for_item(%{media_type: :tv_series} = item) do
@@ -183,7 +208,6 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     write_events(item, events)
     replace_releases(item, new_releases)
     update_item_metadata(item, response)
-    download_images_async(item, item.tmdb_id, response)
     broadcast_releases_ready(item)
     :ok
   end
@@ -322,8 +346,10 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     items =
       MediaCentarr.Repo.all(from(i in ReleaseTracking.Item, where: i.library_entity_id in ^entity_ids))
 
+    existing_ids = batch_existing_entity_ids(items)
+
     Enum.each(items, fn item ->
-      if library_entity_exists?(item) do
+      if library_entity_exists?(item, existing_ids) do
         if item.media_type == :tv_series do
           {season, episode} = Helpers.find_last_library_episode(item.library_entity_id)
 
@@ -350,15 +376,45 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     end)
   end
 
-  defp library_entity_exists?(%{media_type: :tv_series, library_entity_id: id}) do
-    MediaCentarr.Repo.get(MediaCentarr.Library.TVSeries, id) != nil
+  # One IN-query per relevant table instead of one Repo.get per item — this
+  # function is called from `handle_info({:entities_changed, ...})` so it
+  # blocks the GenServer mailbox for the duration of the work.
+  defp batch_existing_entity_ids(items) do
+    {tv_ids, movie_ids} =
+      Enum.reduce(items, {[], []}, fn
+        %{media_type: :tv_series, library_entity_id: id}, {tvs, movies} when not is_nil(id) ->
+          {[id | tvs], movies}
+
+        %{media_type: :movie, library_entity_id: id}, {tvs, movies} when not is_nil(id) ->
+          {tvs, [id | movies]}
+
+        _, acc ->
+          acc
+      end)
+
+    %{
+      tv_series: load_existing_ids(MediaCentarr.Library.TVSeries, tv_ids),
+      movie_series: load_existing_ids(MediaCentarr.Library.MovieSeries, movie_ids)
+    }
   end
 
-  defp library_entity_exists?(%{media_type: :movie, library_entity_id: id}) do
-    MediaCentarr.Repo.get(MediaCentarr.Library.MovieSeries, id) != nil
+  defp load_existing_ids(_schema, []), do: MapSet.new()
+
+  defp load_existing_ids(schema, ids) do
+    from(s in schema, where: s.id in ^ids, select: s.id)
+    |> MediaCentarr.Repo.all()
+    |> MapSet.new()
   end
 
-  defp library_entity_exists?(_), do: true
+  defp library_entity_exists?(%{media_type: :tv_series, library_entity_id: id}, %{tv_series: set}) do
+    MapSet.member?(set, id)
+  end
+
+  defp library_entity_exists?(%{media_type: :movie, library_entity_id: id}, %{movie_series: set}) do
+    MapSet.member?(set, id)
+  end
+
+  defp library_entity_exists?(_, _), do: true
 
   @active_tv_statuses [:returning, :in_production, :planned]
 
@@ -434,28 +490,39 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     end
   end
 
-  # Async backfill of images that are missing from the item but available in
-  # the TMDB response. Called both from auto-track (where the item is brand
-  # new with no images) and from `commit_refresh/3` (where existing items
-  # may have gained a logo/poster/backdrop on TMDB since they were tracked).
-  # The `pending_image_downloads/2` filter is what makes this idempotent —
-  # already-fetched images skip the network entirely.
+  # Backfill of images that are missing from the item but available in the
+  # TMDB response. The `pending_image_downloads/2` filter makes this
+  # idempotent — already-fetched images skip the network entirely.
+  #
+  # Two entry points:
+  #  * `download_images_async/3` — fire-and-forget single-item case (used
+  #    by auto-track, where exactly one item is being onboarded).
+  #  * `download_images_sync/3` — synchronous body, called by Phase 3 of
+  #    `do_refresh_all` under a bounded `async_stream` so a refresh cycle
+  #    over N items doesn't fan out to N concurrent download tasks.
   defp download_images_async(item, tmdb_id, response) do
-    pending = pending_image_downloads(item, response)
-
-    if pending != [] do
+    if pending_image_downloads(item, response) != [] do
       Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-        attrs =
-          Enum.reduce(pending, %{}, fn {tmdb_path, attr_key, downloader}, acc ->
-            case downloader.(tmdb_id, tmdb_path) do
-              {:ok, path} when is_binary(path) -> Map.put(acc, attr_key, path)
-              _ -> acc
-            end
-          end)
-
-        if attrs != %{}, do: ReleaseTracking.update_item(item, attrs)
+        download_images_sync(item, tmdb_id, response)
       end)
     end
+
+    :ok
+  end
+
+  defp download_images_sync(item, tmdb_id, response) do
+    pending = pending_image_downloads(item, response)
+
+    attrs =
+      Enum.reduce(pending, %{}, fn {tmdb_path, attr_key, downloader}, acc ->
+        case downloader.(tmdb_id, tmdb_path) do
+          {:ok, path} when is_binary(path) -> Map.put(acc, attr_key, path)
+          _ -> acc
+        end
+      end)
+
+    if attrs != %{}, do: ReleaseTracking.update_item(item, attrs)
+    :ok
   end
 
   # Returns `[{tmdb_source_path, attr_key, downloader}]` for every image role

@@ -64,7 +64,8 @@ defmodule MediaCentarrWeb.UpcomingLive do
         release_grab_statuses: %{},
         tracked_items: [],
         reload_timer: nil,
-        grab_statuses_timer: nil
+        grab_statuses_timer: nil,
+        tracked_items_timer: nil
       )
 
     {:ok, socket}
@@ -391,8 +392,18 @@ defmodule MediaCentarrWeb.UpcomingLive do
     end
   end
 
+  # `entities_changed` fires for every Library mutation (image fetched, file
+  # linked, watching toggled, etc). Of the five upcoming-page assigns, only
+  # `tracked_items` derives from Library state — releases, events, images, and
+  # grab statuses all come from ReleaseTracking / Acquisition and arrive via
+  # their own broadcasts (`:releases_updated`, `@grab_status_events`). So we
+  # only refresh the one assign that's actually affected.
   def handle_info({:entities_changed, %{entity_ids: _entity_ids}}, socket) do
-    {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
+    {:noreply, debounce(socket, :tracked_items_timer, :reload_tracked_items, 500)}
+  end
+
+  def handle_info(:reload_tracked_items, socket) do
+    {:noreply, assign(socket, tracked_items: build_tracked_items_from_watching())}
   end
 
   def handle_info(:reload_upcoming, socket) do
