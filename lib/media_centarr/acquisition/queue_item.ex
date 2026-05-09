@@ -66,7 +66,7 @@ defmodule MediaCentarr.Acquisition.QueueItem do
   def from_qbittorrent(raw) when is_map(raw) do
     %__MODULE__{
       id: raw["hash"],
-      title: raw["name"] || "",
+      title: title_from_qbittorrent(raw["name"], raw["hash"]),
       status: raw["state"],
       state: state_from_qbittorrent(raw["state"]),
       download_client: "qBittorrent",
@@ -77,6 +77,16 @@ defmodule MediaCentarr.Acquisition.QueueItem do
       timeleft: format_eta(raw["eta"])
     }
   end
+
+  # qBittorrent reports `name` as the info-hash itself until torrent
+  # metadata is downloaded (typically the `metaDL` state). The bare
+  # hex string is meaningless to end users, so swap in a placeholder
+  # until a real name arrives.
+  defp title_from_qbittorrent(name, hash) when is_binary(name) and name == hash,
+    do: "Fetching torrent details…"
+
+  defp title_from_qbittorrent(name, _hash) when is_binary(name), do: name
+  defp title_from_qbittorrent(_name, _hash), do: ""
 
   defp state_from_qbittorrent(state)
        when state in ~w(downloading metaDL forcedDL allocating checkingResumeData checkingDL),
