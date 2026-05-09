@@ -28,7 +28,14 @@ defmodule MediaCentarr.WatchHistory.Recorder do
 
   @impl true
   def handle_info({:entity_watch_completed, record}, state) do
-    record_completion(record)
+    # `record_completion/1` does two DB lookups to resolve the title before
+    # inserting. Running them inline blocks the mailbox — a binge restoration
+    # that fires several `:entity_watch_completed` events at once would
+    # serialize on this single GenServer. Offload to the task supervisor.
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      record_completion(record)
+    end)
+
     {:noreply, state}
   end
 

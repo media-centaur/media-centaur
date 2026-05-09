@@ -41,6 +41,14 @@ defmodule MediaCentarr.Pipeline.Stats do
   @saturated_threshold 10
   @max_recent_errors 50
 
+  # Pruning the per-stage `window_completions` list only on `:get_snapshot`
+  # means the list grows unbounded between reads. With no LiveView observing
+  # the Status page, a busy pipeline could pile up tens of thousands of
+  # `{ts, duration}` tuples per stage. The periodic prune keeps growth
+  # bounded regardless of read frequency, without paying O(n) on every
+  # cast.
+  @prune_interval_ms @window_ms
+
   # --- Public API ---
 
   def start_link(opts \\ []) do
@@ -141,8 +149,30 @@ defmodule MediaCentarr.Pipeline.Stats do
     }
 
     attach_telemetry()
+    schedule_prune()
 
     {:ok, state}
+  end
+
+  @impl true
+  def handle_info(:prune, state) do
+    now = System.monotonic_time(:millisecond)
+
+    pruned_stages =
+      Map.new(state.stages, fn {stage, data} ->
+        {stage,
+         %{
+           data
+           | window_completions: StatsHelpers.prune_window(data.window_completions, now, @window_ms)
+         }}
+      end)
+
+    schedule_prune()
+    {:noreply, %{state | stages: pruned_stages}}
+  end
+
+  defp schedule_prune do
+    Process.send_after(self(), :prune, @prune_interval_ms)
   end
 
   @impl true
