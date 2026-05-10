@@ -263,16 +263,33 @@ before considering done.
 > the current scale before declaring Workstream A done so the new
 > suites have reference numbers.
 
-### B. Acquisition split *(Pillar 1 partition + Pillar 3 re-routing)*
+### B. Acquisition split — extract Downloads and Search
 
-Separate the grab/download path from Library writes — bigger
-architectural lift than a projection. Wants a fresh design pass
-(likely a new ADR) before code. Open questions: where does the
-boundary fall, what's the new context name, what canonical
-events does the split emit?
+Decompose the 76-file `MediaCentarr.Acquisition` boundary into
+three sibling contexts: a slim `Acquisition` (grab lifecycle +
+Pursuits aggregate), a new `Downloads` (download-client
+integration), and a new `Search` (Prowlarr-facing stateless
+layer). Phased rollout, each phase independently shippable.
 
-* [ ] Design ADR.
-* [ ] Implementation.
+The workstream's original "Pillar 1 partition + Pillar 3
+re-routing — separate grab/download from Library writes" framing
+turned out not to match the actual code: there are no
+Acquisition-to-Library writes and the schemas are already
+separately namespaced. The real opportunity is the sub-context
+split. See ADR-043.
+
+* [x] Design ADR —
+  [ADR-043](../decisions/architecture/2026-05-10-043-acquisition-split.md)
+  proposed 2026-05-10.
+* [ ] Phase 1 — extract `Downloads` (qBittorrent driver, queue,
+  health).
+* [ ] Phase 2 — extract `Search` (Prowlarr, query, results, title
+  matcher, quality).
+* [ ] Phase 3 — clean up Acquisition boundary (drop vestigial
+  `Library` dep, prune exports).
+* [ ] (Optional Phase 4) — promote `Pursuits` to top-level.
+  Currently parked; depth of the subtree is justified per
+  ADR-039, not sprawl.
 
 ### C. Pillar 1 → Pillar 2 ephemeral-field cleanup
 
