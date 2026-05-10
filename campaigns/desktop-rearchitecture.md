@@ -277,11 +277,19 @@ currently scattered across several moduledocs. Consolidate so a
 new contributor (or fresh agent context) finds the pattern in
 one place.
 
-* [ ] Centralise the three-flavour Cache.Worker pattern, either
-  in a new section of ADR-041 or `lib/media_centarr/cache/README.md`.
-* [ ] Centralise the PubSub topic taxonomy (canonical vs
-  derived `*_view_updated`) — likely an addition to
-  `lib/media_centarr/topics.ex` moduledoc.
+* [x] Centralise the three-flavour Cache.Worker pattern in
+  `MediaCentarr.Cache` moduledoc — table of flavours with
+  decision criteria, misplacement defects, canonical examples,
+  the source-vs-derived PubSub rule, and the test-mode fallback.
+  *(shipped 2026-05-10)*
+* [x] Centralise the PubSub topic taxonomy in
+  `MediaCentarr.Topics` moduledoc — every topic tabulated by
+  role (source / derived / coordination), owner, and payloads.
+  Discipline rules: topics live in `Topics`, not inline; LiveViews
+  consume derived topics, not source topics for cache-driven
+  data. Side fix: `library:availability` was hardcoded in
+  `Library.Availability`; promoted to `Topics.library_availability/0`.
+  *(shipped 2026-05-10)*
 
 ## Completion criteria
 

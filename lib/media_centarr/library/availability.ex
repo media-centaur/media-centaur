@@ -26,7 +26,7 @@ defmodule MediaCentarr.Library.Availability do
   """
   use GenServer
 
-  @topic "library:availability"
+  alias MediaCentarr.Topics
 
   # --- Public reads (zero message-passing cost) ---
 
@@ -51,7 +51,7 @@ defmodule MediaCentarr.Library.Availability do
   messages broadcast whenever a watch dir's availability changes.
   """
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentarr.PubSub, @topic)
+  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.library_availability())
 
   @doc false
   # Public test-only helpers (hidden from docs). They exist so tests
@@ -79,7 +79,7 @@ defmodule MediaCentarr.Library.Availability do
     # wraps `Watcher.Supervisor.statuses/0` — it exists specifically so
     # Library can consult Watcher state without a Boundary cycle (Watcher
     # already depends on Library).
-    :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.dir_state())
+    :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.dir_state())
 
     # Watcher.statuses/0 surfaces internal vocabulary (`:watching` /
     # `:initializing`); broadcasts emit `:available` / `:unavailable`.
@@ -106,7 +106,7 @@ defmodule MediaCentarr.Library.Availability do
 
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
-      @topic,
+      Topics.library_availability(),
       {:availability_changed, dir, new_state}
     )
 
