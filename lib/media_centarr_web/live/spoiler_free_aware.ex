@@ -26,8 +26,7 @@ defmodule MediaCentarrWeb.Live.SpoilerFreeAware do
   """
 
   alias MediaCentarr.Settings
-
-  @setting_key "spoiler_free_mode"
+  alias MediaCentarr.SpoilerFree
 
   defmacro __using__(_opts) do
     quote do
@@ -38,9 +37,14 @@ defmodule MediaCentarrWeb.Live.SpoilerFreeAware do
   @doc """
   Auto-wires every host that `use`s this module. Subscribes once,
   seeds the assign, and attaches the PubSub hook.
+
+  The seed read goes through `MediaCentarr.SpoilerFree.enabled?/0`,
+  which reads from a `:persistent_term` cache rather than hitting the
+  Settings DB on every mount. Live updates still flow through the
+  `Settings` topic; the hook updates the local assign in-place.
   """
   def on_mount(:default, _params, _session, socket) do
-    socket = Phoenix.Component.assign(socket, :spoiler_free, current_value())
+    socket = Phoenix.Component.assign(socket, :spoiler_free, SpoilerFree.enabled?())
 
     if Phoenix.LiveView.connected?(socket) do
       Settings.subscribe()
@@ -58,16 +62,13 @@ defmodule MediaCentarrWeb.Live.SpoilerFreeAware do
   end
 
   @doc false
-  def handle_setting_changed({:setting_changed, @setting_key, enabled}, socket) do
-    {:cont, Phoenix.Component.assign(socket, :spoiler_free, enabled == true)}
+  def handle_setting_changed({:setting_changed, key, enabled}, socket) do
+    if key == SpoilerFree.setting_key() do
+      {:cont, Phoenix.Component.assign(socket, :spoiler_free, enabled == true)}
+    else
+      {:cont, socket}
+    end
   end
 
   def handle_setting_changed(_msg, socket), do: {:cont, socket}
-
-  defp current_value do
-    case Settings.get_by_key(@setting_key) do
-      {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
-      _ -> false
-    end
-  end
 end

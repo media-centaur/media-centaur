@@ -1,5 +1,6 @@
 defmodule MediaCentarr.Capabilities do
-  use Boundary, deps: [MediaCentarr.Settings], exports: []
+  use Boundary, deps: [MediaCentarr.Settings]
+  @behaviour MediaCentarr.Cache
 
   @moduledoc """
   Predicates that gate user-visible features on an explicit "Test
@@ -29,20 +30,57 @@ defmodule MediaCentarr.Capabilities do
   @type status :: :ok | :error
   @type info :: %{status: status(), tested_at: DateTime.t()}
 
+  @cache_key {__MODULE__, :ready_flags}
+
   @doc "Subscribes the caller to capability-change broadcasts."
+  @impl MediaCentarr.Cache
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.capabilities_updates())
   end
 
+  @doc "Filters PubSub messages relevant to this cache."
+  @impl MediaCentarr.Cache
+  def relevant?(:capabilities_changed), do: true
+  def relevant?(_), do: false
+
   @spec tmdb_ready?() :: boolean()
-  def tmdb_ready?, do: tmdb_configured?() and last_test_ok?(:tmdb)
+  def tmdb_ready?, do: read_flags().tmdb
 
   @spec prowlarr_ready?() :: boolean()
-  def prowlarr_ready?, do: prowlarr_configured?() and last_test_ok?(:prowlarr)
+  def prowlarr_ready?, do: read_flags().prowlarr
 
   @spec download_client_ready?() :: boolean()
-  def download_client_ready?, do: download_client_configured?() and last_test_ok?(:download_client)
+  def download_client_ready?, do: read_flags().download_client
+
+  @doc """
+  Recomputes the cached readiness flags and writes them to
+  `:persistent_term`. Called once at boot by the cache worker and on
+  every `:capabilities_changed` broadcast it observes. Direct callers
+  (e.g. `save_test_result/2`) don't need to invoke this — the broadcast
+  drives the refresh.
+  """
+  @impl MediaCentarr.Cache
+  @spec refresh_cache() :: :ok
+  def refresh_cache do
+    :persistent_term.put(@cache_key, compute_flags())
+    :ok
+  end
+
+  defp read_flags do
+    case :persistent_term.get(@cache_key, :__unset) do
+      :__unset -> compute_flags()
+      flags -> flags
+    end
+  end
+
+  defp compute_flags do
+    %{
+      tmdb: tmdb_configured?() and last_test_ok?(:tmdb),
+      prowlarr: prowlarr_configured?() and last_test_ok?(:prowlarr),
+      download_client: download_client_configured?() and last_test_ok?(:download_client)
+    }
+  end
 
   @spec load_test_result(subject()) :: info() | nil
   def load_test_result(subject) do
