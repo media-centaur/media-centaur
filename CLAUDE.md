@@ -158,6 +158,12 @@ Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)).
 
 **Prefer moduledocs for technical concepts.** Document module-internal contracts (syntax, parsing behavior, struct shape, format details) in the relevant `@moduledoc`. Reserve ADRs for decisions that apply repository-wide or supersede an existing ADR. Test: would a contributor want to read this looking at the module, or while browsing `decisions/`? Former → moduledoc; latter → ADR.
 
+## Campaigns
+
+`campaigns/` holds one markdown per long-running, multi-session initiative (3+ sessions, definable end state, resumable context). ADRs capture *decisions*; campaigns capture the *rollout*. See [ADR-042](decisions/architecture/2026-05-10-042-multi-session-campaigns.md) for the full convention and `campaigns/README.md` for the active list.
+
+**Reconciliation rule:** when resuming a campaign, the first action is to read the campaign file, reconcile it against `jj log` and the current code, and update Status / Decisions / Next steps **before** writing any new code. Drift makes the file worse than nothing.
+
 ## Defaults
 
 `defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. Keep `defaults/media-centarr.toml` complete: every key recognised by `MediaCentarr.Config` must have an entry with a logical default and a comment. The file must always be valid TOML.
