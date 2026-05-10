@@ -24,7 +24,7 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
   client, it has nothing more to say about that download. There is no
   `/api/v1/queue` endpoint. Active download progress lives on the
   download client itself (qBittorrent, Transmission, …) and is read
-  through `MediaCentarr.Acquisition.DownloadClient`.
+  through `MediaCentarr.Downloads.DownloadClient`.
 
   ## Configuration
 

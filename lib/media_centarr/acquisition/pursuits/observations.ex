@@ -42,7 +42,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Observations do
   alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
   alias MediaCentarr.Acquisition.Pursuits.Events.{DownloadStarted, HealthChanged}
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarr.Repo
 
   @doc """

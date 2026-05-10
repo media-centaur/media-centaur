@@ -33,7 +33,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   @doc_releases_map "release pair `%{upcoming: [Release.t()], released: [Release.t()]}` from `UpcomingLive.load_upcoming/0`. `Release` is `MediaCentarr.ReleaseTracking.Release` (Ecto schema) preloaded with `:item`."
   @doc_releases_list "list of `MediaCentarr.ReleaseTracking.Release.t()` rows."
   @doc_grab_statuses "map `%{{tmdb_id, tmdb_type, season, episode} => MediaCentarr.Acquisition.Grab.t()}` from `Acquisition.statuses_for_releases/1`."
-  @doc_queue_items "list of `MediaCentarr.Acquisition.QueueItem.t()` rows from `Acquisition.queue_snapshot/0`."
+  @doc_queue_items "list of `MediaCentarr.Downloads.QueueItem.t()` rows from `Acquisition.queue_snapshot/0`."
   @doc_images_map "map `%{Ecto.UUID.t() => %{atom() => String.t()}}` keyed by tracked-item id, value is the image-role → URL map. Built by `UpcomingLive.load_tracking_images/1`."
   @doc_calendar_month_tuple "tuple `{year :: integer(), month :: 1..12}` — current calendar viewport. Phoenix has no tuple type."
   @doc_selected_day_or_nil "selected calendar day (`Date.t()`) or `nil` when no day is selected."
@@ -1259,7 +1259,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # at-a-glance visual cue without itself being clickable.
   # ---------------------------------------------------------------------------
 
-  alias MediaCentarr.Acquisition.{Grab, GrabStatus, QueueItem}
+  alias MediaCentarr.Acquisition.{Grab, GrabStatus}
+  alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarr.ReleaseTracking
 
   @doc """
@@ -1306,7 +1307,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         :errored
 
       :downloading ->
-        if MediaCentarr.Acquisition.Health.degraded?(health),
+        if MediaCentarr.Downloads.Health.degraded?(health),
           do: :downloading_stuck,
           else: :downloading
 

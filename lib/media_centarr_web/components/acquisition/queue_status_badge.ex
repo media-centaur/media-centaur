@@ -5,7 +5,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.QueueStatusBadge do
   actually fresh, lagging, or fully disconnected — distinguishing
   "the queue is empty" from "we can't reach qBittorrent."
 
-  Driven by `MediaCentarr.Acquisition.QueueStatus.derive/2`. Pure
+  Driven by `MediaCentarr.Downloads.QueueStatus.derive/2`. Pure
   visual; no event bindings except the optional reconfigure link in
   the auth-failed state.
   """

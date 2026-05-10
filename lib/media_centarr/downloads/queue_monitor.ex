@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.QueueMonitor do
+defmodule MediaCentarr.Downloads.QueueMonitor do
   @moduledoc """
   Polls the configured download client and broadcasts a versioned
   `%QueueState{}` snapshot. Replaces per-LiveView polling so multiple
@@ -40,7 +40,7 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
   ## Health classification
 
   After each successful poll the items are enriched with a `:health`
-  field per item via `MediaCentarr.Acquisition.HealthHistory`. The
+  field per item via `MediaCentarr.Downloads.HealthHistory`. The
   throughput history needed to classify items lives in this
   GenServer's state; only this module updates it.
   """
@@ -48,10 +48,10 @@ defmodule MediaCentarr.Acquisition.QueueMonitor do
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
-  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent.Sync
-  alias MediaCentarr.Acquisition.HealthHistory
-  alias MediaCentarr.Acquisition.QueueState
+  alias MediaCentarr.Downloads.DownloadClient.QBittorrent
+  alias MediaCentarr.Downloads.DownloadClient.QBittorrent.Sync
+  alias MediaCentarr.Downloads.HealthHistory
+  alias MediaCentarr.Downloads.QueueState
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Topics
 

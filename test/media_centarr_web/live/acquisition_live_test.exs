@@ -3,7 +3,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
+  alias MediaCentarr.Downloads.DownloadClient.QBittorrent
   alias MediaCentarr.Acquisition.Prowlarr
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Secret
@@ -199,7 +199,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       :ok
     end
 
-    alias MediaCentarr.Acquisition.QueueItem
+    alias MediaCentarr.Downloads.QueueItem
 
     test "confirming the modal calls qBittorrent delete and clears the row", %{conn: conn} do
       delete_counter = :counters.new(1, [:atomics])
@@ -221,7 +221,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       send(
         view.pid,
         {:queue_state,
-         %MediaCentarr.Acquisition.QueueState{
+         %MediaCentarr.Downloads.QueueState{
            items: [
              %QueueItem{
                id: "hash-a",
@@ -288,7 +288,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         timeleft: "2m"
       }
 
-      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [stale_item]}})
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [stale_item]}})
       assert render(view) =~ "phx-value-id=\"ghost-1\""
 
       view |> element("button[phx-click='cancel_download_prompt']") |> render_click()
@@ -297,7 +297,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       # Simulate the next poll arriving before qBittorrent has propagated
       # the deletion — the same item shows up in the snapshot. The LiveView
       # must keep it hidden during the cancel grace window.
-      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [stale_item]}})
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [stale_item]}})
 
       # Use the row's phx-value-id rather than the title — the title also
       # appears in the post-cancel flash, which would mask a real failure.
@@ -321,7 +321,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       send(
         view.pid,
         {:queue_state,
-         %MediaCentarr.Acquisition.QueueState{
+         %MediaCentarr.Downloads.QueueState{
            items: [
              %QueueItem{
                id: "hash-b",
@@ -391,7 +391,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
           }
         end
 
-      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: items}})
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: items}})
 
       html = render(view)
       assert html =~ ~s|id="queue-list"|
@@ -648,7 +648,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     # call. Without this contract the page would silently regress to stale
     # data after the polling timer was removed.
 
-    alias MediaCentarr.Acquisition.QueueItem
+    alias MediaCentarr.Downloads.QueueItem
 
     test "queue_snapshot broadcast paints the active queue",
          %{conn: conn} do
@@ -667,7 +667,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         timeleft: "2m"
       }
 
-      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [item]}})
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [item]}})
 
       assert render(view) =~ "Snapshot Movie 2026"
     end
@@ -682,7 +682,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       done = %QueueItem{id: "h1", title: "Already Done Movie", state: :completed}
       live_item = %QueueItem{id: "h2", title: "Still Downloading Movie", state: :downloading}
 
-      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [done, live_item]}})
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [done, live_item]}})
 
       html = render(view)
       refute html =~ "Already Done Movie"
@@ -694,10 +694,10 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       {:ok, view, _html} = live(conn, ~p"/download")
 
       seed = %QueueItem{id: "h3", title: "Soon To Vanish", state: :downloading}
-      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: [seed]}})
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [seed]}})
       assert render(view) =~ "Soon To Vanish"
 
-      send(view.pid, {:queue_state, %MediaCentarr.Acquisition.QueueState{items: []}})
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: []}})
 
       html = render(view)
       refute html =~ "Soon To Vanish"
@@ -723,7 +723,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       :persistent_term.put({QBittorrent, :client}, qbit_client)
       on_exit(fn -> QBittorrent.invalidate_client() end)
 
-      monitor = start_supervised!(MediaCentarr.Acquisition.QueueMonitor)
+      monitor = start_supervised!(MediaCentarr.Downloads.QueueMonitor)
       Req.Test.allow(:qbittorrent, self(), monitor)
 
       {:ok, view, _html} = live(conn, ~p"/download")
