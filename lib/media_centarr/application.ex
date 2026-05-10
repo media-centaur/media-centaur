@@ -168,7 +168,9 @@ defmodule MediaCentarr.Application do
       # Settings starts first so derived caches see a warm upstream.
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Settings},
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Capabilities},
-      {MediaCentarr.Cache.Worker, context: MediaCentarr.Controls}
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Controls},
+      # ETS-backed Library projections (ADR-041).
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.ContinueWatching}
     ]
   end
 

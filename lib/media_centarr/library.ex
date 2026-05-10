@@ -21,6 +21,9 @@ defmodule MediaCentarr.Library do
       TVSeries,
       TypeResolver,
       VideoObject,
+      Views,
+      Views.ContinueWatching,
+      Views.ContinueWatchingItem,
       WatchedFile
     ]
 
