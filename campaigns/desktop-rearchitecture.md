@@ -38,12 +38,26 @@ this campaign exists to fix.
 
 ## Status
 
-Foundation laid: ADR-041, the three-pillar pattern proven on
-Library (ContinueWatching projection), Settings, Capabilities,
-and Controls; profiling rig in place with baseline diffing and
-`--rebaseline`. Multi-user audit confirms zero vestigial
-patterns. Three projection candidates remain on HomeLive plus
-the Acquisition split. No active blockers.
+Foundation laid: ADR-041, the three-pillar pattern now proven across
+**four** projections (Library.Views.ContinueWatching, HeroCandidates,
+RecentlyAdded, ReleaseTracking.Views.ComingUp); profiling rig in
+place with baseline diffing and `--rebaseline`; Settings,
+Capabilities, Controls all paradigm-correct. Multi-user audit
+confirms zero vestigial patterns. **Workstream A is one projection
+short of complete** — WatchHistory views remain. Acquisition split
+(B), ephemeral-field cleanup (C), and pattern-doc consolidation (D)
+unstarted. No active blockers.
+
+HomeLive read paths now read entirely through projections:
+- `/` hero → `Library.Views.HeroCandidates`
+- `/` continue watching → `Library.Views.ContinueWatching`
+- `/` recently added → `Library.Views.RecentlyAdded`
+- `/` coming up → `ReleaseTracking.Views.ComingUp` (grab-status
+  enrichment overlaid at read time to avoid a circular boundary
+  dep against Acquisition).
+
+`section_reloaders/1` no longer matches source events directly —
+every reload is driven by a derived `*_view_updated` broadcast.
 
 ## The three pillars — current placement audit
 
@@ -92,11 +106,24 @@ done.
 * `TMDB.RateLimiter` — GenServer (sliding window).
 * `TMDB.Client` — `:persistent_term` (built `Req` client).
 
+**Correctly placed (added 2026-05-10):**
+
+* `Library.Views.HeroCandidates` — ETS-backed projection of
+  `list_hero_candidates/1`. Subscribes to `library:updates` +
+  `library:availability`; broadcasts `:library_view_updated, :hero_candidates`.
+* `Library.Views.RecentlyAdded` — ETS-backed projection of
+  `list_recently_added/1`. Same subscriptions; broadcasts
+  `:library_view_updated, :recently_added`.
+* `ReleaseTracking.Views.ComingUp` — ETS-backed projection of
+  `list_releases_between/3`. Subscribes to `release_tracking:updates`;
+  broadcasts `:release_tracking_view_updated, :coming_up` on a new
+  `release_tracking:views` topic. Caches today..today+365; reads
+  filter the requested window in-memory. Grab-status enrichment is
+  read-time-only (HomeLive overlays Acquisition data) — keeps the
+  projection inside the ReleaseTracking boundary.
+
 **Missing — still hits Pillar 1 on every render (Workstream A):**
 
-* `HomeLive` hero candidates → `Library.list_hero_candidates/1`.
-* `HomeLive` recently added → `Library.list_recently_added/1`.
-* `HomeLive` coming up → `ReleaseTracking.list_releases_between/3`.
 * `WatchHistory` reads (route + context TBD in workstream).
 
 ### Pillar 3 — Real-time (PubSub)
@@ -161,6 +188,31 @@ Append-only.
 * `2026-05-10` — UI ephemeral state (open drawer, current zone,
   current filter) lives in LiveView socket assigns and is
   correctly placed. No "UIState" workstream needed.
+* `2026-05-10` — **HeroCandidates / RecentlyAdded shipped.**
+  Both subscribe to `library:updates` + `library:availability`
+  (the existing ContinueWatching projection has a known gap on
+  availability subscriptions — left in place for now, see
+  Workstream A's WatchHistory note).
+* `2026-05-10` — **ComingUp shipped on its own topic.** New
+  `release_tracking:views` topic + `Topics.release_tracking_views/0`.
+  Per-context derived topics scale better than a single
+  `views:updates` firehose; the LiveView subscribes once per
+  consumed context.
+* `2026-05-10` — **Grab-status enrichment stays at read time.**
+  Acquisition depends on ReleaseTracking; pulling the enrichment
+  into the projection would force a back-dep cycle. HomeLive
+  composes `Acquisition.statuses_for_releases/1` over the cached
+  release list — same cost as before for the Acquisition
+  query, but the 2 release-tracking queries per render are gone.
+* `2026-05-10` — **Section reloaders are now projection-only.**
+  `section_reloaders/1` no longer pattern-matches source events
+  (`:entities_changed`, `:releases_updated`, `:item_removed`,
+  `:release_ready`, `:watch_event_created`,
+  `:entity_progress_updated`). Every reload is driven by a
+  derived `*_view_updated` broadcast. The remaining direct-source
+  handler (`:availability_changed -> [:continue_watching]`)
+  exists because the ContinueWatching projection doesn't
+  subscribe to availability — see the gap noted above.
 
 ## Workstreams
 
@@ -171,19 +223,25 @@ Each tagged with the pillar(s) it operates on.
 Apply the ContinueWatching blueprint to the remaining DB-hitting
 read paths on HomeLive, then move on to WatchHistory.
 
-* [ ] `Library.Views.HeroCandidates` — projection for
-  `list_hero_candidates/1`.
-* [ ] `Library.Views.RecentlyAdded` — projection for
-  `list_recently_added/1`.
-* [ ] `ReleaseTracking.Views.ComingUp` — projection for
-  `list_releases_between/3` (note: new context, may need its
-  own `*_view_updated` topic).
+* [x] `Library.Views.HeroCandidates` — projection for
+  `list_hero_candidates/1`. *(shipped 2026-05-10)*
+* [x] `Library.Views.RecentlyAdded` — projection for
+  `list_recently_added/1`. *(shipped 2026-05-10)*
+* [x] `ReleaseTracking.Views.ComingUp` — projection for
+  `list_releases_between/3`. New `release_tracking:views` topic +
+  `:release_tracking_view_updated` discriminator. *(shipped 2026-05-10)*
 * [ ] `WatchHistory.Views.*` — design + ship the WatchHistory
   projection(s); shape TBD until route is firmed up.
 
 Each ships with a Suite under
 `lib/media_centarr/profile/suites/`. Validate via baseline diff
 before considering done.
+
+> **Next pickup:** baselines for the three new suites
+> (`HeroCandidates`, `RecentlyAdded`, `ComingUp`) were not regenerated
+> as part of these commits. Run `scripts/profile --rebaseline` against
+> the current scale before declaring Workstream A done so the new
+> suites have reference numbers.
 
 ### B. Acquisition split *(Pillar 1 partition + Pillar 3 re-routing)*
 

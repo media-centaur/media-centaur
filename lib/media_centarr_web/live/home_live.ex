@@ -14,12 +14,13 @@ defmodule MediaCentarrWeb.HomeLive do
   alias MediaCentarr.{
     Acquisition,
     Capabilities,
-    Library,
     Library.Availability,
     Library.Views,
     ReleaseTracking,
     WatchHistory
   }
+
+  alias MediaCentarr.ReleaseTracking.Views, as: ReleaseTrackingViews
 
   alias MediaCentarrWeb.Components.{
     ComingUpMarquee,
@@ -39,14 +40,15 @@ defmodule MediaCentarrWeb.HomeLive do
     # SpoilerFreeAware; `Capabilities.subscribe()` by CapabilitiesAware.
     # Do not duplicate any of them here.
     if connected?(socket) do
-      ReleaseTracking.subscribe()
       WatchHistory.subscribe()
       Availability.subscribe()
       # Subscribe to projection-refreshed events (ADR-041). Source
       # topics — `library:updates`, `watch_history:events`,
-      # `playback:events` — are observed by the projection itself;
-      # the LiveView reacts only to `:library_view_updated`.
+      # `playback:events`, `release_tracking:updates` — are observed
+      # by the projections themselves; the LiveView reacts only to
+      # `:library_view_updated` and `:release_tracking_view_updated`.
       Views.subscribe()
+      ReleaseTrackingViews.subscribe()
     end
 
     socket =
@@ -345,12 +347,11 @@ defmodule MediaCentarrWeb.HomeLive do
   defp load_progress, do: Views.continue_watching(limit: 24)
 
   defp load_coming_up(today) do
-    # Show all upcoming releases in the next 90 days. Earlier this row was
-    # bounded to "this week" but the row scrolls horizontally now, so a
-    # wider window is what users expect — all their tracked coming-soon
-    # items, sorted by air date, scrollable.
+    # Show all upcoming releases in the next 90 days. The row scrolls
+    # horizontally now, so a wider window is what users expect — all
+    # tracked coming-soon items, sorted by air date, scrollable.
     to_date = Date.add(today, 90)
-    releases = ReleaseTracking.list_releases_between(today, to_date, limit: 30)
+    releases = ReleaseTrackingViews.coming_up(today, to_date, limit: 30)
 
     grab_statuses =
       if Capabilities.prowlarr_ready?() do
@@ -369,7 +370,7 @@ defmodule MediaCentarrWeb.HomeLive do
           grab -> grab_status_atom(grab.status)
         end
 
-      Map.put(release, :status, status)
+      %{release | status: status}
     end)
   end
 
@@ -383,7 +384,7 @@ defmodule MediaCentarrWeb.HomeLive do
   defp grab_status_atom("snoozed"), do: :pending
   defp grab_status_atom(_), do: :scheduled
 
-  defp load_recently_added, do: Library.list_recently_added(limit: 30)
+  defp load_recently_added, do: Views.recently_added(limit: 30)
 
   defp load_hero_candidates, do: Views.hero_candidates(limit: 12)
 end
