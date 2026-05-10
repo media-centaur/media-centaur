@@ -5,6 +5,8 @@ defmodule MediaCentarr.Application do
   use Boundary,
     top_level?: true,
     deps: [
+      MediaCentarr.Capabilities,
+      MediaCentarr.Controls,
       MediaCentarr.Library,
       MediaCentarr.Pipeline,
       MediaCentarr.Review,
@@ -17,6 +19,7 @@ defmodule MediaCentarr.Application do
       MediaCentarr.Acquisition,
       MediaCentarr.WatchHistory,
       MediaCentarr.SelfUpdate,
+      MediaCentarr.SpoilerFree,
       MediaCentarr.TMDB,
       MediaCentarrWeb
     ]
@@ -43,25 +46,28 @@ defmodule MediaCentarr.Application do
         # init when Ecto query logs land in its mailbox.
         {Phoenix.PubSub, name: MediaCentarr.PubSub},
         MediaCentarr.Console.Buffer,
-        MediaCentarr.Console.JournalSource,
-        MediaCentarr.ErrorReports.Buckets,
-        {Task.Supervisor, name: MediaCentarr.TaskSupervisor},
-        MediaCentarr.TMDB.RateLimiter,
-        MediaCentarr.Watcher.Supervisor,
-        MediaCentarr.Library.BroadcastCoalescer,
-        MediaCentarr.Library.Availability,
-        MediaCentarr.Pipeline.Supervisor,
-        MediaCentarr.Pipeline.Image.Supervisor,
-        %{
-          id: :init_services,
-          start: {Task, :start_link, [fn -> init_services() end]},
-          restart: :temporary
-        },
-        MediaCentarr.Watcher.AbsencePolicy,
-        MediaCentarr.Library.FileEventHandler,
-        MediaCentarr.SelfUpdate.Updater,
-        MediaCentarr.Acquisition.SearchSession
+        MediaCentarr.Console.JournalSource
       ] ++
+        cache_children(Application.get_env(:media_centarr, :environment)) ++
+        [
+          MediaCentarr.ErrorReports.Buckets,
+          {Task.Supervisor, name: MediaCentarr.TaskSupervisor},
+          MediaCentarr.TMDB.RateLimiter,
+          MediaCentarr.Watcher.Supervisor,
+          MediaCentarr.Library.BroadcastCoalescer,
+          MediaCentarr.Library.Availability,
+          MediaCentarr.Pipeline.Supervisor,
+          MediaCentarr.Pipeline.Image.Supervisor,
+          %{
+            id: :init_services,
+            start: {Task, :start_link, [fn -> init_services() end]},
+            restart: :temporary
+          },
+          MediaCentarr.Watcher.AbsencePolicy,
+          MediaCentarr.Library.FileEventHandler,
+          MediaCentarr.SelfUpdate.Updater,
+          MediaCentarr.Acquisition.SearchSession
+        ] ++
         pubsub_listeners(Application.get_env(:media_centarr, :environment)) ++
         [
           MediaCentarr.Playback.Supervisor,
@@ -147,6 +153,22 @@ defmodule MediaCentarr.Application do
     if !should_start?(env, :start_acquisition) do
       MediaCentarr.Acquisition.pause_auto_grab()
     end
+  end
+
+  # `:persistent_term`-backed cache workers. Not started in test mode:
+  # each worker runs its initial DB read in its own process, which has no
+  # claim on the test's sandbox connection. The cached read paths in
+  # Capabilities, Controls, and SpoilerFree all fall through to a live
+  # query when `:persistent_term` is unset, so tests get fresh-DB
+  # semantics without the cache layer.
+  defp cache_children(:test), do: []
+
+  defp cache_children(_env) do
+    [
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Capabilities},
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Controls},
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.SpoilerFree}
+    ]
   end
 
   # PubSub listener GenServers — thin wrappers that route messages to public
