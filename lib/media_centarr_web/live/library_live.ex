@@ -174,9 +174,10 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   def handle_info(:reload_entities, socket) do
     changed_ids = socket.assigns.pending_entity_ids
+    type_hints = build_type_hints(socket.assigns.entries_by_id, changed_ids)
 
     {updated_entries, gone_ids} =
-      Library.Browser.fetch_typed_entries_by_ids(MapSet.to_list(changed_ids))
+      Library.Browser.fetch_typed_entries_by_ids(MapSet.to_list(changed_ids), type_hints)
 
     updated_map = Map.new(updated_entries, fn entry -> {entry.entity.id, entry} end)
 
@@ -615,4 +616,16 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Helpers ---
 
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
+
+  # Resolves the type for each changed id from the in-memory grid cache so
+  # the Browser query layer can route to a single type-specific table per
+  # known id, skipping the other four type fetchers.
+  defp build_type_hints(entries_by_id, changed_ids) do
+    Enum.reduce(changed_ids, %{}, fn id, acc ->
+      case Map.get(entries_by_id, id) do
+        %{entity: %{type: type}} -> Map.put(acc, id, type)
+        _ -> acc
+      end
+    end)
+  end
 end
