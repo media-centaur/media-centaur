@@ -320,6 +320,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   # after each ETS rebuild. The reload happens via that broadcast — see
   # the clause below.
   def section_reloaders({:library_view_updated, :continue_watching}), do: [:continue_watching]
+  def section_reloaders({:library_view_updated, :hero_candidates}), do: [:hero]
 
   # Playback-state changes don't alter the underlying continue-watching
   # data; they affect the in-LiveView pinning order (now-playing item

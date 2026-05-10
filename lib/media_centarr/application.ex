@@ -170,7 +170,8 @@ defmodule MediaCentarr.Application do
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Capabilities},
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Controls},
       # ETS-backed Library projections (ADR-041).
-      {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.ContinueWatching}
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.ContinueWatching},
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.HeroCandidates}
     ]
   end
 
