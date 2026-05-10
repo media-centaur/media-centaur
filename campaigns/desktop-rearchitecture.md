@@ -79,13 +79,17 @@ done.
   async lifecycle; restart-recovery depends on durability.
 * Watcher known-files table.
 
-**Possibly misplaced (see Workstream C):**
+**Audited and confirmed Pillar-1 durable (Workstream C, 2026-05-10):**
 
-* `acquisition_grabs.last_attempt_outcome`,
-  `acquisition_grabs.last_attempt_at` — may be diagnostic-only.
-* `acquisition_pursuits.last_queue_state`,
-  `acquisition_pursuits.last_queue_health` — may be display-only
-  observables.
+* `acquisition_grabs.last_attempt_outcome` /
+  `acquisition_grabs.last_attempt_at` — diagnostic-only, but durable
+  for post-restart UX continuity on a single-user app (see
+  Workstream C audit + `Grab` moduledoc).
+* `acquisition_pursuits.last_queue_state` /
+  `acquisition_pursuits.last_queue_health` — decision-influencing
+  (drives lifecycle transition detection in
+  `Pursuits.Observations.derive_transition_event/3`); restart-loss
+  would spuriously fire `DownloadStarted`. See `Pursuit` moduledoc.
 
 ### Pillar 2 — Short-term (in-memory)
 
@@ -275,15 +279,29 @@ events does the split emit?
 Confirm whether grey-area fields are diagnostic-only; if so,
 move them out of the DB.
 
-* [ ] Audit usages of
-  `acquisition_grabs.last_attempt_outcome` /
-  `last_attempt_at`. If only read for diagnostics: move to
-  in-memory ring buffer (like `MediaCentarr.Console.Buffer`).
-* [ ] Audit usages of
-  `acquisition_pursuits.last_queue_state` /
-  `last_queue_health`. If only read for display: move to
-  GenServer state in Pursuits.Reactor or similar.
-* [ ] Schema migration if either moves out.
+* [x] Audit `acquisition_grabs.last_attempt_outcome` /
+  `last_attempt_at`. **Finding:** diagnostic-only — sole production
+  read is `activity_logic.last_attempt_summary/1` for display, plus
+  a reset-to-nil in `Acquisition.rearm/1`. No retry or scheduling
+  decision reads them. **Decision: keep in Pillar 1.** The
+  completion criteria allow "explicitly confirmed Pillar-1
+  durable"; post-restart UX continuity ("last attempt: no_results ·
+  5 min ago") is the durability justification on a single-user
+  desktop app that restarts for in-place updates. Moving them
+  in-memory would wipe attempt context on every update install —
+  a real UX regression for marginal architectural cleanup. The
+  Grab moduledoc carries the rationale. *(audit 2026-05-10)*
+* [x] Audit `acquisition_pursuits.last_queue_state` /
+  `last_queue_health`. **Finding:** decision-influencing — read in
+  `Observations.derive_transition_event/3` to detect lifecycle
+  transitions across ticks, driving `DownloadStarted` and
+  `HealthChanged` event emission. Moving in-memory would cause
+  spurious `DownloadStarted` events after restart (the next tick
+  would see `from == nil`, `to == "downloading"` and fire as if it
+  were a fresh start). **Decision: keep in Pillar 1, durable.**
+  The Pursuit moduledoc carries the rationale. *(audit 2026-05-10)*
+* [x] Schema migration: not needed — neither field moved.
+  *(2026-05-10)*
 
 ### D. Pattern documentation hygiene *(Pillar 2 + 3 docs)*
 
