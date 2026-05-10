@@ -3,7 +3,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
 
   alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit, Watcher}
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   defp insert_pursuit(overrides) do
     {:ok, pursuit} =
@@ -48,15 +48,15 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
 
   defp seed_queue(items) do
     :persistent_term.put(
-      {MediaCentarr.Acquisition.QueueMonitor, :state},
-      %MediaCentarr.Acquisition.QueueState{
+      {MediaCentarr.Downloads.QueueMonitor, :state},
+      %MediaCentarr.Downloads.QueueState{
         items: items,
         last_successful_poll_at: DateTime.utc_now()
       }
     )
 
     on_exit(fn ->
-      :persistent_term.erase({MediaCentarr.Acquisition.QueueMonitor, :state})
+      :persistent_term.erase({MediaCentarr.Downloads.QueueMonitor, :state})
     end)
   end
 

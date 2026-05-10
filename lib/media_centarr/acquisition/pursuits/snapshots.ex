@@ -3,7 +3,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshots do
 
   alias MediaCentarr.Acquisition.Pursuits
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Snapshot, Thresholds}
-  alias MediaCentarr.Acquisition.QueueMonitor
+  alias MediaCentarr.Downloads.QueueMonitor
 
   @doc """
   Assembles a Snapshot for the given pursuit. Reads the latest grab, the

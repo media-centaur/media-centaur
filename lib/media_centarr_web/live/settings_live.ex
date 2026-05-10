@@ -24,7 +24,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   alias MediaCentarr.Maintenance
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.Prowlarr
-  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
+  alias MediaCentarr.Downloads.DownloadClient.QBittorrent
   alias MediaCentarr.Watcher
   alias MediaCentarr.Pipeline
   alias MediaCentarr.Pipeline.Image, as: ImagePipeline

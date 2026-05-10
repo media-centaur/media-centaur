@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent do
+defmodule MediaCentarr.Downloads.DownloadClient.QBittorrent do
   @moduledoc """
   `DownloadClient` driver for the qBittorrent WebUI v2 API.
 
@@ -39,11 +39,11 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent do
   `:persistent_term`. Call `invalidate_client/0` after settings change.
   """
 
-  @behaviour MediaCentarr.Acquisition.DownloadClient
+  @behaviour MediaCentarr.Downloads.DownloadClient
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarr.Config
 
   @impl true

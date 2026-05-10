@@ -141,7 +141,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # thresholds match what the user actually experiences here.
   @watched_cadence_ms 1_500
 
-  defp assign_queue_from_state(socket, %MediaCentarr.Acquisition.QueueState{} = state) do
+  defp assign_queue_from_state(socket, %MediaCentarr.Downloads.QueueState{} = state) do
     active = Enum.reject(state.items, &(&1.state == :completed))
 
     {visible, pending_cancels} =
@@ -151,7 +151,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         System.monotonic_time(:second)
       )
 
-    status = MediaCentarr.Acquisition.QueueStatus.derive(state, @watched_cadence_ms)
+    status = MediaCentarr.Downloads.QueueStatus.derive(state, @watched_cadence_ms)
 
     socket
     |> assign(
@@ -518,7 +518,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, socket}
   end
 
-  def handle_info({:queue_state, %MediaCentarr.Acquisition.QueueState{} = state}, socket) do
+  def handle_info({:queue_state, %MediaCentarr.Downloads.QueueState{} = state}, socket) do
     {:noreply, assign_queue_from_state(socket, state)}
   end
 

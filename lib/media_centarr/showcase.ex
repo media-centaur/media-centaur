@@ -814,7 +814,7 @@ defmodule MediaCentarr.Showcase do
     # backends that the showcase instance doesn't have.
     MediaCentarr.Config.update(:showcase_mode, true)
     MediaCentarr.Acquisition.Prowlarr.invalidate_client()
-    MediaCentarr.Acquisition.DownloadClient.QBittorrent.invalidate_client()
+    MediaCentarr.Downloads.DownloadClient.QBittorrent.invalidate_client()
 
     :ok
   end

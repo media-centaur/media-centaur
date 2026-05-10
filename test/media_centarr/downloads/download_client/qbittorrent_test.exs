@@ -1,8 +1,8 @@
-defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrentTest do
+defmodule MediaCentarr.Downloads.DownloadClient.QBittorrentTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.DownloadClient.QBittorrent
+  alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarr.{Config, Secret}
 
   setup do

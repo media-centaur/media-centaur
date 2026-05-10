@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.DownloadClient.DispatcherTest do
+defmodule MediaCentarr.Downloads.DownloadClient.DispatcherTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Acquisition.DownloadClient.{Dispatcher, QBittorrent}
+  alias MediaCentarr.Downloads.DownloadClient.{Dispatcher, QBittorrent}
   alias MediaCentarr.Config
 
   setup do

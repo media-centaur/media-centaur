@@ -5,7 +5,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
   alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Event, Observations, Pursuit}
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   defp insert_pursuit_with_grab(release_title) do
     {:ok, pursuit} =

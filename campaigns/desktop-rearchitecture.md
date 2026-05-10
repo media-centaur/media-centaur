@@ -281,8 +281,12 @@ split. See ADR-043.
 * [x] Design ADR —
   [ADR-043](../decisions/architecture/2026-05-10-043-acquisition-split.md)
   proposed 2026-05-10.
-* [ ] Phase 1 — extract `Downloads` (qBittorrent driver, queue,
-  health).
+* [x] Phase 1 — extract `Downloads` (qBittorrent driver, queue,
+  health). 10 source files + 8 test files moved to
+  `MediaCentarr.Downloads.*`; consumers across web layer +
+  Pursuits subsystem rewired to new aliases; new boundary
+  declared with `deps: [Capabilities]` and the cluster's modules
+  re-exported. *(shipped 2026-05-10)*
 * [ ] Phase 2 — extract `Search` (Prowlarr, query, results, title
   matcher, quality).
 * [ ] Phase 3 — clean up Acquisition boundary (drop vestigial

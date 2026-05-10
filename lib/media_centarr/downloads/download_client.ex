@@ -1,10 +1,10 @@
-defmodule MediaCentarr.Acquisition.DownloadClient do
+defmodule MediaCentarr.Downloads.DownloadClient do
   @moduledoc """
   Behaviour implemented by drivers that talk to a torrent or usenet
   download client (qBittorrent, Transmission, SABnzbd, …).
 
   Drivers are pluggable: add a module that implements this behaviour and
-  a `MediaCentarr.Acquisition.DownloadClient.Dispatcher` clause mapping
+  a `MediaCentarr.Downloads.DownloadClient.Dispatcher` clause mapping
   the configured `:download_client_type` string to the module.
 
   ## Filter values
@@ -17,7 +17,7 @@ defmodule MediaCentarr.Acquisition.DownloadClient do
   understands.
   """
 
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   @type filter :: :active | :completed | :all
 

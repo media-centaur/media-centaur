@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.QueueItemTest do
+defmodule MediaCentarr.Downloads.QueueItemTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   describe "from_qbittorrent/1" do
     test "parses a downloading torrent" do

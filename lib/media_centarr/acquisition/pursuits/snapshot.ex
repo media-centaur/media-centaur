@@ -3,7 +3,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshot do
 
   alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Thresholds}
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   @enforce_keys [:pursuit, :latest_grab, :queue_state, :now, :thresholds]
   defstruct [
