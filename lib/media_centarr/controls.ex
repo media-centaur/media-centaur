@@ -3,6 +3,8 @@ defmodule MediaCentarr.Controls do
     deps: [MediaCentarr.Settings],
     exports: [Binding, Catalog]
 
+  @behaviour MediaCentarr.Cache
+
   @moduledoc """
   Facade for keyboard/gamepad binding configuration.
 
@@ -21,16 +23,48 @@ defmodule MediaCentarr.Controls do
   @type kind :: :keyboard | :gamepad
   @type resolved :: %{atom() => %{key: String.t() | nil, button: non_neg_integer() | nil}}
 
+  @cache_key {__MODULE__, :resolved}
+
   @doc "Subscribe to controls change broadcasts."
+  @impl MediaCentarr.Cache
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.controls_updates())
+
+  @doc "Filters PubSub messages relevant to this cache."
+  @impl MediaCentarr.Cache
+  def relevant?({:controls_changed, _resolved}), do: true
+  def relevant?(_), do: false
 
   @doc """
   Returns a map keyed by binding id, each value `%{key: ..., button: ...}`.
   `key` and `button` may be `nil` if the user cleared the slot.
+
+  Reads from `:persistent_term`. The Cache GenServer keeps it fresh by
+  subscribing to `:controls_changed`. The fallback path runs the live
+  resolve when the cache hasn't been initialised (e.g. in tests that
+  don't start the Cache child).
   """
   @spec get() :: resolved()
   def get do
+    case :persistent_term.get(@cache_key, :__unset) do
+      :__unset -> resolve()
+      resolved -> resolved
+    end
+  end
+
+  @doc """
+  Recomputes the cached resolved binding map and stores it in
+  `:persistent_term`. Called once at boot by the cache worker and on
+  every `:controls_changed` broadcast.
+  """
+  @impl MediaCentarr.Cache
+  @spec refresh_cache() :: :ok
+  def refresh_cache do
+    :persistent_term.put(@cache_key, resolve())
+    :ok
+  end
+
+  defp resolve do
     keyboard_overrides = Store.read_keyboard()
     gamepad_overrides = Store.read_gamepad()
 
