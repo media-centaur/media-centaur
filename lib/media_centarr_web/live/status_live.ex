@@ -39,10 +39,12 @@ defmodule MediaCentarrWeb.StatusLive do
 
         # Kick off expensive queries off the mount path. Mount returns
         # immediately with empty defaults; each task sends a message back
-        # when ready. Keeps /status responsive even with a big library.
+        # when ready. Keeps /status responsive even with a big library
+        # and even when watch dirs are on slow / sleeping storage.
         start_async_status_stats()
         start_async_watch_history()
         start_async_storage()
+        start_async_dir_health()
 
         socket
         |> assign_defaults()
@@ -51,7 +53,6 @@ defmodule MediaCentarrWeb.StatusLive do
         |> assign(image_pipeline_stats: image_stats)
         |> assign(watcher_statuses: MediaCentarr.Watcher.Supervisor.statuses())
         |> assign(image_dir_statuses: MediaCentarr.Watcher.Supervisor.image_dir_statuses())
-        |> assign(dir_health: check_dir_health())
         |> assign(config: load_config())
         |> assign(rate_limiter: fetch_rate_limiter())
         |> assign(retry_status: fetch_retry_status())
@@ -88,6 +89,7 @@ defmodule MediaCentarrWeb.StatusLive do
     |> assign(error_buckets: [])
     |> assign(storage_drives: [])
     |> assign(at_risk_summary: %{})
+    |> assign(dir_health: [])
     |> assign(show_report_modal: false)
   end
 
@@ -113,6 +115,14 @@ defmodule MediaCentarrWeb.StatusLive do
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
       send(parent, {:status_storage_loaded, Storage.measure_all()})
       send(parent, {:status_at_risk_loaded, AbsencePolicy.at_risk_summary()})
+    end)
+  end
+
+  defp start_async_dir_health do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      send(parent, {:status_dir_health_loaded, check_dir_health()})
     end)
   end
 
@@ -153,14 +163,18 @@ defmodule MediaCentarrWeb.StatusLive do
     Process.send_after(self(), :tick_pipeline, 1_000)
     pipeline_stats = Stats.get_snapshot()
     image_stats = ImagePipeline.Stats.get_snapshot()
+    start_async_dir_health()
 
     {:noreply,
      socket
      |> assign(pipeline_stats: pipeline_stats)
      |> assign(image_pipeline_stats: image_stats)
      |> assign(rate_limiter: fetch_rate_limiter())
-     |> assign(retry_status: fetch_retry_status())
-     |> assign(dir_health: check_dir_health())}
+     |> assign(retry_status: fetch_retry_status())}
+  end
+
+  def handle_info({:status_dir_health_loaded, dir_health}, socket) do
+    {:noreply, assign(socket, dir_health: dir_health)}
   end
 
   def handle_info(:refresh_storage, socket) do
