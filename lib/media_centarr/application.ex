@@ -173,7 +173,8 @@ defmodule MediaCentarr.Application do
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.ContinueWatching},
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.HeroCandidates},
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.RecentlyAdded},
-      {MediaCentarr.Cache.Worker, context: MediaCentarr.ReleaseTracking.Views.ComingUp}
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.ReleaseTracking.Views.ComingUp},
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.WatchHistory.Views.Summary}
     ]
   end
 

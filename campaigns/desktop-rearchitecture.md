@@ -122,9 +122,18 @@ done.
   read-time-only (HomeLive overlays Acquisition data) — keeps the
   projection inside the ReleaseTracking boundary.
 
-**Missing — still hits Pillar 1 on every render (Workstream A):**
+  Added 2026-05-10b:
 
-* `WatchHistory` reads (route + context TBD in workstream).
+* `WatchHistory.Views.Summary` — `:persistent_term`-backed projection
+  bundling stats, heatmap cells per type, and per-type rewatch
+  counts into one snapshot. Subscribes to `watch_history:events`
+  (now carrying both `:watch_event_created` and `:watch_event_deleted`).
+  Broadcasts `:watch_history_view_updated, :summary` on
+  `watch_history:views`.
+
+**Missing — still hits Pillar 1 on every render:**
+
+Workstream A is complete. No remaining DB-on-render entries.
 
 ### Pillar 3 — Real-time (PubSub)
 
@@ -230,8 +239,15 @@ read paths on HomeLive, then move on to WatchHistory.
 * [x] `ReleaseTracking.Views.ComingUp` — projection for
   `list_releases_between/3`. New `release_tracking:views` topic +
   `:release_tracking_view_updated` discriminator. *(shipped 2026-05-10)*
-* [ ] `WatchHistory.Views.*` — design + ship the WatchHistory
-  projection(s); shape TBD until route is firmed up.
+* [x] `WatchHistory.Views.*` — `Summary` projection
+  (`:persistent_term` flavour) bundling the History page's three
+  aggregate reads (`stats/0`, `heatmap_cells_by_type/0`, per-type
+  `rewatch_count_map/1`) into one snapshot. New
+  `watch_history:views` topic carrying
+  `{:watch_history_view_updated, :summary}`. Side fix: added
+  `:watch_event_deleted` broadcast to `delete_event!/1` (the
+  projection needed it for invalidation; the prior LiveView
+  recomputed locally via a Task). *(shipped 2026-05-10)*
 
 Each ships with a Suite under
 `lib/media_centarr/profile/suites/`. Validate via baseline diff

@@ -4,7 +4,8 @@ defmodule MediaCentarr.Profile do
       MediaCentarr.Library,
       MediaCentarr.ReleaseTracking,
       MediaCentarr.Settings,
-      MediaCentarr.Watcher
+      MediaCentarr.Watcher,
+      MediaCentarr.WatchHistory
     ],
     exports: [Suite]
 
