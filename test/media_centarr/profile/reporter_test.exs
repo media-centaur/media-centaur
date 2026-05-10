@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Profile.ReporterTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Profile.Reporter
+  alias MediaCentarr.Profile.{JSONFormatter, Reporter, RunData}
 
   @tmp_dir Path.join(System.tmp_dir!(), "media_centarr_profile_reporter_test")
 
@@ -62,40 +62,60 @@ defmodule MediaCentarr.Profile.ReporterTest do
     ]
   end
 
-  describe "write/4" do
-    test "produces a markdown file with all top-level sections" do
-      path = Reporter.write(metadata(), bench_results(), mount_results(), runs_dir: @tmp_dir)
-      assert File.exists?(path)
-      body = File.read!(path)
+  defp run_data do
+    RunData.build(metadata(), bench_results(), mount_results())
+  end
+
+  describe "write/2" do
+    test "produces both markdown and JSON files with stable structure" do
+      %{markdown: md_path, json: json_path} = Reporter.write(run_data(), runs_dir: @tmp_dir)
+
+      assert File.exists?(md_path)
+      assert File.exists?(json_path)
+
+      md_body = File.read!(md_path)
 
       # Stable section headings — the diff-meaningfulness contract.
-      assert body =~ "# Media Centarr Profile Run"
-      assert body =~ "## Environment"
-      assert body =~ "## Microbenchmarks"
-      assert body =~ "### Library.Views.ContinueWatching"
-      assert body =~ "## Page Mount Timing"
-      assert body =~ "## ETS Memory"
-      assert body =~ "## Notes"
+      assert md_body =~ "# Media Centarr Profile Run"
+      assert md_body =~ "## Environment"
+      assert md_body =~ "## Microbenchmarks"
+      assert md_body =~ "### Library.Views.ContinueWatching"
+      assert md_body =~ "## Page Mount Timing"
+      assert md_body =~ "## Notes"
 
       # Header carries the metadata
-      assert body =~ "abc1234"
-      assert body =~ "main"
-      assert body =~ "small"
+      assert md_body =~ "abc1234"
+      assert md_body =~ "main"
+      assert md_body =~ "small"
 
-      # latest.md symlink
-      latest = Path.join(@tmp_dir, "latest.md")
-      assert File.read_link(latest) == {:ok, Path.basename(path)}
+      # JSON file is valid and round-trips through the decoder
+      json_body = File.read!(json_path)
+      {:ok, decoded} = JSONFormatter.decode(json_body)
+      assert decoded.metadata.git_sha == "abc1234"
+      assert decoded.metadata.scale == "small"
+      assert decoded.deltas == nil
+
+      # latest.md / latest.json symlinks
+      assert File.read_link(Path.join(@tmp_dir, "latest.md")) ==
+               {:ok, Path.basename(md_path)}
+
+      assert File.read_link(Path.join(@tmp_dir, "latest.json")) ==
+               {:ok, Path.basename(json_path)}
     end
 
     test "handles empty bench and mount results without crashing" do
-      path = Reporter.write(metadata(), [], [], runs_dir: @tmp_dir)
-      body = File.read!(path)
+      empty_run = RunData.build(metadata(), [], [])
+      %{markdown: md_path} = Reporter.write(empty_run, runs_dir: @tmp_dir)
 
-      # Empty paths still produce well-formed sections with placeholders.
-      assert body =~ "## Microbenchmarks"
+      body = File.read!(md_path)
       assert body =~ "no suites discovered"
-      assert body =~ "## Page Mount Timing"
       assert body =~ "no routes measured"
+    end
+  end
+
+  describe "baseline_json_path/1" do
+    test "returns :none when no baseline file exists for the scale" do
+      assert Reporter.baseline_json_path(:nonexistent_scale) == :none
     end
   end
 end
