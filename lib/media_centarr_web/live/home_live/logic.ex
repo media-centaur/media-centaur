@@ -308,19 +308,17 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   any placeholder thumbnails left over from a drive-down period.
   """
   @spec section_reloaders(term()) :: [atom()]
-  def section_reloaders({:entities_changed, %{entity_ids: _ids}}), do: [:recently_added]
-  def section_reloaders({:releases_updated, _ids}), do: [:coming_up]
-  def section_reloaders({:item_removed, _tmdb_id, _tmdb_type}), do: [:coming_up]
-  def section_reloaders({:release_ready, _item, _release}), do: [:coming_up]
-
-  # Source events that previously drove continue_watching reloads
-  # (`:watch_event_created`, `:entity_progress_updated`) now flow into
-  # the `Library.Views.ContinueWatching` projection, which broadcasts
-  # `{:library_view_updated, :continue_watching}` on `library:views`
-  # after each ETS rebuild. The reload happens via that broadcast — see
-  # the clause below.
+  # Source events that previously drove section reloads
+  # (`:entities_changed`, `:watch_event_created`, `:entity_progress_updated`,
+  # `:availability_changed`, `:releases_updated`, `:item_removed`,
+  # `:release_ready`) now flow into the Library.Views and
+  # ReleaseTracking.Views projections, which broadcast
+  # `{:library_view_updated, view_id}` / `{:release_tracking_view_updated, view_id}`
+  # after each ETS rebuild. The reloads happen via those broadcasts.
   def section_reloaders({:library_view_updated, :continue_watching}), do: [:continue_watching]
   def section_reloaders({:library_view_updated, :hero_candidates}), do: [:hero]
+  def section_reloaders({:library_view_updated, :recently_added}), do: [:recently_added]
+  def section_reloaders({:release_tracking_view_updated, :coming_up}), do: [:coming_up]
 
   # Playback-state changes don't alter the underlying continue-watching
   # data; they affect the in-LiveView pinning order (now-playing item
@@ -329,14 +327,15 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   # re-applies.
   def section_reloaders({:playback_state_changed, _payload}), do: [:continue_watching]
 
-  # Drive mounted/unmounted: every section that renders /media-images/* may
-  # have stale placeholder thumbnails (hero and continue-watching are
-  # presence-agnostic, so their rows persist with broken images when the
-  # drive goes away; recently-added re-evaluates its files-present filter).
-  # Reloading them re-renders with cache-busted URLs (see
-  # `with_image_version/2` and HomeLive's `:image_version` assign).
-  def section_reloaders({:availability_changed, _dir, _state}),
-    do: [:hero, :continue_watching, :recently_added]
+  # Drive mounted/unmounted: hero and recently_added now route through
+  # projections that subscribe to `library:availability` directly and
+  # broadcast `:library_view_updated` after refresh — so only
+  # continue_watching needs a LiveView-direct reload here (its
+  # projection doesn't subscribe to availability, see
+  # `Library.Views.ContinueWatching`). The reload also re-renders with
+  # cache-busted /media-images/* URLs via the `:image_version` bump
+  # in HomeLive.
+  def section_reloaders({:availability_changed, _dir, _state}), do: [:continue_watching]
 
   def section_reloaders(_), do: []
 end

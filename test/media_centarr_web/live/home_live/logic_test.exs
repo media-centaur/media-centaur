@@ -439,38 +439,22 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
   end
 
   describe "section_reloaders/1" do
-    test "entities_changed reloads recently_added only" do
+    test "raw source events no longer reload anything directly" do
+      # Source events (`:entities_changed`, `:watch_event_created`,
+      # `:entity_progress_updated`, `:releases_updated`, `:item_removed`,
+      # `:release_ready`) now flow into the Library.Views and
+      # ReleaseTracking.Views projections, which broadcast
+      # `:library_view_updated` / `:release_tracking_view_updated`
+      # after each ETS rebuild. The LiveView reacts only to those
+      # projection events (ADR-041 encapsulation rule).
       assert Logic.section_reloaders(
                {:entities_changed,
                 %MediaCentarr.Library.Events.EntitiesChanged{entity_ids: ["abc", "def"]}}
-             ) == [:recently_added]
-    end
+             ) == []
 
-    test "releases_updated reloads coming_up only" do
-      assert Logic.section_reloaders({:releases_updated, ["item-1"]}) == [:coming_up]
-    end
-
-    test "item_removed reloads coming_up only" do
-      assert Logic.section_reloaders({:item_removed, "12345", "movie"}) == [:coming_up]
-    end
-
-    test "release_ready reloads coming_up only" do
-      assert Logic.section_reloaders({:release_ready, %{id: "item"}, %{id: "release"}}) ==
-               [:coming_up]
-    end
-
-    test "library_view_updated :continue_watching reloads continue_watching only" do
-      # `:watch_event_created` and `:entity_progress_updated` are now
-      # observed by the `Library.Views.ContinueWatching` projection,
-      # which broadcasts `:library_view_updated` after each ETS
-      # rebuild. The LiveView reacts to that single event instead of
-      # the source events directly (ADR-041 encapsulation rule —
-      # consumers subscribe to projections, never to source topics).
-      assert Logic.section_reloaders({:library_view_updated, :continue_watching}) ==
-               [:continue_watching]
-    end
-
-    test "raw watch_event_created and entity_progress_updated no longer reload anything directly" do
+      assert Logic.section_reloaders({:releases_updated, ["item-1"]}) == []
+      assert Logic.section_reloaders({:item_removed, "12345", "movie"}) == []
+      assert Logic.section_reloaders({:release_ready, %{id: "item"}, %{id: "release"}}) == []
       assert Logic.section_reloaders({:watch_event_created, %{id: "event-1"}}) == []
 
       msg =
@@ -478,6 +462,25 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
          %{entity_id: "abc", summary: %{}, resume_target: nil, changed_record: nil}}
 
       assert Logic.section_reloaders(msg) == []
+    end
+
+    test "library_view_updated :continue_watching reloads continue_watching only" do
+      assert Logic.section_reloaders({:library_view_updated, :continue_watching}) ==
+               [:continue_watching]
+    end
+
+    test "library_view_updated :hero_candidates reloads hero only" do
+      assert Logic.section_reloaders({:library_view_updated, :hero_candidates}) == [:hero]
+    end
+
+    test "library_view_updated :recently_added reloads recently_added only" do
+      assert Logic.section_reloaders({:library_view_updated, :recently_added}) ==
+               [:recently_added]
+    end
+
+    test "release_tracking_view_updated :coming_up reloads coming_up only" do
+      assert Logic.section_reloaders({:release_tracking_view_updated, :coming_up}) ==
+               [:coming_up]
     end
 
     test "playback_state_changed reloads continue_watching only" do
@@ -495,19 +498,16 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert Logic.section_reloaders(msg) == [:continue_watching]
     end
 
-    test "availability_changed reloads every image-bearing section" do
-      # When a watch dir flips between :available and :unavailable, every
-      # surface that renders /media-images/* URLs has potentially-stale
-      # artwork — hero and continue-watching are presence-agnostic so their
-      # rows persist with broken thumbnails when the drive disappears, and
-      # recently-added has its own files-present filter to re-evaluate.
-      # All three need to re-render with cache-busted URLs so the browser
-      # actually refetches.
+    test "availability_changed reloads continue_watching only" do
+      # Hero and RecentlyAdded projections subscribe to library:availability
+      # directly and broadcast :library_view_updated after refresh, so the
+      # LiveView only needs a direct reload for continue_watching here (its
+      # projection doesn't subscribe to availability).
       assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :available}) ==
-               [:hero, :continue_watching, :recently_added]
+               [:continue_watching]
 
       assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :unavailable}) ==
-               [:hero, :continue_watching, :recently_added]
+               [:continue_watching]
     end
 
     test "unknown messages route to nothing" do

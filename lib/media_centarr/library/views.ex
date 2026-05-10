@@ -17,6 +17,8 @@ defmodule MediaCentarr.Library.Views do
   alias MediaCentarr.Library.Views.ContinueWatchingItem
   alias MediaCentarr.Library.Views.HeroCandidates
   alias MediaCentarr.Library.Views.HeroCandidatesItem
+  alias MediaCentarr.Library.Views.RecentlyAdded
+  alias MediaCentarr.Library.Views.RecentlyAddedItem
   alias MediaCentarr.Topics
 
   @doc "Subscribe the caller to projection-refreshed events."
@@ -39,4 +41,11 @@ defmodule MediaCentarr.Library.Views do
   """
   @spec hero_candidates(keyword()) :: [HeroCandidatesItem.t()]
   def hero_candidates(opts \\ []), do: HeroCandidates.read(opts)
+
+  @doc """
+  Returns up to `:limit` Recently Added items in newest-first order.
+  Defaults to 16.
+  """
+  @spec recently_added(keyword()) :: [RecentlyAddedItem.t()]
+  def recently_added(opts \\ []), do: RecentlyAdded.read(opts)
 end
