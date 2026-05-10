@@ -26,6 +26,8 @@ defmodule MediaCentarr.Library do
       Views.ContinueWatchingItem,
       Views.HeroCandidates,
       Views.HeroCandidatesItem,
+      Views.RecentlyAdded,
+      Views.RecentlyAddedItem,
       WatchedFile
     ]
 

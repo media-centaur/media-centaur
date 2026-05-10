@@ -32,4 +32,5 @@ defmodule MediaCentarr.Topics do
   def controls_updates, do: "controls:updates"
   def error_reports, do: "error_reports:updates"
   def library_views, do: "library:views"
+  def release_tracking_views, do: "release_tracking:views"
 end
