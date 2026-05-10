@@ -36,6 +36,15 @@ defmodule Mix.Tasks.Profile do
                                   contexts so CI cannot rebaseline by
                                   accident.
 
+      --yes                       When combined with `--rebaseline`,
+                                  skip the confirmation prompt and
+                                  promote unconditionally. Designed
+                                  for agent / script-driven runs
+                                  where there is no TTY to answer
+                                  the prompt. The flag must be
+                                  explicit — bare `--rebaseline`
+                                  still requires interactive consent.
+
   ## Output
 
   Writes:
@@ -61,12 +70,13 @@ defmodule Mix.Tasks.Profile do
 
     {opts, _, _} =
       OptionParser.parse(args,
-        strict: [scale: :string, skip_seed: :boolean, rebaseline: :boolean]
+        strict: [scale: :string, skip_seed: :boolean, rebaseline: :boolean, yes: :boolean]
       )
 
     scale = parse_scale(opts[:scale])
     skip_seed? = Keyword.get(opts, :skip_seed, false)
     rebaseline? = Keyword.get(opts, :rebaseline, false)
+    yes? = Keyword.get(opts, :yes, false)
 
     Mix.Task.run("app.start")
     wait_for_cache_workers!()
@@ -100,18 +110,26 @@ defmodule Mix.Tasks.Profile do
 
     print_terminal_summary(run_data, md_path, json_path)
 
-    if rebaseline?, do: prompt_and_rebaseline(scale, md_path, json_path)
+    if rebaseline?, do: maybe_rebaseline(scale, md_path, json_path, yes?)
   end
 
   # ---- Rebaseline ----------------------------------------------------------
 
-  defp prompt_and_rebaseline(scale, md_path, json_path) do
-    md_dest = Path.join("priv/profiling", "baseline-#{scale}.md")
-    json_dest = Path.join("priv/profiling", "baseline-#{scale}.json")
+  defp maybe_rebaseline(scale, md_path, json_path, yes?) do
+    proceed? =
+      if yes? do
+        Mix.shell().info("\n--yes passed — rebaselining without prompt.")
+        true
+      else
+        Mix.shell().yes?("\nReplace baseline-#{scale}.{md,json} with this run?",
+          default: :no
+        )
+      end
 
-    if Mix.shell().yes?("\nReplace baseline-#{scale}.{md,json} with this run?",
-         default: :no
-       ) do
+    if proceed? do
+      md_dest = Path.join("priv/profiling", "baseline-#{scale}.md")
+      json_dest = Path.join("priv/profiling", "baseline-#{scale}.json")
+
       File.mkdir_p!("priv/profiling")
       File.cp!(md_path, md_dest)
       File.cp!(json_path, json_dest)

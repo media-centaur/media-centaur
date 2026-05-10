@@ -76,6 +76,16 @@ The prompt returns `false` in non-interactive contexts, so a
 script or CI invocation cannot rebaseline by accident. With no
 existing baseline, `--rebaseline` simply *establishes* one.
 
+For agent-driven runs (no TTY for the prompt), pass `--yes`
+alongside `--rebaseline`:
+
+```sh
+scripts/profile --rebaseline --yes
+```
+
+`--yes` is an explicit opt-in; bare `--rebaseline` still requires
+interactive consent.
+
 ## Machine specificity
 
 Baselines reflect the hardware that produced them — CPU model,
