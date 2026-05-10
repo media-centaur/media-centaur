@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# One-button performance profile run (ADR-041).
+#
+# Spins up an isolated profile instance via MEDIA_CENTARR_CONFIG_OVERRIDE,
+# seeds deterministic fixtures, runs every Profile.Suite and the page-mount
+# harness, and writes a markdown report to priv/profiling/runs/<timestamp>.md.
+#
+# Usage:
+#   scripts/profile                       # default --scale=small, ~30s
+#   scripts/profile --scale=medium
+#   scripts/profile --scale=large --keep-db
+#   scripts/profile --skip-seed           # re-run measurement on existing DB
+#
+# All state lives inside priv/profile/ (gitignored). Wiped on every run
+# unless --keep-db is set.
+#
+# See decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md
+# and /home/shawn/.claude/plans/can-we-build-a-federated-rocket.md.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+OVERRIDE="defaults/media-centarr-profile.toml"
+PROFILE_DIR="priv/profile"
+PROFILE_PORT=4004
+
+# Parse our own flags (--keep-db) and forward the rest to mix profile.
+keep_db=false
+mix_args=()
+for arg in "$@"; do
+  case "$arg" in
+    --keep-db) keep_db=true ;;
+    *) mix_args+=("$arg") ;;
+  esac
+done
+
+# 1. Stop anything still listening on the profile port — a previous
+# crashed run could leave a stale BEAM holding the DB lock. `|| true`
+# under set -eo pipefail because the no-process case is normal.
+pid=$(ss -tlnpH 2>/dev/null | awk -v p=":$PROFILE_PORT" '$4 ~ p {print $0}' | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2 || true)
+if [ -n "$pid" ]; then
+  echo "stopping stale profile process pid=$pid"
+  kill "$pid" 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8; do
+    sleep 1
+    ss -tlnpH 2>/dev/null | grep -q ":$PROFILE_PORT" || break
+  done
+fi
+
+# 2. Wipe profile state for a clean baseline (unless --keep-db).
+if [ "$keep_db" = false ]; then
+  rm -rf "$PROFILE_DIR"
+  mkdir -p "$PROFILE_DIR/media" "$PROFILE_DIR/images"
+fi
+
+export MEDIA_CENTARR_CONFIG_OVERRIDE="$OVERRIDE"
+
+# 3. Database setup. --quiet because the run-summary output is what
+# we want the user to focus on, not migration spam.
+if [ "$keep_db" = false ]; then
+  mix ecto.create --quiet
+  mix ecto.migrate --quiet
+fi
+
+# 4. Run the profile orchestrator. Forwards --scale, --skip-seed, etc.
+mix profile "${mix_args[@]}"

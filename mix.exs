@@ -95,7 +95,8 @@ defmodule MediaCentarr.MixProject do
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-      {:boundary, "~> 0.10", runtime: false}
+      {:boundary, "~> 0.10", runtime: false},
+      {:benchee, "~> 1.3", only: [:dev, :test], runtime: false}
     ]
   end
 

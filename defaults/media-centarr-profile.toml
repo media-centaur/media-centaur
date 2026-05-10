@@ -1,0 +1,35 @@
+# Profiling override — self-contained config for the perf-profile instance.
+#
+# Activate by setting MEDIA_CENTARR_CONFIG_OVERRIDE to this file's path.
+# scripts/profile does this automatically.
+#
+#   MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-profile.toml mix ecto.create
+#   MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-profile.toml mix profile
+#
+# Everything the profile run touches lives under priv/profile/, which is
+# git-ignored — `rm -rf priv/profile/` resets the profile DB cleanly. The
+# scripts/profile entry point does this by default unless --keep-db is set.
+#
+# Per ADR-041, profiling validates the in-memory projection perf claims
+# (microsecond ETS reads vs ms DB queries). This config gives us an
+# isolated DB where Profile.Loader can seed scale-tunable fixtures
+# without touching the user's dev or prod state.
+
+# Distinct port from dev (1080), showcase (4003), and prod (2160) so a
+# stale profile run doesn't collide with anything else on the box.
+port = 4004
+
+# Profile data lives inside the repo checkout (gitignored), not
+# ~/.local/share, so wiping is `rm -rf priv/profile/`.
+database_path = "priv/profile/media-centarr.db"
+
+watch_dirs = [
+  { dir = "priv/profile/media", images_dir = "priv/profile/images" }
+]
+
+# ---------------------------------------------------------------------------
+# Other settings (TMDB, pipeline thresholds, etc.) are not relevant for the
+# profiling workload — Profile.Loader writes directly to the DB without
+# exercising the Pipeline or external integrations. Add keys here only if a
+# new suite needs to override defaults.
+# ---------------------------------------------------------------------------
