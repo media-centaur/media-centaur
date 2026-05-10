@@ -25,10 +25,12 @@
 /priv/showcase/*.db
 /priv/showcase/*.db-*
 
-# Profile-run artifacts — DB, fake watch dir, and per-run markdown reports.
-# Wiped on every scripts/profile invocation (unless --keep-db). Reports are
-# machine-specific noise; commit a curated snapshot to priv/profiling/baseline.md
-# instead. See ADR-041 and /home/shawn/.claude/plans/can-we-build-a-federated-rocket.md.
+# Profile-run artifacts — DB, fake watch dir, and per-run markdown / JSON
+# reports. Wiped on every scripts/profile invocation (unless --keep-db).
+# Per-run reports are machine-specific noise; commit a curated snapshot to
+# priv/profiling/baseline-<scale>.{md,json} instead — those baseline files
+# are explicitly tracked. See ADR-041 and the planning notes at
+# /home/shawn/.claude/plans/can-we-build-a-federated-rocket.md.
 /priv/profile/
 /priv/profiling/runs/*
 !/priv/profiling/runs/.gitkeep

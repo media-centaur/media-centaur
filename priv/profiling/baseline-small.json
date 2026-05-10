@@ -1,0 +1,266 @@
+{
+  "metadata": {
+    "schedulers_online": 12,
+    "timestamp": "2026-05-10T18:05:42.017182Z",
+    "dirty": true,
+    "otp_release": "28",
+    "elixir_version": "1.19.5",
+    "database_path": "/home/shawn/src/media-centarr/media-centarr-app/priv/profile/media-centarr.db",
+    "run_id": "2026-05-10T18-05-42.017172Z",
+    "scale": "small",
+    "git_sha": "e8fbcb01",
+    "git_branch": "HEAD",
+    "cpu_count": 12
+  },
+  "ets_memory": [
+    {
+      "table": "library_view_continue_watching",
+      "bytes": 9784,
+      "rows": 12
+    }
+  ],
+  "deltas": null,
+  "microbenchmarks": [
+    {
+      "suite": "Library.Views.ContinueWatching",
+      "runs": [
+        {
+          "input": "cold-fallback",
+          "scenarios": [
+            {
+              "name": "Library.list_in_progress/1 (limit: 30)",
+              "stats": {
+                "ips": 265.39671157550555,
+                "sample_size": 1327,
+                "average_ns": 3767944.1996985683,
+                "max_ns": 7648121,
+                "median_ns": 3670025.0,
+                "min_ns": 2867280,
+                "p99_ns": 5589456.12
+              },
+              "memory_bytes": 612802.5154639175
+            },
+            {
+              "name": "Views.continue_watching/1 (limit: 30)",
+              "stats": {
+                "ips": 256.21290544196376,
+                "sample_size": 1279,
+                "average_ns": 3903004.0203283816,
+                "max_ns": 23723800,
+                "median_ns": 3718415.0,
+                "min_ns": 2776598,
+                "p99_ns": 6034007.000000001
+              },
+              "memory_bytes": 620153.0344827586
+            }
+          ]
+        },
+        {
+          "input": "warm-cache",
+          "scenarios": [
+            {
+              "name": "Views.continue_watching/1 (limit: 30)",
+              "stats": {
+                "ips": 276737.9975561118,
+                "sample_size": 1000000,
+                "average_ns": 3613.526183,
+                "max_ns": 9010860,
+                "median_ns": 2890.0,
+                "min_ns": 2510,
+                "p99_ns": 7940.0
+              },
+              "memory_bytes": 3024.0
+            },
+            {
+              "name": "Library.list_in_progress/1 (limit: 30)",
+              "stats": {
+                "ips": 252.162821735725,
+                "sample_size": 1260,
+                "average_ns": 3965691.6634920635,
+                "max_ns": 15982557,
+                "median_ns": 3756900.5,
+                "min_ns": 2690248,
+                "p99_ns": 6143974.190000009
+              },
+              "memory_bytes": 612413.3229571985
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "suite": "Library.Views.ContinueWatching.refresh_cache/0",
+      "runs": [
+        {
+          "input": "default",
+          "scenarios": [
+            {
+              "name": "ContinueWatching.refresh_cache/0",
+              "stats": {
+                "ips": 238.08594516921377,
+                "sample_size": 1190,
+                "average_ns": 4200163.933613446,
+                "max_ns": 45052641,
+                "median_ns": 3879981.0,
+                "min_ns": 2892969,
+                "p99_ns": 7007036.06999996
+              },
+              "memory_bytes": 622162.3801652893
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "suite": "Settings.Cache",
+      "runs": [
+        {
+          "input": "cold-fallback",
+          "scenarios": [
+            {
+              "name": "Settings.get_by_key/1 (missing key)",
+              "stats": {
+                "ips": 6733.280123687191,
+                "sample_size": 33318,
+                "average_ns": 148516.02512155593,
+                "max_ns": 1469210,
+                "median_ns": 139731.0,
+                "min_ns": 84691,
+                "p99_ns": 340879.10999999946
+              },
+              "memory_bytes": 40909.62536637357
+            },
+            {
+              "name": "Settings.get_by_key/1 (existing key)",
+              "stats": {
+                "ips": 5810.629111402833,
+                "sample_size": 28779,
+                "average_ns": 172098.40463532438,
+                "max_ns": 2220395,
+                "median_ns": 159711.0,
+                "min_ns": 96070,
+                "p99_ns": 441572.2000000003
+              },
+              "memory_bytes": 44233.66379053853
+            }
+          ]
+        },
+        {
+          "input": "warm-cache",
+          "scenarios": [
+            {
+              "name": "Settings.get_by_key/1 (missing key)",
+              "stats": {
+                "ips": 8184472.644390508,
+                "sample_size": 1000000,
+                "average_ns": 122.182582,
+                "max_ns": 328852,
+                "median_ns": 110.0,
+                "min_ns": 90,
+                "p99_ns": 230.0
+              },
+              "memory_bytes": 24.0
+            },
+            {
+              "name": "Settings.get_by_key/1 (existing key)",
+              "stats": {
+                "ips": 6751467.3926168475,
+                "sample_size": 1000000,
+                "average_ns": 148.115949,
+                "max_ns": 550114,
+                "median_ns": 110.0,
+                "min_ns": 100,
+                "p99_ns": 250.0
+              },
+              "memory_bytes": 24.0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "page_mounts": [
+    {
+      "route": "/",
+      "runs": 30,
+      "max_us": 23968,
+      "min_us": 16148,
+      "p50_us": 17639,
+      "p95_us": 21778,
+      "warm_cache": true
+    },
+    {
+      "route": "/library",
+      "runs": 30,
+      "max_us": 40838,
+      "min_us": 16180,
+      "p50_us": 17704,
+      "p95_us": 21553,
+      "warm_cache": false
+    },
+    {
+      "route": "/upcoming",
+      "runs": 30,
+      "max_us": 21030,
+      "min_us": 17684,
+      "p50_us": 19485,
+      "p95_us": 20974,
+      "warm_cache": false
+    },
+    {
+      "route": "/history",
+      "runs": 30,
+      "max_us": 25203,
+      "min_us": 17506,
+      "p50_us": 20419,
+      "p95_us": 24654,
+      "warm_cache": false
+    },
+    {
+      "route": "/review",
+      "runs": 30,
+      "max_us": 30697,
+      "min_us": 21484,
+      "p50_us": 26112,
+      "p95_us": 30079,
+      "warm_cache": false
+    },
+    {
+      "route": "/download",
+      "runs": 30,
+      "max_us": 56260,
+      "min_us": 20514,
+      "p50_us": 24363,
+      "p95_us": 32446,
+      "warm_cache": false
+    },
+    {
+      "route": "/status",
+      "runs": 30,
+      "max_us": 23658,
+      "min_us": 18660,
+      "p50_us": 20948,
+      "p95_us": 23275,
+      "warm_cache": false
+    },
+    {
+      "route": "/settings",
+      "runs": 30,
+      "max_us": 24028,
+      "min_us": 18824,
+      "p50_us": 20674,
+      "p95_us": 22924,
+      "warm_cache": false
+    },
+    {
+      "route": "/console",
+      "runs": 30,
+      "max_us": 27440,
+      "min_us": 18354,
+      "p50_us": 20565,
+      "p95_us": 24706,
+      "warm_cache": false
+    }
+  ],
+  "schema_version": 1
+}
