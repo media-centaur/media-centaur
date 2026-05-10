@@ -14,6 +14,9 @@ defmodule MediaCentarr.Library.Views do
   """
 
   alias MediaCentarr.Library.Views.ContinueWatching
+  alias MediaCentarr.Library.Views.ContinueWatchingItem
+  alias MediaCentarr.Library.Views.HeroCandidates
+  alias MediaCentarr.Library.Views.HeroCandidatesItem
   alias MediaCentarr.Topics
 
   @doc "Subscribe the caller to projection-refreshed events."
@@ -28,4 +31,12 @@ defmodule MediaCentarr.Library.Views do
   """
   @spec continue_watching(keyword()) :: [ContinueWatchingItem.t()]
   def continue_watching(opts \\ []), do: ContinueWatching.read(opts)
+
+  @doc """
+  Returns up to `:limit` Hero Candidate items — entities suitable as
+  the Home page hero (those with both a backdrop and a description).
+  Defaults to 12.
+  """
+  @spec hero_candidates(keyword()) :: [HeroCandidatesItem.t()]
+  def hero_candidates(opts \\ []), do: HeroCandidates.read(opts)
 end

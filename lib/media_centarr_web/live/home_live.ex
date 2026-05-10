@@ -385,5 +385,5 @@ defmodule MediaCentarrWeb.HomeLive do
 
   defp load_recently_added, do: Library.list_recently_added(limit: 30)
 
-  defp load_hero_candidates, do: Library.list_hero_candidates(limit: 12)
+  defp load_hero_candidates, do: Views.hero_candidates(limit: 12)
 end
