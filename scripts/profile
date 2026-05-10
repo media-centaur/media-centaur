@@ -10,6 +10,8 @@
 #   scripts/profile --scale=medium
 #   scripts/profile --scale=large --keep-db
 #   scripts/profile --skip-seed           # re-run measurement on existing DB
+#   scripts/profile --rebaseline          # interactive prompt to promote run to baseline
+#   scripts/profile --rebaseline --yes    # non-interactive promote (agents / CI opt-in)
 #
 # All state lives inside priv/profile/ (gitignored). Wiped on every run
 # unless --keep-db is set.
