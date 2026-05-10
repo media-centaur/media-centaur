@@ -6,12 +6,19 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   use MediaCentarrWeb, :live_view
 
   alias MediaCentarr.{Format, WatchHistory}
+  alias MediaCentarr.WatchHistory.Views, as: WatchHistoryViews
 
   @page_size 50
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: WatchHistory.subscribe()
+    if connected?(socket) do
+      # Source topic — drives the paginated events-list refresh.
+      WatchHistory.subscribe()
+      # Derived topic — drives the aggregate panel refresh (stats,
+      # heatmap, rewatch counts) via the projection (ADR-041).
+      WatchHistoryViews.subscribe()
+    end
 
     socket =
       assign(socket,
@@ -19,7 +26,6 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
         stats: %{total_count: 0, total_seconds: 0.0, streak: 0},
         heatmap_cells_by_type: %{nil => [], movie: [], episode: [], video_object: []},
         rewatch_counts: %{movie: %{}, episode: %{}, video_object: %{}},
-        pending_rewatch_types: MapSet.new(),
         filter_type: nil,
         filter_search: "",
         filter_date: nil,
@@ -44,11 +50,13 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   # AGENTS.md → LiveView callbacks (Iron Law).
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
+      summary = WatchHistoryViews.summary()
+
       socket =
         assign(socket,
-          stats: WatchHistory.stats(),
-          heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type(),
-          rewatch_counts: fetch_rewatch_counts(),
+          stats: summary.stats,
+          heatmap_cells_by_type: summary.heatmap_cells_by_type,
+          rewatch_counts: summary.rewatch_counts,
           loaded?: true
         )
 
@@ -392,17 +400,16 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
       event ->
         parent = self()
 
+        # Delete runs in a Task purely to keep the LiveView responsive
+        # for any latency in PubSub fanout. The aggregate refresh
+        # (stats / heatmap / rewatch counts) is driven by the
+        # `WatchHistory.Views.Summary` projection — `delete_event!`
+        # broadcasts `:watch_event_deleted`, which the projection
+        # observes and re-emits `{:watch_history_view_updated, :summary}`
+        # on the derived topic.
         Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
           WatchHistory.delete_event!(event)
-
-          send(
-            parent,
-            {:delete_result, event,
-             %{
-               stats: WatchHistory.stats(),
-               heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type()
-             }}
-          )
+          send(parent, {:delete_complete, event})
         end)
 
         events = Enum.reject(socket.assigns.events, &(&1.id == event.id))
@@ -430,7 +437,10 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   end
 
   @impl true
-  def handle_info({:delete_result, event, %{stats: stats, heatmap_cells_by_type: heatmap}}, socket) do
+  def handle_info({:delete_complete, event}, socket) do
+    # Local rows already pruned optimistically in `handle_event` —
+    # advance the modal state and refresh pagination off the remaining
+    # rows. Aggregate refresh arrives via `:watch_history_view_updated`.
     socket = assign(socket, page: 1)
     {events, has_next} = fetch_page(socket)
 
@@ -438,55 +448,48 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
      assign(socket,
        events: events,
        has_next: has_next,
-       stats: stats,
-       heatmap_cells_by_type: heatmap,
-       rewatch_counts: fetch_rewatch_counts(),
        deleted_event: event,
        deleting_event: nil
      )}
   end
 
   @impl true
-  def handle_info({:watch_event_created, event}, socket) do
-    pending = MapSet.put(socket.assigns.pending_rewatch_types, event.entity_type)
-
-    {:noreply,
-     socket
-     |> assign(:pending_rewatch_types, pending)
-     |> debounce(:reload_timer, :reload_history, 500)}
+  def handle_info({:watch_event_created, _event}, socket) do
+    # Source event — the projection observes this too and will emit
+    # `:watch_history_view_updated` after its refresh. Here we only
+    # care about reloading the paginated events list itself.
+    {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
   end
 
-  def handle_info(:reload_history, socket) do
-    stats = WatchHistory.stats()
-    pending_types = socket.assigns.pending_rewatch_types
+  def handle_info({:watch_event_deleted, _event}, socket) do
+    # Local list was already pruned in `handle_event("remove_event", …)`;
+    # nothing more to do here. Aggregates refresh via the derived topic.
+    {:noreply, socket}
+  end
 
-    rewatch_counts = update_rewatch_counts(socket.assigns.rewatch_counts, pending_types)
-
-    socket = assign(socket, page: 1)
-    {events, has_next} = fetch_page(socket)
+  def handle_info({:watch_history_view_updated, :summary}, socket) do
+    # Derived event — projection finished its refresh, pull the new
+    # snapshot in one read (ADR-041 encapsulation rule: consumers
+    # subscribe to derived topics, not source events for aggregates).
+    summary = WatchHistoryViews.summary()
 
     {:noreply,
      assign(socket,
-       events: events,
-       has_next: has_next,
-       stats: stats,
-       heatmap_cells_by_type: WatchHistory.heatmap_cells_by_type(),
-       rewatch_counts: rewatch_counts,
-       pending_rewatch_types: MapSet.new()
+       stats: summary.stats,
+       heatmap_cells_by_type: summary.heatmap_cells_by_type,
+       rewatch_counts: summary.rewatch_counts
      )}
+  end
+
+  def handle_info(:reload_history, socket) do
+    socket = assign(socket, page: 1)
+    {events, has_next} = fetch_page(socket)
+    {:noreply, assign(socket, events: events, has_next: has_next)}
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # --- Private helpers ---
-
-  defp fetch_rewatch_counts do
-    %{
-      movie: WatchHistory.rewatch_count_map(:movie),
-      episode: WatchHistory.rewatch_count_map(:episode),
-      video_object: WatchHistory.rewatch_count_map(:video_object)
-    }
-  end
 
   @doc """
   Refresh `current` rewatch-count map for only the given `types`. Other
