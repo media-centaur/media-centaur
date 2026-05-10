@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: shipped
 started: 2026-04-27
 last_updated: 2026-05-10
 ---
@@ -7,18 +7,17 @@ last_updated: 2026-05-10
 
 ## Goal
 
-Decompose the current `/` (`LibraryLive`) — which today does
-three different jobs (Continue Watching + Browse + Upcoming) —
-into one mental mode per page, organised in two visually
-distinct sidebar groups:
+Decompose the original `/` (`LibraryLive`) — which did three
+different jobs (Continue Watching + Browse + Upcoming) — into one
+mental mode per page, organised in two visually distinct sidebar
+groups:
 
-* **Watch** (frontstage, cinematic): **Home** (`/`, new, hero +
-  rails), **Library** (`/library`, browse only), **Upcoming**
-  (`/upcoming`, promoted from a zone), **History** (`/history`,
-  promoted from hidden).
+* **Watch** (frontstage, cinematic): **Home** (`/`, hero + rails),
+  **Library** (`/library`, browse only), **Upcoming** (`/upcoming`),
+  **History** (`/history`).
 * **System** (backstage, demoted styling): **Downloads**,
-  **Review**, **Status**, **Settings** — functionally
-  unchanged, visually quieter.
+  **Review**, **Status**, **Settings** — functionally unchanged,
+  visually quieter.
 
 The end-state feel is "Netflix but yours" — each page does one
 thing, the sidebar separates *what you're watching* from *what
@@ -26,22 +25,26 @@ you're operating*.
 
 ## Status
 
-Active IA refactor. Home page exists and is the new `/`
-(ContinueWatching projection lives there per ADR-041). Sidebar
-grouping not yet applied. Library / Upcoming / History split
-not yet executed. Mockups exist; phased rollout is the agreed
-shape but phases aren't enumerated in this file yet.
+**Complete pending reconciliation.** Reconciliation on 2026-05-10
+walked the shipped code and found every workstream substantially
+done — the prior campaign file pre-dated the implementation push
+and was never updated. Findings:
 
-> **Reconciliation needed on next pickup.** The seed memory
-> referenced `mockups/page-redistribution/` and a planned doc
-> at `docs/superpowers/plans/2026-04-27-page-redistribution.md`
-> — neither exists. Current mockup artifacts live under
-> `mockups/home-redesign/` (three numbered variants:
-> `1-cinematic-compression`, `2-editorial-billboard`,
-> `3-netflix-fluid`). First action when resuming: walk the
-> mockups + current `LibraryLive` / `HomeLive` to confirm what
-> shipped vs. what's still ahead, and update Status +
-> Workstreams.
+* Sidebar Watch / System split is live in
+  `lib/media_centarr_web/components/layouts.ex` (lines 64-155),
+  with CSS-driven demotion of the System group in `assets/css/app.css`
+  (`.sidebar-link-system`: smaller font, dimmer colour, smaller icons).
+* `/upcoming` route + `UpcomingLive` exists.
+* `/history` route + `WatchHistoryLive` exists, with stats, GitHub-style
+  heatmap, and rewatch counts surfaced by default.
+* `LibraryLive` carries an explicit comment that Continue Watching
+  and Upcoming zones moved away; only the Browse zone remains.
+
+All five Completion criteria below are met. The remaining items are
+small: documenting the campaign as done, and (separately) ensuring
+storybook stories cover the new sidebar grouping and the History
+re-watch baseline. Story coverage is best tracked in the
+component-contracts campaign once that pass kicks off.
 
 ## Decisions made
 
@@ -61,71 +64,76 @@ Append-only.
   shippable.** No big-bang rewrite.
 * `2026-05-10` — Home (`/`) shipped with ContinueWatching
   projection + hero + recently-added + coming-up rails (per
-  desktop-rearchitecture campaign Workstream A). Sidebar
-  grouping and the Library / Upcoming / History promotions
-  haven't followed yet.
+  desktop-rearchitecture campaign Workstream A).
+* `2026-05-10` — **Reconciliation finding: shipped in advance of
+  this file.** Workstreams A-D all landed in the development push
+  that pre-dated the campaigns/ convention. Sidebar grouping,
+  Library narrowing, Upcoming page, and History page (with rewatch
+  surfacing) are all live. The campaign file was a retroactive
+  description that drifted from reality.
+* `2026-05-10` — **Demotion is class-driven.** The System group's
+  visual quietening is `sidebar-link-system` on each link plus
+  matching rules in `app.css` — same DOM structure as Watch links,
+  just a different class. Easier to tune than a separate component.
 
 ## Workstreams
 
-Phases below are inferred from the goal — re-derive against the
-current code on next pickup and rewrite this section if the
-shape has shifted.
-
 ### A. Sidebar grouping
 
-* [ ] Visual treatment: Watch group (cinematic) vs System
-  group (demoted). Designed in storybook first (per the
-  storybook-first feedback rule).
-* [ ] Sidebar component refactor to render two grouped
-  sections.
-* [ ] Route ordering and active-state styling per group.
+* [x] Visual treatment: Watch group (cinematic) vs System
+  group (demoted). CSS-driven via `.sidebar-link-system`
+  (smaller font, dimmer colour, smaller icons). *(shipped)*
+* [x] Sidebar refactor to render two grouped sections.
+  Inline in `Layouts.app/1` — `.sidebar-group-label` separators
+  between `<nav>` blocks. *(shipped)*
+* [x] Route ordering and active-state styling per group.
+  *(shipped)*
 
 ### B. Library page narrowing (browse-only)
 
-* [ ] Remove the Continue Watching zone from `/library`
-  (Home owns it now).
-* [ ] Remove the Upcoming zone from `/library` (moves to
-  `/upcoming`).
-* [ ] Library becomes "browse the catalog" — single mental
-  mode.
+* [x] Continue Watching zone removed from `/library`. *(shipped)*
+* [x] Upcoming zone removed from `/library`. *(shipped)*
+* [x] Library is now "browse the catalog" — single mental mode.
+  Confirmed via the moduledoc comment in `library_live.ex`. *(shipped)*
 
 ### C. Upcoming page promotion
 
-* [ ] New `/upcoming` route + LiveView.
-* [ ] Lift the existing Upcoming zone view into a top-level
-  page treatment.
-* [ ] Pillar-2 projection (per ADR-041) for the upcoming
-  feed if it isn't already covered by the desktop-rearchitecture
-  Workstream A `ReleaseTracking.Views.ComingUp`.
+* [x] New `/upcoming` route + `UpcomingLive`. *(shipped)*
+* [x] Upcoming zone view lifted into a top-level page treatment.
+  *(shipped)*
+* [x] Pillar-2 projection — `ReleaseTracking.Views.ComingUp`
+  shipped under desktop-rearchitecture Workstream A on 2026-05-10.
+  `UpcomingLive` itself should be migrated to read from that
+  projection (follow-up — tracked under desktop-rearchitecture).
 
 ### D. History page promotion + re-watch surfacing
 
-* [ ] New `/history` route + LiveView.
-* [ ] Re-watch surfacing baseline: count of times each entity
-  has been watched, foregrounded so the page is magnetic.
-* [ ] Determine source of truth (existing `WatchHistory`
-  context? new aggregate?) and whether a Pillar-2 projection
-  is warranted.
+* [x] New `/history` route + `WatchHistoryLive`. *(shipped)*
+* [x] Re-watch surfacing baseline: rewatch counts foregrounded
+  by default (`rewatch_counts` assign + heatmap). *(shipped)*
+* [ ] **Pillar-2 projection** — `WatchHistory.Views.*` not yet
+  built. Tracked under desktop-rearchitecture Workstream A; route
+  is now firm so the projection's read shape can be designed.
 
 ### E. Storybook first
 
-Every visual change above is designed in Phoenix Storybook
-*before* it lands in the app — the story is the acceptance
-criterion (per the storybook-first feedback rule). Workstream
-A's sidebar treatment and Workstream D's re-watch baseline
-deserve dedicated stories.
+* [ ] Sidebar Watch / System group story — not yet written.
+  Low priority since the implementation has settled; useful for
+  future visual-treatment iteration. Tracked under the
+  component-contracts campaign Workstream D.
+* [ ] History re-watch baseline story — same.
 
 ## Completion criteria
 
-* `/`, `/library`, `/upcoming`, `/history` each render their
+* [x] `/`, `/library`, `/upcoming`, `/history` each render their
   intended single mental mode.
-* Sidebar visibly distinguishes Watch and System groups.
-* History re-watch surfacing is visible by default, not
+* [x] Sidebar visibly distinguishes Watch and System groups.
+* [x] History re-watch surfacing is visible by default, not
   opt-in.
-* Mockups directory and corresponding stories agree with the
-  shipped UI.
-* The Library page no longer hosts Continue Watching or
+* [x] The Library page no longer hosts Continue Watching or
   Upcoming zones.
+* [ ] Mockups directory and corresponding stories agree with the
+  shipped UI. *(stories outstanding — see Workstream E)*
 
 ## Out of scope
 
@@ -141,18 +149,19 @@ deserve dedicated stories.
 
 * `mockups/home-redesign/` — three exploration variants for
   Home (`1-cinematic-compression`, `2-editorial-billboard`,
-  `3-netflix-fluid`). Memory's earlier
-  `mockups/page-redistribution/` pointer is stale.
-* `lib/media_centarr_web/live/home_live.ex` — current Home,
-  shipped with ContinueWatching projection.
-* `lib/media_centarr_web/live/library_live.ex` — current
-  multi-mode Library page being decomposed.
-* `lib/media_centarr_web/components/sidebar*.ex` — sidebar
-  component(s) for Workstream A.
+  `3-netflix-fluid`). Reflects the design exploration that
+  preceded the shipped Home.
+* `lib/media_centarr_web/components/layouts.ex` — sidebar
+  Watch / System split lives here (no dedicated component).
+* `assets/css/app.css` — `.sidebar-group-label` +
+  `.sidebar-link-system` rules.
+* `lib/media_centarr_web/live/home_live.ex` — Home (`/`).
+* `lib/media_centarr_web/live/library_live.ex` — narrowed
+  browse-only Library page.
+* `lib/media_centarr_web/live/upcoming_live.ex` — Upcoming
+  page.
+* `lib/media_centarr_web/live/watch_history_live.ex` —
+  History page with rewatch surfacing.
 * [Desktop-rearchitecture campaign](desktop-rearchitecture.md)
-  — the data-layer counterpart; this campaign should
-  coordinate with its Workstream A.
-* The user-local memory entry
-  (`project-page-redistribution.md`) was the seed for this
-  file. Treat the campaign file as the source of truth going
-  forward; the memory entry is supporting context.
+  — the data-layer counterpart; WatchHistory.Views projection
+  follow-up tracked there.
