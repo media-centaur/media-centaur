@@ -29,6 +29,13 @@ defmodule Mix.Tasks.Profile do
       --skip-seed                 Re-run measurement against the existing DB
                                   (faster iteration on report shape)
 
+      --rebaseline                After printing the diff, prompt to
+                                  promote this run to
+                                  `priv/profiling/baseline-<scale>.{md,json}`.
+                                  Returns `false` in non-interactive
+                                  contexts so CI cannot rebaseline by
+                                  accident.
+
   ## Output
 
   Writes:
@@ -53,10 +60,13 @@ defmodule Mix.Tasks.Profile do
     require_config_override!()
 
     {opts, _, _} =
-      OptionParser.parse(args, strict: [scale: :string, skip_seed: :boolean])
+      OptionParser.parse(args,
+        strict: [scale: :string, skip_seed: :boolean, rebaseline: :boolean]
+      )
 
     scale = parse_scale(opts[:scale])
     skip_seed? = Keyword.get(opts, :skip_seed, false)
+    rebaseline? = Keyword.get(opts, :rebaseline, false)
 
     Mix.Task.run("app.start")
     wait_for_cache_workers!()
@@ -89,6 +99,35 @@ defmodule Mix.Tasks.Profile do
     %{markdown: md_path, json: json_path} = Reporter.write(run_data)
 
     print_terminal_summary(run_data, md_path, json_path)
+
+    if rebaseline?, do: prompt_and_rebaseline(scale, md_path, json_path)
+  end
+
+  # ---- Rebaseline ----------------------------------------------------------
+
+  defp prompt_and_rebaseline(scale, md_path, json_path) do
+    md_dest = Path.join("priv/profiling", "baseline-#{scale}.md")
+    json_dest = Path.join("priv/profiling", "baseline-#{scale}.json")
+
+    if Mix.shell().yes?("\nReplace baseline-#{scale}.{md,json} with this run?",
+         default: :no
+       ) do
+      File.mkdir_p!("priv/profiling")
+      File.cp!(md_path, md_dest)
+      File.cp!(json_path, json_dest)
+
+      Mix.shell().info("""
+
+      Baseline updated:
+        #{md_dest}
+        #{json_dest}
+
+      Commit with:
+        jj describe -m "perf: rebaseline profile (scale: #{scale})"
+      """)
+    else
+      Mix.shell().info("Baseline unchanged.")
+    end
   end
 
   # ---- Baseline + diff -----------------------------------------------------
