@@ -1,5 +1,7 @@
 defmodule MediaCentarr.WatchHistory do
-  use Boundary, deps: [MediaCentarr.Library], exports: []
+  use Boundary,
+    deps: [MediaCentarr.Library],
+    exports: [Event, Views, Views.Summary, Views.SummaryData]
 
   @moduledoc """
   Public API for the WatchHistory bounded context.
@@ -182,6 +184,13 @@ defmodule MediaCentarr.WatchHistory do
   """
   def delete_event!(%Event{} = event, opts \\ []) do
     Repo.delete!(event)
+
+    Phoenix.PubSub.broadcast(
+      MediaCentarr.PubSub,
+      Topics.watch_history_events(),
+      {:watch_event_deleted, event}
+    )
+
     if Keyword.get(opts, :reset_progress, false), do: reset_watch_progress(event)
     :ok
   end

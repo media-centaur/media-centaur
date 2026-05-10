@@ -22,7 +22,7 @@ defmodule MediaCentarr.Topics do
   | `library:watch_completed` | `Library` | end-of-watch markers |
   | `library:availability` | `Library.Availability` | `{:availability_changed, dir, state}` |
   | `playback:events` | `Playback` | progress + state-change events |
-  | `watch_history:events` | `WatchHistory` | `{:watch_event_created, _}` |
+  | `watch_history:events` | `WatchHistory` | `{:watch_event_created, _}`, `{:watch_event_deleted, _}` |
   | `release_tracking:updates` | `ReleaseTracking` | `{:releases_updated, _}`, `{:item_removed, _, _}`, `{:release_ready, _, _}` |
   | `acquisition:updates` | `Acquisition` | grab lifecycle |
   | `acquisition:queue` | `Acquisition` | download-client queue snapshots |
@@ -49,6 +49,7 @@ defmodule MediaCentarr.Topics do
   |-------|-----------|----------|
   | `library:views` | `Library.Views.*` projections | `{:library_view_updated, :continue_watching \| :hero_candidates \| :recently_added}` |
   | `release_tracking:views` | `ReleaseTracking.Views.*` projections | `{:release_tracking_view_updated, :coming_up}` |
+  | `watch_history:views` | `WatchHistory.Views.*` projections | `{:watch_history_view_updated, :summary}` |
 
   Adding a new projection that needs its own derived topic: prefer
   one topic per source-context (e.g. `watch_history:views` for any
@@ -105,4 +106,5 @@ defmodule MediaCentarr.Topics do
   def error_reports, do: "error_reports:updates"
   def library_views, do: "library:views"
   def release_tracking_views, do: "release_tracking:views"
+  def watch_history_views, do: "watch_history:views"
 end
