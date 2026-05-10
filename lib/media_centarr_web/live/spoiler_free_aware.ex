@@ -62,13 +62,16 @@ defmodule MediaCentarrWeb.Live.SpoilerFreeAware do
   end
 
   @doc false
-  def handle_setting_changed({:setting_changed, key, enabled}, socket) do
+  def handle_setting_changed({:setting_changed, key, value}, socket) do
     if key == SpoilerFree.setting_key() do
-      {:cont, Phoenix.Component.assign(socket, :spoiler_free, enabled == true)}
+      {:cont, Phoenix.Component.assign(socket, :spoiler_free, enabled?(value))}
     else
       {:cont, socket}
     end
   end
 
   def handle_setting_changed(_msg, socket), do: {:cont, socket}
+
+  defp enabled?(%{"enabled" => true}), do: true
+  defp enabled?(_), do: false
 end
