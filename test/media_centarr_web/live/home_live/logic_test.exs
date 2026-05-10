@@ -459,21 +459,25 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
                [:coming_up]
     end
 
-    test "watch_event_created reloads continue_watching only" do
-      assert Logic.section_reloaders({:watch_event_created, %{id: "event-1"}}) ==
+    test "library_view_updated :continue_watching reloads continue_watching only" do
+      # `:watch_event_created` and `:entity_progress_updated` are now
+      # observed by the `Library.Views.ContinueWatching` projection,
+      # which broadcasts `:library_view_updated` after each ETS
+      # rebuild. The LiveView reacts to that single event instead of
+      # the source events directly (ADR-041 encapsulation rule —
+      # consumers subscribe to projections, never to source topics).
+      assert Logic.section_reloaders({:library_view_updated, :continue_watching}) ==
                [:continue_watching]
     end
 
-    test "entity_progress_updated reloads continue_watching only" do
-      # Without this, the Continue Watching row freezes mid-playback because
-      # progress messages from Playback.ProgressBroadcaster only flow while
-      # MpvSession is reporting position. The 500ms debounce on
-      # :continue_watching reload coalesces the high-frequency stream.
+    test "raw watch_event_created and entity_progress_updated no longer reload anything directly" do
+      assert Logic.section_reloaders({:watch_event_created, %{id: "event-1"}}) == []
+
       msg =
         {:entity_progress_updated,
          %{entity_id: "abc", summary: %{}, resume_target: nil, changed_record: nil}}
 
-      assert Logic.section_reloaders(msg) == [:continue_watching]
+      assert Logic.section_reloaders(msg) == []
     end
 
     test "playback_state_changed reloads continue_watching only" do

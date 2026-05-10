@@ -313,10 +313,19 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   def section_reloaders({:item_removed, _tmdb_id, _tmdb_type}), do: [:coming_up]
   def section_reloaders({:release_ready, _item, _release}), do: [:coming_up]
 
-  def section_reloaders({:watch_event_created, _event}), do: [:continue_watching]
+  # Source events that previously drove continue_watching reloads
+  # (`:watch_event_created`, `:entity_progress_updated`) now flow into
+  # the `Library.Views.ContinueWatching` projection, which broadcasts
+  # `{:library_view_updated, :continue_watching}` on `library:views`
+  # after each ETS rebuild. The reload happens via that broadcast — see
+  # the clause below.
+  def section_reloaders({:library_view_updated, :continue_watching}), do: [:continue_watching]
 
-  def section_reloaders({:entity_progress_updated, _payload}), do: [:continue_watching]
-
+  # Playback-state changes don't alter the underlying continue-watching
+  # data; they affect the in-LiveView pinning order (now-playing item
+  # floats to the front via `Logic.continue_watching_items/3` reading
+  # `socket.assigns.playback`). Continue to reload so the pinned order
+  # re-applies.
   def section_reloaders({:playback_state_changed, _payload}), do: [:continue_watching]
 
   # Drive mounted/unmounted: every section that renders /media-images/* may
