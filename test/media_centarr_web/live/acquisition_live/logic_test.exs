@@ -1,7 +1,8 @@
 defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.{QueueItem, SearchResult}
+  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarrWeb.AcquisitionLive.Logic
 
   describe "format_grab_reason/1" do
@@ -171,7 +172,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   end
 
   describe "group_downloads_by_state/1" do
-    alias MediaCentarr.Acquisition.QueueItem
+    alias MediaCentarr.Downloads.QueueItem
 
     test "returns active and completed buckets in display order" do
       items = [
@@ -214,7 +215,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   end
 
   describe "sort_downloads/1" do
-    alias MediaCentarr.Acquisition.QueueItem
+    alias MediaCentarr.Downloads.QueueItem
 
     test "orders by activity: error → downloading → stalled → paused → queued → other" do
       items = [
@@ -349,7 +350,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   end
 
   describe "partition_collapsible_group/3" do
-    alias MediaCentarr.Acquisition.QueueItem
+    alias MediaCentarr.Downloads.QueueItem
 
     test "returns {items, nil} when count is below collapse threshold" do
       items = [
@@ -409,7 +410,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   end
 
   describe "prepare_queue_for_render/2" do
-    alias MediaCentarr.Acquisition.QueueItem
+    alias MediaCentarr.Downloads.QueueItem
 
     test "returns a flat list of {:item, item} ops in activity order when no group exceeds the head size" do
       items = [
@@ -498,7 +499,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   end
 
   describe "render_health_line?/1" do
-    alias MediaCentarr.Acquisition.QueueItem
+    alias MediaCentarr.Downloads.QueueItem
 
     test "true for degraded and slow statuses" do
       for status <- [:soft_stall, :frozen, :meta_stuck, :slow, :queued_long] do

@@ -17,6 +17,7 @@ defmodule MediaCentarr.Application do
       MediaCentarr.Console,
       MediaCentarr.ErrorReports,
       MediaCentarr.Acquisition,
+      MediaCentarr.Downloads,
       MediaCentarr.WatchHistory,
       MediaCentarr.SelfUpdate,
       MediaCentarr.SpoilerFree,
@@ -190,7 +191,7 @@ defmodule MediaCentarr.Application do
       MediaCentarr.ReleaseTracking.Refresher,
       MediaCentarr.WatchHistory.Recorder,
       MediaCentarr.Acquisition.Reactor,
-      MediaCentarr.Acquisition.QueueMonitor,
+      MediaCentarr.Downloads.QueueMonitor,
       MediaCentarr.Acquisition.Pursuits.InboundListener
     ]
   end

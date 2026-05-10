@@ -1,9 +1,9 @@
-defmodule MediaCentarr.Acquisition.HealthHistoryTest do
+defmodule MediaCentarr.Downloads.HealthHistoryTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.Health
-  alias MediaCentarr.Acquisition.HealthHistory
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.Health
+  alias MediaCentarr.Downloads.HealthHistory
+  alias MediaCentarr.Downloads.QueueItem
 
   @mb 1024 * 1024
   @gb 1024 * @mb

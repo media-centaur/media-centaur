@@ -371,7 +371,7 @@ defmodule MediaCentarrWeb.UpcomingLive do
     {:noreply, assign(socket, release_grab_statuses: grab_statuses)}
   end
 
-  def handle_info({:queue_state, %MediaCentarr.Acquisition.QueueState{items: items}}, socket) do
+  def handle_info({:queue_state, %MediaCentarr.Downloads.QueueState{items: items}}, socket) do
     {:noreply, assign(socket, queue_items: items)}
   end
 

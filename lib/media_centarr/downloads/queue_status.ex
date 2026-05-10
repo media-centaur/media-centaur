@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.QueueStatus do
+defmodule MediaCentarr.Downloads.QueueStatus do
   @moduledoc """
   Pure derivation of queue freshness status from a `QueueState` plus
   the current poll cadence.
@@ -26,7 +26,7 @@ defmodule MediaCentarr.Acquisition.QueueStatus do
   Explicit errors on the state always win over age-based classification.
   """
 
-  alias MediaCentarr.Acquisition.QueueState
+  alias MediaCentarr.Downloads.QueueState
 
   @type status ::
           :initializing

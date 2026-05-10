@@ -2,6 +2,7 @@ defmodule MediaCentarr.Acquisition do
   use Boundary,
     deps: [
       MediaCentarr.Capabilities,
+      MediaCentarr.Downloads,
       MediaCentarr.Library,
       MediaCentarr.ReleaseTracking,
       MediaCentarr.Settings
@@ -11,12 +12,8 @@ defmodule MediaCentarr.Acquisition do
       CancelReasons,
       Grab,
       GrabStatus,
-      Health,
       Quality,
       QueryExpander,
-      QueueItem,
-      QueueState,
-      QueueStatus,
       Prowlarr,
       Pursuits,
       Pursuits.Commands.Cancel,
@@ -26,7 +23,6 @@ defmodule MediaCentarr.Acquisition do
       Pursuits.Pursuit,
       Reactor,
       SearchSession,
-      DownloadClient.QBittorrent,
       ViewModels.Alternative,
       ViewModels.DecisionCard,
       ViewModels.PursuitHeader,
@@ -83,7 +79,7 @@ defmodule MediaCentarr.Acquisition do
 
   alias MediaCentarr.Acquisition.Pursuits.Commands.Start, as: StartPursuit
 
-  alias MediaCentarr.Acquisition.DownloadClient.Dispatcher
+  alias MediaCentarr.Downloads.DownloadClient.Dispatcher
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Format
   alias MediaCentarr.ReleaseTracking
@@ -139,7 +135,7 @@ defmodule MediaCentarr.Acquisition do
   `MediaCentarrWeb.AcquisitionLive`'s moduledoc).
   """
   @type queue_message ::
-          {:queue_state, MediaCentarr.Acquisition.QueueState.t()}
+          {:queue_state, MediaCentarr.Downloads.QueueState.t()}
 
   @typedoc """
   Messages broadcast on `Topics.acquisition_search/0`. Subscribe with
@@ -168,7 +164,7 @@ defmodule MediaCentarr.Acquisition do
   @spec subscribe_queue() :: :ok
   def subscribe_queue do
     :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_queue())
-    MediaCentarr.Acquisition.QueueMonitor.register_subscriber(self())
+    MediaCentarr.Downloads.QueueMonitor.register_subscriber(self())
   end
 
   @doc """
@@ -257,8 +253,8 @@ defmodule MediaCentarr.Acquisition do
   before the first successful poll or when no download client is configured.
   Prefer `queue_state/0` when freshness/error metadata matters.
   """
-  @spec queue_snapshot() :: [MediaCentarr.Acquisition.QueueItem.t()]
-  defdelegate queue_snapshot, to: MediaCentarr.Acquisition.QueueMonitor, as: :snapshot
+  @spec queue_snapshot() :: [MediaCentarr.Downloads.QueueItem.t()]
+  defdelegate queue_snapshot, to: MediaCentarr.Downloads.QueueMonitor, as: :snapshot
 
   @doc """
   Returns the latest cached `%QueueState{}` — items plus liveness
@@ -266,8 +262,8 @@ defmodule MediaCentarr.Acquisition do
   `:persistent_term`. Returns an empty `%QueueState{}` before the
   first poll.
   """
-  @spec queue_state() :: MediaCentarr.Acquisition.QueueState.t()
-  defdelegate queue_state, to: MediaCentarr.Acquisition.QueueMonitor, as: :state
+  @spec queue_state() :: MediaCentarr.Downloads.QueueState.t()
+  defdelegate queue_state, to: MediaCentarr.Downloads.QueueMonitor, as: :state
 
   @doc """
   Asks the QueueMonitor to poll the download client immediately. Use when
@@ -276,7 +272,7 @@ defmodule MediaCentarr.Acquisition do
   idle-cadence tick is too slow.
   """
   @spec poll_queue_now() :: :ok
-  defdelegate poll_queue_now, to: MediaCentarr.Acquisition.QueueMonitor, as: :poll_now
+  defdelegate poll_queue_now, to: MediaCentarr.Downloads.QueueMonitor, as: :poll_now
 
   @doc """
   Searches Prowlarr for releases matching the query.

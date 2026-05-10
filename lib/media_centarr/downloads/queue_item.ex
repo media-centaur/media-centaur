@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.QueueItem do
+defmodule MediaCentarr.Downloads.QueueItem do
   @moduledoc """
   A single entry in a download client's queue.
 
@@ -21,10 +21,10 @@ defmodule MediaCentarr.Acquisition.QueueItem do
   ## `:health`
 
   Orthogonal to `state`. `state` is what the download client says;
-  `health` is `MediaCentarr.Acquisition.Health.classify/3`'s judgement
+  `health` is `MediaCentarr.Downloads.Health.classify/3`'s judgement
   on whether progress is actually being made. Drivers
   (`from_qbittorrent/1`) leave it `nil` — only
-  `MediaCentarr.Acquisition.QueueMonitor` sets it, because
+  `MediaCentarr.Downloads.QueueMonitor` sets it, because
   classification needs throughput history that only the monitor has.
   """
 
@@ -56,7 +56,7 @@ defmodule MediaCentarr.Acquisition.QueueItem do
           size_left: integer() | nil,
           progress: float() | nil,
           timeleft: String.t() | nil,
-          health: MediaCentarr.Acquisition.Health.status() | nil
+          health: MediaCentarr.Downloads.Health.status() | nil
         }
 
   @qbit_infinite_eta 8_640_000

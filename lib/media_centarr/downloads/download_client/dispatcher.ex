@@ -1,10 +1,10 @@
-defmodule MediaCentarr.Acquisition.DownloadClient.Dispatcher do
+defmodule MediaCentarr.Downloads.DownloadClient.Dispatcher do
   @moduledoc """
   Resolves the configured `:download_client_type` string to its driver
   module. Add one clause to `driver/0` per new driver.
   """
 
-  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent
+  alias MediaCentarr.Downloads.DownloadClient.QBittorrent
   alias MediaCentarr.Config
 
   @type error :: :not_configured | {:unknown_driver, String.t()}

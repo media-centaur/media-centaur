@@ -1,8 +1,8 @@
-defmodule MediaCentarr.Acquisition.HealthTest do
+defmodule MediaCentarr.Downloads.HealthTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.Health
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.Health
+  alias MediaCentarr.Downloads.QueueItem
 
   # All histories are expressed as `{age_seconds, size_left_bytes}` tuples
   # newest-first, then converted to monotonic-time form by `mk_history/2`

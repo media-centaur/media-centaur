@@ -1,10 +1,10 @@
-defmodule MediaCentarr.Acquisition.HealthHistory do
+defmodule MediaCentarr.Downloads.HealthHistory do
   @moduledoc """
   Per-poll bookkeeping for the throughput history map that
-  `MediaCentarr.Acquisition.Health.classify/3` consumes.
+  `MediaCentarr.Downloads.Health.classify/3` consumes.
 
   Pure module — no GenServer, no IO. Lives between
-  `MediaCentarr.Acquisition.QueueMonitor` (which holds the map in its
+  `MediaCentarr.Downloads.QueueMonitor` (which holds the map in its
   state and drives the polls) and `Health` (which classifies one item
   given its samples).
 
@@ -31,8 +31,8 @@ defmodule MediaCentarr.Acquisition.HealthHistory do
     nil shouldn't lose all our throughput data).
   """
 
-  alias MediaCentarr.Acquisition.Health
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.Health
+  alias MediaCentarr.Downloads.QueueItem
 
   @type history :: %{(integer() | String.t()) => [Health.sample()]}
 

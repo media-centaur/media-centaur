@@ -12,6 +12,7 @@ defmodule MediaCentarrWeb do
       MediaCentarr.Playback,
       MediaCentarr.Console,
       MediaCentarr.Acquisition,
+      MediaCentarr.Downloads,
       MediaCentarr.Capabilities,
       MediaCentarr.WatchHistory,
       MediaCentarr.SelfUpdate,

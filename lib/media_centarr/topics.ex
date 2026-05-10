@@ -25,7 +25,7 @@ defmodule MediaCentarr.Topics do
   | `watch_history:events` | `WatchHistory` | `{:watch_event_created, _}`, `{:watch_event_deleted, _}` |
   | `release_tracking:updates` | `ReleaseTracking` | `{:releases_updated, _}`, `{:item_removed, _, _}`, `{:release_ready, _, _}` |
   | `acquisition:updates` | `Acquisition` | grab lifecycle |
-  | `acquisition:queue` | `Acquisition` | download-client queue snapshots |
+  | `acquisition:queue` | `Downloads` | download-client queue snapshots (topic name kept — rename deferred per ADR-043) |
   | `acquisition:search` | `Acquisition` | per-search results |
   | `settings:updates` | `Settings` | per-key changes |
   | `config:updates` | `Config` | TOML reload |

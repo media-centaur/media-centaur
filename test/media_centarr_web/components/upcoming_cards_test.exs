@@ -1,7 +1,8 @@
 defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.{Grab, QueueItem}
+  alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarrWeb.Components.UpcomingCards
   alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
 

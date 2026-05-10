@@ -13,7 +13,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
 
   import MediaCentarrWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
 
-  alias MediaCentarr.Acquisition.Health
+  alias MediaCentarr.Downloads.Health
   alias MediaCentarrWeb.AcquisitionLive.Logic
   alias MediaCentarrWeb.Components.Acquisition.QueueStatusBadge
 
@@ -23,12 +23,12 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
   attr :queue_status, :any,
     default: :initializing,
     doc:
-      "QueueStatus.status() from MediaCentarr.Acquisition.QueueStatus.derive/2 — drives the freshness badge"
+      "QueueStatus.status() from MediaCentarr.Downloads.QueueStatus.derive/2 — drives the freshness badge"
 
   attr :active_queue, :list,
     required: true,
     doc:
-      "List of `MediaCentarr.Acquisition.QueueItem.t()` — used only for the empty-state check; rendered rows come from `queue_ops`."
+      "List of `MediaCentarr.Downloads.QueueItem.t()` — used only for the empty-state check; rendered rows come from `queue_ops`."
 
   attr :queue_ops, :any,
     required: true,
@@ -99,7 +99,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Queue do
   end
 
   attr :id, :string, required: true
-  attr :item, MediaCentarr.Acquisition.QueueItem, required: true
+  attr :item, MediaCentarr.Downloads.QueueItem, required: true
 
   defp row(assigns) do
     ~H"""

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.QueueState do
+defmodule MediaCentarr.Downloads.QueueState do
   @moduledoc """
   Versioned snapshot of the download-client queue plus liveness
   metadata. Owned and mutated only by `QueueMonitor`; consumed
@@ -10,7 +10,7 @@ defmodule MediaCentarr.Acquisition.QueueState do
   `:rid` and a `torrents` map keyed by hash for incremental sync.
   """
 
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   @type error_reason ::
           nil

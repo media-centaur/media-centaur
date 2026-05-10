@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.QueueMonitorTest do
+defmodule MediaCentarr.Downloads.QueueMonitorTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Acquisition.{QueueMonitor, QueueState}
+  alias MediaCentarr.Downloads.{QueueMonitor, QueueState}
 
   describe "register_subscriber/1" do
     setup do

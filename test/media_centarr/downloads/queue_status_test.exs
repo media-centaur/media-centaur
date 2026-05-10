@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.QueueStatusTest do
+defmodule MediaCentarr.Downloads.QueueStatusTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.{QueueState, QueueStatus}
+  alias MediaCentarr.Downloads.{QueueState, QueueStatus}
 
   @cadence_ms 1500
 

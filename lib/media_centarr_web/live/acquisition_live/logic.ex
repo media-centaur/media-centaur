@@ -14,7 +14,8 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   Per ADR-030 (LiveView logic extraction).
   """
 
-  alias MediaCentarr.Acquisition.{Health, QueueItem, SearchResult}
+  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Downloads.{Health, QueueItem}
 
   # How long after a user-initiated cancel we keep suppressing the
   # affected row from incoming snapshots. qBittorrent's DELETE typically

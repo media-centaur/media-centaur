@@ -1,8 +1,8 @@
-defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent.SyncTest do
+defmodule MediaCentarr.Downloads.DownloadClient.QBittorrent.SyncTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.DownloadClient.QBittorrent.Sync
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.DownloadClient.QBittorrent.Sync
+  alias MediaCentarr.Downloads.QueueItem
 
   describe "apply_maindata/2" do
     test "full_update replaces the torrent map" do

@@ -29,7 +29,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Watcher do
     RequestDecision
   }
 
-  alias MediaCentarr.Acquisition.QueueMonitor
+  alias MediaCentarr.Downloads.QueueMonitor
 
   @impl Oban.Worker
   def perform(_job) do

@@ -1,10 +1,10 @@
-defmodule MediaCentarr.Acquisition.Health do
+defmodule MediaCentarr.Downloads.Health do
   @moduledoc """
   Classifies the *quality* of an active queue item by observed
   throughput over a rolling window, plus a few related "stuck" cases
   (metadata fetch hung, queued for too long).
 
-  Distinct from `MediaCentarr.Acquisition.QueueItem.state/0`:
+  Distinct from `MediaCentarr.Downloads.QueueItem.state/0`:
 
   - `state` is what the download client says — `:downloading`, `:queued`,
     `:stalled` (the client reports no peers), etc.
@@ -42,7 +42,7 @@ defmodule MediaCentarr.Acquisition.Health do
   of these constants outside this module.
   """
 
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   @type status ::
           :healthy

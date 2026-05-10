@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent.Sync do
+defmodule MediaCentarr.Downloads.DownloadClient.QBittorrent.Sync do
   @moduledoc """
   Pure delta application for qBittorrent's `sync/maindata` API.
 
@@ -25,7 +25,7 @@ defmodule MediaCentarr.Acquisition.DownloadClient.QBittorrent.Sync do
   treat each value as self-describing.
   """
 
-  alias MediaCentarr.Acquisition.QueueItem
+  alias MediaCentarr.Downloads.QueueItem
 
   @type torrent_map :: %{required(String.t()) => map()}
 
