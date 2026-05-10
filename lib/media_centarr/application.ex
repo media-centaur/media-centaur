@@ -165,9 +165,10 @@ defmodule MediaCentarr.Application do
 
   defp cache_children(_env) do
     [
+      # Settings starts first so derived caches see a warm upstream.
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Settings},
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Capabilities},
-      {MediaCentarr.Cache.Worker, context: MediaCentarr.Controls},
-      {MediaCentarr.Cache.Worker, context: MediaCentarr.SpoilerFree}
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.Controls}
     ]
   end
 

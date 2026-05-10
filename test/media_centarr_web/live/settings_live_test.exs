@@ -68,7 +68,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
       MediaCentarr.Topics.settings_updates(),
-      {:setting_changed, "spoiler_free_mode", true}
+      {:setting_changed, "spoiler_free_mode", %{"enabled" => true}}
     )
 
     # Wait for the broadcast to be processed by the LiveView

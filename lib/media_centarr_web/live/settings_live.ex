@@ -595,12 +595,6 @@ defmodule MediaCentarrWeb.SettingsLive do
       value: %{"enabled" => enabled}
     })
 
-    Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
-      MediaCentarr.Topics.settings_updates(),
-      {:setting_changed, "spoiler_free_mode", enabled}
-    )
-
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 

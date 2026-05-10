@@ -84,4 +84,72 @@ defmodule MediaCentarr.SettingsTest do
       assert Settings.get_by_keys([]) == %{}
     end
   end
+
+  describe "broadcasts" do
+    setup do
+      Settings.subscribe()
+      :ok
+    end
+
+    test "create_entry broadcasts {:setting_changed, key, value}" do
+      {:ok, _} = Settings.create_entry(%{key: "broadcast_create", value: %{"x" => 1}})
+      assert_receive {:setting_changed, "broadcast_create", %{"x" => 1}}
+    end
+
+    test "find_or_create_entry broadcasts on insert" do
+      {:ok, _} =
+        Settings.find_or_create_entry(%{key: "broadcast_foc_new", value: %{"v" => 1}})
+
+      assert_receive {:setting_changed, "broadcast_foc_new", %{"v" => 1}}
+    end
+
+    test "find_or_create_entry broadcasts on update" do
+      {:ok, _} = Settings.create_entry(%{key: "broadcast_foc_existing", value: %{"v" => 1}})
+      assert_receive {:setting_changed, "broadcast_foc_existing", %{"v" => 1}}
+
+      {:ok, _} =
+        Settings.find_or_create_entry(%{key: "broadcast_foc_existing", value: %{"v" => 2}})
+
+      assert_receive {:setting_changed, "broadcast_foc_existing", %{"v" => 2}}
+    end
+
+    test "update_entry broadcasts the new value" do
+      {:ok, entry} = Settings.create_entry(%{key: "broadcast_update", value: %{"v" => 1}})
+      assert_receive {:setting_changed, "broadcast_update", _}
+
+      {:ok, _} = Settings.update_entry(entry, %{value: %{"v" => 2}})
+      assert_receive {:setting_changed, "broadcast_update", %{"v" => 2}}
+    end
+
+    test "destroy_entry broadcasts a nil value to signal deletion" do
+      {:ok, entry} = Settings.create_entry(%{key: "broadcast_destroy", value: %{}})
+      assert_receive {:setting_changed, "broadcast_destroy", _}
+
+      Settings.destroy_entry(entry)
+      assert_receive {:setting_changed, "broadcast_destroy", nil}
+    end
+  end
+
+  describe "Cache behaviour" do
+    test "relevant?/1 accepts setting_changed messages" do
+      assert Settings.relevant?({:setting_changed, "any_key", %{}})
+      assert Settings.relevant?({:setting_changed, "any_key", nil})
+      refute Settings.relevant?(:other_message)
+      refute Settings.relevant?({:other_event, "key", "value"})
+    end
+
+    test "refresh_cache/0 populates :persistent_term and is idempotent" do
+      # The cache is global :persistent_term — clean up on exit so we don't
+      # leak the empty test-DB snapshot into later tests' Settings reads.
+      on_exit(fn -> :persistent_term.erase({Settings, :entries}) end)
+
+      Settings.create_entry!(%{key: "cache_target", value: %{"v" => 1}})
+
+      assert :ok = Settings.refresh_cache()
+      assert :ok = Settings.refresh_cache()
+
+      assert {:ok, %{key: "cache_target", value: %{"v" => 1}}} =
+               Settings.get_by_key("cache_target")
+    end
+  end
 end
