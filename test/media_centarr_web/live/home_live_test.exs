@@ -203,18 +203,19 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   end
 
   describe "live updates from playback" do
-    test "entity_progress_updated reloads Continue Watching after debounce",
+    test "library_view_updated :continue_watching reloads Continue Watching after debounce",
          %{conn: conn} do
-      # The original gap: HomeLive.Logic.section_reloaders/1 had no clause
-      # for :entity_progress_updated, so progress messages from
-      # ProgressBroadcaster were silently dropped and the row froze
-      # mid-playback. The 500ms continue_watching debounce coalesces
-      # the high-frequency stream of position updates into a single reload.
+      # Per ADR-041, source events (:entity_progress_updated,
+      # :watch_event_created) are observed by the
+      # `Library.Views.ContinueWatching` projection in production. The
+      # projection rebuilds its ETS snapshot and broadcasts
+      # `{:library_view_updated, :continue_watching}` on `library:views`.
+      # HomeLive subscribes to that and re-reads via the projection.
       #
-      # We pin the contract by mounting first, THEN persisting in-progress
-      # state for a new movie, THEN sending the broadcast. The row must
-      # reload and surface the new movie. Without the section_reloaders
-      # clause, the row would still be empty after the debounce window.
+      # In test mode the projection's Cache.Worker isn't started, so we
+      # send the projection-refreshed event directly. The 500ms
+      # debounce on continue_watching coalesces multiple refreshes
+      # within the window.
       {:ok, view, html} = live(conn, "/")
       refute html =~ "Newly Started Movie"
 
@@ -228,17 +229,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         duration_seconds: 1000.0
       })
 
-      send(
-        view.pid,
-        {:entity_progress_updated,
-         %{
-           entity_id: movie.id,
-           summary: %{},
-           resume_target: nil,
-           changed_record: nil,
-           last_activity_at: DateTime.utc_now()
-         }}
-      )
+      send(view.pid, {:library_view_updated, :continue_watching})
 
       Process.sleep(600)
 

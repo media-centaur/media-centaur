@@ -16,6 +16,7 @@ defmodule MediaCentarrWeb.HomeLive do
     Capabilities,
     Library,
     Library.Availability,
+    Library.Views,
     ReleaseTracking,
     WatchHistory
   }
@@ -41,6 +42,11 @@ defmodule MediaCentarrWeb.HomeLive do
       ReleaseTracking.subscribe()
       WatchHistory.subscribe()
       Availability.subscribe()
+      # Subscribe to projection-refreshed events (ADR-041). Source
+      # topics — `library:updates`, `watch_history:events`,
+      # `playback:events` — are observed by the projection itself;
+      # the LiveView reacts only to `:library_view_updated`.
+      Views.subscribe()
     end
 
     socket =
@@ -336,7 +342,7 @@ defmodule MediaCentarrWeb.HomeLive do
   # Each loader returns a list of plain maps in the shape Logic expects.
   # Loaders returning [] are intentional stubs — see WIRE(4.6) comments.
 
-  defp load_progress, do: Library.list_in_progress(limit: 24)
+  defp load_progress, do: Views.continue_watching(limit: 24)
 
   defp load_coming_up(today) do
     # Show all upcoming releases in the next 90 days. Earlier this row was

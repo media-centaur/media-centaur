@@ -133,6 +133,13 @@ Rules:
   `library:updates` per second) are coalesced via
   `Library.BroadcastCoalescer` (or an equivalent). Human-paced
   sources (`watch_history:events`) are subscribed to directly.
+- High-frequency playback sources (`:entity_progress_updated` on
+  `playback:events`, ~few per second per active session) are
+  acceptable to subscribe to directly when the projection's data
+  genuinely changes per event — top-N projection rebuilds are
+  sub-millisecond. The deciding question is whether the data the
+  projection depends on changed, not whether the event is "frequent."
+  When the projection wouldn't observe a change, don't subscribe.
 - After every successful refresh, the projection broadcasts
   `{:library_view_updated, view_id}` (or the analogous topic for
   non-Library projections) on its dedicated topic.
