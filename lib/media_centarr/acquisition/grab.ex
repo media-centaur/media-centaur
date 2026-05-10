@@ -34,6 +34,30 @@ defmodule MediaCentarr.Acquisition.Grab do
     being unavailable shouldn't burn the patience budget.
   - `last_attempt_at` and `last_attempt_outcome` capture the most recent
     attempt regardless of whether it bumped `attempt_count`.
+
+  ## Pillar placement (ADR-041)
+
+  This schema lives in Pillar 1 (Long-term storage). The grab
+  lifecycle plainly needs durability — `searching` / `snoozed` /
+  `grabbed` etc. must survive restart so the SearchAndGrab worker
+  can pick up where it left off.
+
+  `last_attempt_at` / `last_attempt_outcome` are *diagnostic-only* —
+  the only production read is
+  `MediaCentarrWeb.AcquisitionLive.ActivityLogic.last_attempt_summary/1`
+  for display, plus a nil-reset in `Acquisition.rearm/1`. No retry
+  or scheduling decision reads them. They could in principle move
+  in-memory.
+
+  They stay in Pillar 1 anyway (desktop-rearchitecture Workstream
+  C audit, 2026-05-10): **post-restart UX continuity is the
+  durability justification.** On a single-user desktop app that
+  restarts for in-place updates, wiping attempt context every
+  update install ("last attempt: no_results · 5 min ago" → "never")
+  is a real UX regression for marginal architectural cleanup. The
+  fields are small, write-rate is low (a handful of attempts per
+  minute system-wide), and they piggyback on the grab row's
+  existing reads — moving them costs more than it saves.
   """
   use Ecto.Schema
   import Ecto.Changeset

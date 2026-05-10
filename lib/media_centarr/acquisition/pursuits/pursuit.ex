@@ -9,6 +9,23 @@ defmodule MediaCentarr.Acquisition.Pursuits.Pursuit do
   State transitions are exposed as named per-transition changesets, each
   validating the source state. The `Acquisition.Pursuits.State` module is
   the single source of truth for which state strings exist.
+
+  ## Pillar placement (ADR-041)
+
+  This schema lives in Pillar 1 (Long-term storage). The pursuit's
+  state, attempt history, and observation timestamps must all
+  survive restart so the watcher and timeline reconstruct correctly.
+
+  `last_queue_state` / `last_queue_health` look diagnostic at first
+  glance but are *decision-influencing* — read in
+  `Pursuits.Observations.derive_transition_event/3` to compare last
+  observed `(state, health)` against the current observation,
+  driving `DownloadStarted` and `HealthChanged` event emission on
+  the timeline. They must stay in Pillar 1 (audit confirmed under
+  desktop-rearchitecture Workstream C, 2026-05-10): moving them
+  in-memory would cause the next tick after restart to see
+  `from == nil`, `to == "downloading"` and fire a spurious
+  `DownloadStarted` event for every active pursuit.
   """
 
   use Ecto.Schema
