@@ -153,7 +153,10 @@ defmodule MediaCentarrWeb.PursuitLive do
   end
 
   @impl true
-  def handle_info({:queue_state, _queue}, socket), do: {:noreply, load_state(socket)}
+  # Queue snapshots fire ~1.5s; they don't change the pursuit's recipe or
+  # state, so rebuild only the live status block, NOT the decision card
+  # (which costs a Prowlarr round-trip).
+  def handle_info({:queue_state, _queue}, socket), do: {:noreply, refresh_status(socket)}
 
   def handle_info(%struct{pursuit_id: pid}, %{assigns: %{pursuit_id: pid}} = socket) do
     if PursuitEvents.event?(struct) do
@@ -167,13 +170,15 @@ defmodule MediaCentarrWeb.PursuitLive do
 
   # --- private ---------------------------------------------------------------
 
+  # Full load — includes the (possibly Prowlarr-hitting) decision card build.
+  # Used on mount and on pursuit-lifecycle events.
   defp load_state(socket) do
     case Pursuits.get(socket.assigns.pursuit_id) do
       {:ok, %Pursuit{} = pursuit} ->
         {:ok, header} = Pursuits.header_for(pursuit.id)
         {:ok, status} = Pursuits.status_for(pursuit.id)
         timeline = Pursuits.timeline_for(pursuit.id)
-        decision_card = build_decision_card(pursuit)
+        decision_card = build_decision_card(pursuit, socket.assigns[:decision_card])
 
         socket
         |> assign(:pursuit, pursuit)
@@ -188,16 +193,37 @@ defmodule MediaCentarrWeb.PursuitLive do
     end
   end
 
-  defp build_decision_card(%Pursuit{state: "needs_decision"} = pursuit) do
-    %ViewModels.DecisionCard{
-      pursuit_id: pursuit.id,
-      prompt: @decision_prompt,
-      alternatives: fetch_alternatives(pursuit),
-      loading?: false
-    }
+  # Cheap refresh — recomputes the status VM (download progress, action
+  # list) but reuses the cached decision card and header. Used on queue
+  # PubSub ticks where the only thing that can change is the live torrent
+  # state.
+  defp refresh_status(socket) do
+    case Pursuits.status_for(socket.assigns.pursuit_id) do
+      {:ok, status} -> assign(socket, :status, status)
+      _ -> socket
+    end
   end
 
-  defp build_decision_card(_pursuit), do: nil
+  # Reuse the cached decision card for the same needs_decision state — the
+  # alternatives don't refresh until the user acts or the pursuit
+  # transitions. This caps Prowlarr load at one search per
+  # `:needs_decision` transition rather than one per queue snapshot.
+  defp build_decision_card(%Pursuit{state: "needs_decision"} = pursuit, cached) do
+    case cached do
+      %ViewModels.DecisionCard{pursuit_id: id} = vm when id == pursuit.id ->
+        vm
+
+      _ ->
+        %ViewModels.DecisionCard{
+          pursuit_id: pursuit.id,
+          prompt: @decision_prompt,
+          alternatives: fetch_alternatives(pursuit),
+          loading?: false
+        }
+    end
+  end
+
+  defp build_decision_card(_pursuit, _cached), do: nil
 
   defp fetch_alternatives(%Pursuit{} = pursuit) do
     opts =
@@ -205,7 +231,7 @@ defmodule MediaCentarrWeb.PursuitLive do
       |> put_when_present(:type, search_type_for(pursuit.tmdb_type))
       |> put_when_present(:year, pursuit.year)
 
-    case Acquisition.search(pursuit.title, opts) do
+    case Acquisition.search(alternatives_query(pursuit), opts) do
       {:ok, results} ->
         excluded = MapSet.new(pursuit.tried_release_guids)
 
@@ -218,6 +244,16 @@ defmodule MediaCentarrWeb.PursuitLive do
         []
     end
   end
+
+  # Prowlarr-query pursuits hold the user-typed query in `manual_query`;
+  # `pursuit.title` is the original release title (set when the user
+  # picked the first alternative), which is the wrong thing to re-search
+  # by. TMDB pursuits don't carry a query, so the title is the canonical
+  # show / movie name.
+  defp alternatives_query(%Pursuit{recipe_type: "prowlarr_query", manual_query: q}) when is_binary(q),
+    do: q
+
+  defp alternatives_query(%Pursuit{title: title}), do: title
 
   defp search_type_for("tv"), do: :tv
   defp search_type_for("movie"), do: :movie
