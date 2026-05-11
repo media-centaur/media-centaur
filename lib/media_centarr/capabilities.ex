@@ -44,8 +44,9 @@ defmodule MediaCentarr.Capabilities do
   ]
 
   @doc """
-  Subscribes the caller to all source topics whose events invalidate
-  the cached readiness flags. Called once from `MediaCentarr.Cache.Worker.init/1`.
+  Worker-side subscription: subscribes the caller to all source topics
+  whose events invalidate the cached readiness flags. Called once from
+  `MediaCentarr.Cache.Worker.init/1`.
 
   Subscribes to:
 
@@ -55,9 +56,8 @@ defmodule MediaCentarr.Capabilities do
       `Config.update/2` and `Config.load_runtime_overrides/0`; `relevant?/1`
       filters down to the keys in `@capability_input_keys`
 
-  External consumers (LiveViews) should NOT call this — per ADR-041 they
-  subscribe to the derived `Topics.capabilities_updates/0` only, via
-  `MediaCentarrWeb.Live.CapabilitiesAware`.
+  Per ADR-041, external consumers (LiveViews) MUST NOT use this —
+  consumers subscribe to derived topics only via `subscribe_changes/0`.
   """
   @impl MediaCentarr.Cache
   @spec subscribe() :: :ok | {:error, term()}
@@ -65,6 +65,22 @@ defmodule MediaCentarr.Capabilities do
     :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.capabilities_updates())
     :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.config_updates())
     :ok
+  end
+
+  @doc """
+  Consumer-facing subscription: subscribes the caller to the derived
+  `Topics.capabilities_updates/0` topic only. Receives `:capabilities_changed`
+  messages whenever the cache flips.
+
+  This is the facade used by `MediaCentarrWeb.Live.CapabilitiesAware`
+  and by any LiveView that needs to react to capability changes. Per
+  ADR-041, consumers depend on view shape and not on source events, so
+  they must use this — not `subscribe/0` (worker) and not
+  `Phoenix.PubSub.subscribe/2` directly.
+  """
+  @spec subscribe_changes() :: :ok | {:error, term()}
+  def subscribe_changes do
+    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.capabilities_updates())
   end
 
   @doc "Filters PubSub messages relevant to this cache."
