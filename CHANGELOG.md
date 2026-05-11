@@ -4,6 +4,45 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.53.0 — 2026-05-11
+
+### New
+
+The pursuit detail page (`/download/:id`) has been redesigned around
+what's actually happening to a pursuit right now, instead of the
+static counters that used to sit there. The page now leads with a
+live status card — "Downloading", "Snoozed", "Stalled", "Queued",
+"Verifying", "Waiting" — plus a one-line description of what's
+expected to happen next automatically. When the download client is
+reporting progress, a progress bar shows up.
+
+You can now act on a stuck pursuit without cancelling it. New buttons
+appear on the activity card when they make sense:
+
+- **Re-search** — for snoozed, stalled, abandoned, or
+  cancelled-grab pursuits, this kicks off a fresh Prowlarr search
+  right now. Snoozed pursuits keep their attempt count;
+  abandoned/cancelled grabs are re-armed from a clean slate.
+- **Pick a different release** — switches the pursuit into
+  decision mode so you can browse alternatives in the existing
+  picker.
+- **Cancel pursuit** — unchanged in behaviour, but now lives in
+  the activity card next to the other actions.
+
+Pursuits that haven't seen activity in over 24 hours now surface a
+"Last activity: 2d ago" footnote in red, so silently-stuck pursuits
+stop looking healthy.
+
+### Improved
+
+The pursuit detail header is now identity-only — title, type
+(Movie / TV with season and episode), year, and quality criteria.
+The noisy `Attempts`, `Tried releases`, `Started`, and `Origin`
+counters moved into the live activity card, where they only show
+up when relevant. The bottom of the page is now labelled "History"
+to make clear that it's the past, while the activity card is the
+present.
+
 ## v0.52.1 — 2026-05-11
 
 ### Fixed
