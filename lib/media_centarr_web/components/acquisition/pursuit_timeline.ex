@@ -11,7 +11,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitTimeline do
   def timeline(assigns) do
     ~H"""
     <div class="glass-surface rounded-xl p-4">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50 mb-3">Timeline</h3>
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50 mb-3">History</h3>
       <%= if @vm.entries == [] do %>
         <div class="text-sm text-base-content/50">No events yet.</div>
       <% else %>
