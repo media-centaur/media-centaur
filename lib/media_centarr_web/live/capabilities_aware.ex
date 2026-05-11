@@ -36,7 +36,6 @@ defmodule MediaCentarrWeb.Live.CapabilitiesAware do
   """
 
   alias MediaCentarr.Capabilities
-  alias MediaCentarr.Topics
 
   defmacro __using__(_opts) do
     quote do
@@ -52,7 +51,7 @@ defmodule MediaCentarrWeb.Live.CapabilitiesAware do
     socket = assign_all_readiness(socket)
 
     if Phoenix.LiveView.connected?(socket) do
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.capabilities_updates())
+      Capabilities.subscribe_changes()
     end
 
     socket =
