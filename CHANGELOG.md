@@ -4,6 +4,27 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.55.0 — 2026-05-11
+
+### Improved
+
+Downloads and pursuits are now visually connected on the **Downloads**
+page. Previously, the page showed three separate stacked lists — an
+"Active queue" of torrents at the top, a list of active pursuits in
+the middle, and the activity table at the bottom. You had to mentally
+pair which torrent was for which pursuit.
+
+Now each pursuit card grows a footer showing its matched live torrent
+(state, progress, ETA, download client) with the cancel button right
+there. Pursuits with no matching torrent show a status hint instead —
+*Searching*, *Snoozed*, *Waiting — not visible in your download
+client*, or *Stopped* — so you can see at a glance what's happening
+without opening the detail page.
+
+A small **Other downloads** section appears below the activity table
+if you have torrents in your download client that don't pair with any
+tracked pursuit (sideloaded manually, or a title-match miss).
+
 ## v0.54.0 — 2026-05-11
 
 ### Fixed
