@@ -8,7 +8,7 @@ defmodule MediaCentarr.ShowcaseTest do
   """
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Library
   alias MediaCentarr.Library.WatchProgress
   alias MediaCentarr.ReleaseTracking
@@ -234,34 +234,36 @@ defmodule MediaCentarr.ShowcaseTest do
         MapSet.new(keys, fn key ->
           case Map.get(grab_map, key) do
             nil -> :scheduled
-            grab -> grab.status
+            {_pursuit, target} -> target.status
           end
         end)
 
       # All four Home/Upcoming badge variants must be present.
-      assert MapSet.member?(statuses, "grabbed"), "missing a Grabbed badge"
-      assert MapSet.member?(statuses, "searching"), "missing a Searching badge"
-      assert MapSet.member?(statuses, "snoozed"), "missing a Pending (snoozed) badge"
-      assert MapSet.member?(statuses, :scheduled), "missing a Scheduled (no grab) badge"
+      assert MapSet.member?(statuses, "acquired"), "missing an Acquired badge"
+      assert MapSet.member?(statuses, "seeking"), "missing a Seeking badge"
+      assert MapSet.member?(statuses, :scheduled), "missing a Scheduled (no target) badge"
     end
 
-    test "creates grabs covering all five activity states" do
+    test "creates targets covering activity states" do
       Showcase.seed!()
 
-      grab_statuses = MapSet.new(Repo.all(Grab), & &1.status)
+      target_statuses = MapSet.new(Repo.all(Target), & &1.status)
 
-      for expected <- ~w(searching grabbed snoozed abandoned cancelled) do
-        assert MapSet.member?(grab_statuses, expected),
-               "missing grab in #{expected} state — Activity filter chip would be empty"
+      for expected <- ~w(seeking acquired failed cancelled) do
+        assert MapSet.member?(target_statuses, expected),
+               "missing target in #{expected} state — Activity filter chip would be empty"
       end
     end
 
-    test "summary acquisitions count reflects all seeded grabs" do
+    test "summary acquisitions count reflects all seeded targets" do
       summary = Showcase.seed!()
-      grabs = Repo.all(Grab)
+      targets = Repo.all(Target)
 
-      assert summary.acquisitions == length(grabs)
-      assert length(grabs) >= 6
+      assert summary.acquisitions == length(targets)
+      # Coming-up slots seed 3 (acquired/seeking/failed; one slot is
+      # intentionally empty for the "Scheduled" badge) plus 2 from the
+      # extra-activity seeds (manual-pick + cancelled).
+      assert length(targets) >= 5
     end
   end
 

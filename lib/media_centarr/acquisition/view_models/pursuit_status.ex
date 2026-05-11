@@ -3,20 +3,20 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
   Display contract for the pursuit detail page.
 
   Built by `MediaCentarr.Acquisition.Pursuits.status_for/1` — joins the
-  pursuit row with its latest grab and any matching download-client queue
-  item, then routes through the pure `derive/3` function to produce
-  `current_action`, `next_step`, and `available_actions`.
+  pursuit row with its current target and any matching download-client
+  queue item, then routes through the pure `derive/3` function to
+  produce `current_action`, `next_step`, and `available_actions`.
   """
 
-  alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.Pursuit
   alias MediaCentarr.Acquisition.Pursuits.State
+  alias MediaCentarr.Acquisition.Target
 
   alias MediaCentarr.Acquisition.ViewModels.{
     CurrentAction,
     DownloadProgress,
     NextStep,
-    Target
+    Recipe
   }
 
   alias MediaCentarr.Downloads.QueueItem
@@ -26,7 +26,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     :title,
     :state,
     :origin,
-    :target,
+    :recipe,
     :current_action,
     :available_actions,
     :staleness
@@ -36,7 +36,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     :title,
     :state,
     :origin,
-    :target,
+    :recipe,
     :criteria_summary,
     :current_action,
     :next_step,
@@ -46,7 +46,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     available_actions: []
   ]
 
-  @type action :: :cancel | :re_search | :request_decision
+  @type action :: :cancel | :change_target | :request_decision
   @type staleness :: :fresh | :stale | :very_stale
 
   @type t :: %__MODULE__{
@@ -54,7 +54,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
           title: String.t(),
           state: State.t(),
           origin: :auto | :manual,
-          target: Target.t(),
+          recipe: Recipe.t(),
           criteria_summary: String.t() | nil,
           current_action: CurrentAction.t(),
           next_step: NextStep.t() | nil,
@@ -65,35 +65,17 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
         }
 
   @doc """
-  Pure mapping from (pursuit, grab, queue_item) to the dynamic display fields.
-  No DB, no PubSub. See the spec's truth table.
+  Pure mapping from (pursuit, target, queue_item) to the dynamic display
+  fields. No DB, no PubSub.
 
-  Manual-origin pursuits cannot be auto-re-searched (the SearchAndGrab
-  worker depends on TMDB metadata they don't have); their actions list
-  has `:re_search` replaced with `:request_decision` so the UI offers
-  the decision-card recovery path instead of a button that would fail.
+  The recipe lives on the pursuit and drives whether `ChangeTarget` is
+  going to auto-pick or surface results for the user — but from the
+  view-model's perspective, both recipes offer `:change_target` as the
+  recovery action; the worker handles the divergence.
   """
-  @spec derive(Pursuit.t(), Grab.t() | nil, QueueItem.t() | nil) ::
+  @spec derive(Pursuit.t(), Target.t() | nil, QueueItem.t() | nil) ::
           {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(%Pursuit{} = pursuit, grab, queue_item) do
-    {current_action, next_step, actions} = derive_raw(pursuit, grab, queue_item)
-    {current_action, next_step, adjust_actions_for_origin(pursuit, actions)}
-  end
-
-  defp adjust_actions_for_origin(%Pursuit{origin: "manual"}, actions) do
-    if :re_search in actions do
-      actions
-      |> Enum.reject(&(&1 == :re_search))
-      |> Kernel.++([:request_decision])
-      |> Enum.uniq()
-    else
-      actions
-    end
-  end
-
-  defp adjust_actions_for_origin(_pursuit, actions), do: actions
-
-  defp derive_raw(%Pursuit{state: "satisfied"}, _grab, _qi) do
+  def derive(%Pursuit{state: "satisfied"}, _target, _qi) do
     {
       %CurrentAction{
         verb: "Done",
@@ -105,7 +87,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_raw(%Pursuit{state: "exhausted"} = p, _grab, _qi) do
+  def derive(%Pursuit{state: "exhausted"} = p, _target, _qi) do
     {
       %CurrentAction{
         verb: "Gave up",
@@ -117,7 +99,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_raw(%Pursuit{state: "cancelled"}, _grab, _qi) do
+  def derive(%Pursuit{state: "cancelled"}, _target, _qi) do
     {
       %CurrentAction{verb: "Cancelled", description: "Pursuit cancelled.", severity: :info},
       nil,
@@ -125,7 +107,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_raw(%Pursuit{state: "needs_decision"}, _grab, _qi) do
+  def derive(%Pursuit{state: "needs_decision"}, _target, _qi) do
     {
       %CurrentAction{
         verb: "Decision needed",
@@ -137,70 +119,58 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_raw(%Pursuit{state: "active"}, nil, _qi) do
+  def derive(%Pursuit{state: "active"}, nil, _qi) do
     {
       %CurrentAction{
         verb: "Unknown",
-        description: "Pursuit has no linked grab — please cancel.",
+        description: "Pursuit has no target — change target to begin.",
         severity: :warning
       },
       nil,
-      [:cancel]
+      [:cancel, :change_target]
     }
   end
 
-  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "searching"} = g, _qi) do
+  def derive(%Pursuit{state: "active"}, %Target{status: "seeking"} = t, _qi) do
     {
       %CurrentAction{
         verb: "Searching",
-        description: "Looking for an acceptable release (attempt #{g.attempt_count + 1}).",
+        description: "Looking for an acceptable release (attempt #{t.attempt_count + 1}).",
         severity: :info
       },
       %NextStep{description: "Trying expanded queries — will pick the best match or snooze."},
-      [:cancel]
+      [:cancel, :request_decision]
     }
   end
 
-  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "snoozed"}, _qi) do
-    {
-      %CurrentAction{
-        verb: "Snoozed",
-        description: "Waiting before the next search attempt.",
-        severity: :info
-      },
-      %NextStep{description: "Will resume automatically."},
-      [:cancel, :re_search, :request_decision]
-    }
-  end
-
-  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "abandoned"} = g, _qi) do
+  def derive(%Pursuit{state: "active"}, %Target{status: "failed"} = t, _qi) do
     {
       %CurrentAction{
         verb: "Stopped",
-        description: "Auto-search gave up after #{g.attempt_count} attempts.",
+        description: "Auto-search gave up after #{t.attempt_count} attempts.",
         severity: :warning
       },
-      %NextStep{description: "Re-search or pick a release manually."},
-      [:cancel, :re_search, :request_decision]
+      %NextStep{description: "Change target or pick a release manually."},
+      [:cancel, :change_target, :request_decision]
     }
   end
 
-  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "cancelled"}, _qi) do
+  def derive(%Pursuit{state: "active"}, %Target{status: "cancelled"}, _qi) do
     {
       %CurrentAction{
         verb: "Stopped",
-        description: "Underlying grab was cancelled.",
+        description: "Target was cancelled.",
         severity: :warning
       },
-      %NextStep{description: "Re-search to restart."},
-      [:cancel, :re_search]
+      %NextStep{description: "Change target to restart."},
+      [:cancel, :change_target]
     }
   end
 
-  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "grabbed"}, %QueueItem{state: qstate} = qi)
-       when not is_nil(qstate), do: derive_grabbed_in_queue(qi)
+  def derive(%Pursuit{state: "active"}, %Target{status: "acquired"}, %QueueItem{state: qstate} = qi)
+      when not is_nil(qstate), do: derive_acquired_in_queue(qi)
 
-  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "grabbed"}, _qi) do
+  def derive(%Pursuit{state: "active"}, %Target{status: "acquired"}, _qi) do
     {
       %CurrentAction{
         verb: "Waiting",
@@ -210,11 +180,23 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
       %NextStep{
         description: "Either it completed and is being matched, or it never reached the client."
       },
-      [:cancel, :re_search]
+      [:cancel, :change_target]
     }
   end
 
-  defp derive_grabbed_in_queue(%QueueItem{state: :downloading} = qi) do
+  def derive(%Pursuit{state: "active"}, %Target{status: "succeeded"}, _qi) do
+    {
+      %CurrentAction{
+        verb: "Done",
+        description: "File landed and identity verified.",
+        severity: :success
+      },
+      nil,
+      []
+    }
+  end
+
+  defp derive_acquired_in_queue(%QueueItem{state: :downloading} = qi) do
     {
       %CurrentAction{
         verb: "Downloading",
@@ -226,7 +208,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_grabbed_in_queue(%QueueItem{state: :queued}) do
+  defp derive_acquired_in_queue(%QueueItem{state: :queued}) do
     {
       %CurrentAction{
         verb: "Queued",
@@ -238,19 +220,19 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_grabbed_in_queue(%QueueItem{state: :stalled}) do
+  defp derive_acquired_in_queue(%QueueItem{state: :stalled}) do
     {
       %CurrentAction{
         verb: "Stalled",
         description: "Download client can't make progress.",
         severity: :warning
       },
-      %NextStep{description: "Re-search for a different release, or wait."},
-      [:cancel, :re_search, :request_decision]
+      %NextStep{description: "Change target for a different release, or wait."},
+      [:cancel, :change_target, :request_decision]
     }
   end
 
-  defp derive_grabbed_in_queue(%QueueItem{state: :paused}) do
+  defp derive_acquired_in_queue(%QueueItem{state: :paused}) do
     {
       %CurrentAction{
         verb: "Paused",
@@ -262,7 +244,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_grabbed_in_queue(%QueueItem{state: :completed}) do
+  defp derive_acquired_in_queue(%QueueItem{state: :completed}) do
     {
       %CurrentAction{
         verb: "Verifying",
@@ -274,27 +256,27 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_grabbed_in_queue(%QueueItem{state: :error}) do
+  defp derive_acquired_in_queue(%QueueItem{state: :error}) do
     {
       %CurrentAction{
         verb: "Error",
         description: "Download client reported an error.",
         severity: :error
       },
-      %NextStep{description: "Check your client or re-search for a different release."},
-      [:cancel, :re_search]
+      %NextStep{description: "Check your client or change target."},
+      [:cancel, :change_target]
     }
   end
 
-  defp derive_grabbed_in_queue(%QueueItem{state: :other}) do
+  defp derive_acquired_in_queue(%QueueItem{state: :other}) do
     {
       %CurrentAction{
         verb: "Waiting",
         description: "Download client state unrecognized.",
         severity: :info
       },
-      %NextStep{description: "Re-search to try a different release."},
-      [:cancel, :re_search]
+      %NextStep{description: "Change target to try a different release."},
+      [:cancel, :change_target]
     }
   end
 

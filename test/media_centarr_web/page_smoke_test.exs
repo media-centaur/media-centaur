@@ -333,31 +333,20 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
       MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
 
-      # Seed an active pursuit + linked grab so the unified pursuits-with-
+      # Seed an active pursuit + linked target so the unified pursuits-with-
       # downloads zone exercises its non-trivial branches (card rendering,
       # release_title threading, no-match hint derivation). Per the
       # automated-testing skill: smoke fixtures must cover the branches a
       # representative user would see in production.
-      {:ok, pursuit} =
-        MediaCentarr.Repo.insert(
-          MediaCentarr.Acquisition.Pursuits.Pursuit.create_changeset(%{
-            tmdb_id: "smoke-download",
-            tmdb_type: "movie",
-            title: "Sample Movie",
-            origin: "auto"
-          })
-        )
-
-      %MediaCentarr.Acquisition.Grab{}
-      |> Ecto.Changeset.cast(
-        %{tmdb_id: pursuit.tmdb_id, tmdb_type: pursuit.tmdb_type, title: pursuit.title},
-        [:tmdb_id, :tmdb_type, :title]
-      )
-      |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
-      |> Ecto.Changeset.put_change(:origin, pursuit.origin)
-      |> Ecto.Changeset.put_change(:release_title, "Sample.Movie.2010.1080p.WEB-DL")
-      |> Ecto.Changeset.put_change(:status, "grabbed")
-      |> MediaCentarr.Repo.insert!()
+      {_pursuit, _target} =
+        MediaCentarr.TestFactory.create_pursuit_with_target(%{
+          tmdb_id: "smoke-download",
+          tmdb_type: "movie",
+          title: "Sample Movie",
+          origin: "auto",
+          release_title: "Sample.Movie.2010.1080p.WEB-DL",
+          status: "acquired"
+        })
 
       on_exit(fn ->
         MediaCentarr.Capabilities.clear_test_result(:prowlarr)

@@ -1,14 +1,14 @@
 defmodule MediaCentarr.Acquisition.Pursuits.Snapshot do
   @moduledoc "Frozen view of a pursuit's world at one instant, consumed by Policy."
 
-  alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Thresholds}
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Downloads.QueueItem
 
-  @enforce_keys [:pursuit, :latest_grab, :queue_state, :now, :thresholds]
+  @enforce_keys [:pursuit, :current_target, :queue_state, :now, :thresholds]
   defstruct [
     :pursuit,
-    :latest_grab,
+    :current_target,
     :queue_state,
     :now,
     :thresholds,
@@ -22,7 +22,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshot do
 
   @type t :: %__MODULE__{
           pursuit: Pursuit.t(),
-          latest_grab: Grab.t() | nil,
+          current_target: Target.t() | nil,
           queue_state: queue_state(),
           now: DateTime.t(),
           thresholds: Thresholds.t(),

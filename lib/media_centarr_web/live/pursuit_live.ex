@@ -17,8 +17,7 @@ defmodule MediaCentarrWeb.PursuitLive do
 
   alias MediaCentarr.Acquisition.Pursuits.Commands.{
     Cancel,
-    RecordUserChoice,
-    ReSearch,
+    ChangeTarget,
     RequestDecision
   }
 
@@ -79,7 +78,7 @@ defmodule MediaCentarrWeb.PursuitLive do
         <PursuitActivity.pursuit_activity
           vm={@status}
           on_cancel="cancel_pursuit"
-          on_re_search="re_search"
+          on_change_target="change_target"
           on_request_decision="request_decision"
         />
 
@@ -107,25 +106,17 @@ defmodule MediaCentarrWeb.PursuitLive do
     end
   end
 
-  def handle_event("re_search", _params, socket) do
-    case ReSearch.execute(%{pursuit_id: socket.assigns.pursuit_id}) do
+  def handle_event("change_target", _params, socket) do
+    case ChangeTarget.execute(%{pursuit_id: socket.assigns.pursuit_id}) do
       {:ok, _pursuit} ->
-        {:noreply, socket |> put_flash(:info, "Re-searching now…") |> load_state()}
-
-      {:error, :manual_pursuit} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           "Manual pursuits can't be auto-re-searched. Use “Pick a different release” instead."
-         )}
+        {:noreply, socket |> put_flash(:info, "Looking for a new target…") |> load_state()}
 
       {:error, :not_eligible} ->
-        {:noreply, put_flash(socket, :error, "This pursuit can't be re-searched right now.")}
+        {:noreply, put_flash(socket, :error, "This pursuit can't change target right now.")}
 
       {:error, reason} ->
-        Log.warning(:acquisition, "pursuit re-search failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not re-search this pursuit.")}
+        Log.warning(:acquisition, "pursuit change-target failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not change target for this pursuit.")}
     end
   end
 
@@ -148,16 +139,15 @@ defmodule MediaCentarrWeb.PursuitLive do
         %{"pursuit-id" => pursuit_id, "guid" => guid, "label" => label},
         socket
       ) do
-    case RecordUserChoice.execute(%{
-           pursuit_id: pursuit_id,
-           chosen_guid: guid,
-           choice_label: label
-         }) do
+    case Acquisition.pick_alternative(pursuit_id, guid, label) do
       {:ok, _pursuit} ->
         {:noreply, socket |> put_flash(:info, "Trying alternative…") |> load_state()}
 
+      {:error, :alternative_unavailable} ->
+        {:noreply, put_flash(socket, :error, "That release is no longer available.")}
+
       {:error, reason} ->
-        Log.warning(:acquisition, "record user choice failed — #{inspect(reason)}")
+        Log.warning(:acquisition, "pick alternative failed — #{inspect(reason)}")
         {:noreply, put_flash(socket, :error, "Could not pick that alternative.")}
     end
   end

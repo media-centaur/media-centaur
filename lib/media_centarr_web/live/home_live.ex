@@ -366,7 +366,8 @@ defmodule MediaCentarrWeb.HomeLive do
       status =
         case Map.get(grab_statuses, key) do
           nil -> :scheduled
-          grab -> grab_status_atom(grab.status)
+          {_pursuit, nil} -> :seeking
+          {_pursuit, target} -> target_status_atom(target.status)
         end
 
       %{release | status: status}
@@ -378,10 +379,10 @@ defmodule MediaCentarrWeb.HomeLive do
      release.season_number, release.episode_number}
   end
 
-  defp grab_status_atom("grabbed"), do: :grabbed
-  defp grab_status_atom("searching"), do: :searching
-  defp grab_status_atom("snoozed"), do: :pending
-  defp grab_status_atom(_), do: :scheduled
+  defp target_status_atom("acquired"), do: :acquired
+  defp target_status_atom("succeeded"), do: :acquired
+  defp target_status_atom("seeking"), do: :seeking
+  defp target_status_atom(_), do: :scheduled
 
   defp load_recently_added, do: Views.recently_added(limit: 30)
 

@@ -35,11 +35,11 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   end
 
   describe "build_grab_message/1" do
-    # Per the unified-grabs change (v0.24.0), Acquisition.grab/2 returns
-    # `{:ok, %Grab{}}` rather than plain `:ok`. The build_grab_message
-    # helper pattern-matches on that envelope shape.
+    # `Acquisition.pick_target/2` returns `{:ok, %Target{}}` rather than
+    # plain `:ok`. The `build_grab_message` helper pattern-matches on
+    # that envelope shape.
     setup do
-      {:ok, ok_outcome: {:ok, %MediaCentarr.Acquisition.Grab{}}}
+      {:ok, ok_outcome: {:ok, %MediaCentarr.Acquisition.Target{}}}
     end
 
     test "all-ok returns {:ok, count submitted}", %{ok_outcome: ok} do

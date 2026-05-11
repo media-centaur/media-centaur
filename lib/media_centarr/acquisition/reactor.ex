@@ -11,7 +11,7 @@ defmodule MediaCentarr.Acquisition.Reactor do
     The capability gate is enforced inside the policy — when Prowlarr
     is not configured, the message is dropped.
   - `{:item_removed, tmdb_id, tmdb_type}` — a tracked item was removed.
-    Active (`searching`/`snoozed`) grabs for that key are cancelled.
+    Active (`seeking`) targets for that key are cancelled.
 
   Lives on the supervision tree as a pubsub_listener (see `Application`).
   Contains no domain logic of its own — all work lives in `Acquisition`.
@@ -40,7 +40,7 @@ defmodule MediaCentarr.Acquisition.Reactor do
   end
 
   def handle_info({:item_removed, tmdb_id, tmdb_type}, state) do
-    Acquisition.cancel_active_grabs_for(tmdb_id, tmdb_type, CancelReasons.item_removed())
+    Acquisition.cancel_active_targets_for(tmdb_id, tmdb_type, CancelReasons.item_removed())
     {:noreply, state}
   end
 

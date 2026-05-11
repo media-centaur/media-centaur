@@ -76,7 +76,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.EventTest do
         auto_cancelled fallback_initiated user_decision_requested
         user_decision_recorded identity_mismatch identity_verified
         pursuit_satisfied pursuit_exhausted pursuit_cancelled
-        pursuit_re_searched
+        target_changed
       )
 
       assert Enum.sort(kinds) == Enum.sort(expected)

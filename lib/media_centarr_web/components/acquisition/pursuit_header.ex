@@ -1,5 +1,5 @@
 defmodule MediaCentarrWeb.Components.Acquisition.PursuitHeader do
-  @moduledoc "Identity card for `/download/:pursuit_id` — title, state, target, criteria."
+  @moduledoc "Identity card for `/download/:pursuit_id` — title, state, recipe, criteria."
 
   use Phoenix.Component
 
@@ -16,8 +16,8 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitHeader do
         <PursuitStyle.state_badge state={@vm.state} />
       </div>
 
-      <div :if={target_summary(@vm.target)} class="text-xs text-base-content/70">
-        {target_summary(@vm.target)}
+      <div :if={recipe_summary(@vm.recipe)} class="text-xs text-base-content/70">
+        {recipe_summary(@vm.recipe)}
       </div>
 
       <div :if={@vm.criteria_summary} class="text-xs text-base-content/60">
@@ -27,18 +27,22 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitHeader do
     """
   end
 
-  defp target_summary(%{tmdb_type: "movie", year: nil}), do: "Movie"
-  defp target_summary(%{tmdb_type: "movie", year: year}), do: "Movie • #{year}"
-  defp target_summary(%{tmdb_type: "tv", season_number: nil}), do: "TV"
+  defp recipe_summary(%{recipe_type: :prowlarr_query, manual_query: q}) when is_binary(q),
+    do: "Query • #{q}"
 
-  defp target_summary(%{tmdb_type: "tv", season_number: season, episode_number: nil}),
+  defp recipe_summary(%{recipe_type: :prowlarr_query}), do: "Query"
+  defp recipe_summary(%{tmdb_type: "movie", year: nil}), do: "Movie"
+  defp recipe_summary(%{tmdb_type: "movie", year: year}), do: "Movie • #{year}"
+  defp recipe_summary(%{tmdb_type: "tv", season_number: nil}), do: "TV"
+
+  defp recipe_summary(%{tmdb_type: "tv", season_number: season, episode_number: nil}),
     do: "TV • S#{pad(season)}"
 
-  defp target_summary(%{tmdb_type: "tv", season_number: season, episode_number: episode}),
+  defp recipe_summary(%{tmdb_type: "tv", season_number: season, episode_number: episode}),
     do: "TV • S#{pad(season)}E#{pad(episode)}"
 
-  defp target_summary(%{tmdb_type: type}), do: type
-  defp target_summary(_), do: nil
+  defp recipe_summary(%{tmdb_type: type}) when is_binary(type), do: type
+  defp recipe_summary(_), do: nil
 
   defp pad(num) when is_integer(num) and num < 10, do: "0#{num}"
   defp pad(num) when is_integer(num), do: "#{num}"

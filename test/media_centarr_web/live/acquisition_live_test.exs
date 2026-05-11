@@ -535,14 +535,14 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   describe "debounce on acquisition PubSub events" do
     test "five rapid grab-event broadcasts trigger only one activity reload after the debounce window",
          %{conn: conn} do
-      # Regression guard: :grab_submitted and related events must be debounced
+      # Regression guard: :target_picked and related events must be debounced
       # (500ms) rather than calling load_activity on every message. Five events
       # in quick succession must result in one :reload_activity — the page must
       # render correctly after the window without crashing.
       {:ok, view, _html} = live(conn, ~p"/download")
 
       for _ <- 1..5 do
-        send(view.pid, {:grab_submitted, %{}})
+        send(view.pid, {:target_picked, %{}})
       end
 
       Process.sleep(600)
@@ -739,42 +739,27 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   end
 
   describe "pursuits paired with their live downloads" do
-    alias MediaCentarr.Acquisition.Grab
-    alias MediaCentarr.Acquisition.Pursuits.Pursuit
-    alias MediaCentarr.Downloads.QueueItem
-    alias MediaCentarr.Repo
+    import MediaCentarr.TestFactory
 
-    defp insert_pursuit_for_pairing(title) do
-      {:ok, pursuit} =
-        Repo.insert(
-          Pursuit.create_changeset(%{
-            tmdb_id: "tmdb-#{:erlang.phash2(title)}",
-            tmdb_type: "movie",
-            title: title,
-            origin: "auto"
-          })
-        )
+    alias MediaCentarr.Downloads.QueueItem
+
+    defp pursuit_with_acquired_target(title, release_title) do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "tmdb-#{:erlang.phash2(title)}",
+          tmdb_type: "movie",
+          title: title,
+          origin: "auto",
+          release_title: release_title,
+          status: "acquired"
+        })
 
       pursuit
     end
 
-    defp insert_grab_with_release(pursuit, release_title, status) do
-      %Grab{}
-      |> Ecto.Changeset.cast(
-        %{tmdb_id: pursuit.tmdb_id, tmdb_type: pursuit.tmdb_type, title: pursuit.title},
-        [:tmdb_id, :tmdb_type, :title]
-      )
-      |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
-      |> Ecto.Changeset.put_change(:origin, pursuit.origin)
-      |> Ecto.Changeset.put_change(:release_title, release_title)
-      |> Ecto.Changeset.put_change(:status, status)
-      |> Repo.insert!()
-    end
-
     test "a matched queue item renders as a footer under the right pursuit card",
          %{conn: conn} do
-      pursuit = insert_pursuit_for_pairing("Sample Movie 2010")
-      _grab = insert_grab_with_release(pursuit, "Sample.Movie.2010.1080p.WEB-DL", "grabbed")
+      pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
       {:ok, view, _html} = live(conn, "/download")
 
@@ -803,8 +788,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
     test "an unmatched queue item appears under 'Other downloads', and the pursuit shows its no-match hint",
          %{conn: conn} do
-      pursuit = insert_pursuit_for_pairing("Sample Movie 2010")
-      _grab = insert_grab_with_release(pursuit, "Sample.Movie.2010.1080p.WEB-DL", "grabbed")
+      _pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
       {:ok, view, _html} = live(conn, "/download")
 
@@ -840,7 +824,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       {:ok, view, _html} = live(conn, "/download")
 
       for _ <- 1..5 do
-        send(view.pid, {:grab_failed, %{id: Ecto.UUID.generate(), reason: "boom"}})
+        send(view.pid, {:target_failed, %{id: Ecto.UUID.generate(), reason: "boom"}})
       end
 
       Process.sleep(600)
@@ -853,9 +837,9 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
          %{conn: conn} do
       {:ok, view, _html} = live(conn, "/download")
 
-      send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
-      send(view.pid, {:auto_grab_armed, %{id: Ecto.UUID.generate()}})
-      send(view.pid, {:auto_grab_snoozed, %{id: Ecto.UUID.generate()}})
+      send(view.pid, {:target_picked, %{id: Ecto.UUID.generate()}})
+      send(view.pid, {:target_armed, %{id: Ecto.UUID.generate()}})
+      send(view.pid, {:target_snoozed, %{id: Ecto.UUID.generate()}})
 
       Process.sleep(600)
 
