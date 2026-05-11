@@ -67,10 +67,33 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
   @doc """
   Pure mapping from (pursuit, grab, queue_item) to the dynamic display fields.
   No DB, no PubSub. See the spec's truth table.
+
+  Manual-origin pursuits cannot be auto-re-searched (the SearchAndGrab
+  worker depends on TMDB metadata they don't have); their actions list
+  has `:re_search` replaced with `:request_decision` so the UI offers
+  the decision-card recovery path instead of a button that would fail.
   """
   @spec derive(Pursuit.t(), Grab.t() | nil, QueueItem.t() | nil) ::
           {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(%Pursuit{state: "satisfied"}, _grab, _qi) do
+  def derive(%Pursuit{} = pursuit, grab, queue_item) do
+    {current_action, next_step, actions} = derive_raw(pursuit, grab, queue_item)
+    {current_action, next_step, adjust_actions_for_origin(pursuit, actions)}
+  end
+
+  defp adjust_actions_for_origin(%Pursuit{origin: "manual"}, actions) do
+    if :re_search in actions do
+      actions
+      |> Enum.reject(&(&1 == :re_search))
+      |> Kernel.++([:request_decision])
+      |> Enum.uniq()
+    else
+      actions
+    end
+  end
+
+  defp adjust_actions_for_origin(_pursuit, actions), do: actions
+
+  defp derive_raw(%Pursuit{state: "satisfied"}, _grab, _qi) do
     {
       %CurrentAction{
         verb: "Done",
@@ -82,7 +105,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "exhausted"} = p, _grab, _qi) do
+  defp derive_raw(%Pursuit{state: "exhausted"} = p, _grab, _qi) do
     {
       %CurrentAction{
         verb: "Gave up",
@@ -94,7 +117,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "cancelled"}, _grab, _qi) do
+  defp derive_raw(%Pursuit{state: "cancelled"}, _grab, _qi) do
     {
       %CurrentAction{verb: "Cancelled", description: "Pursuit cancelled.", severity: :info},
       nil,
@@ -102,7 +125,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "needs_decision"}, _grab, _qi) do
+  defp derive_raw(%Pursuit{state: "needs_decision"}, _grab, _qi) do
     {
       %CurrentAction{
         verb: "Decision needed",
@@ -114,7 +137,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, nil, _qi) do
+  defp derive_raw(%Pursuit{state: "active"}, nil, _qi) do
     {
       %CurrentAction{
         verb: "Unknown",
@@ -126,7 +149,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Grab{status: "searching"} = g, _qi) do
+  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "searching"} = g, _qi) do
     {
       %CurrentAction{
         verb: "Searching",
@@ -138,7 +161,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Grab{status: "snoozed"}, _qi) do
+  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "snoozed"}, _qi) do
     {
       %CurrentAction{
         verb: "Snoozed",
@@ -150,7 +173,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Grab{status: "abandoned"} = g, _qi) do
+  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "abandoned"} = g, _qi) do
     {
       %CurrentAction{
         verb: "Stopped",
@@ -162,7 +185,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Grab{status: "cancelled"}, _qi) do
+  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "cancelled"}, _qi) do
     {
       %CurrentAction{
         verb: "Stopped",
@@ -174,10 +197,10 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Grab{status: "grabbed"}, %QueueItem{state: qstate} = qi)
-      when not is_nil(qstate), do: derive_grabbed_in_queue(qi)
+  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "grabbed"}, %QueueItem{state: qstate} = qi)
+       when not is_nil(qstate), do: derive_grabbed_in_queue(qi)
 
-  def derive(%Pursuit{state: "active"}, %Grab{status: "grabbed"}, _qi) do
+  defp derive_raw(%Pursuit{state: "active"}, %Grab{status: "grabbed"}, _qi) do
     {
       %CurrentAction{
         verb: "Waiting",

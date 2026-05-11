@@ -78,6 +78,29 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearchTest do
       assert {:error, :not_eligible} = ReSearch.execute(%{pursuit_id: pursuit.id})
     end
 
+    test "refuses manual-origin grabs (SearchAndGrab has no QueryBuilder clause for them)" do
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        pursuit = create_pursuit(%{state: "active", origin: "manual"})
+
+        grab =
+          create_grab(%{
+            pursuit_id: pursuit.id,
+            status: "grabbed",
+            origin: "manual",
+            tmdb_type: "manual"
+          })
+
+        assert {:error, :manual_pursuit} = ReSearch.execute(%{pursuit_id: pursuit.id})
+
+        # No SearchAndGrab job should be enqueued — that's the whole point of
+        # rejecting up-front, since the job would crash-loop on FunctionClauseError.
+        refute_enqueued(
+          worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab,
+          args: %{"grab_id" => grab.id}
+        )
+      end)
+    end
+
     test "refuses when grab is already searching" do
       {pursuit, _grab} = setup_with_grab("active", "searching")
       assert {:error, :not_eligible} = ReSearch.execute(%{pursuit_id: pursuit.id})
