@@ -7,7 +7,13 @@ defmodule MediaCentarr.CapabilitiesTest do
 
   setup do
     original = :persistent_term.get({Config, :config})
-    on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
+
+    on_exit(fn ->
+      :persistent_term.put({Config, :config}, original)
+      :persistent_term.erase({Capabilities, :ready_flags})
+    end)
+
+    :persistent_term.erase({Capabilities, :ready_flags})
 
     Config.update(:tmdb_api_key, "")
     Config.update(:prowlarr_url, "")
@@ -138,6 +144,56 @@ defmodule MediaCentarr.CapabilitiesTest do
 
     test "is a no-op when no result was saved" do
       assert :ok == Capabilities.clear_test_result(:prowlarr)
+    end
+  end
+
+  describe "relevant?/1" do
+    test "accepts :capabilities_changed" do
+      assert Capabilities.relevant?(:capabilities_changed)
+    end
+
+    test "accepts {:config_updated, key, _} for capability-input keys" do
+      assert Capabilities.relevant?({:config_updated, :tmdb_api_key, "x"})
+      assert Capabilities.relevant?({:config_updated, :prowlarr_url, "x"})
+      assert Capabilities.relevant?({:config_updated, :prowlarr_api_key, "x"})
+      assert Capabilities.relevant?({:config_updated, :download_client_type, "x"})
+      assert Capabilities.relevant?({:config_updated, :download_client_url, "x"})
+    end
+
+    test "rejects {:config_updated, key, _} for keys outside capability inputs" do
+      refute Capabilities.relevant?({:config_updated, :mpv_path, "/usr/bin/mpv"})
+      refute Capabilities.relevant?({:config_updated, :extras_dirs, []})
+      refute Capabilities.relevant?({:config_updated, :setup_wizard_dismissed, true})
+    end
+
+    test "rejects unrelated messages" do
+      refute Capabilities.relevant?(:something_else)
+      refute Capabilities.relevant?({:other_event, :anything})
+    end
+  end
+
+  describe "boot-order recovery via config_updates" do
+    test "config_updated broadcast triggers a Capabilities cache refresh through the Worker" do
+      Capabilities.save_test_result(:prowlarr, :ok)
+      Capabilities.save_test_result(:download_client, :ok)
+
+      Config.update(:prowlarr_url, "http://prowlarr.boot")
+      Config.update(:prowlarr_api_key, "k-boot-prowlarr")
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://qbit.boot")
+
+      :persistent_term.put(
+        {Capabilities, :ready_flags},
+        %{tmdb: false, prowlarr: false, download_client: false, acquisition: false}
+      )
+
+      refute Capabilities.acquisition_ready?()
+
+      assert Capabilities.relevant?({:config_updated, :prowlarr_url, "http://prowlarr.boot"})
+
+      Capabilities.refresh_cache()
+
+      assert Capabilities.acquisition_ready?()
     end
   end
 
