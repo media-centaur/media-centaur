@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.52.1 — 2026-05-11
+
+### Fixed
+
+Republishes v0.52.0 after a release-build regression. No user-visible
+behaviour changes versus v0.52.0 — the display-environment resilience
+and mpv log-file capture from that release ship intact. The v0.52.0
+tag never produced a downloadable build.
+
 ## v0.52.0 — 2026-05-11
 
 ### Fixed
