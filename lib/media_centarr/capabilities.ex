@@ -54,6 +54,19 @@ defmodule MediaCentarr.Capabilities do
   def download_client_ready?, do: read_flags().download_client
 
   @doc """
+  Returns true when the Acquisition feature surface is fully usable —
+  both search (Prowlarr) and submit-to-client (download client) are
+  configured and tested.
+
+  This is the semantic gate for Acquisition-area UI (the Downloads nav
+  item, the Acquisition page, the auto-grab pipeline). Consumers should
+  prefer this over composing `prowlarr_ready?/0 and download_client_ready?/0`
+  themselves so the semantic stays in one place.
+  """
+  @spec acquisition_ready?() :: boolean()
+  def acquisition_ready?, do: read_flags().acquisition
+
+  @doc """
   Recomputes the cached readiness flags and writes them to
   `:persistent_term`. Called once at boot by the cache worker and on
   every `:capabilities_changed` broadcast it observes. Direct callers
@@ -75,10 +88,14 @@ defmodule MediaCentarr.Capabilities do
   end
 
   defp compute_flags do
+    prowlarr = prowlarr_configured?() and last_test_ok?(:prowlarr)
+    download_client = download_client_configured?() and last_test_ok?(:download_client)
+
     %{
       tmdb: tmdb_configured?() and last_test_ok?(:tmdb),
-      prowlarr: prowlarr_configured?() and last_test_ok?(:prowlarr),
-      download_client: download_client_configured?() and last_test_ok?(:download_client)
+      prowlarr: prowlarr,
+      download_client: download_client,
+      acquisition: prowlarr and download_client
     }
   end
 
