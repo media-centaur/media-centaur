@@ -28,17 +28,18 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitHeader do
   end
 
   defp target_summary(%{tmdb_type: "movie", year: nil}), do: "Movie"
-  defp target_summary(%{tmdb_type: "movie", year: y}), do: "Movie • #{y}"
+  defp target_summary(%{tmdb_type: "movie", year: year}), do: "Movie • #{year}"
   defp target_summary(%{tmdb_type: "tv", season_number: nil}), do: "TV"
 
-  defp target_summary(%{tmdb_type: "tv", season_number: s, episode_number: nil}), do: "TV • S#{pad(s)}"
+  defp target_summary(%{tmdb_type: "tv", season_number: season, episode_number: nil}),
+    do: "TV • S#{pad(season)}"
 
-  defp target_summary(%{tmdb_type: "tv", season_number: s, episode_number: e}),
-    do: "TV • S#{pad(s)}E#{pad(e)}"
+  defp target_summary(%{tmdb_type: "tv", season_number: season, episode_number: episode}),
+    do: "TV • S#{pad(season)}E#{pad(episode)}"
 
   defp target_summary(%{tmdb_type: type}), do: type
   defp target_summary(_), do: nil
 
-  defp pad(n) when is_integer(n) and n < 10, do: "0#{n}"
-  defp pad(n) when is_integer(n), do: "#{n}"
+  defp pad(num) when is_integer(num) and num < 10, do: "0#{num}"
+  defp pad(num) when is_integer(num), do: "#{num}"
 end
