@@ -35,7 +35,6 @@ defmodule MediaCentarrWeb.UpcomingLive do
       ReleaseTracking.subscribe()
       Acquisition.subscribe()
       Acquisition.subscribe_queue()
-      Capabilities.subscribe()
     end
 
     today = Date.utc_today()

@@ -19,7 +19,12 @@ defmodule MediaCentarrWeb.Router do
   scope "/", MediaCentarrWeb do
     pipe_through :browser
 
-    live_session :default do
+    # CapabilitiesAware as a session-wide on_mount seeds `:tmdb_ready`,
+    # `:prowlarr_ready`, `:download_client_ready`, `:acquisition_ready`
+    # on every LiveView and re-assigns them when capabilities change.
+    # The shared layout reads these assigns directly, so the nav stays
+    # in sync without any LiveView opting in.
+    live_session :default, on_mount: [MediaCentarrWeb.Live.CapabilitiesAware] do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index
       live "/download", AcquisitionLive, :index
