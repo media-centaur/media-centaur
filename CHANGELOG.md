@@ -4,6 +4,32 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.52.0 — 2026-05-11
+
+### Fixed
+
+Playback no longer fails silently with “mpv exited (status 1) before
+playback started” when Media Centarr was started before your desktop
+session was ready. The app now finds your Wayland or X11 session
+automatically and hands it to mpv, so the player can open its window
+even when the service was launched at boot. If no desktop session is
+reachable at all, the flash message now tells you to sign in or
+restart Media Centarr after login instead of giving you a cryptic
+exit code.
+
+The shipped systemd unit also waits for `graphical-session.target` and
+imports the relevant environment variables before launch, so fresh
+installs get this behaviour out of the box. Existing installs benefit
+the moment they update.
+
+### Improved
+
+When mpv does fail to start, the cause now appears in the journal and
+Console drawer — mpv's own log is captured to a per-session file and
+the exit classifier summarises it. Previously, `--no-terminal` meant
+mpv's error message never reached the backend, leaving only a generic
+line about a silent exit.
+
 ## v0.51.3 — 2026-05-09
 
 ### Fixed
