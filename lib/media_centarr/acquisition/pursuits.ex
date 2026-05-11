@@ -248,6 +248,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   defp summary_for("pursuit_exhausted", %{"reason" => r}), do: "Pursuit exhausted (#{r})"
   defp summary_for("pursuit_exhausted", _), do: "Pursuit exhausted"
   defp summary_for("pursuit_cancelled", _), do: "Pursuit cancelled"
+  defp summary_for("pursuit_re_searched", _), do: "Manual re-search triggered"
   defp summary_for(kind, _), do: kind
 
   defp transition_phrase(same, same), do: nil
