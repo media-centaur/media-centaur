@@ -4,6 +4,35 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.53.1 — 2026-05-11
+
+### Fixed
+
+The **Downloads** section in the sidebar would disappear after every
+update, and the only way to bring it back was to visit Settings →
+Acquisition, click *Test* on the download client, save the
+auto-acquisition defaults, and refresh the browser. The Downloads
+nav now appears reliably as soon as both Prowlarr and the download
+client are configured and their connection tests pass — no manual
+test, no reload.
+
+### Improved
+
+The Downloads nav now appears and disappears **in real time** when
+the underlying connection state changes. If you save Prowlarr or
+download-client settings and run *Test*, the sidebar updates the
+moment the test result comes back. Previously, the nav only refreshed
+on the next page load or user interaction.
+
+**Behavior change.** The Downloads section is now visible only when
+**both** Prowlarr **and** your download client are configured and
+have a passing test result. Earlier releases gated only on Prowlarr,
+which meant the section could appear with no download client wired
+up — a state in which the queue page had nothing to show. If you
+had Prowlarr but no download client and were relying on this, open
+Settings → Acquisition and finish wiring your download client; the
+Downloads section will reappear automatically.
+
 ## v0.53.0 — 2026-05-11
 
 ### New
