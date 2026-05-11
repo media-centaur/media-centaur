@@ -46,6 +46,10 @@ graph TD
 
 **Error surfacing:** mpv exit codes are classified by `MpvExitClassifier` into user-actionable categories (bad format, missing file, unreadable input, generic). MpvSession attaches the classification to the flash message the UI shows, and pipes mpv's full stderr through `ProgressBroadcaster` into the Console drawer (`:playback` filter) and the systemd journal for post-mortem inspection.
 
+Because the production launch uses `--no-terminal` (which silences mpv's stderr entirely), the live port-data tail is usually empty. `MpvSession` adds `--log-file=<socket_dir>/media-centarr-<session_id>.log` to every spawn, and `MpvLogReader.fallback_tail/3` slurps the last 5 lines of that file when the port tail is empty — so the classifier always has the real mpv error string to summarise.
+
+**Display-env resolution:** Before each spawn `DisplayEnv.resolve/1` builds the env list passed to `Port.open`. It prefers any `WAYLAND_DISPLAY` / `DISPLAY` already in the parent env, and falls back to scanning `$XDG_RUNTIME_DIR/wayland-N` (lowest N wins) and `/tmp/.X11-unix/XN` for live sockets. This protects against the common production failure where the systemd-user service started before the graphical session imported its env — without it, mpv aborts with status 1 and the classifier can only emit "mpv exited before playback started". When neither display server is reachable the session refuses to launch and broadcasts `PlaybackFailed{reason: :no_display}` so the UI can surface a clear message.
+
 **Resume algorithm:** `Resume.resolve/2` determines what to play next:
 
 ```mermaid
@@ -77,7 +81,8 @@ flowchart TD
 2. `Resolver.resolve/1` loads the entity and progress, then runs `Resume.resolve/2`
 3. Sessions checks Registry for duplicates, then starts a new `MpvSession` via `SessionSupervisor`
 4. MpvSession registers in `SessionRegistry` by entity_id
-5. MpvSession launches mpv with `--input-ipc-server`, `--fullscreen`, and optional `--start=position`
+5. `DisplayEnv.resolve/1` builds the env list (WAYLAND_DISPLAY / DISPLAY, resolved from parent env or socket discovery); on `{:error, :no_display}` the session broadcasts `PlaybackFailed{reason: :no_display}` and stops
+6. MpvSession launches mpv with `--input-ipc-server`, `--fullscreen`, `--log-file=<per-session-path>`, the resolved display env, and optional `--start=position`
 
 #### MPV IPC Protocol
 
@@ -174,4 +179,6 @@ After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentarr.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centarr/playback/resume_target.ex` |
 | `MediaCentarr.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centarr/playback/watching_tracker.ex` |
 | `MediaCentarr.Playback.MpvExitClassifier` | Classifies mpv exit output into actionable error categories | `lib/media_centarr/playback/mpv_exit_classifier.ex` |
+| `MediaCentarr.Playback.MpvLogReader` | Tails the per-session `--log-file=` capture for the classifier | `lib/media_centarr/playback/mpv_log_reader.ex` |
+| `MediaCentarr.Playback.DisplayEnv` | Resolves `WAYLAND_DISPLAY` / `DISPLAY` env for mpv spawn | `lib/media_centarr/playback/display_env.ex` |
 | `MediaCentarr.Playback.ProgressBroadcaster` | Fan-out of progress + diagnostic output to PubSub and thinking logs | `lib/media_centarr/playback/progress_broadcaster.ex` |

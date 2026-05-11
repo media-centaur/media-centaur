@@ -1,13 +1,17 @@
 [Unit]
 Description=Media Centarr Backend
-After=network-online.target
-Wants=network-online.target
+After=network-online.target graphical-session.target
+Wants=network-online.target graphical-session.target
 
 [Service]
 Type=exec
 # Set this to your media-centarr release directory, e.g.:
-#   ExecStart=%h/.local/lib/media-centarr/bin/media_centarr start
+#   ExecStart=%h/.local/lib/media-centarr/current/bin/media_centarr start
 # EnvironmentFile=%h/.config/media-centarr/secrets.env
+# Pull WAYLAND_DISPLAY / DISPLAY into the systemd-user manager so mpv can
+# open a window. Leading `-` makes this best-effort; the app's DisplayEnv
+# resolver falls back to socket discovery if the import didn't fire.
+ExecStartPre=-/usr/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE
 ExecStart=/path/to/media_centarr start
 ExecStop=/path/to/media_centarr stop
 Restart=on-failure
