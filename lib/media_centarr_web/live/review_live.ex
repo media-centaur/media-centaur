@@ -338,7 +338,7 @@ defmodule MediaCentarrWeb.ReviewLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/review">
+    <Layouts.app flash={@flash} current_path="/review" acquisition_ready={@acquisition_ready}>
       <div
         class="flex flex-col h-full gap-4"
         data-page-behavior="review"

@@ -1242,7 +1242,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/settings">
+    <Layouts.app flash={@flash} current_path="/settings" acquisition_ready={@acquisition_ready}>
       <:overlays>
         <%!--
           Layout-level overlays. Rendered outside the page's spacing container

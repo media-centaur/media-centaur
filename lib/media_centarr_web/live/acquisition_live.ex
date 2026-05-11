@@ -233,7 +233,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/download">
+    <Layouts.app flash={@flash} current_path="/download" acquisition_ready={@acquisition_ready}>
       <:overlays>
         <.cancel_confirmation cancel_confirm={@cancel_confirm} />
       </:overlays>

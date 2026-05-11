@@ -71,7 +71,7 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/history">
+    <Layouts.app flash={@flash} current_path="/history" acquisition_ready={@acquisition_ready}>
       <:overlays>
         <%!-- Deleting in-progress modal --%>
         <div class="modal-backdrop" data-state={if @deleting_event, do: "open", else: "closed"}>
