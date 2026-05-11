@@ -67,7 +67,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.EventTest do
   end
 
   describe "kinds/0" do
-    test "returns the seventeen v1 kinds" do
+    test "returns the eighteen v1 kinds" do
       kinds = Event.kinds()
 
       expected = ~w(
@@ -76,6 +76,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.EventTest do
         auto_cancelled fallback_initiated user_decision_requested
         user_decision_recorded identity_mismatch identity_verified
         pursuit_satisfied pursuit_exhausted pursuit_cancelled
+        pursuit_re_searched
       )
 
       assert Enum.sort(kinds) == Enum.sort(expected)

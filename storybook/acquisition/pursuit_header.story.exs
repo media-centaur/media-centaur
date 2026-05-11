@@ -1,9 +1,10 @@
 defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
-  @moduledoc "Detail-page header for `/download/:pursuit_id`."
+  @moduledoc "Identity header for `/download/:pursuit_id`."
 
   use PhoenixStorybook.Story, :component
 
   alias MediaCentarr.Acquisition.ViewModels.PursuitHeader
+  alias MediaCentarr.Acquisition.ViewModels.Target
 
   def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitHeader.pursuit_header/1
   def render_source, do: :function
@@ -18,81 +19,74 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
 
   def variations do
     [
-      %VariationGroup{
-        id: :state_axis,
-        description: "Header rendered for each pursuit state",
-        variations: [
-          %Variation{
-            id: :active,
-            attributes: %{vm: header(:active, "Sample Movie")}
-          },
-          %Variation{
-            id: :needs_decision,
-            attributes: %{vm: header(:needs_decision, "Sample Show S01E03")}
-          },
-          %Variation{
-            id: :satisfied,
-            attributes: %{vm: header(:satisfied, "Public Domain Film 1923")}
-          },
-          %Variation{
-            id: :exhausted,
-            attributes: %{vm: header(:exhausted, "Movie A")}
-          },
-          %Variation{
-            id: :cancelled,
-            attributes: %{vm: header(:cancelled, "Movie B")}
-          }
-        ]
-      },
       %Variation{
-        id: :with_cancel_button,
-        description: "Active pursuit with the Cancel button bound to `on_cancel`",
+        id: :movie_with_year,
+        description: "Movie pursuit with year and 1080–4K criteria",
         attributes: %{
-          vm: header(:active, "Sample Movie"),
-          on_cancel: "noop"
+          vm: %PursuitHeader{
+            id: "story-movie",
+            title: "Public Domain Feature 1925",
+            state: :active,
+            target: %Target{tmdb_type: "movie", tmdb_id: "1", year: 1925},
+            criteria_summary: "max_quality: 2160p, min_quality: 1080p"
+          }
         }
       },
       %Variation{
-        id: :no_criteria,
-        description: "Header with no criteria (manual grab without quality bounds)",
+        id: :tv_episode,
+        description: "TV episode pursuit",
         attributes: %{
           vm: %PursuitHeader{
-            id: "story-no-crit",
-            title: "Manual Pick",
+            id: "story-tv",
+            title: "Sample Show S01E03",
             state: :active,
-            origin: :manual,
-            attempt_count: 1,
-            tried_count: 0,
-            criteria_summary: nil,
-            inserted_at: ~U[2026-05-07 10:00:00Z]
+            target: %Target{
+              tmdb_type: "tv",
+              tmdb_id: "10",
+              season_number: 1,
+              episode_number: 3
+            },
+            criteria_summary: nil
+          }
+        }
+      },
+      %Variation{
+        id: :needs_decision,
+        description: "Pursuit in needs_decision",
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-decision",
+            title: "Sample Show S01E04",
+            state: :needs_decision,
+            target: %Target{tmdb_type: "tv", season_number: 1, episode_number: 4},
+            criteria_summary: nil
+          }
+        }
+      },
+      %Variation{
+        id: :terminal_satisfied,
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-satisfied",
+            title: "Movie A",
+            state: :satisfied,
+            target: %Target{tmdb_type: "movie", year: 2023},
+            criteria_summary: nil
+          }
+        }
+      },
+      %Variation{
+        id: :terminal_exhausted,
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-exhausted",
+            title: "Movie B",
+            state: :exhausted,
+            target: %Target{tmdb_type: "movie"},
+            criteria_summary: nil
           }
         }
       }
     ]
   end
-
-  defp header(state, title) do
-    %PursuitHeader{
-      id: "story-#{state}",
-      title: title,
-      state: state,
-      origin: :auto,
-      attempt_count: attempts_for(state),
-      tried_count: tried_for(state),
-      criteria_summary: "max_quality: 2160p, min_quality: 1080p",
-      inserted_at: ~U[2026-05-07 10:00:00Z]
-    }
-  end
-
-  defp attempts_for(:active), do: 1
-  defp attempts_for(:needs_decision), do: 2
-  defp attempts_for(:satisfied), do: 1
-  defp attempts_for(:exhausted), do: 4
-  defp attempts_for(:cancelled), do: 1
-
-  defp tried_for(:active), do: 0
-  defp tried_for(:needs_decision), do: 1
-  defp tried_for(:satisfied), do: 1
-  defp tried_for(:exhausted), do: 4
-  defp tried_for(:cancelled), do: 1
 end
