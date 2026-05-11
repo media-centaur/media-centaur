@@ -1,28 +1,17 @@
 defmodule MediaCentarr.Acquisition.ViewModels.PursuitHeader do
-  @moduledoc "Display contract for the detail-page header."
+  @moduledoc "Identity contract for the detail-page header."
 
   alias MediaCentarr.Acquisition.ViewModels.PursuitRow
+  alias MediaCentarr.Acquisition.ViewModels.Target
 
-  @enforce_keys [:id, :title, :state, :origin, :attempt_count, :tried_count]
-  defstruct [
-    :id,
-    :title,
-    :state,
-    :origin,
-    :attempt_count,
-    :tried_count,
-    :criteria_summary,
-    :inserted_at
-  ]
+  @enforce_keys [:id, :title, :state, :target]
+  defstruct [:id, :title, :state, :target, :criteria_summary]
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
           title: String.t(),
           state: PursuitRow.state(),
-          origin: PursuitRow.origin(),
-          attempt_count: non_neg_integer(),
-          tried_count: non_neg_integer(),
-          criteria_summary: String.t() | nil,
-          inserted_at: DateTime.t() | nil
+          target: Target.t(),
+          criteria_summary: String.t() | nil
         }
 end

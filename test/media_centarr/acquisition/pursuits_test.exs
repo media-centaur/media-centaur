@@ -272,17 +272,12 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
           criteria: %{"min_quality" => "1080p", "max_quality" => "2160p"}
         })
 
-      pursuit
-      |> Ecto.Changeset.change(tried_release_guids: ["guid-a", "guid-b"], attempt_count: 2)
-      |> Repo.update!()
-
       assert {:ok, %PursuitHeader{} = header} = Pursuits.header_for(pursuit.id)
 
       assert header.id == pursuit.id
       assert header.title == "Sample Movie"
       assert header.state == :active
-      assert header.attempt_count == 2
-      assert header.tried_count == 2
+      assert header.target.tmdb_type == "movie"
       assert header.criteria_summary =~ "1080p"
     end
 
