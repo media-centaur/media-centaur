@@ -4,6 +4,36 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.56.0 — 2026-05-11
+
+### New
+
+You can now **change target** on any pursuit — whether it was started
+automatically or by a manual search. The previous "Re-search" button is
+gone; in its place, every pursuit (auto or manual) carries its search
+recipe so it can abandon the current release attempt and look for a
+different one without losing history. Manual picks that get stuck no
+longer dead-end the way they did in v0.55.
+
+### Improved
+
+The Downloads page uses clearer status vocabulary throughout: targets
+move through **Seeking → Acquired → Succeeded**, with **Failed** and
+**Cancelled** as the terminal failure states. The old mix of
+"grabbed", "abandoned", "snoozed" is retired.
+
+The decision card ("Pick a different release") and the manual search
+form now share one code path, so a release you pick from either
+surface lands in your pursuit identically — including its history,
+attempt count, and ability to change target again later.
+
+### Fixed
+
+A pursuit that "succeeded" but never had a matching file in the
+download client now shows a clear *Waiting — not visible in your
+download client* hint with **Change target** and **Cancel** actions,
+instead of looking stuck.
+
 ## v0.55.1 — 2026-05-11
 
 ### Fixed
