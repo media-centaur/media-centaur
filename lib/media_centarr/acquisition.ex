@@ -624,26 +624,53 @@ defmodule MediaCentarr.Acquisition do
 
       %Grab{} = grab ->
         if GrabStatus.rearmable?(grab.status) do
-          {:ok, rearmed} =
-            grab
-            |> Ecto.Changeset.change(
-              status: "searching",
-              attempt_count: 0,
-              cancelled_at: nil,
-              cancelled_reason: nil,
-              last_attempt_outcome: nil
-            )
-            |> Repo.update()
-
-          Oban.insert(SearchAndGrab.new(%{"grab_id" => rearmed.id}))
-          broadcast({:auto_grab_armed, rearmed})
-          Log.info(:library, "auto-grab re-armed — #{rearmed.title}")
-          {:ok, rearmed}
+          {:ok, restart_grab(grab, "auto-grab re-armed")}
         else
           # Already active or already grabbed — nothing to re-arm.
           {:ok, grab}
         end
     end
+  end
+
+  @doc """
+  Restarts a stuck `"grabbed"` grab — flips it back to `"searching"` and
+  re-enqueues `SearchAndGrab`. Used when the grab nominally succeeded at
+  the indexer but the file never landed at the download client (the
+  `Waiting / Not visible in your download client` pursuit state).
+
+  No-op for grabs in any other status — they are either still in flight
+  or already in terminal_failure (which `rearm_grab/1` handles).
+  """
+  @spec restart_grabbed_grab(Ecto.UUID.t()) :: {:ok, Grab.t()} | {:error, :not_found}
+  def restart_grabbed_grab(grab_id) do
+    case Repo.get(Grab, grab_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Grab{status: "grabbed"} = grab ->
+        {:ok, restart_grab(grab, "grabbed grab restarted")}
+
+      %Grab{} = grab ->
+        {:ok, grab}
+    end
+  end
+
+  defp restart_grab(%Grab{} = grab, log_label) do
+    {:ok, restarted} =
+      grab
+      |> Ecto.Changeset.change(
+        status: "searching",
+        attempt_count: 0,
+        cancelled_at: nil,
+        cancelled_reason: nil,
+        last_attempt_outcome: nil
+      )
+      |> Repo.update()
+
+    Oban.insert(SearchAndGrab.new(%{"grab_id" => restarted.id}))
+    broadcast({:auto_grab_armed, restarted})
+    Log.info(:library, "#{log_label} — #{restarted.title}")
+    restarted
   end
 
   @doc """
