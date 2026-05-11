@@ -8,7 +8,7 @@ set -euo pipefail
 
 service="media-centarr"
 install_dir="$HOME/.local/lib/media-centarr"
-bin="$install_dir/bin/media_centarr"
+bin="$install_dir/current/bin/media_centarr"
 port=2160
 
 bold="\033[1m"
@@ -121,6 +121,68 @@ cmd_errors() {
   journalctl --user -u "$service" --no-pager --since "$since ago" -p err 2>/dev/null || info "None"
 }
 
+cmd_mpv_env() {
+  banner "mpv launch environment"
+
+  if ! systemctl --user is-active --quiet "$service" 2>/dev/null; then
+    fail "Service not running — cannot inspect environment"
+    return 1
+  fi
+
+  local svc_pid
+  svc_pid=$(systemctl --user show -p MainPID --value "$service" 2>/dev/null)
+  if [ -z "$svc_pid" ] || [ "$svc_pid" = "0" ]; then
+    fail "Could not determine service PID"
+    return 1
+  fi
+
+  info "Service PID: $svc_pid"
+
+  local svc_env
+  svc_env=$(tr '\0' '\n' < "/proc/$svc_pid/environ" 2>/dev/null || true)
+  if [ -z "$svc_env" ]; then
+    fail "Cannot read /proc/$svc_pid/environ (insufficient permissions?)"
+    return 1
+  fi
+
+  local missing=()
+  for var in WAYLAND_DISPLAY DISPLAY XDG_RUNTIME_DIR XDG_SESSION_TYPE; do
+    local val
+    val=$(printf "%s\n" "$svc_env" | grep -E "^${var}=" | head -1 | cut -d= -f2- || true)
+    if [ -n "$val" ]; then
+      ok "$var = $val"
+    else
+      missing+=("$var")
+    fi
+  done
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    fail "Service is missing display vars: ${missing[*]}"
+    info "mpv will fail to create a window (status 1) and \`--no-terminal\`"
+    info "silences its error message, so the backend sees only:"
+    info "  \"mpv exited (status 1) before playback started\""
+    info ""
+    info "Fix: restart the service after the graphical session has imported"
+    info "its env into systemd-user. Run on the desktop:"
+    info "  systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE"
+    info "  systemctl --user restart $service"
+    info ""
+    info "Long-term: make sure your compositor's autostart imports the env"
+    info "before starting media-centarr (or add it to the unit's [Service])."
+  fi
+
+  banner "Current systemd-user environment"
+  for var in WAYLAND_DISPLAY DISPLAY XDG_RUNTIME_DIR XDG_SESSION_TYPE; do
+    local val
+    val=$(systemctl --user show-environment 2>/dev/null | grep -E "^${var}=" | head -1 | cut -d= -f2- || true)
+    if [ -n "$val" ]; then
+      info "$var = $val"
+    else
+      info "$var = (unset)"
+    fi
+  done
+}
+
 cmd_remote() {
   require_release
   require_running
@@ -162,6 +224,9 @@ Commands:
   errors [PERIOD]     Show error-level logs (default: 1h)
   remote              Open remote IEx shell (Ctrl+\\ to disconnect)
   log recent [N]      Print the N most recent console buffer entries (default: 20)
+  mpv-env             Check display env on the service process (Wayland/X11)
+                      — catches the silent "mpv exited (status 1)" failure
+                      caused by the service starting before the GUI session
   help                This message
 
 Log filtering and live tailing moved to the browser console (press backtick
@@ -188,6 +253,7 @@ case "$cmd" in
   errors)         cmd_errors "$@" ;;
   remote)         cmd_remote ;;
   log)            cmd_log "$@" ;;
+  mpv-env)        cmd_mpv_env ;;
   help|-h|--help) cmd_help ;;
   *)
     echo "Unknown command: $cmd"

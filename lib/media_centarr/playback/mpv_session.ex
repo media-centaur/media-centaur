@@ -9,6 +9,27 @@ defmodule MediaCentarr.Playback.MpvSession do
   This is an observation-only tracker — the user controls mpv directly.
   The session observes position/duration/pause/eof via IPC, persists watch
   progress, and broadcasts state changes via PubSub.
+
+  ## Display environment
+
+  Before spawning mpv, `DisplayEnv.resolve/1` produces an env list with
+  `WAYLAND_DISPLAY` / `DISPLAY` (preferring parent-env values, falling back to
+  scanning `$XDG_RUNTIME_DIR/wayland-N` and `/tmp/.X11-unix/XN`). This protects
+  against the classic failure mode where the service was started before the
+  graphical session imported its env into systemd-user — without it, mpv aborts
+  with status 1 and `--no-terminal` swallows the error message. When neither
+  display server is reachable, the session broadcasts `PlaybackFailed` with
+  `reason: :no_display` and stops, surfacing a clear user-facing message
+  instead of a silent mpv failure.
+
+  ## Diagnostic capture
+
+  mpv is launched with `--log-file=<socket_dir>/media-centarr-<session_id>.log`
+  so the exit classifier has a real error string to work with even when
+  `--no-terminal` blocks port-data capture. `MpvLogReader.fallback_tail/3`
+  prefers the live port tail when present and falls back to the log file
+  otherwise. The log file is cleaned up on session stop alongside the IPC
+  socket.
   """
   use GenServer
   require MediaCentarr.Log, as: Log
@@ -16,8 +37,10 @@ defmodule MediaCentarr.Playback.MpvSession do
   alias MediaCentarr.Format
 
   alias MediaCentarr.Playback.{
+    DisplayEnv,
     Events,
     MpvExitClassifier,
+    MpvLogReader,
     ProgressBroadcaster,
     SessionRegistry,
     WatchingTracker
@@ -44,6 +67,7 @@ defmodule MediaCentarr.Playback.MpvSession do
     :content_url,
     :start_position,
     :socket_path,
+    :log_file_path,
     :port,
     :socket,
     :position,
@@ -91,6 +115,7 @@ defmodule MediaCentarr.Playback.MpvSession do
     session_id = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
     socket_dir = MediaCentarr.Config.get(:mpv_socket_dir)
     socket_path = Path.join(socket_dir, "media-centarr-#{params.entity_id}.sock")
+    log_file_path = Path.join(socket_dir, "media-centarr-#{session_id}.log")
     timeout_ms = MediaCentarr.Config.get(:mpv_socket_timeout_ms)
     max_retries = div(timeout_ms, @socket_retry_interval_ms)
 
@@ -108,6 +133,7 @@ defmodule MediaCentarr.Playback.MpvSession do
       content_url: params.content_url,
       start_position: params[:start_position] || 0.0,
       socket_path: socket_path,
+      log_file_path: log_file_path,
       position: 0.0,
       duration: 0.0,
       paused: false,
@@ -165,30 +191,24 @@ defmodule MediaCentarr.Playback.MpvSession do
   end
 
   def handle_info(:launch_mpv, state) do
-    Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
-    mpv_path = MediaCentarr.Config.get(:mpv_path)
+    case DisplayEnv.resolve() do
+      {:ok, env_pairs} ->
+        spawn_mpv(state, env_pairs)
 
-    flags =
-      [
-        "--fullscreen",
-        "--no-terminal",
-        "--msg-level=all=error",
-        "--force-window=immediate",
-        "--input-ipc-server=#{state.socket_path}"
-      ] ++
-        if(state.start_position > 0, do: ["--start=#{state.start_position}"], else: []) ++
-        [state.content_url]
+      {:error, :no_display} ->
+        Log.error(
+          :playback,
+          "no display server reachable — refusing to launch mpv (service likely started before the graphical session)"
+        )
 
-    port =
-      Port.open({:spawn_executable, to_charlist(mpv_path)}, [
-        :binary,
-        :exit_status,
-        :stderr_to_stdout,
-        args: flags
-      ])
+        broadcast_playback_failed(
+          state,
+          :no_display,
+          "Media Centarr can't reach your desktop. Restart it after signing in."
+        )
 
-    Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
-    {:noreply, %{state | port: port}}
+        {:stop, :normal, %{state | state: :stopped}}
+    end
   end
 
   def handle_info(:connect_socket, state) do
@@ -282,6 +302,37 @@ defmodule MediaCentarr.Playback.MpvSession do
     finalize(state)
     cleanup(state)
     :ok
+  end
+
+  # --- mpv launch ---
+
+  defp spawn_mpv(state, env_pairs) do
+    Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
+    mpv_path = MediaCentarr.Config.get(:mpv_path)
+
+    flags =
+      [
+        "--fullscreen",
+        "--no-terminal",
+        "--msg-level=all=error",
+        "--force-window=immediate",
+        "--input-ipc-server=#{state.socket_path}",
+        "--log-file=#{state.log_file_path}"
+      ] ++
+        if(state.start_position > 0, do: ["--start=#{state.start_position}"], else: []) ++
+        [state.content_url]
+
+    port =
+      Port.open({:spawn_executable, to_charlist(mpv_path)}, [
+        :binary,
+        :exit_status,
+        :stderr_to_stdout,
+        {:env, env_pairs},
+        args: flags
+      ])
+
+    Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
+    {:noreply, %{state | port: port}}
   end
 
   # --- Idempotent Finalization ---
@@ -566,6 +617,7 @@ defmodule MediaCentarr.Playback.MpvSession do
     # so recovery can reconnect on next startup (ADR-023).
     if state.state == :stopped do
       File.rm(state.socket_path)
+      if state.log_file_path, do: File.rm(state.log_file_path)
     end
   end
 
@@ -605,7 +657,7 @@ defmodule MediaCentarr.Playback.MpvSession do
       MpvExitClassifier.classify(%{
         seen_property_event?: state.seen_property_event?,
         exit_status: state.exit_status,
-        output_tail: state.output_tail
+        output_tail: MpvLogReader.fallback_tail(state.output_tail, state.log_file_path, 5)
       })
 
     case classification do
