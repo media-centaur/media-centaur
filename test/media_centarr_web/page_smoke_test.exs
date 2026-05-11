@@ -333,6 +333,32 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
       MediaCentarr.Capabilities.save_test_result(:prowlarr, :ok)
 
+      # Seed an active pursuit + linked grab so the unified pursuits-with-
+      # downloads zone exercises its non-trivial branches (card rendering,
+      # release_title threading, no-match hint derivation). Per the
+      # automated-testing skill: smoke fixtures must cover the branches a
+      # representative user would see in production.
+      {:ok, pursuit} =
+        MediaCentarr.Repo.insert(
+          MediaCentarr.Acquisition.Pursuits.Pursuit.create_changeset(%{
+            tmdb_id: "smoke-download",
+            tmdb_type: "movie",
+            title: "Sample Movie",
+            origin: "auto"
+          })
+        )
+
+      %MediaCentarr.Acquisition.Grab{}
+      |> Ecto.Changeset.cast(
+        %{tmdb_id: pursuit.tmdb_id, tmdb_type: pursuit.tmdb_type, title: pursuit.title},
+        [:tmdb_id, :tmdb_type, :title]
+      )
+      |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
+      |> Ecto.Changeset.put_change(:origin, pursuit.origin)
+      |> Ecto.Changeset.put_change(:release_title, "Sample.Movie.2010.1080p.WEB-DL")
+      |> Ecto.Changeset.put_change(:status, "grabbed")
+      |> MediaCentarr.Repo.insert!()
+
       on_exit(fn ->
         MediaCentarr.Capabilities.clear_test_result(:prowlarr)
         :persistent_term.put({Config, :config}, original)
@@ -344,6 +370,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
       assert {:ok, _view, html} = live_within!(conn, "/download")
       assert is_binary(html)
+      # The seeded active pursuit must render its card, exercising the
+      # PursuitRow component's no-match hint path (no queue item matches).
+      assert html =~ "Sample Movie"
     end
   end
 

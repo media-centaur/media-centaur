@@ -96,7 +96,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       assert html =~ "Download"
       assert html =~ "data-page-behavior=\"download\""
-      assert html =~ "data-nav-default-zone=\"download\""
+      assert html =~ "data-nav-default-zone=\"pursuits\""
     end
   end
 
@@ -257,7 +257,6 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         |> render_click()
 
       assert :counters.get(delete_counter, 1) == 1
-      assert html =~ "No active downloads"
       refute html =~ "phx-value-id=\"hash-a\""
       refute html =~ "Cancel download?"
     end
@@ -356,13 +355,13 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       assert :counters.get(delete_counter, 1) == 0
     end
 
-    test "queue list uses phx-update=stream so morphdom keys rows by id", %{conn: conn} do
-      # Regression: without `phx-update="stream"`, Phoenix's positional
-      # comprehension diff causes the row at the cancelled position to
-      # morph in place into the *next* item's data and the bottom row
-      # to disappear — visually it looks like the wrong row was deleted
-      # even though the underlying state is correct. Streams force
-      # keyed reconciliation so morphdom moves nodes by id.
+    test "orphan downloads list keys rows by id and survives mid-list cancel", %{conn: conn} do
+      # Regression: Phoenix's positional comprehension diff causes the row
+      # at the cancelled position to morph in place into the *next* item's
+      # data and the bottom row to disappear when rows lack stable ids.
+      # The orphan ("Other downloads") section gives each row its own
+      # `id="orphan-{hash}"` so morphdom moves nodes by id even without
+      # `phx-update="stream"`.
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
           {"POST", "/api/v2/torrents/delete"} -> Plug.Conn.send_resp(conn, 200, "")
@@ -394,21 +393,19 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: items}})
 
       html = render(view)
-      assert html =~ ~s|id="queue-list"|
-      assert html =~ ~s|phx-update="stream"|
-      assert html =~ ~s|id="queue-item-hash-a"|
-      assert html =~ ~s|id="queue-item-hash-b"|
-      assert html =~ ~s|id="queue-item-hash-c"|
+      assert html =~ "Other downloads"
+      assert html =~ ~s|id="orphan-hash-a"|
+      assert html =~ ~s|id="orphan-hash-b"|
+      assert html =~ ~s|id="orphan-hash-c"|
 
       view |> element("button[phx-value-id='hash-b']") |> render_click()
       html = view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
 
-      # The middle row's id is gone, and the surviving rows keep their
-      # ids — morphdom can match them and move A and C cleanly without
-      # in-place positional morphing.
-      assert html =~ ~s|id="queue-item-hash-a"|
-      refute html =~ ~s|id="queue-item-hash-b"|
-      assert html =~ ~s|id="queue-item-hash-c"|
+      # The middle row's id is gone, and the surviving rows keep their ids
+      # so morphdom can match them by id rather than morphing positionally.
+      assert html =~ ~s|id="orphan-hash-a"|
+      refute html =~ ~s|id="orphan-hash-b"|
+      assert html =~ ~s|id="orphan-hash-c"|
     end
   end
 
@@ -652,8 +649,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
     test "queue_snapshot broadcast paints the active queue",
          %{conn: conn} do
-      {:ok, view, html} = live(conn, ~p"/download")
-      assert html =~ "No active downloads" or html =~ "Downloading"
+      {:ok, view, _html} = live(conn, ~p"/download")
 
       item = %QueueItem{
         id: "hash-snapshot",
@@ -701,7 +697,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       html = render(view)
       refute html =~ "Soon To Vanish"
-      assert html =~ "No active downloads"
+      refute html =~ "Other downloads"
     end
 
     test "capabilities_changed pings QueueMonitor for an immediate poll",
@@ -739,6 +735,96 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       send(view.pid, :capabilities_changed)
 
       assert_receive :qbit_called, 1_000
+    end
+  end
+
+  describe "pursuits paired with their live downloads" do
+    alias MediaCentarr.Acquisition.Grab
+    alias MediaCentarr.Acquisition.Pursuits.Pursuit
+    alias MediaCentarr.Downloads.QueueItem
+    alias MediaCentarr.Repo
+
+    defp insert_pursuit_for_pairing(title) do
+      {:ok, pursuit} =
+        Repo.insert(
+          Pursuit.create_changeset(%{
+            tmdb_id: "tmdb-#{:erlang.phash2(title)}",
+            tmdb_type: "movie",
+            title: title,
+            origin: "auto"
+          })
+        )
+
+      pursuit
+    end
+
+    defp insert_grab_with_release(pursuit, release_title, status) do
+      %Grab{}
+      |> Ecto.Changeset.cast(
+        %{tmdb_id: pursuit.tmdb_id, tmdb_type: pursuit.tmdb_type, title: pursuit.title},
+        [:tmdb_id, :tmdb_type, :title]
+      )
+      |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
+      |> Ecto.Changeset.put_change(:origin, pursuit.origin)
+      |> Ecto.Changeset.put_change(:release_title, release_title)
+      |> Ecto.Changeset.put_change(:status, status)
+      |> Repo.insert!()
+    end
+
+    test "a matched queue item renders as a footer under the right pursuit card",
+         %{conn: conn} do
+      pursuit = insert_pursuit_for_pairing("Sample Movie 2010")
+      _grab = insert_grab_with_release(pursuit, "Sample.Movie.2010.1080p.WEB-DL", "grabbed")
+
+      {:ok, view, _html} = live(conn, "/download")
+
+      matching = %QueueItem{
+        id: "hash-paired",
+        title: "sample movie 2010 1080p web dl",
+        state: :downloading,
+        status: "downloading",
+        download_client: "qBittorrent",
+        progress: 0.5,
+        timeleft: "10m"
+      }
+
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [matching]}})
+
+      html = render(view)
+      # The card carries the pursuit id; the cancel button inside its footer
+      # carries the queue item id — co-located in the rendered DOM, which is
+      # exactly the pairing this redesign delivers.
+      assert html =~ ~s|data-pursuit-id="#{pursuit.id}"|
+      assert html =~ ~s|phx-value-id="hash-paired"|
+      assert html =~ "ETA 10m"
+      # Matched items don't surface in the "Other downloads" section.
+      refute html =~ "Other downloads"
+    end
+
+    test "an unmatched queue item appears under 'Other downloads', and the pursuit shows its no-match hint",
+         %{conn: conn} do
+      pursuit = insert_pursuit_for_pairing("Sample Movie 2010")
+      _grab = insert_grab_with_release(pursuit, "Sample.Movie.2010.1080p.WEB-DL", "grabbed")
+
+      {:ok, view, _html} = live(conn, "/download")
+
+      unrelated = %QueueItem{
+        id: "hash-orphan",
+        title: "Totally.Different.Movie.2024",
+        state: :downloading,
+        status: "downloading",
+        download_client: "qBittorrent"
+      }
+
+      send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [unrelated]}})
+
+      html = render(view)
+      assert html =~ "Other downloads"
+      assert html =~ ~s|id="orphan-hash-orphan"|
+      # The pursuit card derives its hint from grab_status when no torrent
+      # matches — the "grabbed but invisible in client" case shows the same
+      # warning copy as the v0.54.0 detail-page fix.
+      assert html =~ "Waiting — not visible in your download client."
     end
   end
 

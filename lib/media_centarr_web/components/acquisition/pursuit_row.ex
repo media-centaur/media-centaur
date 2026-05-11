@@ -1,21 +1,37 @@
 defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
   @moduledoc """
-  Renders one pursuit row in the activity zone of the `/download` page.
+  Renders one pursuit row on the Downloads index (`/download`).
 
-  Shows title, state, attempt count, and the last few timeline events
-  inline. A `data-nav-item` wrapper makes the whole row navigable; the
+  The footer attaches the matched live-queue download (or a derived
+  status hint when no torrent is currently matched). The matching is
+  computed by `MediaCentarr.Acquisition.QueueMatcher.match/2` at render
+  time on the LiveView; this component just consumes `:download` and
+  `:queue_item_id` directly.
+
+  A `data-nav-item` wrapper makes the whole row navigable. The cancel
+  button in the download footer is its own focusable `data-nav-item` so
+  keyboard/gamepad users can target it independently of the card. The
   "Open full →" affordance navigates to the detail page.
   """
 
   use Phoenix.Component
 
-  import MediaCentarrWeb.CoreComponents, only: [icon: 1]
+  import MediaCentarrWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitRow
+  alias MediaCentarr.Acquisition.ViewModels.{DownloadProgress, PursuitRow}
   alias MediaCentarr.Format
+  alias MediaCentarrWeb.AcquisitionLive.Logic
   alias MediaCentarrWeb.Components.Acquisition.PursuitStyle
 
   attr :vm, PursuitRow, required: true
+
+  attr :download, :any,
+    default: nil,
+    doc: "Matched `DownloadProgress.t()` or `nil`. When nil, a hint is derived from `vm.grab_status`."
+
+  attr :queue_item_id, :string,
+    default: nil,
+    doc: "Queue-client id (qBittorrent hash) for the matched torrent. Required to fire cancel."
 
   def pursuit_row(assigns) do
     ~H"""
@@ -37,6 +53,13 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
       </div>
 
       <.recent_events entries={@vm.recent_events} />
+
+      <.download_footer
+        download={@download}
+        queue_item_id={@queue_item_id}
+        cancel_title={@vm.release_title || @vm.title}
+        grab_status={@vm.grab_status}
+      />
 
       <div class="flex justify-end pt-1">
         <.link navigate={@vm.detail_path} class="text-xs text-primary inline-flex items-center gap-1">
@@ -72,4 +95,96 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
     <% end %>
     """
   end
+
+  attr :download, :any,
+    required: true,
+    doc:
+      "`DownloadProgress.t() | nil` — the helper pattern-matches on `%DownloadProgress{}` for the download branch and falls through to the no-match-hint branch when nil. Phoenix attr typing doesn't carry the union, hence `:any`."
+
+  attr :queue_item_id, :string, required: true
+  attr :cancel_title, :string, required: true
+  attr :grab_status, :atom, required: true
+
+  defp download_footer(%{download: %DownloadProgress{}} = assigns) do
+    ~H"""
+    <div class="border-t border-base-content/5 pt-2 space-y-1.5">
+      <div class="flex items-center gap-3">
+        <.badge variant={Logic.state_badge_variant(@download.state)} size="md" class="text-xs">
+          {Logic.state_label(@download.state)}
+        </.badge>
+        <span :if={@download.progress_pct} class="text-xs text-base-content/60 tabular-nums">
+          {round(@download.progress_pct)}%
+        </span>
+        <span :if={@download.eta} class="text-xs text-base-content/40 tabular-nums">
+          ETA {@download.eta}
+        </span>
+        <span :if={@download.client} class="text-xs text-base-content/40 truncate">
+          {@download.client}
+        </span>
+        <div class="flex-1" />
+        <.button
+          :if={@queue_item_id}
+          variant="destructive_inline"
+          size="xs"
+          shape="circle"
+          class="text-base-content/40 hover:text-error"
+          phx-click="cancel_download_prompt"
+          phx-value-id={@queue_item_id}
+          phx-value-title={@cancel_title}
+          title="Cancel and delete"
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-x-mark-mini" class="size-4" />
+        </.button>
+      </div>
+
+      <div
+        :if={@download.progress_pct}
+        class="h-[3px] bg-base-content/10 rounded-full overflow-hidden"
+      >
+        <div
+          class="progress-fill h-full bg-primary rounded-full"
+          style={"width: #{progress_width(@download.progress_pct)}%"}
+        >
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp download_footer(assigns) do
+    assigns = assign(assigns, :hint, no_match_hint(assigns.grab_status))
+
+    ~H"""
+    <div :if={@hint} class="border-t border-base-content/5 pt-2">
+      <div class={"text-xs #{@hint.tone_class}"}>
+        {@hint.label}
+      </div>
+    </div>
+    """
+  end
+
+  defp no_match_hint(nil),
+    do: %{label: "Searching — no release picked yet.", tone_class: "text-base-content/50"}
+
+  defp no_match_hint(:searching),
+    do: %{label: "Searching for a release.", tone_class: "text-base-content/60"}
+
+  defp no_match_hint(:snoozed),
+    do: %{label: "Snoozed — will retry shortly.", tone_class: "text-base-content/60"}
+
+  defp no_match_hint(:grabbed),
+    do: %{label: "Waiting — not visible in your download client.", tone_class: "text-warning"}
+
+  defp no_match_hint(:abandoned),
+    do: %{label: "Stopped — auto-search gave up.", tone_class: "text-warning"}
+
+  defp no_match_hint(:cancelled),
+    do: %{label: "Stopped — grab was cancelled.", tone_class: "text-base-content/60"}
+
+  defp no_match_hint(_), do: nil
+
+  defp progress_width(pct) when is_number(pct), do: max(0, min(100, round(pct)))
+  defp progress_width(_), do: 0
 end

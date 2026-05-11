@@ -50,9 +50,15 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       origin: pursuit.origin
     }
 
+    merged = Map.merge(base, attrs)
+    cast_keys = [:tmdb_id, :tmdb_type, :title, :origin]
+    cast_attrs = Map.take(merged, cast_keys)
+    extra_attrs = Map.drop(merged, cast_keys)
+
     %Grab{}
-    |> Ecto.Changeset.cast(Map.merge(base, attrs), [:tmdb_id, :tmdb_type, :title, :origin])
+    |> Ecto.Changeset.cast(cast_attrs, cast_keys)
     |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
+    |> Ecto.Changeset.change(extra_attrs)
     |> Repo.insert!()
   end
 
@@ -260,6 +266,35 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       [row] = Pursuits.list_active_rows()
       assert row.id == pursuit.id
       assert row.recent_events == []
+    end
+
+    test "row carries the latest grab's release_title and status for queue matching" do
+      pursuit = insert_pursuit()
+
+      insert_grab_for(pursuit, %{
+        release_title: "Older.Release.720p.WEB",
+        status: "abandoned",
+        inserted_at: DateTime.add(DateTime.utc_now(:second), -3600)
+      })
+
+      insert_grab_for(pursuit, %{
+        release_title: "Sample.Movie.2010.1080p.WEB-DL",
+        status: "grabbed"
+      })
+
+      [row] = Pursuits.list_active_rows()
+
+      assert row.release_title == "Sample.Movie.2010.1080p.WEB-DL"
+      assert row.grab_status == :grabbed
+    end
+
+    test "row release_title and grab_status are nil when no grab is linked" do
+      _pursuit = insert_pursuit()
+
+      [row] = Pursuits.list_active_rows()
+
+      assert row.release_title == nil
+      assert row.grab_status == nil
     end
   end
 

@@ -7,7 +7,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{PursuitRow, TimelineEntry}
+  alias MediaCentarr.Acquisition.ViewModels.{DownloadProgress, PursuitRow, TimelineEntry}
 
   def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitRow.pursuit_row/1
   def render_source, do: :function
@@ -78,8 +78,99 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
               recent_events: events_active()
             })
         }
+      },
+      %VariationGroup{
+        id: :download_footer,
+        description:
+          "Downloads index footer. When `download` is nil, the footer derives a hint from `grab_status`.",
+        variations: [
+          %Variation{
+            id: :matched_downloading,
+            attributes: %{
+              vm: matched_row("Sample Movie 2010", :grabbed),
+              download: %DownloadProgress{
+                state: :downloading,
+                progress_pct: 42.0,
+                size_bytes: 4_200_000_000,
+                size_left_bytes: 2_400_000_000,
+                eta: "12m",
+                client: "qBittorrent"
+              },
+              queue_item_id: "hash-downloading"
+            }
+          },
+          %Variation{
+            id: :matched_stalled,
+            attributes: %{
+              vm: matched_row("Sample Show S01E03", :grabbed),
+              download: %DownloadProgress{
+                state: :stalled,
+                progress_pct: 18.0,
+                eta: nil,
+                client: "qBittorrent"
+              },
+              queue_item_id: "hash-stalled"
+            }
+          },
+          %Variation{
+            id: :matched_queued,
+            attributes: %{
+              vm: matched_row("Public Domain Film 1923", :grabbed),
+              download: %DownloadProgress{
+                state: :queued,
+                progress_pct: nil,
+                eta: nil,
+                client: "qBittorrent"
+              },
+              queue_item_id: "hash-queued"
+            }
+          },
+          %Variation{
+            id: :matched_error,
+            attributes: %{
+              vm: matched_row("Movie A", :grabbed),
+              download: %DownloadProgress{
+                state: :error,
+                progress_pct: 7.0,
+                eta: nil,
+                client: "qBittorrent"
+              },
+              queue_item_id: "hash-error"
+            }
+          },
+          %Variation{
+            id: :no_match_searching,
+            description: "No matched torrent yet — auto-grab is still searching",
+            attributes: %{
+              vm: matched_row("Movie B", :searching, release_title: nil)
+            }
+          },
+          %Variation{
+            id: :no_match_stuck,
+            description:
+              "Grab nominally succeeded but the file never appeared in the download client (the v0.54.0 case)",
+            attributes: %{
+              vm: matched_row("Movie C", :grabbed)
+            }
+          }
+        ]
       }
     ]
+  end
+
+  defp matched_row(title, grab_status, opts \\ []) do
+    release_title = Keyword.get(opts, :release_title, "#{title}.1080p.WEB-DL")
+
+    row_struct(%{
+      id: "matched-#{grab_status}-#{:erlang.phash2(title)}",
+      title: title,
+      state: :active,
+      origin: :auto,
+      attempt_count: 1,
+      recent_events: events_active(),
+      release_title: release_title,
+      grab_status: grab_status
+    })
   end
 
   defp row(state, title, events) do
@@ -94,7 +185,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
   end
 
   defp row_struct(overrides) do
-    Map.merge(
+    struct!(
       %PursuitRow{
         id: "story-id",
         title: "Title",

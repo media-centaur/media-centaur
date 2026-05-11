@@ -23,6 +23,7 @@ defmodule MediaCentarr.Acquisition do
       Pursuits.Events,
       Pursuits.InboundListener,
       Pursuits.Pursuit,
+      QueueMatcher,
       Reactor,
       SearchSession,
       ViewModels.Alternative,
@@ -33,6 +34,7 @@ defmodule MediaCentarr.Acquisition do
       ViewModels.PursuitHeader,
       ViewModels.PursuitRow,
       ViewModels.PursuitStatus,
+      ViewModels.PursuitWithDownload,
       ViewModels.Target,
       ViewModels.Timeline,
       ViewModels.TimelineEntry
