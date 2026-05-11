@@ -18,6 +18,8 @@ defmodule MediaCentarr.Acquisition do
       Pursuits,
       Pursuits.Commands.Cancel,
       Pursuits.Commands.RecordUserChoice,
+      Pursuits.Commands.ReSearch,
+      Pursuits.Commands.RequestDecision,
       Pursuits.Events,
       Pursuits.InboundListener,
       Pursuits.Pursuit,
@@ -27,6 +29,8 @@ defmodule MediaCentarr.Acquisition do
       ViewModels.DecisionCard,
       ViewModels.PursuitHeader,
       ViewModels.PursuitRow,
+      ViewModels.PursuitStatus,
+      ViewModels.Target,
       ViewModels.Timeline,
       ViewModels.TimelineEntry
     ]
