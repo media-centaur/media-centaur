@@ -39,6 +39,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Event do
     pursuit_satisfied
     pursuit_exhausted
     pursuit_cancelled
+    pursuit_re_searched
   )
 
   schema "acquisition_pursuit_events" do
