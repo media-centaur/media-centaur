@@ -112,6 +112,14 @@ defmodule MediaCentarrWeb.PursuitLive do
       {:ok, _pursuit} ->
         {:noreply, socket |> put_flash(:info, "Re-searching now…") |> load_state()}
 
+      {:error, :manual_pursuit} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Manual pursuits can't be auto-re-searched. Use “Pick a different release” instead."
+         )}
+
       {:error, :not_eligible} ->
         {:noreply, put_flash(socket, :error, "This pursuit can't be re-searched right now.")}
 

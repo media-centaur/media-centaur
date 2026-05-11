@@ -11,6 +11,19 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearch do
     is "Waiting / Not visible in your download client") — the prior
     grab is treated as failed and a fresh search begins.
   - any other grab state → `{:error, :not_eligible}`.
+
+  ## Manual-origin grabs
+
+  Refused with `{:error, :manual_pursuit}`. `SearchAndGrab` builds its
+  Prowlarr queries via `QueryBuilder.build/1`, which only pattern-matches
+  `tmdb_type: "movie"` or `"tv"`. Manual-origin grabs have
+  `tmdb_type: "manual"` and no TMDB metadata, so enqueueing one would
+  crash-loop the worker on `FunctionClauseError`. The correct recovery
+  path for a manual pursuit is `Commands.RequestDecision` — it surfaces
+  fresh Prowlarr results so the user can pick a new release. The view
+  model (`PursuitStatus.derive/3`) substitutes `:request_decision` for
+  `:re_search` in manual-origin actions lists so the UI never offers a
+  button that would hit this rejection.
   """
 
   alias MediaCentarr.Acquisition
@@ -21,7 +34,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearch do
   alias MediaCentarr.Acquisition.Pursuits.Events.PursuitReSearched
 
   @spec execute(%{pursuit_id: Ecto.UUID.t()}) ::
-          {:ok, Pursuit.t()} | {:error, :not_found | :not_eligible | term()}
+          {:ok, Pursuit.t()}
+          | {:error, :not_found | :not_eligible | :manual_pursuit | term()}
   def execute(%{pursuit_id: id}) when is_binary(id) do
     case Pursuits.get(id) do
       {:error, :not_found} = error ->
@@ -29,6 +43,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearch do
 
       {:ok, %Pursuit{state: state}} when state != "active" ->
         {:error, :not_eligible}
+
+      {:ok, %Pursuit{origin: "manual"}} ->
+        {:error, :manual_pursuit}
 
       {:ok, %Pursuit{}} ->
         case Pursuits.latest_grab(id) do

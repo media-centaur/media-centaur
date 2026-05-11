@@ -145,6 +145,49 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatusTest do
     end
   end
 
+  describe "derive/3 — manual-origin pursuits substitute :request_decision for :re_search" do
+    # Manual-origin pursuits have `tmdb_type: "manual"` and no TMDB metadata,
+    # so the auto-grab SearchAndGrab pipeline (driven by QueryBuilder which
+    # only handles movie/tv types) cannot re-search them — it raises
+    # FunctionClauseError in a retry loop. The decision-card flow is the
+    # right recovery path for manual pursuits: it surfaces fresh Prowlarr
+    # results for the user to pick. The view model swaps the action so the
+    # UI never offers a broken button.
+
+    test "active + grabbed + no queue: :re_search becomes :request_decision" do
+      {action, _next, actions} =
+        PursuitStatus.derive(pursuit(:active, %{origin: "manual"}), grab(:grabbed), nil)
+
+      assert action.verb == "Waiting"
+      refute :re_search in actions
+      assert :request_decision in actions
+      assert :cancel in actions
+    end
+
+    test "active + abandoned: :re_search becomes :request_decision" do
+      {_action, _next, actions} =
+        PursuitStatus.derive(pursuit(:active, %{origin: "manual"}), grab(:abandoned), nil)
+
+      refute :re_search in actions
+      assert :request_decision in actions
+    end
+
+    test "active + cancelled grab: :re_search becomes :request_decision" do
+      {_action, _next, actions} =
+        PursuitStatus.derive(pursuit(:active, %{origin: "manual"}), grab(:cancelled), nil)
+
+      refute :re_search in actions
+      assert :request_decision in actions
+    end
+
+    test "auto-origin pursuits still get :re_search (sanity)" do
+      {_action, _next, actions} =
+        PursuitStatus.derive(pursuit(:active, %{origin: "auto"}), grab(:grabbed), nil)
+
+      assert :re_search in actions
+    end
+  end
+
   describe "derive/3 — active + no grab" do
     test "missing grab -> Unknown with cancel-only" do
       {action, _next, actions} = PursuitStatus.derive(pursuit(:active), nil, nil)
