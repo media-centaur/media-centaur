@@ -1,5 +1,6 @@
 defmodule MediaCentarr.AcquisitionTest do
   use MediaCentarr.DataCase, async: false
+  use Oban.Testing, repo: MediaCentarr.Repo
 
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.{Grab, Prowlarr, SearchResult}
@@ -793,6 +794,47 @@ defmodule MediaCentarr.AcquisitionTest do
       pursuit = Repo.get!(Pursuit, grab.pursuit_id)
       assert pursuit.origin == "manual"
       assert pursuit.title == "Sample.Movie.2010.2160p.UHD.BluRay-FGT"
+    end
+  end
+
+  describe "force_search_now/1" do
+    test "snoozed grab: flips to searching and preserves attempt_count" do
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        grab = create_grab(%{status: "snoozed", attempt_count: 3})
+
+        assert {:ok, updated} = Acquisition.force_search_now(grab.id)
+        assert updated.status == "searching"
+        assert updated.attempt_count == 3
+
+        assert_enqueued(
+          worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab,
+          args: %{"grab_id" => grab.id}
+        )
+      end)
+    end
+
+    test "no-ops on a searching grab" do
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        grab = create_grab(%{status: "searching"})
+
+        assert {:ok, returned} = Acquisition.force_search_now(grab.id)
+        assert returned.id == grab.id
+        refute_enqueued(worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab)
+      end)
+    end
+
+    test "no-ops on a terminal grab" do
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        grab = create_grab(%{status: "grabbed"})
+
+        assert {:ok, returned} = Acquisition.force_search_now(grab.id)
+        assert returned.status == "grabbed"
+        refute_enqueued(worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab)
+      end)
+    end
+
+    test "returns :not_found for unknown grab id" do
+      assert {:error, :not_found} = Acquisition.force_search_now(Ecto.UUID.generate())
     end
   end
 end
