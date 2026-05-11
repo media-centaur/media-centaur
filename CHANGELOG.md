@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.56.1 — 2026-05-11
+
+### Fixed
+
+Opening a pursuit waiting for your decision (state: **Decision
+needed**) no longer hammers Prowlarr in a loop and stop responding.
+Alternatives are now fetched once when the decision card appears,
+not on every queue tick.
+
+Pursuits started from the manual-search box now load their
+alternatives using the query you typed, not the messy release title of
+your first pick — so the "Pick a different release" list is actually
+populated.
+
 ## v0.56.0 — 2026-05-11
 
 ### New
