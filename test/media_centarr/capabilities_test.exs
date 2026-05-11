@@ -85,6 +85,36 @@ defmodule MediaCentarr.CapabilitiesTest do
     end
   end
 
+  describe "acquisition_ready?/0" do
+    test "false when neither prowlarr nor download client is ready" do
+      refute Capabilities.acquisition_ready?()
+    end
+
+    test "false when only prowlarr is ready" do
+      Config.update(:prowlarr_url, "http://p.local")
+      Config.update(:prowlarr_api_key, "k-prowlarr")
+      Capabilities.save_test_result(:prowlarr, :ok)
+      refute Capabilities.acquisition_ready?()
+    end
+
+    test "false when only download client is ready" do
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://dl.local")
+      Capabilities.save_test_result(:download_client, :ok)
+      refute Capabilities.acquisition_ready?()
+    end
+
+    test "true when both prowlarr and download client are ready" do
+      Config.update(:prowlarr_url, "http://p.local")
+      Config.update(:prowlarr_api_key, "k-prowlarr")
+      Capabilities.save_test_result(:prowlarr, :ok)
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://dl.local")
+      Capabilities.save_test_result(:download_client, :ok)
+      assert Capabilities.acquisition_ready?()
+    end
+  end
+
   describe "save_test_result/2 & load_test_result/1" do
     test "round-trips :ok and :error results" do
       assert nil == Capabilities.load_test_result(:tmdb)
