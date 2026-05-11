@@ -13,9 +13,9 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
   alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit, State}
+  alias MediaCentarr.Acquisition.QueueMatcher
 
   alias MediaCentarr.Acquisition.ViewModels.{
-    DownloadProgress,
     PursuitHeader,
     PursuitRow,
     PursuitStatus,
@@ -54,10 +54,12 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
     pursuit_ids = Enum.map(pursuits, & &1.id)
     events_by_pursuit = recent_events_by_pursuit(pursuit_ids, @recent_events_limit)
+    latest_grabs = latest_grab_summary_by_pursuit(pursuit_ids)
 
     Enum.map(pursuits, fn pursuit ->
       events = Map.get(events_by_pursuit, pursuit.id, [])
-      build_row(pursuit, events)
+      {release_title, grab_status} = Map.get(latest_grabs, pursuit.id, {nil, nil})
+      build_row(pursuit, events, release_title, grab_status)
     end)
   end
 
@@ -100,7 +102,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
           criteria_summary: summarize_criteria(pursuit.criteria),
           current_action: current_action,
           next_step: next_step,
-          download: build_download(queue_item),
+          download: QueueMatcher.to_download(queue_item),
           staleness: staleness_for(last_activity_at),
           last_activity_at: last_activity_at,
           available_actions: actions
@@ -196,6 +198,33 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
   # --- ViewModel assembly ----------------------------------------------------
 
+  defp latest_grab_summary_by_pursuit([]), do: %{}
+
+  # One LIMIT-1 query per pursuit for `{release_title, grab_status}`.
+  # Same shape as `recent_events_by_pursuit/2` — bounded payload, no
+  # window-function gymnastics on SQLite. Used only by the row VM, which
+  # rebuilds on pursuit PubSub events (debounced 500 ms) — not on every
+  # queue snapshot.
+  defp latest_grab_summary_by_pursuit(pursuit_ids) do
+    Map.new(pursuit_ids, fn pursuit_id ->
+      summary =
+        Grab
+        |> where([g], g.pursuit_id == ^pursuit_id)
+        |> order_by([g], desc: g.inserted_at)
+        |> limit(1)
+        |> select([g], {g.release_title, g.status})
+        |> Repo.one()
+
+      case summary do
+        nil -> {pursuit_id, {nil, nil}}
+        {release_title, status} -> {pursuit_id, {release_title, status_to_atom(status)}}
+      end
+    end)
+  end
+
+  defp status_to_atom(nil), do: nil
+  defp status_to_atom(status) when is_binary(status), do: String.to_existing_atom(status)
+
   defp recent_events_by_pursuit([], _limit), do: %{}
 
   # One LIMIT-bounded query per pursuit. The previous implementation
@@ -217,7 +246,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     end)
   end
 
-  defp build_row(%Pursuit{} = pursuit, events) do
+  defp build_row(%Pursuit{} = pursuit, events, release_title, grab_status) do
     %PursuitRow{
       id: pursuit.id,
       title: pursuit.title,
@@ -226,6 +255,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       attempt_count: pursuit.attempt_count,
       recent_events: Enum.map(events, &entry_for_event/1),
       detail_path: "/download/#{pursuit.id}",
+      release_title: release_title,
+      grab_status: grab_status,
       inserted_at: pursuit.inserted_at,
       updated_at: pursuit.updated_at
     }
@@ -331,37 +362,15 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     }
   end
 
-  defp build_download(nil), do: nil
-
-  defp build_download(%QueueItem{} = qi) do
-    %DownloadProgress{
-      state: qi.state,
-      progress_pct: progress_pct(qi.progress),
-      size_bytes: qi.size,
-      size_left_bytes: qi.size_left,
-      eta: qi.timeleft,
-      client: qi.download_client
-    }
-  end
-
-  defp progress_pct(nil), do: nil
-  defp progress_pct(p) when is_number(p), do: p * 100.0
-
   defp find_queue_match(nil), do: nil
   defp find_queue_match(%Grab{release_title: nil}), do: nil
 
   defp find_queue_match(%Grab{release_title: title}) do
-    normalized = normalize_title(title)
+    normalized = QueueMatcher.normalize_title(title)
 
-    Enum.find(QueueMonitor.snapshot(), fn item -> normalize_title(item.title) == normalized end)
-  end
-
-  defp normalize_title(nil), do: ""
-
-  defp normalize_title(title) when is_binary(title) do
-    title
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/, "")
+    Enum.find(QueueMonitor.snapshot(), fn %QueueItem{} = item ->
+      QueueMatcher.normalize_title(item.title) == normalized
+    end)
   end
 
   defp latest_event_at(pursuit_id) do
