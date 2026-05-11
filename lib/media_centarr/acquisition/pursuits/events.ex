@@ -19,6 +19,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events do
     IdentityVerified,
     PursuitCancelled,
     PursuitExhausted,
+    PursuitReSearched,
     PursuitSatisfied,
     PursuitStarted,
     ReleaseNoMatch,
@@ -50,7 +51,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events do
     "identity_verified" => IdentityVerified,
     "pursuit_satisfied" => PursuitSatisfied,
     "pursuit_exhausted" => PursuitExhausted,
-    "pursuit_cancelled" => PursuitCancelled
+    "pursuit_cancelled" => PursuitCancelled,
+    "pursuit_re_searched" => PursuitReSearched
   }
 
   @doc """
