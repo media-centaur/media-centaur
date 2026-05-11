@@ -15,12 +15,17 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit, State}
 
   alias MediaCentarr.Acquisition.ViewModels.{
+    DownloadProgress,
     PursuitHeader,
     PursuitRow,
+    PursuitStatus,
+    Target,
     Timeline,
     TimelineEntry
   }
 
+  alias MediaCentarr.Downloads.QueueItem
+  alias MediaCentarr.Downloads.QueueMonitor
   alias MediaCentarr.Repo
 
   @recent_events_limit 3
@@ -62,6 +67,46 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     case get(id) do
       {:ok, pursuit} -> {:ok, build_header(pursuit)}
       {:error, :not_found} = error -> error
+    end
+  end
+
+  @doc """
+  Returns the full `PursuitStatus` view-model for the detail page —
+  identity + current activity + available manual triggers + staleness.
+  """
+  @spec status_for(Ecto.UUID.t()) :: {:ok, PursuitStatus.t()} | {:error, :not_found}
+  def status_for(id) do
+    case get(id) do
+      {:error, :not_found} = error ->
+        error
+
+      {:ok, pursuit} ->
+        grab =
+          case latest_grab(id) do
+            {:ok, grab} -> grab
+            {:error, :not_found} -> nil
+          end
+
+        queue_item = find_queue_match(grab)
+        {current_action, next_step, actions} = PursuitStatus.derive(pursuit, grab, queue_item)
+        last_activity_at = latest_event_at(id)
+
+        status = %PursuitStatus{
+          pursuit_id: pursuit.id,
+          title: pursuit.title,
+          state: String.to_existing_atom(pursuit.state),
+          origin: String.to_existing_atom(pursuit.origin),
+          target: build_target(pursuit),
+          criteria_summary: summarize_criteria(pursuit.criteria),
+          current_action: current_action,
+          next_step: next_step,
+          download: build_download(queue_item),
+          staleness: staleness_for(last_activity_at),
+          last_activity_at: last_activity_at,
+          available_actions: actions
+        }
+
+        {:ok, status}
     end
   end
 
@@ -275,5 +320,71 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     map
     |> Enum.sort()
     |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{v}" end)
+  end
+
+  # --- status_for helpers ----------------------------------------------------
+
+  defp build_target(%Pursuit{} = p) do
+    %Target{
+      tmdb_type: p.tmdb_type,
+      tmdb_id: p.tmdb_id,
+      season_number: p.season_number,
+      episode_number: p.episode_number,
+      year: p.year
+    }
+  end
+
+  defp build_download(nil), do: nil
+
+  defp build_download(%QueueItem{} = qi) do
+    %DownloadProgress{
+      state: qi.state,
+      progress_pct: progress_pct(qi.progress),
+      size_bytes: qi.size,
+      size_left_bytes: qi.size_left,
+      eta: qi.timeleft,
+      client: qi.download_client
+    }
+  end
+
+  defp progress_pct(nil), do: nil
+  defp progress_pct(p) when is_number(p), do: p * 100.0
+
+  defp find_queue_match(nil), do: nil
+  defp find_queue_match(%Grab{release_title: nil}), do: nil
+
+  defp find_queue_match(%Grab{release_title: title}) do
+    normalized = normalize_title(title)
+
+    Enum.find(QueueMonitor.snapshot(), fn item -> normalize_title(item.title) == normalized end)
+  end
+
+  defp normalize_title(nil), do: ""
+
+  defp normalize_title(title) when is_binary(title) do
+    title
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "")
+  end
+
+  defp latest_event_at(pursuit_id) do
+    Event
+    |> where([e], e.pursuit_id == ^pursuit_id)
+    |> order_by([e], desc: e.occurred_at)
+    |> limit(1)
+    |> select([e], e.occurred_at)
+    |> Repo.one()
+  end
+
+  defp staleness_for(nil), do: :very_stale
+
+  defp staleness_for(%DateTime{} = ts) do
+    diff_seconds = DateTime.diff(DateTime.utc_now(:second), ts)
+
+    cond do
+      diff_seconds < 3600 -> :fresh
+      diff_seconds < 86_400 -> :stale
+      true -> :very_stale
+    end
   end
 end
