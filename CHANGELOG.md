@@ -4,6 +4,23 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.55.1 — 2026-05-11
+
+### Fixed
+
+Clicking **Re-search** on a stuck **manual** pursuit (one you created
+from the Downloads search box, not an auto-acquisition) silently
+crash-looped the background search worker. It looked like the pursuit
+was searching, but no progress was ever made — the worker raised the
+same error on every retry until it gave up.
+
+The **Re-search** button is no longer offered for manual pursuits.
+Instead, you'll see **Pick a different release**, which opens fresh
+Prowlarr results in the decision card so you can choose a new release
+directly. If something else manages to trigger Re-search on a manual
+pursuit anyway, you'll now see a clear inline message pointing you at
+**Pick a different release** rather than a silent retry loop.
+
 ## v0.55.0 — 2026-05-11
 
 ### Improved
