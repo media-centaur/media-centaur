@@ -37,14 +37,16 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.RequestDecisionTest do
       assert_receive %UserDecisionRequested{prompt: "Download stalled for 24+ hours"}
     end
 
-    test "rejects transition from non-active state" do
+    test "idempotent on an already-needs_decision pursuit" do
       pursuit =
         insert_active_pursuit()
         |> Ecto.Changeset.change(state: "needs_decision")
         |> Repo.update!()
 
-      assert {:error, %Ecto.Changeset{}} =
+      assert {:ok, %{state: "needs_decision", id: id}} =
                RequestDecision.execute(%{pursuit_id: pursuit.id, prompt: "X"})
+
+      assert id == pursuit.id
     end
 
     test "returns :not_found for missing pursuit" do
