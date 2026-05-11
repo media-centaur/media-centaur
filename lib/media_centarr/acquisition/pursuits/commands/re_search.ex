@@ -6,6 +6,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearch do
     immediately (via `Acquisition.force_search_now/1`).
   - `:abandoned` / `:cancelled` grab → delegate to `Acquisition.rearm_grab/1`
     (resets `attempt_count` to 0).
+  - `:grabbed` grab → restart it via `Acquisition.restart_grabbed_grab/1`.
+    Used when the file never landed at the download client (the pursuit
+    is "Waiting / Not visible in your download client") — the prior
+    grab is treated as failed and a fresh search begins.
   - any other grab state → `{:error, :not_eligible}`.
   """
 
@@ -51,6 +55,20 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearch do
   defp run_for(pursuit_id, %Grab{status: status} = grab) when status in ~w(abandoned cancelled) do
     Runner.run(pursuit_id, "pursuit re-searched", fn pursuit ->
       with {:ok, _} <- Acquisition.rearm_grab(grab.id),
+           {:ok, _event} <-
+             Events.record(%PursuitReSearched{
+               pursuit_id: pursuit.id,
+               pursuit_title: pursuit.title,
+               occurred_at: DateTime.utc_now(:second)
+             }) do
+        {:ok, pursuit}
+      end
+    end)
+  end
+
+  defp run_for(pursuit_id, %Grab{status: "grabbed"} = grab) do
+    Runner.run(pursuit_id, "pursuit re-searched", fn pursuit ->
+      with {:ok, _} <- Acquisition.restart_grabbed_grab(grab.id),
            {:ok, _event} <-
              Events.record(%PursuitReSearched{
                pursuit_id: pursuit.id,

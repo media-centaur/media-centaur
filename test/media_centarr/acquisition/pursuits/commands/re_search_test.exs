@@ -50,6 +50,21 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearchTest do
         assert {:ok, _updated} = ReSearch.execute(%{pursuit_id: pursuit.id})
       end)
     end
+
+    test "grabbed grab (stuck — file never landed): restarts and records event" do
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        {pursuit, grab} = setup_with_grab("active", "grabbed")
+
+        assert {:ok, _updated} = ReSearch.execute(%{pursuit_id: pursuit.id})
+
+        assert_enqueued(
+          worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab,
+          args: %{"grab_id" => grab.id}
+        )
+
+        assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "pursuit_re_searched")
+      end)
+    end
   end
 
   describe "execute/1 — refusal paths" do
@@ -60,11 +75,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearchTest do
 
     test "refuses when no grab is linked" do
       pursuit = create_pursuit(%{state: "active"})
-      assert {:error, :not_eligible} = ReSearch.execute(%{pursuit_id: pursuit.id})
-    end
-
-    test "refuses when grab is already grabbed (file is coming)" do
-      {pursuit, _grab} = setup_with_grab("active", "grabbed")
       assert {:error, :not_eligible} = ReSearch.execute(%{pursuit_id: pursuit.id})
     end
 
