@@ -236,11 +236,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
-      origin: String.to_existing_atom(pursuit.origin),
-      attempt_count: pursuit.attempt_count,
-      tried_count: length(pursuit.tried_release_guids),
-      criteria_summary: summarize_criteria(pursuit.criteria),
-      inserted_at: pursuit.inserted_at
+      target: build_target(pursuit),
+      criteria_summary: summarize_criteria(pursuit.criteria)
     }
   end
 

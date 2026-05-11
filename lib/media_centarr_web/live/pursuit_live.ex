@@ -57,7 +57,7 @@ defmodule MediaCentarrWeb.PursuitLive do
           </.link>
         </div>
 
-        <PursuitHeader.pursuit_header vm={@header} on_cancel="cancel_pursuit" />
+        <PursuitHeader.pursuit_header vm={@header} />
 
         <DecisionCardComponent.decision_card :if={@decision_card} vm={@decision_card} />
 
