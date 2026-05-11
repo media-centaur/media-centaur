@@ -35,6 +35,19 @@ defmodule MediaCentarrWeb.Layouts do
   attr :current_path, :string, default: nil, doc: "the current request path for nav highlighting"
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
+  attr :acquisition_ready, :boolean,
+    default: false,
+    doc: """
+    Whether the Acquisition surface (Downloads nav, /download page) should
+    be visible. Seeded by `MediaCentarrWeb.Live.CapabilitiesAware`, which
+    runs as the default `live_session` on_mount, so every LV in the app
+    automatically threads this through `:acquisition_ready` in assigns.
+    Reading from assigns (rather than `Capabilities.acquisition_ready?/0`
+    inside the component) keeps LiveView's change tracking accurate —
+    the nav re-renders the moment the cache flips, no extra user
+    interaction required.
+    """
+
   slot :inner_block, required: true
 
   slot :overlays,
@@ -109,18 +122,17 @@ defmodule MediaCentarrWeb.Layouts do
 
         <div class="sidebar-group-label sidebar-label">System</div>
         <nav class="flex flex-col gap-0.5">
-          <%= if MediaCentarr.Capabilities.prowlarr_ready?() do %>
-            <.link
-              navigate="/download"
-              class={sidebar_link_class(@current_path, "/download") <> " sidebar-link-system"}
-              data-tip="Downloads"
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon name="hero-arrow-down-tray" class="size-5 flex-shrink-0" />
-              <span class="sidebar-label">Downloads</span>
-            </.link>
-          <% end %>
+          <.link
+            :if={@acquisition_ready}
+            navigate="/download"
+            class={sidebar_link_class(@current_path, "/download") <> " sidebar-link-system"}
+            data-tip="Downloads"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-arrow-down-tray" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Downloads</span>
+          </.link>
           <.link
             navigate="/status"
             class={sidebar_link_class(@current_path, "/status") <> " sidebar-link-system"}

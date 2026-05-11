@@ -96,7 +96,12 @@ defmodule MediaCentarrWeb.UpcomingLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/upcoming" full_width>
+    <Layouts.app
+      flash={@flash}
+      current_path="/upcoming"
+      full_width
+      acquisition_ready={@acquisition_ready}
+    >
       <:overlays>
         <%!-- Track New Show modal (always in DOM) --%>
         <TrackModal.track_modal

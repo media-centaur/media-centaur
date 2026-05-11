@@ -344,7 +344,12 @@ defmodule MediaCentarrWeb.LibraryLive do
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/library" full_width>
+    <Layouts.app
+      flash={@flash}
+      current_path="/library"
+      full_width
+      acquisition_ready={@acquisition_ready}
+    >
       <div data-page-behavior="library">
         <%!-- Storage offline banner --%>
         <LibraryCards.storage_offline_banner :if={@offline_summary} summary={@offline_summary} />

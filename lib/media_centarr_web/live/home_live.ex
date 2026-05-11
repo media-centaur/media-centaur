@@ -83,7 +83,7 @@ defmodule MediaCentarrWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/" full_width>
+    <Layouts.app flash={@flash} current_path="/" full_width acquisition_ready={@acquisition_ready}>
       <%!-- Home page positioning context. `relative` makes this the anchor
             for the absolutely positioned atmosphere layers, and because it
             sizes naturally to its content (unlike Layouts.app's flex-1 inner

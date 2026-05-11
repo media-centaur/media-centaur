@@ -294,7 +294,7 @@ defmodule MediaCentarrWeb.StatusLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/status">
+    <Layouts.app flash={@flash} current_path="/status" acquisition_ready={@acquisition_ready}>
       <:overlays>
         <.live_component
           :if={@show_report_modal}
