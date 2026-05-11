@@ -4,6 +4,21 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.54.0 — 2026-05-11
+
+### Fixed
+
+If a download appeared stuck in the **Waiting / Not visible in your
+download client** state — the file was sent to the download client but
+never showed up in its queue — clicking **Re-search** on the pursuit
+detail page would refuse with *"This pursuit can't be re-searched right
+now."* The only recovery was to cancel the whole pursuit and start
+over.
+
+Re-search now works for this state. The stuck grab is reset and a
+fresh search begins immediately, just like for snoozed, abandoned, or
+cancelled grabs.
+
 ## v0.53.1 — 2026-05-11
 
 ### Fixed
