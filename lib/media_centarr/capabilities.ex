@@ -32,16 +32,47 @@ defmodule MediaCentarr.Capabilities do
 
   @cache_key {__MODULE__, :ready_flags}
 
-  @doc "Subscribes the caller to capability-change broadcasts."
+  # Config keys whose values feed into compute_flags/0. A change to any of
+  # them invalidates the cached readiness flags. Defined here so subscribe/0
+  # and relevant?/1 can't drift apart.
+  @capability_input_keys [
+    :tmdb_api_key,
+    :prowlarr_url,
+    :prowlarr_api_key,
+    :download_client_type,
+    :download_client_url
+  ]
+
+  @doc """
+  Subscribes the caller to all source topics whose events invalidate
+  the cached readiness flags. Called once from `MediaCentarr.Cache.Worker.init/1`.
+
+  Subscribes to:
+
+    * `Topics.capabilities_updates/0` — `:capabilities_changed` from
+      `save_test_result/2` and `clear_test_result/1`
+    * `Topics.config_updates/0` — `{:config_updated, key, value}` from
+      `Config.update/2` and `Config.load_runtime_overrides/0`; `relevant?/1`
+      filters down to the keys in `@capability_input_keys`
+
+  External consumers (LiveViews) should NOT call this — per ADR-041 they
+  subscribe to the derived `Topics.capabilities_updates/0` only, via
+  `MediaCentarrWeb.Live.CapabilitiesAware`.
+  """
   @impl MediaCentarr.Cache
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.capabilities_updates())
+    :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.capabilities_updates())
+    :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.config_updates())
+    :ok
   end
 
   @doc "Filters PubSub messages relevant to this cache."
   @impl MediaCentarr.Cache
   def relevant?(:capabilities_changed), do: true
+
+  def relevant?({:config_updated, key, _value}), do: key in @capability_input_keys
+
   def relevant?(_), do: false
 
   @spec tmdb_ready?() :: boolean()
