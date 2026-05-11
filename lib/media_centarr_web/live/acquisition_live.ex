@@ -65,9 +65,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.CancelReasons
+  alias MediaCentarr.Acquisition.{CancelReasons, QueueMatcher}
+  alias MediaCentarr.Acquisition.ViewModels.PursuitWithDownload
   alias MediaCentarr.Capabilities
-  alias MediaCentarrWeb.AcquisitionLive.{Activity, ActivityLogic, Logic, Queue, Search}
+  alias MediaCentarrWeb.AcquisitionLive.{Activity, ActivityLogic, Logic, OrphanQueue, Search}
+  alias MediaCentarrWeb.Components.Acquisition.PursuitRow
+  alias MediaCentarrWeb.Components.Acquisition.QueueStatusBadge
 
   @impl true
   def mount(_params, _session, socket) do
@@ -84,14 +87,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       end
 
       {:ok,
-       socket
-       |> assign(
+       assign(socket,
          loaded?: false,
          search_session: %Acquisition.SearchSession{},
          active_queue: [],
          queue_status: :initializing,
          queue_loaded?: false,
-         expanded_queue_groups: MapSet.new(),
          cancel_confirm: nil,
          pending_cancels: %{},
          download_client_ready: false,
@@ -101,9 +102,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          pursuit_rows: [],
          pursuits_reload_timer: nil,
          reload_timer: nil
-       )
-       |> stream_configure(:queue_ops, dom_id: &queue_op_dom_id/1)
-       |> stream(:queue_ops, [])}
+       )}
     else
       {:ok, push_navigate(socket, to: "/")}
     end
@@ -152,33 +151,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
     status = MediaCentarr.Downloads.QueueStatus.derive(state, @watched_cadence_ms)
 
-    socket
-    |> assign(
+    assign(socket,
       active_queue: visible,
       queue_status: status,
       pending_cancels: pending_cancels,
       queue_loaded?: true
     )
-    |> stream_queue_ops(visible)
   end
-
-  # Re-streams the queue ops using the supplied items list and the
-  # current `expanded_queue_groups`. Use `reset: true` so the stream
-  # mirrors `prepare_queue_for_render/2` exactly — Phoenix's stream
-  # client computes the minimal set of insert/move/delete ops to
-  # transition from the prior DOM to the new ordered list, keying by
-  # `queue_op_dom_id/1` so morphdom moves rows by id rather than
-  # morphing them positionally in place. The latter is the original
-  # bug: cancelling row N visually removed row N+1 because the
-  # comprehension re-rendered position N's content with N+1's data
-  # and dropped the trailing position.
-  defp stream_queue_ops(socket, items) do
-    ops = Logic.prepare_queue_for_render(items, socket.assigns.expanded_queue_groups)
-    stream(socket, :queue_ops, ops, reset: true)
-  end
-
-  defp queue_op_dom_id({:item, item}), do: "queue-item-#{item.id}"
-  defp queue_op_dom_id({:summary, summary}), do: "queue-summary-#{summary.state}"
 
   # `?search=…` and `?filter=…` deep-link from the upcoming-zone badges
   # straight to a pre-filtered activity view. `?prowlarr_search=…` from
@@ -226,10 +205,19 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     # Derive once per render — these values are read in multiple places
     # (the search-button spinner, the bulk-retry footer, etc.) and were
     # being recomputed two-to-three times per render.
+    #
+    # `paired_rows` and `orphan_queue` pair pursuits with their live
+    # torrents at render time so the DB-backed `@pursuit_rows` doesn't
+    # rebuild on every queue snapshot. The pairing is a pure helper —
+    # see `QueueMatcher.match/2`.
+    {paired_rows, orphan_queue} = QueueMatcher.match(assigns.pursuit_rows, assigns.active_queue)
+
     assigns =
       assigns
       |> Phoenix.Component.assign(:any_loading?, Logic.any_loading?(assigns.search_session.groups))
       |> Phoenix.Component.assign(:timeout_terms, Logic.timeout_terms(assigns.search_session.groups))
+      |> Phoenix.Component.assign(:paired_rows, paired_rows)
+      |> Phoenix.Component.assign(:orphan_queue, orphan_queue)
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
@@ -239,33 +227,51 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       </:overlays>
       <div
         data-page-behavior="download"
-        data-nav-default-zone="download"
+        data-nav-default-zone="pursuits"
         class="max-w-4xl mx-auto space-y-6 py-6"
       >
         <h1 class="text-2xl font-bold">Downloads</h1>
 
-        <%!-- Active queue from the configured download client. Completed
-        torrents are intentionally hidden — qBittorrent manages seeding.
-        Hidden entirely unless the download client has passed a Settings
-        connection test. --%>
-        <Queue.queue_zone
-          download_client_ready={@download_client_ready}
-          queue_loaded?={@queue_loaded?}
-          queue_status={@queue_status}
-          active_queue={@active_queue}
-          queue_ops={@streams.queue_ops}
-        />
+        <p
+          :if={!@download_client_ready}
+          class="glass-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
+        >
+          Connect a download client in
+          <.link navigate="/settings?section=acquisition" class="link link-primary">Settings</.link>
+          to see live torrent activity under each pursuit.
+        </p>
 
-        <section :if={@pursuit_rows != []} data-nav-zone="pursuits" class="space-y-3">
-          <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-            Active pursuits
-          </h2>
+        <section :if={@paired_rows != []} data-nav-zone="pursuits" class="space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+              Active pursuits
+            </h2>
+            <div :if={@download_client_ready} class="flex items-center gap-2">
+              <QueueStatusBadge.queue_status_badge status={@queue_status} />
+              <span
+                :if={!@queue_loaded?}
+                class="loading loading-spinner loading-xs text-base-content/30"
+              >
+              </span>
+            </div>
+          </div>
           <div class="grid gap-3">
-            <MediaCentarrWeb.Components.Acquisition.PursuitRow.pursuit_row
-              :for={vm <- @pursuit_rows}
-              vm={vm}
+            <PursuitRow.pursuit_row
+              :for={
+                %PursuitWithDownload{row: row, download: download, queue_item_id: qid} <- @paired_rows
+              }
+              vm={row}
+              download={download}
+              queue_item_id={qid}
             />
           </div>
+        </section>
+
+        <section
+          :if={@paired_rows == [] && @loaded? && @download_client_ready}
+          class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
+        >
+          No active pursuits.
         </section>
 
         <Activity.activity_zone
@@ -273,6 +279,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           filter={@activity_filter}
           search={@activity_search}
         />
+
+        <OrphanQueue.orphan_zone items={@orphan_queue} />
 
         <Search.search_zone
           session={@search_session}
@@ -371,7 +379,6 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
           socket
           |> assign(active_queue: remaining, pending_cancels: pending_cancels)
-          |> stream_queue_ops(remaining)
           |> put_flash(:info, "Cancelled “#{title}”.")
 
         {:error, reason} ->
@@ -384,33 +391,6 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   def handle_event("cancel_download_cancel", _params, socket) do
     {:noreply, assign(socket, cancel_confirm: nil)}
-  end
-
-  def handle_event("toggle_queue_group", %{"state" => state}, socket) do
-    state_atom =
-      case state do
-        "queued" -> :queued
-        "error" -> :error
-        _ -> nil
-      end
-
-    if state_atom do
-      expanded =
-        if MapSet.member?(socket.assigns.expanded_queue_groups, state_atom) do
-          MapSet.delete(socket.assigns.expanded_queue_groups, state_atom)
-        else
-          MapSet.put(socket.assigns.expanded_queue_groups, state_atom)
-        end
-
-      socket =
-        socket
-        |> assign(expanded_queue_groups: expanded)
-        |> stream_queue_ops(socket.assigns.active_queue)
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
-    end
   end
 
   def handle_event("grab_selected", _params, socket) do
