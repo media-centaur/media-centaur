@@ -63,9 +63,10 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   # NOT exported from their boundary — the attrs stay loose-typed (`:map` /
   # `:list`) with prose contracts. So this story uses plain maps with the
   # same fields rather than aliasing the schemas, matching the policy.
-  # `Grab` is exported and `TrackedItem` is a web-layer view-model — both
-  # safe to alias.
-  alias MediaCentarr.Acquisition.Grab
+  # `Pursuit` + `Target` are exported and `TrackedItem` is a web-layer
+  # view-model — all safe to alias.
+  alias MediaCentarr.Acquisition.Pursuits.Pursuit
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
 
   def function, do: &MediaCentarrWeb.Components.UpcomingCards.upcoming_zone/1
@@ -188,24 +189,36 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
       confirm_stop_item: nil,
       tmdb_ready: true,
       grab_statuses: %{
-        # Episode 1: completed grab (no live queue item) → :downloading
-        {"1001", "tv_series", 1, 1} => %Grab{
-          tmdb_id: "1001",
-          tmdb_type: "tv_series",
-          title: "Sample Show",
-          season_number: 1,
-          episode_number: 1,
-          status: "grabbed"
-        },
-        # Episode 3: still searching
-        {"1001", "tv_series", 1, 3} => %Grab{
-          tmdb_id: "1001",
-          tmdb_type: "tv_series",
-          title: "Sample Show",
-          season_number: 1,
-          episode_number: 3,
-          status: "searching"
-        }
+        # Episode 1: acquired target (no live queue item) → :downloading
+        {"1001", "tv_series", 1, 1} =>
+          {%Pursuit{
+             recipe_type: "tmdb",
+             tmdb_id: "1001",
+             tmdb_type: "tv_series",
+             title: "Sample Show",
+             season_number: 1,
+             episode_number: 1,
+             state: "active"
+           },
+           %Target{
+             title: "Sample Show S01E01",
+             status: "acquired"
+           }},
+        # Episode 3: still seeking
+        {"1001", "tv_series", 1, 3} =>
+          {%Pursuit{
+             recipe_type: "tmdb",
+             tmdb_id: "1001",
+             tmdb_type: "tv_series",
+             title: "Sample Show",
+             season_number: 1,
+             episode_number: 3,
+             state: "active"
+           },
+           %Target{
+             title: "Sample Show S01E03",
+             status: "seeking"
+           }}
       },
       queue_items: [],
       acquisition_ready: true

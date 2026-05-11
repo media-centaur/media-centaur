@@ -8,7 +8,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
     DownloadProgress,
     NextStep,
     PursuitStatus,
-    Target
+    Recipe
   }
 
   def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitActivity.pursuit_activity/1
@@ -28,7 +28,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
       title: "Sample Movie",
       state: :active,
       origin: :auto,
-      target: %Target{tmdb_type: "movie"},
+      recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie"},
       current_action: %CurrentAction{
         verb: "Downloading",
         description: "Sample description.",
@@ -78,10 +78,10 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
               },
               download: %DownloadProgress{state: :stalled, progress_pct: 12.0},
               next_step: %NextStep{description: "Re-search for a different release, or wait."},
-              available_actions: [:cancel, :re_search, :request_decision]
+              available_actions: [:cancel, :change_target, :request_decision]
             ),
           on_cancel: "noop",
-          on_re_search: "noop",
+          on_change_target: "noop",
           on_request_decision: "noop"
         }
       },
@@ -135,22 +135,22 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
         }
       },
       %Variation{
-        id: :snoozed,
+        id: :seeking_between_attempts,
         attributes: %{
           vm:
             base(
               current_action: %CurrentAction{
-                verb: "Snoozed",
+                verb: "Seeking",
                 description: "Waiting before the next search attempt.",
                 severity: :info
               },
               next_step: %NextStep{description: "Will resume automatically."},
-              available_actions: [:cancel, :re_search, :request_decision],
+              available_actions: [:cancel, :change_target, :request_decision],
               staleness: :stale,
               last_activity_at: DateTime.add(DateTime.utc_now(:second), -3 * 3600, :second)
             ),
           on_cancel: "noop",
-          on_re_search: "noop",
+          on_change_target: "noop",
           on_request_decision: "noop"
         }
       },
@@ -167,12 +167,12 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
               next_step: %NextStep{
                 description: "Either it completed and is being matched, or it never reached the client."
               },
-              available_actions: [:cancel, :re_search],
+              available_actions: [:cancel, :change_target],
               staleness: :very_stale,
               last_activity_at: DateTime.add(DateTime.utc_now(:second), -2 * 86_400, :second)
             ),
           on_cancel: "noop",
-          on_re_search: "noop"
+          on_change_target: "noop"
         }
       },
       %Variation{

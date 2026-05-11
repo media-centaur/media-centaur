@@ -629,8 +629,8 @@ defmodule MediaCentarr.ReleaseTracking do
 
   @doc """
   Translates a tracking-item `media_type` atom to the TMDB-standard
-  string consumed by `MediaCentarr.Acquisition.Grab.tmdb_type` and
-  `MediaCentarr.Acquisition.QueryBuilder.build/1`.
+  string consumed by `MediaCentarr.Acquisition.Pursuits.Pursuit.tmdb_type`
+  and `MediaCentarr.Acquisition.QueryBuilder.build/1`.
 
   Inverse of the Ecto-stringified form (`"tv_series"`), which would
   break QueryBuilder downstream — every auto-grab caller that hands

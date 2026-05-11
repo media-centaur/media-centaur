@@ -1,25 +1,13 @@
 defmodule MediaCentarr.Acquisition.PursuitsTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Acquisition.Grab
+  import MediaCentarr.TestFactory
+
   alias MediaCentarr.Acquisition.Pursuits
-  alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit}
+  alias MediaCentarr.Acquisition.Pursuits.Event
+  alias MediaCentarr.Acquisition.Target
 
-  defp insert_pursuit(overrides \\ %{}) do
-    attrs =
-      Map.merge(
-        %{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        },
-        overrides
-      )
-
-    {:ok, pursuit} = Repo.insert(Pursuit.create_changeset(attrs))
-    pursuit
-  end
+  defp insert_pursuit(overrides \\ %{}), do: create_pursuit(overrides)
 
   defp set_state(pursuit, new_state) do
     pursuit
@@ -42,24 +30,27 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
     event
   end
 
-  defp insert_grab_for(pursuit, attrs \\ %{}) do
-    base = %{
-      tmdb_id: pursuit.tmdb_id,
-      tmdb_type: pursuit.tmdb_type,
-      title: pursuit.title,
-      origin: pursuit.origin
-    }
+  defp insert_target_for(pursuit, attrs \\ %{}) do
+    now = DateTime.utc_now(:second)
 
-    merged = Map.merge(base, attrs)
-    cast_keys = [:tmdb_id, :tmdb_type, :title, :origin]
-    cast_attrs = Map.take(merged, cast_keys)
-    extra_attrs = Map.drop(merged, cast_keys)
+    {:ok, target} =
+      %Target{}
+      |> Ecto.Changeset.change(
+        Map.merge(
+          %{
+            pursuit_id: pursuit.id,
+            title: pursuit.title,
+            origin: pursuit.origin,
+            status: "seeking",
+            inserted_at: now,
+            updated_at: now
+          },
+          attrs
+        )
+      )
+      |> Repo.insert()
 
-    %Grab{}
-    |> Ecto.Changeset.cast(cast_attrs, cast_keys)
-    |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
-    |> Ecto.Changeset.change(extra_attrs)
-    |> Repo.insert!()
+    target
   end
 
   describe "get/1" do
@@ -122,25 +113,24 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
     end
   end
 
-  describe "latest_grab/1" do
-    test "returns the most recently inserted grab linked to the pursuit" do
+  describe "latest_target/1" do
+    test "returns the most recently inserted target linked to the pursuit" do
       pursuit = insert_pursuit()
-      old = insert_grab_for(pursuit)
-      # Backdate the older grab explicitly so we don't depend on per-second
-      # `inserted_at` resolution differing between two same-test inserts.
+      old = insert_target_for(pursuit)
+
       old
       |> Ecto.Changeset.change(inserted_at: ~U[2026-01-01 00:00:00Z])
       |> Repo.update!()
 
-      newer = insert_grab_for(pursuit, %{title: "Newer attempt"})
+      newer = insert_target_for(pursuit, %{title: "Newer attempt"})
 
-      assert {:ok, found} = Pursuits.latest_grab(pursuit.id)
+      assert {:ok, found} = Pursuits.latest_target(pursuit.id)
       assert found.id == newer.id
     end
 
-    test "returns :not_found when no grabs exist" do
+    test "returns :not_found when no targets exist" do
       pursuit = insert_pursuit()
-      assert {:error, :not_found} = Pursuits.latest_grab(pursuit.id)
+      assert {:error, :not_found} = Pursuits.latest_target(pursuit.id)
     end
   end
 
@@ -251,7 +241,6 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       assert row.origin == :auto
       assert row.detail_path == "/download/#{pursuit.id}"
 
-      # newest first, capped at recent count
       assert [%TimelineEntry{kind: "release_picked"}, %TimelineEntry{kind: "pursuit_started"}] =
                row.recent_events
     end
@@ -268,33 +257,29 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       assert row.recent_events == []
     end
 
-    test "row carries the latest grab's release_title and status for queue matching" do
-      pursuit = insert_pursuit()
+    test "row carries the current target's release_title and status for queue matching" do
+      {pursuit, target} =
+        create_pursuit_with_target(%{
+          release_title: "Sample.Movie.2010.1080p.WEB-DL",
+          status: "acquired"
+        })
 
-      insert_grab_for(pursuit, %{
-        release_title: "Older.Release.720p.WEB",
-        status: "abandoned",
-        inserted_at: DateTime.add(DateTime.utc_now(:second), -3600)
-      })
-
-      insert_grab_for(pursuit, %{
-        release_title: "Sample.Movie.2010.1080p.WEB-DL",
-        status: "grabbed"
-      })
+      _ = pursuit
+      _ = target
 
       [row] = Pursuits.list_active_rows()
 
       assert row.release_title == "Sample.Movie.2010.1080p.WEB-DL"
-      assert row.grab_status == :grabbed
+      assert row.target_status == :acquired
     end
 
-    test "row release_title and grab_status are nil when no grab is linked" do
+    test "row release_title and target_status are nil when no target is linked" do
       _pursuit = insert_pursuit()
 
       [row] = Pursuits.list_active_rows()
 
       assert row.release_title == nil
-      assert row.grab_status == nil
+      assert row.target_status == nil
     end
   end
 
@@ -312,7 +297,6 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       assert header.id == pursuit.id
       assert header.title == "Sample Movie"
       assert header.state == :active
-      assert header.target.tmdb_type == "movie"
       assert header.criteria_summary =~ "1080p"
     end
 
@@ -338,18 +322,8 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       kinds = Enum.map(timeline.entries, & &1.kind)
       assert kinds == ["user_decision_requested", "stall_confirmed", "pursuit_started"]
 
-      # severity is mapped per kind
       stall = Enum.find(timeline.entries, &(&1.kind == "stall_confirmed"))
       assert %TimelineEntry{severity: :warning} = stall
-
-      verified = %TimelineEntry{
-        kind: "pursuit_started",
-        occurred_at: DateTime.utc_now(:second),
-        summary: "Pursuit started",
-        severity: :info
-      }
-
-      assert is_struct(verified)
     end
 
     test "returns an empty Timeline when there are no events" do

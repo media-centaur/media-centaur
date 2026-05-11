@@ -1,24 +1,24 @@
 defmodule MediaCentarrWeb.AcquisitionLive.Activity do
   @moduledoc """
   Activity zone of the unified Downloads page — filter chips, search,
-  and the table of `acquisition_grabs` rows (auto + manual). Renders
+  and the table of `acquisition_targets` rows (auto + manual). Renders
   cancel and re-arm buttons whose events are handled by the parent
   `AcquisitionLive`.
 
-  Pure function component. State (filter, search, grabs) lives on the
-  parent socket.
+  Pure function component. State (filter, search, targets) lives on
+  the parent socket.
   """
   use Phoenix.Component
 
   import MediaCentarrWeb.CoreComponents, only: [badge: 1, button: 1]
 
-  alias MediaCentarr.Acquisition.GrabStatus
+  alias MediaCentarr.Acquisition.TargetStatus
   alias MediaCentarrWeb.AcquisitionLive.ActivityLogic
 
-  attr :grabs, :list,
+  attr :targets, :list,
     required: true,
     doc:
-      "list of `MediaCentarr.Acquisition.Grab.t()` rows preloaded with the fields read by `ActivityLogic` (status, attempt_count, title, etc.). Phoenix `attr` has no list-of-typed-structs validator; element shape is locked at the schema layer."
+      "list of `MediaCentarr.Acquisition.Target.t()` rows preloaded with the fields read by `ActivityLogic` (status, attempt_count, title, etc.)."
 
   attr :filter, :atom, required: true
   attr :search, :string, required: true
@@ -61,7 +61,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
         </form>
       </div>
 
-      <%= if @grabs == [] do %>
+      <%= if @targets == [] do %>
         <p class="text-sm text-base-content/50 py-8 text-center">
           {ActivityLogic.empty_state(@filter)}
         </p>
@@ -71,7 +71,6 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Episode</th>
                 <th>Origin</th>
                 <th>Status</th>
                 <th>Last attempt</th>
@@ -80,43 +79,40 @@ defmodule MediaCentarrWeb.AcquisitionLive.Activity do
               </tr>
             </thead>
             <tbody>
-              <tr :for={grab <- @grabs}>
-                <td class="font-medium">{grab.title}</td>
-                <td class="text-base-content/60 tabular-nums">
-                  {ActivityLogic.episode_label(grab)}
-                </td>
+              <tr :for={target <- @targets}>
+                <td class="font-medium">{target.title}</td>
                 <td>
-                  <.badge variant={ActivityLogic.origin_variant(grab)}>
-                    {ActivityLogic.origin_label(grab)}
+                  <.badge variant={ActivityLogic.origin_variant(target)}>
+                    {ActivityLogic.origin_label(target)}
                   </.badge>
                 </td>
                 <td>
-                  <.badge variant={ActivityLogic.status_variant(grab.status)}>
-                    {ActivityLogic.status_label(grab)}
+                  <.badge variant={ActivityLogic.status_variant(target.status)}>
+                    {ActivityLogic.status_label(target)}
                   </.badge>
                 </td>
                 <td class="text-base-content/60 text-xs">
-                  {ActivityLogic.last_attempt_summary(grab)}
+                  {ActivityLogic.last_attempt_summary(target)}
                 </td>
-                <td class="text-right tabular-nums">{grab.attempt_count}</td>
+                <td class="text-right tabular-nums">{target.attempt_count}</td>
                 <td class="text-right space-x-1">
                   <.button
-                    :if={GrabStatus.in_flight?(grab.status)}
+                    :if={TargetStatus.in_flight?(target.status)}
                     variant="dismiss"
                     size="xs"
-                    phx-click="cancel_activity_grab"
-                    phx-value-id={grab.id}
+                    phx-click="cancel_activity_target"
+                    phx-value-id={target.id}
                     data-nav-item
                     tabindex="0"
                   >
                     Cancel
                   </.button>
                   <.button
-                    :if={GrabStatus.rearmable?(grab.status)}
+                    :if={TargetStatus.rearmable?(target.status)}
                     variant="secondary"
                     size="xs"
-                    phx-click="rearm_activity_grab"
-                    phx-value-id={grab.id}
+                    phx-click="rearm_activity_target"
+                    phx-value-id={target.id}
                     data-nav-item
                     tabindex="0"
                   >

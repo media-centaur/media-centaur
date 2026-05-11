@@ -3,5 +3,5 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events.PursuitSatisfied do
 
   use MediaCentarr.Acquisition.Pursuits.Events.Define,
     kind: "pursuit_satisfied",
-    payload_keys: [:final_grab_id, :final_release_title]
+    payload_keys: [:final_target_id, :final_release_title]
 end

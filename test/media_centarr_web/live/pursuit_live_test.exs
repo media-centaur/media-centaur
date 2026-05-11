@@ -12,7 +12,7 @@ defmodule MediaCentarrWeb.PursuitLiveTest do
   @queue_cache_key {MediaCentarr.Downloads.QueueMonitor, :state}
 
   setup do
-    # Inline Oban runs SearchAndGrab synchronously after ReSearch. Stub
+    # Inline Oban runs PursueTarget synchronously after ChangeTarget. Stub
     # Prowlarr so the worker snoozes cleanly rather than crashing on no
     # client configured.
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -29,19 +29,19 @@ defmodule MediaCentarrWeb.PursuitLiveTest do
   end
 
   describe "rendering across states" do
-    test "renders an Active pursuit with a snoozed grab", %{conn: conn} do
-      pursuit = create_pursuit(%{state: "active", title: "Sample Movie"})
-      _grab = create_grab(%{pursuit_id: pursuit.id, status: "snoozed", title: pursuit.title})
+    test "renders an Active pursuit with a seeking target", %{conn: conn} do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
       {:ok, _view, html} = live(conn, "/download/#{pursuit.id}")
 
-      assert html =~ "Snoozed"
-      assert html =~ "Re-search"
+      # CurrentAction.verb for a seeking active target reads "Searching".
+      assert html =~ "Searching"
     end
 
     test "renders Done for a satisfied pursuit", %{conn: conn} do
-      pursuit = create_pursuit(%{state: "satisfied", title: "Sample Movie"})
-      _grab = create_grab(%{pursuit_id: pursuit.id, status: "grabbed", title: pursuit.title})
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "satisfied", title: "Sample Movie", status: "acquired"})
 
       {:ok, _view, html} = live(conn, "/download/#{pursuit.id}")
 
@@ -57,8 +57,8 @@ defmodule MediaCentarrWeb.PursuitLiveTest do
 
   describe "manual triggers" do
     test "Cancel pursuit transitions the pursuit to cancelled", %{conn: conn} do
-      pursuit = create_pursuit(%{state: "active", title: "Sample Movie"})
-      _grab = create_grab(%{pursuit_id: pursuit.id, status: "snoozed", title: pursuit.title})
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
       {:ok, view, _html} = live(conn, "/download/#{pursuit.id}")
       render_click(view, "cancel_pursuit", %{})
@@ -67,19 +67,21 @@ defmodule MediaCentarrWeb.PursuitLiveTest do
       assert reloaded.state == "cancelled"
     end
 
-    test "Re-search records the pursuit_re_searched event", %{conn: conn} do
-      pursuit = create_pursuit(%{state: "active", title: "Sample Movie"})
-      _grab = create_grab(%{pursuit_id: pursuit.id, status: "snoozed", title: pursuit.title})
+    test "Change target records the target_changed event", %{conn: conn} do
+      # Use a target status that exposes the :change_target affordance —
+      # e.g. failed (auto-search gave up), so the button is wired up.
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "failed"})
 
       {:ok, view, _html} = live(conn, "/download/#{pursuit.id}")
-      render_click(view, "re_search", %{})
+      render_click(view, "change_target", %{})
 
-      assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "pursuit_re_searched")
+      assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "target_changed")
     end
 
     test "Request decision flips the pursuit to needs_decision", %{conn: conn} do
-      pursuit = create_pursuit(%{state: "active", title: "Sample Movie"})
-      _grab = create_grab(%{pursuit_id: pursuit.id, status: "snoozed", title: pursuit.title})
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
       {:ok, view, _html} = live(conn, "/download/#{pursuit.id}")
       render_click(view, "request_decision", %{})

@@ -17,15 +17,17 @@ defmodule MediaCentarrWeb.UpcomingLive do
   alias MediaCentarrWeb.Components.{TrackModal, UpcomingCards}
   alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
 
-  # Acquisition events that only invalidate grab statuses — not the underlying
-  # release / image / tracked-item data. Routing them to a dedicated reloader
-  # keeps the page from rebuilding the full upcoming model on every grab tick.
+  # Acquisition events that only invalidate target statuses — not the
+  # underlying release / image / tracked-item data. Routing them to a
+  # dedicated reloader keeps the page from rebuilding the full upcoming
+  # model on every target tick.
   @grab_status_events [
-    :grab_submitted,
-    :auto_grab_armed,
-    :auto_grab_snoozed,
-    :auto_grab_abandoned,
-    :auto_grab_cancelled
+    :target_picked,
+    :target_acquired,
+    :target_armed,
+    :target_snoozed,
+    :target_failed,
+    :target_cancelled
   ]
 
   @impl true

@@ -263,9 +263,9 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
 
   defp season_episode_label(_), do: nil
 
-  defp badge_for_status(:grabbed), do: %{label: "Grabbed", variant: :success}
+  defp badge_for_status(:acquired), do: %{label: "Acquired", variant: :success}
   defp badge_for_status(:downloading), do: %{label: "Downloading", variant: :info}
-  defp badge_for_status(:pending), do: %{label: "Pending", variant: :info}
+  defp badge_for_status(:seeking), do: %{label: "Seeking", variant: :info}
   # Scheduled is the implicit baseline of every Coming Up tile — render no
   # badge for it. Reserve the badge for differentiating action states.
   defp badge_for_status(_), do: nil

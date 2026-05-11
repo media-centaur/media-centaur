@@ -39,9 +39,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.Observations do
 
   import Ecto.Query
 
-  alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
   alias MediaCentarr.Acquisition.Pursuits.Events.{DownloadStarted, HealthChanged}
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarr.Repo
 
@@ -82,11 +82,11 @@ defmodule MediaCentarr.Acquisition.Pursuits.Observations do
   end
 
   defp latest_release_title(pursuit_id) do
-    Grab
-    |> where([g], g.pursuit_id == ^pursuit_id and not is_nil(g.release_title))
-    |> order_by([g], desc: g.inserted_at)
+    Target
+    |> where([t], t.pursuit_id == ^pursuit_id and not is_nil(t.release_title))
+    |> order_by([t], desc: t.inserted_at)
     |> limit(1)
-    |> select([g], g.release_title)
+    |> select([t], t.release_title)
     |> Repo.one()
   end
 

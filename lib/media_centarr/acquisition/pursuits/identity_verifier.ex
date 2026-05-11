@@ -3,8 +3,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
   Post-download orchestrator confirming file identity.
 
   Triggered by the `Pursuits.InboundListener` when a file lands for an
-  active pursuit. Compares the filename to the pursuit's latest grab via
-  the existing `Acquisition.TitleMatcher`:
+  active pursuit. Compares the filename to the pursuit's recipe via the
+  existing `Acquisition.TitleMatcher` (which now matches against
+  `Pursuit` directly — see ADR notes on recipe-typed matching):
 
     * **Match** → record `:identity_verified` and dispatch
       `Commands.Satisfy` to close the pursuit successfully.
@@ -15,7 +16,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
 
   The worker exits silently when:
     * the pursuit no longer exists or is already terminal,
-    * no grab is linked to the pursuit (we have nothing to match against),
     * the file path is missing or unparseable.
 
   These cases are not errors — the pursuit just doesn't need verification.
@@ -34,15 +34,14 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"pursuit_id" => pursuit_id, "file_path" => file_path}}) do
-    with {:ok, pursuit} <- load_active_pursuit(pursuit_id),
-         {:ok, grab} <- Pursuits.latest_grab(pursuit_id) do
+    with {:ok, pursuit} <- load_active_pursuit(pursuit_id) do
       basename = Path.basename(file_path)
       synthetic = %SearchResult{title: basename, guid: "", indexer_id: 0, quality: nil}
 
-      if TitleMatcher.matches?(synthetic, grab) do
-        verify(pursuit, grab, file_path)
+      if TitleMatcher.matches?(synthetic, pursuit) do
+        verify(pursuit, file_path)
       else
-        reject(pursuit, grab, file_path, basename)
+        reject(pursuit, file_path, basename)
       end
     end
 
@@ -59,8 +58,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
     end
   end
 
-  defp verify(pursuit, grab, file_path) do
+  defp verify(pursuit, file_path) do
     Log.info(:acquisition, "identity verified — #{pursuit.title} (#{Path.basename(file_path)})")
+
+    target = Pursuits.current_target(pursuit)
 
     {:ok, _event} =
       Events.record(%IdentityVerified{
@@ -72,15 +73,15 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
 
     Satisfy.execute(%{
       pursuit_id: pursuit.id,
-      final_grab_id: grab.id,
-      final_release_title: grab.release_title || pursuit.title
+      final_target_id: target && target.id,
+      final_release_title: (target && target.release_title) || pursuit.title
     })
   end
 
-  defp reject(pursuit, grab, file_path, basename) do
+  defp reject(pursuit, file_path, basename) do
     Log.warning(
       :acquisition,
-      "identity mismatch — pursuit expected #{describe(grab)}, file is #{basename}"
+      "identity mismatch — pursuit expected #{describe(pursuit)}, file is #{basename}"
     )
 
     {:ok, _event} =
@@ -88,7 +89,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
         pursuit_id: pursuit.id,
         pursuit_title: pursuit.title,
         occurred_at: DateTime.utc_now(:second),
-        expected: describe(grab),
+        expected: describe(pursuit),
         observed: basename,
         file_path: file_path
       })
@@ -100,14 +101,14 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
     })
   end
 
-  defp describe(%{tmdb_type: "tv", title: title, season_number: season, episode_number: episode})
+  defp describe(%Pursuit{tmdb_type: "tv", title: title, season_number: season, episode_number: episode})
        when is_integer(season) and is_integer(episode) do
     "#{title} #{Format.episode_label(season, episode)}"
   end
 
-  defp describe(%{title: title, year: year}) when is_integer(year) do
+  defp describe(%Pursuit{title: title, year: year}) when is_integer(year) do
     "#{title} (#{year})"
   end
 
-  defp describe(%{title: title}), do: title
+  defp describe(%Pursuit{title: title}), do: title
 end

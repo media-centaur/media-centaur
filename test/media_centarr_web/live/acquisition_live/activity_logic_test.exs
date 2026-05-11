@@ -1,71 +1,53 @@
 defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogicTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarrWeb.AcquisitionLive.ActivityLogic, as: Logic
 
-  defp grab(overrides \\ %{}) do
-    base = %Grab{title: "Title", status: "searching", origin: "auto"}
+  defp target(overrides \\ %{}) do
+    base = %Target{title: "Title", status: "seeking", origin: "auto"}
     Map.merge(base, overrides)
   end
 
   describe "filter_by_search/2" do
-    test "empty search returns all grabs unchanged" do
-      grabs = [grab(%{title: "Sample Movie"}), grab(%{title: "Other Title"})]
-      assert Logic.filter_by_search(grabs, "") == grabs
+    test "empty search returns all targets unchanged" do
+      targets = [target(%{title: "Sample Movie"}), target(%{title: "Other Title"})]
+      assert Logic.filter_by_search(targets, "") == targets
     end
 
     test "case-insensitive substring match" do
-      grabs = [
-        grab(%{title: "Sample Movie"}),
-        grab(%{title: "Other Title"}),
-        grab(%{title: "sampler"})
+      targets = [
+        target(%{title: "Sample Movie"}),
+        target(%{title: "Other Title"}),
+        target(%{title: "sampler"})
       ]
 
-      result = Logic.filter_by_search(grabs, "SAMP")
+      result = Logic.filter_by_search(targets, "SAMP")
       assert Enum.map(result, & &1.title) == ["Sample Movie", "sampler"]
     end
   end
 
-  describe "episode_label/1" do
-    test "movie (no season/episode) renders as dash" do
-      assert Logic.episode_label(grab()) == "—"
-    end
-
-    test "season pack (no episode) renders 'Season N'" do
-      assert Logic.episode_label(grab(%{season_number: 3})) == "Season 3"
-    end
-
-    test "episode pads single digits" do
-      assert Logic.episode_label(grab(%{season_number: 1, episode_number: 4})) == "S01E04"
-    end
-
-    test "double-digit episodes are not padded further" do
-      assert Logic.episode_label(grab(%{season_number: 12, episode_number: 23})) == "S12E23"
-    end
-  end
-
   describe "status_label/1" do
-    test "grabbed includes quality" do
-      assert Logic.status_label(grab(%{status: "grabbed", quality: "4K"})) == "Grabbed 4K"
+    test "acquired includes quality" do
+      assert Logic.status_label(target(%{status: "acquired", quality: "4K"})) == "Acquired 4K"
     end
 
     test "cancelled includes reason" do
-      assert Logic.status_label(grab(%{status: "cancelled", cancelled_reason: "user_disabled"})) ==
+      assert Logic.status_label(target(%{status: "cancelled", cancelled_reason: "user_disabled"})) ==
                "Cancelled (user_disabled)"
     end
 
     test "other statuses use raw label" do
-      assert Logic.status_label(grab(%{status: "snoozed"})) == "snoozed"
+      assert Logic.status_label(target(%{status: "seeking"})) == "seeking"
     end
   end
 
   describe "status_variant/1" do
     test "maps statuses to `<.badge>` variants" do
-      assert Logic.status_variant("searching") == "info"
-      assert Logic.status_variant("snoozed") == "warning"
-      assert Logic.status_variant("grabbed") == "success"
-      assert Logic.status_variant("abandoned") == "error"
+      assert Logic.status_variant("seeking") == "info"
+      assert Logic.status_variant("acquired") == "success"
+      assert Logic.status_variant("succeeded") == "success"
+      assert Logic.status_variant("failed") == "error"
       assert Logic.status_variant("cancelled") == "ghost"
     end
 
@@ -76,37 +58,39 @@ defmodule MediaCentarrWeb.AcquisitionLive.ActivityLogicTest do
 
   describe "origin_label/1" do
     test "auto origin returns 'auto'" do
-      assert Logic.origin_label(grab(%{origin: "auto"})) == "auto"
+      assert Logic.origin_label(target(%{origin: "auto"})) == "auto"
     end
 
     test "manual origin returns 'manual'" do
-      assert Logic.origin_label(grab(%{origin: "manual"})) == "manual"
+      assert Logic.origin_label(target(%{origin: "manual"})) == "manual"
     end
 
     test "missing/unknown origin defaults to 'auto' (back-compat for legacy rows)" do
-      assert Logic.origin_label(grab(%{origin: nil})) == "auto"
+      assert Logic.origin_label(target(%{origin: nil})) == "auto"
     end
   end
 
   describe "origin_variant/1" do
     test "manual gets soft_primary emphasis" do
-      assert Logic.origin_variant(grab(%{origin: "manual"})) == "soft_primary"
+      assert Logic.origin_variant(target(%{origin: "manual"})) == "soft_primary"
     end
 
     test "auto gets the neutral type variant (outline, no color)" do
-      assert Logic.origin_variant(grab(%{origin: "auto"})) == "type"
+      assert Logic.origin_variant(target(%{origin: "auto"})) == "type"
     end
   end
 
   describe "last_attempt_summary/1" do
     test "renders 'never' when no attempt logged" do
-      assert Logic.last_attempt_summary(grab()) == "never"
+      assert Logic.last_attempt_summary(target()) == "never"
     end
 
     test "renders outcome + relative time" do
       at = DateTime.add(DateTime.utc_now(), -90, :second)
 
-      assert Logic.last_attempt_summary(grab(%{last_attempt_at: at, last_attempt_outcome: "no_results"})) ==
+      assert Logic.last_attempt_summary(
+               target(%{last_attempt_at: at, last_attempt_outcome: "no_results"})
+             ) ==
                "no_results • 1m ago"
     end
   end

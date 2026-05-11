@@ -18,7 +18,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.PolicyTest do
 
     base = %Snapshot{
       pursuit: struct(Pursuit, pursuit_attrs),
-      latest_grab: nil,
+      current_target: nil,
       queue_state: :unknown,
       now: ~U[2026-04-10 00:00:00Z],
       thresholds: Thresholds.defaults()

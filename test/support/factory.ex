@@ -564,34 +564,94 @@ defmodule MediaCentarr.TestFactory do
     event
   end
 
-  def create_grab(attrs \\ %{}) do
-    # Default `quality_4k_patience_hours: 0` keeps unrelated tests focused —
-    # patience-window behaviour is exercised by tests that opt in explicitly.
+  @doc """
+  Inserts a Pursuit + a current Target in `seeking` and returns `{pursuit, target}`.
+
+  Replaces the legacy `create_grab/1` factory after the Pursuit/Target
+  refactor — the recipe lives on the pursuit, target carries per-attempt
+  facts. Tests that only want a Target can `{_, target} = create_pursuit_with_target(...)`.
+
+  Pursuit-level overrides (recipe_type, tmdb_id, tmdb_type, season_number,
+  episode_number, year, title, origin, manual_query, state) and
+  target-level overrides (status, release_title, attempt_count, etc.)
+  may both be supplied via `attrs` — keys are routed by their place
+  on the schema.
+  """
+  def create_pursuit_with_target(attrs \\ %{}) do
+    pursuit_keys = [
+      :recipe_type,
+      :tmdb_id,
+      :tmdb_type,
+      :title,
+      :year,
+      :season_number,
+      :episode_number,
+      :origin,
+      :manual_query,
+      :criteria,
+      :state,
+      :attempt_count,
+      :tried_release_guids
+    ]
+
+    target_keys = [
+      :status,
+      :release_title,
+      :quality,
+      :attempt_count,
+      :acquired_at,
+      :last_attempt_at,
+      :last_attempt_outcome,
+      :cancelled_at,
+      :cancelled_reason,
+      :prowlarr_guid
+    ]
+
     defaults = %{
+      recipe_type: "tmdb",
       tmdb_id: "12345",
       tmdb_type: "movie",
       title: "Sample Movie",
-      quality_4k_patience_hours: 0
+      origin: "auto"
     }
 
     merged = Map.merge(defaults, attrs)
+    pursuit_attrs = Map.take(merged, pursuit_keys)
+    target_attrs = Map.take(merged, target_keys)
 
-    cast_keys = [:tmdb_id, :tmdb_type, :title, :year, :season_number, :episode_number]
-    cast_attrs = Map.take(merged, cast_keys)
-    internal_attrs = Map.drop(merged, cast_keys)
+    now = DateTime.utc_now(:second)
 
-    {:ok, grab} =
-      MediaCentarr.Repo.insert(MediaCentarr.Acquisition.Grab.create_changeset(cast_attrs))
+    {:ok, pursuit} =
+      %MediaCentarr.Acquisition.Pursuits.Pursuit{}
+      |> Ecto.Changeset.change(Map.put_new(pursuit_attrs, :state, "active"))
+      |> Ecto.Changeset.change(inserted_at: now, updated_at: now)
+      |> MediaCentarr.Repo.insert()
 
-    if internal_attrs == %{} do
-      grab
-    else
-      {:ok, updated} =
-        grab
-        |> Ecto.Changeset.change(internal_attrs)
-        |> MediaCentarr.Repo.update()
+    target_base =
+      target_attrs
+      |> Map.put_new(:status, "seeking")
+      |> Map.put(:pursuit_id, pursuit.id)
+      |> Map.put(:title, pursuit.title)
+      |> Map.put(:origin, pursuit.origin)
+      |> Map.put(:inserted_at, now)
+      |> Map.put(:updated_at, now)
 
-      updated
-    end
+    {:ok, target} =
+      %MediaCentarr.Acquisition.Target{}
+      |> Ecto.Changeset.change(target_base)
+      |> MediaCentarr.Repo.insert()
+
+    {:ok, pursuit} =
+      pursuit
+      |> Ecto.Changeset.change(current_target_id: target.id)
+      |> MediaCentarr.Repo.update()
+
+    {pursuit, target}
+  end
+
+  @doc "Convenience: just the target from `create_pursuit_with_target/1`."
+  def create_target(attrs \\ %{}) do
+    {_pursuit, target} = create_pursuit_with_target(attrs)
+    target
   end
 end

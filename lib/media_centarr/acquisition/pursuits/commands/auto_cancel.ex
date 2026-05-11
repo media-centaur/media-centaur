@@ -1,20 +1,19 @@
 defmodule MediaCentarr.Acquisition.Pursuits.Commands.AutoCancel do
-  @moduledoc "Cancels the active grab on a confirmed safe-case."
+  @moduledoc "Cancels the active target on a confirmed safe-case."
 
   import Ecto.Query
 
-  alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarr.Acquisition.GrabStatus
   alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
   alias MediaCentarr.Acquisition.Pursuits.Commands.Runner
   alias MediaCentarr.Acquisition.Pursuits.Events.AutoCancelled
+  alias MediaCentarr.Acquisition.{Target, TargetStatus}
   alias MediaCentarr.Repo
 
   @doc """
-  Cancels the in-flight grab (if any) for the given pursuit and records the
-  `auto_cancelled` event. Pursuit state is unchanged in v1 — the system has
-  done what it could automatically; user-driven fallback or terminal close
-  happens via separate commands.
+  Cancels the in-flight target (if any) for the given pursuit and
+  records the `auto_cancelled` event. Pursuit state is unchanged —
+  the system has done what it could automatically; user-driven
+  fallback or terminal close happens via separate commands.
   """
   @spec execute(map()) ::
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
@@ -22,7 +21,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.AutoCancel do
     label = fn pursuit -> "pursuit auto-cancelled (#{reason}) — #{pursuit.title}" end
 
     Runner.run(id, label, fn pursuit ->
-      cancel_active_grab(pursuit, reason)
+      cancel_active_target(pursuit, reason)
 
       with {:ok, _event} <-
              Events.record(%AutoCancelled{
@@ -36,12 +35,12 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.AutoCancel do
     end)
   end
 
-  defp cancel_active_grab(pursuit, reason) do
-    Grab
-    |> where([g], g.pursuit_id == ^pursuit.id and g.status in ^GrabStatus.in_flight())
+  defp cancel_active_target(pursuit, reason) do
+    Target
+    |> where([t], t.pursuit_id == ^pursuit.id and t.status in ^TargetStatus.in_flight())
     |> Repo.all()
-    |> Enum.each(fn grab ->
-      Repo.update!(Grab.cancelled_changeset(grab, Atom.to_string(reason)))
+    |> Enum.each(fn target ->
+      Repo.update!(Target.cancelled_changeset(target, Atom.to_string(reason)))
     end)
   end
 end

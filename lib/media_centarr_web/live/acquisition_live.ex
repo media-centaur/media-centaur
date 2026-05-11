@@ -98,7 +98,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          download_client_ready: false,
          activity_filter: :active,
          activity_search: "",
-         activity_grabs: [],
+         activity_targets: [],
          pursuit_rows: [],
          pursuits_reload_timer: nil,
          reload_timer: nil
@@ -275,7 +275,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         </section>
 
         <Activity.activity_zone
-          grabs={@activity_grabs}
+          targets={@activity_targets}
           filter={@activity_filter}
           search={@activity_search}
         />
@@ -424,17 +424,17 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, socket |> assign(activity_search: search) |> load_activity()}
   end
 
-  def handle_event("cancel_activity_grab", %{"id" => id}, socket) do
-    case Acquisition.cancel_grab(id, CancelReasons.user_disabled()) do
+  def handle_event("cancel_activity_target", %{"id" => id}, socket) do
+    case Acquisition.cancel_target(id, CancelReasons.user_disabled()) do
       {:ok, _} -> {:noreply, load_activity(socket)}
-      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Grab no longer exists")}
+      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Target no longer exists")}
     end
   end
 
-  def handle_event("rearm_activity_grab", %{"id" => id}, socket) do
-    case Acquisition.rearm_grab(id) do
+  def handle_event("rearm_activity_target", %{"id" => id}, socket) do
+    case Acquisition.rearm_target(id) do
       {:ok, _} -> {:noreply, load_activity(socket)}
-      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Grab no longer exists")}
+      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Target no longer exists")}
     end
   end
 
@@ -476,11 +476,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   def handle_info({:run_grabs, results}, socket) do
     query = socket.assigns.search_session.query
-    pairs = Enum.map(results, fn result -> {result, Acquisition.grab(result, query)} end)
+    pairs = Enum.map(results, fn result -> {result, Acquisition.pick_target(result, query)} end)
 
     Enum.each(pairs, fn
       {result, {:error, reason}} ->
-        Log.warning(:acquisition, "grab failed — #{result.title} — #{inspect(reason)}")
+        Log.warning(:acquisition, "manual pick failed — #{result.title} — #{inspect(reason)}")
 
       _ ->
         :ok
@@ -488,7 +488,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
     ok_count = Enum.count(pairs, fn {_, outcome} -> match?({:ok, _}, outcome) end)
     err_count = length(pairs) - ok_count
-    Log.info(:acquisition, "grab batch complete — #{ok_count} ok, #{err_count} failed")
+    Log.info(:acquisition, "manual pick batch complete — #{ok_count} ok, #{err_count} failed")
 
     Acquisition.set_grab_message(Logic.build_grab_message(pairs))
     Acquisition.clear_search_results()
@@ -505,12 +505,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # state changes appear without waiting for a manual reload.
   def handle_info({event, _payload}, socket)
       when event in [
-             :grab_submitted,
-             :grab_failed,
-             :auto_grab_armed,
-             :auto_grab_snoozed,
-             :auto_grab_abandoned,
-             :auto_grab_cancelled
+             :target_picked,
+             :target_acquired,
+             :target_armed,
+             :target_snoozed,
+             :target_failed,
+             :target_cancelled
            ] do
     {:noreply, debounce(socket, :reload_timer, :reload_activity, 500)}
   end
@@ -537,12 +537,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   defp load_activity(socket) do
-    grabs =
+    targets =
       socket.assigns.activity_filter
-      |> Acquisition.list_auto_grabs()
+      |> Acquisition.list_auto_targets()
       |> MediaCentarrWeb.AcquisitionLive.ActivityLogic.filter_by_search(socket.assigns.activity_search)
 
-    assign(socket, activity_grabs: grabs)
+    assign(socket, activity_targets: targets)
   end
 
   defp retry_terms(_socket, []), do: :ok

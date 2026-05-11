@@ -1,13 +1,13 @@
 defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarrWeb.Components.UpcomingCards
   alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
 
   defp grab(status, overrides \\ %{}) do
-    Map.merge(%Grab{status: status}, overrides)
+    Map.merge(%Target{status: status}, overrides)
   end
 
   defp queue(state, overrides \\ %{}) do
@@ -15,81 +15,77 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
   end
 
   describe "release_status/3 — completion takes precedence" do
-    test ":completed when in_library, regardless of grab/queue" do
+    test ":completed when in_library, regardless of target/queue" do
       assert UpcomingCards.release_status(true, nil, nil) == :completed
 
-      assert UpcomingCards.release_status(true, grab("searching"), queue(:downloading)) ==
+      assert UpcomingCards.release_status(true, grab("seeking"), queue(:downloading)) ==
                :completed
     end
   end
 
-  describe "release_status/3 — grabbed + queue state" do
-    test ":downloading when grab is grabbed and queue item is :downloading" do
-      assert UpcomingCards.release_status(false, grab("grabbed"), queue(:downloading)) ==
+  describe "release_status/3 — acquired + queue state" do
+    test ":downloading when target is acquired and queue item is :downloading" do
+      assert UpcomingCards.release_status(false, grab("acquired"), queue(:downloading)) ==
                :downloading
     end
 
-    test ":downloading when grab is grabbed and queue item is :stalled (treat as live)" do
-      assert UpcomingCards.release_status(false, grab("grabbed"), queue(:stalled)) ==
+    test ":downloading when target is acquired and queue item is :stalled (treat as live)" do
+      assert UpcomingCards.release_status(false, grab("acquired"), queue(:stalled)) ==
                :downloading
     end
 
-    test ":paused when grab is grabbed and queue item is :paused" do
-      assert UpcomingCards.release_status(false, grab("grabbed"), queue(:paused)) == :paused
+    test ":paused when target is acquired and queue item is :paused" do
+      assert UpcomingCards.release_status(false, grab("acquired"), queue(:paused)) == :paused
     end
 
-    test ":errored when grab is grabbed and queue item is :error" do
-      assert UpcomingCards.release_status(false, grab("grabbed"), queue(:error)) == :errored
+    test ":errored when target is acquired and queue item is :error" do
+      assert UpcomingCards.release_status(false, grab("acquired"), queue(:error)) == :errored
     end
 
-    test ":downloading when grab is grabbed but no matching queue item (queued or imported)" do
-      assert UpcomingCards.release_status(false, grab("grabbed"), nil) == :downloading
+    test ":downloading when target is acquired but no matching queue item (queued or imported)" do
+      assert UpcomingCards.release_status(false, grab("acquired"), nil) == :downloading
     end
 
     test ":downloading_stuck when queue item is :downloading and Health.degraded?/1 is true" do
       for health <- [:soft_stall, :frozen, :meta_stuck] do
         item = queue(:downloading, %{health: health})
 
-        assert UpcomingCards.release_status(false, grab("grabbed"), item) == :downloading_stuck,
+        assert UpcomingCards.release_status(false, grab("acquired"), item) == :downloading_stuck,
                "expected health=#{inspect(health)} to surface as :downloading_stuck"
       end
     end
 
     test ":downloading when health is :slow — slow is informational, not enough for a card-level escalation" do
       item = queue(:downloading, %{health: :slow})
-      assert UpcomingCards.release_status(false, grab("grabbed"), item) == :downloading
+      assert UpcomingCards.release_status(false, grab("acquired"), item) == :downloading
     end
 
     test ":downloading when health is :healthy or :warming_up" do
       for health <- [:healthy, :warming_up, nil] do
         item = queue(:downloading, %{health: health})
-        assert UpcomingCards.release_status(false, grab("grabbed"), item) == :downloading
+        assert UpcomingCards.release_status(false, grab("acquired"), item) == :downloading
       end
     end
   end
 
-  describe "release_status/3 — searching states" do
-    test ":searching when grab status is searching" do
-      assert UpcomingCards.release_status(false, grab("searching"), nil) == :searching
-    end
-
-    test ":searching when grab status is snoozed" do
-      assert UpcomingCards.release_status(false, grab("snoozed"), nil) == :searching
+  describe "release_status/3 — seeking states" do
+    test ":searching when target status is seeking" do
+      assert UpcomingCards.release_status(false, grab("seeking"), nil) == :searching
     end
   end
 
   describe "release_status/3 — terminal non-success states" do
-    test ":abandoned when grab status is abandoned" do
-      assert UpcomingCards.release_status(false, grab("abandoned"), nil) == :abandoned
+    test ":abandoned when target status is failed" do
+      assert UpcomingCards.release_status(false, grab("failed"), nil) == :abandoned
     end
 
-    test ":cancelled when grab status is cancelled (treated visually as no-op)" do
+    test ":cancelled when target status is cancelled (treated visually as no-op)" do
       assert UpcomingCards.release_status(false, grab("cancelled"), nil) == :cancelled
     end
   end
 
   describe "release_status/3 — no acquisition" do
-    test ":none when there's no grab and not in library" do
+    test ":none when there's no target and not in library" do
       assert UpcomingCards.release_status(false, nil, nil) == :none
     end
   end
@@ -325,14 +321,17 @@ defmodule MediaCentarrWeb.Components.UpcomingCardsTest do
       assert UpcomingCards.pending_grab_count(releases, %{}) == 2
     end
 
-    test "excludes releases that already have a grab row" do
+    test "excludes releases that already have a target row" do
       item = tv_item("1", "Show")
       r1 = pending_release(1, 1, item: item)
       r2 = pending_release(1, 2, item: item)
 
+      # statuses_for_releases/1 now returns {pursuit, target} tuples — the
+      # pending_grab_count helper digs the target out of the tuple before
+      # checking for absence.
       grab_map = %{
         {to_string(item.tmdb_id), MediaCentarr.ReleaseTracking.tmdb_type_for(item.media_type), 1, 1} =>
-          grab("searching")
+          {%MediaCentarr.Acquisition.Pursuits.Pursuit{}, grab("seeking")}
       }
 
       assert UpcomingCards.pending_grab_count([r1, r2], grab_map) == 1
