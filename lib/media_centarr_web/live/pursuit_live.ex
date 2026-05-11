@@ -55,7 +55,7 @@ defmodule MediaCentarrWeb.PursuitLive do
   @impl true
   def render(%{not_found?: true} = assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_path="/download">
+    <Layouts.app flash={@flash} current_path="/download" acquisition_ready={@acquisition_ready}>
       <div class="max-w-2xl mx-auto py-8 text-center text-base-content/60">
         Pursuit not found.
         <.link navigate="/download" class="link link-primary ml-2">Back to Downloads</.link>
@@ -66,7 +66,7 @@ defmodule MediaCentarrWeb.PursuitLive do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_path="/download">
+    <Layouts.app flash={@flash} current_path="/download" acquisition_ready={@acquisition_ready}>
       <div class="max-w-2xl mx-auto space-y-4 py-6">
         <div>
           <.link navigate="/download" class="text-xs text-base-content/60 hover:text-base-content">
