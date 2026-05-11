@@ -117,6 +117,12 @@ defmodule MediaCentarr.Config do
   onto the `:persistent_term` config map. Call once after the Repo starts
   (i.e. after `Supervisor.start_link` returns in `Application.start/2`).
   Settings DB values take precedence over TOML values.
+
+  Broadcasts `{:config_updated, key, value}` on `Topics.config_updates/0`
+  for each key that was actually overlaid — symmetric with `update/2`,
+  so derived caches (e.g. `Capabilities`) can subscribe once and react
+  to both boot-time overlay and runtime updates through one channel.
+  Keys without a stored override are silent (no broadcast).
   """
   def load_runtime_overrides do
     config = :persistent_term.get({__MODULE__, :config})
@@ -125,15 +131,27 @@ defmodule MediaCentarr.Config do
     lookup_keys = Enum.map(keys, &"config:#{&1}")
     entries = MediaCentarr.Settings.get_by_keys(lookup_keys)
 
-    updated =
-      Enum.reduce(keys, config, fn key, acc ->
+    {updated, overlaid} =
+      Enum.reduce(keys, {config, []}, fn key, {acc, applied} ->
         case Map.get(entries, "config:#{key}") do
-          %{value: %{"value" => value}} -> Map.put(acc, key, maybe_wrap(key, value))
-          _ -> acc
+          %{value: %{"value" => value}} ->
+            {Map.put(acc, key, maybe_wrap(key, value)), [{key, value} | applied]}
+
+          _ ->
+            {acc, applied}
         end
       end)
 
     :persistent_term.put({__MODULE__, :config}, updated)
+
+    Enum.each(overlaid, fn {key, value} ->
+      Phoenix.PubSub.broadcast(
+        MediaCentarr.PubSub,
+        MediaCentarr.Topics.config_updates(),
+        {:config_updated, key, value}
+      )
+    end)
+
     :ok
   end
 
