@@ -640,6 +640,37 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Breaks a snoozed grab out of its backoff and enqueues a fresh
+  `SearchAndGrab` job immediately. Unlike `rearm_grab/1`, this preserves
+  `attempt_count` — the user is asking for an immediate retry, not a
+  clean-slate restart.
+
+  No-op for grabs in any state other than `:snoozed`. Returns the
+  unchanged grab in those cases so callers can chain.
+  """
+  @spec force_search_now(Ecto.UUID.t()) :: {:ok, Grab.t()} | {:error, :not_found}
+  def force_search_now(grab_id) do
+    case Repo.get(Grab, grab_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Grab{status: "snoozed"} = grab ->
+        {:ok, refreshed} =
+          grab
+          |> Ecto.Changeset.change(status: "searching")
+          |> Repo.update()
+
+        Oban.insert(SearchAndGrab.new(%{"grab_id" => refreshed.id}))
+        broadcast({:auto_grab_armed, refreshed})
+        Log.info(:library, "auto-grab forced — #{refreshed.title}")
+        {:ok, refreshed}
+
+      %Grab{} = grab ->
+        {:ok, grab}
+    end
+  end
+
+  @doc """
   Cancels an active grab (status `searching` or `snoozed`). No-op for
   terminal-state grabs; broadcasts `{:auto_grab_cancelled, grab}` only
   when the row was actually flipped.
