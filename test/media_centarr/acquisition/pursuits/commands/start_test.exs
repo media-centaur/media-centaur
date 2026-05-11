@@ -51,10 +51,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.StartTest do
       assert pursuit.criteria == %{"min_quality" => "1080p", "max_quality" => "2160p"}
     end
 
-    test "manual origin produces a pursuit with origin=manual" do
+    test "manual origin (prowlarr_query recipe) produces a pursuit with origin=manual" do
       args = %{
-        tmdb_id: "guid-abc",
-        tmdb_type: "manual",
+        recipe_type: "prowlarr_query",
+        manual_query: "Manual Pick query",
         title: "Manual Pick",
         origin: "manual"
       }

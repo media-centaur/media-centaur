@@ -2,36 +2,14 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
   use MediaCentarr.DataCase, async: false
 
   import Ecto.Query
+  import MediaCentarr.TestFactory
 
-  alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarr.Acquisition.Pursuits.{Event, Observations, Pursuit}
+  alias MediaCentarr.Acquisition.Pursuits.{Event, Observations}
   alias MediaCentarr.Downloads.QueueItem
 
-  defp insert_pursuit_with_grab(release_title) do
-    {:ok, pursuit} =
-      Repo.insert(
-        Pursuit.create_changeset(%{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        })
-      )
-
-    {:ok, _grab} =
-      %Grab{}
-      |> Ecto.Changeset.cast(
-        %{
-          tmdb_id: pursuit.tmdb_id,
-          tmdb_type: pursuit.tmdb_type,
-          title: pursuit.title,
-          origin: pursuit.origin
-        },
-        [:tmdb_id, :tmdb_type, :title, :origin]
-      )
-      |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
-      |> Ecto.Changeset.put_change(:release_title, release_title)
-      |> Repo.insert()
+  defp insert_pursuit_with_target(release_title) do
+    {pursuit, _target} =
+      create_pursuit_with_target(%{release_title: release_title})
 
     pursuit
   end
@@ -68,7 +46,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "no torrent found in queue → both timestamps cleared", %{now: now} do
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(
           stall_first_seen_at: ~U[2026-05-07 11:00:00Z],
           zero_seeders_first_seen_at: ~U[2026-05-07 11:00:00Z]
@@ -83,7 +61,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "torrent found and healthy → both timestamps cleared", %{now: now} do
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(stall_first_seen_at: ~U[2026-05-07 11:00:00Z])
         |> Repo.update!()
 
@@ -96,7 +74,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
     end
 
     test "torrent newly soft-stalled → stall_first_seen_at set to now", %{now: now} do
-      pursuit = insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :soft_stall)]
 
       refreshed = Observations.refresh!(pursuit, queue, now)
@@ -109,7 +87,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
       original_seen = ~U[2026-05-06 12:00:00Z]
 
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(stall_first_seen_at: original_seen)
         |> Repo.update!()
 
@@ -121,7 +99,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
     end
 
     test "torrent in :stalled state → zero_seeders_first_seen_at set", %{now: now} do
-      pursuit = insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :stalled, health: :frozen)]
 
       refreshed = Observations.refresh!(pursuit, queue, now)
@@ -132,7 +110,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "torrent recovered from :stalled → zero_seeders timestamp cleared", %{now: now} do
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(zero_seeders_first_seen_at: ~U[2026-05-07 06:00:00Z])
         |> Repo.update!()
 
@@ -145,7 +123,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "queue_state == :unknown → no changes (download client unreachable)", %{now: now} do
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(stall_first_seen_at: ~U[2026-05-07 11:00:00Z])
         |> Repo.update!()
 
@@ -156,7 +134,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "first observation of the torrent → DownloadStarted event recorded; last_queue_state set",
          %{now: now} do
-      pursuit = insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
 
       refreshed = Observations.refresh!(pursuit, queue, now)
@@ -171,12 +149,12 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
     end
 
     test "queue (state, health) unchanged → no event recorded", %{now: now} do
-      pursuit = insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
 
       _ = Observations.refresh!(pursuit, queue, now)
 
-      pursuit_after_first = Repo.get!(Pursuit, pursuit.id)
+      pursuit_after_first = Repo.get!(MediaCentarr.Acquisition.Pursuits.Pursuit, pursuit.id)
       _ = Observations.refresh!(pursuit_after_first, queue, ~U[2026-05-07 13:00:00Z])
 
       events =
@@ -190,7 +168,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "state transition (:downloading → :stalled) → HealthChanged event recorded", %{now: now} do
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(last_queue_state: "downloading", last_queue_health: "healthy")
         |> Repo.update!()
 
@@ -210,7 +188,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "health-axis-only change → HealthChanged event still records both axes", %{now: now} do
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(last_queue_state: "downloading", last_queue_health: "healthy")
         |> Repo.update!()
 
@@ -227,7 +205,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
 
     test "torrent absent from queue this tick → last_queue_state preserved, no event", %{now: now} do
       pursuit =
-        insert_pursuit_with_grab("Sample.Movie.2024.1080p")
+        insert_pursuit_with_target("Sample.Movie.2024.1080p")
         |> Ecto.Changeset.change(last_queue_state: "downloading", last_queue_health: "healthy")
         |> Repo.update!()
 
@@ -239,16 +217,14 @@ defmodule MediaCentarr.Acquisition.Pursuits.ObservationsTest do
       assert [] = events_for(pursuit.id)
     end
 
-    test "no grab → no torrent to look up → timestamps cleared", %{now: now} do
-      {:ok, pursuit} =
-        Repo.insert(
-          Pursuit.create_changeset(%{
-            tmdb_id: "999",
-            tmdb_type: "movie",
-            title: "Lonely Pursuit",
-            origin: "auto"
-          })
-        )
+    test "no target → no torrent to look up → timestamps cleared", %{now: now} do
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "999",
+          tmdb_type: "movie",
+          title: "Lonely Pursuit",
+          origin: "auto"
+        })
 
       pursuit =
         pursuit

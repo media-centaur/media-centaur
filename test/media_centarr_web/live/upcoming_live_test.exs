@@ -6,7 +6,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
 
   import Ecto.Query
 
-  alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Repo
 
   test "GET /upcoming renders the page", %{conn: conn} do
@@ -84,10 +84,18 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
 
       assert result =~ "Queued 3"
 
-      grabs =
-        Repo.all(from(g in Grab, where: g.tmdb_id == "8001" and g.tmdb_type == "tv"))
+      # Three targets created — one per pursuit (enqueue creates a
+      # pursuit + target tuple per (tmdb_id, type, season, episode) key).
+      targets =
+        Repo.all(
+          from(t in Target,
+            join: p in MediaCentarr.Acquisition.Pursuits.Pursuit,
+            on: p.id == t.pursuit_id,
+            where: p.tmdb_id == "8001" and p.tmdb_type == "tv"
+          )
+        )
 
-      assert length(grabs) == 3
+      assert length(targets) == 3
     end
 
     test "flashes an error when the item is not found", %{conn: conn} do

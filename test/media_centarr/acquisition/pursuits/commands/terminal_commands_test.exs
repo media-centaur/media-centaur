@@ -41,7 +41,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       assert {:ok, %Pursuit{state: "satisfied"} = closed} =
                Satisfy.execute(%{
                  pursuit_id: pursuit.id,
-                 final_grab_id: grab_id,
+                 final_target_id: grab_id,
                  final_release_title: "Sample.Movie.2010.1080p"
                })
 
@@ -49,7 +49,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
 
       [event] = Repo.all(Event)
       assert event.kind == "pursuit_satisfied"
-      assert event.payload["final_grab_id"] == grab_id
+      assert event.payload["final_target_id"] == grab_id
       assert event.payload["final_release_title"] == "Sample.Movie.2010.1080p"
 
       assert_receive %PursuitSatisfied{}
@@ -61,7 +61,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       assert {:error, %Ecto.Changeset{}} =
                Satisfy.execute(%{
                  pursuit_id: pursuit.id,
-                 final_grab_id: Ecto.UUID.generate(),
+                 final_target_id: Ecto.UUID.generate(),
                  final_release_title: "X"
                })
     end
@@ -70,7 +70,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       assert {:error, :not_found} =
                Satisfy.execute(%{
                  pursuit_id: Ecto.UUID.generate(),
-                 final_grab_id: Ecto.UUID.generate(),
+                 final_target_id: Ecto.UUID.generate(),
                  final_release_title: "X"
                })
     end

@@ -27,7 +27,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
 
   attr :download, :any,
     default: nil,
-    doc: "Matched `DownloadProgress.t()` or `nil`. When nil, a hint is derived from `vm.grab_status`."
+    doc: "Matched `DownloadProgress.t()` or `nil`. When nil, a hint is derived from `vm.target_status`."
 
   attr :queue_item_id, :string,
     default: nil,
@@ -58,7 +58,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
         download={@download}
         queue_item_id={@queue_item_id}
         cancel_title={@vm.release_title || @vm.title}
-        grab_status={@vm.grab_status}
+        target_status={@vm.target_status}
       />
 
       <div class="flex justify-end pt-1">
@@ -103,7 +103,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
 
   attr :queue_item_id, :string, required: true
   attr :cancel_title, :string, required: true
-  attr :grab_status, :atom, required: true
+  attr :target_status, :atom, required: true
 
   defp download_footer(%{download: %DownloadProgress{}} = assigns) do
     ~H"""
@@ -154,7 +154,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
   end
 
   defp download_footer(assigns) do
-    assigns = assign(assigns, :hint, no_match_hint(assigns.grab_status))
+    assigns = assign(assigns, :hint, no_match_hint(assigns.target_status))
 
     ~H"""
     <div :if={@hint} class="border-t border-base-content/5 pt-2">
@@ -166,22 +166,20 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
   end
 
   defp no_match_hint(nil),
-    do: %{label: "Searching — no release picked yet.", tone_class: "text-base-content/50"}
+    do: %{label: "Searching — no target picked yet.", tone_class: "text-base-content/50"}
 
-  defp no_match_hint(:searching),
+  defp no_match_hint(:seeking),
     do: %{label: "Searching for a release.", tone_class: "text-base-content/60"}
 
-  defp no_match_hint(:snoozed),
-    do: %{label: "Snoozed — will retry shortly.", tone_class: "text-base-content/60"}
-
-  defp no_match_hint(:grabbed),
+  defp no_match_hint(:acquired),
     do: %{label: "Waiting — not visible in your download client.", tone_class: "text-warning"}
 
-  defp no_match_hint(:abandoned),
-    do: %{label: "Stopped — auto-search gave up.", tone_class: "text-warning"}
+  defp no_match_hint(:succeeded), do: %{label: "Acquired — file landed.", tone_class: "text-success"}
+
+  defp no_match_hint(:failed), do: %{label: "Stopped — auto-search gave up.", tone_class: "text-warning"}
 
   defp no_match_hint(:cancelled),
-    do: %{label: "Stopped — grab was cancelled.", tone_class: "text-base-content/60"}
+    do: %{label: "Stopped — target was cancelled.", tone_class: "text-base-content/60"}
 
   defp no_match_hint(_), do: nil
 

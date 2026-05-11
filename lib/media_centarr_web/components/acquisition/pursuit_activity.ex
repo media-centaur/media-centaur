@@ -15,7 +15,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitActivity do
 
   attr :vm, PursuitStatus, required: true
   attr :on_cancel, :string, default: nil
-  attr :on_re_search, :string, default: nil
+  attr :on_change_target, :string, default: nil
   attr :on_request_decision, :string, default: nil
 
   def pursuit_activity(assigns) do
@@ -43,12 +43,12 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitActivity do
 
       <div :if={@vm.available_actions != []} class="flex flex-wrap gap-2 justify-end pt-1">
         <.button
-          :if={:re_search in @vm.available_actions and @on_re_search}
+          :if={:change_target in @vm.available_actions and @on_change_target}
           variant="neutral"
           size="sm"
-          phx-click={@on_re_search}
+          phx-click={@on_change_target}
         >
-          Re-search
+          Change target
         </.button>
         <.button
           :if={:request_decision in @vm.available_actions and @on_request_decision}

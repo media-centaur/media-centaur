@@ -56,7 +56,7 @@ defmodule MediaCentarr.Showcase do
   persistent-term stub used by tests — so `mix test` never hits the real API.
   """
 
-  alias MediaCentarr.Acquisition.Grab
+  alias MediaCentarr.Acquisition.{Pursuits.Pursuit, Target}
   alias MediaCentarr.Library
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.Repo
@@ -672,26 +672,26 @@ defmodule MediaCentarr.Showcase do
   #     (`searching`, `grabbed`, `snoozed`, `abandoned`, `cancelled`),
   #     mixing `auto` and `manual` origin.
   #
-  # Returns the total grab count for the seed summary.
+  # Returns the total target count for the seed summary.
   defp seed_acquisition_activity! do
-    seed_coming_up_grabs!()
-    seed_extra_activity_grabs!()
-    Repo.aggregate(Grab, :count)
+    seed_coming_up_pursuits!()
+    seed_extra_activity_pursuits!()
+    Repo.aggregate(Target, :count)
   end
 
   # Coming-Up badge states. Order matters only insofar as each tracked TV
-  # item gets one slot: a Grabbed badge today+1, Searching today+2,
-  # Pending today+4, Scheduled today+6. The Scheduled slot deliberately
-  # has *no* grab row — its "Scheduled" variant comes from the absence
-  # of a matching grab in `Acquisition.statuses_for_releases/1`.
+  # item gets one slot: an Acquired badge today+1, Seeking today+2,
+  # Failed today+4, Scheduled today+6. The Scheduled slot deliberately
+  # has *no* pursuit row — its "Scheduled" variant comes from the absence
+  # of a matching pursuit in `Acquisition.statuses_for_releases/1`.
   @coming_up_slots [
-    {1, "grabbed", "auto"},
-    {2, "searching", "auto"},
-    {4, "snoozed", "auto"},
+    {1, "acquired", "auto"},
+    {2, "seeking", "auto"},
+    {4, "failed", "auto"},
     {6, nil, nil}
   ]
 
-  defp seed_coming_up_grabs! do
+  defp seed_coming_up_pursuits! do
     today = Date.utc_today()
     tv_items = Enum.filter(ReleaseTracking.list_all_items(), &(&1.media_type == :tv_series))
 
@@ -702,7 +702,7 @@ defmodule MediaCentarr.Showcase do
       |> Stream.cycle()
       |> Enum.zip(@coming_up_slots)
       |> Enum.with_index()
-      |> Enum.each(fn {{item, {day_offset, status, origin}}, slot_idx} ->
+      |> Enum.each(fn {{item, {day_offset, target_status, origin}}, slot_idx} ->
         air_date = Date.add(today, day_offset)
         season_number = 6
         episode_number = 11 + slot_idx
@@ -717,16 +717,24 @@ defmodule MediaCentarr.Showcase do
           in_library: false
         })
 
-        if status do
-          insert_grab!(%{
-            tmdb_id: to_string(item.tmdb_id),
-            tmdb_type: ReleaseTracking.tmdb_type_for(item.media_type),
-            title: "#{item.name} S#{season_number}E#{episode_number}",
-            season_number: season_number,
-            episode_number: episode_number,
-            origin: origin,
-            status: status
-          })
+        if target_status do
+          insert_pursuit_with_target!(
+            pursuit_attrs: %{
+              recipe_type: "tmdb",
+              tmdb_id: to_string(item.tmdb_id),
+              tmdb_type: ReleaseTracking.tmdb_type_for(item.media_type),
+              title: "#{item.name} S#{season_number}E#{episode_number}",
+              season_number: season_number,
+              episode_number: episode_number,
+              origin: origin,
+              state: pursuit_state_for(target_status)
+            },
+            target_attrs: %{
+              title: "#{item.name} S#{season_number}E#{episode_number}",
+              status: target_status,
+              origin: origin
+            }
+          )
         end
       end)
 
@@ -735,60 +743,81 @@ defmodule MediaCentarr.Showcase do
   end
 
   # The Activity tab needs every status chip populated. Coming-Up
-  # already covers searching / grabbed / snoozed; here we add abandoned
-  # and cancelled, plus one manual-origin grab so the activity feed
-  # shows a mix of auto vs user-initiated work.
-  defp seed_extra_activity_grabs! do
-    insert_grab!(%{
-      tmdb_id: "showcase-manual-1",
-      tmdb_type: "manual",
-      title: "Phantom of the Opera (1925) · 1080p WEB-DL",
-      origin: "manual",
-      status: "grabbed",
-      prowlarr_guid: "showcase-manual-1",
-      manual_query: "Phantom of the Opera 1925"
-    })
+  # already covers seeking / acquired / failed; here we add cancelled,
+  # plus one manual-origin pursuit so the activity feed shows a mix of
+  # auto vs user-initiated work.
+  defp seed_extra_activity_pursuits! do
+    insert_pursuit_with_target!(
+      pursuit_attrs: %{
+        recipe_type: "prowlarr_query",
+        manual_query: "Phantom of the Opera 1925",
+        title: "Phantom of the Opera (1925) · 1080p WEB-DL",
+        origin: "manual",
+        state: "active"
+      },
+      target_attrs: %{
+        title: "Phantom of the Opera (1925) · 1080p WEB-DL",
+        status: "acquired",
+        origin: "manual",
+        prowlarr_guid: "showcase-manual-1"
+      }
+    )
 
-    insert_grab!(%{
-      tmdb_id: "showcase-abandoned-1",
-      tmdb_type: "movie",
-      title: "Carnival of Souls (1962)",
-      origin: "auto",
-      status: "abandoned",
-      attempt_count: 5
-    })
-
-    insert_grab!(%{
-      tmdb_id: "showcase-cancelled-1",
-      tmdb_type: "movie",
-      title: "Plan 9 from Outer Space (1959)",
-      origin: "auto",
-      status: "cancelled",
-      cancelled_reason: "user_cancelled"
-    })
+    insert_pursuit_with_target!(
+      pursuit_attrs: %{
+        recipe_type: "tmdb",
+        tmdb_id: "showcase-cancelled-1",
+        tmdb_type: "movie",
+        title: "Plan 9 from Outer Space (1959)",
+        origin: "auto",
+        state: "cancelled"
+      },
+      target_attrs: %{
+        title: "Plan 9 from Outer Space (1959)",
+        status: "cancelled",
+        origin: "auto",
+        cancelled_reason: "user_cancelled"
+      }
+    )
   end
 
-  # Inserts a Grab in any status. The public Grab.create_changeset only
-  # casts a subset of fields and defaults `status` to "searching", so the
-  # seed bypasses it via `Ecto.Changeset.change/2` to land each row
-  # directly in the desired terminal/intermediate state. Real production
-  # transitions still flow through the dedicated changesets
-  # (`grabbed_changeset`, `attempt_changeset`, etc.) elsewhere.
-  defp insert_grab!(attrs) do
-    now = DateTime.utc_now(:second)
-    base = Map.merge(%{inserted_at: now, updated_at: now}, attrs)
+  defp pursuit_state_for("seeking"), do: "active"
+  defp pursuit_state_for("acquired"), do: "active"
+  defp pursuit_state_for("failed"), do: "exhausted"
+  defp pursuit_state_for("cancelled"), do: "cancelled"
+  defp pursuit_state_for(_), do: "active"
 
-    base =
-      case attrs[:status] do
-        "grabbed" -> Map.put_new(base, :grabbed_at, now)
-        "abandoned" -> Map.put_new(base, :cancelled_at, now)
-        "cancelled" -> Map.put_new(base, :cancelled_at, now)
-        _ -> base
+  # Inserts a Pursuit + its current Target. Bypasses changeset validations
+  # so seeded rows can land in any combination of terminal/intermediate
+  # state directly. Real production transitions still flow through the
+  # dedicated changesets elsewhere.
+  defp insert_pursuit_with_target!(pursuit_attrs: p_attrs, target_attrs: t_attrs) do
+    now = DateTime.utc_now(:second)
+    pursuit_base = Map.merge(%{inserted_at: now, updated_at: now}, p_attrs)
+
+    pursuit =
+      %Pursuit{}
+      |> Ecto.Changeset.change(pursuit_base)
+      |> Repo.insert!()
+
+    target_base = Map.merge(t_attrs, %{pursuit_id: pursuit.id, inserted_at: now, updated_at: now})
+
+    target_base =
+      case t_attrs[:status] do
+        "acquired" -> Map.put_new(target_base, :acquired_at, now)
+        "failed" -> Map.put_new(target_base, :cancelled_at, now)
+        "cancelled" -> Map.put_new(target_base, :cancelled_at, now)
+        _ -> target_base
       end
 
-    %Grab{}
-    |> Ecto.Changeset.change(base)
-    |> Repo.insert!()
+    target =
+      %Target{}
+      |> Ecto.Changeset.change(target_base)
+      |> Repo.insert!()
+
+    pursuit
+    |> Ecto.Changeset.change(current_target_id: target.id)
+    |> Repo.update!()
   end
 
   # Fake Prowlarr + download-client configuration and a recorded "ok"

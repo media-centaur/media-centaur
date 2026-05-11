@@ -58,14 +58,30 @@ defmodule MediaCentarr.Acquisition.Pursuits.PursuitTest do
       assert changeset.changes.criteria == %{"min_quality" => "1080p", "max_quality" => "2160p"}
     end
 
-    test "requires tmdb_id, tmdb_type, title, origin" do
+    test "requires title and origin (tmdb_id / tmdb_type required only on TMDB recipe)" do
       changeset = Pursuit.create_changeset(%{})
+
+      refute changeset.valid?
+      assert Keyword.has_key?(changeset.errors, :title)
+      assert Keyword.has_key?(changeset.errors, :origin)
+    end
+
+    test "TMDB recipe also requires tmdb_id and tmdb_type" do
+      changeset =
+        Pursuit.create_changeset(%{recipe_type: "tmdb", title: "T", origin: "auto"})
 
       refute changeset.valid?
       assert Keyword.has_key?(changeset.errors, :tmdb_id)
       assert Keyword.has_key?(changeset.errors, :tmdb_type)
-      assert Keyword.has_key?(changeset.errors, :title)
-      assert Keyword.has_key?(changeset.errors, :origin)
+    end
+
+    test "prowlarr_query recipe requires manual_query (not TMDB fields)" do
+      changeset =
+        Pursuit.create_changeset(%{recipe_type: "prowlarr_query", title: "T", origin: "manual"})
+
+      refute changeset.valid?
+      assert Keyword.has_key?(changeset.errors, :manual_query)
+      refute Keyword.has_key?(changeset.errors, :tmdb_id)
     end
 
     test "rejects unknown origin values" do

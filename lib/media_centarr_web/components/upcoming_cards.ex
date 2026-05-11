@@ -32,7 +32,7 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # at its typed producer.
   @doc_releases_map "release pair `%{upcoming: [Release.t()], released: [Release.t()]}` from `UpcomingLive.load_upcoming/0`. `Release` is `MediaCentarr.ReleaseTracking.Release` (Ecto schema) preloaded with `:item`."
   @doc_releases_list "list of `MediaCentarr.ReleaseTracking.Release.t()` rows."
-  @doc_grab_statuses "map `%{{tmdb_id, tmdb_type, season, episode} => MediaCentarr.Acquisition.Grab.t()}` from `Acquisition.statuses_for_releases/1`."
+  @doc_grab_statuses "map `%{{tmdb_id, tmdb_type, season, episode} => {MediaCentarr.Acquisition.Pursuits.Pursuit.t(), MediaCentarr.Acquisition.Target.t() | nil}}` from `Acquisition.statuses_for_releases/1`."
   @doc_queue_items "list of `MediaCentarr.Downloads.QueueItem.t()` rows from `Acquisition.queue_snapshot/0`."
   @doc_images_map "map `%{Ecto.UUID.t() => %{atom() => String.t()}}` keyed by tracked-item id, value is the image-role → URL map. Built by `UpcomingLive.load_tracking_images/1`."
   @doc_calendar_month_tuple "tuple `{year :: integer(), month :: 1..12}` — current calendar viewport. Phoenix has no tuple type."
@@ -1259,14 +1259,14 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
   # at-a-glance visual cue without itself being clickable.
   # ---------------------------------------------------------------------------
 
-  alias MediaCentarr.Acquisition.{Grab, GrabStatus}
+  alias MediaCentarr.Acquisition.{Target, TargetStatus}
   alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarr.ReleaseTracking
 
   @doc """
   Resolves a release's acquisition state from its library presence, the
-  matching grab row (or nil), and the matching download-client queue item
-  (or nil).
+  matching target row (or nil), and the matching download-client queue
+  item (or nil).
 
   Takes primitive `in_library?` rather than the full `Release` struct so
   the resolver doesn't pull `MediaCentarr.ReleaseTracking.Release` across
@@ -1278,15 +1278,15 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
 
   1. `:completed` — file is in library (highest precedence; once it's
      here, nothing else matters)
-  2. `:downloading | :paused | :errored` — grab succeeded; live state
+  2. `:downloading | :paused | :errored` — target acquired; live state
      comes from the queue item, defaulting to `:downloading` if no
      queue item matches (still queued or already imported)
-  3. `:searching` — grab is `searching` or `snoozed`
-  4. `:abandoned` — gave up after max attempts
-  5. `:cancelled` — explicitly stopped (visually treated as no-op)
-  6. `:none` — no grab, not in library
+  3. `:searching` — target is `seeking`
+  4. `:abandoned` — target gave up after max attempts (`failed`)
+  5. `:cancelled` — target explicitly stopped (visually treated as no-op)
+  6. `:none` — no target, not in library
   """
-  @spec release_status(boolean(), Grab.t() | nil, QueueItem.t() | nil) ::
+  @spec release_status(boolean(), Target.t() | nil, QueueItem.t() | nil) ::
           :completed
           | :downloading
           | :downloading_stuck
@@ -1296,9 +1296,9 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           | :abandoned
           | :cancelled
           | :none
-  def release_status(true, _grab, _queue), do: :completed
+  def release_status(true, _target, _queue), do: :completed
 
-  def release_status(false, %Grab{status: "grabbed"}, %QueueItem{state: state, health: health}) do
+  def release_status(false, %Target{status: "acquired"}, %QueueItem{state: state, health: health}) do
     case state do
       :paused ->
         :paused
@@ -1316,13 +1316,14 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
     end
   end
 
-  def release_status(false, %Grab{status: "grabbed"}, nil), do: :downloading
-  def release_status(false, %Grab{status: "abandoned"}, _queue), do: :abandoned
-  def release_status(false, %Grab{status: "cancelled"}, _queue), do: :cancelled
+  def release_status(false, %Target{status: "acquired"}, nil), do: :downloading
+  def release_status(false, %Target{status: "succeeded"}, _queue), do: :completed
+  def release_status(false, %Target{status: "failed"}, _queue), do: :abandoned
+  def release_status(false, %Target{status: "cancelled"}, _queue), do: :cancelled
   def release_status(false, nil, _queue), do: :none
 
-  def release_status(false, %Grab{status: status}, _queue) do
-    if GrabStatus.in_flight?(status), do: :searching, else: :none
+  def release_status(false, %Target{status: status}, _queue) do
+    if TargetStatus.in_flight?(status), do: :searching, else: :none
   end
 
   @doc """
@@ -1456,7 +1457,10 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
       {to_string(release.item.tmdb_id), ReleaseTracking.tmdb_type_for(release.item.media_type),
        release.season_number, release.episode_number}
 
-    Map.get(grab_statuses, key)
+    case Map.get(grab_statuses, key) do
+      {_pursuit, target} -> target
+      nil -> nil
+    end
   end
 
   # Fuzzy match: a torrent in the queue is considered to belong to a

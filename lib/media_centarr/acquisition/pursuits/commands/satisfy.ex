@@ -8,7 +8,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.Satisfy do
 
   @spec execute(map()) ::
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
-  def execute(%{pursuit_id: id, final_grab_id: grab_id, final_release_title: title}) do
+  def execute(%{pursuit_id: id, final_target_id: target_id, final_release_title: title}) do
     Runner.run(id, "pursuit satisfied", fn pursuit ->
       with {:ok, updated} <- Repo.update(Pursuit.satisfy_changeset(pursuit)),
            {:ok, _event} <-
@@ -16,7 +16,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.Satisfy do
                pursuit_id: updated.id,
                pursuit_title: updated.title,
                occurred_at: DateTime.utc_now(:second),
-               final_grab_id: grab_id,
+               final_target_id: target_id,
                final_release_title: title
              }) do
         {:ok, updated}

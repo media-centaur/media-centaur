@@ -6,8 +6,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshots do
   alias MediaCentarr.Downloads.QueueMonitor
 
   @doc """
-  Assembles a Snapshot for the given pursuit. Reads the latest grab, the
-  current queue snapshot, and live thresholds side-by-side so Policy
+  Assembles a Snapshot for the given pursuit. Reads the current target,
+  the current queue snapshot, and live thresholds side-by-side so Policy
   sees a coherent view. Derives `*_observed?` and `*_window_elapsed?`
   flags from the pursuit's persisted observation timestamps — those
   timestamps are kept current by `Pursuits.Observations.refresh!/3`,
@@ -28,7 +28,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshots do
 
     %Snapshot{
       pursuit: pursuit,
-      latest_grab: latest_grab(pursuit.id),
+      current_target: Pursuits.current_target(pursuit),
       queue_state: queue_state,
       now: now,
       thresholds: thresholds,
@@ -43,13 +43,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshots do
           now
         )
     }
-  end
-
-  defp latest_grab(pursuit_id) do
-    case Pursuits.latest_grab(pursuit_id) do
-      {:ok, grab} -> grab
-      {:error, :not_found} -> nil
-    end
   end
 
   defp read_queue_state do

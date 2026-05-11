@@ -1,43 +1,9 @@
 defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Acquisition.Grab
+  import MediaCentarr.TestFactory
+
   alias MediaCentarr.Acquisition.Pursuits.{Event, IdentityVerifier, Pursuit}
-
-  defp insert_pursuit(overrides \\ %{}) do
-    attrs =
-      Map.merge(
-        %{
-          tmdb_id: "100",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          year: 2024,
-          origin: "auto"
-        },
-        overrides
-      )
-
-    {:ok, pursuit} = Repo.insert(Pursuit.create_changeset(attrs))
-    pursuit
-  end
-
-  defp insert_grab(pursuit) do
-    %Grab{}
-    |> Ecto.Changeset.cast(
-      %{
-        tmdb_id: pursuit.tmdb_id,
-        tmdb_type: pursuit.tmdb_type,
-        title: pursuit.title,
-        year: pursuit.year,
-        season_number: pursuit.season_number,
-        episode_number: pursuit.episode_number,
-        origin: pursuit.origin
-      },
-      [:tmdb_id, :tmdb_type, :title, :year, :season_number, :episode_number, :origin]
-    )
-    |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
-    |> Repo.insert!()
-  end
 
   defp job(pursuit, file_path) do
     %Oban.Job{args: %{"pursuit_id" => pursuit.id, "file_path" => file_path}}
@@ -45,8 +11,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
 
   describe "perform/1" do
     test "filename matches pursuit → records IdentityVerified, transitions to satisfied" do
-      pursuit = insert_pursuit(%{title: "Sample Movie", year: 2024})
-      grab = insert_grab(pursuit)
+      {pursuit, _target} =
+        create_pursuit_with_target(%{tmdb_id: "100", title: "Sample Movie", year: 2024})
+
       path = "/watch/movies/Sample.Movie.2024.1080p.WEB-DL.H264.mkv"
 
       assert :ok = IdentityVerifier.perform(job(pursuit, path))
@@ -61,13 +28,11 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
 
       verified = Enum.find(events, &(&1.kind == "identity_verified"))
       assert verified.payload["file_path"] == path
-
-      _ = grab
     end
 
     test "TV episode match honours season + episode" do
-      pursuit =
-        insert_pursuit(%{
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
           tmdb_id: "200",
           tmdb_type: "tv",
           title: "Sample Show",
@@ -76,7 +41,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
           episode_number: 3
         })
 
-      _grab = insert_grab(pursuit)
       path = "/watch/tv/Sample.Show.S01E03.1080p.WEB-DL.mkv"
 
       assert :ok = IdentityVerifier.perform(job(pursuit, path))
@@ -85,8 +49,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
     end
 
     test "wrong show in filename → records IdentityMismatch, cancels pursuit" do
-      pursuit = insert_pursuit(%{title: "Sample Movie", year: 2024})
-      _grab = insert_grab(pursuit)
+      {pursuit, _target} =
+        create_pursuit_with_target(%{tmdb_id: "100", title: "Sample Movie", year: 2024})
+
       path = "/watch/movies/Different.Movie.2010.1080p.mkv"
 
       assert :ok = IdentityVerifier.perform(job(pursuit, path))
@@ -106,8 +71,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
     end
 
     test "wrong episode number → mismatch (S01E04 should not satisfy a S01E03 pursuit)" do
-      pursuit =
-        insert_pursuit(%{
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
           tmdb_id: "200",
           tmdb_type: "tv",
           title: "Sample Show",
@@ -116,7 +81,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
           episode_number: 3
         })
 
-      _grab = insert_grab(pursuit)
       path = "/watch/tv/Sample.Show.S01E04.1080p.WEB-DL.mkv"
 
       assert :ok = IdentityVerifier.perform(job(pursuit, path))
@@ -134,22 +98,18 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifierTest do
     end
 
     test "skips silently when the pursuit is already terminal" do
-      pursuit = insert_pursuit() |> Ecto.Changeset.change(state: "satisfied") |> Repo.update!()
-      _grab = insert_grab(pursuit)
+      {pursuit, _target} = create_pursuit_with_target()
+
+      pursuit
+      |> Ecto.Changeset.change(state: "satisfied")
+      |> Repo.update!()
 
       assert :ok = IdentityVerifier.perform(job(pursuit, "/anything.mkv"))
 
-      events = Repo.all(Event)
-      assert Enum.empty?(events)
-    end
+      # Only the change of state above happened; no IdentityVerifier events.
+      events = Enum.filter(Repo.all(Event), &(&1.kind in ~w(identity_verified identity_mismatch)))
 
-    test "skips silently when the pursuit has no grab" do
-      pursuit = insert_pursuit()
-
-      assert :ok = IdentityVerifier.perform(job(pursuit, "/anything.mkv"))
-
-      assert Repo.get!(Pursuit, pursuit.id).state == "active"
-      assert Repo.all(Event) == []
+      assert events == []
     end
   end
 end

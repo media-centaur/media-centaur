@@ -1,22 +1,13 @@
 defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Acquisition.Grab
+  import MediaCentarr.TestFactory
+
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit, Watcher}
   alias MediaCentarr.Downloads.QueueItem
 
   defp insert_pursuit(overrides) do
-    {:ok, pursuit} =
-      Repo.insert(
-        Pursuit.create_changeset(%{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        })
-      )
-
-    overrides =
+    pursuit_overrides =
       Map.merge(
         %{
           attempt_count: 0,
@@ -25,25 +16,28 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
         overrides
       )
 
+    {pursuit, _target} = create_pursuit_with_target(pursuit_overrides)
+
     pursuit
-    |> Ecto.Changeset.change(overrides)
+    |> Ecto.Changeset.change(pursuit_overrides)
     |> Repo.update!()
   end
 
-  defp insert_grab_with_release(pursuit, release_title) do
-    %Grab{}
-    |> Ecto.Changeset.cast(
-      %{
-        tmdb_id: pursuit.tmdb_id,
-        tmdb_type: pursuit.tmdb_type,
-        title: pursuit.title,
-        origin: pursuit.origin
-      },
-      [:tmdb_id, :tmdb_type, :title, :origin]
+  defp set_current_target_release(pursuit, release_title) do
+    %MediaCentarr.Acquisition.Target{}
+    |> Ecto.Changeset.change(
+      pursuit_id: pursuit.id,
+      title: pursuit.title,
+      origin: pursuit.origin,
+      status: "acquired",
+      release_title: release_title
     )
-    |> Ecto.Changeset.put_change(:pursuit_id, pursuit.id)
-    |> Ecto.Changeset.put_change(:release_title, release_title)
     |> Repo.insert!()
+    |> tap(fn target ->
+      pursuit
+      |> Ecto.Changeset.change(current_target_id: target.id)
+      |> Repo.update!()
+    end)
   end
 
   defp seed_queue(items) do
@@ -87,7 +81,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
       assert Repo.get!(Pursuit, old_pursuit.id).state == "exhausted"
       assert Repo.get!(Pursuit, fresh_pursuit.id).state == "active"
 
-      # The exhausted pursuit recorded a pursuit_exhausted event
       old_events =
         Event
         |> Ecto.Query.where(pursuit_id: ^old_pursuit.id)
@@ -125,7 +118,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
 
-      # Second run skips already-exhausted pursuit; only one exhaustion event
       events =
         Event
         |> Ecto.Query.where(pursuit_id: ^old_pursuit.id, kind: "pursuit_exhausted")
@@ -146,7 +138,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
           stall_first_seen_at: DateTime.add(DateTime.utc_now(:second), -25 * 3600)
         })
 
-      insert_grab_with_release(pursuit, release)
+      set_current_target_release(pursuit, release)
       seed_queue([queue_item(release, state: :downloading, health: :soft_stall)])
 
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
@@ -170,7 +162,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
           stall_first_seen_at: DateTime.add(DateTime.utc_now(:second), -7 * 3600)
         })
 
-      insert_grab_with_release(pursuit, release)
+      set_current_target_release(pursuit, release)
       seed_queue([queue_item(release, state: :stalled, health: :frozen)])
 
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
@@ -181,7 +173,6 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
         |> Repo.all()
 
       assert length(events) == 1
-      # AutoCancel keeps the pursuit active per its v1 design (no transition).
       assert Repo.get!(Pursuit, pursuit.id).state == "active"
     end
 
@@ -193,7 +184,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
           stall_first_seen_at: DateTime.add(DateTime.utc_now(:second), -25 * 3600)
         })
 
-      insert_grab_with_release(pursuit, release)
+      set_current_target_release(pursuit, release)
       seed_queue([queue_item(release, state: :downloading, health: :healthy)])
 
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})

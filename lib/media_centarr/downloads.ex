@@ -34,13 +34,13 @@ defmodule MediaCentarr.Downloads do
 
   Does NOT own:
 
-    * The grab lifecycle (`MediaCentarr.Acquisition.Grab`).
+    * The target lifecycle (`MediaCentarr.Acquisition.Target`).
     * The Pursuits aggregate (`MediaCentarr.Acquisition.Pursuits`).
     * Prowlarr search or release matching
       (`MediaCentarr.Acquisition.Search.*` after Phase 2).
 
   The boundary is one-way: `Acquisition` calls into `Downloads` (via
-  the exported modules above). `Downloads` knows nothing about grabs
+  the exported modules above). `Downloads` knows nothing about targets
   or pursuits — its world is "what's the client doing right now."
   """
 end

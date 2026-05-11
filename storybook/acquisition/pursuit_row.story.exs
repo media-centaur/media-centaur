@@ -82,12 +82,12 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
       %VariationGroup{
         id: :download_footer,
         description:
-          "Downloads index footer. When `download` is nil, the footer derives a hint from `grab_status`.",
+          "Downloads index footer. When `download` is nil, the footer derives a hint from `target_status`.",
         variations: [
           %Variation{
             id: :matched_downloading,
             attributes: %{
-              vm: matched_row("Sample Movie 2010", :grabbed),
+              vm: matched_row("Sample Movie 2010", :acquired),
               download: %DownloadProgress{
                 state: :downloading,
                 progress_pct: 42.0,
@@ -102,7 +102,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           %Variation{
             id: :matched_stalled,
             attributes: %{
-              vm: matched_row("Sample Show S01E03", :grabbed),
+              vm: matched_row("Sample Show S01E03", :acquired),
               download: %DownloadProgress{
                 state: :stalled,
                 progress_pct: 18.0,
@@ -115,7 +115,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           %Variation{
             id: :matched_queued,
             attributes: %{
-              vm: matched_row("Public Domain Film 1923", :grabbed),
+              vm: matched_row("Public Domain Film 1923", :acquired),
               download: %DownloadProgress{
                 state: :queued,
                 progress_pct: nil,
@@ -128,7 +128,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           %Variation{
             id: :matched_error,
             attributes: %{
-              vm: matched_row("Movie A", :grabbed),
+              vm: matched_row("Movie A", :acquired),
               download: %DownloadProgress{
                 state: :error,
                 progress_pct: 7.0,
@@ -140,17 +140,17 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           },
           %Variation{
             id: :no_match_searching,
-            description: "No matched torrent yet — auto-grab is still searching",
+            description: "No matched torrent yet — auto-search is still seeking",
             attributes: %{
-              vm: matched_row("Movie B", :searching, release_title: nil)
+              vm: matched_row("Movie B", :seeking, release_title: nil)
             }
           },
           %Variation{
             id: :no_match_stuck,
             description:
-              "Grab nominally succeeded but the file never appeared in the download client (the v0.54.0 case)",
+              "Target nominally acquired but the file never appeared in the download client (the v0.54.0 case)",
             attributes: %{
-              vm: matched_row("Movie C", :grabbed)
+              vm: matched_row("Movie C", :acquired)
             }
           }
         ]
@@ -158,18 +158,18 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
     ]
   end
 
-  defp matched_row(title, grab_status, opts \\ []) do
+  defp matched_row(title, target_status, opts \\ []) do
     release_title = Keyword.get(opts, :release_title, "#{title}.1080p.WEB-DL")
 
     row_struct(%{
-      id: "matched-#{grab_status}-#{:erlang.phash2(title)}",
+      id: "matched-#{target_status}-#{:erlang.phash2(title)}",
       title: title,
       state: :active,
       origin: :auto,
       attempt_count: 1,
       recent_events: events_active(),
       release_title: release_title,
-      grab_status: grab_status
+      target_status: target_status
     })
   end
 

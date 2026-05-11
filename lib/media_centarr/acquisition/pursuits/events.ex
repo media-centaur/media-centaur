@@ -19,13 +19,13 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events do
     IdentityVerified,
     PursuitCancelled,
     PursuitExhausted,
-    PursuitReSearched,
     PursuitSatisfied,
     PursuitStarted,
     ReleaseNoMatch,
     ReleasePicked,
     SearchStarted,
     StallConfirmed,
+    TargetChanged,
     UserDecisionRecorded,
     UserDecisionRequested,
     ZeroSeedersConfirmed
@@ -52,7 +52,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Events do
     "pursuit_satisfied" => PursuitSatisfied,
     "pursuit_exhausted" => PursuitExhausted,
     "pursuit_cancelled" => PursuitCancelled,
-    "pursuit_re_searched" => PursuitReSearched
+    "target_changed" => TargetChanged
   }
 
   @doc """

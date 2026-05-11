@@ -4,22 +4,21 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
   Write-side operations live in `Acquisition.Pursuits.Commands.*`. This
   module is intentionally read-only — it never mutates state, never
-  broadcasts, never enqueues jobs. Callers that want to change the world
-  go through a command. ViewModel assemblers also live here because
-  shaping rows for the UI is a read concern.
+  broadcasts, never enqueues jobs. Callers that want to change the
+  world go through a command. ViewModel assemblers also live here
+  because shaping rows for the UI is a read concern.
   """
 
   import Ecto.Query
 
-  alias MediaCentarr.Acquisition.Grab
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit, State}
-  alias MediaCentarr.Acquisition.QueueMatcher
+  alias MediaCentarr.Acquisition.{QueueMatcher, Target}
 
   alias MediaCentarr.Acquisition.ViewModels.{
     PursuitHeader,
     PursuitRow,
     PursuitStatus,
-    Target,
+    Recipe,
     Timeline,
     TimelineEntry
   }
@@ -54,12 +53,17 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
     pursuit_ids = Enum.map(pursuits, & &1.id)
     events_by_pursuit = recent_events_by_pursuit(pursuit_ids, @recent_events_limit)
-    latest_grabs = latest_grab_summary_by_pursuit(pursuit_ids)
+
+    current_targets =
+      pursuits
+      |> Enum.map(& &1.current_target_id)
+      |> Enum.reject(&is_nil/1)
+      |> fetch_targets_by_id()
 
     Enum.map(pursuits, fn pursuit ->
       events = Map.get(events_by_pursuit, pursuit.id, [])
-      {release_title, grab_status} = Map.get(latest_grabs, pursuit.id, {nil, nil})
-      build_row(pursuit, events, release_title, grab_status)
+      target = Map.get(current_targets, pursuit.current_target_id)
+      build_row(pursuit, events, target)
     end)
   end
 
@@ -83,14 +87,9 @@ defmodule MediaCentarr.Acquisition.Pursuits do
         error
 
       {:ok, pursuit} ->
-        grab =
-          case latest_grab(id) do
-            {:ok, grab} -> grab
-            {:error, :not_found} -> nil
-          end
-
-        queue_item = find_queue_match(grab)
-        {current_action, next_step, actions} = PursuitStatus.derive(pursuit, grab, queue_item)
+        target = current_target(pursuit)
+        queue_item = find_queue_match(target)
+        {current_action, next_step, actions} = PursuitStatus.derive(pursuit, target, queue_item)
         last_activity_at = latest_event_at(id)
 
         status = %PursuitStatus{
@@ -98,7 +97,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
           title: pursuit.title,
           state: String.to_existing_atom(pursuit.state),
           origin: String.to_existing_atom(pursuit.origin),
-          target: build_target(pursuit),
+          recipe: build_recipe(pursuit),
           criteria_summary: summarize_criteria(pursuit.criteria),
           current_action: current_action,
           next_step: next_step,
@@ -124,9 +123,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   end
 
   @doc """
-  Returns events for a pursuit, newest first. Empty list for unknown pursuit_id —
-  events with nilified `pursuit_id` are not surfaced here (use a dedicated query
-  if you need orphan events).
+  Returns events for a pursuit, newest first. Empty list for unknown
+  pursuit_id — events with nilified `pursuit_id` are not surfaced here.
   """
   @spec events_for(Ecto.UUID.t()) :: [Event.t()]
   def events_for(pursuit_id) do
@@ -137,19 +135,22 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   end
 
   @doc """
-  Returns active pursuits whose target matches the given map.
+  Returns active pursuits whose TMDB recipe matches the given map.
 
-  Accepts `%{tmdb_id, tmdb_type}` and optional `:season_number` / `:episode_number`.
-  TV pursuits without a season pin (e.g., season-pack pursuits) match any
-  episode for that series; movie pursuits match by `tmdb_id` alone.
+  Accepts `%{tmdb_id, tmdb_type}` and optional `:season_number` /
+  `:episode_number`. TV pursuits without a season pin (e.g.,
+  season-pack pursuits) match any episode for that series; movie
+  pursuits match by `tmdb_id` alone.
 
-  Used by `Pursuits.InboundListener` to dispatch identity verification when
-  a file lands for a tracked target.
+  Only matches pursuits with `recipe_type = "tmdb"` — query-recipe
+  pursuits have no TMDB metadata to match against. Used by
+  `Pursuits.InboundListener` to dispatch identity verification when a
+  file lands for a tracked target.
   """
   @spec find_active_for_target(map()) :: [Pursuit.t()]
   def find_active_for_target(%{tmdb_id: tmdb_id, tmdb_type: "movie"}) when is_binary(tmdb_id) do
     Pursuit
-    |> where([p], p.state == "active")
+    |> where([p], p.state == "active" and p.recipe_type == "tmdb")
     |> where([p], p.tmdb_id == ^tmdb_id and p.tmdb_type == "movie")
     |> Repo.all()
   end
@@ -159,7 +160,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     episode = Map.get(target, :episode_number)
 
     Pursuit
-    |> where([p], p.state == "active")
+    |> where([p], p.state == "active" and p.recipe_type == "tmdb")
     |> where([p], p.tmdb_id == ^tmdb_id and p.tmdb_type == "tv")
     |> match_season(season)
     |> match_episode(episode)
@@ -180,50 +181,53 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     where(query, [p], is_nil(p.episode_number) or p.episode_number == ^episode)
   end
 
-  @doc "Returns the most recently inserted grab linked to a pursuit."
-  @spec latest_grab(Ecto.UUID.t()) :: {:ok, Grab.t()} | {:error, :not_found}
-  def latest_grab(pursuit_id) do
-    grab =
-      Grab
-      |> where([g], g.pursuit_id == ^pursuit_id)
-      |> order_by([g], desc: g.inserted_at)
+  @doc """
+  Returns the pursuit's current target (the row pointed at by
+  `pursuit.current_target_id`), if any.
+  """
+  @spec current_target(Pursuit.t()) :: Target.t() | nil
+  def current_target(%Pursuit{current_target_id: nil}), do: nil
+  def current_target(%Pursuit{current_target_id: id}), do: Repo.get(Target, id)
+
+  @doc """
+  Returns the most recently inserted target linked to a pursuit
+  (regardless of which is the pursuit's `current_target_id` — useful
+  for history queries that want "the latest attempt").
+  """
+  @spec latest_target(Ecto.UUID.t()) :: {:ok, Target.t()} | {:error, :not_found}
+  def latest_target(pursuit_id) do
+    target =
+      Target
+      |> where([t], t.pursuit_id == ^pursuit_id)
+      |> order_by([t], desc: t.inserted_at)
       |> limit(1)
       |> Repo.one()
 
-    case grab do
+    case target do
       nil -> {:error, :not_found}
-      %Grab{} = grab -> {:ok, grab}
+      %Target{} = target -> {:ok, target}
     end
+  end
+
+  @doc "Returns all targets for a pursuit, newest-inserted first."
+  @spec targets_for(Ecto.UUID.t()) :: [Target.t()]
+  def targets_for(pursuit_id) do
+    Target
+    |> where([t], t.pursuit_id == ^pursuit_id)
+    |> order_by([t], desc: t.inserted_at)
+    |> Repo.all()
   end
 
   # --- ViewModel assembly ----------------------------------------------------
 
-  defp latest_grab_summary_by_pursuit([]), do: %{}
+  defp fetch_targets_by_id([]), do: %{}
 
-  # One LIMIT-1 query per pursuit for `{release_title, grab_status}`.
-  # Same shape as `recent_events_by_pursuit/2` — bounded payload, no
-  # window-function gymnastics on SQLite. Used only by the row VM, which
-  # rebuilds on pursuit PubSub events (debounced 500 ms) — not on every
-  # queue snapshot.
-  defp latest_grab_summary_by_pursuit(pursuit_ids) do
-    Map.new(pursuit_ids, fn pursuit_id ->
-      summary =
-        Grab
-        |> where([g], g.pursuit_id == ^pursuit_id)
-        |> order_by([g], desc: g.inserted_at)
-        |> limit(1)
-        |> select([g], {g.release_title, g.status})
-        |> Repo.one()
-
-      case summary do
-        nil -> {pursuit_id, {nil, nil}}
-        {release_title, status} -> {pursuit_id, {release_title, status_to_atom(status)}}
-      end
-    end)
+  defp fetch_targets_by_id(ids) do
+    Target
+    |> where([t], t.id in ^ids)
+    |> Repo.all()
+    |> Map.new(fn target -> {target.id, target} end)
   end
-
-  defp status_to_atom(nil), do: nil
-  defp status_to_atom(status) when is_binary(status), do: String.to_existing_atom(status)
 
   defp recent_events_by_pursuit([], _limit), do: %{}
 
@@ -246,7 +250,13 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     end)
   end
 
-  defp build_row(%Pursuit{} = pursuit, events, release_title, grab_status) do
+  defp build_row(%Pursuit{} = pursuit, events, target) do
+    {release_title, target_status} =
+      case target do
+        %Target{release_title: rt, status: status} -> {rt, status_to_atom(status)}
+        nil -> {nil, nil}
+      end
+
     %PursuitRow{
       id: pursuit.id,
       title: pursuit.title,
@@ -256,18 +266,21 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       recent_events: Enum.map(events, &entry_for_event/1),
       detail_path: "/download/#{pursuit.id}",
       release_title: release_title,
-      grab_status: grab_status,
+      target_status: target_status,
       inserted_at: pursuit.inserted_at,
       updated_at: pursuit.updated_at
     }
   end
+
+  defp status_to_atom(nil), do: nil
+  defp status_to_atom(status) when is_binary(status), do: String.to_existing_atom(status)
 
   defp build_header(%Pursuit{} = pursuit) do
     %PursuitHeader{
       id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
-      target: build_target(pursuit),
+      recipe: build_recipe(pursuit),
       criteria_summary: summarize_criteria(pursuit.criteria)
     }
   end
@@ -321,7 +334,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   defp summary_for("pursuit_exhausted", %{"reason" => r}), do: "Pursuit exhausted (#{r})"
   defp summary_for("pursuit_exhausted", _), do: "Pursuit exhausted"
   defp summary_for("pursuit_cancelled", _), do: "Pursuit cancelled"
-  defp summary_for("pursuit_re_searched", _), do: "Manual re-search triggered"
+  defp summary_for("target_changed", _), do: "Target changed"
   defp summary_for(kind, _), do: kind
 
   defp transition_phrase(same, same), do: nil
@@ -338,6 +351,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   defp severity_for(_), do: :info
 
   defp detail_for("release_picked", %{"indexer" => indexer, "quality" => q}), do: "#{indexer} • #{q}"
+
   defp detail_for("release_picked", %{"quality" => q}), do: q
   defp detail_for(_, _), do: nil
 
@@ -352,8 +366,9 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
   # --- status_for helpers ----------------------------------------------------
 
-  defp build_target(%Pursuit{} = p) do
-    %Target{
+  defp build_recipe(%Pursuit{recipe_type: "tmdb"} = p) do
+    %Recipe{
+      recipe_type: :tmdb,
       tmdb_type: p.tmdb_type,
       tmdb_id: p.tmdb_id,
       season_number: p.season_number,
@@ -362,10 +377,17 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     }
   end
 
-  defp find_queue_match(nil), do: nil
-  defp find_queue_match(%Grab{release_title: nil}), do: nil
+  defp build_recipe(%Pursuit{recipe_type: "prowlarr_query"} = p) do
+    %Recipe{
+      recipe_type: :prowlarr_query,
+      manual_query: p.manual_query
+    }
+  end
 
-  defp find_queue_match(%Grab{release_title: title}) do
+  defp find_queue_match(nil), do: nil
+  defp find_queue_match(%Target{release_title: nil}), do: nil
+
+  defp find_queue_match(%Target{release_title: title}) do
     normalized = QueueMatcher.normalize_title(title)
 
     Enum.find(QueueMonitor.snapshot(), fn %QueueItem{} = item ->

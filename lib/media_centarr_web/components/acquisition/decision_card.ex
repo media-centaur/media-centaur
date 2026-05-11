@@ -2,7 +2,8 @@ defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
   @moduledoc """
   Renders the alternatives picker shown on a pursuit detail page when its
   state is `:needs_decision`. Each alternative carries a "Try this one"
-  button that the LiveView wires to `Commands.RecordUserChoice`.
+  button that the LiveView wires to `Acquisition.pick_alternative/3`
+  (which submits to Prowlarr and routes through `Commands.PickTarget`).
   """
 
   use Phoenix.Component

@@ -279,11 +279,11 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert marquee.hero.eyebrow =~ "May 11"
     end
 
-    test "mixed status — hero grabbed badge, scheduled secondaries have nil badge" do
+    test "mixed status — hero acquired badge, scheduled secondaries have nil badge" do
       today = ~D[2026-04-27]
 
       releases = [
-        release("Sample Show A", today, status: :grabbed),
+        release("Sample Show A", today, status: :acquired),
         release("Sample Show B", Date.add(today, 1), status: :scheduled),
         release("Sample Show C", Date.add(today, 2), status: :scheduled)
       ]
@@ -291,18 +291,18 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       marquee = Logic.coming_up_marquee(releases, today)
 
       assert marquee.hero.badge.variant == :success
-      assert marquee.hero.badge.label == "Grabbed"
+      assert marquee.hero.badge.label == "Acquired"
       # "Scheduled" is the default state of every Coming Up item; carrying
       # a "SCHEDULED" badge on every tile is noise. nil here is signal.
       assert Enum.all?(marquee.secondaries, &(&1.badge == nil))
     end
 
-    test "actionable statuses (downloading, pending) still surface a badge" do
+    test "actionable statuses (downloading, seeking) still surface a badge" do
       today = ~D[2026-04-27]
 
       releases = [
         release("Sample Show B", today, status: :downloading),
-        release("Sample Show C", Date.add(today, 1), status: :pending)
+        release("Sample Show C", Date.add(today, 1), status: :seeking)
       ]
 
       marquee = Logic.coming_up_marquee(releases, today)
@@ -310,7 +310,7 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert marquee.hero.badge.label == "Downloading"
       assert marquee.hero.badge.variant == :info
       [secondary] = marquee.secondaries
-      assert secondary.badge.label == "Pending"
+      assert secondary.badge.label == "Seeking"
       assert secondary.badge.variant == :info
     end
 

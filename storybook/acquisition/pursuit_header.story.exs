@@ -4,7 +4,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentarr.Acquisition.ViewModels.PursuitHeader
-  alias MediaCentarr.Acquisition.ViewModels.Target
+  alias MediaCentarr.Acquisition.ViewModels.Recipe
 
   def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitHeader.pursuit_header/1
   def render_source, do: :function
@@ -27,7 +27,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-movie",
             title: "Public Domain Feature 1925",
             state: :active,
-            target: %Target{tmdb_type: "movie", tmdb_id: "1", year: 1925},
+            recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie", tmdb_id: "1", year: 1925},
             criteria_summary: "max_quality: 2160p, min_quality: 1080p"
           }
         }
@@ -40,11 +40,28 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-tv",
             title: "Sample Show S01E03",
             state: :active,
-            target: %Target{
+            recipe: %Recipe{
+              recipe_type: :tmdb,
               tmdb_type: "tv",
               tmdb_id: "10",
               season_number: 1,
               episode_number: 3
+            },
+            criteria_summary: nil
+          }
+        }
+      },
+      %Variation{
+        id: :manual_query,
+        description: "Free-form Prowlarr query pursuit",
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-manual",
+            title: "Phantom of the Opera (1925) · 1080p WEB-DL",
+            state: :active,
+            recipe: %Recipe{
+              recipe_type: :prowlarr_query,
+              manual_query: "Phantom of the Opera 1925"
             },
             criteria_summary: nil
           }
@@ -58,7 +75,12 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-decision",
             title: "Sample Show S01E04",
             state: :needs_decision,
-            target: %Target{tmdb_type: "tv", season_number: 1, episode_number: 4},
+            recipe: %Recipe{
+              recipe_type: :tmdb,
+              tmdb_type: "tv",
+              season_number: 1,
+              episode_number: 4
+            },
             criteria_summary: nil
           }
         }
@@ -70,7 +92,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-satisfied",
             title: "Movie A",
             state: :satisfied,
-            target: %Target{tmdb_type: "movie", year: 2023},
+            recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie", year: 2023},
             criteria_summary: nil
           }
         }
@@ -82,7 +104,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-exhausted",
             title: "Movie B",
             state: :exhausted,
-            target: %Target{tmdb_type: "movie"},
+            recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie"},
             criteria_summary: nil
           }
         }
