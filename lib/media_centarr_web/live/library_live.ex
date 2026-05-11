@@ -11,7 +11,6 @@ defmodule MediaCentarrWeb.LibraryLive do
   use MediaCentarrWeb, :live_view
   use MediaCentarrWeb.Live.EntityModal
   use MediaCentarrWeb.Live.SpoilerFreeAware
-  use MediaCentarrWeb.Live.CapabilitiesAware
 
   alias MediaCentarr.{
     Library,

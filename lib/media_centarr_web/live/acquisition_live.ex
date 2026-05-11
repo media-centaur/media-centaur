@@ -81,7 +81,6 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         Acquisition.subscribe()
         Acquisition.subscribe_queue()
         Acquisition.subscribe_search()
-        Capabilities.subscribe()
       end
 
       {:ok,

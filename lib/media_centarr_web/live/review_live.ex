@@ -15,7 +15,6 @@ defmodule MediaCentarrWeb.ReviewLive do
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Review.subscribe()
-      MediaCentarr.Capabilities.subscribe()
     end
 
     {:ok,
