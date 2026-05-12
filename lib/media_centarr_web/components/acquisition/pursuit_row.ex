@@ -2,16 +2,20 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
   @moduledoc """
   Renders one pursuit row on the Downloads index (`/download`).
 
-  The footer attaches the matched live-queue download (or a derived
-  status hint when no torrent is currently matched). The matching is
-  computed by `MediaCentarr.Acquisition.QueueMatcher.match/2` at render
-  time on the LiveView; this component just consumes `:download` and
-  `:queue_item_id` directly.
+  Three surfaces per card:
 
-  A `data-nav-item` wrapper makes the whole row navigable. The cancel
-  button in the download footer is its own focusable `data-nav-item` so
-  keyboard/gamepad users can target it independently of the card. The
-  "Open full →" affordance navigates to the detail page.
+  1. **Title** — show/movie name with an `S01E03`-style suffix for TV
+     pursuits (`Format.episode_label/2`).
+  2. **Status line** — one severity-colored sentence built from
+     `vm.status` (`%CurrentAction{verb, description, severity}`).
+     Hidden when a download footer is attached — the live torrent
+     state already conveys "what's happening".
+  3. **Download footer** — progress bar, ETA, client, cancel button.
+     Only when `:download` is non-nil.
+
+  The whole card is a `<.link navigate>` to the detail page. The cancel
+  button is its own `data-nav-item` so keyboard/gamepad input can
+  target it independently.
   """
 
   use Phoenix.Component
@@ -27,7 +31,8 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
 
   attr :download, :any,
     default: nil,
-    doc: "Matched `DownloadProgress.t()` or `nil`. When nil, a hint is derived from `vm.target_status`."
+    doc:
+      "Matched `DownloadProgress.t()` or `nil`. When non-nil, the status line is hidden and the download footer renders instead."
 
   attr :queue_item_id, :string,
     default: nil,
@@ -35,77 +40,51 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
 
   def pursuit_row(assigns) do
     ~H"""
-    <div
-      class="glass-surface rounded-xl p-4 space-y-2"
+    <.link
+      navigate={@vm.detail_path}
+      class="glass-surface rounded-xl p-4 space-y-2 block hover:bg-base-content/[0.03] transition-colors"
       data-nav-item
       tabindex="0"
       data-pursuit-id={@vm.id}
     >
       <div class="flex items-baseline justify-between gap-3">
-        <div class="min-w-0 flex-1 truncate text-sm font-medium">{@vm.title}</div>
+        <div class="min-w-0 flex-1 truncate text-sm font-medium">
+          {display_title(@vm)}
+        </div>
         <PursuitStyle.state_badge state={@vm.state} />
       </div>
 
-      <div class="flex items-center gap-3 text-xs text-base-content/60">
-        <span>Attempts: {@vm.attempt_count}</span>
-        <span>·</span>
-        <span>Origin: {@vm.origin}</span>
+      <div
+        :if={is_nil(@download)}
+        class={"text-xs #{PursuitStyle.severity_text_class(@vm.status.severity)}"}
+      >
+        {@vm.status.verb} — {@vm.status.description}
       </div>
 
-      <.recent_events entries={@vm.recent_events} />
-
       <.download_footer
+        :if={@download}
         download={@download}
         queue_item_id={@queue_item_id}
         cancel_title={@vm.release_title || @vm.title}
-        target_status={@vm.target_status}
       />
-
-      <div class="flex justify-end pt-1">
-        <.link navigate={@vm.detail_path} class="text-xs text-primary inline-flex items-center gap-1">
-          Open full <.icon name="hero-arrow-right-mini" class="size-3" />
-        </.link>
-      </div>
-    </div>
+    </.link>
     """
   end
 
-  attr :entries,
-       :list,
-       required: true,
-       doc:
-         "List of `Acquisition.ViewModels.TimelineEntry` structs (pre-shaped read-side data; no schema/struct enforced at the attr layer)"
-
-  defp recent_events(assigns) do
-    ~H"""
-    <%= if @entries == [] do %>
-      <div class="text-xs text-base-content/40 italic">No events yet.</div>
-    <% else %>
-      <ul class="space-y-1">
-        <li :for={entry <- @entries} class="flex items-baseline gap-2 text-xs">
-          <span class={"block size-1.5 rounded-full flex-shrink-0 #{PursuitStyle.severity_dot_class(entry.severity)}"} />
-          <span class={"min-w-0 flex-1 truncate #{PursuitStyle.severity_text_class(entry.severity)}"}>
-            {entry.summary}
-          </span>
-          <span class="text-base-content/40 whitespace-nowrap">
-            {Format.relative_just_now(entry.occurred_at)}
-          </span>
-        </li>
-      </ul>
-    <% end %>
-    """
+  # `Format.episode_label/2` returns "" when both season and episode are
+  # nil — strip the trailing space so movies render cleanly.
+  defp display_title(%PursuitRow{title: title, season_number: season, episode_number: episode}) do
+    case Format.episode_label(season, episode) do
+      "" -> title
+      label -> "#{title} #{label}"
+    end
   end
 
-  attr :download, :any,
-    required: true,
-    doc:
-      "`DownloadProgress.t() | nil` — the helper pattern-matches on `%DownloadProgress{}` for the download branch and falls through to the no-match-hint branch when nil. Phoenix attr typing doesn't carry the union, hence `:any`."
-
+  attr :download, DownloadProgress, required: true
   attr :queue_item_id, :string, required: true
   attr :cancel_title, :string, required: true
-  attr :target_status, :atom, required: true
 
-  defp download_footer(%{download: %DownloadProgress{}} = assigns) do
+  defp download_footer(assigns) do
     ~H"""
     <div class="border-t border-base-content/5 pt-2 space-y-1.5">
       <div class="flex items-center gap-3">
@@ -152,36 +131,6 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
     </div>
     """
   end
-
-  defp download_footer(assigns) do
-    assigns = assign(assigns, :hint, no_match_hint(assigns.target_status))
-
-    ~H"""
-    <div :if={@hint} class="border-t border-base-content/5 pt-2">
-      <div class={"text-xs #{@hint.tone_class}"}>
-        {@hint.label}
-      </div>
-    </div>
-    """
-  end
-
-  defp no_match_hint(nil),
-    do: %{label: "Searching — no target picked yet.", tone_class: "text-base-content/50"}
-
-  defp no_match_hint(:seeking),
-    do: %{label: "Searching for a release.", tone_class: "text-base-content/60"}
-
-  defp no_match_hint(:acquired),
-    do: %{label: "Waiting — not visible in your download client.", tone_class: "text-warning"}
-
-  defp no_match_hint(:succeeded), do: %{label: "Acquired — file landed.", tone_class: "text-success"}
-
-  defp no_match_hint(:failed), do: %{label: "Stopped — auto-search gave up.", tone_class: "text-warning"}
-
-  defp no_match_hint(:cancelled),
-    do: %{label: "Stopped — target was cancelled.", tone_class: "text-base-content/60"}
-
-  defp no_match_hint(_), do: nil
 
   defp progress_width(pct) when is_number(pct), do: max(0, min(100, round(pct)))
   defp progress_width(_), do: 0
