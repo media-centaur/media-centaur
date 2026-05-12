@@ -11,6 +11,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
   alias MediaCentarr.Acquisition.Pursuits.Pursuit
   alias MediaCentarr.Acquisition.Pursuits.State
   alias MediaCentarr.Acquisition.Target
+  alias MediaCentarr.Format
 
   alias MediaCentarr.Acquisition.ViewModels.{
     CurrentAction,
@@ -135,7 +136,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     {
       %CurrentAction{
         verb: "Searching",
-        description: "Looking for an acceptable release (attempt #{t.attempt_count + 1}).",
+        description: searching_description(t),
         severity: :info
       },
       %NextStep{description: "Trying expanded queries — will pick the best match or snooze."},
@@ -195,6 +196,18 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
       []
     }
   end
+
+  # The seeking-state description tells the user what to expect next.
+  # When the worker has scheduled a snooze (`next_attempt_at` is set),
+  # surface the countdown — the row reads "Next attempt in 2h 15m
+  # (attempt 4)" instead of the timeless "Looking for an acceptable
+  # release". Fresh targets (no schedule yet) fall through to the
+  # original copy.
+  defp searching_description(%Target{next_attempt_at: nil, attempt_count: n}),
+    do: "Looking for an acceptable release (attempt #{n + 1})."
+
+  defp searching_description(%Target{next_attempt_at: %DateTime{} = at, attempt_count: n}),
+    do: "Next attempt #{Format.relative_in(at)} (attempt #{n + 1})."
 
   defp derive_acquired_in_queue(%QueueItem{state: :downloading} = qi) do
     {
