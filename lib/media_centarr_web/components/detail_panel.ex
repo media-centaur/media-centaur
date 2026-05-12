@@ -188,8 +188,8 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
                 live in the Manage view's Files section, grouped by
                 directory with delete affordances. The main view stays
                 focused on what to watch, not where it lives on disk. --%>
-          <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,65ch)_minmax(0,1fr)] xl:gap-8 xl:items-start">
-            <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-4">
+          <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,50ch)_minmax(0,1fr)] xl:gap-8 xl:items-start">
+            <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-8">
               {@entity.description}
             </p>
             <div class="min-w-0 space-y-3">

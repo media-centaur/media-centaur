@@ -55,17 +55,17 @@ defmodule MediaCentarrWeb.Components.Detail.Hero do
           <img
             :if={@logo && @available}
             src={@logo}
-            class="max-h-20 max-w-[70%] object-contain drop-shadow-[0_2px_14px_rgba(0,0,0,0.75)]"
+            class="max-h-20 max-w-[70%] object-contain text-on-image-lg"
           />
           <h2
             :if={!@logo || !@available}
-            class="text-2xl font-bold leading-snug text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]"
+            class="text-2xl font-bold leading-snug text-white text-on-image-lg"
           >
             {@entity.name}
           </h2>
           <p
             :if={@tagline && @tagline != ""}
-            class="italic text-sm text-white/85 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+            class="italic text-sm text-white/85 text-on-image"
           >
             {@tagline}
           </p>

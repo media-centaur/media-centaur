@@ -285,7 +285,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
 
   # Story helpers ----------------------------------------------------
 
-  defp row(state, title, opts \\ []) do
+  defp row(state, title, opts) do
     %PursuitRow{
       id: "story-#{state}-#{:erlang.phash2({state, title, opts})}",
       title: title,
@@ -294,7 +294,6 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
       episode_number: Keyword.get(opts, :episode),
       release_title: Keyword.get(opts, :release_title),
       target_status: Keyword.get(opts, :target_status),
-      detail_path: "/download/story-#{state}",
       status: Keyword.fetch!(opts, :status)
     }
   end

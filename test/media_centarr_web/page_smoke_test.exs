@@ -348,6 +348,26 @@ defmodule MediaCentarrWeb.PageSmokeTest do
           status: "acquired"
         })
 
+      # Seed a second pursuit in :exhausted state so the new History zone
+      # exercises its rendered-row branch (default filter is :failed). An
+      # empty-state-only smoke would miss a render-path crash on the
+      # terminal-pursuit row template.
+      {exhausted_pursuit, _target} =
+        MediaCentarr.TestFactory.create_pursuit_with_target(%{
+          tmdb_id: "smoke-history",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 3,
+          origin: "auto",
+          release_title: "Sample.Show.S01E03.1080p.WEB-DL",
+          status: "failed"
+        })
+
+      exhausted_pursuit
+      |> Ecto.Changeset.change(state: "exhausted")
+      |> MediaCentarr.Repo.update!()
+
       on_exit(fn ->
         MediaCentarr.Capabilities.clear_test_result(:prowlarr)
         :persistent_term.put({Config, :config}, original)
@@ -362,10 +382,14 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       # The seeded active pursuit must render its card, exercising the
       # PursuitRow component's no-match hint path (no queue item matches).
       assert html =~ "Sample Movie"
+      # The History zone (default filter :failed) must render the
+      # exhausted pursuit row.
+      assert html =~ "History"
+      assert html =~ "Sample Show"
     end
   end
 
-  describe "/download/:pursuit_id" do
+  describe "/download?selected=:pursuit_id (pursuit detail modal)" do
     setup do
       original = :persistent_term.get({Config, :config}, %{})
 
@@ -401,13 +425,16 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       conn: conn,
       pursuit_id: pursuit_id
     } do
-      assert {:ok, _view, html} = live_within!(conn, "/download/#{pursuit_id}")
+      assert {:ok, _view, html} = live_within!(conn, "/download?selected=#{pursuit_id}")
       assert is_binary(html)
       assert html =~ "Sample Movie"
+      assert html =~ ~s|data-state="open"|
     end
 
-    test "renders the not-found state for an unknown pursuit_id", %{conn: conn} do
-      assert {:ok, _view, html} = live_within!(conn, "/download/#{Ecto.UUID.generate()}")
+    test "renders not-found inside the modal for an unknown pursuit_id", %{conn: conn} do
+      assert {:ok, _view, html} =
+               live_within!(conn, "/download?selected=#{Ecto.UUID.generate()}")
+
       assert html =~ "Pursuit not found"
     end
   end

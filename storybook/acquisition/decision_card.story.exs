@@ -27,7 +27,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
             prompt: "Download stalled for 24+ hours — pick an alternative release.",
             alternatives: [],
             loading?: true
-          }
+          },
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -39,7 +40,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
             prompt: "Download stalled for 24+ hours.",
             alternatives: [],
             loading?: false
-          }
+          },
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -60,7 +62,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
               )
             ],
             loading?: false
-          }
+          },
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -105,7 +108,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
               )
             ],
             loading?: false
-          }
+          },
+          on_cancel: "noop"
         }
       }
     ]

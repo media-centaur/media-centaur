@@ -1,5 +1,5 @@
 defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
-  @moduledoc "Identity header for `/download/:pursuit_id`."
+  @moduledoc "Identity header for the pursuit detail modal."
 
   use PhoenixStorybook.Story, :component
 

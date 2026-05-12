@@ -126,11 +126,11 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
           :if={@item.logo_url}
           src={@item.logo_url}
           alt={@item.name}
-          class="max-h-24 max-w-full object-contain object-left mb-3 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
+          class="max-h-24 max-w-full object-contain object-left mb-3 text-on-image-lg"
         />
         <div
           :if={!@item.logo_url}
-          class="text-5xl font-extrabold tracking-tight text-white mb-3 drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]"
+          class="text-5xl font-extrabold tracking-tight text-white mb-3 text-on-image-lg"
         >
           {@item.name}
         </div>
@@ -183,11 +183,11 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
           :if={@item.logo_url}
           src={@item.logo_url}
           alt={@item.name}
-          class="max-h-9 max-w-full object-contain object-left drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+          class="max-h-9 max-w-full object-contain object-left text-on-image-lg"
         />
         <div
           :if={!@item.logo_url}
-          class="text-lg font-bold text-white truncate drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+          class="text-lg font-bold text-white truncate text-on-image-lg"
         >
           {@item.name}
         </div>

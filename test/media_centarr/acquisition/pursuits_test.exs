@@ -236,7 +236,6 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       assert row.id == pursuit.id
       assert row.title == "Sample Movie"
       assert row.state == :active
-      assert row.detail_path == "/download/#{pursuit.id}"
     end
 
     test "excludes terminal pursuits" do
@@ -317,6 +316,82 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
 
       assert row.release_title == nil
       assert row.target_status == nil
+    end
+  end
+
+  describe "list_rows/1" do
+    alias MediaCentarr.Acquisition.ViewModels.PursuitRow
+
+    test ":active matches list_active_rows/0 — pursuits in :active or :needs_decision" do
+      active = insert_pursuit(%{title: "Active Show", tmdb_id: "2001"})
+      needs = set_state(insert_pursuit(%{title: "Decision Show", tmdb_id: "2002"}), "needs_decision")
+      _terminal = set_state(insert_pursuit(%{title: "Done Show", tmdb_id: "2003"}), "satisfied")
+
+      rows = Pursuits.list_rows(:active)
+
+      assert Enum.all?(rows, &match?(%PursuitRow{}, &1))
+      ids = Enum.sort(Enum.map(rows, & &1.id))
+      assert ids == Enum.sort([active.id, needs.id])
+    end
+
+    test ":failed returns only pursuits in :exhausted state" do
+      exhausted = set_state(insert_pursuit(%{title: "Exhausted", tmdb_id: "2010"}), "exhausted")
+      _cancelled = set_state(insert_pursuit(%{title: "Cancelled", tmdb_id: "2011"}), "cancelled")
+      _satisfied = set_state(insert_pursuit(%{title: "Satisfied", tmdb_id: "2012"}), "satisfied")
+      _active = insert_pursuit(%{title: "Active", tmdb_id: "2013"})
+
+      [row] = Pursuits.list_rows(:failed)
+      assert row.id == exhausted.id
+      assert row.state == :exhausted
+    end
+
+    test ":cancelled returns only pursuits in :cancelled state" do
+      cancelled = set_state(insert_pursuit(%{title: "Cancelled", tmdb_id: "2020"}), "cancelled")
+      _exhausted = set_state(insert_pursuit(%{title: "Exhausted", tmdb_id: "2021"}), "exhausted")
+
+      [row] = Pursuits.list_rows(:cancelled)
+      assert row.id == cancelled.id
+      assert row.state == :cancelled
+    end
+
+    test ":succeeded returns only pursuits in :satisfied state" do
+      satisfied = set_state(insert_pursuit(%{title: "Satisfied", tmdb_id: "2030"}), "satisfied")
+      _exhausted = set_state(insert_pursuit(%{title: "Exhausted", tmdb_id: "2031"}), "exhausted")
+
+      [row] = Pursuits.list_rows(:succeeded)
+      assert row.id == satisfied.id
+      assert row.state == :satisfied
+    end
+
+    test ":all_terminal returns every terminal-state pursuit, excludes in-flight" do
+      _active = insert_pursuit(%{title: "Active", tmdb_id: "2040"})
+      ex = set_state(insert_pursuit(%{title: "Exhausted", tmdb_id: "2041"}), "exhausted")
+      ca = set_state(insert_pursuit(%{title: "Cancelled", tmdb_id: "2042"}), "cancelled")
+      sa = set_state(insert_pursuit(%{title: "Satisfied", tmdb_id: "2043"}), "satisfied")
+
+      rows = Pursuits.list_rows(:all_terminal)
+      ids = Enum.sort(Enum.map(rows, & &1.id))
+      assert ids == Enum.sort([ex.id, ca.id, sa.id])
+    end
+
+    test "rows carry season_number, episode_number, and release_title from the current target" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_type: "tv",
+          tmdb_id: "2050",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 4,
+          release_title: "Sample.Show.S01E04.1080p.WEB-DL",
+          status: "failed"
+        })
+
+      _ = set_state(pursuit, "exhausted")
+
+      [row] = Pursuits.list_rows(:failed)
+      assert row.season_number == 1
+      assert row.episode_number == 4
+      assert row.release_title == "Sample.Show.S01E04.1080p.WEB-DL"
     end
   end
 

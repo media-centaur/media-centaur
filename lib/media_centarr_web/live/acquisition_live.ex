@@ -17,8 +17,8 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   See `MediaCentarr.Acquisition.QueryExpander` for the supported brace
   syntax, `MediaCentarrWeb.AcquisitionLive.Logic` for search/group
-  helpers, and `MediaCentarrWeb.AcquisitionLive.ActivityLogic` for the
-  activity table helpers.
+  helpers, and `MediaCentarrWeb.AcquisitionLive.HistoryLogic` for the
+  History zone filter helpers.
 
   ## External-state reconciliation
 
@@ -66,11 +66,23 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.{CancelReasons, QueueMatcher}
-  alias MediaCentarr.Acquisition.ViewModels.PursuitWithDownload
+  alias MediaCentarr.Acquisition.Pursuits
+  alias MediaCentarr.Acquisition.Pursuits.Pursuit
+
+  alias MediaCentarr.Acquisition.Pursuits.Commands.{
+    Cancel,
+    ChangeTarget,
+    RequestDecision
+  }
+
+  alias MediaCentarr.Acquisition.Pursuits.Events, as: PursuitEvents
+  alias MediaCentarr.Acquisition.ViewModels
+  alias MediaCentarr.Acquisition.ViewModels.{Alternative, PursuitWithDownload}
   alias MediaCentarr.Capabilities
-  alias MediaCentarrWeb.AcquisitionLive.{Activity, ActivityLogic, Logic, OrphanQueue, Search}
-  alias MediaCentarrWeb.Components.Acquisition.PursuitRow
-  alias MediaCentarrWeb.Components.Acquisition.QueueStatusBadge
+  alias MediaCentarrWeb.AcquisitionLive.{History, HistoryLogic, Logic, OrphanQueue, Search}
+  alias MediaCentarrWeb.Components.Acquisition.{PursuitModal, PursuitRow, QueueStatusBadge}
+
+  @decision_prompt "Pick an alternative release."
 
   @impl true
   def mount(_params, _session, socket) do
@@ -96,12 +108,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          cancel_confirm: nil,
          pending_cancels: %{},
          download_client_ready: false,
-         activity_filter: :active,
-         activity_search: "",
-         activity_targets: [],
+         history_filter: :failed,
+         history_search: "",
+         history_rows: [],
          pursuit_rows: [],
          pursuits_reload_timer: nil,
-         reload_timer: nil
+         reload_timer: nil,
+         selected_pursuit_id: nil,
+         pursuit_detail: nil
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -170,13 +184,64 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       socket
       |> ensure_loaded()
       |> assign(
-        activity_search: Map.get(params, "search", ""),
-        activity_filter: ActivityLogic.parse_filter(Map.get(params, "filter"))
+        history_search: Map.get(params, "search", ""),
+        history_filter: HistoryLogic.parse_filter(Map.get(params, "filter"))
       )
-      |> load_activity()
+      |> load_history()
+      |> apply_pursuit_modal_params(params)
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
     {:noreply, socket}
+  end
+
+  # Drives the pursuit detail modal off the `?selected=<pursuit_id>` URL
+  # param so the modal participates in browser history — back/forward
+  # closes/opens, refresh preserves state, and the URL is shareable.
+  defp apply_pursuit_modal_params(socket, %{"selected" => id}) when is_binary(id) and id != "" do
+    if id == socket.assigns.selected_pursuit_id do
+      socket
+    else
+      socket
+      |> assign(:selected_pursuit_id, id)
+      |> load_pursuit_detail()
+    end
+  end
+
+  defp apply_pursuit_modal_params(socket, _params) do
+    if socket.assigns.selected_pursuit_id == nil do
+      socket
+    else
+      assign(socket, selected_pursuit_id: nil, pursuit_detail: nil)
+    end
+  end
+
+  # Builds a path back to `/download` preserving the History zone
+  # filter/search so the modal open/close doesn't reset the user's
+  # surrounding view. Overrides are merged last and `nil`-valued keys
+  # remove the param.
+  defp build_pursuit_modal_path(socket, overrides) do
+    base = %{
+      "search" => socket.assigns.history_search,
+      "filter" => to_string(socket.assigns.history_filter)
+    }
+
+    merged =
+      base
+      |> Map.merge(stringify_overrides(overrides))
+      |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
+
+    case merged do
+      [] -> "/download"
+      params -> "/download?" <> URI.encode_query(params)
+    end
+  end
+
+  defp stringify_overrides(overrides) do
+    Map.new(overrides, fn
+      {k, nil} when is_atom(k) -> {to_string(k), nil}
+      {k, v} when is_atom(k) -> {to_string(k), to_string(v)}
+      {k, v} -> {k, v}
+    end)
   end
 
   # Pre-fill + auto-fire — same code path as the user submitting the
@@ -224,6 +289,15 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     <Layouts.app flash={@flash} current_path="/download" acquisition_ready={@acquisition_ready}>
       <:overlays>
         <.cancel_confirmation cancel_confirm={@cancel_confirm} />
+        <PursuitModal.pursuit_modal
+          open={@selected_pursuit_id != nil}
+          pursuit_id={@selected_pursuit_id}
+          header={@pursuit_detail && @pursuit_detail.header}
+          status={@pursuit_detail && @pursuit_detail.status}
+          timeline={@pursuit_detail && @pursuit_detail.timeline}
+          decision_card={@pursuit_detail && @pursuit_detail.decision_card}
+          not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
+        />
       </:overlays>
       <div
         data-page-behavior="download"
@@ -274,10 +348,10 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           No active pursuits.
         </section>
 
-        <Activity.activity_zone
-          targets={@activity_targets}
-          filter={@activity_filter}
-          search={@activity_search}
+        <History.history_zone
+          rows={@history_rows}
+          filter={@history_filter}
+          search={@history_search}
         />
 
         <OrphanQueue.orphan_zone items={@orphan_queue} />
@@ -411,30 +485,150 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     end
   end
 
-  # Activity-zone events (filter, search, cancel, re-arm).
+  # History-zone events (filter, search). Row-level cancel / re-arm
+  # actions are gone — rows are passive and clicking one opens the
+  # pursuit modal where Cancel / Change target live.
 
-  def handle_event("set_activity_filter", %{"filter" => filter}, socket) do
+  def handle_event("set_history_filter", %{"filter" => filter}, socket) do
     {:noreply,
      socket
-     |> assign(activity_filter: ActivityLogic.parse_filter(filter))
-     |> load_activity()}
+     |> assign(history_filter: HistoryLogic.parse_filter(filter))
+     |> load_history()}
   end
 
-  def handle_event("set_activity_search", %{"search" => search}, socket) do
-    {:noreply, socket |> assign(activity_search: search) |> load_activity()}
+  def handle_event("set_history_search", %{"search" => search}, socket) do
+    {:noreply, socket |> assign(history_search: search) |> load_history()}
   end
 
-  def handle_event("cancel_activity_target", %{"id" => id}, socket) do
-    case Acquisition.cancel_target(id, CancelReasons.user_disabled()) do
-      {:ok, _} -> {:noreply, load_activity(socket)}
-      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Target no longer exists")}
+  # Pursuit detail modal — open / close via URL.
+
+  def handle_event("select_pursuit", %{"id" => id}, socket) do
+    {:noreply, push_patch(socket, to: build_pursuit_modal_path(socket, %{selected: id}))}
+  end
+
+  def handle_event("close_pursuit", _params, socket) do
+    {:noreply, push_patch(socket, to: build_pursuit_modal_path(socket, %{selected: nil}))}
+  end
+
+  # Pursuit detail modal — manual actions. All four operate on
+  # `selected_pursuit_id`; the open modal is the implicit target.
+
+  def handle_event("cancel_pursuit", _params, socket) do
+    case Cancel.execute(%{
+           pursuit_id: socket.assigns.selected_pursuit_id,
+           cancelled_by: :user,
+           reason: CancelReasons.user_request()
+         }) do
+      {:ok, _pursuit} ->
+        {:noreply, socket |> put_flash(:info, "Pursuit cancelled.") |> load_pursuit_detail()}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "pursuit cancel failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not cancel pursuit.")}
     end
   end
 
-  def handle_event("rearm_activity_target", %{"id" => id}, socket) do
-    case Acquisition.rearm_target(id) do
-      {:ok, _} -> {:noreply, load_activity(socket)}
-      {:error, :not_found} -> {:noreply, put_flash(socket, :error, "Target no longer exists")}
+  def handle_event("change_target", _params, socket) do
+    case ChangeTarget.execute(%{pursuit_id: socket.assigns.selected_pursuit_id}) do
+      {:ok, _pursuit} ->
+        {:noreply, socket |> put_flash(:info, "Looking for a new target…") |> load_pursuit_detail()}
+
+      {:error, :not_eligible} ->
+        {:noreply, put_flash(socket, :error, "This pursuit can't change target right now.")}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "pursuit change-target failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not change target for this pursuit.")}
+    end
+  end
+
+  def handle_event("request_decision", _params, socket) do
+    case RequestDecision.execute(%{
+           pursuit_id: socket.assigns.selected_pursuit_id,
+           prompt: @decision_prompt
+         }) do
+      {:ok, _pursuit} ->
+        {:noreply, socket |> put_flash(:info, "Pick a release below.") |> load_pursuit_detail()}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "request decision failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not switch to decision mode.")}
+    end
+  end
+
+  # Submitting a pick involves `Prowlarr.grab/1` (POST + indexer wait) and
+  # the `PickTarget` write. Running that inline blocks the LiveView past
+  # the heartbeat window — same pattern that downgraded `refresh_alternatives`
+  # to longpoll. So we spawn a Task.Supervisor child and message the
+  # outcome back via `{:alternative_picked, pursuit_id, outcome}`.
+  #
+  # Fast path: when the SearchResult for this guid is still in the
+  # `decision_results_by_guid` cache from the last render, pass it
+  # straight to `Acquisition.pick_alternative/3` — no second Prowlarr
+  # search to translate guid → result. Cache miss (rare — modal lost
+  # its assigns) falls back to the guid string, which re-runs the
+  # pursuit's search internally.
+  def handle_event(
+        "pick_alternative",
+        %{"pursuit-id" => pursuit_id, "guid" => guid, "label" => label},
+        socket
+      ) do
+    arg =
+      case get_in(socket.assigns, [:pursuit_detail, :decision_results_by_guid, guid]) do
+        nil -> guid
+        result -> result
+      end
+
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      outcome = Acquisition.pick_alternative(pursuit_id, arg, label)
+      send(parent, {:alternative_picked, pursuit_id, outcome})
+    end)
+
+    {:noreply, put_flash(socket, :info, "Trying alternative…")}
+  end
+
+  # Re-fetch decision-card alternatives. The Prowlarr round-trip can take
+  # several seconds (especially with brace-expanded fan-out across
+  # multiple indexers); doing it inline blocks the LiveView process
+  # past the heartbeat window and the client downgrades to longpoll.
+  # We therefore:
+  #
+  #   1. event fires → flip the open card to `loading?: true` and render
+  #      the spinner. Spawn a Task.Supervisor child to do the fetch.
+  #   2. background task → resolve the new decision card, then
+  #      `send(parent, {:alternatives_refreshed, pursuit_id, card})`.
+  #   3. info handler matches that message → if the modal is still on
+  #      the same pursuit, swap the card in and flash if Prowlarr
+  #      returned nothing.
+  def handle_event("refresh_alternatives", _params, socket) do
+    case socket.assigns.pursuit_detail do
+      %{decision_card: card} = detail when not is_nil(card) ->
+        loading_card = %{card | loading?: true, alternatives: []}
+
+        socket =
+          assign(socket,
+            pursuit_detail: %{detail | decision_card: loading_card, decision_results_by_guid: %{}}
+          )
+
+        pursuit_id = socket.assigns.selected_pursuit_id
+        parent = self()
+
+        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+          decision =
+            case Pursuits.get(pursuit_id) do
+              {:ok, pursuit} -> build_decision(pursuit, nil)
+              _ -> %{card: nil, results_by_guid: %{}}
+            end
+
+          send(parent, {:alternatives_refreshed, pursuit_id, decision})
+        end)
+
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 
@@ -498,11 +692,17 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_info({:queue_state, %MediaCentarr.Downloads.QueueState{} = state}, socket) do
-    {:noreply, assign_queue_from_state(socket, state)}
+    socket =
+      socket
+      |> assign_queue_from_state(state)
+      |> refresh_pursuit_status_if_open()
+
+    {:noreply, socket}
   end
 
-  # Acquisition PubSub events — refresh the activity zone so lifecycle
-  # state changes appear without waiting for a manual reload.
+  # Acquisition PubSub events — refresh the History zone so terminal
+  # state transitions (target_failed → pursuit exhausted, etc.) appear
+  # without a manual reload.
   def handle_info({event, _payload}, socket)
       when event in [
              :target_picked,
@@ -512,19 +712,26 @@ defmodule MediaCentarrWeb.AcquisitionLive do
              :target_failed,
              :target_cancelled
            ] do
-    {:noreply, debounce(socket, :reload_timer, :reload_activity, 500)}
+    {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
   end
 
-  def handle_info(:reload_activity, socket) do
-    {:noreply, load_activity(socket)}
+  def handle_info(:reload_history, socket) do
+    {:noreply, load_history(socket)}
   end
 
   # Typed pursuit-event structs ride the same `acquisition:updates` topic
   # the legacy grab tuples use. Pattern-match on the namespace prefix and
-  # trigger a debounced pursuit-row refresh.
-  def handle_info(%struct{} = _event, socket) do
-    if MediaCentarr.Acquisition.Pursuits.Events.event?(struct) do
-      {:noreply, debounce(socket, :pursuits_reload_timer, :reload_pursuits, 500)}
+  # trigger a debounced pursuit-row refresh. When the open modal's
+  # pursuit is the subject of the event, also reload its detail so the
+  # modal stays in sync with the timeline / status.
+  def handle_info(%struct{} = event, socket) do
+    if PursuitEvents.event?(struct) do
+      socket =
+        socket
+        |> debounce(:pursuits_reload_timer, :reload_pursuits, 500)
+        |> maybe_reload_modal_for_event(event)
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -534,15 +741,191 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, load_pursuit_rows(socket)}
   end
 
+  # Result of the background "Search Prowlarr again" task. Verifies the
+  # modal is still on the same pursuit before applying — the user may
+  # have closed the modal or selected another pursuit while the search
+  # was in flight, in which case we drop the stale result.
+  def handle_info({:alternatives_refreshed, pursuit_id, decision}, socket) do
+    case socket.assigns do
+      %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
+        socket =
+          assign(socket,
+            pursuit_detail: %{
+              detail
+              | decision_card: decision.card,
+                decision_results_by_guid: decision.results_by_guid
+            }
+          )
+
+        socket =
+          case decision.card do
+            %{alternatives: []} ->
+              put_flash(socket, :info, "Prowlarr returned no new alternatives.")
+
+            _ ->
+              socket
+          end
+
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  # Result of the background pick task. Like `:alternatives_refreshed`,
+  # only applies the outcome when the modal is still on the same pursuit
+  # — a closed or pivoted modal drops the stale result. Success is
+  # silent on the LV side (the PubSub `:target_picked` reload re-renders
+  # the modal); failures surface as flashes.
+  def handle_info({:alternative_picked, pursuit_id, outcome}, socket) do
+    if socket.assigns.selected_pursuit_id == pursuit_id do
+      case outcome do
+        {:ok, _pursuit} ->
+          {:noreply, load_pursuit_detail(socket)}
+
+        {:error, :alternative_unavailable} ->
+          {:noreply, put_flash(socket, :error, "That release is no longer available.")}
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "pick alternative failed — #{inspect(reason)}")
+          {:noreply, put_flash(socket, :error, "Could not pick that alternative.")}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  defp load_activity(socket) do
-    targets =
-      socket.assigns.activity_filter
-      |> Acquisition.list_auto_targets()
-      |> MediaCentarrWeb.AcquisitionLive.ActivityLogic.filter_by_search(socket.assigns.activity_search)
+  # ---------------------------------------------------------------------------
+  # Pursuit detail modal — loading + refresh helpers (moved from the
+  # legacy PursuitLive when the detail page collapsed into a modal).
+  # ---------------------------------------------------------------------------
 
-    assign(socket, activity_targets: targets)
+  # Full load — includes the (possibly Prowlarr-hitting) decision card
+  # build. Used on initial open and on pursuit-lifecycle events.
+  defp load_pursuit_detail(%{assigns: %{selected_pursuit_id: nil}} = socket) do
+    assign(socket, pursuit_detail: nil)
+  end
+
+  defp load_pursuit_detail(%{assigns: %{selected_pursuit_id: id}} = socket) do
+    case Pursuits.get(id) do
+      {:ok, %Pursuit{} = pursuit} ->
+        {:ok, header} = Pursuits.header_for(pursuit.id)
+        {:ok, status} = Pursuits.status_for(pursuit.id)
+        timeline = Pursuits.timeline_for(pursuit.id)
+        %{card: card, results_by_guid: results} = build_decision(pursuit, socket.assigns.pursuit_detail)
+
+        assign(socket,
+          pursuit_detail: %{
+            header: header,
+            status: status,
+            timeline: timeline,
+            decision_card: card,
+            decision_results_by_guid: results,
+            not_found?: false
+          }
+        )
+
+      {:error, :not_found} ->
+        assign(socket,
+          pursuit_detail: %{
+            header: nil,
+            status: nil,
+            timeline: nil,
+            decision_card: nil,
+            decision_results_by_guid: %{},
+            not_found?: true
+          }
+        )
+    end
+  end
+
+  # Cheap refresh — recomputes only the status block. Used on queue
+  # PubSub ticks so download progress updates while the modal is open
+  # without re-hitting Prowlarr for the decision card on every tick.
+  defp refresh_pursuit_status_if_open(%{assigns: %{selected_pursuit_id: nil}} = socket), do: socket
+
+  defp refresh_pursuit_status_if_open(
+         %{assigns: %{selected_pursuit_id: id, pursuit_detail: %{} = detail}} = socket
+       ) do
+    case Pursuits.status_for(id) do
+      {:ok, status} -> assign(socket, pursuit_detail: %{detail | status: status})
+      _ -> socket
+    end
+  end
+
+  defp refresh_pursuit_status_if_open(socket), do: socket
+
+  defp maybe_reload_modal_for_event(socket, %{pursuit_id: pursuit_id}) do
+    if socket.assigns.selected_pursuit_id == pursuit_id do
+      load_pursuit_detail(socket)
+    else
+      socket
+    end
+  end
+
+  defp maybe_reload_modal_for_event(socket, _event), do: socket
+
+  # Reuse the cached decision card for the same needs_decision state —
+  # the alternatives don't refresh until the user acts or the pursuit
+  # transitions. This caps Prowlarr load at one search per
+  # `:needs_decision` transition rather than one per queue snapshot.
+  #
+  # Returns both the display VM (`card`) and the raw `[SearchResult.t()]`
+  # keyed by guid (`results_by_guid`). The LV stores both so
+  # `handle_event("pick_alternative", ...)` can pass the cached struct
+  # straight to `Acquisition.pick_alternative/3`, skipping the otherwise
+  # mandatory Prowlarr round-trip to look the result up by guid.
+  defp build_decision(%Pursuit{state: "needs_decision"} = pursuit, cached) do
+    case cached do
+      %{decision_card: %ViewModels.DecisionCard{pursuit_id: id} = vm, decision_results_by_guid: results}
+      when id == pursuit.id ->
+        %{card: vm, results_by_guid: results}
+
+      _ ->
+        results = Acquisition.list_alternatives_for(pursuit)
+
+        card = %ViewModels.DecisionCard{
+          pursuit_id: pursuit.id,
+          prompt: @decision_prompt,
+          alternatives: Enum.map(results, &search_result_to_alternative/1),
+          loading?: false
+        }
+
+        %{card: card, results_by_guid: Map.new(results, &{&1.guid, &1})}
+    end
+  end
+
+  defp build_decision(_pursuit, _cached), do: %{card: nil, results_by_guid: %{}}
+
+  defp search_result_to_alternative(result) do
+    %Alternative{
+      guid: result.guid,
+      title: result.title,
+      indexer: indexer_name(result),
+      quality: quality_label(result),
+      size_bytes: Map.get(result, :size_bytes),
+      seeders: Map.get(result, :seeders),
+      indexer_id: Map.get(result, :indexer_id)
+    }
+  end
+
+  defp indexer_name(%{indexer: indexer}) when is_binary(indexer), do: indexer
+  defp indexer_name(_), do: "Unknown"
+
+  defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentarr.Acquisition.Quality.label(q)
+  defp quality_label(_), do: nil
+
+  defp load_history(socket) do
+    rows =
+      socket.assigns.history_filter
+      |> HistoryLogic.list_rows_filter()
+      |> Pursuits.list_rows()
+      |> HistoryLogic.filter_pursuit_rows_by_search(socket.assigns.history_search)
+
+    assign(socket, history_rows: rows)
   end
 
   defp retry_terms(_socket, []), do: :ok

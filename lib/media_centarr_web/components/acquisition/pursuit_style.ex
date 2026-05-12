@@ -30,7 +30,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitStyle do
   def state_badge(%{state: :active} = assigns), do: ~H|<.badge variant="info">Active</.badge>|
 
   def state_badge(%{state: :needs_decision} = assigns),
-    do: ~H|<.badge variant="warning">Needs decision</.badge>|
+    do: ~H|<.badge variant="warning">Decision</.badge>|
 
   def state_badge(%{state: :satisfied} = assigns), do: ~H|<.badge variant="success">Satisfied</.badge>|
 

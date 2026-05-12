@@ -316,4 +316,261 @@ defmodule MediaCentarr.AcquisitionTest do
       assert pursuit.recipe_type == "prowlarr_query"
     end
   end
+
+  describe "search_expanded/2 — brace-aware Prowlarr search" do
+    test "expands a single brace list into N parallel searches and merges results" do
+      # Record every query string Prowlarr receives so we can assert on
+      # the fan-out shape. The stub yields a unique result per query so
+      # the merged list lets us also assert dedup-by-guid works.
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        send(test_pid, {:prowlarr_query, conn.query_params["query"] || body})
+
+        result = %{
+          "title" => "Result for #{conn.query_params["query"]}",
+          "guid" => "guid-#{conn.query_params["query"]}",
+          "indexerId" => 1,
+          "size" => 1_000_000_000,
+          "seeders" => 10,
+          "leechers" => 0,
+          "indexer" => "Test Indexer",
+          "publishDate" => "2026-04-01T00:00:00Z"
+        }
+
+        Req.Test.json(conn, [result])
+      end)
+
+      assert {:ok, results} =
+               Acquisition.search_expanded("Sample Show S01E{01,02,03}")
+
+      # Three concrete queries fired (order is non-deterministic since
+      # Task.async_stream parallelises).
+      queries =
+        for _ <- 1..3 do
+          assert_received {:prowlarr_query, q}
+          q
+        end
+
+      assert Enum.sort(queries) == [
+               "Sample Show S01E01",
+               "Sample Show S01E02",
+               "Sample Show S01E03"
+             ]
+
+      # Three unique guids → three merged results, no duplicates.
+      assert length(results) == 3
+      assert Enum.sort(Enum.map(results, & &1.guid)) == Enum.map(Enum.sort(queries), &"guid-#{&1}")
+    end
+
+    test "no braces fans out to a single search (returns same shape as search/2)" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Movie.2049.1080p.WEB-DL",
+            "guid" => "guid-one",
+            "indexerId" => 1,
+            "size" => 1_000_000_000,
+            "seeders" => 10,
+            "leechers" => 0,
+            "indexer" => "Test Indexer",
+            "publishDate" => "2026-04-01T00:00:00Z"
+          }
+        ])
+      end)
+
+      assert {:ok, [%SearchResult{guid: "guid-one"}]} =
+               Acquisition.search_expanded("Sample Movie 2049")
+    end
+
+    test "returns {:error, :invalid_syntax} when braces are malformed" do
+      assert {:error, :invalid_syntax} = Acquisition.search_expanded("bad {a,b{c}")
+    end
+  end
+
+  describe "list_alternatives_for/1 — pursuit recipe contract" do
+    test "expands brace syntax in manual_query for a prowlarr_query pursuit" do
+      # The pursuit was created from a manual search like
+      # "Sample Show S01E{01,02}". The decision card's refresh path goes
+      # through `list_alternatives_for/1`, which must use the same
+      # brace-aware fan-out as the original search — otherwise Prowlarr
+      # receives the literal `S01E{01,02}` and returns nothing.
+      # Factory's create_changeset always casts as recipe_type=tmdb first
+      # (so tmdb_id/tmdb_type are required for the initial insert);
+      # the prowlarr_query overlay is applied via Ecto.Changeset.change
+      # after the insert. Dummy tmdb values get the row through.
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "9999",
+          tmdb_type: "tv",
+          title: "Sample.Show.S01E01.1080p.WEB-DL",
+          recipe_type: "prowlarr_query",
+          manual_query: "Sample Show S01E{01,02}",
+          origin: "manual"
+        })
+
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        q = conn.query_params["query"]
+        send(test_pid, {:prowlarr_query, q})
+
+        Req.Test.json(conn, [
+          %{
+            "title" => "Result for #{q}",
+            "guid" => "guid-#{q}",
+            "indexerId" => 1,
+            "size" => 1_000_000_000,
+            "seeders" => 10,
+            "leechers" => 0,
+            "indexer" => "Test Indexer",
+            "publishDate" => "2026-04-01T00:00:00Z"
+          }
+        ])
+      end)
+
+      results = Acquisition.list_alternatives_for(pursuit)
+
+      # Prowlarr saw the two expanded queries, not the literal braces.
+      assert_received {:prowlarr_query, "Sample Show S01E01"}
+      assert_received {:prowlarr_query, "Sample Show S01E02"}
+      refute_received {:prowlarr_query, "Sample Show S01E{01,02}"}
+
+      # Both expanded results came back, deduped.
+      assert length(results) == 2
+
+      assert Enum.sort(Enum.map(results, & &1.guid)) == [
+               "guid-Sample Show S01E01",
+               "guid-Sample Show S01E02"
+             ]
+    end
+
+    test "excludes guids in tried_release_guids and caps the list at 8" do
+      # Pre-tried guids 0..4; expect the next eight from a deeper Prowlarr
+      # response back (0..4 are filtered out, 5..12 remain — top 8 = 5..12).
+      tried = Enum.map(0..4, &"guid-#{&1}")
+
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "tt-tried",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          tried_release_guids: tried
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        results =
+          for n <- 0..15 do
+            %{
+              "title" => "Sample.Show.Release.#{n}",
+              "guid" => "guid-#{n}",
+              "indexerId" => 1,
+              "size" => 1_000_000_000,
+              "seeders" => 10,
+              "leechers" => 0,
+              "indexer" => "Test Indexer",
+              "publishDate" => "2026-04-01T00:00:00Z"
+            }
+          end
+
+        Req.Test.json(conn, results)
+      end)
+
+      results = Acquisition.list_alternatives_for(pursuit)
+
+      guids = Enum.map(results, & &1.guid)
+      assert length(guids) == 8
+      assert Enum.all?(tried, &(&1 not in guids))
+    end
+
+    test "pick_alternative succeeds against a brace-expanded prowlarr_query pursuit" do
+      # Regression: prior to consolidating onto `do_search_for_pursuit/1`,
+      # `find_alternative/2` used literal `search/2` and would report
+      # `:alternative_unavailable` for a guid that the decision card had
+      # just surfaced via brace-expanded search. They now share one
+      # private helper, so the round-trip validates the same way.
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "9998",
+          tmdb_type: "tv",
+          title: "Sample.Show.S01E02.1080p",
+          recipe_type: "prowlarr_query",
+          manual_query: "Sample Show S01E{01,02}",
+          origin: "manual"
+        })
+
+      target_guid = "guid-Sample Show S01E02"
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.method do
+          "GET" ->
+            q = conn.query_params["query"]
+
+            Req.Test.json(conn, [
+              %{
+                "title" => "Sample.Show.#{q}.1080p",
+                "guid" => "guid-#{q}",
+                "indexerId" => 1,
+                "size" => 1_000_000_000,
+                "seeders" => 10,
+                "leechers" => 0,
+                "indexer" => "Test Indexer",
+                "publishDate" => "2026-04-01T00:00:00Z"
+              }
+            ])
+
+          "POST" ->
+            # Prowlarr.grab — acknowledge the grab succeeded.
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      assert {:ok, %Pursuit{}} =
+               Acquisition.pick_alternative(pursuit.id, target_guid, "S01E02 1080p")
+    end
+
+    test "pick_alternative accepts a cached %SearchResult{} and skips the Prowlarr round-trip" do
+      # When the LV already has the SearchResult cached from the most
+      # recent decision-card render, it should pass the struct directly
+      # — no extra GET to Prowlarr. We assert this by stubbing only the
+      # POST (grab) and recording every request the stub sees.
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "9997",
+          tmdb_type: "movie",
+          title: "Sample.Movie.2010.1080p",
+          year: 2010
+        })
+
+      cached_result = %SearchResult{
+        title: "Sample.Movie.2010.1080p.WEB-DL.H264-NTG",
+        guid: "cached-guid-1",
+        indexer_id: 1,
+        quality: :hd_1080p,
+        size_bytes: 4_500_000_000,
+        seeders: 25,
+        indexer_name: "Test Indexer"
+      }
+
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        send(test_pid, {:prowlarr_request, conn.method, conn.request_path})
+
+        case conn.method do
+          "POST" -> Req.Test.json(conn, %{})
+          _ -> Req.Test.json(conn, [])
+        end
+      end)
+
+      assert {:ok, %Pursuit{}} =
+               Acquisition.pick_alternative(pursuit.id, cached_result, "1080p WEB-DL")
+
+      # The grab POST happened — that's the only Prowlarr request we
+      # should have seen on this path.
+      assert_received {:prowlarr_request, "POST", _}
+      refute_received {:prowlarr_request, "GET", _}
+    end
+  end
 end

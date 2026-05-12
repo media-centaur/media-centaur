@@ -10,8 +10,10 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitTimeline do
 
   def timeline(assigns) do
     ~H"""
-    <div class="glass-surface rounded-xl p-4">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50 mb-3">History</h3>
+    <%!-- Flat section inside the modal panel. See `pursuit_header.ex`
+          for the rationale. --%>
+    <div class="space-y-3">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">History</h3>
       <%= if @vm.entries == [] do %>
         <div class="text-sm text-base-content/50">No events yet.</div>
       <% else %>
@@ -22,7 +24,11 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitTimeline do
               <div class={"text-sm #{PursuitStyle.severity_text_class(entry.severity)}"}>
                 {entry.summary}
               </div>
-              <div :if={entry.detail} class="text-xs text-base-content/50 truncate">
+              <div
+                :if={entry.detail}
+                class="text-xs text-base-content/50 truncate"
+                title={entry.detail}
+              >
                 {entry.detail}
               </div>
               <div class="text-xs text-base-content/40 mt-0.5">{format_time(entry.occurred_at)}</div>

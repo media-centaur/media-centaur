@@ -20,7 +20,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitActivity do
 
   def pursuit_activity(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-5 space-y-4">
+    <section class="glass-inset rounded-xl p-5 space-y-4">
       <div class="space-y-1">
         <div class={"text-base font-medium #{severity_class(@vm.current_action.severity)}"}>
           {@vm.current_action.verb}

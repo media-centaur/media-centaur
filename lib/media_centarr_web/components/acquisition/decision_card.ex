@@ -14,15 +14,24 @@ defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
 
   attr :vm, DecisionCard, required: true
 
+  attr :on_cancel, :string,
+    default: nil,
+    doc:
+      "Event to fire when the user clicks Cancel pursuit. When set, a Cancel button " <>
+        "renders in the action row alongside Search Prowlarr again. The Decision card " <>
+        "is the single home for all decision-related actions in `needs_decision` — the " <>
+        "Activity card is suppressed in that state by the modal."
+
   def decision_card(assigns) do
     ~H"""
+    <%!-- Single card carrying everything decision-related for a pursuit
+          in `needs_decision`. The Activity card is suppressed in this
+          state by the modal renderer, so this card owns the heading,
+          prompt, alternatives (or empty state), and all actions —
+          Cancel pursuit and Search Prowlarr again live together in one
+          action row instead of being scattered across two cards. --%>
     <section class="glass-surface rounded-xl p-5 space-y-4 border-warning/40">
-      <div class="space-y-1">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-warning">
-          Decision needed
-        </h3>
-        <p class="text-sm text-base-content/80">{@vm.prompt}</p>
-      </div>
+      <p class="text-sm text-base-content/80">{@vm.prompt}</p>
 
       <%= cond do %>
         <% @vm.loading? -> %>
@@ -30,9 +39,9 @@ defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
             <.icon name="hero-arrow-path" class="size-4 animate-spin" /> Searching for alternatives…
           </div>
         <% @vm.alternatives == [] -> %>
-          <div class="text-sm text-base-content/60">
-            No alternatives are currently available. You can mark this pursuit as exhausted or wait — Prowlarr may surface new releases later.
-          </div>
+          <p class="text-sm text-base-content/60">
+            No alternatives are currently available. Search Prowlarr again to look for new releases.
+          </p>
         <% true -> %>
           <ul class="space-y-2">
             <li :for={alt <- @vm.alternatives}>
@@ -40,6 +49,28 @@ defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
             </li>
           </ul>
       <% end %>
+
+      <%!-- Unified action row. Cancel is always available; Search again
+            shows only in the empty-alternatives branch (no point
+            "searching again" while we already are or when results just
+            arrived). Loading state shows neither — wait for the search
+            to settle first. --%>
+      <div
+        :if={!@vm.loading? && (@on_cancel || @vm.alternatives == [])}
+        class="flex justify-end gap-2 pt-1"
+      >
+        <.button :if={@on_cancel} variant="dismiss" size="sm" phx-click={@on_cancel}>
+          Cancel pursuit
+        </.button>
+        <.button
+          :if={@vm.alternatives == []}
+          variant="action"
+          size="sm"
+          phx-click="refresh_alternatives"
+        >
+          <.icon name="hero-arrow-path-mini" class="size-4" /> Search Prowlarr again
+        </.button>
+      </div>
     </section>
     """
   end

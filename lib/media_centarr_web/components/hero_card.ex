@@ -70,17 +70,17 @@ defmodule MediaCentarrWeb.Components.HeroCard do
           :if={@item.logo_url}
           src={@item.logo_url}
           alt={@item.name}
-          class="max-h-44 max-w-md object-contain object-left drop-shadow-lg"
+          class="max-h-44 max-w-md object-contain object-left text-on-image-lg"
         />
         <h1
           :if={!@item.logo_url}
-          class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white drop-shadow leading-[1.05] tracking-tight"
+          class="text-5xl sm:text-6xl lg:text-7xl font-bold text-white text-on-image-lg leading-[1.05] tracking-tight"
         >
           {@item.name}
         </h1>
         <div
           :if={@item.year || @item.runtime || @item.genre_label}
-          class="text-base text-white/80 flex flex-wrap gap-2"
+          class="text-base text-white/80 flex flex-wrap gap-2 text-on-image"
         >
           <span :if={@item.year}>{@item.year}</span>
           <span :if={@item.year && @item.genre_label} class="text-white/40">·</span>
@@ -92,7 +92,7 @@ defmodule MediaCentarrWeb.Components.HeroCard do
         </div>
         <p
           :if={@item.overview}
-          class="text-white/85 max-w-2xl text-lg lg:text-xl leading-relaxed line-clamp-5"
+          class="text-white/85 max-w-2xl text-lg lg:text-xl leading-relaxed line-clamp-5 text-on-image"
         >
           {@item.overview}
         </p>

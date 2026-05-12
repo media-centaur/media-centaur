@@ -12,7 +12,6 @@ defmodule MediaCentarr.Acquisition.QueueMatcherTest do
       id: id,
       title: Keyword.get(opts, :title, "Pursuit #{id}"),
       state: :active,
-      detail_path: "/download/#{id}",
       release_title: release_title,
       status: @stub_status
     }

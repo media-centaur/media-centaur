@@ -13,9 +13,10 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
   3. **Download footer** — progress bar, ETA, client, cancel button.
      Only when `:download` is non-nil.
 
-  The whole card is a `<.link navigate>` to the detail page. The cancel
-  button is its own `data-nav-item` so keyboard/gamepad input can
-  target it independently.
+  The whole card is a `phx-click="select_pursuit"` button-shaped div that
+  opens the pursuit detail modal on `/download`. The cancel button is
+  its own `data-nav-item` so keyboard/gamepad input can target it
+  independently.
   """
 
   use Phoenix.Component
@@ -40,12 +41,14 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
 
   def pursuit_row(assigns) do
     ~H"""
-    <.link
-      navigate={@vm.detail_path}
-      class="glass-surface rounded-xl p-4 space-y-2 block hover:bg-base-content/[0.03] transition-colors"
+    <div
+      class="glass-surface rounded-xl p-4 space-y-2 block hover:bg-base-content/[0.03] transition-colors cursor-pointer"
       data-nav-item
       tabindex="0"
+      role="button"
       data-pursuit-id={@vm.id}
+      phx-click="select_pursuit"
+      phx-value-id={@vm.id}
     >
       <div class="flex items-baseline justify-between gap-3">
         <div class="min-w-0 flex-1 truncate text-sm font-medium">
@@ -67,7 +70,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
         queue_item_id={@queue_item_id}
         cancel_title={@vm.release_title || @vm.title}
       />
-    </.link>
+    </div>
     """
   end
 
