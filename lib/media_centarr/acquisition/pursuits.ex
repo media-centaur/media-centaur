@@ -27,8 +27,6 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   alias MediaCentarr.Downloads.QueueMonitor
   alias MediaCentarr.Repo
 
-  @recent_events_limit 3
-
   @spec get(Ecto.UUID.t()) :: {:ok, Pursuit.t()} | {:error, :not_found}
   def get(id) do
     case Repo.get(Pursuit, id) do
@@ -46,13 +44,10 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     |> Repo.all()
   end
 
-  @doc "Lists active pursuits as `PursuitRow` view-models with the last few events attached."
+  @doc "Lists active pursuits as `PursuitRow` view-models for the Downloads index."
   @spec list_active_rows() :: [PursuitRow.t()]
   def list_active_rows do
     pursuits = list_active()
-
-    pursuit_ids = Enum.map(pursuits, & &1.id)
-    events_by_pursuit = recent_events_by_pursuit(pursuit_ids, @recent_events_limit)
 
     current_targets =
       pursuits
@@ -61,9 +56,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       |> fetch_targets_by_id()
 
     Enum.map(pursuits, fn pursuit ->
-      events = Map.get(events_by_pursuit, pursuit.id, [])
       target = Map.get(current_targets, pursuit.current_target_id)
-      build_row(pursuit, events, target)
+      build_row(pursuit, target)
     end)
   end
 
@@ -229,51 +223,48 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     |> Map.new(fn target -> {target.id, target} end)
   end
 
-  defp recent_events_by_pursuit([], _limit), do: %{}
-
-  # One LIMIT-bounded query per pursuit. The previous implementation
-  # loaded EVERY event for the listed pursuits, grouped in-memory, then
-  # discarded all but the head — a long-running pursuit with thousands
-  # of events would pull all of them every render. Per-pursuit
-  # subqueries keep the worst-case payload bounded by `limit` rows
-  # times the number of active pursuits.
-  defp recent_events_by_pursuit(pursuit_ids, limit) do
-    Map.new(pursuit_ids, fn pursuit_id ->
-      events =
-        Event
-        |> where([e], e.pursuit_id == ^pursuit_id)
-        |> order_by([e], desc: e.occurred_at)
-        |> limit(^limit)
-        |> Repo.all()
-
-      {pursuit_id, events}
-    end)
-  end
-
-  defp build_row(%Pursuit{} = pursuit, events, target) do
+  defp build_row(%Pursuit{} = pursuit, target) do
     {release_title, target_status} =
       case target do
         %Target{release_title: rt, status: status} -> {rt, status_to_atom(status)}
         nil -> {nil, nil}
       end
 
+    # Status line for the index card. Queue-state-aware status takes
+    # over at render time inside the row component when a download
+    # footer is paired — derive here without a queue item so the row
+    # is independent of QueueMonitor cadence.
+    {status, _next_step, _actions} = PursuitStatus.derive(pursuit, target, nil)
+
     %PursuitRow{
       id: pursuit.id,
       title: pursuit.title,
-      state: String.to_existing_atom(pursuit.state),
-      origin: String.to_existing_atom(pursuit.origin),
-      attempt_count: pursuit.attempt_count,
-      recent_events: Enum.map(events, &entry_for_event/1),
+      state: state_to_atom(pursuit.state),
+      season_number: pursuit.season_number,
+      episode_number: pursuit.episode_number,
       detail_path: "/download/#{pursuit.id}",
       release_title: release_title,
       target_status: target_status,
-      inserted_at: pursuit.inserted_at,
-      updated_at: pursuit.updated_at
+      status: status
     }
   end
 
+  # Explicit string→atom mapping for the row VM so the function doesn't
+  # depend on atom-loading side effects from other modules being
+  # compiled into the same release. The pursuit `state` column is
+  # constrained by `Pursuits.State` to these five values.
+  defp state_to_atom("active"), do: :active
+  defp state_to_atom("needs_decision"), do: :needs_decision
+  defp state_to_atom("satisfied"), do: :satisfied
+  defp state_to_atom("exhausted"), do: :exhausted
+  defp state_to_atom("cancelled"), do: :cancelled
+
   defp status_to_atom(nil), do: nil
-  defp status_to_atom(status) when is_binary(status), do: String.to_existing_atom(status)
+  defp status_to_atom("seeking"), do: :seeking
+  defp status_to_atom("acquired"), do: :acquired
+  defp status_to_atom("succeeded"), do: :succeeded
+  defp status_to_atom("failed"), do: :failed
+  defp status_to_atom("cancelled"), do: :cancelled
 
   defp build_header(%Pursuit{} = pursuit) do
     %PursuitHeader{

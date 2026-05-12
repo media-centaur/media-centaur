@@ -225,12 +225,10 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
   end
 
   describe "list_active_rows/0" do
-    alias MediaCentarr.Acquisition.ViewModels.{PursuitRow, TimelineEntry}
+    alias MediaCentarr.Acquisition.ViewModels.{CurrentAction, PursuitRow}
 
-    test "returns PursuitRow VMs for in-flight pursuits with recent events" do
+    test "returns PursuitRow VMs for in-flight pursuits" do
       pursuit = insert_pursuit()
-      insert_event(pursuit, "pursuit_started", DateTime.add(DateTime.utc_now(:second), -120))
-      insert_event(pursuit, "release_picked", DateTime.utc_now(:second))
 
       [row] = Pursuits.list_active_rows()
 
@@ -238,11 +236,7 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       assert row.id == pursuit.id
       assert row.title == "Sample Movie"
       assert row.state == :active
-      assert row.origin == :auto
       assert row.detail_path == "/download/#{pursuit.id}"
-
-      assert [%TimelineEntry{kind: "release_picked"}, %TimelineEntry{kind: "pursuit_started"}] =
-               row.recent_events
     end
 
     test "excludes terminal pursuits" do
@@ -250,11 +244,54 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       assert Pursuits.list_active_rows() == []
     end
 
-    test "row has empty recent_events when no events exist" do
-      pursuit = insert_pursuit()
+    test "row carries season_number and episode_number from a TV pursuit" do
+      _pursuit =
+        insert_pursuit(%{
+          tmdb_type: "tv",
+          tmdb_id: "1001",
+          title: "Sample Show",
+          season_number: 2,
+          episode_number: 1
+        })
+
       [row] = Pursuits.list_active_rows()
-      assert row.id == pursuit.id
-      assert row.recent_events == []
+
+      assert row.season_number == 2
+      assert row.episode_number == 1
+    end
+
+    test "row season_number/episode_number are nil for a movie pursuit" do
+      _pursuit = insert_pursuit()
+
+      [row] = Pursuits.list_active_rows()
+
+      assert row.season_number == nil
+      assert row.episode_number == nil
+    end
+
+    test "row.status is a CurrentAction derived from pursuit + current target" do
+      {_pursuit, _target} =
+        create_pursuit_with_target(%{
+          release_title: "Sample.Movie.2010.1080p.WEB-DL",
+          status: "seeking"
+        })
+
+      [row] = Pursuits.list_active_rows()
+
+      assert %CurrentAction{verb: "Searching", severity: :info} = row.status
+    end
+
+    test "row.status reflects needs_decision pursuit state" do
+      pursuit = insert_pursuit()
+
+      _ =
+        pursuit
+        |> Ecto.Changeset.change(state: "needs_decision")
+        |> MediaCentarr.Repo.update!()
+
+      [row] = Pursuits.list_active_rows()
+
+      assert %CurrentAction{verb: "Decision needed", severity: :warning} = row.status
     end
 
     test "row carries the current target's release_title and status for queue matching" do
