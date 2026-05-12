@@ -80,7 +80,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   alias MediaCentarr.Acquisition.ViewModels.{Alternative, PursuitWithDownload}
   alias MediaCentarr.Capabilities
   alias MediaCentarrWeb.AcquisitionLive.{History, HistoryLogic, Logic, OrphanQueue, Search}
-  alias MediaCentarrWeb.Components.Acquisition.{PursuitModal, PursuitRow, QueueStatusBadge}
+
+  alias MediaCentarrWeb.Components.Acquisition.{
+    PursuitGroup,
+    PursuitModal,
+    PursuitRow,
+    QueueStatusBadge
+  }
 
   @decision_prompt "Pick an alternative release."
 
@@ -112,6 +118,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
          history_search: "",
          history_rows: [],
          pursuit_rows: [],
+         expanded_pursuit_groups: MapSet.new(),
          pursuits_reload_timer: nil,
          reload_timer: nil,
          selected_pursuit_id: nil,
@@ -277,11 +284,33 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     # see `QueueMatcher.match/2`.
     {paired_rows, orphan_queue} = QueueMatcher.match(assigns.pursuit_rows, assigns.active_queue)
 
+    # Partition the unified `[PursuitWithDownload]` list at render time:
+    # - `download_cards` keeps the full 2-row card with progress footer
+    #   for every pursuit that has a paired torrent.
+    # - `active_compact` are the unpaired pursuits — fed through
+    #   `Logic.group_pursuit_rows/2` so 7 episodes of the same show in
+    #   the same state collapse into one group row.
+    # History rows always go through the grouping path (no downloads
+    # paired in that zone).
+    {download_cards, undownloaded_pwd} =
+      Enum.split_with(paired_rows, fn %PursuitWithDownload{download: d} -> not is_nil(d) end)
+
+    active_compact =
+      Logic.group_pursuit_rows(
+        Enum.map(undownloaded_pwd, & &1.row),
+        assigns.expanded_pursuit_groups
+      )
+
+    history_compact = Logic.group_pursuit_rows(assigns.history_rows, assigns.expanded_pursuit_groups)
+
     assigns =
       assigns
       |> Phoenix.Component.assign(:any_loading?, Logic.any_loading?(assigns.search_session.groups))
       |> Phoenix.Component.assign(:timeout_terms, Logic.timeout_terms(assigns.search_session.groups))
       |> Phoenix.Component.assign(:paired_rows, paired_rows)
+      |> Phoenix.Component.assign(:download_cards, download_cards)
+      |> Phoenix.Component.assign(:active_compact, active_compact)
+      |> Phoenix.Component.assign(:history_compact, history_compact)
       |> Phoenix.Component.assign(:orphan_queue, orphan_queue)
 
     ~H"""
@@ -329,15 +358,17 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               </span>
             </div>
           </div>
-          <div class="grid gap-3">
+          <div class="grid gap-2">
             <PursuitRow.pursuit_row
               :for={
-                %PursuitWithDownload{row: row, download: download, queue_item_id: qid} <- @paired_rows
+                %PursuitWithDownload{row: row, download: download, queue_item_id: qid} <-
+                  @download_cards
               }
               vm={row}
               download={download}
               queue_item_id={qid}
             />
+            <.grouped_compact_rows entries={@active_compact} />
           </div>
         </section>
 
@@ -349,10 +380,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         </section>
 
         <History.history_zone
-          rows={@history_rows}
+          empty?={@history_rows == []}
           filter={@history_filter}
           search={@history_search}
-        />
+        >
+          <.grouped_compact_rows entries={@history_compact} />
+        </History.history_zone>
 
         <OrphanQueue.orphan_zone items={@orphan_queue} />
 
@@ -498,6 +531,30 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   def handle_event("set_history_search", %{"search" => search}, socket) do
     {:noreply, socket |> assign(history_search: search) |> load_history()}
+  end
+
+  # Group expand/collapse. Toggles membership of `{title, state}` in
+  # the socket-local `expanded_pursuit_groups` MapSet — same convention
+  # the entity modal uses for its expanded_seasons set.
+  #
+  # `String.to_existing_atom/1` is safe here because the only emitter is
+  # the `PursuitGroup` component, which renders `Atom.to_string(state)`
+  # from a closed enum (`Pursuits.State`). An adversarial value just
+  # falls through to ArgumentError, which we let crash the event —
+  # there's no graceful render for "user fabricated a state we don't
+  # know about".
+  def handle_event("toggle_pursuit_group", %{"title" => title, "state" => state}, socket) do
+    key = {title, String.to_existing_atom(state)}
+    expanded = socket.assigns.expanded_pursuit_groups
+
+    next =
+      if MapSet.member?(expanded, key) do
+        MapSet.delete(expanded, key)
+      else
+        MapSet.put(expanded, key)
+      end
+
+    {:noreply, assign(socket, expanded_pursuit_groups: next)}
   end
 
   # Pursuit detail modal — open / close via URL.
@@ -943,6 +1000,40 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # then lands the same struct (a no-op assign).
   defp refresh_search_session(socket) do
     assign(socket, search_session: Acquisition.current_search_session())
+  end
+
+  # ---------------------------------------------------------------------------
+  # Grouped-compact-rows renderer — pattern-matches on the
+  # `Logic.group_pursuit_rows/2` output. Lives on the parent so both
+  # zones (Active Pursuits and History) share one render helper. Each
+  # zone produces its own grouped list; the renderer doesn't know which
+  # zone called it.
+  # ---------------------------------------------------------------------------
+
+  attr :entries, :list,
+    required: true,
+    doc:
+      "Output of `Logic.group_pursuit_rows/2` — a mixed list of `{:single, PursuitRow.t()}` and `{:group, %{title, state, count, verb, severity, expanded?, vms}}` tagged tuples. Heterogeneous by design (the grouping helper interleaves singles and groups in input order); `:list` is the tightest type the component can declare."
+
+  defp grouped_compact_rows(assigns) do
+    ~H"""
+    <%= for entry <- @entries do %>
+      <%= case entry do %>
+        <% {:single, vm} -> %>
+          <PursuitRow.pursuit_row vm={vm} density={:compact} />
+        <% {:group, data} -> %>
+          <PursuitGroup.pursuit_group
+            title={data.title}
+            state={data.state}
+            count={data.count}
+            verb={data.verb}
+            severity={data.severity}
+            vms={data.vms}
+            expanded?={data.expanded?}
+          />
+      <% end %>
+    <% end %>
+    """
   end
 
   # ---------------------------------------------------------------------------

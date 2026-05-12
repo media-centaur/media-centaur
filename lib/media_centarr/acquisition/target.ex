@@ -60,6 +60,11 @@ defmodule MediaCentarr.Acquisition.Target do
     field :pursuit_id, Ecto.UUID
     field :title, :string
     field :status, :string, default: "seeking"
+    # When the worker will next wake up for this seeking target. Read by
+    # PursuitStatus so the row can say "next attempt in 2h 15m" without
+    # querying Oban. Written by PursueTarget in the same transaction
+    # that schedules the snooze; nulled on terminal transitions.
+    field :next_attempt_at, :utc_datetime
     # `quality` is the OUTCOME — captured tier of the actual acquired
     # release. The bounds live on the pursuit's recipe.
     field :quality, :string
@@ -111,7 +116,8 @@ defmodule MediaCentarr.Acquisition.Target do
       prowlarr_guid: result.guid,
       acquired_at: now,
       last_attempt_at: now,
-      last_attempt_outcome: "acquired"
+      last_attempt_outcome: "acquired",
+      next_attempt_at: nil
     )
     |> validate_required([:pursuit_id, :title])
   end
@@ -130,7 +136,8 @@ defmodule MediaCentarr.Acquisition.Target do
       prowlarr_guid: prowlarr_guid,
       acquired_at: now,
       last_attempt_at: now,
-      last_attempt_outcome: "acquired"
+      last_attempt_outcome: "acquired",
+      next_attempt_at: nil
     )
   end
 
@@ -167,13 +174,14 @@ defmodule MediaCentarr.Acquisition.Target do
     change(target,
       status: "failed",
       cancelled_at: DateTime.utc_now(:second),
-      cancelled_reason: reason
+      cancelled_reason: reason,
+      next_attempt_at: nil
     )
   end
 
   @doc "Terminal-success transition — the file landed and was matched."
   def succeeded_changeset(target) do
-    change(target, status: "succeeded")
+    change(target, status: "succeeded", next_attempt_at: nil)
   end
 
   @doc "User-driven cancellation of a specific target."
@@ -181,7 +189,19 @@ defmodule MediaCentarr.Acquisition.Target do
     change(target,
       status: "cancelled",
       cancelled_at: DateTime.utc_now(:second),
-      cancelled_reason: reason
+      cancelled_reason: reason,
+      next_attempt_at: nil
     )
+  end
+
+  @doc """
+  Records when the next snooze will fire. Called by the PursueTarget
+  worker right before it returns `{:snooze, seconds}` to Oban, so the
+  target row stays in sync with the scheduled job's `scheduled_at`
+  without the read path having to query Oban.
+  """
+  @spec schedule_next_attempt_changeset(t(), DateTime.t()) :: Ecto.Changeset.t()
+  def schedule_next_attempt_changeset(%__MODULE__{} = target, %DateTime{} = next_attempt_at) do
+    change(target, next_attempt_at: DateTime.truncate(next_attempt_at, :second))
   end
 end

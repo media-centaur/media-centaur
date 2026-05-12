@@ -719,4 +719,86 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
       assert Logic.apply_pending_cancels(items, %{}, 1000) == {items, %{}}
     end
   end
+
+  describe "group_pursuit_rows/2" do
+    alias MediaCentarr.Acquisition.ViewModels.{CurrentAction, PursuitRow}
+
+    defp row(opts) do
+      %PursuitRow{
+        id: Keyword.get(opts, :id, Ecto.UUID.generate()),
+        title: Keyword.get(opts, :title, "Sample Show"),
+        state: Keyword.get(opts, :state, :active),
+        season_number: Keyword.get(opts, :season),
+        episode_number: Keyword.get(opts, :episode),
+        status:
+          Keyword.get(opts, :status, %CurrentAction{
+            verb: "Searching",
+            description: "Looking for an acceptable release.",
+            severity: :info
+          })
+      }
+    end
+
+    test "single pursuit returns as {:single, vm}" do
+      vm = row([])
+      assert Logic.group_pursuit_rows([vm], MapSet.new()) == [{:single, vm}]
+    end
+
+    test "two pursuits sharing {title, state} collapse into one :group" do
+      a = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 2)
+      b = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 3)
+
+      assert [{:group, data}] = Logic.group_pursuit_rows([a, b], MapSet.new())
+      assert data.title == "Sample Game May Weep"
+      assert data.state == :active
+      assert data.count == 2
+      assert data.expanded? == false
+      assert data.verb == "Searching"
+      assert data.severity == :info
+      assert data.vms == [a, b]
+    end
+
+    test "expanded set membership flips expanded? to true" do
+      a = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 2)
+      b = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 3)
+      expanded = MapSet.new([{"Sample Game May Weep", :active}])
+
+      assert [{:group, %{expanded?: true}}] = Logic.group_pursuit_rows([a, b], expanded)
+    end
+
+    test "different titles produce two :single entries" do
+      a = row(title: "Sample Game May Weep", state: :active)
+      b = row(title: "Sample Show Sixteen", state: :active)
+
+      assert [{:single, ^a}, {:single, ^b}] = Logic.group_pursuit_rows([a, b], MapSet.new())
+    end
+
+    test "same title, different state produces two distinct buckets" do
+      a = row(title: "Sample Game May Weep", state: :active)
+      b = row(title: "Sample Game May Weep", state: :needs_decision)
+
+      result = Logic.group_pursuit_rows([a, b], MapSet.new())
+      assert length(result) == 2
+      assert Enum.all?(result, &match?({:single, _}, &1))
+    end
+
+    test "output order preserves input order of the freshest member per bucket" do
+      a = row(title: "Show A", state: :active)
+      b1 = row(title: "Show B", state: :active)
+      b2 = row(title: "Show B", state: :active)
+      c = row(title: "Show C", state: :active)
+
+      result = Logic.group_pursuit_rows([a, b1, b2, c], MapSet.new())
+
+      assert [
+               {:single, ^a},
+               {:group, %{title: "Show B"}},
+               {:single, ^c}
+             ] = result
+    end
+
+    test "empty input returns empty list" do
+      assert Logic.group_pursuit_rows([], MapSet.new()) == []
+    end
+  end
 end

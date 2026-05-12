@@ -427,4 +427,77 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
       _ -> "text-base-content/40"
     end
   end
+
+  @doc """
+  Groups `PursuitRow` view-models by `{title, state}`. Buckets of size
+  1 become `{:single, vm}`; buckets of size ≥2 become `{:group, data}`
+  where `data` carries the count, the severity-colored verb, and the
+  list of per-pursuit VMs (preserving input order — callers pass
+  `desc: updated_at`, so the first VM is the freshest).
+
+  The expand/collapse state lives on the LiveView socket as a
+  `MapSet.t({String.t(), atom()})`; the second argument lets the group
+  carry the `expanded?` flag without the component having to consult
+  the socket directly.
+
+  Output order: by the first appearance of each bucket key in input.
+  """
+  @type pursuit_group_data :: %{
+          title: String.t(),
+          state: atom(),
+          verb: String.t(),
+          severity: atom(),
+          count: pos_integer(),
+          expanded?: boolean(),
+          vms: [MediaCentarr.Acquisition.ViewModels.PursuitRow.t()]
+        }
+
+  @spec group_pursuit_rows(
+          [MediaCentarr.Acquisition.ViewModels.PursuitRow.t()],
+          MapSet.t({String.t(), atom()})
+        ) :: [
+          {:single, MediaCentarr.Acquisition.ViewModels.PursuitRow.t()}
+          | {:group, pursuit_group_data()}
+        ]
+  def group_pursuit_rows(rows, expanded_groups) when is_list(rows) do
+    # Build buckets keyed by {title, state}, preserving first-seen order
+    # via `Enum.reduce` over the input list. Using a Map for membership
+    # + a separate ordering list keeps the operation O(n) without
+    # depending on the (insertion-ordered, but undocumented) Map order.
+    {buckets, order} =
+      Enum.reduce(rows, {%{}, []}, fn vm, {acc, order} ->
+        key = {vm.title, vm.state}
+
+        case Map.fetch(acc, key) do
+          {:ok, existing} ->
+            {Map.put(acc, key, existing ++ [vm]), order}
+
+          :error ->
+            {Map.put(acc, key, [vm]), order ++ [key]}
+        end
+      end)
+
+    Enum.map(order, fn key ->
+      vms = Map.fetch!(buckets, key)
+
+      case vms do
+        [single] ->
+          {:single, single}
+
+        [first | _] = many ->
+          {title, state} = key
+
+          {:group,
+           %{
+             title: title,
+             state: state,
+             verb: first.status.verb,
+             severity: first.status.severity,
+             count: length(many),
+             expanded?: MapSet.member?(expanded_groups, key),
+             vms: many
+           }}
+      end
+    end)
+  end
 end

@@ -42,7 +42,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
                     description: "Looking for an acceptable release (attempt 2).",
                     severity: :info
                   }
-                )
+                ),
+              density: :full
             }
           },
           %Variation{
@@ -276,6 +277,129 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
                     severity: :warning
                   }
                 )
+            }
+          }
+        ]
+      },
+      %VariationGroup{
+        id: :density_axis,
+        description:
+          "Compact density renders a single dense line — title + severity-colored status, no state badge. Used when there's no paired download.",
+        variations: [
+          %Variation{
+            id: :compact_active,
+            attributes: %{
+              vm:
+                row(:active, "Sample Show",
+                  season: 2,
+                  episode: 4,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release (attempt 4).",
+                    severity: :info
+                  }
+                ),
+              density: :compact
+            }
+          },
+          %Variation{
+            id: :compact_searching_with_countdown,
+            description:
+              "When the worker has scheduled the next snooze, PursuitStatus surfaces the countdown — driven by `target.next_attempt_at` (denormalised off Oban's scheduled_at).",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show",
+                  season: 2,
+                  episode: 4,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Next attempt in 2h 15m (attempt 4).",
+                    severity: :info
+                  }
+                ),
+              density: :compact
+            }
+          },
+          %Variation{
+            id: :compact_needs_decision,
+            attributes: %{
+              vm:
+                row(:needs_decision, "Sample Show",
+                  season: 1,
+                  episode: 7,
+                  status: %CurrentAction{
+                    verb: "Decision needed",
+                    description: "Pick a release below.",
+                    severity: :warning
+                  }
+                ),
+              density: :compact
+            }
+          },
+          %Variation{
+            id: :compact_exhausted,
+            attributes: %{
+              vm:
+                row(:exhausted, "Movie A",
+                  status: %CurrentAction{
+                    verb: "Gave up",
+                    description: "Exhausted after 4 attempts.",
+                    severity: :error
+                  }
+                ),
+              density: :compact
+            }
+          },
+          %Variation{
+            id: :compact_cancelled,
+            attributes: %{
+              vm:
+                row(:cancelled, "Movie B",
+                  status: %CurrentAction{
+                    verb: "Cancelled",
+                    description: "Pursuit cancelled.",
+                    severity: :info
+                  }
+                ),
+              density: :compact
+            }
+          },
+          %Variation{
+            id: :compact_long_title,
+            description: "Long title truncates from the right; status stays on one line.",
+            attributes: %{
+              vm:
+                row(
+                  :active,
+                  "An Extraordinarily Long Pursuit Title That Forces The Row Layout To Truncate Within The Available Space",
+                  season: 1,
+                  episode: 12,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release.",
+                    severity: :info
+                  }
+                ),
+              density: :compact
+            }
+          },
+          %Variation{
+            id: :compact_unframed,
+            description:
+              "`framed={false}` — the row drops its own glass card to sit inside a parent container (used by `PursuitGroup` so the group is the one card and per-episode rows are flat dividers within it). Out of context it looks like bare text on the storybook gradient; the parent context is exercised via the `PursuitGroup` story.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show",
+                  season: 2,
+                  episode: 4,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release (attempt 4).",
+                    severity: :info
+                  }
+                ),
+              density: :compact,
+              framed: false
             }
           }
         ]

@@ -4,24 +4,26 @@ defmodule MediaCentarrWeb.AcquisitionLive.History do
   terminal pursuits (failed / cancelled / succeeded), filtered by
   lifecycle bucket and searchable by title or release filename.
 
-  Pure function component. State (filter, search, rows) lives on the
-  parent `AcquisitionLive` socket. Rows render as `PursuitRow`
-  components (same as the Active Pursuits zone above) — clicking a
-  row opens the pursuit modal where Cancel / Change target live.
+  Pure function component. State (filter, search, entries) lives on
+  the parent `AcquisitionLive` socket. Entries are the
+  `Logic.group_pursuit_rows/2` mixed list of `{:single, vm}` and
+  `{:group, data}` tagged tuples — the rendering helper on the parent
+  pattern-matches and dispatches to `PursuitRow` (compact density) or
+  `PursuitGroup` accordingly.
   """
 
   use Phoenix.Component
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitRow, as: PursuitRowVM
   alias MediaCentarrWeb.AcquisitionLive.HistoryLogic
-  alias MediaCentarrWeb.Components.Acquisition.PursuitRow
 
-  attr :rows, :list,
-    required: true,
-    doc: "list of `MediaCentarr.Acquisition.ViewModels.PursuitRow.t()` for terminal pursuits."
-
+  attr :empty?, :boolean, required: true
   attr :filter, :atom, required: true
   attr :search, :string, required: true
+
+  slot :inner_block,
+    required: true,
+    doc:
+      "Caller-provided render block for the entries list. Receives the parent's grouped-compact-rows helper so the rendering path stays consistent with the Active Pursuits zone."
 
   def history_zone(assigns) do
     ~H"""
@@ -61,13 +63,13 @@ defmodule MediaCentarrWeb.AcquisitionLive.History do
         </form>
       </div>
 
-      <%= if @rows == [] do %>
+      <%= if @empty? do %>
         <section class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40">
           {HistoryLogic.empty_state(@filter)}
         </section>
       <% else %>
-        <div class="grid gap-3">
-          <PursuitRow.pursuit_row :for={%PursuitRowVM{} = vm <- @rows} vm={vm} />
+        <div class="grid gap-2">
+          {render_slot(@inner_block)}
         </div>
       <% end %>
     </section>

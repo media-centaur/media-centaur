@@ -49,6 +49,26 @@ defmodule MediaCentarr.AcquisitionTest do
     end
   end
 
+  describe "PursueTarget snooze — next_attempt_at denormalisation" do
+    # The suite-level setup stubs Prowlarr with empty results, so the
+    # worker runs through `handle_no_results/3` and snoozes — perfect
+    # for asserting that `next_attempt_at` lands on the target row in
+    # the same transaction.
+    test "writes next_attempt_at when snoozing after a no-results attempt" do
+      before = DateTime.utc_now()
+      assert {:ok, target} = Acquisition.enqueue("snooze-1", "movie", "Sample Movie")
+      after_call = DateTime.utc_now()
+
+      latest = Repo.get!(Target, target.id)
+
+      assert latest.status == "seeking"
+      assert %DateTime{} = latest.next_attempt_at
+      # First-attempt snooze is 4h (2^0 * 4); allow a wide window.
+      assert DateTime.diff(latest.next_attempt_at, before, :second) >= 3600
+      assert DateTime.diff(latest.next_attempt_at, after_call, :second) >= 3600
+    end
+  end
+
   describe "pick_target/2 — manual unified path" do
     setup do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_updates())

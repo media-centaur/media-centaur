@@ -52,6 +52,30 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatusTest do
       assert :cancel in actions
       assert :request_decision in actions
     end
+
+    test "description is timeless when next_attempt_at is nil (fresh target)" do
+      {action, _next, _actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          target(:seeking, %{attempt_count: 3, next_attempt_at: nil}),
+          nil
+        )
+
+      assert action.description == "Looking for an acceptable release (attempt 4)."
+    end
+
+    test "description surfaces the countdown when next_attempt_at is scheduled" do
+      future = DateTime.add(DateTime.utc_now(), 2 * 3600 + 15 * 60, :second)
+
+      {action, _next, _actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          target(:seeking, %{attempt_count: 3, next_attempt_at: future}),
+          nil
+        )
+
+      assert action.description == "Next attempt in 2h 15m (attempt 4)."
+    end
   end
 
   describe "derive/3 — active + acquired + queue states" do

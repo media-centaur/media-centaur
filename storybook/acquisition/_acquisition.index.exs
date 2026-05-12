@@ -5,6 +5,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition do
   def folder_icon, do: {:fa, "arrow-down-to-bracket", :light, "psb:mr-1"}
 
   def entry("pursuit_row"), do: [icon: {:fa, "list-tree", :thin}, name: "Pursuit row"]
+  def entry("pursuit_group"), do: [icon: {:fa, "layer-group", :thin}, name: "Pursuit group"]
   def entry("pursuit_header"), do: [icon: {:fa, "heading", :thin}, name: "Pursuit header"]
   def entry("pursuit_modal"), do: [icon: {:fa, "rectangle-history", :thin}, name: "Pursuit modal"]
   def entry("timeline"), do: [icon: {:fa, "timeline", :thin}, name: "Pursuit timeline"]
