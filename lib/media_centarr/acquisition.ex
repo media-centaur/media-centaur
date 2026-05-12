@@ -88,6 +88,7 @@ defmodule MediaCentarr.Acquisition do
     Config,
     Jobs.PursueTarget,
     Prowlarr,
+    QueryExpander,
     SearchResult,
     Target,
     TargetStatus
@@ -298,6 +299,46 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Like `search/2`, but first expands brace syntax in `query` (per
+  `QueryExpander`), runs each concrete query against Prowlarr in
+  parallel, and merges the results (deduped by guid). Use this when the
+  caller may receive a user-typed query containing braces (e.g.
+  `Sample Show S01E{01,02}`) and wants a single merged result list.
+
+  Returns:
+    - `{:ok, [SearchResult.t()]}` — merged results (possibly empty)
+    - `{:error, :invalid_syntax}` — query has malformed braces
+    - `{:error, :not_configured}` — Prowlarr isn't ready
+
+  Queries without braces fan out to a single search and behave exactly
+  like `search/2`.
+  """
+  @spec search_expanded(String.t(), keyword()) :: {:ok, list()} | {:error, term()}
+  def search_expanded(query, opts \\ []) when is_binary(query) do
+    if available?() do
+      with {:ok, queries} <- QueryExpander.expand(query) do
+        results =
+          queries
+          |> Task.async_stream(
+            fn q -> Prowlarr.search(q, opts) end,
+            max_concurrency: 5,
+            timeout: 15_000,
+            on_timeout: :kill_task
+          )
+          |> Enum.flat_map(fn
+            {:ok, {:ok, list}} when is_list(list) -> list
+            _ -> []
+          end)
+          |> Enum.uniq_by(& &1.guid)
+
+        {:ok, results}
+      end
+    else
+      {:error, :not_configured}
+    end
+  end
+
+  @doc """
   Submits a manual pick — Prowlarr.grab + pursuit/target creation —
   and records it on the activity timeline.
 
@@ -346,20 +387,38 @@ defmodule MediaCentarr.Acquisition do
 
   @doc """
   Picks an alternative release on an existing pursuit — used by the
-  decision card. Re-runs the Prowlarr search using the pursuit's recipe,
-  locates the result by `guid`, submits to Prowlarr, and records via
-  `PickTarget`.
+  decision card.
+
+  Accepts either:
+
+  - **`%SearchResult{}`** (fast path) — the LiveView passes the cached
+    result that the user just clicked. Skips the Prowlarr search
+    round-trip entirely; only `Prowlarr.grab/1` is called.
+  - **`guid` string** (fallback) — when the cache was lost (modal
+    re-mounted, session expired, race against `refresh_alternatives`).
+    Re-runs the pursuit's search and locates the result by guid.
 
   Returns `{:error, :not_found}` when the pursuit is gone, or
-  `{:error, :alternative_unavailable}` when the guid no longer appears
-  in fresh search results (a transient Prowlarr / indexer change).
+  `{:error, :alternative_unavailable}` when a guid lookup no longer
+  finds the result in fresh search results.
   """
-  @spec pick_alternative(Ecto.UUID.t(), String.t(), String.t()) ::
+  @spec pick_alternative(Ecto.UUID.t(), SearchResult.t() | String.t(), String.t()) ::
           {:ok, Pursuit.t()} | {:error, term()}
+  def pick_alternative(pursuit_id, %SearchResult{} = result, label) when is_binary(label) do
+    with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.get(pursuit_id) do
+      do_pick_alternative(pursuit, result, label)
+    end
+  end
+
   def pick_alternative(pursuit_id, guid, label) when is_binary(guid) and is_binary(label) do
     with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.get(pursuit_id),
-         {:ok, result} <- find_alternative(pursuit, guid),
-         :ok <- Prowlarr.grab(result),
+         {:ok, result} <- find_alternative(pursuit, guid) do
+      do_pick_alternative(pursuit, result, label)
+    end
+  end
+
+  defp do_pick_alternative(%Pursuit{} = pursuit, %SearchResult{} = result, label) do
+    with :ok <- Prowlarr.grab(result),
          {:ok, updated} <-
            PickTarget.execute(%{
              pursuit_id: pursuit.id,
@@ -372,15 +431,49 @@ defmodule MediaCentarr.Acquisition do
     end
   end
 
-  defp find_alternative(%Pursuit{} = pursuit, guid) do
+  @doc """
+  Lists the release alternatives for a pursuit's existing recipe —
+  excluded by `tried_release_guids`, capped at 8, ready for display in
+  the decision card.
+
+  This is the single entry point for "show me the releases this pursuit
+  could pivot to". Both the decision-card refresh path and the
+  `pick_alternative` validation lookup go through the same private
+  search helper, so the pursuit→Prowlarr translation (query selection,
+  type/year opts, brace expansion) lives in one place and can't drift.
+  """
+  @spec list_alternatives_for(Pursuit.t()) :: [SearchResult.t()]
+  def list_alternatives_for(%Pursuit{} = pursuit) do
+    case do_search_for_pursuit(pursuit) do
+      {:ok, results} ->
+        excluded = MapSet.new(pursuit.tried_release_guids)
+
+        results
+        |> Enum.reject(&MapSet.member?(excluded, &1.guid))
+        |> Enum.take(8)
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  # Single source of truth for "search Prowlarr the way THIS pursuit
+  # wants to be searched". Brace-aware, type-aware, year-aware. Adding
+  # a new consumer just calls `list_alternatives_for/1` (filtered) or
+  # `do_search_for_pursuit/1` (raw, internal-only) — the recipe can't
+  # drift between call sites.
+  defp do_search_for_pursuit(%Pursuit{} = pursuit) do
     opts =
       []
       |> put_when_present(:type, search_type_for(pursuit.tmdb_type))
       |> put_when_present(:year, pursuit.year)
 
     query = pursuit.manual_query || pursuit.title
+    search_expanded(query, opts)
+  end
 
-    case search(query, opts) do
+  defp find_alternative(%Pursuit{} = pursuit, guid) do
+    case do_search_for_pursuit(pursuit) do
       {:ok, results} ->
         case Enum.find(results, &(&1.guid == guid)) do
           nil -> {:error, :alternative_unavailable}

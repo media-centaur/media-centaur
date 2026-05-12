@@ -198,6 +198,26 @@ html.psb .psb-variation-block .media-centarr {
   border-right: 1px solid var(--glass-border);
 }
 
+/* ── Text on imagery (UIDR-011) ──
+   When body text or a title sits over a backdrop, poster, or any
+   uncontrolled image, the underlying pixels can't guarantee contrast.
+   Use these utilities to lift the element off the image without
+   adding a scrim.
+
+   - `.text-on-image`    for body text (description, meta, captions).
+                         Uses `text-shadow` because it tracks glyph
+                         outlines exactly and stays crisp at small sizes.
+   - `.text-on-image-lg` for titles AND for logo PNGs (`<img>` over
+                         imagery). Uses `filter: drop-shadow()` because
+                         a CSS text-shadow has no effect on images. */
+.text-on-image {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.text-on-image-lg {
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.85));
+}
+
 /* ── Collapsible Sidebar ──
    Expands to 200px (icon + label), collapses to 52px (icon-only).
    State stored on <html data-sidebar="collapsed"> for flash-free paint. */
@@ -357,13 +377,17 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: opacity 250ms ease-out, visibility 0s;
 }
 
-/* Modal panel — centered, rounded, max-width constrained */
+/* Modal panel — centered, rounded, with a fixed ~100px gutter on every
+   side until the viewport gets impractically small. `clamp()` caps the
+   modal at 1000px on wide screens (so even fullscreened it never feels
+   wall-to-wall) and shrinks past that to preserve the gutter rather
+   than the percentage. */
 .modal-panel {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: min(1200px, 95vw);
-  max-height: 92vh;
+  width: clamp(320px, calc(100vw - 200px), 1000px);
+  max-height: calc(100vh - 200px);
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
@@ -452,15 +476,16 @@ body:has(.modal-backdrop[data-state="open"]) {
     linear-gradient(
       to bottom,
       transparent 0,
-      transparent 32vh,
-      oklch(0% 0 0 / 0.55) 64vh,
+      transparent 12vh,
+      oklch(0% 0 0 / 0.55) 36vh,
       oklch(0% 0 0 / 0.55) 100%
     );
 }
 
-/* Small modal panel — delete confirmations, alerts */
+/* Small modal panel — delete confirmations, alerts. Same gutter rule as
+   the big modal, just a smaller cap. */
 .modal-panel-sm {
-  width: min(480px, 92vw);
+  width: clamp(280px, calc(100vw - 200px), 480px);
   max-height: none;
   overflow: visible;
 }

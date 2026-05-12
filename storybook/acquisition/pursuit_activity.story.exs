@@ -1,5 +1,5 @@
 defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
-  @moduledoc "Live status card for `/download/:pursuit_id`."
+  @moduledoc "Live status card for the pursuit detail modal."
 
   use PhoenixStorybook.Story, :component
 

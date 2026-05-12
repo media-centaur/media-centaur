@@ -82,19 +82,8 @@ defmodule MediaCentarrWeb.Components.ModalShell do
       data-detail-view={@open && to_string(@detail_view)}
     >
       <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
-        <%!-- Close button — pinned to the panel, sits above the scroll
-              surface so it stays in place while content scrolls. --%>
-        <.button
-          :if={@entity}
-          variant="dismiss"
-          size="sm"
-          shape="circle"
-          class="absolute top-3 right-3 z-20"
-          phx-click={@on_close}
-          aria-label="Close"
-        >
-          <.icon name="hero-x-mark-mini" class="size-5" />
-        </.button>
+        <%!-- No close-X — backdrop click and Escape both close, and the
+              URL preserves history so browser-back also works. --%>
 
         <%!-- Single scroll surface for the entire detail. Backdrop image
               and atmospheric scrim live inside the scroll container so

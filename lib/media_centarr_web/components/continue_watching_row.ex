@@ -73,11 +73,11 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
             :if={item.logo_url}
             src={item.logo_url}
             alt={item.name}
-            class="max-h-20 max-w-[80%] object-contain object-left drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+            class="max-h-20 max-w-[80%] object-contain object-left text-on-image-lg"
           />
           <div
             :if={!item.logo_url}
-            class="text-2xl font-semibold text-white drop-shadow truncate"
+            class="text-2xl font-semibold text-white text-on-image-lg truncate"
           >
             {item.name}
           </div>
