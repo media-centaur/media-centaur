@@ -368,6 +368,26 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       |> Ecto.Changeset.change(state: "exhausted")
       |> MediaCentarr.Repo.update!()
 
+      # Seed a SECOND exhausted pursuit with the same title and state so
+      # the smoke exercises the new `PursuitGroup` render branch (count
+      # ≥2 collapses into a group row). Without this, only the
+      # single-row path would be smoked.
+      {grouped_pursuit, _target} =
+        MediaCentarr.TestFactory.create_pursuit_with_target(%{
+          tmdb_id: "smoke-history-group",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 4,
+          origin: "auto",
+          release_title: "Sample.Show.S01E04.1080p.WEB-DL",
+          status: "failed"
+        })
+
+      grouped_pursuit
+      |> Ecto.Changeset.change(state: "exhausted")
+      |> MediaCentarr.Repo.update!()
+
       on_exit(fn ->
         MediaCentarr.Capabilities.clear_test_result(:prowlarr)
         :persistent_term.put({Config, :config}, original)
@@ -383,9 +403,11 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       # PursuitRow component's no-match hint path (no queue item matches).
       assert html =~ "Sample Movie"
       # The History zone (default filter :failed) must render the
-      # exhausted pursuit row.
+      # exhausted pursuit row. With two same-title same-state pursuits
+      # seeded, the group-render path fires (header reads "2 episodes").
       assert html =~ "History"
       assert html =~ "Sample Show"
+      assert html =~ "2 episodes"
     end
   end
 

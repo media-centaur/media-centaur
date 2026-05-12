@@ -245,14 +245,16 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
       Log.info(:library, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
       :ok
     else
-      broadcast({:target_snoozed, updated})
+      seconds = snooze_seconds(updated.attempt_count)
+      {:ok, scheduled} = persist_next_attempt(updated, seconds)
+      broadcast({:target_snoozed, scheduled})
 
       Log.info(
         :library,
-        "acquisition snooze — #{target.title} (attempt #{updated.attempt_count})"
+        "acquisition snooze — #{target.title} (attempt #{scheduled.attempt_count})"
       )
 
-      {:snooze, snooze_seconds(updated.attempt_count)}
+      {:snooze, seconds}
     end
   end
 
@@ -264,8 +266,20 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
       |> Target.infrastructure_failure_changeset("prowlarr_error")
       |> Repo.update()
 
-    broadcast({:target_snoozed, updated})
+    {:ok, scheduled} = persist_next_attempt(updated, @prowlarr_error_snooze_seconds)
+    broadcast({:target_snoozed, scheduled})
     {:snooze, @prowlarr_error_snooze_seconds}
+  end
+
+  # Denormalises Oban's `scheduled_at` onto the target row so the read
+  # path (pursuit status, row rendering) can show "next attempt in
+  # 2h 15m" without querying Oban.
+  defp persist_next_attempt(target, seconds) do
+    next_at = DateTime.add(DateTime.utc_now(), seconds, :second)
+
+    target
+    |> Target.schedule_next_attempt_changeset(next_at)
+    |> Repo.update()
   end
 
   defp snooze_seconds(attempt_count) do

@@ -33,15 +33,27 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
   attr :download, :any,
     default: nil,
     doc:
-      "Matched `DownloadProgress.t()` or `nil`. When non-nil, the status line is hidden and the download footer renders instead."
+      "Matched `DownloadProgress.t()` or `nil`. When non-nil, the status line is hidden and the download footer renders instead. Forces `:full` density."
 
   attr :queue_item_id, :string,
     default: nil,
     doc: "Queue-client id (qBittorrent hash) for the matched torrent. Required to fire cancel."
 
+  attr :density, :atom,
+    default: :full,
+    values: [:full, :compact],
+    doc:
+      "`:full` is the original two-line card with state badge and (optionally) a download footer. `:compact` collapses the row to a single dense line — title left, severity-colored status right, no badge. Compact is the default in Active Pursuits and History zones where no download is paired; full is used when a torrent is matched (so the download footer fits)."
+
+  attr :framed, :boolean,
+    default: true,
+    doc:
+      "Compact mode only — when true (default), the row wraps in its own glass-surface rounded card. When false, it renders as a flat row meant to sit inside a parent container that provides framing (e.g. inside `PursuitGroup`, where the group itself is the card and per-episode rows are flat dividers within it). Ignored in `:full` density."
+
   def pursuit_row(assigns) do
     ~H"""
     <div
+      :if={@density == :full}
       class="glass-surface rounded-xl p-4 space-y-2 block hover:bg-base-content/[0.03] transition-colors cursor-pointer"
       data-nav-item
       tabindex="0"
@@ -70,6 +82,27 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
         queue_item_id={@queue_item_id}
         cancel_title={@vm.release_title || @vm.title}
       />
+    </div>
+
+    <div
+      :if={@density == :compact}
+      class={[
+        "px-3 py-2 flex items-baseline gap-3 hover:bg-base-content/[0.03] transition-colors cursor-pointer",
+        @framed && "glass-surface rounded-lg"
+      ]}
+      data-nav-item
+      tabindex="0"
+      role="button"
+      data-pursuit-id={@vm.id}
+      phx-click="select_pursuit"
+      phx-value-id={@vm.id}
+    >
+      <div class="min-w-0 flex-1 truncate text-sm font-medium">
+        {display_title(@vm)}
+      </div>
+      <div class={"flex-shrink-0 max-w-[50%] truncate text-xs #{PursuitStyle.severity_text_class(@vm.status.severity)}"}>
+        {@vm.status.verb} — {@vm.status.description}
+      </div>
     </div>
     """
   end
