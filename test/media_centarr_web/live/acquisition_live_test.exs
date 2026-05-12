@@ -805,10 +805,27 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       html = render(view)
       assert html =~ "Other downloads"
       assert html =~ ~s|id="orphan-hash-orphan"|
-      # The pursuit card derives its hint from grab_status when no torrent
-      # matches — the "grabbed but invisible in client" case shows the same
-      # warning copy as the v0.54.0 detail-page fix.
-      assert html =~ "Waiting — not visible in your download client."
+      # The pursuit card surfaces `PursuitStatus.derive/3`'s `CurrentAction`
+      # as the status line when no torrent is matched — the "acquired but
+      # invisible in client" case is the v0.54 detail-page fix.
+      assert html =~ "Waiting — Not visible in your download client."
+    end
+
+    test "TV pursuits render an SxxExx suffix in the card title", %{conn: conn} do
+      {_pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "tv-1001",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 3,
+          origin: "auto",
+          status: "seeking"
+        })
+
+      {:ok, _view, html} = live(conn, "/download")
+
+      assert html =~ "Sample Show S01E03"
     end
   end
 

@@ -1,13 +1,17 @@
 defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
   @moduledoc """
-  One row in the activity zone of `/download`. Each row consumes a typed
-  `PursuitRow` ViewModel; this story constructs literals so the variations
-  are decoupled from any DB or LiveView state.
+  One row in the Downloads index. Each card consumes a typed
+  `PursuitRow` ViewModel; this story constructs literals so the
+  variations are decoupled from any DB or LiveView state.
+
+  Three surfaces per card: title (with TV S/E suffix), one
+  severity-colored status sentence, and an optional download footer
+  when a queue item is paired.
   """
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{DownloadProgress, PursuitRow, TimelineEntry}
+  alias MediaCentarr.Acquisition.ViewModels.{CurrentAction, DownloadProgress, PursuitRow}
 
   def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitRow.pursuit_row/1
   def render_source, do: :function
@@ -24,70 +28,161 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
     [
       %VariationGroup{
         id: :state_axis,
-        description: "Each pursuit state, with representative recent events",
+        description: "Each pursuit state with the status sentence it produces.",
         variations: [
           %Variation{
             id: :active,
-            attributes: %{vm: row(:active, "Sample Movie", events_active())}
+            attributes: %{
+              vm:
+                row(:active, "Sample Show",
+                  season: 1,
+                  episode: 3,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release (attempt 2).",
+                    severity: :info
+                  }
+                )
+            }
           },
           %Variation{
             id: :needs_decision,
-            attributes: %{vm: row(:needs_decision, "Sample Show S01E03", events_stalled())}
+            attributes: %{
+              vm:
+                row(:needs_decision, "Sample Show",
+                  season: 2,
+                  episode: 1,
+                  status: %CurrentAction{
+                    verb: "Decision needed",
+                    description: "Pick a release below.",
+                    severity: :warning
+                  }
+                )
+            }
           },
           %Variation{
             id: :satisfied,
-            attributes: %{vm: row(:satisfied, "Public Domain Film 1923", events_satisfied())}
+            attributes: %{
+              vm:
+                row(:satisfied, "Public Domain Film 1923",
+                  status: %CurrentAction{
+                    verb: "Done",
+                    description: "File landed and identity verified.",
+                    severity: :success
+                  }
+                )
+            }
           },
           %Variation{
             id: :exhausted,
-            attributes: %{vm: row(:exhausted, "Movie A", events_exhausted())}
+            attributes: %{
+              vm:
+                row(:exhausted, "Movie A",
+                  status: %CurrentAction{
+                    verb: "Gave up",
+                    description: "Exhausted after 4 attempts.",
+                    severity: :error
+                  }
+                )
+            }
           },
           %Variation{
             id: :cancelled,
-            attributes: %{vm: row(:cancelled, "Movie B", events_cancelled())}
+            attributes: %{
+              vm:
+                row(:cancelled, "Movie B",
+                  status: %CurrentAction{
+                    verb: "Cancelled",
+                    description: "Pursuit cancelled.",
+                    severity: :info
+                  }
+                )
+            }
           }
         ]
       },
-      %Variation{
-        id: :no_events_yet,
-        description: "Freshly-created pursuit with no recorded events",
-        attributes: %{
-          vm:
-            row_struct(%{
-              id: "fresh-id",
-              title: "Brand New Pursuit",
-              state: :active,
-              origin: :auto,
-              attempt_count: 0,
-              recent_events: []
-            })
-        }
-      },
-      %Variation{
-        id: :long_title,
-        description: "Long title clamps to a single line via `truncate`",
-        attributes: %{
-          vm:
-            row_struct(%{
-              id: "long-id",
-              title:
-                "An Extraordinarily Long Pursuit Title That Forces The Row Layout To Truncate Within The Available Space",
-              state: :active,
-              origin: :manual,
-              attempt_count: 1,
-              recent_events: events_active()
-            })
-        }
+      %VariationGroup{
+        id: :title_axis,
+        description: "How the title composes with season/episode metadata.",
+        variations: [
+          %Variation{
+            id: :movie,
+            description: "Movie pursuit — no S/E suffix.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Movie",
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release.",
+                    severity: :info
+                  }
+                )
+            }
+          },
+          %Variation{
+            id: :tv_episode,
+            description: "TV episode pursuit — title gets `S01E03` appended.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show",
+                  season: 1,
+                  episode: 3,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release.",
+                    severity: :info
+                  }
+                )
+            }
+          },
+          %Variation{
+            id: :tv_season_pack,
+            description: "TV season-pack pursuit — `Season 2` instead of `SxxExx`.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show",
+                  season: 2,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release.",
+                    severity: :info
+                  }
+                )
+            }
+          },
+          %Variation{
+            id: :long_title,
+            description: "Long title clamps to a single line via `truncate`.",
+            attributes: %{
+              vm:
+                row(
+                  :active,
+                  "An Extraordinarily Long Pursuit Title That Forces The Row Layout To Truncate Within The Available Space",
+                  season: 1,
+                  episode: 12,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release.",
+                    severity: :info
+                  }
+                )
+            }
+          }
+        ]
       },
       %VariationGroup{
         id: :download_footer,
         description:
-          "Downloads index footer. When `download` is nil, the footer derives a hint from `target_status`.",
+          "When a queue item is paired, the download footer renders and the status sentence is hidden — the live state speaks for itself.",
         variations: [
           %Variation{
             id: :matched_downloading,
             attributes: %{
-              vm: matched_row("Sample Movie 2010", :acquired),
+              vm:
+                row(:active, "Sample Movie",
+                  release_title: "Sample.Movie.2010.1080p.WEB-DL",
+                  status: any_action()
+                ),
               download: %DownloadProgress{
                 state: :downloading,
                 progress_pct: 42.0,
@@ -102,7 +197,13 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           %Variation{
             id: :matched_stalled,
             attributes: %{
-              vm: matched_row("Sample Show S01E03", :acquired),
+              vm:
+                row(:active, "Sample Show",
+                  season: 1,
+                  episode: 3,
+                  release_title: "Sample.Show.S01E03.1080p.WEB-DL",
+                  status: any_action()
+                ),
               download: %DownloadProgress{
                 state: :stalled,
                 progress_pct: 18.0,
@@ -115,7 +216,11 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           %Variation{
             id: :matched_queued,
             attributes: %{
-              vm: matched_row("Public Domain Film 1923", :acquired),
+              vm:
+                row(:active, "Public Domain Film 1923",
+                  release_title: "Public.Domain.Film.1923.1080p",
+                  status: any_action()
+                ),
               download: %DownloadProgress{
                 state: :queued,
                 progress_pct: nil,
@@ -128,7 +233,11 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           %Variation{
             id: :matched_error,
             attributes: %{
-              vm: matched_row("Movie A", :acquired),
+              vm:
+                row(:active, "Movie A",
+                  release_title: "Movie.A.1080p",
+                  status: any_action()
+                ),
               download: %DownloadProgress{
                 state: :error,
                 progress_pct: 7.0,
@@ -140,17 +249,33 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
           },
           %Variation{
             id: :no_match_searching,
-            description: "No matched torrent yet — auto-search is still seeking",
+            description: "No matched torrent yet — status sentence shows.",
             attributes: %{
-              vm: matched_row("Movie B", :seeking, release_title: nil)
+              vm:
+                row(:active, "Movie B",
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release (attempt 1).",
+                    severity: :info
+                  }
+                )
             }
           },
           %Variation{
             id: :no_match_stuck,
             description:
-              "Target nominally acquired but the file never appeared in the download client (the v0.54.0 case)",
+              "Target acquired but the file never appeared in the download client — the v0.54 case.",
             attributes: %{
-              vm: matched_row("Movie C", :acquired)
+              vm:
+                row(:active, "Movie C",
+                  release_title: "Movie.C.1080p",
+                  target_status: :acquired,
+                  status: %CurrentAction{
+                    verb: "Waiting",
+                    description: "Not visible in your download client.",
+                    severity: :warning
+                  }
+                )
             }
           }
         ]
@@ -158,102 +283,26 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
     ]
   end
 
-  defp matched_row(title, target_status, opts \\ []) do
-    release_title = Keyword.get(opts, :release_title, "#{title}.1080p.WEB-DL")
+  # Story helpers ----------------------------------------------------
 
-    row_struct(%{
-      id: "matched-#{target_status}-#{:erlang.phash2(title)}",
-      title: title,
-      state: :active,
-      origin: :auto,
-      attempt_count: 1,
-      recent_events: events_active(),
-      release_title: release_title,
-      target_status: target_status
-    })
-  end
-
-  defp row(state, title, events) do
-    row_struct(%{
-      id: "story-#{state}",
+  defp row(state, title, opts \\ []) do
+    %PursuitRow{
+      id: "story-#{state}-#{:erlang.phash2({state, title, opts})}",
       title: title,
       state: state,
-      origin: if(state == :cancelled, do: :manual, else: :auto),
-      attempt_count: attempts_for(state),
-      recent_events: events
-    })
-  end
-
-  defp row_struct(overrides) do
-    struct!(
-      %PursuitRow{
-        id: "story-id",
-        title: "Title",
-        state: :active,
-        origin: :auto,
-        attempt_count: 0,
-        recent_events: [],
-        detail_path: "/download/story-id"
-      },
-      Map.put(overrides, :detail_path, "/download/#{overrides.id}")
-    )
-  end
-
-  defp attempts_for(:active), do: 1
-  defp attempts_for(:needs_decision), do: 2
-  defp attempts_for(:satisfied), do: 1
-  defp attempts_for(:exhausted), do: 4
-  defp attempts_for(:cancelled), do: 1
-
-  defp now, do: DateTime.utc_now(:second)
-  defp ago(seconds), do: DateTime.add(now(), -seconds)
-
-  defp events_active do
-    [
-      entry("release_picked", "Release picked — Sample.Movie.2010.1080p.WEB-DL", :success, ago(60)),
-      entry("search_started", "Searching Prowlarr", :info, ago(120)),
-      entry("pursuit_started", "Pursuit started (auto)", :info, ago(180))
-    ]
-  end
-
-  defp events_stalled do
-    [
-      entry("user_decision_requested", "User decision requested", :info, ago(30)),
-      entry("stall_confirmed", "Stall confirmed", :warning, ago(60)),
-      entry("release_picked", "Release picked — Sample.Show.S01E03", :success, ago(7200))
-    ]
-  end
-
-  defp events_satisfied do
-    [
-      entry("pursuit_satisfied", "Pursuit satisfied", :success, ago(45)),
-      entry("identity_verified", "Identity verified", :success, ago(60)),
-      entry("download_started", "Download started", :info, ago(3600))
-    ]
-  end
-
-  defp events_exhausted do
-    [
-      entry("pursuit_exhausted", "Pursuit exhausted (max_attempts)", :error, ago(600)),
-      entry("auto_cancelled", "Auto-cancelled (zero_seeders)", :warning, ago(1200)),
-      entry("stall_confirmed", "Stall confirmed", :warning, ago(86_400))
-    ]
-  end
-
-  defp events_cancelled do
-    [
-      entry("pursuit_cancelled", "Pursuit cancelled", :info, ago(120)),
-      entry("user_decision_requested", "User decision requested", :info, ago(180)),
-      entry("pursuit_started", "Pursuit started (manual)", :info, ago(240))
-    ]
-  end
-
-  defp entry(kind, summary, severity, occurred_at) do
-    %TimelineEntry{
-      kind: kind,
-      occurred_at: occurred_at,
-      summary: summary,
-      severity: severity
+      season_number: Keyword.get(opts, :season),
+      episode_number: Keyword.get(opts, :episode),
+      release_title: Keyword.get(opts, :release_title),
+      target_status: Keyword.get(opts, :target_status),
+      detail_path: "/download/story-#{state}",
+      status: Keyword.fetch!(opts, :status)
     }
+  end
+
+  # Placeholder action for download-footer variations where the status
+  # line is hidden anyway — keeps the VM enforce_keys satisfied without
+  # implying anything about the status contents.
+  defp any_action do
+    %CurrentAction{verb: "Downloading", description: "—", severity: :info}
   end
 end

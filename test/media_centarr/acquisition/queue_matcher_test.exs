@@ -2,19 +2,19 @@ defmodule MediaCentarr.Acquisition.QueueMatcherTest do
   use ExUnit.Case, async: true
 
   alias MediaCentarr.Acquisition.QueueMatcher
-  alias MediaCentarr.Acquisition.ViewModels.{PursuitRow, PursuitWithDownload}
+  alias MediaCentarr.Acquisition.ViewModels.{CurrentAction, PursuitRow, PursuitWithDownload}
   alias MediaCentarr.Downloads.QueueItem
+
+  @stub_status %CurrentAction{verb: "Searching", description: "Looking.", severity: :info}
 
   defp row(id, release_title, opts \\ []) do
     %PursuitRow{
       id: id,
       title: Keyword.get(opts, :title, "Pursuit #{id}"),
       state: :active,
-      origin: :auto,
-      attempt_count: 1,
-      recent_events: [],
       detail_path: "/download/#{id}",
-      release_title: release_title
+      release_title: release_title,
+      status: @stub_status
     }
   end
 

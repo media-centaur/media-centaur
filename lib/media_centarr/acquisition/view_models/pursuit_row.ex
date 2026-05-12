@@ -1,21 +1,24 @@
 defmodule MediaCentarr.Acquisition.ViewModels.PursuitRow do
-  @moduledoc "Display contract for one row in the activity zone."
+  @moduledoc """
+  Display contract for one row in the Downloads index — one card per
+  active pursuit. Carries enough to render a meaningful title (show
+  name + S/E), a single severity-colored status sentence, and a stable
+  navigate target.
+  """
 
-  alias MediaCentarr.Acquisition.ViewModels.TimelineEntry
+  alias MediaCentarr.Acquisition.ViewModels.CurrentAction
 
-  @enforce_keys [:id, :title, :state, :origin, :attempt_count, :recent_events, :detail_path]
+  @enforce_keys [:id, :title, :state, :detail_path, :status]
   defstruct [
     :id,
     :title,
     :state,
-    :origin,
-    :attempt_count,
-    :recent_events,
+    :season_number,
+    :episode_number,
     :detail_path,
     :release_title,
     :target_status,
-    :inserted_at,
-    :updated_at
+    :status
   ]
 
   @type state ::
@@ -25,8 +28,6 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitRow do
           | :exhausted
           | :cancelled
 
-  @type origin :: :auto | :manual
-
   @type target_status ::
           :seeking | :acquired | :succeeded | :failed | :cancelled
 
@@ -34,13 +35,11 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitRow do
           id: Ecto.UUID.t(),
           title: String.t(),
           state: state(),
-          origin: origin(),
-          attempt_count: non_neg_integer(),
-          recent_events: [TimelineEntry.t()],
+          season_number: integer() | nil,
+          episode_number: integer() | nil,
           detail_path: String.t(),
           release_title: String.t() | nil,
           target_status: target_status() | nil,
-          inserted_at: DateTime.t() | nil,
-          updated_at: DateTime.t() | nil
+          status: CurrentAction.t()
         }
 end
