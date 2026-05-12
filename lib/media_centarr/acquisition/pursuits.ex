@@ -46,8 +46,30 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
   @doc "Lists active pursuits as `PursuitRow` view-models for the Downloads index."
   @spec list_active_rows() :: [PursuitRow.t()]
-  def list_active_rows do
-    pursuits = list_active()
+  def list_active_rows, do: list_rows(:active)
+
+  @doc """
+  Lists pursuits as `PursuitRow` view-models, filtered by lifecycle bucket.
+
+  - `:active`       — `state in [:active, :needs_decision]` (in-flight)
+  - `:failed`       — `state == :exhausted`
+  - `:cancelled`    — `state == :cancelled`
+  - `:succeeded`    — `state == :satisfied`
+  - `:all_terminal` — every non-in-flight state (satisfied + exhausted + cancelled)
+
+  Ordered newest-updated first. Each row pairs the pursuit with its
+  `current_target` via `fetch_targets_by_id/1`, so `release_title` and
+  `target_status` come from the most recent attempt.
+  """
+  @spec list_rows(:active | :failed | :cancelled | :succeeded | :all_terminal) :: [PursuitRow.t()]
+  def list_rows(filter) do
+    states = states_for_filter(filter)
+
+    pursuits =
+      Pursuit
+      |> where([p], p.state in ^states)
+      |> order_by([p], desc: p.updated_at)
+      |> Repo.all()
 
     current_targets =
       pursuits
@@ -60,6 +82,12 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       build_row(pursuit, target)
     end)
   end
+
+  defp states_for_filter(:active), do: State.in_flight()
+  defp states_for_filter(:failed), do: ["exhausted"]
+  defp states_for_filter(:cancelled), do: ["cancelled"]
+  defp states_for_filter(:succeeded), do: ["satisfied"]
+  defp states_for_filter(:all_terminal), do: State.terminal()
 
   @doc "Returns a `PursuitHeader` view-model for the detail page."
   @spec header_for(Ecto.UUID.t()) :: {:ok, PursuitHeader.t()} | {:error, :not_found}
@@ -242,7 +270,6 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       state: state_to_atom(pursuit.state),
       season_number: pursuit.season_number,
       episode_number: pursuit.episode_number,
-      detail_path: "/download/#{pursuit.id}",
       release_title: release_title,
       target_status: target_status,
       status: status
@@ -282,7 +309,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       occurred_at: event.occurred_at,
       summary: summary_for(event.kind, event.payload),
       severity: severity_for(event.kind),
-      detail: detail_for(event.kind, event.payload)
+      detail: detail_for(event)
     }
   end
 
@@ -326,6 +353,10 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   defp summary_for("pursuit_exhausted", _), do: "Pursuit exhausted"
   defp summary_for("pursuit_cancelled", _), do: "Pursuit cancelled"
   defp summary_for("target_changed", _), do: "Target changed"
+  # Legacy event kind from before "target_changed" replaced the re-search
+  # affordance — kept as a display alias so old timeline rows read
+  # cleanly without a migration.
+  defp summary_for("pursuit_re_searched", _), do: "Re-searched Prowlarr"
   defp summary_for(kind, _), do: kind
 
   defp transition_phrase(same, same), do: nil
@@ -341,10 +372,46 @@ defmodule MediaCentarr.Acquisition.Pursuits do
 
   defp severity_for(_), do: :info
 
-  defp detail_for("release_picked", %{"indexer" => indexer, "quality" => q}), do: "#{indexer} • #{q}"
+  # ─── Timeline detail (sub-line) ───
+  #
+  # Every event row carries `denormalized_pursuit_title` — a snapshot of
+  # pursuit.title at write time. We use it here to give each row enough
+  # context to read on its own:
+  #
+  #   "Pursuit started (manual)"        + "for: Rick and Morty the Anime S01E{05,06}"
+  #   "Target changed"                  + "abandoned: Rick-and-Morty-The-Anime-S01E05-Family.1080p…"
+  #   "Re-searched Prowlarr"            + "for: Rick and Morty the Anime S01E{05,06}"
+  #   "User decision requested"         + the prompt the user is being asked
+  #   "Release picked — X"              + indexer / quality from the payload
+  #
+  # The component truncates the sub-line and exposes the full text on
+  # hover, so even long release filenames stay scannable.
 
-  defp detail_for("release_picked", %{"quality" => q}), do: q
-  defp detail_for(_, _), do: nil
+  defp detail_for(%Event{kind: "release_picked", payload: %{"indexer" => indexer, "quality" => q}})
+       when is_binary(indexer) and is_binary(q), do: "#{indexer} • #{q}"
+
+  defp detail_for(%Event{kind: "release_picked", payload: %{"indexer" => indexer}})
+       when is_binary(indexer), do: indexer
+
+  defp detail_for(%Event{kind: "release_picked", payload: %{"quality" => q}}) when is_binary(q), do: q
+
+  defp detail_for(%Event{kind: "pursuit_started", denormalized_pursuit_title: title})
+       when is_binary(title) and title != "", do: "for: #{title}"
+
+  defp detail_for(%Event{kind: "user_decision_requested", payload: %{"prompt" => prompt}})
+       when is_binary(prompt) and prompt != "", do: prompt
+
+  defp detail_for(%Event{kind: "target_changed", denormalized_pursuit_title: title})
+       when is_binary(title) and title != "", do: "abandoned: #{title}"
+
+  defp detail_for(%Event{kind: "pursuit_re_searched", denormalized_pursuit_title: title})
+       when is_binary(title) and title != "", do: "for: #{title}"
+
+  defp detail_for(%Event{kind: kind, denormalized_pursuit_title: title})
+       when kind in ~w(pursuit_satisfied pursuit_cancelled pursuit_exhausted) and is_binary(title) and
+              title != "", do: title
+
+  defp detail_for(_), do: nil
 
   defp summarize_criteria(nil), do: nil
   defp summarize_criteria(map) when map_size(map) == 0, do: nil

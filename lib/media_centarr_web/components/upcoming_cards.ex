@@ -559,15 +559,15 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           <img
             :if={@logo}
             src={@logo}
-            class="max-h-6 max-w-[60%] object-contain drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)]"
+            class="max-h-6 max-w-[60%] object-contain text-on-image-lg"
           />
           <p
             :if={!@logo}
-            class="text-sm font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] leading-tight truncate"
+            class="text-sm font-bold text-white text-on-image leading-tight truncate"
           >
             {@name}
           </p>
-          <p :if={@subtitle} class="text-[11px] text-base-content/60 truncate drop-shadow">
+          <p :if={@subtitle} class="text-[11px] text-base-content/60 truncate text-on-image">
             {@subtitle}
           </p>
         </div>
@@ -856,11 +856,11 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
             :if={@logo}
             src={@logo}
             alt={@item.name}
-            class="max-h-10 max-w-[70%] object-contain object-left drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]"
+            class="max-h-10 max-w-[70%] object-contain object-left text-on-image-lg"
           />
           <p
             :if={!@logo}
-            class="text-sm font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] leading-tight truncate"
+            class="text-sm font-bold text-white text-on-image leading-tight truncate"
           >
             {@item.name}
           </p>

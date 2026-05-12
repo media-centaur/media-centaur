@@ -259,6 +259,8 @@ All interactive elements need `data-nav-item` and `tabindex="0"` for gamepad/key
 | `.glass-surface` | Primary surface (blur, border, shadow) |
 | `.glass-inset` | Nested surface (subtle bg) |
 | `.glass-sidebar` | Nav surface (strong blur) |
+| `.text-on-image` | Body text over imagery — `text-shadow` recipe ([UIDR-011]) |
+| `.text-on-image-lg` | Titles + logo PNGs over imagery — `filter: drop-shadow()` recipe ([UIDR-011]) |
 | `.truncate-left` | Start-truncation for file paths |
 | `.thin-scrollbar` | Subtle scrollbar (`scrollbar-width: thin`) |
 | `.progress-fill` | Animated width transition |
@@ -279,6 +281,8 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 007 | Sidebar: collapsible (200px/52px), replaced left-wall nav |
 | 008 | Flex rows: `align-items: baseline` for mixed text sizes |
 | 009 | Modal panels: explicit `color: var(--color-base-content)` inheritance |
+| 010 | Page redistribution: Home/Library/Upcoming/History split |
+| 011 | Text on imagery: `.text-on-image` (body, text-shadow) + `.text-on-image-lg` (title/logo, filter:drop-shadow) |
 
 ## Component Inventory
 

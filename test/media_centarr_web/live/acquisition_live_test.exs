@@ -832,8 +832,8 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   describe "live updates from grab lifecycle" do
     # The activity zone shows recent grabs and their state. PubSub events
     # from acquisition coalesce through a 500ms debounce so a season-grab
-    # cascade (one event per episode) becomes a single :reload_activity
-    # tick — without coalescing the page would re-query the activity table
+    # cascade (one event per episode) becomes a single :reload_history
+    # tick — without coalescing the page would re-query the History zone
     # five times in quick succession for the same end state.
 
     test "five rapid grab_failed events coalesce into one reload",
@@ -846,8 +846,8 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       Process.sleep(600)
 
-      # No crash, page still renders activity zone.
-      assert render(view) =~ "Activity" or render(view) =~ "activity"
+      # No crash, page still renders History zone.
+      assert render(view) =~ "History"
     end
 
     test "grab_submitted broadcast triggers a debounced reload without crashing",
@@ -860,7 +860,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       Process.sleep(600)
 
-      assert render(view) =~ "Activity" or render(view) =~ "activity"
+      assert render(view) =~ "History"
     end
   end
 
