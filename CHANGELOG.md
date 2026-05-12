@@ -4,6 +4,25 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.57.0 — 2026-05-12
+
+### Improved
+
+Pursuit cards on the Downloads page are no longer a wall of identical
+rows. A TV pursuit now shows its episode in the title — *Sample Show Fifteen
+S02E01*, *Sample Show Fifteen S02E02*, and so on — so you can scan a season at a
+glance.
+
+Each card now shows a single, severity-colored status sentence that
+tells you what's actually happening — *Searching — Looking for an
+acceptable release*, *Decision needed — pick a release below*, or the
+live torrent state when a download is matched. The attempts/origin
+metadata and the recent-events list are gone from the card; both
+still live on the pursuit detail page.
+
+The entire card is the link to that detail page now — no more
+*Open full →* corner link.
+
 ## v0.56.1 — 2026-05-11
 
 ### Fixed
