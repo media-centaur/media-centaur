@@ -4,6 +4,46 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.58.0 — 2026-05-12
+
+### Improved
+
+Pursuit detail now opens as a **modal over the Downloads page** instead
+of a separate page. Back closes it, refresh keeps it open, and the URL
+is shareable. You can scan the Downloads page and dip into individual
+pursuits without losing your place.
+
+The **Decision needed** experience reads cleanly now. When a pursuit
+is waiting on you, the modal shows a single card with the alternatives,
+*Search Prowlarr again*, and *Cancel pursuit* sitting together in one
+action row. Gone are the duplicate prompts and the floating Cancel
+button.
+
+The Downloads page **Activity** zone is now a proper **History** zone:
+one row per pursuit (no more seven copies of *Sample Game May Weep* stacked
+without season/episode), filtered by terminal state (**Failed**,
+**Cancelled**, **Succeeded**, **All**). The default view shows Failed
+— the bucket that actually wants your attention. Live pursuits live in
+the *Active pursuits* zone above; History is unambiguously past-tense.
+
+Picking an alternative release is **instant** now — no second round-
+trip to Prowlarr to look the release up after you clicked it.
+
+Modals adapt to viewport size more gracefully — always at least 100px
+of breathing room from each edge, with the description column narrower
+so other metadata can spread. Hero titles get a subtle drop shadow so
+they stay legible over bright backdrops.
+
+### Fixed
+
+Clicking an alternative release on a pursuit started via brace-expanded
+search (like `Sample Show S01E{01,02}`) no longer toasts *That release
+is no longer available* — it actually submits the release.
+
+Clicking **Search Prowlarr again** no longer freezes the Downloads page
+or drops you into long-poll fallback when the indexer takes a few
+seconds. The search runs in the background and the page stays live.
+
 ## v0.57.0 — 2026-05-12
 
 ### Improved
