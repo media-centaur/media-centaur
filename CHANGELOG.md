@@ -4,6 +4,27 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.59.0 — 2026-05-13
+
+### Improved
+
+The Downloads page reads at a glance now. Active Pursuits and History
+rows are dense single lines — title on the left, severity-colored
+status on the right, no badge in the middle to draw the eye into empty
+space.
+
+When you have several episodes of the same show in the same state —
+say seven *Sample Game May Weep* episodes all searching — they collapse into
+one expandable container instead of stacking as seven near-identical
+rows. Click the group to drill into the per-episode list; click an
+episode to open its pursuit modal.
+
+Pursuits now tell you **what to expect**. While a pursuit is between
+attempts, the status reads *"Next attempt in 2h 15m (attempt 4)"*
+instead of the timeless *"Looking for an acceptable release"*. The
+countdown is minute-accurate and updates whenever the worker schedules
+its next try.
+
 ## v0.58.0 — 2026-05-12
 
 ### Improved
