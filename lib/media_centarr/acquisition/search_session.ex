@@ -105,26 +105,33 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     GenServer.call(server, {:record_search_result, term, outcome})
   end
 
-  @doc "Sets `term => guid` in the selections map."
-  @spec set_selection(GenServer.server(), String.t(), String.t()) :: :ok
+  @doc """
+  Mutators return the new `%SearchSession{}` so the caller can assign it
+  directly without a follow-up `current/0` call. The same struct is also
+  broadcast on `Topics.acquisition_search/0` for any other subscribers.
+  """
+  @spec set_selection(GenServer.server(), String.t(), String.t()) :: t()
   def set_selection(server \\ __MODULE__, term, guid) when is_binary(term) and is_binary(guid) do
     GenServer.call(server, {:set_selection, term, guid})
   end
 
-  @doc "Removes `term` from the selections map."
-  @spec clear_selection(GenServer.server(), String.t()) :: :ok
+  @doc "Removes `term` from the selections map. Returns the new session."
+  @spec clear_selection(GenServer.server(), String.t()) :: t()
   def clear_selection(server \\ __MODULE__, term) when is_binary(term) do
     GenServer.call(server, {:clear_selection, term})
   end
 
-  @doc "Empties the selections map."
-  @spec clear_selections(GenServer.server()) :: :ok
+  @doc "Empties the selections map. Returns the new session."
+  @spec clear_selections(GenServer.server()) :: t()
   def clear_selections(server \\ __MODULE__) do
     GenServer.call(server, :clear_selections)
   end
 
-  @doc "Flips `expanded?` on the group whose term matches; no-op for unknown terms."
-  @spec toggle_group(GenServer.server(), String.t()) :: :ok
+  @doc """
+  Flips `expanded?` on the group whose term matches; no-op for unknown
+  terms. Returns the new session.
+  """
+  @spec toggle_group(GenServer.server(), String.t()) :: t()
   def toggle_group(server \\ __MODULE__, term) when is_binary(term) do
     GenServer.call(server, {:toggle_group, term})
   end
@@ -132,30 +139,31 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   @doc """
   Updates `query` and `expansion_preview` from a live input value, without
   touching any other field. Used by the LiveView's `phx-change` handler so
-  the user sees the brace-expanded count update as they type.
+  the user sees the brace-expanded count update as they type. Returns the
+  new session.
   """
-  @spec set_query_preview(GenServer.server(), String.t()) :: :ok
+  @spec set_query_preview(GenServer.server(), String.t()) :: t()
   def set_query_preview(server \\ __MODULE__, query) when is_binary(query) do
     GenServer.call(server, {:set_query_preview, query})
   end
 
-  @doc "Sets the boolean `grabbing?` flag."
-  @spec set_grabbing(GenServer.server(), boolean()) :: :ok
+  @doc "Sets the boolean `grabbing?` flag. Returns the new session."
+  @spec set_grabbing(GenServer.server(), boolean()) :: t()
   def set_grabbing(server \\ __MODULE__, value) when is_boolean(value) do
     GenServer.call(server, {:set_grabbing, value})
   end
 
-  @doc "Sets the last-grab outcome message."
+  @doc "Sets the last-grab outcome message. Returns the new session."
   @spec set_grab_message(
           GenServer.server(),
           {:ok | :partial | :error, String.t()}
-        ) :: :ok
+        ) :: t()
   def set_grab_message(server \\ __MODULE__, message) do
     GenServer.call(server, {:set_grab_message, message})
   end
 
-  @doc "Resets the entire session to the default empty state."
-  @spec clear(GenServer.server()) :: :ok
+  @doc "Resets the entire session to the default empty state. Returns the new session."
+  @spec clear(GenServer.server()) :: t()
   def clear(server \\ __MODULE__) do
     GenServer.call(server, :clear)
   end
@@ -164,9 +172,9 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   Clears search results (groups + selections) but keeps the user's
   query and expansion preview. Used after a grab batch completes so the
   results disappear without losing what the user typed in the search
-  bar. Any in-flight search task is dropped.
+  bar. Any in-flight search task is dropped. Returns the new session.
   """
-  @spec clear_results(GenServer.server()) :: :ok
+  @spec clear_results(GenServer.server()) :: t()
   def clear_results(server \\ __MODULE__) do
     GenServer.call(server, :clear_results)
   end
@@ -174,12 +182,13 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   @doc """
   Re-arms named groups: any term currently in `:abandoned` or `{:failed, _}`
   flips back to `:loading`. Other states are no-ops for that term. The
-  caller's pid becomes the new monitored `searching_pid`.
+  caller's pid becomes the new monitored `searching_pid`. Returns the new
+  session.
 
   The caller is responsible for spawning Tasks for these terms after the
   call returns.
   """
-  @spec retry_search_terms(GenServer.server(), [String.t()]) :: :ok
+  @spec retry_search_terms(GenServer.server(), [String.t()]) :: t()
   def retry_search_terms(server \\ __MODULE__, terms) when is_list(terms) do
     GenServer.call(server, {:retry_search_terms, terms, self()})
   end
@@ -235,12 +244,11 @@ defmodule MediaCentarr.Acquisition.SearchSession do
   end
 
   def handle_call({:record_search_result, term, outcome}, _from, state) do
-    case Enum.find_index(state.groups, &(&1.term == term and &1.status == :loading)) do
-      nil ->
+    case apply_search_result(state, term, outcome) do
+      :not_loading ->
         {:reply, :ok, state}
 
-      index ->
-        new_state = apply_search_result(state, index, outcome)
+      new_state ->
         broadcast(new_state)
         {:reply, :ok, new_state}
     end
@@ -264,21 +272,21 @@ defmodule MediaCentarr.Acquisition.SearchSession do
       })
 
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call({:clear_selection, term}, _from, state) do
     new_state = stamp_featured(%{state | selections: Map.delete(state.selections, term)})
 
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call(:clear_selections, _from, state) do
     new_state = stamp_featured(%{state | selections: %{}})
 
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call({:toggle_group, term}, _from, state) do
@@ -290,7 +298,7 @@ defmodule MediaCentarr.Acquisition.SearchSession do
 
     new_state = %{state | groups: groups}
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call({:set_query_preview, query}, _from, state) do
@@ -308,25 +316,25 @@ defmodule MediaCentarr.Acquisition.SearchSession do
 
     new_state = %{state | query: query, expansion_preview: preview}
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call({:set_grabbing, value}, _from, state) do
     new_state = %{state | grabbing?: value}
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call({:set_grab_message, message}, _from, state) do
     new_state = %{state | grab_message: message}
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call(:clear, _from, state) do
     new_state = swap_monitor(%__MODULE__{}, state)
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call(:clear_results, _from, state) do
@@ -341,7 +349,7 @@ defmodule MediaCentarr.Acquisition.SearchSession do
       )
 
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   def handle_call({:retry_search_terms, terms, caller_pid}, _from, state) do
@@ -360,7 +368,7 @@ defmodule MediaCentarr.Acquisition.SearchSession do
       swap_monitor(%{state | groups: groups, searching_pid: caller_pid}, state)
 
     broadcast(new_state)
-    {:reply, :ok, new_state}
+    {:reply, new_state, new_state}
   end
 
   @impl GenServer
@@ -413,26 +421,53 @@ defmodule MediaCentarr.Acquisition.SearchSession do
     )
   end
 
-  defp apply_search_result(state, index, {:ok, results}) do
-    sorted = sort_results(results)
-    group = Enum.at(state.groups, index)
-    updated_group = %{group | status: :ready, results: sorted}
-    groups = List.replace_at(state.groups, index, updated_group)
+  # Single-pass over groups: locate the matching loading group, update
+  # it in place, and accumulate the new selection (success outcomes
+  # only). Returns `:not_loading` when no group matches the term in
+  # `:loading` — the caller maps that to a no-op reply. Replaces the
+  # previous `Enum.find_index/2` + `Enum.at/2` + `List.replace_at/3`
+  # chain (three list traversals per result).
+  defp apply_search_result(state, term, outcome) do
+    {groups, found?, selection_update} =
+      Enum.reduce(state.groups, {[], false, :unchanged}, fn group, {acc, found?, selection} ->
+        if not found? and group.term == term and group.status == :loading do
+          {updated_group, selection} = update_group_with_outcome(group, outcome)
+          {[updated_group | acc], true, selection}
+        else
+          {[group | acc], found?, selection}
+        end
+      end)
 
-    selections =
-      case sorted do
-        [first | _] -> Map.put_new(state.selections, group.term, first.guid)
-        [] -> state.selections
-      end
+    if found? do
+      groups = Enum.reverse(groups)
 
-    stamp_featured(%{state | groups: groups, selections: selections})
+      selections =
+        case selection_update do
+          {:put_new, key, guid} -> Map.put_new(state.selections, key, guid)
+          :unchanged -> state.selections
+        end
+
+      stamp_featured(%{state | groups: groups, selections: selections})
+    else
+      :not_loading
+    end
   end
 
-  defp apply_search_result(state, index, {:error, reason}) do
-    group = Enum.at(state.groups, index)
-    updated_group = %{group | status: {:failed, reason}, results: [], featured: nil}
-    groups = List.replace_at(state.groups, index, updated_group)
-    %{state | groups: groups}
+  defp update_group_with_outcome(group, {:ok, results}) do
+    sorted = sort_results(results)
+    updated = %{group | status: :ready, results: sorted}
+
+    selection =
+      case sorted do
+        [first | _] -> {:put_new, group.term, first.guid}
+        [] -> :unchanged
+      end
+
+    {updated, selection}
+  end
+
+  defp update_group_with_outcome(group, {:error, reason}) do
+    {%{group | status: {:failed, reason}, results: [], featured: nil}, :unchanged}
   end
 
   defp sort_results(results) do

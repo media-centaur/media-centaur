@@ -44,6 +44,13 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     :download,
     :staleness,
     :last_activity_at,
+    # Loaded pursuit + target structs are stashed so the queue-tick
+    # refresh path (`Pursuits.refresh_status_download/2`) can re-derive
+    # the dynamic fields against a fresh queue snapshot without a DB
+    # round-trip. Not consumed by the template — purely a memoisation
+    # handle for the refresh path.
+    :pursuit,
+    :target,
     available_actions: []
   ]
 
@@ -62,7 +69,9 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
           download: DownloadProgress.t() | nil,
           staleness: staleness(),
           last_activity_at: DateTime.t() | nil,
-          available_actions: [action()]
+          available_actions: [action()],
+          pursuit: Pursuit.t() | nil,
+          target: Target.t() | nil
         }
 
   @doc """
