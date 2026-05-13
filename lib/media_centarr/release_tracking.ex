@@ -90,6 +90,59 @@ defmodule MediaCentarr.ReleaseTracking do
     result
   end
 
+  @doc """
+  Closes out movie tracking for any newly-arrived library Movie. Looks
+  up the TMDB ids on the given library entities and deletes matching
+  `:movie` tracking items, writing a `:stopped_tracking` audit event
+  per removal.
+
+  TV series tracking is intentionally untouched — episodic content
+  keeps releasing. Movie *collection* tracking is unaffected too:
+  collection ids and movie ids live in different TMDB namespaces and
+  will not collide.
+  """
+  @spec complete_movie_tracking_for([Ecto.UUID.t()]) :: :ok
+  def complete_movie_tracking_for([]), do: :ok
+
+  def complete_movie_tracking_for(entity_ids) when is_list(entity_ids) do
+    tmdb_ids =
+      entity_ids
+      |> MediaCentarr.Library.tmdb_ids_for_movies()
+      |> Enum.flat_map(fn {_movie_id, tmdb_id_str} ->
+        case Integer.parse(tmdb_id_str) do
+          {int, ""} -> [int]
+          _ -> []
+        end
+      end)
+
+    case tmdb_ids do
+      [] ->
+        :ok
+
+      ids ->
+        items =
+          Repo.all(
+            from(i in Item,
+              where: i.media_type == :movie and i.tmdb_id in ^ids
+            )
+          )
+
+        Enum.each(items, &complete_tracking_for_item/1)
+        :ok
+    end
+  end
+
+  defp complete_tracking_for_item(%Item{} = item) do
+    create_event!(%{
+      item_id: item.id,
+      item_name: item.name,
+      event_type: :stopped_tracking,
+      description: "#{item.name} is now in your library"
+    })
+
+    delete_item(item)
+  end
+
   defp broadcast_item_removed(tmdb_id, tmdb_type) do
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,

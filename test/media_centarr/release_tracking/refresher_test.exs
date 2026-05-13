@@ -554,4 +554,107 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
       assert {:ok, %DateTime{}, 0} = DateTime.from_iso8601(timestamp_string)
     end
   end
+
+  describe "complete_movie_tracking_for/1" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, "release_tracking:updates")
+      :ok
+    end
+
+    test "removes movie tracking item when matching library Movie is created" do
+      movie = create_standalone_movie(%{name: "Solo Movie", tmdb_id: "424242"})
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 424_242,
+          media_type: :movie,
+          name: "Solo Movie",
+          source: :manual
+        })
+
+      :ok = ReleaseTracking.complete_movie_tracking_for([movie.id])
+
+      assert ReleaseTracking.get_item(item.id) == nil
+      assert ReleaseTracking.get_item_by_tmdb(424_242, :movie) == nil
+
+      events = ReleaseTracking.list_recent_events(5)
+
+      assert Enum.any?(events, fn event ->
+               event.event_type == :stopped_tracking and event.item_name == "Solo Movie"
+             end)
+
+      assert_received {:item_removed, "424242", "movie"}
+    end
+
+    test "does not remove TV series tracking when a TV series library entity arrives" do
+      tv_series = create_tv_series(%{name: "Active Series", tmdb_id: "55555"})
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 55_555,
+          media_type: :tv_series,
+          name: "Active Series"
+        })
+
+      :ok = ReleaseTracking.complete_movie_tracking_for([tv_series.id])
+
+      assert ReleaseTracking.get_item(item.id) != nil
+    end
+
+    test "does not remove movie-collection tracking when an unrelated movie arrives" do
+      movie = create_standalone_movie(%{name: "Single Film", tmdb_id: "111"})
+
+      # Tracking item points at a TMDB collection id (different number space)
+      item =
+        create_tracking_item(%{
+          tmdb_id: 999,
+          media_type: :movie,
+          name: "Some Collection",
+          source: :manual
+        })
+
+      :ok = ReleaseTracking.complete_movie_tracking_for([movie.id])
+
+      assert ReleaseTracking.get_item(item.id) != nil
+    end
+
+    test "is idempotent — second call after removal is a no-op" do
+      movie = create_standalone_movie(%{name: "Idempotent Movie", tmdb_id: "303030"})
+
+      create_tracking_item(%{
+        tmdb_id: 303_030,
+        media_type: :movie,
+        name: "Idempotent Movie",
+        source: :manual
+      })
+
+      :ok = ReleaseTracking.complete_movie_tracking_for([movie.id])
+      events_after_first = ReleaseTracking.list_recent_events(10)
+
+      :ok = ReleaseTracking.complete_movie_tracking_for([movie.id])
+      events_after_second = ReleaseTracking.list_recent_events(10)
+
+      stopped_count = fn events ->
+        Enum.count(events, &(&1.event_type == :stopped_tracking))
+      end
+
+      assert stopped_count.(events_after_first) == stopped_count.(events_after_second)
+    end
+
+    test "ignores library movies without a tmdb_id" do
+      movie = create_standalone_movie(%{name: "Manual Import", tmdb_id: nil})
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 777,
+          media_type: :movie,
+          name: "Other Movie",
+          source: :manual
+        })
+
+      :ok = ReleaseTracking.complete_movie_tracking_for([movie.id])
+
+      assert ReleaseTracking.get_item(item.id) != nil
+    end
+  end
 end
