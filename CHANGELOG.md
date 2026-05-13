@@ -4,6 +4,24 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.60.0 — 2026-05-13
+
+### Improved
+
+The Downloads page is faster across the board. With many active
+pursuits, the list now pairs each pursuit with its live download in a
+single pass instead of recomputing per render, and the pursuit detail
+panel updates download progress without re-fetching the rest of the
+panel on every tick. Manual search feels snappier — keystrokes no
+longer pay for a second round-trip to the search session before the
+preview updates.
+
+Background acquisition work scales better. The periodic pursuit check
+now does a constant number of database queries regardless of how many
+pursuits are in flight (previously it scaled with the active count).
+Removing a tracked show cancels all of its in-flight downloads in a
+single step rather than one at a time.
+
 ## v0.59.1 — 2026-05-13
 
 ### Fixed
