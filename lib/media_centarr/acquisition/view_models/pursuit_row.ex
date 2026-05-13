@@ -17,7 +17,11 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitRow do
     :episode_number,
     :release_title,
     :target_status,
-    :status
+    :status,
+    # Memoised normalisation of `release_title` for render-hot queue
+    # pairing — see `MediaCentarr.Acquisition.QueueMatcher.match/2`.
+    # Nil for rows without a release title.
+    :normalized_release_title
   ]
 
   @type state ::
@@ -38,6 +42,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitRow do
           episode_number: integer() | nil,
           release_title: String.t() | nil,
           target_status: target_status() | nil,
-          status: CurrentAction.t()
+          status: CurrentAction.t(),
+          normalized_release_title: String.t() | nil
         }
 end

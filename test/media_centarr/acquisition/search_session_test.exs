@@ -161,13 +161,13 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       {:ok, _} = SearchSession.start_search(name, "Show")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.set_selection(name, "Show", "guid-1")
+      _session = SearchSession.set_selection(name, "Show", "guid-1")
       assert_receive {:search_session, %{selections: %{"Show" => "guid-1"}}}
 
-      :ok = SearchSession.set_selection(name, "Show", "guid-2")
+      _session = SearchSession.set_selection(name, "Show", "guid-2")
       assert_receive {:search_session, %{selections: %{"Show" => "guid-2"}}}
 
-      :ok = SearchSession.clear_selection(name, "Show")
+      _session = SearchSession.clear_selection(name, "Show")
       assert_receive {:search_session, %{selections: selections}}
       assert selections == %{}
     end
@@ -176,11 +176,11 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       {:ok, _} = SearchSession.start_search(name, "Show")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.toggle_group(name, "Show")
+      _session = SearchSession.toggle_group(name, "Show")
       assert_receive {:search_session, session}
       assert hd(session.groups).expanded? == true
 
-      :ok = SearchSession.set_selection(name, "Show", "guid-1")
+      _session = SearchSession.set_selection(name, "Show", "guid-1")
 
       assert_receive {:search_session, session}
       assert hd(session.groups).expanded? == false
@@ -190,10 +190,10 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
     test "clear_selections/1 wipes the map", %{name: name} do
       {:ok, _} = SearchSession.start_search(name, "Show")
       assert_receive {:search_session, _}
-      :ok = SearchSession.set_selection(name, "Show", "guid-1")
+      _session = SearchSession.set_selection(name, "Show", "guid-1")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.clear_selections(name)
+      _session = SearchSession.clear_selections(name)
 
       assert_receive {:search_session, %{selections: %{}}}
     end
@@ -201,10 +201,10 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
     test "clear_results/1 empties groups and selections but preserves the query and grab_message",
          %{name: name} do
       {:ok, _} = SearchSession.start_search(name, "Show {01-03}")
-      :ok = SearchSession.set_selection(name, "Show 01", "guid-1")
-      :ok = SearchSession.set_grab_message(name, {:ok, "1 grab(s) submitted"})
+      _session = SearchSession.set_selection(name, "Show 01", "guid-1")
+      _session = SearchSession.set_grab_message(name, {:ok, "1 grab(s) submitted"})
 
-      :ok = SearchSession.clear_results(name)
+      _session = SearchSession.clear_results(name)
 
       session = SearchSession.current(name)
       assert session.query == "Show {01-03}"
@@ -217,17 +217,17 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       {:ok, _} = SearchSession.start_search(name, "Show")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.toggle_group(name, "Show")
+      _session = SearchSession.toggle_group(name, "Show")
       assert_receive {:search_session, session}
       assert hd(session.groups).expanded? == true
 
-      :ok = SearchSession.toggle_group(name, "Show")
+      _session = SearchSession.toggle_group(name, "Show")
       assert_receive {:search_session, session}
       assert hd(session.groups).expanded? == false
     end
 
     test "set_query_preview/2 updates query and expansion_preview without touching groups", %{name: name} do
-      :ok = SearchSession.set_query_preview(name, "Show {01-03}")
+      _session = SearchSession.set_query_preview(name, "Show {01-03}")
 
       assert_receive {:search_session, session}
       assert session.query == "Show {01-03}"
@@ -236,23 +236,23 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
     end
 
     test "set_query_preview/2 reports invalid syntax", %{name: name} do
-      :ok = SearchSession.set_query_preview(name, "Show {")
+      _session = SearchSession.set_query_preview(name, "Show {")
       assert_receive {:search_session, %{expansion_preview: {:error, :invalid_syntax}}}
     end
 
     test "set_query_preview/2 with blank input -> :idle", %{name: name} do
-      :ok = SearchSession.set_query_preview(name, "")
+      _session = SearchSession.set_query_preview(name, "")
       assert_receive {:search_session, %{expansion_preview: :idle, query: ""}}
     end
 
     test "set_grabbing/2 + set_grab_message/2 round-trip", %{name: name} do
-      :ok = SearchSession.set_grabbing(name, true)
+      _session = SearchSession.set_grabbing(name, true)
       assert_receive {:search_session, %{grabbing?: true}}
 
-      :ok = SearchSession.set_grab_message(name, {:ok, "1 grab(s) submitted"})
+      _session = SearchSession.set_grab_message(name, {:ok, "1 grab(s) submitted"})
       assert_receive {:search_session, %{grab_message: {:ok, "1 grab(s) submitted"}}}
 
-      :ok = SearchSession.set_grabbing(name, false)
+      _session = SearchSession.set_grabbing(name, false)
       assert_receive {:search_session, %{grabbing?: false, grab_message: {:ok, _}}}
     end
 
@@ -260,7 +260,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       {:ok, _} = SearchSession.start_search(name, "Show")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.clear(name)
+      _session = SearchSession.clear(name)
       assert_receive {:search_session, session}
       assert session == %SearchSession{}
     end
@@ -373,7 +373,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       assert Enum.find(swept.groups, &(&1.term == "B")).status == {:failed, :timeout}
       assert Enum.find(swept.groups, &(&1.term == "C")).status == :abandoned
 
-      :ok = SearchSession.retry_search_terms(name, ["A", "B"])
+      _session = SearchSession.retry_search_terms(name, ["A", "B"])
       assert_receive {:search_session, after_retry}, 500
 
       assert Enum.find(after_retry.groups, &(&1.term == "A")).status == :loading
@@ -387,7 +387,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       {:ok, _} = SearchSession.start_search(name, "X")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.retry_search_terms(name, ["X"])
+      _session = SearchSession.retry_search_terms(name, ["X"])
 
       assert_receive {:search_session, session}
       assert hd(session.groups).status == :loading
@@ -456,7 +456,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [a, b]})
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.set_selection(name, "Show S01E01", "b")
+      _session = SearchSession.set_selection(name, "Show S01E01", "b")
 
       assert_receive {:search_session, session}
       group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
@@ -472,7 +472,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [top]})
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.set_selection(name, "Show S01E01", "ghost")
+      _session = SearchSession.set_selection(name, "Show S01E01", "ghost")
 
       assert_receive {:search_session, session}
       group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
@@ -484,10 +484,10 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       b = build_result("b", :hd_1080p, 30)
       :ok = SearchSession.record_search_result(name, "Show S01E01", {:ok, [a, b]})
       assert_receive {:search_session, _}
-      :ok = SearchSession.set_selection(name, "Show S01E01", "b")
+      _session = SearchSession.set_selection(name, "Show S01E01", "b")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.clear_selection(name, "Show S01E01")
+      _session = SearchSession.clear_selection(name, "Show S01E01")
 
       assert_receive {:search_session, session}
       group = Enum.find(session.groups, &(&1.term == "Show S01E01"))
@@ -503,12 +503,12 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       assert_receive {:search_session, _}
       :ok = SearchSession.record_search_result(name, "Show S01E02", {:ok, [c, d]})
       assert_receive {:search_session, _}
-      :ok = SearchSession.set_selection(name, "Show S01E01", "b")
+      _session = SearchSession.set_selection(name, "Show S01E01", "b")
       assert_receive {:search_session, _}
-      :ok = SearchSession.set_selection(name, "Show S01E02", "d")
+      _session = SearchSession.set_selection(name, "Show S01E02", "d")
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.clear_selections(name)
+      _session = SearchSession.clear_selections(name)
 
       assert_receive {:search_session, session}
       [g1, g2] = session.groups
@@ -520,7 +520,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
       :ok = SearchSession.record_search_result(name, "Show S01E01", {:error, :timeout})
       assert_receive {:search_session, _}
 
-      :ok = SearchSession.retry_search_terms(name, ["Show S01E01"])
+      _session = SearchSession.retry_search_terms(name, ["Show S01E01"])
 
       assert_receive {:search_session, session}
       group = Enum.find(session.groups, &(&1.term == "Show S01E01"))

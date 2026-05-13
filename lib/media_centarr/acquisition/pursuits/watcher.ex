@@ -36,11 +36,20 @@ defmodule MediaCentarr.Acquisition.Pursuits.Watcher do
     queue = read_queue_state()
     now = DateTime.utc_now(:second)
 
-    Enum.each(Pursuits.list_active(), fn pursuit ->
-      refreshed = Observations.refresh!(pursuit, queue, now)
+    # Batch-fetch the three things every active pursuit needs:
+    # (1) the pursuit + its current_target, (2) the latest release_title
+    # per pursuit. Reduces the per-tick DB cost from `1 + 3N` queries to
+    # a constant 3 regardless of how many pursuits are in flight.
+    pursuit_target_pairs = Pursuits.list_active_with_current_targets()
+    pursuit_ids = Enum.map(pursuit_target_pairs, fn {p, _t} -> p.id end)
+    release_titles = Pursuits.latest_release_titles_for(pursuit_ids)
+
+    Enum.each(pursuit_target_pairs, fn {pursuit, current_target} ->
+      release_title = Map.get(release_titles, pursuit.id)
+      refreshed = Observations.refresh!(pursuit, queue, now, release_title)
 
       refreshed
-      |> Snapshots.build(queue)
+      |> Snapshots.build(queue, current_target)
       |> Policy.evaluate()
       |> dispatch(refreshed)
     end)

@@ -460,25 +460,28 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
           | {:group, pursuit_group_data()}
         ]
   def group_pursuit_rows(rows, expanded_groups) when is_list(rows) do
-    # Build buckets keyed by {title, state}, preserving first-seen order
-    # via `Enum.reduce` over the input list. Using a Map for membership
-    # + a separate ordering list keeps the operation O(n) without
-    # depending on the (insertion-ordered, but undocumented) Map order.
-    {buckets, order} =
+    # Build buckets by prepending into each bucket's list and prepending
+    # the key into a separate order list — both O(1) per row. Reverse
+    # once at the end to restore insertion order. The previous shape
+    # used `existing ++ [vm]` and `order ++ [key]`, both O(n) per row,
+    # which made the whole reduce O(n²) on every render.
+    {buckets, reversed_order} =
       Enum.reduce(rows, {%{}, []}, fn vm, {acc, order} ->
         key = {vm.title, vm.state}
 
         case Map.fetch(acc, key) do
           {:ok, existing} ->
-            {Map.put(acc, key, existing ++ [vm]), order}
+            {Map.put(acc, key, [vm | existing]), order}
 
           :error ->
-            {Map.put(acc, key, [vm]), order ++ [key]}
+            {Map.put(acc, key, [vm]), [key | order]}
         end
       end)
 
-    Enum.map(order, fn key ->
-      vms = Map.fetch!(buckets, key)
+    reversed_order
+    |> Enum.reverse()
+    |> Enum.map(fn key ->
+      vms = buckets |> Map.fetch!(key) |> Enum.reverse()
 
       case vms do
         [single] ->

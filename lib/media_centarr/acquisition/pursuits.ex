@@ -44,6 +44,48 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     |> Repo.all()
   end
 
+  @doc """
+  Like `list_active/0` but also returns each pursuit's `current_target`
+  in a single batched lookup, paired as `[{pursuit, target_or_nil}]`.
+  Used by `Pursuits.Watcher` so its per-tick pass costs 2 queries total
+  (pursuits + targets) instead of `1 + N` (pursuits + N current_target
+  fetches).
+  """
+  @spec list_active_with_current_targets() :: [{Pursuit.t(), Target.t() | nil}]
+  def list_active_with_current_targets do
+    pursuits = list_active()
+
+    targets =
+      pursuits
+      |> Enum.map(& &1.current_target_id)
+      |> Enum.reject(&is_nil/1)
+      |> fetch_targets_by_id()
+
+    Enum.map(pursuits, fn p -> {p, Map.get(targets, p.current_target_id)} end)
+  end
+
+  @doc """
+  Returns a map of `pursuit_id => latest_release_title` for every pursuit
+  in `pursuit_ids` that has a target with a non-nil `release_title`.
+  Pursuits with no acquired releases are absent from the map.
+
+  Used by `Pursuits.Watcher` so the per-tick pass does one batched query
+  for release-title lookups rather than one query per pursuit.
+  """
+  @spec latest_release_titles_for([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => String.t()}
+  def latest_release_titles_for([]), do: %{}
+
+  def latest_release_titles_for(pursuit_ids) when is_list(pursuit_ids) do
+    Target
+    |> where([t], t.pursuit_id in ^pursuit_ids and not is_nil(t.release_title))
+    |> order_by([t], desc: t.inserted_at)
+    |> select([t], {t.pursuit_id, t.release_title})
+    |> Repo.all()
+    # Newest-first ordering + `put_new` keeps only the latest release
+    # title per pursuit_id without an O(n log n) group_by.
+    |> Enum.reduce(%{}, fn {pid, title}, acc -> Map.put_new(acc, pid, title) end)
+  end
+
   @doc "Lists active pursuits as `PursuitRow` view-models for the Downloads index."
   @spec list_active_rows() :: [PursuitRow.t()]
   def list_active_rows, do: list_rows(:active)
@@ -93,10 +135,18 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   @spec header_for(Ecto.UUID.t()) :: {:ok, PursuitHeader.t()} | {:error, :not_found}
   def header_for(id) do
     case get(id) do
-      {:ok, pursuit} -> {:ok, build_header(pursuit)}
+      {:ok, pursuit} -> {:ok, header_from(pursuit)}
       {:error, :not_found} = error -> error
     end
   end
+
+  @doc """
+  Like `header_for/1` but skips the DB read — for callers that already
+  hold the `%Pursuit{}`. Used by `load_pursuit_detail/1` to assemble all
+  three view-models from one fetch instead of three.
+  """
+  @spec header_from(Pursuit.t()) :: PursuitHeader.t()
+  def header_from(%Pursuit{} = pursuit), do: build_header(pursuit)
 
   @doc """
   Returns the full `PursuitStatus` view-model for the detail page —
@@ -105,32 +155,81 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   @spec status_for(Ecto.UUID.t()) :: {:ok, PursuitStatus.t()} | {:error, :not_found}
   def status_for(id) do
     case get(id) do
-      {:error, :not_found} = error ->
-        error
-
-      {:ok, pursuit} ->
-        target = current_target(pursuit)
-        queue_item = find_queue_match(target)
-        {current_action, next_step, actions} = PursuitStatus.derive(pursuit, target, queue_item)
-        last_activity_at = latest_event_at(id)
-
-        status = %PursuitStatus{
-          pursuit_id: pursuit.id,
-          title: pursuit.title,
-          state: String.to_existing_atom(pursuit.state),
-          origin: String.to_existing_atom(pursuit.origin),
-          recipe: build_recipe(pursuit),
-          criteria_summary: summarize_criteria(pursuit.criteria),
-          current_action: current_action,
-          next_step: next_step,
-          download: QueueMatcher.to_download(queue_item),
-          staleness: staleness_for(last_activity_at),
-          last_activity_at: last_activity_at,
-          available_actions: actions
-        }
-
-        {:ok, status}
+      {:error, :not_found} = error -> error
+      {:ok, pursuit} -> {:ok, status_from(pursuit)}
     end
+  end
+
+  @doc """
+  Refreshes only the queue-derived fields of an existing `PursuitStatus`
+  view-model against a fresh queue snapshot, without re-reading the
+  pursuit, target, or last-event row from the DB.
+
+  Used on the LiveView's queue-tick path (1.5 s when subscribed) so the
+  modal's download progress updates without firing three Repo queries on
+  every snapshot. The static block (state, recipe, staleness, last
+  activity) is unchanged — pursuit-lifecycle events still trigger a
+  full reload via `status_for/1`.
+  """
+  @spec refresh_status_download(PursuitStatus.t(), [MediaCentarr.Downloads.QueueItem.t()]) ::
+          PursuitStatus.t()
+  def refresh_status_download(%PursuitStatus{pursuit: nil} = status, _items), do: status
+
+  def refresh_status_download(%PursuitStatus{} = status, queue_items) when is_list(queue_items) do
+    queue_item = find_queue_match(status.target, queue_items)
+    download = QueueMatcher.to_download(queue_item)
+
+    if status.download == download do
+      status
+    else
+      {current_action, next_step, actions} =
+        PursuitStatus.derive(status.pursuit, status.target, queue_item)
+
+      %{
+        status
+        | current_action: current_action,
+          next_step: next_step,
+          available_actions: actions,
+          download: download
+      }
+    end
+  end
+
+  @doc """
+  Like `status_for/1` but skips the DB read for the pursuit — for callers
+  that already hold the `%Pursuit{}`. Uses the cached `QueueMonitor`
+  snapshot for the live download field; pass a queue items list as the
+  second argument to reuse a snapshot the caller already has (saves an
+  ETS read on the LiveView's queue-tick path).
+
+  The returned struct stashes the loaded pursuit + target so
+  `refresh_status_download/2` can re-derive the dynamic fields without
+  a second DB round-trip when a queue snapshot ticks in.
+  """
+  @spec status_from(Pursuit.t(), [MediaCentarr.Downloads.QueueItem.t()] | :persistent_term) ::
+          PursuitStatus.t()
+  def status_from(%Pursuit{} = pursuit, queue_items \\ :persistent_term) do
+    target = current_target(pursuit)
+    queue_item = find_queue_match(target, queue_items)
+    {current_action, next_step, actions} = PursuitStatus.derive(pursuit, target, queue_item)
+    last_activity_at = latest_event_at(pursuit.id)
+
+    %PursuitStatus{
+      pursuit_id: pursuit.id,
+      title: pursuit.title,
+      state: String.to_existing_atom(pursuit.state),
+      origin: String.to_existing_atom(pursuit.origin),
+      recipe: build_recipe(pursuit),
+      criteria_summary: summarize_criteria(pursuit.criteria),
+      current_action: current_action,
+      next_step: next_step,
+      download: QueueMatcher.to_download(queue_item),
+      staleness: staleness_for(last_activity_at),
+      last_activity_at: last_activity_at,
+      available_actions: actions,
+      pursuit: pursuit,
+      target: target
+    }
   end
 
   @doc "Returns a `Timeline` view-model containing every event for a pursuit."
@@ -272,7 +371,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       episode_number: pursuit.episode_number,
       release_title: release_title,
       target_status: target_status,
-      status: status
+      status: status,
+      normalized_release_title: release_title && QueueMatcher.normalize_title(release_title)
     }
   end
 
@@ -442,16 +542,20 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     }
   end
 
-  defp find_queue_match(nil), do: nil
-  defp find_queue_match(%Target{release_title: nil}), do: nil
+  defp find_queue_match(nil, _items), do: nil
+  defp find_queue_match(%Target{release_title: nil}, _items), do: nil
 
-  defp find_queue_match(%Target{release_title: title}) do
+  defp find_queue_match(%Target{release_title: title}, items) do
+    queue = resolve_queue_items(items)
     normalized = QueueMatcher.normalize_title(title)
 
-    Enum.find(QueueMonitor.snapshot(), fn %QueueItem{} = item ->
+    Enum.find(queue, fn %QueueItem{} = item ->
       QueueMatcher.normalize_title(item.title) == normalized
     end)
   end
+
+  defp resolve_queue_items(:persistent_term), do: QueueMonitor.snapshot()
+  defp resolve_queue_items(items) when is_list(items), do: items
 
   defp latest_event_at(pursuit_id) do
     Event

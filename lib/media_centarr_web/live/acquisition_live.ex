@@ -405,49 +405,52 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   @impl true
   def handle_event("query_change", %{"query" => query}, socket) do
-    Acquisition.set_query_preview(query)
-    {:noreply, refresh_search_session(socket)}
+    session = Acquisition.set_query_preview(query)
+    {:noreply, assign(socket, search_session: session)}
   end
 
   def handle_event("submit_search", %{"query" => query}, socket) do
     if socket.assigns.search_session.grabbing? do
       {:noreply, socket}
     else
-      Acquisition.set_query_preview(query)
+      session = Acquisition.set_query_preview(query)
 
-      case Acquisition.start_search(query) do
-        {:ok, %{queries: queries}} ->
-          Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
-          {:noreply, refresh_search_session(socket)}
+      session =
+        case Acquisition.start_search(query) do
+          {:ok, %{session: started, queries: queries}} ->
+            Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
+            started
 
-        {:error, _} ->
-          {:noreply, refresh_search_session(socket)}
-      end
+          {:error, _} ->
+            session
+        end
+
+      {:noreply, assign(socket, search_session: session)}
     end
   end
 
   def handle_event("retry_search", %{"term" => term}, socket) do
-    retry_terms(socket, [term])
-    {:noreply, refresh_search_session(socket)}
+    {:noreply, assign(socket, search_session: retry_terms(socket, [term]))}
   end
 
   def handle_event("retry_all_timeouts", _params, socket) do
-    retry_terms(socket, Logic.timeout_terms(socket.assigns.search_session.groups))
-    {:noreply, refresh_search_session(socket)}
+    terms = Logic.timeout_terms(socket.assigns.search_session.groups)
+    {:noreply, assign(socket, search_session: retry_terms(socket, terms))}
   end
 
   def handle_event("toggle_group", %{"term" => term}, socket) do
-    Acquisition.toggle_group(term)
-    {:noreply, refresh_search_session(socket)}
+    session = Acquisition.toggle_group(term)
+    {:noreply, assign(socket, search_session: session)}
   end
 
   def handle_event("select_result", %{"term" => term, "guid" => guid}, socket) do
-    case Map.get(socket.assigns.search_session.selections, term) do
-      ^guid -> Acquisition.clear_selection(term)
-      _ -> Acquisition.set_selection(term, guid)
-    end
+    session =
+      case Map.get(socket.assigns.search_session.selections, term) do
+        ^guid -> Acquisition.clear_selection(term)
+        _ -> Acquisition.set_selection(term, guid)
+      end
 
-    {:noreply, refresh_search_session(socket)}
+    {:noreply, assign(socket, search_session: session)}
   end
 
   def handle_event("cancel_download_prompt", %{"id" => id, "title" => title}, socket) do
@@ -512,9 +515,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         |> Enum.map(&Logic.find_result(socket.assigns.search_session.groups, &1))
         |> Enum.reject(&is_nil/1)
 
-      Acquisition.set_grabbing(true)
+      session = Acquisition.set_grabbing(true)
       send(self(), {:run_grabs, results})
-      {:noreply, refresh_search_session(socket)}
+      {:noreply, assign(socket, search_session: session)}
     end
   end
 
@@ -749,10 +752,14 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_info({:queue_state, %MediaCentarr.Downloads.QueueState{} = state}, socket) do
+    # Pass the items list through to the modal refresh so the modal's
+    # download progress updates from the same snapshot the queue zone
+    # is rendering — and without firing the three DB reads that the
+    # previous `Pursuits.status_for/1` path required.
     socket =
       socket
       |> assign_queue_from_state(state)
-      |> refresh_pursuit_status_if_open()
+      |> refresh_pursuit_status_if_open(state.items)
 
     {:noreply, socket}
   end
@@ -869,8 +876,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   defp load_pursuit_detail(%{assigns: %{selected_pursuit_id: id}} = socket) do
     case Pursuits.get(id) do
       {:ok, %Pursuit{} = pursuit} ->
-        {:ok, header} = Pursuits.header_for(pursuit.id)
-        {:ok, status} = Pursuits.status_for(pursuit.id)
+        # One DB read for the pursuit; reuse the struct for the header
+        # and status assemblers (was previously three separate Repo.gets
+        # of the same row — see audit M2).
+        header = Pursuits.header_from(pursuit)
+        status = Pursuits.status_from(pursuit)
         timeline = Pursuits.timeline_for(pursuit.id)
         %{card: card, results_by_guid: results} = build_decision(pursuit, socket.assigns.pursuit_detail)
 
@@ -899,21 +909,23 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     end
   end
 
-  # Cheap refresh — recomputes only the status block. Used on queue
-  # PubSub ticks so download progress updates while the modal is open
-  # without re-hitting Prowlarr for the decision card on every tick.
-  defp refresh_pursuit_status_if_open(%{assigns: %{selected_pursuit_id: nil}} = socket), do: socket
+  # Cheap refresh — re-derives only the queue-dependent fields against
+  # the queue snapshot we just received, with no DB round-trip. Lifecycle
+  # events still trigger a full `load_pursuit_detail/1` via the
+  # `pursuit-event` debounce handler. See audit C1.
+  defp refresh_pursuit_status_if_open(socket, queue_items) when is_list(queue_items) do
+    case socket.assigns do
+      %{selected_pursuit_id: nil} ->
+        socket
 
-  defp refresh_pursuit_status_if_open(
-         %{assigns: %{selected_pursuit_id: id, pursuit_detail: %{} = detail}} = socket
-       ) do
-    case Pursuits.status_for(id) do
-      {:ok, status} -> assign(socket, pursuit_detail: %{detail | status: status})
-      _ -> socket
+      %{pursuit_detail: %{status: %_{} = status} = detail} ->
+        refreshed = Pursuits.refresh_status_download(status, queue_items)
+        assign(socket, pursuit_detail: %{detail | status: refreshed})
+
+      _ ->
+        socket
     end
   end
-
-  defp refresh_pursuit_status_if_open(socket), do: socket
 
   defp maybe_reload_modal_for_event(socket, %{pursuit_id: pursuit_id}) do
     if socket.assigns.selected_pursuit_id == pursuit_id do
@@ -985,21 +997,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     assign(socket, history_rows: rows)
   end
 
-  defp retry_terms(_socket, []), do: :ok
+  defp retry_terms(socket, []), do: socket.assigns.search_session
 
   defp retry_terms(_socket, terms) do
-    Acquisition.retry_search_terms(terms)
+    session = Acquisition.retry_search_terms(terms)
     Enum.each(terms, fn term -> send(self(), {:run_search_one, term}) end)
-    :ok
-  end
-
-  # LiveView's main loop renders between mailbox messages. After a session
-  # mutation, the broadcast lands in the mailbox but isn't processed until
-  # AFTER the post-handle_event render — so without this helper that render
-  # would show stale assigns. The follow-up {:search_session, _} message
-  # then lands the same struct (a no-op assign).
-  defp refresh_search_session(socket) do
-    assign(socket, search_session: Acquisition.current_search_session())
+    session
   end
 
   # ---------------------------------------------------------------------------

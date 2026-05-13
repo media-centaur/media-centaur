@@ -3,6 +3,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshots do
 
   alias MediaCentarr.Acquisition.Pursuits
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Snapshot, Thresholds}
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Downloads.QueueMonitor
 
   @doc """
@@ -22,13 +23,23 @@ defmodule MediaCentarr.Acquisition.Pursuits.Snapshots do
   def build(%Pursuit{} = pursuit), do: build(pursuit, read_queue_state())
 
   @spec build(Pursuit.t(), Snapshot.queue_state()) :: Snapshot.t()
-  def build(%Pursuit{} = pursuit, queue_state) do
+  def build(%Pursuit{} = pursuit, queue_state),
+    do: build(pursuit, queue_state, Pursuits.current_target(pursuit))
+
+  @doc """
+  Pre-fetched variant — accepts an already-loaded `current_target` (or
+  `nil`) so the builder does not re-issue a `Repo.get/2` per call. Used
+  by `Pursuits.Watcher` after batch-loading active pursuits + their
+  current targets in one go.
+  """
+  @spec build(Pursuit.t(), Snapshot.queue_state(), Target.t() | nil) :: Snapshot.t()
+  def build(%Pursuit{} = pursuit, queue_state, current_target) do
     now = DateTime.utc_now(:second)
     thresholds = Thresholds.load()
 
     %Snapshot{
       pursuit: pursuit,
-      current_target: Pursuits.current_target(pursuit),
+      current_target: current_target,
       queue_state: queue_state,
       now: now,
       thresholds: thresholds,

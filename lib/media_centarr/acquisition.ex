@@ -206,43 +206,48 @@ defmodule MediaCentarr.Acquisition do
   defdelegate record_search_result(term, outcome),
     to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Updates the query input box value and recomputes the expansion preview."
-  @spec set_query_preview(String.t()) :: :ok
+  @doc """
+  Updates the query input box value and recomputes the expansion preview.
+  Returns the updated session so the caller can assign it directly.
+  """
+  @spec set_query_preview(String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate set_query_preview(query), to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Sets `term => guid` in the session selections map."
-  @spec set_selection(String.t(), String.t()) :: :ok
+  @doc "Sets `term => guid` in the session selections map. Returns the new session."
+  @spec set_selection(String.t(), String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate set_selection(term, guid), to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Removes `term` from the session selections map."
-  @spec clear_selection(String.t()) :: :ok
+  @doc "Removes `term` from the session selections map. Returns the new session."
+  @spec clear_selection(String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate clear_selection(term), to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Empties the session selections map."
-  @spec clear_selections() :: :ok
+  @doc "Empties the session selections map. Returns the new session."
+  @spec clear_selections() :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate clear_selections(), to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Toggles `expanded?` on the named group."
-  @spec toggle_group(String.t()) :: :ok
+  @doc "Toggles `expanded?` on the named group. Returns the new session."
+  @spec toggle_group(String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate toggle_group(term), to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Sets the boolean `grabbing?` flag on the session."
-  @spec set_grabbing(boolean()) :: :ok
+  @doc "Sets the boolean `grabbing?` flag on the session. Returns the new session."
+  @spec set_grabbing(boolean()) :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate set_grabbing(value), to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Sets the last-grab outcome message on the session."
-  @spec set_grab_message({:ok | :partial | :error, String.t()}) :: :ok
+  @doc "Sets the last-grab outcome message on the session. Returns the new session."
+  @spec set_grab_message({:ok | :partial | :error, String.t()}) ::
+          MediaCentarr.Acquisition.SearchSession.t()
   defdelegate set_grab_message(message), to: MediaCentarr.Acquisition.SearchSession
 
-  @doc "Resets the entire search session to the default empty state."
-  @spec clear_search_session() :: :ok
+  @doc "Resets the entire search session to the default empty state. Returns the new session."
+  @spec clear_search_session() :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate clear_search_session(), to: MediaCentarr.Acquisition.SearchSession, as: :clear
 
   @doc """
   Clears search results (groups + selections) but preserves the user's
   query string and expansion preview. Used after a grab batch completes.
+  Returns the new session.
   """
-  @spec clear_search_results() :: :ok
+  @spec clear_search_results() :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate clear_search_results(),
     to: MediaCentarr.Acquisition.SearchSession,
     as: :clear_results
@@ -250,9 +255,9 @@ defmodule MediaCentarr.Acquisition do
   @doc """
   Re-arms named groups (`:abandoned` / `{:failed, _}` -> `:loading`).
   The caller's pid becomes the monitored `searching_pid`. The caller is
-  responsible for spawning Tasks for these terms.
+  responsible for spawning Tasks for these terms. Returns the new session.
   """
-  @spec retry_search_terms([String.t()]) :: :ok
+  @spec retry_search_terms([String.t()]) :: MediaCentarr.Acquisition.SearchSession.t()
   defdelegate retry_search_terms(terms), to: MediaCentarr.Acquisition.SearchSession
 
   @doc """
@@ -956,9 +961,14 @@ defmodule MediaCentarr.Acquisition do
   @doc """
   Cancels every active target whose pursuit matches `(tmdb_id, tmdb_type)`.
   Used by the `Reactor` when a tracked item is removed.
+
+  The cancellation is one `update_all` regardless of how many targets
+  match — broadcasts still fire per-target so existing subscribers
+  (LiveViews, decision-card refreshers) receive the same
+  `{:target_cancelled, target}` shape they always have.
   """
   @spec cancel_active_targets_for(String.t(), String.t(), String.t()) :: :ok
-  def cancel_active_targets_for(tmdb_id, tmdb_type, reason) do
+  def cancel_active_targets_for(tmdb_id, tmdb_type, reason) when is_binary(reason) do
     pursuits =
       Repo.all(
         from(p in Pursuit,
@@ -966,20 +976,43 @@ defmodule MediaCentarr.Acquisition do
         )
       )
 
-    target_ids = Enum.reject(Enum.map(pursuits, & &1.current_target_id), &is_nil/1)
+    target_ids = pursuits |> Enum.map(& &1.current_target_id) |> Enum.reject(&is_nil/1)
 
-    if target_ids != [] do
-      targets =
-        Repo.all(
-          from(t in Target,
-            where: t.id in ^target_ids and t.status in ^TargetStatus.in_flight()
-          )
-        )
+    case target_ids do
+      [] ->
+        :ok
 
-      Enum.each(targets, fn target -> cancel_target(target.id, reason) end)
+      ids ->
+        bulk_cancel_targets(ids, reason)
+        :ok
     end
+  end
 
-    :ok
+  # Single SQL update for all in-flight targets, then per-target
+  # broadcast off the returning rows so subscribers see the same shape
+  # as the single-target `cancel_target/2` path.
+  defp bulk_cancel_targets(target_ids, reason) do
+    now = DateTime.utc_now(:second)
+
+    {_count, updated} =
+      Repo.update_all(
+        from(t in Target,
+          where: t.id in ^target_ids and t.status in ^TargetStatus.in_flight(),
+          select: t
+        ),
+        set: [
+          status: "cancelled",
+          cancelled_at: now,
+          cancelled_reason: reason,
+          next_attempt_at: nil,
+          updated_at: now
+        ]
+      )
+
+    Enum.each(updated, fn %Target{} = target ->
+      broadcast({:target_cancelled, target})
+      Log.info(:library, "target cancelled — #{target.title} (#{reason})")
+    end)
   end
 
   # Ecto's `get_by/2` rejects nil in equality clauses; nullable fields
