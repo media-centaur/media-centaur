@@ -487,6 +487,21 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
+  Returns `{movie_id, tmdb_id}` pairs for movies in the given list
+  whose `tmdb_id` is set. Mirror of `tmdb_ids_for_tv_series/1` —
+  release tracking uses this to detect when a tracked movie has just
+  landed in the library so it can close out the tracking item.
+  """
+  def tmdb_ids_for_movies(movie_ids) when is_list(movie_ids) do
+    Repo.all(
+      from(m in Movie,
+        where: m.id in ^movie_ids and not is_nil(m.tmdb_id),
+        select: {m.id, m.tmdb_id}
+      )
+    )
+  end
+
+  @doc """
   Returns every entity in the library that has a TMDB id, tagged with
   its type. Used by ReleaseTracking to scan for tracking candidates.
 
