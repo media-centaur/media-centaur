@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.59.1 — 2026-05-13
+
+### Fixed
+
+Release tracking for a movie now clears itself once the movie lands in
+your library. Previously, an auto-acquired movie would leave its
+tracking entry behind, cluttering your watchlist after its job was
+already done. The tracking events log records the completion so you
+can see what happened. TV series tracking is unaffected — episodic
+shows keep tracking as before, since new episodes continue to release.
+
 ## v0.59.0 — 2026-05-13
 
 ### Improved
