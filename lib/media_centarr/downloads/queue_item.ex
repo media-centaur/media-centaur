@@ -40,7 +40,12 @@ defmodule MediaCentarr.Downloads.QueueItem do
     :size_left,
     :progress,
     :timeleft,
-    :health
+    :health,
+    # Memoised normalized title — computed once at construction so the
+    # render-hot pairing in `QueueMatcher.match/2` reads `Map.get/2`
+    # instead of running `String.downcase/1` + a regex over every queue
+    # item on every render.
+    :normalized_title
   ]
 
   @type state :: :downloading | :queued | :stalled | :paused | :completed | :error | :other
@@ -56,7 +61,8 @@ defmodule MediaCentarr.Downloads.QueueItem do
           size_left: integer() | nil,
           progress: float() | nil,
           timeleft: String.t() | nil,
-          health: MediaCentarr.Downloads.Health.status() | nil
+          health: MediaCentarr.Downloads.Health.status() | nil,
+          normalized_title: String.t() | nil
         }
 
   @qbit_infinite_eta 8_640_000
@@ -64,9 +70,11 @@ defmodule MediaCentarr.Downloads.QueueItem do
   @doc "Builds a QueueItem from a raw qBittorrent `/api/v2/torrents/info` entry."
   @spec from_qbittorrent(map()) :: t()
   def from_qbittorrent(raw) when is_map(raw) do
+    title = title_from_qbittorrent(raw["name"], raw["hash"])
+
     %__MODULE__{
       id: raw["hash"],
-      title: title_from_qbittorrent(raw["name"], raw["hash"]),
+      title: title,
       status: raw["state"],
       state: state_from_qbittorrent(raw["state"]),
       download_client: "qBittorrent",
@@ -74,8 +82,21 @@ defmodule MediaCentarr.Downloads.QueueItem do
       size: raw["size"],
       size_left: raw["amount_left"],
       progress: progress_from_qbittorrent(raw["progress"]),
-      timeleft: format_eta(raw["eta"])
+      timeleft: format_eta(raw["eta"]),
+      normalized_title: normalize_title(title)
     }
+  end
+
+  # Inlined normalisation — kept verbatim against
+  # `MediaCentarr.Acquisition.QueueMatcher.normalize_title/1` so the
+  # cached value is the same one the matcher would compute. Asserted by
+  # `QueueItemTest`.
+  defp normalize_title(nil), do: ""
+
+  defp normalize_title(title) when is_binary(title) do
+    title
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "")
   end
 
   # qBittorrent reports `name` as the info-hash itself until torrent

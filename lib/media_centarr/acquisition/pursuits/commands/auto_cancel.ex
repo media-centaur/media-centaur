@@ -36,11 +36,18 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.AutoCancel do
   end
 
   defp cancel_active_target(pursuit, reason) do
+    now = DateTime.utc_now(:second)
+
     Target
     |> where([t], t.pursuit_id == ^pursuit.id and t.status in ^TargetStatus.in_flight())
-    |> Repo.all()
-    |> Enum.each(fn target ->
-      Repo.update!(Target.cancelled_changeset(target, Atom.to_string(reason)))
-    end)
+    |> Repo.update_all(
+      set: [
+        status: "cancelled",
+        cancelled_at: now,
+        cancelled_reason: Atom.to_string(reason),
+        next_attempt_at: nil,
+        updated_at: now
+      ]
+    )
   end
 end

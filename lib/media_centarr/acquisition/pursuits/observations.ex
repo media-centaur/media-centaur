@@ -49,12 +49,31 @@ defmodule MediaCentarr.Acquisition.Pursuits.Observations do
   Refreshes a pursuit's observation state in-place. Returns the
   refreshed pursuit. Idempotent — calling repeatedly with the same
   inputs yields the same persisted state and emits no duplicate events.
+
+  The 3-arity issues one extra DB query per call to find the latest
+  release title for the pursuit; callers that already have that value
+  in hand (e.g. `Pursuits.Watcher` after batch-fetching) should use
+  `refresh!/4` to skip the query.
   """
   @spec refresh!(Pursuit.t(), [QueueItem.t()] | :unknown, DateTime.t()) :: Pursuit.t()
-  def refresh!(%Pursuit{} = pursuit, :unknown, _now), do: pursuit
+  def refresh!(%Pursuit{} = pursuit, queue_items_or_unknown, now) do
+    release_title = latest_release_title(pursuit.id)
+    refresh!(pursuit, queue_items_or_unknown, now, release_title)
+  end
 
-  def refresh!(%Pursuit{} = pursuit, queue_items, %DateTime{} = now) when is_list(queue_items) do
-    queue_item = find_queue_item(pursuit, queue_items)
+  @doc """
+  Pre-fetched variant of `refresh!/3`. `release_title` is the pursuit's
+  latest non-nil `Target.release_title` (or `nil` if none). Used by the
+  Watcher's batched pass so per-tick DB cost is constant rather than
+  scaling with the active-pursuit count.
+  """
+  @spec refresh!(Pursuit.t(), [QueueItem.t()] | :unknown, DateTime.t(), String.t() | nil) ::
+          Pursuit.t()
+  def refresh!(%Pursuit{} = pursuit, :unknown, _now, _release_title), do: pursuit
+
+  def refresh!(%Pursuit{} = pursuit, queue_items, %DateTime{} = now, release_title)
+      when is_list(queue_items) do
+    queue_item = find_queue_item(queue_items, release_title)
 
     refreshed =
       pursuit
@@ -74,11 +93,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.Observations do
     refreshed
   end
 
-  defp find_queue_item(%Pursuit{id: pursuit_id}, queue_items) do
-    case latest_release_title(pursuit_id) do
-      nil -> nil
-      title -> Enum.find(queue_items, &(&1.title == title))
-    end
+  defp find_queue_item(_queue_items, nil), do: nil
+
+  defp find_queue_item(queue_items, title) when is_binary(title) do
+    Enum.find(queue_items, &(&1.title == title))
   end
 
   defp latest_release_title(pursuit_id) do

@@ -29,9 +29,13 @@ defmodule MediaCentarr.Acquisition.QueueMatcher do
   @spec match([PursuitRow.t()], [QueueItem.t()]) ::
           {[PursuitWithDownload.t()], [QueueItem.t()]}
   def match(rows, queue) when is_list(rows) and is_list(queue) do
+    # Both `QueueItem.normalized_title` and `PursuitRow.normalized_release_title`
+    # are precomputed at construction time, so this pairing is pure
+    # `Map.get/2` and field reads — no `String.downcase/1` or regex on
+    # the render-hot path. See audit M6.
     queue_by_norm =
       Enum.reduce(queue, %{}, fn %QueueItem{} = qi, acc ->
-        Map.put_new(acc, normalize_title(qi.title), qi)
+        Map.put_new(acc, normalized_for(qi), qi)
       end)
 
     {paired_rev, claimed_ids} =
@@ -55,10 +59,8 @@ defmodule MediaCentarr.Acquisition.QueueMatcher do
 
   defp match_for_row(%PursuitRow{release_title: nil}, _by_norm, claimed), do: {nil, claimed}
 
-  defp match_for_row(%PursuitRow{release_title: title}, by_norm, claimed) do
-    normalized = normalize_title(title)
-
-    case Map.get(by_norm, normalized) do
+  defp match_for_row(%PursuitRow{} = row, by_norm, claimed) do
+    case Map.get(by_norm, normalized_for_row(row)) do
       %QueueItem{id: id} = qi ->
         if MapSet.member?(claimed, id) do
           {nil, claimed}
@@ -70,6 +72,17 @@ defmodule MediaCentarr.Acquisition.QueueMatcher do
         {nil, claimed}
     end
   end
+
+  # Falls back to on-the-fly normalisation when the cached value isn't
+  # populated. Production paths (`QueueItem.from_qbittorrent/1`,
+  # `Pursuits.list_rows/1`) fill the cache; test factories and future
+  # drivers may leave it nil.
+  defp normalized_for(%QueueItem{normalized_title: norm}) when is_binary(norm), do: norm
+  defp normalized_for(%QueueItem{title: title}), do: normalize_title(title)
+
+  defp normalized_for_row(%PursuitRow{normalized_release_title: norm}) when is_binary(norm), do: norm
+
+  defp normalized_for_row(%PursuitRow{release_title: title}), do: normalize_title(title)
 
   @doc "Normalizes a title for matching — lowercased, non-alphanumeric stripped."
   @spec normalize_title(String.t() | nil) :: String.t()
