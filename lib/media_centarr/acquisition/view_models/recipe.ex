@@ -21,11 +21,21 @@ defmodule MediaCentarr.Acquisition.ViewModels.Recipe do
     :season_number,
     :episode_number,
     :year,
-    :manual_query
+    :manual_query,
+    search_queries: []
   ]
 
   @type recipe_type :: :tmdb | :prowlarr_query
 
+  @typedoc """
+  - `search_queries` — the ordered list of Prowlarr query strings this
+    recipe would search with, as produced by `Acquisition.QueryBuilder`.
+    For TMDB recipes this is the worker's actual attempt sequence
+    (`title SxxEyy`, `title Season N`, etc.); for prowlarr_query
+    recipes it is the brace-expanded list. Surfaced verbatim by the
+    detail UI so "Searching Prowlarr" is never abstract — the user
+    can always see the literal query that is being run.
+  """
   @type t :: %__MODULE__{
           recipe_type: recipe_type(),
           tmdb_type: String.t() | nil,
@@ -33,6 +43,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.Recipe do
           season_number: integer() | nil,
           episode_number: integer() | nil,
           year: integer() | nil,
-          manual_query: String.t() | nil
+          manual_query: String.t() | nil,
+          search_queries: [String.t()]
         }
 end

@@ -27,7 +27,13 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-movie",
             title: "Public Domain Feature 1925",
             state: :active,
-            recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie", tmdb_id: "1", year: 1925},
+            recipe: %Recipe{
+              recipe_type: :tmdb,
+              tmdb_type: "movie",
+              tmdb_id: "1",
+              year: 1925,
+              search_queries: ["Public Domain Feature 1925"]
+            },
             criteria_summary: "max_quality: 2160p, min_quality: 1080p"
           }
         }
@@ -45,7 +51,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
               tmdb_type: "tv",
               tmdb_id: "10",
               season_number: 1,
-              episode_number: 3
+              episode_number: 3,
+              search_queries: ["Sample Show S01E03", "Sample Show Season 1"]
             },
             criteria_summary: nil
           }
@@ -61,7 +68,29 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
             state: :active,
             recipe: %Recipe{
               recipe_type: :prowlarr_query,
-              manual_query: "Phantom of the Opera 1925"
+              manual_query: "Phantom of the Opera 1925",
+              search_queries: ["Phantom of the Opera 1925"]
+            },
+            criteria_summary: nil
+          }
+        }
+      },
+      %Variation{
+        id: :manual_query_expanded,
+        description: "Prowlarr query with brace expansion — multiple queries",
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-manual-expanded",
+            title: "Sample Show S01E{01,02,03}",
+            state: :active,
+            recipe: %Recipe{
+              recipe_type: :prowlarr_query,
+              manual_query: "Sample Show S01E{01,02,03}",
+              search_queries: [
+                "Sample Show S01E01",
+                "Sample Show S01E02",
+                "Sample Show S01E03"
+              ]
             },
             criteria_summary: nil
           }

@@ -12,7 +12,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   import Ecto.Query
 
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit, State}
-  alias MediaCentarr.Acquisition.{QueueMatcher, Target}
+  alias MediaCentarr.Acquisition.{QueryBuilder, QueueMatcher, Target}
 
   alias MediaCentarr.Acquisition.ViewModels.{
     PursuitHeader,
@@ -416,12 +416,20 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   defp summary_for("pursuit_started", %{"origin" => "auto"}), do: "Pursuit started (auto)"
   defp summary_for("pursuit_started", %{"origin" => "manual"}), do: "Pursuit started (manual)"
   defp summary_for("pursuit_started", _), do: "Pursuit started"
+
+  defp summary_for("search_started", %{"query" => q}) when is_binary(q) and q != "",
+    do: "Searching Prowlarr — #{q}"
+
   defp summary_for("search_started", _), do: "Searching Prowlarr"
 
   defp summary_for("release_picked", %{"release_title" => t}) when is_binary(t),
     do: "Release picked — #{t}"
 
   defp summary_for("release_picked", _), do: "Release picked"
+
+  defp summary_for("release_no_match", %{"query" => q}) when is_binary(q) and q != "",
+    do: "No acceptable release found — #{q}"
+
   defp summary_for("release_no_match", _), do: "No acceptable release found"
   defp summary_for("download_started", _), do: "Download started"
 
@@ -531,15 +539,26 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       tmdb_id: p.tmdb_id,
       season_number: p.season_number,
       episode_number: p.episode_number,
-      year: p.year
+      year: p.year,
+      search_queries: search_queries_for(p)
     }
   end
 
   defp build_recipe(%Pursuit{recipe_type: "prowlarr_query"} = p) do
     %Recipe{
       recipe_type: :prowlarr_query,
-      manual_query: p.manual_query
+      manual_query: p.manual_query,
+      search_queries: search_queries_for(p)
     }
+  end
+
+  # `QueryBuilder.build/1` returns `[{query, opts}]` ordered best-to-worst.
+  # The UI only needs the query strings, so we strip the opts here. Kept
+  # pure (no DB, no Prowlarr) — the same list the worker iterates over.
+  defp search_queries_for(%Pursuit{} = pursuit) do
+    pursuit
+    |> QueryBuilder.build()
+    |> Enum.map(fn {query, _opts} -> query end)
   end
 
   defp find_queue_match(nil, _items), do: nil
