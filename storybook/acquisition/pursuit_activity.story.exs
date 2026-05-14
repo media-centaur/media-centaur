@@ -28,7 +28,11 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
       title: "Sample Movie",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie"},
+      recipe: %Recipe{
+        recipe_type: :tmdb,
+        tmdb_type: "movie",
+        search_queries: ["Sample Movie 2010"]
+      },
       current_action: %CurrentAction{
         verb: "Downloading",
         description: "Sample description.",
@@ -119,9 +123,17 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
       },
       %Variation{
         id: :searching_prowlarr,
+        description: "TV episode — actual queries shown under the verb",
         attributes: %{
           vm:
             base(
+              recipe: %Recipe{
+                recipe_type: :tmdb,
+                tmdb_type: "tv",
+                season_number: 1,
+                episode_number: 3,
+                search_queries: ["Sample Show S01E03", "Sample Show Season 1"]
+              },
               current_action: %CurrentAction{
                 verb: "Searching",
                 description: "Looking for an acceptable release (attempt 2).",

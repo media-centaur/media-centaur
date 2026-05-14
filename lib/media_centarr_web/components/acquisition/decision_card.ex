@@ -33,6 +33,23 @@ defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
     <section class="glass-surface rounded-xl p-5 space-y-4 border-warning/40">
       <p class="text-sm text-base-content/80">{@vm.prompt}</p>
 
+      <%!-- The literal Prowlarr queries the alternatives below came from
+            (or that "Search Prowlarr again" will re-run). Always shown
+            when the card has them — keeps the search anchored to actual
+            strings the user can verify, including while loading. --%>
+      <div :if={@vm.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
+        <div class="text-base-content/50">{search_label(@vm.search_queries)}</div>
+        <ul class="space-y-0.5">
+          <li
+            :for={query <- @vm.search_queries}
+            class="font-mono text-base-content/80 truncate"
+            title={query}
+          >
+            {query}
+          </li>
+        </ul>
+      </div>
+
       <%= cond do %>
         <% @vm.loading? -> %>
           <div class="flex items-center gap-2 text-sm text-base-content/60">
@@ -114,4 +131,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
 
   defp format_size(bytes) when is_integer(bytes), do: "#{bytes} B"
   defp format_size(_), do: ""
+
+  defp search_label([_]), do: "Search query"
+  defp search_label(_), do: "Search queries"
 end

@@ -26,6 +26,23 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitActivity do
           {@vm.current_action.verb}
         </div>
         <div class="text-sm text-base-content/80">{@vm.current_action.description}</div>
+        <%!-- For search-related verbs ("Searching", "Stopped" after an
+              auto-search), surface the literal Prowlarr queries inline
+              so "Looking for an acceptable release" is anchored to the
+              actual strings being tried. Header carries the canonical
+              listing — this is a quick reference next to the verb. --%>
+        <ul
+          :if={search_related?(@vm.current_action.verb) && @vm.recipe.search_queries != []}
+          class="text-xs text-base-content/60 space-y-0.5 pt-1"
+        >
+          <li
+            :for={query <- @vm.recipe.search_queries}
+            class="font-mono text-base-content/70 truncate"
+            title={query}
+          >
+            {query}
+          </li>
+        </ul>
       </div>
 
       <div :if={@vm.download && @vm.download.progress_pct} class="space-y-1">
@@ -79,6 +96,11 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitActivity do
   defp severity_class(:warning), do: "text-warning"
   defp severity_class(:error), do: "text-error"
   defp severity_class(_), do: "text-base-content"
+
+  # Verbs the PursuitStatus VM uses for search-flavored states. Kept as a
+  # small allow-list to avoid the query list trailing every verb.
+  defp search_related?(verb) when verb in ["Searching", "Seeking", "Stopped"], do: true
+  defp search_related?(_), do: false
 
   defp staleness_class(:very_stale), do: "text-error"
   defp staleness_class(:stale), do: "text-warning"
