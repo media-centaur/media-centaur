@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.60.1 — 2026-05-14
+
+### Fixed
+
+If your media drive is mounted slightly after Media Centarr starts —
+typical on a fresh boot when the service comes up faster than the
+filesystem — the library now appears as soon as the drive is online.
+Previously the watcher could attach to the path before the drive was
+ready and silently sit on a dead file-system watcher, leaving the
+library empty and only Continue Watching and Coming Up showing stale
+entries you couldn't click. The watcher now polls every couple of
+seconds while it's waiting for the path to become accessible, then
+re-attaches and restores the library automatically.
+
 ## v0.60.0 — 2026-05-13
 
 ### Improved
