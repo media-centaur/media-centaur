@@ -4,6 +4,23 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.60.2 — 2026-05-14
+
+### Improved
+
+The Downloads page now shows the exact Prowlarr query each pursuit is
+using. Previously a pursuit could sit on "Searching Prowlarr" without
+telling you what string was actually being searched — so when a search
+quietly returned nothing useful, there was no way to tell whether the
+problem was the query, your indexers, or the release simply not being
+out there. The pursuit detail panel now lists the literal queries
+under the title, repeats them next to the "Searching" status, and
+shows them on the decision card so you can see what generated the
+alternatives. For brace-expanded queries like `Sample Show
+S01E{01,02,03}`, you see each expanded query as its own line. Future
+timeline entries for "Searching Prowlarr" and "No acceptable release
+found" will also name the query that was run.
+
 ## v0.60.1 — 2026-05-14
 
 ### Fixed
