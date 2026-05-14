@@ -4,6 +4,21 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.1 — 2026-05-14
+
+### Improved
+
+Opening a pursuit's detail modal is now instant. Previously, when a
+pursuit was sitting on a decision card waiting for you to pick a
+release, clicking the pursuit to open the modal could take roughly
+half a second to a couple of seconds — Media Centarr was asking
+Prowlarr for the latest alternatives before drawing the modal, and
+nothing rendered until the indexer answered. The modal now opens
+immediately with the pursuit's status and timeline already filled in;
+the alternatives list shows a "Searching for alternatives…" spinner
+and populates as soon as Prowlarr responds. You no longer pay the
+indexer's round-trip every time you peek at a pursuit.
+
 ## v0.61.0 — 2026-05-14
 
 ### Fixed
