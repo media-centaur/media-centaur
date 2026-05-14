@@ -89,6 +89,40 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       assert html =~ "Pursuit not found"
     end
 
+    test "awaiting-decision modal opens without blocking on Prowlarr (ADR-044)", %{conn: conn} do
+      # Regression: before ADR-044, the modal-open path issued a
+      # synchronous Prowlarr search to populate the decision card —
+      # ~500 ms in production, with the LV process blocked on the
+      # WebSocket message handler the entire time. The fix renders a
+      # `loading?: true` card immediately and dispatches the Prowlarr
+      # fetch to a Task.Supervisor child. We pin the contract by
+      # giving the Prowlarr stub a 300 ms delay: a regression to
+      # synchronous behaviour would push the mount latency past the
+      # 150 ms ceiling.
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "active", title: "Sample Show", status: "seeking"})
+
+      {:ok, _} =
+        pursuit
+        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
+        |> Repo.update()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Process.sleep(300)
+        Req.Test.json(conn, [])
+      end)
+
+      start_ms = System.monotonic_time(:millisecond)
+      {:ok, view, html} = live(conn, "/download?selected=#{pursuit.id}")
+      open_ms = System.monotonic_time(:millisecond) - start_ms
+
+      assert open_ms < 150,
+             "modal open took #{open_ms} ms — should not block on Prowlarr (ADR-044)"
+
+      assert has_element?(view, "#pursuit-modal[data-state='open']")
+      assert html =~ "Searching for alternatives"
+    end
+
     test "no `?selected=` param leaves the modal closed", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/download")
 
