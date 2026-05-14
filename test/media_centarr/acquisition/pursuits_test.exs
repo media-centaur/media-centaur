@@ -224,6 +224,64 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
     end
   end
 
+  describe "find_by_tmdb_recipe/1" do
+    test "returns the pursuit matching the exact tmdb tuple, any state" do
+      match = insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie"})
+
+      assert %{id: matched_id} =
+               Pursuits.find_by_tmdb_recipe(%{tmdb_id: "555", tmdb_type: "movie"})
+
+      assert matched_id == match.id
+    end
+
+    test "finds terminal pursuits (idempotency lookup is state-agnostic)" do
+      pursuit = insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie"})
+      set_state(pursuit, "satisfied")
+
+      assert %{id: id} =
+               Pursuits.find_by_tmdb_recipe(%{tmdb_id: "555", tmdb_type: "movie"})
+
+      assert id == pursuit.id
+    end
+
+    test "season=nil matches only IS NULL, not 'any season'" do
+      _season_pack =
+        insert_pursuit(%{
+          tmdb_id: "777",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: nil
+        })
+
+      # Lookup for episode S02E05 should NOT match the season=nil pursuit
+      # (that's `find_active_for_target/1` fuzzy semantics — different
+      # function).
+      assert nil ==
+               Pursuits.find_by_tmdb_recipe(%{
+                 tmdb_id: "777",
+                 tmdb_type: "tv",
+                 season_number: 2,
+                 episode_number: 5
+               })
+
+      # Same idempotency tuple (season=nil) DOES match.
+      assert %{} =
+               Pursuits.find_by_tmdb_recipe(%{
+                 tmdb_id: "777",
+                 tmdb_type: "tv",
+                 season_number: nil,
+                 episode_number: nil
+               })
+    end
+
+    test "does not cross recipe_types" do
+      _query_recipe = create_pursuit(%{recipe_type: "prowlarr_query", manual_query: "foo"})
+
+      assert nil ==
+               Pursuits.find_by_tmdb_recipe(%{tmdb_id: "555", tmdb_type: "movie"})
+    end
+  end
+
   describe "list_active_rows/0" do
     alias MediaCentarr.Acquisition.ViewModels.{CurrentAction, PursuitRow}
 

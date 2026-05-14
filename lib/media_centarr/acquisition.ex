@@ -611,7 +611,14 @@ defmodule MediaCentarr.Acquisition do
   end
 
   defp find_or_create_tmdb_pursuit(attrs) do
-    case find_pursuit(attrs.tmdb_id, attrs.tmdb_type, attrs.season_number, attrs.episode_number) do
+    target = %{
+      tmdb_id: attrs.tmdb_id,
+      tmdb_type: attrs.tmdb_type,
+      season_number: attrs.season_number,
+      episode_number: attrs.episode_number
+    }
+
+    case PursuitsContext.find_by_tmdb_recipe(target) do
       nil ->
         Start.execute(Map.put(attrs, :recipe_type, "tmdb"))
 
@@ -621,7 +628,7 @@ defmodule MediaCentarr.Acquisition do
   end
 
   defp ensure_active_target(%Pursuit{} = pursuit) do
-    case current_target(pursuit) do
+    case PursuitsContext.current_target(pursuit) do
       %Target{status: status} = target ->
         if TargetStatus.terminal?(status) and status != "succeeded" do
           # Existing terminal-non-success — start a fresh seeking target.
@@ -646,9 +653,6 @@ defmodule MediaCentarr.Acquisition do
       {:ok, target}
     end
   end
-
-  defp current_target(%Pursuit{current_target_id: nil}), do: nil
-  defp current_target(%Pursuit{current_target_id: id}), do: Repo.get(Target, id)
 
   @doc """
   Batch lookup: given a list of `(tmdb_id, tmdb_type, season_number,
@@ -904,8 +908,15 @@ defmodule MediaCentarr.Acquisition do
     tmdb_id = to_string(item.tmdb_id)
     tmdb_type = ReleaseTracking.tmdb_type_for(item.media_type)
 
-    existing_pursuit = find_pursuit(tmdb_id, tmdb_type, release.season_number, release.episode_number)
-    existing_target = existing_pursuit && current_target(existing_pursuit)
+    existing_pursuit =
+      PursuitsContext.find_by_tmdb_recipe(%{
+        tmdb_id: tmdb_id,
+        tmdb_type: tmdb_type,
+        season_number: release.season_number,
+        episode_number: release.episode_number
+      })
+
+    existing_target = existing_pursuit && PursuitsContext.current_target(existing_pursuit)
     existing_status = existing_target && existing_target.status
 
     effective_mode = AutoGrabSettings.effective_mode(item.auto_grab_mode, settings)
@@ -1017,20 +1028,6 @@ defmodule MediaCentarr.Acquisition do
       Log.info(:library, "target cancelled — #{target.title} (#{reason})")
     end)
   end
-
-  # Ecto's `get_by/2` rejects nil in equality clauses; nullable fields
-  # need `is_nil/1` in a query. This helper applies the right matcher
-  # per field.
-  defp find_pursuit(tmdb_id, tmdb_type, season, episode) do
-    Pursuit
-    |> where([p], p.recipe_type == "tmdb" and p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
-    |> where_match(:season_number, season)
-    |> where_match(:episode_number, episode)
-    |> Repo.one()
-  end
-
-  defp where_match(query, field, nil), do: where(query, [p], is_nil(field(p, ^field)))
-  defp where_match(query, field, value), do: where(query, [p], field(p, ^field) == ^value)
 
   @doc """
   Broadcasts an update message on `Topics.acquisition_updates/0`. Used
