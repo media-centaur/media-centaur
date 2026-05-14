@@ -25,37 +25,42 @@ defmodule MediaCentarr.Acquisition.TitleMatcher do
     * year (movies only) — must match if the parser extracted one;
       missing year is tolerated
 
-  Only the `recipe_type = "tmdb"` variant is matched here. Query-recipe
-  pursuits route directly to the decision card and don't apply title
+  Only the `:tmdb` recipe variant is matched here. Prowlarr-query
+  recipes route directly to the decision card and don't apply title
   matching (the user already trusts the query they typed).
 
-  Pure module — no I/O, no DB.
+  Pure module — no I/O, no DB. Accepts either a `%Recipe{}` directly,
+  or a `%Pursuit{}` for caller convenience.
   """
 
-  alias MediaCentarr.Acquisition.Pursuits.Pursuit
+  alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Recipe}
   alias MediaCentarr.Acquisition.SearchResult
   alias MediaCentarr.Parser
 
-  @spec matches?(SearchResult.t(), Pursuit.t()) :: boolean()
-  def matches?(%SearchResult{title: title}, %Pursuit{recipe_type: "tmdb"} = pursuit) do
+  @spec matches?(SearchResult.t(), Recipe.t() | Pursuit.t()) :: boolean()
+  def matches?(%SearchResult{} = result, %Pursuit{} = pursuit) do
+    matches?(result, Recipe.from(pursuit))
+  end
+
+  def matches?(%SearchResult{title: title}, %Recipe{type: :tmdb} = recipe) do
     title
     |> Parser.parse()
-    |> matches_recipe?(pursuit)
+    |> matches_recipe?(recipe)
   end
 
-  def matches?(%SearchResult{}, %Pursuit{}), do: false
+  def matches?(%SearchResult{}, %Recipe{}), do: false
 
-  defp matches_recipe?(%Parser.Result{type: :tv} = parsed, %Pursuit{tmdb_type: "tv"} = p) do
-    title_matches?(parsed.title, p.title) and
-      parsed.season == p.season_number and
-      parsed.episode == p.episode_number
+  defp matches_recipe?(%Parser.Result{type: :tv} = parsed, %Recipe{tmdb_type: :tv} = recipe) do
+    title_matches?(parsed.title, recipe.title) and
+      parsed.season == recipe.season_number and
+      parsed.episode == recipe.episode_number
   end
 
-  defp matches_recipe?(%Parser.Result{type: :movie} = parsed, %Pursuit{tmdb_type: "movie"} = p) do
-    title_matches?(parsed.title, p.title) and year_matches?(parsed.year, p.year)
+  defp matches_recipe?(%Parser.Result{type: :movie} = parsed, %Recipe{tmdb_type: :movie} = recipe) do
+    title_matches?(parsed.title, recipe.title) and year_matches?(parsed.year, recipe.year)
   end
 
-  defp matches_recipe?(_parsed, _pursuit), do: false
+  defp matches_recipe?(_parsed, _recipe), do: false
 
   defp title_matches?(parsed_title, recipe_title)
        when is_binary(parsed_title) and is_binary(recipe_title) do
