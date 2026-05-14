@@ -20,6 +20,16 @@ last_updated: 2026-05-14
 > `TargetStatus.cancellable/0` (`seeking + acquired`) for the wider
 > cancel filter.
 >
+> **Phase 4 shipped (2026-05-14).** `Acquisition` facade split into
+> 4 new modules + Reactor handler extraction. `Acquisition` is down
+> from 1,047 → 658 LOC (-37%). New modules:
+> `Pursuits.Commands.Arm` (94), `Pursuits.Commands.ArmAll` (166),
+> `Acquisition.Targets` (187), `Acquisition.Reactor.Handlers` (128).
+> Public API preserved as thin `defdelegate`s — every external caller
+> of `Acquisition.<fn>` continues to work. Domain logic
+> (find-or-create, bulk classifier, AutoGrabPolicy dispatch, target
+> lifecycle) no longer lives on the facade.
+>
 > **Phase 3 shipped (2026-05-14).** `needs_decision` state collapsed
 > into an orthogonal `awaiting_decision_at :utc_datetime` flag.
 > Migration `20260514100000_collapse_needs_decision_into_awaiting_flag.exs`
@@ -49,8 +59,9 @@ that lets the migration ship phase-by-phase.
 
 ## Status
 
-Phases 1+2+3 complete (local). Phase 4 (split Acquisition facade)
-is next — multi-commit, no DB impact.
+Phases 1+2+3+4 complete (local). Phase 5 (single PubSub dialect)
+is next — replaces legacy `{:target_*, target}` tuples with typed
+event structs uniformly on `acquisition:updates`.
 
 ## Decisions made
 
