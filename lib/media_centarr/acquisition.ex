@@ -94,7 +94,7 @@ defmodule MediaCentarr.Acquisition do
     TargetStatus
   }
 
-  alias MediaCentarr.Acquisition.Pursuits.Commands.{Arm, ChangeTarget, PickTarget, StartFromPick}
+  alias MediaCentarr.Acquisition.Pursuits.Commands.{Arm, ArmAll, PickTarget, StartFromPick}
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Recipe}
   alias MediaCentarr.Acquisition.Pursuits, as: PursuitsContext
 
@@ -603,50 +603,9 @@ defmodule MediaCentarr.Acquisition do
   Used by the upcoming-zone renderer to decorate each release card
   with its acquisition status without N+1ing the DB.
   """
-  @spec statuses_for_releases([{String.t(), String.t(), integer() | nil, integer() | nil}]) ::
-          %{
-            {String.t(), String.t(), integer() | nil, integer() | nil} => {Pursuit.t(), Target.t() | nil}
-          }
-  def statuses_for_releases([]), do: %{}
-
-  def statuses_for_releases(keys) when is_list(keys) do
-    {tmdb_ids, tmdb_types} =
-      keys
-      |> Enum.map(fn {id, type, _, _} -> {id, type} end)
-      |> Enum.unzip()
-
-    tmdb_ids = Enum.uniq(tmdb_ids)
-    tmdb_types = Enum.uniq(tmdb_types)
-
-    pursuits =
-      Repo.all(
-        from(p in Pursuit,
-          where: p.recipe_type == "tmdb" and p.tmdb_id in ^tmdb_ids and p.tmdb_type in ^tmdb_types
-        )
-      )
-
-    target_ids = Enum.reject(Enum.map(pursuits, & &1.current_target_id), &is_nil/1)
-    targets_by_id = targets_by_id(target_ids)
-    requested = MapSet.new(keys)
-
-    pursuits
-    |> Enum.map(fn pursuit ->
-      key = {pursuit.tmdb_id, pursuit.tmdb_type, pursuit.season_number, pursuit.episode_number}
-      target = Map.get(targets_by_id, pursuit.current_target_id)
-      {key, {pursuit, target}}
-    end)
-    |> Enum.filter(fn {key, _} -> MapSet.member?(requested, key) end)
-    |> Map.new()
-  end
-
-  defp targets_by_id([]), do: %{}
-
-  defp targets_by_id(ids) do
-    Target
-    |> where([t], t.id in ^ids)
-    |> Repo.all()
-    |> Map.new(fn target -> {target.id, target} end)
-  end
+  @spec statuses_for_releases([ArmAll.key()]) ::
+          %{ArmAll.key() => {Pursuit.t(), Target.t() | nil}}
+  defdelegate statuses_for_releases(keys), to: ArmAll
 
   @doc """
   Bulk-enqueues acquisitions for every release of a tracked item that
@@ -659,15 +618,7 @@ defmodule MediaCentarr.Acquisition do
   - **Succeeded** → skip (`already_acquired`)
   """
   @spec enqueue_all_pending_for_item(item_id :: String.t()) ::
-          {:ok,
-           %{
-             queued: non_neg_integer(),
-             rearmed: non_neg_integer(),
-             in_progress: non_neg_integer(),
-             already_grabbed: non_neg_integer(),
-             failed: [{tuple(), term()}]
-           }}
-          | {:error, :not_found}
+          {:ok, ArmAll.summary()} | {:error, :not_found}
   def enqueue_all_pending_for_item(item_id) do
     with {:ok,
           %{
@@ -676,59 +627,12 @@ defmodule MediaCentarr.Acquisition do
             name: name,
             pending_releases: pending
           }} <- ReleaseTracking.list_pending_acquirable_releases_for_item(item_id) do
-      keys =
-        Enum.map(pending, fn release ->
-          {tmdb_id, tmdb_type, release.season_number, release.episode_number}
-        end)
-
-      status_map = statuses_for_releases(keys)
-
-      empty_summary = %{
-        queued: 0,
-        rearmed: 0,
-        in_progress: 0,
-        already_grabbed: 0,
-        failed: []
-      }
-
-      summary =
-        Enum.reduce(pending, empty_summary, fn release, acc ->
-          key = {tmdb_id, tmdb_type, release.season_number, release.episode_number}
-          classify_and_apply(acc, key, release, tmdb_id, tmdb_type, name, Map.get(status_map, key))
-        end)
-
-      {:ok, summary}
-    end
-  end
-
-  defp classify_and_apply(acc, key, release, tmdb_id, tmdb_type, name, nil) do
-    case enqueue(tmdb_id, tmdb_type, name,
-           season_number: release.season_number,
-           episode_number: release.episode_number
-         ) do
-      {:ok, _target} -> %{acc | queued: acc.queued + 1}
-      {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
-    end
-  end
-
-  defp classify_and_apply(acc, key, _release, _tmdb_id, _tmdb_type, _name, {pursuit, target}) do
-    classify_target(acc, key, pursuit, target)
-  end
-
-  defp classify_target(acc, _key, _pursuit, %Target{status: "succeeded"}),
-    do: %{acc | already_grabbed: acc.already_grabbed + 1}
-
-  defp classify_target(acc, _key, _pursuit, %Target{status: "acquired"}),
-    do: %{acc | in_progress: acc.in_progress + 1}
-
-  defp classify_target(acc, _key, _pursuit, %Target{status: "seeking"}),
-    do: %{acc | in_progress: acc.in_progress + 1}
-
-  defp classify_target(acc, key, pursuit, _target) do
-    # Failed, cancelled, or nil — pivot the pursuit to a new target.
-    case ChangeTarget.execute(%{pursuit_id: pursuit.id}) do
-      {:ok, _pursuit} -> %{acc | rearmed: acc.rearmed + 1}
-      {:error, reason} -> %{acc | failed: [{key, reason} | acc.failed]}
+      ArmAll.execute(%{
+        tmdb_id: tmdb_id,
+        tmdb_type: tmdb_type,
+        name: name,
+        releases: pending
+      })
     end
   end
 
