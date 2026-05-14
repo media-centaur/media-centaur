@@ -32,6 +32,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
         attributes: %{
           title: "Sample Show",
           state: :active,
+          awaiting?: false,
           count: 2,
           verb: "Searching",
           severity: :info,
@@ -49,6 +50,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
         attributes: %{
           title: "Sample Show",
           state: :active,
+          awaiting?: false,
           count: 7,
           verb: "Searching",
           severity: :info,
@@ -65,6 +67,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
         attributes: %{
           title: "Sample Show",
           state: :active,
+          awaiting?: true,
           count: 3,
           verb: "Decision needed",
           severity: :warning,
@@ -82,6 +85,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
         attributes: %{
           title: "Sample Show",
           state: :exhausted,
+          awaiting?: false,
           count: 4,
           verb: "Gave up",
           severity: :error,
