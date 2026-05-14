@@ -95,7 +95,7 @@ defmodule MediaCentarr.Acquisition do
   }
 
   alias MediaCentarr.Acquisition.Pursuits.Commands.{ChangeTarget, PickTarget, Start}
-  alias MediaCentarr.Acquisition.Pursuits.Pursuit
+  alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Recipe}
   alias MediaCentarr.Acquisition.Pursuits, as: PursuitsContext
 
   alias MediaCentarr.Downloads.DownloadClient.Dispatcher
@@ -468,13 +468,20 @@ defmodule MediaCentarr.Acquisition do
   # `do_search_for_pursuit/1` (raw, internal-only) — the recipe can't
   # drift between call sites.
   defp do_search_for_pursuit(%Pursuit{} = pursuit) do
+    pursuit |> Recipe.from() |> do_search_for_recipe()
+  end
+
+  defp do_search_for_recipe(%Recipe{type: :tmdb} = recipe) do
     opts =
       []
-      |> put_when_present(:type, search_type_for(pursuit.tmdb_type))
-      |> put_when_present(:year, pursuit.year)
+      |> put_when_present(:type, recipe.tmdb_type)
+      |> put_when_present(:year, recipe.year)
 
-    query = pursuit.manual_query || pursuit.title
-    search_expanded(query, opts)
+    search_expanded(recipe.title, opts)
+  end
+
+  defp do_search_for_recipe(%Recipe{type: :prowlarr_query, manual_query: query, title: title}) do
+    search_expanded(query || title, [])
   end
 
   defp find_alternative(%Pursuit{} = pursuit, guid) do
@@ -489,10 +496,6 @@ defmodule MediaCentarr.Acquisition do
         error
     end
   end
-
-  defp search_type_for("tv"), do: :tv
-  defp search_type_for("movie"), do: :movie
-  defp search_type_for(_), do: nil
 
   defp put_when_present(opts, _key, nil), do: opts
   defp put_when_present(opts, key, value), do: Keyword.put(opts, key, value)
