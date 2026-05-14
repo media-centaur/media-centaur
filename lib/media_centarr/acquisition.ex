@@ -25,6 +25,13 @@ defmodule MediaCentarr.Acquisition do
       Reactor,
       SearchSession,
       Target,
+      TargetEvents,
+      TargetEvents.Acquired,
+      TargetEvents.Armed,
+      TargetEvents.Cancelled,
+      TargetEvents.Failed,
+      TargetEvents.Picked,
+      TargetEvents.Snoozed,
       TargetStatus,
       ViewModels.Alternative,
       ViewModels.CurrentAction,
@@ -68,12 +75,18 @@ defmodule MediaCentarr.Acquisition do
 
   Subscribe with `subscribe/0` to receive (on `acquisition:updates`):
 
-  - `{:target_acquired, target}` — Prowlarr accepted the release
-  - `{:target_picked, target}` — user picked a release
-  - `{:target_armed, target}` — target re-armed into seeking
-  - `{:target_snoozed, target}` — search ran, no acceptable result, will retry
-  - `{:target_failed, target}` — max attempts reached, no longer retrying
-  - `{:target_cancelled, target}` — target cancelled
+  - `%TargetEvents.Acquired{}` — Prowlarr accepted the release
+  - `%TargetEvents.Picked{}` — user picked a release
+  - `%TargetEvents.Armed{}` — target re-armed into seeking
+  - `%TargetEvents.Snoozed{}` — search ran, no acceptable result, will retry
+  - `%TargetEvents.Failed{}` — max attempts reached, no longer retrying
+  - `%TargetEvents.Cancelled{}` — target cancelled
+  - `Pursuits.Events.*` typed structs — persisted timeline events
+
+  All broadcasts are typed structs; pattern-match on the struct
+  module. Use `TargetEvents.event?/1` and `Pursuits.Events.event?/1`
+  in a catch-all clause to recognise the family without enumerating
+  every kind.
   """
 
   require MediaCentarr.Log, as: Log
@@ -85,6 +98,7 @@ defmodule MediaCentarr.Acquisition do
     QueryExpander,
     SearchResult,
     Target,
+    TargetEvents,
     Targets
   }
 
@@ -119,16 +133,18 @@ defmodule MediaCentarr.Acquisition do
 
   @typedoc """
   Messages broadcast on `Topics.acquisition_updates/0`. Subscribe with
-  `subscribe/0`. Every payload carries the affected `Target.t()` so
-  the receiver can re-render without an extra DB round-trip.
+  `subscribe/0`. TargetEvents structs carry the affected `Target.t()`;
+  Pursuits.Events structs carry pursuit-level event facts. Subscribers
+  pattern-match on the struct module.
   """
   @type updates_message ::
-          {:target_picked, Target.t()}
-          | {:target_acquired, Target.t()}
-          | {:target_armed, Target.t()}
-          | {:target_snoozed, Target.t()}
-          | {:target_failed, Target.t()}
-          | {:target_cancelled, Target.t()}
+          TargetEvents.Picked.t()
+          | TargetEvents.Acquired.t()
+          | TargetEvents.Armed.t()
+          | TargetEvents.Snoozed.t()
+          | TargetEvents.Failed.t()
+          | TargetEvents.Cancelled.t()
+          | struct()
 
   @typedoc """
   Messages broadcast on `Topics.acquisition_queue/0`. Subscribe with
@@ -359,7 +375,7 @@ defmodule MediaCentarr.Acquisition do
                origin: "manual"
              }) do
         target = Repo.get(Target, pursuit.current_target_id)
-        broadcast({:target_picked, target})
+        broadcast(%TargetEvents.Picked{target: target})
         Log.info(:library, "manual pick submitted — #{result.title}")
         {:ok, target}
       end
@@ -416,7 +432,7 @@ defmodule MediaCentarr.Acquisition do
              choice_label: label
            }) do
       target = Repo.get(Target, updated.current_target_id)
-      broadcast({:target_picked, target})
+      broadcast(%TargetEvents.Picked{target: target})
       {:ok, updated}
     end
   end

@@ -5,7 +5,7 @@ defmodule MediaCentarr.AcquisitionTest do
   import MediaCentarr.TestFactory
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.{Prowlarr, SearchResult, Target}
+  alias MediaCentarr.Acquisition.{Prowlarr, SearchResult, Target, TargetEvents}
   alias MediaCentarr.Acquisition.Pursuits.Pursuit
   alias MediaCentarr.Repo
 
@@ -96,7 +96,7 @@ defmodule MediaCentarr.AcquisitionTest do
       assert pursuit.recipe_type == "prowlarr_query"
       assert pursuit.manual_query == "Sample Movie 2010"
 
-      assert_received {:target_picked, %Target{origin: "manual"}}
+      assert_received %TargetEvents.Picked{target: %Target{origin: "manual"}}
     end
 
     test "does NOT insert a row when Prowlarr rejects the grab" do
@@ -264,7 +264,7 @@ defmodule MediaCentarr.AcquisitionTest do
       assert rearmed.status == "seeking"
       assert rearmed.cancelled_at == nil
       assert rearmed.cancelled_reason == nil
-      assert_received {:target_armed, %Target{}}
+      assert_received %TargetEvents.Armed{target: %Target{}}
     end
 
     test "returns :not_found for unknown id" do
@@ -286,7 +286,7 @@ defmodule MediaCentarr.AcquisitionTest do
       assert cancelled.status == "cancelled"
       assert cancelled.cancelled_reason == "user_disabled"
       assert cancelled.cancelled_at != nil
-      assert_received {:target_cancelled, %Target{cancelled_reason: "user_disabled"}}
+      assert_received %TargetEvents.Cancelled{target: %Target{cancelled_reason: "user_disabled"}}
     end
 
     test "returns :not_found for unknown target id" do
@@ -548,6 +548,42 @@ defmodule MediaCentarr.AcquisitionTest do
 
       assert {:ok, %Pursuit{}} =
                Acquisition.pick_alternative(pursuit.id, target_guid, "S01E02 1080p")
+    end
+
+    test "pick_alternative broadcasts %TargetEvents.Picked{} on the unified dialect" do
+      # Regression: until 2026-05-14 this path broadcast the legacy
+      # `{:target_picked, target}` tuple, which the LiveView's
+      # struct-only `handle_info` (`TargetEvents.event?/1`) ignored —
+      # the modal silently failed to refresh after the user picked an
+      # alternative. Phase 5 unified the dialect to typed structs; this
+      # test pins that contract.
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_updates())
+
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "broadcast-1",
+          tmdb_type: "movie",
+          title: "Sample.Movie.2010",
+          year: 2010
+        })
+
+      cached_result = %SearchResult{
+        title: "Sample.Movie.2010.1080p.WEB-DL.H264-NTG",
+        guid: "broadcast-guid-1",
+        indexer_id: 1,
+        quality: :hd_1080p,
+        size_bytes: 4_500_000_000,
+        seeders: 25,
+        indexer_name: "Test Indexer"
+      }
+
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
+
+      assert {:ok, %Pursuit{}} =
+               Acquisition.pick_alternative(pursuit.id, cached_result, "1080p WEB-DL")
+
+      assert_received %TargetEvents.Picked{target: %Target{}}
+      refute_received {:target_picked, _}
     end
 
     test "pick_alternative accepts a cached %SearchResult{} and skips the Prowlarr round-trip" do

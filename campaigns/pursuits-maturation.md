@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: complete
 started: 2026-05-14
 last_updated: 2026-05-14
 ---
@@ -19,6 +19,39 @@ last_updated: 2026-05-14
 > no-op when zero-seeders fired on an `acquired` torrent. Added
 > `TargetStatus.cancellable/0` (`seeking + acquired`) for the wider
 > cancel filter.
+>
+> **Phase 5 shipped (2026-05-14).** Single PubSub dialect on
+> `acquisition:updates`. Legacy `{:target_*, target}` tuple broadcasts
+> replaced by `Acquisition.TargetEvents.*` typed structs (`Acquired`,
+> `Snoozed`, `Failed`, `Armed`, `Cancelled`, `Picked`). Subscribers
+> pattern-match on the struct shape via `TargetEvents.event?/1` for
+> the lifecycle family and `PursuitEvents.event?/1` for the persisted
+> timeline family. TargetEvents are broadcast-only (no persistence) —
+> they supplement the Pursuits.Events story beats with the precise
+> lifecycle edges the LiveView needs for refreshes. Closes Finding 5
+> of the audit; the dual-dialect chore is gone.
+>
+> **Perf-audit hardening (2026-05-14).** Follow-up sweep after a
+> targeted performance audit of the post-campaign acquisition system:
+>   - `pick_alternative` missed Phase 5's dialect migration — still
+>     broadcast the legacy `{:target_picked, target}` tuple, so the
+>     LiveView modal silently failed to refresh after a user pick.
+>     Replaced with `%TargetEvents.Picked{}`; pinned with a regression
+>     test on the unified dialect.
+>   - `PursueTarget.best_match/3` rebuilt `Recipe.from(pursuit)` per
+>     Prowlarr result via `TitleMatcher.matches?/2`. Hoisted the
+>     projection once and fused the prior `reject |> filter |> filter
+>     |> sort_by` chain into a single `Enum.reduce` with `Enum.max_by`
+>     — preserves the "no_title_match" vs "no_acceptable_quality"
+>     outcome distinction the policy depends on.
+>   - `PursueTarget.perform/1` did two sequential `Repo.get` calls
+>     (target then pursuit). Collapsed into one `left_join` round-trip
+>     with `{target, pursuit}` select tuple.
+>   - `ArmAll.statuses_for_releases/1` widened its WHERE to
+>     `tmdb_id in ^ids and tmdb_type in ^types`, then dropped
+>     non-requested (season, episode) tuples in BEAM. Rewrote as a
+>     `dynamic/2` OR-chain of exact-tuple predicates so the DB returns
+>     only requested rows.
 >
 > **Phase 4 shipped (2026-05-14).** `Acquisition` facade split into
 > 4 new modules + Reactor handler extraction. `Acquisition` is down
@@ -59,9 +92,9 @@ that lets the migration ship phase-by-phase.
 
 ## Status
 
-Phases 1+2+3+4 complete (local). Phase 5 (single PubSub dialect)
-is next — replaces legacy `{:target_*, target}` tuples with typed
-event structs uniformly on `acquisition:updates`.
+All 5 phases complete + perf-audit hardening folded in (local). Stack
+of 12 jj commits, not pushed. Completion criteria met — see the section
+below. Ready to ship.
 
 ## Decisions made
 
