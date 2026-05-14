@@ -1,6 +1,24 @@
 defmodule MediaCentarr.Acquisition.Pursuits.Observations do
   @moduledoc """
-  Observation-state accounting for pursuits.
+  Observation-state accounting and signal-derived event emission.
+
+  This module owns two responsibilities that are intentionally co-located
+  because both consume the same per-tick `(pursuit, queue_item)` pair:
+
+  1. **Reconcile observation state** on the pursuit row so `Policy` can
+     stay pure. `Policy` reads `stall_first_seen_at` and friends as
+     opaque inputs; the deciding-whether-the-signal-is-present logic
+     lives here.
+
+  2. **Emit raw lifecycle events** to the timeline (`DownloadStarted`,
+     `HealthChanged`). These are *signal-derived* events — facts about
+     what the download client did, not decisions about what the pursuit
+     should do. ADR-039 reserves `Policy` for decision events
+     (`auto_cancel`, `request_decision`, `exhaust`); signal events
+     belong in the pre-Policy phase because their existence is a
+     property of the observed transition, not a choice. Co-locating
+     them with the state reconciliation keeps the rule "one full pass
+     per pursuit per tick" intact.
 
   `refresh!/3` reconciles a pursuit's persisted observation state against
   one snapshot of the download-client queue. The Watcher calls this once
@@ -14,11 +32,12 @@ defmodule MediaCentarr.Acquisition.Pursuits.Observations do
     * `last_queue_state` / `last_queue_health` — the last observed
       `(state, health)` tuple for the pursuit's tracked queue item.
       Used to detect lifecycle transitions across ticks.
-    * Lifecycle events on the timeline — when the observed
-      `(state, health)` differs from `(last_queue_state, last_queue_health)`,
-      emit `DownloadStarted` (first non-nil observation) or
-      `HealthChanged` (subsequent transition). No event for "no change"
-      ticks — the timeline records story beats, not heartbeats.
+    * Signal-derived lifecycle events on the timeline — when the
+      observed `(state, health)` differs from
+      `(last_queue_state, last_queue_health)`, emit `DownloadStarted`
+      (first non-nil observation) or `HealthChanged` (subsequent
+      transition). No event for "no change" ticks — the timeline
+      records story beats, not heartbeats.
 
   Signal mapping:
 
