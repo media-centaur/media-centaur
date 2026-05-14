@@ -130,7 +130,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
     end
 
-    test "queue shows persistent stall past window → pursuit transitions to needs_decision" do
+    test "queue shows persistent stall past window → pursuit awaiting_decision_at set" do
       release = "Sample.Movie.2024.1080p.WEB-DL"
 
       pursuit =
@@ -143,7 +143,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
 
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
 
-      assert Repo.get!(Pursuit, pursuit.id).state == "needs_decision"
+      refreshed = Repo.get!(Pursuit, pursuit.id)
+      assert refreshed.state == "active"
+      assert %DateTime{} = refreshed.awaiting_decision_at
 
       events =
         Event

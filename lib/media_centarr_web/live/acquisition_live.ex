@@ -942,17 +942,18 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   defp maybe_reload_modal_for_event(socket, _event), do: socket
 
-  # Reuse the cached decision card for the same needs_decision state —
-  # the alternatives don't refresh until the user acts or the pursuit
-  # transitions. This caps Prowlarr load at one search per
-  # `:needs_decision` transition rather than one per queue snapshot.
+  # Reuse the cached decision card while the pursuit is awaiting a
+  # decision — the alternatives don't refresh until the user acts or
+  # the pursuit's `awaiting_decision_at` clears. This caps Prowlarr
+  # load at one search per "awaiting decision" period rather than one
+  # per queue snapshot.
   #
   # Returns both the display VM (`card`) and the raw `[SearchResult.t()]`
   # keyed by guid (`results_by_guid`). The LV stores both so
   # `handle_event("pick_alternative", ...)` can pass the cached struct
   # straight to `Acquisition.pick_alternative/3`, skipping the otherwise
   # mandatory Prowlarr round-trip to look the result up by guid.
-  defp build_decision(%Pursuit{state: "needs_decision"} = pursuit, search_queries, cached) do
+  defp build_decision(%Pursuit{awaiting_decision_at: %DateTime{}} = pursuit, search_queries, cached) do
     case cached do
       %{decision_card: %ViewModels.DecisionCard{pursuit_id: id} = vm, decision_results_by_guid: results}
       when id == pursuit.id ->

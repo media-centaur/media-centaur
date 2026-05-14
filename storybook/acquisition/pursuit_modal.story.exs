@@ -73,16 +73,16 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitModal do
         }
       },
       %Variation{
-        id: :open_needs_decision,
-        description: "Open — pursuit in `needs_decision`, with three alternatives.",
+        id: :open_awaiting_decision,
+        description: "Open — pursuit awaiting user decision, with three alternatives.",
         attributes: %{
           open: true,
           pursuit_id: "story-decision",
-          header: needs_decision_header(),
-          status: needs_decision_status(),
+          header: awaiting_decision_header(),
+          status: awaiting_decision_status(),
           decision_card: many_alternatives(),
           timeline: stall_timeline(),
-          on_close: close_event(:open_needs_decision)
+          on_close: close_event(:open_awaiting_decision)
         }
       },
       %Variation{
@@ -128,11 +128,12 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitModal do
     }
   end
 
-  defp needs_decision_header do
+  defp awaiting_decision_header do
     %PursuitHeader{
       id: "story-decision",
       title: "Sample Show S01E04",
-      state: :needs_decision,
+      state: :active,
+      awaiting_decision?: true,
       recipe: %Recipe{
         recipe_type: :tmdb,
         tmdb_type: "tv",
@@ -179,11 +180,11 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitModal do
     }
   end
 
-  defp needs_decision_status do
+  defp awaiting_decision_status do
     %PursuitStatus{
       pursuit_id: "story-decision",
       title: "Sample Show S01E04",
-      state: :needs_decision,
+      state: :active,
       origin: :auto,
       recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "tv"},
       current_action: %CurrentAction{

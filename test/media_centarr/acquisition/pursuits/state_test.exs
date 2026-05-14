@@ -1,17 +1,17 @@
 defmodule MediaCentarr.Acquisition.Pursuits.StateTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.Pursuits.State
+  alias MediaCentarr.Acquisition.Pursuits.{Pursuit, State}
 
   describe "all/0" do
     test "lists every valid state as a DB string" do
-      assert State.all() == ~w(active needs_decision satisfied exhausted cancelled)
+      assert State.all() == ~w(active satisfied exhausted cancelled)
     end
   end
 
   describe "in_flight/0" do
     test "lists states where the pursuit is still pursuing its goal" do
-      assert State.in_flight() == ~w(active needs_decision)
+      assert State.in_flight() == ~w(active)
     end
   end
 
@@ -22,11 +22,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.StateTest do
   end
 
   describe "in_flight?/1" do
-    test "true for active and needs_decision" do
+    test "true for active" do
       assert State.in_flight?("active")
       assert State.in_flight?(:active)
-      assert State.in_flight?("needs_decision")
-      assert State.in_flight?(:needs_decision)
     end
 
     test "false for terminal states" do
@@ -43,16 +41,26 @@ defmodule MediaCentarr.Acquisition.Pursuits.StateTest do
       assert State.terminal?("cancelled")
     end
 
-    test "false for in-flight states" do
+    test "false for active" do
       refute State.terminal?("active")
-      refute State.terminal?("needs_decision")
+    end
+  end
+
+  describe "awaiting_decision?/1" do
+    test "true when awaiting_decision_at is set" do
+      pursuit = %Pursuit{awaiting_decision_at: DateTime.utc_now(:second)}
+      assert State.awaiting_decision?(pursuit)
+    end
+
+    test "false when awaiting_decision_at is nil" do
+      pursuit = %Pursuit{awaiting_decision_at: nil}
+      refute State.awaiting_decision?(pursuit)
     end
   end
 
   describe "bucket/1" do
-    test "active and needs_decision are :in_flight" do
+    test "active is :in_flight" do
       assert State.bucket("active") == :in_flight
-      assert State.bucket("needs_decision") == :in_flight
     end
 
     test "satisfied is :terminal_success" do

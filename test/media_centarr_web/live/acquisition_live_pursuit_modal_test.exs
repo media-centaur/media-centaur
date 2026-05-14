@@ -119,7 +119,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "target_changed")
     end
 
-    test "Request decision flips the pursuit to needs_decision", %{conn: conn} do
+    test "Request decision sets awaiting_decision_at on the pursuit", %{conn: conn} do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
@@ -127,7 +127,8 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       render_click(view, "request_decision", %{})
 
       reloaded = Repo.reload(pursuit)
-      assert reloaded.state == "needs_decision"
+      assert reloaded.state == "active"
+      assert %DateTime{} = reloaded.awaiting_decision_at
     end
   end
 

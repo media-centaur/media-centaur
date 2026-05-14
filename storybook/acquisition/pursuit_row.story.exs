@@ -47,10 +47,10 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
-            id: :needs_decision,
+            id: :awaiting_decision,
             attributes: %{
               vm:
-                row(:needs_decision, "Sample Show",
+                row(:awaiting_decision, "Sample Show",
                   season: 2,
                   episode: 1,
                   status: %CurrentAction{
@@ -321,10 +321,10 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
-            id: :compact_needs_decision,
+            id: :compact_awaiting_decision,
             attributes: %{
               vm:
-                row(:needs_decision, "Sample Show",
+                row(:awaiting_decision, "Sample Show",
                   season: 1,
                   episode: 7,
                   status: %CurrentAction{
@@ -413,7 +413,11 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
     %PursuitRow{
       id: "story-#{state}-#{:erlang.phash2({state, title, opts})}",
       title: title,
-      state: state,
+      # The :awaiting_decision pseudo-state is sugar for stories — the
+      # underlying VM state is :active with the awaiting flag set, so
+      # the badge and grouping behave like a real awaiting pursuit.
+      state: if(state == :awaiting_decision, do: :active, else: state),
+      awaiting_decision?: state == :awaiting_decision,
       season_number: Keyword.get(opts, :season),
       episode_number: Keyword.get(opts, :episode),
       release_title: Keyword.get(opts, :release_title),

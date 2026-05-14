@@ -97,13 +97,14 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
         }
       },
       %Variation{
-        id: :needs_decision,
-        description: "Pursuit in needs_decision",
+        id: :awaiting_decision,
+        description: "Pursuit awaiting user decision (state :active, flag set)",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-decision",
             title: "Sample Show S01E04",
-            state: :needs_decision,
+            state: :active,
+            awaiting_decision?: true,
             recipe: %Recipe{
               recipe_type: :tmdb,
               tmdb_type: "tv",

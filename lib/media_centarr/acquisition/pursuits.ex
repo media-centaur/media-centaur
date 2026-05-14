@@ -35,7 +35,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     end
   end
 
-  @doc "Lists every in-flight pursuit (`active` or `needs_decision`), newest-updated first."
+  @doc "Lists every in-flight (`active`) pursuit, newest-updated first."
   @spec list_active() :: [Pursuit.t()]
   def list_active do
     Pursuit
@@ -93,7 +93,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   @doc """
   Lists pursuits as `PursuitRow` view-models, filtered by lifecycle bucket.
 
-  - `:active`       — `state in [:active, :needs_decision]` (in-flight)
+  - `:active`       — `state == :active` (in-flight; may or may not be awaiting decision)
   - `:failed`       — `state == :exhausted`
   - `:cancelled`    — `state == :cancelled`
   - `:succeeded`    — `state == :satisfied`
@@ -396,6 +396,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       id: pursuit.id,
       title: pursuit.title,
       state: state_to_atom(pursuit.state),
+      awaiting_decision?: State.awaiting_decision?(pursuit),
       season_number: pursuit.season_number,
       episode_number: pursuit.episode_number,
       release_title: release_title,
@@ -408,9 +409,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   # Explicit string→atom mapping for the row VM so the function doesn't
   # depend on atom-loading side effects from other modules being
   # compiled into the same release. The pursuit `state` column is
-  # constrained by `Pursuits.State` to these five values.
+  # constrained by `Pursuits.State` to these four values.
   defp state_to_atom("active"), do: :active
-  defp state_to_atom("needs_decision"), do: :needs_decision
   defp state_to_atom("satisfied"), do: :satisfied
   defp state_to_atom("exhausted"), do: :exhausted
   defp state_to_atom("cancelled"), do: :cancelled
@@ -427,6 +427,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
+      awaiting_decision?: State.awaiting_decision?(pursuit),
       recipe: build_recipe(pursuit),
       criteria_summary: summarize_criteria(pursuit.criteria)
     }

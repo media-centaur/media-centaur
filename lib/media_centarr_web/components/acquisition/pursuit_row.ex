@@ -66,7 +66,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitRow do
         <div class="min-w-0 flex-1 truncate text-sm font-medium">
           {display_title(@vm)}
         </div>
-        <PursuitStyle.state_badge state={@vm.state} />
+        <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
       </div>
 
       <div
