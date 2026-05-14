@@ -2,7 +2,11 @@
 >
 > Read [`AGENTS.md`](AGENTS.md) for Elixir/Phoenix/LiveView/Ecto/CSS/JS conventions. Read [`docs/architecture.md`](docs/architecture.md) for the architectural deep-dive (bounded contexts, PubSub topics, supervision tree, key principles).
 
-Critically, any user interface design additions or changes need to be made to the storybook first, then to the actual app. The storybook should be considered the primary authority for design. This serves to prevent drift between implementations in the application. If a button style must change -- for example -- it should be changed in the storybook first, then be applied to ALL instances of that kind of button in the app uniformly.
+Phoenix Storybook in this repo pins **component contracts** (typed attrs + their state matrix) and is enforced by `mix precommit`: every function component under `lib/media_centarr_web/components/**` must have a story (Credo check MC0009) and every story must compile + render in `storybook_compile_test` / `storybook_render_test`. When you change a component's attrs, default state, or variation matrix, update the story in the same change — the precommit will tell you if you didn't.
+
+Stories are a **typed coupling check** and a **state-matrix forcing function**, not a guarantee of visual correctness in the app and not a substitute for integration testing. They render in isolation with attribute fixtures; they do not exercise click handlers, PubSub, or LiveView state machines. Interaction bugs (event → assign update → re-render) live in `*_live_test.exs`, not in stories. Don't oversell the storybook to yourself: if a regression is in the wiring rather than the render, no story will catch it.
+
+You are free to design new visual surfaces directly in storybook (the isolated render is genuinely useful for iterating on a card or panel without booting the whole page), but you are not required to. Designing against the running app is fine as long as the story lands in the same commit and the variations cover the states the app exercises.
 
 ## Skills-First Development
 
