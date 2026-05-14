@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.6 — 2026-05-15
+
+### Fixed
+
+Movie collections now show up in the library view again. Files for
+movies that belong to a collection (a trilogy, anthology, or any TMDB
+collection grouping) were being attached to the parent collection
+instead of the individual movie, which caused both the collection and
+the child movie to disappear from the grid. A one-time data fix runs
+during this update to repair existing entries — after restarting, your
+collections will be visible alongside your other movies.
+
 ## v0.61.5 — 2026-05-14
 
 ### Fixed
