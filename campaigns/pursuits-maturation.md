@@ -19,6 +19,21 @@ last_updated: 2026-05-14
 > no-op when zero-seeders fired on an `acquired` torrent. Added
 > `TargetStatus.cancellable/0` (`seeking + acquired`) for the wider
 > cancel filter.
+>
+> **Phase 3 shipped (2026-05-14).** `needs_decision` state collapsed
+> into an orthogonal `awaiting_decision_at :utc_datetime` flag.
+> Migration `20260514100000_collapse_needs_decision_into_awaiting_flag.exs`
+> backfills existing rows (rewrite state to `active`, copy `updated_at`
+> into the new column). RequestDecision sets the flag; PickTarget,
+> ChangeTarget, and terminal commands (Satisfy/Exhaust/Cancel) clear
+> it. Predicates: `State.terminal?/1`, `State.awaiting_decision?/1`.
+> `find_active_for_target/1` now matches awaiting-decision pursuits
+> too (a file landing during deliberation auto-satisfies; the prior
+> filter quietly excluded them — Finding 2's UX win lands for free).
+> PursuitRow + PursuitHeader VMs carry `awaiting_decision?: boolean`;
+> the state-badge component takes precedence on the flag.
+> Logic.group_pursuit_rows keys on `{title, state, awaiting?}` so
+> awaiting/non-awaiting same-title pursuits bucket separately.
 
 ## Goal
 
@@ -34,8 +49,8 @@ that lets the migration ship phase-by-phase.
 
 ## Status
 
-Phases 1+2 complete (local). Phase 3 (collapse `needs_decision` →
-`awaiting_decision_at` flag) is next — single commit with DB migration.
+Phases 1+2+3 complete (local). Phase 4 (split Acquisition facade)
+is next — multi-commit, no DB impact.
 
 ## Decisions made
 

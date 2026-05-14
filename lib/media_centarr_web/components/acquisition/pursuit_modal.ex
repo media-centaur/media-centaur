@@ -38,7 +38,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitModal do
 
   attr :decision_card, :any,
     default: nil,
-    doc: "%DecisionCard{} | nil — only present in :needs_decision state."
+    doc: "%DecisionCard{} | nil — only present when the pursuit is awaiting a decision."
 
   attr :not_found?, :boolean, default: false
 
@@ -69,13 +69,12 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitModal do
           <div :if={!@not_found? && @header} class="p-6 space-y-4">
             <PursuitHeader.pursuit_header vm={@header} />
 
-            <%!-- Activity hides when the pursuit is in `needs_decision`
-                  (decision_card present). In that state the Decision
+            <%!-- Activity hides when the pursuit is awaiting a decision
+                  (decision_card present). In that case the Decision
                   card carries the prompt and ALL actions, so the
                   Activity card would otherwise duplicate the heading,
                   meta-narrate the layout ("use the decision card
-                  below…"), and float Cancel pursuit in a weird spot.
-                  See plan in plans/. --%>
+                  below…"), and float Cancel pursuit in a weird spot. --%>
             <PursuitActivity.pursuit_activity
               :if={@status && !@decision_card}
               vm={@status}

@@ -5,13 +5,21 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitHeader do
   alias MediaCentarr.Acquisition.ViewModels.Recipe
 
   @enforce_keys [:id, :title, :state, :recipe]
-  defstruct [:id, :title, :state, :recipe, :criteria_summary]
+  defstruct [
+    :id,
+    :title,
+    :state,
+    :recipe,
+    :criteria_summary,
+    awaiting_decision?: false
+  ]
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
           title: String.t(),
           state: PursuitRow.state(),
           recipe: Recipe.t(),
-          criteria_summary: String.t() | nil
+          criteria_summary: String.t() | nil,
+          awaiting_decision?: boolean()
         }
 end

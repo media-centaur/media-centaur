@@ -169,9 +169,13 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatusTest do
   end
 
   describe "derive/3 — terminal pursuit states" do
-    test "needs_decision -> Decision needed" do
+    test "active + awaiting_decision_at -> Decision needed" do
       {action, _next, actions} =
-        PursuitStatus.derive(pursuit(:needs_decision), target(:seeking), nil)
+        PursuitStatus.derive(
+          pursuit(:active, %{awaiting_decision_at: DateTime.utc_now(:second)}),
+          target(:seeking),
+          nil
+        )
 
       assert action.verb == "Decision needed"
       assert actions == [:cancel]

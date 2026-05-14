@@ -92,34 +92,28 @@ defmodule MediaCentarr.Acquisition.Pursuits.PursuitTest do
     end
   end
 
-  describe "request_decision_changeset/1" do
-    test "transitions active -> needs_decision" do
-      pursuit = %Pursuit{state: "active"}
-      changeset = Pursuit.request_decision_changeset(pursuit)
+  describe "set_awaiting_decision_changeset/2" do
+    test "sets awaiting_decision_at when nil" do
+      pursuit = %Pursuit{state: "active", awaiting_decision_at: nil}
+      now = DateTime.utc_now(:second)
+      changeset = Pursuit.set_awaiting_decision_changeset(pursuit, now)
       assert changeset.valid?
-      assert changeset.changes.state == "needs_decision"
+      assert changeset.changes.awaiting_decision_at == now
     end
 
-    test "rejects transition from terminal state" do
-      pursuit = %Pursuit{state: "satisfied"}
-      changeset = Pursuit.request_decision_changeset(pursuit)
-      refute changeset.valid?
-      assert Keyword.has_key?(changeset.errors, :state)
+    test "preserves existing timestamp on second call (idempotent)" do
+      original = DateTime.add(DateTime.utc_now(:second), -3600, :second)
+      pursuit = %Pursuit{state: "active", awaiting_decision_at: original}
+      changeset = Pursuit.set_awaiting_decision_changeset(pursuit, DateTime.utc_now(:second))
+      refute Map.has_key?(changeset.changes, :awaiting_decision_at)
     end
   end
 
-  describe "resume_changeset/1" do
-    test "transitions needs_decision -> active" do
-      pursuit = %Pursuit{state: "needs_decision"}
-      changeset = Pursuit.resume_changeset(pursuit)
-      assert changeset.valid?
-      assert changeset.changes.state == "active"
-    end
-
-    test "rejects transition from non-needs_decision state" do
-      pursuit = %Pursuit{state: "active"}
-      changeset = Pursuit.resume_changeset(pursuit)
-      refute changeset.valid?
+  describe "clear_awaiting_decision_changeset/1" do
+    test "clears the timestamp" do
+      pursuit = %Pursuit{state: "active", awaiting_decision_at: DateTime.utc_now(:second)}
+      changeset = Pursuit.clear_awaiting_decision_changeset(pursuit)
+      assert changeset.changes.awaiting_decision_at == nil
     end
   end
 
@@ -146,11 +140,12 @@ defmodule MediaCentarr.Acquisition.Pursuits.PursuitTest do
       assert changeset.changes.state == "exhausted"
     end
 
-    test "permits transition from needs_decision -> exhausted (user gives up)" do
-      pursuit = %Pursuit{state: "needs_decision"}
+    test "clears awaiting_decision_at when exhausting an awaiting pursuit" do
+      pursuit = %Pursuit{state: "active", awaiting_decision_at: DateTime.utc_now(:second)}
       changeset = Pursuit.exhaust_changeset(pursuit)
       assert changeset.valid?
       assert changeset.changes.state == "exhausted"
+      assert changeset.changes.awaiting_decision_at == nil
     end
   end
 

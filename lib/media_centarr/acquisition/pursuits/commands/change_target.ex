@@ -11,8 +11,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ChangeTarget do
     worker auto-picks the best Prowlarr result (excluding
     `tried_release_guids`).
   - **Prowlarr-query recipe** — new target enters `seeking`; the
-    worker fetches Prowlarr results and transitions the pursuit to
-    `needs_decision` for the user to pick.
+    worker fetches Prowlarr results and sets the pursuit's
+    `awaiting_decision_at` flag for the user to pick.
 
   ## Side effects
 
@@ -60,14 +60,16 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ChangeTarget do
              {:ok, new_target} <- insert_seeking_target(pursuit),
              {:ok, updated_pursuit} <-
                Repo.update(Pursuit.set_current_target_changeset(pursuit, new_target.id)),
+             {:ok, cleared} <-
+               Repo.update(Pursuit.clear_awaiting_decision_changeset(updated_pursuit)),
              {:ok, _event} <-
                Events.record(%TargetChanged{
-                 pursuit_id: updated_pursuit.id,
-                 pursuit_title: updated_pursuit.title,
+                 pursuit_id: cleared.id,
+                 pursuit_title: cleared.title,
                  occurred_at: DateTime.utc_now(:second),
                  target_id: new_target.id
                }) do
-          {:ok, {updated_pursuit, new_target}}
+          {:ok, {cleared, new_target}}
         end
       end)
 

@@ -1,5 +1,5 @@
 defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
-  @moduledoc "Alternatives picker shown on a pursuit detail page in `:needs_decision` state."
+  @moduledoc "Alternatives picker shown on a pursuit detail page when its `awaiting_decision_at` flag is set."
 
   use PhoenixStorybook.Story, :component
 
