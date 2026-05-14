@@ -94,7 +94,7 @@ defmodule MediaCentarr.Acquisition do
     TargetStatus
   }
 
-  alias MediaCentarr.Acquisition.Pursuits.Commands.{ChangeTarget, PickTarget, Start, StartFromPick}
+  alias MediaCentarr.Acquisition.Pursuits.Commands.{Arm, ChangeTarget, PickTarget, StartFromPick}
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Recipe}
   alias MediaCentarr.Acquisition.Pursuits, as: PursuitsContext
 
@@ -574,11 +574,6 @@ defmodule MediaCentarr.Acquisition do
   @spec enqueue(String.t(), String.t(), String.t(), keyword()) ::
           {:ok, Target.t()} | {:error, term()}
   def enqueue(tmdb_id, tmdb_type, title, opts \\ []) do
-    season = Keyword.get(opts, :season_number)
-    episode = Keyword.get(opts, :episode_number)
-    year = Keyword.get(opts, :year)
-    origin = Keyword.get(opts, :origin, "auto")
-
     criteria =
       %{
         "min_quality" => Keyword.get(opts, :min_quality),
@@ -588,63 +583,16 @@ defmodule MediaCentarr.Acquisition do
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()
 
-    with {:ok, pursuit} <-
-           find_or_create_tmdb_pursuit(%{
-             tmdb_id: tmdb_id,
-             tmdb_type: tmdb_type,
-             title: title,
-             year: year,
-             season_number: season,
-             episode_number: episode,
-             origin: origin,
-             criteria: criteria
-           }) do
-      ensure_active_target(pursuit)
-    end
-  end
-
-  defp find_or_create_tmdb_pursuit(attrs) do
-    target = %{
-      tmdb_id: attrs.tmdb_id,
-      tmdb_type: attrs.tmdb_type,
-      season_number: attrs.season_number,
-      episode_number: attrs.episode_number
-    }
-
-    case PursuitsContext.find_by_tmdb_recipe(target) do
-      nil ->
-        Start.execute(Map.put(attrs, :recipe_type, "tmdb"))
-
-      %Pursuit{} = pursuit ->
-        {:ok, pursuit}
-    end
-  end
-
-  defp ensure_active_target(%Pursuit{} = pursuit) do
-    case PursuitsContext.current_target(pursuit) do
-      %Target{status: status} = target ->
-        if TargetStatus.terminal?(status) and status != "succeeded" do
-          # Existing terminal-non-success — start a fresh seeking target.
-          new_seeking_target(pursuit)
-        else
-          {:ok, target}
-        end
-
-      nil ->
-        new_seeking_target(pursuit)
-    end
-  end
-
-  defp new_seeking_target(%Pursuit{} = pursuit) do
-    with {:ok, target} <-
-           %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
-           |> Target.create_changeset()
-           |> Repo.insert(),
-         {:ok, _pursuit} <-
-           Repo.update(Pursuit.set_current_target_changeset(pursuit, target.id)) do
-      Oban.insert(PursueTarget.new(%{"target_id" => target.id}))
-      {:ok, target}
-    end
+    Arm.execute(%{
+      tmdb_id: tmdb_id,
+      tmdb_type: tmdb_type,
+      title: title,
+      year: Keyword.get(opts, :year),
+      season_number: Keyword.get(opts, :season_number),
+      episode_number: Keyword.get(opts, :episode_number),
+      origin: Keyword.get(opts, :origin, "auto"),
+      criteria: criteria
+    })
   end
 
   @doc """
