@@ -4,6 +4,16 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.4 — 2026-05-14
+
+### Improved
+
+The "Coming up" row on Home no longer makes its secondary cards
+taller when a release picks up a status like "Seeking" — the badge
+now floats in the top-right corner of the card instead of stacking
+under the title, so the row keeps a consistent height whether or not
+the release has a status.
+
 ## v0.61.3 — 2026-05-14
 
 ### Fixed
