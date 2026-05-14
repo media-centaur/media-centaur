@@ -1,6 +1,8 @@
 defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
   use MediaCentarr.DataCase, async: false
 
+  import MediaCentarr.TestFactory
+
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit}
   alias MediaCentarr.Acquisition.Pursuits.Commands.{Cancel, Exhaust, Satisfy}
 
@@ -10,6 +12,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
     PursuitSatisfied
   }
 
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Topics
 
   defp insert_active_pursuit(state \\ "active") do
@@ -74,6 +77,64 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
                  final_release_title: "X"
                })
     end
+
+    test "promotes final target to succeeded and cancels in-flight siblings" do
+      # Reproduces the Project Hail Mary scenario: a satisfied pursuit
+      # left in-flight `seeking` / `acquired` siblings alive, and their
+      # snoozed PursueTarget workers later grabbed duplicate releases.
+      {pursuit, final_target} = create_pursuit_with_target(%{status: "acquired"})
+
+      {:ok, sibling_seeking} =
+        %Target{}
+        |> Ecto.Changeset.change(
+          pursuit_id: pursuit.id,
+          title: pursuit.title,
+          origin: pursuit.origin,
+          status: "seeking"
+        )
+        |> Repo.insert()
+
+      {:ok, sibling_acquired} =
+        %Target{}
+        |> Ecto.Changeset.change(
+          pursuit_id: pursuit.id,
+          title: pursuit.title,
+          origin: pursuit.origin,
+          status: "acquired"
+        )
+        |> Repo.insert()
+
+      assert {:ok, %Pursuit{state: "satisfied"}} =
+               Satisfy.execute(%{
+                 pursuit_id: pursuit.id,
+                 final_target_id: final_target.id,
+                 final_release_title: "Sample.Movie.2026.1080p"
+               })
+
+      assert Repo.get!(Target, final_target.id).status == "succeeded"
+
+      assert Repo.get!(Target, sibling_seeking.id).status == "cancelled"
+      assert Repo.get!(Target, sibling_seeking.id).cancelled_reason == "pursuit_satisfied"
+
+      assert Repo.get!(Target, sibling_acquired.id).status == "cancelled"
+      assert Repo.get!(Target, sibling_acquired.id).cancelled_reason == "pursuit_satisfied"
+    end
+
+    test "cancels in-flight targets even when final_target_id is nil" do
+      # LibraryReconciler may call Satisfy without a known final target
+      # (the file landed via watcher import, not via a pursuit grab).
+      {pursuit, seeking} = create_pursuit_with_target(%{status: "seeking"})
+
+      assert {:ok, %Pursuit{state: "satisfied"}} =
+               Satisfy.execute(%{
+                 pursuit_id: pursuit.id,
+                 final_target_id: nil,
+                 final_release_title: "Sample.Movie.2026.1080p"
+               })
+
+      assert Repo.get!(Target, seeking.id).status == "cancelled"
+      assert Repo.get!(Target, seeking.id).cancelled_reason == "pursuit_satisfied"
+    end
   end
 
   describe "Exhaust.execute/1" do
@@ -106,6 +167,16 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
                  reason: :no_alternatives
                })
     end
+
+    test "cancels in-flight targets" do
+      {pursuit, seeking} = create_pursuit_with_target(%{status: "seeking"})
+
+      assert {:ok, %Pursuit{state: "exhausted"}} =
+               Exhaust.execute(%{pursuit_id: pursuit.id, reason: :max_attempts})
+
+      assert Repo.get!(Target, seeking.id).status == "cancelled"
+      assert Repo.get!(Target, seeking.id).cancelled_reason == "pursuit_exhausted"
+    end
   end
 
   describe "Cancel.execute/1" do
@@ -126,6 +197,20 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       assert event.payload["reason"] == "user_request"
 
       assert_receive %PursuitCancelled{}
+    end
+
+    test "cancels in-flight targets" do
+      {pursuit, seeking} = create_pursuit_with_target(%{status: "seeking"})
+
+      assert {:ok, %Pursuit{state: "cancelled"}} =
+               Cancel.execute(%{
+                 pursuit_id: pursuit.id,
+                 cancelled_by: :user,
+                 reason: "user_request"
+               })
+
+      assert Repo.get!(Target, seeking.id).status == "cancelled"
+      assert Repo.get!(Target, seeking.id).cancelled_reason == "pursuit_cancelled"
     end
   end
 end

@@ -62,7 +62,7 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
     TitleMatcher
   }
 
-  alias MediaCentarr.Acquisition.Pursuits.{Commands, Pursuit, Recipe}
+  alias MediaCentarr.Acquisition.Pursuits.{Commands, Pursuit, Recipe, State}
   alias MediaCentarr.Repo
 
   @max_attempts 12
@@ -76,16 +76,33 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
       {nil, _} ->
         {:ok, :not_found}
 
-      {%Target{status: status}, _}
-      when status in ["acquired", "succeeded", "failed", "cancelled"] ->
-        {:ok, String.to_existing_atom(status)}
-
       {%Target{} = target, nil} ->
         Log.warning(:library, "pursue_target: target #{target.id} has no pursuit; failing")
         {:ok, _failed} = Repo.update(Target.failed_changeset(target, "orphan_target"))
         {:ok, :no_pursuit}
 
       {%Target{} = target, %Pursuit{} = pursuit} ->
+        dispatch(target, pursuit)
+    end
+  end
+
+  # Pursuit state is checked before target status: the pursuit is the
+  # authority. Never pursue on a terminal pursuit, even if the target
+  # row somehow survived as `seeking`. Defense in depth — the
+  # terminal-pursuit commands (`Satisfy` / `Exhaust` / `Cancel`)
+  # already cancel in-flight targets, which the target-status guard
+  # below also catches. This branch closes any remaining race window
+  # and any future code path that creates a target on a pursuit that's
+  # already terminal.
+  defp dispatch(%Target{} = target, %Pursuit{state: state} = pursuit) do
+    cond do
+      State.terminal?(state) ->
+        {:ok, :pursuit_terminal}
+
+      target.status in ["acquired", "succeeded", "failed", "cancelled"] ->
+        {:ok, String.to_existing_atom(target.status)}
+
+      true ->
         pursue(target, pursuit)
     end
   end
