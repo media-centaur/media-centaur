@@ -79,10 +79,7 @@ defmodule MediaCentarr.Acquisition do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition.{
-    AutoGrabPolicy,
     AutoGrabService,
-    AutoGrabSettings,
-    CancelReasons,
     Config,
     Prowlarr,
     QueryExpander,
@@ -96,8 +93,6 @@ defmodule MediaCentarr.Acquisition do
   alias MediaCentarr.Acquisition.Pursuits, as: PursuitsContext
 
   alias MediaCentarr.Downloads.DownloadClient.Dispatcher
-  alias MediaCentarr.Capabilities
-  alias MediaCentarr.Format
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
@@ -641,94 +636,6 @@ defmodule MediaCentarr.Acquisition do
 
   @doc "See `Acquisition.Targets.cancel_target/2`."
   defdelegate cancel_target(target_id, reason), to: Targets
-
-  # ---------------------------------------------------------------------------
-  # Reactor entrypoints — driven by `Acquisition.Reactor` from PubSub
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Processes a `{:release_ready, item, release}` event. Looks up any
-  existing pursuit, asks `AutoGrabPolicy.decide/3`, and applies the
-  resulting decision (enqueue / skip / cancel).
-  """
-  @spec handle_release_ready_event(struct(), struct()) :: :ok
-  def handle_release_ready_event(item, release) do
-    if auto_grab_running?() do
-      do_handle_release_ready_event(item, release)
-    end
-
-    :ok
-  end
-
-  defp do_handle_release_ready_event(item, release) do
-    settings = AutoGrabSettings.load()
-
-    tmdb_id = to_string(item.tmdb_id)
-    tmdb_type = ReleaseTracking.tmdb_type_for(item.media_type)
-
-    existing_pursuit =
-      PursuitsContext.find_by_tmdb_recipe(%{
-        tmdb_id: tmdb_id,
-        tmdb_type: tmdb_type,
-        season_number: release.season_number,
-        episode_number: release.episode_number
-      })
-
-    existing_target = existing_pursuit && PursuitsContext.current_target(existing_pursuit)
-    existing_status = existing_target && existing_target.status
-
-    effective_mode = AutoGrabSettings.effective_mode(item.auto_grab_mode, settings)
-
-    decision =
-      AutoGrabPolicy.decide(release.in_library, existing_status,
-        prowlarr_ready: Capabilities.prowlarr_ready?(),
-        mode: effective_mode
-      )
-
-    apply_decision(decision, item, release, settings, existing_target)
-    :ok
-  end
-
-  defp apply_decision(:enqueue, item, release, settings, _existing_target) do
-    case enqueue(
-           to_string(item.tmdb_id),
-           ReleaseTracking.tmdb_type_for(item.media_type),
-           item.name,
-           season_number: release.season_number,
-           episode_number: release.episode_number,
-           min_quality: AutoGrabSettings.effective_min_quality(item.min_quality, settings),
-           max_quality: AutoGrabSettings.effective_max_quality(item.max_quality, settings),
-           quality_4k_patience_hours:
-             AutoGrabSettings.effective_patience_hours(
-               item.quality_4k_patience_hours,
-               settings
-             )
-         ) do
-      {:ok, _target} ->
-        Log.info(:library, "auto-acquisition armed — #{item.name} #{describe_release(release)}")
-
-      {:error, reason} ->
-        Log.warning(:library, "auto-acquisition enqueue failed — #{inspect(reason)}")
-    end
-  end
-
-  defp apply_decision({:cancel, :user_disabled}, item, _release, _settings, existing_target) do
-    if existing_target do
-      cancel_target(existing_target.id, CancelReasons.user_disabled())
-      Log.info(:library, "auto-acquisition cancelled (user disabled) — #{item.name}")
-    end
-  end
-
-  defp apply_decision({:skip, :acquisition_unavailable}, item, _release, _settings, _target) do
-    Log.info(:library, "auto-acquisition skipped (prowlarr not ready) — #{item.name}")
-  end
-
-  defp apply_decision({:skip, :mode_off}, _item, _release, _settings, _target), do: :ok
-  defp apply_decision({:skip, :already_in_library}, _item, _release, _settings, _target), do: :ok
-  defp apply_decision({:skip, :already_active}, _item, _release, _settings, _target), do: :ok
-
-  defp describe_release(%{season_number: season, episode_number: episode}),
-    do: Format.episode_label(season, episode)
 
   @doc "See `Acquisition.Targets.cancel_active_targets_for/3`."
   defdelegate cancel_active_targets_for(tmdb_id, tmdb_type, reason), to: Targets
