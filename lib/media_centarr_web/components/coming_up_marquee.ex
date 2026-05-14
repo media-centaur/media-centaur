@@ -175,6 +175,17 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
       <%!-- Diagonal scrim — strongest at bottom-left where content sits, --%>
       <%!-- letting the artwork breathe on the top-right. Survives bright artwork. --%>
       <div class="absolute inset-0 bg-gradient-to-tr from-black/85 via-black/30 to-transparent"></div>
+      <%!-- Status badge floats top-right so the content stack stays the --%>
+      <%!-- same height whether or not the release has a status. --%>
+      <span
+        :if={@item.badge}
+        class={[
+          "absolute top-2 right-2 z-20 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded backdrop-blur-md",
+          badge_class(@item.badge.variant)
+        ]}
+      >
+        {@item.badge.label}
+      </span>
       <div class="relative z-10 px-4 pb-3 pt-4 max-w-[80%]">
         <div class="text-[10px] tracking-[0.22em] uppercase font-bold text-primary mb-1.5 truncate">
           {@item.eyebrow}
@@ -194,15 +205,6 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
         <div :if={@item.sub} class="text-xs text-white/70 truncate mt-1.5 tracking-wide">
           {@item.sub}
         </div>
-        <span
-          :if={@item.badge}
-          class={[
-            "inline-block mt-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded",
-            badge_class(@item.badge.variant)
-          ]}
-        >
-          {@item.badge.label}
-        </span>
       </div>
     </.tile_link>
     """
