@@ -153,7 +153,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
       assert length(events) == 1
     end
 
-    test "queue shows persistent zero-seeders past window → pursuit auto-cancelled" do
+    test "queue shows persistent zero-seeders past window → pursuit auto-pivoted" do
+      # Watcher dispatch wiring only — AutoCancelTest covers the full
+      # auto-pivot contract. Oban runs in manual mode so the
+      # freshly-enqueued PursueTarget doesn't immediately hit Prowlarr.
       release = "Sample.Movie.2024.2160p.UHD"
 
       pursuit =
@@ -165,7 +168,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
       set_current_target_release(pursuit, release)
       seed_queue([queue_item(release, state: :stalled, health: :frozen)])
 
-      assert :ok = Watcher.perform(%Oban.Job{args: %{}})
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        assert :ok = Watcher.perform(%Oban.Job{args: %{}})
+      end)
 
       events =
         Event
