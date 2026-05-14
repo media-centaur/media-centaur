@@ -45,9 +45,32 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitHeader do
       <div :if={@vm.criteria_summary} class="text-xs text-base-content/60">
         Criteria: {@vm.criteria_summary}
       </div>
+
+      <%!-- The literal Prowlarr query/queries this pursuit runs. Always
+            visible — "Searching Prowlarr" should never be abstract; the
+            user can compare these strings to what they'd paste into
+            Prowlarr by hand. For TMDB recipes this is the worker's
+            attempt sequence; for prowlarr_query recipes it is the
+            brace-expanded list (or the literal query when expansion
+            fails). --%>
+      <div :if={@vm.recipe.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
+        <div class="text-base-content/50">{search_label(@vm.recipe.search_queries)}</div>
+        <ul class="space-y-0.5">
+          <li
+            :for={query <- @vm.recipe.search_queries}
+            class="font-mono text-base-content/80 truncate"
+            title={query}
+          >
+            {query}
+          </li>
+        </ul>
+      </div>
     </header>
     """
   end
+
+  defp search_label([_]), do: "Search query"
+  defp search_label(_), do: "Search queries"
 
   # The heading text. For a Prowlarr-query pursuit, the manual query is
   # the human-meaningful identity; for everything else, `vm.title` is

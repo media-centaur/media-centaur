@@ -415,6 +415,26 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
     test "returns :not_found for missing pursuit" do
       assert {:error, :not_found} = Pursuits.header_for(Ecto.UUID.generate())
     end
+
+    test "movie recipe carries the Prowlarr search query with the year" do
+      pursuit = insert_pursuit(%{tmdb_type: "movie", title: "Sample Movie", year: 2010})
+
+      assert {:ok, %PursuitHeader{recipe: recipe}} = Pursuits.header_for(pursuit.id)
+      assert recipe.search_queries == ["Sample Movie 2010"]
+    end
+
+    test "TV episode recipe carries both attempt queries" do
+      pursuit =
+        insert_pursuit(%{
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 3
+        })
+
+      assert {:ok, %PursuitHeader{recipe: recipe}} = Pursuits.header_for(pursuit.id)
+      assert recipe.search_queries == ["Sample Show S01E03", "Sample Show Season 1"]
+    end
   end
 
   describe "timeline_for/1" do
@@ -443,6 +463,30 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       timeline = Pursuits.timeline_for(pursuit.id)
       assert timeline.pursuit_id == pursuit.id
       assert timeline.entries == []
+    end
+
+    test "search_started entries surface the literal query in the summary" do
+      pursuit = insert_pursuit()
+
+      create_pursuit_event(pursuit, "search_started", %{
+        payload: %{"query" => "Sample Show S01E03"}
+      })
+
+      timeline = Pursuits.timeline_for(pursuit.id)
+      [entry] = timeline.entries
+      assert entry.summary == "Searching Prowlarr — Sample Show S01E03"
+    end
+
+    test "release_no_match entries surface the literal query in the summary" do
+      pursuit = insert_pursuit()
+
+      create_pursuit_event(pursuit, "release_no_match", %{
+        payload: %{"query" => "Sample Show S01E03"}
+      })
+
+      timeline = Pursuits.timeline_for(pursuit.id)
+      [entry] = timeline.entries
+      assert entry.summary == "No acceptable release found — Sample Show S01E03"
     end
   end
 end

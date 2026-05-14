@@ -26,7 +26,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
             pursuit_id: "story-loading",
             prompt: "Download stalled for 24+ hours — pick an alternative release.",
             alternatives: [],
-            loading?: true
+            loading?: true,
+            search_queries: ["Sample Movie 2010"]
           },
           on_cancel: "noop"
         }
@@ -39,7 +40,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
             pursuit_id: "story-empty",
             prompt: "Download stalled for 24+ hours.",
             alternatives: [],
-            loading?: false
+            loading?: false,
+            search_queries: ["Sample Movie 2010"]
           },
           on_cancel: "noop"
         }
@@ -61,7 +63,8 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
                 seeders: 25
               )
             ],
-            loading?: false
+            loading?: false,
+            search_queries: ["Sample Movie 2010"]
           },
           on_cancel: "noop"
         }
@@ -73,6 +76,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
           vm: %DecisionCard{
             pursuit_id: "story-many",
             prompt: "Download stalled for 24+ hours — pick an alternative release.",
+            search_queries: ["Sample Show S01E03", "Sample Show Season 1"],
             alternatives: [
               alternative(
                 guid: "alt-uhd",

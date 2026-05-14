@@ -678,8 +678,11 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
           decision =
             case Pursuits.get(pursuit_id) do
-              {:ok, pursuit} -> build_decision(pursuit, nil)
-              _ -> %{card: nil, results_by_guid: %{}}
+              {:ok, pursuit} ->
+                build_decision(pursuit, Pursuits.header_from(pursuit).recipe.search_queries, nil)
+
+              _ ->
+                %{card: nil, results_by_guid: %{}}
             end
 
           send(parent, {:alternatives_refreshed, pursuit_id, decision})
@@ -882,7 +885,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         header = Pursuits.header_from(pursuit)
         status = Pursuits.status_from(pursuit)
         timeline = Pursuits.timeline_for(pursuit.id)
-        %{card: card, results_by_guid: results} = build_decision(pursuit, socket.assigns.pursuit_detail)
+
+        %{card: card, results_by_guid: results} =
+          build_decision(pursuit, header.recipe.search_queries, socket.assigns.pursuit_detail)
 
         assign(socket,
           pursuit_detail: %{
@@ -947,7 +952,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # `handle_event("pick_alternative", ...)` can pass the cached struct
   # straight to `Acquisition.pick_alternative/3`, skipping the otherwise
   # mandatory Prowlarr round-trip to look the result up by guid.
-  defp build_decision(%Pursuit{state: "needs_decision"} = pursuit, cached) do
+  defp build_decision(%Pursuit{state: "needs_decision"} = pursuit, search_queries, cached) do
     case cached do
       %{decision_card: %ViewModels.DecisionCard{pursuit_id: id} = vm, decision_results_by_guid: results}
       when id == pursuit.id ->
@@ -960,14 +965,15 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           pursuit_id: pursuit.id,
           prompt: @decision_prompt,
           alternatives: Enum.map(results, &search_result_to_alternative/1),
-          loading?: false
+          loading?: false,
+          search_queries: search_queries
         }
 
         %{card: card, results_by_guid: Map.new(results, &{&1.guid, &1})}
     end
   end
 
-  defp build_decision(_pursuit, _cached), do: %{card: nil, results_by_guid: %{}}
+  defp build_decision(_pursuit, _search_queries, _cached), do: %{card: nil, results_by_guid: %{}}
 
   defp search_result_to_alternative(result) do
     %Alternative{
