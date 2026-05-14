@@ -45,6 +45,8 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
   """
   use Oban.Worker, queue: :acquisition, unique: [period: 300, keys: [:target_id]]
 
+  import Ecto.Query
+
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition
@@ -56,10 +58,11 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
     QueryBuilder,
     Quality,
     Target,
+    TargetEvents,
     TitleMatcher
   }
 
-  alias MediaCentarr.Acquisition.Pursuits.{Commands, Pursuit}
+  alias MediaCentarr.Acquisition.Pursuits.{Commands, Pursuit, Recipe}
   alias MediaCentarr.Repo
 
   @max_attempts 12
@@ -69,39 +72,53 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"target_id" => target_id}}) do
-    case Repo.get(Target, target_id) do
-      nil ->
+    case load_target_with_pursuit(target_id) do
+      {nil, _} ->
         {:ok, :not_found}
 
-      %Target{status: status} when status in ["acquired", "succeeded", "failed", "cancelled"] ->
+      {%Target{status: status}, _}
+      when status in ["acquired", "succeeded", "failed", "cancelled"] ->
         {:ok, String.to_existing_atom(status)}
 
-      %Target{} = target ->
-        pursue(target)
-    end
-  end
-
-  defp pursue(%Target{} = target) do
-    case Repo.get(Pursuit, target.pursuit_id) do
-      %Pursuit{} = pursuit ->
-        Log.info(
-          :library,
-          "acquisition search — #{target.title} (attempt #{target.attempt_count + 1})"
-        )
-
-        bounds = effective_bounds(pursuit)
-
-        case search_until_match(target, pursuit, QueryBuilder.build(pursuit), bounds) do
-          {:ok, best} -> handle_found(target, pursuit, best)
-          {:needs_decision, _results} -> handle_needs_decision(target, pursuit)
-          {:no_match, outcome} -> handle_no_results(target, pursuit, outcome)
-          {:error, reason} -> handle_prowlarr_error(target, reason)
-        end
-
-      nil ->
+      {%Target{} = target, nil} ->
         Log.warning(:library, "pursue_target: target #{target.id} has no pursuit; failing")
         {:ok, _failed} = Repo.update(Target.failed_changeset(target, "orphan_target"))
         {:ok, :no_pursuit}
+
+      {%Target{} = target, %Pursuit{} = pursuit} ->
+        pursue(target, pursuit)
+    end
+  end
+
+  # One DB round-trip for both rows. Returns `{target_or_nil, pursuit_or_nil}`.
+  defp load_target_with_pursuit(target_id) do
+    query =
+      from(t in Target,
+        left_join: p in Pursuit,
+        on: p.id == t.pursuit_id,
+        where: t.id == ^target_id,
+        select: {t, p}
+      )
+
+    case Repo.one(query) do
+      nil -> {nil, nil}
+      pair -> pair
+    end
+  end
+
+  defp pursue(%Target{} = target, %Pursuit{} = pursuit) do
+    Log.info(
+      :library,
+      "acquisition search — #{target.title} (attempt #{target.attempt_count + 1})"
+    )
+
+    bounds = effective_bounds(pursuit)
+
+    case search_until_match(target, pursuit, QueryBuilder.build(pursuit), bounds) do
+      {:ok, best} -> handle_found(target, pursuit, best)
+      {:needs_decision, _results} -> handle_needs_decision(target, pursuit)
+      {:no_match, outcome} -> handle_no_results(target, pursuit, outcome)
+      {:error, reason} -> handle_prowlarr_error(target, reason)
     end
   end
 
@@ -173,23 +190,41 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
 
   defp rank(outcome), do: Map.get(@outcome_rank, outcome, 0)
 
+  # Single-pass classifier over Prowlarr results. Projects the pursuit's
+  # `%Recipe{}` once (instead of once per result) and folds the prior
+  # `reject |> filter |> filter |> sort_by` chain into one `reduce`. The
+  # outcome distinction "no_title_match" vs "no_acceptable_quality" is
+  # preserved by upgrading the outcome the first time we see a
+  # title-matching but quality-unacceptable result.
   defp best_match(results, pursuit, {min, max}) do
+    recipe = Recipe.from(pursuit)
     excluded = MapSet.new(pursuit.tried_release_guids || [])
-    not_excluded = Enum.reject(results, fn result -> MapSet.member?(excluded, result.guid) end)
-    matched = Enum.filter(not_excluded, &TitleMatcher.matches?(&1, pursuit))
 
-    if matched == [] do
-      {:none, "no_title_match"}
-    else
-      acceptable =
-        matched
-        |> Enum.filter(fn result -> Quality.acceptable?(result.quality, min, max) end)
-        |> Enum.sort_by(fn result -> Quality.rank(result.quality) end, :desc)
+    results
+    |> Enum.reduce({nil, "no_title_match"}, fn result, {best, outcome} = acc ->
+      cond do
+        MapSet.member?(excluded, result.guid) ->
+          acc
 
-      case acceptable do
-        [] -> {:none, "no_acceptable_quality"}
-        [best | _] -> {:found, best}
+        not TitleMatcher.matches?(result, recipe) ->
+          acc
+
+        not Quality.acceptable?(result.quality, min, max) ->
+          {best, "no_acceptable_quality"}
+
+        true ->
+          rank = Quality.rank(result.quality)
+
+          case best do
+            nil -> {{rank, result}, outcome}
+            {br, _} when rank > br -> {{rank, result}, outcome}
+            _ -> acc
+          end
       end
+    end)
+    |> case do
+      {nil, outcome} -> {:none, outcome}
+      {{_rank, result}, _outcome} -> {:found, result}
     end
   end
 
@@ -201,7 +236,7 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
         {:ok, updated} =
           Repo.update(Target.acquire_changeset(target, quality_label, result.title, result.guid))
 
-        broadcast({:target_acquired, updated})
+        broadcast(%TargetEvents.Acquired{target: updated})
         Log.info(:library, "acquisition acquired #{quality_label} — #{target.title}")
         {:ok, quality_label}
 
@@ -241,13 +276,13 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
 
     if updated.attempt_count >= @max_attempts do
       {:ok, failed} = Repo.update(Target.failed_changeset(updated, "exhausted"))
-      broadcast({:target_failed, failed})
+      broadcast(%TargetEvents.Failed{target: failed})
       Log.info(:library, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
       :ok
     else
       seconds = snooze_seconds(updated.attempt_count)
       {:ok, scheduled} = persist_next_attempt(updated, seconds)
-      broadcast({:target_snoozed, scheduled})
+      broadcast(%TargetEvents.Snoozed{target: scheduled})
 
       Log.info(
         :library,
@@ -267,7 +302,7 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
       |> Repo.update()
 
     {:ok, scheduled} = persist_next_attempt(updated, @prowlarr_error_snooze_seconds)
-    broadcast({:target_snoozed, scheduled})
+    broadcast(%TargetEvents.Snoozed{target: scheduled})
     {:snooze, @prowlarr_error_snooze_seconds}
   end
 

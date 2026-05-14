@@ -4,7 +4,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.Downloads.DownloadClient.QBittorrent
-  alias MediaCentarr.Acquisition.Prowlarr
+  alias MediaCentarr.Acquisition.{Prowlarr, Target, TargetEvents}
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Secret
 
@@ -535,14 +535,14 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   describe "debounce on acquisition PubSub events" do
     test "five rapid grab-event broadcasts trigger only one activity reload after the debounce window",
          %{conn: conn} do
-      # Regression guard: :target_picked and related events must be debounced
+      # Regression guard: TargetEvents and related events must be debounced
       # (500ms) rather than calling load_activity on every message. Five events
       # in quick succession must result in one :reload_activity — the page must
       # render correctly after the window without crashing.
       {:ok, view, _html} = live(conn, ~p"/download")
 
       for _ <- 1..5 do
-        send(view.pid, {:target_picked, %{}})
+        send(view.pid, %TargetEvents.Picked{target: %Target{}})
       end
 
       Process.sleep(600)

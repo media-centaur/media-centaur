@@ -76,6 +76,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   }
 
   alias MediaCentarr.Acquisition.Pursuits.Events, as: PursuitEvents
+  alias MediaCentarr.Acquisition.TargetEvents
   alias MediaCentarr.Acquisition.ViewModels
   alias MediaCentarr.Acquisition.ViewModels.{Alternative, PursuitWithDownload}
   alias MediaCentarr.Capabilities
@@ -767,40 +768,30 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, socket}
   end
 
-  # Acquisition PubSub events — refresh the History zone so terminal
-  # state transitions (target_failed → pursuit exhausted, etc.) appear
-  # without a manual reload.
-  def handle_info({event, _payload}, socket)
-      when event in [
-             :target_picked,
-             :target_acquired,
-             :target_armed,
-             :target_snoozed,
-             :target_failed,
-             :target_cancelled
-           ] do
-    {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
-  end
-
   def handle_info(:reload_history, socket) do
     {:noreply, load_history(socket)}
   end
 
-  # Typed pursuit-event structs ride the same `acquisition:updates` topic
-  # the legacy grab tuples use. Pattern-match on the namespace prefix and
-  # trigger a debounced pursuit-row refresh. When the open modal's
-  # pursuit is the subject of the event, also reload its detail so the
-  # modal stays in sync with the timeline / status.
+  # All `acquisition:updates` broadcasts are typed structs — either
+  # `Pursuits.Events.*` (persisted timeline events) or `TargetEvents.*`
+  # (transient lifecycle signals). TargetEvents trigger a History
+  # reload (terminal state transitions show up there);
+  # Pursuits.Events trigger a pursuit-row reload + modal sync.
   def handle_info(%struct{} = event, socket) do
-    if PursuitEvents.event?(struct) do
-      socket =
-        socket
-        |> debounce(:pursuits_reload_timer, :reload_pursuits, 500)
-        |> maybe_reload_modal_for_event(event)
+    cond do
+      TargetEvents.event?(struct) ->
+        {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
 
-      {:noreply, socket}
-    else
-      {:noreply, socket}
+      PursuitEvents.event?(struct) ->
+        socket =
+          socket
+          |> debounce(:pursuits_reload_timer, :reload_pursuits, 500)
+          |> maybe_reload_modal_for_event(event)
+
+        {:noreply, socket}
+
+      true ->
+        {:noreply, socket}
     end
   end
 
