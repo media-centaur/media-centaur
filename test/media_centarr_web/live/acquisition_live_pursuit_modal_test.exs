@@ -89,6 +89,68 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       assert html =~ "Pursuit not found"
     end
 
+    test "clicking a pursuit-group header expands the per-episode rows", %{conn: conn} do
+      # Regression: Phase 3 of pursuits-maturation re-keyed group buckets
+      # on `{title, state, awaiting?}` (so awaiting-decision pursuits
+      # bucket separately), but the `PursuitGroup` component and the
+      # `toggle_pursuit_group` handler still only carried `{title, state}`
+      # — `MapSet.member?(expanded, {title, state, awaiting?})` never
+      # matched what the handler stored, so clicking the header silently
+      # toggled the MapSet without ever flipping `expanded?: true` on
+      # render. End-to-end click pins the wire contract.
+      now = DateTime.utc_now(:second)
+
+      Enum.each(1..2, fn episode ->
+        {:ok, pursuit} =
+          %MediaCentarr.Acquisition.Pursuits.Pursuit{}
+          |> Ecto.Changeset.change(%{
+            recipe_type: "tmdb",
+            tmdb_id: "group-#{episode}",
+            tmdb_type: "tv",
+            title: "Sample Show",
+            season_number: 1,
+            episode_number: episode,
+            origin: "auto",
+            state: "active",
+            inserted_at: now,
+            updated_at: now
+          })
+          |> Repo.insert()
+
+        {:ok, _target} =
+          %MediaCentarr.Acquisition.Target{}
+          |> Ecto.Changeset.change(%{
+            pursuit_id: pursuit.id,
+            title: pursuit.title,
+            status: "seeking",
+            origin: pursuit.origin,
+            inserted_at: now,
+            updated_at: now
+          })
+          |> Repo.insert()
+      end)
+
+      {:ok, view, html} = live(conn, "/download")
+
+      # The group renders collapsed by default — header visible, no
+      # child rows yet. (The chevron is the only signal in the
+      # snapshot; expanded? false means hero-chevron-right-mini.)
+      assert html =~ "Sample Show"
+      assert html =~ "2 episodes"
+      assert html =~ "hero-chevron-right-mini"
+      refute html =~ "hero-chevron-down-mini"
+
+      # Click the actual rendered header — this exercises whatever
+      # `phx-value-*` attrs the component emits, not a hand-crafted
+      # event payload.
+      expanded_html =
+        view
+        |> element("[phx-click='toggle_pursuit_group']")
+        |> render_click()
+
+      assert expanded_html =~ "hero-chevron-down-mini"
+    end
+
     test "awaiting-decision modal opens without blocking on Prowlarr (ADR-044)", %{conn: conn} do
       # Regression: before ADR-044, the modal-open path issued a
       # synchronous Prowlarr search to populate the decision card —

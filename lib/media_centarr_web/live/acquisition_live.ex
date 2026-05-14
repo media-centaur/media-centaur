@@ -537,9 +537,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, socket |> assign(history_search: search) |> load_history()}
   end
 
-  # Group expand/collapse. Toggles membership of `{title, state}` in
-  # the socket-local `expanded_pursuit_groups` MapSet — same convention
-  # the entity modal uses for its expanded_seasons set.
+  # Group expand/collapse. Toggles membership of
+  # `{title, state, awaiting?}` in the socket-local
+  # `expanded_pursuit_groups` MapSet. The 3-tuple matches the bucket key
+  # `Logic.group_pursuit_rows/2` uses to separate awaiting-decision
+  # pursuits from regular active ones — same `{title, state}` pair can
+  # appear in two distinct buckets, so the expanded set must
+  # discriminate.
   #
   # `String.to_existing_atom/1` is safe here because the only emitter is
   # the `PursuitGroup` component, which renders `Atom.to_string(state)`
@@ -547,8 +551,12 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # falls through to ArgumentError, which we let crash the event —
   # there's no graceful render for "user fabricated a state we don't
   # know about".
-  def handle_event("toggle_pursuit_group", %{"title" => title, "state" => state}, socket) do
-    key = {title, String.to_existing_atom(state)}
+  def handle_event(
+        "toggle_pursuit_group",
+        %{"title" => title, "state" => state, "awaiting" => awaiting},
+        socket
+      ) do
+    key = {title, String.to_existing_atom(state), awaiting == "true"}
     expanded = socket.assigns.expanded_pursuit_groups
 
     next =
@@ -1125,6 +1133,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           <PursuitGroup.pursuit_group
             title={data.title}
             state={data.state}
+            awaiting?={data.awaiting?}
             count={data.count}
             verb={data.verb}
             severity={data.severity}

@@ -28,6 +28,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitGroup do
 
   attr :title, :string, required: true
   attr :state, :atom, required: true
+  attr :awaiting?, :boolean, required: true
   attr :count, :integer, required: true
   attr :verb, :string, required: true
   attr :severity, :atom, required: true, values: [:info, :success, :warning, :error]
@@ -49,6 +50,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitGroup do
         phx-click="toggle_pursuit_group"
         phx-value-title={@title}
         phx-value-state={Atom.to_string(@state)}
+        phx-value-awaiting={to_string(@awaiting?)}
       >
         <.icon
           name={if @expanded?, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}

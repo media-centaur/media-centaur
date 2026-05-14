@@ -445,6 +445,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   @type pursuit_group_data :: %{
           title: String.t(),
           state: atom(),
+          awaiting?: boolean(),
           verb: String.t(),
           severity: atom(),
           count: pos_integer(),
@@ -491,12 +492,13 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
           {:single, single}
 
         [first | _] = many ->
-          {title, state, _awaiting?} = key
+          {title, state, awaiting?} = key
 
           {:group,
            %{
              title: title,
              state: state,
+             awaiting?: awaiting?,
              verb: first.status.verb,
              severity: first.status.severity,
              count: length(many),
