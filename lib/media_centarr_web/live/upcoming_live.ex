@@ -14,21 +14,9 @@ defmodule MediaCentarrWeb.UpcomingLive do
   use MediaCentarrWeb, :live_view
 
   alias MediaCentarr.{Acquisition, Capabilities, ReleaseTracking}
+  alias MediaCentarr.Acquisition.TargetEvents
   alias MediaCentarrWeb.Components.{TrackModal, UpcomingCards}
   alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
-
-  # Acquisition events that only invalidate target statuses — not the
-  # underlying release / image / tracked-item data. Routing them to a
-  # dedicated reloader keeps the page from rebuilding the full upcoming
-  # model on every target tick.
-  @grab_status_events [
-    :target_picked,
-    :target_acquired,
-    :target_armed,
-    :target_snoozed,
-    :target_failed,
-    :target_cancelled
-  ]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -368,8 +356,16 @@ defmodule MediaCentarrWeb.UpcomingLive do
     {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
   end
 
-  def handle_info({event, _payload}, socket) when event in @grab_status_events do
-    {:noreply, debounce(socket, :grab_statuses_timer, :reload_grab_statuses, 500)}
+  # Target lifecycle signals only invalidate the per-release acquisition
+  # status decoration — not the underlying release / image / tracked-item
+  # data. Routing them to a dedicated reloader keeps the page from
+  # rebuilding the full upcoming model on every target tick.
+  def handle_info(%struct{}, socket) do
+    if TargetEvents.event?(struct) do
+      {:noreply, debounce(socket, :grab_statuses_timer, :reload_grab_statuses, 500)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(:reload_grab_statuses, socket) do
@@ -402,8 +398,8 @@ defmodule MediaCentarrWeb.UpcomingLive do
   # linked, watching toggled, etc). Of the five upcoming-page assigns, only
   # `tracked_items` derives from Library state — releases, events, images, and
   # grab statuses all come from ReleaseTracking / Acquisition and arrive via
-  # their own broadcasts (`:releases_updated`, `@grab_status_events`). So we
-  # only refresh the one assign that's actually affected.
+  # their own broadcasts (`:releases_updated`, `Acquisition.TargetEvents.*`).
+  # So we only refresh the one assign that's actually affected.
   def handle_info({:entities_changed, %{entity_ids: _entity_ids}}, socket) do
     {:noreply, debounce(socket, :tracked_items_timer, :reload_tracked_items, 500)}
   end

@@ -92,33 +92,64 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ArmAll do
   def statuses_for_releases([]), do: %{}
 
   def statuses_for_releases(keys) when is_list(keys) do
-    {tmdb_ids, tmdb_types} =
-      keys
-      |> Enum.map(fn {id, type, _, _} -> {id, type} end)
-      |> Enum.unzip()
-
-    tmdb_ids = Enum.uniq(tmdb_ids)
-    tmdb_types = Enum.uniq(tmdb_types)
+    # SQL-side tuple filter: build an OR-chain of exact-tuple matches so
+    # the DB returns only requested rows. Prior implementation widened
+    # the WHERE to `tmdb_id in ^ids and tmdb_type in ^types`, then
+    # dropped non-requested tuples in BEAM — a wasted round-trip when a
+    # series has many pursuits but only a few requested episodes.
+    predicate =
+      Enum.reduce(keys, dynamic(false), fn key, acc ->
+        dynamic([p], ^acc or ^key_predicate(key))
+      end)
 
     pursuits =
-      Repo.all(
-        from(p in Pursuit,
-          where: p.recipe_type == "tmdb" and p.tmdb_id in ^tmdb_ids and p.tmdb_type in ^tmdb_types
-        )
-      )
+      Pursuit
+      |> where([p], p.recipe_type == "tmdb")
+      |> where(^predicate)
+      |> Repo.all()
 
-    target_ids = Enum.reject(Enum.map(pursuits, & &1.current_target_id), &is_nil/1)
+    target_ids = pursuits |> Enum.map(& &1.current_target_id) |> Enum.reject(&is_nil/1)
     targets_by_id = targets_by_id(target_ids)
-    requested = MapSet.new(keys)
 
-    pursuits
-    |> Enum.map(fn pursuit ->
+    Map.new(pursuits, fn pursuit ->
       key = {pursuit.tmdb_id, pursuit.tmdb_type, pursuit.season_number, pursuit.episode_number}
       target = Map.get(targets_by_id, pursuit.current_target_id)
       {key, {pursuit, target}}
     end)
-    |> Enum.filter(fn {key, _} -> MapSet.member?(requested, key) end)
-    |> Map.new()
+  end
+
+  # One dynamic per nil/non-nil shape so Ecto sees only top-level
+  # `^interpolation`s in the outer `dynamic`.
+  defp key_predicate({id, type, nil, nil}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        is_nil(p.season_number) and is_nil(p.episode_number)
+    )
+  end
+
+  defp key_predicate({id, type, season, nil}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        p.season_number == ^season and is_nil(p.episode_number)
+    )
+  end
+
+  defp key_predicate({id, type, nil, episode}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        is_nil(p.season_number) and p.episode_number == ^episode
+    )
+  end
+
+  defp key_predicate({id, type, season, episode}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        p.season_number == ^season and p.episode_number == ^episode
+    )
   end
 
   defp targets_by_id([]), do: %{}
