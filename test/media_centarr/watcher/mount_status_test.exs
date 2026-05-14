@@ -25,10 +25,27 @@ defmodule MediaCentarr.Watcher.MountStatusTest do
       assert MountStatus.action(:watching, {8, 1}, {9, 1}) == :reinit_remount
     end
 
-    test "no prior device id (defensive) → keep_watching" do
-      # Should not happen in production — :start_watching always captures
-      # the device id on success — but if it ever does, don't churn.
-      assert MountStatus.action(:watching, nil, {8, 17}) == :keep_watching
+    test "no prior device id, device appeared (cold-boot mount race) → reinit_remount" do
+      # Cold boot: the watcher attached to the path before the underlying
+      # filesystem was mounted (eg. ~/videos/media-library symlinked to a
+      # not-yet-mounted /mnt/videos). FileSystem.start_link returned :ok
+      # but read_device_id returned nil because the symlink was dangling.
+      # The health check now sees a non-nil device id — re-init so we
+      # attach to the live mount instead of sitting on a dead inotifywait.
+      assert MountStatus.action(:watching, nil, {8, 17}) == :reinit_remount
+    end
+  end
+
+  describe "interval/1" do
+    test "device id nil → fast polling (mount race recovery)" do
+      # While we have no device id we're either pre-mount or the drive is
+      # gone; either way, poll aggressively so we catch the mount within
+      # a couple of seconds rather than the steady-state cadence.
+      assert MountStatus.interval(nil) == 2_000
+    end
+
+    test "device id present → steady-state polling" do
+      assert MountStatus.interval({8, 17}) == 30_000
     end
   end
 

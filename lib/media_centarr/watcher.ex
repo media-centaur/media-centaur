@@ -70,7 +70,6 @@ defmodule MediaCentarr.Watcher do
   alias MediaCentarr.Watcher.VideoFile
   alias MediaCentarr.Watcher.Walk
 
-  @health_check_interval 30_000
   @size_stability_interval 5_000
   @size_stability_checks 2
   @deletion_debounce_ms 3_000
@@ -177,22 +176,7 @@ defmodule MediaCentarr.Watcher do
 
     case FileSystem.start_link(dirs: [state.dir], recursive: true) do
       {:ok, pid} ->
-        FileSystem.subscribe(pid)
-        Log.info(:watcher, "started watching #{state.dir}")
-        schedule_health_check()
-        broadcast_state(state.dir, :watching)
-
-        # Always scan on startup to catch files added while we were down (ADR-023)
-        send(self(), {:auto_scan, recovery: state.was_unavailable})
-
-        {:noreply,
-         %{
-           state
-           | watcher_pid: pid,
-             state: :watching,
-             was_unavailable: false,
-             device_id: read_device_id(state.dir)
-         }}
+        start_or_recover(state, pid)
 
       {:error, reason} ->
         Log.warning(
@@ -200,13 +184,13 @@ defmodule MediaCentarr.Watcher do
           "could not start file_system watcher for #{state.dir}: #{inspect(reason)}"
         )
 
-        schedule_health_check()
+        schedule_health_check(nil)
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
 
       :ignore ->
         Log.warning(:watcher, "watcher unavailable — inotify-tools missing?")
-        schedule_health_check()
+        schedule_health_check(nil)
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
     end
@@ -261,11 +245,11 @@ defmodule MediaCentarr.Watcher do
 
     case MountStatus.action(state.state, state.device_id, current_device_id) do
       :keep_watching ->
-        schedule_health_check()
+        schedule_health_check(state.device_id)
         {:noreply, state}
 
       :keep_unavailable ->
-        schedule_health_check()
+        schedule_health_check(nil)
         {:noreply, state}
 
       :reinit_restored ->
@@ -281,7 +265,7 @@ defmodule MediaCentarr.Watcher do
       :transition_unavailable ->
         Log.warning(:watcher, "directory inaccessible — #{state.dir}")
         broadcast_state(state.dir, :unavailable)
-        schedule_health_check()
+        schedule_health_check(nil)
         {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
     end
   end
@@ -320,6 +304,50 @@ defmodule MediaCentarr.Watcher do
   def terminate(_reason, state) do
     flush_deletions(state, "flushed #{deletion_count(state)} buffered deletions — shutdown")
     :ok
+  end
+
+  # FileSystem.start_link returns :ok even when the underlying inotifywait
+  # subprocess can't actually attach (path doesn't exist, eg. a symlink to
+  # a not-yet-mounted volume during the boot-time race). When that happens
+  # File.stat on the path returns :enoent and read_device_id/1 → nil. Treat
+  # nil device_id the same as a hard failure: tear down the dead watcher
+  # and stay in :unavailable so the fast health-check loop reconciles once
+  # the mount appears, rather than silently sitting on a deaf inotify pid.
+  defp start_or_recover(state, pid) do
+    case read_device_id(state.dir) do
+      nil ->
+        Process.unlink(pid)
+        Process.exit(pid, :shutdown)
+
+        Log.warning(
+          :watcher,
+          "watch path not accessible — #{state.dir} (waiting for mount)"
+        )
+
+        schedule_health_check(nil)
+        broadcast_state(state.dir, :unavailable)
+
+        {:noreply,
+         %{state | watcher_pid: nil, state: :unavailable, was_unavailable: true, device_id: nil}}
+
+      device_id ->
+        FileSystem.subscribe(pid)
+        Log.info(:watcher, "started watching #{state.dir}")
+        schedule_health_check(device_id)
+        broadcast_state(state.dir, :watching)
+
+        # Always scan on startup to catch files added while we were down (ADR-023)
+        send(self(), {:auto_scan, recovery: state.was_unavailable})
+
+        {:noreply,
+         %{
+           state
+           | watcher_pid: pid,
+             state: :watching,
+             was_unavailable: false,
+             device_id: device_id
+         }}
+    end
   end
 
   defp deletion_count(state), do: state.deletion_buffer |> DeletionBuffer.paths() |> length()
@@ -444,8 +472,8 @@ defmodule MediaCentarr.Watcher do
     :ok
   end
 
-  defp schedule_health_check do
-    Process.send_after(self(), :health_check, @health_check_interval)
+  defp schedule_health_check(device_id) do
+    Process.send_after(self(), :health_check, MountStatus.interval(device_id))
   end
 
   defp read_device_id(path) do
