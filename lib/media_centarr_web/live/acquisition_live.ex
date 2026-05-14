@@ -799,6 +799,31 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, load_pursuit_rows(socket)}
   end
 
+  # Result of the background "fetch alternatives on modal open" task
+  # spawned from `enqueue_alternatives_fetch/1`. The modal is already
+  # rendered with `loading?: true`; this swaps in the real card. Drops
+  # the result if the user has closed the modal or selected another
+  # pursuit while the search was in flight. Distinct from
+  # `:alternatives_refreshed` because the initial-open path does not
+  # flash on empty results — an empty card with the "Search Prowlarr
+  # again" CTA is already self-explanatory.
+  def handle_info({:alternatives_loaded, pursuit_id, decision}, socket) do
+    case socket.assigns do
+      %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
+        {:noreply,
+         assign(socket,
+           pursuit_detail: %{
+             detail
+             | decision_card: decision.card,
+               decision_results_by_guid: decision.results_by_guid
+           }
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   # Result of the background "Search Prowlarr again" task. Verifies the
   # modal is still on the same pursuit before applying — the user may
   # have closed the modal or selected another pursuit while the search
@@ -872,13 +897,22 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       {:ok, %Pursuit{} = pursuit} ->
         # One DB read for the pursuit; reuse the struct for the header
         # and status assemblers (was previously three separate Repo.gets
-        # of the same row — see audit M2).
+        # of the same row — see audit M2). DB-only work below; the
+        # Prowlarr decision-card fetch is dispatched off-process so the
+        # modal opens in <5 ms regardless of indexer latency
+        # (ADR-044).
         header = Pursuits.header_from(pursuit)
         status = Pursuits.status_from(pursuit)
         timeline = Pursuits.timeline_for(pursuit.id)
 
-        %{card: card, results_by_guid: results} =
-          build_decision(pursuit, header.recipe.search_queries, socket.assigns.pursuit_detail)
+        {card, results_by_guid, needs_fetch?} =
+          decision_card_or_placeholder(
+            pursuit,
+            header.recipe.search_queries,
+            socket.assigns.pursuit_detail
+          )
+
+        if needs_fetch?, do: enqueue_alternatives_fetch(pursuit.id)
 
         assign(socket,
           pursuit_detail: %{
@@ -886,7 +920,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             status: status,
             timeline: timeline,
             decision_card: card,
-            decision_results_by_guid: results,
+            decision_results_by_guid: results_by_guid,
             not_found?: false
           }
         )
@@ -903,6 +937,71 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           }
         )
     end
+  end
+
+  # Three-tuple decision for the modal-open path:
+  #
+  #   * `{cached_card, cached_results, false}` — pursuit is awaiting
+  #     decision and we already have alternatives for it in socket
+  #     state (a PubSub-driven `maybe_reload_modal_for_event/2` reload
+  #     while the modal is open). Reuse them to avoid a redundant
+  #     Prowlarr round-trip on every event burst.
+  #   * `{loading_card, %{}, true}` — pursuit is awaiting decision and
+  #     this is a first open (or the user pivoted to a different
+  #     pursuit). Render the card immediately in its `loading?: true`
+  #     state and dispatch the Prowlarr fetch as a Task; the result
+  #     lands on the `{:alternatives_loaded, _, _}` handle_info clause
+  #     below.
+  #   * `{nil, %{}, false}` — pursuit is not awaiting decision; no card.
+  defp decision_card_or_placeholder(
+         %Pursuit{awaiting_decision_at: %DateTime{}} = pursuit,
+         queries,
+         cached
+       ) do
+    case cached do
+      %{
+        decision_card: %ViewModels.DecisionCard{pursuit_id: id, loading?: false} = vm,
+        decision_results_by_guid: results
+      }
+      when id == pursuit.id ->
+        {vm, results, false}
+
+      _ ->
+        loading = %ViewModels.DecisionCard{
+          pursuit_id: pursuit.id,
+          prompt: @decision_prompt,
+          alternatives: [],
+          loading?: true,
+          search_queries: queries
+        }
+
+        {loading, %{}, true}
+    end
+  end
+
+  defp decision_card_or_placeholder(_pursuit, _queries, _cached), do: {nil, %{}, false}
+
+  # Spawned off the LV process so the WebSocket message handler returns
+  # immediately. The task `send`s its result back as
+  # `{:alternatives_loaded, pursuit_id, decision}`; the LV's
+  # `handle_info/2` clause below ignores the message if the user has
+  # closed the modal or selected a different pursuit in the meantime.
+  defp enqueue_alternatives_fetch(pursuit_id) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      decision =
+        case Pursuits.get(pursuit_id) do
+          {:ok, pursuit} ->
+            queries = Pursuits.header_from(pursuit).recipe.search_queries
+            build_decision(pursuit, queries, nil)
+
+          _ ->
+            %{card: nil, results_by_guid: %{}}
+        end
+
+      send(parent, {:alternatives_loaded, pursuit_id, decision})
+    end)
   end
 
   # Cheap refresh — re-derives only the queue-dependent fields against
