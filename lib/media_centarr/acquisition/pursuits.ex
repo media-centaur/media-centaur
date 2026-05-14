@@ -311,6 +311,35 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   def current_target(%Pursuit{current_target_id: id}), do: Repo.get(Target, id)
 
   @doc """
+  Idempotency lookup — exact match on a pursuit's TMDB recipe tuple,
+  regardless of pursuit state. Returns one pursuit or nil.
+
+  Unlike `find_active_for_target/1`, this is "exact" — a `season_number: nil`
+  match-arg only matches pursuits with `season_number IS NULL`. Used by
+  `Acquisition` to find-or-create pursuits on the auto-acquisition path
+  where re-using an existing (possibly terminal) row is the desired
+  idempotency.
+
+  Requires `tmdb_id` and `tmdb_type` in the target map; `season_number`
+  and `episode_number` are optional (nil → matches NULL exactly).
+  """
+  @spec find_by_tmdb_recipe(map()) :: Pursuit.t() | nil
+  def find_by_tmdb_recipe(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type} = target)
+      when is_binary(tmdb_id) and is_binary(tmdb_type) do
+    season = Map.get(target, :season_number)
+    episode = Map.get(target, :episode_number)
+
+    Pursuit
+    |> where([p], p.recipe_type == "tmdb" and p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
+    |> exact_match(:season_number, season)
+    |> exact_match(:episode_number, episode)
+    |> Repo.one()
+  end
+
+  defp exact_match(query, field, nil), do: where(query, [p], is_nil(field(p, ^field)))
+  defp exact_match(query, field, value), do: where(query, [p], field(p, ^field) == ^value)
+
+  @doc """
   Returns the most recently inserted target linked to a pursuit
   (regardless of which is the pursuit's `current_target_id` — useful
   for history queries that want "the latest attempt").
