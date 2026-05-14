@@ -130,6 +130,37 @@ defmodule MediaCentarr.Acquisition.Pursuits.WatcherTest do
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
     end
 
+    test "library reconciler runs each tick — pursuit whose file is already on disk gets satisfied" do
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 3,
+        content_url: "/library/Sample.Show.S01E03.mkv"
+      })
+
+      pursuit =
+        insert_pursuit(%{
+          tmdb_id: "246810",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 3
+        })
+
+      assert :ok = Watcher.perform(%Oban.Job{args: %{}})
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+
+      satisfied_events =
+        Event
+        |> Ecto.Query.where(pursuit_id: ^pursuit.id, kind: "pursuit_satisfied")
+        |> Repo.all()
+
+      assert length(satisfied_events) == 1
+    end
+
     test "queue shows persistent stall past window → pursuit awaiting_decision_at set" do
       release = "Sample.Movie.2024.1080p.WEB-DL"
 

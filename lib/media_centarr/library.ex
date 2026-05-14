@@ -474,6 +474,54 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
+  Returns `{:ok, content_url}` if the library has a movie with this
+  TMDB id whose file has been ingested (`content_url` is set), otherwise
+  `:not_found`. Used by `Acquisition.Pursuits.LibraryReconciler` as the
+  safety-net check against the PubSub-driven completion path.
+  """
+  @spec find_present_movie(String.t()) :: {:ok, String.t()} | :not_found
+  def find_present_movie(tmdb_id) when is_binary(tmdb_id) do
+    case Repo.one(
+           from(m in Movie,
+             where: m.tmdb_id == ^tmdb_id and not is_nil(m.content_url),
+             select: m.content_url,
+             limit: 1
+           )
+         ) do
+      nil -> :not_found
+      url -> {:ok, url}
+    end
+  end
+
+  @doc """
+  Returns `{:ok, content_url}` if the library has an episode for the
+  given `(tmdb_id, season_number, episode_number)` tuple whose file has
+  been ingested, otherwise `:not_found`. Joins through TVSeries → Season
+  → Episode in a single query.
+  """
+  @spec find_present_episode(String.t(), integer(), integer()) ::
+          {:ok, String.t()} | :not_found
+  def find_present_episode(tmdb_id, season_number, episode_number)
+      when is_binary(tmdb_id) and is_integer(season_number) and is_integer(episode_number) do
+    case Repo.one(
+           from(e in Episode,
+             join: s in Season,
+             on: s.id == e.season_id,
+             join: t in TVSeries,
+             on: t.id == s.tv_series_id,
+             where:
+               t.tmdb_id == ^tmdb_id and s.season_number == ^season_number and
+                 e.episode_number == ^episode_number and not is_nil(e.content_url),
+             select: e.content_url,
+             limit: 1
+           )
+         ) do
+      nil -> :not_found
+      url -> {:ok, url}
+    end
+  end
+
+  @doc """
   Returns `{tv_series_id, tmdb_id}` pairs for TV series in the given
   list whose `tmdb_id` is set.
   """
