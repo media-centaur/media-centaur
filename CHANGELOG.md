@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.5 — 2026-05-14
+
+### Fixed
+
+Pursuits no longer get stuck "active" after the file they were chasing
+has already been added to your library. The completion path now has a
+safety net — once every fifteen minutes, Media Centarr checks each
+active pursuit against the library and closes it out if the matching
+episode or movie is already on disk. The fast path (close the pursuit
+the moment the file lands) is unchanged; this just catches the rare
+cases where that notification was missed.
+
 ## v0.61.4 — 2026-05-14
 
 ### Improved
