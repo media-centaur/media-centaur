@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.3 — 2026-05-14
+
+### Fixed
+
+Pursuits for a specific episode no longer pull in noisy results from a
+too-broad "Season N" fallback search. Previously, if the
+episode-specific search came up empty, Media Centarr would widen to a
+"Show Season 2" query — which returned a pile of unrelated
+season-tagged releases and made the detail view's query list
+contradict its own header ("TV • S02E02" at the top, but a "Season 2"
+query sat right below it). Episode pursuits now search only for the
+specific episode. If you want a season pack to be acceptable, create a
+season-level pursuit — those still search both forms as designed.
+
 ## v0.61.2 — 2026-05-14
 
 ### Fixed
