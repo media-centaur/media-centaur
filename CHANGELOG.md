@@ -4,6 +4,43 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.0 — 2026-05-14
+
+### Fixed
+
+Pursuits no longer go silently dead after Media Centarr cancels a
+torrent that's been sitting at zero seeders. Previously, when the
+system decided a release was unsalvageable and cancelled it for you,
+the pursuit could end up with no active target and just sit there —
+you'd only notice by opening the pursuit and seeing it had nothing
+running. The dead release now cancels AND a fresh search starts
+automatically for a different release of the same episode or movie,
+so pursuits keep chasing on their own until they succeed, exhaust
+their attempts, or you cancel them yourself.
+
+When a download finishes while a pursuit's decision card is open and
+waiting on your pick, the pursuit now picks the landed file up
+automatically instead of leaving the "pick a release" prompt hanging
+until you click through it.
+
+Picking an alternative release from a pursuit's decision card now
+refreshes the pursuit modal immediately. Previously the modal sat
+showing stale information after you picked, so it looked like nothing
+had happened until you closed and reopened it.
+
+Manual searches no longer add two phantom entries ("user decision
+recorded", "fallback initiated") to the pursuit's timeline before
+the actual pick. The timeline now shows a single, clean event for
+each manual pick.
+
+### Migration
+
+This release applies one database migration on first launch that adds
+an `awaiting_decision_at` column to the pursuits table and converts
+existing "needs decision" pursuits to use it. The backfill is
+idempotent and reversible, and the in-app updater handles the upgrade
+— nothing for you to do.
+
 ## v0.60.2 — 2026-05-14
 
 ### Improved
