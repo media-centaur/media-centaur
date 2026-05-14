@@ -52,6 +52,12 @@ defmodule MediaCentarr.Acquisition.TargetStatus do
   @terminal_success_strings ~w(acquired succeeded)
   @terminal_failure_strings ~w(failed cancelled)
   @rearmable_strings ~w(acquired failed cancelled)
+  # "Cancel command can still flip this row" — `seeking` (worker
+  # alive) and `acquired` (Prowlarr accepted, download in progress).
+  # Excludes `succeeded` (file landed; nothing to cancel) and the
+  # `:terminal_failure` rows (already gone). Wider than `in_flight`
+  # because zero-seeders fires on `acquired` torrents.
+  @cancellable_strings ~w(seeking acquired)
   @terminal_strings @terminal_success_strings ++ @terminal_failure_strings
   @all_strings @in_flight_strings ++ @terminal_strings
 
@@ -77,6 +83,15 @@ defmodule MediaCentarr.Acquisition.TargetStatus do
   @doc "Statuses that `Acquisition.rearm_target/1` will revive into `seeking`."
   @spec rearmable() :: [String.t()]
   def rearmable, do: @rearmable_strings
+
+  @doc """
+  Statuses where a cancel command should flip the row to `cancelled` —
+  `seeking` (worker alive) and `acquired` (Prowlarr accepted, download
+  in progress). Excludes `succeeded` (file already landed) and the
+  terminal-failure rows (already gone).
+  """
+  @spec cancellable() :: [String.t()]
+  def cancellable, do: @cancellable_strings
 
   @spec in_flight?(String.t() | atom()) :: boolean()
   def in_flight?(status), do: normalize(status) in @in_flight_strings
