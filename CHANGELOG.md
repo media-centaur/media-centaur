@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.7 — 2026-05-15
+
+### Fixed
+
+Media Centarr no longer downloads a second copy of a movie after the
+first copy has already landed. When a pursuit completed, snoozed
+acquisition jobs for the same movie could wake hours later and grab a
+different release — leaving you with two copies of the same film. The
+pursuit now closes out all related acquisition work the moment a file
+lands, so duplicate downloads stop at the seam.
+
 ## v0.61.6 — 2026-05-15
 
 ### Fixed
