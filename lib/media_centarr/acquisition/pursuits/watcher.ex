@@ -21,7 +21,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Watcher do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition.Pursuits
-  alias MediaCentarr.Acquisition.Pursuits.{Observations, Policy, Snapshots}
+  alias MediaCentarr.Acquisition.Pursuits.{LibraryReconciler, Observations, Policy, Snapshots}
 
   alias MediaCentarr.Acquisition.Pursuits.Commands.{
     AutoCancel,
@@ -53,6 +53,11 @@ defmodule MediaCentarr.Acquisition.Pursuits.Watcher do
       |> Policy.evaluate()
       |> dispatch(refreshed)
     end)
+
+    # Safety-net for the PubSub-driven completion path — closes
+    # pursuits whose file is already in the library but never got
+    # picked up by `InboundListener` → `IdentityVerifier` → `Satisfy`.
+    LibraryReconciler.reconcile_active()
 
     :ok
   end
