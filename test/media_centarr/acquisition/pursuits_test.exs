@@ -494,7 +494,7 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
       assert recipe.search_queries == ["Sample Movie 2010"]
     end
 
-    test "TV episode recipe carries both attempt queries" do
+    test "TV episode recipe carries the episode-specific query only" do
       pursuit =
         insert_pursuit(%{
           tmdb_type: "tv",
@@ -504,7 +504,7 @@ defmodule MediaCentarr.Acquisition.PursuitsTest do
         })
 
       assert {:ok, %PursuitHeader{recipe: recipe}} = Pursuits.header_for(pursuit.id)
-      assert recipe.search_queries == ["Sample Show S01E03", "Sample Show Season 1"]
+      assert recipe.search_queries == ["Sample Show S01E03"]
     end
   end
 

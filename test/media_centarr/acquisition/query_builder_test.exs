@@ -39,7 +39,7 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
   end
 
   describe "build/1 — TV episode" do
-    test "primary query is 'Title SxxExx', fallback is the season pack" do
+    test "emits a single 'Title SxxExx' query — no season-pack fallback" do
       pursuit = %Pursuit{
         recipe_type: "tmdb",
         tmdb_type: "tv",
@@ -48,13 +48,8 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
         episode_number: 4
       }
 
-      assert [
-               {"Sample Show S03E04", primary_opts},
-               {"Sample Show Season 3", fallback_opts}
-             ] = QueryBuilder.build(pursuit)
-
-      assert Keyword.get(primary_opts, :type) == :tv
-      assert Keyword.get(fallback_opts, :type) == :tv
+      assert [{"Sample Show S03E04", opts}] = QueryBuilder.build(pursuit)
+      assert Keyword.get(opts, :type) == :tv
     end
 
     test "pads single-digit season and episode" do
@@ -66,7 +61,7 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
         episode_number: 1
       }
 
-      assert [{"Show S01E01", _}, _] = QueryBuilder.build(pursuit)
+      assert [{"Show S01E01", _}] = QueryBuilder.build(pursuit)
     end
 
     test "preserves double-digit season and episode without padding" do
@@ -78,7 +73,7 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
         episode_number: 23
       }
 
-      assert [{"Show S12E23", _}, _] = QueryBuilder.build(pursuit)
+      assert [{"Show S12E23", _}] = QueryBuilder.build(pursuit)
     end
 
     test "does not include year on TV queries (release titles do not carry it)" do
@@ -91,9 +86,8 @@ defmodule MediaCentarr.Acquisition.QueryBuilderTest do
         episode_number: 4
       }
 
-      assert [{_, primary_opts}, {_, fallback_opts}] = QueryBuilder.build(pursuit)
-      refute Keyword.has_key?(primary_opts, :year)
-      refute Keyword.has_key?(fallback_opts, :year)
+      assert [{_, opts}] = QueryBuilder.build(pursuit)
+      refute Keyword.has_key?(opts, :year)
     end
   end
 

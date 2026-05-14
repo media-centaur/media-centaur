@@ -54,10 +54,7 @@ defmodule MediaCentarr.Acquisition.QueryBuilder do
 
   defp build_tv(%Recipe{title: title, season_number: season, episode_number: episode})
        when is_integer(season) and is_integer(episode) do
-    [
-      {"#{title} #{season_tag(season)}#{episode_tag(episode)}", [type: :tv]},
-      {"#{title} Season #{season}", [type: :tv]}
-    ]
+    [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", [type: :tv]}]
   end
 
   # Whole-series fallback (no season/episode known) — rare in the
