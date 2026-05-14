@@ -210,6 +210,13 @@ defmodule MediaCentarr.Library.InboundTest do
       assert series_image.role == "poster"
       assert movie_image.role == "poster"
       assert movie_image.owner_id == movie.id
+
+      # WatchedFile links to the *child Movie*, not the parent MovieSeries.
+      # The presentable-queries side counts files via wf.movie_id on child
+      # movies; misattaching to movie_series_id hides the collection.
+      [file] = MediaCentarr.Repo.all(WatchedFile)
+      assert file.movie_id == movie.id
+      assert file.movie_series_id == nil
     end
 
     test "existing movie series — adds new child movie" do
@@ -243,6 +250,11 @@ defmodule MediaCentarr.Library.InboundTest do
       movie = hd(movie_series.movies)
       assert movie.name == "Sample Movie Three"
       assert movie.position == 2
+
+      # WatchedFile links to the new child Movie, not the parent MovieSeries.
+      [file] = MediaCentarr.Repo.all(WatchedFile)
+      assert file.movie_id == movie.id
+      assert file.movie_series_id == nil
     end
   end
 
