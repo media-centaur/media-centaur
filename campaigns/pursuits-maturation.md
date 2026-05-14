@@ -8,8 +8,17 @@ last_updated: 2026-05-14
 > **Phase 1 shipped (2026-05-14).** Recipe value object, timeline
 > presentation moved to TimelineEntry VM, Observations docstring
 > honesty, find/current_target consolidation, StartFromPick command.
-> AutoGrab rename deferred (see Next steps). All 3329 Elixir tests +
-> 433 JS tests pass.
+> AutoGrab rename deferred (see Next steps).
+>
+> **Phase 2 shipped (2026-05-14).** AutoCancel auto-pivots — on
+> confirmed safe-case (zero-seeders), the dead release is cancelled,
+> its guid lands on `tried_release_guids`, and a fresh seeking target
+> is inserted with a PursueTarget Oban job enqueued. Pursuit never
+> dangles. Caught a sibling latent bug: `TargetStatus.in_flight()` only
+> includes `seeking` (worker alive), so the original AutoCancel was a
+> no-op when zero-seeders fired on an `acquired` torrent. Added
+> `TargetStatus.cancellable/0` (`seeking + acquired`) for the wider
+> cancel filter.
 
 ## Goal
 
@@ -25,7 +34,8 @@ that lets the migration ship phase-by-phase.
 
 ## Status
 
-Phase 1 complete (local). Phase 2 (AutoCancel auto-pivot) is next.
+Phases 1+2 complete (local). Phase 3 (collapse `needs_decision` →
+`awaiting_decision_at` flag) is next — single commit with DB migration.
 
 ## Decisions made
 
