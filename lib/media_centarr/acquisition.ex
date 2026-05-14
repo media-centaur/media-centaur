@@ -94,7 +94,7 @@ defmodule MediaCentarr.Acquisition do
     TargetStatus
   }
 
-  alias MediaCentarr.Acquisition.Pursuits.Commands.{ChangeTarget, PickTarget, Start}
+  alias MediaCentarr.Acquisition.Pursuits.Commands.{ChangeTarget, PickTarget, Start, StartFromPick}
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Recipe}
   alias MediaCentarr.Acquisition.Pursuits, as: PursuitsContext
 
@@ -348,9 +348,10 @@ defmodule MediaCentarr.Acquisition do
   and records it on the activity timeline.
 
   Creates a pursuit with `recipe_type = "prowlarr_query"` and the
-  user's typed query, then a target in `acquired`. Broadcasts
-  `{:target_picked, target}` on success. The Prowlarr GUID is recorded
-  on the target so the duplicate-guid check in `ChangeTarget` works.
+  user's typed query, then a target in `acquired`, atomically via
+  `StartFromPick`. Broadcasts `{:target_picked, target}` on success.
+  The Prowlarr GUID is recorded on the target so the duplicate-guid
+  check in `ChangeTarget` works.
 
   Returns `{:error, :not_configured}` when Prowlarr is not configured,
   or `{:error, reason}` when Prowlarr rejects the grab.
@@ -360,20 +361,12 @@ defmodule MediaCentarr.Acquisition do
     if available?() do
       with :ok <- Prowlarr.grab(result),
            {:ok, pursuit} <-
-             Start.execute(%{
-               recipe_type: "prowlarr_query",
-               manual_query: trim_query(query),
-               title: result.title,
-               origin: "manual"
-             }),
-           {:ok, pursuit_with_target} <-
-             PickTarget.execute(%{
-               pursuit_id: pursuit.id,
+             StartFromPick.execute(%{
                result: result,
-               choice_label: result.title,
+               manual_query: trim_query(query),
                origin: "manual"
              }) do
-        target = Repo.get(Target, pursuit_with_target.current_target_id)
+        target = Repo.get(Target, pursuit.current_target_id)
         broadcast({:target_picked, target})
         Log.info(:library, "manual pick submitted — #{result.title}")
         {:ok, target}

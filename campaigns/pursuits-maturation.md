@@ -5,6 +5,12 @@ last_updated: 2026-05-14
 ---
 # Pursuits maturation
 
+> **Phase 1 shipped (2026-05-14).** Recipe value object, timeline
+> presentation moved to TimelineEntry VM, Observations docstring
+> honesty, find/current_target consolidation, StartFromPick command.
+> AutoGrab rename deferred (see Next steps). All 3329 Elixir tests +
+> 433 JS tests pass.
+
 ## Goal
 
 The pursuits concept has matured to the point where the architectural
@@ -19,7 +25,7 @@ that lets the migration ship phase-by-phase.
 
 ## Status
 
-Phase 1 starting. No changes yet.
+Phase 1 complete (local). Phase 2 (AutoCancel auto-pivot) is next.
 
 ## Decisions made
 
@@ -57,8 +63,13 @@ Phased; ship each phase as its own commit set so we can pause between.
    * Kill duplicates: `Acquisition.current_target/1` (private copy
      of `Pursuits.current_target/1`); unify `find_pursuit` helpers
      into `Pursuits.find_for_target/2`.
-   * Rename `AutoGrab*` modules → `AutoAcquire*` (legacy "grab"
-     vocabulary).
+   * ~~Rename `AutoGrab*` modules → `AutoAcquire*`~~ — **deferred**.
+     "auto-grab" terminology has settled at the user-facing surface
+     (DB column `item.auto_grab_mode`, TOML config keys, Settings
+     copy, capability flag, routes). Renaming only the three internal
+     modules creates a code-vs-data nominal split; a full rename is
+     a wider campaign with config migration + UI re-copy. Not a
+     "pure refactor."
 
 2. **Phase 2 — `AutoCancel` auto-pivot fix** (single commit)
    * Test-first: `AutoCancelTest` red on "after auto_cancel,
