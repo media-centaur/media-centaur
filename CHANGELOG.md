@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.61.2 — 2026-05-14
+
+### Fixed
+
+Clicking a grouped pursuit row in the Active Pursuits list (e.g. a
+show with multiple episodes in the same state, shown as "Sample Show
+— 2 episodes — Searching") now expands the row to reveal the
+individual episodes. The previous release had a wiring mismatch
+between the group's expand state and the click handler, so clicks
+fired but the row visually never opened. The chevron now flips and
+the per-episode pursuits are listed underneath as intended.
+
 ## v0.61.1 — 2026-05-14
 
 ### Improved
