@@ -64,7 +64,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
         description: "Same-show pursuits all awaiting user decision — warning severity.",
         attributes: %{
           title: "Sample Show",
-          state: :needs_decision,
+          state: :active,
           count: 3,
           verb: "Decision needed",
           severity: :warning,
@@ -106,6 +106,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
       id: "story-#{season}-#{episode}-#{verb}",
       title: "Sample Show",
       state: state_for_severity(severity),
+      awaiting_decision?: severity == :warning,
       season_number: season,
       episode_number: episode,
       status: %CurrentAction{
@@ -117,7 +118,9 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
   end
 
   defp state_for_severity(:info), do: :active
-  defp state_for_severity(:warning), do: :needs_decision
+  # :warning maps to :active too — the awaiting flag carries the
+  # "decision needed" semantics, state stays in-flight.
+  defp state_for_severity(:warning), do: :active
   defp state_for_severity(:error), do: :exhausted
   defp state_for_severity(:success), do: :satisfied
 

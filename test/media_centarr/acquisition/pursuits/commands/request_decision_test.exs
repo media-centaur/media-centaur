@@ -20,11 +20,11 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.RequestDecisionTest do
   end
 
   describe "execute/1" do
-    test "transitions active to needs_decision and records UserDecisionRequested event" do
+    test "sets awaiting_decision_at and records UserDecisionRequested event" do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_updates())
       pursuit = insert_active_pursuit()
 
-      assert {:ok, %Pursuit{state: "needs_decision"}} =
+      assert {:ok, %Pursuit{state: "active", awaiting_decision_at: %DateTime{}}} =
                RequestDecision.execute(%{
                  pursuit_id: pursuit.id,
                  prompt: "Download stalled for 24+ hours"
@@ -37,16 +37,20 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.RequestDecisionTest do
       assert_receive %UserDecisionRequested{prompt: "Download stalled for 24+ hours"}
     end
 
-    test "idempotent on an already-needs_decision pursuit" do
+    test "idempotent — re-issuing on an already-awaiting pursuit is a no-op (no event)" do
+      original_ts = DateTime.add(DateTime.utc_now(:second), -3600, :second)
+
       pursuit =
         insert_active_pursuit()
-        |> Ecto.Changeset.change(state: "needs_decision")
+        |> Ecto.Changeset.change(awaiting_decision_at: original_ts)
         |> Repo.update!()
 
-      assert {:ok, %{state: "needs_decision", id: id}} =
+      assert {:ok, %Pursuit{awaiting_decision_at: ^original_ts, id: id}} =
                RequestDecision.execute(%{pursuit_id: pursuit.id, prompt: "X"})
 
       assert id == pursuit.id
+      # No new event recorded — idempotent path returns early.
+      assert Repo.aggregate(Event, :count) == 0
     end
 
     test "returns :not_found for missing pursuit" do

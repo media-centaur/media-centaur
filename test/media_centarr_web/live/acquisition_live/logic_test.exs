@@ -728,6 +728,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
         id: Keyword.get(opts, :id, Ecto.UUID.generate()),
         title: Keyword.get(opts, :title, "Sample Show"),
         state: Keyword.get(opts, :state, :active),
+        awaiting_decision?: Keyword.get(opts, :awaiting_decision?, false),
         season_number: Keyword.get(opts, :season),
         episode_number: Keyword.get(opts, :episode),
         status:
@@ -761,7 +762,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
     test "expanded set membership flips expanded? to true" do
       a = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 2)
       b = row(title: "Sample Game May Weep", state: :active, season: 2, episode: 3)
-      expanded = MapSet.new([{"Sample Game May Weep", :active}])
+      expanded = MapSet.new([{"Sample Game May Weep", :active, false}])
 
       assert [{:group, %{expanded?: true}}] = Logic.group_pursuit_rows([a, b], expanded)
     end
@@ -773,9 +774,9 @@ defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
       assert [{:single, ^a}, {:single, ^b}] = Logic.group_pursuit_rows([a, b], MapSet.new())
     end
 
-    test "same title, different state produces two distinct buckets" do
-      a = row(title: "Sample Game May Weep", state: :active)
-      b = row(title: "Sample Game May Weep", state: :needs_decision)
+    test "same title, different awaiting_decision? produces two distinct buckets" do
+      a = row(title: "Sample Game May Weep", state: :active, awaiting_decision?: false)
+      b = row(title: "Sample Game May Weep", state: :active, awaiting_decision?: true)
 
       result = Logic.group_pursuit_rows([a, b], MapSet.new())
       assert length(result) == 2

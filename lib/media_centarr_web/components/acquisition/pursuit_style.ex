@@ -21,16 +21,22 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitStyle do
   alias MediaCentarr.Acquisition.ViewModels.TimelineEntry
 
   @doc """
-  Renders the badge for a pursuit `state` atom. Used by both the
-  detail-page header and the activity-zone row so the colour and label
-  for a given state are identical across surfaces.
+  Renders the badge for a pursuit. Used by both the detail-page header
+  and the activity-zone row so the colour and label for a given state
+  are identical across surfaces.
+
+  When the pursuit is awaiting user input (`awaiting_decision?: true`),
+  the "Decision" badge takes precedence over the underlying state — the
+  user-visible status is "we're blocked on your pick", regardless of
+  the lifecycle state being `:active`.
   """
   attr :state, :atom, required: true
+  attr :awaiting_decision?, :boolean, default: false
+
+  def state_badge(%{awaiting_decision?: true} = assigns),
+    do: ~H|<.badge variant="warning">Decision</.badge>|
 
   def state_badge(%{state: :active} = assigns), do: ~H|<.badge variant="info">Active</.badge>|
-
-  def state_badge(%{state: :needs_decision} = assigns),
-    do: ~H|<.badge variant="warning">Decision</.badge>|
 
   def state_badge(%{state: :satisfied} = assigns), do: ~H|<.badge variant="success">Satisfied</.badge>|
 
@@ -53,11 +59,9 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitStyle do
   def severity_text_class(:error), do: "text-error"
 
   @doc """
-  Returns the set of pursuit states that show a "Cancel pursuit" affordance
-  on the detail-page header. Wraps `Pursuits.State.in_flight()` for the web
-  layer so the header doesn't need a dependency on the State module just
-  to check membership.
+  Returns whether the pursuit state is one that should show a "Cancel
+  pursuit" affordance — currently every non-terminal state.
   """
   @spec cancellable?(PursuitRow.state()) :: boolean()
-  def cancellable?(state), do: state in [:active, :needs_decision]
+  def cancellable?(state), do: state == :active
 end

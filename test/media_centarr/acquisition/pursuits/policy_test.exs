@@ -41,9 +41,14 @@ defmodule MediaCentarr.Acquisition.Pursuits.PolicyTest do
     end
   end
 
-  describe "evaluate/1 — needs_decision" do
-    test "needs_decision returns :no_action (waiting on user)" do
-      assert Policy.evaluate(build_snapshot(%{state: "needs_decision"})) == :no_action
+  describe "evaluate/1 — awaiting decision" do
+    test "pursuit with awaiting_decision_at set returns :no_action (waiting on user)" do
+      assert Policy.evaluate(
+               build_snapshot(%{
+                 state: "active",
+                 awaiting_decision_at: ~U[2026-04-09 00:00:00Z]
+               })
+             ) == :no_action
     end
   end
 
@@ -180,10 +185,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.PolicyTest do
       assert prompt =~ "24+"
     end
 
-    test "stall does not fire while the pursuit is already in needs_decision" do
+    test "stall does not fire while the pursuit is already awaiting a decision" do
       snapshot =
         build_snapshot(
-          %{state: "needs_decision"},
+          %{state: "active", awaiting_decision_at: ~U[2026-04-09 00:00:00Z]},
           %{stall_observed?: true, stall_window_elapsed?: true}
         )
 

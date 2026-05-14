@@ -117,7 +117,10 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "needs_decision"}, _target, _qi) do
+  # Awaiting-decision takes precedence over the regular state:"active"
+  # clauses. The pursuit is still active in lifecycle terms, but the
+  # user-visible status is "we're blocked on your pick".
+  def derive(%Pursuit{state: "active", awaiting_decision_at: %DateTime{}}, _target, _qi) do
     {
       %CurrentAction{
         verb: "Decision needed",

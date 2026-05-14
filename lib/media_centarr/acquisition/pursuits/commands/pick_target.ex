@@ -23,7 +23,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.PickTarget do
   4. Bump `pursuit.attempt_count` and append the picked guid to
      `tried_release_guids` (so a subsequent `ChangeTarget` won't
      re-suggest the same release).
-  5. If the pursuit is in `needs_decision`, resume it to `active`.
+  5. Clear `pursuit.awaiting_decision_at` (the user just picked).
   6. Record `user_decision_recorded` + `fallback_initiated` events.
   """
 
@@ -31,8 +31,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.PickTarget do
   alias MediaCentarr.Acquisition.Pursuits.Commands.Runner
   alias MediaCentarr.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
   alias MediaCentarr.Acquisition.SearchResult
-  alias MediaCentarr.Acquisition.Target
-  alias MediaCentarr.Acquisition.TargetStatus
+  alias MediaCentarr.Acquisition.{Target, TargetStatus}
   alias MediaCentarr.Repo
 
   @doc """
@@ -61,7 +60,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.PickTarget do
              Repo.update(Pursuit.record_attempt_changeset(pursuit, result.guid)),
            {:ok, with_target} <-
              Repo.update(Pursuit.set_current_target_changeset(attempted, new_target.id)),
-           {:ok, resumed} <- maybe_resume(with_target),
+           {:ok, resumed} <-
+             Repo.update(Pursuit.clear_awaiting_decision_changeset(with_target)),
            {:ok, _decision_event} <-
              Events.record(%UserDecisionRecorded{
                pursuit_id: resumed.id,
@@ -105,9 +105,4 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.PickTarget do
     |> Target.acquired_changeset(pursuit_id: pursuit.id, origin: origin)
     |> Repo.insert()
   end
-
-  defp maybe_resume(%Pursuit{state: "needs_decision"} = pursuit),
-    do: Repo.update(Pursuit.resume_changeset(pursuit))
-
-  defp maybe_resume(%Pursuit{} = pursuit), do: {:ok, pursuit}
 end

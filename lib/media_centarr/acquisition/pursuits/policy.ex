@@ -9,7 +9,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Policy do
   Rules, in evaluation order:
 
   1. Pursuit already terminal → `:no_action`
-  2. Pursuit awaiting user input → `:no_action`
+  2. Pursuit awaiting user input (`awaiting_decision_at` set) → `:no_action`
   3. Sustained zero-seeders confirmed → `{:auto_cancel, :zero_seeders}`
   4. Sustained stall confirmed → `{:request_decision, prompt}`
   5. Exhaustion budget reached → `{:exhaust, :max_attempts}`
@@ -27,7 +27,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Policy do
   def evaluate(%Snapshot{} = snapshot) do
     cond do
       State.terminal?(snapshot.pursuit.state) -> :no_action
-      snapshot.pursuit.state == "needs_decision" -> :no_action
+      State.awaiting_decision?(snapshot.pursuit) -> :no_action
       zero_seeders_confirmed?(snapshot) -> {:auto_cancel, :zero_seeders}
       stall_confirmed?(snapshot) -> {:request_decision, stall_prompt(snapshot)}
       exhaustion_reached?(snapshot) -> {:exhaust, :max_attempts}

@@ -21,12 +21,12 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitRow do
     # Memoised normalisation of `release_title` for render-hot queue
     # pairing — see `MediaCentarr.Acquisition.QueueMatcher.match/2`.
     # Nil for rows without a release title.
-    :normalized_release_title
+    :normalized_release_title,
+    awaiting_decision?: false
   ]
 
   @type state ::
           :active
-          | :needs_decision
           | :satisfied
           | :exhausted
           | :cancelled
@@ -43,6 +43,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitRow do
           release_title: String.t() | nil,
           target_status: target_status() | nil,
           status: CurrentAction.t(),
-          normalized_release_title: String.t() | nil
+          normalized_release_title: String.t() | nil,
+          awaiting_decision?: boolean()
         }
 end

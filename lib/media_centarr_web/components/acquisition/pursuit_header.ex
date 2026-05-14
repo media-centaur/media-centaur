@@ -22,7 +22,7 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitHeader do
     <header class="space-y-2">
       <div class="flex items-baseline justify-between gap-3">
         <h2 class="text-lg font-medium truncate">{@display_title}</h2>
-        <PursuitStyle.state_badge state={@vm.state} />
+        <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
       </div>
 
       <%!-- Prowlarr-query pursuits store the picked release filename in

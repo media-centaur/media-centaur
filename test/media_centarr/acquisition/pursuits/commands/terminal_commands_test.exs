@@ -94,10 +94,13 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       assert_receive %PursuitExhausted{}
     end
 
-    test "permits exhausting a needs_decision pursuit (user gave up)" do
-      pursuit = insert_active_pursuit("needs_decision")
+    test "exhausting an awaiting-decision pursuit clears the awaiting flag" do
+      pursuit =
+        insert_active_pursuit("active")
+        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
+        |> Repo.update!()
 
-      assert {:ok, %Pursuit{state: "exhausted"}} =
+      assert {:ok, %Pursuit{state: "exhausted", awaiting_decision_at: nil}} =
                Exhaust.execute(%{
                  pursuit_id: pursuit.id,
                  reason: :no_alternatives

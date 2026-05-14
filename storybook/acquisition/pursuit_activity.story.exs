@@ -204,11 +204,11 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
         }
       },
       %Variation{
-        id: :needs_decision,
+        id: :awaiting_decision,
         attributes: %{
           vm:
             base(
-              state: :needs_decision,
+              state: :active,
               current_action: %CurrentAction{
                 verb: "Decision needed",
                 description: "Pick a release below.",

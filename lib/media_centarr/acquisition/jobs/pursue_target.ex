@@ -14,9 +14,9 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
     `failed` and the pursuit to `exhausted`.
   - **Prowlarr-query recipe** — TitleMatcher is skipped (the user
     typed the query they trust). Any non-empty Prowlarr result set
-    transitions the pursuit `active → needs_decision` so the user
-    picks from the decision card. Empty results snooze and retry on
-    the same schedule as TMDB.
+    sets the pursuit's `awaiting_decision_at` flag so the user picks
+    from the decision card. Empty results snooze and retry on the
+    same schedule as TMDB.
 
   ## Quality
 
@@ -28,7 +28,7 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
   ## Lifecycle and snooze
 
       seeking ─► (acceptable TMDB result)         ─► acquired
-              ─► (any Prowlarr-query result)      ─► (pursuit needs_decision)
+              ─► (any Prowlarr-query result)      ─► (pursuit awaiting decision)
               ─► (no acceptable result)           ─► snoozed via Oban (exp. backoff)
               ─► (max attempts exceeded)          ─► failed
               ─► (Prowlarr down)                  ─► snoozed 1h, NO bump

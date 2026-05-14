@@ -1,9 +1,10 @@
 defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
   @moduledoc """
-  Renders the alternatives picker shown on a pursuit detail page when its
-  state is `:needs_decision`. Each alternative carries a "Try this one"
-  button that the LiveView wires to `Acquisition.pick_alternative/3`
-  (which submits to Prowlarr and routes through `Commands.PickTarget`).
+  Renders the alternatives picker shown on a pursuit detail page when
+  the pursuit's `awaiting_decision_at` flag is set. Each alternative
+  carries a "Try this one" button that the LiveView wires to
+  `Acquisition.pick_alternative/3` (which submits to Prowlarr and
+  routes through `Commands.PickTarget`).
   """
 
   use Phoenix.Component
@@ -19,14 +20,14 @@ defmodule MediaCentarrWeb.Components.Acquisition.DecisionCard do
     doc:
       "Event to fire when the user clicks Cancel pursuit. When set, a Cancel button " <>
         "renders in the action row alongside Search Prowlarr again. The Decision card " <>
-        "is the single home for all decision-related actions in `needs_decision` — the " <>
-        "Activity card is suppressed in that state by the modal."
+        "is the single home for all decision-related actions when the pursuit is " <>
+        "awaiting a decision — the Activity card is suppressed in that case by the modal."
 
   def decision_card(assigns) do
     ~H"""
     <%!-- Single card carrying everything decision-related for a pursuit
-          in `needs_decision`. The Activity card is suppressed in this
-          state by the modal renderer, so this card owns the heading,
+          that's awaiting a decision. The Activity card is suppressed in
+          this case by the modal renderer, so this card owns the heading,
           prompt, alternatives (or empty state), and all actions —
           Cancel pursuit and Search Prowlarr again live together in one
           action row instead of being scattered across two cards. --%>

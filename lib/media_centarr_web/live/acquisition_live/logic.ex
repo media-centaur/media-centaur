@@ -454,7 +454,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
 
   @spec group_pursuit_rows(
           [MediaCentarr.Acquisition.ViewModels.PursuitRow.t()],
-          MapSet.t({String.t(), atom()})
+          MapSet.t({String.t(), atom(), boolean()})
         ) :: [
           {:single, MediaCentarr.Acquisition.ViewModels.PursuitRow.t()}
           | {:group, pursuit_group_data()}
@@ -467,7 +467,10 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
     # which made the whole reduce O(n²) on every render.
     {buckets, reversed_order} =
       Enum.reduce(rows, {%{}, []}, fn vm, {acc, order} ->
-        key = {vm.title, vm.state}
+        # Awaiting-decision rows are user-actionable differently from
+        # regular active rows, so they bucket separately even when the
+        # title + state match.
+        key = {vm.title, vm.state, vm.awaiting_decision?}
 
         case Map.fetch(acc, key) do
           {:ok, existing} ->
@@ -488,7 +491,7 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
           {:single, single}
 
         [first | _] = many ->
-          {title, state} = key
+          {title, state, _awaiting?} = key
 
           {:group,
            %{

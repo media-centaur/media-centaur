@@ -30,6 +30,12 @@ defmodule MediaCentarr.Acquisition.Pursuits.Pursuit do
   `Acquisition.Pursuits.State` is the single source of truth for
   which state strings exist.
 
+  Whether the pursuit is waiting on user input is encoded *orthogonally*
+  as `awaiting_decision_at :utc_datetime` — set by
+  `Commands.RequestDecision`, cleared by `Commands.PickTarget` /
+  `Commands.ChangeTarget` / terminal-transition commands. The flag
+  doesn't change `state`; the pursuit is still `active`, just blocked.
+
   ## Pillar placement (ADR-041)
 
   Pillar 1 (Long-term storage). State, recipe, attempt history, and
@@ -70,6 +76,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Pursuit do
     field :tried_release_guids, {:array, :string}, default: []
     field :attempt_count, :integer, default: 0
     field :current_target_id, Ecto.UUID
+    field :awaiting_decision_at, :utc_datetime
     field :stall_first_seen_at, :utc_datetime
     field :zero_seeders_first_seen_at, :utc_datetime
     field :last_queue_state, :string
@@ -121,29 +128,41 @@ defmodule MediaCentarr.Acquisition.Pursuits.Pursuit do
     end
   end
 
-  @doc "Transitions an in-flight pursuit to `needs_decision`."
-  def request_decision_changeset(%__MODULE__{} = pursuit) do
-    change_state(pursuit, "needs_decision", from: ["active"])
+  @doc """
+  Sets `awaiting_decision_at` on a pursuit. State is unchanged — the
+  pursuit is still `active`, just blocked on user input. Idempotent;
+  calling with an already-set timestamp leaves the original value.
+  """
+  def set_awaiting_decision_changeset(%__MODULE__{awaiting_decision_at: nil} = pursuit, now) do
+    change(pursuit, awaiting_decision_at: DateTime.truncate(now, :second))
   end
 
-  @doc "Transitions `needs_decision` back to `active` after the user picks an alternative."
-  def resume_changeset(%__MODULE__{} = pursuit) do
-    change_state(pursuit, "active", from: ["needs_decision"])
+  def set_awaiting_decision_changeset(%__MODULE__{} = pursuit, _now), do: change(pursuit)
+
+  @doc "Clears `awaiting_decision_at` (user picked, command moved on, etc.)."
+  def clear_awaiting_decision_changeset(%__MODULE__{} = pursuit) do
+    change(pursuit, awaiting_decision_at: nil)
   end
 
-  @doc "Closes a pursuit on verified arrival."
+  @doc "Closes a pursuit on verified arrival. Clears any pending awaiting-decision flag."
   def satisfy_changeset(%__MODULE__{} = pursuit) do
-    change_state(pursuit, "satisfied", from: State.in_flight())
+    pursuit
+    |> change_state("satisfied", from: State.in_flight())
+    |> put_change(:awaiting_decision_at, nil)
   end
 
-  @doc "Closes a pursuit at give-up time (system or user)."
+  @doc "Closes a pursuit at give-up time. Clears any pending awaiting-decision flag."
   def exhaust_changeset(%__MODULE__{} = pursuit) do
-    change_state(pursuit, "exhausted", from: State.in_flight())
+    pursuit
+    |> change_state("exhausted", from: State.in_flight())
+    |> put_change(:awaiting_decision_at, nil)
   end
 
-  @doc "Closes a pursuit by user request."
+  @doc "Closes a pursuit by user request. Clears any pending awaiting-decision flag."
   def cancel_changeset(%__MODULE__{} = pursuit) do
-    change_state(pursuit, "cancelled", from: State.in_flight())
+    pursuit
+    |> change_state("cancelled", from: State.in_flight())
+    |> put_change(:awaiting_decision_at, nil)
   end
 
   @doc """
