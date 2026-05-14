@@ -591,6 +591,8 @@ defmodule MediaCentarr.Library.Inbound do
       |> MediaCentarr.Subtitles.detect()
       |> Enum.map(&MediaCentarr.Subtitles.Track.to_map/1)
 
+    {fk_type, fk_id} = file_owner_for(entity, event)
+
     attrs =
       put_type_fk(
         %{
@@ -598,12 +600,27 @@ defmodule MediaCentarr.Library.Inbound do
           watch_dir: event.watch_dir,
           subtitle_tracks: subtitle_tracks
         },
-        event.entity_type,
-        entity.id
+        fk_type,
+        fk_id
       )
 
     Library.link_file!(attrs)
   end
+
+  # A collection-child movie owns its own WatchedFile; the parent MovieSeries
+  # is the entity row but not the file owner. Misattaching the file to
+  # movie_series_id hides the collection from PresentableQueries
+  # (which count files via wf.movie_id on child movies).
+  defp file_owner_for(_entity, %{
+         entity_type: :movie_series,
+         child_movie: %{attrs: %{tmdb_id: child_tmdb_id}}
+       })
+       when is_binary(child_tmdb_id) do
+    %{id: id} = Library.find_movie_by_tmdb_id(child_tmdb_id)
+    {:movie, id}
+  end
+
+  defp file_owner_for(entity, event), do: {event.entity_type, entity.id}
 
   defp queue_images(_entity, [], _event), do: :ok
 
