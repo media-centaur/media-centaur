@@ -32,6 +32,9 @@ defmodule MediaCentarr.Watcher.MountStatus do
           | :reinit_restored
           | :transition_unavailable
 
+  @health_check_interval 30_000
+  @health_check_interval_fast 2_000
+
   @doc """
   Returns the action the watcher should take given its current state,
   the device id captured when it last started watching, and the device
@@ -41,10 +44,27 @@ defmodule MediaCentarr.Watcher.MountStatus do
   def action(:initializing, _prev, _current), do: :keep_watching
 
   def action(:watching, _prev, nil), do: :transition_unavailable
-  def action(:watching, nil, _current), do: :keep_watching
+  def action(:watching, nil, _current), do: :reinit_remount
   def action(:watching, prev, current) when prev == current, do: :keep_watching
   def action(:watching, _prev, _current), do: :reinit_remount
 
   def action(:unavailable, _prev, nil), do: :keep_unavailable
   def action(:unavailable, _prev, _current), do: :reinit_restored
+
+  @doc """
+  Polling interval (ms) for the next health check, based on whether we
+  currently have a device id for the watched path.
+
+  - `nil` device id → fast polling. Either we're racing the boot-time
+    mount (drive not visible yet) or the drive was ejected at runtime;
+    in both cases the user wants the library back as soon as the
+    filesystem reappears, so we poll every 2s instead of the
+    steady-state cadence.
+  - Non-nil device id → steady-state 30s. The kernel will notice an
+    unmount via inotify (`IN_UNMOUNT`) faster than any poll could, so
+    once we have a working watch there's no value in polling tight.
+  """
+  @spec interval(device_id()) :: pos_integer()
+  def interval(nil), do: @health_check_interval_fast
+  def interval(_device_id), do: @health_check_interval
 end
