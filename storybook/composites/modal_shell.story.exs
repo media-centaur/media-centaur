@@ -121,7 +121,7 @@ defmodule MediaCentarrWeb.Storybook.Composites.ModalShell do
           "It has enough text to exercise the four-line clamp without " <>
           "spilling into the metadata grid below.",
       tagline: "A demonstrative tagline",
-      date_published: "2024-01-15",
+      date_published: ~D[2024-01-15],
       duration: "PT2H8M",
       director: "A. Director",
       original_language: "en",

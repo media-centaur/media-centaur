@@ -58,7 +58,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.SeriesCredits do
       Enum.reject(
         [
           {"Network", assigns.entity[:network]},
-          {"First aired", assigns.entity[:date_published]},
+          {"First aired", MediaCentarr.Format.iso_date(assigns.entity[:date_published])},
           {"Status", format_status(assigns.entity[:status])},
           {"Country", assigns.entity[:country_code]},
           {"Language", assigns.entity[:original_language]}

@@ -16,7 +16,7 @@ defmodule MediaCentarr.Library.Movie do
   schema "library_movies" do
     field :name, :string
     field :description, :string
-    field :date_published, :string
+    field :date_published, :date
     field :duration, :string
     field :director, :string
     field :content_rating, :string

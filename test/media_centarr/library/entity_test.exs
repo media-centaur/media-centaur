@@ -28,7 +28,7 @@ defmodule MediaCentarr.Library.EntityTest do
 
       assert movie.name == "Sample Movie"
       assert movie.description == "A sample movie description."
-      assert movie.date_published == "2017-10-06"
+      assert movie.date_published == ~D[2017-10-06]
       assert movie.genres == ["Science Fiction", "Drama"]
       assert movie.url == "https://www.themoviedb.org/movie/335984"
       assert movie.duration == "PT2H44M"

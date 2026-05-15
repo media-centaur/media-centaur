@@ -32,18 +32,18 @@ defmodule MediaCentarr.Library.MovieListTest do
 
     test "sorts chronologically by date_published, then position as tiebreaker" do
       movie_a =
-        build_movie(%{name: "A", content_url: "/a.mkv", position: 2, date_published: "2018"})
+        build_movie(%{name: "A", content_url: "/a.mkv", position: 2, date_published: ~D[2018-01-01]})
 
       movie_b =
-        build_movie(%{name: "B", content_url: "/b.mkv", position: 1, date_published: "2020"})
+        build_movie(%{name: "B", content_url: "/b.mkv", position: 1, date_published: ~D[2020-01-01]})
 
       movie_c =
-        build_movie(%{name: "C", content_url: "/c.mkv", position: 3, date_published: "2018"})
+        build_movie(%{name: "C", content_url: "/c.mkv", position: 3, date_published: ~D[2018-01-01]})
 
       entity = build_entity(%{type: :movie_series, movies: [movie_a, movie_b, movie_c]})
 
       result = MovieList.list_available(entity)
-      # Same date (2018): A (pos 2) before C (pos 3); then B (2020) last
+      # Same date (2018-01-01): A (pos 2) before C (pos 3); then B (2020) last
       assert [{1, _, "/a.mkv"}, {2, _, "/c.mkv"}, {3, _, "/b.mkv"}] = result
     end
   end

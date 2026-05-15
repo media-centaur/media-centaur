@@ -15,7 +15,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       imdb_id: presence(movie["imdb_id"]),
       name: movie["title"],
       description: movie["overview"],
-      date_published: movie["release_date"],
+      date_published: parse_date(movie["release_date"]),
       genres: extract_genre_names(movie["genres"]),
       url: tmdb_url(:movie, tmdb_id),
       duration: minutes_to_iso8601(movie["runtime"]),
@@ -49,7 +49,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       imdb_id: extract_tv_imdb_id(show),
       name: show["name"],
       description: show["overview"],
-      date_published: show["first_air_date"],
+      date_published: parse_date(show["first_air_date"]),
       genres: extract_genre_names(show["genres"]),
       url: tmdb_url(:tv, tmdb_id),
       number_of_seasons: show["number_of_seasons"],
@@ -127,7 +127,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       tmdb_id: to_string(tmdb_id),
       name: movie["title"],
       description: movie["overview"],
-      date_published: movie["release_date"],
+      date_published: parse_date(movie["release_date"]),
       url: tmdb_url(:movie, tmdb_id),
       duration: minutes_to_iso8601(movie["runtime"]),
       director: extract_director(movie["credits"]),
@@ -384,4 +384,15 @@ defmodule MediaCentarr.TMDB.Mapper do
   defp presence(nil), do: nil
   defp presence(""), do: nil
   defp presence(value), do: value
+
+  @doc """
+  Parses an ISO 8601 date string from a TMDB payload (e.g. `release_date`,
+  `first_air_date`) into a `Date` struct. TMDB returns `""` for unreleased
+  titles — that and `nil` both map to `nil`. Malformed values raise so the
+  pipeline surfaces a clear error rather than silently dropping the field.
+  """
+  @spec parse_date(String.t() | nil) :: Date.t() | nil
+  def parse_date(nil), do: nil
+  def parse_date(""), do: nil
+  def parse_date(iso) when is_binary(iso), do: Date.from_iso8601!(iso)
 end

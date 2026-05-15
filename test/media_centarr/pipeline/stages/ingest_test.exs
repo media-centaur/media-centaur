@@ -28,7 +28,7 @@ defmodule MediaCentarr.Pipeline.Stages.IngestTest do
             type: :movie,
             name: "Sample Movie",
             description: "An insomniac office worker...",
-            date_published: "1999-10-15",
+            date_published: ~D[1999-10-15],
             content_url: "/media/Fight.Club.1999.mkv",
             url: "https://www.themoviedb.org/movie/550"
           },

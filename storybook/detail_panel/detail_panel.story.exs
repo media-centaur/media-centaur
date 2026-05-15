@@ -385,7 +385,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
           "A demonstration entity — descriptions render as `line-clamp-4` under the " <>
           "metadata row.",
       tagline: "Look closer.",
-      date_published: "1922-09-04",
+      date_published: ~D[1922-09-04],
       duration: "PT1H30M",
       director: "Sample Director",
       content_rating: "PG",
@@ -719,7 +719,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
         "An anthology of small stories from a sleepy town. Each episode " <>
           "follows a different resident through a single afternoon.",
       tagline: nil,
-      date_published: "1925-01-12",
+      date_published: ~D[1925-01-12],
       duration: nil,
       director: nil,
       content_rating: "TV-PG",
@@ -865,7 +865,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       sample_child_movie(
         "55555555-5555-5555-5555-555555555501",
         "Sample Picture I",
-        "1920-05-01",
+        ~D[1920-05-01],
         "PT1H30M",
         "/media/sample-picture-1.mkv",
         1,
@@ -874,7 +874,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       sample_child_movie(
         "55555555-5555-5555-5555-555555555502",
         "Sample Picture II",
-        "1922-07-10",
+        ~D[1922-07-10],
         "PT1H35M",
         "/media/sample-picture-2.mkv",
         2,
@@ -883,7 +883,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       sample_child_movie(
         "55555555-5555-5555-5555-555555555503",
         "Sample Picture III",
-        "1925-11-04",
+        ~D[1925-11-04],
         "PT1H40M",
         "/media/sample-picture-3.mkv",
         3,
@@ -897,7 +897,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       name: "Sample Picture Trilogy",
       description: "Three pictures, one valley.",
       tagline: nil,
-      date_published: "1920-05-01",
+      date_published: ~D[1920-05-01],
       duration: nil,
       director: nil,
       content_rating: nil,
