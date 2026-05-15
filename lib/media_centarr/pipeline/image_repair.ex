@@ -180,15 +180,15 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   # {:ok, {tmdb_id, season_number, episode_number, parent_tv_series_id}}
   # for episodes.
 
-  defp find_tmdb_context(entity_id, :movie), do: tmdb_from_entity(Library.fetch_movie(entity_id))
+  defp find_tmdb_context(entity_id, :movie), do: lookup_tmdb_id(entity_id, :tmdb, :movie_id)
 
-  defp find_tmdb_context(entity_id, :tv_series), do: tmdb_from_entity(Library.fetch_tv_series(entity_id))
+  defp find_tmdb_context(entity_id, :tv_series), do: lookup_tmdb_id(entity_id, :tmdb, :tv_series_id)
 
   defp find_tmdb_context(entity_id, :movie_series),
-    do: tmdb_from_entity(Library.fetch_movie_series(entity_id))
+    do: lookup_tmdb_id(entity_id, :tmdb_collection, :movie_series_id)
 
   defp find_tmdb_context(entity_id, :video_object),
-    do: tmdb_from_entity(Library.fetch_video_object(entity_id))
+    do: lookup_tmdb_id(entity_id, :tmdb, :video_object_id)
 
   defp find_tmdb_context(episode_id, :episode) do
     with {:ok, episode} <- Library.fetch_episode(episode_id),
@@ -200,10 +200,26 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
     end
   end
 
-  defp tmdb_from_entity({:ok, %{tmdb_id: tmdb_id}}) when is_binary(tmdb_id) and tmdb_id != "",
-    do: {:ok, tmdb_id}
+  # TMDB ids live on `library_external_ids` (Library Schema v2 Phase 1
+  # Task 6) — read directly via the (source, fk) tuple so this path
+  # stays a single SQL trip without re-loading the container.
+  defp lookup_tmdb_id(entity_id, source_atom, fk_key) do
+    source_str = Atom.to_string(source_atom)
 
-  defp tmdb_from_entity(_), do: {:skip, :no_tmdb_id}
+    result =
+      Repo.one(
+        from(e in MediaCentarr.Library.ExternalId,
+          where: field(e, ^fk_key) == ^entity_id and e.source == ^source_str,
+          select: e.external_id,
+          limit: 1
+        )
+      )
+
+    case result do
+      tmdb_id when is_binary(tmdb_id) and tmdb_id != "" -> {:ok, tmdb_id}
+      _ -> {:skip, :no_tmdb_id}
+    end
+  end
 
   defp fk_for(:movie), do: :movie_id
   defp fk_for(:tv_series), do: :tv_series_id

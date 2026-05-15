@@ -192,13 +192,19 @@ defmodule MediaCentarr.Library.FileEventHandler do
 
     matched_movies =
       Enum.filter(
-        Library.list_movies_by_owner_id(entity_id, load: [:images, :watch_progress]),
+        Library.list_movies_by_owner_id(entity_id, load: [:images, :watch_progress, :external_ids]),
         &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
       )
 
     Enum.each(matched_movies, fn movie ->
       destroy_progress(movie)
       delete_images(movie.images || [])
+      # ExternalId rows reference the movie via `movie_id` FK — delete
+      # them before the Movie row or the cascade trips the FK constraint
+      # (Library Schema v2 Phase 1 Task 6 made ExternalId the sole home
+      # for TMDB/IMDB ids, so every matched movie has at least the
+      # TMDB row attached).
+      bulk_destroy(movie.external_ids || [], Library.ExternalId)
     end)
 
     bulk_destroy(matched_movies, Library.Movie)

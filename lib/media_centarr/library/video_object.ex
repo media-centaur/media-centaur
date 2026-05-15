@@ -3,6 +3,10 @@ defmodule MediaCentarr.Library.VideoObject do
   A standalone video object in the library. Represents a single video file
   that doesn't belong to a TV series or movie series — e.g. a concert,
   documentary, or home video.
+
+  TMDB ids live in `Library.ExternalId` rows reachable via the
+  `:external_ids` association — no longer a column on this schema
+  (Library Schema v2 Phase 1 Task 6).
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -17,7 +21,6 @@ defmodule MediaCentarr.Library.VideoObject do
     field :date_published, :date
     field :content_url, :string
     field :url, :string
-    field :tmdb_id, :string
 
     has_many :images, MediaCentarr.Library.Image, foreign_key: :video_object_id
     has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :video_object_id
@@ -35,14 +38,12 @@ defmodule MediaCentarr.Library.VideoObject do
       :description,
       :date_published,
       :content_url,
-      :url,
-      :tmdb_id
+      :url
     ])
     |> validate_required([:name])
-    |> unique_constraint(:tmdb_id, name: :library_video_objects_tmdb_id_index)
   end
 
   def update_changeset(video_object, attrs) do
-    cast(video_object, attrs, [:name, :description, :date_published, :content_url, :url, :tmdb_id])
+    cast(video_object, attrs, [:name, :description, :date_published, :content_url, :url])
   end
 end

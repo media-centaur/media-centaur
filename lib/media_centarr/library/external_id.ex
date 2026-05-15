@@ -33,5 +33,18 @@ defmodule MediaCentarr.Library.ExternalId do
       :video_object_id
     ])
     |> validate_required([:source, :external_id])
+    # All four partial unique indexes — `*_movie_unique`,
+    # `*_tv_series_unique`, `*_movie_series_unique`,
+    # `*_video_object_unique` — are on the same column tuple
+    # `(source, external_id)`. The SQLite Ecto adapter doesn't propagate
+    # the specific index name from the constraint error; it only knows
+    # which columns failed. A single `unique_constraint([:source,
+    # :external_id])` (default name = `<table>_source_external_id_index`)
+    # matches the error format Ecto synthesises and surfaces the
+    # violation as a changeset error rather than `Ecto.ConstraintError`.
+    # Race-loss recovery in `Library.Inbound.put_tmdb_id/3` matches on
+    # `{:error, %Ecto.Changeset{}}` — this declaration is what makes
+    # that branch reachable.
+    |> unique_constraint([:source, :external_id])
   end
 end

@@ -9,6 +9,12 @@ defmodule MediaCentarr.Library.Movie do
   (minutes) at ingest time via `TMDB.Mapper.movie_attrs/3`. The prior
   stringly-typed `:duration` column was dropped; any previously-stored
   values are not recoverable but are repopulated on the next TMDB refresh.
+
+  TMDB and IMDB ids live in `Library.ExternalId` rows reachable via the
+  `:external_ids` association — they are no longer columns on this
+  schema (Library Schema v2 Phase 1 Task 6). Read through
+  `MediaCentarr.Library.ExternalIds.get/2`; write through
+  `MediaCentarr.Library.ExternalIds.put/3`.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -34,8 +40,6 @@ defmodule MediaCentarr.Library.Movie do
     field :original_language, :string
     field :studio, :string
     field :country_code, :string
-    field :tmdb_id, :string
-    field :imdb_id, :string
     field :position, :integer
 
     field :genres, {:array, :string}
@@ -74,8 +78,6 @@ defmodule MediaCentarr.Library.Movie do
       :original_language,
       :studio,
       :country_code,
-      :tmdb_id,
-      :imdb_id,
       :genres,
       :position,
       :movie_series_id,
@@ -84,7 +86,6 @@ defmodule MediaCentarr.Library.Movie do
     |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
     |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
     |> validate_required([:name])
-    |> unique_constraint(:tmdb_id, name: :library_movies_tmdb_id_index)
   end
 
   def set_content_url_changeset(movie, attrs) do
@@ -93,10 +94,14 @@ defmodule MediaCentarr.Library.Movie do
 
   @doc """
   Replaces the credits embeds in place — used by
-  `MediaCentarr.Maintenance.refresh_movie_credits/0` to backfill cast,
-  crew, and `imdb_id` from a fresh TMDB fetch. `cast_embed` is required
-  here because `Ecto.Changeset.change/2` cannot coerce maps into
+  `MediaCentarr.Maintenance.refresh_movie_credits/0` to backfill cast
+  and crew from a fresh TMDB fetch. `cast_embed` is required here
+  because `Ecto.Changeset.change/2` cannot coerce maps into
   `embeds_many` entries.
+
+  The IMDB id no longer lives on this schema; the credits-refresh
+  call site writes it separately via `Library.ExternalIds.put(:imdb,
+  movie, id)` after this changeset has been applied.
   """
   def update_credits_changeset(movie, attrs) do
     movie

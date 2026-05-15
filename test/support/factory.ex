@@ -126,8 +126,6 @@ defmodule MediaCentarr.TestFactory do
       content_url: nil,
       url: nil,
       aggregate_rating_value: nil,
-      tmdb_id: nil,
-      imdb_id: nil,
       position: 0,
       status: nil,
       cast: [],
@@ -269,8 +267,6 @@ defmodule MediaCentarr.TestFactory do
       content_url: nil,
       url: nil,
       aggregate_rating_value: nil,
-      tmdb_id: nil,
-      imdb_id: nil,
       genres: nil,
       position: 0,
       status: nil,
@@ -310,14 +306,29 @@ defmodule MediaCentarr.TestFactory do
   def create_entity(attrs \\ %{}) do
     type = attrs[:type] || :movie
     defaults = %{name: "Test Movie"}
-    merged = Map.merge(defaults, Map.delete(attrs, :type))
+    tmdb_id = attrs[:tmdb_id]
+    imdb_id = attrs[:imdb_id]
 
-    case type do
-      :movie -> Library.create_movie!(merged)
-      :tv_series -> Library.create_tv_series!(merged)
-      :movie_series -> Library.create_movie_series!(merged)
-      :video_object -> Library.create_video_object!(merged)
-    end
+    merged = Map.merge(defaults, Map.drop(attrs, [:type, :tmdb_id, :imdb_id]))
+
+    record =
+      case type do
+        :movie -> Library.create_movie!(merged)
+        :tv_series -> Library.create_tv_series!(merged)
+        :movie_series -> Library.create_movie_series!(merged)
+        :video_object -> Library.create_video_object!(merged)
+      end
+
+    # TMDB / IMDB ids now live on `library_external_ids` rows
+    # (Library Schema v2 Phase 1 Task 6). Forward any test-supplied
+    # `tmdb_id` / `imdb_id` through `ExternalIds.put/3` so existing
+    # test fixtures keep working without explicit `external_id`
+    # plumbing.
+    tmdb_source = if type == :movie_series, do: :tmdb_collection, else: :tmdb
+    _ = Library.ExternalIds.put(tmdb_source, record, tmdb_id)
+    _ = Library.ExternalIds.put(:imdb, record, imdb_id)
+
+    record
   end
 
   def create_image(attrs) do
@@ -337,27 +348,56 @@ defmodule MediaCentarr.TestFactory do
   end
 
   def create_movie(attrs) do
-    Library.create_movie!(attrs)
+    create_with_external_ids(:movie, %{}, attrs, &Library.create_movie!/1)
   end
 
   def create_tv_series(attrs \\ %{}) do
-    defaults = %{name: "Test TV Series"}
-    Library.create_tv_series!(Map.merge(defaults, attrs))
+    create_with_external_ids(:tv_series, %{name: "Test TV Series"}, attrs, &Library.create_tv_series!/1)
   end
 
   def create_movie_series(attrs \\ %{}) do
-    defaults = %{name: "Test Movie Series"}
-    Library.create_movie_series!(Map.merge(defaults, attrs))
+    create_with_external_ids(
+      :movie_series,
+      %{name: "Test Movie Series"},
+      attrs,
+      &Library.create_movie_series!/1
+    )
   end
 
   def create_video_object(attrs \\ %{}) do
-    defaults = %{name: "Test Video"}
-    Library.create_video_object!(Map.merge(defaults, attrs))
+    create_with_external_ids(
+      :video_object,
+      %{name: "Test Video"},
+      attrs,
+      &Library.create_video_object!/1
+    )
+  end
+
+  # Routes test-supplied `tmdb_id` / `imdb_id` through `ExternalIds.put/3`
+  # rather than the container changeset (Library Schema v2 Phase 1 Task 6
+  # moved both off the container columns and into ExternalId rows).
+  defp create_with_external_ids(type, defaults, attrs, creator) do
+    tmdb_id = attrs[:tmdb_id]
+    imdb_id = attrs[:imdb_id]
+    clean_attrs = defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id])
+
+    record = creator.(clean_attrs)
+    tmdb_source = if type == :movie_series, do: :tmdb_collection, else: :tmdb
+    _ = Library.ExternalIds.put(tmdb_source, record, tmdb_id)
+    _ = Library.ExternalIds.put(:imdb, record, imdb_id)
+    record
   end
 
   def create_standalone_movie(attrs \\ %{}) do
     defaults = %{name: "Test Standalone Movie", position: 0}
-    Library.create_movie!(Map.merge(defaults, attrs))
+    tmdb_id = attrs[:tmdb_id]
+    imdb_id = attrs[:imdb_id]
+    movie_attrs = defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id])
+
+    record = Library.create_movie!(movie_attrs)
+    _ = Library.ExternalIds.put(:tmdb, record, tmdb_id)
+    _ = Library.ExternalIds.put(:imdb, record, imdb_id)
+    record
   end
 
   def create_extra(attrs) do
@@ -366,7 +406,13 @@ defmodule MediaCentarr.TestFactory do
 
   def create_entity_with_associations(attrs \\ %{}) do
     type = attrs[:type] || :movie
-    record = create_entity(attrs)
+    # `create_entity` writes TMDB / IMDB ExternalId rows from
+    # `attrs[:tmdb_id] / attrs[:imdb_id]` if present. Ensure a TMDB row
+    # exists by defaulting tmdb_id to "99999" when not supplied so the
+    # legacy contract — "this factory ALWAYS attaches a TMDB external
+    # id" — holds for callers that don't pass one explicitly.
+    attrs_with_default_tmdb = Map.put_new(attrs, :tmdb_id, "99999")
+    record = create_entity(attrs_with_default_tmdb)
     fk = type_fk(type)
 
     create_image(%{
@@ -374,12 +420,6 @@ defmodule MediaCentarr.TestFactory do
       role: "poster",
       content_url: "#{record.id}/poster.jpg",
       extension: "jpg"
-    })
-
-    create_external_id(%{
-      fk => record.id,
-      source: "tmdb",
-      external_id: attrs[:tmdb_id] || "99999"
     })
 
     # Reload with associations

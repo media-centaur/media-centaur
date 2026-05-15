@@ -10,6 +10,7 @@ defmodule MediaCentarr.Library do
       Events,
       Events.EntitiesChanged,
       ExternalId,
+      ExternalIds,
       FileEventHandler,
       Image,
       ImageHealth,
@@ -49,6 +50,7 @@ defmodule MediaCentarr.Library do
     Extra,
     ExtraProgress,
     ExternalId,
+    ExternalIds,
     Image,
     Movie,
     MovieSeries,
@@ -452,26 +454,53 @@ defmodule MediaCentarr.Library do
   def destroy_external_id!(external_id), do: destroy_bang!(external_id)
 
   @doc """
-  Returns the `Movie` with the given TMDB id, or `nil`. Each entity now
-  carries `tmdb_id` directly (see ADR-style note in
-  `feat(library): hoist tmdb_id onto every entity`); these helpers query
-  the entity table rather than the historical `library_external_ids`
-  rows. `external_ids` is reserved for non-TMDB sources (imdb/tvdb/etc).
+  Returns the `Movie` owning the given TMDB id (via `library_external_ids`),
+  or `nil`. Library Schema v2 Phase 1 Task 6 moved TMDB/IMDB ids off the
+  container columns and back onto `ExternalId` rows as the single source
+  of truth.
   """
-  def find_movie_by_tmdb_id(tmdb_id) do
-    Repo.one(from(m in Movie, where: m.tmdb_id == ^tmdb_id, limit: 1))
+  def find_movie_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
+    Repo.one(
+      from(m in Movie,
+        join: e in ExternalId,
+        on: e.movie_id == m.id,
+        where: e.source == "tmdb" and e.external_id == ^tmdb_id,
+        limit: 1
+      )
+    )
   end
 
-  def find_tv_series_by_tmdb_id(tmdb_id) do
-    Repo.one(from(t in TVSeries, where: t.tmdb_id == ^tmdb_id, limit: 1))
+  def find_tv_series_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
+    Repo.one(
+      from(t in TVSeries,
+        join: e in ExternalId,
+        on: e.tv_series_id == t.id,
+        where: e.source == "tmdb" and e.external_id == ^tmdb_id,
+        limit: 1
+      )
+    )
   end
 
-  def find_movie_series_by_tmdb_id(tmdb_id) do
-    Repo.one(from(ms in MovieSeries, where: ms.tmdb_id == ^tmdb_id, limit: 1))
+  def find_movie_series_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
+    Repo.one(
+      from(ms in MovieSeries,
+        join: e in ExternalId,
+        on: e.movie_series_id == ms.id,
+        where: e.source == "tmdb_collection" and e.external_id == ^tmdb_id,
+        limit: 1
+      )
+    )
   end
 
-  def find_video_object_by_tmdb_id(tmdb_id) do
-    Repo.one(from(v in VideoObject, where: v.tmdb_id == ^tmdb_id, limit: 1))
+  def find_video_object_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
+    Repo.one(
+      from(v in VideoObject,
+        join: e in ExternalId,
+        on: e.video_object_id == v.id,
+        where: e.source == "tmdb" and e.external_id == ^tmdb_id,
+        limit: 1
+      )
+    )
   end
 
   @doc """
@@ -484,7 +513,9 @@ defmodule MediaCentarr.Library do
   def find_present_movie(tmdb_id) when is_binary(tmdb_id) do
     case Repo.one(
            from(m in Movie,
-             where: m.tmdb_id == ^tmdb_id and not is_nil(m.content_url),
+             join: e in ExternalId,
+             on: e.movie_id == m.id,
+             where: e.source == "tmdb" and e.external_id == ^tmdb_id and not is_nil(m.content_url),
              select: m.content_url,
              limit: 1
            )
@@ -498,7 +529,8 @@ defmodule MediaCentarr.Library do
   Returns `{:ok, content_url}` if the library has an episode for the
   given `(tmdb_id, season_number, episode_number)` tuple whose file has
   been ingested, otherwise `:not_found`. Joins through TVSeries → Season
-  → Episode in a single query.
+  → Episode in a single query, using `library_external_ids` to resolve
+  the TMDB id onto the series.
   """
   @spec find_present_episode(String.t(), integer(), integer()) ::
           {:ok, String.t()} | :not_found
@@ -510,8 +542,11 @@ defmodule MediaCentarr.Library do
              on: s.id == e.season_id,
              join: t in TVSeries,
              on: t.id == s.tv_series_id,
+             join: ext in ExternalId,
+             on: ext.tv_series_id == t.id,
              where:
-               t.tmdb_id == ^tmdb_id and s.season_number == ^season_number and
+               ext.source == "tmdb" and ext.external_id == ^tmdb_id and
+                 s.season_number == ^season_number and
                  e.episode_number == ^episode_number and not is_nil(e.content_url),
              select: e.content_url,
              limit: 1
@@ -523,49 +558,55 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
-  Returns `{tv_series_id, tmdb_id}` pairs for TV series in the given
-  list whose `tmdb_id` is set.
+  Returns `{tv_series_id, tmdb_id}` pairs for TV series in the given list
+  that have a TMDB ExternalId row.
   """
   def tmdb_ids_for_tv_series(tv_series_ids) when is_list(tv_series_ids) do
     Repo.all(
       from(t in TVSeries,
-        where: t.id in ^tv_series_ids and not is_nil(t.tmdb_id),
-        select: {t.id, t.tmdb_id}
+        join: e in ExternalId,
+        on: e.tv_series_id == t.id,
+        where: t.id in ^tv_series_ids and e.source == "tmdb",
+        select: {t.id, e.external_id}
       )
     )
   end
 
   @doc """
-  Returns `{movie_id, tmdb_id}` pairs for movies in the given list
-  whose `tmdb_id` is set. Mirror of `tmdb_ids_for_tv_series/1` —
+  Returns `{movie_id, tmdb_id}` pairs for movies in the given list that
+  have a TMDB ExternalId row. Mirror of `tmdb_ids_for_tv_series/1` —
   release tracking uses this to detect when a tracked movie has just
   landed in the library so it can close out the tracking item.
   """
   def tmdb_ids_for_movies(movie_ids) when is_list(movie_ids) do
     Repo.all(
       from(m in Movie,
-        where: m.id in ^movie_ids and not is_nil(m.tmdb_id),
-        select: {m.id, m.tmdb_id}
+        join: e in ExternalId,
+        on: e.movie_id == m.id,
+        where: m.id in ^movie_ids and e.source == "tmdb",
+        select: {m.id, e.external_id}
       )
     )
   end
 
   @doc """
-  Returns every entity in the library that has a TMDB id, tagged with
-  its type. Used by ReleaseTracking to scan for tracking candidates.
+  Returns every entity in the library that has a TMDB ExternalId,
+  tagged with its type. Used by ReleaseTracking to scan for tracking
+  candidates.
 
-  The `:source` key matches the legacy external_id source convention
-  (`"tmdb"` for movies/TV, `"tmdb_collection"` for movie series) so
-  consumers that branched on it didn't need to change shape.
+  The `:source` key matches the existing convention (`"tmdb"` for
+  movies / TV / video objects, `"tmdb_collection"` for movie series).
   """
   def list_tmdb_entities do
     tv =
       Repo.all(
         from(t in TVSeries,
-          where: not is_nil(t.tmdb_id),
+          join: e in ExternalId,
+          on: e.tv_series_id == t.id,
+          where: e.source == "tmdb",
           select: %{
             source: "tmdb",
-            external_id: t.tmdb_id,
+            external_id: e.external_id,
             tv_series_id: t.id,
             movie_series_id: nil,
             movie_id: nil
@@ -576,10 +617,12 @@ defmodule MediaCentarr.Library do
     movies =
       Repo.all(
         from(m in Movie,
-          where: not is_nil(m.tmdb_id) and is_nil(m.movie_series_id),
+          join: e in ExternalId,
+          on: e.movie_id == m.id,
+          where: e.source == "tmdb" and is_nil(m.movie_series_id),
           select: %{
             source: "tmdb",
-            external_id: m.tmdb_id,
+            external_id: e.external_id,
             tv_series_id: nil,
             movie_series_id: nil,
             movie_id: m.id
@@ -590,10 +633,12 @@ defmodule MediaCentarr.Library do
     movie_series =
       Repo.all(
         from(ms in MovieSeries,
-          where: not is_nil(ms.tmdb_id),
+          join: e in ExternalId,
+          on: e.movie_series_id == ms.id,
+          where: e.source == "tmdb_collection",
           select: %{
             source: "tmdb_collection",
-            external_id: ms.tmdb_id,
+            external_id: e.external_id,
             tv_series_id: nil,
             movie_series_id: ms.id,
             movie_id: nil
@@ -645,12 +690,53 @@ defmodule MediaCentarr.Library do
     Repo.preload(Repo.get!(Movie, id), @movie_full_preloads)
   end
 
+  @doc """
+  Finds the child movie of a `MovieSeries` whose TMDB ExternalId matches
+  the supplied `:tmdb_id`, or creates one. The TMDB id is written as a
+  separate ExternalId row on success — the Movie row itself no longer
+  carries the id column.
+
+  Used by `Library.Inbound` when ingesting a collection event with a
+  child-movie payload.
+  """
   def find_or_create_movie_for_series(attrs) do
-    find_or_insert_by(
-      Movie,
-      [movie_series_id: lookup_attr(attrs, :movie_series_id), tmdb_id: lookup_attr(attrs, :tmdb_id)],
-      attrs
+    movie_series_id = lookup_attr(attrs, :movie_series_id)
+    tmdb_id = lookup_attr(attrs, :tmdb_id)
+
+    case find_child_movie_by_tmdb_id(movie_series_id, tmdb_id) do
+      %Movie{} = movie ->
+        {:ok, movie}
+
+      nil ->
+        attrs_without_id = Map.drop(attrs, [:tmdb_id, "tmdb_id"])
+
+        with {:ok, movie} <- create_movie(attrs_without_id),
+             {:ok, _} <- maybe_put_tmdb(movie, tmdb_id) do
+          {:ok, movie}
+        end
+    end
+  end
+
+  defp find_child_movie_by_tmdb_id(_movie_series_id, nil), do: nil
+
+  defp find_child_movie_by_tmdb_id(movie_series_id, tmdb_id)
+       when is_binary(movie_series_id) and is_binary(tmdb_id) do
+    Repo.one(
+      from(m in Movie,
+        join: e in ExternalId,
+        on: e.movie_id == m.id,
+        where:
+          m.movie_series_id == ^movie_series_id and
+            e.source == "tmdb" and e.external_id == ^tmdb_id,
+        limit: 1
+      )
     )
+  end
+
+  defp maybe_put_tmdb(_movie, nil), do: {:ok, :no_id}
+
+  defp maybe_put_tmdb(movie, tmdb_id) when is_binary(tmdb_id) do
+    ExternalIds.put(:tmdb, movie, tmdb_id)
   end
 
   def list_movies_for_series(movie_series_id, opts \\ []) do
