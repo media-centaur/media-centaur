@@ -174,28 +174,32 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   end
 
   describe "/library?selected=<id> with movie that has detected subtitles" do
-    # SubtitlesRow renders a row from `WatchedFile.subtitle_tracks` (an
-    # `{:array, :map}` Ecto field). A render-path bug — bad map-key
-    # access, missing struct/string conversion, nil-language pattern
-    # mismatch — would crash the modal mount. This smoke pins the
-    # branch that has a non-empty subtitle list with a mix of known
-    # languages and an unknown sidecar (the rare-but-real case).
+    # SubtitlesRow renders the language list aggregated from a movie's
+    # linked-file tracks (`subtitles_tracks` table, owned by the
+    # Subtitles context). A render-path bug — bad query, missing
+    # struct/string conversion, nil-language pattern mismatch — would
+    # crash the modal mount. This smoke pins the branch that has a
+    # non-empty subtitle list with a mix of known languages and an
+    # unknown sidecar (the rare-but-real case).
     setup do
       movie = create_standalone_movie(%{name: "Smoke Movie With Subtitles"})
 
-      create_linked_file(%{
-        movie_id: movie.id,
-        file_path: "/media/test/Smoke.Movie.With.Subtitles.mkv",
-        subtitle_tracks: [
-          %{"kind" => "embedded", "language" => "en", "source" => "stream:2"},
-          %{"kind" => "sidecar", "language" => nil, "source" => "/media/test/forced.srt"}
-        ]
-      })
+      watched_file =
+        create_linked_file(%{
+          movie_id: movie.id,
+          file_path: "/media/test/Smoke.Movie.With.Subtitles.mkv"
+        })
+
+      {:ok, _tracks} =
+        MediaCentarr.Subtitles.replace_tracks_for_file(watched_file.id, [
+          %{kind: :embedded, language: "en", source: "stream:2"},
+          %{kind: :sidecar, language: nil, source: "/media/test/forced.srt"}
+        ])
 
       {:ok, movie: movie}
     end
 
-    test "library detail panel mounts when a linked file has subtitle_tracks",
+    test "library detail panel mounts when a linked file has subtitle tracks",
          %{conn: conn, movie: movie} do
       assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)

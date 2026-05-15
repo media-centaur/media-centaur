@@ -260,14 +260,15 @@ defmodule MediaCentarr.Maintenance do
   end
 
   @doc """
-  Backfills `WatchedFile.subtitle_tracks` for movie files that have
-  none yet — picks up libraries imported before subtitle detection
-  shipped, or movies whose subs changed since import.
+  Backfills subtitle tracks for movie files that have none yet —
+  picks up libraries imported before subtitle detection shipped, or
+  movies whose subs changed since import.
 
-  Iterates only files linked to a movie (`movie_id` not nil) whose
-  `subtitle_tracks` is empty, calls `Subtitles.detect/1`, and updates
-  the row. Idempotent: subsequent runs skip files that already have
-  tracks.
+  Iterates only files linked to a movie (`movie_id` not nil) that
+  currently have no persisted tracks in `subtitles_tracks`, calls
+  `Subtitles.detect/1`, and persists the result via
+  `Subtitles.replace_tracks_for_file/2`. Idempotent: subsequent runs
+  skip files that already have tracks.
 
   Survives a missing `ffprobe` — only sidecars are detected in that
   case, exactly as during normal import.
@@ -279,11 +280,7 @@ defmodule MediaCentarr.Maintenance do
   def refresh_movie_subtitles do
     Log.info(:library, "refreshing movie subtitles")
 
-    files =
-      Repo.all(
-        from f in WatchedFile,
-          where: not is_nil(f.movie_id) and f.subtitle_tracks == ^[]
-      )
+    files = movie_files_without_tracks()
 
     result = Enum.reduce(files, %{updated: 0, skipped: 0}, &process_subtitle_refresh/2)
 
@@ -295,22 +292,30 @@ defmodule MediaCentarr.Maintenance do
     {:ok, result}
   end
 
-  defp process_subtitle_refresh(%WatchedFile{file_path: path} = file, acc) do
-    tracks =
-      path
-      |> MediaCentarr.Subtitles.detect()
-      |> Enum.map(&MediaCentarr.Subtitles.Track.to_map/1)
+  # Movie-linked WatchedFiles whose `subtitles_tracks` row count is
+  # zero. The left-join + group_by keeps this a single SQL trip.
+  defp movie_files_without_tracks do
+    Repo.all(
+      from f in WatchedFile,
+        left_join: t in MediaCentarr.Subtitles.Track,
+        on: t.watched_file_id == f.id,
+        where: not is_nil(f.movie_id),
+        group_by: f.id,
+        having: count(t.id) == 0,
+        select: f
+    )
+  end
 
-    if tracks == [] do
-      Map.update!(acc, :skipped, &(&1 + 1))
-    else
-      file
-      |> Ecto.Changeset.change(%{subtitle_tracks: tracks})
-      |> Repo.update()
-      |> case do
-        {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
-        {:error, _} -> Map.update!(acc, :skipped, &(&1 + 1))
-      end
+  defp process_subtitle_refresh(%WatchedFile{file_path: path, id: id}, acc) do
+    case MediaCentarr.Subtitles.detect(path) do
+      [] ->
+        Map.update!(acc, :skipped, &(&1 + 1))
+
+      tracks ->
+        case MediaCentarr.Subtitles.replace_tracks_for_file(id, tracks) do
+          {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
+          {:error, _} -> Map.update!(acc, :skipped, &(&1 + 1))
+        end
     end
   end
 
