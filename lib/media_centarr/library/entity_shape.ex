@@ -12,8 +12,14 @@ defmodule MediaCentarr.Library.EntityShape do
 
   Missing associations default to empty lists. Fields that don't exist on a given
   type (e.g. `duration_seconds` on TVSeries) return `nil` via `Map.get/3`.
+
+  TMDB / IMDB ids are derived from the record's preloaded `:external_ids`
+  association (Library Schema v2 Phase 1 Task 6); callers must preload it
+  for `:imdb_id` to be populated.
   """
   def normalize(record, type) do
+    external_ids = Map.get(record, :external_ids, [])
+
     %{
       id: record.id,
       type: type,
@@ -37,10 +43,10 @@ defmodule MediaCentarr.Library.EntityShape do
       status: Map.get(record, :status),
       cast: Map.get(record, :cast) || [],
       crew: Map.get(record, :crew) || [],
-      imdb_id: Map.get(record, :imdb_id),
+      imdb_id: extract_external_id(external_ids, "imdb"),
       collection: collection_from(record, type),
       images: Map.get(record, :images, []),
-      external_ids: Map.get(record, :external_ids, []),
+      external_ids: external_ids,
       extras: Map.get(record, :extras, []),
       seasons: Map.get(record, :seasons, []),
       movies: Map.get(record, :movies, []),
@@ -51,6 +57,15 @@ defmodule MediaCentarr.Library.EntityShape do
       updated_at: record.updated_at
     }
   end
+
+  defp extract_external_id(external_ids, source_str) when is_list(external_ids) do
+    Enum.find_value(external_ids, fn
+      %{source: ^source_str, external_id: value} -> value
+      _ -> nil
+    end)
+  end
+
+  defp extract_external_id(_, _), do: nil
 
   @doc """
   Extracts watch progress records from a type-specific struct's preloaded associations.

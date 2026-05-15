@@ -2,6 +2,12 @@ defmodule MediaCentarr.Library.TVSeries do
   @moduledoc """
   A TV series in the library. Top-level container for seasons and episodes,
   with metadata from TMDB.
+
+  TMDB and IMDB ids live in `Library.ExternalId` rows reachable via the
+  `:external_ids` association — they are no longer columns on this
+  schema (Library Schema v2 Phase 1 Task 6). Read through
+  `MediaCentarr.Library.ExternalIds.get/2`; write through
+  `MediaCentarr.Library.ExternalIds.put/3`.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -26,8 +32,6 @@ defmodule MediaCentarr.Library.TVSeries do
     field :country_code, :string
     field :network, :string
     field :number_of_seasons, :integer
-    field :tmdb_id, :string
-    field :imdb_id, :string
     field :status, Ecto.Enum, values: [:returning, :ended, :canceled, :in_production, :planned]
 
     embeds_many :cast, Person, on_replace: :delete
@@ -42,53 +46,35 @@ defmodule MediaCentarr.Library.TVSeries do
     timestamps()
   end
 
+  @fields [
+    :id,
+    :name,
+    :description,
+    :date_published,
+    :genres,
+    :url,
+    :aggregate_rating_value,
+    :vote_count,
+    :tagline,
+    :original_language,
+    :studio,
+    :country_code,
+    :network,
+    :number_of_seasons,
+    :status
+  ]
+
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [
-      :id,
-      :name,
-      :description,
-      :date_published,
-      :genres,
-      :url,
-      :aggregate_rating_value,
-      :vote_count,
-      :tagline,
-      :original_language,
-      :studio,
-      :country_code,
-      :network,
-      :number_of_seasons,
-      :tmdb_id,
-      :imdb_id,
-      :status
-    ])
+    |> cast(attrs, @fields)
     |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
     |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
     |> validate_required([:name])
-    |> unique_constraint(:tmdb_id, name: :library_tv_series_tmdb_id_index)
   end
 
   def update_changeset(tv_series, attrs) do
     tv_series
-    |> cast(attrs, [
-      :name,
-      :description,
-      :date_published,
-      :genres,
-      :url,
-      :aggregate_rating_value,
-      :vote_count,
-      :tagline,
-      :original_language,
-      :studio,
-      :country_code,
-      :network,
-      :number_of_seasons,
-      :tmdb_id,
-      :imdb_id,
-      :status
-    ])
+    |> cast(attrs, @fields -- [:id])
     |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
     |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
   end
@@ -96,9 +82,13 @@ defmodule MediaCentarr.Library.TVSeries do
   @doc """
   Replaces the credits embeds in place — used by
   `MediaCentarr.Maintenance.refresh_series_credits/0` to backfill
-  cast, crew (creators), and `imdb_id` from a fresh TMDB fetch.
-  `cast_embed` is required here because `Ecto.Changeset.change/2`
-  cannot coerce maps into `embeds_many` entries.
+  cast and crew (creators) from a fresh TMDB fetch. `cast_embed` is
+  required here because `Ecto.Changeset.change/2` cannot coerce maps
+  into `embeds_many` entries.
+
+  The IMDB id no longer lives on this schema; the credits-refresh
+  call site writes it separately via `Library.ExternalIds.put(:imdb,
+  tv_series, id)` after this changeset has been applied.
   """
   def update_credits_changeset(tv_series, attrs) do
     tv_series
