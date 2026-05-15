@@ -107,6 +107,15 @@ defmodule MediaCentarr.TMDB.Mapper do
 
   @doc """
   Extracts domain attributes for a MovieSeries entity from TMDB collection data.
+
+  TMDB's `/collection/{id}` endpoint is sparse — it returns `name`,
+  `overview`, image paths, and the `parts` list, but no `tagline`,
+  `status`, `studio`, `country_code`, `original_language`, `vote_count`,
+  or top-level credits (those live per-movie on the parts). The
+  schema-level symmetry with `TVSeries` (Phase 1 Task 4 of the Library
+  Schema v2 campaign) is preserved by ingest writing empty `cast`/`crew`
+  lists; the other scalars are left absent (i.e. `nil` post-cast).
+  Future enrichment can aggregate from the constituent movies.
   """
   def movie_series_attrs(collection_id, collection) do
     %{
@@ -114,7 +123,9 @@ defmodule MediaCentarr.TMDB.Mapper do
       tmdb_id: to_string(collection_id),
       name: collection["name"],
       description: collection["overview"],
-      url: tmdb_url(:collection, collection_id)
+      url: tmdb_url(:collection, collection_id),
+      cast: [],
+      crew: []
     }
   end
 
