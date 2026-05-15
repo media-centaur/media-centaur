@@ -9,7 +9,14 @@ defmodule MediaCentarr.Library.MovieList do
 
   @doc "Sorts movies chronologically by date_published, then position as tiebreaker."
   def sort_movies(movies) when is_list(movies) do
-    Enum.sort_by(movies, fn movie -> {movie.date_published || "", movie.position || 0} end)
+    # Use ISO 8601 string for the date sort key — Erlang term ordering on
+    # `%Date{}` structs sorts by map-key order (calendar → day → month →
+    # year), which would mis-order entries from different months. The
+    # canonical `"YYYY-MM-DD"` representation sorts lexicographically the
+    # same as chronologically, and "" sorts before any populated date.
+    Enum.sort_by(movies, fn movie ->
+      {(movie.date_published && Date.to_iso8601(movie.date_published)) || "", movie.position || 0}
+    end)
   end
 
   def sort_movies(_), do: []

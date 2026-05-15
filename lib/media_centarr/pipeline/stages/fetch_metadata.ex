@@ -117,7 +117,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
       tmdb_id: to_string(tmdb_id),
       name: movie_data["title"],
       description: movie_data["overview"],
-      date_published: movie_data["release_date"],
+      date_published: Mapper.parse_date(movie_data["release_date"]),
       url: Mapper.tmdb_url(:movie, tmdb_id),
       duration: Mapper.minutes_to_iso8601(movie_data["runtime"]),
       director: Mapper.extract_director(movie_data["credits"]),

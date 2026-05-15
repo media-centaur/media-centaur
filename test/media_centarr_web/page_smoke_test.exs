@@ -97,7 +97,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         create_standalone_movie(%{
           name: "Smoke Movie With Duration",
           duration: "PT1H55M",
-          date_published: "2008-07-18",
+          date_published: ~D[2008-07-18],
           content_rating: "PG-13"
         })
 

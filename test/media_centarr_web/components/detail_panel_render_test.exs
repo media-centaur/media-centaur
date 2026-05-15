@@ -59,7 +59,7 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
           type: :tv_series,
           seasons: [],
           network: "Sample Network",
-          date_published: "2020-01-15",
+          date_published: ~D[2020-01-15],
           status: :returning,
           imdb_id: "tt0000200",
           cast: [

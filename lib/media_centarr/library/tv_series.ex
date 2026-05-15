@@ -15,7 +15,7 @@ defmodule MediaCentarr.Library.TVSeries do
   schema "library_tv_series" do
     field :name, :string
     field :description, :string
-    field :date_published, :string
+    field :date_published, :date
     field :genres, {:array, :string}
     field :url, :string
     field :aggregate_rating_value, :float

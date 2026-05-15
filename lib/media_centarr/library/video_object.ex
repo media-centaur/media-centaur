@@ -14,7 +14,7 @@ defmodule MediaCentarr.Library.VideoObject do
   schema "library_video_objects" do
     field :name, :string
     field :description, :string
-    field :date_published, :string
+    field :date_published, :date
     field :content_url, :string
     field :url, :string
     field :tmdb_id, :string
