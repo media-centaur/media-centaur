@@ -1566,16 +1566,10 @@ defmodule MediaCentarr.Library do
         _ -> nil
       end
 
-    year =
-      case Map.get(record, :date_published) do
-        <<year::binary-size(4), _::binary>> -> String.to_integer(year)
-        _ -> nil
-      end
-
     %{
       id: record.id,
       name: record.name,
-      year: year,
+      year: record_year(record),
       poster_url: poster_url,
       __inserted_at__: record.inserted_at
     }
@@ -1586,12 +1580,6 @@ defmodule MediaCentarr.Library do
   defp shape_hero_record(record) do
     backdrop_url = image_url(record.images, "backdrop")
     logo_url = image_url(record.images, "logo")
-
-    year =
-      case Map.get(record, :date_published) do
-        <<year::binary-size(4), _::binary>> -> String.to_integer(year)
-        _ -> nil
-      end
 
     runtime_minutes =
       case Map.get(record, :duration) do
@@ -1608,7 +1596,7 @@ defmodule MediaCentarr.Library do
     %{
       id: record.id,
       name: record.name,
-      year: year,
+      year: record_year(record),
       runtime_minutes: runtime_minutes,
       genres: Map.get(record, :genres),
       overview: record.description,
@@ -1616,6 +1604,12 @@ defmodule MediaCentarr.Library do
       logo_url: logo_url
     }
   end
+
+  # Extracts the year from a record's `date_published` field. Returns `nil`
+  # when the record has no date or the field isn't a `%Date{}` (e.g. a plain
+  # map shape from upstream callers).
+  defp record_year(%{date_published: %Date{year: y}}), do: y
+  defp record_year(_), do: nil
 
   defp image_url(images, role) do
     case Enum.find(images || [], &(&1.role == role)) do

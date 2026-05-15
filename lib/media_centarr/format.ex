@@ -32,6 +32,35 @@ defmodule MediaCentarr.Format do
   def short_id(uuid) when is_binary(uuid), do: String.slice(uuid, 0, 8)
 
   @doc """
+  Returns the 4-digit year for a `Date` as a string. `nil` and non-Date
+  inputs return `nil`. Used by templates that display only the year
+  portion of `entity.date_published`.
+
+      iex> MediaCentarr.Format.year(~D[2008-07-18])
+      "2008"
+      iex> MediaCentarr.Format.year(nil)
+      nil
+  """
+  @spec year(Date.t() | nil) :: String.t() | nil
+  def year(nil), do: nil
+  def year(%Date{year: y}), do: Integer.to_string(y)
+
+  @doc """
+  Renders a `Date` as ISO 8601 (`"YYYY-MM-DD"`). `nil` returns `nil`. Used
+  by templates that surface the full date in a meta block — `Date` structs
+  don't implement `String.Chars`, so interpolation needs an explicit
+  formatter.
+
+      iex> MediaCentarr.Format.iso_date(~D[2020-01-15])
+      "2020-01-15"
+      iex> MediaCentarr.Format.iso_date(nil)
+      nil
+  """
+  @spec iso_date(Date.t() | nil) :: String.t() | nil
+  def iso_date(nil), do: nil
+  def iso_date(%Date{} = date), do: Date.to_iso8601(date)
+
+  @doc """
   Zero-pads a non-negative integer to two digits.
 
       iex> MediaCentarr.Format.pad2(3)

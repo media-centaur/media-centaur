@@ -96,14 +96,20 @@ defmodule MediaCentarrWeb.LibraryHelpers do
   end
 
   def sorted_by(entries, :year) do
+    # Module-aware sort: Erlang term-order on `%Date{}` is calendar → day →
+    # month → year (lexicographic on internal struct fields), which would
+    # silently mis-order entries from different months. `{:desc, Date}`
+    # forces `Date.compare/2`.
     Enum.sort_by(
       entries,
-      fn entry -> entry.entity.date_published || "" end,
-      :desc
+      fn entry -> entry.entity.date_published || ~D[0001-01-01] end,
+      {:desc, Date}
     )
   end
 
   def sorted_by(entries, :recent) do
+    # Module-aware sort: as above, `%DateTime{}` term-order is not
+    # chronological. `{:desc, DateTime}` forces `DateTime.compare/2`.
     Enum.sort_by(
       entries,
       fn entry -> entry.entity.inserted_at || ~U[2000-01-01 00:00:00Z] end,
@@ -119,6 +125,8 @@ defmodule MediaCentarrWeb.LibraryHelpers do
   Used by the `?in_progress=1` filter.
   """
   def sorted_by_last_watched(entries) do
+    # Module-aware sort: `%DateTime{}` term-order is not chronological;
+    # `{:desc, DateTime}` forces `DateTime.compare/2`.
     Enum.sort_by(
       entries,
       fn entry -> MediaCentarrWeb.LibraryProgress.max_last_watched_at(entry) || @epoch end,

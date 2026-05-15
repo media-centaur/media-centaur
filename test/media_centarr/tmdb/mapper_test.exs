@@ -42,7 +42,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.tmdb_id == "155"
       assert result.name == "Sample Movie"
       assert result.description == "A sample movie overview."
-      assert result.date_published == "2008-07-18"
+      assert result.date_published == ~D[2008-07-18]
       assert result.genres == ["Action", "Drama"]
       assert result.url == "https://www.themoviedb.org/movie/155"
       assert result.duration == "PT2H32M"
@@ -277,7 +277,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.tmdb_id == "1396"
       assert result.name == "Sample Show"
       assert result.description == "A sample show overview."
-      assert result.date_published == "2008-01-20"
+      assert result.date_published == ~D[2008-01-20]
       assert result.genres == ["Drama"]
       assert result.url == "https://www.themoviedb.org/tv/1396"
       assert result.number_of_seasons == 5

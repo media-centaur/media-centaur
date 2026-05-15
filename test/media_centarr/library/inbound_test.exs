@@ -26,7 +26,7 @@ defmodule MediaCentarr.Library.InboundTest do
         type: :movie,
         name: "Sample Movie",
         description: "A sample movie description.",
-        date_published: "1999-10-15",
+        date_published: ~D[1999-10-15],
         content_url: "/media/Sample.Movie.1999.mkv",
         url: "https://www.themoviedb.org/movie/550",
         tmdb_id: "550"
@@ -63,7 +63,7 @@ defmodule MediaCentarr.Library.InboundTest do
           tmdb_id: "155",
           name: "Sample Movie Two",
           description: "Sample description.",
-          date_published: "2008-07-18",
+          date_published: ~D[2008-07-18],
           content_url: "/media/Sample.Movie.2008.mkv",
           url: "https://www.themoviedb.org/movie/155",
           position: 1
@@ -231,7 +231,7 @@ defmodule MediaCentarr.Library.InboundTest do
               tmdb_id: "49026",
               name: "Sample Movie Three",
               description: "Sample description.",
-              date_published: "2012-07-20",
+              date_published: ~D[2012-07-20],
               content_url: "/media/Sample.Movie.Three.2012.mkv",
               position: 2
             },

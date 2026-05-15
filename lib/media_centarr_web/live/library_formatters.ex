@@ -4,7 +4,7 @@ defmodule MediaCentarrWeb.LibraryFormatters do
   failure flash. Pure functions — no I/O, no assigns.
   """
 
-  alias MediaCentarr.DateUtil
+  alias MediaCentarr.{DateUtil, Format}
 
   # --- Duration ---
 
@@ -31,7 +31,19 @@ defmodule MediaCentarrWeb.LibraryFormatters do
   def format_type(:video_object), do: "Video"
   def format_type(type), do: type |> to_string() |> String.capitalize()
 
-  def extract_year(date_string), do: DateUtil.extract_year(date_string) || ""
+  @doc """
+  Returns the 4-digit year for an `entity.date_published` value. Accepts a
+  `Date` struct (canonical, post Library Schema v2 Phase 1). The binary
+  clause is retained only for legacy storybook fixtures (e.g.
+  `poster_card.story.exs`) that still pass ISO-8601 strings; production
+  callers always receive `%Date{}` from the schema.
+  """
+  # Follow-up: drop the binary clause once the component-contract campaign
+  # migrates poster_card.story.exs (and remaining stories) to typed
+  # %Date{} fixtures.
+  def extract_year(%Date{} = date), do: Format.year(date)
+  def extract_year(date_string) when is_binary(date_string), do: DateUtil.extract_year(date_string) || ""
+  def extract_year(nil), do: ""
 
   # --- Playback failure flash ---
 

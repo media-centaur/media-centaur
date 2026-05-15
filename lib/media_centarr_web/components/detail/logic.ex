@@ -78,11 +78,20 @@ defmodule MediaCentarrWeb.Components.Detail.Logic do
   end
 
   @doc """
-  Extracts the 4-digit year from an ISO 8601 date string. Returns `nil` for
-  any input that doesn't match.
+  Extracts the 4-digit year for an `entity.date_published` value. Accepts a
+  `Date` struct (canonical, post Library Schema v2 Phase 1). Returns `nil`
+  for anything else.
+
+  The `nil`/`""`/binary clauses are retained for legacy storybook fixtures
+  (e.g. `poster_card.story.exs`) pending storybook migration to typed
+  `%Date{}` fixtures under the component-contract campaign — production
+  callers always receive `%Date{}` from the schema.
   """
+  # Follow-up: drop the binary/"" clauses once the component-contract
+  # campaign migrates poster_card.story.exs to typed %Date{} fixtures.
   def year_from_date(nil), do: nil
   def year_from_date(""), do: nil
+  def year_from_date(%Date{year: y}), do: Integer.to_string(y)
 
   def year_from_date(<<year::binary-size(4), "-", _rest::binary>>) when byte_size(year) == 4 do
     if String.match?(year, ~r/^\d{4}$/), do: year

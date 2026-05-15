@@ -527,7 +527,7 @@ defmodule MediaCentarr.LibraryTest do
           name: "Mascot Cosmos",
           position: 0,
           description: "A space-faring plumber adventure",
-          date_published: "2007-11-01"
+          date_published: ~D[2007-11-01]
         })
 
       record_present(create_linked_file(%{movie_id: child.id}))

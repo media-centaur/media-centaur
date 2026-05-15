@@ -142,7 +142,7 @@ defmodule MediaCentarr.Showcase do
         Library.create_movie!(%{
           name: movie_data["title"] || title,
           description: movie_data["overview"],
-          date_published: movie_data["release_date"],
+          date_published: TMDB.Mapper.parse_date(movie_data["release_date"]),
           duration: minutes_to_iso(movie_data["runtime"]),
           genres: extract_genre_names(movie_data["genres"]),
           url: "https://www.themoviedb.org/movie/#{tmdb_id}",
@@ -180,7 +180,7 @@ defmodule MediaCentarr.Showcase do
         Library.create_tv_series!(%{
           name: tv_data["name"] || title,
           description: tv_data["overview"],
-          date_published: tv_data["first_air_date"],
+          date_published: TMDB.Mapper.parse_date(tv_data["first_air_date"]),
           genres: extract_genre_names(tv_data["genres"]),
           url: "https://www.themoviedb.org/tv/#{tmdb_id}",
           aggregate_rating_value: tv_data["vote_average"],
@@ -283,11 +283,14 @@ defmodule MediaCentarr.Showcase do
   # ---------------------------------------------------------------------------
 
   defp seed_video_object!(%{title: title} = entry) do
+    # Year-only catalog entries become Jan 1 of that year. Detail templates
+    # use Format.year/1, not Format.iso_date/1, so the synthetic month/day
+    # never surfaces.
     video_object =
       Library.create_video_object!(%{
         name: title,
         description: entry[:description],
-        date_published: entry[:year] && to_string(entry[:year]),
+        date_published: entry[:year] && Date.new!(entry[:year], 1, 1),
         content_url: entry[:content_url],
         url: entry[:url]
       })

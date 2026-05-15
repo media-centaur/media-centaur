@@ -123,9 +123,9 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
   describe "facets_for/3 with :movie_series" do
     test "returns Movies / First released / Latest derived from member movies, plus Genres / Rating" do
       movies = [
-        build_movie(%{date_published: "1977-05-25", position: 1}),
-        build_movie(%{date_published: "1980-05-21", position: 2}),
-        build_movie(%{date_published: "1983-05-25", position: 3})
+        build_movie(%{date_published: ~D[1977-05-25], position: 1}),
+        build_movie(%{date_published: ~D[1980-05-21], position: 2}),
+        build_movie(%{date_published: ~D[1983-05-25], position: 3})
       ]
 
       movie_series =
@@ -147,7 +147,7 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
     test "tolerates movies missing date_published" do
       movies = [
         build_movie(%{date_published: nil}),
-        build_movie(%{date_published: "1999-12-31"})
+        build_movie(%{date_published: ~D[1999-12-31]})
       ]
 
       facets = Logic.facets_for(:movie_series, build_movie_series(), movies)
@@ -172,7 +172,11 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
   end
 
   describe "year_from_date/1" do
-    test "extracts year from ISO date string" do
+    test "extracts year from a Date struct" do
+      assert Logic.year_from_date(~D[2008-07-18]) == "2008"
+    end
+
+    test "extracts year from an ISO date string (transition tolerance)" do
       assert Logic.year_from_date("2008-07-18") == "2008"
     end
 

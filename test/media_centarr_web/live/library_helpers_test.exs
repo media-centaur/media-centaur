@@ -262,15 +262,15 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
     test "sorts by year descending" do
       entries = [
-        entry(%{date_published: "2020-01-01"}),
-        entry(%{date_published: "2023-05-15"}),
-        entry(%{date_published: "2018-12-25"})
+        entry(%{date_published: ~D[2020-01-01]}),
+        entry(%{date_published: ~D[2023-05-15]}),
+        entry(%{date_published: ~D[2018-12-25]})
       ]
 
       result = LibraryHelpers.sorted_by(entries, :year)
-      years = Enum.map(result, & &1.entity.date_published)
+      dates = Enum.map(result, & &1.entity.date_published)
 
-      assert years == ["2023-05-15", "2020-01-01", "2018-12-25"]
+      assert dates == [~D[2023-05-15], ~D[2020-01-01], ~D[2018-12-25]]
     end
 
     test "sorts by inserted_at descending for :recent" do
@@ -468,6 +468,9 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   # --- extract_year/1 ---
 
+  # String input clause is retained for the still-untyped
+  # poster_card.story.exs fixture; remove the binary cases when Phase 3 of
+  # the component-contract campaign migrates that story to %Date{} fixtures.
   describe "extract_year/1" do
     test "extracts year from date string" do
       assert LibraryFormatters.extract_year("2024-01-15") == "2024"

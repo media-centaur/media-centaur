@@ -283,8 +283,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     ]
   end
 
-  defp year_or_nil(%{date_published: date}) when is_binary(date) and date != "", do: extract_year(date)
-
+  defp year_or_nil(%{date_published: %Date{} = date}), do: MediaCentarr.Format.year(date)
   defp year_or_nil(_), do: nil
 
   defp season_count_or_nil(%{type: :tv_series, seasons: seasons}) when is_list(seasons) do

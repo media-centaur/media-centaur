@@ -229,7 +229,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
           entity:
             tv_entity(%{
               network: "Sample Network",
-              date_published: "2020-01-15",
+              date_published: ~D[2020-01-15],
               status: :returning,
               country_code: "US",
               original_language: "en"
@@ -258,7 +258,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
           entity:
             tv_entity(%{
               network: "Sample Network",
-              date_published: "2020-01-15",
+              date_published: ~D[2020-01-15],
               status: :returning
             })
         })

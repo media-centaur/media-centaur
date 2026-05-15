@@ -56,7 +56,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
           {"Country", assigns.entity[:country_code]},
           {"Language", assigns.entity[:original_language]},
           {"Runtime", format_runtime(assigns.entity[:duration])},
-          {"Released", assigns.entity[:date_published]}
+          {"Released", MediaCentarr.Format.iso_date(assigns.entity[:date_published])}
         ],
         fn {_label, value} -> value in [nil, ""] end
       )
