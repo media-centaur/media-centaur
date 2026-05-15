@@ -39,6 +39,10 @@ defmodule MediaCentarr.Repo.Migrations.RepointCollectionChildWatchedFiles do
   use Ecto.Migration
 
   def up do
+    # Historical: this row-repair belongs in priv/repo/data_migrations/ per
+    # ADR-040. It shipped here before MC0015 enforced that discipline (the
+    # dev-marks-done trap it caused is what motivated the check). Future
+    # row-repairs go in data_migrations.
     execute("""
     UPDATE library_watched_files
        SET movie_id = (

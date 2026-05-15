@@ -3,7 +3,7 @@
     %{
       name: "default",
       files: %{
-        included: ["lib/", "test/"],
+        included: ["lib/", "test/", "priv/repo/migrations/", "priv/repo/data_migrations/"],
         excluded: [
           ~r"/_build/",
           ~r"/deps/",
@@ -190,7 +190,34 @@
           {MediaCentarr.Credo.Checks.RawBadgeClass, []},
           {MediaCentarr.Credo.Checks.StorybookCoverage, []},
           {MediaCentarr.Credo.Checks.TypedComponentAttrs, []},
-          {MediaCentarr.Credo.Checks.DestructiveFileQuery, []}
+          {MediaCentarr.Credo.Checks.DestructiveFileQuery, []},
+          # MC0015 catches `execute("UPDATE …")` / `execute("DELETE …")` in
+          # priv/repo/migrations/ — bulk row mutations belong in a data
+          # migration per ADR-040, not in a schema migration where a dev
+          # `mix ecto.migrate` against a shared DB can shadow the version
+          # before prod ever sees it.
+          #
+          # The grandfathered list is migrations shipped before MC0015
+          # existed. They're append-only per ADR-040 — annotating each
+          # instance with a `credo:disable-next-line` comment counts as a
+          # comment-only edit and is allowed, but a single file-level list
+          # here is clearer than 40+ scattered annotations. Do not add new
+          # files to this list; new mutations go in priv/repo/data_migrations/.
+          {MediaCentarr.Credo.Checks.RowMutationInSchemaMigration,
+           [
+             files: %{
+               excluded: [
+                 "priv/repo/migrations/20260403000001_migrate_entity_data_to_type_tables.exs",
+                 "priv/repo/migrations/20260404202512_denormalize_release_tracking_events.exs",
+                 "priv/repo/migrations/20260503180000_heal_grabs_tmdb_type_tv_series.exs",
+                 "priv/repo/migrations/20260504180420_backfill_entity_tmdb_id_from_external_ids.exs",
+                 "priv/repo/migrations/20260504202644_drop_tmdb_external_ids.exs",
+                 "priv/repo/migrations/20260511190000_pursuit_target_recipe_refactor.exs",
+                 "priv/repo/migrations/20260514100000_collapse_needs_decision_into_awaiting_flag.exs",
+                 "priv/repo/migrations/20260515000000_repoint_collection_child_watched_files.exs"
+               ]
+             }
+           ]}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

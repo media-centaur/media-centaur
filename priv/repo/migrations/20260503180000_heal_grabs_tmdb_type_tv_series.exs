@@ -16,6 +16,10 @@ defmodule MediaCentarr.Repo.Migrations.HealGrabsTmdbTypeTvSeries do
     # user-driven bulk-arm); the "tv_series" duplicate is the auto-grab
     # bug's residue. Without this, the UPDATE below would hit the unique
     # index on (tmdb_id, tmdb_type, season_number, episode_number).
+    #
+    # Surgical inline data fixup per ADR-040 — paired with the enum
+    # spelling drift this migration codifies, kept in the same hunk
+    # rather than split into a data migration.
     execute("""
     DELETE FROM acquisition_grabs
     WHERE tmdb_type = 'tv_series'
