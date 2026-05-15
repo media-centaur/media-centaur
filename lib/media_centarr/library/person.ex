@@ -56,11 +56,31 @@ defmodule MediaCentarr.Library.Person do
   The `imdb_id` field is the only non-credits field that the credits
   refresh path touches; keeping it here keeps all credit-update knowledge
   in one place rather than duplicated across every container schema.
+
+  When the parent schema does not declare `imdb_id` (e.g. `MovieSeries`,
+  whose TMDB collection payload has no top-level IMDB id), the field is
+  silently skipped — the helper composes cleanly across schemas with and
+  without the column.
   """
   def put_credits(changeset, attrs) do
     changeset
-    |> cast(attrs, [:imdb_id])
+    # `cast/3` is what attaches `attrs` to the changeset params; without
+    # it the downstream `cast_embed/2` calls have nothing to read. We
+    # include `:imdb_id` only on parent schemas that declare it (Movie,
+    # TVSeries); for schemas without it (MovieSeries) we pass an empty
+    # field list — the cast still brings the params in.
+    |> cast(attrs, imdb_id_fields(changeset))
     |> cast_embed(:cast, with: &cast_member_changeset/2)
     |> cast_embed(:crew, with: &crew_member_changeset/2)
+  end
+
+  defp imdb_id_fields(changeset) do
+    schema = changeset.data.__struct__
+
+    if :imdb_id in schema.__schema__(:fields) do
+      [:imdb_id]
+    else
+      []
+    end
   end
 end
