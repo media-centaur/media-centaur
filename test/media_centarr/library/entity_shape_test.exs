@@ -85,8 +85,9 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       assert shape.crew == []
     end
 
-    test "carries imdb_id through to the normalized shape" do
-      movie = build_standalone_movie(%{imdb_id: "tt0000001"})
+    test "derives imdb_id from preloaded :external_ids" do
+      imdb_row = build_external_id(%{source: "imdb", external_id: "tt0000001"})
+      movie = build_standalone_movie(%{external_ids: [imdb_row]})
       assert EntityShape.normalize(movie, :movie).imdb_id == "tt0000001"
     end
   end

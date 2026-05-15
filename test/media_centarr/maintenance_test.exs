@@ -1,13 +1,39 @@
 defmodule MediaCentarr.MaintenanceTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Library.{Movie, MovieSeries, Person, TVSeries}
+  alias MediaCentarr.Library.{ExternalIds, Movie, MovieSeries, Person, TVSeries}
   alias MediaCentarr.Maintenance
   alias MediaCentarr.Repo
   alias MediaCentarr.Review
 
   import MediaCentarr.TestFactory
   import MediaCentarr.TmdbStubs
+
+  # TMDB/IMDB ids live on `library_external_ids` rows now
+  # (Library Schema v2 Phase 1 Task 6). Helpers to seed a container
+  # with a TMDB ExternalId attached, mirroring how Inbound writes
+  # them today.
+  defp seed_movie_with_tmdb!(attrs, tmdb_id) when is_map(attrs) do
+    {:ok, movie} = attrs |> Movie.create_changeset() |> Repo.insert()
+    {:ok, _} = ExternalIds.put(:tmdb, movie, tmdb_id)
+    movie
+  end
+
+  defp seed_tv_series_with_tmdb!(attrs, tmdb_id) when is_map(attrs) do
+    {:ok, series} = attrs |> TVSeries.create_changeset() |> Repo.insert()
+    {:ok, _} = ExternalIds.put(:tmdb, series, tmdb_id)
+    series
+  end
+
+  defp seed_movie_series_with_tmdb!(attrs, tmdb_id) when is_map(attrs) do
+    {:ok, series} = attrs |> MovieSeries.create_changeset() |> Repo.insert()
+    {:ok, _} = ExternalIds.put(:tmdb_collection, series, tmdb_id)
+    series
+  end
+
+  defp reload_with_external_ids!(schema, id) do
+    Repo.preload(Repo.get!(schema, id), :external_ids)
+  end
 
   describe "clear_database/0" do
     test "destroys pending review files" do
@@ -26,10 +52,7 @@ defmodule MediaCentarr.MaintenanceTest do
     setup [:setup_tmdb_client]
 
     test "populates cast, crew, and imdb_id on movies with empty credits and a tmdb_id" do
-      {:ok, movie} =
-        %{name: "Sample Movie", tmdb_id: "123", cast: [], crew: []}
-        |> Movie.create_changeset()
-        |> Repo.insert()
+      movie = seed_movie_with_tmdb!(%{name: "Sample Movie", cast: [], crew: []}, "123")
 
       stub_get_movie("123", %{
         "imdb_id" => "tt0000123",
@@ -57,9 +80,9 @@ defmodule MediaCentarr.MaintenanceTest do
 
       assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_movie_credits()
 
-      reloaded = Repo.get!(Movie, movie.id)
+      reloaded = reload_with_external_ids!(Movie, movie.id)
 
-      assert reloaded.imdb_id == "tt0000123"
+      assert ExternalIds.get(reloaded, :imdb) == "tt0000123"
 
       assert [
                %Person{
@@ -103,10 +126,10 @@ defmodule MediaCentarr.MaintenanceTest do
         }
       ]
 
-      {:ok, _} =
-        %{name: "Sample Movie", tmdb_id: "456", cast: existing_cast, crew: existing_crew}
-        |> Movie.create_changeset()
-        |> Repo.insert()
+      seed_movie_with_tmdb!(
+        %{name: "Sample Movie", cast: existing_cast, crew: existing_crew},
+        "456"
+      )
 
       assert {:ok, %{updated: 0, skipped: 1, failed: 0}} = Maintenance.refresh_movie_credits()
     end
@@ -122,10 +145,7 @@ defmodule MediaCentarr.MaintenanceTest do
         }
       ]
 
-      {:ok, _} =
-        %{name: "Sample Movie", tmdb_id: "789", cast: cast, crew: []}
-        |> Movie.create_changeset()
-        |> Repo.insert()
+      seed_movie_with_tmdb!(%{name: "Sample Movie", cast: cast, crew: []}, "789")
 
       stub_get_movie("789", %{
         "imdb_id" => "tt0000789",
@@ -147,8 +167,9 @@ defmodule MediaCentarr.MaintenanceTest do
     end
 
     test "skips movies without a tmdb_id" do
+      # No `ExternalIds.put` call — movie has no TMDB external_id row.
       {:ok, _} =
-        %{name: "Sample Movie", tmdb_id: nil, cast: [], crew: []}
+        %{name: "Sample Movie", cast: [], crew: []}
         |> Movie.create_changeset()
         |> Repo.insert()
 
@@ -160,10 +181,7 @@ defmodule MediaCentarr.MaintenanceTest do
     setup [:setup_tmdb_client]
 
     test "populates cast, crew, and imdb_id on series with empty credits and a tmdb_id" do
-      {:ok, series} =
-        %{name: "Sample Series", tmdb_id: "200", cast: [], crew: []}
-        |> TVSeries.create_changeset()
-        |> Repo.insert()
+      series = seed_tv_series_with_tmdb!(%{name: "Sample Series", cast: [], crew: []}, "200")
 
       stub_get_tv("200", %{
         "external_ids" => %{"imdb_id" => "tt0000200"},
@@ -185,9 +203,9 @@ defmodule MediaCentarr.MaintenanceTest do
 
       assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
 
-      reloaded = Repo.get!(TVSeries, series.id)
+      reloaded = reload_with_external_ids!(TVSeries, series.id)
 
-      assert reloaded.imdb_id == "tt0000200"
+      assert ExternalIds.get(reloaded, :imdb) == "tt0000200"
 
       assert [
                %Person{
@@ -231,10 +249,10 @@ defmodule MediaCentarr.MaintenanceTest do
         }
       ]
 
-      {:ok, _} =
-        %{name: "Sample Series", tmdb_id: "201", cast: existing_cast, crew: existing_crew}
-        |> TVSeries.create_changeset()
-        |> Repo.insert()
+      seed_tv_series_with_tmdb!(
+        %{name: "Sample Series", cast: existing_cast, crew: existing_crew},
+        "201"
+      )
 
       assert {:ok, %{updated: 0, skipped: 1, failed: 0}} = Maintenance.refresh_series_credits()
     end
@@ -250,10 +268,7 @@ defmodule MediaCentarr.MaintenanceTest do
         }
       ]
 
-      {:ok, _} =
-        %{name: "Sample Series", tmdb_id: "202", cast: cast, crew: []}
-        |> TVSeries.create_changeset()
-        |> Repo.insert()
+      seed_tv_series_with_tmdb!(%{name: "Sample Series", cast: cast, crew: []}, "202")
 
       stub_get_tv("202", %{
         "external_ids" => %{"imdb_id" => "tt0000202"},
@@ -266,7 +281,7 @@ defmodule MediaCentarr.MaintenanceTest do
 
     test "skips series without a tmdb_id" do
       {:ok, _} =
-        %{name: "Sample Series", tmdb_id: nil, cast: [], crew: []}
+        %{name: "Sample Series", cast: [], crew: []}
         |> TVSeries.create_changeset()
         |> Repo.insert()
 
@@ -278,10 +293,7 @@ defmodule MediaCentarr.MaintenanceTest do
     setup [:setup_tmdb_client]
 
     test "writes empty cast/crew (collection payload carries no top-level credits)" do
-      {:ok, series} =
-        %{name: "Sample Collection", tmdb_id: "263", cast: [], crew: []}
-        |> MovieSeries.create_changeset()
-        |> Repo.insert()
+      series = seed_movie_series_with_tmdb!(%{name: "Sample Collection", cast: [], crew: []}, "263")
 
       stub_get_collection("263", %{
         "id" => 263,
@@ -319,10 +331,10 @@ defmodule MediaCentarr.MaintenanceTest do
         }
       ]
 
-      {:ok, _} =
-        %{name: "Sample Collection", tmdb_id: "264", cast: existing_cast, crew: existing_crew}
-        |> MovieSeries.create_changeset()
-        |> Repo.insert()
+      seed_movie_series_with_tmdb!(
+        %{name: "Sample Collection", cast: existing_cast, crew: existing_crew},
+        "264"
+      )
 
       assert {:ok, %{updated: 0, skipped: 1, failed: 0}} =
                Maintenance.refresh_movie_series_credits()
@@ -330,7 +342,7 @@ defmodule MediaCentarr.MaintenanceTest do
 
     test "skips collections without a tmdb_id" do
       {:ok, _} =
-        %{name: "Sample Collection", tmdb_id: nil, cast: [], crew: []}
+        %{name: "Sample Collection", cast: [], crew: []}
         |> MovieSeries.create_changeset()
         |> Repo.insert()
 
@@ -343,10 +355,10 @@ defmodule MediaCentarr.MaintenanceTest do
       # schema. MovieSeries has no such column — the helper must skip
       # the field silently rather than raise. Without that guard this
       # call would crash inside `Ecto.Changeset.cast/3`.
-      {:ok, _} =
-        %{name: "Sample Collection", tmdb_id: "265", cast: [], crew: []}
-        |> MovieSeries.create_changeset()
-        |> Repo.insert()
+      # After Library Schema v2 Phase 1 Task 6 the introspection is
+      # gone, but the test stays as a regression guard against future
+      # `:imdb_id` plumbing creep.
+      seed_movie_series_with_tmdb!(%{name: "Sample Collection", cast: [], crew: []}, "265")
 
       stub_get_collection("265", %{
         "id" => 265,

@@ -84,23 +84,29 @@ defmodule MediaCentarr.Library.TVSeriesTest do
     end
   end
 
-  describe "imdb_id field" do
-    test "round-trips a string" do
+  describe "imdb_id via ExternalIds" do
+    alias MediaCentarr.Library.ExternalIds
+
+    test "writes and reads through library_external_ids" do
       assert {:ok, series} =
-               %{name: "Sample Series G", imdb_id: "tt1234567"}
+               %{name: "Sample Series G"}
                |> TVSeries.create_changeset()
                |> Repo.insert()
 
-      assert Repo.get!(TVSeries, series.id).imdb_id == "tt1234567"
+      assert {:ok, _row} = ExternalIds.put(:imdb, series, "tt1234567")
+
+      reloaded = Repo.preload(series, :external_ids)
+      assert ExternalIds.get(reloaded, :imdb) == "tt1234567"
     end
 
-    test "defaults to nil" do
+    test "returns nil when no imdb ExternalId row exists" do
       assert {:ok, series} =
                %{name: "Sample Series H"}
                |> TVSeries.create_changeset()
                |> Repo.insert()
 
-      assert Repo.get!(TVSeries, series.id).imdb_id == nil
+      reloaded = Repo.preload(series, :external_ids)
+      assert ExternalIds.get(reloaded, :imdb) == nil
     end
   end
 end

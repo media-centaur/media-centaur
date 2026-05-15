@@ -204,7 +204,7 @@ defmodule MediaCentarr.Pipeline.ImageRepairTest do
     end
 
     test "skips entity with no watched_files (cannot determine watch_dir)", %{tmp: _tmp} do
-      movie = Library.create_movie!(%{name: "Orphan", position: 0, tmdb_id: "550"})
+      movie = create_standalone_movie(%{name: "Orphan", position: 0, tmdb_id: "550"})
 
       Library.create_image!(%{
         movie_id: movie.id,
@@ -287,7 +287,7 @@ defmodule MediaCentarr.Pipeline.ImageRepairTest do
 
   defp create_movie_with_watched_file(tmp, attrs \\ %{}) do
     defaults = %{name: "Test Movie", position: 0}
-    movie = Library.create_movie!(Map.merge(defaults, attrs))
+    movie = create_standalone_movie(Map.merge(defaults, attrs))
     file_path = Path.join(tmp, "movie-#{movie.id}.mkv")
     Library.link_file!(%{movie_id: movie.id, file_path: file_path, watch_dir: tmp})
     movie

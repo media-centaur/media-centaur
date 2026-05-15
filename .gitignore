@@ -90,6 +90,7 @@ npm-debug.log
 
 # sqlite stuff
 /media_centarr_dev*
+/media_centarr_test*
 /priv/repo/*.db
 /priv/repo/*.db-shm
 /priv/repo/*.db-wal

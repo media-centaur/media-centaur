@@ -6,25 +6,32 @@ defmodule MediaCentarr.Library.Inbound do
   Handles three event types:
 
   - `{:entity_published, event}` — creates a type-specific record (TVSeries,
-    MovieSeries, Movie, VideoObject), children, Identifier, WatchedFile, queues
+    MovieSeries, Movie, VideoObject), children, ExternalId, WatchedFile, queues
     images for download, and broadcasts `:entities_changed`
   - `{:image_ready, attrs}` — upserts a Library.Image after successful download
   - `{:rematch_requested, entity_id}` — destroys an entity and its WatchedFiles,
     then sends the file list to `"review:intake"` for re-review
 
-  Entities are created as type-specific records (TVSeries, MovieSeries, Movie,
-  VideoObject). Existing entities are found by TMDB ID lookup on the entity's
-  own `tmdb_id` column (a unique partial index per type, see
-  `priv/repo/migrations/.._unique_indexes_on_entity_tmdb_id.exs`). Race-loss
-  during concurrent inserts is detected via that constraint and recovered by
-  looking up the winner.
+  Existing entities are resolved by joining through `library_external_ids` —
+  `MediaCentarr.Library.ExternalIds` is the sole source of truth for
+  TMDB / IMDB ids (Library Schema v2 Phase 1 Task 6).
+
+  ## Race-loss recovery
+
+  Concurrent inserts of the same TMDB id no longer surface as a column-level
+  unique-constraint violation on the container (the column is gone). The
+  race is now detected at the `ExternalIds.put/3` call site after a
+  successful container insert: if the put fails with the
+  `(source, external_id, owner_fk)` unique index, the losing process looks
+  up the winning ExternalId, deletes its orphaned container, and returns
+  the winner.
   """
   use GenServer
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Format
   alias MediaCentarr.Library
-  alias MediaCentarr.Library.{ChangeLog, EntityCascade, Helpers}
+  alias MediaCentarr.Library.{ChangeLog, EntityCascade, ExternalIds, Helpers}
   alias MediaCentarr.Library.WatchedFile
 
   def start_link(_opts) do
@@ -230,31 +237,30 @@ defmodule MediaCentarr.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp create_new(event) do
-    entity_attrs = strip_content_url_if_extra(event.entity_attrs, event)
+    {entity_attrs, tmdb_id, imdb_id} = split_external_ids(event.entity_attrs)
+    entity_attrs = strip_content_url_if_extra(entity_attrs, event)
     shared_id = Ecto.UUID.generate()
 
     case create_type_record(event.entity_type, entity_attrs, shared_id) do
       {:ok, type_record} ->
-        owner_type = owner_type_for(event.entity_type)
-        entity_images = collect_images(type_record.id, owner_type, event.images)
+        case put_external_ids(event, type_record, tmdb_id, imdb_id) do
+          {:ok, type_record} ->
+            owner_type = owner_type_for(event.entity_type)
+            entity_images = collect_images(type_record.id, owner_type, event.images)
 
-        case create_children(type_record, event) do
-          {:ok, child_images} ->
-            ChangeLog.record_addition(type_record, event.entity_type)
-            {:ok, type_record, :new, entity_images ++ child_images}
+            case create_children(type_record, event) do
+              {:ok, child_images} ->
+                ChangeLog.record_addition(type_record, event.entity_type)
+                {:ok, type_record, :new, entity_images ++ child_images}
 
-          {:error, reason} ->
-            {:error, reason}
-        end
+              {:error, reason} ->
+                {:error, reason}
+            end
 
-      {:error, %Ecto.Changeset{} = cs} = error ->
-        case race_winner(event, cs) do
-          {:ok, winner} ->
+          {:race_lost, winner} ->
             Log.info(:library, "race lost — using winner #{Format.short_id(winner.id)}")
+            EntityCascade.destroy!(type_record.id)
             link_to_existing(winner, event)
-
-          :not_found ->
-            error
         end
 
       {:error, _reason} = error ->
@@ -262,23 +268,74 @@ defmodule MediaCentarr.Library.Inbound do
     end
   end
 
-  # Detects a race-loss against the entity's `tmdb_id` unique constraint
-  # and looks up the winning entity by its tmdb_id.
-  defp race_winner(%{identifier: %{external_id: value}} = event, %Ecto.Changeset{errors: errors}) do
-    if Keyword.has_key?(errors, :tmdb_id) do
-      case event.entity_type do
-        :tv_series -> wrap_winner(Library.find_tv_series_by_tmdb_id(value))
-        :movie_series -> wrap_winner(Library.find_movie_series_by_tmdb_id(value))
-        :movie -> wrap_winner(Library.find_movie_by_tmdb_id(value))
-        :video_object -> wrap_winner(Library.find_video_object_by_tmdb_id(value))
-      end
-    else
-      :not_found
+  # Splits TMDB/IMDB ids out of the container attrs. The container columns
+  # are gone; these ride on `library_external_ids` rows written after the
+  # container insert.
+  defp split_external_ids(entity_attrs) do
+    tmdb_id = entity_attrs[:tmdb_id] || entity_attrs["tmdb_id"]
+    imdb_id = entity_attrs[:imdb_id] || entity_attrs["imdb_id"]
+
+    stripped = Map.drop(entity_attrs, [:tmdb_id, :imdb_id, "tmdb_id", "imdb_id"])
+
+    {stripped, tmdb_id, imdb_id}
+  end
+
+  # Writes the TMDB / IMDB ExternalId rows for a freshly-inserted
+  # container. The TMDB write is race-aware: if a concurrent ingest of
+  # the same TMDB id won, our ExternalId insert hits the owner-FK-scoped
+  # unique index *or* finds a winning row on another container. Look up
+  # the winner and signal `:race_lost`; the caller cleans up the orphan
+  # container so the loser doesn't leave a stale row behind.
+  defp put_external_ids(event, type_record, tmdb_id, imdb_id) do
+    case put_tmdb_id(event, type_record, tmdb_id) do
+      :ok ->
+        _ = ExternalIds.put(:imdb, type_record, imdb_id)
+        {:ok, type_record}
+
+      {:race_lost, winner} ->
+        {:race_lost, winner}
     end
   end
 
-  defp wrap_winner(nil), do: :not_found
-  defp wrap_winner(entity), do: {:ok, entity}
+  defp put_tmdb_id(_event, _type_record, nil), do: :ok
+
+  defp put_tmdb_id(event, type_record, tmdb_id) when is_binary(tmdb_id) do
+    source = tmdb_source_for(event.entity_type)
+
+    case ExternalIds.put(source, type_record, tmdb_id) do
+      {:ok, _row} ->
+        :ok
+
+      {:error, %Ecto.Changeset{}} ->
+        # Either same `(source, external_id)` is already attached to this
+        # container by a concurrent put (handled idempotently by `put/3`
+        # itself), or it now attaches to a different winning container.
+        # Resolve via cross-owner lookup.
+        case find_winner(event.entity_type, tmdb_id) do
+          nil ->
+            Log.warning(
+              :library,
+              "race-loss: ExternalId conflict on (#{event.entity_type}, tmdb:#{tmdb_id}) but no owner found"
+            )
+
+            :ok
+
+          %{id: same_id} when same_id == type_record.id ->
+            :ok
+
+          winner ->
+            {:race_lost, winner}
+        end
+    end
+  end
+
+  defp find_winner(:tv_series, value), do: Library.find_tv_series_by_tmdb_id(value)
+  defp find_winner(:movie_series, value), do: Library.find_movie_series_by_tmdb_id(value)
+  defp find_winner(:movie, value), do: Library.find_movie_by_tmdb_id(value)
+  defp find_winner(:video_object, value), do: Library.find_video_object_by_tmdb_id(value)
+
+  defp tmdb_source_for(:movie_series), do: :tmdb_collection
+  defp tmdb_source_for(_), do: :tmdb
 
   defp create_type_record(:tv_series, attrs, shared_id) do
     Library.create_tv_series(Map.put(attrs, :id, shared_id))

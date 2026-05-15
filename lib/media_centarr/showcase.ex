@@ -147,10 +147,11 @@ defmodule MediaCentarr.Showcase do
           genres: extract_genre_names(movie_data["genres"]),
           url: "https://www.themoviedb.org/movie/#{tmdb_id}",
           aggregate_rating_value: movie_data["vote_average"],
-          tmdb_id: to_string(tmdb_id),
           content_url: Map.get(entry, :content_url),
           position: 0
         })
+
+      {:ok, _} = Library.ExternalIds.put(:tmdb, movie, to_string(tmdb_id))
 
       download_images!(movie.id, movie_data, :movie_id)
 
@@ -184,9 +185,10 @@ defmodule MediaCentarr.Showcase do
           genres: extract_genre_names(tv_data["genres"]),
           url: "https://www.themoviedb.org/tv/#{tmdb_id}",
           aggregate_rating_value: tv_data["vote_average"],
-          number_of_seasons: tv_data["number_of_seasons"],
-          tmdb_id: to_string(tmdb_id)
+          number_of_seasons: tv_data["number_of_seasons"]
         })
+
+      {:ok, _} = Library.ExternalIds.put(:tmdb, series, to_string(tmdb_id))
 
       download_images!(series.id, tv_data, :tv_series_id)
 

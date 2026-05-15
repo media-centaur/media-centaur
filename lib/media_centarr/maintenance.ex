@@ -32,6 +32,7 @@ defmodule MediaCentarr.Maintenance do
     Extra,
     ExtraProgress,
     ExternalId,
+    ExternalIds,
     Movie,
     MovieSeries,
     Season,
@@ -183,17 +184,20 @@ defmodule MediaCentarr.Maintenance do
   end
 
   # Shared driver for credit-refresh maintenance actions. Each caller
-  # supplies the schema to iterate, the TMDB fetcher keyed by `tmdb_id`,
-  # and a builder that turns the fetched body into update attrs. The
-  # schema's own `update_credits_changeset/2` performs the write.
+  # supplies the schema to iterate, the TMDB fetcher keyed by the
+  # container's TMDB ExternalId row, and a builder that turns the
+  # fetched body into update attrs. The schema's own
+  # `update_credits_changeset/2` performs the write. The TMDB id and
+  # any returned IMDB id ride on `library_external_ids` rather than
+  # on the container column (Library Schema v2 Phase 1 Task 6).
   defp refresh_credits(%{label: label, schema: schema} = config) do
     Log.info(:library, "refreshing #{label} credits")
 
-    records = Repo.all(from r in schema, where: not is_nil(r.tmdb_id))
+    records = records_with_tmdb_id(schema)
 
     result =
-      Enum.reduce(records, %{updated: 0, skipped: 0, failed: 0}, fn record, acc ->
-        process_credits_refresh(record, acc, config)
+      Enum.reduce(records, %{updated: 0, skipped: 0, failed: 0}, fn {record, tmdb_id}, acc ->
+        process_credits_refresh(record, tmdb_id, acc, config)
       end)
 
     Log.info(
@@ -204,24 +208,52 @@ defmodule MediaCentarr.Maintenance do
     {:ok, result}
   end
 
-  defp process_credits_refresh(%{cast: cast, crew: crew}, acc, _config) when cast != [] and crew != [] do
+  # Returns `[{record, tmdb_id}, ...]` for every record of the schema
+  # that has a TMDB ExternalId row attached. Source key depends on the
+  # owner type: `tmdb_collection` for MovieSeries, `tmdb` for everything
+  # else.
+  defp records_with_tmdb_id(MovieSeries),
+    do: records_with_tmdb_id(MovieSeries, "tmdb_collection", :movie_series_id)
+
+  defp records_with_tmdb_id(Movie), do: records_with_tmdb_id(Movie, "tmdb", :movie_id)
+  defp records_with_tmdb_id(TVSeries), do: records_with_tmdb_id(TVSeries, "tmdb", :tv_series_id)
+
+  defp records_with_tmdb_id(schema, source, fk_key) do
+    Repo.all(
+      from(r in schema,
+        join: e in ExternalId,
+        on: field(e, ^fk_key) == r.id,
+        where: e.source == ^source,
+        select: {r, e.external_id}
+      )
+    )
+  end
+
+  defp process_credits_refresh(%{cast: cast, crew: crew}, _tmdb_id, acc, _config)
+       when cast != [] and crew != [] do
     Map.update!(acc, :skipped, &(&1 + 1))
   end
 
-  defp process_credits_refresh(record, acc, %{
+  defp process_credits_refresh(record, tmdb_id, acc, %{
          label: label,
          schema: schema,
          fetcher: fetcher,
          attrs_builder: attrs_builder
        }) do
-    case fetcher.(record.tmdb_id) do
+    case fetcher.(tmdb_id) do
       {:ok, body} ->
+        {credits_attrs, imdb_id} = attrs_builder.(body)
+
         record
-        |> schema.update_credits_changeset(attrs_builder.(body))
+        |> schema.update_credits_changeset(credits_attrs)
         |> Repo.update()
         |> case do
-          {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
-          {:error, _} -> Map.update!(acc, :failed, &(&1 + 1))
+          {:ok, updated_record} ->
+            _ = ExternalIds.put(:imdb, updated_record, imdb_id)
+            Map.update!(acc, :updated, &(&1 + 1))
+
+          {:error, _} ->
+            Map.update!(acc, :failed, &(&1 + 1))
         end
 
       {:error, reason} ->
@@ -235,18 +267,22 @@ defmodule MediaCentarr.Maintenance do
   end
 
   defp build_movie_credits_attrs(body) do
-    %{
-      cast: Mapper.extract_cast(body["credits"]),
-      crew: Mapper.extract_crew(body["credits"]),
-      imdb_id: body["imdb_id"]
+    {
+      %{
+        cast: Mapper.extract_cast(body["credits"]),
+        crew: Mapper.extract_crew(body["credits"])
+      },
+      body["imdb_id"]
     }
   end
 
   defp build_series_credits_attrs(body) do
-    %{
-      cast: Mapper.extract_cast(body["aggregate_credits"]),
-      crew: Mapper.extract_creators(body["created_by"]),
-      imdb_id: get_in(body, ["external_ids", "imdb_id"])
+    {
+      %{
+        cast: Mapper.extract_cast(body["aggregate_credits"]),
+        crew: Mapper.extract_creators(body["created_by"])
+      },
+      get_in(body, ["external_ids", "imdb_id"])
     }
   end
 
@@ -256,7 +292,7 @@ defmodule MediaCentarr.Maintenance do
   # point stays uniform with movies/series. Aggregating from `parts`
   # would require N extra movie fetches and is out of scope here.
   defp build_movie_series_credits_attrs(_body) do
-    %{cast: [], crew: []}
+    {%{cast: [], crew: []}, nil}
   end
 
   @doc """

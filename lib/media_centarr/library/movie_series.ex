@@ -9,6 +9,10 @@ defmodule MediaCentarr.Library.MovieSeries do
   these fields directly — most ingest-time values come back `nil` and are
   filled in by maintenance/refresh paths. See Phase 1 Task 4 of the Library
   Schema v2 campaign (`campaigns/library-schema-v2.md`).
+
+  TMDB ids (source `"tmdb_collection"`) live in `Library.ExternalId` rows
+  reachable via the `:external_ids` association — no longer a column on
+  this schema (Library Schema v2 Phase 1 Task 6).
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -31,7 +35,6 @@ defmodule MediaCentarr.Library.MovieSeries do
     field :original_language, :string
     field :studio, :string
     field :country_code, :string
-    field :tmdb_id, :string
 
     # TMDB collections do not carry an explicit status; this mirrors the
     # TVSeries status enum so the detail surface can render the same field
@@ -64,8 +67,7 @@ defmodule MediaCentarr.Library.MovieSeries do
     :original_language,
     :studio,
     :country_code,
-    :status,
-    :tmdb_id
+    :status
   ]
 
   def create_changeset(attrs) do
@@ -74,7 +76,6 @@ defmodule MediaCentarr.Library.MovieSeries do
     |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
     |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
     |> validate_required([:name])
-    |> unique_constraint(:tmdb_id, name: :library_movie_series_tmdb_id_index)
   end
 
   def update_changeset(movie_series, attrs) do
@@ -90,10 +91,6 @@ defmodule MediaCentarr.Library.MovieSeries do
   cast and crew from a fresh TMDB fetch. `cast_embed` is required here
   because `Ecto.Changeset.change/2` cannot coerce maps into
   `embeds_many` entries.
-
-  Collections have no top-level `imdb_id` at TMDB, so the credits-attrs
-  shape may omit it; `Person.put_credits/2` already treats it as
-  optional.
   """
   def update_credits_changeset(movie_series, attrs) do
     movie_series
