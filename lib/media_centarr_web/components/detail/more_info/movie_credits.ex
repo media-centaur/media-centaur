@@ -19,7 +19,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
   attr :entity, :map,
     required: true,
     doc:
-      "normalized movie entity (see `MediaCentarr.Library.EntityShape.normalize/2`). Reads `:crew` for director/writer filtering."
+      "normalized movie entity (see `MediaCentarr.Library.EntityShape.normalize/2`). Reads `:crew` (list of `MediaCentarr.Library.Person` structs) for director/writer filtering."
 
   def headline(assigns) do
     crew = assigns.entity[:crew] || []
@@ -76,7 +76,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
     """
   end
 
-  defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1["job"] in jobs))
+  defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1.job in jobs))
 
   # ISO-8601 duration (e.g. "PT1H47M") → "1h 47m"
   defp format_runtime(nil), do: nil

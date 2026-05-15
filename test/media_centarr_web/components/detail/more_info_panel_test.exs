@@ -3,6 +3,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentarr.Library.Person
   alias MediaCentarrWeb.Components.Detail.MoreInfoPanel
 
   defp render_panel(assigns) do
@@ -31,12 +32,12 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
   describe "more_info_panel/1" do
     test "renders director name with TMDB person link" do
       crew = [
-        %{
-          "tmdb_person_id" => 1,
-          "name" => "Sample Director",
-          "job" => "Director",
-          "department" => "Directing",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 1,
+          name: "Sample Director",
+          job: "Director",
+          department: "Directing",
+          profile_path: nil
         }
       ]
 
@@ -49,19 +50,19 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
 
     test "renders multiple writers separated by commas" do
       crew = [
-        %{
-          "tmdb_person_id" => 2,
-          "name" => "Writer A",
-          "job" => "Screenplay",
-          "department" => "Writing",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 2,
+          name: "Writer A",
+          job: "Screenplay",
+          department: "Writing",
+          profile_path: nil
         },
-        %{
-          "tmdb_person_id" => 3,
-          "name" => "Writer B",
-          "job" => "Story",
-          "department" => "Writing",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 3,
+          name: "Writer B",
+          job: "Story",
+          department: "Writing",
+          profile_path: nil
         }
       ]
 
@@ -83,12 +84,12 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
 
     test "renders cast as a grid without horizontal-scroll classes" do
       cast = [
-        %{
-          "name" => "Sample Actor",
-          "character" => "Sample Role",
-          "tmdb_person_id" => 9,
-          "profile_path" => "/p.jpg",
-          "order" => 0
+        %Person{
+          name: "Sample Actor",
+          character: "Sample Role",
+          tmdb_person_id: 9,
+          profile_path: "/p.jpg",
+          order: 0
         }
       ]
 
@@ -156,19 +157,19 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
   describe "more_info_panel/1 — TV series" do
     test "renders Created by row with linked creators" do
       crew = [
-        %{
-          "tmdb_person_id" => 11,
-          "name" => "Sample Creator A",
-          "job" => "Creator",
-          "department" => "Creator",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 11,
+          name: "Sample Creator A",
+          job: "Creator",
+          department: "Creator",
+          profile_path: nil
         },
-        %{
-          "tmdb_person_id" => 12,
-          "name" => "Sample Creator B",
-          "job" => "Creator",
-          "department" => "Creator",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 12,
+          name: "Sample Creator B",
+          job: "Creator",
+          department: "Creator",
+          profile_path: nil
         }
       ]
 
@@ -183,12 +184,12 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
 
     test "does not render Directed by / Written by for tv_series" do
       crew = [
-        %{
-          "tmdb_person_id" => 11,
-          "name" => "Sample Creator",
-          "job" => "Creator",
-          "department" => "Creator",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 11,
+          name: "Sample Creator",
+          job: "Creator",
+          department: "Creator",
+          profile_path: nil
         }
       ]
 
@@ -205,12 +206,12 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
 
     test "renders aggregate cast as the same grid shape as movies" do
       cast = [
-        %{
-          "name" => "Sample Actor",
-          "character" => "Sample Role",
-          "tmdb_person_id" => 9,
-          "profile_path" => nil,
-          "order" => 0
+        %Person{
+          name: "Sample Actor",
+          character: "Sample Role",
+          tmdb_person_id: 9,
+          profile_path: nil,
+          order: 0
         }
       ]
 
@@ -317,7 +318,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
       # ones past the cap client-side. This is what gives the filter
       # something to search.
       Enum.each(cast, fn person ->
-        assert html =~ person["name"]
+        assert html =~ person.name
       end)
     end
 
@@ -334,12 +335,12 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
 
   defp build_cast(count) do
     Enum.map(0..(count - 1), fn i ->
-      %{
-        "name" => "Sample Cast Member #{i + 1}",
-        "character" => "Sample Role #{i + 1}",
-        "tmdb_person_id" => 5000 + i,
-        "profile_path" => nil,
-        "order" => i
+      %Person{
+        name: "Sample Cast Member #{i + 1}",
+        character: "Sample Role #{i + 1}",
+        tmdb_person_id: 5000 + i,
+        profile_path: nil,
+        order: i
       }
     end)
   end
