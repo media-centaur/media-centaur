@@ -2,9 +2,18 @@ defmodule MediaCentarr.Library.MovieSeries do
   @moduledoc """
   A movie series (collection) in the library. Groups related movies together
   with shared metadata from TMDB.
+
+  Carries the same metadata surface as `TVSeries` (tagline, language, studio,
+  country, status, cast, crew, vote_count) so detail pages render both
+  containers with the same shape. TMDB collection endpoints expose fewer of
+  these fields directly — most ingest-time values come back `nil` and are
+  filled in by maintenance/refresh paths. See Phase 1 Task 4 of the Library
+  Schema v2 campaign (`campaigns/library-schema-v2.md`).
   """
   use Ecto.Schema
   import Ecto.Changeset
+
+  alias MediaCentarr.Library.Person
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
@@ -17,7 +26,21 @@ defmodule MediaCentarr.Library.MovieSeries do
     field :genres, {:array, :string}
     field :url, :string
     field :aggregate_rating_value, :float
+    field :vote_count, :integer
+    field :tagline, :string
+    field :original_language, :string
+    field :studio, :string
+    field :country_code, :string
     field :tmdb_id, :string
+
+    # TMDB collections do not carry an explicit status; this mirrors the
+    # TVSeries status enum so the detail surface can render the same field
+    # uniformly. Values are derived from constituent movies when available
+    # (today: left nil at ingest, populated by future enrichment).
+    field :status, Ecto.Enum, values: [:released, :ongoing, :ended]
+
+    embeds_many :cast, Person, on_replace: :delete
+    embeds_many :crew, Person, on_replace: :delete
 
     has_many :movies, MediaCentarr.Library.Movie, foreign_key: :movie_series_id
     has_many :images, MediaCentarr.Library.Image, foreign_key: :movie_series_id
@@ -28,31 +51,53 @@ defmodule MediaCentarr.Library.MovieSeries do
     timestamps()
   end
 
+  @fields [
+    :id,
+    :name,
+    :description,
+    :date_published,
+    :genres,
+    :url,
+    :aggregate_rating_value,
+    :vote_count,
+    :tagline,
+    :original_language,
+    :studio,
+    :country_code,
+    :status,
+    :tmdb_id
+  ]
+
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [
-      :id,
-      :name,
-      :description,
-      :date_published,
-      :genres,
-      :url,
-      :aggregate_rating_value,
-      :tmdb_id
-    ])
+    |> cast(attrs, @fields)
+    |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
+    |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
     |> validate_required([:name])
     |> unique_constraint(:tmdb_id, name: :library_movie_series_tmdb_id_index)
   end
 
   def update_changeset(movie_series, attrs) do
-    cast(movie_series, attrs, [
-      :name,
-      :description,
-      :date_published,
-      :genres,
-      :url,
-      :aggregate_rating_value,
-      :tmdb_id
-    ])
+    movie_series
+    |> cast(attrs, @fields -- [:id])
+    |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
+    |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
+  end
+
+  @doc """
+  Replaces the credits embeds in place — used by
+  `MediaCentarr.Maintenance.refresh_movie_series_credits/0` to backfill
+  cast and crew from a fresh TMDB fetch. `cast_embed` is required here
+  because `Ecto.Changeset.change/2` cannot coerce maps into
+  `embeds_many` entries.
+
+  Collections have no top-level `imdb_id` at TMDB, so the credits-attrs
+  shape may omit it; `Person.put_credits/2` already treats it as
+  optional.
+  """
+  def update_credits_changeset(movie_series, attrs) do
+    movie_series
+    |> change()
+    |> Person.put_credits(attrs)
   end
 end

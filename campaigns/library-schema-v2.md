@@ -330,6 +330,13 @@ Append-only. Recorded as we go.
   A.** Rather than starting a third campaign for the projection
   fan-out, we extend the existing one. The schema redesign is the
   prerequisite that makes the projection layer cleaner.
+* `2026-05-15` — **Container schemas are metadata-symmetric by default.**
+  If you add a field to TVSeries (cast, crew, status, tagline, etc.), add
+  it to MovieSeries too unless TMDB cannot expose it at the collection
+  level. Use `nil` defaults for fields TMDB doesn't provide today; the
+  schema being ready is more valuable than the field being populated.
+  Movie's per-row metadata also stays consistent across standalone vs
+  series-child rows.
 
 ## Open questions
 
