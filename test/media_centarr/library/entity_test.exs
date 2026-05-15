@@ -20,7 +20,7 @@ defmodule MediaCentarr.Library.EntityTest do
           date_published: "2017-10-06",
           genres: ["Science Fiction", "Drama"],
           url: "https://www.themoviedb.org/movie/335984",
-          duration: "PT2H44M",
+          duration_seconds: 9840,
           director: "A. Director",
           content_rating: "R",
           aggregate_rating_value: 7.5
@@ -31,7 +31,7 @@ defmodule MediaCentarr.Library.EntityTest do
       assert movie.date_published == ~D[2017-10-06]
       assert movie.genres == ["Science Fiction", "Drama"]
       assert movie.url == "https://www.themoviedb.org/movie/335984"
-      assert movie.duration == "PT2H44M"
+      assert movie.duration_seconds == 9840
       assert movie.director == "A. Director"
       assert movie.content_rating == "R"
       assert movie.aggregate_rating_value == 7.5

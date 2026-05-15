@@ -107,7 +107,7 @@ defmodule MediaCentarr.Library.InboundTest do
             episode_number: 1,
             name: "Pilot",
             description: "Sample episode description.",
-            duration: "PT58M",
+            duration_seconds: 3480,
             content_url: "/media/TV/Sample.Show.S01E01.mkv"
           },
           images: [
@@ -308,7 +308,7 @@ defmodule MediaCentarr.Library.InboundTest do
                 episode_number: 2,
                 name: "Sample Episode 2",
                 description: "Sample episode description.",
-                duration: "PT48M",
+                duration_seconds: 2880,
                 content_url: "/media/TV/Sample.Show.S01E02.mkv"
               },
               images: []

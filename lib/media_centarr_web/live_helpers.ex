@@ -6,29 +6,6 @@ defmodule MediaCentarrWeb.LiveHelpers do
   defdelegate format_seconds(seconds), to: MediaCentarr.Format
 
   @doc """
-  Formats an ISO 8601 duration string (e.g. `"PT3H48M"`) into a human-readable
-  form like `"3h 48m"`. Returns `nil` for `nil` input.
-  """
-  def format_iso_duration(nil), do: nil
-
-  def format_iso_duration("PT" <> rest) do
-    {hours, rest} = parse_duration_component(rest, "H")
-    {minutes, _rest} = parse_duration_component(rest, "M")
-
-    case {hours, minutes} do
-      {0, m} -> "#{m}m"
-      {h, m} -> "#{h}h #{m}m"
-    end
-  end
-
-  defp parse_duration_component(string, suffix) do
-    case String.split(string, suffix, parts: 2) do
-      [num, rest] -> {String.to_integer(num), rest}
-      [rest] -> {0, rest}
-    end
-  end
-
-  @doc """
   Cancels any pending timer stored in `timer_assign` and schedules `message`
   to be sent to `self()` after `delay_ms` milliseconds. Returns the socket
   with the new timer ref stored in `timer_assign`.

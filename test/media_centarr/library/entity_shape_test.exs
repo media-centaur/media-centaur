@@ -11,7 +11,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
         build_standalone_movie(%{
           name: "Sample Movie",
           description: "An overview.",
-          duration: "PT2H30M",
+          duration_seconds: 9000,
           director: "Sample Director",
           content_rating: "PG-13",
           aggregate_rating_value: 8.1,
@@ -24,7 +24,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       assert shape.type == :movie
       assert shape.name == "Sample Movie"
       assert shape.description == "An overview."
-      assert shape.duration == "PT2H30M"
+      assert shape.duration_seconds == 9000
       assert shape.director == "Sample Director"
       assert shape.content_rating == "PG-13"
       assert shape.aggregate_rating_value == 8.1
@@ -104,9 +104,9 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       assert shape.seasons == [season]
     end
 
-    test "duration is nil for tv_series (field doesn't exist on schema)" do
+    test "duration_seconds is nil for tv_series (field doesn't exist on schema)" do
       shape = EntityShape.normalize(build_tv_series(), :tv_series)
-      assert shape.duration == nil
+      assert shape.duration_seconds == nil
     end
   end
 

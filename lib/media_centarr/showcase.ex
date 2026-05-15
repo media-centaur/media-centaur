@@ -143,7 +143,7 @@ defmodule MediaCentarr.Showcase do
           name: movie_data["title"] || title,
           description: movie_data["overview"],
           date_published: TMDB.Mapper.parse_date(movie_data["release_date"]),
-          duration: minutes_to_iso(movie_data["runtime"]),
+          duration_seconds: TMDB.Mapper.minutes_to_seconds(movie_data["runtime"]),
           genres: extract_genre_names(movie_data["genres"]),
           url: "https://www.themoviedb.org/movie/#{tmdb_id}",
           aggregate_rating_value: movie_data["vote_average"],
@@ -255,7 +255,7 @@ defmodule MediaCentarr.Showcase do
         episode_number: episode_number,
         name: episode_name,
         description: episode_data["overview"],
-        duration: minutes_to_iso(episode_data["runtime"]),
+        duration_seconds: TMDB.Mapper.minutes_to_seconds(episode_data["runtime"]),
         content_url: fake_episode_path(series_name, season.season_number, episode_number)
       })
 
@@ -1032,10 +1032,6 @@ defmodule MediaCentarr.Showcase do
 
   defp extract_genre_names(nil), do: []
   defp extract_genre_names(genres) when is_list(genres), do: Enum.map(genres, & &1["name"])
-
-  defp minutes_to_iso(nil), do: nil
-  defp minutes_to_iso(0), do: nil
-  defp minutes_to_iso(minutes) when is_integer(minutes), do: "PT#{minutes}M"
 
   defp fake_episode_path(series_name, season_number, episode_number) do
     safe_name = String.replace(series_name, ~r/[^a-zA-Z0-9]+/, ".")
