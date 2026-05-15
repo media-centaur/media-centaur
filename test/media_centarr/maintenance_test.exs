@@ -1,8 +1,7 @@
 defmodule MediaCentarr.MaintenanceTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Library.Movie
-  alias MediaCentarr.Library.TVSeries
+  alias MediaCentarr.Library.{Movie, Person, TVSeries}
   alias MediaCentarr.Maintenance
   alias MediaCentarr.Repo
   alias MediaCentarr.Review
@@ -62,25 +61,25 @@ defmodule MediaCentarr.MaintenanceTest do
 
       assert reloaded.imdb_id == "tt0000123"
 
-      assert reloaded.cast == [
-               %{
-                 "name" => "Sample Actor",
-                 "character" => "Sample Role",
-                 "tmdb_person_id" => 7,
-                 "profile_path" => "/p.jpg",
-                 "order" => 0
+      assert [
+               %Person{
+                 name: "Sample Actor",
+                 character: "Sample Role",
+                 tmdb_person_id: 7,
+                 profile_path: "/p.jpg",
+                 order: 0
                }
-             ]
+             ] = reloaded.cast
 
-      assert reloaded.crew == [
-               %{
-                 "tmdb_person_id" => 9,
-                 "name" => "Sample Director",
-                 "job" => "Director",
-                 "department" => "Directing",
-                 "profile_path" => "/d.jpg"
+      assert [
+               %Person{
+                 tmdb_person_id: 9,
+                 name: "Sample Director",
+                 job: "Director",
+                 department: "Directing",
+                 profile_path: "/d.jpg"
                }
-             ]
+             ] = reloaded.crew
     end
 
     test "skips movies that already have non-empty cast and crew" do
@@ -190,25 +189,25 @@ defmodule MediaCentarr.MaintenanceTest do
 
       assert reloaded.imdb_id == "tt0000200"
 
-      assert reloaded.cast == [
-               %{
-                 "name" => "Sample Actor",
-                 "character" => "Sample Role",
-                 "tmdb_person_id" => 7,
-                 "profile_path" => "/p.jpg",
-                 "order" => 0
+      assert [
+               %Person{
+                 name: "Sample Actor",
+                 character: "Sample Role",
+                 tmdb_person_id: 7,
+                 profile_path: "/p.jpg",
+                 order: 0
                }
-             ]
+             ] = reloaded.cast
 
-      assert reloaded.crew == [
-               %{
-                 "tmdb_person_id" => 11,
-                 "name" => "Sample Creator",
-                 "job" => "Creator",
-                 "department" => "Creator",
-                 "profile_path" => "/c.jpg"
+      assert [
+               %Person{
+                 tmdb_person_id: 11,
+                 name: "Sample Creator",
+                 job: "Creator",
+                 department: "Creator",
+                 profile_path: "/c.jpg"
                }
-             ]
+             ] = reloaded.crew
     end
 
     test "skips series that already have non-empty cast and crew" do

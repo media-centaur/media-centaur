@@ -1,39 +1,41 @@
 defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentarr.Library.Person
+
   def function, do: &MediaCentarrWeb.Components.Detail.MoreInfoPanel.more_info_panel/1
 
   @cast Enum.map(0..7, fn i ->
-          %{
-            "name" => "Sample Actor #{i + 1}",
-            "character" => "Sample Role #{i + 1}",
-            "tmdb_person_id" => 1000 + i,
-            "profile_path" => nil,
-            "order" => i
+          %Person{
+            name: "Sample Actor #{i + 1}",
+            character: "Sample Role #{i + 1}",
+            tmdb_person_id: 1000 + i,
+            profile_path: nil,
+            order: i
           }
         end)
 
   @crew [
-    %{
-      "tmdb_person_id" => 1,
-      "name" => "Sample Director",
-      "job" => "Director",
-      "department" => "Directing",
-      "profile_path" => nil
+    %Person{
+      tmdb_person_id: 1,
+      name: "Sample Director",
+      job: "Director",
+      department: "Directing",
+      profile_path: nil
     },
-    %{
-      "tmdb_person_id" => 2,
-      "name" => "Sample Writer A",
-      "job" => "Screenplay",
-      "department" => "Writing",
-      "profile_path" => nil
+    %Person{
+      tmdb_person_id: 2,
+      name: "Sample Writer A",
+      job: "Screenplay",
+      department: "Writing",
+      profile_path: nil
     },
-    %{
-      "tmdb_person_id" => 3,
-      "name" => "Sample Writer B",
-      "job" => "Story",
-      "department" => "Writing",
-      "profile_path" => nil
+    %Person{
+      tmdb_person_id: 3,
+      name: "Sample Writer B",
+      job: "Story",
+      department: "Writing",
+      profile_path: nil
     }
   ]
 
@@ -52,19 +54,19 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
   }
 
   @creators [
-    %{
-      "tmdb_person_id" => 11,
-      "name" => "Sample Creator A",
-      "job" => "Creator",
-      "department" => "Creator",
-      "profile_path" => nil
+    %Person{
+      tmdb_person_id: 11,
+      name: "Sample Creator A",
+      job: "Creator",
+      department: "Creator",
+      profile_path: nil
     },
-    %{
-      "tmdb_person_id" => 12,
-      "name" => "Sample Creator B",
-      "job" => "Creator",
-      "department" => "Creator",
-      "profile_path" => nil
+    %Person{
+      tmdb_person_id: 12,
+      name: "Sample Creator B",
+      job: "Creator",
+      department: "Creator",
+      profile_path: nil
     }
   ]
 

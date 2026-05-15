@@ -32,7 +32,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.SeriesCredits do
   attr :entity, :map,
     required: true,
     doc:
-      "normalized series entity (see `MediaCentarr.Library.EntityShape.normalize/2`). Reads `:crew` for Creator filtering."
+      "normalized series entity (see `MediaCentarr.Library.EntityShape.normalize/2`). Reads `:crew` (list of `MediaCentarr.Library.Person` structs) for Creator filtering."
 
   def headline(assigns) do
     crew = assigns.entity[:crew] || []
@@ -81,7 +81,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.SeriesCredits do
     """
   end
 
-  defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1["job"] in jobs))
+  defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1.job in jobs))
 
   defp format_status(nil), do: nil
   defp format_status(status) when is_atom(status), do: Map.get(@tv_status_labels, status)

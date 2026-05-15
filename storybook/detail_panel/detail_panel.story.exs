@@ -125,7 +125,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
   # The component declares `attr :progress_records, :list` (loose-typed),
   # so this story uses plain maps with the same fields. `WatchedFile` IS
   # exported and stays aliased.
-  alias MediaCentarr.Library.WatchedFile
+  alias MediaCentarr.Library.{Person, WatchedFile}
   alias MediaCentarrWeb.ViewModel.EpisodeListItem
   alias MediaCentarrWeb.ViewModel.SeasonView
 
@@ -737,28 +737,28 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       imdb_id: "tt0000200",
       cast:
         Enum.map(0..7, fn i ->
-          %{
-            "name" => "Sample Actor #{i + 1}",
-            "character" => "Sample Role #{i + 1}",
-            "tmdb_person_id" => 1000 + i,
-            "profile_path" => nil,
-            "order" => i
+          %Person{
+            name: "Sample Actor #{i + 1}",
+            character: "Sample Role #{i + 1}",
+            tmdb_person_id: 1000 + i,
+            profile_path: nil,
+            order: i
           }
         end),
       crew: [
-        %{
-          "tmdb_person_id" => 11,
-          "name" => "Sample Creator A",
-          "job" => "Creator",
-          "department" => "Creator",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 11,
+          name: "Sample Creator A",
+          job: "Creator",
+          department: "Creator",
+          profile_path: nil
         },
-        %{
-          "tmdb_person_id" => 12,
-          "name" => "Sample Creator B",
-          "job" => "Creator",
-          "department" => "Creator",
-          "profile_path" => nil
+        %Person{
+          tmdb_person_id: 12,
+          name: "Sample Creator B",
+          job: "Creator",
+          department: "Creator",
+          profile_path: nil
         }
       ],
       extras: [],

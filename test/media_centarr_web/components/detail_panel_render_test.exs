@@ -10,6 +10,7 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
   import Phoenix.LiveViewTest
   import MediaCentarr.TestFactory
 
+  alias MediaCentarr.Library.Person
   alias MediaCentarrWeb.Components.DetailPanel
 
   defp render_panel(entity, overrides \\ %{}) do
@@ -37,12 +38,12 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
         build_entity(%{
           type: :movie,
           cast: [
-            %{
-              "name" => "Sample Actor",
-              "character" => "Sample Role",
-              "tmdb_person_id" => 7,
-              "profile_path" => "/x.jpg",
-              "order" => 0
+            %Person{
+              name: "Sample Actor",
+              character: "Sample Role",
+              tmdb_person_id: 7,
+              profile_path: "/x.jpg",
+              order: 0
             }
           ]
         })
@@ -62,21 +63,21 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
           status: :returning,
           imdb_id: "tt0000200",
           cast: [
-            %{
-              "name" => "Sample Actor",
-              "character" => "Sample Role",
-              "tmdb_person_id" => 7,
-              "profile_path" => nil,
-              "order" => 0
+            %Person{
+              name: "Sample Actor",
+              character: "Sample Role",
+              tmdb_person_id: 7,
+              profile_path: nil,
+              order: 0
             }
           ],
           crew: [
-            %{
-              "tmdb_person_id" => 11,
-              "name" => "Sample Creator",
-              "job" => "Creator",
-              "department" => "Creator",
-              "profile_path" => nil
+            %Person{
+              tmdb_person_id: 11,
+              name: "Sample Creator",
+              job: "Creator",
+              department: "Creator",
+              profile_path: nil
             }
           ]
         })
@@ -99,21 +100,21 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
         build_entity(%{
           type: :movie,
           cast: [
-            %{
-              "name" => "Sample Actor",
-              "character" => "Sample Role",
-              "tmdb_person_id" => 7,
-              "profile_path" => nil,
-              "order" => 0
+            %Person{
+              name: "Sample Actor",
+              character: "Sample Role",
+              tmdb_person_id: 7,
+              profile_path: nil,
+              order: 0
             }
           ],
           crew: [
-            %{
-              "tmdb_person_id" => 1,
-              "name" => "Sample Director",
-              "job" => "Director",
-              "department" => "Directing",
-              "profile_path" => nil
+            %Person{
+              tmdb_person_id: 1,
+              name: "Sample Director",
+              job: "Director",
+              department: "Directing",
+              profile_path: nil
             }
           ]
         })

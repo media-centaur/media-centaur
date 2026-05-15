@@ -1,11 +1,11 @@
 defmodule MediaCentarr.Library.TVSeriesTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Library.TVSeries
+  alias MediaCentarr.Library.{Person, TVSeries}
   alias MediaCentarr.Repo
 
   describe "cast field" do
-    test "round-trips a list-of-maps through SQLite" do
+    test "round-trips a list of TMDB-shaped maps as Library.Person structs" do
       cast_data = [
         %{
           "name" => "Actor A",
@@ -22,7 +22,16 @@ defmodule MediaCentarr.Library.TVSeriesTest do
                |> Repo.insert()
 
       reloaded = Repo.get!(TVSeries, series.id)
-      assert reloaded.cast == cast_data
+
+      assert [
+               %Person{
+                 name: "Actor A",
+                 character: "Role A",
+                 tmdb_person_id: 1,
+                 profile_path: "/a.jpg",
+                 order: 0
+               }
+             ] = reloaded.cast
     end
 
     test "defaults to [] when not provided" do
@@ -33,19 +42,10 @@ defmodule MediaCentarr.Library.TVSeriesTest do
 
       assert Repo.get!(TVSeries, series.id).cast == []
     end
-
-    test "coerces nil cast to []" do
-      assert {:ok, series} =
-               %{name: "Sample Series C", cast: nil}
-               |> TVSeries.create_changeset()
-               |> Repo.insert()
-
-      assert Repo.get!(TVSeries, series.id).cast == []
-    end
   end
 
   describe "crew field" do
-    test "round-trips a list-of-maps with creator entries" do
+    test "round-trips a list of TMDB-shaped maps as Library.Person structs" do
       crew_data = [
         %{
           "name" => "Showrunner A",
@@ -62,21 +62,21 @@ defmodule MediaCentarr.Library.TVSeriesTest do
                |> Repo.insert()
 
       reloaded = Repo.get!(TVSeries, series.id)
-      assert reloaded.crew == crew_data
+
+      assert [
+               %Person{
+                 name: "Showrunner A",
+                 job: "Creator",
+                 department: "Creator",
+                 tmdb_person_id: 42,
+                 profile_path: "/sr.jpg"
+               }
+             ] = reloaded.crew
     end
 
     test "defaults to [] when not provided" do
       assert {:ok, series} =
                %{name: "Sample Series E"}
-               |> TVSeries.create_changeset()
-               |> Repo.insert()
-
-      assert Repo.get!(TVSeries, series.id).crew == []
-    end
-
-    test "coerces nil crew to []" do
-      assert {:ok, series} =
-               %{name: "Sample Series F", crew: nil}
                |> TVSeries.create_changeset()
                |> Repo.insert()
 

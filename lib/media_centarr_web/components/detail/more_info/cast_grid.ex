@@ -20,8 +20,8 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid do
   `assets/js/hooks/cast_grid_filter.js` can toggle visibility on each
   keystroke without a server round-trip.
 
-  Cast entries come from a `{:array, :map}` column with JSON-serialised
-  string keys — the `:list` attr is loose-typed accordingly.
+  Cast entries are `MediaCentarr.Library.Person` structs from the
+  `embeds_many :cast` field on `Movie` and `TVSeries`.
   """
 
   use MediaCentarrWeb, :html
@@ -35,7 +35,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid do
   attr :cast, :list,
     required: true,
     doc:
-      "list of cast maps (`name`, `character`, `tmdb_person_id`, `profile_path`, `order`). Loose-typed because entries originate in a JSON-serialised :array, :map column."
+      "list of `MediaCentarr.Library.Person` structs (`name`, `character`, `tmdb_person_id`, `profile_path`, `order`)."
 
   def cast_grid(assigns) do
     show_filter = length(assigns.cast) > @max_cast_cards
@@ -102,7 +102,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid do
   attr :person, :map,
     required: true,
     doc:
-      "single cast entry — string-keyed map matching the `cast` column shape (`name`, `character`, `tmdb_person_id`, `profile_path`, `order`)."
+      "single `MediaCentarr.Library.Person` struct (`name`, `character`, `tmdb_person_id`, `profile_path`, `order`)."
 
   attr :hidden, :boolean,
     default: false,
@@ -113,8 +113,8 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid do
     ~H"""
     <div
       data-cast-card
-      data-cast-name={searchable(@person["name"])}
-      data-cast-character={searchable(@person["character"])}
+      data-cast-name={searchable(@person.name)}
+      data-cast-character={searchable(@person.character)}
       style={if @hidden, do: "display: none", else: nil}
     >
       <.card_inner person={@person} />
@@ -124,26 +124,25 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid do
 
   attr :person, :map,
     required: true,
-    doc:
-      "same string-keyed map shape as `card/1` — `:map` because entries originate in a JSON-serialised `:array, :map` Ecto column."
+    doc: "same `MediaCentarr.Library.Person` struct shape as `card/1`."
 
-  defp card_inner(%{person: %{"tmdb_person_id" => id}} = assigns) when is_integer(id) do
+  defp card_inner(%{person: %{tmdb_person_id: id}} = assigns) when is_integer(id) do
     ~H"""
     <a
-      href={"https://www.themoviedb.org/person/#{@person["tmdb_person_id"]}"}
+      href={"https://www.themoviedb.org/person/#{@person.tmdb_person_id}"}
       target="_blank"
       rel="noopener noreferrer"
       class="group focus:outline-none focus:ring-2 focus:ring-primary rounded-md block"
     >
       <.photo person={@person} />
       <p class="mt-1.5 text-xs font-semibold leading-tight text-base-content line-clamp-2 group-hover:text-primary transition-colors">
-        {@person["name"]}
+        {@person.name}
       </p>
       <p
-        :if={@person["character"]}
+        :if={@person.character}
         class="mt-0.5 text-[11px] leading-tight text-base-content/60 line-clamp-2"
       >
-        {@person["character"]}
+        {@person.character}
       </p>
     </a>
     """
@@ -154,25 +153,25 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid do
     <div>
       <.photo person={@person} />
       <p class="mt-1.5 text-xs font-semibold leading-tight text-base-content line-clamp-2">
-        {@person["name"]}
+        {@person.name}
       </p>
       <p
-        :if={@person["character"]}
+        :if={@person.character}
         class="mt-0.5 text-[11px] leading-tight text-base-content/60 line-clamp-2"
       >
-        {@person["character"]}
+        {@person.character}
       </p>
     </div>
     """
   end
 
-  attr :person, :map, required: true, doc: "same string-keyed map as `card/1`."
+  attr :person, :map, required: true, doc: "same `MediaCentarr.Library.Person` struct as `card/1`."
 
-  defp photo(%{person: %{"profile_path" => path}} = assigns) when is_binary(path) do
+  defp photo(%{person: %{profile_path: path}} = assigns) when is_binary(path) do
     ~H"""
     <img
-      src={"https://image.tmdb.org/t/p/w185#{@person["profile_path"]}"}
-      alt={@person["name"]}
+      src={"https://image.tmdb.org/t/p/w185#{@person.profile_path}"}
+      alt={@person.name}
       loading="lazy"
       class="w-full aspect-[5/7] rounded-md object-cover bg-base-300"
     />

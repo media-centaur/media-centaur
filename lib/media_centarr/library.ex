@@ -16,6 +16,7 @@ defmodule MediaCentarr.Library do
       Movie,
       MovieList,
       MovieSeries,
+      Person,
       ProgressSummary,
       Season,
       TVSeries,

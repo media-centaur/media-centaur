@@ -10,8 +10,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.People do
 
   attr :people, :list,
     required: true,
-    doc:
-      "list of crew/cast maps with `tmdb_person_id` + `name` (string keys — entries originate in JSON-serialised :array, :map columns)."
+    doc: "list of `MediaCentarr.Library.Person` structs with `tmdb_person_id` + `name`."
 
   def people(assigns) do
     ~H"""
@@ -27,24 +26,24 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.People do
   attr :person, :map,
     required: true,
     doc:
-      "string-keyed person map (`tmdb_person_id`, `name`). Renders as a TMDB link when `tmdb_person_id` is present, plain text otherwise."
+      "`MediaCentarr.Library.Person` struct. Renders as a TMDB link when `tmdb_person_id` is present, plain text otherwise."
 
-  def person_link(%{person: %{"tmdb_person_id" => id}} = assigns) when is_integer(id) do
+  def person_link(%{person: %{tmdb_person_id: id}} = assigns) when is_integer(id) do
     ~H"""
     <a
-      href={"https://www.themoviedb.org/person/#{@person["tmdb_person_id"]}"}
+      href={"https://www.themoviedb.org/person/#{@person.tmdb_person_id}"}
       target="_blank"
       rel="noopener noreferrer"
       class="font-medium text-base-content hover:text-primary transition-colors"
     >
-      {@person["name"]}
+      {@person.name}
     </a>
     """
   end
 
   def person_link(assigns) do
     ~H"""
-    <span class="font-medium text-base-content">{@person["name"]}</span>
+    <span class="font-medium text-base-content">{@person.name}</span>
     """
   end
 end

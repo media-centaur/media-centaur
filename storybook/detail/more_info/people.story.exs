@@ -1,21 +1,23 @@
 defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.People do
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentarr.Library.Person
+
   def function, do: &MediaCentarrWeb.Components.Detail.MoreInfo.People.people/1
 
   @linked [
-    %{"tmdb_person_id" => 1, "name" => "Linked Person A"},
-    %{"tmdb_person_id" => 2, "name" => "Linked Person B"}
+    %Person{tmdb_person_id: 1, name: "Linked Person A"},
+    %Person{tmdb_person_id: 2, name: "Linked Person B"}
   ]
 
   @plain [
-    %{"tmdb_person_id" => nil, "name" => "Plain Name A"},
-    %{"tmdb_person_id" => nil, "name" => "Plain Name B"}
+    %Person{tmdb_person_id: nil, name: "Plain Name A"},
+    %Person{tmdb_person_id: nil, name: "Plain Name B"}
   ]
 
   @mixed [
-    %{"tmdb_person_id" => 1, "name" => "Linked Person"},
-    %{"tmdb_person_id" => nil, "name" => "Plain Name"}
+    %Person{tmdb_person_id: 1, name: "Linked Person"},
+    %Person{tmdb_person_id: nil, name: "Plain Name"}
   ]
 
   def variations do
