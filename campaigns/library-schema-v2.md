@@ -1,7 +1,7 @@
 ---
-status: proposed
+status: in-progress
 started: 2026-05-15
-last_updated: 2026-05-15
+last_updated: 2026-05-16
 ---
 # Library Schema v2 — architectural excellence
 
@@ -31,8 +31,71 @@ projection fan-out second (Pillar 2 expansion to remaining LiveViews).
 
 ## Status
 
-Proposed. No code written yet. Designed against current code as of
-commit `36fd51f2`.
+**Phase 1 — Foundation cleanup: ✅ complete (2026-05-16).** Six
+landed commits on top of `36fd51f2`:
+
+| Task | Commit | Change |
+|------|--------|--------|
+| 1 | `ypxmwrvw` | `refactor(library): type cast/crew via Library.Person embedded schema` |
+| 2 | `tqpqwvxu` | `refactor(library): type date_published as :date` |
+| 3 | `tvmykywt` | `refactor(library): canonicalise duration as integer seconds` |
+| 4 | `lqnxnzvp` | `feat(library): MovieSeries metadata symmetry with TVSeries` |
+| 5 | `uuszztpt` | `refactor(subtitles): own subtitle_tracks table; drop WatchedFile.subtitle_tracks` |
+| 6 | `nomwwwuk` | `refactor(library): ExternalId is sole source for TMDB/IMDB ids` |
+
+Each landed via dispatch-implement-review-fix loop. Full precommit
+green at every commit boundary. `mix test` stable at 3386 tests, 0
+failures.
+
+**Phase 2 — PlayableItem reification: ⏳ not started.** Detailed
+plan to be drafted JIT against the Phase 1 end state per the
+project's reconciliation rule.
+
+**Phase 3 — Library projection fan-out: ⏳ not started.** Feeds
+into [`desktop-rearchitecture.md`](desktop-rearchitecture.md)
+Workstream A.
+
+## Phase 1 follow-ups
+
+Items surfaced during Phase 1 reviews and deferred — not blocking
+Phase 2 but worth picking up for full architectural polish:
+
+- **Year-helper consolidation** (Task 2). Today's codebase has 4+
+  year-extraction helpers: `Format.year/1` (Date-only),
+  `LibraryFormatters.extract_year/1` (Date + binary + nil),
+  `Logic.year_from_date/1` (Date + binary + nil + ""), plus private
+  clones in `release_tracking.ex` and `tmdb/confidence.ex`. The
+  binary-tolerance clauses exist for storybook fixtures that haven't
+  migrated to typed `%Date{}` fixtures yet (component-contract
+  campaign). Once those migrate, collapse to single canonical helper.
+
+- **`Subtitles.list_tracks_for_file/1` ordering determinism** (Task 5).
+  Order-by uses `[asc: inserted_at, asc: id]` — UUID random + second-
+  resolution timestamps means within-second insertion order is lost.
+  No current consumer depends on it; if a future read needs
+  deterministic order, add an explicit `:position` column or sort by
+  `:source`/`:language` as secondary key.
+
+- **`refresh_movie_series_credits/0` skip predicate** (Task 4).
+  Currently a no-op data-wise (collection responses don't carry
+  credits); the driver's `cast != [] and crew != []` skip clause
+  never engages because every fetch returns `[]`. Either implement a
+  `last_credits_fetched_at`-based predicate, OR aggregate constituent
+  movie credits up to the collection level. Out of scope for Phase 1.
+
+- **Migration reversibility note in CHANGELOG** (Task 5). The
+  subtitles-table migration's rollback drops detected track data.
+  Note when v0.62 ships.
+
+- **Showcase subtitle seeding** (Task 5). `priv/showcase/media-centarr.db`
+  has the `subtitles_tracks` table but no rows — seed needs to either
+  invoke detection on seeded files or hard-code fixtures so the
+  showcase demonstrates subtitle UI.
+
+- **`format_runtime/1` duplication observation** (Task 2 review).
+  More duplication may exist in less-trafficked render paths; full
+  consolidation deferred until Phase 2/3 read-model unification, when
+  the canonical view-model struct will absorb formatting too.
 
 ## Architectural premises
 
