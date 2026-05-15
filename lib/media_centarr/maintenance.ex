@@ -123,51 +123,12 @@ defmodule MediaCentarr.Maintenance do
   @spec refresh_movie_credits() ::
           {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
   def refresh_movie_credits do
-    Log.info(:library, "refreshing movie credits")
-
-    movies = Repo.all(from m in Movie, where: not is_nil(m.tmdb_id))
-
-    result =
-      Enum.reduce(movies, %{updated: 0, skipped: 0, failed: 0}, &process_credits_refresh/2)
-
-    Log.info(
-      :library,
-      "movie credits refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
-    )
-
-    {:ok, result}
-  end
-
-  defp process_credits_refresh(%Movie{cast: cast, crew: crew} = _movie, acc)
-       when cast not in [nil, []] and crew not in [nil, []] do
-    Map.update!(acc, :skipped, &(&1 + 1))
-  end
-
-  defp process_credits_refresh(%Movie{} = movie, acc) do
-    case Client.get_movie(movie.tmdb_id) do
-      {:ok, body} ->
-        attrs = %{
-          cast: Mapper.extract_cast(body["credits"]),
-          crew: Mapper.extract_crew(body["credits"]),
-          imdb_id: body["imdb_id"]
-        }
-
-        movie
-        |> Ecto.Changeset.change(attrs)
-        |> Repo.update()
-        |> case do
-          {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
-          {:error, _} -> Map.update!(acc, :failed, &(&1 + 1))
-        end
-
-      {:error, reason} ->
-        Log.warning(
-          :library,
-          "credits refresh failed for movie #{movie.id}: #{inspect(reason)}"
-        )
-
-        Map.update!(acc, :failed, &(&1 + 1))
-    end
+    refresh_credits(%{
+      label: "movie",
+      schema: Movie,
+      fetcher: &Client.get_movie/1,
+      attrs_builder: &build_movie_credits_attrs/1
+    })
   end
 
   @doc """
@@ -186,37 +147,50 @@ defmodule MediaCentarr.Maintenance do
   @spec refresh_series_credits() ::
           {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
   def refresh_series_credits do
-    Log.info(:library, "refreshing series credits")
+    refresh_credits(%{
+      label: "series",
+      schema: TVSeries,
+      fetcher: &Client.get_tv/1,
+      attrs_builder: &build_series_credits_attrs/1
+    })
+  end
 
-    series_list = Repo.all(from t in TVSeries, where: not is_nil(t.tmdb_id))
+  # Shared driver for credit-refresh maintenance actions. Each caller
+  # supplies the schema to iterate, the TMDB fetcher keyed by `tmdb_id`,
+  # and a builder that turns the fetched body into update attrs. The
+  # schema's own `update_credits_changeset/2` performs the write.
+  defp refresh_credits(%{label: label, schema: schema} = config) do
+    Log.info(:library, "refreshing #{label} credits")
+
+    records = Repo.all(from r in schema, where: not is_nil(r.tmdb_id))
 
     result =
-      Enum.reduce(series_list, %{updated: 0, skipped: 0, failed: 0}, &process_series_credits_refresh/2)
+      Enum.reduce(records, %{updated: 0, skipped: 0, failed: 0}, fn record, acc ->
+        process_credits_refresh(record, acc, config)
+      end)
 
     Log.info(
       :library,
-      "series credits refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
+      "#{label} credits refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
     )
 
     {:ok, result}
   end
 
-  defp process_series_credits_refresh(%TVSeries{cast: cast, crew: crew} = _series, acc)
-       when cast not in [nil, []] and crew not in [nil, []] do
+  defp process_credits_refresh(%{cast: cast, crew: crew}, acc, _config) when cast != [] and crew != [] do
     Map.update!(acc, :skipped, &(&1 + 1))
   end
 
-  defp process_series_credits_refresh(%TVSeries{} = series, acc) do
-    case Client.get_tv(series.tmdb_id) do
+  defp process_credits_refresh(record, acc, %{
+         label: label,
+         schema: schema,
+         fetcher: fetcher,
+         attrs_builder: attrs_builder
+       }) do
+    case fetcher.(record.tmdb_id) do
       {:ok, body} ->
-        attrs = %{
-          cast: Mapper.extract_cast(body["aggregate_credits"]),
-          crew: Mapper.extract_creators(body["created_by"]),
-          imdb_id: get_in(body, ["external_ids", "imdb_id"])
-        }
-
-        series
-        |> Ecto.Changeset.change(attrs)
+        record
+        |> schema.update_credits_changeset(attrs_builder.(body))
         |> Repo.update()
         |> case do
           {:ok, _} -> Map.update!(acc, :updated, &(&1 + 1))
@@ -226,11 +200,27 @@ defmodule MediaCentarr.Maintenance do
       {:error, reason} ->
         Log.warning(
           :library,
-          "credits refresh failed for series #{series.id}: #{inspect(reason)}"
+          "credits refresh failed for #{label} #{record.id}: #{inspect(reason)}"
         )
 
         Map.update!(acc, :failed, &(&1 + 1))
     end
+  end
+
+  defp build_movie_credits_attrs(body) do
+    %{
+      cast: Mapper.extract_cast(body["credits"]),
+      crew: Mapper.extract_crew(body["credits"]),
+      imdb_id: body["imdb_id"]
+    }
+  end
+
+  defp build_series_credits_attrs(body) do
+    %{
+      cast: Mapper.extract_cast(body["aggregate_credits"]),
+      crew: Mapper.extract_creators(body["created_by"]),
+      imdb_id: get_in(body, ["external_ids", "imdb_id"])
+    }
   end
 
   @doc """

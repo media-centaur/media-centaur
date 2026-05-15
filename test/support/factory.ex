@@ -20,6 +20,7 @@ defmodule MediaCentarr.TestFactory do
     ExternalId,
     Movie,
     MovieSeries,
+    Person,
     Season,
     Episode,
     TVSeries,
@@ -91,6 +92,26 @@ defmodule MediaCentarr.TestFactory do
     }
 
     struct(ExternalId, Map.merge(defaults, overrides))
+  end
+
+  @doc """
+  Builds a `MediaCentarr.Library.Person` embedded struct — used for
+  cast and crew fixtures on `Movie` and `TVSeries`. Defaults to a
+  cast-shaped entry (with `character` + `order`); pass `job` and
+  `department` in overrides for crew-shaped entries.
+  """
+  def build_person(overrides \\ %{}) do
+    defaults = %{
+      name: "Sample Person",
+      character: nil,
+      order: nil,
+      job: nil,
+      department: nil,
+      profile_path: nil,
+      tmdb_person_id: nil
+    }
+
+    struct(Person, Map.merge(defaults, overrides))
   end
 
   def build_movie(overrides \\ %{}) do

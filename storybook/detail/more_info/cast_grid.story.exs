@@ -1,42 +1,44 @@
 defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.CastGrid do
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentarr.Library.Person
+
   def function, do: &MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid.cast_grid/1
 
   @populated Enum.map(0..7, fn i ->
-               %{
-                 "name" => "Sample Actor #{i + 1}",
-                 "character" => "Sample Role #{i + 1}",
-                 "tmdb_person_id" => 1000 + i,
-                 "profile_path" => nil,
-                 "order" => i
+               %Person{
+                 name: "Sample Actor #{i + 1}",
+                 character: "Sample Role #{i + 1}",
+                 tmdb_person_id: 1000 + i,
+                 profile_path: nil,
+                 order: i
                }
              end)
 
   @no_links [
-    %{
-      "name" => "Plain Name A",
-      "character" => "Role A",
-      "tmdb_person_id" => nil,
-      "profile_path" => nil,
-      "order" => 0
+    %Person{
+      name: "Plain Name A",
+      character: "Role A",
+      tmdb_person_id: nil,
+      profile_path: nil,
+      order: 0
     },
-    %{
-      "name" => "Plain Name B",
-      "character" => "Role B",
-      "tmdb_person_id" => nil,
-      "profile_path" => nil,
-      "order" => 1
+    %Person{
+      name: "Plain Name B",
+      character: "Role B",
+      tmdb_person_id: nil,
+      profile_path: nil,
+      order: 1
     }
   ]
 
   @long_cast Enum.map(0..59, fn i ->
-               %{
-                 "name" => "Sample Cast Member #{i + 1}",
-                 "character" => "Sample Role #{i + 1}",
-                 "tmdb_person_id" => 2000 + i,
-                 "profile_path" => nil,
-                 "order" => i
+               %Person{
+                 name: "Sample Cast Member #{i + 1}",
+                 character: "Sample Role #{i + 1}",
+                 tmdb_person_id: 2000 + i,
+                 profile_path: nil,
+                 order: i
                }
              end)
 

@@ -6,6 +6,8 @@ defmodule MediaCentarr.Library.TVSeries do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias MediaCentarr.Library.Person
+
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
@@ -28,8 +30,8 @@ defmodule MediaCentarr.Library.TVSeries do
     field :imdb_id, :string
     field :status, Ecto.Enum, values: [:returning, :ended, :canceled, :in_production, :planned]
 
-    field :cast, {:array, :map}, default: []
-    field :crew, {:array, :map}, default: []
+    embeds_many :cast, Person, on_replace: :delete
+    embeds_many :crew, Person, on_replace: :delete
 
     has_many :seasons, MediaCentarr.Library.Season, foreign_key: :tv_series_id
     has_many :images, MediaCentarr.Library.Image, foreign_key: :tv_series_id
@@ -59,14 +61,12 @@ defmodule MediaCentarr.Library.TVSeries do
       :number_of_seasons,
       :tmdb_id,
       :imdb_id,
-      :status,
-      :cast,
-      :crew
+      :status
     ])
+    |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
+    |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
     |> validate_required([:name])
     |> unique_constraint(:tmdb_id, name: :library_tv_series_tmdb_id_index)
-    |> coerce_cast_default()
-    |> coerce_crew_default()
   end
 
   def update_changeset(tv_series, attrs) do
@@ -87,25 +87,22 @@ defmodule MediaCentarr.Library.TVSeries do
       :number_of_seasons,
       :tmdb_id,
       :imdb_id,
-      :status,
-      :cast,
-      :crew
+      :status
     ])
-    |> coerce_cast_default()
-    |> coerce_crew_default()
+    |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
+    |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
   end
 
-  defp coerce_cast_default(changeset) do
-    case get_field(changeset, :cast) do
-      nil -> put_change(changeset, :cast, [])
-      _ -> changeset
-    end
-  end
-
-  defp coerce_crew_default(changeset) do
-    case get_field(changeset, :crew) do
-      nil -> put_change(changeset, :crew, [])
-      _ -> changeset
-    end
+  @doc """
+  Replaces the credits embeds in place — used by
+  `MediaCentarr.Maintenance.refresh_series_credits/0` to backfill
+  cast, crew (creators), and `imdb_id` from a fresh TMDB fetch.
+  `cast_embed` is required here because `Ecto.Changeset.change/2`
+  cannot coerce maps into `embeds_many` entries.
+  """
+  def update_credits_changeset(tv_series, attrs) do
+    tv_series
+    |> change()
+    |> Person.put_credits(attrs)
   end
 end
