@@ -586,25 +586,37 @@ defmodule MediaCentarr.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp link_file(entity, event) do
-    subtitle_tracks =
-      event.file_path
-      |> MediaCentarr.Subtitles.detect()
-      |> Enum.map(&MediaCentarr.Subtitles.Track.to_map/1)
-
     {fk_type, fk_id} = file_owner_for(entity, event)
 
     attrs =
       put_type_fk(
         %{
           file_path: event.file_path,
-          watch_dir: event.watch_dir,
-          subtitle_tracks: subtitle_tracks
+          watch_dir: event.watch_dir
         },
         fk_type,
         fk_id
       )
 
-    Library.link_file!(attrs)
+    watched_file = Library.link_file!(attrs)
+
+    # Persist detected subtitle tracks against the freshly-linked file.
+    # The Subtitles context owns its own table; we hand it the FK and
+    # the detector output.
+    detected = MediaCentarr.Subtitles.detect(event.file_path)
+
+    case MediaCentarr.Subtitles.replace_tracks_for_file(watched_file.id, detected) do
+      {:ok, _tracks} ->
+        :ok
+
+      {:error, reason} ->
+        Log.warning(
+          :library,
+          "subtitle persist failed for watched_file #{watched_file.id}: #{inspect(reason)}"
+        )
+    end
+
+    watched_file
   end
 
   # A collection-child movie owns its own WatchedFile; the parent MovieSeries

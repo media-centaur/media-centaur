@@ -254,12 +254,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   end
 
   # Movies are the only type with detected subtitles for v1. Series'
-  # episodes each carry their own WatchedFile with its own
-  # `subtitle_tracks`; aggregating across episodes needs a different
-  # display story (per-season? show-wide?). Skip non-movies entirely
-  # so the row never renders for them.
+  # episodes each carry their own WatchedFile with its own tracks;
+  # aggregating across episodes needs a different display story
+  # (per-season? show-wide?). Skip non-movies entirely so the row
+  # never renders for them.
   defp subtitle_languages_for(%{type: :movie, watched_files: files}) when is_list(files),
-    do: Subtitles.aggregate_languages(files)
+    do: Subtitles.aggregate_languages_for_files(files)
 
   defp subtitle_languages_for(_), do: []
 
