@@ -45,7 +45,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.date_published == ~D[2008-07-18]
       assert result.genres == ["Action", "Drama"]
       assert result.url == "https://www.themoviedb.org/movie/155"
-      assert result.duration == "PT2H32M"
+      assert result.duration_seconds == 152 * 60
       assert result.director == "Sample Director"
       assert result.content_rating == "PG-13"
       assert result.aggregate_rating_value == 9.0
@@ -130,7 +130,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.description == nil
       assert result.date_published == nil
       assert result.genres == []
-      assert result.duration == nil
+      assert result.duration_seconds == nil
       assert result.director == nil
       assert result.content_rating == nil
       assert result.aggregate_rating_value == nil
@@ -526,7 +526,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.episode_number == 2
       assert result.name == "Cat's in the Bag..."
       assert result.description == "Trouble."
-      assert result.duration == "PT0H48M"
+      assert result.duration_seconds == 48 * 60
       assert result.content_url == "/media/S01E02.mkv"
     end
 
@@ -538,7 +538,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.episode_number == 99
       assert result.name == nil
       assert result.description == nil
-      assert result.duration == nil
+      assert result.duration_seconds == nil
       assert result.content_url == "/media/S01E99.mkv"
     end
   end
@@ -831,21 +831,25 @@ defmodule MediaCentarr.TMDB.MapperTest do
     end
   end
 
-  describe "minutes_to_iso8601/1" do
+  describe "minutes_to_seconds/1" do
     test "nil returns nil" do
-      assert Mapper.minutes_to_iso8601(nil) == nil
+      assert Mapper.minutes_to_seconds(nil) == nil
+    end
+
+    test "0 returns nil (TMDB returns 0 for unknown runtime, same as nil)" do
+      assert Mapper.minutes_to_seconds(0) == nil
     end
 
     test "90 minutes" do
-      assert Mapper.minutes_to_iso8601(90) == "PT1H30M"
+      assert Mapper.minutes_to_seconds(90) == 5400
     end
 
     test "120 minutes" do
-      assert Mapper.minutes_to_iso8601(120) == "PT2H0M"
+      assert Mapper.minutes_to_seconds(120) == 7200
     end
 
     test "45 minutes" do
-      assert Mapper.minutes_to_iso8601(45) == "PT0H45M"
+      assert Mapper.minutes_to_seconds(45) == 2700
     end
   end
 end

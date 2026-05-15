@@ -44,7 +44,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
     name: "Sample Movie",
     url: "https://www.themoviedb.org/movie/1",
     imdb_id: "tt0000001",
-    duration: "PT1H47M",
+    duration_seconds: 6420,
     date_published: ~D[2025-08-15],
     studio: "Sample Studio",
     country_code: "US",

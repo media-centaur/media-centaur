@@ -18,7 +18,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       date_published: parse_date(movie["release_date"]),
       genres: extract_genre_names(movie["genres"]),
       url: tmdb_url(:movie, tmdb_id),
-      duration: minutes_to_iso8601(movie["runtime"]),
+      duration_seconds: minutes_to_seconds(movie["runtime"]),
       director: extract_director(movie["credits"]),
       cast: extract_cast(movie["credits"]),
       crew: extract_crew(movie["credits"]),
@@ -95,7 +95,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       episode_number: episode_number,
       name: tmdb_episode && tmdb_episode["name"],
       description: tmdb_episode && tmdb_episode["overview"],
-      duration: tmdb_episode && minutes_to_iso8601(tmdb_episode["runtime"]),
+      duration_seconds: tmdb_episode && minutes_to_seconds(tmdb_episode["runtime"]),
       content_url: file_path
     }
   end
@@ -129,7 +129,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       description: movie["overview"],
       date_published: parse_date(movie["release_date"]),
       url: tmdb_url(:movie, tmdb_id),
-      duration: minutes_to_iso8601(movie["runtime"]),
+      duration_seconds: minutes_to_seconds(movie["runtime"]),
       director: extract_director(movie["credits"]),
       content_rating: extract_us_rating(movie["release_dates"]),
       aggregate_rating_value: movie["vote_average"],
@@ -358,13 +358,20 @@ defmodule MediaCentarr.TMDB.Mapper do
     end)
   end
 
-  def minutes_to_iso8601(nil), do: nil
-
-  def minutes_to_iso8601(minutes) when is_integer(minutes) do
-    hours = div(minutes, 60)
-    mins = rem(minutes, 60)
-    "PT#{hours}H#{mins}M"
-  end
+  @doc """
+  Converts a TMDB `runtime` value (minutes) into integer seconds. TMDB
+  returns `nil` (or omits the key) for unreleased / in-production titles
+  whose runtime hasn't been recorded yet, and sometimes returns `0` for
+  the same condition — both map to `nil` so downstream "no duration
+  known" guards (e.g. `detail_panel.duration_or_nil/1`) work uniformly.
+  Used by `movie_attrs/3`, `child_movie_attrs/5`, and `episode_attrs/4`
+  at the TMDB→domain boundary to feed `Movie.duration_seconds` /
+  `Episode.duration_seconds`.
+  """
+  @spec minutes_to_seconds(integer() | nil) :: integer() | nil
+  def minutes_to_seconds(nil), do: nil
+  def minutes_to_seconds(0), do: nil
+  def minutes_to_seconds(minutes) when is_integer(minutes), do: minutes * 60
 
   def extract_first_company(nil), do: nil
   def extract_first_company([]), do: nil

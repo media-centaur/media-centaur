@@ -99,41 +99,6 @@ defmodule MediaCentarrWeb.Components.Detail.Logic do
 
   def year_from_date(_), do: nil
 
-  @doc """
-  Formats an ISO 8601 duration string (`"PT1H55M"`) into a compact human
-  form (`"1h 55m"`). Returns `nil` for `nil`, blank, or malformed input —
-  never crashes on bad data.
-  """
-  def format_duration(nil), do: nil
-  def format_duration(""), do: nil
-
-  def format_duration("PT" <> rest) do
-    {hours, after_hours} = take_iso_component(rest, "H")
-    {minutes, _tail} = take_iso_component(after_hours, "M")
-
-    case {hours, minutes} do
-      {nil, nil} -> nil
-      {nil, m} -> "#{m}m"
-      {h, nil} -> "#{h}h"
-      {h, m} -> "#{h}h #{m}m"
-    end
-  end
-
-  def format_duration(_), do: nil
-
-  defp take_iso_component(string, suffix) do
-    case String.split(string, suffix, parts: 2) do
-      [num, rest] ->
-        case Integer.parse(num) do
-          {n, ""} -> {n, rest}
-          _ -> {nil, string}
-        end
-
-      [_only] ->
-        {nil, string}
-    end
-  end
-
   # ---------------------------------------------------------------------------
   # Play button label/target — explicit case functions
   # ---------------------------------------------------------------------------

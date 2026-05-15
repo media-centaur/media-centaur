@@ -15,6 +15,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
   use MediaCentarrWeb, :html
 
   alias MediaCentarrWeb.Components.Detail.MoreInfo.People
+  alias MediaCentarrWeb.LibraryFormatters
 
   attr :entity, :map,
     required: true,
@@ -46,7 +47,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
   attr :entity, :map,
     required: true,
     doc:
-      "normalized movie entity. Reads `:studio`, `:country_code`, `:original_language`, `:duration`, `:date_published`."
+      "normalized movie entity. Reads `:studio`, `:country_code`, `:original_language`, `:duration_seconds`, `:date_published`."
 
   def meta_block(assigns) do
     items =
@@ -55,7 +56,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
           {"Studio", assigns.entity[:studio]},
           {"Country", assigns.entity[:country_code]},
           {"Language", assigns.entity[:original_language]},
-          {"Runtime", format_runtime(assigns.entity[:duration])},
+          {"Runtime", format_runtime(assigns.entity[:duration_seconds])},
           {"Released", MediaCentarr.Format.iso_date(assigns.entity[:date_published])}
         ],
         fn {_label, value} -> value in [nil, ""] end
@@ -78,16 +79,11 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
 
   defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1.job in jobs))
 
-  # ISO-8601 duration (e.g. "PT1H47M") → "1h 47m"
-  defp format_runtime(nil), do: nil
-  defp format_runtime(""), do: nil
+  # Routes through the canonical seconds-based formatter (Library Schema v2
+  # Phase 1 Task 3). `nil` and non-positive seconds elide the row via
+  # `meta_block`'s reject filter.
+  defp format_runtime(seconds) when is_integer(seconds) and seconds > 0,
+    do: LibraryFormatters.format_human_duration(seconds)
 
-  defp format_runtime(iso) when is_binary(iso) do
-    case Regex.run(~r/^PT(?:(\d+)H)?(?:(\d+)M)?$/, iso) do
-      [_, h, m] when h != "" and m != "" -> "#{h}h #{m}m"
-      [_, h, ""] -> "#{h}h"
-      [_, "", m] -> "#{m}m"
-      _ -> iso
-    end
-  end
+  defp format_runtime(_), do: nil
 end

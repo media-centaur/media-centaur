@@ -386,7 +386,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
           "metadata row.",
       tagline: "Look closer.",
       date_published: ~D[1922-09-04],
-      duration: "PT1H30M",
+      duration_seconds: 5400,
       director: "Sample Director",
       content_rating: "PG",
       number_of_seasons: nil,
@@ -720,7 +720,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
           "follows a different resident through a single afternoon.",
       tagline: nil,
       date_published: ~D[1925-01-12],
-      duration: nil,
+      duration_seconds: nil,
       director: nil,
       content_rating: "TV-PG",
       number_of_seasons: 2,
@@ -866,7 +866,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
         "55555555-5555-5555-5555-555555555501",
         "Sample Picture I",
         ~D[1920-05-01],
-        "PT1H30M",
+        5400,
         "/media/sample-picture-1.mkv",
         1,
         "The first chapter — a rumour leads three siblings into the hills."
@@ -875,7 +875,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
         "55555555-5555-5555-5555-555555555502",
         "Sample Picture II",
         ~D[1922-07-10],
-        "PT1H35M",
+        5700,
         "/media/sample-picture-2.mkv",
         2,
         "A return to the same valley, years later."
@@ -884,7 +884,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
         "55555555-5555-5555-5555-555555555503",
         "Sample Picture III",
         ~D[1925-11-04],
-        "PT1H40M",
+        6000,
         "/media/sample-picture-3.mkv",
         3,
         "The valley closes its books."
@@ -898,7 +898,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       description: "Three pictures, one valley.",
       tagline: nil,
       date_published: ~D[1920-05-01],
-      duration: nil,
+      duration_seconds: nil,
       director: nil,
       content_rating: nil,
       number_of_seasons: nil,
@@ -986,19 +986,19 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
       episode_number: episode_number,
       name: name,
       description: description,
-      duration: "PT25M",
+      duration_seconds: 1500,
       content_url: "/media/quiet-sample/episode-#{episode_number}.mkv",
       images: []
     }
   end
 
-  defp sample_child_movie(id, name, date_published, duration, content_url, position, description) do
+  defp sample_child_movie(id, name, date_published, duration_seconds, content_url, position, description) do
     %{
       id: id,
       name: name,
       description: description,
       date_published: date_published,
-      duration: duration,
+      duration_seconds: duration_seconds,
       director: "Sample Director",
       content_url: content_url,
       position: position,

@@ -5,10 +5,13 @@ defmodule MediaCentarr.Format do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @doc """
-  Formats a number of seconds into a human-readable duration string.
+  Formats a number of seconds into a clock-style duration string.
 
   Returns `"H:MM:SS"` when the duration is an hour or longer, otherwise `"M:SS"`.
   Returns `"0:00"` for nil.
+
+  For human-formatted strings (`2h 14m`), use
+  `MediaCentarrWeb.LibraryFormatters.format_human_duration/1`.
   """
   def format_seconds(nil), do: "0:00"
 

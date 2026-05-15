@@ -122,7 +122,7 @@ defmodule MediaCentarrWeb.Storybook.Composites.ModalShell do
           "spilling into the metadata grid below.",
       tagline: "A demonstrative tagline",
       date_published: ~D[2024-01-15],
-      duration: "PT2H8M",
+      duration_seconds: 7680,
       director: "A. Director",
       original_language: "en",
       studio: "Sample Pictures",

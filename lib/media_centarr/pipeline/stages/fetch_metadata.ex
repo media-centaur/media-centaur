@@ -119,7 +119,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
       description: movie_data["overview"],
       date_published: Mapper.parse_date(movie_data["release_date"]),
       url: Mapper.tmdb_url(:movie, tmdb_id),
-      duration: Mapper.minutes_to_iso8601(movie_data["runtime"]),
+      duration_seconds: Mapper.minutes_to_seconds(movie_data["runtime"]),
       director: Mapper.extract_director(movie_data["credits"]),
       content_rating: Mapper.extract_us_rating(movie_data["release_dates"]),
       aggregate_rating_value: movie_data["vote_average"],
@@ -189,7 +189,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
           episode_number: parsed.episode,
           name: tmdb_episode && tmdb_episode["name"],
           description: tmdb_episode && tmdb_episode["overview"],
-          duration: tmdb_episode && Mapper.minutes_to_iso8601(tmdb_episode["runtime"]),
+          duration_seconds: tmdb_episode && Mapper.minutes_to_seconds(tmdb_episode["runtime"]),
           content_url: parsed.file_path
         }
 
@@ -214,7 +214,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
             episode_number: parsed.episode,
             name: nil,
             description: nil,
-            duration: nil,
+            duration_seconds: nil,
             content_url: parsed.file_path
           },
           images: []

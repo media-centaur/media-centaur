@@ -1275,7 +1275,7 @@ defmodule MediaCentarr.Library do
         description: movie.description,
         images: movie.images || [],
         genres: movie.genres,
-        duration: movie.duration
+        duration_seconds: movie.duration_seconds
       }
 
       progress =
@@ -1365,7 +1365,7 @@ defmodule MediaCentarr.Library do
             description: series.description,
             images: series.images || [],
             genres: series.genres,
-            duration: nil
+            duration_seconds: nil
           }
 
           progress =
@@ -1418,7 +1418,7 @@ defmodule MediaCentarr.Library do
             description: video_object.description,
             images: video_object.images || [],
             genres: nil,
-            duration: nil
+            duration_seconds: nil
           }
 
           progress =
@@ -1498,7 +1498,7 @@ defmodule MediaCentarr.Library do
             description: series.description,
             images: series.images || [],
             genres: series.genres,
-            duration: nil
+            duration_seconds: nil
           }
 
           progress =
@@ -1582,15 +1582,9 @@ defmodule MediaCentarr.Library do
     logo_url = image_url(record.images, "logo")
 
     runtime_minutes =
-      case Map.get(record, :duration) do
-        duration when is_binary(duration) ->
-          case Integer.parse(duration) do
-            {minutes, _} -> minutes
-            _ -> nil
-          end
-
-        _ ->
-          nil
+      case Map.get(record, :duration_seconds) do
+        seconds when is_integer(seconds) and seconds > 0 -> div(seconds, 60)
+        _ -> nil
       end
 
     %{

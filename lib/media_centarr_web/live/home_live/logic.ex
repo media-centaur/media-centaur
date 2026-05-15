@@ -10,6 +10,7 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   """
 
   alias MediaCentarrWeb.Components.{ComingUpMarquee, ContinueWatchingRow, HeroCard, PosterRow}
+  alias MediaCentarrWeb.LibraryFormatters
 
   @doc """
   Returns `{monday, sunday}` of the week containing `date`. Defaults to today.
@@ -274,13 +275,14 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   defp format_year(year) when is_integer(year), do: Integer.to_string(year)
   defp format_year(year) when is_binary(year), do: year
 
+  # Routes through the canonical `LibraryFormatters.format_human_duration/1`
+  # (Library Schema v2 Phase 1 Task 3 consolidation). Hero candidates carry
+  # `runtime_minutes` for historical reasons; convert at the call site so
+  # the seconds-based formatter stays the single source of truth.
   defp format_runtime(nil), do: nil
 
-  defp format_runtime(minutes) when is_integer(minutes) and minutes > 0 do
-    hours = div(minutes, 60)
-    mins = rem(minutes, 60)
-    "#{hours}h #{mins}m"
-  end
+  defp format_runtime(minutes) when is_integer(minutes) and minutes > 0,
+    do: LibraryFormatters.format_human_duration(minutes * 60)
 
   defp format_runtime(_), do: nil
 

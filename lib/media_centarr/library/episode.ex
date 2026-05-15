@@ -2,6 +2,12 @@ defmodule MediaCentarr.Library.Episode do
   @moduledoc """
   A TV episode belonging to a `Season`. Stores per-episode metadata from TMDB
   and the local `content_url` linking to the video file.
+
+  `duration_seconds` is the canonical integer-seconds field (Library Schema
+  v2 Phase 1 Task 3). The pipeline derives it from TMDB's per-episode
+  `runtime` (minutes) at ingest time via `TMDB.Mapper.episode_attrs/4`. The
+  prior stringly-typed `:duration` column was dropped; any previously-stored
+  values are not recoverable but are repopulated on the next TMDB refresh.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -14,7 +20,7 @@ defmodule MediaCentarr.Library.Episode do
     field :episode_number, :integer
     field :name, :string
     field :description, :string
-    field :duration, :string
+    field :duration_seconds, :integer
     field :content_url, :string
 
     belongs_to :season, MediaCentarr.Library.Season
@@ -26,7 +32,14 @@ defmodule MediaCentarr.Library.Episode do
 
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:episode_number, :name, :description, :duration, :content_url, :season_id])
+    |> cast(attrs, [
+      :episode_number,
+      :name,
+      :description,
+      :duration_seconds,
+      :content_url,
+      :season_id
+    ])
     |> validate_required([:season_id, :episode_number])
   end
 
