@@ -17,7 +17,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
         name: "Sample Movie",
         url: "https://www.themoviedb.org/movie/1",
         imdb_id: nil,
-        duration: nil,
+        duration_seconds: nil,
         date_published: nil,
         studio: nil,
         country_code: nil,
@@ -124,7 +124,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
               studio: "Sample Studio",
               country_code: "US",
               original_language: "en",
-              duration: "PT1H47M"
+              duration_seconds: 6420
             })
         })
 
@@ -249,7 +249,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanelTest do
     end
 
     test "TV meta block omits movie-only fields (Studio, Runtime, Released)" do
-      # TV series entity has no `:duration`, no `:studio`, and uses
+      # TV series entity has no `:duration_seconds`, no `:studio`, and uses
       # `:date_published` for first-aired (relabelled "First aired"
       # in the TV meta block, not "Released"). Confirm those movie
       # labels never appear.

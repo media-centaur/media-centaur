@@ -11,7 +11,7 @@ defmodule MediaCentarr.Library.EntityShape do
   Converts a type-specific record into a normalized map with all entity-level fields.
 
   Missing associations default to empty lists. Fields that don't exist on a given
-  type (e.g. `duration` on TVSeries) return `nil` via `Map.get/3`.
+  type (e.g. `duration_seconds` on TVSeries) return `nil` via `Map.get/3`.
   """
   def normalize(record, type) do
     %{
@@ -23,7 +23,7 @@ defmodule MediaCentarr.Library.EntityShape do
       content_url: Map.get(record, :content_url),
       url: record.url,
       genres: Map.get(record, :genres),
-      duration: Map.get(record, :duration),
+      duration_seconds: Map.get(record, :duration_seconds),
       director: Map.get(record, :director),
       content_rating: Map.get(record, :content_rating),
       number_of_seasons: Map.get(record, :number_of_seasons),

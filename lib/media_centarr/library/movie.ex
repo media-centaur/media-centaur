@@ -3,6 +3,12 @@ defmodule MediaCentarr.Library.Movie do
   A child movie belonging to a `MovieSeries` entity. Parallel to `Episode`
   belonging to a `Season` — stores per-movie metadata from TMDB and the
   local `content_url` linking to the video file.
+
+  `duration_seconds` is the canonical integer-seconds field (Library Schema
+  v2 Phase 1 Task 3). The pipeline derives it from TMDB's `runtime`
+  (minutes) at ingest time via `TMDB.Mapper.movie_attrs/3`. The prior
+  stringly-typed `:duration` column was dropped; any previously-stored
+  values are not recoverable but are repopulated on the next TMDB refresh.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -17,7 +23,7 @@ defmodule MediaCentarr.Library.Movie do
     field :name, :string
     field :description, :string
     field :date_published, :date
-    field :duration, :string
+    field :duration_seconds, :integer
     field :director, :string
     field :content_rating, :string
     field :content_url, :string
@@ -57,7 +63,7 @@ defmodule MediaCentarr.Library.Movie do
       :name,
       :description,
       :date_published,
-      :duration,
+      :duration_seconds,
       :director,
       :content_rating,
       :content_url,

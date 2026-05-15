@@ -86,17 +86,17 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
   end
 
-  describe "/library?selected=<id> with movie that has ISO 8601 duration" do
-    # Detail-panel metadata row formats `entity.duration` (ISO 8601) for
-    # display. Calling the wrong formatter on this string crashes the
-    # whole LiveView (ArithmeticError in :erlang.div/2). This smoke
-    # ensures the metadata-row duration path renders for a movie shaped
-    # like real production data.
+  describe "/library?selected=<id> with movie that has duration_seconds" do
+    # Detail-panel metadata row formats `entity.duration_seconds` (integer
+    # seconds, post Library Schema v2 Phase 1 Task 3) for display. A
+    # mismatched formatter would crash the whole LiveView; this smoke pins
+    # the metadata-row duration path for a movie shaped like real production
+    # data.
     setup do
       movie =
         create_standalone_movie(%{
           name: "Smoke Movie With Duration",
-          duration: "PT1H55M",
+          duration_seconds: 6900,
           date_published: ~D[2008-07-18],
           content_rating: "PG-13"
         })
@@ -104,7 +104,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       {:ok, movie: movie}
     end
 
-    test "library detail panel mounts for a movie with ISO 8601 duration",
+    test "library detail panel mounts for a movie with duration_seconds",
          %{conn: conn, movie: movie} do
       assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)

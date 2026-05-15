@@ -306,7 +306,9 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
 
   defp movie_count_or_nil(_), do: nil
 
-  defp duration_or_nil(%{duration: duration}), do: Logic.format_duration(duration)
+  defp duration_or_nil(%{duration_seconds: seconds}) when is_integer(seconds) and seconds > 0,
+    do: format_human_duration(seconds)
+
   defp duration_or_nil(_), do: nil
 
   defp country_or_nil(entity) do
@@ -618,7 +620,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           </p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <.episode_duration_text state={@state} progress={@progress} duration={@episode.duration} />
+          <.episode_duration_text
+            state={@state}
+            progress={@progress}
+            duration_seconds={@episode.duration_seconds}
+          />
           <button
             phx-click="toggle_watched"
             phx-value-entity-id={@entity_id}
@@ -777,10 +783,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
-  defp episode_duration_text(%{duration: duration} = assigns) when is_binary(duration) do
+  defp episode_duration_text(%{duration_seconds: seconds} = assigns)
+       when is_integer(seconds) and seconds > 0 do
     ~H"""
     <span class="text-base-content/40 text-xs">
-      {format_iso_duration(@duration)}
+      {format_human_duration(@duration_seconds)}
     </span>
     """
   end
@@ -873,7 +880,11 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
           </p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <.episode_duration_text state={@state} progress={@progress} duration={@movie.duration} />
+          <.episode_duration_text
+            state={@state}
+            progress={@progress}
+            duration_seconds={@movie.duration_seconds}
+          />
           <button
             phx-click="toggle_watched"
             phx-value-entity-id={@entity_id}
@@ -942,7 +953,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
         <.icon name="hero-film-mini" class="size-4 text-base-content/40 flex-shrink-0" />
         <span class="flex-1 min-w-0 truncate text-base-content/70">{@extra.name || "—"}</span>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <.episode_duration_text state={@state} progress={@progress} duration={nil} />
+          <.episode_duration_text state={@state} progress={@progress} duration_seconds={nil} />
           <button
             phx-click="toggle_extra_watched"
             phx-value-extra-id={@extra.id}

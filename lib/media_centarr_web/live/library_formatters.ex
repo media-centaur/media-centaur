@@ -8,6 +8,14 @@ defmodule MediaCentarrWeb.LibraryFormatters do
 
   # --- Duration ---
 
+  @doc """
+  Canonical human-duration formatter — `2h 14m`, `1h`, `35m`, `< 1m`.
+
+  Use this for library cards, status rows, and any UI surface where the
+  duration is informational. Use `MediaCentarr.Format.format_seconds/1`
+  instead when you need clock-style `H:MM:SS` (player overlays, log lines).
+  """
+  @spec format_human_duration(non_neg_integer() | nil) :: String.t()
   def format_human_duration(seconds) when seconds >= 3600 do
     hours = div(seconds, 3600)
     minutes = div(rem(seconds, 3600), 60)

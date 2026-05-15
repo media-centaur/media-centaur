@@ -193,24 +193,6 @@ defmodule MediaCentarrWeb.Components.Detail.LogicTest do
     end
   end
 
-  describe "format_duration/1" do
-    test "formats ISO 8601 duration to human form" do
-      assert Logic.format_duration("PT1H55M") == "1h 55m"
-      assert Logic.format_duration("PT2H32M") == "2h 32m"
-      assert Logic.format_duration("PT45M") == "45m"
-    end
-
-    test "returns nil for nil and empty input" do
-      assert Logic.format_duration(nil) == nil
-      assert Logic.format_duration("") == nil
-    end
-
-    test "returns nil for malformed (non-ISO) strings instead of crashing" do
-      assert Logic.format_duration("90 minutes") == nil
-      assert Logic.format_duration("garbage") == nil
-    end
-  end
-
   describe "humanize_status/1" do
     test "title-cases atom statuses" do
       assert Logic.humanize_status(:released) == "Released"
