@@ -1,0 +1,401 @@
+---
+status: proposed
+started: 2026-05-15
+last_updated: 2026-05-15
+---
+# Library Schema v2 — architectural excellence
+
+## Goal
+
+Redesign the Library bounded context's data model from first principles
+now that we know how it's used. The current schema works but carries
+structural debt that will compound the longer it lives: a 5-FK
+polymorphic fanout across every supporting table, stringly-typed
+domain values, a `Movie` schema serving two distinct roles, and a
+runtime denormalization layer (`EntityShape.normalize/3`) papering
+over the fact that the leaves don't share a schema.
+
+No users exist yet — destructive migrations are free. We take the
+shape we'd choose today and ship it, then we can ride it into a public
+release with confidence that the foundation is right.
+
+This campaign sits **alongside** [`desktop-rearchitecture.md`](desktop-rearchitecture.md):
+- Desktop-rearchitecture moves *reads* from Pillar 1 (DB) to Pillar 2
+  (ETS projections) per [ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
+- This campaign rebuilds the *Pillar 1 schema* the projections rebuild
+  from. The cleaner the schema, the cleaner the projection layer feeding
+  off it.
+
+The phases interleave: schema redesign first (Pillar 1 right shape),
+projection fan-out second (Pillar 2 expansion to remaining LiveViews).
+
+## Status
+
+Proposed. No code written yet. Designed against current code as of
+commit `36fd51f2`.
+
+## Architectural premises
+
+These are the load-bearing assumptions every decision rests on. Call
+them out if any change.
+
+1. **Local desktop app — statefulness is an asset.** Reads live in
+   BEAM processes (ETS / `:persistent_term`); the DB is the durable
+   write side. Thin LiveViews subscribe to projections, never query
+   Pillar 1 directly on the render path. Established by ADR-041; this
+   campaign relies on it.
+2. **SQLite is the durable store.** Single writer, fast local reads,
+   no network. Storage cost of a redesign is one `mix ecto.reset`.
+3. **No backwards compatibility required.** No deployed users. Every
+   migration may be destructive. Showcase + dev DBs rebuild from
+   scratch via existing seed paths.
+4. **TMDB is the canonical external source.** Every entity worth
+   tracking has a TMDB row. IMDB / TVDB are secondary identifiers.
+5. **The user-visible playable unit is "press play and watch".**
+   That's the leaf — movie, episode, movie-series-child, video-object
+   are the four ways the same concept (a thing with a file, a
+   duration, and watch progress) manifest in the UI.
+
+## Target schema
+
+The end state we are building toward.
+
+### Containers (metadata holders)
+
+Each container schema carries TMDB-derived metadata. None of them
+carry `content_url`, watch progress, or watched_files directly —
+those live on the leaf (`PlayableItem`).
+
+| Schema | Table | Holds |
+|--------|-------|-------|
+| `Movie` | `library_movies` | Standalone movie metadata or series-child movie metadata. Nullable `movie_series_id`. |
+| `TVSeries` | `library_tv_series` | TV series metadata. `has_many :seasons`. |
+| `Season` | `library_seasons` | Season metadata. `has_many :episodes`. |
+| `Episode` | `library_episodes` | Per-episode metadata (description, runtime). `has_many :playable_items`. |
+| `MovieSeries` | `library_movie_series` | Movie collection metadata. `has_many :movies`. Symmetric with `TVSeries` on cast/crew/tagline/studio/etc. |
+| `VideoObject` | `library_video_objects` | Standalone video metadata. |
+
+### The leaf — `PlayableItem`
+
+```elixir
+schema "library_playable_items" do
+  field :container_type, Ecto.Enum, values: [:movie, :episode, :video_object]
+  field :container_id, Ecto.UUID
+  field :position, :integer          # episode number / series position / 1 for solo
+  field :duration_seconds, :integer  # canonical, integer, never string
+  field :name, :string               # override / version label (e.g. "Director's Cut")
+
+  has_many :watched_files, Library.WatchedFile
+  has_one :watch_progress, Library.WatchProgress
+  has_many :subtitle_tracks, Library.SubtitleTrack
+  has_many :images, Library.Image, where: [owner_type: :playable_item]
+
+  timestamps()
+end
+```
+
+**The win:** every supporting table collapses from a 3–5-FK fanout to
+a single FK. `WatchedFile`, `WatchProgress`, `SubtitleTrack` all key
+to `playable_item_id` only. `Image` and `Extra` polymorphism reduces
+to a single `(owner_type, owner_id)` pair.
+
+**The unlock:** one container can have N playable items, naturally.
+A Movie with theatrical + director's cut versions is two
+`PlayableItem`s pointing at the same `Movie`. A two-part episode is
+two `PlayableItem`s pointing at the same `Episode`. Today's schema
+can't represent either.
+
+**The "movie-series-child" question:** there is no separate kind. A
+movie-series child is a `Movie` row with `movie_series_id` set, plus
+its `PlayableItem` of `container_type: :movie`. Whether the movie is
+standalone or in a series is data on `Movie`, not on `PlayableItem`.
+
+### Supporting tables (single-FK, polymorphism-once)
+
+| Schema | Owner | Notes |
+|--------|-------|-------|
+| `WatchedFile` | `playable_item_id` | Single FK. File path, watch_dir. Subtitle tracks moved out. |
+| `WatchProgress` | `playable_item_id` | Single FK. Position, duration, completed, last_watched_at. No more `(season=0, episode=0)` overload. |
+| `SubtitleTrack` | `watched_file_id` | New table. Kind, language, source. Owned by `Subtitles` context (table named `subtitles_tracks`). |
+| `Image` | `owner_type` + `owner_id` | Single discriminator. Owner types: `:movie`, `:tv_series`, `:movie_series`, `:video_object`, `:episode`, `:playable_item`. App-level integrity. |
+| `Extra` | `owner_type` + `owner_id` | Same pattern. Owner types: `:movie`, `:tv_series`, `:movie_series`, `:season`. |
+| `ExternalId` | `owner_type` + `owner_id` | Same pattern. Sole source of truth for TMDB/IMDB IDs — drop the redundant columns from container schemas. |
+
+**On discriminators vs FK enforcement:** we lose SQLite's FK
+enforcement for the polymorphic tables (Image, Extra, ExternalId).
+The tradeoff: a single owner column is mechanically simpler and a new
+owner type adds one enum value instead of one nullable FK per table.
+We accept app-level integrity here because (a) writes always go
+through `Library.Inbound` or context functions, (b) the existing 5-FK
+shape has no DB-level "exactly one set" constraint either, so we're
+not losing anything we had. Cascade deletes get rewritten as explicit
+context-level cascades (which they already are — see `EntityCascade`).
+
+### Typed fields throughout
+
+| Today | Tomorrow | Why |
+|-------|----------|-----|
+| `date_published :string` | `:date` | Sorts, filters, comparisons cease to need parse-on-every-read. |
+| `duration :string` ("PT1H30M") | `duration_seconds :integer` | Native arithmetic; no parse roundtrips. |
+| `tmdb_id :string` on containers | (removed; sole row in `ExternalId`) | One source of truth. |
+| `imdb_id :string` on containers | (removed; sole row in `ExternalId`) | One source of truth. |
+| `cast {:array, :map}` | `embeds_many :cast, Library.Person` | Typed contract: `name`, `character`, `order`, `profile_path`. |
+| `crew {:array, :map}` | `embeds_many :crew, Library.Person` | Typed contract: `name`, `job`, `department`, `profile_path`. |
+| `subtitle_tracks {:array, :map}` on `WatchedFile` | own table, `Subtitles.Track` | Cross-context data in another context's table is a smell. |
+
+### What stays
+
+- UUID primary keys.
+- Type-specific container tables (the polymorphism failure of the old
+  unified `library_entities` table is not what we're un-doing).
+- `Library.Inbound` as the single write entry point from the pipeline.
+- `Library.FileEventHandler` cleanup cascade.
+- `Library.Availability` watch-dir reachability tracking.
+- All existing projections (`ContinueWatching`, `HeroCandidates`,
+  `RecentlyAdded`). They get re-pointed at new context functions but
+  the pattern is unchanged.
+
+## Phases
+
+### Phase 1 — Foundation cleanup *(no structural changes)*
+
+Independent fixes that don't touch the polymorphic fanout. Land first
+because they're low-risk and reduce the surface area Phase 2 touches.
+
+| # | Change | Touch points |
+|---|--------|--------------|
+| 1 | `Library.Person` embedded schema; `Movie`/`TVSeries`/`MovieSeries` use `embeds_many :cast, Person` / `embeds_many :crew, Person` | 3 schemas, `Library.Inbound`, TMDB mappers, factory, UI templates that render cast |
+| 2 | `date_published` becomes `:date` everywhere | 4 schemas, changesets, `Format` helper, all templates that display year |
+| 3 | `duration` becomes `duration_seconds :integer` everywhere it appears | `Movie`, `Episode`, `Format.duration/1`, TMDB mappers |
+| 4 | `MovieSeries` gains metadata symmetry with `TVSeries`: `tagline`, `original_language`, `studio`, `country_code`, `status`, `cast`, `crew`, `vote_count` | `MovieSeries` schema + migration; `Library.Inbound` `movie_series_attrs/1`; TMDB collection mapper |
+| 5 | Move `subtitle_tracks` out of `WatchedFile` into `Subtitles.Track` (table `subtitles_tracks`) under the `Subtitles` context | new schema/migration, `WatchedFile`, `Subtitles` context, `Playback` reads |
+| 6 | Drop `tmdb_id` and `imdb_id` columns from all container schemas; ExternalId rows are sole source. Add `Library.ExternalIds.put(:tmdb \| :imdb, owner, id)` helper. | 4 schemas, `Library.Inbound`, `TypeResolver.find_by_tmdb_id/1`, every caller of `record.tmdb_id` |
+
+Detailed Phase 1 implementation plan:
+[`docs/superpowers/plans/2026-05-15-library-schema-v2-phase1.md`](../docs/superpowers/plans/2026-05-15-library-schema-v2-phase1.md).
+
+**Completion:** all of the above shipped, `mix precommit` green, all
+projections regenerate against the new shape, showcase rebuilds clean.
+
+### Phase 2 — `PlayableItem` reification *(the structural shift)*
+
+The load-bearing change. Introduces `PlayableItem` as the leaf and
+re-wires every supporting table to it.
+
+#### Tasks
+
+1. **Define `Library.PlayableItem` schema + migration.**
+   - `library_playable_items` table with `container_type` /
+     `container_id` / `position` / `duration_seconds` / `name`.
+   - `container_type` enum: `:movie | :episode | :video_object`.
+2. **Define `Library.Image` polymorphic shape.**
+   - Drop `movie_id` / `episode_id` / `tv_series_id` /
+     `movie_series_id` / `video_object_id` columns.
+   - Add `owner_type` (enum) / `owner_id` (uuid).
+   - Compound unique index `(owner_type, owner_id, role)`.
+3. **Define `Library.Extra` polymorphic shape.**
+   - Same transform: discriminator + uuid.
+   - Owner types: `:movie | :tv_series | :movie_series | :season`.
+4. **Define `Library.ExternalId` polymorphic shape.**
+   - Same transform: discriminator + uuid.
+   - Owner types: `:movie | :tv_series | :movie_series | :video_object`.
+   - Unique index `(source, external_id, owner_type)`.
+5. **Refit `WatchedFile`.**
+   - Drop `movie_id` / `tv_series_id` / `movie_series_id` /
+     `video_object_id` columns.
+   - Add `playable_item_id` FK.
+   - `WatchedFile.owner_id/1` (the FK-coalescer) deletes — it's just
+     `wf.playable_item_id` now.
+6. **Refit `WatchProgress`.**
+   - Drop `movie_id` / `episode_id` / `video_object_id` columns.
+   - Add `playable_item_id` FK (unique — one progress per
+     playable_item).
+   - Doc note on `(season=0, episode=0)` overload deletes.
+7. **Refit `Subtitles.Track`.**
+   - From "FK to WatchedFile" to "FK to PlayableItem" if needed (more
+     natural — subtitles are about the playable thing, not the
+     particular file).
+   - Decision: keep on WatchedFile in Phase 1; revisit in Phase 2 only
+     if a use case emerges.
+8. **Migrate `Library.Inbound` to create `PlayableItem` rows.**
+   - Movie ingest: create Movie + PlayableItem.
+   - Episode ingest: create Episode + PlayableItem.
+   - VideoObject ingest: create VideoObject + PlayableItem.
+   - MovieSeries-child ingest: create Movie (with `movie_series_id`)
+     + PlayableItem.
+9. **Update `Library.TypeResolver`.**
+   - `resolve/1` now resolves by PlayableItem id → returns
+     `{:ok, kind, playable_item, container}`.
+   - Container-by-id lookup (the rarer case) gets a separate function.
+10. **Delete `Library.EntityShape.normalize/3`.**
+    - `PlayableItem` *is* the normalized shape. Every caller of
+      `normalize/3` re-targets to `PlayableItem` + preloaded
+      container.
+11. **Rewrite `Library.EntityCascade`.**
+    - Cascade deletion runs `playable_items → watched_files →
+      watch_progress → subtitle_tracks → images → extras →
+      external_ids → container`.
+12. **Drop `content_url` from `Movie`, `Episode`, `VideoObject`.**
+    - File path lives only on `WatchedFile.file_path`. UI reads
+      "playable item with at least one present WatchedFile" instead.
+13. **Drop legacy `library_entity_id` columns from `release_tracking`
+    and `acquisition_*` tables.**
+    - Replace with `playable_item_id` where the reference is to a
+      playable thing, or `container_type` + `container_id` where the
+      reference is to a container (TVSeries / MovieSeries).
+
+#### Phase 2 risk hot-spots
+
+- **`Library.Inbound` is the integration linchpin.** Its tests
+  exercise the full pipeline → Library handoff. Plan: rewrite
+  Inbound's mapper functions, expand its tests to cover the new
+  PlayableItem branch, and use `--repeat-until-failure 50` to flush
+  flakes.
+- **Cascade ordering.** SQLite's FK enforcement bites if order is
+  wrong. Write a dedicated `entity_cascade_test.exs` that destroys
+  one of each kind and asserts row counts pre/post.
+- **The 4 existing ETS projections** all preload by entity type
+  today. They'll need re-pointing at `PlayableItem`-shaped reads.
+  Baseline-diff after re-pointing — read perf should be equal or
+  better, since the projection reads from in-memory pre-shaped
+  structs anyway.
+
+**Completion:** `EntityShape.normalize/3` deleted; `TypeResolver`
+operates on PlayableItem; `WatchedFile.owner_id/1` deleted;
+`mix precommit` green; all four projection baselines stable across
+three consecutive runs.
+
+### Phase 3 — Library projection fan-out *(Pillar 2 expansion)*
+
+Feeds into [`desktop-rearchitecture.md`](desktop-rearchitecture.md)
+Workstream A. With the schema clean, every remaining DB-on-render
+path gets its own ETS projection.
+
+#### Remaining read paths to project
+
+| Page | Today | Tomorrow |
+|------|-------|----------|
+| `LibraryLive` (browse) | `Library.Browser.list/2` on render | `Library.Views.Browse` ETS projection, keyed by display order, filterable view-side |
+| `DetailLive` (modal) | `TypeResolver.resolve + Repo.preload` on open | `Library.Views.Detail` keyed by playable_item_id; covers one PlayableItem with its container + supporting data |
+| Search results | Ad-hoc `where ilike` | `Library.Views.Search` — full index in memory (sub-10ms for 10K entries with a simple Jaro/contains scan) |
+| Watch progress (active playback) | Per-tick DB write | `Library.Progress` (Pillar 2 GenServer) — in-memory progress with debounced 5-second writes to DB |
+
+#### Tasks
+
+1. **`Library.Views.Browse` projection** — list of all containers,
+   denormalized for browse grid rendering. Refresh on
+   `library:updates`.
+2. **`Library.Views.Detail` projection** — one row per PlayableItem,
+   with container + supporting data inlined. Refresh on
+   `library:updates`. `DetailLive` reads in a single `:ets.lookup`.
+3. **`Library.Views.Search` projection** — flat in-memory index of
+   `{playable_item_id, search_text, kind}`. Search runs `Enum.filter`
+   on the ETS table (10K entries is microseconds).
+4. **`Library.Progress` Pillar 2 GenServer** — owns current playback
+   position; LiveView reads/subscribes to it; periodic flush to
+   `library_watch_progress`. On boot, hydrates from DB.
+5. **Retire DB-on-render reads.** Every LiveView mount checks: does
+   it hit `MediaCentarr.Repo` directly? Move to a projection.
+
+**Completion:** `grep -r "Repo\\." lib/media_centarr_web/live` returns
+zero hits on read paths; every projection has a baseline; all four
+new projections + Phase 2's re-pointed existing ones diff-stable
+across three consecutive `scripts/profile` runs.
+
+## Decisions made
+
+Append-only. Recorded as we go.
+
+* `2026-05-15` — **Discriminator + UUID for cross-cutting
+  polymorphism** (Image, Extra, ExternalId). The "exactly one FK
+  set" multi-column approach is the symptom we're fixing; we don't
+  reproduce it on the new tables. App-level integrity at the write
+  seam (Inbound, context functions); cascade ordering covered by
+  EntityCascade tests.
+* `2026-05-15` — **PlayableItem keys to container by
+  `(container_type, container_id)`** rather than four nullable
+  belongs_to columns. Same reasoning as above; consistency with the
+  rest of the polymorphic supporting tables.
+* `2026-05-15` — **`Movie` is the schema for both standalone and
+  series-child movies.** A series-child Movie is a `Movie` with
+  `movie_series_id` set. Reasoning: TMDB returns full movie metadata
+  for collection members; collapsing them into bare PlayableItems
+  would discard cast/crew/studio. The "kind discriminator" lives on
+  PlayableItem (always `:movie` for these) and the parent-or-not
+  distinction lives on Movie.
+* `2026-05-15` — **No backwards compatibility, destructive
+  migrations OK.** User confirmed no deployed users; this campaign
+  treats `mix ecto.reset` as a normal developer operation.
+* `2026-05-15` — **Phase 3 feeds desktop-rearchitecture Workstream
+  A.** Rather than starting a third campaign for the projection
+  fan-out, we extend the existing one. The schema redesign is the
+  prerequisite that makes the projection layer cleaner.
+
+## Open questions
+
+These need resolution before / during the phase that touches them.
+
+* **Q1 — Subtitles ownership.** `Subtitles.Track` keys to
+  `WatchedFile.id` (Phase 1) or to `PlayableItem.id` (Phase 2)? A
+  single PlayableItem may have multiple WatchedFiles (drives that
+  come and go) and the subtitle tracks belong to the *file*, not the
+  playable thing. **Lean:** keep on WatchedFile. Decide at start of
+  Phase 1 sub-task 5.
+* **Q2 — Migration mechanics in dev.** Do we keep additive
+  migrations through Phase 1+2 (so `mix ecto.migrate` works without
+  reset), or do we ship one big "drop and recreate" migration since
+  there are no users? **Lean:** additive migrations, because the
+  showcase and dev DBs do have data the developer doesn't want to
+  manually re-create on every pull. Cost is a handful of more
+  migration files; benefit is `mix ecto.migrate` keeps working.
+* **Q3 — Episode multi-file support.** Should Phase 2 actually allow
+  multiple PlayableItems per Episode (e.g. multi-part episodes), or
+  just enforce 1:1 today and unlock it later? **Lean:** allow N:1 in
+  the schema (it's free), keep ingest writing 1:1, add a UI feature
+  later when actual multi-part content shows up. No code cost,
+  removes a future migration.
+
+## Completion criteria
+
+- Every container schema (Movie, TVSeries, MovieSeries, VideoObject)
+  carries only metadata; no `content_url`, no `tmdb_id`, no
+  `imdb_id`, no `subtitle_tracks`.
+- `PlayableItem` is the leaf. Every supporting table (WatchedFile,
+  WatchProgress, SubtitleTrack) keys to `playable_item_id` alone.
+- `Image`, `Extra`, `ExternalId` use single
+  `(owner_type, owner_id)` discriminators with no multi-FK fallback.
+- `Library.EntityShape.normalize/3` is deleted from the codebase.
+- `Library.WatchedFile.owner_id/1` is deleted from the codebase
+  (PlayableItem's id is the answer).
+- All Pillar-1 fields are typed: dates as `:date`, durations as
+  `:integer` seconds, IDs as `:integer` where they're integers.
+- `Library.Person` embedded schema replaces the bare `{:array, :map}`
+  shapes on cast/crew.
+- Every Library LiveView read path goes through a Pillar 2
+  projection (`Library.Views.*`) or has a documented reason it
+  doesn't.
+- `mix precommit` green; no Credo regressions; all baselines stable
+  across three consecutive `scripts/profile` runs.
+- ADR-NNN written documenting the PlayableItem reification (it's a
+  decision that warrants its own record alongside ADR-029
+  data-decoupling).
+
+## Out of scope
+
+- The component-contracts campaign (separate workstream — typed
+  LiveView attrs is orthogonal to this schema redesign).
+- Acquisition / Downloads / Search context splits (their own
+  campaign — desktop-rearchitecture Workstream B).
+- The Watcher / KnownFile redesign (separate; out of Library's
+  boundary).
+- Settings / Capabilities / Controls (already paradigm-correct per
+  desktop-rearchitecture).
+
+## Pointers
+
+- [ADR-041 — In-memory projection architecture](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
+- [ADR-029 — Data decoupling](../decisions/architecture/2026-03-26-029-data-decoupling.md)
+- [`campaigns/desktop-rearchitecture.md`](desktop-rearchitecture.md) — the projection fan-out partner campaign
+- [`docs/library.md`](../docs/library.md) — current schema documentation
+- [`lib/media_centarr/library/`](../lib/media_centarr/library/) — current schemas
+- [`lib/media_centarr/library/views/continue_watching.ex`](../lib/media_centarr/library/views/continue_watching.ex) — canonical projection example
