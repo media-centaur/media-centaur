@@ -7,7 +7,19 @@ defmodule MediaCentarr.Library.Browser do
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Library.{EntityShape, Movie, MovieSeries, PresentableQueries, TVSeries, VideoObject}
+  alias MediaCentarr.Library.{
+    EntityShape,
+    Episode,
+    Movie,
+    MovieSeries,
+    PlayableItem,
+    PresentableQueries,
+    Season,
+    TVSeries,
+    VideoObject,
+    WatchedFile
+  }
+
   alias MediaCentarr.Library.{EpisodeList, MovieList, ProgressSummary}
   alias MediaCentarr.Repo
   alias MediaCentarr.Watcher.KnownFile
@@ -137,15 +149,7 @@ defmodule MediaCentarr.Library.Browser do
   defp fetch_all_tv_series do
     from(t in TVSeries,
       as: :item,
-      where:
-        exists(
-          from(wf in "library_watched_files",
-            join: kf in KnownFile,
-            on: kf.file_path == wf.file_path,
-            where: wf.tv_series_id == parent_as(:item).id and kf.state == :present,
-            select: 1
-          )
-        )
+      where: exists(tv_series_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload([
@@ -170,15 +174,7 @@ defmodule MediaCentarr.Library.Browser do
   defp fetch_all_video_objects do
     from(v in VideoObject,
       as: :item,
-      where:
-        exists(
-          from(wf in "library_watched_files",
-            join: kf in KnownFile,
-            on: kf.file_path == wf.file_path,
-            where: wf.video_object_id == parent_as(:item).id and kf.state == :present,
-            select: 1
-          )
-        )
+      where: exists(video_object_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])
@@ -186,11 +182,32 @@ defmodule MediaCentarr.Library.Browser do
 
   # --- Type-Specific Fetchers (by IDs) ---
 
-  defp present_file_subquery(fk_column) do
-    from(wf in "library_watched_files",
+  # WatchedFile → PlayableItem(:episode) → Episode → Season → TVSeries
+  # presence subquery, scoped to the outer `:item` (a TVSeries) binding.
+  defp tv_series_present_file_subquery do
+    from(wf in WatchedFile,
       join: kf in KnownFile,
       on: kf.file_path == wf.file_path,
-      where: field(wf, ^fk_column) == parent_as(:item).id and kf.state == :present,
+      join: pi in PlayableItem,
+      on: pi.id == wf.playable_item_id and pi.container_type == :episode,
+      join: e in Episode,
+      on: e.id == pi.container_id,
+      join: s in Season,
+      on: s.id == e.season_id,
+      where: s.tv_series_id == parent_as(:item).id and kf.state == :present,
+      select: 1
+    )
+  end
+
+  # WatchedFile → PlayableItem(:video_object) presence subquery scoped to
+  # the outer `:item` (a VideoObject) binding.
+  defp video_object_present_file_subquery do
+    from(wf in WatchedFile,
+      join: kf in KnownFile,
+      on: kf.file_path == wf.file_path,
+      join: pi in PlayableItem,
+      on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
+      where: pi.container_id == parent_as(:item).id and kf.state == :present,
       select: 1
     )
   end
@@ -211,7 +228,7 @@ defmodule MediaCentarr.Library.Browser do
     from(t in TVSeries,
       as: :item,
       where: t.id in ^ids,
-      where: exists(present_file_subquery(:tv_series_id))
+      where: exists(tv_series_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload([
@@ -237,7 +254,7 @@ defmodule MediaCentarr.Library.Browser do
     from(v in VideoObject,
       as: :item,
       where: v.id in ^ids,
-      where: exists(present_file_subquery(:video_object_id))
+      where: exists(video_object_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload([:images, :external_ids, :watched_files, :watch_progress])

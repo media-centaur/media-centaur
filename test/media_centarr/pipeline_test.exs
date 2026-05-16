@@ -109,11 +109,12 @@ defmodule MediaCentarr.PipelineTest do
       assert %Library.Movie{} = entity
       assert entity.name == "Sample Movie"
 
-      # WatchedFile created by Inbound.ingest
+      # WatchedFile created by Inbound.ingest, linked via PlayableItem
+      # (Library Schema v2 Phase 2 Task B).
       files = Library.list_watched_files()
       assert length(files) == 1
       file = hd(files)
-      assert file.movie_id == entity.id
+      assert Library.top_level_entity_id_for_watched_file(file) == entity.id
       assert file.file_path == "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
     end
 
@@ -280,7 +281,7 @@ defmodule MediaCentarr.PipelineTest do
     test "discovery skips already-linked file" do
       entity = create_entity(%{type: :movie, name: "Already Ingested"})
 
-      Library.link_file!(%{
+      create_linked_file(%{
         file_path: "/media/pipeline/Already.Ingested.mkv",
         watch_dir: "/media/pipeline",
         movie_id: entity.id
@@ -337,10 +338,10 @@ defmodule MediaCentarr.PipelineTest do
       assert %Library.Movie{} = entity
       assert entity.name == "Sample Movie"
 
-      # WatchedFile created by Inbound.ingest
+      # WatchedFile created by Inbound.ingest, linked via PlayableItem.
       files = Library.list_watched_files()
       assert length(files) == 1
-      assert hd(files).movie_id == entity.id
+      assert Library.top_level_entity_id_for_watched_file(hd(files)) == entity.id
 
       # PendingFile destroyed by Import pipeline
       assert Review.list_pending_files() == []

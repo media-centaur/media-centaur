@@ -33,6 +33,11 @@ defmodule MediaCentarr.Library.Episode do
       foreign_key: :container_id,
       where: [container_type: :episode]
 
+    # WatchedFiles reach this Episode via its PlayableItems
+    # (Library Schema v2 Phase 2 Task B). An episode with N
+    # PlayableItems (multi-part / version variants) has up to N files.
+    has_many :watched_files, through: [:playable_items, :watched_files]
+
     timestamps()
   end
 

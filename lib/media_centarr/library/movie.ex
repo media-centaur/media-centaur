@@ -54,7 +54,6 @@ defmodule MediaCentarr.Library.Movie do
     has_many :images, MediaCentarr.Library.Image
     has_many :extras, MediaCentarr.Library.Extra
     has_many :external_ids, MediaCentarr.Library.ExternalId
-    has_many :watched_files, MediaCentarr.Library.WatchedFile
     has_one :watch_progress, MediaCentarr.Library.WatchProgress
 
     # Polymorphic has_many via Ecto's `where:` filter. The `container_id` FK
@@ -63,6 +62,12 @@ defmodule MediaCentarr.Library.Movie do
     has_many :playable_items, MediaCentarr.Library.PlayableItem,
       foreign_key: :container_id,
       where: [container_type: :movie]
+
+    # WatchedFiles reach this Movie via its PlayableItems
+    # (Library Schema v2 Phase 2 Task B). One Movie may host multiple
+    # PlayableItems (director's cut etc.), each with its own
+    # WatchedFile.
+    has_many :watched_files, through: [:playable_items, :watched_files]
 
     timestamps()
   end

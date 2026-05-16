@@ -123,8 +123,10 @@ defmodule MediaCentarr.Watcher do
   corresponding `watcher_files` row, exactly the state `rescan_unlinked`
   exists to recover from.
 
-  `attrs` must include `file_path`, `watch_dir`, and one of the entity FK
-  columns (`movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id`).
+  `attrs` must include `file_path`, `watch_dir`, and `playable_item_id`
+  (Library Schema v2 Phase 2 Task B — formerly one of the per-type FK
+  columns `movie_id` / `tv_series_id` / `movie_series_id` /
+  `video_object_id`).
   """
   @spec record_seen(map()) :: {:ok, %WatchedFile{}} | {:error, term()}
   def record_seen(%{file_path: file_path, watch_dir: watch_dir} = attrs) do
@@ -534,7 +536,7 @@ defmodule MediaCentarr.Watcher do
 
   defp unique_entity_ids(records) do
     records
-    |> Enum.map(&WatchedFile.owner_id/1)
+    |> Enum.map(&MediaCentarr.Library.top_level_entity_id_for_watched_file/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
   end

@@ -289,21 +289,21 @@ defmodule MediaCentarr.Pipeline.ImageRepairTest do
     defaults = %{name: "Test Movie", position: 0}
     movie = create_standalone_movie(Map.merge(defaults, attrs))
     file_path = Path.join(tmp, "movie-#{movie.id}.mkv")
-    Library.link_file!(%{movie_id: movie.id, file_path: file_path, watch_dir: tmp})
+    create_linked_file(%{movie_id: movie.id, file_path: file_path, watch_dir: tmp})
     movie
   end
 
   defp create_tv_series_with_watched_file(tmp, attrs \\ %{}) do
     tv = create_tv_series(attrs)
     file_path = Path.join(tmp, "tv-#{tv.id}.mkv")
-    Library.link_file!(%{tv_series_id: tv.id, file_path: file_path, watch_dir: tmp})
+    create_linked_file(%{tv_series_id: tv.id, file_path: file_path, watch_dir: tmp})
     tv
   end
 
   defp create_movie_series_with_watched_file(tmp, attrs) do
     ms = create_movie_series(attrs)
     file_path = Path.join(tmp, "ms-#{ms.id}.mkv")
-    Library.link_file!(%{movie_series_id: ms.id, file_path: file_path, watch_dir: tmp})
+    create_linked_file(%{movie_series_id: ms.id, file_path: file_path, watch_dir: tmp})
     ms
   end
 end

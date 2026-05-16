@@ -41,7 +41,14 @@ defmodule MediaCentarr.Library.TVSeries do
     has_many :images, MediaCentarr.Library.Image, foreign_key: :tv_series_id
     has_many :extras, MediaCentarr.Library.Extra, foreign_key: :tv_series_id
     has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :tv_series_id
-    has_many :watched_files, MediaCentarr.Library.WatchedFile, foreign_key: :tv_series_id
+
+    # WatchedFiles reach this TVSeries via its seasons' episodes'
+    # PlayableItems (Library Schema v2 Phase 2 Task B). The TVSeries
+    # itself never owns a WatchedFile directly.
+    has_many :episodes, through: [:seasons, :episodes]
+
+    has_many :watched_files,
+      through: [:episodes, :watched_files]
 
     timestamps()
   end

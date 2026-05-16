@@ -39,10 +39,18 @@ defmodule MediaCentarr.Library.PresentableQueries do
     * **By Movie-record count** (`*_by_record_count/0`) — categorization is stable
       against transient file-presence changes. Use for progress surfaces where the
       user's engagement signal (`watch_progress`) is the inclusion rule.
+
+  ## Walking through PlayableItem
+
+  Since Library Schema v2 Phase 2 Task B, `WatchedFile` no longer carries
+  a per-type FK — every WatchedFile points at a `PlayableItem`, which
+  carries the `(container_type, container_id)` discriminator. The
+  "this Movie has at least one present WatchedFile" subquery walks
+  `WatchedFile → PlayableItem(:movie, container_id=m.id) → KnownFile`.
   """
   import Ecto.Query
 
-  alias MediaCentarr.Library.{Movie, MovieSeries}
+  alias MediaCentarr.Library.{Movie, MovieSeries, PlayableItem, WatchedFile}
   alias MediaCentarr.Watcher.KnownFile
 
   @doc """
@@ -52,7 +60,7 @@ defmodule MediaCentarr.Library.PresentableQueries do
     from(m in Movie,
       as: :item,
       where: is_nil(m.movie_series_id),
-      where: exists(present_files_subquery(:movie_id))
+      where: exists(movie_present_files_subquery())
     )
   end
 
@@ -65,7 +73,7 @@ defmodule MediaCentarr.Library.PresentableQueries do
     from(m in Movie,
       as: :item,
       where: not is_nil(m.movie_series_id),
-      where: exists(present_files_subquery(:movie_id)),
+      where: exists(movie_present_files_subquery()),
       where:
         fragment(
           """
@@ -75,8 +83,12 @@ defmodule MediaCentarr.Library.PresentableQueries do
               AND EXISTS (
                 SELECT 1
                   FROM library_watched_files AS wf
+                  JOIN library_playable_items AS pi
+                    ON pi.id = wf.playable_item_id
+                   AND pi.container_type = 'movie'
+                   AND pi.container_id = m2.id
                   JOIN watcher_files AS kf ON kf.file_path = wf.file_path
-                 WHERE wf.movie_id = m2.id AND kf.state = 'present'
+                 WHERE kf.state = 'present'
               )
           ) = 1
           """,
@@ -101,8 +113,12 @@ defmodule MediaCentarr.Library.PresentableQueries do
               AND EXISTS (
                 SELECT 1
                   FROM library_watched_files AS wf
+                  JOIN library_playable_items AS pi
+                    ON pi.id = wf.playable_item_id
+                   AND pi.container_type = 'movie'
+                   AND pi.container_id = m.id
                   JOIN watcher_files AS kf ON kf.file_path = wf.file_path
-                 WHERE wf.movie_id = m.id AND kf.state = 'present'
+                 WHERE kf.state = 'present'
               )
           ) >= 2
           """,
@@ -171,11 +187,16 @@ defmodule MediaCentarr.Library.PresentableQueries do
     )
   end
 
-  defp present_files_subquery(fk_column) do
-    from(wf in "library_watched_files",
+  # "A WatchedFile for this Movie (`parent_as(:item)`) is present on disk":
+  # walks `WatchedFile → PlayableItem(:movie, container_id=item.id) →
+  # KnownFile`. Replaces the pre-Phase-2 direct `wf.movie_id` filter.
+  defp movie_present_files_subquery do
+    from(wf in WatchedFile,
+      join: pi in PlayableItem,
+      on: pi.id == wf.playable_item_id and pi.container_type == :movie,
       join: kf in KnownFile,
       on: kf.file_path == wf.file_path,
-      where: field(wf, ^fk_column) == parent_as(:item).id and kf.state == :present,
+      where: pi.container_id == parent_as(:item).id and kf.state == :present,
       select: 1
     )
   end

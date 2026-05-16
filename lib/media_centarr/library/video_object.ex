@@ -24,7 +24,6 @@ defmodule MediaCentarr.Library.VideoObject do
 
     has_many :images, MediaCentarr.Library.Image, foreign_key: :video_object_id
     has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :video_object_id
-    has_many :watched_files, MediaCentarr.Library.WatchedFile, foreign_key: :video_object_id
     has_one :watch_progress, MediaCentarr.Library.WatchProgress, foreign_key: :video_object_id
 
     # Polymorphic has_many via Ecto's `where:` filter. See
@@ -32,6 +31,10 @@ defmodule MediaCentarr.Library.VideoObject do
     has_many :playable_items, MediaCentarr.Library.PlayableItem,
       foreign_key: :container_id,
       where: [container_type: :video_object]
+
+    # WatchedFiles reach this VideoObject via its PlayableItems
+    # (Library Schema v2 Phase 2 Task B).
+    has_many :watched_files, through: [:playable_items, :watched_files]
 
     timestamps()
   end

@@ -218,14 +218,10 @@ defmodule MediaCentarr.Pipeline.Discovery do
   end
 
   defp already_linked?(file_path) do
-    Repo.exists?(
-      from(w in WatchedFile,
-        where:
-          w.file_path == ^file_path and
-            (not is_nil(w.movie_id) or not is_nil(w.tv_series_id) or not is_nil(w.movie_series_id) or
-               not is_nil(w.video_object_id)),
-        limit: 1
-      )
-    )
+    # Post-Phase-2-Task-B every WatchedFile carries a non-null
+    # `playable_item_id` (the column is NOT NULL at the schema level),
+    # so the legacy "any per-type FK set" disjunction collapses to a
+    # simple existence check by path.
+    Repo.exists?(from(w in WatchedFile, where: w.file_path == ^file_path, limit: 1))
   end
 end

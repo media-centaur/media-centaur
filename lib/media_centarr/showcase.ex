@@ -1081,16 +1081,55 @@ defmodule MediaCentarr.Showcase do
   # makes the detail screenshots look like a populated library.
   # `Watcher.record_seen/1` is idempotent (atomic upsert under the hood);
   # `File.touch!` is a no-op on existing files.
+  #
+  # The leaf for `:tv_series` containers is resolved by finding the
+  # Episode under that series whose `content_url == file_path` (Library
+  # Schema v2 Phase 2 Task B — the WatchedFile keys to PlayableItem,
+  # and the leaf is the Episode, not the TVSeries).
   defp seed_presence!(entity_id, fk_column, file_path) do
-    watch_dir = showcase_watch_dir()
-    attrs = Map.put(%{file_path: file_path, watch_dir: watch_dir}, fk_column, entity_id)
+    {container_type, container_id, position} =
+      showcase_leaf_for(entity_id, fk_column, file_path)
 
-    {:ok, _} = MediaCentarr.Watcher.record_seen(attrs)
+    {:ok, playable_item} = ensure_showcase_playable_item(container_type, container_id, position)
+
+    watch_dir = showcase_watch_dir()
+
+    {:ok, _} =
+      MediaCentarr.Watcher.record_seen(%{
+        file_path: file_path,
+        watch_dir: watch_dir,
+        playable_item_id: playable_item.id
+      })
 
     File.mkdir_p!(Path.dirname(file_path))
     File.touch!(file_path)
 
     :ok
+  end
+
+  defp showcase_leaf_for(movie_id, :movie_id, _file_path), do: {:movie, movie_id, 1}
+
+  defp showcase_leaf_for(video_object_id, :video_object_id, _file_path),
+    do: {:video_object, video_object_id, 1}
+
+  defp showcase_leaf_for(tv_series_id, :tv_series_id, file_path) do
+    episode = MediaCentarr.Library.find_episode_by_content_url(tv_series_id, file_path)
+    {:episode, episode.id, episode.episode_number || 1}
+  end
+
+  defp ensure_showcase_playable_item(container_type, container_id, position) do
+    case MediaCentarr.Library.create_playable_item(%{
+           container_type: container_type,
+           container_id: container_id,
+           position: position
+         }) do
+      {:ok, item} ->
+        {:ok, item}
+
+      {:error, %Ecto.Changeset{}} ->
+        [item | _] = MediaCentarr.Library.list_playable_items_for(container_type, container_id)
+        {:ok, item}
+    end
   end
 
   # Belt-and-suspenders: the Mix task wrapper refuses to run without

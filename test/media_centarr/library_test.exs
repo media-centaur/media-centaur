@@ -91,8 +91,11 @@ defmodule MediaCentarr.LibraryTest do
     test "tv_series progress_pct weights current-episode position into the overall fraction" do
       # 5 of 10 episodes completed plus halfway through the 6th = 55 %
       # overall. The simpler "completion only" model would have shown 50 %.
+      #
+      # Per Library Schema v2 Phase 2 Task B the file-presence row is
+      # attached at the Episode level via PlayableItem — set the first
+      # episode up as the present-file holder.
       series = create_tv_series(%{name: "Weighted Show"})
-      record_present(create_linked_file(%{tv_series_id: series.id}))
       season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
 
       episodes =
@@ -104,6 +107,16 @@ defmodule MediaCentarr.LibraryTest do
             content_url: "/tv/weighted/s01e#{ep}.mkv"
           })
         end
+
+      first_episode = hd(episodes)
+      playable_item = create_playable_item_for_episode(first_episode)
+
+      record_present(
+        create_linked_file(%{
+          playable_item_id: playable_item.id,
+          file_path: first_episode.content_url
+        })
+      )
 
       # First five episodes completed.
       for ep <- Enum.take(episodes, 5) do
@@ -436,12 +449,30 @@ defmodule MediaCentarr.LibraryTest do
     end
 
     test "excludes a TV series where every episode is completed" do
+      # Per Library Schema v2 Phase 2 Task B, a WatchedFile attaches to
+      # an Episode-level PlayableItem rather than a TVSeries. Set up
+      # season + episodes explicitly so the file-presence row attaches
+      # to a real Episode that the in-progress query reasons about.
       series = create_tv_series(%{name: "Fully Watched Show"})
-      record_present(create_linked_file(%{tv_series_id: series.id}))
       season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
 
       for ep_num <- 1..2 do
-        episode = create_episode(%{season_id: season.id, episode_number: ep_num, name: "S1E#{ep_num}"})
+        episode =
+          create_episode(%{
+            season_id: season.id,
+            episode_number: ep_num,
+            name: "S1E#{ep_num}",
+            content_url: "/media/test/fully-watched-s01e#{ep_num}.mkv"
+          })
+
+        playable_item = create_playable_item_for_episode(episode)
+
+        record_present(
+          create_linked_file(%{
+            playable_item_id: playable_item.id,
+            file_path: episode.content_url
+          })
+        )
 
         create_watch_progress(%{
           episode_id: episode.id,
@@ -567,10 +598,28 @@ defmodule MediaCentarr.LibraryTest do
     end
 
     test "returns shaped entry for a TV series with season-level extras" do
+      # Per Library Schema v2 Phase 2 Task B the WatchedFile attaches
+      # to an Episode-level PlayableItem; create the episode and its
+      # PlayableItem before linking the file.
       series = create_tv_series(%{name: "Sample Show"})
-      record_present(create_linked_file(%{tv_series_id: series.id}))
       season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
-      _episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+
+      episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "S1E1",
+          content_url: "/media/test/sample-show-s01e01.mkv"
+        })
+
+      playable_item = create_playable_item_for_episode(episode)
+
+      record_present(
+        create_linked_file(%{
+          playable_item_id: playable_item.id,
+          file_path: episode.content_url
+        })
+      )
 
       create_extra(%{tv_series_id: series.id, name: "Series Trailer", kind: :trailer})
       create_extra(%{season_id: season.id, name: "Season Recap", kind: :featurette})

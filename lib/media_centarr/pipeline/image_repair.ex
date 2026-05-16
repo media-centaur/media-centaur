@@ -27,6 +27,7 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   alias MediaCentarr.Library
   alias MediaCentarr.Library.Episode
   alias MediaCentarr.Library.ImageHealth
+  alias MediaCentarr.Library.PlayableItem
   alias MediaCentarr.Library.Season
   alias MediaCentarr.Library.WatchedFile
   alias MediaCentarr.Pipeline.ImageQueue
@@ -221,33 +222,112 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
     end
   end
 
-  defp fk_for(:movie), do: :movie_id
-  defp fk_for(:tv_series), do: :tv_series_id
-  defp fk_for(:movie_series), do: :movie_series_id
-  defp fk_for(:video_object), do: :video_object_id
-
   # -- watch_dir lookup ----------------------------------------------------
 
+  # WatchedFiles no longer carry per-type FKs (Library Schema v2 Phase 2
+  # Task B). To find any WatchedFile for an entity we walk through
+  # `library_playable_items`:
+  #
+  #   :episode      — PlayableItem(:episode, container_id=episode_id)
+  #   :movie /      — PlayableItem(:movie | :video_object,
+  #   :video_object   container_id=entity_id)
+  #   :tv_series    — through seasons → episodes → playable_items
+  #   :movie_series — through child movies → playable_items
+
   defp find_watch_dir(episode_id, :episode) do
-    with {:ok, %Episode{} = episode} <- Library.fetch_episode(episode_id),
-         %Season{} = season <- Repo.get(Season, episode.season_id) do
-      find_watch_dir(season.tv_series_id, :tv_series)
-    else
-      _ -> {:skip, :no_watch_dir}
-    end
-  end
+    # Try the Episode's own WatchedFiles first; fall back to any other
+    # Episode in the same TVSeries if this one has none yet (mirrors
+    # the pre-Phase-2 behaviour where `find_watch_dir(:episode, ...)`
+    # delegated to `find_watch_dir(:tv_series, ...)`).
+    direct =
+      Repo.one(
+        from(wf in WatchedFile,
+          join: pi in PlayableItem,
+          on: pi.id == wf.playable_item_id and pi.container_type == :episode,
+          where: pi.container_id == ^episode_id and not is_nil(wf.watch_dir),
+          select: wf.watch_dir,
+          limit: 1
+        )
+      )
 
-  defp find_watch_dir(entity_id, entity_type) do
-    fk = fk_for(entity_type)
-
-    case Repo.one(from(w in WatchedFile, where: field(w, ^fk) == ^entity_id, limit: 1)) do
-      %WatchedFile{watch_dir: watch_dir} when is_binary(watch_dir) ->
+    case direct do
+      watch_dir when is_binary(watch_dir) ->
         {:ok, watch_dir}
 
       _ ->
-        {:skip, :no_watch_dir}
+        with {:ok, %Episode{} = episode} <- Library.fetch_episode(episode_id),
+             %Season{} = season <- Repo.get(Season, episode.season_id) do
+          find_watch_dir(season.tv_series_id, :tv_series)
+        else
+          _ -> {:skip, :no_watch_dir}
+        end
     end
   end
+
+  defp find_watch_dir(entity_id, :movie) do
+    ok_or_skip(
+      Repo.one(
+        from(wf in WatchedFile,
+          join: pi in PlayableItem,
+          on: pi.id == wf.playable_item_id and pi.container_type == :movie,
+          where: pi.container_id == ^entity_id and not is_nil(wf.watch_dir),
+          select: wf.watch_dir,
+          limit: 1
+        )
+      )
+    )
+  end
+
+  defp find_watch_dir(entity_id, :video_object) do
+    ok_or_skip(
+      Repo.one(
+        from(wf in WatchedFile,
+          join: pi in PlayableItem,
+          on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
+          where: pi.container_id == ^entity_id and not is_nil(wf.watch_dir),
+          select: wf.watch_dir,
+          limit: 1
+        )
+      )
+    )
+  end
+
+  defp find_watch_dir(tv_series_id, :tv_series) do
+    ok_or_skip(
+      Repo.one(
+        from(wf in WatchedFile,
+          join: pi in PlayableItem,
+          on: pi.id == wf.playable_item_id and pi.container_type == :episode,
+          join: e in Episode,
+          on: e.id == pi.container_id,
+          join: s in Season,
+          on: s.id == e.season_id,
+          where: s.tv_series_id == ^tv_series_id and not is_nil(wf.watch_dir),
+          select: wf.watch_dir,
+          limit: 1
+        )
+      )
+    )
+  end
+
+  defp find_watch_dir(movie_series_id, :movie_series) do
+    ok_or_skip(
+      Repo.one(
+        from(wf in WatchedFile,
+          join: pi in PlayableItem,
+          on: pi.id == wf.playable_item_id and pi.container_type == :movie,
+          join: m in MediaCentarr.Library.Movie,
+          on: m.id == pi.container_id,
+          where: m.movie_series_id == ^movie_series_id and not is_nil(wf.watch_dir),
+          select: wf.watch_dir,
+          limit: 1
+        )
+      )
+    )
+  end
+
+  defp ok_or_skip(watch_dir) when is_binary(watch_dir), do: {:ok, watch_dir}
+  defp ok_or_skip(_), do: {:skip, :no_watch_dir}
 
   # -- source-url derivation -----------------------------------------------
 
