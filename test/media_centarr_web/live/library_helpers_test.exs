@@ -3,6 +3,7 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   import MediaCentarr.TestFactory
 
+  alias MediaCentarr.Library.Views.BrowseItem
   alias MediaCentarrWeb.LibraryAvailability
   alias MediaCentarrWeb.LibraryFormatters
   alias MediaCentarrWeb.LibraryHelpers
@@ -10,194 +11,46 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   # --- Helpers ---
 
-  defp entry(entity_overrides, progress_records \\ []) do
-    entity = build_entity(entity_overrides)
+  defp item(overrides) do
+    defaults = %{
+      id: Map.get(overrides, :id, "id-#{System.unique_integer([:positive])}"),
+      kind: Map.get(overrides, :kind, :movie),
+      name: Map.get(overrides, :name, "Sample"),
+      date_published: Map.get(overrides, :date_published),
+      year: Map.get(overrides, :year),
+      poster_url: Map.get(overrides, :poster_url),
+      present?: Map.get(overrides, :present?, true),
+      rank: Map.get(overrides, :rank)
+    }
 
-    summary =
-      case progress_records do
-        [] -> nil
-        _ -> %{episodes_completed: 0, episodes_total: 0}
-      end
-
-    %{entity: entity, progress: summary, progress_records: progress_records}
-  end
-
-  # --- unavailable_count/2 ---
-
-  describe "unavailable_count/2" do
-    test "returns 0 when all entries are available" do
-      entries = [entry(%{type: :movie}), entry(%{type: :tv_series})]
-      assert LibraryAvailability.unavailable_count(entries, fn _ -> true end) == 0
-    end
-
-    test "returns total count when all entries are unavailable" do
-      entries = [entry(%{type: :movie}), entry(%{type: :tv_series})]
-      assert LibraryAvailability.unavailable_count(entries, fn _ -> false end) == 2
-    end
-
-    test "counts only entries whose predicate returns false" do
-      movie = entry(%{type: :movie, name: "Online"})
-      tv = entry(%{type: :tv_series, name: "Offline"})
-
-      available = fn entity -> entity.name == "Online" end
-
-      assert LibraryAvailability.unavailable_count([movie, tv], available) == 1
-    end
-
-    test "returns 0 for an empty entries list" do
-      assert LibraryAvailability.unavailable_count([], fn _ -> false end) == 0
-    end
-  end
-
-  # --- availability_map/2 ---
-
-  describe "availability_map/2" do
-    test "builds {entity_id => available?} with the injected predicate" do
-      a = entry(%{id: "a", type: :movie})
-      b = entry(%{id: "b", type: :tv_series})
-
-      available = fn entity -> entity.id == "a" end
-
-      assert LibraryAvailability.availability_map([a, b], available) == %{
-               "a" => true,
-               "b" => false
-             }
-    end
-
-    test "returns an empty map for no entries" do
-      assert LibraryAvailability.availability_map([], fn _ -> true end) == %{}
-    end
-  end
-
-  # --- availability_for_dir/4 ---
-
-  describe "availability_for_dir/4" do
-    test "patches only entries whose file is under the changed dir" do
-      a = entry(%{id: "a", type: :movie, file_path: "/mnt/disk1/movies/a.mkv"})
-      b = entry(%{id: "b", type: :movie, file_path: "/mnt/disk2/movies/b.mkv"})
-      c = entry(%{id: "c", type: :movie, file_path: "/mnt/disk1/movies/c.mkv"})
-
-      current = %{"a" => true, "b" => true, "c" => true}
-
-      result =
-        LibraryAvailability.availability_for_dir([a, b, c], "/mnt/disk1", current,
-          available_fn: fn _ -> false end
-        )
-
-      # a and c are under /mnt/disk1 -> recomputed to false
-      # b is under /mnt/disk2 -> untouched
-      assert result == %{"a" => false, "b" => true, "c" => false}
-    end
-
-    test "leaves the map unchanged when no entries are under the changed dir" do
-      a = entry(%{id: "a", type: :movie, file_path: "/mnt/disk2/movies/a.mkv"})
-      current = %{"a" => true}
-
-      result =
-        LibraryAvailability.availability_for_dir([a], "/mnt/disk1", current,
-          available_fn: fn _ -> false end
-        )
-
-      assert result == %{"a" => true}
-    end
-
-    test "ignores entries that have no file path" do
-      a = entry(%{id: "a", type: :movie})
-      current = %{"a" => true}
-
-      result =
-        LibraryAvailability.availability_for_dir([a], "/mnt/disk1", current,
-          available_fn: fn _ -> false end
-        )
-
-      assert result == %{"a" => true}
-    end
-
-    test "uses an injected under_dir_fn when provided" do
-      a = entry(%{id: "a", type: :movie})
-      b = entry(%{id: "b", type: :movie})
-
-      under_dir_fn = fn entity, _dir -> entity.id == "a" end
-
-      result =
-        LibraryAvailability.availability_for_dir([a, b], "anything", %{},
-          available_fn: fn _ -> false end,
-          under_dir_fn: under_dir_fn
-        )
-
-      assert result == %{"a" => false}
-    end
-  end
-
-  # --- apply_entry_update/4 ---
-
-  describe "apply_entry_update/4" do
-    test "returns :not_found when the id is absent" do
-      movie = entry(%{id: "a", type: :movie})
-      by_id = %{"a" => movie}
-
-      assert LibraryHelpers.apply_entry_update([movie], by_id, "missing", & &1) == :not_found
-    end
-
-    test "applies updater and updates both entries + entries_by_id" do
-      movie_a = entry(%{id: "a", type: :movie})
-      movie_b = entry(%{id: "b", type: :movie})
-      by_id = %{"a" => movie_a, "b" => movie_b}
-
-      {:ok, {new_entries, new_by_id}} =
-        LibraryHelpers.apply_entry_update([movie_a, movie_b], by_id, "a", fn entry ->
-          Map.put(entry, :marker, :updated)
-        end)
-
-      assert Enum.at(new_entries, 0).marker == :updated
-      assert Enum.at(new_entries, 1) == movie_b
-      assert new_by_id["a"].marker == :updated
-      assert new_by_id["b"] == movie_b
-    end
-
-    test "preserves list ordering" do
-      movie_a = entry(%{id: "a", type: :movie, name: "A"})
-      movie_b = entry(%{id: "b", type: :movie, name: "B"})
-      movie_c = entry(%{id: "c", type: :movie, name: "C"})
-
-      by_id = %{"a" => movie_a, "b" => movie_b, "c" => movie_c}
-
-      {:ok, {new_entries, _}} =
-        LibraryHelpers.apply_entry_update([movie_a, movie_b, movie_c], by_id, "b", fn entry ->
-          Map.put(entry, :marker, :updated)
-        end)
-
-      assert Enum.map(new_entries, & &1.entity.id) == ["a", "b", "c"]
-    end
+    struct!(BrowseItem, defaults)
   end
 
   # --- filtered_by_tab/2 ---
 
   describe "filtered_by_tab/2" do
     test "returns all entries for :all" do
-      entries = [entry(%{type: :movie}), entry(%{type: :tv_series})]
+      entries = [item(%{kind: :movie}), item(%{kind: :tv_series})]
       assert LibraryHelpers.filtered_by_tab(entries, :all) == entries
     end
 
-    test "filters to movies and video objects for :movies" do
-      movie = entry(%{type: :movie, name: "A"})
-      series = entry(%{type: :movie_series, name: "B"})
-      video = entry(%{type: :video_object, name: "C"})
-      tv = entry(%{type: :tv_series, name: "D"})
+    test "filters to movies / movie_series / video_object for :movies" do
+      movie = item(%{id: "a", kind: :movie, name: "A"})
+      series = item(%{id: "b", kind: :movie_series, name: "B"})
+      video = item(%{id: "c", kind: :video_object, name: "C"})
+      tv = item(%{id: "d", kind: :tv_series, name: "D"})
 
       result = LibraryHelpers.filtered_by_tab([movie, series, video, tv], :movies)
-      names = Enum.map(result, & &1.entity.name)
-
-      assert names == ["A", "B", "C"]
+      assert Enum.map(result, & &1.name) == ["A", "B", "C"]
     end
 
     test "filters to tv_series for :tv" do
-      movie = entry(%{type: :movie, name: "A"})
-      tv = entry(%{type: :tv_series, name: "B"})
+      movie = item(%{kind: :movie, name: "A"})
+      tv = item(%{kind: :tv_series, name: "B"})
 
       result = LibraryHelpers.filtered_by_tab([movie, tv], :tv)
       assert length(result) == 1
-      assert hd(result).entity.name == "B"
+      assert hd(result).name == "B"
     end
   end
 
@@ -205,47 +58,46 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "filtered_by_text/2" do
     test "returns all entries for empty string" do
-      entries = [entry(%{name: "Anything"})]
+      entries = [item(%{name: "Anything"})]
       assert LibraryHelpers.filtered_by_text(entries, "") == entries
     end
 
-    test "matches entity name case-insensitively" do
-      match = entry(%{name: "Sample Show"})
-      miss = entry(%{name: "Other Show"})
+    test "matches BrowseItem.name case-insensitively" do
+      match = item(%{name: "Sample Show"})
+      miss = item(%{name: "Other Show"})
 
       result = LibraryHelpers.filtered_by_text([match, miss], "sample")
       assert length(result) == 1
-      assert hd(result).entity.name == "Sample Show"
-    end
-
-    test "matches nested episode names for tv_series" do
-      episode = build_episode(%{name: "Pilot Episode"})
-      season = build_season(%{episodes: [episode]})
-      entity = build_entity(%{type: :tv_series, name: "Sample Show", seasons: [season]})
-      tv_entry = %{entity: entity, progress: nil, progress_records: []}
-
-      other = entry(%{name: "Other Show"})
-
-      result = LibraryHelpers.filtered_by_text([tv_entry, other], "pilot")
-      assert length(result) == 1
-      assert hd(result).entity.name == "Sample Show"
-    end
-
-    test "matches nested movie names for movie_series" do
-      movie = build_movie(%{name: "Sample Sequel"})
-      entity = build_entity(%{type: :movie_series, name: "Sample Movie Series", movies: [movie]})
-      series_entry = %{entity: entity, progress: nil, progress_records: []}
-
-      other = entry(%{name: "Other Series"})
-
-      result = LibraryHelpers.filtered_by_text([series_entry, other], "sequel")
-      assert length(result) == 1
-      assert hd(result).entity.name == "Sample Movie Series"
+      assert hd(result).name == "Sample Show"
     end
 
     test "returns empty list when nothing matches" do
-      entries = [entry(%{name: "Sample Show"})]
+      entries = [item(%{name: "Sample Show"})]
       assert LibraryHelpers.filtered_by_text(entries, "nonexistent") == []
+    end
+  end
+
+  # --- filtered_by_in_progress/3 ---
+
+  describe "filtered_by_in_progress/3" do
+    test "returns entries unchanged when filter is false" do
+      entries = [item(%{}), item(%{})]
+      assert LibraryHelpers.filtered_by_in_progress(entries, %{}, false) == entries
+    end
+
+    test "keeps entries with an incomplete summary, drops finished ones" do
+      a = item(%{id: "a"})
+      b = item(%{id: "b"})
+      c = item(%{id: "c"})
+
+      progress_by_id = %{
+        "a" => %{episodes_completed: 1, episodes_total: 10},
+        "b" => %{episodes_completed: 10, episodes_total: 10}
+        # "c" — no record; filtered out as not in-progress.
+      }
+
+      result = LibraryHelpers.filtered_by_in_progress([a, b, c], progress_by_id, true)
+      assert Enum.map(result, & &1.id) == ["a"]
     end
   end
 
@@ -253,52 +105,65 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   describe "sorted_by/2" do
     test "sorts alphabetically by name" do
-      entries = [entry(%{name: "Zebra"}), entry(%{name: "Apple"}), entry(%{name: "Mango"})]
-      result = LibraryHelpers.sorted_by(entries, :alpha)
-      names = Enum.map(result, & &1.entity.name)
+      entries = [
+        item(%{name: "Zebra"}),
+        item(%{name: "Apple"}),
+        item(%{name: "Mango"})
+      ]
 
-      assert names == ["Apple", "Mango", "Zebra"]
+      result = LibraryHelpers.sorted_by(entries, :alpha)
+      assert Enum.map(result, & &1.name) == ["Apple", "Mango", "Zebra"]
     end
 
-    test "sorts by year descending" do
+    test "sorts by date_published descending for :year" do
       entries = [
-        entry(%{date_published: ~D[2020-01-01]}),
-        entry(%{date_published: ~D[2023-05-15]}),
-        entry(%{date_published: ~D[2018-12-25]})
+        item(%{name: "2020", date_published: ~D[2020-01-01]}),
+        item(%{name: "2023", date_published: ~D[2023-05-15]}),
+        item(%{name: "2018", date_published: ~D[2018-12-25]})
       ]
 
       result = LibraryHelpers.sorted_by(entries, :year)
-      dates = Enum.map(result, & &1.entity.date_published)
-
-      assert dates == [~D[2023-05-15], ~D[2020-01-01], ~D[2018-12-25]]
+      assert Enum.map(result, & &1.name) == ["2023", "2020", "2018"]
     end
 
-    test "sorts by inserted_at descending for :recent" do
-      old = DateTime.new!(~D[2025-01-01], ~T[00:00:00], "Etc/UTC")
-      new = DateTime.new!(~D[2026-03-15], ~T[12:00:00], "Etc/UTC")
+    test "returns entries in input order for :recent (Browse projection is pre-ordered)" do
+      a = item(%{name: "Newest", rank: 0})
+      b = item(%{name: "Middle", rank: 1})
+      c = item(%{name: "Oldest", rank: 2})
 
-      entries = [
-        entry(%{name: "Old", inserted_at: old}),
-        entry(%{name: "New", inserted_at: new})
-      ]
+      # `:recent` is the projection's implicit order; the helper is a no-op.
+      assert LibraryHelpers.sorted_by([a, b, c], :recent) == [a, b, c]
+    end
+  end
 
-      result = LibraryHelpers.sorted_by(entries, :recent)
-      names = Enum.map(result, & &1.entity.name)
+  # --- sorted_by_last_watched/2 ---
 
-      assert names == ["New", "Old"]
+  describe "sorted_by_last_watched/2" do
+    test "sorts by progress.last_watched_at descending; entries without a summary go last" do
+      a = item(%{id: "a", name: "Mid"})
+      b = item(%{id: "b", name: "Newest"})
+      c = item(%{id: "c", name: "No-progress"})
+
+      progress_by_id = %{
+        "a" => %{last_watched_at: ~U[2026-01-15 00:00:00Z]},
+        "b" => %{last_watched_at: ~U[2026-02-01 00:00:00Z]}
+      }
+
+      result = LibraryHelpers.sorted_by_last_watched([a, b, c], progress_by_id)
+      assert Enum.map(result, & &1.name) == ["Newest", "Mid", "No-progress"]
     end
   end
 
   # --- tab_counts/1 ---
 
   describe "tab_counts/1" do
-    test "counts entries by type bucket" do
+    test "counts entries by kind bucket" do
       entries = [
-        entry(%{type: :movie}),
-        entry(%{type: :movie}),
-        entry(%{type: :tv_series}),
-        entry(%{type: :movie_series}),
-        entry(%{type: :video_object})
+        item(%{kind: :movie}),
+        item(%{kind: :movie}),
+        item(%{kind: :tv_series}),
+        item(%{kind: :movie_series}),
+        item(%{kind: :video_object})
       ]
 
       assert LibraryHelpers.tab_counts(entries) == %{all: 5, movies: 4, tv: 1}
@@ -355,6 +220,18 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
   # --- format_resume_parts/2 ---
 
   describe "format_resume_parts/2" do
+    defp entry(entity_overrides, progress_records \\ []) do
+      entity = build_entity(entity_overrides)
+
+      summary =
+        case progress_records do
+          [] -> nil
+          _ -> %{episodes_completed: 0, episodes_total: 0}
+        end
+
+      %{entity: entity, progress: summary, progress_records: progress_records}
+    end
+
     test "returns nils for nil resume" do
       assert LibraryProgress.format_resume_parts(nil, entry(%{})) == {nil, nil}
     end
@@ -468,9 +345,6 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
 
   # --- extract_year/1 ---
 
-  # String input clause is retained for the still-untyped
-  # poster_card.story.exs fixture; remove the binary cases when Phase 3 of
-  # the component-contract campaign migrates that story to %Date{} fixtures.
   describe "extract_year/1" do
     test "extracts year from date string" do
       assert LibraryFormatters.extract_year("2024-01-15") == "2024"
@@ -481,119 +355,9 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     end
   end
 
-  # --- merge_progress_record/2 ---
-
-  describe "merge_progress_record/2" do
-    test "returns records unchanged for nil change" do
-      records = [build_progress(%{episode_id: "ep-1"})]
-      assert LibraryProgress.merge_progress_record(records, nil) == records
-    end
-
-    test "replaces an existing episode record by episode_id" do
-      existing = build_progress(%{episode_id: "ep-1", completed: false})
-      updated = build_progress(%{episode_id: "ep-1", completed: true})
-
-      result = LibraryProgress.merge_progress_record([existing], updated)
-
-      assert length(result) == 1
-      assert hd(result).completed == true
-    end
-
-    test "replaces an existing movie record by movie_id" do
-      existing = build_progress(%{movie_id: "movie-1", completed: false})
-      updated = build_progress(%{movie_id: "movie-1", completed: true})
-
-      result = LibraryProgress.merge_progress_record([existing], updated)
-
-      assert length(result) == 1
-      assert hd(result).completed == true
-    end
-
-    test "replaces an existing video object record by video_object_id" do
-      existing = build_progress(%{video_object_id: "vo-1", completed: false})
-      updated = build_progress(%{video_object_id: "vo-1", completed: true})
-
-      result = LibraryProgress.merge_progress_record([existing], updated)
-
-      assert length(result) == 1
-      assert hd(result).completed == true
-    end
-
-    test "appends a new record that does not match any existing FK" do
-      record1 = build_progress(%{episode_id: "ep-1"})
-      new_record = build_progress(%{episode_id: "ep-2"})
-
-      result = LibraryProgress.merge_progress_record([record1], new_record)
-
-      assert length(result) == 2
-      assert Enum.any?(result, &(&1.playable_item.container_id == "ep-1"))
-      assert Enum.any?(result, &(&1.playable_item.container_id == "ep-2"))
-    end
-
-    test "prepends first record into an empty list" do
-      new_record = build_progress(%{episode_id: "ep-1"})
-
-      assert LibraryProgress.merge_progress_record([], new_record) == [new_record]
-    end
-  end
-
-  # --- max_last_watched_at/1 ---
-
-  describe "max_last_watched_at/1" do
-    test "returns nil when progress_records is empty" do
-      assert LibraryProgress.max_last_watched_at(%{progress_records: []}) == nil
-    end
-
-    test "returns the timestamp of the only record" do
-      timestamp = ~U[2026-01-15 12:00:00Z]
-      record = build_progress(%{episode_id: "ep-1", last_watched_at: timestamp})
-
-      assert LibraryProgress.max_last_watched_at(%{progress_records: [record]}) == timestamp
-    end
-
-    test "returns the most recent timestamp across records" do
-      older = build_progress(%{episode_id: "ep-1", last_watched_at: ~U[2026-01-01 00:00:00Z]})
-      newer = build_progress(%{episode_id: "ep-2", last_watched_at: ~U[2026-02-01 00:00:00Z]})
-      middle = build_progress(%{episode_id: "ep-3", last_watched_at: ~U[2026-01-15 00:00:00Z]})
-
-      result = LibraryProgress.max_last_watched_at(%{progress_records: [older, newer, middle]})
-
-      assert result == ~U[2026-02-01 00:00:00Z]
-    end
-  end
-
-  # --- merge_extra_progress/2 ---
-
-  describe "merge_extra_progress/2" do
-    test "returns records unchanged for nil change" do
-      records = [%{extra_id: "a", completed: false}]
-      assert LibraryProgress.merge_extra_progress(records, nil) == records
-    end
-
-    test "replaces existing record by extra_id" do
-      existing = %{extra_id: "a", completed: false}
-      updated = %{extra_id: "a", completed: true}
-
-      result = LibraryProgress.merge_extra_progress([existing], updated)
-
-      assert length(result) == 1
-      assert hd(result).completed == true
-    end
-
-    test "prepends new record when not found" do
-      existing = %{extra_id: "a", completed: false}
-      new_record = %{extra_id: "b", completed: true}
-
-      result = LibraryProgress.merge_extra_progress([existing], new_record)
-
-      assert length(result) == 2
-      assert hd(result).extra_id == "b"
-    end
-  end
-
   # --- in_progress?/1 ---
 
-  describe "in_progress?/1" do
+  describe "in_progress?/1 (legacy entry-shape wrapper)" do
     test "returns false for nil progress" do
       refute LibraryProgress.in_progress?(%{progress: nil})
     end
@@ -611,6 +375,20 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     end
   end
 
+  describe "in_progress_summary?/1 (Phase 3.1 BrowseItem path)" do
+    test "false for nil summary" do
+      refute LibraryProgress.in_progress_summary?(nil)
+    end
+
+    test "true when summary has remaining episodes" do
+      assert LibraryProgress.in_progress_summary?(%{episodes_completed: 3, episodes_total: 10})
+    end
+
+    test "false when all completed" do
+      refute LibraryProgress.in_progress_summary?(%{episodes_completed: 5, episodes_total: 5})
+    end
+  end
+
   # --- reload_strategy/1 ---
 
   describe "reload_strategy/1" do
@@ -622,8 +400,6 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
     end
 
     test "returns :reset even when deletions are also present" do
-      # Mixed additions + deletions still reset — the addition is the
-      # condition that forces the reset, regardless of what else happened.
       assert LibraryHelpers.reload_strategy(%{
                new_entries: [:new_entry],
                changed_ids: MapSet.new([:new_entry, :deleted_entry])
@@ -698,7 +474,8 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entity = %{type: :tv_series, seasons: [season]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 2, 3) == {:episode_id, "ep-42"}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 2, 3) ==
+               {:episode_id, "ep-42"}
     end
 
     test "returns {:episode_id, nil} when season missing" do
@@ -729,19 +506,21 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       entity = %{type: :movie_series, movies: [movie1, movie2]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) == {:movie_id, "m-1"}
-      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 2) == {:movie_id, "m-2"}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) ==
+               {:movie_id, "m-1"}
+
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 2) ==
+               {:movie_id, "m-2"}
     end
 
     test "skips movies without content_url when numbering ordinals" do
-      # Movies without content_url are not included in available list.
       absent = build_movie(%{id: "absent", content_url: nil})
       present = build_movie(%{id: "present", content_url: "/p.mkv"})
       entity = %{type: :movie_series, movies: [absent, present]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      # Ordinal 1 is the first available, which is `present`.
-      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) == {:movie_id, "present"}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) ==
+               {:movie_id, "present"}
     end
 
     test "returns {:movie_id, nil} when ordinal out of range" do

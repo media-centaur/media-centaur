@@ -1,47 +1,35 @@
 defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
   @moduledoc """
-  Library grid poster card — the 2:3 thumbnail used on `/` (Library page).
+  Library grid poster card — the 2:3 thumbnail rendered by
+  `MediaCentarrWeb.LibraryLive` at `/library`.
 
-  ## Contract shape (untyped today — see contract plan)
+  ## Contract shape (Phase 3.1)
 
-  The component takes `attr :entry, :map, required: true`. The map shape
-  the grid streams into the card is:
+  After the Phase 3.1 LibraryLive cutover, the component takes a typed
+  `MediaCentarr.Library.Views.BrowseItem` struct and a separate
+  optional `progress` summary map:
 
-      %{
-        entity: %{
-          id: term(),
-          name: String.t() | nil,
-          type: :movie | :tv_series | :movie_series | :video_object,
-          date_published: String.t() | nil,   # "YYYY-MM-DD" or "YYYY"
-          images: [%{role: String.t(), content_url: String.t()}]
-        },
-        progress: ProgressSummary.t() | nil
-        # progress_records: [...]              # not used by poster_card
-      }
+      attr :entry, MediaCentarr.Library.Views.BrowseItem
+      attr :progress, :map, default: nil
 
-  The fixtures below construct that shape directly with literal maps —
-  no factories, no Ecto schemas. This is deliberate: the migration to
-  a typed `LibraryEntry` view-model is **Phase 3** of the component
-  contract plan (`~/src/media-centarr/component-contract-plan.md`),
-  which moves `library_cards.ex` and `upcoming_cards.ex` to a shared
-  `MediaCentarrWeb.ViewModels.*` namespace as a single PR. Doing it
-  one-component-at-a-time would either create a one-off type that gets
-  renamed in Phase 3, or pre-empt a design that needs both call sites
-  to inform it.
-
-  Once Phase 3 lands, this story flips to literal struct fixtures.
+  The fixtures below construct that pair directly. The `entry` is a
+  literal `%BrowseItem{}` struct so the typed-coupling check that
+  Phoenix Storybook enforces (Credo MC0009) keeps the story honest
+  against the component's attr typing.
 
   ## Variation matrix
 
-    * Type axis — `:movie`, `:tv_series`, `:movie_series`, `:video_object`
-      (each renders a different `format_type/1` label).
+    * Type axis — `:movie`, `:tv_series`, `:movie_series`,
+      `:video_object` (each renders a different `format_type/1` label).
     * State axis — selected / playing / available toggles, plus a
       progress fraction sweep (`nil` / 25% / 75% / 100%).
-    * Edge cases — missing artwork, missing `date_published`, `name: nil`
+    * Edge cases — missing artwork, missing `year`, `name: nil`
       (renders "Untitled"), long title (must trigger `line-clamp-2`).
   """
 
   use PhoenixStorybook.Story, :component
+
+  alias MediaCentarr.Library.Views.BrowseItem
 
   def function, do: &MediaCentarrWeb.Components.LibraryCards.poster_card/1
   def render_source, do: :function
@@ -63,19 +51,19 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
         id: :type_axis,
         description:
           "Type axis — `format_type/1` produces a different footer label per " <>
-            "entity type. Each card has a poster but no progress, available, not selected.",
+            "entity kind. Each card has a poster, no progress, available, not selected.",
         variations:
-          for {type, year, suffix} <- [
-                {:movie, "1922-09-04", "movie"},
-                {:tv_series, "1925-04-15", "tv"},
-                {:movie_series, "1920-01-01", "ms"},
-                {:video_object, "1923-06-12", "vo"}
+          for {kind, year, suffix} <- [
+                {:movie, 1922, "movie"},
+                {:tv_series, 1925, "tv"},
+                {:movie_series, 1920, "ms"},
+                {:video_object, 1923, "vo"}
               ] do
             %Variation{
               id: String.to_atom("type_" <> suffix),
               attributes: %{
                 id: "card-type-" <> suffix,
-                entry: entry(type: type, name: name_for_type(type), date: year, poster: true)
+                entry: item(kind: kind, name: name_for_kind(kind), year: year, poster: true)
               }
             }
           end
@@ -83,15 +71,15 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
       %VariationGroup{
         id: :selection_states,
         description:
-          "Selection axis — `selected: true` adds a primary ring. `playing: true` " <>
-            "shows the pulsing dot in the top-right corner.",
+          "Selection axis — `selected: true` adds a primary ring. " <>
+            "`playing: true` shows the pulsing dot in the top-right corner.",
         variations: [
           %Variation{
             id: :default,
             description: "Idle — no ring, no pulse.",
             attributes: %{
               id: "card-default",
-              entry: entry(name: "A Quiet Sample", date: "1924-03-08", poster: true)
+              entry: item(name: "A Quiet Sample", year: 1924, poster: true)
             }
           },
           %Variation{
@@ -99,7 +87,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
             description: "Selected — primary-colour ring around the card.",
             attributes: %{
               id: "card-selected",
-              entry: entry(name: "A Quiet Sample", date: "1924-03-08", poster: true),
+              entry: item(name: "A Quiet Sample", year: 1924, poster: true),
               selected: true
             }
           },
@@ -108,7 +96,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
             description: "Playing — pulse dot in the top-right of the artwork.",
             attributes: %{
               id: "card-playing",
-              entry: entry(name: "A Quiet Sample", date: "1924-03-08", poster: true),
+              entry: item(name: "A Quiet Sample", year: 1924, poster: true),
               playing: true
             }
           },
@@ -117,7 +105,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
             description: "Both — selected ring + playing pulse simultaneously.",
             attributes: %{
               id: "card-selected-playing",
-              entry: entry(name: "A Quiet Sample", date: "1924-03-08", poster: true),
+              entry: item(name: "A Quiet Sample", year: 1924, poster: true),
               selected: true,
               playing: true
             }
@@ -127,15 +115,16 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
       %VariationGroup{
         id: :progress_axis,
         description:
-          "Progress bar fills bottom-edge of the artwork at the computed fraction. " <>
-            "`progress: nil` and 0% both suppress the bar.",
+          "Progress bar fills the bottom edge of the artwork at the computed " <>
+            "fraction. `progress: nil` and 0% both suppress the bar.",
         variations: [
           %Variation{
             id: :no_progress,
             description: "No progress record — bar suppressed.",
             attributes: %{
               id: "card-progress-none",
-              entry: entry(name: "Sample Show", date: "1923-06-12", poster: true, progress: nil)
+              entry: item(name: "Sample Show", year: 1923, poster: true),
+              progress: nil
             }
           },
           %Variation{
@@ -143,13 +132,8 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
             description: "25% complete.",
             attributes: %{
               id: "card-progress-early",
-              entry:
-                entry(
-                  name: "Sample Show",
-                  date: "1923-06-12",
-                  poster: true,
-                  progress: progress(25)
-                )
+              entry: item(name: "Sample Show", year: 1923, poster: true),
+              progress: progress(25)
             }
           },
           %Variation{
@@ -157,13 +141,8 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
             description: "75% complete.",
             attributes: %{
               id: "card-progress-mid",
-              entry:
-                entry(
-                  name: "Sample Show",
-                  date: "1923-06-12",
-                  poster: true,
-                  progress: progress(75)
-                )
+              entry: item(name: "Sample Show", year: 1923, poster: true),
+              progress: progress(75)
             }
           },
           %Variation{
@@ -171,13 +150,8 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
             description: "100% complete — bar reaches the right edge.",
             attributes: %{
               id: "card-progress-full",
-              entry:
-                entry(
-                  name: "Sample Show",
-                  date: "1923-06-12",
-                  poster: true,
-                  progress: progress(100)
-                )
+              entry: item(name: "Sample Show", year: 1923, poster: true),
+              progress: progress(100)
             }
           }
         ]
@@ -185,26 +159,26 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
       %VariationGroup{
         id: :artwork_states,
         description:
-          "Artwork resolution — has-poster vs no-poster (placeholder film icon) " <>
-            "vs `available: false` (storage offline; artwork hidden behind a quiet " <>
-            "neutral block).",
+          "Artwork resolution — has-poster vs no-poster (placeholder film " <>
+            "icon) vs `available: false` (storage offline; artwork hidden " <>
+            "behind a quiet neutral block).",
         variations: [
           %Variation{
             id: :no_artwork,
-            description: "Entity has no `\"poster\"` image — film placeholder fills the frame.",
+            description: "BrowseItem.poster_url is nil — film placeholder fills the frame.",
             attributes: %{
               id: "card-no-art",
-              entry: entry(name: "No Artwork Sample", date: "1922-09-04", poster: false)
+              entry: item(name: "No Artwork Sample", year: 1922, poster: false)
             }
           },
           %Variation{
             id: :unavailable,
             description:
-              "`available: false` — artwork is suppressed behind a neutral block " <>
-                "(storage offline). The footer text remains.",
+              "`available: false` — artwork is suppressed behind a neutral " <>
+                "block (storage offline). The footer text remains.",
             attributes: %{
               id: "card-unavailable",
-              entry: entry(name: "Offline Sample", date: "1922-09-04", poster: true),
+              entry: item(name: "Offline Sample", year: 1922, poster: true),
               available: false
             }
           }
@@ -217,26 +191,26 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
           %Variation{
             id: :long_title,
             description:
-              "Long title — `line-clamp-2` should truncate after the second line " <>
-                "and not push the year metadata off the card.",
+              "Long title — `line-clamp-2` truncates after the second line " <>
+                "without pushing the year off the card.",
             attributes: %{
               id: "card-long-title",
               entry:
-                entry(
+                item(
                   name: "An Extraordinarily Long Sample Title That Definitely Exceeds The Footer Width",
-                  date: "1924-03-08",
+                  year: 1924,
                   poster: true
                 )
             }
           },
           %Variation{
-            id: :no_date,
+            id: :no_year,
             description:
-              "`date_published: nil` — the year and the leading `·` separator are " <>
+              "`year: nil` — the year and the leading `·` separator are " <>
                 "suppressed; only the type label renders in the footer.",
             attributes: %{
-              id: "card-no-date",
-              entry: entry(name: "Sample Without Year", date: nil, poster: true)
+              id: "card-no-year",
+              entry: item(name: "Sample Without Year", year: nil, poster: true)
             }
           },
           %Variation{
@@ -244,7 +218,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
             description: "`name: nil` — footer falls back to the literal `\"Untitled\"`.",
             attributes: %{
               id: "card-untitled",
-              entry: entry(name: nil, date: "1922-09-04", poster: true)
+              entry: item(name: nil, year: 1922, poster: true)
             }
           }
         ]
@@ -254,32 +228,23 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
 
   # --- Fixtures ----------------------------------------------------------
 
-  # `image_url/2` reads `entity.images` (list of `%{role:, content_url:}`).
-  # `content_url` is bogus on purpose — the real `<img>` will 404 in the
-  # storybook chrome, but the layout machinery still renders correctly.
-  # Variations that need to verify "no artwork" path pass `poster: false`.
-
-  defp entry(opts) do
-    type = Keyword.get(opts, :type, :movie)
+  defp item(opts) do
+    kind = Keyword.get(opts, :kind, :movie)
     name = Keyword.get(opts, :name, "Sample Show")
-    date = Keyword.get(opts, :date, "1922-09-04")
+    year = Keyword.get(opts, :year, 1922)
     poster? = Keyword.get(opts, :poster, true)
-    progress = Keyword.get(opts, :progress)
 
-    images =
-      if poster?,
-        do: [%{role: "poster", content_url: "fixtures/poster.jpg"}],
-        else: []
-
-    %{
-      entity: %{
-        id: "entity-" <> Atom.to_string(type) <> "-" <> Integer.to_string(:erlang.phash2(name)),
-        name: name,
-        type: type,
-        date_published: date,
-        images: images
-      },
-      progress: progress
+    %BrowseItem{
+      id:
+        "entity-" <>
+          Atom.to_string(kind) <> "-" <> Integer.to_string(:erlang.phash2(name)),
+      kind: kind,
+      name: name,
+      date_published: year && Date.new!(year, 1, 1),
+      year: year,
+      poster_url: poster? && "/storybook/fixtures/poster.jpg",
+      present?: true,
+      rank: 0
     }
   end
 
@@ -300,8 +265,8 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
     }
   end
 
-  defp name_for_type(:movie), do: "Sample Movie"
-  defp name_for_type(:tv_series), do: "Sample TV Show"
-  defp name_for_type(:movie_series), do: "Sample Movie Series"
-  defp name_for_type(:video_object), do: "Sample Video"
+  defp name_for_kind(:movie), do: "Sample Movie"
+  defp name_for_kind(:tv_series), do: "Sample TV Show"
+  defp name_for_kind(:movie_series), do: "Sample Movie Series"
+  defp name_for_kind(:video_object), do: "Sample Video"
 end

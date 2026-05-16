@@ -143,16 +143,27 @@ defmodule MediaCentarrWeb.NoDbOnRenderTest do
     end
 
     test "GET /library mounts within budget", %{conn: conn} do
-      # LibraryLive currently still reads the rich entry shape via
-      # `Library.Browser.fetch_all_typed_entries/0`. Migrating to a
-      # thin projection would require BrowseItem to carry progress,
-      # extras, and resume targets — a non-trivial projection
-      # expansion (tracked as a Phase 3 follow-up).
+      # Library Schema v2 Phase 3.1: LibraryLive reads from Views.Browse
+      # (BrowseItem structs), Library.list_progress_summaries/1, and
+      # Library.Availability.available_for_ids/1 — three bounded reads.
+      #
+      # In **production** the Browse projection's Cache.Worker keeps
+      # the ETS table warm, so `Views.browse/0` is a microsecond ETS
+      # lookup and the only on-mount Repo cost is the bulk progress +
+      # availability lookups (~6 queries) plus on_mount-hook settings
+      # cache-miss reads in test mode (~5).
+      #
+      # In **test mode** the Cache.Worker isn't running, so
+      # `Views.browse/0` falls back to a fresh `Browser.fetch_all_typed_entries/0`
+      # build — that adds ~25 queries (per-type fetchers + preloads).
+      # The budget below tolerates that test-mode worst case so this
+      # regression net stays useful; it would catch a mount jumping to
+      # 100+ queries.
       mount_and_assert(
         conn,
         "/library",
-        80,
-        "Library.Browser per-type fetchers (~5 type tables x ~10 preloads); follow-up: migrate to Views.Browse once BrowseItem carries progress/resume/extras"
+        45,
+        "Views.Browse DB fallback (~25, test-mode only) + bulk progress + bulk availability + on_mount hooks"
       )
     end
 
@@ -238,15 +249,15 @@ defmodule MediaCentarrWeb.NoDbOnRenderTest do
 
     test "GET /library?selected=<movie_id> mounts within budget", %{conn: conn, movie: movie} do
       # The detail modal hydrates a single entity by id. It's not a
-      # grid-rebuild path — one entity, one preload chain. The
-      # Library.Views.Detail projection is the long-term target; the
-      # current path is Library.load_modal_entry/1 which preloads the
-      # full struct in a handful of queries.
+      # grid-rebuild path — one entity, one preload chain. After Phase
+      # 3.1 the grid itself reads from Views.Browse, so the budget here
+      # is dominated by Library.load_modal_entry/1 plus the projection
+      # build for the grid (DB fallback in test mode).
       mount_and_assert(
         conn,
         "/library?selected=#{movie.id}",
-        100,
-        "Detail modal hydration + full grid load (LibraryLive still reads grid via Browser)"
+        90,
+        "Detail modal hydration (load_modal_entry) + Views.Browse DB-fallback grid + bulk progress/availability"
       )
     end
   end

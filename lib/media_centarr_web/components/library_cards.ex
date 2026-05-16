@@ -6,39 +6,38 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
 
   use MediaCentarrWeb, :html
 
-  import MediaCentarrWeb.LiveHelpers, only: [image_url: 2]
-
-  import MediaCentarrWeb.LibraryFormatters, only: [format_type: 1, extract_year: 1]
+  import MediaCentarrWeb.LibraryFormatters, only: [format_type: 1]
   import MediaCentarrWeb.LibraryProgress, only: [compute_progress_fraction: 1]
 
   # --- Poster Card ---
 
   attr :id, :string, required: true
 
-  attr :entry, :map,
+  attr :entry, MediaCentarr.Library.Views.BrowseItem,
     required: true,
     doc:
-      "library entry map `%{entity: <typed Library schema>, progress: ProgressSummary.t() | nil, progress_records: [WatchProgress.t()]}` produced by `MediaCentarr.Library.Browser.fetch_all_typed_entries/0`. The map shape is shared by helpers in `LibraryHelpers`, `LibraryProgress`, and `LibraryAvailability` and adds optional fields (`:resume_target`) over time — a struct here would be invasive; tightening is deferred to a planned `MediaCentarrWeb.ViewModels.*` consolidation."
+      "A `Library.Views.BrowseItem` struct produced by the Browse projection (Library Schema v2 Phase 3.1). Carries the minimal display shape — `:id`, `:kind`, `:name`, `:date_published`, `:year`, `:poster_url`, `:present?`, `:rank`."
+
+  attr :progress, :map,
+    default: nil,
+    doc:
+      "Progress summary for this entry — `nil` when the entry has no `WatchProgress` row, otherwise a map with `:episode_position_seconds` / `:episode_duration_seconds` (drives the progress bar) and `:episodes_completed` / `:episodes_total` (drives the completion overlay)."
 
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false
   attr :available, :boolean, default: true
 
   def poster_card(assigns) do
-    entity = assigns.entry.entity
-    poster = image_url(entity, "poster")
-    assigns = assign(assigns, :poster, poster)
-
     ~H"""
     <div
       id={@id}
       phx-click="select_entity"
-      phx-value-id={@entry.entity.id}
+      phx-value-id={@entry.id}
       phx-mounted={
         JS.transition({"", "opacity-0 translate-y-1", "opacity-100 translate-y-0"}, time: 200)
       }
       data-nav-item
-      data-entity-id={@entry.entity.id}
+      data-entity-id={@entry.id}
       tabindex="0"
       class={[
         "card glass-surface cursor-pointer overflow-hidden poster-card",
@@ -49,17 +48,17 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
       <%!-- Poster --%>
       <div class="aspect-[2/3] glass-inset relative">
         <img
-          :if={@poster && @available}
-          src={@poster}
+          :if={@entry.poster_url && @available}
+          src={@entry.poster_url}
           class="w-full h-full object-cover"
           loading="lazy"
         />
         <div
-          :if={@poster && !@available}
+          :if={@entry.poster_url && !@available}
           class="w-full h-full bg-base-content/5"
           aria-label="Artwork unavailable — storage not mounted"
         />
-        <div :if={!@poster} class="w-full h-full flex items-center justify-center">
+        <div :if={!@entry.poster_url} class="w-full h-full flex items-center justify-center">
           <.icon name="hero-film" class="size-8 text-base-content/20" />
         </div>
 
@@ -70,16 +69,16 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
         />
 
         <%!-- Progress bar --%>
-        <.card_progress_bar progress={@entry.progress} />
+        <.card_progress_bar progress={@progress} />
       </div>
 
       <%!-- Card footer --%>
       <div class="p-2">
         <div class="text-sm font-medium leading-tight line-clamp-2">
-          {@entry.entity.name || "Untitled"}
+          {@entry.name || "Untitled"}
         </div>
         <div class="mt-0.5 text-xs text-base-content/50">
-          {format_type(@entry.entity.type)}<span :if={@entry.entity.date_published}> · {extract_year(@entry.entity.date_published)}</span>
+          {format_type(@entry.kind)}<span :if={@entry.year}> · {@entry.year}</span>
         </div>
       </div>
     </div>
