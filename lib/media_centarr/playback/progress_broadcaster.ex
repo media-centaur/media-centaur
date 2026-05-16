@@ -11,6 +11,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   alias MediaCentarr.Format
   alias MediaCentarr.Library
   alias MediaCentarr.Library.{EntityShape, TypeResolver}
+  alias MediaCentarr.Library.Progress, as: LibraryProgress
   alias MediaCentarr.Playback.Events
   alias MediaCentarr.Playback.Events.{EntityProgressUpdated, ExtraProgressUpdated}
 
@@ -47,13 +48,51 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   defp resolve_entity_with_progress(id) do
     case TypeResolver.resolve_container(id, preload: Library.full_preloads_by_type()) do
       {:ok, type, record} ->
-        progress = EntityShape.extract_progress(record, type)
+        progress =
+          record
+          |> EntityShape.extract_progress(type)
+          |> overlay_in_memory_progress()
+
         normalized = EntityShape.to_view_model(record, type)
         {:ok, normalized, progress}
 
       :not_found ->
         :not_found
     end
+  end
+
+  # Overlays the hot-path in-memory WatchProgress state on top of the DB
+  # read for each record's `playable_item_id`. Closes the stale-read
+  # window introduced by Library Schema v2 Phase 3 Task D, where
+  # `LibraryProgress.record/3` writes to the in-memory ETS table and
+  # the debounced flush to `library_watch_progress` lands seconds
+  # later — without this overlay the broadcast payload reflects the
+  # *previous* persisted position instead of the live one.
+  #
+  # `Library.Progress.get/1` returns the in-memory row when present
+  # and falls back to the persisted row otherwise; the fallback path
+  # is equivalent to the original DB-only read, so this is safe for
+  # rows that have no active session.
+  defp overlay_in_memory_progress(progress_records) do
+    Enum.map(progress_records, fn record ->
+      # `lookup_in_memory/1` is the ETS-only variant — `get/1` would
+      # fall through to a `Repo.get_by` round-trip for cold rows,
+      # turning this overlay into an N+1 against the row we already
+      # loaded from disk.
+      case record.playable_item_id && LibraryProgress.lookup_in_memory(record.playable_item_id) do
+        nil ->
+          record
+
+        %{} = fresh ->
+          %{
+            record
+            | position_seconds: fresh.position_seconds,
+              duration_seconds: fresh.duration_seconds,
+              completed: fresh.completed,
+              last_watched_at: fresh.last_watched_at
+          }
+      end
+    end)
   end
 
   @doc """
