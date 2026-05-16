@@ -10,24 +10,33 @@ defmodule MediaCentarr.Library.Views.BrowseItem do
 
   ## Field set
 
-    * `:id`         — container UUID (Movie / TVSeries / MovieSeries / VideoObject)
-    * `:kind`       — `:movie | :tv_series | :movie_series | :video_object`
-    * `:name`       — human-readable display title
-    * `:year`       — release year derived from `container.date_published.year`
-    * `:poster_url` — local artwork URL (`/media-images/<content_url>`) or nil
-    * `:present?`   — `true` when at least one backing file is currently
-                      reachable. The projection already filters to
-                      present-only entities at query time, so this
-                      defaults to `true`; the flag stays in the shape
-                      so the `:present_only` filter in `Views.browse/1`
-                      stays meaningful when the underlying query
-                      relaxes later.
-    * `:rank`       — 0-indexed display rank, assigned by `refresh_cache/0`
-                      after the source query runs.
+    * `:id`             — container UUID (Movie / TVSeries / MovieSeries / VideoObject)
+    * `:kind`           — `:movie | :tv_series | :movie_series | :video_object`
+    * `:name`           — human-readable display title
+    * `:date_published` — full release date (`%Date{}` or nil); the source for
+                          year-based sorts in consumers. Kept as a Date (not just
+                          a year integer) so the LiveView can sort precisely and
+                          format flexibly.
+    * `:year`           — release year derived from `date_published.year`. Kept
+                          alongside `:date_published` because it is the only
+                          piece the poster card displays today and reads cheaper
+                          than calling `Date.year/1` per render.
+    * `:poster_url`     — local artwork URL (`/media-images/<content_url>`) or nil
+    * `:present?`       — `true` when at least one backing file is currently
+                          reachable. The projection already filters to
+                          present-only entities at query time, so this
+                          defaults to `true`; the flag stays in the shape
+                          so the `:present_only` filter in `Views.browse/1`
+                          stays meaningful when the underlying query
+                          relaxes later.
+    * `:rank`           — 0-indexed display rank, assigned by `refresh_cache/0`
+                          after the source query runs. Reflects the projection's
+                          recent-first (`inserted_at desc`) ordering — the
+                          implicit "what did I just add?" default.
   """
 
   @enforce_keys [:id, :kind, :name]
-  defstruct [:id, :kind, :name, :year, :poster_url, :present?, :rank]
+  defstruct [:id, :kind, :name, :date_published, :year, :poster_url, :present?, :rank]
 
   @type kind :: :movie | :tv_series | :movie_series | :video_object
 
@@ -35,6 +44,7 @@ defmodule MediaCentarr.Library.Views.BrowseItem do
           id: Ecto.UUID.t(),
           kind: kind(),
           name: String.t(),
+          date_published: Date.t() | nil,
           year: integer() | nil,
           poster_url: String.t() | nil,
           present?: boolean() | nil,

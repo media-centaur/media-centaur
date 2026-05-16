@@ -24,6 +24,24 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
   # Helper kept as a no-op so legacy seed code still reads clearly.
   defp record_present(_file), do: :ok
 
+  # Helper for forcing distinct inserted_at timestamps in tests. Schema
+  # columns are `:utc_datetime` (second precision), so two rows inserted
+  # in the same test tick have identical `inserted_at` values — the
+  # recent-first projection then sorts ambiguously. Backdating the row
+  # via `Repo.update_all` gives the ordering test something deterministic
+  # to assert on.
+  defp backdate_inserted_at(movie_id, datetime) do
+    import Ecto.Query
+
+    {1, _} =
+      MediaCentarr.Repo.update_all(
+        from(m in MediaCentarr.Library.Movie, where: m.id == ^movie_id),
+        set: [inserted_at: datetime]
+      )
+
+    :ok
+  end
+
   # ETS table is global; tests that exercise the cached path must clean
   # up so later tests fall back to a clean slate.
   defp on_exit_clear_table do
@@ -114,12 +132,23 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
       assert Views.browse() == []
     end
 
-    test "returns standalone movies sorted by name (case-insensitive)" do
+    test "returns standalone movies ordered by inserted_at desc (recent-first)" do
       on_exit_clear_table()
 
-      seed_present_movie("Movie B")
-      seed_present_movie("Movie A")
-      seed_present_movie("movie c")
+      # Phase 3.1: Browse projection's display order is recent-first
+      # ("what did I just add?") — the most natural Library default.
+      # Other sort orders are applied by the LiveView consumer.
+      #
+      # Schema `:utc_datetime` columns are second-precision, so we
+      # backdate two of the three rows explicitly rather than relying
+      # on test-runtime timing.
+      first = seed_present_movie("Movie A")
+      second = seed_present_movie("Movie B")
+      third = seed_present_movie("movie c")
+
+      backdate_inserted_at(first.id, ~U[2020-01-01 00:00:00Z])
+      backdate_inserted_at(second.id, ~U[2020-01-02 00:00:00Z])
+      backdate_inserted_at(third.id, ~U[2020-01-03 00:00:00Z])
 
       assert :ok = Browse.refresh_cache()
 
@@ -127,8 +156,8 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
       assert length(items) == 3
       assert Enum.all?(items, &is_struct(&1, BrowseItem))
 
-      names = Enum.map(items, & &1.name)
-      assert names == ["Movie A", "Movie B", "movie c"]
+      ids = Enum.map(items, & &1.id)
+      assert ids == [third.id, second.id, first.id]
     end
 
     test "returns TV series, movie series, and video objects alongside movies" do
@@ -173,6 +202,21 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
 
       assert by_name["Year Movie"].year == 2010
       assert by_name["No-Year Movie"].year == nil
+    end
+
+    test "date_published is the full Date (not just year)" do
+      on_exit_clear_table()
+
+      seed_present_movie("Dated Movie", %{date_published: ~D[2010-06-01]})
+      seed_present_movie("Undated Movie", %{date_published: nil})
+
+      assert :ok = Browse.refresh_cache()
+
+      items = Views.browse()
+      by_name = Map.new(items, &{&1.name, &1})
+
+      assert by_name["Dated Movie"].date_published == ~D[2010-06-01]
+      assert by_name["Undated Movie"].date_published == nil
     end
 
     test "poster_url is populated when entity has a poster image" do
@@ -415,6 +459,7 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
 
       assert is_struct(item, BrowseItem)
       assert item.year == nil
+      assert item.date_published == nil
       assert item.poster_url == nil
       assert item.present? == nil
       assert item.rank == nil
