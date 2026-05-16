@@ -23,6 +23,8 @@ defmodule MediaCentarr.Library.Views do
   alias MediaCentarr.Library.Views.HeroCandidatesItem
   alias MediaCentarr.Library.Views.RecentlyAdded
   alias MediaCentarr.Library.Views.RecentlyAddedItem
+  alias MediaCentarr.Library.Views.Search
+  alias MediaCentarr.Library.Views.SearchItem
   alias MediaCentarr.Topics
 
   @doc "Subscribe the caller to projection-refreshed events."
@@ -100,4 +102,27 @@ defmodule MediaCentarr.Library.Views do
   @spec detail_by_container(atom(), Ecto.UUID.t()) :: DetailItem.t() | nil
   def detail_by_container(container_type, container_id),
     do: Detail.read_by_container(container_type, container_id)
+
+  @doc """
+  Searches the library for entities matching `query`. Returns up to
+  `opts[:limit]` `SearchItem` structs sorted by descending score
+  (higher = better match) and then ascending name for ties.
+
+  Reads bypass the GenServer via an in-memory `:ets.foldl/3` over the
+  cached row set when the projection's Cache.Worker is running; falls
+  back to a live build when it isn't (test mode / pre-boot window).
+
+  An empty / whitespace-only `query` returns `[]` (no ranking signal).
+
+  Options:
+
+    * `:limit`        — non-negative integer; defaults to 50.
+    * `:kind_filter`  — `:all | :movies | :tv_series | :movie_series | :video_objects`;
+                        defaults to `:all`.
+    * `:present_only` — boolean; defaults to `false`. When `true`,
+                        excludes entries whose backing files aren't
+                        currently reachable.
+  """
+  @spec search(String.t(), keyword()) :: [SearchItem.t()]
+  def search(query, opts \\ []), do: Search.read(query, opts)
 end
