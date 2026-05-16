@@ -4,6 +4,16 @@ defmodule MediaCentarr.Library.Extra do
   a movie, TV series, movie series, or season. Extras live in subdirectories
   like `Extras/` alongside the main media files and are serialized as
   `hasPart` -> `VideoObject` entries.
+
+  File-on-disk presence is tracked separately via `Library.ExtraFile` —
+  one ExtraFile per observed path. `content_url` here is the canonical
+  playable path; ExtraFile rows record which watch directory the file
+  was seen in.
+
+  Follow-up: Wire `Library.Inbound` to write ExtraFile rows when
+  ingesting bonus-feature paths. Today the only writer is the Phase 2
+  Task B migration that backfills orphan WatchedFiles into ExtraFiles
+  for collection-level Extras.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -21,6 +31,8 @@ defmodule MediaCentarr.Library.Extra do
     belongs_to :movie, MediaCentarr.Library.Movie
     belongs_to :tv_series, MediaCentarr.Library.TVSeries
     belongs_to :movie_series, MediaCentarr.Library.MovieSeries
+
+    has_many :files, MediaCentarr.Library.ExtraFile
 
     timestamps()
   end

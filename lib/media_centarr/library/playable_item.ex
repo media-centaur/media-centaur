@@ -58,6 +58,8 @@ defmodule MediaCentarr.Library.PlayableItem do
     field :duration_seconds, :integer
     field :name, :string
 
+    has_many :watched_files, MediaCentarr.Library.WatchedFile
+
     timestamps()
   end
 

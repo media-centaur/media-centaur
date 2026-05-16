@@ -25,15 +25,27 @@ defmodule MediaCentarr.Library.BrowserTest do
     end
 
     test "includes a TV series with sorted seasons and episodes" do
+      # Per Library Schema v2 Phase 2 Task B the WatchedFile attaches at
+      # the Episode level via PlayableItem; build season + episode +
+      # presence as a leaf bundle.
       series = create_tv_series(%{name: "Test Show"})
-      create_present_file(%{tv_series_id: series.id})
 
       season2 = create_season(%{tv_series_id: series.id, season_number: 2, name: "Season 2"})
       season1 = create_season(%{tv_series_id: series.id, season_number: 1, name: "Season 1"})
 
       create_episode(%{season_id: season2.id, episode_number: 1, name: "S2E1"})
       create_episode(%{season_id: season1.id, episode_number: 2, name: "S1E2"})
-      create_episode(%{season_id: season1.id, episode_number: 1, name: "S1E1"})
+
+      s1e1 =
+        create_episode(%{
+          season_id: season1.id,
+          episode_number: 1,
+          name: "S1E1",
+          content_url: "/media/test/show-s01e01.mkv"
+        })
+
+      playable_item = create_playable_item_for_episode(s1e1)
+      create_present_file(%{playable_item_id: playable_item.id, file_path: s1e1.content_url})
 
       [%{entity: fetched}] = Browser.fetch_all_typed_entries()
 
@@ -218,12 +230,14 @@ defmodule MediaCentarr.Library.BrowserTest do
   # with seasons/episodes, movie series with children, video object) produced
   # 29 queries before extras were removed from the default preloads (Phase 2
   # perf remediation). With extras no longer preloaded at catalog scan time,
-  # the count dropped to ~25. The ceiling below (28) gives 3 queries of slack
-  # for small future additions and is tight enough to catch a real regression
-  # (e.g. accidental per-row dispatch from a preload callback) — any change
-  # should force a conscious update here.
+  # the count dropped to ~25. After Library Schema v2 Phase 2 Task B the
+  # `:watched_files` association preload walks through `:playable_items`
+  # (one extra preload-query per type * 4 types = +4), so the ceiling
+  # moved from 28 → 32. The second test in this describe block still
+  # verifies the count is constant in row count — that is the actual
+  # N+1 guard.
   describe "query count (N+1 regression guard)" do
-    @query_ceiling 28
+    @query_ceiling 32
 
     # Counts Ecto queries fired while `fun` runs. Attaches a unique-named
     # telemetry handler, drains the resulting messages, and returns

@@ -9,6 +9,7 @@ defmodule MediaCentarr.Library do
       EpisodeList,
       Events,
       Events.EntitiesChanged,
+      ExtraFile,
       ExternalId,
       ExternalIds,
       FileEventHandler,
@@ -49,6 +50,7 @@ defmodule MediaCentarr.Library do
     ContinueWatchingProgress,
     Episode,
     Extra,
+    ExtraFile,
     ExtraProgress,
     ExternalId,
     ExternalIds,
@@ -277,6 +279,29 @@ defmodule MediaCentarr.Library do
     )
   end
 
+  @doc """
+  Fetches the `PlayableItem` row at the exact `(container_type, container_id,
+  position)` triple. Used by `Library.Inbound` for race-loss recovery on the
+  uniqueness constraint — the recovery semantically wants the row at the
+  SAME position, not just any row for the container (a container can carry
+  multiple PlayableItems for director's cuts).
+
+  Returns `nil` if no row exists for the triple.
+  """
+  @spec find_playable_item(PlayableItem.container_type(), Ecto.UUID.t(), integer()) ::
+          PlayableItem.t() | nil
+  def find_playable_item(container_type, container_id, position)
+      when container_type in [:movie, :episode, :video_object] and is_binary(container_id) and
+             is_integer(position) do
+    Repo.one(
+      from(p in PlayableItem,
+        where:
+          p.container_type == ^container_type and p.container_id == ^container_id and
+            p.position == ^position
+      )
+    )
+  end
+
   @doc "Deletes a `PlayableItem` row."
   @spec destroy_playable_item(PlayableItem.t()) :: {:ok, PlayableItem.t()} | {:error, Ecto.Changeset.t()}
   def destroy_playable_item(item), do: Repo.delete(item)
@@ -306,6 +331,45 @@ defmodule MediaCentarr.Library do
     Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths))
   end
 
+  @doc """
+  Resolves a WatchedFile to its top-level entity id — the Movie /
+  TVSeries / VideoObject the user navigated to in the library. Used by
+  the cleanup cascade in `Library.FileEventHandler` (replaces the
+  pre-Phase-2 `WatchedFile.owner_id/1` coalescer).
+
+  Walks `WatchedFile → PlayableItem → container`:
+
+    * `:movie` / `:video_object` — container_id is already the
+      top-level entity.
+    * `:episode` — climbs `Episode → Season → TVSeries.id`.
+
+  Returns `nil` if the WatchedFile is dangling (no PlayableItem) or the
+  container has been deleted out from under it.
+  """
+  @spec top_level_entity_id_for_watched_file(WatchedFile.t()) :: Ecto.UUID.t() | nil
+  def top_level_entity_id_for_watched_file(%WatchedFile{playable_item_id: nil}), do: nil
+
+  def top_level_entity_id_for_watched_file(%WatchedFile{playable_item_id: pi_id}) do
+    case Repo.get(PlayableItem, pi_id) do
+      nil ->
+        nil
+
+      %PlayableItem{container_type: type, container_id: container_id}
+      when type in [:movie, :video_object] ->
+        container_id
+
+      %PlayableItem{container_type: :episode, container_id: episode_id} ->
+        Repo.one(
+          from(e in Episode,
+            join: s in Season,
+            on: s.id == e.season_id,
+            where: e.id == ^episode_id,
+            select: s.tv_series_id
+          )
+        )
+    end
+  end
+
   def list_files_by_watch_dir(watch_dir) do
     Repo.all(from(w in WatchedFile, where: w.watch_dir == ^watch_dir))
   end
@@ -321,15 +385,47 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
-  Lists watched files where any type-specific FK matches the given ID.
-  Used when you have an entity UUID but don't know which type table it lives in.
+  Lists watched files that belong to the given top-level entity, regardless of
+  which container type owns them. Used when you have an entity UUID but don't
+  know which type table it lives in (e.g. `Inbound.handle_rematch/1`).
+
+  Resolution walks through PlayableItem (Library Schema v2 Phase 2 Task B):
+
+    * Movie / VideoObject — direct lookup by container_id.
+    * Episode — through the season's TVSeries id.
+    * MovieSeries — through child Movies' container ids.
   """
   def list_watched_files_by_entity_id(entity_id) do
+    movie_or_video_subquery =
+      from(p in PlayableItem,
+        where: p.container_type in [:movie, :video_object] and p.container_id == ^entity_id,
+        select: p.id
+      )
+
+    episode_subquery =
+      from(p in PlayableItem,
+        join: e in Episode,
+        on: e.id == p.container_id,
+        join: s in Season,
+        on: s.id == e.season_id,
+        where: p.container_type == :episode and s.tv_series_id == ^entity_id,
+        select: p.id
+      )
+
+    movie_series_child_subquery =
+      from(p in PlayableItem,
+        join: m in Movie,
+        on: m.id == p.container_id,
+        where: p.container_type == :movie and m.movie_series_id == ^entity_id,
+        select: p.id
+      )
+
     Repo.all(
       from(w in WatchedFile,
         where:
-          w.movie_id == ^entity_id or w.tv_series_id == ^entity_id or
-            w.movie_series_id == ^entity_id or w.video_object_id == ^entity_id
+          w.playable_item_id in subquery(movie_or_video_subquery) or
+            w.playable_item_id in subquery(episode_subquery) or
+            w.playable_item_id in subquery(movie_series_child_subquery)
       )
     )
   end
@@ -841,6 +937,40 @@ defmodule MediaCentarr.Library do
   def destroy_extra!(extra), do: destroy_bang!(extra)
 
   # ---------------------------------------------------------------------------
+  # ExtraFile (file presence for Extras — parallel to WatchedFile for
+  # PlayableItems)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Inserts (or re-points by `file_path`) an `ExtraFile` row linking a
+  bonus-feature path on disk to an `Library.Extra`. Mirrors `link_file/1`
+  for `WatchedFile`.
+  """
+  @spec create_extra_file(map()) :: {:ok, ExtraFile.t()} | {:error, Ecto.Changeset.t()}
+  def create_extra_file(attrs) do
+    file_path = lookup_attr(attrs, :file_path)
+
+    case Repo.get_by(ExtraFile, file_path: file_path) do
+      nil -> Repo.insert(ExtraFile.link_file_changeset(attrs))
+      existing -> Repo.update(ExtraFile.link_file_changeset(existing, attrs))
+    end
+  end
+
+  @doc "Bang variant of `create_extra_file/1` — raises on changeset error."
+  @spec create_extra_file!(map()) :: ExtraFile.t()
+  def create_extra_file!(attrs), do: Repo.bang!(create_extra_file(attrs))
+
+  @doc "Lists all ExtraFile rows for an extra_id."
+  @spec list_extra_files_for(Ecto.UUID.t()) :: [ExtraFile.t()]
+  def list_extra_files_for(extra_id) when is_binary(extra_id) do
+    Repo.all(from(f in ExtraFile, where: f.extra_id == ^extra_id))
+  end
+
+  @doc "Deletes an ExtraFile row."
+  @spec destroy_extra_file(ExtraFile.t()) :: {:ok, ExtraFile.t()} | {:error, Ecto.Changeset.t()}
+  def destroy_extra_file(extra_file), do: Repo.delete(extra_file)
+
+  # ---------------------------------------------------------------------------
   # Season
   # ---------------------------------------------------------------------------
 
@@ -911,6 +1041,43 @@ defmodule MediaCentarr.Library do
   end
 
   def find_or_create_episode!(attrs), do: Repo.bang!(find_or_create_episode(attrs))
+
+  @doc """
+  Finds the Episode under `tv_series_id` whose `content_url` matches
+  `file_path`. Used by `Library.Inbound` to resolve the leaf Episode
+  for an incoming TV WatchedFile (Library Schema v2 Phase 2 Task B).
+
+  Returns `nil` when no Episode matches — callers must handle the
+  missing-row case (typically an ingest race or a stale event).
+  """
+  @spec find_episode_by_content_url(Ecto.UUID.t(), String.t()) :: Episode.t() | nil
+  def find_episode_by_content_url(tv_series_id, file_path)
+      when is_binary(tv_series_id) and is_binary(file_path) do
+    Repo.one(
+      from(e in Episode,
+        join: s in Season,
+        on: s.id == e.season_id,
+        where: s.tv_series_id == ^tv_series_id and e.content_url == ^file_path,
+        limit: 1
+      )
+    )
+  end
+
+  @doc """
+  Finds the child Movie under `movie_series_id` whose `content_url`
+  matches `file_path`. The collection-child counterpart of
+  `find_episode_by_content_url/2`.
+  """
+  @spec find_movie_by_content_url(Ecto.UUID.t(), String.t()) :: Movie.t() | nil
+  def find_movie_by_content_url(movie_series_id, file_path)
+      when is_binary(movie_series_id) and is_binary(file_path) do
+    Repo.one(
+      from(m in Movie,
+        where: m.movie_series_id == ^movie_series_id and m.content_url == ^file_path,
+        limit: 1
+      )
+    )
+  end
 
   def set_episode_content_url(episode, attrs) do
     Repo.update(Episode.set_content_url_changeset(episode, attrs))
@@ -1139,21 +1306,43 @@ defmodule MediaCentarr.Library do
   defp fetch_recently_added_tv_series(limit) do
     from(t in TVSeries,
       as: :item,
-      where:
-        exists(
-          from(wf in "library_watched_files",
-            join: kf in "watcher_files",
-            on: kf.file_path == wf.file_path,
-            where: wf.tv_series_id == parent_as(:item).id and kf.state == "present",
-            select: 1
-          )
-        ),
+      where: exists(tv_series_present_file_subquery()),
       order_by: [{:desc, t.inserted_at}],
       limit: ^limit
     )
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_recently_added_record/1)
+  end
+
+  # WatchedFile present for any episode in any season of `parent_as(:item)`
+  # (a TVSeries). Walks `WatchedFile → PlayableItem(:episode) → Episode →
+  # Season → TVSeries`. Used by recently-added and hero-candidates surfaces.
+  defp tv_series_present_file_subquery do
+    from(wf in WatchedFile,
+      join: kf in "watcher_files",
+      on: kf.file_path == wf.file_path,
+      join: pi in PlayableItem,
+      on: pi.id == wf.playable_item_id and pi.container_type == :episode,
+      join: e in Episode,
+      on: e.id == pi.container_id,
+      join: s in Season,
+      on: s.id == e.season_id,
+      where: s.tv_series_id == parent_as(:item).id and kf.state == "present",
+      select: 1
+    )
+  end
+
+  # WatchedFile present for the VideoObject in `parent_as(:item)`.
+  defp video_object_present_file_subquery do
+    from(wf in WatchedFile,
+      join: kf in "watcher_files",
+      on: kf.file_path == wf.file_path,
+      join: pi in PlayableItem,
+      on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
+      where: pi.container_id == parent_as(:item).id and kf.state == "present",
+      select: 1
+    )
   end
 
   defp fetch_recently_added_movie_series(limit) do
@@ -1169,15 +1358,7 @@ defmodule MediaCentarr.Library do
   defp fetch_recently_added_video_objects(limit) do
     from(v in VideoObject,
       as: :item,
-      where:
-        exists(
-          from(wf in "library_watched_files",
-            join: kf in "watcher_files",
-            on: kf.file_path == wf.file_path,
-            where: wf.video_object_id == parent_as(:item).id and kf.state == "present",
-            select: 1
-          )
-        ),
+      where: exists(video_object_present_file_subquery()),
       order_by: [{:desc, v.inserted_at}],
       limit: ^limit
     )
@@ -1271,10 +1452,16 @@ defmodule MediaCentarr.Library do
             )
           ) and
           exists(
-            from(wf in "library_watched_files",
+            from(wf in WatchedFile,
               join: kf in "watcher_files",
               on: kf.file_path == wf.file_path,
-              where: wf.tv_series_id == parent_as(:entity).id and kf.state == "present",
+              join: pi in PlayableItem,
+              on: pi.id == wf.playable_item_id and pi.container_type == :episode,
+              join: e in Episode,
+              on: e.id == pi.container_id,
+              join: s in Season,
+              on: s.id == e.season_id,
+              where: s.tv_series_id == parent_as(:entity).id and kf.state == "present",
               select: 1
             )
           ),
@@ -1324,10 +1511,12 @@ defmodule MediaCentarr.Library do
             )
           ) and
           exists(
-            from(wf in "library_watched_files",
+            from(wf in WatchedFile,
               join: kf in "watcher_files",
               on: kf.file_path == wf.file_path,
-              where: wf.video_object_id == parent_as(:entity).id and kf.state == "present",
+              join: pi in PlayableItem,
+              on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
+              where: pi.container_id == parent_as(:entity).id and kf.state == "present",
               select: 1
             )
           ),

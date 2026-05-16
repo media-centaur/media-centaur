@@ -9,15 +9,16 @@ defmodule MediaCentarr.Watcher.RecordSeenTest do
   describe "record_seen/1" do
     test "writes both library_watched_files and watcher_files atomically" do
       movie = create_entity(%{type: :movie, name: "Sample Movie"})
+      playable_item = create_playable_item_for_movie(movie)
 
       attrs = %{
         file_path: "/media/movies/sample.mkv",
         watch_dir: "/media/movies",
-        movie_id: movie.id
+        playable_item_id: playable_item.id
       }
 
       assert {:ok, %WatchedFile{} = file} = Watcher.record_seen(attrs)
-      assert file.movie_id == movie.id
+      assert file.playable_item_id == playable_item.id
       assert file.file_path == "/media/movies/sample.mkv"
 
       known = Repo.get_by!(KnownFile, file_path: "/media/movies/sample.mkv")
@@ -27,11 +28,12 @@ defmodule MediaCentarr.Watcher.RecordSeenTest do
 
     test "is idempotent — repeated calls do not duplicate rows" do
       movie = create_entity(%{type: :movie, name: "Sample Movie"})
+      playable_item = create_playable_item_for_movie(movie)
 
       attrs = %{
         file_path: "/media/movies/sample.mkv",
         watch_dir: "/media/movies",
-        movie_id: movie.id
+        playable_item_id: playable_item.id
       }
 
       assert {:ok, _} = Watcher.record_seen(attrs)

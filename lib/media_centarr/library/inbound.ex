@@ -643,53 +643,128 @@ defmodule MediaCentarr.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp link_file(entity, event) do
-    {fk_type, fk_id} = file_owner_for(entity, event)
-
-    attrs =
-      put_type_fk(
-        %{
-          file_path: event.file_path,
-          watch_dir: event.watch_dir
-        },
-        fk_type,
-        fk_id
-      )
-
-    watched_file = Library.link_file!(attrs)
-
-    # Persist detected subtitle tracks against the freshly-linked file.
-    # The Subtitles context owns its own table; we hand it the FK and
-    # the detector output.
-    detected = MediaCentarr.Subtitles.detect(event.file_path)
-
-    case MediaCentarr.Subtitles.replace_tracks_for_file(watched_file.id, detected) do
-      {:ok, _tracks} ->
-        :ok
-
-      {:error, reason} ->
-        Log.warning(
+    case ensure_playable_item_for_event(entity, event) do
+      nil ->
+        # No leaf to attach this WatchedFile to (e.g. a TV event with
+        # no Season/Episode). Under the old shape we created a
+        # WatchedFile at the TVSeries level; in the new shape every
+        # WatchedFile must point at a PlayableItem leaf. Skip the link
+        # — the Watcher will retry when the leaf appears.
+        Log.info(
           :library,
-          "subtitle persist failed for watched_file #{watched_file.id}: #{inspect(reason)}"
+          "skipped file link — no leaf container for #{Format.short_id(entity.id)} " <>
+            "(file=#{event.file_path})"
         )
-    end
 
-    watched_file
+        nil
+
+      playable_item_id when is_binary(playable_item_id) ->
+        attrs = %{
+          file_path: event.file_path,
+          watch_dir: event.watch_dir,
+          playable_item_id: playable_item_id
+        }
+
+        watched_file = Library.link_file!(attrs)
+
+        # Persist detected subtitle tracks against the freshly-linked
+        # file. The Subtitles context owns its own table; we hand it
+        # the FK and the detector output.
+        detected = MediaCentarr.Subtitles.detect(event.file_path)
+
+        case MediaCentarr.Subtitles.replace_tracks_for_file(watched_file.id, detected) do
+          {:ok, _tracks} ->
+            :ok
+
+          {:error, reason} ->
+            Log.warning(
+              :library,
+              "subtitle persist failed for watched_file #{watched_file.id}: #{inspect(reason)}"
+            )
+        end
+
+        watched_file
+    end
   end
 
-  # A collection-child movie owns its own WatchedFile; the parent MovieSeries
-  # is the entity row but not the file owner. Misattaching the file to
-  # movie_series_id hides the collection from PresentableQueries
-  # (which count files via wf.movie_id on child movies).
-  defp file_owner_for(_entity, %{
+  # Resolves the leaf container for an event and ensures a PlayableItem
+  # exists pointing at it. Returns the PlayableItem id ready to drop
+  # into the WatchedFile changeset (Library Schema v2 Phase 2 Task B).
+  #
+  # The full Inbound rewrite (Task G) will hoist PlayableItem creation
+  # earlier in the ingest flow so every leaf has its PlayableItem
+  # alongside the leaf row itself; for Task B this minimal wiring keeps
+  # WatchedFile linking correct.
+  defp ensure_playable_item_for_event(entity, event) do
+    case leaf_container_for(entity, event) do
+      nil ->
+        nil
+
+      {container_type, container_id, position} ->
+        case Library.create_playable_item(%{
+               container_type: container_type,
+               container_id: container_id,
+               position: position
+             }) do
+          {:ok, item} ->
+            item.id
+
+          {:error, %Ecto.Changeset{errors: errors}} ->
+            # Race-loss recovery: a concurrent ingest may already have
+            # created the PlayableItem for this `(container_type,
+            # container_id, position)` triple. The unique constraint
+            # declared in `PlayableItem.create_changeset/1` surfaces as
+            # a changeset error rather than an exception (same pattern
+            # as `Library.ExternalId` in Phase 1 Task 6). Look up the
+            # existing row at the SAME position (a container can carry
+            # multiple PlayableItems for director's cuts, so we must not
+            # assume there is exactly one row for the container).
+            if Keyword.has_key?(errors, :container_type) or
+                 Keyword.has_key?(errors, :container_id) or
+                 Keyword.has_key?(errors, :position) do
+              %Library.PlayableItem{id: id} =
+                Library.find_playable_item(container_type, container_id, position)
+
+              id
+            else
+              raise "PlayableItem creation failed: #{inspect(errors)}"
+            end
+        end
+    end
+  end
+
+  # Returns `{container_type, container_id, position}` for the leaf
+  # PlayableItem that owns this event's file. The leaf is the Movie /
+  # Episode / VideoObject — never the TVSeries or MovieSeries (those
+  # are containers above the leaf and never own a WatchedFile in the
+  # new schema).
+  defp leaf_container_for(_entity, %{
          entity_type: :movie_series,
          child_movie: %{attrs: %{tmdb_id: child_tmdb_id}}
        })
        when is_binary(child_tmdb_id) do
-    %{id: id} = Library.find_movie_by_tmdb_id(child_tmdb_id)
-    {:movie, id}
+    %{id: id, position: position} = Library.find_movie_by_tmdb_id(child_tmdb_id)
+    {:movie, id, position || 1}
   end
 
-  defp file_owner_for(entity, event), do: {event.entity_type, entity.id}
+  defp leaf_container_for(entity, %{entity_type: :tv_series, file_path: file_path}) do
+    # The Episode row was created earlier in the ingest pipeline (see
+    # `maybe_create_season → create_episode → ensure_content_url`).
+    # It carries `content_url == file_path`, which is the unambiguous
+    # key. When the event doesn't carry a Season/Episode payload
+    # (e.g. a metadata-only TV ingest) there's no leaf to attach the
+    # file to.
+    case Library.find_episode_by_content_url(entity.id, file_path) do
+      nil -> nil
+      episode -> {:episode, episode.id, episode.episode_number || 1}
+    end
+  end
+
+  defp leaf_container_for(entity, %{entity_type: :movie}), do: {:movie, entity.id, entity.position || 1}
+
+  defp leaf_container_for(entity, %{entity_type: :video_object}), do: {:video_object, entity.id, 1}
+
+  defp leaf_container_for(_entity, _event), do: nil
 
   defp queue_images(_entity, [], _event), do: :ok
 
