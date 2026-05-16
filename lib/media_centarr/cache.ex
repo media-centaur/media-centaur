@@ -101,4 +101,18 @@ defmodule MediaCentarr.Cache do
   down to the events they actually care about.
   """
   @callback relevant?(message :: term()) :: boolean()
+
+  @doc """
+  Optional: handle a relevant PubSub message with finer-grained logic
+  than a full `refresh_cache/0`. Implement this when the cache supports
+  partial / targeted refresh (per-row ETS updates rather than a
+  whole-table rebuild). When absent, `Cache.Worker` falls back to
+  calling `refresh_cache/0` for every relevant message.
+
+  See `MediaCentarr.Library.Views.Detail` for the canonical
+  per-PlayableItem partial-refresh implementation.
+  """
+  @callback handle_message(message :: term()) :: :ok
+
+  @optional_callbacks handle_message: 1
 end

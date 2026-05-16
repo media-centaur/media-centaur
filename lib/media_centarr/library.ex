@@ -28,6 +28,8 @@ defmodule MediaCentarr.Library do
       Views,
       Views.ContinueWatching,
       Views.ContinueWatchingItem,
+      Views.Detail,
+      Views.DetailItem,
       Views.HeroCandidates,
       Views.HeroCandidatesItem,
       Views.RecentlyAdded,
@@ -390,6 +392,54 @@ defmodule MediaCentarr.Library do
   @doc "Bang variant of `destroy_playable_item/1`."
   @spec destroy_playable_item!(PlayableItem.t()) :: :ok
   def destroy_playable_item!(item), do: destroy_bang!(item)
+
+  @doc """
+  Resolves a list of top-level entity UUIDs to the set of `PlayableItem`
+  UUIDs they own.
+
+    * Movie / VideoObject ids resolve directly via `container_id` on the
+      `:movie` / `:video_object` discriminator.
+    * TVSeries ids resolve via Season → Episode → PlayableItem
+      (`:episode` discriminator).
+    * MovieSeries ids resolve via child Movies' PlayableItems
+      (`:movie` discriminator with `movie_series_id` matching).
+
+  Used by `Library.Views.Detail.handle_message/1` to translate
+  `EntitiesChanged{entity_ids: ids}` into the per-row set of
+  PlayableItems whose detail-projection entries need rebuilding.
+
+  Returns a deduplicated list of PlayableItem UUIDs.
+  """
+  @spec playable_item_ids_for_entities([Ecto.UUID.t()]) :: [Ecto.UUID.t()]
+  def playable_item_ids_for_entities([]), do: []
+
+  def playable_item_ids_for_entities(entity_ids) when is_list(entity_ids) do
+    direct =
+      from(p in PlayableItem,
+        where: p.container_type in [:movie, :video_object] and p.container_id in ^entity_ids,
+        select: p.id
+      )
+
+    via_tv_series =
+      from(p in PlayableItem,
+        join: e in MediaCentarr.Library.Episode,
+        on: e.id == p.container_id,
+        join: s in MediaCentarr.Library.Season,
+        on: s.id == e.season_id,
+        where: p.container_type == :episode and s.tv_series_id in ^entity_ids,
+        select: p.id
+      )
+
+    via_movie_series =
+      from(p in PlayableItem,
+        join: m in Movie,
+        on: m.id == p.container_id,
+        where: p.container_type == :movie and m.movie_series_id in ^entity_ids,
+        select: p.id
+      )
+
+    Enum.uniq(Repo.all(direct) ++ Repo.all(via_tv_series) ++ Repo.all(via_movie_series))
+  end
 
   # ---------------------------------------------------------------------------
   # WatchedFile
