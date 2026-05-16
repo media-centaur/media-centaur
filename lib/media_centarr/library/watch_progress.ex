@@ -1,7 +1,15 @@
 defmodule MediaCentarr.Library.WatchProgress do
   @moduledoc """
-  Per-item playback progress. Tracks position, duration, and completion state
-  for each playable item (movie, episode, or video object).
+  Per-playable-item playback progress. Tracks position, duration, and
+  completion state keyed by a single `playable_item_id` FK pointing at
+  `MediaCentarr.Library.PlayableItem`.
+
+  Library Schema v2 Phase 2 Task C collapsed the previous three-FK
+  polymorphism (`movie_id` / `episode_id` / `video_object_id`) into
+  this single FK and added a DB-level `UNIQUE(playable_item_id)`
+  constraint enforcing "one progress row per playable item". Type
+  information now lives on the linked PlayableItem's
+  `(container_type, container_id)` discriminator.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -18,9 +26,7 @@ defmodule MediaCentarr.Library.WatchProgress do
     field :completed, :boolean, default: false
     field :last_watched_at, :utc_datetime
 
-    belongs_to :movie, MediaCentarr.Library.Movie
-    belongs_to :episode, MediaCentarr.Library.Episode
-    belongs_to :video_object, MediaCentarr.Library.VideoObject
+    belongs_to :playable_item, MediaCentarr.Library.PlayableItem
 
     timestamps()
   end
@@ -29,14 +35,14 @@ defmodule MediaCentarr.Library.WatchProgress do
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
-      :movie_id,
-      :episode_id,
-      :video_object_id,
+      :playable_item_id,
       :position_seconds,
       :duration_seconds,
       :completed
     ])
+    |> validate_required([:playable_item_id])
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
+    |> unique_constraint(:playable_item_id)
   end
 
   @impl true
@@ -46,11 +52,10 @@ defmodule MediaCentarr.Library.WatchProgress do
       :position_seconds,
       :duration_seconds,
       :completed,
-      :movie_id,
-      :episode_id,
-      :video_object_id
+      :playable_item_id
     ])
     |> put_change(:last_watched_at, DateTime.utc_now(:second))
+    |> unique_constraint(:playable_item_id)
   end
 
   @impl true

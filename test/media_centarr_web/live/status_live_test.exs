@@ -82,6 +82,10 @@ defmodule MediaCentarrWeb.StatusLiveTest do
       # 100s into 1000s = 900s remaining = 15m
       assert html =~ "15m remaining"
 
+      # Library Schema v2 Phase 2 Task C: progress records carry
+      # `playable_item_id` only. `progress_matches_session?/2` reads
+      # the synthesised `:playable_item` discriminator pair
+      # (`EntityShape.attach_container/3` at runtime).
       send(
         view.pid,
         {:entity_progress_updated,
@@ -90,9 +94,8 @@ defmodule MediaCentarrWeb.StatusLiveTest do
            summary: %{},
            resume_target: nil,
            changed_record: %{
-             episode_id: nil,
-             video_object_id: nil,
-             movie_id: movie_id,
+             playable_item: %{container_type: :movie, container_id: movie_id},
+             playable_item_id: Ecto.UUID.generate(),
              position_seconds: 800.0,
              duration_seconds: 1000.0
            },

@@ -71,7 +71,13 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
 
       assert entity_id == tv_series.id
       assert changed_record.id == record.id
-      assert changed_record.episode_id == episode.id
+
+      # WatchProgress is keyed by `playable_item_id` since Library Schema
+      # v2 Phase 2 Task C; the linked PlayableItem carries the
+      # `(container_type, container_id)` discriminator.
+      changed_record = MediaCentarr.Repo.preload(changed_record, :playable_item)
+      assert changed_record.playable_item.container_type == :episode
+      assert changed_record.playable_item.container_id == episode.id
       assert changed_record.completed == true
     end
 
