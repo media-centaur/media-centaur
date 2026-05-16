@@ -21,6 +21,7 @@ defmodule MediaCentarr.Topics do
   | `library:file_events` | `Library` | per-file lifecycle |
   | `library:watch_completed` | `Library` | end-of-watch markers |
   | `library:availability` | `Library.Availability` | `{:availability_changed, dir, state}` |
+  | `library:progress` | `Library.Progress` | `{:progress_ticked, _}`, `{:progress_flushed, _}`, `{:progress_hydrated, _}` |
   | `playback:events` | `Playback` | progress + state-change events |
   | `watch_history:events` | `WatchHistory` | `{:watch_event_created, _}`, `{:watch_event_deleted, _}` |
   | `release_tracking:updates` | `ReleaseTracking` | `{:releases_updated, _}`, `{:item_removed, _, _}`, `{:release_ready, _, _}` |
@@ -82,6 +83,7 @@ defmodule MediaCentarr.Topics do
   def library_file_events, do: "library:file_events"
   def library_watch_completed, do: "library:watch_completed"
   def library_availability, do: "library:availability"
+  def library_progress, do: "library:progress"
   def pipeline_input, do: "pipeline:input"
   def pipeline_matched, do: "pipeline:matched"
   def pipeline_images, do: "pipeline:images"
