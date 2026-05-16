@@ -34,6 +34,7 @@ defmodule MediaCentarr.Library do
       TypeResolver,
       VideoObject,
       Views,
+      Views.BrowseItem,
       Views.ContinueWatching,
       Views.ContinueWatchingItem,
       Views.Detail,
