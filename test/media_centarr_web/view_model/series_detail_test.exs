@@ -375,9 +375,25 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetailTest do
     end
 
     season = create_season(%{tv_series_id: tv.id, season_number: 1, number_of_episodes: 1})
-    _episode = create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot"})
 
-    record_present(create_linked_file(%{tv_series_id: tv.id}))
+    episode =
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/media/test/#{tv.id}-s01e01.mkv"
+      })
+
+    # Library Schema v2 Phase 2 Task B: WatchedFile attaches to an
+    # Episode-level PlayableItem, not the TVSeries directly.
+    playable_item = create_playable_item_for_episode(episode)
+
+    record_present(
+      create_linked_file(%{
+        playable_item_id: playable_item.id,
+        file_path: episode.content_url
+      })
+    )
 
     tv
   end

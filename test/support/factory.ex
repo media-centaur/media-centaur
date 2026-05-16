@@ -419,6 +419,35 @@ defmodule MediaCentarr.TestFactory do
   end
 
   @doc """
+  Persists an `ExtraFile` row linking a path on disk to an Extra. Mirrors
+  `create_linked_file/1` for the WatchedFile/PlayableItem side, but for
+  bonus features.
+  """
+  def create_extra_file(attrs \\ %{}) do
+    defaults = %{
+      file_path: "/media/test/extras/#{Ecto.UUID.generate()}.mkv",
+      watch_dir: "/media/test"
+    }
+
+    merged = Map.merge(defaults, Map.new(attrs))
+    Library.create_extra_file!(merged)
+  end
+
+  @doc """
+  Convenience helper: creates an `ExtraFile` linked to the given Extra
+  struct. Defaults file_path to the Extra's `content_url` when set.
+  """
+  def create_extra_file_for_extra(%Extra{id: extra_id, content_url: content_url}, overrides \\ %{}) do
+    defaults = %{
+      extra_id: extra_id,
+      file_path: content_url || "/media/test/extras/#{Ecto.UUID.generate()}.mkv",
+      watch_dir: "/media/test"
+    }
+
+    create_extra_file(Map.merge(defaults, Map.new(overrides)))
+  end
+
+  @doc """
   Persists a `PlayableItem` row via `Library.create_playable_item!/1`. The
   caller supplies `:container_type` / `:container_id` pointing at an
   existing container; defaults fill in `:position` when unset.
@@ -495,13 +524,129 @@ defmodule MediaCentarr.TestFactory do
   defp type_fk(:movie_series), do: :movie_series_id
   defp type_fk(:video_object), do: :video_object_id
 
+  @doc """
+  Persists a `WatchedFile` linked to a `PlayableItem`. The factory
+  accepts both the new direct API (`:playable_item_id` or `:playable_item`)
+  and the legacy per-type FK keys (`:movie_id`, `:tv_series_id`,
+  `:movie_series_id`, `:video_object_id`) — the legacy keys are
+  translated to a PlayableItem on the fly so existing test setups keep
+  working through the Library Schema v2 Phase 2 Task B refit:
+
+    * `:movie_id` — ensures `PlayableItem(:movie, movie_id, 1)`.
+    * `:video_object_id` — ensures `PlayableItem(:video_object, vo_id, 1)`.
+    * `:tv_series_id` — auto-creates a Season + Episode under the series
+      whose `content_url == file_path`, then a `PlayableItem(:episode, …)`.
+    * `:movie_series_id` — auto-creates a child Movie under the series
+      whose `content_url == file_path`, then a `PlayableItem(:movie, …)`.
+  """
   def create_linked_file(attrs \\ %{}) do
     defaults = %{
       file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",
       watch_dir: "/media/test"
     }
 
-    Library.link_file!(Map.merge(defaults, attrs))
+    merged = Map.merge(defaults, Map.new(attrs))
+
+    playable_item_id = resolve_playable_item_id_for_factory(merged)
+
+    Library.link_file!(%{
+      file_path: merged.file_path,
+      watch_dir: merged.watch_dir,
+      playable_item_id: playable_item_id
+    })
+  end
+
+  # Translates the factory's legacy-shape attrs into a PlayableItem id.
+  defp resolve_playable_item_id_for_factory(%{playable_item_id: id}) when is_binary(id), do: id
+
+  defp resolve_playable_item_id_for_factory(%{playable_item: %{id: id}}), do: id
+
+  defp resolve_playable_item_id_for_factory(%{movie_id: movie_id} = _attrs) when is_binary(movie_id) do
+    ensure_factory_playable_item(:movie, movie_id, 1)
+  end
+
+  defp resolve_playable_item_id_for_factory(%{video_object_id: video_object_id})
+       when is_binary(video_object_id) do
+    ensure_factory_playable_item(:video_object, video_object_id, 1)
+  end
+
+  defp resolve_playable_item_id_for_factory(%{tv_series_id: tv_series_id, file_path: file_path})
+       when is_binary(tv_series_id) do
+    # Re-use an Episode under this series whose content_url matches the
+    # path; create one when none exists. The shape parallels production
+    # Inbound — the leaf Episode is the PlayableItem container.
+    episode =
+      Library.find_episode_by_content_url(tv_series_id, file_path) ||
+        create_factory_episode_for_tv_series(tv_series_id, file_path)
+
+    ensure_factory_playable_item(:episode, episode.id, episode.episode_number || 1)
+  end
+
+  defp resolve_playable_item_id_for_factory(%{movie_series_id: movie_series_id, file_path: file_path})
+       when is_binary(movie_series_id) do
+    movie =
+      Library.find_movie_by_content_url(movie_series_id, file_path) ||
+        create_factory_movie_for_series(movie_series_id, file_path)
+
+    ensure_factory_playable_item(:movie, movie.id, movie.position || 1)
+  end
+
+  # Factory-created Episodes use a synthetic season number (9001) and
+  # episode_number that won't collide with any explicit episode the
+  # test creates afterwards. Each factory WatchedFile gets a fresh
+  # episode_number so multiple calls don't share one episode.
+  defp create_factory_episode_for_tv_series(tv_series_id, file_path) do
+    {:ok, season} =
+      Library.find_or_create_season_for_tv_series(%{
+        tv_series_id: tv_series_id,
+        season_number: 9001,
+        name: "Factory Season",
+        number_of_episodes: 0
+      })
+
+    episode_number = System.unique_integer([:positive]) + 9000
+
+    {:ok, episode} =
+      Library.find_or_create_episode(%{
+        season_id: season.id,
+        episode_number: episode_number,
+        name: "Factory Episode",
+        content_url: file_path
+      })
+
+    if episode.content_url == nil do
+      {:ok, updated} = Library.set_episode_content_url(episode, %{content_url: file_path})
+      updated
+    else
+      episode
+    end
+  end
+
+  defp create_factory_movie_for_series(movie_series_id, file_path) do
+    {:ok, movie} =
+      Library.create_movie(%{
+        name: "Factory Child Movie #{System.unique_integer([:positive])}",
+        movie_series_id: movie_series_id,
+        content_url: file_path,
+        position: 1
+      })
+
+    movie
+  end
+
+  defp ensure_factory_playable_item(container_type, container_id, position) do
+    case Library.create_playable_item(%{
+           container_type: container_type,
+           container_id: container_id,
+           position: position
+         }) do
+      {:ok, item} ->
+        item.id
+
+      {:error, %Ecto.Changeset{}} ->
+        [item | _] = Library.list_playable_items_for(container_type, container_id)
+        item.id
+    end
   end
 
   def create_pending_file(attrs \\ %{}) do

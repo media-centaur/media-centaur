@@ -92,7 +92,20 @@ defmodule MediaCentarr.Profile.Loader do
         })
 
       file_path = Path.join("priv/profile/media", "movie_#{i}.mkv")
-      Library.link_file!(%{movie_id: movie.id, file_path: file_path, watch_dir: "priv/profile/media"})
+
+      {:ok, playable_item} =
+        Library.create_playable_item(%{
+          container_type: :movie,
+          container_id: movie.id,
+          position: 1
+        })
+
+      Library.link_file!(%{
+        playable_item_id: playable_item.id,
+        file_path: file_path,
+        watch_dir: "priv/profile/media"
+      })
+
       :ok = FilePresence.record_file(file_path, "priv/profile/media")
 
       movie.id
@@ -102,15 +115,6 @@ defmodule MediaCentarr.Profile.Loader do
   defp seed_series(count, episodes_per_series) do
     Enum.flat_map(1..count, fn series_index ->
       series = Library.create_tv_series!(%{name: "Profile Series #{series_index}"})
-      file_path = Path.join("priv/profile/media", "series_#{series_index}.mkv")
-
-      Library.link_file!(%{
-        tv_series_id: series.id,
-        file_path: file_path,
-        watch_dir: "priv/profile/media"
-      })
-
-      :ok = FilePresence.record_file(file_path, "priv/profile/media")
 
       season =
         Library.create_season!(%{
@@ -119,14 +123,40 @@ defmodule MediaCentarr.Profile.Loader do
           name: "Season 1"
         })
 
+      # A profile series ships with one Season + N Episodes, each with its
+      # own PlayableItem + WatchedFile. The per-series file from the old
+      # shape collapsed into per-episode files in the new schema (the
+      # TVSeries-level WatchedFile is no longer expressible — Library
+      # Schema v2 Phase 2 Task B).
       Enum.map(1..episodes_per_series, fn episode_number ->
+        file_path =
+          Path.join(
+            "priv/profile/media",
+            "series_#{series_index}_s01e#{episode_number}.mkv"
+          )
+
         episode =
           Library.create_episode!(%{
             season_id: season.id,
             episode_number: episode_number,
             name: "S01E#{episode_number}",
-            content_url: "/profile/series_#{series_index}_s01e#{episode_number}.mkv"
+            content_url: file_path
           })
+
+        {:ok, playable_item} =
+          Library.create_playable_item(%{
+            container_type: :episode,
+            container_id: episode.id,
+            position: episode_number
+          })
+
+        Library.link_file!(%{
+          playable_item_id: playable_item.id,
+          file_path: file_path,
+          watch_dir: "priv/profile/media"
+        })
+
+        :ok = FilePresence.record_file(file_path, "priv/profile/media")
 
         episode.id
       end)
