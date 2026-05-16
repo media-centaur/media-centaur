@@ -94,17 +94,27 @@ export class KeyboardSource {
       }
 
       if (this._inputEditing) {
-        // Enter exits edit mode back to navigation
+        // Enter: if the input is inside a form with phx-submit, let the
+        // form submission run naturally — exit edit mode but don't
+        // preventDefault, so the browser fires submit. Otherwise just
+        // exit edit mode back to navigation.
         if (event.key === "Enter") {
           this._setEditing(false)
-          event.preventDefault()
+          if (!event.target.closest("form[phx-submit]")) {
+            event.preventDefault()
+          }
         }
         // All other keys pass through to the input
         return
       }
 
-      // Focused but not editing — Enter activates edit mode
+      // Focused but not editing — Enter activates edit mode (or submits
+      // a form if the input is inside one, so first-press-after-typing
+      // works the same as during-editing).
       if (event.key === "Enter") {
+        if (event.target.closest("form[phx-submit]")) {
+          return
+        }
         this._setEditing(true)
         event.preventDefault()
         return
