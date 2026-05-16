@@ -65,15 +65,28 @@ defmodule MediaCentarr.Library.EntityTest do
     end
   end
 
-  describe "set_content_url" do
-    test "updates content_url on an existing movie" do
+  describe "playable file path" do
+    test "linking a WatchedFile populates the virtual content_url" do
+      # Library Schema v2 Phase 2 Task I dropped `Movie.content_url` as
+      # a persisted column. The file path now lives on the WatchedFile
+      # linked to the Movie's PlayableItem; the virtual `content_url`
+      # field is materialised by `Library.populate_content_urls/1` at
+      # fetch time.
       movie = create_entity(%{type: :movie, name: "Direct Play"})
       assert movie.content_url == nil
 
-      {:ok, updated} =
-        Library.set_movie_content_url(movie, %{content_url: "/media/movies/test.mkv"})
+      {:ok, playable_item} =
+        Library.find_or_create_playable_item(:movie, movie.id, movie.position || 1)
 
-      assert updated.content_url == "/media/movies/test.mkv"
+      _file =
+        Library.link_file!(%{
+          playable_item_id: playable_item.id,
+          file_path: "/media/movies/test.mkv",
+          watch_dir: "/media/movies"
+        })
+
+      assert {:ok, reloaded} = Library.fetch_movie(movie.id)
+      assert reloaded.content_url == "/media/movies/test.mkv"
     end
   end
 

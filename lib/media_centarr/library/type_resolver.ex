@@ -110,10 +110,15 @@ defmodule MediaCentarr.Library.TypeResolver do
     do: fetch_with_preload(Library.fetch_video_object(id), preloads)
 
   defp fetch_with_preload({:ok, record}, nil), do: {:ok, record}
-  defp fetch_with_preload({:ok, record}, preloads), do: {:ok, Repo.preload(record, preloads)}
+
+  defp fetch_with_preload({:ok, record}, preloads),
+    do: {:ok, record |> Repo.preload(preloads) |> Library.populate_content_urls()}
+
   defp fetch_with_preload({:error, :not_found}, _), do: :not_found
 
-  defp try_get({:ok, record}, preloads) when is_list(preloads), do: Repo.preload(record, preloads)
+  defp try_get({:ok, record}, preloads) when is_list(preloads),
+    do: record |> Repo.preload(preloads) |> Library.populate_content_urls()
+
   defp try_get({:ok, record}, nil), do: record
   defp try_get(_, _), do: nil
 
@@ -130,6 +135,8 @@ defmodule MediaCentarr.Library.TypeResolver do
     end
   end
 
-  defp apply_preloads(record, preloads) when is_list(preloads), do: Repo.preload(record, preloads)
+  defp apply_preloads(record, preloads) when is_list(preloads),
+    do: record |> Repo.preload(preloads) |> Library.populate_content_urls()
+
   defp apply_preloads(record, nil), do: record
 end

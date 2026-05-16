@@ -72,12 +72,20 @@ defmodule MediaCentarr.Library do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.library_updates())
   end
 
+  # Leaf preload chain for materialising the virtual `Episode.content_url` /
+  # `Movie.content_url` / `VideoObject.content_url` field (Library Schema
+  # v2 Phase 2 Task I). `populate_content_urls/1` walks
+  # `playable_items.watched_files` and stamps the file path on the leaf
+  # struct — callers that previously read `episode.content_url` keep
+  # working without code changes.
+  @leaf_file_path_preload [playable_items: :watched_files]
+
   @tv_series_full_preloads [
     :images,
     :external_ids,
     :extras,
     :watched_files,
-    seasons: [:extras, episodes: [:images, :watch_progress]]
+    seasons: [:extras, episodes: [:images, :watch_progress] ++ @leaf_file_path_preload]
   ]
 
   @movie_series_full_preloads [
@@ -85,7 +93,7 @@ defmodule MediaCentarr.Library do
     :external_ids,
     :extras,
     :watched_files,
-    movies: [:images, :watch_progress]
+    movies: [:images, :watch_progress] ++ @leaf_file_path_preload
   ]
 
   @movie_full_preloads [
@@ -93,14 +101,16 @@ defmodule MediaCentarr.Library do
     :external_ids,
     :extras,
     :watched_files,
-    :watch_progress
+    :watch_progress,
+    {:playable_items, :watched_files}
   ]
 
   @video_object_full_preloads [
     :images,
     :external_ids,
     :watched_files,
-    :watch_progress
+    :watch_progress,
+    {:playable_items, :watched_files}
   ]
 
   @doc """
@@ -132,13 +142,19 @@ defmodule MediaCentarr.Library do
 
   def fetch_tv_series_with_associations(id) do
     case Repo.get(TVSeries, id) do
-      nil -> {:error, :not_found}
-      tv_series -> {:ok, Repo.preload(tv_series, @tv_series_full_preloads)}
+      nil ->
+        {:error, :not_found}
+
+      tv_series ->
+        {:ok, tv_series |> Repo.preload(@tv_series_full_preloads) |> populate_content_urls()}
     end
   end
 
   def get_tv_series_with_associations!(id) do
-    Repo.preload(Repo.get!(TVSeries, id), @tv_series_full_preloads)
+    TVSeries
+    |> Repo.get!(id)
+    |> Repo.preload(@tv_series_full_preloads)
+    |> populate_content_urls()
   end
 
   def create_tv_series(attrs) do
@@ -171,13 +187,19 @@ defmodule MediaCentarr.Library do
 
   def fetch_movie_series_with_associations(id) do
     case Repo.get(MovieSeries, id) do
-      nil -> {:error, :not_found}
-      movie_series -> {:ok, Repo.preload(movie_series, @movie_series_full_preloads)}
+      nil ->
+        {:error, :not_found}
+
+      movie_series ->
+        {:ok, movie_series |> Repo.preload(@movie_series_full_preloads) |> populate_content_urls()}
     end
   end
 
   def get_movie_series_with_associations!(id) do
-    Repo.preload(Repo.get!(MovieSeries, id), @movie_series_full_preloads)
+    MovieSeries
+    |> Repo.get!(id)
+    |> Repo.preload(@movie_series_full_preloads)
+    |> populate_content_urls()
   end
 
   def create_movie_series(attrs) do
@@ -201,8 +223,14 @@ defmodule MediaCentarr.Library do
 
   def fetch_video_object(id) do
     case Repo.get(VideoObject, id) do
-      nil -> {:error, :not_found}
-      video_object -> {:ok, video_object}
+      nil ->
+        {:error, :not_found}
+
+      video_object ->
+        # Populate the virtual `content_url` so consumers that read
+        # `video_object.content_url` post-fetch see the on-disk path
+        # (Library Schema v2 Phase 2 Task I).
+        {:ok, video_object |> Repo.preload(@leaf_file_path_preload) |> populate_content_urls()}
     end
   end
 
@@ -210,13 +238,19 @@ defmodule MediaCentarr.Library do
 
   def fetch_video_object_with_associations(id) do
     case Repo.get(VideoObject, id) do
-      nil -> {:error, :not_found}
-      video_object -> {:ok, Repo.preload(video_object, @video_object_full_preloads)}
+      nil ->
+        {:error, :not_found}
+
+      video_object ->
+        {:ok, video_object |> Repo.preload(@video_object_full_preloads) |> populate_content_urls()}
     end
   end
 
   def get_video_object_with_associations!(id) do
-    Repo.preload(Repo.get!(VideoObject, id), @video_object_full_preloads)
+    VideoObject
+    |> Repo.get!(id)
+    |> Repo.preload(@video_object_full_preloads)
+    |> populate_content_urls()
   end
 
   def create_video_object(attrs) do
@@ -422,6 +456,103 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
+  Returns the on-disk file path for a PlayableItem's currently-present
+  file, or `nil` when no `WatchedFile` for the item is marked present
+  in `watcher_files`.
+
+  Reads `WatchedFile.file_path` joined against `watcher_files` filtered
+  on `state == :present` — the same gate the UI's `Availability` and
+  the `PresentableQueries` subqueries apply. Replaces the
+  `Movie.content_url` / `Episode.content_url` / `VideoObject.content_url`
+  reads removed in Library Schema v2 Phase 2 Task I — after that task
+  `WatchedFile.file_path` is the sole source of truth for "the file on
+  disk for this playable thing."
+
+  When a PlayableItem has multiple WatchedFiles (rare; only the
+  director's-cut / multi-cut shape produces this), the first present
+  match by insertion order wins. Callers that need every variant
+  should query `WatchedFile` directly.
+  """
+  @spec playable_file_path(Ecto.UUID.t()) :: String.t() | nil
+  def playable_file_path(playable_item_id) when is_binary(playable_item_id) do
+    Repo.one(
+      from(w in WatchedFile,
+        join: k in "watcher_files",
+        on: k.file_path == w.file_path,
+        where: w.playable_item_id == ^playable_item_id and k.state == "present",
+        order_by: [asc: w.inserted_at],
+        limit: 1,
+        select: w.file_path
+      )
+    )
+  end
+
+  def playable_file_path(_), do: nil
+
+  @doc """
+  Stamps the virtual `:content_url` field on a fetched container (and its
+  preloaded leaves) from the WatchedFile chain.
+
+  The container types `:movie`, `:episode`, and `:video_object` carry
+  `content_url` as a virtual schema field (Library Schema v2 Phase 2
+  Task I dropped the persisted column; the on-disk path now lives only
+  on `library_watched_files.file_path` via `PlayableItem`). This helper
+  is the single seam that materialises that virtual at read time so
+  downstream consumers (`EntityShape`, `EpisodeList`, `MovieList`, the
+  detail panel) keep their natural `record.content_url` reads.
+
+  Walks the record's preloaded `playable_items.watched_files` and
+  records the first WatchedFile's `file_path` on the leaf. Stamps `nil`
+  when no WatchedFile is linked — the same shape the dropped column
+  used to carry. Recurses into `:seasons → :episodes` for TVSeries and
+  `:movies` for MovieSeries.
+
+  Callers must preload `playable_items: :watched_files` on the leaf
+  level. `full_preloads_by_type/0` and the typed `fetch_*_with_associations`
+  paths already include it (Library Schema v2 Phase 2 Task I).
+  """
+  @spec populate_content_urls(struct() | nil) :: struct() | nil
+  def populate_content_urls(nil), do: nil
+
+  def populate_content_urls(%Movie{} = movie), do: populate_leaf_content_url(movie)
+
+  def populate_content_urls(%Episode{} = episode), do: populate_leaf_content_url(episode)
+
+  def populate_content_urls(%VideoObject{} = video), do: populate_leaf_content_url(video)
+
+  def populate_content_urls(%TVSeries{seasons: seasons} = tv_series) when is_list(seasons) do
+    %{tv_series | seasons: Enum.map(seasons, &populate_season_content_urls/1)}
+  end
+
+  def populate_content_urls(%MovieSeries{movies: movies} = ms) when is_list(movies) do
+    %{ms | movies: Enum.map(movies, &populate_leaf_content_url/1)}
+  end
+
+  def populate_content_urls(other), do: other
+
+  defp populate_season_content_urls(%Season{episodes: episodes} = season) when is_list(episodes) do
+    %{season | episodes: Enum.map(episodes, &populate_leaf_content_url/1)}
+  end
+
+  defp populate_season_content_urls(season), do: season
+
+  defp populate_leaf_content_url(%{playable_items: playable_items} = leaf)
+       when is_list(playable_items) do
+    url =
+      Enum.find_value(playable_items, fn
+        %PlayableItem{watched_files: [%WatchedFile{file_path: path} | _]} when is_binary(path) ->
+          path
+
+        _ ->
+          nil
+      end)
+
+    %{leaf | content_url: url}
+  end
+
+  defp populate_leaf_content_url(leaf), do: leaf
+
+  @doc """
   Returns an Ecto subquery selecting `file_path` from every linked
   WatchedFile. Exposed so cross-context queries (Watcher's
   `rescan_unlinked`) can compose against linked-file state without
@@ -490,9 +621,15 @@ defmodule MediaCentarr.Library do
   def list_movies_by_owner_id(owner_id, opts \\ []) do
     preloads = Keyword.get(opts, :load, [])
 
+    # Preload the WatchedFile chain so the virtual `content_url`
+    # populates on the returned Movie structs (Library Schema v2
+    # Phase 2 Task I).
+    full_preloads = List.flatten([@leaf_file_path_preload | preloads])
+
     from(m in Movie, where: m.movie_series_id == ^owner_id)
     |> Repo.all()
-    |> maybe_preload(preloads)
+    |> Repo.preload(full_preloads)
+    |> Enum.map(&populate_content_urls/1)
   end
 
   @doc """
@@ -733,10 +870,16 @@ defmodule MediaCentarr.Library do
   defp schema_for_owner_type(:video_object), do: VideoObject
 
   @doc """
-  Returns `{:ok, content_url}` if the library has a movie with this
-  TMDB id whose file has been ingested (`content_url` is set), otherwise
-  `:not_found`. Used by `Acquisition.Pursuits.LibraryReconciler` as the
-  safety-net check against the PubSub-driven completion path.
+  Returns `{:ok, file_path}` if the library has a movie with this TMDB
+  id whose file has been linked (a `WatchedFile` exists for the movie's
+  `PlayableItem`), otherwise `:not_found`. Used by
+  `Acquisition.Pursuits.LibraryReconciler` as the safety-net check
+  against the PubSub-driven completion path.
+
+  After Library Schema v2 Phase 2 Task I the on-disk path lives on
+  `library_watched_files.file_path` via `PlayableItem`; this query
+  walks `Movie → PlayableItem → WatchedFile` rather than reading a
+  former `content_url` column on Movie.
   """
   @spec find_present_movie(String.t()) :: {:ok, String.t()} | :not_found
   def find_present_movie(tmdb_id) when is_binary(tmdb_id) do
@@ -744,8 +887,12 @@ defmodule MediaCentarr.Library do
            from(m in Movie,
              join: e in ExternalId,
              on: e.owner_id == m.id and e.owner_type == :movie,
-             where: e.source == "tmdb" and e.external_id == ^tmdb_id and not is_nil(m.content_url),
-             select: m.content_url,
+             join: pi in PlayableItem,
+             on: pi.container_id == m.id and pi.container_type == :movie,
+             join: w in WatchedFile,
+             on: w.playable_item_id == pi.id,
+             where: e.source == "tmdb" and e.external_id == ^tmdb_id,
+             select: w.file_path,
              limit: 1
            )
          ) do
@@ -755,11 +902,11 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
-  Returns `{:ok, content_url}` if the library has an episode for the
+  Returns `{:ok, file_path}` if the library has an episode for the
   given `(tmdb_id, season_number, episode_number)` tuple whose file has
-  been ingested, otherwise `:not_found`. Joins through TVSeries → Season
-  → Episode in a single query, using `library_external_ids` to resolve
-  the TMDB id onto the series.
+  been linked, otherwise `:not_found`. Joins through
+  `TVSeries → Season → Episode → PlayableItem → WatchedFile` in a
+  single query.
   """
   @spec find_present_episode(String.t(), integer(), integer()) ::
           {:ok, String.t()} | :not_found
@@ -773,11 +920,15 @@ defmodule MediaCentarr.Library do
              on: t.id == s.tv_series_id,
              join: ext in ExternalId,
              on: ext.owner_id == t.id and ext.owner_type == :tv_series,
+             join: pi in PlayableItem,
+             on: pi.container_id == e.id and pi.container_type == :episode,
+             join: w in WatchedFile,
+             on: w.playable_item_id == pi.id,
              where:
                ext.source == "tmdb" and ext.external_id == ^tmdb_id and
                  s.season_number == ^season_number and
-                 e.episode_number == ^episode_number and not is_nil(e.content_url),
-             select: e.content_url,
+                 e.episode_number == ^episode_number,
+             select: w.file_path,
              limit: 1
            )
          ) do
@@ -874,18 +1025,19 @@ defmodule MediaCentarr.Library do
 
   def fetch_movie(id) do
     case Repo.get(Movie, id) do
-      nil -> {:error, :not_found}
-      movie -> {:ok, movie}
+      nil ->
+        {:error, :not_found}
+
+      movie ->
+        # Populate the virtual `content_url` from `playable_items.watched_files`
+        # (Library Schema v2 Phase 2 Task I) so callers that read
+        # `movie.content_url` post-fetch see the on-disk path. The
+        # column-less Movie row alone can't materialise it.
+        {:ok, movie |> Repo.preload(@leaf_file_path_preload) |> populate_content_urls()}
     end
   end
 
   def get_movie!(id), do: Repo.get!(Movie, id)
-
-  def set_movie_content_url(movie, attrs) do
-    Repo.update(Movie.set_content_url_changeset(movie, attrs))
-  end
-
-  def set_movie_content_url!(movie, attrs), do: Repo.bang!(set_movie_content_url(movie, attrs))
 
   def create_movie(attrs) do
     Repo.insert(Movie.create_changeset(attrs))
@@ -898,13 +1050,19 @@ defmodule MediaCentarr.Library do
 
   def fetch_movie_with_associations(id) do
     case Repo.get(Movie, id) do
-      nil -> {:error, :not_found}
-      movie -> {:ok, Repo.preload(movie, @movie_full_preloads)}
+      nil ->
+        {:error, :not_found}
+
+      movie ->
+        {:ok, movie |> Repo.preload(@movie_full_preloads) |> populate_content_urls()}
     end
   end
 
   def get_movie_with_associations!(id) do
-    Repo.preload(Repo.get!(Movie, id), @movie_full_preloads)
+    Movie
+    |> Repo.get!(id)
+    |> Repo.preload(@movie_full_preloads)
+    |> populate_content_urls()
   end
 
   @doc """
@@ -1089,15 +1247,27 @@ defmodule MediaCentarr.Library do
   def list_episodes_for_season(season_id, opts \\ []) do
     preloads = Keyword.get(opts, :load, [])
 
+    # Preload the WatchedFile chain so the virtual `content_url`
+    # populates on the returned Episode structs (Library Schema v2
+    # Phase 2 Task I).
+    full_preloads = List.flatten([@leaf_file_path_preload | preloads])
+
     from(e in Episode, where: e.season_id == ^season_id)
     |> Repo.all()
-    |> maybe_preload(preloads)
+    |> Repo.preload(full_preloads)
+    |> Enum.map(&populate_content_urls/1)
   end
 
   def fetch_episode(id) do
     case Repo.get(Episode, id) do
-      nil -> {:error, :not_found}
-      episode -> {:ok, episode}
+      nil ->
+        {:error, :not_found}
+
+      episode ->
+        # Populate the virtual `content_url` so consumers (`Resolver`,
+        # detail panel) that read `episode.content_url` post-fetch see
+        # the on-disk path (Library Schema v2 Phase 2 Task I).
+        {:ok, episode |> Repo.preload(@leaf_file_path_preload) |> populate_content_urls()}
     end
   end
 
@@ -1114,48 +1284,74 @@ defmodule MediaCentarr.Library do
   def find_or_create_episode!(attrs), do: Repo.bang!(find_or_create_episode(attrs))
 
   @doc """
-  Finds the Episode under `tv_series_id` whose `content_url` matches
-  `file_path`. Used by `Library.Inbound` to resolve the leaf Episode
-  for an incoming TV WatchedFile (Library Schema v2 Phase 2 Task B).
+  Finds the Episode under `tv_series_id` linked to `file_path` via its
+  `PlayableItem → WatchedFile` chain. After Library Schema v2 Phase 2
+  Task I dropped `Episode.content_url`, this lookup goes through the
+  WatchedFile join — `WatchedFile.file_path` is the sole source of truth
+  for "the file on disk for this Episode."
 
-  Returns `nil` when no Episode matches — callers must handle the
-  missing-row case (typically an ingest race or a stale event).
+  Returns `nil` when no Episode has been linked to `file_path` — callers
+  must handle the missing-row case (typically an ingest race or a stale
+  event).
   """
-  @spec find_episode_by_content_url(Ecto.UUID.t(), String.t()) :: Episode.t() | nil
-  def find_episode_by_content_url(tv_series_id, file_path)
+  @spec find_episode_by_path(Ecto.UUID.t(), String.t()) :: Episode.t() | nil
+  def find_episode_by_path(tv_series_id, file_path)
       when is_binary(tv_series_id) and is_binary(file_path) do
     Repo.one(
       from(e in Episode,
         join: s in Season,
         on: s.id == e.season_id,
-        where: s.tv_series_id == ^tv_series_id and e.content_url == ^file_path,
+        join: pi in PlayableItem,
+        on: pi.container_id == e.id and pi.container_type == :episode,
+        join: w in WatchedFile,
+        on: w.playable_item_id == pi.id,
+        where: s.tv_series_id == ^tv_series_id and w.file_path == ^file_path,
         limit: 1
       )
     )
   end
 
   @doc """
-  Finds the child Movie under `movie_series_id` whose `content_url`
-  matches `file_path`. The collection-child counterpart of
-  `find_episode_by_content_url/2`.
+  Finds the child Movie under `movie_series_id` linked to `file_path`
+  via its `PlayableItem → WatchedFile` chain. The collection-child
+  counterpart of `find_episode_by_path/2`.
   """
-  @spec find_movie_by_content_url(Ecto.UUID.t(), String.t()) :: Movie.t() | nil
-  def find_movie_by_content_url(movie_series_id, file_path)
+  @spec find_movie_by_path(Ecto.UUID.t(), String.t()) :: Movie.t() | nil
+  def find_movie_by_path(movie_series_id, file_path)
       when is_binary(movie_series_id) and is_binary(file_path) do
     Repo.one(
       from(m in Movie,
-        where: m.movie_series_id == ^movie_series_id and m.content_url == ^file_path,
+        join: pi in PlayableItem,
+        on: pi.container_id == m.id and pi.container_type == :movie,
+        join: w in WatchedFile,
+        on: w.playable_item_id == pi.id,
+        where: m.movie_series_id == ^movie_series_id and w.file_path == ^file_path,
         limit: 1
       )
     )
   end
 
-  def set_episode_content_url(episode, attrs) do
-    Repo.update(Episode.set_content_url_changeset(episode, attrs))
-  end
-
-  def set_episode_content_url!(episode, attrs) do
-    Repo.bang!(set_episode_content_url(episode, attrs))
+  @doc """
+  Finds the Episode under `tv_series_id` with `(season_number, episode_number)`.
+  Used by callers that have the (season_number, episode_number) tuple
+  directly — `Library.Inbound`'s `leaf_container_for` walks this path
+  because at file-link time the WatchedFile doesn't exist yet (it's
+  being created in the same flow).
+  """
+  @spec find_episode_by_season_episode(Ecto.UUID.t(), integer(), integer()) :: Episode.t() | nil
+  def find_episode_by_season_episode(tv_series_id, season_number, episode_number)
+      when is_binary(tv_series_id) and is_integer(season_number) and is_integer(episode_number) do
+    Repo.one(
+      from(e in Episode,
+        join: s in Season,
+        on: s.id == e.season_id,
+        where:
+          s.tv_series_id == ^tv_series_id and
+            s.season_number == ^season_number and
+            e.episode_number == ^episode_number,
+        limit: 1
+      )
+    )
   end
 
   def create_episode(attrs) do

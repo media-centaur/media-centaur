@@ -1,13 +1,21 @@
 defmodule MediaCentarr.Library.Episode do
   @moduledoc """
-  A TV episode belonging to a `Season`. Stores per-episode metadata from TMDB
-  and the local `content_url` linking to the video file.
+  A TV episode belonging to a `Season`. Stores per-episode metadata from
+  TMDB.
 
   `duration_seconds` is the canonical integer-seconds field (Library Schema
   v2 Phase 1 Task 3). The pipeline derives it from TMDB's per-episode
   `runtime` (minutes) at ingest time via `TMDB.Mapper.episode_attrs/4`. The
   prior stringly-typed `:duration` column was dropped; any previously-stored
   values are not recoverable but are repopulated on the next TMDB refresh.
+
+  ## `content_url` is a derived virtual field
+
+  `content_url` no longer carries a persisted column (Library Schema v2
+  Phase 2 Task I dropped it). It is materialised at read time from
+  `playable_items.watched_files.file_path` by
+  `MediaCentarr.Library.populate_content_urls/1`. Writes must go through
+  `Library.link_file/1` against the Episode's `PlayableItem`.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -21,7 +29,11 @@ defmodule MediaCentarr.Library.Episode do
     field :name, :string
     field :description, :string
     field :duration_seconds, :integer
-    field :content_url, :string
+    # Virtual: populated from `playable_items.watched_files.file_path` by
+    # `MediaCentarr.Library.populate_content_urls/1` (Library Schema v2
+    # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
+    # the sole source of truth.
+    field :content_url, :string, virtual: true
 
     belongs_to :season, MediaCentarr.Library.Season
 
@@ -61,13 +73,8 @@ defmodule MediaCentarr.Library.Episode do
       :name,
       :description,
       :duration_seconds,
-      :content_url,
       :season_id
     ])
     |> validate_required([:season_id, :episode_number])
-  end
-
-  def set_content_url_changeset(episode, attrs) do
-    cast(episode, attrs, [:content_url])
   end
 end

@@ -38,7 +38,10 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
       assert metadata.entity_type == :movie
       assert metadata.entity_attrs.name == "Sample Movie"
       assert metadata.entity_attrs.type == :movie
-      assert metadata.entity_attrs.content_url == "/media/Sample.Movie.1999.mkv"
+      # Library Schema v2 Phase 2 Task I — the file path lives on the
+      # published event (added by `Pipeline.Stages.Ingest`), not on the
+      # metadata's entity attrs.
+      refute Map.has_key?(metadata.entity_attrs, :content_url)
       assert metadata.identifier == %{source: "tmdb", external_id: "550"}
       refute metadata.images == []
       assert Enum.any?(metadata.images, &(&1.role == "poster"))
@@ -139,7 +142,10 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadataTest do
       episode = season.episode
       assert episode.attrs.episode_number == 1
       assert episode.attrs.name == "Pilot"
-      assert episode.attrs.content_url == "/media/TV/Sample.Show.S01E01.mkv"
+      # Library Schema v2 Phase 2 Task I — the file path lives on the
+      # published event (added by `Pipeline.Stages.Ingest`), not on the
+      # episode attrs.
+      refute Map.has_key?(episode.attrs, :content_url)
     end
 
     test "includes episode thumbnail when available" do

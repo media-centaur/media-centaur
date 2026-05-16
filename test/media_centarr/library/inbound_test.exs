@@ -210,9 +210,14 @@ defmodule MediaCentarr.Library.InboundTest do
       assert length(series.movies) == 1
       movie = hd(series.movies)
       assert movie.name == "Sample Movie Two"
-      assert movie.content_url == "/media/Sample.Movie.2008.mkv"
       assert movie.position == 1
       assert movie.movie_series_id == series.id
+
+      # Phase 2 Task I — content_url is a virtual derived from WatchedFile,
+      # not a column on the preloaded child Movie. Read it via the
+      # Library getter.
+      assert {:ok, reloaded_movie} = Library.fetch_movie(movie.id)
+      assert reloaded_movie.content_url == "/media/Sample.Movie.2008.mkv"
 
       # Pending images include movie_series + child movie images
       assert length(pending_images) == 2
@@ -294,7 +299,12 @@ defmodule MediaCentarr.Library.InboundTest do
       episode = hd(season.episodes)
       assert episode.episode_number == 1
       assert episode.name == "Pilot"
-      assert episode.content_url == "/media/TV/Sample.Show.S01E01.mkv"
+
+      # Library Schema v2 Phase 2 Task I: `Episode.content_url` is a
+      # derived virtual; the persisted path lives on `WatchedFile.file_path`
+      # linked through the Episode's PlayableItem.
+      assert {:ok, reloaded_episode} = Library.fetch_episode(episode.id)
+      assert reloaded_episode.content_url == "/media/TV/Sample.Show.S01E01.mkv"
 
       # Pending images: tv_series poster + episode thumb
       assert length(pending_images) == 2
@@ -324,7 +334,11 @@ defmodule MediaCentarr.Library.InboundTest do
               },
               images: []
             }
-          }
+          },
+          # file_path must match the new episode's content_url so the
+          # WatchedFile (Library Schema v2 Phase 2 Task I, the sole source
+          # of truth for the on-disk path) is linked to the right leaf.
+          file_path: "/media/TV/Sample.Show.S01E02.mkv"
         )
 
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(event)
@@ -336,7 +350,11 @@ defmodule MediaCentarr.Library.InboundTest do
       assert length(tv_series.seasons) == 1
       episode = hd(hd(tv_series.seasons).episodes)
       assert episode.episode_number == 2
-      assert episode.content_url == "/media/TV/Sample.Show.S01E02.mkv"
+
+      # Phase 2 Task I — read content_url via the Library getter, not the
+      # raw preloaded Episode (which carries only the virtual field).
+      assert {:ok, reloaded_episode} = Library.fetch_episode(episode.id)
+      assert reloaded_episode.content_url == "/media/TV/Sample.Show.S01E02.mkv"
     end
 
     test "TV without season/episode — no-op" do

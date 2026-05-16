@@ -139,8 +139,7 @@ defmodule MediaCentarr.Profile.Loader do
           Library.create_episode!(%{
             season_id: season.id,
             episode_number: episode_number,
-            name: "S01E#{episode_number}",
-            content_url: file_path
+            name: "S01E#{episode_number}"
           })
 
         {:ok, playable_item} =
