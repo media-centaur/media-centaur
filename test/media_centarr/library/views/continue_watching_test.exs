@@ -176,6 +176,87 @@ defmodule MediaCentarr.Library.Views.ContinueWatchingTest do
     end
   end
 
+  describe "stale-read window — refresh reflects in-memory progress" do
+    # Regression for Library Schema v2 Phase 3 Task E I-2: the
+    # `MediaCentarr.Library.Progress.record/3` hot-path writes to the
+    # in-memory ETS table only; the debounced flush lands seconds
+    # later. Before the fix, `list_in_progress/1` (and therefore
+    # `ContinueWatching.refresh_cache/0` and the DB-fallback path)
+    # read straight from the persisted `library_watch_progress`
+    # table, so the rendered progress bar lagged active playback by
+    # one flush interval. The overlay in `Library.list_in_progress`
+    # closes that window.
+
+    alias MediaCentarr.Library.Progress
+
+    @flush_interval_ms 60_000
+
+    defp ensure_progress_worker! do
+      case Process.whereis(Progress.Worker) do
+        nil ->
+          {:ok, _pid} =
+            start_supervised(
+              {Progress.Worker, [flush_interval_ms: @flush_interval_ms, name: Progress.Worker]}
+            )
+
+          :ok
+
+        _pid ->
+          :ok
+      end
+    end
+
+    test "Continue Watching reflects fresh in-memory position written via Progress.record/3" do
+      on_exit_clear_table()
+      ensure_progress_worker!()
+      Progress.reset_for_test!()
+
+      movie = create_standalone_movie(%{name: "Stale CW Movie"})
+      record_present(create_linked_file(%{movie_id: movie.id}))
+
+      # Persist a stale 20% progress row on disk.
+      persisted =
+        create_watch_progress(%{
+          movie_id: movie.id,
+          position_seconds: 20.0,
+          duration_seconds: 100.0
+        })
+
+      # Use the PlayableItem the persisted progress is bound to (the
+      # `find_or_create_watch_progress_for_movie` writer resolves its
+      # own canonical PI for the movie — Movie.position drives the
+      # choice, which may differ from the file-linked PI).
+      playable_item_id = persisted.playable_item_id
+
+      # Write a fresh 80% position to in-memory state only. The
+      # flush interval is 60s, so disk stays at 20% for the test.
+      :ok = Progress.record(playable_item_id, 80.0, 100.0)
+
+      # Sanity: ensure the in-memory row carries the fresh 80s position
+      # before the cache refresh reads it. Without this, a Progress
+      # API regression could mask the projection-side regression.
+      hot = Progress.get(playable_item_id)
+      assert hot.position_seconds == 80.0
+      assert hot.playable_item_id == playable_item_id
+
+      # Also check list_in_progress directly — bypasses the cache so
+      # any DB-fallback path issues show up cleanly.
+      [row] = MediaCentarr.Library.list_in_progress(limit: 5)
+      assert row.entity_id == movie.id
+
+      assert row.progress_pct == 80,
+             "Library.list_in_progress should overlay in-memory progress (got #{row.progress_pct})"
+
+      :ok = ContinueWatching.refresh_cache()
+
+      [item] = Views.continue_watching(limit: 5)
+      assert item.entity_id == movie.id
+
+      # 80% from in-memory state, NOT 20% from disk. Pre-fix this was 20.
+      assert item.progress_pct == 80
+    end
+  end
+
   describe "ContinueWatchingItem struct" do
     test "enforces entity_id and entity_name" do
       assert_raise ArgumentError, fn ->

@@ -1893,6 +1893,7 @@ defmodule MediaCentarr.Library do
 
     (movie_entries ++
        hoisted_entries ++ tv_series_entries ++ video_object_entries ++ movie_series_entries)
+    |> Enum.map(&overlay_in_memory_progress/1)
     |> Enum.sort_by(
       fn entry -> entry_last_watched_at(entry) || @epoch_datetime end,
       {:desc, DateTime}
@@ -1900,6 +1901,45 @@ defmodule MediaCentarr.Library do
     |> Enum.take(limit)
     |> Enum.map(&shape_in_progress_row/1)
   end
+
+  # Overlays the hot-path in-memory `WatchProgress` state on top of the
+  # DB-preloaded progress records so Continue Watching reflects the live
+  # position during active playback. Without this, the persisted row is
+  # ~5s stale (the `MediaCentarr.Library.Progress` debounced-flush
+  # interval), so the bar visibly lags playback. Closes the same
+  # stale-read window the `Playback.ProgressBroadcaster` overlay
+  # closes for the modal — Library Schema v2 Phase 3 Task E I-2.
+  #
+  # Re-runs the per-record overlay AND patches the `progress`
+  # summary's `episode_position_seconds` / `episode_duration_seconds`
+  # so `ContinueWatchingProgress.compute_pct/1` (which reads from the
+  # summary, not the records) sees the fresh numbers.
+  defp overlay_in_memory_progress(%{progress_records: records, progress: summary} = entry) do
+    fresh =
+      Enum.map(records, fn record ->
+        case record.playable_item_id &&
+               MediaCentarr.Library.Progress.lookup_in_memory(record.playable_item_id) do
+          nil ->
+            record
+
+          %{} = hot ->
+            %{
+              record
+              | position_seconds: hot.position_seconds,
+                duration_seconds: hot.duration_seconds,
+                completed: hot.completed,
+                last_watched_at: hot.last_watched_at
+            }
+        end
+      end)
+
+    refreshed_summary =
+      Map.merge(summary, ContinueWatchingProgress.current_position_summary(fresh))
+
+    %{entry | progress_records: fresh, progress: refreshed_summary}
+  end
+
+  defp overlay_in_memory_progress(entry), do: entry
 
   @doc """
   List recently-added entities (newest `inserted_at` first), regardless of

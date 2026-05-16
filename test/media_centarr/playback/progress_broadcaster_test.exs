@@ -85,4 +85,72 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
       assert :ok == ProgressBroadcaster.broadcast(Ecto.UUID.generate())
     end
   end
+
+  describe "stale-read window — broadcast must reflect in-memory progress" do
+    # Regression for Library Schema v2 Phase 3 Task E I-2: the
+    # `LibraryProgress.record/3` hot-path writes to the in-memory ETS
+    # table only; the debounced flush persists to disk on the next
+    # interval (default ~5s). Before Phase 3 Task E,
+    # `ProgressBroadcaster.broadcast/1` re-read entity progress via
+    # `TypeResolver.resolve_container` + Repo preload — which would
+    # see the *stale* persisted row, not the fresh in-memory state.
+    # The fix overlays `Library.Progress.get/1` for every record's
+    # `playable_item_id` after the DB load.
+
+    alias MediaCentarr.Library.Progress
+
+    @flush_interval_ms 60_000
+
+    defp ensure_progress_worker! do
+      case Process.whereis(Progress.Worker) do
+        nil ->
+          {:ok, _pid} =
+            start_supervised(
+              {Progress.Worker, [flush_interval_ms: @flush_interval_ms, name: Progress.Worker]}
+            )
+
+          :ok
+
+        _pid ->
+          :ok
+      end
+    end
+
+    test "broadcast payload reflects fresh in-memory position written via Progress.record/3" do
+      ensure_progress_worker!()
+      Progress.reset_for_test!()
+
+      # Seed a movie with a *stale* persisted WatchProgress at 10s.
+      movie = create_standalone_movie(%{name: "Stale Read Movie"})
+      pi = create_playable_item_for_movie(movie)
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 10.0,
+        duration_seconds: 100.0
+      })
+
+      # Write a *fresh* in-memory position via the Pillar-2 GenServer.
+      # The flush interval is 60s, so the persisted row stays at 10s
+      # for the duration of the test.
+      :ok = Progress.record(pi.id, 75.0, 100.0)
+
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
+
+      ProgressBroadcaster.broadcast(movie.id)
+
+      assert_receive {:entity_progress_updated,
+                      %{
+                        entity_id: entity_id,
+                        summary: summary
+                      }}
+
+      assert entity_id == movie.id
+
+      # The summary's episode_position_seconds must reflect the fresh
+      # in-memory 75s, not the persisted 10s. Before the fix this
+      # carried 10.0 because the broadcaster re-read from the DB.
+      assert summary.episode_position_seconds == 75.0
+    end
+  end
 end
