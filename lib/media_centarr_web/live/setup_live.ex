@@ -279,9 +279,16 @@ defmodule MediaCentarrWeb.SetupLive do
 
   defp run_connection_test(_), do: {:error, :unsupported}
 
-  defp prowlarr_url, do: Config.get(:prowlarr_url) || ""
+  # The default URLs match the standard local-install endpoints. We
+  # pre-fill them so the user doesn't have to type a value almost every
+  # install will want — but the placeholder stays on the input so if
+  # the user clears it the hint is still visible.
+  @prowlarr_default_url "http://localhost:9696"
+  @download_client_default_url "http://localhost:8080"
 
-  defp download_client_url, do: Config.get(:download_client_url) || ""
+  defp prowlarr_url, do: Config.get(:prowlarr_url) || @prowlarr_default_url
+
+  defp download_client_url, do: Config.get(:download_client_url) || @download_client_default_url
 
   defp download_client_username, do: Config.get(:download_client_username) || ""
 
