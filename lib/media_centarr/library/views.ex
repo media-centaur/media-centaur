@@ -13,6 +13,8 @@ defmodule MediaCentarr.Library.Views do
   caller's POV.
   """
 
+  alias MediaCentarr.Library.Views.Browse
+  alias MediaCentarr.Library.Views.BrowseItem
   alias MediaCentarr.Library.Views.ContinueWatching
   alias MediaCentarr.Library.Views.ContinueWatchingItem
   alias MediaCentarr.Library.Views.HeroCandidates
@@ -48,4 +50,20 @@ defmodule MediaCentarr.Library.Views do
   """
   @spec recently_added(keyword()) :: [RecentlyAddedItem.t()]
   def recently_added(opts \\ []), do: RecentlyAdded.read(opts)
+
+  @doc """
+  Returns the library browse grid as pre-shaped `BrowseItem` structs
+  in display order (alphabetical by name, case-insensitive).
+
+  Reads bypass the GenServer via `:ets.tab2list/1` when the
+  projection's Cache.Worker is running; falls back to the underlying
+  DB query when it isn't (test mode / pre-boot window).
+
+  Options:
+    * `:kind`         — filter by `:movie | :tv_series | :movie_series | :video_object`
+    * `:present_only` — when `true`, exclude entities whose backing
+                        files aren't currently reachable
+  """
+  @spec browse(keyword()) :: [BrowseItem.t()]
+  def browse(opts \\ []), do: Browse.read(opts)
 end
