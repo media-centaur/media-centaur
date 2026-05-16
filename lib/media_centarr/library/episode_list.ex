@@ -29,14 +29,27 @@ defmodule MediaCentarr.Library.EpisodeList do
   end
 
   @doc """
-  Indexes progress records by their FK — `episode_id` or `movie_id`.
+  Indexes progress records by their container id (Movie or Episode id),
+  resolved through the linked `PlayableItem`. Expects `:playable_item` to
+  be preloaded on each record (Library Schema v2 Phase 2 Task C — the
+  three direct FKs `movie_id` / `episode_id` / `video_object_id` no
+  longer exist on `WatchProgress`).
   """
   def index_progress_by_key(progress_records) do
     Map.new(progress_records, fn record ->
-      key = record.episode_id || record.movie_id
-      {key, record}
+      {progress_container_id(record), record}
     end)
   end
+
+  @doc """
+  Returns the container id (Movie / Episode / VideoObject UUID) for a
+  WatchProgress record. Requires `:playable_item` to be preloaded.
+  Returns `nil` when the association isn't loaded — callers that key on
+  this value will lose the entry, which is the same failure mode as the
+  previous direct-FK accessor when the FK was nil.
+  """
+  def progress_container_id(%{playable_item: %{container_id: id}}), do: id
+  def progress_container_id(_), do: nil
 
   @doc """
   Indexes progress by episode_id from episodes with preloaded `watch_progress`.

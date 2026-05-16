@@ -137,11 +137,14 @@ defmodule MediaCentarr.Library.EntityShapeTest do
   end
 
   describe "extract_progress/2 — movie" do
-    test "wraps single watch_progress in a list" do
+    test "wraps single watch_progress in a list with synthesised playable_item" do
       progress = build_progress(%{position_seconds: 120.0})
       movie = build_standalone_movie(%{watch_progress: progress})
 
-      assert EntityShape.extract_progress(movie, :movie) == [progress]
+      [extracted] = EntityShape.extract_progress(movie, :movie)
+      assert extracted.position_seconds == 120.0
+      assert extracted.playable_item.container_type == :movie
+      assert extracted.playable_item.container_id == movie.id
     end
 
     test "returns empty list when watch_progress is nil" do
@@ -151,11 +154,14 @@ defmodule MediaCentarr.Library.EntityShapeTest do
   end
 
   describe "extract_progress/2 — video_object" do
-    test "wraps single watch_progress in a list" do
-      progress = build_progress(%{video_object_id: Ecto.UUID.generate()})
+    test "wraps single watch_progress in a list with synthesised playable_item" do
+      progress = build_progress(%{position_seconds: 30.0})
       video = build_video_object(%{watch_progress: progress})
 
-      assert EntityShape.extract_progress(video, :video_object) == [progress]
+      [extracted] = EntityShape.extract_progress(video, :video_object)
+      assert extracted.position_seconds == 30.0
+      assert extracted.playable_item.container_type == :video_object
+      assert extracted.playable_item.container_id == video.id
     end
 
     test "returns empty list when watch_progress is nil" do
@@ -165,7 +171,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
   end
 
   describe "extract_progress/2 — tv_series" do
-    test "walks seasons → episodes → watch_progress" do
+    test "walks seasons → episodes → watch_progress, attaches episode discriminator" do
       progress_a = build_progress(%{position_seconds: 100.0})
       progress_b = build_progress(%{position_seconds: 200.0})
 
@@ -176,7 +182,12 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       season = build_season(%{episodes: [ep_with_a, ep_with_b, ep_without]})
       tv_series = build_tv_series(%{seasons: [season]})
 
-      assert EntityShape.extract_progress(tv_series, :tv_series) == [progress_a, progress_b]
+      [extracted_a, extracted_b] = EntityShape.extract_progress(tv_series, :tv_series)
+      assert extracted_a.position_seconds == 100.0
+      assert extracted_a.playable_item.container_type == :episode
+      assert extracted_a.playable_item.container_id == ep_with_a.id
+      assert extracted_b.position_seconds == 200.0
+      assert extracted_b.playable_item.container_id == ep_with_b.id
     end
 
     test "returns empty list for series with no seasons" do
@@ -186,14 +197,17 @@ defmodule MediaCentarr.Library.EntityShapeTest do
   end
 
   describe "extract_progress/2 — movie_series" do
-    test "walks movies → watch_progress" do
+    test "walks movies → watch_progress, attaches movie discriminator" do
       progress = build_progress(%{position_seconds: 300.0})
       movie_with = Map.put(build_movie(%{name: "M1"}), :watch_progress, progress)
       movie_without = Map.put(build_movie(%{name: "M2"}), :watch_progress, nil)
 
       series = build_movie_series(%{movies: [movie_with, movie_without]})
 
-      assert EntityShape.extract_progress(series, :movie_series) == [progress]
+      [extracted] = EntityShape.extract_progress(series, :movie_series)
+      assert extracted.position_seconds == 300.0
+      assert extracted.playable_item.container_type == :movie
+      assert extracted.playable_item.container_id == movie_with.id
     end
 
     test "returns empty list for series with no movies" do

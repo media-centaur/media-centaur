@@ -302,6 +302,53 @@ defmodule MediaCentarr.Library do
     )
   end
 
+  @doc """
+  Finds the `PlayableItem` at `(container_type, container_id, position)`,
+  creating it if absent. Race-loss recovery follows the same pattern as
+  `Library.Inbound.ensure_playable_item_for_event/2`: a concurrent insert
+  surfaces as a `unique_constraint` changeset error and we re-fetch the
+  winning row.
+
+  Returns `{:ok, item}` or `{:error, reason}`. Used by the WatchProgress
+  writer seam (`find_or_create_watch_progress_for_*`) so a save against a
+  not-yet-ingested leaf does not race with `Library.Inbound`.
+  """
+  @spec find_or_create_playable_item(
+          PlayableItem.container_type(),
+          Ecto.UUID.t(),
+          integer()
+        ) :: {:ok, PlayableItem.t()} | {:error, term()}
+  def find_or_create_playable_item(container_type, container_id, position)
+      when container_type in [:movie, :episode, :video_object] and is_binary(container_id) and
+             is_integer(position) do
+    case find_playable_item(container_type, container_id, position) do
+      %PlayableItem{} = item ->
+        {:ok, item}
+
+      nil ->
+        case create_playable_item(%{
+               container_type: container_type,
+               container_id: container_id,
+               position: position
+             }) do
+          {:ok, item} ->
+            {:ok, item}
+
+          {:error, %Ecto.Changeset{errors: errors}} ->
+            if Keyword.has_key?(errors, :container_type) or
+                 Keyword.has_key?(errors, :container_id) or
+                 Keyword.has_key?(errors, :position) do
+              case find_playable_item(container_type, container_id, position) do
+                %PlayableItem{} = item -> {:ok, item}
+                nil -> {:error, :race_loss_recovery_failed}
+              end
+            else
+              {:error, errors}
+            end
+        end
+    end
+  end
+
   @doc "Deletes a `PlayableItem` row."
   @spec destroy_playable_item(PlayableItem.t()) :: {:ok, PlayableItem.t()} | {:error, Ecto.Changeset.t()}
   def destroy_playable_item(item), do: Repo.delete(item)
@@ -1130,25 +1177,96 @@ defmodule MediaCentarr.Library do
   def destroy_watch_progress!(progress), do: destroy_bang!(progress)
 
   @doc """
-  Fetches a watch progress record by a specific FK key and value.
+  Fetches a watch progress record by the legacy FK key/value pair, resolving
+  through PlayableItem. The `fk_key` is one of `:movie_id`, `:episode_id`,
+  `:video_object_id` and identifies the container; the FK on
+  `library_watch_progress` itself is now `:playable_item_id`
+  (Library Schema v2 Phase 2 Task C).
+
+  The function is kept for callers that still think in container-FK terms
+  (`MediaCentarr.WatchHistory.reset_watch_progress/1`,
+  `EntityModal.update_watch_progress/3`). New code should preload through
+  `playable_items` and read `entity.watch_progress` directly.
   """
-  def fetch_watch_progress_by_fk(fk_key, fk_id) do
-    case Repo.get_by(WatchProgress, [{fk_key, fk_id}]) do
+  @spec fetch_watch_progress_by_fk(:movie_id | :episode_id | :video_object_id, Ecto.UUID.t()) ::
+          {:ok, WatchProgress.t()} | {:error, :not_found}
+  def fetch_watch_progress_by_fk(:movie_id, id), do: fetch_progress_for_container(:movie, id)
+  def fetch_watch_progress_by_fk(:episode_id, id), do: fetch_progress_for_container(:episode, id)
+
+  def fetch_watch_progress_by_fk(:video_object_id, id),
+    do: fetch_progress_for_container(:video_object, id)
+
+  defp fetch_progress_for_container(container_type, container_id) do
+    query =
+      from(wp in WatchProgress,
+        join: pi in PlayableItem,
+        on: pi.id == wp.playable_item_id,
+        where: pi.container_type == ^container_type and pi.container_id == ^container_id,
+        limit: 1
+      )
+
+    case Repo.one(query) do
       nil -> {:error, :not_found}
       record -> {:ok, record}
     end
   end
 
-  def find_or_create_watch_progress_for_movie(attrs), do: find_or_create_watch_progress(:movie_id, attrs)
+  @doc """
+  Upserts a WatchProgress row for the given Movie. `attrs` may carry the legacy
+  `:movie_id` key (the canonical caller form) — internally the function
+  resolves the canonical PlayableItem `(:movie, movie_id, position: 1)` (or
+  the movie's `position`) and writes `:playable_item_id`.
+  """
+  def find_or_create_watch_progress_for_movie(attrs) do
+    movie_id = lookup_attr(attrs, :movie_id)
 
-  def find_or_create_watch_progress_for_episode(attrs),
-    do: find_or_create_watch_progress(:episode_id, attrs)
+    position =
+      case Repo.get(Movie, movie_id) do
+        %Movie{position: pos} when is_integer(pos) -> pos
+        _ -> 1
+      end
 
-  def find_or_create_watch_progress_for_video_object(attrs),
-    do: find_or_create_watch_progress(:video_object_id, attrs)
+    find_or_create_watch_progress_for_container(:movie, movie_id, position, attrs)
+  end
 
-  defp find_or_create_watch_progress(fk, attrs) when is_atom(fk) do
-    upsert_by(WatchProgress, [{fk, lookup_attr(attrs, fk)}], attrs)
+  @doc """
+  Upserts a WatchProgress row for the given Episode. `attrs` may carry the
+  legacy `:episode_id` key — internally we resolve the PlayableItem at
+  `(:episode, episode_id, position: episode.episode_number)` to match the
+  Task B convention.
+  """
+  def find_or_create_watch_progress_for_episode(attrs) do
+    episode_id = lookup_attr(attrs, :episode_id)
+
+    position =
+      case Repo.get(Episode, episode_id) do
+        %Episode{episode_number: n} when is_integer(n) -> n
+        _ -> 1
+      end
+
+    find_or_create_watch_progress_for_container(:episode, episode_id, position, attrs)
+  end
+
+  @doc """
+  Upserts a WatchProgress row for the given VideoObject. Canonical position
+  is 1 (VideoObjects don't carry multi-cut variants in current schema).
+  """
+  def find_or_create_watch_progress_for_video_object(attrs) do
+    vo_id = lookup_attr(attrs, :video_object_id)
+    find_or_create_watch_progress_for_container(:video_object, vo_id, 1, attrs)
+  end
+
+  defp find_or_create_watch_progress_for_container(container_type, container_id, position, attrs) do
+    with {:ok, playable_item} <-
+           find_or_create_playable_item(container_type, container_id, position) do
+      cleaned_attrs =
+        attrs
+        |> Map.new()
+        |> Map.drop([:movie_id, :episode_id, :video_object_id])
+        |> Map.put(:playable_item_id, playable_item.id)
+
+      upsert_by(WatchProgress, [playable_item_id: playable_item.id], cleaned_attrs)
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -1541,14 +1659,24 @@ defmodule MediaCentarr.Library do
         where:
           exists(
             from(wp in WatchProgress,
-              where: wp.movie_id == parent_as(:item).id and wp.completed == false,
+              join: pi in PlayableItem,
+              on: pi.id == wp.playable_item_id,
+              where:
+                pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
+                  wp.completed == false,
               select: 1
             )
           ),
         order_by: [
           desc:
             fragment(
-              "(SELECT last_watched_at FROM library_watch_progress WHERE movie_id = ? LIMIT 1)",
+              """
+              (SELECT wp.last_watched_at
+                 FROM library_watch_progress wp
+                 JOIN library_playable_items pi ON pi.id = wp.playable_item_id
+                WHERE pi.container_type = 'movie' AND pi.container_id = ?
+                LIMIT 1)
+              """,
               m.id
             )
         ],
@@ -1573,14 +1701,24 @@ defmodule MediaCentarr.Library do
         where:
           exists(
             from(wp in WatchProgress,
-              where: wp.movie_id == parent_as(:item).id and wp.completed == false,
+              join: pi in PlayableItem,
+              on: pi.id == wp.playable_item_id,
+              where:
+                pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
+                  wp.completed == false,
               select: 1
             )
           ),
         order_by: [
           desc:
             fragment(
-              "(SELECT last_watched_at FROM library_watch_progress WHERE movie_id = ? LIMIT 1)",
+              """
+              (SELECT wp.last_watched_at
+                 FROM library_watch_progress wp
+                 JOIN library_playable_items pi ON pi.id = wp.playable_item_id
+                WHERE pi.container_type = 'movie' AND pi.container_id = ?
+                LIMIT 1)
+              """,
               m.id
             )
         ],
@@ -1630,8 +1768,10 @@ defmodule MediaCentarr.Library do
         where:
           exists(
             from(wp in WatchProgress,
+              join: pi in PlayableItem,
+              on: pi.id == wp.playable_item_id,
               join: ep in "library_episodes",
-              on: ep.id == wp.episode_id,
+              on: ep.id == pi.container_id and pi.container_type == ^:episode,
               join: s in "library_seasons",
               on: s.id == ep.season_id,
               where: s.tv_series_id == parent_as(:series).id,
@@ -1643,7 +1783,8 @@ defmodule MediaCentarr.Library do
             fragment(
               """
               (SELECT wp.last_watched_at FROM library_watch_progress wp
-               JOIN library_episodes ep ON ep.id = wp.episode_id
+               JOIN library_playable_items pi ON pi.id = wp.playable_item_id
+               JOIN library_episodes ep ON ep.id = pi.container_id AND pi.container_type = 'episode'
                JOIN library_seasons s ON s.id = ep.season_id
                WHERE s.tv_series_id = ?
                ORDER BY wp.last_watched_at DESC LIMIT 1)
@@ -1666,9 +1807,14 @@ defmodule MediaCentarr.Library do
       if all_episode_ids == [] do
         %{}
       else
-        from(progress in WatchProgress, where: progress.episode_id in ^all_episode_ids)
+        from(progress in WatchProgress,
+          join: pi in PlayableItem,
+          on: pi.id == progress.playable_item_id,
+          where: pi.container_type == ^:episode and pi.container_id in ^all_episode_ids,
+          select: {pi.container_id, progress}
+        )
         |> Repo.all()
-        |> Map.new(fn progress -> {progress.episode_id, progress} end)
+        |> Map.new()
       end
 
     Enum.reject(
@@ -1719,14 +1865,25 @@ defmodule MediaCentarr.Library do
         where:
           exists(
             from(wp in WatchProgress,
-              where: wp.video_object_id == parent_as(:video_object).id and wp.completed == false,
+              join: pi in PlayableItem,
+              on: pi.id == wp.playable_item_id,
+              where:
+                pi.container_type == ^:video_object and
+                  pi.container_id == parent_as(:video_object).id and
+                  wp.completed == false,
               select: 1
             )
           ),
         order_by: [
           desc:
             fragment(
-              "(SELECT last_watched_at FROM library_watch_progress WHERE video_object_id = ? LIMIT 1)",
+              """
+              (SELECT wp.last_watched_at
+                 FROM library_watch_progress wp
+                 JOIN library_playable_items pi ON pi.id = wp.playable_item_id
+                WHERE pi.container_type = 'video_object' AND pi.container_id = ?
+                LIMIT 1)
+              """,
               v.id
             )
         ],
@@ -1784,8 +1941,10 @@ defmodule MediaCentarr.Library do
         where:
           exists(
             from(wp in WatchProgress,
+              join: pi in PlayableItem,
+              on: pi.id == wp.playable_item_id,
               join: m in Movie,
-              on: m.id == wp.movie_id,
+              on: m.id == pi.container_id and pi.container_type == ^:movie,
               where: m.movie_series_id == parent_as(:item).id,
               select: 1
             )
@@ -1795,7 +1954,8 @@ defmodule MediaCentarr.Library do
             fragment(
               """
               (SELECT wp.last_watched_at FROM library_watch_progress wp
-               JOIN library_movies m ON m.id = wp.movie_id
+               JOIN library_playable_items pi ON pi.id = wp.playable_item_id
+               JOIN library_movies m ON m.id = pi.container_id AND pi.container_type = 'movie'
                WHERE m.movie_series_id = ?
                ORDER BY wp.last_watched_at DESC LIMIT 1)
               """,

@@ -74,18 +74,28 @@ defmodule MediaCentarr.Library.EntityShape do
   - `:tv_series` — walks seasons > episodes > watch_progress
   - `:movie_series` — walks movies > watch_progress
   - `:movie` / `:video_object` — wraps the single watch_progress record
+
+  Each returned WatchProgress carries a synthesised `:playable_item`
+  field with the owning container's `(container_type, container_id)`.
+  The `has_one :watch_progress, through: [:playable_items, :watch_progress]`
+  preload path doesn't materialise the `belongs_to :playable_item` back-ref
+  on the loaded progress record, so this function plugs in just enough
+  for downstream consumers (e.g. `EpisodeList.index_progress_by_key/1`)
+  to key by container id.
   """
   def extract_progress(record, :tv_series), do: extract_episode_progress(record.seasons)
   def extract_progress(record, :movie_series), do: extract_movie_progress(record.movies)
-  def extract_progress(record, :movie), do: wrap_progress(record.watch_progress)
-  def extract_progress(record, :video_object), do: wrap_progress(record.watch_progress)
+  def extract_progress(record, :movie), do: wrap_progress(record.watch_progress, :movie, record.id)
+
+  def extract_progress(record, :video_object),
+    do: wrap_progress(record.watch_progress, :video_object, record.id)
 
   defp extract_episode_progress(seasons) when is_list(seasons) do
     for season <- seasons,
         episode <- season.episodes || [],
         progress = episode.watch_progress,
         not is_nil(progress),
-        do: progress
+        do: attach_container(progress, :episode, episode.id)
   end
 
   defp extract_episode_progress(_), do: []
@@ -94,13 +104,27 @@ defmodule MediaCentarr.Library.EntityShape do
     for movie <- movies,
         progress = movie.watch_progress,
         not is_nil(progress),
-        do: progress
+        do: attach_container(progress, :movie, movie.id)
   end
 
   defp extract_movie_progress(_), do: []
 
-  defp wrap_progress(nil), do: []
-  defp wrap_progress(progress), do: [progress]
+  defp wrap_progress(nil, _container_type, _container_id), do: []
+
+  defp wrap_progress(progress, container_type, container_id),
+    do: [attach_container(progress, container_type, container_id)]
+
+  # Plugs a synthesised `:playable_item` onto a WatchProgress so
+  # downstream code can key by container id without an extra preload.
+  defp attach_container(progress, container_type, container_id) do
+    %{
+      progress
+      | playable_item: %{
+          container_type: container_type,
+          container_id: container_id
+        }
+    }
+  end
 
   defp collection_from(%{movie_series: %{id: id, name: name}}, :movie), do: %{id: id, name: name}
 

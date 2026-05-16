@@ -34,10 +34,26 @@ defmodule MediaCentarr.Playback.ResumeTest do
     }
   end
 
+  # Library Schema v2 Phase 2 Task C — WatchProgress is keyed by a
+  # single `playable_item_id`. The `EntityShape.extract_progress/2`
+  # call site at runtime synthesises `:playable_item` carrying the
+  # `(container_type, container_id)` discriminator; we mirror that
+  # shape here so `Resume.resolve/2` works against plain fixtures.
   defp progress(opts) do
+    playable_item =
+      cond do
+        episode_id = Keyword.get(opts, :episode_id) ->
+          %{container_type: :episode, container_id: episode_id}
+
+        movie_id = Keyword.get(opts, :movie_id) ->
+          %{container_type: :movie, container_id: movie_id}
+
+        true ->
+          nil
+      end
+
     %{
-      episode_id: Keyword.get(opts, :episode_id),
-      movie_id: Keyword.get(opts, :movie_id),
+      playable_item: playable_item,
       position_seconds: Keyword.get(opts, :position, 0.0),
       duration_seconds: Keyword.get(opts, :duration, 0.0),
       completed: Keyword.get(opts, :completed, false),

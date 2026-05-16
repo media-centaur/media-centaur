@@ -54,7 +54,6 @@ defmodule MediaCentarr.Library.Movie do
     has_many :images, MediaCentarr.Library.Image
     has_many :extras, MediaCentarr.Library.Extra
     has_many :external_ids, MediaCentarr.Library.ExternalId
-    has_one :watch_progress, MediaCentarr.Library.WatchProgress
 
     # Polymorphic has_many via Ecto's `where:` filter. The `container_id` FK
     # is shared across container types; the discriminator keeps the
@@ -68,6 +67,17 @@ defmodule MediaCentarr.Library.Movie do
     # PlayableItems (director's cut etc.), each with its own
     # WatchedFile.
     has_many :watched_files, through: [:playable_items, :watched_files]
+
+    # WatchProgress is per-PlayableItem (Library Schema v2 Phase 2
+    # Task C). For the canonical single-cut case there is one or zero
+    # — `has_one :through` matches the historical Movie-level
+    # `:watch_progress` semantics. If a Movie ever has multiple
+    # PlayableItems (director's cut etc.) each with WatchProgress,
+    # `Repo.preload(movie, :watch_progress)` silently returns the
+    # first PlayableItem's progress; the second cut would be invisible
+    # at this preload path. Multi-cut work must read progress through
+    # `:playable_items` directly.
+    has_one :watch_progress, through: [:playable_items, :watch_progress]
 
     timestamps()
   end

@@ -289,9 +289,17 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
   end
 
   defp index_progress_by_episode_id(progress_records) do
+    # WatchProgress is keyed by `playable_item_id` since Library Schema
+    # v2 Phase 2 Task C. The container id (Episode UUID) lives on the
+    # synthesised `:playable_item` field that
+    # `EntityShape.extract_progress/2` attaches at runtime (or that
+    # tests inject via `build_progress`).
     progress_records
-    |> Enum.filter(fn record -> Map.get(record, :episode_id) end)
-    |> Map.new(fn record -> {record.episode_id, record} end)
+    |> Enum.map(fn record ->
+      {MediaCentarr.Library.EpisodeList.progress_container_id(record), record}
+    end)
+    |> Enum.reject(fn {episode_id, _record} -> is_nil(episode_id) end)
+    |> Map.new()
   end
 
   # ResumeTarget.compute returns the string-keyed hint shape produced

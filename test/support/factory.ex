@@ -178,17 +178,58 @@ defmodule MediaCentarr.TestFactory do
   end
 
   def build_progress(overrides \\ %{}) do
+    overrides = Map.new(overrides)
+
+    # Backward-compatible legacy FK keys. Pure-function tests still pass
+    # `:movie_id` / `:episode_id` / `:video_object_id` because that's
+    # how progress is conceptually identified. We synthesise the
+    # `:playable_item` field (same shape `EntityShape.attach_container/3`
+    # uses at runtime) so pure helpers can read the container id back.
+    {container_type, container_id, overrides} =
+      cond do
+        movie_id = overrides[:movie_id] ->
+          {:movie, movie_id, Map.delete(overrides, :movie_id)}
+
+        episode_id = overrides[:episode_id] ->
+          {:episode, episode_id, Map.delete(overrides, :episode_id)}
+
+        video_object_id = overrides[:video_object_id] ->
+          {:video_object, video_object_id, Map.delete(overrides, :video_object_id)}
+
+        true ->
+          {nil, nil, overrides}
+      end
+
+    playable_item =
+      cond do
+        Map.has_key?(overrides, :playable_item) ->
+          overrides[:playable_item]
+
+        container_id != nil ->
+          %{container_type: container_type, container_id: container_id}
+
+        true ->
+          nil
+      end
+
+    # Pure-function tests use the legacy FK key as the conceptual identity
+    # of the progress record. Since `LibraryProgress.merge_progress_record/2`
+    # keys solely on `:playable_item_id` (Phase 2 Task C), fall back to the
+    # legacy id when no `:playable_item_id` was passed so each record retains
+    # a stable, unique key.
+    playable_item_id =
+      overrides[:playable_item_id] || container_id
+
     defaults = %{
-      episode_id: nil,
-      movie_id: nil,
-      video_object_id: nil,
+      playable_item_id: playable_item_id,
+      playable_item: playable_item,
       position_seconds: 0.0,
       duration_seconds: 0.0,
       completed: false,
       last_watched_at: DateTime.utc_now()
     }
 
-    Map.merge(defaults, overrides)
+    Map.merge(defaults, Map.delete(overrides, :playable_item))
   end
 
   def build_tv_series(overrides \\ %{}) do
@@ -665,7 +706,7 @@ defmodule MediaCentarr.TestFactory do
 
   def create_watch_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
-    merged = Map.merge(defaults, attrs)
+    merged = Map.merge(defaults, Map.new(attrs))
 
     cond_result =
       cond do
@@ -674,7 +715,13 @@ defmodule MediaCentarr.TestFactory do
         merged[:video_object_id] -> Library.find_or_create_watch_progress_for_video_object(merged)
       end
 
-    then(cond_result, fn {:ok, record} -> record end)
+    # Preload `:playable_item` so tests can read the container_id back
+    # without an extra DB round-trip (Library Schema v2 Phase 2 Task C
+    # removed the direct `movie_id` / `episode_id` / `video_object_id`
+    # columns; the container link lives on the PlayableItem).
+    then(cond_result, fn {:ok, record} ->
+      MediaCentarr.Repo.preload(record, :playable_item)
+    end)
   end
 
   def create_extra_progress(attrs) do

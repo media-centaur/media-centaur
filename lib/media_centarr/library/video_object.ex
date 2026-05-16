@@ -24,7 +24,6 @@ defmodule MediaCentarr.Library.VideoObject do
 
     has_many :images, MediaCentarr.Library.Image, foreign_key: :video_object_id
     has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :video_object_id
-    has_one :watch_progress, MediaCentarr.Library.WatchProgress, foreign_key: :video_object_id
 
     # Polymorphic has_many via Ecto's `where:` filter. See
     # `Library.PlayableItem` moduledoc for the discriminator design.
@@ -35,6 +34,15 @@ defmodule MediaCentarr.Library.VideoObject do
     # WatchedFiles reach this VideoObject via its PlayableItems
     # (Library Schema v2 Phase 2 Task B).
     has_many :watched_files, through: [:playable_items, :watched_files]
+
+    # WatchProgress is per-PlayableItem (Library Schema v2 Phase 2
+    # Task C). A VideoObject has at most one PlayableItem in current
+    # schema, so this preserves the historical `has_one` shape. If a
+    # VideoObject ever has multiple PlayableItems each with
+    # WatchProgress, `Repo.preload(video_object, :watch_progress)`
+    # silently returns the first PlayableItem's progress; the second
+    # cut would be invisible at this preload path.
+    has_one :watch_progress, through: [:playable_items, :watch_progress]
 
     timestamps()
   end

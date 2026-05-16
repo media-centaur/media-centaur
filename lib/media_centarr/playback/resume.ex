@@ -4,7 +4,8 @@ defmodule MediaCentarr.Playback.Resume do
   and its watch progress records. No DB access, no side effects.
   """
 
-  alias MediaCentarr.Library.{EpisodeList, MovieList}
+  alias MediaCentarr.Library.EpisodeList
+  alias MediaCentarr.Library.MovieList
 
   @type result ::
           {:resume, String.t(), float()}
@@ -76,7 +77,11 @@ defmodule MediaCentarr.Playback.Resume do
   end
 
   # Shared walking logic for ordered item lists.
-  # Items are {url, fk_id} tuples. Progress is indexed by fk_id (episode_id or movie_id).
+  # Items are {url, container_id} tuples — `container_id` is the
+  # Movie/Episode UUID. Progress records carry a `playable_item_id`
+  # whose linked PlayableItem's `container_id` is the same UUID
+  # (Library Schema v2 Phase 2 Task C). Callers must preload
+  # `:playable_item` on progress records before invoking this module.
   defp walk_ordered_items([], _progress_records, _progress_by_key) do
     {:no_playable_content}
   end
@@ -96,7 +101,7 @@ defmodule MediaCentarr.Playback.Resume do
         {:play_next, url, 0.0}
 
       record ->
-        record_key = record.episode_id || record.movie_id
+        record_key = EpisodeList.progress_container_id(record)
 
         if record.completed do
           advance_from(record_key, items, progress_by_key)

@@ -149,14 +149,18 @@ defmodule MediaCentarr.Playback.ResumeTarget do
     episode_id = find_episode_id_by_url(entity, url)
 
     if episode_id do
-      Enum.find(progress_records, fn record -> record.episode_id == episode_id end)
+      Enum.find(progress_records, fn record ->
+        EpisodeList.progress_container_id(record) == episode_id
+      end)
     end
   end
 
   defp find_progress_for_url(%{type: :movie_series} = entity, url, progress_records) do
     case MovieList.find_by_content_url(entity, url) do
       {_ordinal, movie_id, _name} ->
-        Enum.find(progress_records, fn record -> record.movie_id == movie_id end)
+        Enum.find(progress_records, fn record ->
+          EpisodeList.progress_container_id(record) == movie_id
+        end)
 
       nil ->
         nil

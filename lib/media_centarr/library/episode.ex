@@ -25,7 +25,6 @@ defmodule MediaCentarr.Library.Episode do
 
     belongs_to :season, MediaCentarr.Library.Season
     has_many :images, MediaCentarr.Library.Image
-    has_one :watch_progress, MediaCentarr.Library.WatchProgress
 
     # Polymorphic has_many via Ecto's `where:` filter. See
     # `Library.PlayableItem` moduledoc for the discriminator design.
@@ -37,6 +36,15 @@ defmodule MediaCentarr.Library.Episode do
     # (Library Schema v2 Phase 2 Task B). An episode with N
     # PlayableItems (multi-part / version variants) has up to N files.
     has_many :watched_files, through: [:playable_items, :watched_files]
+
+    # WatchProgress is per-PlayableItem (Library Schema v2 Phase 2
+    # Task C). For the canonical case (single PlayableItem per
+    # Episode) `has_one :through` matches the historical semantics.
+    # If an Episode ever has multiple PlayableItems each with
+    # WatchProgress, `Repo.preload(episode, :watch_progress)` silently
+    # returns the first PlayableItem's progress; the second cut would
+    # be invisible at this preload path.
+    has_one :watch_progress, through: [:playable_items, :watch_progress]
 
     timestamps()
   end

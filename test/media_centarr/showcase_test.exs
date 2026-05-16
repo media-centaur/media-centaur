@@ -107,19 +107,17 @@ defmodule MediaCentarr.ShowcaseTest do
     test "creates at least 6 non-completed watch_progress rows across mixed types" do
       Showcase.seed!()
 
-      non_completed = Repo.all(from(p in WatchProgress, where: p.completed == false))
+      # WatchProgress is keyed by `playable_item_id` since Library Schema
+      # v2 Phase 2 Task C; the container type lives on the linked
+      # `PlayableItem`'s discriminator.
+      non_completed =
+        Repo.preload(Repo.all(from(p in WatchProgress, where: p.completed == false)), :playable_item)
+
       assert length(non_completed) >= 6
 
       types =
         non_completed
-        |> Enum.map(fn progress ->
-          cond do
-            progress.movie_id -> :movie
-            progress.episode_id -> :episode
-            progress.video_object_id -> :video_object
-            true -> :unknown
-          end
-        end)
+        |> Enum.map(fn progress -> progress.playable_item.container_type end)
         |> Enum.uniq()
 
       assert :movie in types, "expected at least one movie in Continue Watching"
