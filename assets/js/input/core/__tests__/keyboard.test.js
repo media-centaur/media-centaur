@@ -248,6 +248,54 @@ describe("KeyboardSource", () => {
       doc._dispatchKeyDown("Enter", { target: textarea })
       expect(source._inputEditing).toBe(true)
     })
+
+    describe("Enter on text input inside form[phx-submit]", () => {
+      // When an input lives inside a LiveView form (phx-submit), Enter
+      // must submit the form natively. The edit-mode interception is
+      // bypassed so the browser dispatches its built-in submit event.
+      const makeFormInput = (value = "") => {
+        const form = { tagName: "FORM" }
+        return {
+          tagName: "INPUT",
+          value,
+          closest: (sel) => (sel === "form[phx-submit]" ? form : null),
+          dispatchEvent: mock(() => {}),
+        }
+      }
+
+      test("Enter on focused-not-editing form input does NOT preventDefault", () => {
+        const input = makeFormInput("/mnt/media")
+        const event = doc._dispatchKeyDown("Enter", { target: input })
+
+        expect(event.preventDefault).not.toHaveBeenCalled()
+        expect(source._inputEditing).toBe(false)
+        expect(actions).toEqual([])
+      })
+
+      test("Enter while editing form input does NOT preventDefault and exits edit mode", () => {
+        const input = makeFormInput("/mnt/media")
+        // Activate edit mode via printable char.
+        doc._dispatchKeyDown("a", { target: input })
+        expect(source._inputEditing).toBe(true)
+
+        const event = doc._dispatchKeyDown("Enter", { target: input })
+        expect(event.preventDefault).not.toHaveBeenCalled()
+        expect(source._inputEditing).toBe(false)
+      })
+
+      test("Enter on input NOT inside a phx-submit form still intercepts (no regression)", () => {
+        const input = {
+          tagName: "INPUT",
+          value: "",
+          closest: () => null,
+          dispatchEvent: mock(() => {}),
+        }
+        const event = doc._dispatchKeyDown("Enter", { target: input })
+
+        expect(event.preventDefault).toHaveBeenCalled()
+        expect(source._inputEditing).toBe(true)
+      })
+    })
   })
 
   describe("Backspace and Delete on text input", () => {
