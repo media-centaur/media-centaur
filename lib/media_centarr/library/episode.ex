@@ -27,6 +27,12 @@ defmodule MediaCentarr.Library.Episode do
     has_many :images, MediaCentarr.Library.Image
     has_one :watch_progress, MediaCentarr.Library.WatchProgress
 
+    # Polymorphic has_many via Ecto's `where:` filter. See
+    # `Library.PlayableItem` moduledoc for the discriminator design.
+    has_many :playable_items, MediaCentarr.Library.PlayableItem,
+      foreign_key: :container_id,
+      where: [container_type: :episode]
+
     timestamps()
   end
 

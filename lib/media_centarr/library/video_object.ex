@@ -27,6 +27,12 @@ defmodule MediaCentarr.Library.VideoObject do
     has_many :watched_files, MediaCentarr.Library.WatchedFile, foreign_key: :video_object_id
     has_one :watch_progress, MediaCentarr.Library.WatchProgress, foreign_key: :video_object_id
 
+    # Polymorphic has_many via Ecto's `where:` filter. See
+    # `Library.PlayableItem` moduledoc for the discriminator design.
+    has_many :playable_items, MediaCentarr.Library.PlayableItem,
+      foreign_key: :container_id,
+      where: [container_type: :video_object]
+
     timestamps()
   end
 

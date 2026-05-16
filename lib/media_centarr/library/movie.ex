@@ -57,6 +57,13 @@ defmodule MediaCentarr.Library.Movie do
     has_many :watched_files, MediaCentarr.Library.WatchedFile
     has_one :watch_progress, MediaCentarr.Library.WatchProgress
 
+    # Polymorphic has_many via Ecto's `where:` filter. The `container_id` FK
+    # is shared across container types; the discriminator keeps the
+    # association scoped to this kind. See `Library.PlayableItem` moduledoc.
+    has_many :playable_items, MediaCentarr.Library.PlayableItem,
+      foreign_key: :container_id,
+      where: [container_type: :movie]
+
     timestamps()
   end
 
