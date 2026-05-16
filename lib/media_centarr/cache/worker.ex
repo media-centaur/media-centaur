@@ -37,7 +37,18 @@ defmodule MediaCentarr.Cache.Worker do
 
   @impl true
   def handle_info(message, context) do
-    if context.relevant?(message), do: context.refresh_cache()
+    if context.relevant?(message), do: dispatch(context, message)
     {:noreply, context}
+  end
+
+  # If the context implements the optional `handle_message/1` callback,
+  # route the message there so it can do targeted per-row refreshes.
+  # Otherwise fall back to the broad-stroke `refresh_cache/0`.
+  defp dispatch(context, message) do
+    if function_exported?(context, :handle_message, 1) do
+      context.handle_message(message)
+    else
+      context.refresh_cache()
+    end
   end
 end
