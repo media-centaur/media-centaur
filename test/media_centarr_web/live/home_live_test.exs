@@ -150,14 +150,15 @@ defmodule MediaCentarrWeb.HomeLiveTest do
          %{conn: conn} do
       today = Date.utc_today()
 
-      # No library_entity_id → marquee renders an <a> fallback link rather
-      # than a phx-click button (no entity to open in the modal).
+      # No library container link → marquee renders an <a> fallback link
+      # rather than a phx-click button (no entity to open in the modal).
       item =
         create_tracking_item(%{
           tmdb_id: :rand.uniform(999_999),
           media_type: :tv_series,
           name: "Sample Show",
-          library_entity_id: nil
+          library_container_type: nil,
+          library_container_id: nil
         })
 
       create_tracking_release(%{

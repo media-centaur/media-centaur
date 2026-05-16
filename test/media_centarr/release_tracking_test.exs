@@ -419,16 +419,23 @@ defmodule MediaCentarr.ReleaseTrackingTest do
     end
   end
 
-  describe "list_relevant_releases_for_library_entity/2" do
-    test "returns [] when no Item is linked to the entity" do
+  describe "list_relevant_releases_for_library_container/2" do
+    test "returns [] when no Item is linked to the container" do
       tv = create_tv_series(%{name: "Untracked Show"})
 
-      assert ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series) == []
+      assert ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series) == []
     end
 
     test "returns [] when the linked Item has status :ignored" do
       tv = create_tv_series(%{name: "Ignored Show"})
-      item = create_tracking_item(%{name: "Ignored Show", library_entity_id: tv.id})
+
+      item =
+        create_tracking_item(%{
+          name: "Ignored Show",
+          library_container_type: :tv_series,
+          library_container_id: tv.id
+        })
+
       {:ok, _} = ReleaseTracking.ignore_item(item)
 
       create_tracking_release(%{
@@ -438,12 +445,18 @@ defmodule MediaCentarr.ReleaseTrackingTest do
         episode_number: 1
       })
 
-      assert ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series) == []
+      assert ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series) == []
     end
 
     test "returns unaired (released: false) releases" do
       tv = create_tv_series(%{name: "Future Show"})
-      item = create_tracking_item(%{name: "Future Show", library_entity_id: tv.id})
+
+      item =
+        create_tracking_item(%{
+          name: "Future Show",
+          library_container_type: :tv_series,
+          library_container_id: tv.id
+        })
 
       create_tracking_release(%{
         item_id: item.id,
@@ -453,7 +466,7 @@ defmodule MediaCentarr.ReleaseTrackingTest do
         released: false
       })
 
-      [release] = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+      [release] = ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series)
       assert release.season_number == 3
       assert release.episode_number == 1
       assert release.released == false
@@ -461,7 +474,13 @@ defmodule MediaCentarr.ReleaseTrackingTest do
 
     test "returns aired-but-not-in-library (released: true, in_library: false) releases" do
       tv = create_tv_series(%{name: "Aired Show"})
-      item = create_tracking_item(%{name: "Aired Show", library_entity_id: tv.id})
+
+      item =
+        create_tracking_item(%{
+          name: "Aired Show",
+          library_container_type: :tv_series,
+          library_container_id: tv.id
+        })
 
       create_tracking_release(%{
         item_id: item.id,
@@ -472,7 +491,7 @@ defmodule MediaCentarr.ReleaseTrackingTest do
         in_library: false
       })
 
-      [release] = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+      [release] = ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series)
       assert release.episode_number == 5
       assert release.released == true
       assert release.in_library == false
@@ -480,7 +499,13 @@ defmodule MediaCentarr.ReleaseTrackingTest do
 
     test "excludes releases already in the library (in_library: true)" do
       tv = create_tv_series(%{name: "Have It Show"})
-      item = create_tracking_item(%{name: "Have It Show", library_entity_id: tv.id})
+
+      item =
+        create_tracking_item(%{
+          name: "Have It Show",
+          library_container_type: :tv_series,
+          library_container_id: tv.id
+        })
 
       create_tracking_release(%{
         item_id: item.id,
@@ -491,12 +516,18 @@ defmodule MediaCentarr.ReleaseTrackingTest do
         in_library: true
       })
 
-      assert ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series) == []
+      assert ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series) == []
     end
 
     test "results are ordered by (season_number, episode_number)" do
       tv = create_tv_series(%{name: "Ordered Show"})
-      item = create_tracking_item(%{name: "Ordered Show", library_entity_id: tv.id})
+
+      item =
+        create_tracking_item(%{
+          name: "Ordered Show",
+          library_container_type: :tv_series,
+          library_container_id: tv.id
+        })
 
       create_tracking_release(%{
         item_id: item.id,
@@ -519,29 +550,32 @@ defmodule MediaCentarr.ReleaseTrackingTest do
         episode_number: 6
       })
 
-      results = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+      results = ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series)
 
       assert Enum.map(results, &{&1.season_number, &1.episode_number}) ==
                [{1, 5}, {1, 6}, {2, 1}]
     end
 
-    test "filters by media_type — a movie Item with same library_entity_id is ignored" do
+    test "filters by media_type — a movie Item with same library_container_id is ignored" do
       tv = create_tv_series(%{name: "Type Filter Show"})
 
-      # Two items at the same library_entity_id is unusual but the
-      # function must still scope by media_type — query should only
+      # Two items at the same library_container_id is unusual (a TV series
+      # id used as a `:movie_series` container won't actually resolve), but
+      # the function must still scope by media_type — query should only
       # surface tv_series releases.
       tv_item =
         create_tracking_item(%{
           name: "Type Filter Show",
-          library_entity_id: tv.id,
+          library_container_type: :tv_series,
+          library_container_id: tv.id,
           media_type: :tv_series
         })
 
       movie_item =
         create_tracking_item(%{
           name: "Type Filter Show",
-          library_entity_id: tv.id,
+          library_container_type: :movie_series,
+          library_container_id: tv.id,
           media_type: :movie,
           tmdb_id: tv_item.tmdb_id + 1
         })
@@ -558,7 +592,7 @@ defmodule MediaCentarr.ReleaseTrackingTest do
         air_date: Date.add(Date.utc_today(), 14)
       })
 
-      results = ReleaseTracking.list_relevant_releases_for_library_entity(tv.id, :tv_series)
+      results = ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series)
       assert length(results) == 1
       assert hd(results).season_number == 1
     end
@@ -645,7 +679,8 @@ defmodule MediaCentarr.ReleaseTrackingTest do
         tmdb_id: 3333,
         media_type: :tv_series,
         name: "Already Tracked",
-        library_entity_id: tracked.id
+        library_container_type: :tv_series,
+        library_container_id: tracked.id
       })
 
       assert ReleaseTracking.suggest_trackable_items() == []
@@ -1112,17 +1147,18 @@ defmodule MediaCentarr.ReleaseTrackingTest do
   end
 
   describe "logo_url_for_item/2" do
-    test "prefers the library entity's logo when present" do
-      entity_id = Ecto.UUID.generate()
+    test "prefers the library container's logo when present" do
+      container_id = Ecto.UUID.generate()
 
       item =
         create_tracking_item(%{
           name: "Has both",
-          library_entity_id: entity_id,
+          library_container_type: :tv_series,
+          library_container_id: container_id,
           logo_path: "images/tracking/9001/logo.png"
         })
 
-      library_logos = %{entity_id => "/media-images/library/some-other-logo.png"}
+      library_logos = %{container_id => "/media-images/library/some-other-logo.png"}
 
       assert ReleaseTracking.logo_url_for_item(item, library_logos) ==
                "/media-images/library/some-other-logo.png"
@@ -1139,17 +1175,18 @@ defmodule MediaCentarr.ReleaseTrackingTest do
                "/media-images/images/tracking/9002/logo.png"
     end
 
-    test "falls back to the tracking item's logo when the library entity has no logo" do
-      entity_id = Ecto.UUID.generate()
+    test "falls back to the tracking item's logo when the library container has no logo" do
+      container_id = Ecto.UUID.generate()
 
       item =
         create_tracking_item(%{
           name: "Imported but no library logo",
-          library_entity_id: entity_id,
+          library_container_type: :tv_series,
+          library_container_id: container_id,
           logo_path: "images/tracking/9003/logo.png"
         })
 
-      # library_logos has no entry for this entity_id
+      # library_logos has no entry for this container_id
       assert ReleaseTracking.logo_url_for_item(item, %{}) ==
                "/media-images/images/tracking/9003/logo.png"
     end

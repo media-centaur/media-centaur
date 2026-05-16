@@ -46,7 +46,8 @@ defmodule MediaCentarr.ReleaseTracking.ScannerTest do
       items = ReleaseTracking.list_watching_items()
       assert length(items) == 1
       assert hd(items).tmdb_id == 1396
-      assert hd(items).library_entity_id == tv_series.id
+      assert hd(items).library_container_type == :tv_series
+      assert hd(items).library_container_id == tv_series.id
     end
 
     test "tracks a TV series with gap episodes since last library episode" do

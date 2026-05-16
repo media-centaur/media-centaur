@@ -72,7 +72,7 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
     case Library.load_modal_entry(entity_id) do
       {:ok, %{entity: %{type: :tv_series}} = entry} ->
         releases =
-          ReleaseTracking.list_relevant_releases_for_library_entity(entity_id, :tv_series)
+          ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :tv_series)
 
         tracking_status = lookup_tracking_status(entry.entity)
         resume_target = ResumeTarget.compute(entry.entity, entry.progress_records)

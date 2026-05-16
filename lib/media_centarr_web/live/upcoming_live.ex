@@ -531,7 +531,9 @@ defmodule MediaCentarrWeb.UpcomingLive do
     logo_urls =
       items
       |> Enum.flat_map(fn item ->
-        if item.library_entity_id, do: [{item.media_type, item.library_entity_id}], else: []
+        if item.library_container_id,
+          do: [{item.media_type, item.library_container_id}],
+          else: []
       end)
       |> MediaCentarr.Library.logo_urls_for_entities()
 

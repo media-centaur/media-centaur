@@ -52,20 +52,20 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
 
   defp process_external_id(_), do: :skipped
 
-  defp process_tv_series(tmdb_id, library_entity_id) do
+  defp process_tv_series(tmdb_id, tv_series_id) do
     case Client.get_tv(tmdb_id) do
       {:ok, response} ->
         status = Extractor.extract_tv_status(response)
 
         if status in [:returning, :in_production, :planned] do
-          {last_season, last_episode} = Helpers.find_last_library_episode(library_entity_id)
+          {last_season, last_episode} = Helpers.find_last_library_episode(tv_series_id)
           releases = Helpers.fetch_tv_releases(tmdb_id, last_season, last_episode, response)
 
           create_tracked_item(
             tmdb_id,
             :tv_series,
             response["name"],
-            library_entity_id,
+            {:tv_series, tv_series_id},
             releases,
             response,
             last_library_season: last_season,
@@ -82,7 +82,7 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
     end
   end
 
-  defp process_collection(collection_id, library_entity_id) do
+  defp process_collection(collection_id, movie_series_id) do
     case Client.get_collection(collection_id) do
       {:ok, response} ->
         collection_releases = Helpers.fetch_collection_releases(response)
@@ -94,7 +94,7 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
             collection_id,
             :movie,
             response["name"],
-            library_entity_id,
+            {:movie_series, movie_series_id},
             collection_releases,
             response
           )
@@ -107,14 +107,23 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
     end
   end
 
-  defp create_tracked_item(tmdb_id, media_type, name, library_entity_id, releases, response, opts \\ []) do
+  defp create_tracked_item(
+         tmdb_id,
+         media_type,
+         name,
+         {container_type, container_id},
+         releases,
+         response,
+         opts \\ []
+       ) do
     {:ok, item} =
       ReleaseTracking.track_item(%{
         tmdb_id: tmdb_id,
         media_type: media_type,
         name: name,
         source: :library,
-        library_entity_id: library_entity_id,
+        library_container_type: container_type,
+        library_container_id: container_id,
         last_refreshed_at: DateTime.utc_now(),
         last_library_season: Keyword.get(opts, :last_library_season, 0),
         last_library_episode: Keyword.get(opts, :last_library_episode, 0)

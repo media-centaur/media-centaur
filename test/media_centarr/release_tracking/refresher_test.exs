@@ -180,7 +180,8 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
       assert item != nil
       assert item.name == "New Show"
       assert item.source == :library
-      assert item.library_entity_id == tv_series.id
+      assert item.library_container_type == :tv_series
+      assert item.library_container_id == tv_series.id
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
       refute releases == []
@@ -226,7 +227,8 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
         tmdb_id: 7777,
         media_type: :tv_series,
         name: "Already Tracked",
-        library_entity_id: tv_series.id
+        library_container_type: :tv_series,
+        library_container_id: tv_series.id
       })
 
       Refresher.auto_track_new_entities([tv_series.id])
@@ -262,7 +264,7 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
         create_episode(%{season_id: season.id, episode_number: ep, name: "Episode #{ep}"})
       end
 
-      # Manually-tracked item with no library_entity_id — simulates the real scenario
+      # Manually-tracked item with no library_container_id — simulates the real scenario
       item =
         create_tracking_item(%{
           tmdb_id: 250_307,
@@ -285,14 +287,15 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
       Refresher.refresh_item_tracking_for([tv_series.id])
 
       updated = ReleaseTracking.get_item(item.id)
-      assert updated.library_entity_id == tv_series.id
+      assert updated.library_container_type == :tv_series
+      assert updated.library_container_id == tv_series.id
       assert updated.last_library_episode == 14
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert Enum.all?(releases, & &1.in_library)
     end
 
-    test "does not affect items already linked to a library entity" do
+    test "does not affect items already linked to a library container" do
       tv_series = create_tv_series(%{name: "Already Linked", tmdb_id: "11111"})
 
       season =
@@ -307,7 +310,8 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
           tmdb_id: 11_111,
           media_type: :tv_series,
           name: "Already Linked",
-          library_entity_id: tv_series.id,
+          library_container_type: :tv_series,
+          library_container_id: tv_series.id,
           last_library_season: 1,
           last_library_episode: 4
         })
@@ -315,7 +319,8 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
       Refresher.refresh_item_tracking_for([tv_series.id])
 
       updated = ReleaseTracking.get_item(item.id)
-      assert updated.library_entity_id == tv_series.id
+      assert updated.library_container_type == :tv_series
+      assert updated.library_container_id == tv_series.id
       assert updated.last_library_episode == 5
     end
   end
@@ -402,7 +407,8 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
           tmdb_id: 9999,
           media_type: :tv_series,
           name: "Cancelled Show",
-          library_entity_id: tv_series.id
+          library_container_type: :tv_series,
+          library_container_id: tv_series.id
         })
 
       # Delete the library entity
@@ -429,7 +435,8 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
           tmdb_id: 8888,
           media_type: :tv_series,
           name: "Active Show",
-          library_entity_id: tv_series.id,
+          library_container_type: :tv_series,
+          library_container_id: tv_series.id,
           last_library_season: 1,
           last_library_episode: 3
         })
@@ -457,7 +464,8 @@ defmodule MediaCentarr.ReleaseTracking.RefresherTest do
           tmdb_id: 4321,
           media_type: :tv_series,
           name: "Sample Comedy",
-          library_entity_id: tv_series.id,
+          library_container_type: :tv_series,
+          library_container_id: tv_series.id,
           last_library_season: 3,
           last_library_episode: 8
         })
