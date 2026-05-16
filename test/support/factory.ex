@@ -21,6 +21,7 @@ defmodule MediaCentarr.TestFactory do
     Movie,
     MovieSeries,
     Person,
+    PlayableItem,
     Season,
     Episode,
     TVSeries,
@@ -255,6 +256,19 @@ defmodule MediaCentarr.TestFactory do
     struct(VideoObject, Map.merge(defaults, overrides))
   end
 
+  def build_playable_item(overrides \\ %{}) do
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      container_type: :movie,
+      container_id: Ecto.UUID.generate(),
+      position: 1,
+      duration_seconds: nil,
+      name: nil
+    }
+
+    struct(PlayableItem, Map.merge(defaults, overrides))
+  end
+
   def build_standalone_movie(overrides \\ %{}) do
     defaults = %{
       id: Ecto.UUID.generate(),
@@ -402,6 +416,51 @@ defmodule MediaCentarr.TestFactory do
 
   def create_extra(attrs) do
     Library.create_extra!(attrs)
+  end
+
+  @doc """
+  Persists a `PlayableItem` row via `Library.create_playable_item!/1`. The
+  caller supplies `:container_type` / `:container_id` pointing at an
+  existing container; defaults fill in `:position` when unset.
+  """
+  def create_playable_item(attrs) do
+    defaults = %{position: 1}
+    Library.create_playable_item!(Map.merge(defaults, Map.new(attrs)))
+  end
+
+  @doc """
+  Convenience helper: creates a `PlayableItem` of `container_type: :movie`
+  linked to the given movie struct. Position defaults to 1.
+  """
+  def create_playable_item_for_movie(%Movie{id: movie_id}, overrides \\ %{}) do
+    create_playable_item(Map.merge(%{container_type: :movie, container_id: movie_id}, overrides))
+  end
+
+  @doc """
+  Convenience helper: creates a `PlayableItem` of `container_type: :episode`
+  linked to the given episode struct. Position defaults to the episode's
+  `episode_number` (or 1 if not set).
+  """
+  def create_playable_item_for_episode(
+        %Episode{id: episode_id, episode_number: episode_number},
+        overrides \\ %{}
+      ) do
+    defaults = %{
+      container_type: :episode,
+      container_id: episode_id,
+      position: episode_number || 1
+    }
+
+    create_playable_item(Map.merge(defaults, overrides))
+  end
+
+  @doc """
+  Convenience helper: creates a `PlayableItem` of `container_type: :video_object`
+  linked to the given video-object struct. Position defaults to 1.
+  """
+  def create_playable_item_for_video_object(%VideoObject{id: video_object_id}, overrides \\ %{}) do
+    defaults = %{container_type: :video_object, container_id: video_object_id, position: 1}
+    create_playable_item(Map.merge(defaults, overrides))
   end
 
   def create_entity_with_associations(attrs \\ %{}) do

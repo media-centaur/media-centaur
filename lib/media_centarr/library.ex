@@ -18,6 +18,7 @@ defmodule MediaCentarr.Library do
       MovieList,
       MovieSeries,
       Person,
+      PlayableItem,
       ProgressSummary,
       Season,
       TVSeries,
@@ -54,6 +55,7 @@ defmodule MediaCentarr.Library do
     Image,
     Movie,
     MovieSeries,
+    PlayableItem,
     PresentableQueries,
     Season,
     TVSeries,
@@ -229,6 +231,59 @@ defmodule MediaCentarr.Library do
 
   def destroy_video_object(video_object), do: Repo.delete(video_object)
   def destroy_video_object!(video_object), do: destroy_bang!(video_object)
+
+  # ---------------------------------------------------------------------------
+  # PlayableItem
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Inserts a new `PlayableItem` row. The caller is responsible for ensuring
+  the `(container_type, container_id)` pair points at an existing container
+  — there is no DB-level FK enforcement (see `PlayableItem` moduledoc for
+  the discriminator design decision).
+  """
+  @spec create_playable_item(map()) :: {:ok, PlayableItem.t()} | {:error, Ecto.Changeset.t()}
+  def create_playable_item(attrs) do
+    Repo.insert(PlayableItem.create_changeset(attrs))
+  end
+
+  @doc "Bang variant of `create_playable_item/1` — raises on changeset error."
+  @spec create_playable_item!(map()) :: PlayableItem.t()
+  def create_playable_item!(attrs), do: Repo.bang!(create_playable_item(attrs))
+
+  @doc """
+  Fetches a `PlayableItem` by id. Returns `{:ok, item}` or `{:error, :not_found}`.
+  """
+  @spec fetch_playable_item(Ecto.UUID.t()) :: {:ok, PlayableItem.t()} | {:error, :not_found}
+  def fetch_playable_item(id) do
+    case Repo.get(PlayableItem, id) do
+      nil -> {:error, :not_found}
+      item -> {:ok, item}
+    end
+  end
+
+  @doc """
+  Lists all `PlayableItem` rows for a given container, ordered by `:position`
+  ascending. Returns an empty list when no items exist for the container.
+  """
+  @spec list_playable_items_for(PlayableItem.container_type(), Ecto.UUID.t()) :: [PlayableItem.t()]
+  def list_playable_items_for(container_type, container_id)
+      when container_type in [:movie, :episode, :video_object] and is_binary(container_id) do
+    Repo.all(
+      from(p in PlayableItem,
+        where: p.container_type == ^container_type and p.container_id == ^container_id,
+        order_by: [asc: p.position]
+      )
+    )
+  end
+
+  @doc "Deletes a `PlayableItem` row."
+  @spec destroy_playable_item(PlayableItem.t()) :: {:ok, PlayableItem.t()} | {:error, Ecto.Changeset.t()}
+  def destroy_playable_item(item), do: Repo.delete(item)
+
+  @doc "Bang variant of `destroy_playable_item/1`."
+  @spec destroy_playable_item!(PlayableItem.t()) :: :ok
+  def destroy_playable_item!(item), do: destroy_bang!(item)
 
   # ---------------------------------------------------------------------------
   # WatchedFile
