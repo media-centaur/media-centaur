@@ -53,8 +53,20 @@ defmodule MediaCentarr.Repo.DataMigrations.BackfillOrphanedPursuits do
   no-op because the WHERE clause excludes grabs already linked to a pursuit.
   """
   def backfill(repo) do
-    {:ok, %{rows: rows}} = repo.query(@select_orphans, @in_flight_statuses)
-    Enum.each(rows, &backfill_one(repo, &1))
+    # `acquisition_grabs` was renamed to `acquisition_targets` by the
+    # 20260511190000 schema migration (`pursuit_target_recipe_refactor`).
+    # On the upgrade path where this data migration never ran before the
+    # rename landed, the source table is gone — there is nothing left to
+    # backfill from. Treat that as a clean no-op so the migration can
+    # record success and the install pipeline progresses.
+    case repo.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'acquisition_grabs'") do
+      {:ok, %{rows: []}} ->
+        :ok
+
+      _ ->
+        {:ok, %{rows: rows}} = repo.query(@select_orphans, @in_flight_statuses)
+        Enum.each(rows, &backfill_one(repo, &1))
+    end
   end
 
   # The destructure order MUST match the SELECT column order in
