@@ -49,7 +49,11 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.director == "Sample Director"
       assert result.content_rating == "PG-13"
       assert result.aggregate_rating_value == 9.0
-      assert result.content_url == "/media/sample_movie.mkv"
+      # Library Schema v2 Phase 2 Task I — the file path no longer rides on
+      # the container attrs (it lives on the linked WatchedFile). Mapper
+      # keeps the `file_path` argument for arity stability; the downstream
+      # `Inbound.link_file/2` consumes it via `event.file_path`.
+      refute Map.has_key?(result, :content_url)
 
       assert result.cast == [
                %{
@@ -134,7 +138,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.director == nil
       assert result.content_rating == nil
       assert result.aggregate_rating_value == nil
-      assert result.content_url == nil
+      refute Map.has_key?(result, :content_url)
       assert result.status == nil
     end
 
@@ -527,7 +531,9 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.name == "Cat's in the Bag..."
       assert result.description == "Trouble."
       assert result.duration_seconds == 48 * 60
-      assert result.content_url == "/media/S01E02.mkv"
+      # Library Schema v2 Phase 2 Task I — the file path no longer rides
+      # on the episode attrs; it lives only on the linked WatchedFile.
+      refute Map.has_key?(result, :content_url)
     end
 
     test "missing episode number returns nil fields" do
@@ -539,7 +545,7 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.name == nil
       assert result.description == nil
       assert result.duration_seconds == nil
-      assert result.content_url == "/media/S01E99.mkv"
+      refute Map.has_key?(result, :content_url)
     end
   end
 

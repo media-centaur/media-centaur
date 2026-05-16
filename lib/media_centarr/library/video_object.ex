@@ -7,6 +7,14 @@ defmodule MediaCentarr.Library.VideoObject do
   TMDB ids live in `Library.ExternalId` rows reachable via the
   `:external_ids` association — no longer a column on this schema
   (Library Schema v2 Phase 1 Task 6).
+
+  ## `content_url` is a derived virtual field
+
+  `content_url` no longer carries a persisted column (Library Schema v2
+  Phase 2 Task I dropped it). It is materialised at read time from
+  `playable_items.watched_files.file_path` by
+  `MediaCentarr.Library.populate_content_urls/1`. Writes must go through
+  `Library.link_file/1` against the VideoObject's `PlayableItem`.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -19,7 +27,11 @@ defmodule MediaCentarr.Library.VideoObject do
     field :name, :string
     field :description, :string
     field :date_published, :date
-    field :content_url, :string
+    # Virtual: populated from `playable_items.watched_files.file_path` by
+    # `MediaCentarr.Library.populate_content_urls/1` (Library Schema v2
+    # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
+    # the sole source of truth.
+    field :content_url, :string, virtual: true
     field :url, :string
 
     # Polymorphic associations — Image / ExternalId rows discriminate on
@@ -63,13 +75,12 @@ defmodule MediaCentarr.Library.VideoObject do
       :name,
       :description,
       :date_published,
-      :content_url,
       :url
     ])
     |> validate_required([:name])
   end
 
   def update_changeset(video_object, attrs) do
-    cast(video_object, attrs, [:name, :description, :date_published, :content_url, :url])
+    cast(video_object, attrs, [:name, :description, :date_published, :url])
   end
 end

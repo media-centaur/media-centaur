@@ -366,8 +366,9 @@ defmodule MediaCentarr.TestFactory do
     defaults = %{name: "Test Movie"}
     tmdb_id = attrs[:tmdb_id]
     imdb_id = attrs[:imdb_id]
+    content_url = attrs[:content_url]
 
-    merged = Map.merge(defaults, Map.drop(attrs, [:type, :tmdb_id, :imdb_id]))
+    merged = Map.merge(defaults, Map.drop(attrs, [:type, :tmdb_id, :imdb_id, :content_url]))
 
     record =
       case type do
@@ -386,7 +387,41 @@ defmodule MediaCentarr.TestFactory do
     _ = Library.ExternalIds.put(tmdb_source, record, tmdb_id)
     _ = Library.ExternalIds.put(:imdb, record, imdb_id)
 
+    # `Movie.content_url` / `VideoObject.content_url` are virtual after
+    # Library Schema v2 Phase 2 Task I. Legacy fixtures still pass
+    # `content_url: "/path/to/file"` as shorthand for "make this entity
+    # playable" — translate it into a present WatchedFile so the
+    # downstream resolvers and the virtual field both behave as before.
+    record = link_factory_content_url(record, type, content_url)
+
     record
+  end
+
+  defp link_factory_content_url(record, _type, nil), do: record
+  defp link_factory_content_url(record, :movie_series, _url), do: record
+  defp link_factory_content_url(record, :tv_series, _url), do: record
+
+  defp link_factory_content_url(record, :movie, url) when is_binary(url) do
+    do_link_factory_content_url(record, :movie, url, record.position || 1)
+  end
+
+  defp link_factory_content_url(record, :video_object, url) when is_binary(url) do
+    do_link_factory_content_url(record, :video_object, url, 1)
+  end
+
+  defp do_link_factory_content_url(record, container_type, url, position) do
+    {:ok, playable_item} =
+      Library.find_or_create_playable_item(container_type, record.id, position)
+
+    Library.link_file!(%{
+      playable_item_id: playable_item.id,
+      file_path: url,
+      watch_dir: "/media/test"
+    })
+
+    :ok = MediaCentarr.Watcher.FilePresence.record_file(url, "/media/test")
+
+    %{record | content_url: url}
   end
 
   def create_image(attrs) do
@@ -402,7 +437,11 @@ defmodule MediaCentarr.TestFactory do
   end
 
   def create_episode(attrs) do
-    Library.create_episode!(attrs)
+    attrs = Map.new(attrs)
+    content_url = attrs[:content_url]
+    clean_attrs = Map.delete(attrs, :content_url)
+    episode = Library.create_episode!(clean_attrs)
+    link_factory_content_url_for_episode(episode, content_url)
   end
 
   def create_movie(attrs) do
@@ -434,28 +473,43 @@ defmodule MediaCentarr.TestFactory do
   # Routes test-supplied `tmdb_id` / `imdb_id` through `ExternalIds.put/3`
   # rather than the container changeset (Library Schema v2 Phase 1 Task 6
   # moved both off the container columns and into ExternalId rows).
+  # Also translates the legacy `content_url:` shorthand into a present
+  # WatchedFile so callers' `record.content_url` reads keep working after
+  # Library Schema v2 Phase 2 Task I dropped the persisted column.
   defp create_with_external_ids(type, defaults, attrs, creator) do
+    attrs = Map.new(attrs)
     tmdb_id = attrs[:tmdb_id]
     imdb_id = attrs[:imdb_id]
-    clean_attrs = defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id])
+    content_url = attrs[:content_url]
+    clean_attrs = defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id, :content_url])
 
     record = creator.(clean_attrs)
     tmdb_source = if type == :movie_series, do: :tmdb_collection, else: :tmdb
     _ = Library.ExternalIds.put(tmdb_source, record, tmdb_id)
     _ = Library.ExternalIds.put(:imdb, record, imdb_id)
-    record
+    link_factory_content_url(record, type, content_url)
   end
 
   def create_standalone_movie(attrs \\ %{}) do
+    attrs = Map.new(attrs)
     defaults = %{name: "Test Standalone Movie", position: 0}
     tmdb_id = attrs[:tmdb_id]
     imdb_id = attrs[:imdb_id]
-    movie_attrs = defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id])
+    content_url = attrs[:content_url]
+
+    movie_attrs =
+      defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id, :content_url])
 
     record = Library.create_movie!(movie_attrs)
     _ = Library.ExternalIds.put(:tmdb, record, tmdb_id)
     _ = Library.ExternalIds.put(:imdb, record, imdb_id)
-    record
+    link_factory_content_url(record, :movie, content_url)
+  end
+
+  defp link_factory_content_url_for_episode(episode, nil), do: episode
+
+  defp link_factory_content_url_for_episode(episode, url) when is_binary(url) do
+    do_link_factory_content_url(episode, :episode, url, episode.episode_number || 1)
   end
 
   def create_extra(attrs) do
@@ -502,38 +556,44 @@ defmodule MediaCentarr.TestFactory do
   end
 
   @doc """
-  Convenience helper: creates a `PlayableItem` of `container_type: :movie`
-  linked to the given movie struct. Position defaults to 1.
+  Convenience helper: returns the canonical `PlayableItem` for the given
+  movie struct, creating it idempotently if absent. The factory's auto
+  `content_url` linkage (Library Schema v2 Phase 2 Task I) may have
+  created the row already; this helper plays nicely with both flows.
   """
-  def create_playable_item_for_movie(%Movie{id: movie_id}, overrides \\ %{}) do
-    create_playable_item(Map.merge(%{container_type: :movie, container_id: movie_id}, overrides))
+  def create_playable_item_for_movie(%Movie{id: movie_id, position: position}, overrides \\ %{}) do
+    overrides = Map.new(overrides)
+    position = overrides[:position] || position || 1
+    find_or_create_factory_playable_item(:movie, movie_id, position)
   end
 
   @doc """
-  Convenience helper: creates a `PlayableItem` of `container_type: :episode`
-  linked to the given episode struct. Position defaults to the episode's
-  `episode_number` (or 1 if not set).
+  Convenience helper: returns the canonical `PlayableItem` for the given
+  episode struct, creating it idempotently if absent. Position defaults
+  to the episode's `episode_number` (or 1 if not set).
   """
   def create_playable_item_for_episode(
         %Episode{id: episode_id, episode_number: episode_number},
         overrides \\ %{}
       ) do
-    defaults = %{
-      container_type: :episode,
-      container_id: episode_id,
-      position: episode_number || 1
-    }
-
-    create_playable_item(Map.merge(defaults, overrides))
+    overrides = Map.new(overrides)
+    position = overrides[:position] || episode_number || 1
+    find_or_create_factory_playable_item(:episode, episode_id, position)
   end
 
   @doc """
-  Convenience helper: creates a `PlayableItem` of `container_type: :video_object`
-  linked to the given video-object struct. Position defaults to 1.
+  Convenience helper: returns the canonical `PlayableItem` for the given
+  video-object struct, creating it idempotently if absent.
   """
   def create_playable_item_for_video_object(%VideoObject{id: video_object_id}, overrides \\ %{}) do
-    defaults = %{container_type: :video_object, container_id: video_object_id, position: 1}
-    create_playable_item(Map.merge(defaults, overrides))
+    overrides = Map.new(overrides)
+    position = overrides[:position] || 1
+    find_or_create_factory_playable_item(:video_object, video_object_id, position)
+  end
+
+  defp find_or_create_factory_playable_item(container_type, container_id, position) do
+    {:ok, item} = Library.find_or_create_playable_item(container_type, container_id, position)
+    item
   end
 
   def create_entity_with_associations(attrs \\ %{}) do
@@ -616,12 +676,15 @@ defmodule MediaCentarr.TestFactory do
 
   defp resolve_playable_item_id_for_factory(%{tv_series_id: tv_series_id, file_path: file_path})
        when is_binary(tv_series_id) do
-    # Re-use an Episode under this series whose content_url matches the
-    # path; create one when none exists. The shape parallels production
-    # Inbound — the leaf Episode is the PlayableItem container.
+    # Re-use an Episode under this series already linked to the file
+    # path via its `PlayableItem → WatchedFile` chain; create one when
+    # none exists. The shape parallels production Inbound — the leaf
+    # Episode is the PlayableItem container. After Library Schema v2
+    # Phase 2 Task I `Episode.content_url` no longer exists; the link
+    # is recorded only on the WatchedFile.
     episode =
-      Library.find_episode_by_content_url(tv_series_id, file_path) ||
-        create_factory_episode_for_tv_series(tv_series_id, file_path)
+      Library.find_episode_by_path(tv_series_id, file_path) ||
+        create_factory_episode_for_tv_series(tv_series_id)
 
     ensure_factory_playable_item(:episode, episode.id, episode.episode_number || 1)
   end
@@ -629,8 +692,8 @@ defmodule MediaCentarr.TestFactory do
   defp resolve_playable_item_id_for_factory(%{movie_series_id: movie_series_id, file_path: file_path})
        when is_binary(movie_series_id) do
     movie =
-      Library.find_movie_by_content_url(movie_series_id, file_path) ||
-        create_factory_movie_for_series(movie_series_id, file_path)
+      Library.find_movie_by_path(movie_series_id, file_path) ||
+        create_factory_movie_for_series(movie_series_id)
 
     ensure_factory_playable_item(:movie, movie.id, movie.position || 1)
   end
@@ -639,7 +702,7 @@ defmodule MediaCentarr.TestFactory do
   # episode_number that won't collide with any explicit episode the
   # test creates afterwards. Each factory WatchedFile gets a fresh
   # episode_number so multiple calls don't share one episode.
-  defp create_factory_episode_for_tv_series(tv_series_id, file_path) do
+  defp create_factory_episode_for_tv_series(tv_series_id) do
     {:ok, season} =
       Library.find_or_create_season_for_tv_series(%{
         tv_series_id: tv_series_id,
@@ -654,24 +717,17 @@ defmodule MediaCentarr.TestFactory do
       Library.find_or_create_episode(%{
         season_id: season.id,
         episode_number: episode_number,
-        name: "Factory Episode",
-        content_url: file_path
+        name: "Factory Episode"
       })
 
-    if episode.content_url == nil do
-      {:ok, updated} = Library.set_episode_content_url(episode, %{content_url: file_path})
-      updated
-    else
-      episode
-    end
+    episode
   end
 
-  defp create_factory_movie_for_series(movie_series_id, file_path) do
+  defp create_factory_movie_for_series(movie_series_id) do
     {:ok, movie} =
       Library.create_movie(%{
         name: "Factory Child Movie #{System.unique_integer([:positive])}",
         movie_series_id: movie_series_id,
-        content_url: file_path,
         position: 1
       })
 

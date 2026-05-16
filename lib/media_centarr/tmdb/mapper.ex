@@ -7,8 +7,14 @@ defmodule MediaCentarr.TMDB.Mapper do
 
   @doc """
   Extracts domain attributes for a movie entity from TMDB movie data.
+
+  The `file_path` argument is unused by the entity attrs — the on-disk
+  path is recorded on the WatchedFile linked to the Movie's
+  PlayableItem (Library Schema v2 Phase 2 Task I). The arity is kept
+  so existing pipeline call sites pass the path through; downstream
+  `link_file/2` consumes it via `event.file_path`.
   """
-  def movie_attrs(tmdb_id, movie, file_path) do
+  def movie_attrs(tmdb_id, movie, _file_path) do
     %{
       type: :movie,
       tmdb_id: to_string(tmdb_id),
@@ -29,7 +35,6 @@ defmodule MediaCentarr.TMDB.Mapper do
       original_language: movie["original_language"],
       studio: extract_first_company(movie["production_companies"]),
       country_code: extract_first_country(movie["production_countries"]),
-      content_url: file_path,
       status: parse_movie_status(movie["status"])
     }
   end
@@ -85,8 +90,14 @@ defmodule MediaCentarr.TMDB.Mapper do
 
   @doc """
   Extracts episode attributes from TMDB episode data within a season response.
+
+  The `file_path` argument is unused by the entity attrs — the on-disk
+  path is recorded on the WatchedFile linked to the Episode's
+  PlayableItem (Library Schema v2 Phase 2 Task I). The arity is kept
+  so existing pipeline call sites pass the path through; downstream
+  `link_file/2` consumes it via `event.file_path`.
   """
-  def episode_attrs(season_id, season_data, episode_number, file_path) do
+  def episode_attrs(season_id, season_data, episode_number, _file_path) do
     episodes = season_data["episodes"] || []
     tmdb_episode = Enum.find(episodes, &(&1["episode_number"] == episode_number))
 
@@ -95,8 +106,7 @@ defmodule MediaCentarr.TMDB.Mapper do
       episode_number: episode_number,
       name: tmdb_episode && tmdb_episode["name"],
       description: tmdb_episode && tmdb_episode["overview"],
-      duration_seconds: tmdb_episode && minutes_to_seconds(tmdb_episode["runtime"]),
-      content_url: file_path
+      duration_seconds: tmdb_episode && minutes_to_seconds(tmdb_episode["runtime"])
     }
   end
 

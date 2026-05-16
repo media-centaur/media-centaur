@@ -135,7 +135,7 @@ defmodule MediaCentarr.Showcase do
   # Movies
   # ---------------------------------------------------------------------------
 
-  defp seed_movie!(%{title: title, year: year} = entry, client) do
+  defp seed_movie!(%{title: title, year: year} = _entry, client) do
     with {:ok, tmdb_id} <- search_movie(title, year, client),
          {:ok, movie_data} <- TMDB.Client.get_movie(tmdb_id, client) do
       movie =
@@ -147,7 +147,6 @@ defmodule MediaCentarr.Showcase do
           genres: extract_genre_names(movie_data["genres"]),
           url: "https://www.themoviedb.org/movie/#{tmdb_id}",
           aggregate_rating_value: movie_data["vote_average"],
-          content_url: Map.get(entry, :content_url),
           position: 0
         })
 
@@ -198,14 +197,17 @@ defmodule MediaCentarr.Showcase do
         end)
 
       # One file-presence row per episode so the TV detail modal shows
-      # each episode as "in library" (not a missing-file state).
+      # each episode as "in library" (not a missing-file state). The
+      # leaf is the Episode itself — passing it directly is unambiguous
+      # and avoids the "find by file_path" lookup the
+      # `Episode.content_url` drop (Library Schema v2 Phase 2 Task I)
+      # made structurally impossible.
       seasons
       |> Enum.flat_map(& &1.episodes)
       |> Enum.filter(& &1.id)
       |> Enum.each(fn episode ->
-        seed_presence!(
-          series.id,
-          :tv_series_id,
+        seed_episode_presence!(
+          episode,
           fake_episode_path(series.name, episode_season_number(episode, seasons), episode.episode_number)
         )
       end)
@@ -247,7 +249,7 @@ defmodule MediaCentarr.Showcase do
     end
   end
 
-  defp seed_episode!(season, episode_data, series_name) do
+  defp seed_episode!(season, episode_data, _series_name) do
     episode_number = episode_data["episode_number"]
     episode_name = episode_data["name"] || "Episode #{episode_number}"
 
@@ -257,8 +259,7 @@ defmodule MediaCentarr.Showcase do
         episode_number: episode_number,
         name: episode_name,
         description: episode_data["overview"],
-        duration_seconds: TMDB.Mapper.minutes_to_seconds(episode_data["runtime"]),
-        content_url: fake_episode_path(series_name, season.season_number, episode_number)
+        duration_seconds: TMDB.Mapper.minutes_to_seconds(episode_data["runtime"])
       })
 
     # Episode thumbnail. The detail modal's episode list reads role:thumb
@@ -293,7 +294,6 @@ defmodule MediaCentarr.Showcase do
         name: title,
         description: entry[:description],
         date_published: entry[:year] && Date.new!(entry[:year], 1, 1),
-        content_url: entry[:content_url],
         url: entry[:url]
       })
 
@@ -1083,9 +1083,21 @@ defmodule MediaCentarr.Showcase do
   # Schema v2 Phase 2 Task B — the WatchedFile keys to PlayableItem,
   # and the leaf is the Episode, not the TVSeries).
   defp seed_presence!(entity_id, fk_column, file_path) do
-    {container_type, container_id, position} =
-      showcase_leaf_for(entity_id, fk_column, file_path)
+    {container_type, container_id, position} = showcase_leaf_for(entity_id, fk_column)
+    do_seed_presence!(container_type, container_id, position, file_path)
+  end
 
+  # Episode-specific variant — the caller has the Episode struct in hand
+  # (showcase TV ingest iterates the freshly-created episodes) so we
+  # bypass the FK-column lookup. After Library Schema v2 Phase 2 Task I
+  # the Episode no longer carries `content_url`, which makes the path-
+  # based lookup structurally impossible — the leaf identity has to
+  # come from the caller.
+  defp seed_episode_presence!(episode, file_path) do
+    do_seed_presence!(:episode, episode.id, episode.episode_number || 1, file_path)
+  end
+
+  defp do_seed_presence!(container_type, container_id, position, file_path) do
     {:ok, playable_item} = ensure_showcase_playable_item(container_type, container_id, position)
 
     watch_dir = showcase_watch_dir()
@@ -1103,15 +1115,8 @@ defmodule MediaCentarr.Showcase do
     :ok
   end
 
-  defp showcase_leaf_for(movie_id, :movie_id, _file_path), do: {:movie, movie_id, 1}
-
-  defp showcase_leaf_for(video_object_id, :video_object_id, _file_path),
-    do: {:video_object, video_object_id, 1}
-
-  defp showcase_leaf_for(tv_series_id, :tv_series_id, file_path) do
-    episode = MediaCentarr.Library.find_episode_by_content_url(tv_series_id, file_path)
-    {:episode, episode.id, episode.episode_number || 1}
-  end
+  defp showcase_leaf_for(movie_id, :movie_id), do: {:movie, movie_id, 1}
+  defp showcase_leaf_for(video_object_id, :video_object_id), do: {:video_object, video_object_id, 1}
 
   defp ensure_showcase_playable_item(container_type, container_id, position) do
     case MediaCentarr.Library.create_playable_item(%{

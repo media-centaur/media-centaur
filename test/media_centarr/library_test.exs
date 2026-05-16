@@ -697,4 +697,47 @@ defmodule MediaCentarr.LibraryTest do
              "Expected ≤15 queries, got #{query_count} — possible N+1 regression"
     end
   end
+
+  describe "playable_file_path/1" do
+    test "returns the present-on-disk file path for the PlayableItem" do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      playable_item = create_playable_item_for_movie(movie)
+
+      file =
+        create_linked_file(%{
+          playable_item_id: playable_item.id,
+          file_path: "/media/sample-movie.mkv"
+        })
+
+      record_present(file)
+
+      assert Library.playable_file_path(playable_item.id) == "/media/sample-movie.mkv"
+    end
+
+    test "returns nil when the PlayableItem has no WatchedFile" do
+      movie = create_standalone_movie(%{name: "No File"})
+      playable_item = create_playable_item_for_movie(movie)
+
+      assert Library.playable_file_path(playable_item.id) == nil
+    end
+
+    test "returns nil when the only WatchedFile is absent (drive unmounted)" do
+      movie = create_standalone_movie(%{name: "Absent File"})
+      playable_item = create_playable_item_for_movie(movie)
+
+      _file =
+        create_linked_file(%{
+          playable_item_id: playable_item.id,
+          file_path: "/media/absent.mkv"
+        })
+
+      # Deliberately skip `record_present/1` — the file row exists but no
+      # `watcher_files` row marks it present.
+      assert Library.playable_file_path(playable_item.id) == nil
+    end
+
+    test "returns nil for an unknown PlayableItem id" do
+      assert Library.playable_file_path(Ecto.UUID.generate()) == nil
+    end
+  end
 end
