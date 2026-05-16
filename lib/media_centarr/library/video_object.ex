@@ -22,8 +22,17 @@ defmodule MediaCentarr.Library.VideoObject do
     field :content_url, :string
     field :url, :string
 
-    has_many :images, MediaCentarr.Library.Image, foreign_key: :video_object_id
-    has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :video_object_id
+    # Polymorphic associations — Image / ExternalId rows discriminate on
+    # `(owner_type, owner_id)` (Library Schema v2 Phase 2 Tasks D, F).
+    # VideoObject has no Extras association — Extra owner_type does not
+    # include :video_object.
+    has_many :images, MediaCentarr.Library.Image,
+      foreign_key: :owner_id,
+      where: [owner_type: :video_object]
+
+    has_many :external_ids, MediaCentarr.Library.ExternalId,
+      foreign_key: :owner_id,
+      where: [owner_type: :video_object]
 
     # Polymorphic has_many via Ecto's `where:` filter. See
     # `Library.PlayableItem` moduledoc for the discriminator design.

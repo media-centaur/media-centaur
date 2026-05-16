@@ -496,14 +496,14 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
-  Lists extras by any type-specific FK matching the given ID.
+  Lists extras owned by the given UUID — works for any owner type
+  (movie / tv_series / movie_series / season) because the
+  `(owner_type, owner_id)` discriminator makes the type irrelevant to
+  the lookup. Callers that need only one owner type should query
+  `Extra` directly.
   """
   def list_extras_by_owner_id(owner_id) do
-    Repo.all(
-      from(x in Extra,
-        where: x.tv_series_id == ^owner_id or x.movie_series_id == ^owner_id or x.movie_id == ^owner_id
-      )
-    )
+    Repo.all(from(x in Extra, where: x.owner_id == ^owner_id))
   end
 
   @doc """
@@ -542,12 +542,12 @@ defmodule MediaCentarr.Library do
       Repo.all(
         from(x in Extra,
           where:
-            x.tv_series_id == ^owner_id or
-              (not is_nil(x.season_id) and x.season_id in ^season_ids)
+            (x.owner_type == :tv_series and x.owner_id == ^owner_id) or
+              (x.owner_type == :season and x.owner_id in ^season_ids)
         )
       )
 
-    {entity_extras, season_extras_by_id} = split_extras_by_season(all_extras)
+    {entity_extras, season_extras_by_id} = split_extras_by_owner(all_extras)
 
     seasons_with_extras =
       Enum.map(seasons, fn season ->
@@ -562,9 +562,9 @@ defmodule MediaCentarr.Library do
     %{entity | extras: entity_extras}
   end
 
-  defp split_extras_by_season(extras) do
-    {entity_extras, season_extras} = Enum.split_with(extras, &is_nil(&1.season_id))
-    season_extras_by_id = Enum.group_by(season_extras, & &1.season_id)
+  defp split_extras_by_owner(extras) do
+    {season_extras, entity_extras} = Enum.split_with(extras, &(&1.owner_type == :season))
+    season_extras_by_id = Enum.group_by(season_extras, & &1.owner_id)
     {entity_extras, season_extras_by_id}
   end
 
@@ -575,16 +575,61 @@ defmodule MediaCentarr.Library do
   def list_all_images, do: Repo.all(Image)
 
   def create_image(attrs) do
-    Repo.insert(Image.create_changeset(attrs))
+    Repo.insert(Image.create_changeset(translate_image_owner(attrs)))
   end
 
   def create_image!(attrs), do: Repo.bang!(create_image(attrs))
 
   def upsert_image(attrs, conflict_target) do
-    Repo.insert(Image.create_changeset(attrs),
+    Repo.insert(Image.create_changeset(translate_image_owner(attrs)),
       on_conflict: {:replace, [:content_url, :extension, :updated_at]},
       conflict_target: conflict_target
     )
+  end
+
+  # Legacy per-type FK shape kept for callers and tests written before
+  # Phase 2 Task D — translate at the context boundary so the call sites
+  # don't need to change all at once. New code should pass `owner_type`
+  # + `owner_id` directly.
+  @image_owner_legacy_keys [
+    movie_id: :movie,
+    episode_id: :episode,
+    tv_series_id: :tv_series,
+    movie_series_id: :movie_series,
+    video_object_id: :video_object
+  ]
+  defp translate_image_owner(attrs) when is_map(attrs),
+    do: translate_legacy_owner(attrs, @image_owner_legacy_keys)
+
+  @extra_owner_legacy_keys [
+    movie_id: :movie,
+    tv_series_id: :tv_series,
+    movie_series_id: :movie_series,
+    season_id: :season
+  ]
+  defp translate_extra_owner(attrs) when is_map(attrs),
+    do: translate_legacy_owner(attrs, @extra_owner_legacy_keys)
+
+  @external_id_owner_legacy_keys [
+    movie_id: :movie,
+    tv_series_id: :tv_series,
+    movie_series_id: :movie_series,
+    video_object_id: :video_object
+  ]
+  defp translate_external_id_owner(attrs) when is_map(attrs),
+    do: translate_legacy_owner(attrs, @external_id_owner_legacy_keys)
+
+  defp translate_legacy_owner(attrs, legacy_keys) do
+    case Enum.find(legacy_keys, fn {key, _} -> not is_nil(Map.get(attrs, key)) end) do
+      nil ->
+        attrs
+
+      {legacy_key, owner_type} ->
+        attrs
+        |> Map.drop(Keyword.keys(legacy_keys))
+        |> Map.put_new(:owner_type, owner_type)
+        |> Map.put_new(:owner_id, Map.get(attrs, legacy_key))
+    end
   end
 
   def update_image(image, attrs) do
@@ -619,8 +664,9 @@ defmodule MediaCentarr.Library do
         from i in Image,
           where:
             i.role == "logo" and
-              (i.movie_id in ^movie_ids or i.tv_series_id in ^tv_ids),
-          select: {coalesce(i.movie_id, i.tv_series_id), i.content_url}
+              ((i.owner_type == :movie and i.owner_id in ^movie_ids) or
+                 (i.owner_type == :tv_series and i.owner_id in ^tv_ids)),
+          select: {i.owner_id, i.content_url}
       )
 
     Map.new(rows, fn {entity_id, content_url} ->
@@ -633,17 +679,19 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
 
   def find_or_create_external_id(attrs) do
+    translated = translate_external_id_owner(Map.new(attrs))
+
     find_or_insert_by(
       ExternalId,
-      [source: lookup_attr(attrs, :source), external_id: lookup_attr(attrs, :external_id)],
-      attrs
+      [source: lookup_attr(translated, :source), external_id: lookup_attr(translated, :external_id)],
+      translated
     )
   end
 
   def find_or_create_external_id!(attrs), do: Repo.bang!(find_or_create_external_id(attrs))
 
   def create_external_id(attrs) do
-    Repo.insert(ExternalId.create_changeset(attrs))
+    Repo.insert(ExternalId.create_changeset(translate_external_id_owner(attrs)))
   end
 
   def create_external_id!(attrs), do: Repo.bang!(create_external_id(attrs))
@@ -652,54 +700,37 @@ defmodule MediaCentarr.Library do
   def destroy_external_id!(external_id), do: destroy_bang!(external_id)
 
   @doc """
-  Returns the `Movie` owning the given TMDB id (via `library_external_ids`),
-  or `nil`. Library Schema v2 Phase 1 Task 6 moved TMDB/IMDB ids off the
-  container columns and back onto `ExternalId` rows as the single source
-  of truth.
+  Returns the container of the given type that owns the given TMDB id
+  (via `library_external_ids`), or `nil`.
+
+  Library Schema v2 Phase 2 Task F collapsed the per-type FKs on
+  `ExternalId` into a single `(owner_type, owner_id)` discriminator
+  pair. This helper joins on the discriminator to fetch the typed
+  container in a single query.
+
+  Pass `:tmdb_collection` for MovieSeries; everything else uses
+  `:tmdb`.
   """
-  def find_movie_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
+  @spec find_by_external_id(MediaCentarr.Library.ExternalIds.owner_type(), String.t()) ::
+          MediaCentarr.Library.ExternalIds.owner() | nil
+  def find_by_external_id(owner_type, external_id) when is_atom(owner_type) and is_binary(external_id) do
+    source = if owner_type == :movie_series, do: "tmdb_collection", else: "tmdb"
+    schema = schema_for_owner_type(owner_type)
+
     Repo.one(
-      from(m in Movie,
+      from(r in schema,
         join: e in ExternalId,
-        on: e.movie_id == m.id,
-        where: e.source == "tmdb" and e.external_id == ^tmdb_id,
+        on: e.owner_id == r.id and e.owner_type == ^owner_type,
+        where: e.source == ^source and e.external_id == ^external_id,
         limit: 1
       )
     )
   end
 
-  def find_tv_series_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
-    Repo.one(
-      from(t in TVSeries,
-        join: e in ExternalId,
-        on: e.tv_series_id == t.id,
-        where: e.source == "tmdb" and e.external_id == ^tmdb_id,
-        limit: 1
-      )
-    )
-  end
-
-  def find_movie_series_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
-    Repo.one(
-      from(ms in MovieSeries,
-        join: e in ExternalId,
-        on: e.movie_series_id == ms.id,
-        where: e.source == "tmdb_collection" and e.external_id == ^tmdb_id,
-        limit: 1
-      )
-    )
-  end
-
-  def find_video_object_by_tmdb_id(tmdb_id) when is_binary(tmdb_id) do
-    Repo.one(
-      from(v in VideoObject,
-        join: e in ExternalId,
-        on: e.video_object_id == v.id,
-        where: e.source == "tmdb" and e.external_id == ^tmdb_id,
-        limit: 1
-      )
-    )
-  end
+  defp schema_for_owner_type(:movie), do: Movie
+  defp schema_for_owner_type(:tv_series), do: TVSeries
+  defp schema_for_owner_type(:movie_series), do: MovieSeries
+  defp schema_for_owner_type(:video_object), do: VideoObject
 
   @doc """
   Returns `{:ok, content_url}` if the library has a movie with this
@@ -712,7 +743,7 @@ defmodule MediaCentarr.Library do
     case Repo.one(
            from(m in Movie,
              join: e in ExternalId,
-             on: e.movie_id == m.id,
+             on: e.owner_id == m.id and e.owner_type == :movie,
              where: e.source == "tmdb" and e.external_id == ^tmdb_id and not is_nil(m.content_url),
              select: m.content_url,
              limit: 1
@@ -741,7 +772,7 @@ defmodule MediaCentarr.Library do
              join: t in TVSeries,
              on: t.id == s.tv_series_id,
              join: ext in ExternalId,
-             on: ext.tv_series_id == t.id,
+             on: ext.owner_id == t.id and ext.owner_type == :tv_series,
              where:
                ext.source == "tmdb" and ext.external_id == ^tmdb_id and
                  s.season_number == ^season_number and
@@ -763,7 +794,7 @@ defmodule MediaCentarr.Library do
     Repo.all(
       from(t in TVSeries,
         join: e in ExternalId,
-        on: e.tv_series_id == t.id,
+        on: e.owner_id == t.id and e.owner_type == :tv_series,
         where: t.id in ^tv_series_ids and e.source == "tmdb",
         select: {t.id, e.external_id}
       )
@@ -780,7 +811,7 @@ defmodule MediaCentarr.Library do
     Repo.all(
       from(m in Movie,
         join: e in ExternalId,
-        on: e.movie_id == m.id,
+        on: e.owner_id == m.id and e.owner_type == :movie,
         where: m.id in ^movie_ids and e.source == "tmdb",
         select: {m.id, e.external_id}
       )
@@ -792,59 +823,47 @@ defmodule MediaCentarr.Library do
   tagged with its type. Used by ReleaseTracking to scan for tracking
   candidates.
 
-  The `:source` key matches the existing convention (`"tmdb"` for
-  movies / TV / video objects, `"tmdb_collection"` for movie series).
+  Each row is `%{source: String.t(), external_id: String.t(),
+  owner_type: atom(), owner_id: Ecto.UUID.t()}`. The `:source` is
+  `"tmdb"` for movies / TV / video objects and `"tmdb_collection"` for
+  movie series; `:owner_type` is the canonical container type atom.
+
+  Standalone movies (no `movie_series_id`) are surfaced; movies that
+  belong to a movie_series are skipped — release tracking handles them
+  through the collection.
   """
   def list_tmdb_entities do
-    tv =
+    tv_and_movie_series =
       Repo.all(
-        from(t in TVSeries,
-          join: e in ExternalId,
-          on: e.tv_series_id == t.id,
-          where: e.source == "tmdb",
+        from(e in ExternalId,
+          where:
+            (e.owner_type == :tv_series and e.source == "tmdb") or
+              (e.owner_type == :movie_series and e.source == "tmdb_collection"),
           select: %{
-            source: "tmdb",
+            source: e.source,
             external_id: e.external_id,
-            tv_series_id: t.id,
-            movie_series_id: nil,
-            movie_id: nil
+            owner_type: e.owner_type,
+            owner_id: e.owner_id
           }
         )
       )
 
-    movies =
+    standalone_movies =
       Repo.all(
         from(m in Movie,
           join: e in ExternalId,
-          on: e.movie_id == m.id,
+          on: e.owner_id == m.id and e.owner_type == :movie,
           where: e.source == "tmdb" and is_nil(m.movie_series_id),
           select: %{
-            source: "tmdb",
+            source: e.source,
             external_id: e.external_id,
-            tv_series_id: nil,
-            movie_series_id: nil,
-            movie_id: m.id
+            owner_type: e.owner_type,
+            owner_id: e.owner_id
           }
         )
       )
 
-    movie_series =
-      Repo.all(
-        from(ms in MovieSeries,
-          join: e in ExternalId,
-          on: e.movie_series_id == ms.id,
-          where: e.source == "tmdb_collection",
-          select: %{
-            source: "tmdb_collection",
-            external_id: e.external_id,
-            tv_series_id: nil,
-            movie_series_id: ms.id,
-            movie_id: nil
-          }
-        )
-      )
-
-    tv ++ movies ++ movie_series
+    tv_and_movie_series ++ standalone_movies
   end
 
   # ---------------------------------------------------------------------------
@@ -922,7 +941,7 @@ defmodule MediaCentarr.Library do
     Repo.one(
       from(m in Movie,
         join: e in ExternalId,
-        on: e.movie_id == m.id,
+        on: e.owner_id == m.id and e.owner_type == :movie,
         where:
           m.movie_series_id == ^movie_series_id and
             e.source == "tmdb" and e.external_id == ^tmdb_id,
@@ -950,7 +969,7 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
 
   def list_extras_for_season(season_id) do
-    Repo.all(from(x in Extra, where: x.season_id == ^season_id))
+    Repo.all(from(x in Extra, where: x.owner_type == :season and x.owner_id == ^season_id))
   end
 
   def fetch_extra(id) do
@@ -963,19 +982,24 @@ defmodule MediaCentarr.Library do
   def get_extra!(id), do: Repo.get!(Extra, id)
 
   @doc """
-  Find or create an extra by type-specific FK + content_url.
-  The `type_fk` is the FK key atom (e.g. `:movie_id`, `:tv_series_id`).
+  Find or create an extra by its `(owner_type, owner_id, content_url)`
+  tuple. Used by ingest to upsert extras without re-discovering the
+  same bonus feature on every Watcher event.
   """
-  def find_or_create_extra_by_type(attrs, type_fk) when is_atom(type_fk) do
+  def find_or_create_extra_by_owner(attrs) do
     find_or_insert_by(
       Extra,
-      [{type_fk, lookup_attr(attrs, type_fk)}, {:content_url, lookup_attr(attrs, :content_url)}],
+      [
+        owner_type: lookup_attr(attrs, :owner_type),
+        owner_id: lookup_attr(attrs, :owner_id),
+        content_url: lookup_attr(attrs, :content_url)
+      ],
       attrs
     )
   end
 
   def create_extra(attrs) do
-    Repo.insert(Extra.create_changeset(attrs))
+    Repo.insert(Extra.create_changeset(translate_extra_owner(attrs)))
   end
 
   def create_extra!(attrs), do: Repo.bang!(create_extra(attrs))
@@ -1516,7 +1540,7 @@ defmodule MediaCentarr.Library do
           exists(
             from(img in Image,
               where:
-                img.movie_id == parent_as(:item).id and
+                img.owner_id == parent_as(:item).id and img.owner_type == :movie and
                   img.role == "backdrop" and
                   not is_nil(img.content_url),
               select: 1
@@ -1540,7 +1564,7 @@ defmodule MediaCentarr.Library do
           exists(
             from(img in Image,
               where:
-                img.movie_id == parent_as(:item).id and
+                img.owner_id == parent_as(:item).id and img.owner_type == :movie and
                   img.role == "backdrop" and
                   not is_nil(img.content_url),
               select: 1
@@ -1563,7 +1587,7 @@ defmodule MediaCentarr.Library do
           exists(
             from(img in Image,
               where:
-                img.tv_series_id == parent_as(:entity).id and
+                img.owner_id == parent_as(:entity).id and img.owner_type == :tv_series and
                   img.role == "backdrop" and
                   not is_nil(img.content_url),
               select: 1
@@ -1599,7 +1623,7 @@ defmodule MediaCentarr.Library do
           exists(
             from(img in Image,
               where:
-                img.movie_series_id == parent_as(:item).id and
+                img.owner_id == parent_as(:item).id and img.owner_type == :movie_series and
                   img.role == "backdrop" and
                   not is_nil(img.content_url),
               select: 1
@@ -1622,7 +1646,7 @@ defmodule MediaCentarr.Library do
           exists(
             from(img in Image,
               where:
-                img.video_object_id == parent_as(:entity).id and
+                img.owner_id == parent_as(:entity).id and img.owner_type == :video_object and
                   img.role == "backdrop" and
                   not is_nil(img.content_url),
               select: 1

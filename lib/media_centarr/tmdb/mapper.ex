@@ -102,6 +102,13 @@ defmodule MediaCentarr.TMDB.Mapper do
 
   @doc """
   Builds a list of image attribute maps from TMDB entity data (poster, backdrop, logo).
+
+  These pure helpers emit attribute maps with a single `owner_key` →
+  `owner_id` entry; the call site is responsible for routing the
+  `owner_key` (today: `:entity_id`, `:movie_id`, `:episode_id`) to the
+  appropriate sink. The ingest sink ultimately writes
+  `library_images.(owner_type, owner_id)` via
+  `Library.Inbound.process_image_ready/1`.
   """
   def image_attrs(entity_id, tmdb_data), do: build_image_attrs(:entity_id, entity_id, tmdb_data)
 

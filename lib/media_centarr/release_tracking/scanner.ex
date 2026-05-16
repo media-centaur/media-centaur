@@ -28,8 +28,7 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
     {:ok, results}
   end
 
-  defp process_external_id(%{source: "tmdb", tv_series_id: tv_series_id} = ext_id)
-       when not is_nil(tv_series_id) do
+  defp process_external_id(%{source: "tmdb", owner_type: :tv_series, owner_id: tv_series_id} = ext_id) do
     tmdb_id = parse_tmdb_id(ext_id.external_id)
 
     if already_tracked?(tmdb_id, :tv_series) do
@@ -39,8 +38,9 @@ defmodule MediaCentarr.ReleaseTracking.Scanner do
     end
   end
 
-  defp process_external_id(%{source: "tmdb_collection", movie_series_id: movie_series_id} = ext_id)
-       when not is_nil(movie_series_id) do
+  defp process_external_id(
+         %{source: "tmdb_collection", owner_type: :movie_series, owner_id: movie_series_id} = ext_id
+       ) do
     collection_id = parse_tmdb_id(ext_id.external_id)
 
     if already_tracked?(collection_id, :movie) do

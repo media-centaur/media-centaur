@@ -153,7 +153,7 @@ defmodule MediaCentarr.Showcase do
 
       {:ok, _} = Library.ExternalIds.put(:tmdb, movie, to_string(tmdb_id))
 
-      download_images!(movie.id, movie_data, :movie_id)
+      download_images!(movie.id, movie_data, :movie)
 
       seed_presence!(movie.id, :movie_id, fake_movie_path(movie.name))
 
@@ -190,7 +190,7 @@ defmodule MediaCentarr.Showcase do
 
       {:ok, _} = Library.ExternalIds.put(:tmdb, series, to_string(tmdb_id))
 
-      download_images!(series.id, tv_data, :tv_series_id)
+      download_images!(series.id, tv_data, :tv_series)
 
       seasons =
         Enum.map(season_numbers, fn season_number ->
@@ -271,7 +271,7 @@ defmodule MediaCentarr.Showcase do
     # `scripts/generate-showcase-thumbs`.
     case episode_data["still_path"] do
       path when is_binary(path) and path != "" ->
-        download_image_role!(episode.id, :episode_id, season.tv_series_id, :thumb, path)
+        download_image_role!(episode.id, :episode, season.tv_series_id, :thumb, path)
 
       _ ->
         bundle_episode_thumb!(episode)
@@ -899,25 +899,25 @@ defmodule MediaCentarr.Showcase do
     end
   end
 
-  defp download_images!(entity_id, tmdb_data, fk) do
+  defp download_images!(entity_id, tmdb_data, owner_type) do
     poster_path = tmdb_data["poster_path"]
     backdrop_path = tmdb_data["backdrop_path"]
 
-    download_image_role!(entity_id, fk, entity_id, :poster, poster_path)
-    download_image_role!(entity_id, fk, entity_id, :backdrop, backdrop_path)
+    download_image_role!(entity_id, owner_type, entity_id, :poster, poster_path)
+    download_image_role!(entity_id, owner_type, entity_id, :backdrop, backdrop_path)
 
     :ok
   end
 
-  defp download_image_role!(_owner_id, _fk, _entity_id, _role, nil), do: :ok
-  defp download_image_role!(_owner_id, _fk, _entity_id, _role, ""), do: :ok
+  defp download_image_role!(_owner_id, _owner_type, _entity_id, _role, nil), do: :ok
+  defp download_image_role!(_owner_id, _owner_type, _entity_id, _role, ""), do: :ok
 
   # Always writes a `pipeline_image_queue` row (carrying the TMDB CDN URL)
   # before attempting the inline download. If the inline download fails,
   # the queue row remains `:pending` and the Settings → Library
   # Maintenance → Repair button can drain it later via
   # `Pipeline.ImageRepair.repair_all/0`.
-  defp download_image_role!(owner_id, fk, entity_id, role, path) do
+  defp download_image_role!(owner_id, owner_type, entity_id, role, path) do
     url = "https://image.tmdb.org/t/p/original#{path}"
     watch_dirs = MediaCentarr.Config.get(:watch_dirs) || []
     primary = List.first(watch_dirs)
@@ -926,18 +926,18 @@ defmodule MediaCentarr.Showcase do
       extension = path |> Path.extname() |> String.trim_leading(".") |> String.downcase()
       extension = if extension == "", do: "jpg", else: extension
 
-      enqueue_for_repair(owner_id, fk, entity_id, role, url, primary)
-      perform_inline_download(owner_id, fk, role, extension, url, primary)
+      enqueue_for_repair(owner_id, owner_type, entity_id, role, url, primary)
+      perform_inline_download(owner_id, owner_type, role, extension, url, primary)
     else
       :ok
     end
   end
 
-  defp enqueue_for_repair(owner_id, fk, entity_id, role, url, watch_dir) do
+  defp enqueue_for_repair(owner_id, owner_type, entity_id, role, url, watch_dir) do
     {:ok, _entry} =
       MediaCentarr.Pipeline.ImageQueue.create(%{
         owner_id: owner_id,
-        owner_type: owner_type_for(fk),
+        owner_type: to_string(owner_type),
         role: to_string(role),
         source_url: url,
         entity_id: entity_id,
@@ -949,23 +949,18 @@ defmodule MediaCentarr.Showcase do
     :ok
   end
 
-  defp owner_type_for(:movie_id), do: "movie"
-  defp owner_type_for(:tv_series_id), do: "tv_series"
-  defp owner_type_for(:movie_series_id), do: "movie_series"
-  defp owner_type_for(:video_object_id), do: "video_object"
-  defp owner_type_for(:episode_id), do: "episode"
-
-  defp perform_inline_download(owner_id, fk, role, extension, url, watch_dir) do
+  defp perform_inline_download(owner_id, owner_type, role, extension, url, watch_dir) do
     images_root = MediaCentarr.Config.images_dir_for(watch_dir)
     dest = Path.join([images_root, owner_id, "#{role}.#{extension}"])
 
     case MediaCentarr.Images.download(url, dest, []) do
       {:ok, _} ->
         Library.create_image!(%{
-          fk => owner_id,
-          :role => to_string(role),
-          :content_url => "#{owner_id}/#{role}.#{extension}",
-          :extension => extension
+          owner_type: owner_type,
+          owner_id: owner_id,
+          role: to_string(role),
+          content_url: "#{owner_id}/#{role}.#{extension}",
+          extension: extension
         })
 
         mark_queue_complete(owner_id, role)
@@ -1020,7 +1015,8 @@ defmodule MediaCentarr.Showcase do
       File.cp!(fixture, dest)
 
       Library.create_image!(%{
-        episode_id: episode.id,
+        owner_type: :episode,
+        owner_id: episode.id,
         role: "thumb",
         content_url: "#{episode.id}/thumb.jpg",
         extension: "jpg"

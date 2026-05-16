@@ -98,14 +98,7 @@ defmodule MediaCentarr.Library.ImageHealth do
     |> Enum.map(fn {:ok, result} -> result end)
   end
 
-  defp annotate(%Image{} = image) do
-    {entity_id, entity_type} = derive_entity(image)
+  defp annotate(%Image{owner_id: entity_id, owner_type: entity_type} = image) do
     %{image: image, entity_id: entity_id, entity_type: entity_type}
   end
-
-  defp derive_entity(%Image{movie_id: id}) when not is_nil(id), do: {id, :movie}
-  defp derive_entity(%Image{episode_id: id}) when not is_nil(id), do: {id, :episode}
-  defp derive_entity(%Image{tv_series_id: id}) when not is_nil(id), do: {id, :tv_series}
-  defp derive_entity(%Image{movie_series_id: id}) when not is_nil(id), do: {id, :movie_series}
-  defp derive_entity(%Image{video_object_id: id}) when not is_nil(id), do: {id, :video_object}
 end
