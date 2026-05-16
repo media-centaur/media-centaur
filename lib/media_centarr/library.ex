@@ -20,6 +20,12 @@ defmodule MediaCentarr.Library do
       MovieSeries,
       Person,
       PlayableItem,
+      Progress,
+      Progress.Events,
+      Progress.Events.ProgressFlushed,
+      Progress.Events.ProgressHydrated,
+      Progress.Events.ProgressTicked,
+      Progress.Worker,
       ProgressSummary,
       Season,
       TVSeries,
@@ -1741,6 +1747,49 @@ defmodule MediaCentarr.Library do
         |> Map.put(:playable_item_id, playable_item.id)
 
       upsert_by(WatchProgress, [playable_item_id: playable_item.id], cleaned_attrs)
+    end
+  end
+
+  @doc """
+  Upserts a `WatchProgress` row by `playable_item_id`. Used by
+  `MediaCentarr.Library.Progress.Worker` during the debounced flush —
+  the in-memory row arrives carrying the canonical `playable_item_id`
+  so the worker bypasses the container-shaped helpers above.
+
+  `attrs` is a map (or struct-shaped map) carrying
+  `:playable_item_id`, `:position_seconds`, `:duration_seconds`,
+  `:completed`, and `:last_watched_at`. Raises on failure — flush
+  errors mean the in-memory row is out of sync with the DB and must
+  surface immediately rather than silently dropping state.
+  """
+  @spec upsert_watch_progress_by_playable_item_id!(map()) :: WatchProgress.t()
+  def upsert_watch_progress_by_playable_item_id!(%{playable_item_id: playable_item_id} = attrs)
+      when is_binary(playable_item_id) do
+    case upsert_by(WatchProgress, [playable_item_id: playable_item_id], attrs) do
+      {:ok, record} -> record
+      {:error, changeset} -> raise "WatchProgress flush failed: #{inspect(changeset)}"
+    end
+  end
+
+  @doc """
+  Looks up or creates a `WatchProgress` row for a `playable_item_id`.
+  Returns `{:ok, record}` or `{:error, changeset}`. Used by
+  `Library.Progress.complete/1` — completion has to resolve the
+  persisted row (creating one if necessary) before flipping
+  `completed: true`.
+  """
+  @spec find_or_create_watch_progress_by_playable_item_id(Ecto.UUID.t()) ::
+          {:ok, WatchProgress.t()} | {:error, term()}
+  def find_or_create_watch_progress_by_playable_item_id(playable_item_id)
+      when is_binary(playable_item_id) do
+    case Repo.get_by(WatchProgress, playable_item_id: playable_item_id) do
+      nil ->
+        upsert_by(WatchProgress, [playable_item_id: playable_item_id], %{
+          playable_item_id: playable_item_id
+        })
+
+      record ->
+        {:ok, record}
     end
   end
 

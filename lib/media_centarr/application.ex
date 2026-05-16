@@ -178,7 +178,10 @@ defmodule MediaCentarr.Application do
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.RecentlyAdded},
       {MediaCentarr.Cache.Worker, context: MediaCentarr.Library.Views.Search},
       {MediaCentarr.Cache.Worker, context: MediaCentarr.ReleaseTracking.Views.ComingUp},
-      {MediaCentarr.Cache.Worker, context: MediaCentarr.WatchHistory.Views.Summary}
+      {MediaCentarr.Cache.Worker, context: MediaCentarr.WatchHistory.Views.Summary},
+      # Pillar-2 GenServer (ADR-041) — owns active watch-progress
+      # state in ETS, debounce-flushes to library_watch_progress.
+      MediaCentarr.Library.Progress.Worker
     ]
   end
 
