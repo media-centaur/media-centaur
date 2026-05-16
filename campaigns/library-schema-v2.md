@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: phase-2-shipped
 started: 2026-05-15
 last_updated: 2026-05-16
 ---
@@ -47,9 +47,35 @@ Each landed via dispatch-implement-review-fix loop. Full precommit
 green at every commit boundary. `mix test` stable at 3386 tests, 0
 failures.
 
-**Phase 2 — PlayableItem reification: ⏳ not started.** Detailed
-plan to be drafted JIT against the Phase 1 end state per the
-project's reconciliation rule.
+**Phase 2 — PlayableItem reification: ✅ complete (2026-05-16).**
+Detailed plan at [`docs/superpowers/plans/2026-05-16-library-schema-v2-phase2.md`](../docs/superpowers/plans/2026-05-16-library-schema-v2-phase2.md).
+Nine landed commits on top of Phase 1:
+
+| Task | Commit | Change |
+|------|--------|--------|
+| A | `mpnwlrkx` | `feat(library): introduce PlayableItem as the canonical leaf` |
+| B | `vptkvqyu` | `refactor(library): refit WatchedFile to playable_item_id; introduce ExtraFile for Extras presence` |
+| C | `mzuowyyw` | `refactor(library): refit WatchProgress to single playable_item_id` |
+| D+E+F | `yskspyxw` | `refactor(library): polymorphic owner discriminators on Image, Extra, ExternalId` (3 tables in one combined dispatch) |
+| G | `rnuumrqv` | `refactor(library): Inbound writes PlayableItem rows for every leaf ingest` |
+| H | `ukvmpnmk` | `refactor(library): TypeResolver/EntityShape/EntityCascade pivot on PlayableItem` |
+| I | `tkpxnspm` | `refactor(library): drop content_url from Movie/Episode/VideoObject; WatchedFile is sole file source` |
+| J | `yqtomypk` | `refactor(release_tracking): library_entity_id → library_container_id with discriminator` |
+
+Each landed via dispatch-implement-review-fix loop. `mix precommit`
+green at every commit boundary. Stats: 3386 → 3433 tests, 0 failures
+throughout. `EntityShape.normalize/3` deleted; `WatchedFile.owner_id/1`
+deleted; the 3–5-FK polymorphic fanout collapsed to a single FK or a
+single `(owner_type, owner_id)` discriminator on every supporting
+table. `PlayableItem` is the canonical leaf — director's cuts and
+multi-part episodes are schema-representable (not yet UI-exposed).
+
+Notable mid-flight finding: Task B's migration on production-shape
+data found 22 collection-level WatchedFiles (bonus features attached
+to MovieSeries) that the new schema couldn't host as PlayableItems.
+User chose the architectural fix — new `Library.ExtraFile` schema
+parallel to WatchedFile, preserving file-presence for Extras without
+inventing a fake leaf. Folded into Task B's commit.
 
 **Phase 3 — Library projection fan-out: ⏳ not started.** Feeds
 into [`desktop-rearchitecture.md`](desktop-rearchitecture.md)
@@ -96,6 +122,59 @@ Phase 2 but worth picking up for full architectural polish:
   More duplication may exist in less-trafficked render paths; full
   consolidation deferred until Phase 2/3 read-model unification, when
   the canonical view-model struct will absorb formatting too.
+
+## Phase 2 follow-ups
+
+Items surfaced during Phase 2 reviews — not blocking Phase 3:
+
+- **`populate_leaf_content_url/1` silent-nil → raise on
+  NotLoaded** (Task I review). The `content_url` virtual field is
+  silently nil when `playable_items` isn't preloaded; convert to a
+  loud `ArgumentError` so the next contributor sees the
+  missing-preload bug at test time, not runtime.
+- **Multi-PlayableItem `content_url` ordering policy** (Task I).
+  `populate_leaf_content_url/1` uses `Enum.find_value` — order is
+  whatever Repo returned. Add `order_by: [asc: position]` on the
+  preload (or document the non-determinism explicitly).
+- **`StatusHelpers.progress_matches_session?/2`** (Task C). Compares
+  `progress.playable_item.container_id` against `now_playing[:movie_id]`
+  etc., but `MpvSession.build_now_playing/1` doesn't populate those
+  keys. Pre-existing latent bug, surfaced by Task C. Either backfill
+  the keys at session start or rewrite the helper to use
+  `now_playing.entity_id`.
+- **`MpvSession` FK-key deferral** (Task C). Session-state still
+  carries `movie_id` / `episode_id` / `video_object_id`; only the
+  persistence boundary migrated. Worth a follow-up if a future task
+  needs the playable_item_id internally during a session.
+- **`has_one through` silent drop on multi-cut** (Task C). When a
+  Movie has multiple PlayableItems with progress, `Repo.preload(movie,
+  :watch_progress)` silently returns the first row instead of raising.
+  Acceptable today (no multi-cut writers); tighten when multi-cut UI
+  ships.
+- **EntityCascade `bulk_destroy` ordering comment** (Task H). Cascade
+  order is correct but the relationship between `destroy_leaf!` and
+  `bulk_destroy` is implicit; one inline comment removes the trap.
+- **`Library.find_or_create_external_id/1`** (D+E+F review). Helper
+  looks up by `(source, external_id)` only — could return a row owned
+  by a different `owner_type` than requested. Currently has zero
+  callers (orphan helper). Either remove or fix to include
+  `owner_type` in the lookup.
+- **TMDB `Mapper` image helpers still emit legacy `entity_id` keys**
+  (D+E+F). No live consumers (only tests); remove when those tests
+  refactor.
+- **`resources_in_delete_order` missing PlayableItem** (D+E+F note).
+  `Maintenance.resources_in_delete_order/0` doesn't list PlayableItem;
+  Task H rewrote the cascade so this is no longer load-bearing, but
+  the constant could be deleted entirely if nothing else reads it.
+- **Validate-pair test for `release_tracking_items`** (Task J). 5-line
+  test for the half-set rejection of `validate_container_pair/1`.
+- **`ComingUpItemRef.entity_id` discoverability comment** (Task J). The
+  view-model field is named `entity_id` but holds a Library container
+  UUID — kept for URL-param convention. One-line `@doc` removes the
+  ambiguity.
+- **`StatusResolver.progress_record_key/1` simplification** (Task C
+  follow-up review). Now keys by `playable_item_id` only — verify no
+  edge case where the legacy tuple-key invariant mattered.
 
 ## Architectural premises
 
