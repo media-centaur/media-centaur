@@ -173,8 +173,13 @@ defmodule MediaCentarr.IntegrationHealth do
 
       id ->
         configured? = configured_for?(id)
-        # Reset test_state when the key changes — the previous :ok is no
-        # longer valid evidence for the new value.
+        # Reset test_state — the previous :ok is no longer valid evidence
+        # for the new key value. We deliberately do NOT auto-kick a verify
+        # here: writes typically arrive in bursts (e.g., the setup tour
+        # saving URL + api_key in one form submit) and a per-key cascade
+        # races on stale config, so verification is always explicit via
+        # `verify/1`. Callers that mutate config and want a fresh test
+        # should call `verify/1` after the last write.
         write(id, %Status{
           id: id,
           configured?: configured?,
@@ -182,7 +187,6 @@ defmodule MediaCentarr.IntegrationHealth do
         })
 
         broadcast(id)
-        if configured?, do: kick_test(id)
         {:noreply, state}
     end
   end

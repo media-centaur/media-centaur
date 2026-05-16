@@ -162,16 +162,17 @@ defmodule MediaCentarrWeb.SetupLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("setup:save_integration", params, socket) do
-    Enum.each(params, fn
-      {"_" <> _, _} ->
-        :ok
-
-      {key, value} when is_binary(key) ->
-        save_integration_field(key, value)
-
-      _ ->
-        :ok
-    end)
+    # Save every recognised field; track whether ANY actually mutated
+    # config. The empty-submit case (user revisits an already-saved step
+    # and clicks Next without re-entering creds) leaves `changed?` false
+    # and skips the verify, so the gate just advances on the existing
+    # `:ok` health state instead of re-running the network test.
+    changed? =
+      Enum.reduce(params, false, fn
+        {"_" <> _, _}, acc -> acc
+        {key, value}, acc when is_binary(key) -> save_integration_field(key, value) or acc
+        _, acc -> acc
+      end)
 
     ProwlarrClient.invalidate_client()
     QBittorrent.invalidate_client()
@@ -179,18 +180,41 @@ defmodule MediaCentarrWeb.SetupLive do
 
     socket = refresh_probes(socket)
 
-    # `IntegrationHealth` listens for `:config_updated` and kicks the
-    # verify itself — the LiveView doesn't need to ask. We only set the
-    # flash here; the actual state transition flows back via
-    # `{:integration_health_changed, %Status{}}` and is handled by the
-    # PubSub handler below.
-    flash =
-      case integration_atom(params["_integration"]) do
-        nil -> "Saved."
-        id -> "Saved. Verifying #{id}…"
-      end
+    id = integration_atom(params["_integration"])
 
-    {:noreply, put_flash(socket, :info, flash)}
+    # Kick a fresh verify only when config actually changed AND the step
+    # is a known integration. This is the single explicit verify trigger
+    # — IntegrationHealth no longer auto-kicks on each `:config_updated`
+    # broadcast, which avoided a per-field race where (e.g.) saving
+    # `prowlarr_api_key` before `prowlarr_url` fired a verify against
+    # stale URL and got stuck at `:error` until the user clicked Next
+    # again. See `IntegrationHealth.handle_info({:config_updated, ...})`.
+    if changed? and id, do: IntegrationHealth.verify(id)
+
+    step = socket.assigns.current_step
+    probe = current_probe(socket.assigns.probes, step)
+    health = Map.get(socket.assigns.integration_health, step)
+
+    case Gate.check(step, probe, health) do
+      :ok ->
+        case advance(step, +1) do
+          :finish -> finish(socket)
+          next_step -> {:noreply, push_patch(socket, to: step_path(next_step))}
+        end
+
+      {:blocked, _reason} ->
+        # Stay on the step. For TMDB (gating step) the user sees a
+        # transient "Verifying…" until the PubSub auto-advance fires
+        # when the verify completes.
+        flash =
+          cond do
+            is_nil(id) -> "Saved."
+            changed? -> "Saved. Verifying #{id}…"
+            true -> "This step is already configured."
+          end
+
+        {:noreply, put_flash(socket, :info, flash)}
+    end
   end
 
   # ---------------------------------------------------------------------------
@@ -264,28 +288,40 @@ defmodule MediaCentarrWeb.SetupLive do
   defp save_binary_path("ffprobe", path), do: Config.update(:ffprobe_path, path)
   defp save_binary_path(_, _), do: :ok
 
-  defp save_integration_field("tmdb_api_key", ""), do: :ok
-  defp save_integration_field("tmdb_api_key", value), do: Config.update(:tmdb_api_key, value)
-  defp save_integration_field("prowlarr_url", value), do: Config.update(:prowlarr_url, value)
-  defp save_integration_field("prowlarr_api_key", ""), do: :ok
+  # Returns `true` when the call actually mutated Config, `false`
+  # otherwise (empty value, unknown key). The caller folds these into a
+  # `changed?` flag that drives the verify decision.
+  defp save_integration_field("tmdb_api_key", ""), do: false
+  defp save_integration_field("tmdb_api_key", value), do: update_if_changed(:tmdb_api_key, value)
+  defp save_integration_field("prowlarr_url", value), do: update_if_changed(:prowlarr_url, value)
+  defp save_integration_field("prowlarr_api_key", ""), do: false
 
-  defp save_integration_field("prowlarr_api_key", value), do: Config.update(:prowlarr_api_key, value)
+  defp save_integration_field("prowlarr_api_key", value), do: update_if_changed(:prowlarr_api_key, value)
 
   defp save_integration_field("download_client_type", value),
-    do: Config.update(:download_client_type, value)
+    do: update_if_changed(:download_client_type, value)
 
   defp save_integration_field("download_client_url", value),
-    do: Config.update(:download_client_url, value)
+    do: update_if_changed(:download_client_url, value)
 
   defp save_integration_field("download_client_username", value),
-    do: Config.update(:download_client_username, value)
+    do: update_if_changed(:download_client_username, value)
 
-  defp save_integration_field("download_client_password", ""), do: :ok
+  defp save_integration_field("download_client_password", ""), do: false
 
   defp save_integration_field("download_client_password", value),
-    do: Config.update(:download_client_password, value)
+    do: update_if_changed(:download_client_password, value)
 
-  defp save_integration_field(_, _), do: :ok
+  defp save_integration_field(_, _), do: false
+
+  defp update_if_changed(key, value) do
+    if Config.get(key) == value do
+      false
+    else
+      Config.update(key, value)
+      true
+    end
+  end
 
   # Map the string id used on the wire (`name="_integration"` hidden
   # field, `phx-value-id="..."`, etc.) to the atom IntegrationHealth uses
@@ -534,7 +570,6 @@ defmodule MediaCentarrWeb.SetupLive do
             name="tmdb_api_key"
             placeholder="paste your TMDB v4 read-access token"
             class="input input-bordered input-sm w-full font-mono text-sm"
-            required
           />
         </form>
       </:form>
@@ -569,14 +604,12 @@ defmodule MediaCentarrWeb.SetupLive do
             value={@prowlarr_url_value}
             placeholder="http://localhost:9696"
             class="input input-bordered input-sm w-full font-mono text-sm"
-            required
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">API key</label>
           <input
             type="password"
             name="prowlarr_api_key"
             class="input input-bordered input-sm w-full font-mono text-sm"
-            required
           />
         </form>
       </:form>
@@ -624,7 +657,6 @@ defmodule MediaCentarrWeb.SetupLive do
             value={@dc_url}
             placeholder="http://localhost:8080"
             class="input input-bordered input-sm w-full font-mono text-sm"
-            required
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Username</label>
           <input
@@ -632,14 +664,12 @@ defmodule MediaCentarrWeb.SetupLive do
             name="download_client_username"
             value={@dc_username}
             class="input input-bordered input-sm w-full font-mono text-sm"
-            required
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Password</label>
           <input
             type="password"
             name="download_client_password"
             class="input input-bordered input-sm w-full font-mono text-sm"
-            required
           />
         </form>
       </:form>
