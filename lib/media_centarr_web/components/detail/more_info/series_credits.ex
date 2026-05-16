@@ -32,7 +32,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.SeriesCredits do
   attr :entity, :map,
     required: true,
     doc:
-      "normalized series entity (see `MediaCentarr.Library.EntityShape.normalize/2`). Reads `:crew` (list of `MediaCentarr.Library.Person` structs) for Creator filtering."
+      "series view-model map (see `MediaCentarr.Library.EntityShape.to_view_model/2`). Reads `:crew` (list of `MediaCentarr.Library.Person` structs) for Creator filtering."
 
   def headline(assigns) do
     crew = assigns.entity[:crew] || []

@@ -163,11 +163,11 @@ defmodule MediaCentarr.Playback.SessionRecovery do
   end
 
   defp resolve_typed_entity(id) do
-    case TypeResolver.resolve(id,
+    case TypeResolver.resolve_container(id,
            standalone_movie: false,
            preload: Library.full_preloads_by_type()
          ) do
-      {:ok, type, record} -> {:ok, EntityShape.normalize(record, type)}
+      {:ok, type, record} -> {:ok, EntityShape.to_view_model(record, type)}
       :not_found -> :not_found
     end
   end
