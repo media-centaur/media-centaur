@@ -5,7 +5,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
 
   alias MediaCentarr.Library.EntityShape
 
-  describe "normalize/2 — movie" do
+  describe "to_view_model/2 — movie" do
     test "carries movie-specific fields through" do
       movie =
         build_standalone_movie(%{
@@ -18,7 +18,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
           content_url: "/media/sample.mkv"
         })
 
-      shape = EntityShape.normalize(movie, :movie)
+      shape = EntityShape.to_view_model(movie, :movie)
 
       assert shape.id == movie.id
       assert shape.type == :movie
@@ -32,7 +32,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
     end
 
     test "defaults associations to empty lists" do
-      shape = EntityShape.normalize(build_standalone_movie(), :movie)
+      shape = EntityShape.to_view_model(build_standalone_movie(), :movie)
 
       assert shape.images == []
       assert shape.external_ids == []
@@ -57,11 +57,11 @@ defmodule MediaCentarr.Library.EntityShapeTest do
 
       movie = build_standalone_movie(%{cast: cast_data})
 
-      assert EntityShape.normalize(movie, :movie).cast == cast_data
+      assert EntityShape.to_view_model(movie, :movie).cast == cast_data
     end
 
     test "defaults cast to [] when the record has no cast value" do
-      shape = EntityShape.normalize(build_standalone_movie(), :movie)
+      shape = EntityShape.to_view_model(build_standalone_movie(), :movie)
       assert shape.cast == []
     end
 
@@ -77,27 +77,27 @@ defmodule MediaCentarr.Library.EntityShapeTest do
       ]
 
       movie = build_standalone_movie(%{crew: crew_data})
-      assert EntityShape.normalize(movie, :movie).crew == crew_data
+      assert EntityShape.to_view_model(movie, :movie).crew == crew_data
     end
 
     test "defaults crew to [] when the record has no crew value" do
-      shape = EntityShape.normalize(build_standalone_movie(), :movie)
+      shape = EntityShape.to_view_model(build_standalone_movie(), :movie)
       assert shape.crew == []
     end
 
     test "derives imdb_id from preloaded :external_ids" do
       imdb_row = build_external_id(%{source: "imdb", external_id: "tt0000001"})
       movie = build_standalone_movie(%{external_ids: [imdb_row]})
-      assert EntityShape.normalize(movie, :movie).imdb_id == "tt0000001"
+      assert EntityShape.to_view_model(movie, :movie).imdb_id == "tt0000001"
     end
   end
 
-  describe "normalize/2 — tv_series" do
+  describe "to_view_model/2 — tv_series" do
     test "preserves tv_series fields and seasons" do
       season = build_season(%{season_number: 1})
       tv_series = build_tv_series(%{name: "Sample Show", number_of_seasons: 2, seasons: [season]})
 
-      shape = EntityShape.normalize(tv_series, :tv_series)
+      shape = EntityShape.to_view_model(tv_series, :tv_series)
 
       assert shape.type == :tv_series
       assert shape.name == "Sample Show"
@@ -106,17 +106,17 @@ defmodule MediaCentarr.Library.EntityShapeTest do
     end
 
     test "duration_seconds is nil for tv_series (field doesn't exist on schema)" do
-      shape = EntityShape.normalize(build_tv_series(), :tv_series)
+      shape = EntityShape.to_view_model(build_tv_series(), :tv_series)
       assert shape.duration_seconds == nil
     end
   end
 
-  describe "normalize/2 — movie_series" do
+  describe "to_view_model/2 — movie_series" do
     test "preserves movie_series fields and child movies" do
       child = build_movie(%{name: "Child Movie"})
       series = build_movie_series(%{name: "Sample Trilogy", movies: [child]})
 
-      shape = EntityShape.normalize(series, :movie_series)
+      shape = EntityShape.to_view_model(series, :movie_series)
 
       assert shape.type == :movie_series
       assert shape.name == "Sample Trilogy"
@@ -124,11 +124,11 @@ defmodule MediaCentarr.Library.EntityShapeTest do
     end
   end
 
-  describe "normalize/2 — video_object" do
+  describe "to_view_model/2 — video_object" do
     test "preserves video_object fields" do
       video = build_video_object(%{name: "Sample Video", content_url: "/media/short.mkv"})
 
-      shape = EntityShape.normalize(video, :video_object)
+      shape = EntityShape.to_view_model(video, :video_object)
 
       assert shape.type == :video_object
       assert shape.name == "Sample Video"
@@ -216,7 +216,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
     end
   end
 
-  describe "normalize/2 with :collection field" do
+  describe "to_view_model/2 with :collection field" do
     test "movie with preloaded movie_series populates :collection" do
       ms = %MediaCentarr.Library.MovieSeries{
         id: "ms-uuid",
@@ -232,7 +232,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
         updated_at: ~U[2026-01-01 00:00:00Z]
       }
 
-      result = EntityShape.normalize(record, :movie)
+      result = EntityShape.to_view_model(record, :movie)
 
       assert result.collection == %{id: "ms-uuid", name: "Mascot Collection"}
     end
@@ -247,7 +247,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
         updated_at: ~U[2026-01-01 00:00:00Z]
       }
 
-      assert EntityShape.normalize(record, :movie).collection == nil
+      assert EntityShape.to_view_model(record, :movie).collection == nil
     end
 
     test "non-movie types have nil :collection" do
@@ -258,7 +258,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
         updated_at: ~U[2026-01-01 00:00:00Z]
       }
 
-      assert EntityShape.normalize(record, :tv_series).collection == nil
+      assert EntityShape.to_view_model(record, :tv_series).collection == nil
     end
 
     test "movie with movie_series_id but unloaded association has nil :collection" do
@@ -271,7 +271,7 @@ defmodule MediaCentarr.Library.EntityShapeTest do
         updated_at: ~U[2026-01-01 00:00:00Z]
       }
 
-      assert EntityShape.normalize(record, :movie).collection == nil
+      assert EntityShape.to_view_model(record, :movie).collection == nil
     end
   end
 end

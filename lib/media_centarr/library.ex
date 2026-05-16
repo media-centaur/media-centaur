@@ -105,8 +105,8 @@ defmodule MediaCentarr.Library do
 
   @doc """
   Returns a `[type: preloads]` keyword list covering the four playable entity
-  types. Used by `TypeResolver.resolve/2` and other multi-type lookups that
-  preload across all four tables in one call.
+  types. Used by `TypeResolver.resolve_container/2` and other multi-type
+  lookups that preload across all four tables in one call.
   """
   def full_preloads_by_type do
     [
