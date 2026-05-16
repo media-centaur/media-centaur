@@ -1010,7 +1010,9 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   end
 
   defp entity_extras(%{extras: extras}) when is_list(extras) do
-    Enum.filter(extras, &is_nil(&1.season_id))
+    # Surface only entity-level extras (not season-owned ones); season
+    # extras are rendered next to their season elsewhere in the panel.
+    Enum.reject(extras, &(&1.owner_type == :season))
   end
 
   defp entity_extras(_), do: []

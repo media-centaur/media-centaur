@@ -17,7 +17,12 @@ defmodule MediaCentarr.Library.Season do
 
     belongs_to :tv_series, MediaCentarr.Library.TVSeries
     has_many :episodes, MediaCentarr.Library.Episode
-    has_many :extras, MediaCentarr.Library.Extra
+
+    # Polymorphic association — Extra rows discriminate on
+    # `(owner_type, owner_id)` (Library Schema v2 Phase 2 Task E).
+    has_many :extras, MediaCentarr.Library.Extra,
+      foreign_key: :owner_id,
+      where: [owner_type: :season]
 
     timestamps()
   end

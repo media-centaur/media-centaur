@@ -151,8 +151,8 @@ defmodule MediaCentarr.Library.InboundTest do
       assert reloaded.name == "Sample Movie"
       assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
 
-      # tmdb_id stored directly on the Movie row
-      assert Library.find_movie_by_tmdb_id("550").id == movie.id
+      # tmdb_id stored on a polymorphic ExternalId row
+      assert Library.find_by_external_id(:movie, "550").id == movie.id
 
       # WatchedFile linked to a PlayableItem(:movie, movie.id).
       [file] = MediaCentarr.Repo.all(WatchedFile)
@@ -202,8 +202,8 @@ defmodule MediaCentarr.Library.InboundTest do
       assert {:ok, reloaded} = Library.fetch_movie_series(series.id)
       assert reloaded.name == "Sample Movie Collection"
 
-      # tmdb_id stored directly on MovieSeries
-      assert Library.find_movie_series_by_tmdb_id("263").id == series.id
+      # tmdb_id stored on a polymorphic ExternalId row
+      assert Library.find_by_external_id(:movie_series, "263").id == series.id
 
       # Child movie with movie_series_id FK
       series = MediaCentarr.Repo.preload(series, [:movies])
@@ -282,7 +282,7 @@ defmodule MediaCentarr.Library.InboundTest do
       assert tv_series.number_of_seasons == 5
 
       # tmdb_id stored directly on TVSeries
-      assert Library.find_tv_series_by_tmdb_id("1396").id == tv_series.id
+      assert Library.find_by_external_id(:tv_series, "1396").id == tv_series.id
 
       # Season + Episode (via tv_series preload)
       tv_series = MediaCentarr.Repo.preload(tv_series, seasons: :episodes)
@@ -550,7 +550,8 @@ defmodule MediaCentarr.Library.InboundTest do
       assert [image] = movie.images
       assert image.role == "poster"
       assert image.content_url == "images/#{movie.id}/poster.jpg"
-      assert image.movie_id == movie.id
+      assert image.owner_type == :movie
+      assert image.owner_id == movie.id
     end
 
     test "creates image record for child movie owner" do
@@ -576,7 +577,8 @@ defmodule MediaCentarr.Library.InboundTest do
       movie = MediaCentarr.Repo.preload(movie, :images)
       assert [image] = movie.images
       assert image.role == "poster"
-      assert image.movie_id == movie.id
+      assert image.owner_type == :movie
+      assert image.owner_id == movie.id
     end
 
     test "broadcasts entities_changed after image creation" do

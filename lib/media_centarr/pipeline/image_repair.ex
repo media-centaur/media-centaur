@@ -111,17 +111,12 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   end
 
   defp find_existing_queue_row(role, image) do
-    owner_id = owner_id_for(image)
+    owner_id = image.owner_id
 
     case Repo.one(from(e in ImageQueueEntry, where: e.owner_id == ^owner_id and e.role == ^role)) do
       nil -> :missing
       entry -> {:ok, entry}
     end
-  end
-
-  defp owner_id_for(image) do
-    image.movie_id || image.episode_id || image.tv_series_id ||
-      image.movie_series_id || image.video_object_id
   end
 
   defp reset_queue_row(%ImageQueueEntry{status: "pending", retry_count: 0} = entry) do
@@ -181,15 +176,14 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   # {:ok, {tmdb_id, season_number, episode_number, parent_tv_series_id}}
   # for episodes.
 
-  defp find_tmdb_context(entity_id, :movie), do: lookup_tmdb_id(entity_id, :tmdb, :movie_id)
+  defp find_tmdb_context(entity_id, :movie), do: lookup_tmdb_id(entity_id, :tmdb, :movie)
 
-  defp find_tmdb_context(entity_id, :tv_series), do: lookup_tmdb_id(entity_id, :tmdb, :tv_series_id)
+  defp find_tmdb_context(entity_id, :tv_series), do: lookup_tmdb_id(entity_id, :tmdb, :tv_series)
 
   defp find_tmdb_context(entity_id, :movie_series),
-    do: lookup_tmdb_id(entity_id, :tmdb_collection, :movie_series_id)
+    do: lookup_tmdb_id(entity_id, :tmdb_collection, :movie_series)
 
-  defp find_tmdb_context(entity_id, :video_object),
-    do: lookup_tmdb_id(entity_id, :tmdb, :video_object_id)
+  defp find_tmdb_context(entity_id, :video_object), do: lookup_tmdb_id(entity_id, :tmdb, :video_object)
 
   defp find_tmdb_context(episode_id, :episode) do
     with {:ok, episode} <- Library.fetch_episode(episode_id),
@@ -204,13 +198,15 @@ defmodule MediaCentarr.Pipeline.ImageRepair do
   # TMDB ids live on `library_external_ids` (Library Schema v2 Phase 1
   # Task 6) — read directly via the (source, fk) tuple so this path
   # stays a single SQL trip without re-loading the container.
-  defp lookup_tmdb_id(entity_id, source_atom, fk_key) do
+  defp lookup_tmdb_id(entity_id, source_atom, owner_type) do
     source_str = Atom.to_string(source_atom)
 
     result =
       Repo.one(
         from(e in MediaCentarr.Library.ExternalId,
-          where: field(e, ^fk_key) == ^entity_id and e.source == ^source_str,
+          where:
+            e.owner_id == ^entity_id and e.owner_type == ^owner_type and
+              e.source == ^source_str,
           select: e.external_id,
           limit: 1
         )

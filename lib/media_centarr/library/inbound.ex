@@ -103,16 +103,15 @@ defmodule MediaCentarr.Library.Inbound do
       entity_id: entity_id
     } = attrs
 
-    image_attrs =
-      put_owner_fk(
-        %{role: role, content_url: content_url, extension: extension},
-        owner_type,
-        owner_id
-      )
+    image_attrs = %{
+      role: role,
+      content_url: content_url,
+      extension: extension,
+      owner_type: cast_owner_type(owner_type),
+      owner_id: owner_id
+    }
 
-    conflict_target = conflict_target_for(owner_type)
-
-    case Library.upsert_image(image_attrs, conflict_target) do
+    case Library.upsert_image(image_attrs, [:owner_type, :owner_id, :role]) do
       {:ok, _image} ->
         Log.info(:library, "image ready — #{role} for #{owner_id}")
 
@@ -217,7 +216,7 @@ defmodule MediaCentarr.Library.Inbound do
   end
 
   defp find_existing_entity(%{source: "tmdb_collection", external_id: value}) do
-    case Library.find_movie_series_by_tmdb_id(value) do
+    case Library.find_by_external_id(:movie_series, value) do
       nil -> :not_found
       entity -> {:ok, entity}
     end
@@ -225,9 +224,9 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp find_existing_entity(%{source: _source, external_id: value}) do
     cond do
-      tv = Library.find_tv_series_by_tmdb_id(value) -> {:ok, tv}
-      movie = Library.find_movie_by_tmdb_id(value) -> {:ok, movie}
-      vo = Library.find_video_object_by_tmdb_id(value) -> {:ok, vo}
+      tv = Library.find_by_external_id(:tv_series, value) -> {:ok, tv}
+      movie = Library.find_by_external_id(:movie, value) -> {:ok, movie}
+      vo = Library.find_by_external_id(:video_object, value) -> {:ok, vo}
       true -> :not_found
     end
   end
@@ -329,10 +328,8 @@ defmodule MediaCentarr.Library.Inbound do
     end
   end
 
-  defp find_winner(:tv_series, value), do: Library.find_tv_series_by_tmdb_id(value)
-  defp find_winner(:movie_series, value), do: Library.find_movie_series_by_tmdb_id(value)
-  defp find_winner(:movie, value), do: Library.find_movie_by_tmdb_id(value)
-  defp find_winner(:video_object, value), do: Library.find_video_object_by_tmdb_id(value)
+  defp find_winner(type, value) when type in [:tv_series, :movie_series, :movie, :video_object],
+    do: Library.find_by_external_id(type, value)
 
   defp tmdb_source_for(:movie_series), do: :tmdb_collection
   defp tmdb_source_for(_), do: :tmdb
@@ -575,21 +572,25 @@ defmodule MediaCentarr.Library.Inbound do
         end
       end
 
-    extra_attrs =
-      put_type_fk(
-        %{
-          name: extra_data.name,
-          content_url: extra_data.content_url,
-          position: 0,
-          season_id: if(season, do: season.id)
-        },
-        entity_type,
-        entity_id
-      )
+    # If the extra has a season_number, the Extra's owner is the Season,
+    # not the parent container — extras live "alongside" the Season they
+    # belong to.
+    {owner_type, owner_id} =
+      if season do
+        {:season, season.id}
+      else
+        {entity_type, entity_id}
+      end
 
-    type_fk = type_fk_for(entity_type)
+    extra_attrs = %{
+      name: extra_data.name,
+      content_url: extra_data.content_url,
+      position: 0,
+      owner_type: owner_type,
+      owner_id: owner_id
+    }
 
-    case Library.find_or_create_extra_by_type(extra_attrs, type_fk) do
+    case Library.find_or_create_extra_by_owner(extra_attrs) do
       {:ok, _extra} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -743,7 +744,7 @@ defmodule MediaCentarr.Library.Inbound do
          child_movie: %{attrs: %{tmdb_id: child_tmdb_id}}
        })
        when is_binary(child_tmdb_id) do
-    %{id: id, position: position} = Library.find_movie_by_tmdb_id(child_tmdb_id)
+    %{id: id, position: position} = Library.find_by_external_id(:movie, child_tmdb_id)
     {:movie, id, position || 1}
   end
 
@@ -790,20 +791,16 @@ defmodule MediaCentarr.Library.Inbound do
   defp maybe_put(map, key, value, true), do: Map.put(map, key, value)
 
   # ---------------------------------------------------------------------------
-  # Image record helpers (for :image_ready)
+  # Owner-type helpers (for :image_ready)
   # ---------------------------------------------------------------------------
 
-  defp put_owner_fk(attrs, "movie", owner_id), do: Map.put(attrs, :movie_id, owner_id)
-  defp put_owner_fk(attrs, "episode", owner_id), do: Map.put(attrs, :episode_id, owner_id)
-  defp put_owner_fk(attrs, "tv_series", owner_id), do: Map.put(attrs, :tv_series_id, owner_id)
-
-  defp put_owner_fk(attrs, "movie_series", owner_id), do: Map.put(attrs, :movie_series_id, owner_id)
-
-  defp put_owner_fk(attrs, "video_object", owner_id), do: Map.put(attrs, :video_object_id, owner_id)
-
-  defp conflict_target_for("movie"), do: [:movie_id, :role]
-  defp conflict_target_for("episode"), do: [:episode_id, :role]
-  defp conflict_target_for("tv_series"), do: [:tv_series_id, :role]
-  defp conflict_target_for("movie_series"), do: [:movie_series_id, :role]
-  defp conflict_target_for("video_object"), do: [:video_object_id, :role]
+  # `:image_ready` events carry owner_type as a string ("movie", "episode",
+  # …) — see `Pipeline.PrepareImage`. Schema-side it's `Ecto.Enum` keyed
+  # by atom, so coerce here.
+  defp cast_owner_type(type) when is_atom(type), do: type
+  defp cast_owner_type("movie"), do: :movie
+  defp cast_owner_type("episode"), do: :episode
+  defp cast_owner_type("tv_series"), do: :tv_series
+  defp cast_owner_type("movie_series"), do: :movie_series
+  defp cast_owner_type("video_object"), do: :video_object
 end
