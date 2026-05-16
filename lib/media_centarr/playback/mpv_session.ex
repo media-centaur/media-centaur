@@ -35,6 +35,9 @@ defmodule MediaCentarr.Playback.MpvSession do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Format
+  alias MediaCentarr.Library
+  alias MediaCentarr.Library.{Episode, Movie}
+  alias MediaCentarr.Library.Progress, as: LibraryProgress
 
   alias MediaCentarr.Playback.{
     DisplayEnv,
@@ -45,6 +48,8 @@ defmodule MediaCentarr.Playback.MpvSession do
     SessionRegistry,
     WatchingTracker
   }
+
+  alias MediaCentarr.Repo
 
   @db_write_interval_ms 10_000
   @socket_retry_interval_ms 200
@@ -496,15 +501,28 @@ defmodule MediaCentarr.Playback.MpvSession do
     entity_id = state.entity_id
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      case find_or_create_progress(params) do
-        {:ok, record} ->
+      case resolve_or_create_playable_item_id(params) do
+        {:ok, playable_item_id} ->
+          # Hot-path write: lands in the Library.Progress in-memory
+          # table in microseconds; the debounced flush persists to
+          # `library_watch_progress` on the next interval (default 5s)
+          # or synchronously on clean shutdown (Library Schema v2
+          # Phase 3 Task D).
+          :ok = LibraryProgress.record(playable_item_id, saveable, duration)
+
           Log.info(
             :playback,
             "saved progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
           )
 
-          latest = maybe_mark_completed(record, saveable, duration)
-          ProgressBroadcaster.broadcast(entity_id, latest)
+          maybe_mark_completed_via_progress(playable_item_id, saveable, duration)
+          # Preserve the rich `%EntityProgressUpdated{}` event for
+          # consumers that need summary/resume_target/changed_record
+          # (EntityModal, StatusLive, LibraryLive). The simpler
+          # `{:entity_progress_updated, pi_id, pos}` tuple broadcast
+          # from Progress.record/3 is consumed by projections that
+          # only need the trigger.
+          ProgressBroadcaster.broadcast(entity_id)
 
         {:error, reason} ->
           Log.warning(:playback, "failed to save progress — #{inspect(reason)}")
@@ -512,28 +530,66 @@ defmodule MediaCentarr.Playback.MpvSession do
     end)
   end
 
-  defp maybe_mark_completed(record, position, duration)
-       when is_number(position) and is_number(duration) and duration > 0 do
-    if not record.completed and position / duration >= 0.90 do
-      Log.info(
-        :playback,
-        "marked completed — #{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
-      )
-
-      case MediaCentarr.Library.mark_watch_completed(record) do
-        {:ok, updated} ->
-          updated
-
-        {:error, reason} ->
-          Log.warning(:playback, "failed to mark completed — #{inspect(reason)}")
-          record
+  # Resolves the canonical PlayableItem for the session's container FK
+  # without writing any WatchProgress row — that's the new Progress
+  # GenServer's job. Mirrors `Library.find_or_create_watch_progress_for_*`
+  # but stops at the PlayableItem.
+  defp resolve_or_create_playable_item_id(%{movie_id: movie_id}) when not is_nil(movie_id) do
+    position =
+      case Repo.get(Movie, movie_id) do
+        %{position: pos} when is_integer(pos) -> pos
+        _ -> 1
       end
-    else
-      record
+
+    case Library.find_or_create_playable_item(:movie, movie_id, position) do
+      {:ok, %{id: id}} -> {:ok, id}
+      other -> other
     end
   end
 
-  defp maybe_mark_completed(record, _position, _duration), do: record
+  defp resolve_or_create_playable_item_id(%{episode_id: episode_id}) when not is_nil(episode_id) do
+    position =
+      case Repo.get(Episode, episode_id) do
+        %{episode_number: n} when is_integer(n) -> n
+        _ -> 1
+      end
+
+    case Library.find_or_create_playable_item(:episode, episode_id, position) do
+      {:ok, %{id: id}} -> {:ok, id}
+      other -> other
+    end
+  end
+
+  defp resolve_or_create_playable_item_id(%{video_object_id: vo_id}) when not is_nil(vo_id) do
+    case Library.find_or_create_playable_item(:video_object, vo_id, 1) do
+      {:ok, %{id: id}} -> {:ok, id}
+      other -> other
+    end
+  end
+
+  defp resolve_or_create_playable_item_id(_params), do: {:error, :no_fk_specified}
+
+  defp maybe_mark_completed_via_progress(playable_item_id, position, duration)
+       when is_number(position) and is_number(duration) and duration > 0 do
+    case LibraryProgress.get(playable_item_id) do
+      %{completed: true} ->
+        :ok
+
+      _ ->
+        if position / duration >= 0.90 do
+          Log.info(
+            :playback,
+            "marked completed — #{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
+          )
+
+          :ok = LibraryProgress.complete(playable_item_id)
+        else
+          :ok
+        end
+    end
+  end
+
+  defp maybe_mark_completed_via_progress(_playable_item_id, _position, _duration), do: :ok
 
   defp maybe_mark_extra_completed(record, position, duration)
        when is_number(position) and is_number(duration) and duration > 0 do
@@ -556,22 +612,6 @@ defmodule MediaCentarr.Playback.MpvSession do
   end
 
   defp maybe_mark_extra_completed(_record, _position, _duration), do: :ok
-
-  defp find_or_create_progress(%{movie_id: movie_id} = params) when not is_nil(movie_id) do
-    MediaCentarr.Library.find_or_create_watch_progress_for_movie(params)
-  end
-
-  defp find_or_create_progress(%{episode_id: episode_id} = params) when not is_nil(episode_id) do
-    MediaCentarr.Library.find_or_create_watch_progress_for_episode(params)
-  end
-
-  defp find_or_create_progress(%{video_object_id: vo_id} = params) when not is_nil(vo_id) do
-    MediaCentarr.Library.find_or_create_watch_progress_for_video_object(params)
-  end
-
-  defp find_or_create_progress(_params) do
-    {:error, :no_fk_specified}
-  end
 
   # --- PubSub Broadcasting ---
 
