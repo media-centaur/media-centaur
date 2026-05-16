@@ -17,6 +17,8 @@ defmodule MediaCentarr.Library.Views do
   alias MediaCentarr.Library.Views.BrowseItem
   alias MediaCentarr.Library.Views.ContinueWatching
   alias MediaCentarr.Library.Views.ContinueWatchingItem
+  alias MediaCentarr.Library.Views.Detail
+  alias MediaCentarr.Library.Views.DetailItem
   alias MediaCentarr.Library.Views.HeroCandidates
   alias MediaCentarr.Library.Views.HeroCandidatesItem
   alias MediaCentarr.Library.Views.RecentlyAdded
@@ -66,4 +68,36 @@ defmodule MediaCentarr.Library.Views do
   """
   @spec browse(keyword()) :: [BrowseItem.t()]
   def browse(opts \\ []), do: Browse.read(opts)
+
+  @doc """
+  Returns the cached `DetailItem` for the given `playable_item_id`, or
+  nil when no row exists.
+
+  The projection holds one row per PlayableItem (see
+  `MediaCentarr.Library.Views.Detail`). Per-row reads bypass the
+  GenServer via `:ets.lookup/2`; consumers receive
+  `{:library_view_updated, :detail, playable_item_id}` on the
+  `library:views` topic when their row changes.
+  """
+  @spec detail(Ecto.UUID.t()) :: DetailItem.t() | nil
+  def detail(playable_item_id), do: Detail.read(playable_item_id)
+
+  @doc """
+  Companion lookup for callers that hold a container UUID (e.g. URLs
+  like `/library?selected=<container_id>`) and need the canonical
+  PlayableItem's row.
+
+  Handles single-leaf container types:
+
+    * `:movie` — returns the row for the position=1 PlayableItem.
+    * `:video_object` — returns the row for the canonical PlayableItem.
+
+  Returns nil for `:tv_series`, `:movie_series`, and `:episode` — there
+  is no canonical PlayableItem at those container levels. TVSeries
+  consumers compose detail rows per-episode, and Episode callers
+  should hold the PlayableItem UUID directly.
+  """
+  @spec detail_by_container(atom(), Ecto.UUID.t()) :: DetailItem.t() | nil
+  def detail_by_container(container_type, container_id),
+    do: Detail.read_by_container(container_type, container_id)
 end
