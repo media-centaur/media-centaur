@@ -46,9 +46,20 @@ defmodule MediaCentarr.Library.MovieSeries do
     embeds_many :crew, Person, on_replace: :delete
 
     has_many :movies, MediaCentarr.Library.Movie, foreign_key: :movie_series_id
-    has_many :images, MediaCentarr.Library.Image, foreign_key: :movie_series_id
-    has_many :extras, MediaCentarr.Library.Extra, foreign_key: :movie_series_id
-    has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :movie_series_id
+
+    # Polymorphic associations — Image / Extra / ExternalId rows discriminate
+    # on `(owner_type, owner_id)` (Library Schema v2 Phase 2 Tasks D, E, F).
+    has_many :images, MediaCentarr.Library.Image,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie_series]
+
+    has_many :extras, MediaCentarr.Library.Extra,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie_series]
+
+    has_many :external_ids, MediaCentarr.Library.ExternalId,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie_series]
 
     # WatchedFiles reach this MovieSeries via its child movies' PlayableItems
     # (Library Schema v2 Phase 2 Task B). The MovieSeries itself never owns

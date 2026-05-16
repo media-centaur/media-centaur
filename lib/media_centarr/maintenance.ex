@@ -213,16 +213,16 @@ defmodule MediaCentarr.Maintenance do
   # owner type: `tmdb_collection` for MovieSeries, `tmdb` for everything
   # else.
   defp records_with_tmdb_id(MovieSeries),
-    do: records_with_tmdb_id(MovieSeries, "tmdb_collection", :movie_series_id)
+    do: records_with_tmdb_id(MovieSeries, "tmdb_collection", :movie_series)
 
-  defp records_with_tmdb_id(Movie), do: records_with_tmdb_id(Movie, "tmdb", :movie_id)
-  defp records_with_tmdb_id(TVSeries), do: records_with_tmdb_id(TVSeries, "tmdb", :tv_series_id)
+  defp records_with_tmdb_id(Movie), do: records_with_tmdb_id(Movie, "tmdb", :movie)
+  defp records_with_tmdb_id(TVSeries), do: records_with_tmdb_id(TVSeries, "tmdb", :tv_series)
 
-  defp records_with_tmdb_id(schema, source, fk_key) do
+  defp records_with_tmdb_id(schema, source, owner_type) do
     Repo.all(
       from(r in schema,
         join: e in ExternalId,
-        on: field(e, ^fk_key) == r.id,
+        on: e.owner_id == r.id and e.owner_type == ^owner_type,
         where: e.source == ^source,
         select: {r, e.external_id}
       )
@@ -329,13 +329,16 @@ defmodule MediaCentarr.Maintenance do
   end
 
   # Movie-linked WatchedFiles whose `subtitles_tracks` row count is
-  # zero. The left-join + group_by keeps this a single SQL trip.
+  # zero. The left-join + group_by keeps this a single SQL trip. After
+  # Library Schema v2 Phase 2 Task B, WatchedFile reaches the Movie
+  # through `PlayableItem(container_type: :movie)`.
   defp movie_files_without_tracks do
     Repo.all(
       from f in WatchedFile,
+        join: pi in MediaCentarr.Library.PlayableItem,
+        on: pi.id == f.playable_item_id and pi.container_type == :movie,
         left_join: t in MediaCentarr.Subtitles.Track,
         on: t.watched_file_id == f.id,
-        where: not is_nil(f.movie_id),
         group_by: f.id,
         having: count(t.id) == 0,
         select: f

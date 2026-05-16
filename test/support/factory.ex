@@ -78,21 +78,23 @@ defmodule MediaCentarr.TestFactory do
       role: "poster",
       content_url: nil,
       extension: "jpg",
-      movie_id: nil,
-      episode_id: nil
+      owner_type: nil,
+      owner_id: nil
     }
 
-    struct(Image, Map.merge(defaults, overrides))
+    struct(Image, Map.merge(defaults, translate_owner_keys(overrides, :image)))
   end
 
   def build_external_id(overrides \\ %{}) do
     defaults = %{
       id: Ecto.UUID.generate(),
       source: "tmdb",
-      external_id: "12345"
+      external_id: "12345",
+      owner_type: nil,
+      owner_id: nil
     }
 
-    struct(ExternalId, Map.merge(defaults, overrides))
+    struct(ExternalId, Map.merge(defaults, translate_owner_keys(overrides, :external_id)))
   end
 
   @doc """
@@ -143,10 +145,11 @@ defmodule MediaCentarr.TestFactory do
       name: "Behind the Scenes",
       content_url: "/path/to/extra.mkv",
       position: 0,
-      season_id: nil
+      owner_type: nil,
+      owner_id: nil
     }
 
-    struct(Extra, Map.merge(defaults, overrides))
+    struct(Extra, Map.merge(defaults, translate_owner_keys(overrides, :extra)))
   end
 
   def build_season(overrides \\ %{}) do
@@ -387,11 +390,11 @@ defmodule MediaCentarr.TestFactory do
   end
 
   def create_image(attrs) do
-    Library.create_image!(attrs)
+    attrs |> Map.new() |> translate_owner_keys(:image) |> Library.create_image!()
   end
 
   def create_external_id(attrs) do
-    Library.create_external_id!(attrs)
+    attrs |> Map.new() |> translate_owner_keys(:external_id) |> Library.create_external_id!()
   end
 
   def create_season(attrs) do
@@ -456,7 +459,7 @@ defmodule MediaCentarr.TestFactory do
   end
 
   def create_extra(attrs) do
-    Library.create_extra!(attrs)
+    attrs |> Map.new() |> translate_owner_keys(:extra) |> Library.create_extra!()
   end
 
   @doc """
@@ -974,4 +977,52 @@ defmodule MediaCentarr.TestFactory do
     {_pursuit, target} = create_pursuit_with_target(attrs)
     target
   end
+
+  # ---------------------------------------------------------------------------
+  # Polymorphic owner translation (Library Schema v2 Phase 2 Tasks D, E, F)
+  # ---------------------------------------------------------------------------
+
+  # Test sites still use the legacy per-type FK keys (`movie_id:`,
+  # `tv_series_id:`, `season_id:`, …) when building Image / Extra /
+  # ExternalId rows. The schemas now carry a single `(owner_type,
+  # owner_id)` discriminator pair. This translation lets existing tests
+  # keep their natural call shape; new tests can write either form.
+  #
+  # If both legacy and modern keys are present, the modern keys win.
+
+  @image_owner_keys [:movie_id, :episode_id, :tv_series_id, :movie_series_id, :video_object_id]
+  @extra_owner_keys [:movie_id, :tv_series_id, :movie_series_id, :season_id]
+  @external_id_owner_keys [:movie_id, :tv_series_id, :movie_series_id, :video_object_id]
+
+  @owner_key_to_type %{
+    movie_id: :movie,
+    episode_id: :episode,
+    tv_series_id: :tv_series,
+    movie_series_id: :movie_series,
+    video_object_id: :video_object,
+    season_id: :season
+  }
+
+  defp translate_owner_keys(attrs, kind) do
+    attrs = Map.new(attrs)
+    keys = owner_keys_for(kind)
+
+    case Enum.find(keys, fn key -> not is_nil(Map.get(attrs, key)) end) do
+      nil ->
+        attrs
+
+      legacy_key ->
+        owner_id = Map.get(attrs, legacy_key)
+        owner_type = Map.fetch!(@owner_key_to_type, legacy_key)
+
+        attrs
+        |> Map.drop(keys)
+        |> Map.put_new(:owner_type, owner_type)
+        |> Map.put_new(:owner_id, owner_id)
+    end
+  end
+
+  defp owner_keys_for(:image), do: @image_owner_keys
+  defp owner_keys_for(:extra), do: @extra_owner_keys
+  defp owner_keys_for(:external_id), do: @external_id_owner_keys
 end

@@ -8,14 +8,16 @@ defmodule MediaCentarr.Library.ExternalIds do
   scheme — `tmdb_id` / `imdb_id` columns on each container row — has
   been dropped.
 
+  Library Schema v2 Phase 2 Task F collapsed the per-type owner FKs
+  (`movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id`)
+  into a single `(owner_type, owner_id)` discriminator pair on the
+  `ExternalId` row. This module hides that detail so callers continue
+  to think in terms of container structs.
+
   Reads always go through a preloaded `:external_ids` association
   (`get/2`); writes always go through `put/3`. The helper resolves the
-  owner FK from the parent's struct module so callers don't repeat the
-  type-dispatch.
-
-  In Phase 2 the per-type FKs collapse into a polymorphic
-  `(owner_type, owner_id)` pair on `ExternalId`. Phase 1 keeps the
-  per-type FKs as-is — only the access path is centralised here.
+  owner type/id from the parent's struct module so callers don't repeat
+  the type-dispatch.
 
   ## Sources
 
@@ -43,7 +45,8 @@ defmodule MediaCentarr.Library.ExternalIds do
   @doc """
   Inserts an `ExternalId` row pointing the given source/external_id pair at
   the given container record. Idempotent — returns the existing row on
-  conflict (same `(source, external_id, owner_fk)`) without raising.
+  conflict (same `(source, external_id, owner_type, owner_id)`) without
+  raising.
 
   Passing `nil` for the external_id is a no-op (`:ok`) — call sites can
   unconditionally forward optional ids without a guard.
@@ -52,14 +55,14 @@ defmodule MediaCentarr.Library.ExternalIds do
   def put(_source, _container, nil), do: :ok
 
   def put(source, container, external_id) when source in @sources and is_binary(external_id) do
-    fk_key = owner_fk(container)
+    owner_type = owner_type(container)
     source_str = Atom.to_string(source)
 
     case Repo.one(
            from(e in ExternalId,
              where:
                e.source == ^source_str and e.external_id == ^external_id and
-                 field(e, ^fk_key) == ^container.id,
+                 e.owner_type == ^owner_type and e.owner_id == ^container.id,
              limit: 1
            )
          ) do
@@ -67,8 +70,12 @@ defmodule MediaCentarr.Library.ExternalIds do
         {:ok, existing}
 
       nil ->
-        %{source: source_str, external_id: external_id}
-        |> Map.put(fk_key, container.id)
+        %{
+          source: source_str,
+          external_id: external_id,
+          owner_type: owner_type,
+          owner_id: container.id
+        }
         |> ExternalId.create_changeset()
         |> Repo.insert()
     end
@@ -96,11 +103,11 @@ defmodule MediaCentarr.Library.ExternalIds do
   Finds the container that owns the given `(source, external_id)` pair,
   returning `{:ok, owner_type, record}` or `:not_found`.
 
-  Tries each owner FK in order — `tmdb` and `imdb` sources may legitimately
+  Tries each owner type in order — `tmdb` and `imdb` sources may legitimately
   attach to multiple container types (a movie and a TV series can share
   TMDB id 12345 — different namespaces in the TMDB API). The first match
-  wins; callers needing type-specific lookup should call the per-type
-  helpers (`MediaCentarr.Library.find_movie_by_tmdb_id/1` etc).
+  wins; callers needing type-specific lookup should call
+  `MediaCentarr.Library.find_by_external_id/3` with the owner type.
   """
   @spec find_owner(source(), String.t()) :: {:ok, owner_type(), owner()} | :not_found
   def find_owner(source, external_id) when source in @sources and is_binary(external_id) do
@@ -115,28 +122,18 @@ defmodule MediaCentarr.Library.ExternalIds do
       )
 
     case row do
-      nil ->
-        :not_found
-
-      %ExternalId{movie_id: id} when not is_nil(id) ->
-        {:ok, :movie, Repo.get!(Movie, id)}
-
-      %ExternalId{tv_series_id: id} when not is_nil(id) ->
-        {:ok, :tv_series, Repo.get!(TVSeries, id)}
-
-      %ExternalId{movie_series_id: id} when not is_nil(id) ->
-        {:ok, :movie_series, Repo.get!(MovieSeries, id)}
-
-      %ExternalId{video_object_id: id} when not is_nil(id) ->
-        {:ok, :video_object, Repo.get!(VideoObject, id)}
-
-      _ ->
-        :not_found
+      nil -> :not_found
+      %ExternalId{owner_type: type, owner_id: id} -> {:ok, type, Repo.get!(schema_for(type), id)}
     end
   end
 
-  defp owner_fk(%Movie{}), do: :movie_id
-  defp owner_fk(%TVSeries{}), do: :tv_series_id
-  defp owner_fk(%MovieSeries{}), do: :movie_series_id
-  defp owner_fk(%VideoObject{}), do: :video_object_id
+  defp owner_type(%Movie{}), do: :movie
+  defp owner_type(%TVSeries{}), do: :tv_series
+  defp owner_type(%MovieSeries{}), do: :movie_series
+  defp owner_type(%VideoObject{}), do: :video_object
+
+  defp schema_for(:movie), do: Movie
+  defp schema_for(:tv_series), do: TVSeries
+  defp schema_for(:movie_series), do: MovieSeries
+  defp schema_for(:video_object), do: VideoObject
 end

@@ -51,9 +51,20 @@ defmodule MediaCentarr.Library.Movie do
     embeds_many :crew, Person, on_replace: :delete
 
     belongs_to :movie_series, MediaCentarr.Library.MovieSeries
-    has_many :images, MediaCentarr.Library.Image
-    has_many :extras, MediaCentarr.Library.Extra
-    has_many :external_ids, MediaCentarr.Library.ExternalId
+
+    # Polymorphic associations — Image / Extra / ExternalId rows discriminate
+    # on `(owner_type, owner_id)` (Library Schema v2 Phase 2 Tasks D, E, F).
+    has_many :images, MediaCentarr.Library.Image,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie]
+
+    has_many :extras, MediaCentarr.Library.Extra,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie]
+
+    has_many :external_ids, MediaCentarr.Library.ExternalId,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie]
 
     # Polymorphic has_many via Ecto's `where:` filter. The `container_id` FK
     # is shared across container types; the discriminator keeps the

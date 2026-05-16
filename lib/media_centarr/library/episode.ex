@@ -24,7 +24,12 @@ defmodule MediaCentarr.Library.Episode do
     field :content_url, :string
 
     belongs_to :season, MediaCentarr.Library.Season
-    has_many :images, MediaCentarr.Library.Image
+
+    # Polymorphic association — Image rows discriminate on
+    # `(owner_type, owner_id)` (Library Schema v2 Phase 2 Task D).
+    has_many :images, MediaCentarr.Library.Image,
+      foreign_key: :owner_id,
+      where: [owner_type: :episode]
 
     # Polymorphic has_many via Ecto's `where:` filter. See
     # `Library.PlayableItem` moduledoc for the discriminator design.

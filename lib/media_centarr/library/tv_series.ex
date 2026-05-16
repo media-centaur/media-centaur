@@ -38,9 +38,20 @@ defmodule MediaCentarr.Library.TVSeries do
     embeds_many :crew, Person, on_replace: :delete
 
     has_many :seasons, MediaCentarr.Library.Season, foreign_key: :tv_series_id
-    has_many :images, MediaCentarr.Library.Image, foreign_key: :tv_series_id
-    has_many :extras, MediaCentarr.Library.Extra, foreign_key: :tv_series_id
-    has_many :external_ids, MediaCentarr.Library.ExternalId, foreign_key: :tv_series_id
+
+    # Polymorphic associations — Image / Extra / ExternalId rows discriminate
+    # on `(owner_type, owner_id)` (Library Schema v2 Phase 2 Tasks D, E, F).
+    has_many :images, MediaCentarr.Library.Image,
+      foreign_key: :owner_id,
+      where: [owner_type: :tv_series]
+
+    has_many :extras, MediaCentarr.Library.Extra,
+      foreign_key: :owner_id,
+      where: [owner_type: :tv_series]
+
+    has_many :external_ids, MediaCentarr.Library.ExternalId,
+      foreign_key: :owner_id,
+      where: [owner_type: :tv_series]
 
     # WatchedFiles reach this TVSeries via its seasons' episodes'
     # PlayableItems (Library Schema v2 Phase 2 Task B). The TVSeries

@@ -299,15 +299,18 @@ defmodule MediaCentarr.Playback.Resolver do
   end
 
   defp resolve_extra_parent(extra) do
-    parent_id = extra.tv_series_id || extra.movie_series_id || extra.movie_id
-
-    if parent_id do
-      case resolve_typed_entity(parent_id) do
+    # Resolve the Extra's container — `owner_type` is one of :movie,
+    # :tv_series, :movie_series, :season. Seasons aren't directly
+    # resolvable by `resolve_typed_entity/1`; for season-owned extras we
+    # fall back to surfacing the season id without a name. The
+    # parent-aware playback row carries enough context for the UI.
+    if extra.owner_type in [:movie, :tv_series, :movie_series] do
+      case resolve_typed_entity(extra.owner_id) do
         {:ok, entity, _progress} -> {entity.id, entity.name}
-        :not_found -> {parent_id, nil}
+        :not_found -> {extra.owner_id, nil}
       end
     else
-      {nil, nil}
+      {extra.owner_id, nil}
     end
   end
 

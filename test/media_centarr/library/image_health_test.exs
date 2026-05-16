@@ -32,7 +32,7 @@ defmodule MediaCentarr.Library.ImageHealthTest do
 
     test "returns 0 when all image files are present on disk", %{images_dir: images_dir} do
       movie = create_entity(%{type: :movie, name: "Present"})
-      put_image_with_file(movie.id, :movie_id, "poster", "jpg", images_dir)
+      put_image_with_file(movie.id, :movie, "poster", "jpg", images_dir)
 
       assert ImageHealth.count_missing() == 0
     end
@@ -41,7 +41,8 @@ defmodule MediaCentarr.Library.ImageHealthTest do
       movie = create_entity(%{type: :movie, name: "Absent"})
 
       Library.create_image!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
@@ -52,10 +53,11 @@ defmodule MediaCentarr.Library.ImageHealthTest do
 
     test "distinguishes missing from present within the same entity", %{images_dir: images_dir} do
       movie = create_entity(%{type: :movie, name: "Partial"})
-      put_image_with_file(movie.id, :movie_id, "poster", "jpg", images_dir)
+      put_image_with_file(movie.id, :movie, "poster", "jpg", images_dir)
 
       Library.create_image!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg",
         extension: "jpg"
@@ -68,7 +70,8 @@ defmodule MediaCentarr.Library.ImageHealthTest do
       movie = create_entity(%{type: :movie, name: "Refreshing"})
 
       Library.create_image!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: nil,
         extension: "jpg"
@@ -84,7 +87,8 @@ defmodule MediaCentarr.Library.ImageHealthTest do
 
       image =
         Library.create_image!(%{
-          movie_id: movie.id,
+          owner_type: :movie,
+          owner_id: movie.id,
           role: "poster",
           content_url: "#{movie.id}/poster.jpg",
           extension: "jpg"
@@ -96,11 +100,12 @@ defmodule MediaCentarr.Library.ImageHealthTest do
       assert entry.entity_type == :movie
     end
 
-    test "resolves entity_type for each top-level FK" do
+    test "resolves entity_type for each top-level owner_type" do
       movie = create_entity(%{type: :movie, name: "M"})
 
       Library.create_image!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
@@ -109,7 +114,8 @@ defmodule MediaCentarr.Library.ImageHealthTest do
       tv_series = create_tv_series()
 
       Library.create_image!(%{
-        tv_series_id: tv_series.id,
+        owner_type: :tv_series,
+        owner_id: tv_series.id,
         role: "poster",
         content_url: "#{tv_series.id}/poster.jpg",
         extension: "jpg"
@@ -118,7 +124,8 @@ defmodule MediaCentarr.Library.ImageHealthTest do
       movie_series = create_movie_series()
 
       Library.create_image!(%{
-        movie_series_id: movie_series.id,
+        owner_type: :movie_series,
+        owner_id: movie_series.id,
         role: "poster",
         content_url: "#{movie_series.id}/poster.jpg",
         extension: "jpg"
@@ -127,7 +134,8 @@ defmodule MediaCentarr.Library.ImageHealthTest do
       video_object = create_video_object()
 
       Library.create_image!(%{
-        video_object_id: video_object.id,
+        owner_type: :video_object,
+        owner_id: video_object.id,
         role: "poster",
         content_url: "#{video_object.id}/poster.jpg",
         extension: "jpg"
@@ -137,13 +145,14 @@ defmodule MediaCentarr.Library.ImageHealthTest do
       assert types == [:movie, :movie_series, :tv_series, :video_object]
     end
 
-    test "resolves episode entity_type via episode_id FK" do
+    test "resolves episode entity_type via owner_type discriminator" do
       tv_series = create_tv_series()
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1, number_of_episodes: 1})
       episode = create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot"})
 
       Library.create_image!(%{
-        episode_id: episode.id,
+        owner_type: :episode,
+        owner_id: episode.id,
         role: "thumb",
         content_url: "#{episode.id}/thumb.jpg",
         extension: "jpg"
@@ -163,17 +172,19 @@ defmodule MediaCentarr.Library.ImageHealthTest do
     test "aggregates total, missing, and per-role missing counts", %{images_dir: images_dir} do
       movie = create_entity(%{type: :movie, name: "Mixed"})
 
-      put_image_with_file(movie.id, :movie_id, "poster", "jpg", images_dir)
+      put_image_with_file(movie.id, :movie, "poster", "jpg", images_dir)
 
       Library.create_image!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg",
         extension: "jpg"
       })
 
       Library.create_image!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "logo",
         content_url: "#{movie.id}/logo.png",
         extension: "png"
@@ -184,16 +195,17 @@ defmodule MediaCentarr.Library.ImageHealthTest do
     end
   end
 
-  defp put_image_with_file(entity_id, fk, role, extension, images_dir) do
+  defp put_image_with_file(entity_id, owner_type, role, extension, images_dir) do
     entity_dir = Path.join(images_dir, entity_id)
     File.mkdir_p!(entity_dir)
     File.write!(Path.join(entity_dir, "#{role}.#{extension}"), "fake image bytes")
 
     Library.create_image!(%{
-      fk => entity_id,
-      :role => role,
-      :content_url => "#{entity_id}/#{role}.#{extension}",
-      :extension => extension
+      owner_type: owner_type,
+      owner_id: entity_id,
+      role: role,
+      content_url: "#{entity_id}/#{role}.#{extension}",
+      extension: extension
     })
   end
 end

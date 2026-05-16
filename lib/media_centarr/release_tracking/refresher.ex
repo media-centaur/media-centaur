@@ -422,7 +422,9 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   defp find_trackable_tv_series(entity_ids) do
     from(tv in MediaCentarr.Library.TVSeries,
       join: ext in MediaCentarr.Library.ExternalId,
-      on: ext.tv_series_id == tv.id and ext.source == "tmdb",
+      on:
+        ext.owner_id == tv.id and ext.owner_type == :tv_series and
+          ext.source == "tmdb",
       where: tv.id in ^entity_ids and tv.status in ^@active_tv_statuses,
       select: %{
         tv_series_id: tv.id,

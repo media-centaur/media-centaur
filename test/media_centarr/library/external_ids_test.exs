@@ -14,15 +14,16 @@ defmodule MediaCentarr.Library.ExternalIdsTest do
       assert {:ok, row} = ExternalIds.put(:tmdb, movie, "12345")
       assert row.source == "tmdb"
       assert row.external_id == "12345"
-      assert row.movie_id == movie.id
+      assert row.owner_type == :movie
+      assert row.owner_id == movie.id
     end
 
     test "writes a tv_series ExternalId pointing at the tv series owner" do
       tv = create_tv_series(%{name: "Sample Show"})
 
       assert {:ok, row} = ExternalIds.put(:tmdb, tv, "1396")
-      assert row.tv_series_id == tv.id
-      assert row.movie_id == nil
+      assert row.owner_type == :tv_series
+      assert row.owner_id == tv.id
     end
 
     test "writes a movie_series ExternalId with source :tmdb_collection" do
@@ -30,7 +31,8 @@ defmodule MediaCentarr.Library.ExternalIdsTest do
 
       assert {:ok, row} = ExternalIds.put(:tmdb_collection, series, "263")
       assert row.source == "tmdb_collection"
-      assert row.movie_series_id == series.id
+      assert row.owner_type == :movie_series
+      assert row.owner_id == series.id
     end
 
     test "writes an imdb ExternalId" do
@@ -39,7 +41,8 @@ defmodule MediaCentarr.Library.ExternalIdsTest do
       assert {:ok, row} = ExternalIds.put(:imdb, movie, "tt0000001")
       assert row.source == "imdb"
       assert row.external_id == "tt0000001"
-      assert row.movie_id == movie.id
+      assert row.owner_type == :movie
+      assert row.owner_id == movie.id
     end
 
     test "no-ops when nil id is passed" do
