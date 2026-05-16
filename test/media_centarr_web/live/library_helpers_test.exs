@@ -526,8 +526,8 @@ defmodule MediaCentarrWeb.LibraryHelpersTest do
       result = LibraryProgress.merge_progress_record([record1], new_record)
 
       assert length(result) == 2
-      assert Enum.any?(result, &(&1.episode_id == "ep-1"))
-      assert Enum.any?(result, &(&1.episode_id == "ep-2"))
+      assert Enum.any?(result, &(&1.playable_item.container_id == "ep-1"))
+      assert Enum.any?(result, &(&1.playable_item.container_id == "ep-2"))
     end
 
     test "prepends first record into an empty list" do

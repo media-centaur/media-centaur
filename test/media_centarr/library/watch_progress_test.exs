@@ -2,6 +2,8 @@ defmodule MediaCentarr.Library.WatchProgressTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Library
+  alias MediaCentarr.Library.WatchProgress
+  alias MediaCentarr.Repo
 
   describe "find_or_create" do
     test "create and read back via movie_id" do
@@ -13,9 +15,13 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, found} = Library.fetch_watch_progress_by_fk(:movie_id, movie.id)
+      {:ok, found} =
+        Library.fetch_watch_progress_by_fk(:movie_id, movie.id)
 
-      assert found.movie_id == movie.id
+      found = MediaCentarr.Repo.preload(found, :playable_item)
+
+      assert found.playable_item.container_type == :movie
+      assert found.playable_item.container_id == movie.id
       assert found.position_seconds == 120.5
       assert found.duration_seconds == 7200.0
       assert found.completed == false
@@ -255,6 +261,40 @@ defmodule MediaCentarr.Library.WatchProgressTest do
 
       {:ok, incomplete} = Library.mark_watch_incomplete(completed)
       assert DateTime.compare(incomplete.last_watched_at, completed.last_watched_at) in [:gt, :eq]
+    end
+  end
+
+  describe "unique constraint on playable_item_id" do
+    # Library Schema v2 Phase 2 Task C added `UNIQUE(playable_item_id)`
+    # so a second insert targeting the same PlayableItem fails with a
+    # changeset constraint error rather than silently creating duplicate
+    # progress rows.
+    test "second insert against the same playable_item_id errors" do
+      movie = create_entity(%{type: :movie, name: "Unique Constraint Movie"})
+
+      {:ok, playable_item} =
+        Library.find_or_create_playable_item(:movie, movie.id, 1)
+
+      assert {:ok, _first} =
+               Repo.insert(
+                 WatchProgress.create_changeset(%{
+                   playable_item_id: playable_item.id,
+                   position_seconds: 10.0,
+                   duration_seconds: 100.0
+                 })
+               )
+
+      assert {:error, changeset} =
+               Repo.insert(
+                 WatchProgress.create_changeset(%{
+                   playable_item_id: playable_item.id,
+                   position_seconds: 50.0,
+                   duration_seconds: 100.0
+                 })
+               )
+
+      refute changeset.valid?
+      assert {"has already been taken", _} = changeset.errors[:playable_item_id]
     end
   end
 end

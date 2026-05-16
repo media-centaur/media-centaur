@@ -400,7 +400,7 @@ defmodule MediaCentarr.Playback.Resolver do
   end
 
   defp find_episode_location(entity, progress_record) do
-    episode_id = progress_record.episode_id
+    episode_id = MediaCentarr.Library.EpisodeList.progress_container_id(progress_record)
 
     Enum.find_value(entity.seasons || [], {nil, nil}, fn season ->
       Enum.find_value(season.episodes || [], fn episode ->

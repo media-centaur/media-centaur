@@ -78,7 +78,8 @@ defmodule MediaCentarr.Library.ProgressSummary do
 
     episodes_completed =
       Enum.count(progress_records, fn record ->
-        record.completed and MapSet.member?(valid_ids, record.movie_id)
+        record.completed and
+          MapSet.member?(valid_ids, EpisodeList.progress_container_id(record))
       end)
 
     {current_episode, current_progress} = find_current_item(items, progress_records)
@@ -110,7 +111,7 @@ defmodule MediaCentarr.Library.ProgressSummary do
         first_item_or_nil(items)
 
       record ->
-        record_key = record.episode_id || record.movie_id
+        record_key = EpisodeList.progress_container_id(record)
 
         cond do
           record.completed ->

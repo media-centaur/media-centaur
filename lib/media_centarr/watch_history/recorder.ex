@@ -65,7 +65,17 @@ defmodule MediaCentarr.WatchHistory.Recorder do
     end
   end
 
-  defp build_event_attrs(%{movie_id: movie_id} = record) when not is_nil(movie_id) do
+  # WatchProgress holds only `playable_item_id` since Library Schema v2
+  # Phase 2 Task C. The owning leaf is reached via the linked
+  # `PlayableItem`'s `(container_type, container_id)` discriminator.
+  # `Library.mark_watch_completed/1` doesn't preload `:playable_item` —
+  # we do it here so each clause can dispatch on container type.
+  defp build_event_attrs(record) do
+    record = Repo.preload(record, :playable_item)
+    build_event_attrs_for_container(record, record.playable_item)
+  end
+
+  defp build_event_attrs_for_container(record, %{container_type: :movie, container_id: movie_id}) do
     case Repo.get(Movie, movie_id) do
       nil ->
         {:error, :movie_not_found}
@@ -82,7 +92,7 @@ defmodule MediaCentarr.WatchHistory.Recorder do
     end
   end
 
-  defp build_event_attrs(%{episode_id: episode_id} = record) when not is_nil(episode_id) do
+  defp build_event_attrs_for_container(record, %{container_type: :episode, container_id: episode_id}) do
     # Single JOIN query instead of Repo.get + Repo.preload(season: :tv_series),
     # which fanned out to three round trips. All we need is four strings
     # for the title — no reason to hydrate full schemas.
@@ -114,8 +124,10 @@ defmodule MediaCentarr.WatchHistory.Recorder do
     end
   end
 
-  defp build_event_attrs(%{video_object_id: video_object_id} = record)
-       when not is_nil(video_object_id) do
+  defp build_event_attrs_for_container(record, %{
+         container_type: :video_object,
+         container_id: video_object_id
+       }) do
     case Repo.get(VideoObject, video_object_id) do
       nil ->
         {:error, :video_object_not_found}
@@ -131,6 +143,8 @@ defmodule MediaCentarr.WatchHistory.Recorder do
          }}
     end
   end
+
+  defp build_event_attrs_for_container(_record, _missing), do: {:error, :playable_item_missing}
 
   defp format_episode_title(%{
          series_name: series,
