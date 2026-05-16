@@ -1,5 +1,5 @@
 ---
-status: phase-2-shipped
+status: phase-3-shipped
 started: 2026-05-15
 last_updated: 2026-05-16
 ---
@@ -77,9 +77,23 @@ User chose the architectural fix — new `Library.ExtraFile` schema
 parallel to WatchedFile, preserving file-presence for Extras without
 inventing a fake leaf. Folded into Task B's commit.
 
-**Phase 3 — Library projection fan-out: ⏳ not started.** Feeds
-into [`desktop-rearchitecture.md`](desktop-rearchitecture.md)
-Workstream A.
+**Phase 3 — Library projection fan-out: ✅ complete (2026-05-16).**
+Detailed plan at [`docs/superpowers/plans/2026-05-16-library-schema-v2-phase3.md`](../docs/superpowers/plans/2026-05-16-library-schema-v2-phase3.md).
+Five landed commits on top of Phase 2:
+
+| Task | Commit | Change |
+|------|--------|--------|
+| A | `myopmstx` | `feat(library): Views.Browse projection — LibraryLive reads in microseconds` |
+| B | `yrrtpzko` | `feat(library): Views.Detail projection — per-PlayableItem read in microseconds` |
+| C | `slxsnvrq` | `feat(library): Views.Search in-memory entity index` (with `present?` honesty fix squashed) |
+| D | `ykzvpqqu` | `feat(library): Progress Pillar-2 GenServer with debounced flush` (with batched-flush + doc fixes squashed) |
+| E | `ltppnnqq` | `refactor(web): retire DB-on-render reads; close progress stale-read window` |
+
+Each task landed via dispatch-implement-review-fix loop with **automated-testing rigor as the explicit bar.** `mix precommit` green at every commit boundary. Stats: 3433 → 3567 tests, 0 failures throughout.
+
+**Architectural deliverables:** four ADR-041 projections (Browse, Detail, Search, plus the pre-existing ContinueWatching et al.) live behind `Library.Views.*`; Library.Progress is a Pillar-2 GenServer with debounced 5s flush, in-memory ETS reads, terminate-time flush, boot-time hydration; the `no_db_on_render_test` locks the per-LiveView Repo-query budget in place; the I-2 stale-read window closed via `overlay_in_memory_progress/1` in `ProgressBroadcaster` and `Library.list_in_progress`.
+
+**Scope honesty:** the marquee "LibraryLive grid reads from Views.Browse" was deliberately deferred (see Phase 3 follow-ups). BrowseItem / SearchItem / DetailItem are minimal projections by design (ADR-041 — "compose at the consumer"); the LiveViews currently consume richer entry shapes (progress, resume_target, extras, per-card playing?). Migrating wholesale requires expanding the projection schemas to carry those fields, which is a non-trivial second pass on each projection. Today's deliverables: the projections are operational and tested; the LiveViews already read through context functions (no raw `Repo`); the query-counter test pins the architecture in place. The cosmetic "every LiveView calls `Views.*`" is a follow-up.
 
 ## Phase 1 follow-ups
 
@@ -175,6 +189,53 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
 - **`StatusResolver.progress_record_key/1` simplification** (Task C
   follow-up review). Now keys by `playable_item_id` only — verify no
   edge case where the legacy tuple-key invariant mattered.
+
+## Phase 3 follow-ups
+
+Items surfaced during Phase 3 reviews — the marquee deliverables are
+shipped; these are the deliberate deferrals worth picking up next.
+
+- **LibraryLive grid → `Library.Views.Browse`** (Task E I-4 deferral).
+  LibraryLive still reads the rich entry shape via
+  `Library.Browser.fetch_all_typed_entries/0`. Migrating requires
+  `BrowseItem` to carry `progress`, `progress_records`,
+  `resume_target`, `extra_progress`, and per-card `playing?` —
+  substantial projection-shape expansion. The `no_db_on_render_test`
+  budget for `/library` (80 queries) is the standing reminder; bringing
+  it under 5 is the goal.
+- **Library search → `Library.Views.search/2`** (Task C E.2 deferral).
+  `library_helpers.ex` `filtered_by_text/2` substring-matches against
+  nested season/episode/movie names. The Views.Search projection is
+  entity-level today. Routing requires deciding whether to broaden
+  Search to per-leaf rows (better UX, larger index) or accept
+  entity-only matching (simpler, regresses the side-effect-y nested
+  search). Decision should follow user behaviour data, not a guess.
+- **DetailLive / EntityModal → `Library.Views.detail/1`** (Task E E.3
+  deferral). `DetailItem` doesn't yet carry the full file / season /
+  episode tree the modal renders. Same trade-off as Browse: expand the
+  projection shape (preferred — single ETS lookup at modal open) or
+  keep the existing `TypeResolver + Repo.preload` path.
+- **`reset_for_test!/0` Mix.env guard** (Task D review M-1). The
+  public function is doc-tagged as test-only but not enforced. Add a
+  release-time guard if/when we ship a hardened release where the
+  surface needs to be locked down.
+- **Cache.handle_message/1 partial-refresh path direct test** (Task B
+  review I-1, not yet addressed). The partial-refresh
+  `Cache.Worker` callback added in Task B is exercised end-to-end via
+  Detail tests but lacks a direct unit test. Worth adding one in
+  `cache_test.exs` so future contributors don't regress the callback
+  signature.
+- **`Library.playable_item_ids_for_entities/1` UNION** (Task B
+  review I-2, not yet addressed). Three sequential `Repo.all/1` calls
+  could collapse to a single UNION query. Marginal at current sizes;
+  worth doing when batched cascade ops surface as a hot path.
+- **Browse projection `present?` could be derived honestly** (Task C
+  fix-up note). Browse uses Browser as source which pre-filters to
+  presentable entities; same tautology Search had. Either expose a
+  presence-agnostic Browse source so the projection can compute
+  `present?` per-row, or accept that `present?` on `BrowseItem` is
+  always `true` for as long as Browser stays the source. Decide as
+  part of the BrowseItem expansion above.
 
 ## Architectural premises
 
