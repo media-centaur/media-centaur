@@ -25,7 +25,10 @@ defmodule MediaCentarr.Library.Availability do
   placeholders for a second at every startup.
   """
   use GenServer
+  import Ecto.Query
 
+  alias MediaCentarr.Library.{Episode, PlayableItem, Season, WatchedFile}
+  alias MediaCentarr.Repo
   alias MediaCentarr.Topics
 
   # --- Public reads (zero message-passing cost) ---
@@ -40,6 +43,97 @@ defmodule MediaCentarr.Library.Availability do
       nil -> true
       dir -> Map.get(dir_status(), dir) != :unavailable
     end
+  end
+
+  @doc """
+  Bulk variant for projection consumers that hold container ids but not
+  preloaded `entity.watched_files`. Returns `%{entity_id => boolean()}`
+  for every id in the input.
+
+  The function probes the four container kinds (`:movie`, `:tv_series`,
+  `:movie_series`, `:video_object`) in one query each; per-id cost is
+  amortised by the kind-grouped joins. Container ids that don't resolve
+  to a known WatchedFile fall back to the same optimistic default as
+  `available?/1` (true), so unknown ids never flash an offline pill.
+
+  Used by `MediaCentarrWeb.LibraryLive` to populate the `availability_map`
+  assign without forcing a Browser-style preload of every entity.
+  """
+  @spec available_for_ids([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => boolean()}
+  def available_for_ids([]), do: %{}
+
+  def available_for_ids(entity_ids) when is_list(entity_ids) do
+    status = dir_status()
+    watch_dirs_by_id = watch_dirs_by_entity_id(entity_ids)
+
+    Map.new(entity_ids, fn id ->
+      available? =
+        case Map.get(watch_dirs_by_id, id) do
+          nil -> true
+          dir -> Map.get(status, dir) != :unavailable
+        end
+
+      {id, available?}
+    end)
+  end
+
+  # Returns `%{entity_id => watch_dir}` for every entity id that has at
+  # least one WatchedFile. Probes every container kind in a single
+  # bounded set of queries; missing ids simply don't appear in the map.
+  defp watch_dirs_by_entity_id(entity_ids) do
+    # PlayableItem-keyed kinds (Movie, VideoObject) — one query each.
+    movie_pairs = playable_item_watch_dirs(:movie, entity_ids)
+    video_pairs = playable_item_watch_dirs(:video_object, entity_ids)
+
+    # TV series: WatchedFile -> PlayableItem(:episode) -> Episode -> Season -> TVSeries.
+    tv_pairs =
+      Repo.all(
+        from(wf in WatchedFile,
+          join: pi in PlayableItem,
+          on: pi.id == wf.playable_item_id and pi.container_type == :episode,
+          join: e in Episode,
+          on: e.id == pi.container_id,
+          join: s in Season,
+          on: s.id == e.season_id,
+          where: s.tv_series_id in ^entity_ids,
+          select: {s.tv_series_id, wf.watch_dir}
+        )
+      )
+
+    # Movie series: WatchedFile -> PlayableItem(:movie) -> Movie.movie_series_id.
+    movie_series_pairs =
+      Repo.all(
+        from(wf in WatchedFile,
+          join: pi in PlayableItem,
+          on: pi.id == wf.playable_item_id and pi.container_type == :movie,
+          join: m in MediaCentarr.Library.Movie,
+          on: m.id == pi.container_id,
+          where: m.movie_series_id in ^entity_ids,
+          select: {m.movie_series_id, wf.watch_dir}
+        )
+      )
+
+    # First-wins for the optimistic default; if any file is on a
+    # `:watching` dir but another is offline, `available?/1` would have
+    # taken the per-entity worst case. Bulk callers consume the answer
+    # as a boolean — picking the first non-nil watch_dir matches the
+    # behavior of `available?/1`, which itself looks at the first file
+    # in `entity.watched_files`.
+    Enum.reduce(movie_pairs ++ video_pairs ++ tv_pairs ++ movie_series_pairs, %{}, fn {id, dir}, acc ->
+      Map.put_new(acc, id, dir)
+    end)
+  end
+
+  defp playable_item_watch_dirs(container_type, entity_ids) do
+    Repo.all(
+      from(wf in WatchedFile,
+        join: pi in PlayableItem,
+        on:
+          pi.id == wf.playable_item_id and pi.container_type == ^container_type and
+            pi.container_id in ^entity_ids,
+        select: {pi.container_id, wf.watch_dir}
+      )
+    )
   end
 
   @doc "Current per-dir state map (`%{dir_path => state_atom}`)."

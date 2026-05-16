@@ -2206,6 +2206,217 @@ defmodule MediaCentarr.Library do
     |> Enum.map(&shape_hero_record/1)
   end
 
+  @doc """
+  Bulk progress lookup for projection consumers (Phase 3.1). Resolves
+  `%{entity_id => progress_summary}` for every container UUID in the
+  input that has at least one `WatchProgress` row.
+
+  Each summary carries the same shape `Library.ProgressSummary.compute/2`
+  returns — `:episodes_completed`, `:episodes_total`, the position
+  fields — plus a `:last_watched_at` field so consumers that sort by
+  recency don't need a separate progress preload.
+
+  Entities with no progress rows are absent from the result map (not
+  set to `nil`). Worst case: one query per container kind in the input
+  set (probes 4 kinds), totals do not scale with row count.
+
+  Used by `MediaCentarrWeb.LibraryLive` to populate the `progress_by_id`
+  assign without forcing a per-card entity preload.
+  """
+  @type progress_summary :: %{
+          current_episode: %{season: integer(), episode: integer()} | nil,
+          episode_position_seconds: float(),
+          episode_duration_seconds: float(),
+          episodes_completed: non_neg_integer(),
+          episodes_total: non_neg_integer(),
+          last_watched_at: DateTime.t() | nil
+        }
+  @spec list_progress_summaries([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => progress_summary()}
+  def list_progress_summaries([]), do: %{}
+
+  def list_progress_summaries(entity_ids) when is_list(entity_ids) do
+    %{}
+    |> Map.merge(progress_summaries_for_movie(entity_ids))
+    |> Map.merge(progress_summaries_for_video_object(entity_ids))
+    |> Map.merge(progress_summaries_for_movie_series(entity_ids))
+    |> Map.merge(progress_summaries_for_tv_series(entity_ids))
+  end
+
+  # Movies + video objects are single-leaf containers — totals = 1.
+  # Pull every WatchProgress whose PlayableItem points at one of the
+  # requested ids in a single query.
+  defp progress_summaries_for_movie(ids), do: single_leaf_summaries(:movie, ids)
+
+  defp progress_summaries_for_video_object(ids), do: single_leaf_summaries(:video_object, ids)
+
+  defp single_leaf_summaries(container_type, ids) do
+    rows =
+      Repo.all(
+        from(wp in WatchProgress,
+          join: pi in PlayableItem,
+          on:
+            pi.id == wp.playable_item_id and pi.container_type == ^container_type and
+              pi.container_id in ^ids,
+          select: %{
+            container_id: pi.container_id,
+            position_seconds: wp.position_seconds,
+            duration_seconds: wp.duration_seconds,
+            completed: wp.completed,
+            last_watched_at: wp.last_watched_at
+          }
+        )
+      )
+
+    Map.new(rows, fn row ->
+      {row.container_id,
+       %{
+         current_episode: nil,
+         episode_position_seconds: row.position_seconds || 0.0,
+         episode_duration_seconds: row.duration_seconds || 0.0,
+         episodes_completed: if(row.completed, do: 1, else: 0),
+         episodes_total: 1,
+         last_watched_at: row.last_watched_at
+       }}
+    end)
+  end
+
+  # TV series: episodes_total = COUNT(episodes under any season of the
+  # series). episodes_completed = COUNT(WatchProgress where pi.container
+  # is one of those episodes AND completed=true).
+  defp progress_summaries_for_tv_series(ids) do
+    # One query: pull every progress row keyed by tv_series_id.
+    progress_rows =
+      Repo.all(
+        from(wp in WatchProgress,
+          join: pi in PlayableItem,
+          on: pi.id == wp.playable_item_id and pi.container_type == :episode,
+          join: e in Episode,
+          on: e.id == pi.container_id,
+          join: s in Season,
+          on: s.id == e.season_id,
+          where: s.tv_series_id in ^ids,
+          select: %{
+            tv_series_id: s.tv_series_id,
+            completed: wp.completed,
+            position_seconds: wp.position_seconds,
+            duration_seconds: wp.duration_seconds,
+            last_watched_at: wp.last_watched_at
+          }
+        )
+      )
+
+    # Series that have at least one progress row need an episodes_total
+    # count. Computing it for series without progress would be wasted
+    # work (the entry won't appear in the result map anyway).
+    series_with_progress =
+      progress_rows |> Enum.map(& &1.tv_series_id) |> Enum.uniq()
+
+    totals_by_series =
+      if series_with_progress == [] do
+        %{}
+      else
+        episode_totals_by_tv_series(series_with_progress)
+      end
+
+    progress_rows
+    |> Enum.group_by(& &1.tv_series_id)
+    |> Map.new(fn {tv_series_id, rows} ->
+      most_recent =
+        rows
+        |> Enum.reject(&is_nil(&1.last_watched_at))
+        |> Enum.max_by(& &1.last_watched_at, DateTime, fn -> nil end)
+
+      {tv_series_id,
+       %{
+         current_episode: nil,
+         episode_position_seconds: position_or_zero(most_recent),
+         episode_duration_seconds: duration_or_zero(most_recent),
+         episodes_completed: Enum.count(rows, & &1.completed),
+         episodes_total: Map.get(totals_by_series, tv_series_id, 0),
+         last_watched_at: most_recent && most_recent.last_watched_at
+       }}
+    end)
+  end
+
+  defp episode_totals_by_tv_series(series_ids) do
+    from(e in Episode,
+      join: s in Season,
+      on: s.id == e.season_id,
+      where: s.tv_series_id in ^series_ids,
+      group_by: s.tv_series_id,
+      select: {s.tv_series_id, count(e.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  # Movie series: total = COUNT(child movies). completed = COUNT(child
+  # movies with a completed WatchProgress).
+  defp progress_summaries_for_movie_series(ids) do
+    progress_rows =
+      Repo.all(
+        from(wp in WatchProgress,
+          join: pi in PlayableItem,
+          on: pi.id == wp.playable_item_id and pi.container_type == :movie,
+          join: m in Movie,
+          on: m.id == pi.container_id,
+          where: m.movie_series_id in ^ids,
+          select: %{
+            movie_series_id: m.movie_series_id,
+            completed: wp.completed,
+            position_seconds: wp.position_seconds,
+            duration_seconds: wp.duration_seconds,
+            last_watched_at: wp.last_watched_at
+          }
+        )
+      )
+
+    series_with_progress =
+      progress_rows |> Enum.map(& &1.movie_series_id) |> Enum.uniq()
+
+    totals_by_series =
+      if series_with_progress == [] do
+        %{}
+      else
+        movie_totals_by_movie_series(series_with_progress)
+      end
+
+    progress_rows
+    |> Enum.group_by(& &1.movie_series_id)
+    |> Map.new(fn {movie_series_id, rows} ->
+      most_recent =
+        rows
+        |> Enum.reject(&is_nil(&1.last_watched_at))
+        |> Enum.max_by(& &1.last_watched_at, DateTime, fn -> nil end)
+
+      {movie_series_id,
+       %{
+         current_episode: nil,
+         episode_position_seconds: position_or_zero(most_recent),
+         episode_duration_seconds: duration_or_zero(most_recent),
+         episodes_completed: Enum.count(rows, & &1.completed),
+         episodes_total: Map.get(totals_by_series, movie_series_id, 0),
+         last_watched_at: most_recent && most_recent.last_watched_at
+       }}
+    end)
+  end
+
+  defp movie_totals_by_movie_series(series_ids) do
+    from(m in Movie,
+      where: m.movie_series_id in ^series_ids,
+      group_by: m.movie_series_id,
+      select: {m.movie_series_id, count(m.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  defp position_or_zero(nil), do: 0.0
+  defp position_or_zero(row), do: row.position_seconds || 0.0
+
+  defp duration_or_zero(nil), do: 0.0
+  defp duration_or_zero(row), do: row.duration_seconds || 0.0
+
   # --- Private helpers for HomeLive facade ---
 
   # Fetches standalone movies with at least one incomplete WatchProgress record.
