@@ -8,9 +8,12 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
   ## Contract shape
 
       attr :result, MediaCentarrWeb.Live.SetupLive.Probe.Result, required: true
-      attr :title, :string, required: true
+      attr :content, MediaCentarrWeb.Live.SetupLive.Content, required: true
       attr :step_index, :integer, required: true
       attr :total_steps, :integer, required: true
+      attr :form_id, :string, required: true
+      attr :optional?, :boolean, default: false
+      attr :blocked?, :boolean, default: false
       slot :form, required: true
   """
 
@@ -31,6 +34,9 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
           content: MediaCentarrWeb.Live.SetupLive.Content.for(:tmdb),
           step_index: 2,
           total_steps: 6,
+          form_id: "setup-step-tmdb-form",
+          optional?: false,
+          blocked?: true,
           result: %Probe.Result{
             id: :tmdb,
             status: :not_configured,
@@ -58,6 +64,9 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
           content: MediaCentarrWeb.Live.SetupLive.Content.for(:tmdb),
           step_index: 2,
           total_steps: 6,
+          form_id: "setup-step-tmdb-form",
+          optional?: false,
+          blocked?: false,
           result: %Probe.Result{
             id: :tmdb,
             status: :ok,
@@ -85,6 +94,9 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
           content: MediaCentarrWeb.Live.SetupLive.Content.for(:prowlarr),
           step_index: 5,
           total_steps: 6,
+          form_id: "setup-step-prowlarr-form",
+          optional?: true,
+          blocked?: true,
           result: %Probe.Result{
             id: :prowlarr,
             status: :error,
@@ -118,6 +130,9 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
           content: MediaCentarrWeb.Live.SetupLive.Content.for(:download_client),
           step_index: 6,
           total_steps: 6,
+          form_id: "setup-step-download-client-form",
+          optional?: true,
+          blocked?: true,
           result: %Probe.Result{
             id: :download_client,
             status: :not_configured,

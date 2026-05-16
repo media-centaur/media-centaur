@@ -109,4 +109,5 @@ defmodule MediaCentarr.Topics do
   def library_views, do: "library:views"
   def release_tracking_views, do: "release_tracking:views"
   def watch_history_views, do: "watch_history:views"
+  def integration_health, do: "integration_health:updates"
 end

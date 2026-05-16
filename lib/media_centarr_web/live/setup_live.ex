@@ -15,11 +15,12 @@ defmodule MediaCentarrWeb.SetupLive do
 
   use MediaCentarrWeb, :live_view
 
-  alias MediaCentarr.Acquisition
   alias MediaCentarr.Acquisition.Prowlarr, as: ProwlarrClient
   alias MediaCentarr.Downloads.DownloadClient.QBittorrent
   alias MediaCentarr.Config
+  alias MediaCentarr.IntegrationHealth
   alias MediaCentarr.Secret
+  alias MediaCentarr.Setup.Gate
   alias MediaCentarrWeb.Components.SetupSteps
   alias MediaCentarrWeb.Live.SetupLive.{Content, Probes}
 
@@ -30,7 +31,14 @@ defmodule MediaCentarrWeb.SetupLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, current_step: hd(@step_order), probes: [])}
+    if connected?(socket), do: IntegrationHealth.subscribe()
+
+    {:ok,
+     assign(socket,
+       current_step: hd(@step_order),
+       probes: [],
+       integration_health: IntegrationHealth.all_statuses()
+     )}
   end
 
   @impl true
@@ -57,9 +65,19 @@ defmodule MediaCentarrWeb.SetupLive do
 
   @impl true
   def handle_event("setup:next", _params, socket) do
-    case advance(socket.assigns.current_step, +1) do
-      :finish -> finish(socket)
-      step -> {:noreply, push_patch(socket, to: step_path(step))}
+    step = socket.assigns.current_step
+    probe = current_probe(socket.assigns.probes, step)
+    health = Map.get(socket.assigns.integration_health, step)
+
+    case Gate.check(step, probe, health) do
+      :ok ->
+        case advance(step, +1) do
+          :finish -> finish(socket)
+          next_step -> {:noreply, push_patch(socket, to: step_path(next_step))}
+        end
+
+      {:blocked, reason} ->
+        {:noreply, put_flash(socket, :error, Gate.reason_message(reason))}
     end
   end
 
@@ -70,23 +88,37 @@ defmodule MediaCentarrWeb.SetupLive do
     end
   end
 
+  # Skip is the gate's escape hatch: explicit user intent to bypass an
+  # incomplete step. Unlike Next, it never consults `Gate.check/3` —
+  # otherwise an optional integration with no credentials would trap the
+  # user (Next blocked, Skip blocked).
   def handle_event("setup:skip", _params, socket) do
-    handle_event("setup:next", %{}, socket)
+    case advance(socket.assigns.current_step, +1) do
+      :finish -> finish(socket)
+      step -> {:noreply, push_patch(socket, to: step_path(step))}
+    end
   end
 
   # ---------------------------------------------------------------------------
   # Save-path event (binary steps — mpv / ffprobe)
+  #
+  # Binary steps have no async network test — the probe is synchronous
+  # (does the file exist + is it executable?). So after saving, we
+  # re-run probes and immediately consult the gate; if probe is `:ok`
+  # the step is satisfied and the user advances.
   # ---------------------------------------------------------------------------
 
   def handle_event("setup:save_path", %{"id" => id, "path" => path}, socket) do
     save_binary_path(id, path)
-    {:noreply, refresh_probes(socket)}
+    socket = refresh_probes(socket)
+    {:noreply, maybe_advance_after_save(socket)}
   end
 
   def handle_event("setup:save_path", %{"path" => path} = params, socket) do
     id = params["id"] || Atom.to_string(socket.assigns.current_step)
     save_binary_path(id, path)
-    {:noreply, refresh_probes(socket)}
+    socket = refresh_probes(socket)
+    {:noreply, maybe_advance_after_save(socket)}
   end
 
   # ---------------------------------------------------------------------------
@@ -147,14 +179,18 @@ defmodule MediaCentarrWeb.SetupLive do
 
     socket = refresh_probes(socket)
 
-    case {params["_action"], params["_integration"]} do
-      {"test", integration} when integration in ~w(tmdb prowlarr download_client) ->
-        kick_off_test(integration)
-        {:noreply, put_flash(socket, :info, "Saved. Testing #{integration}…")}
+    # `IntegrationHealth` listens for `:config_updated` and kicks the
+    # verify itself — the LiveView doesn't need to ask. We only set the
+    # flash here; the actual state transition flows back via
+    # `{:integration_health_changed, %Status{}}` and is handled by the
+    # PubSub handler below.
+    flash =
+      case integration_atom(params["_integration"]) do
+        nil -> "Saved."
+        id -> "Saved. Verifying #{id}…"
+      end
 
-      _ ->
-        {:noreply, put_flash(socket, :info, "Saved.")}
-    end
+    {:noreply, put_flash(socket, :info, flash)}
   end
 
   # ---------------------------------------------------------------------------
@@ -162,18 +198,25 @@ defmodule MediaCentarrWeb.SetupLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("setup:test_connection", %{"id" => id}, socket) do
-    kick_off_test(id)
+    case integration_atom(id) do
+      nil ->
+        {:noreply, socket}
 
-    {:noreply, put_flash(socket, :info, "Testing #{id}…")}
+      atom ->
+        IntegrationHealth.verify(atom)
+        {:noreply, put_flash(socket, :info, "Verifying #{id}…")}
+    end
   end
 
   @impl true
-  def handle_info({:setup_test_result, id, :ok}, socket) do
-    {:noreply, put_flash(socket, :info, "#{id}: connection verified ✓")}
-  end
+  def handle_info({:integration_health_changed, %IntegrationHealth.Status{} = status}, socket) do
+    socket =
+      socket
+      |> assign(integration_health: Map.put(socket.assigns.integration_health, status.id, status))
+      |> flash_for_health_change(status)
+      |> maybe_auto_advance(status)
 
-  def handle_info({:setup_test_result, id, {:error, _}}, socket) do
-    {:noreply, put_flash(socket, :error, "#{id}: connection failed")}
+    {:noreply, socket}
   end
 
   # ---------------------------------------------------------------------------
@@ -244,40 +287,72 @@ defmodule MediaCentarrWeb.SetupLive do
 
   defp save_integration_field(_, _), do: :ok
 
-  # Spawns an async connection-test for the given integration id.
-  # Result is delivered via `{:setup_test_result, id, :ok | {:error, _}}`.
-  defp kick_off_test(id) do
-    parent = self()
+  # Map the string id used on the wire (`name="_integration"` hidden
+  # field, `phx-value-id="..."`, etc.) to the atom IntegrationHealth uses
+  # internally. Falls back to nil for unrecognised values so the caller
+  # branches cleanly.
+  defp integration_atom("tmdb"), do: :tmdb
+  defp integration_atom("prowlarr"), do: :prowlarr
+  defp integration_atom("download_client"), do: :download_client
+  defp integration_atom(_), do: nil
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      send(parent, {:setup_test_result, id, run_connection_test(id)})
-    end)
-
-    :ok
+  # PubSub-driven flash on health transitions. Only fire for terminal
+  # states — :pending is a transient that the UI shows as a spinner, not
+  # a banner.
+  defp flash_for_health_change(socket, %IntegrationHealth.Status{id: id, test_state: :ok}) do
+    put_flash(socket, :info, "#{id}: connection verified ✓")
   end
 
-  defp run_connection_test("tmdb") do
-    case MediaCentarr.TMDB.Client.configuration() do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
+  defp flash_for_health_change(socket, %IntegrationHealth.Status{id: id, test_state: :error}) do
+    put_flash(socket, :error, "#{id}: connection test failed — check the credentials")
+  end
+
+  defp flash_for_health_change(socket, _status), do: socket
+
+  # Auto-advance only when the user is still parked on the step whose
+  # health just went `:ok`. If they've already navigated forward (or
+  # back), the async result lands quietly without yanking them around.
+  defp maybe_auto_advance(socket, %IntegrationHealth.Status{id: id, test_state: :ok}) do
+    if socket.assigns.current_step == id do
+      case advance(id, +1) do
+        :finish ->
+          {:noreply, socket} = finish(socket)
+          socket
+
+        step ->
+          push_patch(socket, to: step_path(step))
+      end
+    else
+      socket
     end
   end
 
-  defp run_connection_test("prowlarr") do
-    case Acquisition.test_prowlarr() do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
+  defp maybe_auto_advance(socket, _status), do: socket
+
+  # After a synchronous save (binary steps), if the freshly-probed step
+  # satisfies the gate, advance — otherwise stay and let the user see the
+  # status callout / re-check. No flash on stay: the callout above the
+  # form already carries the explanation.
+  defp maybe_advance_after_save(socket) do
+    step = socket.assigns.current_step
+    probe = current_probe(socket.assigns.probes, step)
+    health = Map.get(socket.assigns.integration_health, step)
+
+    case Gate.check(step, probe, health) do
+      :ok ->
+        case advance(step, +1) do
+          :finish ->
+            {:noreply, socket} = finish(socket)
+            socket
+
+          next_step ->
+            push_patch(socket, to: step_path(next_step))
+        end
+
+      {:blocked, _reason} ->
+        socket
     end
   end
-
-  defp run_connection_test("download_client") do
-    case Acquisition.test_download_client() do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp run_connection_test(_), do: {:error, :unsupported}
 
   # The default URLs match the standard local-install endpoints. We
   # pre-fill them so the user doesn't have to type a value almost every
@@ -300,13 +375,17 @@ defmodule MediaCentarrWeb.SetupLive do
   def render(assigns) do
     step_index = step_index(assigns.current_step)
     total = length(@step_order)
+    probe = current_probe(assigns.probes, assigns.current_step)
+    health = Map.get(assigns.integration_health, assigns.current_step)
+    blocked? = Gate.check(assigns.current_step, probe, health) != :ok
 
     assigns =
       assigns
-      |> assign(:probe, current_probe(assigns.probes, assigns.current_step))
+      |> assign(:probe, probe)
       |> assign(:content, content_for(assigns.current_step))
       |> assign(:step_index, step_index)
       |> assign(:total, total)
+      |> assign(:blocked?, blocked?)
 
     ~H"""
     <div class="py-8 px-4 max-w-3xl mx-auto">
@@ -319,6 +398,7 @@ defmodule MediaCentarrWeb.SetupLive do
         content={@content}
         step_index={@step_index}
         total={@total}
+        blocked?={@blocked?}
       />
     </div>
     """
@@ -350,6 +430,11 @@ defmodule MediaCentarrWeb.SetupLive do
   attr :step_index, :integer, required: true
   attr :total, :integer, required: true
 
+  attr :blocked?, :boolean,
+    required: true,
+    doc:
+      "Whether `Setup.Gate.check/3` currently blocks advancement. Propagated to step components so the Next button can be visually disabled on non-form steps."
+
   defp step_for(%{step: :welcome} = assigns) do
     ~H"""
     <SetupSteps.welcome_step step_index={@step_index} total_steps={@total} />
@@ -373,6 +458,7 @@ defmodule MediaCentarrWeb.SetupLive do
       content={@content}
       step_index={@step_index}
       total_steps={@total}
+      blocked?={@blocked?}
     />
     """
   end
@@ -385,6 +471,8 @@ defmodule MediaCentarrWeb.SetupLive do
       binary_name="mpv"
       step_index={@step_index}
       total_steps={@total}
+      optional?={true}
+      blocked?={@blocked?}
     />
     """
   end
@@ -397,6 +485,8 @@ defmodule MediaCentarrWeb.SetupLive do
       binary_name="ffprobe"
       step_index={@step_index}
       total_steps={@total}
+      optional?={true}
+      blocked?={@blocked?}
     />
     """
   end
@@ -408,9 +498,16 @@ defmodule MediaCentarrWeb.SetupLive do
       content={@content}
       step_index={@step_index}
       total_steps={@total}
+      form_id="setup-step-tmdb-form"
+      optional?={false}
+      blocked?={@blocked?}
     >
       <:form>
-        <form phx-submit="setup:save_integration" class="space-y-2">
+        <form
+          id="setup-step-tmdb-form"
+          phx-submit="setup:save_integration"
+          class="space-y-2"
+        >
           <input type="hidden" name="_integration" value="tmdb" />
           <p class="text-sm opacity-80">
             TMDB API access is <strong>free</strong>. Create an account at
@@ -437,21 +534,8 @@ defmodule MediaCentarrWeb.SetupLive do
             name="tmdb_api_key"
             placeholder="paste your TMDB v4 read-access token"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            required
           />
-          <div class="flex gap-2">
-            <.button type="submit" variant="primary" size="sm">
-              {save_label(@probe)}
-            </.button>
-            <.button
-              type="submit"
-              name="_action"
-              value="test"
-              variant="outline"
-              size="sm"
-            >
-              Test connection
-            </.button>
-          </div>
         </form>
       </:form>
     </SetupSteps.integration_step>
@@ -467,9 +551,16 @@ defmodule MediaCentarrWeb.SetupLive do
       content={@content}
       step_index={@step_index}
       total_steps={@total}
+      form_id="setup-step-prowlarr-form"
+      optional?={true}
+      blocked?={@blocked?}
     >
       <:form>
-        <form phx-submit="setup:save_integration" class="space-y-2">
+        <form
+          id="setup-step-prowlarr-form"
+          phx-submit="setup:save_integration"
+          class="space-y-2"
+        >
           <input type="hidden" name="_integration" value="prowlarr" />
           <label class="text-xs uppercase tracking-wide opacity-60 block">URL</label>
           <input
@@ -478,27 +569,15 @@ defmodule MediaCentarrWeb.SetupLive do
             value={@prowlarr_url_value}
             placeholder="http://localhost:9696"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            required
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">API key</label>
           <input
             type="password"
             name="prowlarr_api_key"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            required
           />
-          <div class="flex gap-2 mt-2">
-            <.button type="submit" variant="primary" size="sm">
-              {save_label(@probe)}
-            </.button>
-            <.button
-              type="submit"
-              name="_action"
-              value="test"
-              variant="outline"
-              size="sm"
-            >
-              Test connection
-            </.button>
-          </div>
         </form>
       </:form>
     </SetupSteps.integration_step>
@@ -517,9 +596,16 @@ defmodule MediaCentarrWeb.SetupLive do
       content={@content}
       step_index={@step_index}
       total_steps={@total}
+      form_id="setup-step-download-client-form"
+      optional?={true}
+      blocked?={@blocked?}
     >
       <:form>
-        <form phx-submit="setup:save_integration" class="space-y-2">
+        <form
+          id="setup-step-download-client-form"
+          phx-submit="setup:save_integration"
+          class="space-y-2"
+        >
           <input type="hidden" name="_integration" value="download_client" />
           <label class="text-xs uppercase tracking-wide opacity-60 block">Type</label>
           <select
@@ -538,6 +624,7 @@ defmodule MediaCentarrWeb.SetupLive do
             value={@dc_url}
             placeholder="http://localhost:8080"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            required
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Username</label>
           <input
@@ -545,36 +632,18 @@ defmodule MediaCentarrWeb.SetupLive do
             name="download_client_username"
             value={@dc_username}
             class="input input-bordered input-sm w-full font-mono text-sm"
+            required
           />
           <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Password</label>
           <input
             type="password"
             name="download_client_password"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            required
           />
-          <div class="flex gap-2 mt-2">
-            <.button type="submit" variant="primary" size="sm">
-              {save_label(@probe)}
-            </.button>
-            <.button
-              type="submit"
-              name="_action"
-              value="test"
-              variant="outline"
-              size="sm"
-            >
-              Test connection
-            </.button>
-          </div>
         </form>
       </:form>
     </SetupSteps.integration_step>
     """
   end
-
-  # Save vs Update. Probes return :not_configured only when the
-  # backing value is empty/missing — anything else means there's
-  # already a saved value and the form is editing it.
-  defp save_label(%{status: :not_configured}), do: "Save"
-  defp save_label(_), do: "Update"
 end
