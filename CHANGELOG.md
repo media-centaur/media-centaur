@@ -4,6 +4,22 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.62.2 — 2026-05-17
+
+### Fixed
+
+The setup tour no longer asks you to re-enter credentials you've
+already saved. Clicking Next on a TMDB, Prowlarr, or download-client
+step where the key was already configured used to refuse to advance
+because the (intentionally empty) password input was required. Now an
+empty submit means "no change, just continue".
+
+Prowlarr and the download client no longer need a second Next click
+after their connection test succeeds. The previous flow could verify
+against a half-saved configuration and report a failure that the next
+click would silently fix; verification now runs once, after all fields
+are saved, and the tour advances as soon as the test passes.
+
 ## v0.62.1 — 2026-05-16
 
 ### Improved
