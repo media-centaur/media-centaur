@@ -45,10 +45,10 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   end
 
   defp resolve_entity_with_progress(id) do
-    case TypeResolver.resolve(id, preload: Library.full_preloads_by_type()) do
+    case TypeResolver.resolve_container(id, preload: Library.full_preloads_by_type()) do
       {:ok, type, record} ->
         progress = EntityShape.extract_progress(record, type)
-        normalized = EntityShape.normalize(record, type)
+        normalized = EntityShape.to_view_model(record, type)
         {:ok, normalized, progress}
 
       :not_found ->

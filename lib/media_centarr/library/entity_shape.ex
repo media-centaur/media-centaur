@@ -1,23 +1,57 @@
 defmodule MediaCentarr.Library.EntityShape do
   @moduledoc """
-  Normalizes type-specific records (Movie, TVSeries, MovieSeries, VideoObject) into
-  a common map shape used by ProgressSummary, ResumeTarget, and LiveView templates.
+  View-model translation for type-specific container records (`Movie`,
+  `TVSeries`, `MovieSeries`, `VideoObject`). Produces a uniform map
+  shape the detail-panel UI and the playback pipeline consume.
 
-  Also extracts watch progress records from preloaded associations so callers don't
-  need to know the internal structure of each type.
+  ## Role after Library Schema v2 Phase 2
+
+  Phase 2 reified `MediaCentarr.Library.PlayableItem` as the canonical
+  *playable leaf identity* — the UUID `WatchedFile` / `WatchProgress`
+  key against. EntityShape operates one layer up: `to_view_model/2`
+  produces the *view model* the container-level UI and the resume /
+  progress pipelines read (`:type`, `:imdb_id`, `:collection`, plus
+  pass-through container fields and associations).
+
+  The two concerns are kept separate on purpose:
+
+    * `PlayableItem` is the write-side identity for files / progress /
+      subtitles (see its moduledoc).
+    * `EntityShape.to_view_model/2` is the read-side view model for the
+      detail panel, `MediaCentarr.Library.ProgressSummary.compute/2`,
+      `MediaCentarr.Playback.ResumeTarget.compute/2`, and
+      `MediaCentarr.Playback.Resume.resolve/2`.
+
+  Library Schema v2 Phase 2 Task H renamed this from the historical
+  `normalize/2`; "normalize" oversold the function as eliminating
+  polymorphism, when in practice it produces a flat view model that
+  still distinguishes types via the `:type` tag. The rename reflects
+  the true scope: this is a *view model*, not a polymorphism eraser.
+
+  ## Companion helpers (`extract_progress/2`, `attach_container/3`)
+
+  `extract_progress/2` walks a container's preloaded associations and
+  returns the `WatchProgress` rows attached to each leaf, each carrying
+  a synthesised `:playable_item` field with the leaf's `(container_type,
+  container_id)`. Downstream consumers
+  (`MediaCentarr.Library.EpisodeList.index_progress_by_key/1`) key
+  progress by container id without an extra preload of the
+  `belongs_to :playable_item` back-ref.
   """
 
   @doc """
-  Converts a type-specific record into a normalized map with all entity-level fields.
+  Produces the view-model map the detail panel and the resume / progress
+  pipelines consume.
 
-  Missing associations default to empty lists. Fields that don't exist on a given
-  type (e.g. `duration_seconds` on TVSeries) return `nil` via `Map.get/3`.
+  Missing associations default to empty lists. Fields that don't exist on
+  a given type (e.g. `duration_seconds` on TVSeries) return `nil` via
+  `Map.get/3`.
 
   TMDB / IMDB ids are derived from the record's preloaded `:external_ids`
-  association (Library Schema v2 Phase 1 Task 6); callers must preload it
-  for `:imdb_id` to be populated.
+  association (Library Schema v2 Phase 1 Task 6); callers must preload
+  it for `:imdb_id` to be populated.
   """
-  def normalize(record, type) do
+  def to_view_model(record, type) do
     external_ids = Map.get(record, :external_ids, [])
 
     %{
