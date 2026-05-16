@@ -4,6 +4,33 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.62.1 — 2026-05-16
+
+### Improved
+
+The setup tour now verifies every integration before letting you
+continue. The Next button on the TMDB, Prowlarr, and download-client
+steps submits the form, tests the connection, and only advances when
+the test succeeds — so a typo, an expired key, or a wrong port can't
+slip through and silently break the rest of the app. Optional steps
+(Prowlarr, download client, mpv, ffprobe) keep a Skip button alongside
+Next so you can come back to them later. Critical steps (watch
+directories and TMDB) hide Skip — you must configure them for Media
+Centarr to do anything useful.
+
+The library, dashboard, and detail pages render noticeably faster.
+Library views now come from in-memory projections instead of querying
+the database on every navigation.
+
+### Fixed
+
+Pressing Enter in the watch-directory input on the setup tour now adds
+the directory. Previously you had to click the Add button twice.
+
+Submitting the download-client password on the setup tour no longer
+silently clears the field without testing — the connection is
+verified, and the tour advances automatically when it succeeds.
+
 ## v0.61.7 — 2026-05-15
 
 ### Fixed
