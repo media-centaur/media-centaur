@@ -16,6 +16,20 @@ defmodule MediaCentarr.Library.Inbound do
   `MediaCentarr.Library.ExternalIds` is the sole source of truth for
   TMDB / IMDB ids (Library Schema v2 Phase 1 Task 6).
 
+  ## PlayableItem invariant
+
+  Every leaf row (Movie, Episode, VideoObject — and child Movies of a
+  MovieSeries) is paired with a `Library.PlayableItem` at creation time
+  (Library Schema v2 Phase 2 Task G). The PlayableItem is the canonical
+  leaf the rest of the system writes against:
+
+    * `Library.WatchedFile` keys to `playable_item_id` (Task B).
+    * `Library.WatchProgress` keys to `playable_item_id` (Task C).
+
+  Container rows above the leaf (`TVSeries`, `MovieSeries`) never carry a
+  PlayableItem of their own — their PlayableItems hang off the child
+  leaves created during `create_children`.
+
   ## Race-loss recovery
 
   Concurrent inserts of the same TMDB id no longer surface as a column-level
@@ -24,7 +38,9 @@ defmodule MediaCentarr.Library.Inbound do
   successful container insert: if the put fails with the
   `(source, external_id, owner_fk)` unique index, the losing process looks
   up the winning ExternalId, deletes its orphaned container, and returns
-  the winner.
+  the winner. `EntityCascade.destroy!/1` drops the orphan container's
+  PlayableItem alongside the row — the discriminator FK has no DB-level
+  enforcement, so the cascade does it explicitly.
   """
   use GenServer
   require MediaCentarr.Log, as: Log
@@ -242,6 +258,15 @@ defmodule MediaCentarr.Library.Inbound do
 
     case create_type_record(event.entity_type, entity_attrs, shared_id) do
       {:ok, type_record} ->
+        # Pair every leaf container with its canonical PlayableItem
+        # immediately. Library Schema v2 Phase 2 Task G: PlayableItem
+        # is the canonical leaf, so it must exist alongside the
+        # container regardless of whether a WatchedFile follows.
+        # `:tv_series` and `:movie_series` are containers above the
+        # leaf, not leaves themselves — their PlayableItems come from
+        # `create_children` below (Episode / child Movie).
+        maybe_ensure_self_playable_item!(type_record, event.entity_type)
+
         case put_external_ids(event, type_record, tmdb_id, imdb_id) do
           {:ok, type_record} ->
             owner_type = owner_type_for(event.entity_type)
@@ -258,12 +283,41 @@ defmodule MediaCentarr.Library.Inbound do
 
           {:race_lost, winner} ->
             Log.info(:library, "race lost — using winner #{Format.short_id(winner.id)}")
+            # `EntityCascade.destroy!` drops the orphan container AND
+            # its newly-attached PlayableItem (the discriminator FK has
+            # no DB-level enforcement, so cascade must do it
+            # explicitly). See `EntityCascade.delete_playable_items/2`.
             EntityCascade.destroy!(type_record.id)
             link_to_existing(winner, event)
         end
 
       {:error, _reason} = error ->
         error
+    end
+  end
+
+  # PlayableItem-as-the-leaf-row pairing. For `:movie` / `:video_object`
+  # the container row itself IS the leaf, so the PlayableItem points at
+  # `type_record.id`. For `:tv_series` / `:movie_series` the leaf is a
+  # child (Episode / child Movie); their PlayableItems are created
+  # during `create_children`.
+  defp maybe_ensure_self_playable_item!(%Library.Movie{id: id, position: position}, :movie) do
+    ensure_playable_item!(:movie, id, position || 1)
+  end
+
+  defp maybe_ensure_self_playable_item!(%Library.VideoObject{id: id}, :video_object) do
+    ensure_playable_item!(:video_object, id, 1)
+  end
+
+  defp maybe_ensure_self_playable_item!(_record, _type), do: :ok
+
+  # Race-safe PlayableItem upsert at the `(container_type, container_id,
+  # position)` triple. Delegates to `Library.find_or_create_playable_item/3`
+  # — the canonical seam handles the unique-index race-loss case.
+  defp ensure_playable_item!(container_type, container_id, position) do
+    case Library.find_or_create_playable_item(container_type, container_id, position) do
+      {:ok, %Library.PlayableItem{id: id}} -> id
+      {:error, reason} -> raise "PlayableItem creation failed: #{inspect(reason)}"
     end
   end
 
@@ -519,6 +573,9 @@ defmodule MediaCentarr.Library.Inbound do
     case Library.find_or_create_episode(episode_attrs) do
       {:ok, episode} ->
         ensure_content_url(episode, episode_attrs, &Library.set_episode_content_url/2)
+        # Library Schema v2 Phase 2 Task G — Episode is a leaf, so pair
+        # it with its PlayableItem at the `episode_number` position.
+        ensure_playable_item!(:episode, episode.id, episode.episode_number || 1)
         images = collect_images(episode.id, "episode", episode_data[:images] || [])
         {:ok, images}
 
@@ -540,6 +597,10 @@ defmodule MediaCentarr.Library.Inbound do
     case result do
       {:ok, movie} ->
         ensure_content_url(movie, movie_attrs, &Library.set_movie_content_url/2)
+        # Library Schema v2 Phase 2 Task G — the child Movie is a leaf,
+        # so pair it with its PlayableItem at its `position`
+        # (collection ordering) — defaulting to 1 when missing.
+        ensure_playable_item!(:movie, movie.id, movie.position || 1)
         images = collect_images(movie.id, "movie", child_movie_data[:images] || [])
         {:ok, movie, images}
 
@@ -644,7 +705,7 @@ defmodule MediaCentarr.Library.Inbound do
   # ---------------------------------------------------------------------------
 
   defp link_file(entity, event) do
-    case ensure_playable_item_for_event(entity, event) do
+    case leaf_playable_item_id_for(entity, event) do
       nil ->
         # No leaf to attach this WatchedFile to (e.g. a TV event with
         # no Season/Episode). Under the old shape we created a
@@ -688,49 +749,19 @@ defmodule MediaCentarr.Library.Inbound do
     end
   end
 
-  # Resolves the leaf container for an event and ensures a PlayableItem
-  # exists pointing at it. Returns the PlayableItem id ready to drop
-  # into the WatchedFile changeset (Library Schema v2 Phase 2 Task B).
-  #
-  # The full Inbound rewrite (Task G) will hoist PlayableItem creation
-  # earlier in the ingest flow so every leaf has its PlayableItem
-  # alongside the leaf row itself; for Task B this minimal wiring keeps
-  # WatchedFile linking correct.
-  defp ensure_playable_item_for_event(entity, event) do
+  # Resolves the leaf PlayableItem id for an event so `link_file/2` can
+  # wire the WatchedFile to it. After Library Schema v2 Phase 2 Task G
+  # the PlayableItem is created alongside the leaf container, so this
+  # lookup is normally a find — `Library.find_or_create_playable_item/3`
+  # remains the seam for the rare case where the leaf row predates
+  # Task G (legacy data, factories that bypass Inbound).
+  defp leaf_playable_item_id_for(entity, event) do
     case leaf_container_for(entity, event) do
       nil ->
         nil
 
       {container_type, container_id, position} ->
-        case Library.create_playable_item(%{
-               container_type: container_type,
-               container_id: container_id,
-               position: position
-             }) do
-          {:ok, item} ->
-            item.id
-
-          {:error, %Ecto.Changeset{errors: errors}} ->
-            # Race-loss recovery: a concurrent ingest may already have
-            # created the PlayableItem for this `(container_type,
-            # container_id, position)` triple. The unique constraint
-            # declared in `PlayableItem.create_changeset/1` surfaces as
-            # a changeset error rather than an exception (same pattern
-            # as `Library.ExternalId` in Phase 1 Task 6). Look up the
-            # existing row at the SAME position (a container can carry
-            # multiple PlayableItems for director's cuts, so we must not
-            # assume there is exactly one row for the container).
-            if Keyword.has_key?(errors, :container_type) or
-                 Keyword.has_key?(errors, :container_id) or
-                 Keyword.has_key?(errors, :position) do
-              %Library.PlayableItem{id: id} =
-                Library.find_playable_item(container_type, container_id, position)
-
-              id
-            else
-              raise "PlayableItem creation failed: #{inspect(errors)}"
-            end
-        end
+        ensure_playable_item!(container_type, container_id, position)
     end
   end
 
