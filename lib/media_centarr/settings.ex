@@ -105,7 +105,7 @@ defmodule MediaCentarr.Settings do
         existing -> Repo.update(Entry.update_changeset(existing, attrs))
       end
 
-    broadcast_change(result)
+    on_write(result)
     result
   end
 
@@ -113,13 +113,13 @@ defmodule MediaCentarr.Settings do
   def find_or_create_entry!(attrs), do: Repo.bang!(find_or_create_entry(attrs))
 
   def create_entry(attrs) do
-    attrs |> Entry.create_changeset() |> Repo.insert() |> tap(&broadcast_change/1)
+    attrs |> Entry.create_changeset() |> Repo.insert() |> tap(&on_write/1)
   end
 
   def create_entry!(attrs), do: Repo.bang!(create_entry(attrs))
 
   def update_entry(entry, attrs) do
-    entry |> Entry.update_changeset(attrs) |> Repo.update() |> tap(&broadcast_change/1)
+    entry |> Entry.update_changeset(attrs) |> Repo.update() |> tap(&on_write/1)
   end
 
   def update_entry!(entry, attrs), do: Repo.bang!(update_entry(entry, attrs))
@@ -127,6 +127,7 @@ defmodule MediaCentarr.Settings do
   def destroy_entry(entry) do
     case Repo.delete(entry) do
       {:ok, deleted} ->
+        delete_cache(deleted.key)
         broadcast(deleted.key, nil)
         {:ok, deleted}
 
@@ -140,8 +141,34 @@ defmodule MediaCentarr.Settings do
     :ok
   end
 
-  defp broadcast_change({:ok, %Entry{key: key, value: value}}), do: broadcast(key, value)
-  defp broadcast_change(_), do: :ok
+  # Every Repo-write path goes through here: refresh the persistent_term
+  # cache synchronously so a same-process read after the write sees the
+  # new value, then broadcast for cross-process subscribers. Why: the
+  # async Cache.Worker that listens to `:setting_changed` only refreshes
+  # the cache after a PubSub round-trip; LiveView handlers that read
+  # immediately after a write (e.g. `Config.watch_dirs_entries/0` inside
+  # `refresh_probes/1`) used to hit the stale value, render an
+  # unchanged list, and force the user to click again.
+  defp on_write({:ok, %Entry{} = entry}) do
+    put_cache(entry)
+    broadcast(entry.key, entry.value)
+  end
+
+  defp on_write(_), do: :ok
+
+  defp put_cache(%Entry{key: key} = entry) do
+    case :persistent_term.get(@cache_key, :__unset) do
+      :__unset -> :ok
+      entries -> :persistent_term.put(@cache_key, Map.put(entries, key, entry))
+    end
+  end
+
+  defp delete_cache(key) do
+    case :persistent_term.get(@cache_key, :__unset) do
+      :__unset -> :ok
+      entries -> :persistent_term.put(@cache_key, Map.delete(entries, key))
+    end
+  end
 
   defp broadcast(key, value) do
     Phoenix.PubSub.broadcast(
