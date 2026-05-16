@@ -100,6 +100,20 @@ defmodule MediaCentarrWeb.LibraryProgress do
   def in_progress?(%{progress: nil}), do: false
 
   def in_progress?(%{progress: summary}) do
+    in_progress_summary?(summary)
+  end
+
+  @doc """
+  Variant for callers that already hold a `ProgressSummary`-shaped map
+  directly (rather than the rich `%{entity:, progress:}` entry shape).
+  Used by the LibraryLive grid path after Library Schema v2 Phase 3.1
+  — `progress_by_id[entry.id]` returns the summary, not a wrapped
+  entry.
+  """
+  @spec in_progress_summary?(map() | nil) :: boolean()
+  def in_progress_summary?(nil), do: false
+
+  def in_progress_summary?(summary) when is_map(summary) do
     summary.episodes_completed < summary.episodes_total
   end
 
@@ -132,19 +146,6 @@ defmodule MediaCentarrWeb.LibraryProgress do
       nil -> [changed | records]
       index -> List.replace_at(records, index, changed)
     end
-  end
-
-  @doc """
-  Returns the most recent `last_watched_at` across an entry's progress records,
-  or `nil` if the entry has none. Used to sort the Continue Watching list.
-  """
-  def max_last_watched_at(%{progress_records: []}), do: nil
-
-  def max_last_watched_at(%{progress_records: records}) do
-    records
-    |> Enum.map(& &1.last_watched_at)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.max(DateTime, fn -> nil end)
   end
 
   # --- Progress FK resolution ---

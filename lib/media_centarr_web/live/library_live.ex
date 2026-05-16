@@ -1,12 +1,32 @@
 defmodule MediaCentarrWeb.LibraryLive do
   @moduledoc """
-  Library Browse page — the full entity catalog as a poster grid with type
-  tabs, sort, and text filter. Selecting an entity opens a ModalShell detail
-  overlay. Mounted at `/library`.
+  Library Browse page — the full entity catalog as a poster grid with
+  type tabs, sort, and text filter. Selecting an entity opens a
+  ModalShell detail overlay. Mounted at `/library`.
 
-  The Continue Watching and Upcoming zones formerly here have moved:
-  - Continue Watching → HomeLive (`/`)
-  - Upcoming → UpcomingLive (`/upcoming`)
+  ## Read path (Library Schema v2 Phase 3.1)
+
+  The grid reads from the `Library.Views.Browse` ETS projection
+  (ADR-041) — pre-shaped `BrowseItem` structs in recent-first
+  (`inserted_at desc`) order. Progress and availability live in
+  separate per-id maps populated via the bulk context functions
+  `Library.list_progress_summaries/1` and
+  `Library.Availability.available_for_ids/1`. The mount issues a
+  bounded number of queries that does not scale with catalog size.
+
+  ## Update path
+
+  Subscriptions split by concern:
+
+    * `library:views` — projection refresh broadcasts. On
+      `{:library_view_updated, :browse}` the LiveView re-reads
+      `Views.browse/0` (microsecond ETS lookup) and refreshes the
+      progress + availability maps.
+    * `library:updates` — wired by the EntityModal hook for the
+      selected modal state; the grid no longer reacts directly.
+    * `playback:events` — pulse dot + flash on `playback_state_changed`
+      / `playback_failed`.
+    * `library:availability` — drive-mount / unmount events.
   """
   use MediaCentarrWeb, :live_view
   use MediaCentarrWeb.Live.EntityModal
@@ -23,16 +43,16 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   import MediaCentarrWeb.LibraryHelpers
   import MediaCentarrWeb.LibraryFormatters
-  import MediaCentarrWeb.LibraryProgress
   import MediaCentarrWeb.LibraryAvailability
 
   @impl true
   def mount(_params, _session, socket) do
-    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
-    # the EntityModal on_mount callback; `Settings.subscribe()` by
+    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired
+    # by the EntityModal on_mount callback; `Settings.subscribe()` by
     # SpoilerFreeAware; `Capabilities.subscribe()` by CapabilitiesAware.
     # Do not duplicate any of them here.
     if connected?(socket) do
+      Library.Views.subscribe()
       Availability.subscribe()
       MediaCentarr.Config.subscribe()
       Process.send_after(self(), :tick_pipeline, 1_000)
@@ -43,7 +63,8 @@ defmodule MediaCentarrWeb.LibraryLive do
      |> assign(
        loaded?: false,
        entries: [],
-       entries_by_id: %{},
+       progress_by_id: %{},
+       availability_map: %{},
        visible_ids: MapSet.new(),
        active_tab: :all,
        sort_order: :recent,
@@ -53,10 +74,7 @@ defmodule MediaCentarrWeb.LibraryLive do
        in_progress_filter: false,
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
-       reload_timer: nil,
-       pending_entity_ids: MapSet.new(),
        unavailable_count: 0,
-       availability_map: %{},
        watch_dirs: MediaCentarr.Config.get(:watch_dirs) || [],
        watch_dirs_configured: watch_dirs_configured?(),
        dir_status: Availability.dir_status(),
@@ -64,14 +82,14 @@ defmodule MediaCentarrWeb.LibraryLive do
        scanning: false,
        scan_task: nil
      )
-     |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
+     |> stream_configure(:grid, dom_id: &"entity-#{&1.id}")
      |> stream(:grid, [])}
   end
 
   @doc """
-  True when at least one `watch_dirs` entry is configured — used by the
-  empty-state branch to decide between "no media yet" (user hasn't set up
-  a library root) and "watch_dirs configured but no files found".
+  True when at least one `watch_dirs` entry is configured — used by
+  the empty-state branch to decide between "no media yet" (user hasn't
+  set up a library root) and "watch_dirs configured but no files found".
   """
   def watch_dirs_configured?(dirs \\ MediaCentarr.Config.get(:watch_dirs)) do
     case dirs do
@@ -180,108 +198,39 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- PubSub Handlers ---
 
   @impl true
-  def handle_info({:entities_changed, %{entity_ids: entity_ids}}, socket) do
-    pending = MapSet.union(socket.assigns.pending_entity_ids, MapSet.new(entity_ids))
+  def handle_info({:library_view_updated, :browse}, socket) do
+    # The Browse projection refreshed; re-read everything from scratch.
+    # The projection itself broadcasts coalesced events upstream, so we
+    # do not need to debounce here.
+    {:noreply,
+     socket
+     |> load_library()
+     |> cache_visible_ids()
+     |> reset_stream()}
+  end
+
+  def handle_info({:entity_progress_updated, %{entity_id: entity_id}}, socket) do
+    # The EntityModal hook keeps `:selected_entry`'s progress fresh on
+    # its own. Here we refresh just the affected card's progress
+    # summary so the bar / completion overlay reflects the change.
+    updated_summaries = Library.list_progress_summaries([entity_id])
+
+    progress_by_id =
+      case Map.get(updated_summaries, entity_id) do
+        nil -> Map.delete(socket.assigns.progress_by_id, entity_id)
+        summary -> Map.put(socket.assigns.progress_by_id, entity_id, summary)
+      end
 
     {:noreply,
      socket
-     |> assign(pending_entity_ids: pending)
-     |> debounce(:reload_timer, :reload_entities, 500)}
-  end
-
-  def handle_info(:reload_entities, socket) do
-    changed_ids = socket.assigns.pending_entity_ids
-    type_hints = build_type_hints(socket.assigns.entries_by_id, changed_ids)
-
-    {updated_entries, gone_ids} =
-      Library.Browser.fetch_typed_entries_by_ids(MapSet.to_list(changed_ids), type_hints)
-
-    updated_map = Map.new(updated_entries, fn entry -> {entry.entity.id, entry} end)
-
-    entries =
-      for entry <- socket.assigns.entries,
-          not MapSet.member?(gone_ids, entry.entity.id),
-          do: Map.get(updated_map, entry.entity.id, entry)
-
-    existing_ids = MapSet.new(entries, fn entry -> entry.entity.id end)
-
-    new_entries =
-      Enum.reject(updated_entries, fn entry -> MapSet.member?(existing_ids, entry.entity.id) end)
-
-    entries = entries ++ new_entries
-
-    selection_deleted =
-      socket.assigns.selected_entity_id != nil &&
-        MapSet.member?(gone_ids, socket.assigns.selected_entity_id)
-
-    socket =
-      socket
-      |> assign_entries(entries)
-      |> assign(reload_timer: nil, pending_entity_ids: MapSet.new())
-      |> recompute_counts()
-
-    # `:selected_entry` is kept fresh by the EntityModal hook (which fires
-    # on the original `:entities_changed` message). This handler only owns
-    # `entries_by_id` and the grid stream.
-
-    # Additions need a full reset so new entries land in the correct sort
-    # position — stream_insert without :at appends. Deletions and in-place
-    # updates are handled surgically by touch_stream_entries (the `entry == nil`
-    # branch issues stream_delete_by_dom_id for IDs no longer in entries_by_id).
-    socket =
-      case reload_strategy(%{new_entries: new_entries, changed_ids: changed_ids}) do
-        :reset -> reset_stream(socket)
-        {:touch, ids} -> touch_stream_entries(socket, ids)
-      end
-
-    if selection_deleted do
-      {:noreply, push_patch(socket, to: build_path(socket, %{selected: nil}))}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  def handle_info(
-        {:entity_progress_updated,
-         %{
-           entity_id: entity_id,
-           summary: summary,
-           resume_target: resume_target,
-           changed_record: changed_record
-         }},
-        socket
-      ) do
-    # The EntityModal hook already refreshed `:selected_entry`. This
-    # handler updates the grid-side cache (`entries_by_id`) so the poster
-    # card reflects the same change.
-    socket =
-      case apply_entry_update(
-             socket.assigns.entries,
-             socket.assigns.entries_by_id,
-             entity_id,
-             fn entry ->
-               records = merge_progress_record(entry.progress_records, changed_record)
-
-               Map.put(
-                 %{entry | progress: summary, progress_records: records},
-                 :resume_target,
-                 resume_target
-               )
-             end
-           ) do
-        {:ok, {new_entries, new_by_id}} ->
-          assign(socket, entries: new_entries, entries_by_id: new_by_id)
-
-        :not_found ->
-          socket
-      end
-
-    {:noreply, touch_stream_entries(socket, [entity_id])}
+     |> assign(progress_by_id: progress_by_id)
+     |> touch_stream_entries([entity_id])}
   end
 
   def handle_info({:playback_state_changed, %{entity_id: entity_id}}, socket) do
-    # The EntityModal hook owns the `:playback` map. Here we only re-render
-    # the affected poster card so the "playing" badge appears/disappears.
+    # The EntityModal hook owns the `:playback` map. Here we only
+    # re-render the affected poster card so the "playing" badge
+    # appears/disappears.
     {:noreply, touch_stream_entries(socket, [entity_id])}
   end
 
@@ -289,37 +238,8 @@ defmodule MediaCentarrWeb.LibraryLive do
     {:noreply, put_flash(socket, :error, playback_failed_flash(payload))}
   end
 
-  def handle_info(
-        {:extra_progress_updated, %{entity_id: entity_id, extra_id: _extra_id, progress: progress}},
-        socket
-      ) do
-    socket =
-      case apply_entry_update(
-             socket.assigns.entries,
-             socket.assigns.entries_by_id,
-             entity_id,
-             fn %{entity: entity} = entry ->
-               extra_progress = merge_extra_progress(entity.extra_progress || [], progress)
-               %{entry | entity: %{entity | extra_progress: extra_progress}}
-             end
-           ) do
-        {:ok, {new_entries, new_by_id}} ->
-          assign(socket, entries: new_entries, entries_by_id: new_by_id)
-
-        :not_found ->
-          socket
-      end
-
-    {:noreply, touch_stream_entries(socket, [entity_id])}
-  end
-
-  def handle_info({:availability_changed, dir, state}, socket) do
-    availability_map =
-      MediaCentarrWeb.LibraryAvailability.availability_for_dir(
-        socket.assigns.entries,
-        dir,
-        socket.assigns.availability_map
-      )
+  def handle_info({:availability_changed, _dir, state}, socket) do
+    availability_map = availability_map(socket.assigns.entries)
 
     socket =
       assign(socket,
@@ -466,9 +386,10 @@ defmodule MediaCentarrWeb.LibraryLive do
                 :for={{dom_id, entry} <- @streams.grid}
                 id={dom_id}
                 entry={entry}
-                selected={@selected_entity_id == entry.entity.id}
-                playing={playing?(@playback, entry.entity.id)}
-                available={Map.get(@availability_map, entry.entity.id, true)}
+                progress={Map.get(@progress_by_id, entry.id)}
+                selected={@selected_entity_id == entry.id}
+                playing={playing?(@playback, entry.id)}
+                available={Map.get(@availability_map, entry.id, true)}
               />
             </div>
           </div>
@@ -510,29 +431,19 @@ defmodule MediaCentarrWeb.LibraryLive do
   end
 
   defp load_library(socket) do
-    socket
-    |> assign_entries(Library.Browser.fetch_all_typed_entries())
-    |> assign(playback: load_playback_sessions())
-    |> recompute_counts()
-  end
+    entries = Library.Views.browse()
+    ids = Enum.map(entries, & &1.id)
+    progress_by_id = Library.list_progress_summaries(ids)
+    availability_map = Availability.available_for_ids(ids)
 
-  defp recompute_counts(socket) do
-    assign(socket, counts: tab_counts(socket.assigns.entries))
-  end
-
-  # --- Entry Index ---
-
-  defp assign_entries(socket, entries) do
-    availability_map = MediaCentarrWeb.LibraryAvailability.availability_map(entries)
-
-    socket
-    |> assign(
+    assign(socket,
       entries: entries,
-      entries_by_id: Map.new(entries, fn entry -> {entry.entity.id, entry} end),
+      progress_by_id: progress_by_id,
       availability_map: availability_map,
-      unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end)
+      unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end),
+      counts: tab_counts(entries),
+      playback: load_playback_sessions()
     )
-    |> cache_visible_ids()
   end
 
   # --- Stream Management ---
@@ -547,10 +458,10 @@ defmodule MediaCentarrWeb.LibraryLive do
 
   defp touch_stream_entries(socket, entity_ids) do
     filtered_ids = socket.assigns.visible_ids
-    by_id = socket.assigns.entries_by_id
+    by_id = entries_index(socket.assigns.entries)
 
     Enum.reduce(entity_ids, socket, fn id, sock ->
-      entry = by_id[id]
+      entry = Map.get(by_id, id)
 
       cond do
         entry == nil ->
@@ -565,6 +476,8 @@ defmodule MediaCentarrWeb.LibraryLive do
     end)
   end
 
+  defp entries_index(entries), do: Map.new(entries, &{&1.id, &1})
+
   defp compute_filtered(socket) do
     assigns = socket.assigns
 
@@ -572,19 +485,20 @@ defmodule MediaCentarrWeb.LibraryLive do
       assigns.entries
       |> filtered_by_tab(assigns.active_tab)
       |> filtered_by_text(assigns.filter_text)
-      |> filtered_by_in_progress(assigns.in_progress_filter)
+      |> filtered_by_in_progress(assigns.progress_by_id, assigns.in_progress_filter)
 
     if assigns.in_progress_filter do
-      sorted_by_last_watched(entries)
+      sorted_by_last_watched(entries, assigns.progress_by_id)
     else
       sorted_by(entries, assigns.sort_order)
     end
   end
 
-  # Caches the filtered visible-ID set so subsequent `touch_stream_entries`
-  # calls (one per PubSub event burst) read O(1) from assigns instead of
-  # rescanning `entries`. Invalidate by calling this whenever `entries` or
-  # any filter assign (active_tab, filter_text, in_progress_filter) changes.
+  # Caches the filtered visible-ID set so subsequent
+  # `touch_stream_entries` calls (one per PubSub event burst) read O(1)
+  # from assigns instead of rescanning `entries`. Invalidate by calling
+  # this whenever `entries` or any filter assign (active_tab,
+  # filter_text, in_progress_filter) changes.
   defp cache_visible_ids(socket) do
     assigns = socket.assigns
 
@@ -592,8 +506,8 @@ defmodule MediaCentarrWeb.LibraryLive do
       assigns.entries
       |> filtered_by_tab(assigns.active_tab)
       |> filtered_by_text(assigns.filter_text)
-      |> filtered_by_in_progress(assigns.in_progress_filter)
-      |> MapSet.new(& &1.entity.id)
+      |> filtered_by_in_progress(assigns.progress_by_id, assigns.in_progress_filter)
+      |> MapSet.new(& &1.id)
 
     assign(socket, visible_ids: visible_ids)
   end
@@ -678,16 +592,4 @@ defmodule MediaCentarrWeb.LibraryLive do
   # --- Helpers ---
 
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
-
-  # Resolves the type for each changed id from the in-memory grid cache so
-  # the Browser query layer can route to a single type-specific table per
-  # known id, skipping the other four type fetchers.
-  defp build_type_hints(entries_by_id, changed_ids) do
-    Enum.reduce(changed_ids, %{}, fn id, acc ->
-      case Map.get(entries_by_id, id) do
-        %{entity: %{type: type}} -> Map.put(acc, id, type)
-        _ -> acc
-      end
-    end)
-  end
 end
