@@ -66,12 +66,29 @@ defmodule MediaCentarrWeb.SetupLiveTest do
       assert_patch(view, "/setup?step=watch_dirs")
     end
 
-    test "next advances the step in the URL", %{conn: conn} do
+    test "next is blocked on a critical unconfigured step (gate refuses, no Skip)", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/setup?step=watch_dirs")
 
-      view |> element("button", "Next") |> render_click()
+      # No watch_dirs configured → probe :not_configured → Gate.check/3
+      # returns {:blocked, :probe_not_ok}. watch_dirs is critical (not
+      # `optional?`) so the Next button is rendered `disabled` AND there
+      # is no Skip button — the user must configure a directory before
+      # advancing.
+      assert_raise ArgumentError, ~r/disabled/, fn ->
+        view |> element("button", "Next") |> render_click()
+      end
 
-      assert_patch(view, "/setup?step=tmdb")
+      # Skip is intentionally absent on critical steps.
+      refute has_element?(view, "button", "Skip")
+    end
+
+    test "skip advances on an optional unconfigured step", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=prowlarr")
+
+      # Prowlarr is optional → Skip is rendered alongside Next and
+      # bypasses the gate regardless of configuration state.
+      view |> element("button", "Skip") |> render_click()
+      assert_patch(view, "/setup?step=download_client")
     end
 
     test "back decrements the step", %{conn: conn} do
@@ -90,10 +107,14 @@ defmodule MediaCentarrWeb.SetupLiveTest do
       assert_patch(view, "/setup?step=prowlarr")
     end
 
-    test "next on download_client advances to summary, not finish", %{conn: conn} do
+    test "skip on download_client advances to summary, not finish", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/setup?step=download_client")
 
-      view |> element("button", "Next") |> render_click()
+      # download_client is optional + unconfigured → Next is gated.
+      # Skip moves to the summary step, which is the natural end of the
+      # wizard. (Pre-gate this test clicked Next; the renaming reflects
+      # the new design where Next means "configured and ready".)
+      view |> element("button", "Skip") |> render_click()
 
       assert_patch(view, "/setup?step=summary")
     end

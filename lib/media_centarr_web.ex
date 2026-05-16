@@ -19,7 +19,9 @@ defmodule MediaCentarrWeb do
       MediaCentarr.SpoilerFree,
       MediaCentarr.Subtitles,
       MediaCentarr.TMDB,
-      MediaCentarr.Controls
+      MediaCentarr.Controls,
+      MediaCentarr.IntegrationHealth,
+      MediaCentarr.Setup
     ],
     exports: [Endpoint]
 

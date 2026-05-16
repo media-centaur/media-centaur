@@ -181,7 +181,10 @@ defmodule MediaCentarr.Application do
       {MediaCentarr.Cache.Worker, context: MediaCentarr.WatchHistory.Views.Summary},
       # Pillar-2 GenServer (ADR-041) — owns active watch-progress
       # state in ETS, debounce-flushes to library_watch_progress.
-      MediaCentarr.Library.Progress.Worker
+      MediaCentarr.Library.Progress.Worker,
+      # Per-integration health (configured? × test_state) — drives the
+      # Setup Tour gate and (future) pipeline auto-retry on TMDB recovery.
+      MediaCentarr.IntegrationHealth
     ]
   end
 

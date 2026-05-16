@@ -18,6 +18,8 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
 
   use MediaCentarrWeb, :html
 
+  alias Phoenix.LiveView.JS
+
   alias MediaCentarrWeb.Live.SetupLive.{Content, Probe}
 
   # ---------------------------------------------------------------------------
@@ -28,6 +30,22 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
   attr :content, Content, required: true
   attr :step_index, :integer, required: true
   attr :total_steps, :integer, required: true
+
+  attr :form_id, :string,
+    default: nil,
+    doc:
+      "DOM id of the step's inline `<form>`. When present, the footer Next button uses HTML5 `form=`+`type=submit` so clicking Next submits that form. When nil (welcome / summary / watch_dirs), Next falls back to `phx-click=\"setup:next\"`."
+
+  attr :optional?, :boolean,
+    default: false,
+    doc:
+      "When true, the Skip button is rendered alongside Next so the user may bypass the step without satisfying its connection test. Critical steps (TMDB, watch_dirs) set this to false so the user MUST configure them — Skip is hidden, only Next advances, and the server-side gate (`Setup.Gate`) blocks Next when the test hasn't succeeded."
+
+  attr :blocked?, :boolean,
+    default: false,
+    doc:
+      "Whether `Setup.Gate.check/3` currently blocks advancement. Disables the Next button so the user gets a visual signal instead of a click-then-flash. Form-submit Next buttons are only disabled for non-form steps; form-bearing steps stay clickable because submitting the form is itself the user-visible way to satisfy the gate (the server still re-checks after save)."
+
   slot :inner_block, required: true
 
   defp step_shell(assigns) do
@@ -77,10 +95,25 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
           Back
         </.button>
         <div class="flex gap-2">
-          <.button variant="dismiss" size="sm" phx-click="setup:skip">
+          <.button :if={@optional?} variant="dismiss" size="sm" phx-click="setup:skip">
             Skip
           </.button>
-          <.button variant="primary" size="sm" phx-click="setup:next">
+          <.button
+            :if={@form_id}
+            variant="primary"
+            size="sm"
+            type="submit"
+            form={@form_id}
+          >
+            {if @step_index == @total_steps, do: "Finish", else: "Next"}
+          </.button>
+          <.button
+            :if={is_nil(@form_id)}
+            variant="primary"
+            size="sm"
+            phx-click="setup:next"
+            disabled={@blocked?}
+          >
             {if @step_index == @total_steps, do: "Finish", else: "Next"}
           </.button>
         </div>
@@ -150,16 +183,25 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
   attr :binary_name, :string, required: true
   attr :step_index, :integer, required: true
   attr :total_steps, :integer, required: true
+  attr :optional?, :boolean, default: true
+  attr :blocked?, :boolean, default: false
 
   def binary_step(assigns) do
+    form_id = "setup-step-#{assigns.binary_name}-form"
+    assigns = assign(assigns, :form_id, form_id)
+
     ~H"""
     <.step_shell
       result={@result}
       content={@content}
       step_index={@step_index}
       total_steps={@total_steps}
+      form_id={@form_id}
+      optional?={@optional?}
+      blocked?={@blocked?}
     >
       <form
+        id={@form_id}
         phx-submit="setup:save_path"
         phx-value-id={@result.id}
         class="flex gap-2 items-center"
@@ -171,10 +213,8 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
           placeholder={"/usr/bin/" <> @binary_name}
           class="input input-bordered input-sm flex-1 font-mono text-sm"
         />
-        <.button type="submit" variant="primary" size="sm">
-          {save_label(@result)}
-        </.button>
         <.button
+          type="button"
           variant="outline"
           size="sm"
           phx-click="setup:recheck"
@@ -220,12 +260,6 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
     """
   end
 
-  # Save vs Update — communicates whether the user is creating new
-  # state or modifying existing state.
-  defp save_label(%Probe.Result{current_value: nil}), do: "Save"
-  defp save_label(%Probe.Result{current_value: ""}), do: "Save"
-  defp save_label(%Probe.Result{}), do: "Update"
-
   # If the configured path is already the only candidate, hide the
   # "Use this" list — there's nothing to switch to.
   defp candidates_to_show(%Probe.Result{detected_candidates: nil}), do: []
@@ -242,6 +276,9 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
   attr :content, Content, required: true
   attr :step_index, :integer, required: true
   attr :total_steps, :integer, required: true
+  attr :form_id, :string, required: true
+  attr :optional?, :boolean, default: false
+  attr :blocked?, :boolean, default: false
   slot :form, required: true, doc: "Settings form fields specific to this integration"
 
   def integration_step(assigns) do
@@ -251,6 +288,9 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
       content={@content}
       step_index={@step_index}
       total_steps={@total_steps}
+      form_id={@form_id}
+      optional?={@optional?}
+      blocked?={@blocked?}
     >
       <div class="space-y-3">
         {render_slot(@form)}
@@ -267,6 +307,7 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
   attr :content, Content, required: true
   attr :step_index, :integer, required: true
   attr :total_steps, :integer, required: true
+  attr :blocked?, :boolean, default: false
 
   def watch_dirs_step(assigns) do
     ~H"""
@@ -275,6 +316,7 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
       content={@content}
       step_index={@step_index}
       total_steps={@total_steps}
+      blocked?={@blocked?}
     >
       <ul :if={dirs_list(@result) != []} class="space-y-1">
         <li
@@ -297,7 +339,14 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
         No watch directories yet — add one below.
       </p>
 
-      <form phx-submit="setup:add_watch_dir" class="flex gap-2 items-center">
+      <form
+        id="setup-add-watch-dir-form"
+        phx-submit={
+          JS.push("setup:add_watch_dir")
+          |> JS.set_attribute({"value", ""}, to: "#setup-add-watch-dir-form input[name='dir']")
+        }
+        class="flex gap-2 items-center"
+      >
         <input
           type="text"
           name="dir"
@@ -362,7 +411,9 @@ defmodule MediaCentarrWeb.Components.SetupSteps do
         </div>
 
         <p class="opacity-80">
-          Every step is skippable. You can finish the tour with anything still unconfigured and come back later via <span class="font-medium">Settings → Overview → Run setup tour</span>.
+          Optional steps (Prowlarr, download client, mpv, ffprobe) have a
+          <span class="font-medium">Skip</span>
+          button so you can come back later via <span class="font-medium">Settings → Overview → Run setup tour</span>. Watch directories and TMDB are required for the rest of the app to do anything useful, so the tour can't move past them until they verify.
         </p>
       </div>
 

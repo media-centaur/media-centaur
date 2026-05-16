@@ -6,10 +6,12 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
   ## Contract shape
 
       attr :result, MediaCentarrWeb.Live.SetupLive.Probe.Result, required: true
-      attr :title, :string, required: true
+      attr :content, MediaCentarrWeb.Live.SetupLive.Content, required: true
       attr :binary_name, :string, required: true
       attr :step_index, :integer, required: true
       attr :total_steps, :integer, required: true
+      attr :optional?, :boolean, default: true
+      attr :blocked?, :boolean, default: false
 
   Variations cover the four states the wizard renders:
 
