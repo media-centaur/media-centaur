@@ -61,8 +61,17 @@ defmodule MediaCentarr.Library.Browser do
   (Movie, TVSeries, MovieSeries, VideoObject), computes progress summaries.
 
   Returns a list of `%{entity: entity, progress: summary, progress_records: records}`.
+
+  ## Options
+
+    * `:sort` — one of `:recent` (default) or `:alpha`.
+      * `:recent` — `inserted_at desc` (Library Schema v2 Phase 3.1). This
+        is the canonical Browse projection order — "what did I just add?".
+      * `:alpha` — case-insensitive sort by `entity.name`. Retained for
+        consumers that still want alphabetical ordering directly off the
+        Browser layer.
   """
-  def fetch_all_typed_entries do
+  def fetch_all_typed_entries(opts \\ []) do
     standalone_movies = fetch_standalone_movies()
     hoisted_movies = fetch_hoisted_movies()
     tv_series = fetch_all_tv_series()
@@ -84,7 +93,23 @@ defmodule MediaCentarr.Library.Browser do
 
     entries
     |> Enum.map(&build_typed_entry/1)
-    |> Enum.sort_by(fn entry -> String.downcase(entry.entity.name || "") end)
+    |> apply_sort(Keyword.get(opts, :sort, :recent))
+  end
+
+  @epoch_inserted_at ~U[2000-01-01 00:00:00Z]
+
+  defp apply_sort(entries, :alpha) do
+    Enum.sort_by(entries, fn entry -> String.downcase(entry.entity.name || "") end)
+  end
+
+  defp apply_sort(entries, :recent) do
+    # Module-aware sort: Erlang term-order on `%DateTime{}` is not
+    # chronological; `{:desc, DateTime}` forces `DateTime.compare/2`.
+    Enum.sort_by(
+      entries,
+      fn entry -> entry.entity.inserted_at || @epoch_inserted_at end,
+      {:desc, DateTime}
+    )
   end
 
   @doc """

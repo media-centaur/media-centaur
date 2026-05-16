@@ -139,12 +139,16 @@ defmodule MediaCentarr.Library.Views.Browse do
       id: entity.id,
       kind: entity.type,
       name: entity.name,
+      date_published: date_published_from(entity.date_published),
       year: year_from(entity.date_published),
       poster_url: poster_url_from(entity),
       present?: true,
       rank: nil
     }
   end
+
+  defp date_published_from(%Date{} = date), do: date
+  defp date_published_from(_), do: nil
 
   defp year_from(%Date{year: year}), do: year
   defp year_from(_), do: nil
