@@ -154,12 +154,12 @@ defmodule MediaCentarr.ReleaseTracking do
   @doc """
   Finds the highest season/episode pair for a TV series in the library.
   Returns `{season_number, episode_number}`, or `{0, 0}` if the series has
-  no episodes (or `library_entity_id` is nil). Used by the Upcoming page
+  no episodes (or `tv_series_id` is nil). Used by the Upcoming page
   to compute "next up" markers against the user's library state.
   """
-  @spec find_last_library_episode(library_entity_id :: Ecto.UUID.t() | nil) ::
+  @spec find_last_library_episode(tv_series_id :: Ecto.UUID.t() | nil) ::
           {non_neg_integer(), non_neg_integer()}
-  defdelegate find_last_library_episode(library_entity_id), to: Helpers
+  defdelegate find_last_library_episode(tv_series_id), to: Helpers
 
   def list_watching_items do
     Repo.all(
@@ -519,19 +519,19 @@ defmodule MediaCentarr.ReleaseTracking do
   detail. Filters to Items with `status: :watching` (matching
   `list_releases/0`'s gating), and to the requested `media_type`.
 
-  Returns `[]` when no Item is linked to `library_entity_id`.
+  Returns `[]` when no Item is linked to `library_container_id`.
 
   Ordered `(season_number ASC, episode_number ASC)` for deterministic
   rendering and trivial grouping by season at the call site.
   """
-  @spec list_relevant_releases_for_library_entity(Ecto.UUID.t(), :tv_series | :movie) ::
+  @spec list_relevant_releases_for_library_container(Ecto.UUID.t(), :tv_series | :movie) ::
           [Release.t()]
-  def list_relevant_releases_for_library_entity(library_entity_id, media_type) do
+  def list_relevant_releases_for_library_container(library_container_id, media_type) do
     Repo.all(
       from(r in Release,
         join: i in assoc(r, :item),
         where:
-          i.library_entity_id == ^library_entity_id and
+          i.library_container_id == ^library_container_id and
             i.media_type == ^media_type and
             i.status == :watching and
             (r.released == false or
@@ -714,8 +714,8 @@ defmodule MediaCentarr.ReleaseTracking do
   @spec logo_url_for_item(%Item{}, %{Ecto.UUID.t() => String.t()}) :: String.t() | nil
   def logo_url_for_item(%Item{} = item, library_logos) do
     cond do
-      item.library_entity_id && Map.get(library_logos, item.library_entity_id) ->
-        Map.get(library_logos, item.library_entity_id)
+      item.library_container_id && Map.get(library_logos, item.library_container_id) ->
+        Map.get(library_logos, item.library_container_id)
 
       is_binary(item.logo_path) ->
         "/media-images/#{item.logo_path}"
@@ -759,7 +759,9 @@ defmodule MediaCentarr.ReleaseTracking do
     logo_urls =
       releases
       |> Enum.flat_map(fn r ->
-        if r.item.library_entity_id, do: [{r.item.media_type, r.item.library_entity_id}], else: []
+        if r.item.library_container_id,
+          do: [{r.item.media_type, r.item.library_container_id}],
+          else: []
       end)
       |> MediaCentarr.Library.logo_urls_for_entities()
 
@@ -774,7 +776,7 @@ defmodule MediaCentarr.ReleaseTracking do
       %{
         item: %{
           id: release.item.id,
-          entity_id: release.item.library_entity_id,
+          entity_id: release.item.library_container_id,
           name: release.item.name,
           tmdb_id: release.item.tmdb_id,
           media_type: release.item.media_type

@@ -320,11 +320,16 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
       tmdb_id = String.to_integer(tmdb_id_str)
 
       from(i in ReleaseTracking.Item,
-        where: i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and is_nil(i.library_entity_id)
+        where:
+          i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and
+            is_nil(i.library_container_id)
       )
       |> MediaCentarr.Repo.all()
       |> Enum.each(fn item ->
-        case ReleaseTracking.update_item(item, %{library_entity_id: tv_series_id}) do
+        case ReleaseTracking.update_item(item, %{
+               library_container_type: :tv_series,
+               library_container_id: tv_series_id
+             }) do
           {:ok, _} ->
             Log.info(
               :library,
@@ -345,14 +350,16 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     link_unlinked_items(entity_ids)
 
     items =
-      MediaCentarr.Repo.all(from(i in ReleaseTracking.Item, where: i.library_entity_id in ^entity_ids))
+      MediaCentarr.Repo.all(
+        from(i in ReleaseTracking.Item, where: i.library_container_id in ^entity_ids)
+      )
 
-    existing_ids = batch_existing_entity_ids(items)
+    existing_ids = batch_existing_container_ids(items)
 
     Enum.each(items, fn item ->
-      if library_entity_exists?(item, existing_ids) do
+      if library_container_exists?(item, existing_ids) do
         if item.media_type == :tv_series do
-          {season, episode} = Helpers.find_last_library_episode(item.library_entity_id)
+          {season, episode} = Helpers.find_last_library_episode(item.library_container_id)
 
           if season != item.last_library_season || episode != item.last_library_episode do
             case ReleaseTracking.update_item(item, %{
@@ -371,7 +378,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
           end
         end
       else
-        Log.info(:library, "removing tracking item #{item.name} — library entity deleted")
+        Log.info(:library, "removing tracking item #{item.name} — library container deleted")
         ReleaseTracking.delete_item(item)
       end
     end)
@@ -380,13 +387,15 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
   # One IN-query per relevant table instead of one Repo.get per item — this
   # function is called from `handle_info({:entities_changed, ...})` so it
   # blocks the GenServer mailbox for the duration of the work.
-  defp batch_existing_entity_ids(items) do
-    {tv_ids, movie_ids} =
+  defp batch_existing_container_ids(items) do
+    {tv_ids, movie_series_ids} =
       Enum.reduce(items, {[], []}, fn
-        %{media_type: :tv_series, library_entity_id: id}, {tvs, movies} when not is_nil(id) ->
+        %{library_container_type: :tv_series, library_container_id: id}, {tvs, movies}
+        when not is_nil(id) ->
           {[id | tvs], movies}
 
-        %{media_type: :movie, library_entity_id: id}, {tvs, movies} when not is_nil(id) ->
+        %{library_container_type: :movie_series, library_container_id: id}, {tvs, movies}
+        when not is_nil(id) ->
           {tvs, [id | movies]}
 
         _, acc ->
@@ -395,7 +404,7 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
 
     %{
       tv_series: load_existing_ids(MediaCentarr.Library.TVSeries, tv_ids),
-      movie_series: load_existing_ids(MediaCentarr.Library.MovieSeries, movie_ids)
+      movie_series: load_existing_ids(MediaCentarr.Library.MovieSeries, movie_series_ids)
     }
   end
 
@@ -407,15 +416,19 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
     |> MapSet.new()
   end
 
-  defp library_entity_exists?(%{media_type: :tv_series, library_entity_id: id}, %{tv_series: set}) do
+  defp library_container_exists?(%{library_container_type: :tv_series, library_container_id: id}, %{
+         tv_series: set
+       }) do
     MapSet.member?(set, id)
   end
 
-  defp library_entity_exists?(%{media_type: :movie, library_entity_id: id}, %{movie_series: set}) do
+  defp library_container_exists?(%{library_container_type: :movie_series, library_container_id: id}, %{
+         movie_series: set
+       }) do
     MapSet.member?(set, id)
   end
 
-  defp library_entity_exists?(_, _), do: true
+  defp library_container_exists?(_, _), do: true
 
   @active_tv_statuses [:returning, :in_production, :planned]
 
@@ -453,7 +466,8 @@ defmodule MediaCentarr.ReleaseTracking.Refresher do
             media_type: :tv_series,
             name: response["name"] || name,
             source: :library,
-            library_entity_id: tv_series_id,
+            library_container_type: :tv_series,
+            library_container_id: tv_series_id,
             last_refreshed_at: DateTime.utc_now(),
             last_library_season: last_season,
             last_library_episode: last_episode
