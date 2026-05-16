@@ -113,6 +113,10 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
           }
       end
 
+    # Library Schema v2 Phase 2 Task I — file_path no longer rides on the
+    # child movie attrs; it's added at the event level by
+    # `Pipeline.Stages.Ingest`, then linked to the leaf's WatchedFile by
+    # `Library.Inbound.link_file/2`.
     child_attrs = %{
       tmdb_id: to_string(tmdb_id),
       name: movie_data["title"],
@@ -123,7 +127,6 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
       director: Mapper.extract_director(movie_data["credits"]),
       content_rating: Mapper.extract_us_rating(movie_data["release_dates"]),
       aggregate_rating_value: movie_data["vote_average"],
-      content_url: parsed.file_path,
       position: position
     }
 
@@ -181,6 +184,10 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
   defp build_season(season_data, parsed) do
     episodes = season_data["episodes"] || []
 
+    # Library Schema v2 Phase 2 Task I — file_path no longer rides on
+    # the episode attrs; it's added at the event level by
+    # `Pipeline.Stages.Ingest` and linked to the Episode's WatchedFile
+    # by `Library.Inbound.link_file/2`.
     episode =
       if parsed.episode do
         tmdb_episode = Enum.find(episodes, &(&1["episode_number"] == parsed.episode))
@@ -189,8 +196,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
           episode_number: parsed.episode,
           name: tmdb_episode && tmdb_episode["name"],
           description: tmdb_episode && tmdb_episode["overview"],
-          duration_seconds: tmdb_episode && Mapper.minutes_to_seconds(tmdb_episode["runtime"]),
-          content_url: parsed.file_path
+          duration_seconds: tmdb_episode && Mapper.minutes_to_seconds(tmdb_episode["runtime"])
         }
 
         episode_images = build_episode_images(tmdb_episode)
@@ -214,8 +220,7 @@ defmodule MediaCentarr.Pipeline.Stages.FetchMetadata do
             episode_number: parsed.episode,
             name: nil,
             description: nil,
-            duration_seconds: nil,
-            content_url: parsed.file_path
+            duration_seconds: nil
           },
           images: []
         }

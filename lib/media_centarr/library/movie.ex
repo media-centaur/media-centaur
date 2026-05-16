@@ -1,8 +1,8 @@
 defmodule MediaCentarr.Library.Movie do
   @moduledoc """
-  A child movie belonging to a `MovieSeries` entity. Parallel to `Episode`
-  belonging to a `Season` — stores per-movie metadata from TMDB and the
-  local `content_url` linking to the video file.
+  A child movie belonging to a `MovieSeries` entity (or a standalone
+  Movie when `movie_series_id` is nil). Parallel to `Episode` belonging
+  to a `Season` — stores per-movie metadata from TMDB.
 
   `duration_seconds` is the canonical integer-seconds field (Library Schema
   v2 Phase 1 Task 3). The pipeline derives it from TMDB's `runtime`
@@ -15,6 +15,16 @@ defmodule MediaCentarr.Library.Movie do
   schema (Library Schema v2 Phase 1 Task 6). Read through
   `MediaCentarr.Library.ExternalIds.get/2`; write through
   `MediaCentarr.Library.ExternalIds.put/3`.
+
+  ## `content_url` is a derived virtual field
+
+  `content_url` no longer carries a persisted column (Library Schema v2
+  Phase 2 Task I dropped it). It is materialised at read time from
+  `playable_items.watched_files.file_path` by
+  `MediaCentarr.Library.populate_content_urls/1` — the read-side seam the
+  detail panel, resume pipeline, and playback resolvers consume. Writes
+  must go through `Library.link_file/1` against a `PlayableItem` — not
+  through this schema.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -32,7 +42,11 @@ defmodule MediaCentarr.Library.Movie do
     field :duration_seconds, :integer
     field :director, :string
     field :content_rating, :string
-    field :content_url, :string
+    # Virtual: populated from `playable_items.watched_files.file_path` by
+    # `MediaCentarr.Library.populate_content_urls/1` (Library Schema v2
+    # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
+    # the sole source of truth.
+    field :content_url, :string, virtual: true
     field :url, :string
     field :aggregate_rating_value, :float
     field :vote_count, :integer
@@ -103,7 +117,6 @@ defmodule MediaCentarr.Library.Movie do
       :duration_seconds,
       :director,
       :content_rating,
-      :content_url,
       :url,
       :aggregate_rating_value,
       :vote_count,
@@ -119,10 +132,6 @@ defmodule MediaCentarr.Library.Movie do
     |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
     |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
     |> validate_required([:name])
-  end
-
-  def set_content_url_changeset(movie, attrs) do
-    cast(movie, attrs, [:content_url])
   end
 
   @doc """

@@ -93,13 +93,34 @@ defmodule MediaCentarr.Library.Inbound do
           "ingested #{event.entity_type} — #{Format.short_id(entity.id)} (#{status})"
         )
 
-        {:ok, entity, status, pending_images}
+        # Populate the virtual `content_url` on the returned record from
+        # the WatchedFile we just linked (Library Schema v2 Phase 2 Task I).
+        # Callers — including the legacy Inbound contract that surfaces
+        # `entity.content_url` — see the on-disk path without a reload.
+        entity_with_url = reload_with_content_url(entity, event.entity_type)
+        {:ok, entity_with_url, status, pending_images}
 
       {:error, reason} ->
         Log.warning(:library, "failed to ingest entity: #{inspect(reason)}")
         {:error, reason}
     end
   end
+
+  defp reload_with_content_url(%Library.Movie{} = movie, :movie) do
+    case Library.fetch_movie(movie.id) do
+      {:ok, reloaded} -> reloaded
+      _ -> movie
+    end
+  end
+
+  defp reload_with_content_url(%Library.VideoObject{} = video, :video_object) do
+    case Library.fetch_video_object(video.id) do
+      {:ok, reloaded} -> reloaded
+      _ -> video
+    end
+  end
+
+  defp reload_with_content_url(entity, _type), do: entity
 
   @doc """
   Processes an image download completion event.
@@ -253,7 +274,6 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp create_new(event) do
     {entity_attrs, tmdb_id, imdb_id} = split_external_ids(event.entity_attrs)
-    entity_attrs = strip_content_url_if_extra(entity_attrs, event)
     shared_id = Ecto.UUID.generate()
 
     case create_type_record(event.entity_type, entity_attrs, shared_id) do
@@ -435,9 +455,7 @@ defmodule MediaCentarr.Library.Inbound do
 
   defp maybe_create_child_movie(_entity_type, _entity_id, %{child_movie: nil}), do: {:ok, []}
 
-  defp maybe_create_child_movie(entity_type, entity_id, %{child_movie: child_movie} = event) do
-    child_movie = strip_child_content_url_if_extra(child_movie, event)
-
+  defp maybe_create_child_movie(entity_type, entity_id, %{child_movie: child_movie}) do
     case create_child_movie(entity_type, entity_id, child_movie) do
       {:ok, _movie, images} -> {:ok, images}
       {:error, reason} -> {:error, reason}
@@ -501,32 +519,11 @@ defmodule MediaCentarr.Library.Inbound do
     end
   end
 
-  # Standalone movie or video object — set content_url if entity has none yet
-  # AND the inbound event carries a non-nil one.
-  defp do_link_to_existing(%{content_url: nil} = entity, event) do
-    case event.entity_attrs[:content_url] do
-      nil ->
-        {:ok, entity, :existing, []}
-
-      url ->
-        case set_content_url(entity, event.entity_type, url) do
-          {:ok, updated} -> {:ok, updated, :existing, []}
-          {:error, reason} -> {:error, reason}
-        end
-    end
-  end
-
+  # Standalone movie or video object — nothing to update on the entity
+  # itself for content_url anymore (Library Schema v2 Phase 2 Task I
+  # dropped the column). The file linkage happens downstream in
+  # `link_file/2` via the PlayableItem / WatchedFile chain.
   defp do_link_to_existing(entity, _event), do: {:ok, entity, :existing, []}
-
-  defp set_content_url(record, :movie, url) do
-    Library.set_movie_content_url(record, %{content_url: url})
-  end
-
-  defp set_content_url(record, :video_object, url) do
-    Library.update_video_object(record, %{content_url: url})
-  end
-
-  defp set_content_url(record, _type, _url), do: {:ok, record}
 
   # ---------------------------------------------------------------------------
   # Season + Episode
@@ -572,9 +569,10 @@ defmodule MediaCentarr.Library.Inbound do
 
     case Library.find_or_create_episode(episode_attrs) do
       {:ok, episode} ->
-        ensure_content_url(episode, episode_attrs, &Library.set_episode_content_url/2)
         # Library Schema v2 Phase 2 Task G — Episode is a leaf, so pair
-        # it with its PlayableItem at the `episode_number` position.
+        # it with its PlayableItem at the `episode_number` position. The
+        # file path lives on the WatchedFile linked to this leaf, not
+        # on the Episode row itself (Phase 2 Task I).
         ensure_playable_item!(:episode, episode.id, episode.episode_number || 1)
         images = collect_images(episode.id, "episode", episode_data[:images] || [])
         {:ok, images}
@@ -596,10 +594,11 @@ defmodule MediaCentarr.Library.Inbound do
 
     case result do
       {:ok, movie} ->
-        ensure_content_url(movie, movie_attrs, &Library.set_movie_content_url/2)
         # Library Schema v2 Phase 2 Task G — the child Movie is a leaf,
         # so pair it with its PlayableItem at its `position`
-        # (collection ordering) — defaulting to 1 when missing.
+        # (collection ordering) — defaulting to 1 when missing. The file
+        # path is recorded on the WatchedFile linked to this leaf, not
+        # on the Movie row itself (Phase 2 Task I).
         ensure_playable_item!(:movie, movie.id, movie.position || 1)
         images = collect_images(movie.id, "movie", child_movie_data[:images] || [])
         {:ok, movie, images}
@@ -679,28 +678,6 @@ defmodule MediaCentarr.Library.Inbound do
   defp output_extension(_role), do: "jpg"
 
   # ---------------------------------------------------------------------------
-  # Content URL helpers
-  # ---------------------------------------------------------------------------
-
-  defp strip_content_url_if_extra(entity_attrs, %{extra: extra}) when not is_nil(extra) do
-    Map.delete(entity_attrs, :content_url)
-  end
-
-  defp strip_content_url_if_extra(entity_attrs, _event), do: entity_attrs
-
-  defp strip_child_content_url_if_extra(child_movie, %{extra: extra}) when not is_nil(extra) do
-    %{child_movie | attrs: Map.delete(child_movie.attrs, :content_url)}
-  end
-
-  defp strip_child_content_url_if_extra(child_movie, _event), do: child_movie
-
-  defp ensure_content_url(record, attrs, set_fn) do
-    if is_nil(record.content_url) && attrs[:content_url] do
-      set_fn.(record, %{content_url: attrs[:content_url]})
-    end
-  end
-
-  # ---------------------------------------------------------------------------
   # Post-ingest: file linking and image queuing
   # ---------------------------------------------------------------------------
 
@@ -770,6 +747,14 @@ defmodule MediaCentarr.Library.Inbound do
   # Episode / VideoObject — never the TVSeries or MovieSeries (those
   # are containers above the leaf and never own a WatchedFile in the
   # new schema).
+  #
+  # An event carrying an `:extra` payload is the bonus-features path —
+  # the file is the Extra's content, not the container's. Skip the
+  # link_file step entirely; the Extra row carries the path on its own
+  # `content_url` column (Phase 1 preserved it for Extras) so the file
+  # is still reachable via the Extra → ExtraFile chain.
+  defp leaf_container_for(_entity, %{extra: extra}) when not is_nil(extra), do: nil
+
   defp leaf_container_for(_entity, %{
          entity_type: :movie_series,
          child_movie: %{attrs: %{tmdb_id: child_tmdb_id}}
@@ -779,18 +764,23 @@ defmodule MediaCentarr.Library.Inbound do
     {:movie, id, position || 1}
   end
 
-  defp leaf_container_for(entity, %{entity_type: :tv_series, file_path: file_path}) do
+  defp leaf_container_for(entity, %{
+         entity_type: :tv_series,
+         season: %{season_number: season_number, episode: %{attrs: %{episode_number: episode_number}}}
+       })
+       when is_integer(season_number) and is_integer(episode_number) do
     # The Episode row was created earlier in the ingest pipeline (see
-    # `maybe_create_season → create_episode → ensure_content_url`).
-    # It carries `content_url == file_path`, which is the unambiguous
-    # key. When the event doesn't carry a Season/Episode payload
-    # (e.g. a metadata-only TV ingest) there's no leaf to attach the
-    # file to.
-    case Library.find_episode_by_content_url(entity.id, file_path) do
+    # `maybe_create_season → create_episode`). After Library Schema v2
+    # Phase 2 Task I the `Episode.content_url` column is gone — the
+    # unambiguous key is `(tv_series_id, season_number, episode_number)`,
+    # which the event already carries on its season + episode payload.
+    case Library.find_episode_by_season_episode(entity.id, season_number, episode_number) do
       nil -> nil
       episode -> {:episode, episode.id, episode.episode_number || 1}
     end
   end
+
+  defp leaf_container_for(_entity, %{entity_type: :tv_series}), do: nil
 
   defp leaf_container_for(entity, %{entity_type: :movie}), do: {:movie, entity.id, entity.position || 1}
 
