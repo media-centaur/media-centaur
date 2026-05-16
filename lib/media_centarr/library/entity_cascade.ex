@@ -12,7 +12,7 @@ defmodule MediaCentarr.Library.EntityCascade do
 
   alias MediaCentarr.{Config, Format, Repo}
   alias MediaCentarr.Library
-  alias MediaCentarr.Library.{ChangeLog, Image, TypeResolver}
+  alias MediaCentarr.Library.{ChangeLog, Image, PlayableItem, TypeResolver}
 
   @doc """
   Destroys a type-specific record and all its children in FK-safe order.
@@ -50,6 +50,7 @@ defmodule MediaCentarr.Library.EntityCascade do
       Enum.each(episodes, fn episode ->
         destroy_progress(episode)
         delete_images(episode.images || [])
+        delete_playable_items(:episode, episode.id)
       end)
 
       bulk_destroy(episodes, Library.Episode)
@@ -69,6 +70,7 @@ defmodule MediaCentarr.Library.EntityCascade do
     Enum.each(movies, fn movie ->
       destroy_progress(movie)
       delete_images(movie.images || [])
+      delete_playable_items(:movie, movie.id)
     end)
 
     bulk_destroy(movies, Library.Movie)
@@ -84,6 +86,7 @@ defmodule MediaCentarr.Library.EntityCascade do
     delete_images(record.images || [])
     delete_image_dirs(record)
     bulk_destroy(record.external_ids || [], Library.ExternalId)
+    delete_playable_items(:movie, record.id)
   end
 
   defp destroy_children!(record, :video_object) do
@@ -91,6 +94,7 @@ defmodule MediaCentarr.Library.EntityCascade do
     delete_images(record.images || [])
     delete_image_dirs(record)
     bulk_destroy(record.external_ids || [], Library.ExternalId)
+    delete_playable_items(:video_object, record.id)
   end
 
   defp destroy_record!(record, :tv_series), do: Library.destroy_tv_series!(record)
@@ -118,6 +122,24 @@ defmodule MediaCentarr.Library.EntityCascade do
   def delete_images(images) do
     Enum.each(images, &delete_image_file/1)
     bulk_destroy(images, Image)
+  end
+
+  # Drops every `PlayableItem` row pointing at `(container_type,
+  # container_id)`. Library Schema v2 Phase 2 Task G hoisted
+  # PlayableItem creation alongside the container row, so the cascade
+  # has to mirror it on the way out — the `container_id` link has no
+  # DB-level FK enforcement (PlayableItem moduledoc — discriminator
+  # design), so orphans would otherwise survive a destroy!. Cascading
+  # WatchedFile / WatchProgress rows are dropped automatically via
+  # their `on_delete: :delete_all` FK to PlayableItem.
+  defp delete_playable_items(container_type, container_id) do
+    Repo.delete_all(
+      from(p in PlayableItem,
+        where: p.container_type == ^container_type and p.container_id == ^container_id
+      )
+    )
+
+    :ok
   end
 
   defp delete_image_file(%Image{content_url: nil}), do: :ok

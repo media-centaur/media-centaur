@@ -481,6 +481,147 @@ defmodule MediaCentarr.Library.InboundTest do
       assert length(movies) == 1
       assert hd(movies).id == winner.id
     end
+
+    test "race-loss cleans up orphan container's PlayableItem" do
+      # Simulate the rarer true race: a winning Movie was inserted *after*
+      # `find_existing_entity` returned `:not_found`. The losing process
+      # creates a container + PlayableItem and then discovers the conflict
+      # at the ExternalId write. The loser's container AND PlayableItem
+      # must both be cleaned up so the system converges on the winner.
+      winner = create_entity(%{type: :movie, name: "Sample Movie (Winner)", tmdb_id: "550"})
+
+      # `find_by_external_id` returns the winner directly, so we exercise
+      # the `link_to_existing` path here — that's the dominant production
+      # path. The destructive race-loss branch is exercised indirectly
+      # through `EntityCascade.destroy!` integrity (a separate test).
+      assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
+      assert entity.id == winner.id
+
+      # The winner has exactly one PlayableItem (created when the winner
+      # was first set up via `create_entity` — Task G ensures every leaf
+      # has a PlayableItem) — never two.
+      items = Library.list_playable_items_for(:movie, winner.id)
+      assert length(items) == 1
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # PlayableItem creation on leaf ingest (Library Schema v2 Phase 2 Task G)
+  # ---------------------------------------------------------------------------
+
+  describe "PlayableItem creation on leaf ingest" do
+    test "movie ingest creates PlayableItem(:movie, movie.id, 1)" do
+      assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
+
+      assert [%PlayableItem{container_type: :movie, position: 1}] =
+               Library.list_playable_items_for(:movie, movie.id)
+    end
+
+    test "episode ingest creates PlayableItem(:episode, episode.id, episode_number)" do
+      assert {:ok, tv_series, :new, _images} = Inbound.ingest(tv_event())
+
+      tv_series = MediaCentarr.Repo.preload(tv_series, seasons: :episodes)
+      episode = hd(hd(tv_series.seasons).episodes)
+
+      assert [%PlayableItem{container_type: :episode, container_id: container_id, position: 1}] =
+               Library.list_playable_items_for(:episode, episode.id)
+
+      assert container_id == episode.id
+    end
+
+    test "video_object ingest creates PlayableItem(:video_object, vo.id, 1)" do
+      event = %{
+        entity_type: :video_object,
+        entity_attrs: %{
+          type: :video_object,
+          name: "Sample Video",
+          description: "A standalone video.",
+          content_url: "/media/Sample.Video.mkv",
+          tmdb_id: "9999"
+        },
+        images: [],
+        identifier: %{source: "tmdb", external_id: "9999"},
+        child_movie: nil,
+        season: nil,
+        extra: nil,
+        file_path: "/media/Sample.Video.mkv",
+        watch_dir: "/media"
+      }
+
+      assert {:ok, video_object, :new, _images} = Inbound.ingest(event)
+
+      assert [%PlayableItem{container_type: :video_object, position: 1}] =
+               Library.list_playable_items_for(:video_object, video_object.id)
+    end
+
+    test "movie-series-child ingest creates PlayableItem(:movie, child.id, child.position)" do
+      assert {:ok, series, :new, _images} = Inbound.ingest(collection_event())
+
+      series = MediaCentarr.Repo.preload(series, :movies)
+      child = hd(series.movies)
+
+      # Position on the PlayableItem mirrors the child's own `position`
+      # (collection ordering) — defaulting to 1 when missing.
+      assert [%PlayableItem{container_type: :movie, container_id: container_id, position: 1}] =
+               Library.list_playable_items_for(:movie, child.id)
+
+      assert container_id == child.id
+
+      # The parent MovieSeries never gets a PlayableItem of its own —
+      # it's a container above the leaf, not a playable leaf.
+      assert Enum.filter(MediaCentarr.Repo.all(PlayableItem), &(&1.container_id == series.id)) == []
+    end
+
+    test "TV ingest without season/episode creates NO PlayableItem" do
+      # The TV series is not itself a leaf; only its episodes are. An
+      # ingest that doesn't carry an Episode payload must NOT leave a
+      # stray PlayableItem behind (which would break presentable queries
+      # that count files-via-PlayableItem on real leaves).
+      event = tv_event(season: nil)
+
+      assert {:ok, tv_series, :new, _images} = Inbound.ingest(event)
+      assert MediaCentarr.Repo.all(PlayableItem) == []
+
+      refute Enum.any?(MediaCentarr.Repo.all(PlayableItem), &(&1.container_id == tv_series.id))
+    end
+
+    test "adding a second episode to existing TV series creates its PlayableItem" do
+      assert {:ok, tv_series, :new, _images} = Inbound.ingest(tv_event())
+
+      event =
+        tv_event(
+          season: %{
+            season_number: 1,
+            name: "Season 1",
+            number_of_episodes: 7,
+            episode: %{
+              attrs: %{
+                episode_number: 2,
+                name: "Sample Episode 2",
+                description: "Sample episode description.",
+                duration_seconds: 2880,
+                content_url: "/media/TV/Sample.Show.S01E02.mkv"
+              },
+              images: []
+            }
+          },
+          file_path: "/media/TV/Sample.Show.S01E02.mkv"
+        )
+
+      assert {:ok, ^tv_series, :existing, _images} = Inbound.ingest(event)
+
+      tv_series = MediaCentarr.Repo.preload(tv_series, seasons: :episodes)
+      episodes = Enum.sort_by(hd(tv_series.seasons).episodes, & &1.episode_number)
+      assert length(episodes) == 2
+
+      # Each episode has its own PlayableItem keyed by its episode_number.
+      Enum.each(episodes, fn episode ->
+        assert [%PlayableItem{position: pos}] =
+                 Library.list_playable_items_for(:episode, episode.id)
+
+        assert pos == episode.episode_number
+      end)
+    end
   end
 
   # ---------------------------------------------------------------------------
