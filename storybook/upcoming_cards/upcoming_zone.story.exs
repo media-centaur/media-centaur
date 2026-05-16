@@ -244,8 +244,8 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   # --- Items ------------------------------------------------------------
 
   # Both items use a stable UUID so the `images` map keys match across
-  # builds. `library_entity_id: nil` matches a freshly-tracked item that
-  # hasn't been linked to a library entity yet.
+  # builds. `library_container_id: nil` matches a freshly-tracked item that
+  # hasn't been linked to a library container yet.
 
   # Plain maps mirroring `MediaCentarr.ReleaseTracking.Item`'s schema
   # fields. Components accept loose `:map`/`:list` attrs (see header
@@ -258,7 +258,8 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
       name: "Sample Show",
       status: :watching,
       source: :manual,
-      library_entity_id: nil,
+      library_container_type: nil,
+      library_container_id: nil,
       poster_path: nil,
       backdrop_path: nil,
       last_library_season: 0,
@@ -274,7 +275,8 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
       name: "Sample Movie",
       status: :watching,
       source: :manual,
-      library_entity_id: nil,
+      library_container_type: nil,
+      library_container_id: nil,
       poster_path: nil,
       backdrop_path: nil,
       last_library_season: 0,

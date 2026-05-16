@@ -136,7 +136,8 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         create_tracking_item(%{
           tmdb_id: 7_777,
           name: "Smoke Tracked Show",
-          library_entity_id: tv.id,
+          library_container_type: :tv_series,
+          library_container_id: tv.id,
           media_type: :tv_series
         })
 

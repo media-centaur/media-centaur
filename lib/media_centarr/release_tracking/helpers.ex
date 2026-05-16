@@ -12,13 +12,13 @@ defmodule MediaCentarr.ReleaseTracking.Helpers do
   """
   def find_last_library_episode(nil), do: {0, 0}
 
-  def find_last_library_episode(library_entity_id) do
+  def find_last_library_episode(tv_series_id) do
     result =
       Repo.one(
         from(e in MediaCentarr.Library.Episode,
           join: s in MediaCentarr.Library.Season,
           on: e.season_id == s.id,
-          where: s.tv_series_id == ^library_entity_id,
+          where: s.tv_series_id == ^tv_series_id,
           select: {s.season_number, e.episode_number},
           order_by: [desc: s.season_number, desc: e.episode_number],
           limit: 1

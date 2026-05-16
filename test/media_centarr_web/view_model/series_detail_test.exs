@@ -289,7 +289,8 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetailTest do
         create_tracking_item(%{
           tmdb_id: 424_242,
           name: "Tracked Series",
-          library_entity_id: tv.id
+          library_container_type: :tv_series,
+          library_container_id: tv.id
         })
 
       create_tracking_release(%{
@@ -318,7 +319,8 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetailTest do
         create_tracking_item(%{
           tmdb_id: 555_555,
           name: "Ignored Series",
-          library_entity_id: tv.id
+          library_container_type: :tv_series,
+          library_container_id: tv.id
         })
 
       {:ok, _} = ReleaseTracking.ignore_item(item)
