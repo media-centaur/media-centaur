@@ -190,19 +190,37 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
   follow-up review). Now keys by `playable_item_id` only — verify no
   edge case where the legacy tuple-key invariant mattered.
 
+## Phase 3.1 — LibraryLive cutover (✅ shipped 2026-05-16)
+
+Three-commit landing of the previously-deferred Task E I-4
+("LibraryLive grid → Views.Browse"). Resolved by **keeping
+BrowseItem minimal per ADR-041** rather than expanding the projection
+shape: progress and availability moved to dedicated bulk context
+functions consumed alongside the projection at the LiveView layer.
+
+- **Commit 1 — `feat(library): BrowseItem carries date_published; Browse ranks by inserted_at desc`**
+  - `BrowseItem` gains `:date_published` (full `%Date{}`); `:year` stays as the cheap cached read for the poster card.
+  - The projection's canonical order flips from alpha to `inserted_at desc` — the recent-first "what did I just add?" default.
+  - `Library.Browser.fetch_all_typed_entries/0` gains a `:sort` opt (`:recent` default, `:alpha` retained).
+- **Commit 2 — `feat(library): bulk progress summaries + availability lookups for projection consumers`**
+  - `Library.list_progress_summaries/1` — kind-grouped bulk progress reader returning `%{entity_id => summary}` with `:last_watched_at` extended into the summary shape.
+  - `Library.Availability.available_for_ids/1` — bulk availability lookup keyed by container UUID; one query per container kind, totals don't scale with row count.
+- **Commit 3 — `feat(library): LibraryLive grid reads from Views.Browse projection`**
+  - LibraryLive's grid now reads `Views.browse()` + the two bulk helpers; subscribes to `library:views`.
+  - `LibraryHelpers`, `LibraryProgress`, `LibraryAvailability`, and `poster_card` migrated to the `BrowseItem` + `progress_by_id` shape.
+  - Storybook story rewritten against `%BrowseItem{}` literals so the typed-coupling check (MC0009) keeps the new contract honest.
+
+**Budget achieved:** `/library` mount issues ~36 queries in test mode
+(DB fallback for the projection — Cache.Worker isn't running) and
+~10 in production (microsecond ETS lookup + ~6 bulk queries + ~4
+on_mount-hook cache-miss reads). The test-mode budget moved from 80
+to 45 to reflect the fallback path; the production benefit is the
+ETS lookup, not the test-mode count.
+
 ## Phase 3 follow-ups
 
 Items surfaced during Phase 3 reviews — the marquee deliverables are
 shipped; these are the deliberate deferrals worth picking up next.
-
-- **LibraryLive grid → `Library.Views.Browse`** (Task E I-4 deferral).
-  LibraryLive still reads the rich entry shape via
-  `Library.Browser.fetch_all_typed_entries/0`. Migrating requires
-  `BrowseItem` to carry `progress`, `progress_records`,
-  `resume_target`, `extra_progress`, and per-card `playing?` —
-  substantial projection-shape expansion. The `no_db_on_render_test`
-  budget for `/library` (80 queries) is the standing reminder; bringing
-  it under 5 is the goal.
 - **Library search → `Library.Views.search/2`** (Task C E.2 deferral).
   `library_helpers.ex` `filtered_by_text/2` substring-matches against
   nested season/episode/movie names. The Views.Search projection is
@@ -234,8 +252,23 @@ shipped; these are the deliberate deferrals worth picking up next.
   presentable entities; same tautology Search had. Either expose a
   presence-agnostic Browse source so the projection can compute
   `present?` per-row, or accept that `present?` on `BrowseItem` is
-  always `true` for as long as Browser stays the source. Decide as
-  part of the BrowseItem expansion above.
+  always `true` for as long as Browser stays the source.
+- **Browse projection ETS cache in test mode** (Phase 3.1 follow-up).
+  The Cache.Worker isn't started in tests, so `Views.browse/0`
+  falls back to a fresh `Browser.fetch_all_typed_entries/0` build —
+  that pumps `/library` mount budget up to ~36 queries in test mode
+  versus ~10 in production. A `setup`-block `Cache.Worker.refresh/1`
+  for tests would let the budget rule actually pin the production
+  count; today's 45-query test ceiling tolerates the fallback. Wire
+  it once the patterns stabilise across the other projections.
+- **Library filter `nested season/episode search` removed in 3.1**
+  (Phase 3.1 follow-up). `LibraryHelpers.filtered_by_text/2` used to
+  walk `entity.seasons/episodes` and match episode titles. BrowseItem
+  doesn't carry that data; the helper now matches only on
+  `BrowseItem.name`. Routing nested-text matches through
+  `Library.Views.search/2` is the long-term fix (entity-level vs
+  per-leaf rows is a UX call); for now, users with nested filter
+  habits will need the search projection.
 
 ## Architectural premises
 
