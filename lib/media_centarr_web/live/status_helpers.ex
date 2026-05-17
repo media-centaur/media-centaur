@@ -23,29 +23,17 @@ defmodule MediaCentarrWeb.StatusHelpers do
   Returns true if the WatchProgress record corresponds to the item currently
   playing in the session's `now_playing` map.
 
-  Matches by the synthesised `playable_item` discriminator
-  (`container_type`, `container_id`) — see
-  `MediaCentarr.Library.EntityShape.extract_progress/2`. Library Schema
-  v2 Phase 2 Task C removed the three direct FKs (`episode_id`,
-  `movie_id`, `video_object_id`); session `now_playing` maps still carry
-  those keys because session state hasn't been migrated to
-  `playable_item_id` yet (deferred to a future task).
+  Compares the progress's synthesised `playable_item.container_id`
+  (plugged on by `MediaCentarr.Library.EntityShape.extract_progress/2`)
+  against `now_playing.entity_id` — the container UUID
+  `MpvSession.build_now_playing/1` emits. UUIDs are globally unique
+  across container kinds, so the kind itself doesn't need to be
+  compared.
   """
-  # Follow-up: `now_playing` (built by `MpvSession.build_now_playing/1`) does
-  # not currently populate :movie_id / :episode_id / :video_object_id, so the
-  # clauses below always fall through. Either backfill those keys at session
-  # start or rewrite these clauses to use now_playing.entity_id. Tracked as a
-  # Phase 2 Task C follow-up.
   def progress_matches_session?(record, now_playing) do
     case Map.get(record, :playable_item) do
-      %{container_type: :episode, container_id: id} when not is_nil(id) ->
-        id == now_playing[:episode_id]
-
-      %{container_type: :movie, container_id: id} when not is_nil(id) ->
-        id == now_playing[:movie_id]
-
-      %{container_type: :video_object, container_id: id} when not is_nil(id) ->
-        id == now_playing[:video_object_id]
+      %{container_id: id} when not is_nil(id) ->
+        id == now_playing[:entity_id]
 
       _ ->
         false
