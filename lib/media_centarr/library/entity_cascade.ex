@@ -205,6 +205,15 @@ defmodule MediaCentarr.Library.EntityCascade do
   def destroy_progress(_record), do: :ok
 
   @doc false
+  # `bulk_destroy/2` deletes the leaf container rows (Episode / child
+  # Movie) by id, but MUST run AFTER `destroy_leaf!/2` has cleaned up
+  # each leaf's supporting rows and PlayableItems. Reversing the order
+  # would FK-cascade-delete the PlayableItems via SQLite's
+  # `on_delete: :delete_all` when the Episode/Movie row goes, leaving
+  # the per-leaf `destroy_progress/1` walk operating on stale structs
+  # (raises `Ecto.StaleEntryError`). Callers in `destroy_children!/2`
+  # encode the sequence; see the module docstring's "Cascade order"
+  # section for the full picture.
   def bulk_destroy([], _schema), do: :ok
 
   def bulk_destroy(records, schema) do
