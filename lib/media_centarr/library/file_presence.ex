@@ -148,8 +148,7 @@ defmodule MediaCentarr.Library.FilePresence do
   @doc """
   Deletes FilePresence rows by path. Cascade-delete on dependent
   schemas (`WatchedFile`, `ExtraFile`) fires via the FK constraint
-  introduced in campaign Phase 3 — until then this is a pure
-  presence-row delete.
+  introduced in campaign Phase 3.
 
   Returns the number of rows removed.
   """
@@ -161,6 +160,59 @@ defmodule MediaCentarr.Library.FilePresence do
       Repo.delete_all(from p in __MODULE__, where: p.file_path in ^paths)
 
     count
+  end
+
+  @doc """
+  Resets `last_seen_at` to `now()` for every row under `watch_dir`.
+  Returns the number of rows touched.
+
+  Called by `Library.AbsenceSweeper` on a dir's `:available`
+  transition so users get a guaranteed full TTL window from the
+  moment the drive becomes visible again — files actually present
+  on disk are then re-stamped with the same `now()` by the next
+  scan, so this reset only matters for files that remain missing.
+  """
+  @spec reset_last_seen_for_dir(String.t()) :: non_neg_integer()
+  def reset_last_seen_for_dir(watch_dir) do
+    now = DateTime.utc_now()
+    now_truncated = trunc_seconds(now)
+
+    {count, _} =
+      Repo.update_all(
+        from(p in __MODULE__, where: p.watch_dir == ^watch_dir),
+        set: [last_seen_at: now, updated_at: now_truncated]
+      )
+
+    count
+  end
+
+  @doc """
+  Per-watch-dir summary of all tracked presence rows. Returned shape:
+
+      %{watch_dir => %{file_count: non_neg_integer(), earliest_absent_since: DateTime.t()}}
+
+  Pure DB read — no GenServer round-trip. The status-page formatter
+  joins this against the live availability map to decide what to
+  render: rows for `:unavailable` dirs become "drive offline, N
+  files at risk of TTL purge in M days" warnings; rows for available
+  dirs are dropped. Replaces the
+  `Watcher.AbsencePolicy.at_risk_summary/0` equivalent.
+
+  `earliest_absent_since` is the oldest `last_seen_at` in each dir —
+  the file whose TTL countdown started first.
+  """
+  @spec at_risk_summary() :: %{
+          String.t() => %{file_count: non_neg_integer(), earliest_absent_since: DateTime.t()}
+        }
+  def at_risk_summary do
+    Map.new(
+      Repo.all(
+        from(p in __MODULE__,
+          group_by: p.watch_dir,
+          select: {p.watch_dir, %{file_count: count(p.id), earliest_absent_since: min(p.last_seen_at)}}
+        )
+      )
+    )
   end
 
   @type t :: %__MODULE__{}

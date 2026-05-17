@@ -2,6 +2,7 @@ defmodule MediaCentarr.Library do
   use Boundary,
     deps: [MediaCentarr.Subtitles],
     exports: [
+      AbsenceSweeper,
       Availability,
       Browser,
       EntityShape,

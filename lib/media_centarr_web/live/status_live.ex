@@ -16,7 +16,7 @@ defmodule MediaCentarrWeb.StatusLive do
   alias MediaCentarr.Pipeline.Stats
   alias MediaCentarr.Pipeline.Image, as: ImagePipeline
   alias MediaCentarr.Watcher
-  alias MediaCentarr.Watcher.AbsencePolicy
+  alias MediaCentarr.Library.AbsenceSweeper
   alias MediaCentarrWeb.StatusLive.ReportModal
 
   @storage_refresh_ms 5 * 60 * 1_000
@@ -114,7 +114,7 @@ defmodule MediaCentarrWeb.StatusLive do
 
     Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
       send(parent, {:status_storage_loaded, Storage.measure_all()})
-      send(parent, {:status_at_risk_loaded, AbsencePolicy.at_risk_summary()})
+      send(parent, {:status_at_risk_loaded, AbsenceSweeper.at_risk_summary()})
     end)
   end
 
@@ -184,11 +184,12 @@ defmodule MediaCentarrWeb.StatusLive do
   end
 
   def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
-    # Reload the at-risk summary too: a flip to :unavailable triggers
-    # AbsencePolicy to mark files absent (count goes up), and a flip
-    # to :available resets the absence clock (earliest_absent_since
-    # advances). The badge that drives the user's "drive offline N
-    # days, X files at risk" warning needs both reflected promptly.
+    # Reload the at-risk summary too: a flip to :unavailable stops
+    # presence refreshes (count of stale rows ticks up over time), and
+    # a flip to :available resets last_seen_at for the dir
+    # (earliest_absent_since advances) via Library.AbsenceSweeper. The
+    # badge that drives the user's "drive offline N days, X files at
+    # risk" warning needs both reflected promptly.
     start_async_storage()
 
     {:noreply,

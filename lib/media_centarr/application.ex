@@ -64,7 +64,7 @@ defmodule MediaCentarr.Application do
             start: {Task, :start_link, [fn -> init_services() end]},
             restart: :temporary
           },
-          MediaCentarr.Watcher.AbsencePolicy,
+          MediaCentarr.Library.AbsenceSweeper,
           MediaCentarr.Library.FileEventHandler,
           MediaCentarr.SelfUpdate.Updater,
           MediaCentarr.Search.SearchSession
