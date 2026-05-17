@@ -176,27 +176,32 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
   describe "at-risk file warning" do
     # Surfaces the silent destruction risk to the user before it
-    # happens — the user-facing complement to AbsencePolicy's TTL
+    # happens — the user-facing complement to AbsenceSweeper's TTL
     # filter. We assert on observable text in the rendered page; the
     # formatter shape is unit-tested in StatusHelpersTest.
 
-    test "renders an at-risk row when a configured dir is offline with absent files",
+    test "renders an at-risk row when a configured dir is offline with stale files",
          %{conn: conn} do
       # The status page only renders dir_health rows for watch dirs
       # listed in config; surface an at-risk warning by configuring
-      # the test dir, then seeding a KnownFile in :absent state under
-      # it. Restore on exit so we don't leak config to other tests.
+      # the test dir, then seeding a Library.FilePresence row whose
+      # last_seen_at is older than the TTL threshold. Restore config
+      # on exit so we don't leak to other tests.
       original_watch_dirs = :persistent_term.get({MediaCentarr.Config, :config}).watch_dirs
 
       put_config(:watch_dirs, ["/mnt/cold-storage"])
       on_exit(fn -> put_config(:watch_dirs, original_watch_dirs) end)
 
-      MediaCentarr.Watcher.FilePresence.record_file(
-        "/mnt/cold-storage/movie.mkv",
-        "/mnt/cold-storage"
-      )
+      # Stamp a stale presence row (15 days old; TTL default is 30 so
+      # this is still within TTL and shows up in the at-risk summary
+      # for the offline drive — exactly the user-facing warning case).
+      stale_at = DateTime.add(DateTime.utc_now(), -15, :day)
 
-      MediaCentarr.Watcher.FilePresence.mark_files_absent(["/mnt/cold-storage/movie.mkv"])
+      MediaCentarr.Library.FilePresence.stamp(
+        "/mnt/cold-storage/movie.mkv",
+        "/mnt/cold-storage",
+        stale_at
+      )
 
       {:ok, view, _html} = live(conn, "/status")
 

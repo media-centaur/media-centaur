@@ -4,7 +4,7 @@ defmodule MediaCentarr.Library.FileEventHandler do
 
   Two entry points:
   - **PubSub** (`{:files_removed, paths}`): triggered by inotify deletions
-    or TTL expiration in `Watcher.AbsencePolicy`. Spawns a task to run the
+    or TTL expiration in `Library.AbsenceSweeper`. Spawns a task to run the
     cleanup cascade.
   - **Direct** (`delete_file/1`, `delete_folder/2`): called from LiveView
     for user-initiated deletions. Deletes from disk, then runs the same
@@ -151,7 +151,7 @@ defmodule MediaCentarr.Library.FileEventHandler do
       ids = Enum.map(files_to_delete, & &1.id)
       # `ids` is derived from `removed_paths`, which arrives via the
       # {:files_removed, paths} broadcast. The two emitters of that
-      # broadcast — `Watcher.AbsencePolicy.purge_expired/1` and the
+      # broadcast — `Library.AbsenceSweeper.purge_expired/1` and the
       # watcher's inotify deletion flush — are themselves availability-
       # safe (the policy filters on `:watch_dir in ^available_dirs`,
       # and inotify only fires for files whose drive is mounted by
