@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.SearchProvider do
+defmodule MediaCentarr.Search.SearchProvider do
   @moduledoc """
   Behaviour for media search and grab providers.
 
@@ -6,7 +6,7 @@ defmodule MediaCentarr.Acquisition.SearchProvider do
   (e.g. Jackett) implement this behaviour without requiring changes to call sites.
   """
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Search.SearchResult
 
   @doc """
   Searches for releases matching the given query.

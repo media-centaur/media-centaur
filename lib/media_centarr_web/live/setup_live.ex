@@ -15,7 +15,7 @@ defmodule MediaCentarrWeb.SetupLive do
 
   use MediaCentarrWeb, :live_view
 
-  alias MediaCentarr.Acquisition.Prowlarr, as: ProwlarrClient
+  alias MediaCentarr.Search.Prowlarr, as: ProwlarrClient
   alias MediaCentarr.Downloads.DownloadClient.QBittorrent
   alias MediaCentarr.Config
   alias MediaCentarr.IntegrationHealth

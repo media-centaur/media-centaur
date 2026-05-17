@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.Quality do
+defmodule MediaCentarr.Search.Quality do
   @moduledoc """
   Parses and ranks media release quality from torrent/usenet release title strings.
 

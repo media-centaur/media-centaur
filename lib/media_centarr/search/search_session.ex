@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.SearchSession do
+defmodule MediaCentarr.Search.SearchSession do
   @moduledoc """
   Singleton GenServer holding the user's current acquisition search session.
 
@@ -15,9 +15,9 @@ defmodule MediaCentarr.Acquisition.SearchSession do
 
   use GenServer
 
-  alias MediaCentarr.Acquisition.QueryExpander
-  alias MediaCentarr.Acquisition.Quality
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Search.QueryExpander
+  alias MediaCentarr.Search.Quality
+  alias MediaCentarr.Search.SearchResult
   alias MediaCentarr.Topics
 
   require MediaCentarr.Log, as: Log

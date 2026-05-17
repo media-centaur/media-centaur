@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.SearchSessionTest do
+defmodule MediaCentarr.Search.SearchSessionTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.SearchSession
+  alias MediaCentarr.Search.SearchSession
 
   describe "default state" do
     test "fresh GenServer returns empty session" do
@@ -66,7 +66,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
   end
 
   describe "record_search_result/3" do
-    alias MediaCentarr.Acquisition.SearchResult
+    alias MediaCentarr.Search.SearchResult
 
     setup do
       name = :"sess_#{System.unique_integer([:positive])}"
@@ -301,7 +301,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
     end
 
     test ":ready groups are not swept on :DOWN", %{name: name} do
-      alias MediaCentarr.Acquisition.SearchResult
+      alias MediaCentarr.Search.SearchResult
       parent = self()
 
       child =
@@ -395,7 +395,7 @@ defmodule MediaCentarr.Acquisition.SearchSessionTest do
   end
 
   describe "featured field" do
-    alias MediaCentarr.Acquisition.SearchResult
+    alias MediaCentarr.Search.SearchResult
 
     setup do
       name = :"sess_#{System.unique_integer([:positive])}"

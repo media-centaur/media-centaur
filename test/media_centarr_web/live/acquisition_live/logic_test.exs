@@ -1,7 +1,7 @@
 defmodule MediaCentarrWeb.AcquisitionLive.LogicTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Search.SearchResult
   alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarrWeb.AcquisitionLive.Logic
 

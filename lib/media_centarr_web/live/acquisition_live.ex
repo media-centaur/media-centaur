@@ -15,7 +15,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   Mounted at `/download`. Only available when Prowlarr is configured —
   unauthenticated requests redirect to the library.
 
-  See `MediaCentarr.Acquisition.QueryExpander` for the supported brace
+  See `MediaCentarr.Search.QueryExpander` for the supported brace
   syntax, `MediaCentarrWeb.AcquisitionLive.Logic` for search/group
   helpers, and `MediaCentarrWeb.AcquisitionLive.HistoryLogic` for the
   History zone filter helpers.
@@ -108,7 +108,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
       {:ok,
        assign(socket,
          loaded?: false,
-         search_session: %Acquisition.SearchSession{},
+         search_session: %MediaCentarr.Search.SearchSession{},
          active_queue: [],
          queue_status: :initializing,
          queue_loaded?: false,
@@ -1089,7 +1089,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   defp indexer_name(%{indexer: indexer}) when is_binary(indexer), do: indexer
   defp indexer_name(_), do: "Unknown"
 
-  defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentarr.Acquisition.Quality.label(q)
+  defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentarr.Search.Quality.label(q)
   defp quality_label(_), do: nil
 
   defp load_history(socket) do

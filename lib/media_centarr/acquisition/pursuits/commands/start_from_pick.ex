@@ -38,7 +38,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.StartFromPick do
 
   alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
   alias MediaCentarr.Acquisition.Pursuits.Events.{PursuitStarted, ReleasePicked}
-  alias MediaCentarr.Acquisition.{Quality, SearchResult, Target}
+  alias MediaCentarr.Acquisition.Target
+  alias MediaCentarr.Search.{Quality, SearchResult}
   alias MediaCentarr.Repo
 
   @doc """

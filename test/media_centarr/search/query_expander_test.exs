@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.QueryExpanderTest do
+defmodule MediaCentarr.Search.QueryExpanderTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.QueryExpander
+  alias MediaCentarr.Search.QueryExpander
 
   describe "expand/1 — passthrough" do
     test "returns single-element list for plain query" do
