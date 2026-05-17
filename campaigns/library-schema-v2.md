@@ -1,7 +1,8 @@
 ---
-status: phase-3.2-complete
+status: phase-3.2-complete; follow-ups open
 started: 2026-05-15
-last_updated: 2026-05-17f
+last_updated: 2026-05-17g
+resume_with: see "Resume — open follow-ups" section at the bottom
 ---
 # Library Schema v2 — architectural excellence
 
@@ -279,16 +280,27 @@ Five tasks (A → E); all landed today:
   breaking the projection's canonical-leaf lookup). `mix precommit`
   green (3629 tests, 0 failures).
 
-- **Task E — Boundary cleanup (partial; typed-attrs deferred)** (2026-05-17).
+- **Task E — Boundary cleanup (partial; typed-attrs deferred)** (commit `176d7283`, 2026-05-17).
   Documentation + budget polish that reflect the post-Task D reality:
   DetailPanel + Hero + MoreInfoPanel + MovieCredits + SeriesCredits
   `@doc_entity` strings refreshed to reference `Views.DetailItem.to_entity_map/1`
   rather than the pre-3.2 `Library.Browser`. The
   `no_db_on_render_test` budget for `/library?selected=<id>`
-  tightened from 90 → 80 (measured: 74). Dead-code deletions
-  (`load_extras_for_entity/1`) landed with Task D, not as a
+  tightened from 90 → 85 (measured ~74 isolated, ~82 under full suite;
+  the +10 margin absorbs inter-test PubSub/cache variance). Dead-code
+  deletions (`load_extras_for_entity/1`) landed with Task D, not as a
   separate commit. Full typed-attrs migration deferred to Phase 3.3
   per the scope discussion in the plan doc.
+
+- **Phase 2/3 follow-up bundle** (commit `4dc34a24`, 2026-05-17). Six
+  small loose-ends from the follow-up lists below, closed
+  post-Phase-3.2: `populate_leaf_content_url/1` raises on NotLoaded +
+  sorts by `:position`; `EntityCascade.bulk_destroy/2` ordering
+  comment; `validate_container_pair/1` test coverage at the
+  `track_item/1` boundary; `ComingUpItemRef.entity_id` discoverability
+  doc; `Library.find_or_create_external_id/{1,2}` orphan helper
+  removed. See follow-up sections below for the struck-through
+  entries.
 
 ## Phase 3 follow-ups
 
@@ -301,11 +313,10 @@ shipped; these are the deliberate deferrals worth picking up next.
   Search to per-leaf rows (better UX, larger index) or accept
   entity-only matching (simpler, regresses the side-effect-y nested
   search). Decision should follow user behaviour data, not a guess.
-- **DetailLive / EntityModal → `Library.Views.detail/1`** (Task E E.3
-  deferral). `DetailItem` doesn't yet carry the full file / season /
-  episode tree the modal renders. Same trade-off as Browse: expand the
-  projection shape (preferred — single ETS lookup at modal open) or
-  keep the existing `TypeResolver + Repo.preload` path.
+- ~~**DetailLive / EntityModal → `Library.Views.detail/1`** (Task E E.3
+  deferral).~~ ✅ Shipped as Phase 3.2 (Tasks A–D, 2026-05-17).
+  `DetailItem` grew the full file/season/episode tree and every
+  modal-open path reads through `Views.detail_by_container/2`.
 - **`reset_for_test!/0` Mix.env guard** (Task D review M-1). The
   public function is doc-tagged as test-only but not enforced. Add a
   release-time guard if/when we ship a hardened release where the
@@ -715,3 +726,56 @@ These need resolution before / during the phase that touches them.
 - [`docs/library.md`](../docs/library.md) — current schema documentation
 - [`lib/media_centarr/library/`](../lib/media_centarr/library/) — current schemas
 - [`lib/media_centarr/library/views/continue_watching.ex`](../lib/media_centarr/library/views/continue_watching.ex) — canonical projection example
+
+## Resume — open follow-ups
+
+Phases 1, 2, 3, 3.1, 3.2 all shipped. The architectural goal is met
+across the board. What remains is **deliberately deferred polish** —
+each item below is small, contained, and can be picked up one at a
+time without re-reading the campaign cover-to-cover.
+
+**Recommended next-session approach:** pick one item from the list,
+read its bullet for context, then check it against current code
+(grep for the named module/function) since the campaign was last
+reconciled 2026-05-17. Some may have been silently closed by
+unrelated work. Reconcile against `jj log` before assuming
+anything's still open.
+
+**The big deferral:** Phase 3.3 — full typed-attr migration
+(`DetailPanel`/Hero/MoreInfoPanel/MovieCredits/SeriesCredits attr
+`:entity, :map` → `attr :entity, DetailItem`; retire
+`DetailItem.to_entity_map/1`). ~10 component files + ~10 storybook
+fixtures in lockstep — see the Phase 3.2 plan doc for the
+ship-strategy note. Belongs more with the **component-contracts
+campaign** than with this one. Don't tackle it piecemeal.
+
+### Small open items (cherry-pickable, ordered by likely value)
+
+**Architectural / safety:**
+- Phase 2 — `StatusHelpers.progress_matches_session?/2` — pre-existing latent bug. Reads `now_playing[:movie_id]` etc. but `MpvSession.build_now_playing/1` doesn't populate those keys. Either backfill at session start or rewrite to use `now_playing.entity_id`.
+- Phase 3 — `Cache.handle_message/1` partial-refresh path direct test. Worth adding to `cache_test.exs` so future contributors don't regress the callback signature added in Phase 3 Task B.
+- Phase 3 — `reset_for_test!/0` Mix.env guard. Doc-tagged test-only but not enforced. Add a release-time guard.
+
+**Code-quality cleanups:**
+- Phase 1 — Year-helper consolidation (4+ helpers across the codebase; collapse once storybook migrates to typed `%Date{}` fixtures via the component-contracts campaign).
+- Phase 2 — `MpvSession` FK-key deferral. Session-state still carries `movie_id` / `episode_id` / `video_object_id`; persistence boundary migrated, runtime didn't.
+- Phase 2 — `has_one through` silent drop on multi-cut. Tighten when multi-cut UI ships.
+- Phase 2 — TMDB `Mapper` image helpers still emit legacy `entity_id` keys (only tests consume; remove when those tests refactor).
+- Phase 2 — `resources_in_delete_order` missing `PlayableItem`. Task H rewrote the cascade so this constant is no longer load-bearing — delete entirely if nothing else reads it.
+- Phase 2 — `StatusResolver.progress_record_key/1` simplification. Now keys by `playable_item_id` only — verify no edge case where the legacy tuple-key invariant mattered.
+- Phase 3 — `Library.playable_item_ids_for_entities/1` UNION (three sequential `Repo.all/1` calls could collapse).
+
+**Performance / test-mode:**
+- Phase 3 — Browse projection ETS cache in test mode. Wire `Cache.Worker.refresh/1` into test setup so projections measure the production-warm path. Would tighten `/library` and `/library?selected=<id>` budgets significantly (today's ~74 → ~5 for the modal-open path).
+- Phase 3 — Browse projection `present?` could be derived honestly (Browse currently inherits Browser's pre-filter; tautological).
+
+**UX / scope-pending:**
+- Phase 3 — Library search → `Library.Views.search/2`. Decision-pending: broaden Search to per-leaf rows (better UX, larger index) or accept entity-only matching (regresses 3.1's nested-text-match removal). Decision should follow user-behaviour data.
+- Phase 3 — Library filter "nested season/episode search removed in 3.1". Same underlying decision as Search above.
+
+**Showcase / docs:**
+- Phase 1 — Showcase subtitle seeding (`priv/showcase/media-centarr.db` has the `subtitles_tracks` table but no rows).
+- Phase 1 — Migration reversibility note in CHANGELOG for the Phase 1 Task 5 subtitles table.
+- Phase 1 — `refresh_movie_series_credits/0` skip predicate (currently a no-op data-wise).
+- Phase 1 — `Subtitles.list_tracks_for_file/1` ordering determinism (no current consumer depends on it; do when one does).
+- Phase 1 — `format_runtime/1` duplication observation (defer until the canonical view-model struct absorbs formatting).
