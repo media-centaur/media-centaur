@@ -52,10 +52,14 @@ across the LiveView surface. (Phase 3 follow-ups remain — see
 *Open follow-ups* below — but they are projection-shape expansions
 behind a locked-in architecture, not workstream blockers.)
 
-**Workstream B — Acquisition split: 1 of 3 phases shipped.**
+**Workstream B — Acquisition split: ✅ 3 of 3 phases shipped.**
 Downloads cleanly extracted to `MediaCentarr.Downloads.*` per
-ADR-043 (2026-05-10). Search extraction and Acquisition-boundary
-cleanup remain.
+ADR-043 (2026-05-10). Search extraction shipped 2026-05-17 with
+`Search.Criteria` as the boundary inversion. Phase 3 boundary
+cleanup pruned the inflated export list 2026-05-17; the once-
+vestigial `Library` dep is now load-bearing via `LibraryReconciler`
+(ADR-043 amended). Optional Phase 4 (Pursuits promotion) remains
+parked per ADR-043 rationale.
 
 **Workstream C — ephemeral-field cleanup: ✅ complete.** Both
 audited fields (`last_attempt_*`, `last_queue_*`) explicitly
@@ -84,9 +88,10 @@ source-vs-derived PubSub taxonomy.
   durable state belongs in the Library pillar; the Watcher's
   GenServer state is Pillar 2.
 
-**Net remaining for this campaign:** Acquisition split Phases 2 (Search
-extraction) and 3 (Acquisition boundary cleanup), plus the optional
-Phase 4 (Pursuits promotion).
+**Net remaining for this campaign:** the Open follow-ups list below
+(projection-shape expansions + cross-cutting items). All four
+core workstreams are complete; the optional Phase 4 of Workstream B
+(Pursuits promotion) stays parked.
 
 HomeLive read paths now read entirely through projections:
 - `/` hero → `Library.Views.HeroCandidates`
@@ -436,10 +441,22 @@ split. See ADR-043.
   Pursuits subsystem rewired to new aliases; new boundary
   declared with `deps: [Capabilities]` and the cluster's modules
   re-exported. *(shipped 2026-05-10)*
-* [ ] Phase 2 — extract `Search` (Prowlarr, query, results, title
-  matcher, quality).
-* [ ] Phase 3 — clean up Acquisition boundary (drop vestigial
-  `Library` dep, prune exports).
+* [x] Phase 2 — extract `Search` (Prowlarr, query, results, title
+  matcher, quality). 10 source files + 7 test files moved to
+  `MediaCentarr.Search.*`; new `Search.Criteria` struct decouples
+  Search from `Acquisition.Pursuits.Recipe` (Recipe projects into
+  Criteria via `to_criteria/1`). Acquisition's Boundary now declares
+  `MediaCentarr.Search`; exports dropped Prowlarr/Quality/
+  QueryExpander/SearchSession (callers reach through Search now).
+  *(shipped 2026-05-17)*
+* [x] Phase 3 — clean up Acquisition boundary. Pruned 5 unused
+  exports (`Pursuits.Commands.PickTarget`, `ViewModels.NextStep`,
+  `ViewModels.Recipe`, plus the `Cancel`/`ChangeTarget` confusion
+  caught + restored by Boundary). The `Library` dep, originally
+  flagged as vestigial, became load-bearing via `LibraryReconciler`
+  (added between ADR-043 drafting and Phase 3 landing) — ADR-043
+  amended with a correction note rather than forcing a removal that
+  would break presence-check short-circuiting. *(shipped 2026-05-17)*
 * [ ] (Optional Phase 4) — promote `Pursuits` to top-level.
   Currently parked; depth of the subtree is justified per
   ADR-039, not sprawl.
