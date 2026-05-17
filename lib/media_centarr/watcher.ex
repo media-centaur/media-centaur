@@ -62,6 +62,7 @@ defmodule MediaCentarr.Watcher do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Library
+  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
   alias MediaCentarr.Library.WatchedFile
   alias MediaCentarr.Watcher.DeletionBuffer
   alias MediaCentarr.Watcher.ExcludeDirs
@@ -389,7 +390,12 @@ defmodule MediaCentarr.Watcher do
     recovery = Keyword.get(opts, :recovery, false)
     Log.info(:watcher, "scanning #{dir}#{if recovery, do: " (recovery)", else: ""}")
 
-    known_paths = FilePresence.known_file_paths(dir)
+    # Library.FilePresence is the source of truth for "have we already
+    # dispatched this path?" — campaign-presence-unification Phase 2.
+    # Watcher.FilePresence (KnownFile) is still dual-written by
+    # `detect_file/2` so legacy joins continue to work; it gets
+    # retired in Phase 7.
+    known_paths = LibraryFilePresence.list_paths_for_watch_dir(dir)
     scan_directory_with_paths(dir, exclude_dirs, known_paths, recovery: recovery)
   end
 
@@ -412,6 +418,12 @@ defmodule MediaCentarr.Watcher do
 
     # Restore any absent files that are now present on disk
     restored_paths = FilePresence.restore_present_files(dir, video_files)
+
+    # Refresh `last_seen_at` in Library.FilePresence for restored
+    # paths (newly-detected paths get stamped per-file by
+    # `detect_file/2` above). One bulk write per scan keeps the
+    # cost flat regardless of library size.
+    LibraryFilePresence.stamp_many(restored_paths, dir)
 
     restored_entity_ids =
       if restored_paths == [] do
@@ -463,7 +475,13 @@ defmodule MediaCentarr.Watcher do
 
   defp detect_file(path, watch_dir) do
     Log.info(:watcher, "detected #{Path.basename(path)}")
+
+    # Dual-write while the campaign is mid-flight: KnownFile keeps
+    # legacy Library joins working; Library.FilePresence is the new
+    # source of truth read by `scan_directory/2`. Phase 7 deletes
+    # the KnownFile write.
     FilePresence.record_file(path, watch_dir)
+    LibraryFilePresence.stamp(path, watch_dir)
 
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
