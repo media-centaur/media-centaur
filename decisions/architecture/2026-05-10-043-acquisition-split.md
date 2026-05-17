@@ -112,10 +112,19 @@ stateful pieces and no DB schema. `Prowlarr` and friends move
 together. `Acquisition.SearchAndGrab` and `Acquisition.grab/2`
 become callers of `Search.*` instead of internal users.
 
-**Phase 3 — Clean up Acquisition boundary.** Drop the now-unused
-`Library` dep. Re-export only what `Pursuits.*` consumers actually
-need. The 30-file pursuits subtree stays; the cognitive-load case
-for a fourth context is weaker once the other two are out.
+**Phase 3 — Clean up Acquisition boundary.** Re-export only what
+`Pursuits.*` consumers actually need. The 30-file pursuits subtree
+stays; the cognitive-load case for a fourth context is weaker once
+the other two are out.
+
+> **Stale premise — corrected 2026-05-17.** This ADR was drafted while
+> Acquisition's `deps: [MediaCentarr.Library, …]` line was vestigial.
+> Since then, `Acquisition.Pursuits.LibraryReconciler` was added and
+> calls `Library.find_present_episode/3` / `find_present_movie/1` to
+> short-circuit pursuits whose targets are already on disk. The
+> `Library` dep is therefore load-bearing now; Phase 3's "drop Library"
+> sub-bullet is dropped. The export-pruning sub-bullet still applies
+> and ships with Phase 3.
 
 **Phase 4 — (optional, not in scope of this ADR)** Promote Pursuits
 to a top-level context if the case becomes compelling after the
@@ -151,9 +160,11 @@ acceptable.
 * Good, because each new boundary describes one job: Search has no
   durable state, Downloads has no Prowlarr knowledge, Acquisition
   becomes a coherent grab + pursuit context.
-* Good, because the vestigial `Library` dep on Acquisition gets
-  dropped as part of Phase 3 — the boundary will accurately describe
-  coupling for the first time in a while.
+* Good, because Phase 3 prunes the inflated export list — the boundary
+  will accurately describe what callers actually reach for, for the
+  first time in a while. (The `Library` dep, originally vestigial, has
+  since become load-bearing via `LibraryReconciler`; see Phase 3
+  correction note above.)
 * Good, because new contributors (and fresh agent contexts) can
   load only the cluster they need: ~12 files instead of ~76 for a
   Prowlarr-driver change, ~10 files instead of ~76 for a queue
