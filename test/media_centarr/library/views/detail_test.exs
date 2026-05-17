@@ -15,7 +15,6 @@ defmodule MediaCentarr.Library.Views.DetailTest do
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.Events.EntitiesChanged
-  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
   alias MediaCentarr.Library.Views
   alias MediaCentarr.Library.Views.{Detail, DetailItem}
   alias MediaCentarr.Topics
@@ -219,8 +218,9 @@ defmodule MediaCentarr.Library.Views.DetailTest do
       on_exit_clear_table()
 
       # Post-Phase-4 (library-presence-unification): present? is true
-      # iff a WatchedFile exists. Deleting the FilePresence cascades
-      # to the WatchedFile via FK, which flips present? to false.
+      # iff a WatchedFile exists. Drop just the WatchedFile here to
+      # isolate the present?-flip assertion — the full cleanup path
+      # (ADR-046) would also remove the entity, defeating the test.
       movie = create_standalone_movie(%{name: "Disappearing Movie"})
       file = create_linked_file(%{movie_id: movie.id})
       pi = playable_item_for_movie(movie)
@@ -228,9 +228,7 @@ defmodule MediaCentarr.Library.Views.DetailTest do
       assert :ok = Detail.refresh_cache()
       assert %DetailItem{present?: true} = Views.detail(pi.id)
 
-      # Simulate AbsenceSweeper-style cleanup (lands proper in Phase 6):
-      # deleting the FilePresence cascade-deletes the WatchedFile.
-      LibraryFilePresence.delete_paths([file.file_path])
+      MediaCentarr.Repo.delete!(file)
 
       assert :ok = Detail.refresh_cache()
       assert %DetailItem{present?: false} = Views.detail(pi.id)

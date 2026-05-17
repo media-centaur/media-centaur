@@ -61,9 +61,15 @@ Concretely:
   watch dir. Fields: `id (UUID)`, `file_path :string UNIQUE`,
   `watch_dir :string`, `last_seen_at :utc_datetime_usec`. Indexed
   on `(watch_dir, last_seen_at)` for absence sweeps.
-* **`WatchedFile` and `ExtraFile` FK** to FilePresence with
-  `on_delete: :delete_all`. Library entities can only exist for
-  files we've actually observed.
+* **`WatchedFile` and `ExtraFile` reference** FilePresence via a
+  plain `file_presence_id` UUID column. Library entities can only
+  exist for files we've actually observed (enforced at the
+  changeset layer via `validate_required(:file_presence_id)` and
+  by routing all writes through `Library.link_file/1` /
+  `create_extra_file/1`, which auto-stamp a presence row).
+  *Originally a DB-level FK with `on_delete: :delete_all`; dropped
+  per [ADR-046](2026-05-17-046-app-owned-cascading-deletes.md) —
+  cascading deletes are an application concern.*
 * TTL-driven absence detection moves to a new
   **`Library.AbsenceSweeper`** GenServer that sweeps stale
   FilePresence rows and broadcasts the existing
