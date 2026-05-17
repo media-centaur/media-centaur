@@ -783,6 +783,20 @@ defmodule MediaCentarr.Library.Views.Detail do
           & &1.owner_id
         )
 
+      episode_images_by_episode_id =
+        if episode_ids == [] do
+          %{}
+        else
+          Enum.group_by(
+            Repo.all(
+              from(i in Image,
+                where: i.owner_type == :episode and i.owner_id in ^episode_ids
+              )
+            ),
+            & &1.owner_id
+          )
+        end
+
       episodes_by_season_id = Enum.group_by(episodes, & &1.season_id)
 
       Enum.map(seasons, fn season ->
@@ -803,7 +817,8 @@ defmodule MediaCentarr.Library.Views.Detail do
               date_published: nil,
               duration_seconds: episode.duration_seconds,
               present?: files != [],
-              content_url: files |> List.first() |> file_path()
+              content_url: files |> List.first() |> file_path(),
+              images: Map.get(episode_images_by_episode_id, episode.id, [])
             }
           end)
 

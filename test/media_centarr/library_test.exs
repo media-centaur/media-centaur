@@ -746,4 +746,77 @@ defmodule MediaCentarr.LibraryTest do
       assert Library.playable_file_path(Ecto.UUID.generate()) == nil
     end
   end
+
+  describe "list_progress_records_for_tv_series/1 (Phase 3.2 Task C.2)" do
+    # Helper used by `SeriesDetail.compose/1` to thread per-episode
+    # WatchProgress to `build/4` after the projection flip. Returns the
+    # same shape `EntityShape.extract_progress(_, :tv_series)` produced
+    # for the legacy path — each record carries a synthesised
+    # `:playable_item` so `EpisodeList.progress_container_id/1` resolves
+    # to the Episode UUID.
+
+    alias MediaCentarr.Library.EpisodeList
+
+    test "returns [] for a series with no episodes" do
+      tv = create_tv_series(%{name: "Empty Series"})
+      assert Library.list_progress_records_for_tv_series(tv.id) == []
+    end
+
+    test "returns [] for episodes without WatchProgress" do
+      tv = create_tv_series(%{name: "Unwatched Series"})
+      season = create_season(%{tv_series_id: tv.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+      _playable_item = create_playable_item_for_episode(episode)
+
+      assert Library.list_progress_records_for_tv_series(tv.id) == []
+    end
+
+    test "returns one record per episode with progress, keyed via :playable_item.container_id" do
+      tv = create_tv_series(%{name: "Progress Series"})
+      season = create_season(%{tv_series_id: tv.id, season_number: 1})
+
+      episode1 = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+      episode2 = create_episode(%{season_id: season.id, episode_number: 2, name: "S1E2"})
+      _playable1 = create_playable_item_for_episode(episode1)
+      _playable2 = create_playable_item_for_episode(episode2)
+
+      create_watch_progress(%{episode_id: episode1.id, completed: true})
+      create_watch_progress(%{episode_id: episode2.id, position_seconds: 120.0})
+
+      records = Library.list_progress_records_for_tv_series(tv.id)
+
+      assert length(records) == 2
+
+      episode_ids = Enum.map(records, &EpisodeList.progress_container_id/1)
+      assert Enum.sort(episode_ids) == Enum.sort([episode1.id, episode2.id])
+
+      completed = Enum.find(records, & &1.completed)
+      assert EpisodeList.progress_container_id(completed) == episode1.id
+    end
+
+    test "ignores progress on episodes of other series" do
+      tv_a = create_tv_series(%{name: "Series A"})
+      tv_b = create_tv_series(%{name: "Series B"})
+
+      season_a = create_season(%{tv_series_id: tv_a.id, season_number: 1})
+      season_b = create_season(%{tv_series_id: tv_b.id, season_number: 1})
+
+      episode_a = create_episode(%{season_id: season_a.id, episode_number: 1, name: "A1"})
+      episode_b = create_episode(%{season_id: season_b.id, episode_number: 1, name: "B1"})
+      _pa = create_playable_item_for_episode(episode_a)
+      _pb = create_playable_item_for_episode(episode_b)
+
+      create_watch_progress(%{episode_id: episode_a.id, completed: true})
+      create_watch_progress(%{episode_id: episode_b.id, completed: true})
+
+      records = Library.list_progress_records_for_tv_series(tv_a.id)
+
+      assert [record] = records
+      assert EpisodeList.progress_container_id(record) == episode_a.id
+    end
+
+    test "returns [] for an unknown TVSeries id" do
+      assert Library.list_progress_records_for_tv_series(Ecto.UUID.generate()) == []
+    end
+  end
 end
