@@ -169,7 +169,7 @@ defmodule MediaCentarr.Maintenance do
   — rate-limited by `TMDB.RateLimiter` but otherwise unbounded.
 
   **Not wired to a Settings button or scheduled job in this task.** API
-  surface only. See campaign `library-schema-v2.md` follow-ups for the
+  surface only. See campaign `campaigns/done/library-schema-v2.md` follow-ups for the
   plan to either (a) implement a `tmdb_fetched_at`-based skip predicate
   or (b) aggregate constituent-movie credits up to the collection level.
   """

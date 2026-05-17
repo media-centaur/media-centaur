@@ -8,13 +8,13 @@
 
 **Tech Stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ExMachina-style factories in `MediaCentarr.TestFactory`.
 
-**Campaign reference:** [`campaigns/library-schema-v2.md`](../../../campaigns/library-schema-v2.md).
+**Campaign reference:** [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md).
 
 ---
 
 ## Pre-flight
 
-- [ ] Read [`campaigns/library-schema-v2.md`](../../../campaigns/library-schema-v2.md) start-to-finish.
+- [ ] Read [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md) start-to-finish.
 - [ ] Confirm `mix precommit` is green on `main` before starting.
 - [ ] `jj new` off `main` for the campaign branch.
 - [ ] Skim [`docs/library.md`](../../library.md) — current shape to mutate.
@@ -914,7 +914,7 @@ jj new
 ## Post-Phase 1
 
 - [ ] Update [`docs/library.md`](../../library.md): drop references to `tmdb_id`/`imdb_id` columns, `subtitle_tracks` on WatchedFile, stringly-typed dates/durations. Document `Library.Person` and `Library.ExternalIds`.
-- [ ] Update [`campaigns/library-schema-v2.md`](../../../campaigns/library-schema-v2.md) Status section: Phase 1 complete, link to commits, note any deferred items.
+- [ ] Update [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md) Status section: Phase 1 complete, link to commits, note any deferred items.
 - [ ] Update the wiki:
   - `Library-Browsing.md` if user-visible field display changed (year format, runtime format).
   - `Configuration-File.md` is unaffected.

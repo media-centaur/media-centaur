@@ -4,11 +4,11 @@
 
 **Goal:** Reify `MediaCentarr.Library.PlayableItem` as the canonical leaf — the thing the user presses Play on. Collapse the 3–5-FK polymorphic fanout on `WatchedFile`, `WatchProgress`, `Image`, `Extra`, `ExternalId` into either a single FK to PlayableItem (`WatchedFile`, `WatchProgress`) or a `(owner_type, owner_id)` discriminator (`Image`, `Extra`, `ExternalId`). Drop `content_url` from leaves. Eliminate `EntityShape.normalize/3` (PlayableItem IS the normalised shape).
 
-**Architecture:** Pillar-1 structural redesign. The campaign target schema (`campaigns/library-schema-v2.md` "Target schema" section) is the spec. After Phase 2, every supporting table either keys to `playable_item_id` (file/progress/subtitle) or uses a single `(owner_type, owner_id)` polymorphic pair (image/extra/external_id). One container can host N playable items (unlocks director's cuts, multi-part episodes).
+**Architecture:** Pillar-1 structural redesign. The campaign target schema (`campaigns/done/library-schema-v2.md` "Target schema" section) is the spec. After Phase 2, every supporting table either keys to `playable_item_id` (file/progress/subtitle) or uses a single `(owner_type, owner_id)` polymorphic pair (image/extra/external_id). One container can host N playable items (unlocks director's cuts, multi-part episodes).
 
 **Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3. **No backwards compatibility required** — destructive migrations are free.
 
-**Campaign reference:** [`campaigns/library-schema-v2.md`](../../../campaigns/library-schema-v2.md). Phase 1 complete; this plan executes Phase 2.
+**Campaign reference:** [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md). Phase 1 complete; this plan executes Phase 2.
 
 ---
 

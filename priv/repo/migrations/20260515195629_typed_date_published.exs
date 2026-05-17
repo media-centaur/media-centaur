@@ -2,7 +2,7 @@ defmodule MediaCentarr.Repo.Migrations.TypedDatePublished do
   @moduledoc """
   Promotes `date_published` from `:string` to `:date` on the four container
   schemas (Movie, TVSeries, MovieSeries, VideoObject). See Phase 1 Task 2 of
-  the Library Schema v2 campaign (`campaigns/library-schema-v2.md`).
+  the Library Schema v2 campaign (`campaigns/done/library-schema-v2.md`).
 
   SQLite has no real column-type enforcement — it stores both `TEXT` and
   `DATE` as TEXT with the same on-disk format (ISO 8601 `"YYYY-MM-DD"` per
