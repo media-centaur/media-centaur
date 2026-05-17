@@ -594,9 +594,10 @@ defmodule MediaCentarr.Library do
   least one currently-present `WatchedFile`. Used by `Library.Views.Search`
   to mark `present?` per row at refresh time.
 
-  Issues three bulk queries (one per `PlayableItem` container type) and
-  joins through `library_playable_items → library_watched_files →
-  watcher_files`. For TVSeries / MovieSeries presence, the
+  Issues one bulk query through `library_playable_items →
+  library_watched_files`; presence is structurally implied by the
+  Phase-3 FK on `WatchedFile.file_presence_id` (cascade-delete from
+  `Library.FilePresence`). For TVSeries / MovieSeries presence, the
   `container_type` is `:episode` / `:movie` — the Search projection
   rolls presence up to the container by membership in the precomputed
   `episode_ids` / `movie_ids` it already holds.
@@ -609,9 +610,6 @@ defmodule MediaCentarr.Library do
       from(pi in PlayableItem,
         join: wf in WatchedFile,
         on: wf.playable_item_id == pi.id,
-        join: kf in MediaCentarr.Watcher.KnownFile,
-        on: kf.file_path == wf.file_path,
-        where: kf.state == :present,
         distinct: true,
         select: {pi.container_type, pi.container_id}
       )
@@ -722,29 +720,26 @@ defmodule MediaCentarr.Library do
 
   @doc """
   Returns the on-disk file path for a PlayableItem's currently-present
-  file, or `nil` when no `WatchedFile` for the item is marked present
-  in `watcher_files`.
+  file, or `nil` when no `WatchedFile` for the item exists.
 
-  Reads `WatchedFile.file_path` joined against `watcher_files` filtered
-  on `state == :present` — the same gate the UI's `Availability` and
-  the `PresentableQueries` subqueries apply. Replaces the
+  Reads `WatchedFile.file_path` directly — presence is structurally
+  guaranteed by the Phase-3 FK on `WatchedFile.file_presence_id`
+  (cascade-delete from `Library.FilePresence`). Replaces the
   `Movie.content_url` / `Episode.content_url` / `VideoObject.content_url`
   reads removed in Library Schema v2 Phase 2 Task I — after that task
   `WatchedFile.file_path` is the sole source of truth for "the file on
   disk for this playable thing."
 
   When a PlayableItem has multiple WatchedFiles (rare; only the
-  director's-cut / multi-cut shape produces this), the first present
-  match by insertion order wins. Callers that need every variant
-  should query `WatchedFile` directly.
+  director's-cut / multi-cut shape produces this), the first match by
+  insertion order wins. Callers that need every variant should query
+  `WatchedFile` directly.
   """
   @spec playable_file_path(Ecto.UUID.t()) :: String.t() | nil
   def playable_file_path(playable_item_id) when is_binary(playable_item_id) do
     Repo.one(
       from(w in WatchedFile,
-        join: k in "watcher_files",
-        on: k.file_path == w.file_path,
-        where: w.playable_item_id == ^playable_item_id and k.state == "present",
+        where: w.playable_item_id == ^playable_item_id,
         order_by: [asc: w.inserted_at],
         limit: 1,
         select: w.file_path
@@ -2006,17 +2001,17 @@ defmodule MediaCentarr.Library do
   # WatchedFile present for any episode in any season of `parent_as(:item)`
   # (a TVSeries). Walks `WatchedFile → PlayableItem(:episode) → Episode →
   # Season → TVSeries`. Used by recently-added and hero-candidates surfaces.
+  # Phase-3 cascade-delete makes WatchedFile existence equivalent to
+  # "current presence on disk."
   defp tv_series_present_file_subquery do
     from(wf in WatchedFile,
-      join: kf in "watcher_files",
-      on: kf.file_path == wf.file_path,
       join: pi in PlayableItem,
       on: pi.id == wf.playable_item_id and pi.container_type == :episode,
       join: e in Episode,
       on: e.id == pi.container_id,
       join: s in Season,
       on: s.id == e.season_id,
-      where: s.tv_series_id == parent_as(:item).id and kf.state == "present",
+      where: s.tv_series_id == parent_as(:item).id,
       select: 1
     )
   end
@@ -2024,11 +2019,9 @@ defmodule MediaCentarr.Library do
   # WatchedFile present for the VideoObject in `parent_as(:item)`.
   defp video_object_present_file_subquery do
     from(wf in WatchedFile,
-      join: kf in "watcher_files",
-      on: kf.file_path == wf.file_path,
       join: pi in PlayableItem,
       on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
-      where: pi.container_id == parent_as(:item).id and kf.state == "present",
+      where: pi.container_id == parent_as(:item).id,
       select: 1
     )
   end
@@ -2141,15 +2134,13 @@ defmodule MediaCentarr.Library do
           ) and
           exists(
             from(wf in WatchedFile,
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
               join: pi in PlayableItem,
               on: pi.id == wf.playable_item_id and pi.container_type == :episode,
               join: e in Episode,
               on: e.id == pi.container_id,
               join: s in Season,
               on: s.id == e.season_id,
-              where: s.tv_series_id == parent_as(:entity).id and kf.state == "present",
+              where: s.tv_series_id == parent_as(:entity).id,
               select: 1
             )
           ),
@@ -2200,11 +2191,9 @@ defmodule MediaCentarr.Library do
           ) and
           exists(
             from(wf in WatchedFile,
-              join: kf in "watcher_files",
-              on: kf.file_path == wf.file_path,
               join: pi in PlayableItem,
               on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
-              where: pi.container_id == parent_as(:entity).id and kf.state == "present",
+              where: pi.container_id == parent_as(:entity).id,
               select: 1
             )
           ),

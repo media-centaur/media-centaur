@@ -3,22 +3,17 @@ defmodule MediaCentarr.Library.PresentableQueriesTest do
 
   alias MediaCentarr.Library.PresentableQueries
   alias MediaCentarr.Repo
-  alias MediaCentarr.Watcher.FilePresence
 
-  # Mirrors the helper in browser_test.exs: link a file via the Library context,
-  # then register it as :present in watcher_files so the EXISTS subquery hits.
-  defp create_present_file(attrs) do
-    file = create_linked_file(attrs)
-    FilePresence.record_file(file.file_path, file.watch_dir)
-    file
-  end
+  # Post-Phase-4 (library-presence-unification): `create_linked_file/1`
+  # already auto-stamps a Library.FilePresence, so a linked file IS a
+  # present file. The legacy `Watcher.FilePresence.record_file` no
+  # longer participates in the presentable subquery.
+  defp create_present_file(attrs), do: create_linked_file(attrs)
 
-  defp create_absent_file(attrs) do
-    file = create_linked_file(attrs)
-    FilePresence.record_file(file.file_path, file.watch_dir)
-    FilePresence.mark_files_absent([file.file_path])
-    file
-  end
+  # And "absent" is structurally "no WatchedFile" — there is no longer
+  # a `linked but absent` row state to construct. Helper retained for
+  # call-site readability.
+  defp create_absent_file(_attrs), do: nil
 
   describe "multi_child_movie_series/0" do
     test "returns movie_series with 2+ present children" do

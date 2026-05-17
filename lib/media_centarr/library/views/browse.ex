@@ -15,9 +15,9 @@ defmodule MediaCentarr.Library.Views.Browse do
     * `library:updates` — entity creates / edits / deletes
       (already coalesced upstream by `Library.BroadcastCoalescer`).
     * `library:availability` — drive-mount and drive-unmount events.
-      The underlying query filters on `library_watched_files` joined
-      to `watcher_files.state == :present`, so a presence flip changes
-      the result set.
+      The underlying query reads `library_watched_files` rows, whose
+      Phase-3 FK to `library_file_presences` (cascade-delete) makes
+      WatchedFile existence equivalent to "current presence on disk."
 
   ## Storage
 

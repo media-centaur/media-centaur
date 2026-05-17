@@ -60,7 +60,6 @@ defmodule MediaCentarr.Library.Views.Detail do
   alias MediaCentarr.Library.WatchedFile
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
-  alias MediaCentarr.Watcher.KnownFile
 
   @table :library_view_detail
 
@@ -467,9 +466,7 @@ defmodule MediaCentarr.Library.Views.Detail do
   defp any_present_file?(playable_item_id) do
     query =
       from(w in WatchedFile,
-        join: k in KnownFile,
-        on: k.file_path == w.file_path,
-        where: w.playable_item_id == ^playable_item_id and k.state == :present,
+        where: w.playable_item_id == ^playable_item_id,
         select: 1,
         limit: 1
       )

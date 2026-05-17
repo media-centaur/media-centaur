@@ -721,18 +721,23 @@ defmodule MediaCentarr.LibraryTest do
       assert Library.playable_file_path(playable_item.id) == nil
     end
 
-    test "returns nil when the only WatchedFile is absent (drive unmounted)" do
+    test "returns nil when the WatchedFile has been cascade-deleted" do
+      # Post-Phase-4 (library-presence-unification): "absence" is now
+      # structural — deleting the Library.FilePresence cascade-deletes
+      # the WatchedFile via FK (`on_delete: :delete_all`). This
+      # supersedes the legacy `watcher_files.state == :absent`
+      # filter the function used to apply.
       movie = create_standalone_movie(%{name: "Absent File"})
       playable_item = create_playable_item_for_movie(movie)
 
-      _file =
+      file =
         create_linked_file(%{
           playable_item_id: playable_item.id,
           file_path: "/media/absent.mkv"
         })
 
-      # Deliberately skip `record_present/1` — the file row exists but no
-      # `watcher_files` row marks it present.
+      MediaCentarr.Library.FilePresence.delete_paths([file.file_path])
+
       assert Library.playable_file_path(playable_item.id) == nil
     end
 

@@ -23,7 +23,6 @@ defmodule MediaCentarr.Library.Browser do
   alias MediaCentarr.Library
   alias MediaCentarr.Library.{EpisodeList, MovieList, ProgressSummary}
   alias MediaCentarr.Repo
-  alias MediaCentarr.Watcher.KnownFile
 
   # Leaf preload chain for materialising the virtual `Episode.content_url` /
   # `Movie.content_url` / `VideoObject.content_url` field (Library Schema
@@ -212,17 +211,17 @@ defmodule MediaCentarr.Library.Browser do
 
   # WatchedFile → PlayableItem(:episode) → Episode → Season → TVSeries
   # presence subquery, scoped to the outer `:item` (a TVSeries) binding.
+  # Phase-3 cascade-delete from Library.FilePresence makes WatchedFile
+  # existence equivalent to "current presence on disk."
   defp tv_series_present_file_subquery do
     from(wf in WatchedFile,
-      join: kf in KnownFile,
-      on: kf.file_path == wf.file_path,
       join: pi in PlayableItem,
       on: pi.id == wf.playable_item_id and pi.container_type == :episode,
       join: e in Episode,
       on: e.id == pi.container_id,
       join: s in Season,
       on: s.id == e.season_id,
-      where: s.tv_series_id == parent_as(:item).id and kf.state == :present,
+      where: s.tv_series_id == parent_as(:item).id,
       select: 1
     )
   end
@@ -231,11 +230,9 @@ defmodule MediaCentarr.Library.Browser do
   # the outer `:item` (a VideoObject) binding.
   defp video_object_present_file_subquery do
     from(wf in WatchedFile,
-      join: kf in KnownFile,
-      on: kf.file_path == wf.file_path,
       join: pi in PlayableItem,
       on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
-      where: pi.container_id == parent_as(:item).id and kf.state == :present,
+      where: pi.container_id == parent_as(:item).id,
       select: 1
     )
   end
