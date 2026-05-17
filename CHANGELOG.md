@@ -4,6 +4,34 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.65.0 — 2026-05-17
+
+### Improved
+
+File-tracking reliability. The library and the filesystem watcher
+now share a single source of truth for "does this file exist on
+disk." Two consequences you may notice over time:
+
+- The class of bug where the ingest pipeline silently stalled with
+  orphan rows (a file detected on disk but never matched to a
+  library entry, even after a restart) is now structurally
+  impossible. The previous recovery path — wiping the data directory
+  — should never be needed again.
+- When you delete a file from disk, the cleanup cascade through your
+  library is more predictable: removing the file's presence record
+  cleanly removes the linked library row in the same step, rather
+  than relying on two separate tables agreeing.
+
+### Behind the scenes
+
+Multi-phase architectural refit (the "library-presence-unification"
+campaign): file-presence tracking, TTL absence detection, and
+pipeline dedup all moved from the Watcher context into the Library
+context. The legacy `watcher_files` table is dropped; cascade-delete
+via a foreign key enforces the entity↔presence invariant; pipeline
+duplicate-event suppression now uses an in-memory ETS set rather
+than a database upsert side-effect. No configuration changes.
+
 ## v0.64.1 — 2026-05-17
 
 ### Behind the scenes
