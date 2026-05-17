@@ -72,10 +72,10 @@ The backend is organised into eleven bounded contexts plus a TMDB adapter, all e
 
 | Context | Owns | Notes |
 |---------|------|-------|
-| `MediaCentarr.Library` | `library_*` tables, entity facade, file presence | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress, WatchedFile. |
-| `MediaCentarr.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. |
+| `MediaCentarr.Library` | `library_*` tables, entity facade, file-presence ownership (FilePresence + AbsenceSweeper, per ADR-045) | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress, WatchedFile, ExtraFile, FilePresence. |
+| `MediaCentarr.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Discovery.InflightSet` dedupes duplicate file-detected events. |
 | `MediaCentarr.Review` | `review_*` table | Holds low-confidence matches awaiting human decision. |
-| `MediaCentarr.Watcher` | inotify supervision, file presence, exclude-dir handling | No DB tables — in-memory file presence tracking. |
+| `MediaCentarr.Watcher` | inotify supervision + filesystem observer, drive-mount detection, exclude-dir handling | No DB tables — pure filesystem observer that emits `{:file_detected, ...}` events. Library owns the presence record (ADR-045). |
 | `MediaCentarr.Settings` | `settings_*` table (key/value entries) | Shared infrastructure: any context may write its own keys via a declared `Settings` dep. |
 | `MediaCentarr.ReleaseTracking` | `release_tracking_*` tables | Periodic TMDB refresh of upcoming items in the user's library. |
 | `MediaCentarr.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
@@ -123,7 +123,7 @@ graph TD
     App --> PipelineSup[Pipeline.Supervisor]
     App --> ImagePipelineSup[Pipeline.Image.Supervisor]
     App --> InitTask[Init Services Task]
-    App --> FilePresence[Watcher.FilePresence]
+    App --> AbsenceSweeper[Library.AbsenceSweeper]
     App --> FileEvents[Library.FileEventHandler]
     App --> SelfUpdater[SelfUpdate.Updater]
     App --> Listeners[PubSub listeners<br/>Inbound, Intake, Refresher,<br/>Recorder, Acquisition]

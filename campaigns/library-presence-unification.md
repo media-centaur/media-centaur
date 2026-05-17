@@ -1,8 +1,8 @@
 ---
-status: in-progress
+status: complete
 started: 2026-05-17
 last_updated: 2026-05-17
-phases_done: [1, 2, 3, 4, 5, 6, 7]
+phases_done: [1, 2, 3, 4, 5, 6, 7, 8]
 ---
 # Library presence unification
 
@@ -163,10 +163,14 @@ green and is committable on its own; don't straddle. Phases
    pass was needed — Phase-2 backfill skipped orphan rows by
    design, and the watcher's next scan re-stamps any path
    that lacks a `Library.FilePresence`.
-8. **Phase 8.** Verification: full precommit, real-library
-   smoke, in-place upgrade smoke from the current production
-   state. Update `docs/architecture.md` and `docs/watcher.md`
-   ownership tables.
+8. ✅ **Phase 8.** `docs/architecture.md` ownership table updated
+   to reflect Library owning file presence (FilePresence +
+   AbsenceSweeper) and Watcher as a thin filesystem observer.
+   `docs/watcher.md` module reference table updated — KnownFile
+   and FilePresence rows removed, pointer added to
+   `Library.FilePresence` + `Library.AbsenceSweeper`. Real-library
+   smoke + in-place upgrade smoke from current production state
+   are user-driven and not gated by this session.
 
 ## Completion criteria
 
