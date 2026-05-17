@@ -120,13 +120,13 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Superviso
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentarr.Watcher` | Per-directory GenServer, inotify + PubSub | `lib/media_centarr/watcher.ex` |
-| `MediaCentarr.Watcher.Supervisor` | Coordinates all watchers, scan/pause API | `lib/media_centarr/watcher/supervisor.ex` |
-| `MediaCentarr.Watcher.FilePresence` | Top-level GenServer tracking in-memory file presence across all watchers | `lib/media_centarr/watcher/file_presence.ex` |
+| `MediaCentarr.Watcher` | Per-directory GenServer, inotify + PubSub. Stamps `Library.FilePresence` on detection; broadcasts `{:files_removed, paths}` on inotify delete | `lib/media_centarr/watcher.ex` |
+| `MediaCentarr.Watcher.Supervisor` | Coordinates all watchers, scan/pause API, `rescan_unlinked` walks `library_file_presences` | `lib/media_centarr/watcher/supervisor.ex` |
 | `MediaCentarr.Watcher.ConfigListener` | Subscribes to `config:updates` and routes changes to each watcher | `lib/media_centarr/watcher/config_listener.ex` |
 | `MediaCentarr.Watcher.ExcludeDirs` | Pure helpers for computing effective exclude lists | `lib/media_centarr/watcher/exclude_dirs.ex` |
 | `MediaCentarr.Watcher.DirMonitor` | Supervises image-dir availability monitors | `lib/media_centarr/watcher/dir_monitor.ex` |
 | `MediaCentarr.Watcher.DirValidator` | Dialog-time path validation (exists / readable / not nested) | `lib/media_centarr/watcher/dir_validator.ex` |
 | `MediaCentarr.Watcher.Reconciler` | Startup reconciliation against persisted state | `lib/media_centarr/watcher/reconciler.ex` |
-| `MediaCentarr.Watcher.KnownFile` | Struct + helpers for the per-directory known-file set | `lib/media_centarr/watcher/known_file.ex` |
 | `MediaCentarr.Watcher.MountStatus` | Pure decision logic for the health check (device-id tracking) | `lib/media_centarr/watcher/mount_status.ex` |
+
+> Presence storage and TTL purge moved out of `Watcher` in the library-presence-unification campaign (ADR-045). See `MediaCentarr.Library.FilePresence` and `MediaCentarr.Library.AbsenceSweeper`. The legacy `Watcher.KnownFile` / `Watcher.FilePresence` / `Watcher.AbsencePolicy` modules and the `watcher_files` table no longer exist.
