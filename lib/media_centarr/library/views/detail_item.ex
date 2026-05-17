@@ -11,12 +11,19 @@ defmodule MediaCentarr.Library.Views.DetailItem do
 
   ## Composition with other view-models
 
-  This projection holds Library-context-owned data only. Watch progress
-  is composed at the consumer via `Library.WatchProgress` reads (or the
-  Phase 3 Task D in-memory `Library.Progress` GenServer). Active playback
-  session info is composed via `MediaCentarr.Playback`. The split keeps
-  per-row rebuilds cheap — a position tick during playback should not
-  invalidate the detail row's metadata cache.
+  This projection holds Library-context-owned **static** data only.
+  Two slices are deliberately overlaid by consumers at read time
+  rather than embedded here:
+
+    * **Watch progress** — embedding it would invalidate the
+      projection on every playback position-tick.
+      `Library.Progress.get/1` (Pillar-2 GenServer, ETS-backed,
+      microsecond reads) is the canonical hot read; consumers
+      overlay it onto `DetailItem.Episode` / `DetailItem.MovieEntry`
+      at render time (same pattern as `BrowseItem` in Phase 3.1).
+    * **Cross-context overlays** — `ReleaseTracking` releases,
+      `Playback.MpvSession` now-playing, and `tracking_status` are
+      composed at the LiveView layer, not in the projection.
 
   ## Field set
 
@@ -58,6 +65,16 @@ defmodule MediaCentarr.Library.Views.DetailItem do
                                        the PlayableItem. Presence is structural after Phase 3
                                        (`WatchedFile.file_presence_id` FK with cascade-delete
                                        from `Library.FilePresence`).
+    * `:images`                     — `[%Library.Image{}]` for hero / poster / logo render.
+    * `:seasons`                    — `[%DetailItem.Season{}]` for TV-series containers
+                                       (nil for movie / movie_series / video_object).
+    * `:movies`                     — `[%DetailItem.MovieEntry{}]` for MovieSeries containers
+                                       (nil for movie / tv_series / video_object).
+    * `:watched_files`              — `[%DetailItem.WatchedFile{}]` — backing files on disk for
+                                       this leaf's PlayableItem. Drives the modal's
+                                       delete-file UX.
+    * `:subtitle_tracks`            — `[%DetailItem.SubtitleTrack{}]` — detected subtitle tracks
+                                       (embedded streams + sidecar files) for this leaf.
   """
 
   @enforce_keys [:playable_item_id, :container_type, :container_id, :name]
@@ -95,7 +112,12 @@ defmodule MediaCentarr.Library.Views.DetailItem do
     :external_ids,
     :imdb_id,
     :tmdb_id,
-    :present?
+    :present?,
+    :images,
+    :seasons,
+    :movies,
+    :watched_files,
+    :subtitle_tracks
   ]
 
   @type container_type :: :movie | :episode | :video_object
@@ -134,6 +156,124 @@ defmodule MediaCentarr.Library.Views.DetailItem do
           external_ids: [struct()] | nil,
           imdb_id: String.t() | nil,
           tmdb_id: String.t() | nil,
-          present?: boolean() | nil
+          present?: boolean() | nil,
+          images: [struct()] | nil,
+          seasons: [__MODULE__.Season.t()] | nil,
+          movies: [__MODULE__.MovieEntry.t()] | nil,
+          watched_files: [__MODULE__.WatchedFile.t()] | nil,
+          subtitle_tracks: [__MODULE__.SubtitleTrack.t()] | nil
         }
+
+  defmodule Season do
+    @moduledoc """
+    A TV-series season bucket inside `DetailItem.seasons`. Carries
+    static season metadata + the `Episode` list. Per-episode watch
+    progress is overlaid at the consumer (`Library.Progress.get/1`).
+    """
+
+    @enforce_keys [:season_number, :episodes]
+    defstruct [:season_number, :name, :episodes, extras: []]
+
+    @type t :: %__MODULE__{
+            season_number: non_neg_integer(),
+            name: String.t() | nil,
+            episodes: [MediaCentarr.Library.Views.DetailItem.Episode.t()],
+            extras: [struct()]
+          }
+  end
+
+  defmodule Episode do
+    @moduledoc """
+    A single TV episode inside `DetailItem.Season.episodes`. Static
+    episode metadata only. `WatchProgress` is overlaid at the consumer.
+    """
+
+    @enforce_keys [:episode_id, :playable_item_id, :season_number, :episode_number, :name]
+    defstruct [
+      :episode_id,
+      :playable_item_id,
+      :season_number,
+      :episode_number,
+      :name,
+      :description,
+      :date_published,
+      :duration_seconds,
+      :present?
+    ]
+
+    @type t :: %__MODULE__{
+            episode_id: Ecto.UUID.t(),
+            playable_item_id: Ecto.UUID.t(),
+            season_number: non_neg_integer(),
+            episode_number: non_neg_integer(),
+            name: String.t(),
+            description: String.t() | nil,
+            date_published: Date.t() | nil,
+            duration_seconds: integer() | nil,
+            present?: boolean() | nil
+          }
+  end
+
+  defmodule MovieEntry do
+    @moduledoc """
+    A single constituent movie inside `DetailItem.movies` for a
+    MovieSeries container. Static movie metadata; `WatchProgress` is
+    overlaid at the consumer.
+    """
+
+    @enforce_keys [:movie_id, :playable_item_id, :name]
+    defstruct [
+      :movie_id,
+      :playable_item_id,
+      :name,
+      :date_published,
+      :collection_position,
+      :content_url,
+      :present?
+    ]
+
+    @type t :: %__MODULE__{
+            movie_id: Ecto.UUID.t(),
+            playable_item_id: Ecto.UUID.t(),
+            name: String.t(),
+            date_published: Date.t() | nil,
+            collection_position: integer() | nil,
+            content_url: String.t() | nil,
+            present?: boolean() | nil
+          }
+  end
+
+  defmodule WatchedFile do
+    @moduledoc """
+    A backing file on disk for a leaf's `PlayableItem`. The modal's
+    delete-file UX renders one row per `WatchedFile`.
+    """
+
+    @enforce_keys [:path, :watch_dir]
+    defstruct [:path, :watch_dir]
+
+    @type t :: %__MODULE__{
+            path: String.t(),
+            watch_dir: String.t()
+          }
+  end
+
+  defmodule SubtitleTrack do
+    @moduledoc """
+    A detected subtitle track. `:embedded` tracks live inside the
+    video container (`source` is the ffmpeg stream index); `:sidecar`
+    tracks are external `.srt` / `.ass` files (`source` is the
+    sidecar path).
+    """
+
+    @enforce_keys [:kind, :language]
+    defstruct [:kind, :language, :source]
+
+    @type kind :: :embedded | :sidecar
+    @type t :: %__MODULE__{
+            kind: kind(),
+            language: String.t(),
+            source: String.t() | nil
+          }
+  end
 end
