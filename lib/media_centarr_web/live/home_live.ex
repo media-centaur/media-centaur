@@ -265,12 +265,11 @@ defmodule MediaCentarrWeb.HomeLive do
   end
 
   # Drive mounted/unmounted: bump `:image_version` so the next render of
-  # any section emits cache-busted /media-images/* URLs, then schedule the
-  # affected sections to reload via the normal debounced path.
-  def handle_info({:availability_changed, _dir, _state} = message, socket) do
-    socket
-    |> update(:image_version, &(&1 + 1))
-    |> schedule_section_reloads(message)
+  # any section emits cache-busted /media-images/* URLs. Section reloads
+  # are driven separately via the `:library_view_updated` broadcasts each
+  # projection emits after refreshing on the same availability event.
+  def handle_info({:availability_changed, _dir, _state}, socket) do
+    {:noreply, update(socket, :image_version, &(&1 + 1))}
   end
 
   def handle_info(message, socket), do: schedule_section_reloads(socket, message)

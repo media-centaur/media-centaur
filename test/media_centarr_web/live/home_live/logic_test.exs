@@ -498,16 +498,18 @@ defmodule MediaCentarrWeb.HomeLive.LogicTest do
       assert Logic.section_reloaders(msg) == [:continue_watching]
     end
 
-    test "availability_changed reloads continue_watching only" do
-      # Hero and RecentlyAdded projections subscribe to library:availability
-      # directly and broadcast :library_view_updated after refresh, so the
-      # LiveView only needs a direct reload for continue_watching here (its
-      # projection doesn't subscribe to availability).
-      assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :available}) ==
-               [:continue_watching]
+    test "availability_changed drives no direct section reloads" do
+      # Every Library / ReleaseTracking projection that reads file-presence-
+      # gated data subscribes to library:availability directly and broadcasts
+      # a :library_view_updated event after refresh — including
+      # ContinueWatching as of the desktop-rearchitecture close-out. The
+      # LiveView reacts only to those derived broadcasts, never to the
+      # source :availability_changed event. HomeLive still listens for
+      # :availability_changed to bump :image_version for cache-busting, but
+      # no section reload is scheduled directly from it.
+      assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :available}) == []
 
-      assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :unavailable}) ==
-               [:continue_watching]
+      assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :unavailable}) == []
     end
 
     test "unknown messages route to nothing" do
