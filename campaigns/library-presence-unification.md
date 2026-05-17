@@ -23,8 +23,19 @@ campaign lands.
 
 ## Status
 
-`2026-05-17`: **Phases 1 + 2 shipped in v0.63.0; Phase 3
-landed on `main`.** Phases 4–8 remain.
+`2026-05-17`: **All 8 phases shipped (v0.65.0). Post-campaign
+follow-up:** the Phase-3 FK with `on_delete: :delete_all` was
+dropped per [ADR-046](../decisions/architecture/2026-05-17-046-app-owned-cascading-deletes.md)
+— SQLite's missing `ALTER COLUMN` made the FK an architectural
+constraint on future schema work, and the cascade was never
+actually exercised at runtime (AbsenceSweeper already drives
+`FileEventHandler.cleanup_removed_files/1` before the
+FilePresence delete). The structural "no entity without
+presence" guarantee is preserved at the changeset layer via
+`validate_required(:file_presence_id)`. Migration
+`20260517130000_drop_file_presence_fk.exs` performs the swap.
+
+Historical phase log retained below.
 
 * Phase 1 — `Library.FilePresence` schema, migration
   `20260517100000_create_file_presences.exs`, and context API

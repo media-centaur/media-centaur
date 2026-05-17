@@ -85,8 +85,9 @@ defmodule MediaCentarr.Library.BrowserTest do
       movie = create_standalone_movie(%{name: "Gone Movie"})
       file = create_present_file(%{movie_id: movie.id})
 
-      # Simulate the user-deletion flow: deleting Library.FilePresence
-      # cascade-deletes the WatchedFile (Phase-3 FK).
+      # Simulate the user-deletion flow (ADR-046): the application owns
+      # cascade — clean up the leaf rows first, then drop the presence.
+      MediaCentarr.Library.FileEventHandler.cleanup_removed_files([file.file_path])
       LibraryFilePresence.delete_paths([file.file_path])
 
       assert [] = Browser.fetch_all_typed_entries()
@@ -210,8 +211,9 @@ defmodule MediaCentarr.Library.BrowserTest do
       movie = create_standalone_movie(%{name: "Absent Movie"})
       file = create_present_file(%{movie_id: movie.id})
 
-      # Simulate the user-deletion flow: deleting Library.FilePresence
-      # cascade-deletes the WatchedFile (Phase-3 FK).
+      # Simulate the user-deletion flow (ADR-046): the application owns
+      # cascade — clean up the leaf rows first, then drop the presence.
+      MediaCentarr.Library.FileEventHandler.cleanup_removed_files([file.file_path])
       LibraryFilePresence.delete_paths([file.file_path])
 
       {entries, gone_ids} = Browser.fetch_typed_entries_by_ids([movie.id])

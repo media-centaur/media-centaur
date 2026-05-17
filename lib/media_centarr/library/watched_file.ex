@@ -11,9 +11,10 @@ defmodule MediaCentarr.Library.WatchedFile do
   Detected subtitle tracks live in the Subtitles context — call
   `MediaCentarr.Subtitles.list_tracks_for_file/1` (or
   `aggregate_languages_for_files/1`) to read them. File-on-disk
-  presence is tracked via the `belongs_to :file_presence` FK to
-  `Library.FilePresence`; deleting the presence cascades to this
-  row (ADR-045).
+  presence is tracked via the `belongs_to :file_presence` reference
+  to `Library.FilePresence`. The column is plain (no DB-level FK);
+  cleanup ordering is owned by the application — see ADR-046 and
+  `Library.AbsenceSweeper.purge_expired/1`.
   """
   use Ecto.Schema
   import Ecto.Changeset
