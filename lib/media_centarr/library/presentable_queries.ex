@@ -24,8 +24,11 @@ defmodule MediaCentarr.Library.PresentableQueries do
   level. Each is a query fragment — callers compose `order_by`, `limit`, and
   `Repo.preload/2` per surface.
 
-  All three exclude rows whose `WatchedFile`s do not have a corresponding
-  `KnownFile` in `:present` state, matching the existing browse semantics.
+  All three require at least one `WatchedFile`, which by the Phase-3 FK
+  (`on_delete: :delete_all` from `Library.FilePresence`) implies a live
+  file-presence row — the same semantic the earlier `KnownFile :present`
+  filter encoded, now enforced structurally instead of via a watcher
+  join.
 
   All queries name their primary binding `:item` so callers can compose with
   `from([m] in PresentableQueries.standalone_movies(), where: ...)` or use
@@ -46,12 +49,12 @@ defmodule MediaCentarr.Library.PresentableQueries do
   a per-type FK — every WatchedFile points at a `PlayableItem`, which
   carries the `(container_type, container_id)` discriminator. The
   "this Movie has at least one present WatchedFile" subquery walks
-  `WatchedFile → PlayableItem(:movie, container_id=m.id) → KnownFile`.
+  `WatchedFile → PlayableItem(:movie, container_id=m.id)` and trusts
+  the Phase-3 FK to guarantee each WatchedFile has a live FilePresence.
   """
   import Ecto.Query
 
   alias MediaCentarr.Library.{Movie, MovieSeries, PlayableItem, WatchedFile}
-  alias MediaCentarr.Watcher.KnownFile
 
   @doc """
   Standalone movies: `movie_series_id IS NULL`, with at least one present file.
@@ -87,8 +90,6 @@ defmodule MediaCentarr.Library.PresentableQueries do
                     ON pi.id = wf.playable_item_id
                    AND pi.container_type = 'movie'
                    AND pi.container_id = m2.id
-                  JOIN watcher_files AS kf ON kf.file_path = wf.file_path
-                 WHERE kf.state = 'present'
               )
           ) = 1
           """,
@@ -117,8 +118,6 @@ defmodule MediaCentarr.Library.PresentableQueries do
                     ON pi.id = wf.playable_item_id
                    AND pi.container_type = 'movie'
                    AND pi.container_id = m.id
-                  JOIN watcher_files AS kf ON kf.file_path = wf.file_path
-                 WHERE kf.state = 'present'
               )
           ) >= 2
           """,
@@ -188,15 +187,15 @@ defmodule MediaCentarr.Library.PresentableQueries do
   end
 
   # "A WatchedFile for this Movie (`parent_as(:item)`) is present on disk":
-  # walks `WatchedFile → PlayableItem(:movie, container_id=item.id) →
-  # KnownFile`. Replaces the pre-Phase-2 direct `wf.movie_id` filter.
+  # walks `WatchedFile → PlayableItem(:movie, container_id=item.id)`. The
+  # campaign Phase-3 FK on WatchedFile.file_presence_id (cascade-delete
+  # from Library.FilePresence) makes the prior watcher_files state
+  # filter structurally redundant.
   defp movie_present_files_subquery do
     from(wf in WatchedFile,
       join: pi in PlayableItem,
       on: pi.id == wf.playable_item_id and pi.container_type == :movie,
-      join: kf in KnownFile,
-      on: kf.file_path == wf.file_path,
-      where: pi.container_id == parent_as(:item).id and kf.state == :present,
+      where: pi.container_id == parent_as(:item).id,
       select: 1
     )
   end

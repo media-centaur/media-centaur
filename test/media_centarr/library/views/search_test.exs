@@ -17,11 +17,14 @@ defmodule MediaCentarr.Library.Views.SearchTest do
   alias MediaCentarr.Library.Views
   alias MediaCentarr.Library.Views.{Search, SearchItem}
   alias MediaCentarr.Topics
-  alias MediaCentarr.Watcher.FilePresence
+  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
 
   @table :library_view_search
 
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
+  # Post-Phase-4 (library-presence-unification): `create_linked_file/1`
+  # auto-stamps Library.FilePresence, so a linked file IS a present file.
+  # Helper kept as a no-op so legacy seed code still reads clearly.
+  defp record_present(_file), do: :ok
 
   defp on_exit_clear_table do
     on_exit(fn ->
@@ -290,13 +293,11 @@ defmodule MediaCentarr.Library.Views.SearchTest do
       # Present movie — has WatchedFile + KnownFile(state: :present).
       seed_present_movie("Present Movie")
 
-      # Absent movie — has a linked file recorded (so a PlayableItem
-      # exists and the entity has something playable to surface) but
-      # never marked present in the FilePresence/KnownFile registry.
-      # The Search projection must index this entity so that the
-      # :present_only filter does real work.
+      # Absent movie — has a PlayableItem (so Search indexes it) but
+      # no WatchedFile, which after Phase 4 is the canonical "absent"
+      # state. The :present_only filter must hide this entity.
       absent = create_standalone_movie(%{name: "Absent Movie"})
-      _file = create_linked_file(%{movie_id: absent.id})
+      {:ok, _pi} = MediaCentarr.Library.find_or_create_playable_item(:movie, absent.id, 1)
 
       assert :ok = Search.refresh_cache()
 
@@ -320,8 +321,10 @@ defmodule MediaCentarr.Library.Views.SearchTest do
 
       seed_present_movie("Present Movie")
 
+      # Post-Phase-4 (library-presence-unification): absent = has a
+      # PlayableItem (so Search indexes it) but no WatchedFile.
       absent = create_standalone_movie(%{name: "Absent Movie"})
-      _file = create_linked_file(%{movie_id: absent.id})
+      {:ok, _pi} = MediaCentarr.Library.find_or_create_playable_item(:movie, absent.id, 1)
 
       assert :ok = Search.refresh_cache()
 
@@ -455,12 +458,11 @@ defmodule MediaCentarr.Library.Views.SearchTest do
     test "file becoming present flips present? on the indexed row" do
       on_exit_clear_table()
 
-      # Movie with a file that hasn't been recorded present yet. The
-      # entity is indexed from the start (search is presence-agnostic
-      # at the source) but its `present?` is false until the file
-      # flips to present.
+      # Post-Phase-4 (library-presence-unification): start with a
+      # PlayableItem but no WatchedFile so Search indexes the entity
+      # with present? = false. Stamping a WatchedFile flips it to true.
       movie = create_standalone_movie(%{name: "Late Arrival"})
-      file = create_linked_file(%{movie_id: movie.id})
+      {:ok, _pi} = MediaCentarr.Library.find_or_create_playable_item(:movie, movie.id, 1)
 
       :ok = Search.refresh_cache()
 
@@ -471,8 +473,8 @@ defmodule MediaCentarr.Library.Views.SearchTest do
       # Filtered out under :present_only=true.
       assert Views.search("Late Arrival", present_only: true) == []
 
-      # File flips to present.
-      record_present(file)
+      # File flips to present: stamp the WatchedFile.
+      _file = create_linked_file(%{movie_id: movie.id})
 
       :ok = Search.refresh_cache()
 

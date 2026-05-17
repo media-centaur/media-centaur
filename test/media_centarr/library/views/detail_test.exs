@@ -18,11 +18,14 @@ defmodule MediaCentarr.Library.Views.DetailTest do
   alias MediaCentarr.Library.Views
   alias MediaCentarr.Library.Views.{Detail, DetailItem}
   alias MediaCentarr.Topics
-  alias MediaCentarr.Watcher.FilePresence
+  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
 
   @table :library_view_detail
 
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
+  # Post-Phase-4 (library-presence-unification): `create_linked_file/1`
+  # auto-stamps Library.FilePresence, so a linked file IS a present file.
+  # Helper kept as a no-op so legacy seed code still reads clearly.
+  defp record_present(_file), do: :ok
 
   defp on_exit_clear_table do
     on_exit(fn ->
@@ -215,14 +218,22 @@ defmodule MediaCentarr.Library.Views.DetailTest do
     test "DetailItem.present? reflects file presence" do
       on_exit_clear_table()
 
-      # A movie whose file is NOT yet recorded as present.
-      movie = create_standalone_movie(%{name: "Absent Movie"})
-      _file = create_linked_file(%{movie_id: movie.id})
+      # Post-Phase-4 (library-presence-unification): present? is true
+      # iff a WatchedFile exists. Deleting the FilePresence cascades
+      # to the WatchedFile via FK, which flips present? to false.
+      movie = create_standalone_movie(%{name: "Disappearing Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
       pi = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
-      item = Views.detail(pi.id)
-      assert item.present? == false
+      assert %DetailItem{present?: true} = Views.detail(pi.id)
+
+      # Simulate AbsenceSweeper-style cleanup (lands proper in Phase 6):
+      # deleting the FilePresence cascade-deletes the WatchedFile.
+      LibraryFilePresence.delete_paths([file.file_path])
+
+      assert :ok = Detail.refresh_cache()
+      assert %DetailItem{present?: false} = Views.detail(pi.id)
     end
 
     test "DetailItem.present? is false for a PlayableItem with no WatchedFile" do
@@ -285,14 +296,16 @@ defmodule MediaCentarr.Library.Views.DetailTest do
     test "file becoming present updates present? to true" do
       on_exit_clear_table()
 
+      # Post-Phase-4 (library-presence-unification): "becoming present"
+      # means the WatchedFile getting stamped. Start with a PlayableItem
+      # but no WatchedFile; stamp it and watch present? flip.
       movie = create_standalone_movie(%{name: "Late Arrival"})
-      file = create_linked_file(%{movie_id: movie.id})
-      pi = playable_item_for_movie(movie)
+      {:ok, pi} = Library.find_or_create_playable_item(:movie, movie.id, 1)
 
       assert :ok = Detail.refresh_cache()
       assert %DetailItem{present?: false} = Views.detail(pi.id)
 
-      record_present(file)
+      _file = create_linked_file(%{movie_id: movie.id})
 
       :ok = Detail.refresh_cache()
       assert %DetailItem{present?: true} = Views.detail(pi.id)
