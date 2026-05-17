@@ -329,15 +329,13 @@ defmodule MediaCentarrWeb.HomeLive.Logic do
   # re-applies.
   def section_reloaders({:playback_state_changed, _payload}), do: [:continue_watching]
 
-  # Drive mounted/unmounted: hero and recently_added now route through
-  # projections that subscribe to `library:availability` directly and
-  # broadcast `:library_view_updated` after refresh — so only
-  # continue_watching needs a LiveView-direct reload here (its
-  # projection doesn't subscribe to availability, see
-  # `Library.Views.ContinueWatching`). The reload also re-renders with
-  # cache-busted /media-images/* URLs via the `:image_version` bump
-  # in HomeLive.
-  def section_reloaders({:availability_changed, _dir, _state}), do: [:continue_watching]
+  # `:availability_changed` deliberately does not appear here. Every
+  # projection HomeLive reads from subscribes to `library:availability`
+  # directly and broadcasts `:library_view_updated` after refresh; the
+  # `:library_view_updated` clauses above drive the actual reloads.
+  # HomeLive still listens to `:availability_changed` separately to
+  # bump `:image_version` (cache-busts `/media-images/*` URLs) — that's
+  # a render-layer concern, not a section reload.
 
   def section_reloaders(_), do: []
 end
