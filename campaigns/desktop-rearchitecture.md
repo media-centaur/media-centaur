@@ -80,7 +80,7 @@ source-vs-derived PubSub taxonomy.
   shipped as Phase 3 of that campaign — counted here too because
   they fulfil this campaign's "every Library LiveView read path
   through a Pillar-2 projection" criterion.
-* **Library presence unification** (`library-presence-unification.md`,
+* **Library presence unification** (`done/library-presence-unification.md`,
   phases 1–2 shipped 2026-05-17) moves file-presence ownership from
   Watcher (`KnownFile`) into Library (`Library.FilePresence`),
   thinning the Watcher context toward a pure filesystem-observer
@@ -342,7 +342,7 @@ Append-only.
   deliverables (Browse / Detail / Search / Progress + DB-on-
   render retirement) close Workstream A.
 * `2026-05-17` — **Library presence unification phases 1–2
-  shipped ([sibling campaign](library-presence-unification.md)).**
+  shipped ([sibling campaign](done/library-presence-unification.md)).**
   `Library.FilePresence` is the new Pillar-1 source of truth for
   "we observed this file at time N"; Watcher is being thinned
   toward an observer-only role with no durable state. Backfill
@@ -629,7 +629,7 @@ slip.
   campaign; this campaign reconciles against its outcome rather
   than driving it.
 * Watcher / KnownFile schema retirement. Tracked under the
-  [`library-presence-unification`](library-presence-unification.md)
+  [`library-presence-unification`](done/library-presence-unification.md)
   sibling campaign.
 
 ## Pointers
@@ -641,7 +641,7 @@ slip.
 * Sibling campaigns:
   * [`library-schema-v2.md`](library-schema-v2.md) — Pillar-1
     schema redesign; phases 1–3 shipped.
-  * [`library-presence-unification.md`](library-presence-unification.md)
+  * [`done/library-presence-unification.md`](done/library-presence-unification.md)
     — Watcher-to-Library presence ownership shift; phases 1–2
     shipped.
 * `lib/media_centarr/cache.ex` + `lib/media_centarr/cache/` —

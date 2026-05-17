@@ -126,6 +126,6 @@ Concretely:
 
 ## Pointers
 
-* Campaign: [`library-presence-unification`](../../campaigns/library-presence-unification.md)
+* Campaign: [`library-presence-unification`](../../campaigns/done/library-presence-unification.md)
 * Affected boundaries: [ADR-029 data-decoupling](2026-03-26-029-data-decoupling.md)
 * Schema-migration safety: [ADR-040 data-migrations](2026-05-09-040-data-migrations.md)
