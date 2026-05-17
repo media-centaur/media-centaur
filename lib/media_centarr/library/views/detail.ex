@@ -147,15 +147,23 @@ defmodule MediaCentarr.Library.Views.Detail do
   Read the projection for a single `playable_item_id`. Returns the
   cached `DetailItem` or nil when no row exists.
 
-  Falls back to a live build when the ETS table is absent — covers
-  test mode (Cache.Worker not started) and the brief window between
-  boot and first refresh.
+  Falls back to a live build when the ETS table is absent, OR when the
+  table exists but the requested row is missing — both cover test
+  mode (Cache.Worker not started, refresh cadence uncoordinated with
+  test fixtures) and the brief window in production between an
+  entity's creation and the projection's next refresh.
   """
   @spec read(Ecto.UUID.t()) :: DetailItem.t() | nil
   def read(playable_item_id) when is_binary(playable_item_id) do
     case :ets.whereis(@table) do
-      :undefined -> build_item_for_playable_item_id(playable_item_id)
-      _ref -> read_from_ets(playable_item_id)
+      :undefined ->
+        build_item_for_playable_item_id(playable_item_id)
+
+      _ref ->
+        case read_from_ets(playable_item_id) do
+          nil -> build_item_for_playable_item_id(playable_item_id)
+          %DetailItem{} = item -> item
+        end
     end
   end
 
@@ -186,7 +194,10 @@ defmodule MediaCentarr.Library.Views.Detail do
         build_item_for_container(container_type, container_id)
 
       _ref ->
-        read_from_ets_by_container(container_type, container_id)
+        case read_from_ets_by_container(container_type, container_id) do
+          nil -> build_item_for_container(container_type, container_id)
+          %DetailItem{} = item -> item
+        end
     end
   end
 
@@ -491,6 +502,7 @@ defmodule MediaCentarr.Library.Views.Detail do
           container_aggregate_rating: container_aggregate_rating(type, container),
           container_vote_count: container_vote_count(type, container),
           container_number_of_seasons: container_number_of_seasons(type, container),
+          container_director: container_director(type, container),
           cast: container_cast(type, container),
           crew: container_crew(type, container),
           extras: container_extras(type, container),
@@ -676,6 +688,13 @@ defmodule MediaCentarr.Library.Views.Detail do
 
   defp container_number_of_seasons(type, container),
     do: Map.get(top_level_container(type, container), :number_of_seasons)
+
+  # Director is a per-Movie field, NOT a top-level metadata bubble-up.
+  # For a multi-child MovieSeries the projection's container is a
+  # constituent Movie; the entity-map for the MovieSeries modal must
+  # not surface one child's director as the collection's director.
+  defp container_director(:movie, %Movie{director: director}), do: director
+  defp container_director(_type, _container), do: nil
 
   defp container_cast(type, container), do: Map.get(top_level_container(type, container), :cast)
 

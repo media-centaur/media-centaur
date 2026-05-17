@@ -689,13 +689,28 @@ defmodule MediaCentarr.LibraryTest do
         end
       end
 
+      # Phase 3.2 Task D: warm the projection so the test measures the
+      # production-warm path (Pillar-2 ETS reads) rather than the
+      # test-mode DB-fallback cost. Without the warm-up, every modal
+      # open rebuilds the canonical leaf from DB (~7 queries that don't
+      # scale with episode count — bounded, but noise for an N+1 check).
+      :ok = MediaCentarr.Library.Views.Detail.refresh_cache()
+
+      on_exit(fn ->
+        case :ets.whereis(:library_view_detail) do
+          :undefined -> :ok
+          _ -> :ets.delete(:library_view_detail)
+        end
+      end)
+
       query_count = count_queries(fn -> Library.load_modal_entry(series.id) end)
 
-      # Browser fetch (~6 queries: 4 type-table existence checks + preloads) +
-      # extras (1 union query). Bound at 15 to leave room for incidental
-      # queries; cap is well below any N+1 explosion.
-      assert query_count <= 15,
-             "Expected ≤15 queries, got #{query_count} — possible N+1 regression"
+      # Projection-warm path: ETS lookup (0 queries) + 1 progress query.
+      # Bound at 5 to leave room for incidental queries; cap is well
+      # below any N+1 explosion (which would scale with the 15-episode
+      # fixture).
+      assert query_count <= 5,
+             "Expected ≤5 queries, got #{query_count} — possible N+1 regression"
     end
   end
 

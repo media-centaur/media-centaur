@@ -55,6 +55,7 @@ defmodule MediaCentarr.Library.Views.DetailItem do
     * `:container_aggregate_rating` — float rating (Movie / TVSeries).
     * `:container_vote_count`       — TMDB vote count.
     * `:container_number_of_seasons` — TVSeries season count.
+    * `:container_director`         — director name (Movie only).
     * `:cast`                       — `[%Library.Person{}]` embedded cast list.
     * `:crew`                       — `[%Library.Person{}]` embedded crew list.
     * `:extras`                     — `[%Library.Extra{}]` bonus features.
@@ -106,6 +107,7 @@ defmodule MediaCentarr.Library.Views.DetailItem do
     :container_aggregate_rating,
     :container_vote_count,
     :container_number_of_seasons,
+    :container_director,
     :cast,
     :crew,
     :extras,
@@ -150,6 +152,7 @@ defmodule MediaCentarr.Library.Views.DetailItem do
           container_aggregate_rating: float() | nil,
           container_vote_count: integer() | nil,
           container_number_of_seasons: integer() | nil,
+          container_director: String.t() | nil,
           cast: [struct()] | nil,
           crew: [struct()] | nil,
           extras: [struct()] | nil,
@@ -296,20 +299,28 @@ defmodule MediaCentarr.Library.Views.DetailItem do
   end
 
   @doc """
-  Adapts a TV-series canonical-episode `DetailItem` into the
-  polymorphic entity-map shape today's consumers
+  Adapts a `DetailItem` into the polymorphic entity-map shape today's
+  consumers
   (`MediaCentarrWeb.ViewModel.SeriesDetail.build/4`,
+  `MediaCentarrWeb.Components.DetailPanel`,
   `MediaCentarr.Playback.ResumeTarget.compute/2`,
   `MediaCentarrWeb.Live.EntityModal.find_tmdb_id/1`,
   `MediaCentarrWeb.Live.EntityModal.resolve_progress_fk/4`) consume.
 
-  Library Schema v2 Phase 3.2 Task C.2 flips `SeriesDetail.compose/1`
-  to read from the `Library.Views.Detail` projection. This function
-  is the temporary compatibility shim — Task E retires it when the
-  consumer tree migrates to typed `DetailItem` attrs.
+  Dispatches on `(parent_container_type, container_type)` to produce
+  the right shape for each modal kind:
 
-  Pure: no DB, no side effects. Only handles `:tv_series` parent
-  containers; movie / movie_series / video_object flips land in Task D.
+    * `parent_container_type: :tv_series` → TV-series entity-map (Task C.2).
+    * `parent_container_type: :movie_series, container_type: :movie`
+      → MovieSeries entity-map (Task D). The DetailItem is a canonical
+      child Movie carrying the full `:movies` tree.
+    * `container_type: :movie` → standalone (or hoisted-collection) Movie
+      entity-map (Task D).
+    * `container_type: :video_object` → VideoObject entity-map (Task D).
+
+  Pure: no DB, no side effects. Library Schema v2 Phase 3.2 introduces
+  this as a temporary compatibility shim — Task E retires it when the
+  DetailPanel consumer tree migrates to typed `DetailItem` attrs.
   """
   @spec to_entity_map(t()) :: map()
   def to_entity_map(%__MODULE__{parent_container_type: :tv_series} = item) do
@@ -318,6 +329,8 @@ defmodule MediaCentarr.Library.Views.DetailItem do
       type: :tv_series,
       name: item.container_name,
       description: item.container_description,
+      date_published: nil,
+      content_url: nil,
       url: item.container_url,
       tagline: item.container_tagline,
       genres: item.container_genres,
@@ -331,6 +344,7 @@ defmodule MediaCentarr.Library.Views.DetailItem do
       aggregate_rating_value: item.container_aggregate_rating,
       vote_count: item.container_vote_count,
       number_of_seasons: item.container_number_of_seasons,
+      director: nil,
       cast: item.cast || [],
       crew: item.crew || [],
       extras: item.extras || [],
@@ -340,7 +354,120 @@ defmodule MediaCentarr.Library.Views.DetailItem do
       images: item.images || [],
       seasons: Enum.map(item.seasons || [], &season_to_map/1),
       movies: [],
-      watched_files: []
+      watched_files: [],
+      subtitle_tracks: [],
+      extra_progress: []
+    }
+  end
+
+  def to_entity_map(%__MODULE__{parent_container_type: :movie_series, container_type: :movie} = item) do
+    %{
+      id: item.parent_container_id,
+      type: :movie_series,
+      name: item.container_name,
+      description: item.container_description,
+      date_published: nil,
+      content_url: nil,
+      url: item.container_url,
+      tagline: item.container_tagline,
+      genres: item.container_genres,
+      studio: item.container_studio,
+      country_code: item.container_country_code,
+      original_language: item.container_original_language,
+      network: nil,
+      status: item.container_status,
+      duration_seconds: nil,
+      content_rating: item.container_content_rating,
+      aggregate_rating_value: item.container_aggregate_rating,
+      vote_count: item.container_vote_count,
+      number_of_seasons: nil,
+      director: nil,
+      cast: item.cast || [],
+      crew: item.crew || [],
+      extras: item.extras || [],
+      external_ids: item.external_ids || [],
+      imdb_id: item.imdb_id,
+      tmdb_id: item.tmdb_id,
+      images: item.images || [],
+      seasons: [],
+      movies: Enum.map(item.movies || [], &movie_entry_to_map/1),
+      watched_files: [],
+      subtitle_tracks: [],
+      extra_progress: []
+    }
+  end
+
+  def to_entity_map(%__MODULE__{container_type: :movie} = item) do
+    %{
+      id: item.container_id,
+      type: :movie,
+      name: item.container_name,
+      description: item.container_description,
+      date_published: item.date_published,
+      content_url: first_watched_file_path(item),
+      url: item.container_url,
+      tagline: item.container_tagline,
+      genres: item.container_genres,
+      studio: item.container_studio,
+      country_code: item.container_country_code,
+      original_language: item.container_original_language,
+      network: nil,
+      status: item.container_status,
+      duration_seconds: item.container_duration_seconds,
+      content_rating: item.container_content_rating,
+      aggregate_rating_value: item.container_aggregate_rating,
+      vote_count: item.container_vote_count,
+      number_of_seasons: nil,
+      director: item.container_director,
+      cast: item.cast || [],
+      crew: item.crew || [],
+      extras: item.extras || [],
+      external_ids: item.external_ids || [],
+      imdb_id: item.imdb_id,
+      tmdb_id: item.tmdb_id,
+      images: item.images || [],
+      seasons: [],
+      movies: [],
+      watched_files: [],
+      subtitle_tracks: item.subtitle_tracks || [],
+      extra_progress: []
+    }
+  end
+
+  def to_entity_map(%__MODULE__{container_type: :video_object} = item) do
+    %{
+      id: item.container_id,
+      type: :video_object,
+      name: item.container_name,
+      description: item.container_description,
+      date_published: item.date_published,
+      content_url: first_watched_file_path(item),
+      url: item.container_url,
+      tagline: nil,
+      genres: item.container_genres,
+      studio: nil,
+      country_code: item.container_country_code,
+      original_language: item.container_original_language,
+      network: nil,
+      status: nil,
+      duration_seconds: item.container_duration_seconds,
+      content_rating: nil,
+      aggregate_rating_value: item.container_aggregate_rating,
+      vote_count: item.container_vote_count,
+      number_of_seasons: nil,
+      director: nil,
+      cast: item.cast || [],
+      crew: item.crew || [],
+      extras: item.extras || [],
+      external_ids: item.external_ids || [],
+      imdb_id: item.imdb_id,
+      tmdb_id: item.tmdb_id,
+      images: item.images || [],
+      seasons: [],
+      movies: [],
+      watched_files: [],
+      subtitle_tracks: item.subtitle_tracks || [],
+      extra_progress: []
     }
   end
 
@@ -364,6 +491,22 @@ defmodule MediaCentarr.Library.Views.DetailItem do
       duration_seconds: episode.duration_seconds,
       content_url: episode.content_url,
       images: episode.images || []
+    }
+  end
+
+  defp first_watched_file_path(%__MODULE__{watched_files: [%__MODULE__.WatchedFile{path: path} | _]}),
+    do: path
+
+  defp first_watched_file_path(_), do: nil
+
+  defp movie_entry_to_map(%__MODULE__.MovieEntry{} = entry) do
+    %{
+      id: entry.movie_id,
+      name: entry.name,
+      date_published: entry.date_published,
+      collection_position: entry.collection_position,
+      content_url: entry.content_url,
+      present?: entry.present?
     }
   end
 end

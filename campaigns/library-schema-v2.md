@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-in-progress
 started: 2026-05-15
-last_updated: 2026-05-17c
+last_updated: 2026-05-17d
 ---
 # Library Schema v2 — architectural excellence
 
@@ -223,7 +223,7 @@ Apply the Phase 3.1 pattern (projection + bulk-helper overlays) to
 the entity-detail modal. Plan doc:
 [`docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md`](../docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md).
 
-Five tasks (A → E); four landed today:
+Five tasks (A → E); A + B + C.1 + C.2 + D landed today (one remaining: E):
 
 - **Task A — DetailItem typed inner structs** (commit `e07ab5d7`, 2026-05-17).
   `DetailItem.{Season, Episode, MovieEntry, WatchedFile, SubtitleTrack}`
@@ -261,12 +261,25 @@ Five tasks (A → E); four landed today:
   tests, 0 failures). Existing `series_detail_test.exs` `compose/1`
   cases pass unchanged.
 
+- **Task D — Library.load_modal_entry reads from projection** (commit `1cf54566`, 2026-05-17).
+  Movie / MovieSeries / VideoObject modal-open paths flipped:
+  `Views.detail_by_container/2` + three new
+  `DetailItem.to_entity_map/1` clauses + new
+  `Library.list_progress_records_for_container/2` dispatcher. Mid-flight
+  fixes: `DetailItem` grew `:container_director`,
+  `Views.Detail.read{,_by_container}` grew per-id DB fallback for
+  ETS-table-exists-but-row-missing (covers test mode + production
+  refresh window), and the test factory's `Movie.position` default
+  aligned to 1 (matching `Library.Inbound`'s convention — the 0
+  default was splitting fixture state into two PlayableItems and
+  breaking the projection's canonical-leaf lookup). `mix precommit`
+  green (3629 tests, 0 failures).
+
 Tasks remaining:
 
-- **D — Flip Library.load_modal_entry to projection.** Movie /
-  MovieSeries / VideoObject modal-open paths.
 - **E — Retire rich-entity-map attrs.** DetailPanel + sub-components
-  consume `DetailItem` directly. Adapter from C.2 deleted.
+  consume `DetailItem` directly. Adapter from C.2/D deleted; legacy
+  `load_extras_for_entity/1` removed.
 
 ## Phase 3 follow-ups
 
