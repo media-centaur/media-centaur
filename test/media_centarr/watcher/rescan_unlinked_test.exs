@@ -4,13 +4,15 @@ defmodule MediaCentarr.Watcher.RescanUnlinkedTest do
   failure (e.g. an invalid TMDB API key) caused Discovery to fail a
   file in the search stage, the message was dropped by Broadway with
   no retry path. Re-broadcasting only happened for genuinely *new*
-  files, so stranded rows (present in `watcher_files`, no link in
+  files, so stranded rows (FilePresence with no link in
   `library_watched_files`) sat forever after a restart.
 
-  `Watcher.Supervisor.rescan_unlinked/0` walks `watcher_files` and
-  re-emits `{:file_detected, ...}` for any present row that has no
-  matching `library_watched_files` link, so the next pipeline pass
-  (with the failure resolved) recovers the stranded file.
+  Post-Phase-7 of the library-presence-unification campaign,
+  `Watcher.Supervisor.rescan_unlinked/0` walks `library_file_presences`
+  (the watcher_files table is gone) and re-emits
+  `{:file_detected, ...}` for any presence row that has no matching
+  `library_watched_files` link, so the next pipeline pass (with the
+  failure resolved) recovers the stranded file.
 
   Append-only per ADR-027.
   """
@@ -18,8 +20,8 @@ defmodule MediaCentarr.Watcher.RescanUnlinkedTest do
 
   import MediaCentarr.TestFactory
 
+  alias MediaCentarr.Library.FilePresence
   alias MediaCentarr.Topics
-  alias MediaCentarr.Watcher.FilePresence
   alias MediaCentarr.Watcher.Supervisor, as: WatcherSupervisor
 
   setup do
@@ -28,13 +30,14 @@ defmodule MediaCentarr.Watcher.RescanUnlinkedTest do
   end
 
   describe "rescan_unlinked/0" do
-    test "emits :file_detected for present rows with no library link" do
+    test "emits :file_detected for presence rows with no library link" do
       stranded_path = "/tmp/test/stranded.mkv"
       linked_path = "/tmp/test/linked.mkv"
       watch_dir = "/tmp/test"
 
-      FilePresence.record_file(stranded_path, watch_dir)
-      FilePresence.record_file(linked_path, watch_dir)
+      FilePresence.stamp(stranded_path, watch_dir)
+      # `linked_path` will get its presence stamped via `create_linked_file`
+      # → `Library.link_file/1` → auto-stamp; no need for a separate stamp.
 
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: linked_path, watch_dir: watch_dir, movie_id: movie.id})
@@ -49,7 +52,6 @@ defmodule MediaCentarr.Watcher.RescanUnlinkedTest do
       linked_path = "/tmp/test/only_linked.mkv"
       watch_dir = "/tmp/test"
 
-      FilePresence.record_file(linked_path, watch_dir)
       movie = create_movie(%{name: "Sample Movie B"})
       create_linked_file(%{file_path: linked_path, watch_dir: watch_dir, movie_id: movie.id})
 
@@ -57,18 +59,7 @@ defmodule MediaCentarr.Watcher.RescanUnlinkedTest do
       refute_receive {:file_detected, _}, 100
     end
 
-    test "returns {:ok, 0} when watcher_files is empty" do
-      assert {:ok, 0} = WatcherSupervisor.rescan_unlinked()
-      refute_receive {:file_detected, _}, 100
-    end
-
-    test "ignores absent rows even if they have no library link" do
-      absent_path = "/tmp/test/gone.mkv"
-      watch_dir = "/tmp/test"
-
-      FilePresence.record_file(absent_path, watch_dir)
-      FilePresence.mark_files_absent([absent_path])
-
+    test "returns {:ok, 0} when library_file_presences is empty" do
       assert {:ok, 0} = WatcherSupervisor.rescan_unlinked()
       refute_receive {:file_detected, _}, 100
     end
@@ -77,7 +68,7 @@ defmodule MediaCentarr.Watcher.RescanUnlinkedTest do
       paths = ["/tmp/test/a.mkv", "/tmp/test/b.mkv", "/tmp/test/c.mkv"]
       watch_dir = "/tmp/test"
 
-      Enum.each(paths, &FilePresence.record_file(&1, watch_dir))
+      Enum.each(paths, &FilePresence.stamp(&1, watch_dir))
 
       assert {:ok, 3} = WatcherSupervisor.rescan_unlinked()
 

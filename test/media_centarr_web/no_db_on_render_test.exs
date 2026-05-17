@@ -43,9 +43,6 @@ defmodule MediaCentarrWeb.NoDbOnRenderTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.QueryCounter
-  alias MediaCentarr.Watcher.FilePresence
-
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
 
   defp seed_library_fixture do
     movie = create_standalone_movie(%{name: "Sample Movie A"})
@@ -106,6 +103,9 @@ defmodule MediaCentarrWeb.NoDbOnRenderTest do
       """)
     end
   end
+
+  # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
+  defp record_present(_file), do: :ok
 
   describe "Library-backed pages — projection-fed, near-zero queries" do
     # The Library context owns four ADR-041 projections (Browse, Detail,

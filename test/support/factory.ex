@@ -419,8 +419,6 @@ defmodule MediaCentarr.TestFactory do
       watch_dir: "/media/test"
     })
 
-    :ok = MediaCentarr.Watcher.FilePresence.record_file(url, "/media/test")
-
     %{record | content_url: url}
   end
 

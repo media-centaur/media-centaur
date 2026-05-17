@@ -16,7 +16,6 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
   alias MediaCentarr.Library.Views
   alias MediaCentarr.Library.Views.{Browse, BrowseItem}
   alias MediaCentarr.Topics
-  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
 
   @table :library_view_browse
 

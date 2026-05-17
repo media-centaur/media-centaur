@@ -15,10 +15,10 @@ defmodule MediaCentarr.Library.Views.DetailTest do
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.Events.EntitiesChanged
+  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
   alias MediaCentarr.Library.Views
   alias MediaCentarr.Library.Views.{Detail, DetailItem}
   alias MediaCentarr.Topics
-  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
 
   @table :library_view_detail
 

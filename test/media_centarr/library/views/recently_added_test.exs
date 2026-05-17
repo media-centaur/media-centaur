@@ -9,11 +9,8 @@ defmodule MediaCentarr.Library.Views.RecentlyAddedTest do
   alias MediaCentarr.Library.Views.RecentlyAddedItem
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
-  alias MediaCentarr.Watcher.FilePresence
 
   @table :library_view_recently_added
-
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
 
   defp seed_recently_added(name, inserted_at \\ nil) do
     movie = create_standalone_movie(%{name: name})
@@ -36,6 +33,9 @@ defmodule MediaCentarr.Library.Views.RecentlyAddedTest do
       end
     end)
   end
+
+  # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
+  defp record_present(_file), do: :ok
 
   describe "Cache behaviour — relevant?/1" do
     test "accepts library entity-changed events" do

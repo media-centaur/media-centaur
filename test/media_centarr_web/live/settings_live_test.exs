@@ -94,16 +94,16 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
 
   describe "save_tmdb retry hook" do
     # Saving a new TMDB key should re-emit `:file_detected` for any
-    # watcher_files row that has no library link yet — recovery from
-    # the silent-drop bug where a transient TMDB auth failure left
+    # `Library.FilePresence` row that has no library link yet — recovery
+    # from the silent-drop bug where a transient TMDB auth failure left
     # files stranded between watcher detection and pipeline ingestion.
+    alias MediaCentarr.Library.FilePresence
     alias MediaCentarr.Topics
-    alias MediaCentarr.Watcher.FilePresence
 
     test "re-emits file_detected for stranded files when key is updated", %{conn: conn} do
       stranded_path = "/tmp/test/save-tmdb-stranded.mkv"
       watch_dir = "/tmp/test"
-      FilePresence.record_file(stranded_path, watch_dir)
+      FilePresence.stamp(stranded_path, watch_dir)
 
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.pipeline_input())
 
@@ -122,7 +122,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     test "no re-emit when the key field is left blank (no value change)", %{conn: conn} do
       stranded_path = "/tmp/test/save-tmdb-noop.mkv"
       watch_dir = "/tmp/test"
-      FilePresence.record_file(stranded_path, watch_dir)
+      FilePresence.stamp(stranded_path, watch_dir)
 
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.pipeline_input())
 

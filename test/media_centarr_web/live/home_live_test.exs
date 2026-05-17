@@ -7,7 +7,6 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   alias MediaCentarr.Library
   alias MediaCentarr.Playback.{Events, ProgressBroadcaster}
   alias MediaCentarr.Playback.Events.{PlaybackFailed, PlaybackStateChanged}
-  alias MediaCentarr.Watcher.FilePresence
 
   test "GET / renders without crashing", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/")
@@ -25,8 +24,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
   test "renders the Continue Watching row when there is in-progress media", %{conn: conn} do
     movie = create_standalone_movie(%{name: "Sample Movie"})
-    file = create_linked_file(%{movie_id: movie.id})
-    FilePresence.record_file(file.file_path, file.watch_dir)
+    _ = create_linked_file(%{movie_id: movie.id})
     create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
     {:ok, _view, html} = live(conn, "/")
@@ -73,8 +71,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         content_url: "#{movie.id}/backdrop.jpg"
       })
 
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
       create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
       {:ok, view, html} = live(conn, "/")
@@ -122,8 +119,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   describe "row card click opens detail modal in place" do
     test "clicking a Continue Watching card patches URL and loads the modal", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -179,8 +175,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
     test "clicking a Recently Added card patches URL and opens modal", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
 
       {:ok, view, _html} = live(conn, "/")
 
@@ -194,8 +189,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
     test "navigating directly to /?selected=UUID mounts modal open", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
 
       {:ok, _view, html} = live(conn, "/?selected=#{movie.id}")
 
@@ -221,8 +215,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       refute html =~ "Newly Started Movie"
 
       movie = create_standalone_movie(%{name: "Newly Started Movie"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -246,8 +239,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       {:ok, view, _html} = live(conn, "/")
 
       movie = create_standalone_movie(%{name: "Now Playing Movie"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -276,8 +268,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       # user closed and reopened the modal. The user-visible signal is
       # the play-button label flipping from "Play" to "Watch again".
       movie = create_standalone_movie(%{name: "Sample Movie"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
 
       {:ok, view, html} = live(conn, "/?selected=#{movie.id}")
       refute html =~ "Watch again"

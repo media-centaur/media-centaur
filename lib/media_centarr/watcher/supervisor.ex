@@ -13,7 +13,7 @@ defmodule MediaCentarr.Watcher.Supervisor do
   alias MediaCentarr.Repo
   alias MediaCentarr.Topics
   alias MediaCentarr.Watcher.DirMonitor
-  alias MediaCentarr.Watcher.KnownFile
+  alias MediaCentarr.Library.FilePresence
 
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
@@ -313,8 +313,8 @@ defmodule MediaCentarr.Watcher.Supervisor do
   end
 
   @doc """
-  Re-emits `{:file_detected, ...}` events for every present file in
-  `watcher_files` that has no link in `library_watched_files`.
+  Re-emits `{:file_detected, ...}` events for every `Library.FilePresence`
+  row that has no matching link in `library_watched_files`.
 
   Recovery hook for stranded files — Discovery can drop a message when
   a downstream service (TMDB, network) fails transiently, and PubSub
@@ -331,9 +331,9 @@ defmodule MediaCentarr.Watcher.Supervisor do
 
     rows =
       Repo.all(
-        from k in KnownFile,
-          where: k.state == :present and k.file_path not in subquery(linked_paths),
-          select: %{path: k.file_path, watch_dir: k.watch_dir}
+        from p in FilePresence,
+          where: p.file_path not in subquery(linked_paths),
+          select: %{path: p.file_path, watch_dir: p.watch_dir}
       )
 
     Enum.each(rows, fn row ->

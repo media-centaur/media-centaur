@@ -8,11 +8,8 @@ defmodule MediaCentarr.Library.Views.HeroCandidatesTest do
   alias MediaCentarr.Library.Views.HeroCandidates
   alias MediaCentarr.Library.Views.HeroCandidatesItem
   alias MediaCentarr.Topics
-  alias MediaCentarr.Watcher.FilePresence
 
   @table :library_view_hero_candidates
-
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
 
   defp seed_hero_candidate(name) do
     movie = create_standalone_movie(%{name: name, description: "A synopsis for #{name}"})
@@ -36,6 +33,9 @@ defmodule MediaCentarr.Library.Views.HeroCandidatesTest do
       end
     end)
   end
+
+  # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
+  defp record_present(_file), do: :ok
 
   describe "Cache behaviour — relevant?/1" do
     test "accepts library entity-changed events" do
