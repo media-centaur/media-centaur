@@ -287,16 +287,19 @@ defmodule MediaCentarr.Library.PlayableItemTest do
     end
 
     test "create_playable_item_for_movie/1 links to the movie" do
-      # `create_standalone_movie` defaults `position: 0` (the canonical
-      # "ungrouped" slot) so the factory mirrors the production Inbound
-      # convention `ensure_playable_item!(:movie, id, movie.position || 1)`
-      # — see `MediaCentarr.Library.Inbound.maybe_ensure_self_playable_item!/2`.
+      # `create_standalone_movie` defaults `position: 1` so the factory
+      # mirrors the production Inbound convention
+      # `ensure_playable_item!(:movie, id, movie.position || 1)` — see
+      # `MediaCentarr.Library.Inbound.maybe_ensure_self_playable_item!/2`.
+      # The pre-Phase-3.2 factory default of 0 split fixture state into
+      # two PlayableItems (file-link path used 1, watch-progress path
+      # used 0) and broke the projection's canonical-leaf lookup.
       movie = create_standalone_movie(%{name: "Sample Movie"})
       item = create_playable_item_for_movie(movie)
 
       assert item.container_type == :movie
       assert item.container_id == movie.id
-      assert item.position == 0
+      assert item.position == 1
     end
   end
 end

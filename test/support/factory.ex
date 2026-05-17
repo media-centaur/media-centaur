@@ -490,7 +490,14 @@ defmodule MediaCentarr.TestFactory do
 
   def create_standalone_movie(attrs \\ %{}) do
     attrs = Map.new(attrs)
-    defaults = %{name: "Test Standalone Movie", position: 0}
+    # `position: 1` matches the convention `Library.Inbound` uses for
+    # standalone Movies in production — a single PlayableItem at
+    # position 1. Defaulting to 0 here (the pre-Phase-3.2 factory
+    # value) caused split-PlayableItem fixtures: the file-linking path
+    # hardcoded position 1, the watch-progress path read Movie.position
+    # (= 0), producing two separate PlayableItems for the same Movie
+    # and breaking the projection's canonical-leaf lookup.
+    defaults = %{name: "Test Standalone Movie", position: 1}
     tmdb_id = attrs[:tmdb_id]
     imdb_id = attrs[:imdb_id]
     content_url = attrs[:content_url]

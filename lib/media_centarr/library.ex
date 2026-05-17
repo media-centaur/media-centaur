@@ -906,65 +906,71 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
-  Loads a single library entry shaped for the detail modal. Returns the same
-  `%{entity, progress, progress_records}` map `Library.Browser` produces for
-  the catalog grid, but for one ID and with extras already populated.
+  Loads a single library entry shaped for the detail modal — the
+  `%{entity, progress, progress_records}` triple every host LiveView
+  assigns to `:selected_entry`.
 
-  Returns `:not_found` when no entity matches the ID *and* has at least one
-  present file (the same gating `Browser.fetch_typed_entries_by_ids/1`
-  applies — orphan entities don't appear in the modal).
+  Reads from `MediaCentarr.Library.Views.Detail` (Pillar-2 ETS
+  projection, microsecond reads in production; live DB-fallback in test
+  mode) — probes each container kind in turn and converts the first
+  match's `DetailItem` to the legacy entity-map shape via
+  `Views.DetailItem.to_entity_map/1`. Progress records come from
+  `list_progress_records_for_container/2`; the summary from
+  `ProgressSummary.compute/2`.
+
+  Returns `:not_found` when no container matches *and has at least one
+  present file* — orphan entities (record exists, no `WatchedFile`)
+  don't appear in the modal. Same gating
+  `Browser.fetch_typed_entries_by_ids/1` applied pre-Phase-3.2; the
+  presence check now walks the projection's `present?` flags (or
+  `:seasons/:movies` trees for series containers).
+
+  Library Schema v2 Phase 3.2 Task D flipped this from the
+  `Browser + load_extras_for_entity` chain to the projection.
+  `load_extras_for_entity/1` is retired — extras flow on the DetailItem
+  now.
   """
   @spec load_modal_entry(Ecto.UUID.t()) ::
-          {:ok, %{entity: map(), progress: map(), progress_records: list()}}
+          {:ok, %{entity: map(), progress: map() | nil, progress_records: list()}}
           | :not_found
   def load_modal_entry(id) when is_binary(id) do
-    case __MODULE__.Browser.fetch_typed_entries_by_ids([id]) do
-      {[entry], _gone} ->
-        {:ok, %{entry | entity: load_extras_for_entity(entry.entity)}}
-
-      {[], _gone} ->
-        :not_found
+    cond do
+      item = present_detail_for(:tv_series, id) -> {:ok, build_modal_entry(:tv_series, item, id)}
+      item = present_detail_for(:movie_series, id) -> {:ok, build_modal_entry(:movie_series, item, id)}
+      item = present_detail_for(:movie, id) -> {:ok, build_modal_entry(:movie, item, id)}
+      item = present_detail_for(:video_object, id) -> {:ok, build_modal_entry(:video_object, item, id)}
+      true -> :not_found
     end
   end
 
-  @doc """
-  Populates `extras` on a normalized entity map (and `extras` on each season for
-  TV series) without reloading the full entity. Issues at most two queries.
+  defp present_detail_for(container_type, id) do
+    case __MODULE__.Views.detail_by_container(container_type, id) do
+      nil ->
+        nil
 
-  Called on-demand when the detail panel opens for a selected entity, so the
-  catalog grid load stays free of extras queries.
-  """
-  def load_extras_for_entity(%{id: owner_id, type: :tv_series, seasons: seasons} = entity) do
-    season_ids = Enum.map(seasons, & &1.id)
-
-    all_extras =
-      Repo.all(
-        from(x in Extra,
-          where:
-            (x.owner_type == :tv_series and x.owner_id == ^owner_id) or
-              (x.owner_type == :season and x.owner_id in ^season_ids)
-        )
-      )
-
-    {entity_extras, season_extras_by_id} = split_extras_by_owner(all_extras)
-
-    seasons_with_extras =
-      Enum.map(seasons, fn season ->
-        %{season | extras: Map.get(season_extras_by_id, season.id, [])}
-      end)
-
-    %{entity | extras: entity_extras, seasons: seasons_with_extras}
+      %__MODULE__.Views.DetailItem{} = item ->
+        if any_present?(container_type, item), do: item
+    end
   end
 
-  def load_extras_for_entity(%{id: owner_id} = entity) do
-    entity_extras = list_extras_by_owner_id(owner_id)
-    %{entity | extras: entity_extras}
+  defp any_present?(:tv_series, %__MODULE__.Views.DetailItem{seasons: seasons}) do
+    Enum.any?(seasons || [], fn season ->
+      Enum.any?(season.episodes || [], & &1.present?)
+    end)
   end
 
-  defp split_extras_by_owner(extras) do
-    {season_extras, entity_extras} = Enum.split_with(extras, &(&1.owner_type == :season))
-    season_extras_by_id = Enum.group_by(season_extras, & &1.owner_id)
-    {entity_extras, season_extras_by_id}
+  defp any_present?(:movie_series, %__MODULE__.Views.DetailItem{movies: movies}) do
+    Enum.any?(movies || [], & &1.present?)
+  end
+
+  defp any_present?(_type, %__MODULE__.Views.DetailItem{present?: present}), do: present == true
+
+  defp build_modal_entry(container_type, item, id) do
+    entity = __MODULE__.Views.DetailItem.to_entity_map(item)
+    progress_records = list_progress_records_for_container(container_type, id)
+    progress = MediaCentarr.Library.ProgressSummary.compute(entity, progress_records)
+
+    %{entity: entity, progress: progress, progress_records: progress_records}
   end
 
   # ---------------------------------------------------------------------------
@@ -2208,22 +2214,41 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
-  Returns every `WatchProgress` record for episodes belonging to the
-  given TVSeries. Each returned record carries a synthesised
-  `:playable_item` map with `container_type: :episode` and
-  `container_id: <episode_uuid>` so downstream consumers
+  Returns every `WatchProgress` record under the given Library
+  container, with each record carrying a synthesised `:playable_item`
+  map (`container_type` + `container_id`) so downstream consumers
   (`MediaCentarr.Library.EpisodeList.progress_container_id/1`) can key
-  by Episode UUID without a separate `belongs_to :playable_item`
+  by leaf-container UUID without a separate `belongs_to :playable_item`
   preload.
 
-  Same shape `EntityShape.extract_progress(_, :tv_series)` produces for
-  the legacy entity-preload path; used by
-  `MediaCentarrWeb.ViewModel.SeriesDetail.compose/1` after the Phase 3.2
-  Task C.2 projection flip — the composer no longer has a preloaded
-  entity to extract from, so it pulls the records directly.
+  Same shape `EntityShape.extract_progress/2` produced for the legacy
+  entity-preload path. Used by the modal compose flows
+  (`MediaCentarrWeb.ViewModel.SeriesDetail.compose/1`,
+  `MediaCentarr.Library.load_modal_entry/1`) after the Phase 3.2
+  projection flip — the composer no longer has a preloaded entity to
+  extract from, so it pulls the records directly.
 
-  Returns `[]` for an unknown series id, or for a series with no
-  WatchProgress rows under any episode.
+  Returns `[]` for an unknown container id, or a container with no
+  WatchProgress rows under any leaf.
+  """
+  @spec list_progress_records_for_container(
+          :tv_series | :movie_series | :movie | :video_object,
+          Ecto.UUID.t()
+        ) :: [struct()]
+  def list_progress_records_for_container(:tv_series, id), do: list_progress_records_for_tv_series(id)
+
+  def list_progress_records_for_container(:movie_series, id),
+    do: list_progress_records_for_movie_series(id)
+
+  def list_progress_records_for_container(:movie, id), do: single_leaf_progress_records(:movie, id)
+
+  def list_progress_records_for_container(:video_object, id),
+    do: single_leaf_progress_records(:video_object, id)
+
+  @doc """
+  TV-series specialisation of `list_progress_records_for_container/2`.
+  Kept as its own function for the SeriesDetail.compose call-site that
+  preceded the unified dispatcher.
   """
   @spec list_progress_records_for_tv_series(Ecto.UUID.t()) :: [struct()]
   def list_progress_records_for_tv_series(tv_series_id) when is_binary(tv_series_id) do
@@ -2240,6 +2265,35 @@ defmodule MediaCentarr.Library do
     |> Repo.all()
     |> Enum.map(fn {progress, episode_id} ->
       %{progress | playable_item: %{container_type: :episode, container_id: episode_id}}
+    end)
+  end
+
+  defp list_progress_records_for_movie_series(movie_series_id) when is_binary(movie_series_id) do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on: pi.id == wp.playable_item_id and pi.container_type == :movie,
+      join: m in Movie,
+      on: m.id == pi.container_id,
+      where: m.movie_series_id == ^movie_series_id,
+      select: {wp, m.id}
+    )
+    |> Repo.all()
+    |> Enum.map(fn {progress, movie_id} ->
+      %{progress | playable_item: %{container_type: :movie, container_id: movie_id}}
+    end)
+  end
+
+  defp single_leaf_progress_records(container_type, container_id) when is_binary(container_id) do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on:
+        pi.id == wp.playable_item_id and pi.container_type == ^container_type and
+          pi.container_id == ^container_id,
+      select: wp
+    )
+    |> Repo.all()
+    |> Enum.map(fn progress ->
+      %{progress | playable_item: %{container_type: container_type, container_id: container_id}}
     end)
   end
 

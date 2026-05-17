@@ -484,6 +484,17 @@ defmodule MediaCentarr.Library.Views.DetailTest do
       assert dir == file.watch_dir
     end
 
+    test "Movie row carries :container_director (Phase 3.2 Task D)" do
+      on_exit_clear_table()
+      movie = create_standalone_movie(%{name: "Directed Movie", director: "Sample Director"})
+      _file = create_linked_file(%{movie_id: movie.id})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie, movie.id)
+
+      assert item.container_director == "Sample Director"
+    end
+
     test "Movie row carries :images for entity-owned images" do
       on_exit_clear_table()
       {movie, _file} = seed_present_movie("Image Movie")
