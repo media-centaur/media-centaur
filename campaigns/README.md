@@ -20,11 +20,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`desktop-rearchitecture.md`](desktop-rearchitecture.md) —
-  local-only, single-user, no-auth desktop paradigm shift
-  (ADR-041 three-pillar segregation as backbone). Covers
-  projections, ephemeral-state cleanup, Acquisition split,
-  pattern documentation.
 * [`component-contracts.md`](component-contracts.md) — every
   LiveView function component declares a typed contract for
   domain-data attrs; eliminate bare `:any` / `:map` / `:list`.
@@ -41,6 +36,20 @@ Use [`template.md`](template.md) as a starter.
 
 ## Archived
 
+* [`done/desktop-rearchitecture.md`](done/desktop-rearchitecture.md)
+  — local-only, single-user, no-auth desktop paradigm shift backed
+  by ADR-041 three-pillar segregation. Shipped: Library projections
+  fanning out to every LiveView read path
+  (`no_db_on_render_test` enforcing the budget), Acquisition split
+  per ADR-043, the two grey-area Pillar-1 fields explicitly
+  confirmed durable, Cache.Worker + Topics pattern documented in
+  canonical moduledocs, ContinueWatching availability gap closed.
+  ADR-047 (PlayableItem reification) and the `docs/architecture.md`
+  Pillar-2 principle landed at closure. Workstreams A–D all
+  complete 2026-05-17; closure pass 2026-05-17. Deferred items
+  re-homed to test-infra (baselines), component-contracts (typed
+  attrs + storybook coverage), and UX backlog (v0.62.3 empty-state
+  follow-ups) — see the campaign's Closure section.
 * [`done/library-presence-unification.md`](done/library-presence-unification.md)
   — moved file-presence ownership into Library
   (`Library.FilePresence`), shrunk Watcher to a thin filesystem

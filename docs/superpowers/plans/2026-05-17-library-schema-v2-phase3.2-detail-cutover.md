@@ -8,7 +8,7 @@
 
 **Campaign references:**
 * [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md) — DetailLive flip is the Phase 3 Task E E.3 deferral.
-* [`campaigns/desktop-rearchitecture.md`](../../../campaigns/desktop-rearchitecture.md) — Workstream A's "every read path through a projection" criterion. Open follow-up: "DetailLive / EntityModal consumer flip."
+* [`campaigns/done/desktop-rearchitecture.md`](../../../campaigns/done/desktop-rearchitecture.md) — Workstream A's "every read path through a projection" criterion. Open follow-up: "DetailLive / EntityModal consumer flip."
 
 **Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ETS, `MediaCentarr.Cache` behaviour (ADR-041).
 

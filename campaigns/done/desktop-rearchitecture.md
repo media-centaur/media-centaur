@@ -1,7 +1,8 @@
 ---
-status: in-progress
+status: complete
 started: 2026-05-10
-last_updated: 2026-05-17b
+last_updated: 2026-05-17c
+resume_with: see "Closure — campaign-deferred items by destination" section at the bottom
 ---
 # Local-only desktop rearchitecture
 
@@ -13,7 +14,7 @@ Statefulness is no longer a liability to scale around — it is an
 asset to lean on.
 
 The organising principle is **three-pillar segregation**, from
-[ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
+[ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
 Every piece of state in the codebase is explicitly assigned to
 exactly one pillar:
 
@@ -71,7 +72,7 @@ canonical homes for the three-flavour Cache.Worker pattern and the
 source-vs-derived PubSub taxonomy.
 
 **Adjacent campaigns shipping pillar-aligned work:**
-* **Library Schema v2** (`done/library-schema-v2.md`, phases 1–3 shipped
+* **Library Schema v2** (`library-schema-v2.md`, phases 1–3 shipped
   2026-05-16) rebuilt the Pillar-1 schema the projections rebuild
   from: PlayableItem as the canonical leaf, polymorphic
   `(owner_type, owner_id)` discriminators on Image/Extra/ExternalId,
@@ -80,7 +81,7 @@ source-vs-derived PubSub taxonomy.
   shipped as Phase 3 of that campaign — counted here too because
   they fulfil this campaign's "every Library LiveView read path
   through a Pillar-2 projection" criterion.
-* **Library presence unification** (`done/library-presence-unification.md`,
+* **Library presence unification** (`library-presence-unification.md`,
   phases 1–2 shipped 2026-05-17) moves file-presence ownership from
   Watcher (`KnownFile`) into Library (`Library.FilePresence`),
   thinning the Watcher context toward a pure filesystem-observer
@@ -263,7 +264,7 @@ Append-only.
 * `2026-05-10` — **Three-pillar segregation is the organising
   principle.** Every state-bearing module belongs to exactly one
   pillar; cross-pillar coordination uses Pillar 3.
-  ([ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md))
+  ([ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md))
 * `2026-05-10` — Cache.Worker (`lib/media_centarr/cache.ex`) is
   the unified container for Pillar 2 — one behaviour, three
   flavours (ETS for per-view result sets, `:persistent_term` for
@@ -324,14 +325,14 @@ Append-only.
   subscribe to availability — see the gap noted above.
 * `2026-05-10` — **Acquisition Downloads extraction shipped**
   (Workstream B Phase 1). Per
-  [ADR-043](../decisions/architecture/2026-05-10-043-acquisition-split.md),
+  [ADR-043](../../decisions/architecture/2026-05-10-043-acquisition-split.md),
   qBittorrent driver + queue + health moved to
   `MediaCentarr.Downloads.*`. New boundary declared with
   `deps: [Capabilities]`; web layer + Pursuits subsystem rewired
   to the new aliases. Search extraction (Phase 2) and
   Acquisition boundary cleanup (Phase 3) remain open.
 * `2026-05-16` — **Library Schema v2 phases 1–3 shipped
-  ([sibling campaign](done/library-schema-v2.md)).** Rebuilds the
+  ([sibling campaign](library-schema-v2.md)).** Rebuilds the
   Pillar-1 schema. PlayableItem is the canonical leaf;
   Image/Extra/ExternalId carry single
   `(owner_type, owner_id)` discriminators; container schemas
@@ -342,7 +343,7 @@ Append-only.
   deliverables (Browse / Detail / Search / Progress + DB-on-
   render retirement) close Workstream A.
 * `2026-05-17` — **Library presence unification phases 1–2
-  shipped ([sibling campaign](done/library-presence-unification.md)).**
+  shipped ([sibling campaign](library-presence-unification.md)).**
   `Library.FilePresence` is the new Pillar-1 source of truth for
   "we observed this file at time N"; Watcher is being thinned
   toward an observer-only role with no durable state. Backfill
@@ -359,7 +360,7 @@ Append-only.
   diff against `jj log`, update before any new code touches the
   campaign.
 * `2026-05-17` — **LibraryLive grid Phase 3.1 cutover shipped
-  via rebase ([library-schema-v2 Phase 3.1](done/library-schema-v2.md#phase-31--librarylive-cutover--shipped-2026-05-16)).**
+  via rebase ([library-schema-v2 Phase 3.1](library-schema-v2.md#phase-31--librarylive-cutover--shipped-2026-05-16)).**
   Four-commit orphan branch authored 2026-05-16 (deferred while
   library-presence-unification finished through v0.65.1) rebased
   cleanly onto post-fork main today; no textual conflicts despite
@@ -445,7 +446,7 @@ separately namespaced. The real opportunity is the sub-context
 split. See ADR-043.
 
 * [x] Design ADR —
-  [ADR-043](../decisions/architecture/2026-05-10-043-acquisition-split.md)
+  [ADR-043](../../decisions/architecture/2026-05-10-043-acquisition-split.md)
   proposed 2026-05-10.
 * [x] Phase 1 — extract `Downloads` (qBittorrent driver, queue,
   health). 10 source files + 8 test files moved to
@@ -524,80 +525,103 @@ one place.
   `Library.Availability`; promoted to `Topics.library_availability/0`.
   *(shipped 2026-05-10)*
 
-## Open follow-ups
+## Closure — campaign-deferred items by destination
 
-Cross-cutting items surfaced during the work shipped this campaign
-(or in tightly-coupled sibling campaigns) that aren't blocking the
-remaining workstreams but **should be picked up before declaring
-the campaign complete**. Each one is small enough that it doesn't
-warrant its own workstream; collecting them here so they don't
-slip.
+**Status: complete (2026-05-17).** Every workstream the campaign
+opened is shipped: Library projections fan out from Pillar 1 to
+Pillar 2 across every LiveView read path (`no_db_on_render_test`
+guarding the budget), Acquisition split into Downloads / Search /
+slim Acquisition per ADR-043, the two grey-area Pillar-1 fields
+explicitly confirmed durable with rationale, and the Cache.Worker
++ Topics pattern documented in canonical moduledocs. Adjacent
+Library Schema v2 and library-presence-unification campaigns
+shipped the Pillar-1 shape and the Watcher → Library presence
+shift the projections rebuild from.
 
-**From Workstream A (projections):**
+Closing required a final reconciliation pass of the open follow-up
+backlog. Items split into three buckets — shipped during closure,
+deferred to another workstream, or noted as decision-pending /
+wait-for-consumer.
 
-* **Regenerate baselines** for `HeroCandidates`, `RecentlyAdded`,
+### Shipped during closure (2026-05-17c)
+
+| Item | Where |
+|------|-------|
+| ContinueWatching availability gap closed + HomeLive workaround removed | `lib/media_centarr/library/views/continue_watching.ex`, `lib/media_centarr_web/live/home_live/logic.ex`, `lib/media_centarr_web/live/home_live.ex` |
+| ADR-047 — PlayableItem reification | `decisions/architecture/2026-05-17-047-playable-item-reification.md` |
+| `docs/architecture.md` Pillar-2 / projection-layer principle + canonical Progress.Worker callout | `docs/architecture.md` Key Principles |
+| Campaign file reconciled, frontmatter flipped to `status: complete`, file moved to `campaigns/done/` | this commit |
+
+### Verified shipped earlier (stale open-follow-ups in the prior status)
+
+The previous 2026-05-17b status reflected the campaign mid-flight
+and carried follow-up items that landed before closure:
+
+| Item | Where |
+|------|-------|
+| DetailLive / EntityModal consumer flip to `Library.Views.Detail` | Phase 3.2 Tasks A–E shipped 2026-05-17 — see [`library-schema-v2.md`](library-schema-v2.md#phase-32--detaillive-cutover--shipped-2026-05-17) (commits `tukytwtxlzol`, `xuvkmlusolpw`, `uvkvrlnlpwln`) |
+| `Cache.handle_message/1` partial-refresh direct test | `test(cache): pin partial-refresh dispatch via PartialRefreshFake` (`qqzqryml`) |
+
+### Deferred — by destination workstream
+
+**Test infrastructure / profile-tooling workstream:**
+
+- **Baseline regeneration** for `HeroCandidates`, `RecentlyAdded`,
   `ComingUp`, `Browse`, `Detail`, `Search`, and the Progress
-  GenServer's read path. `scripts/profile --rebaseline` against
-  the current scale before campaign close so the projections have
-  reference numbers locked in.
-* **ContinueWatching availability gap.** The CW projection doesn't
-  subscribe to `library:availability`; the direct-source handler
-  `:availability_changed -> [:continue_watching]` in HomeLive's
-  reloader is a workaround. Add availability subscription to the
-  projection and remove the workaround.
+  GenServer's read path. Two blockers surfaced at closure:
+  1. The profile JSON loader trips `String.to_existing_atom("delta_abs")`
+     when reading the 2026-05-10 baseline-small.json — the `Diff`
+     module isn't force-loaded before `JSONFormatter.from_jsonable/1`
+     runs, so atoms it defines (`:delta_abs`, `:delta_pct`) aren't
+     yet known to the running BEAM. One-line fix
+     (`Code.ensure_loaded(MediaCentarr.Profile.Diff)` ahead of
+     deserialise_deltas) before any rebaseline run.
+  2. Only three of the seven projections in the original ask have
+     Benchee suites under `lib/media_centarr/profile/suites/` —
+     Browse, Detail, Search, and Progress need new `Suite` +
+     `RefreshSuite` modules following the HeroCandidates pattern
+     (~75 LOC per pair). After that, `scripts/profile --rebaseline
+     --yes` locks reference numbers at the current scale.
 
-**From Library Schema v2 sibling campaign (relevant to A's
-"every read path through a projection" criterion):**
+  The architectural perf gate is `no_db_on_render_test`, which is
+  in place and tightened. Baseline numbers are reference data, not
+  regression gates, which is why this defers cleanly rather than
+  blocking closure.
 
-* **DetailLive / EntityModal consumer flip** to
-  `Library.Views.Detail` — **🚧 in progress** as Phase 3.2 of
-  [`done/library-schema-v2.md`](done/library-schema-v2.md#phase-32--detaillive-cutover--in-progress-started-2026-05-17).
-  Tasks A + B + C.1 shipped 2026-05-17 (DetailItem grew typed inner
-  structs; projection populates them; episode `:content_url` +
-  season `:number_of_episodes`/`:extras` prepared). Tasks C.2, D, E
-  remaining — SeriesDetail.compose flip, then Movie/MovieSeries/
-  VideoObject flip, then retirement of rich-entity-map attrs.
-* **Library search consumer flip** to `Library.Views.search/2`.
-  Decision required: per-leaf rows (better UX, larger index) or
-  entity-only matching (simpler, regresses nested season/episode
-  substring match). Wait on user-behaviour data, not a guess.
-* **ADR for PlayableItem reification** (Library Schema v2
-  completion criterion). The campaign moduledoc is acting as the
-  record; promote to a real ADR alongside ADR-029
-  data-decoupling.
-* **`Cache.handle_message/1` partial-refresh direct test**
-  (LS-v2 Phase 3 Task B review I-1). The callback is exercised
-  end-to-end via Detail tests but lacks a unit test in
-  `cache_test.exs`.
-* **`Library.playable_item_ids_for_entities/1` UNION**
-  (LS-v2 Phase 3 Task B review I-2). Collapse three sequential
-  `Repo.all/1` calls into one UNION when batched cascade ops
-  surface as a hot path.
+**Component-contracts campaign:**
 
-**From v0.62.3 (Library empty-state scan UX):**
+- **Storybook coverage for projection-driven UIs** (Browse / Detail
+  consumers and downstream surfaces). The storybook contract Credo
+  rule (MC0009) catches missing stories at precommit time, but the
+  variation matrix for the new typed-attr surfaces should be
+  reviewed proactively once those components migrate to typed
+  contracts (component-contracts Phase 3.3, already deferred from
+  LS-v2 closure).
 
-* **Lift the inline pipeline-activity indicator into a shared
-  component.** Today it lives in LibraryLive's empty state; if
-  the UX hypothesis proves valuable, extract for use on Home /
-  Settings / setup-tour summary.
-* **Telemetry-driven push updates** instead of the 1s
-  `Pipeline.Stats` poll. Matches future move toward
+**UX backlog (v0.62.3 empty-state follow-ups):**
+
+- **Lift the inline pipeline-activity indicator into a shared
+  component** for use on Home / Settings / setup-tour summary, if
+  the UX hypothesis proves valuable.
+- **Telemetry-driven push updates** instead of the 1s
+  `Pipeline.Stats` poll. Matches the broader push toward
   PubSub-driven view updates; current 1s tick is fine.
-* **Per-stage breakdown** (parse / search / images / publish)
-  in the activity indicator. One aggregate count is enough
-  today; the breakdown is useful when a stage gets stuck.
+- **Per-stage breakdown** (parse / search / images / publish) in the
+  activity indicator. One aggregate count suffices today.
 
-**From the reconciliation itself:**
+**Re-homed to LS-v2 closure (already cataloged there):**
 
-* **Update `docs/architecture.md` ownership table** when this
-  campaign closes — reflect that Watcher owns no durable state,
-  Library owns file presence, and Library.Progress.Worker is
-  the canonical Pillar-2 GenServer example.
-* **Storybook coverage for the new projection-driven UIs**
-  (Browse / Detail consumers) once those flips ship. The
-  storybook contract Credo rule (MC0009) will catch missing
-  stories at precommit time, but the variation matrix should be
-  reviewed proactively.
+- Library search consumer flip to `Library.Views.search/2` —
+  decision-pending (per-leaf vs entity-only matching).
+- `Library.playable_item_ids_for_entities/1` UNION — wait-for-consumer
+  (do when batched cascade ops surface as a hot path).
+
+**Carried-forward optional workstream:**
+
+- **Workstream B Phase 4 (Pursuits promotion to top-level)** stays
+  parked per ADR-043 rationale. The current depth is justified by
+  ADR-039's aggregate scope, not by sprawl. Re-open only if a
+  concrete pressure (boundary friction, callsite weight) emerges.
 
 ## Completion criteria
 
@@ -627,23 +651,23 @@ slip.
 * TMDB rate-limiter / client — already paradigm-correct.
 * Pillar-1 schema redesign (PlayableItem reification, polymorphic
   discriminators, container metadata cleanup). Shipped under
-  the [`library-schema-v2`](done/library-schema-v2.md) sibling
+  the [`library-schema-v2`](library-schema-v2.md) sibling
   campaign; this campaign reconciles against its outcome rather
   than driving it.
 * Watcher / KnownFile schema retirement. Tracked under the
-  [`library-presence-unification`](done/library-presence-unification.md)
+  [`library-presence-unification`](library-presence-unification.md)
   sibling campaign.
 
 ## Pointers
 
-* [ADR-041 — In-memory projection architecture](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
-* [ADR-042 — Multi-session campaigns convention](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
-* [ADR-043 — Acquisition split](../decisions/architecture/2026-05-10-043-acquisition-split.md)
-* [ADR-045 — File-presence ownership](../decisions/architecture/2026-05-17-045-file-presence-ownership.md)
+* [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
+* [ADR-042 — Multi-session campaigns convention](../../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
+* [ADR-043 — Acquisition split](../../decisions/architecture/2026-05-10-043-acquisition-split.md)
+* [ADR-045 — File-presence ownership](../../decisions/architecture/2026-05-17-045-file-presence-ownership.md)
 * Sibling campaigns:
-  * [`done/library-schema-v2.md`](done/library-schema-v2.md) — Pillar-1
+  * [`library-schema-v2.md`](library-schema-v2.md) — Pillar-1
     schema redesign; phases 1–3 shipped.
-  * [`done/library-presence-unification.md`](done/library-presence-unification.md)
+  * [`library-presence-unification.md`](library-presence-unification.md)
     — Watcher-to-Library presence ownership shift; phases 1–2
     shipped.
 * `lib/media_centarr/cache.ex` + `lib/media_centarr/cache/` —
