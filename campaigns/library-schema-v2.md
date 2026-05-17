@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-complete; follow-ups open
 started: 2026-05-15
-last_updated: 2026-05-17g
+last_updated: 2026-05-17h
 resume_with: see "Resume — open follow-ups" section at the bottom
 ---
 # Library Schema v2 — architectural excellence
@@ -148,12 +148,15 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
 - ~~**Multi-PlayableItem `content_url` ordering policy** (Task I).~~
   ✅ Shipped 2026-05-17 — now sorts by `:position` for canonical-cut
   selection.
-- **`StatusHelpers.progress_matches_session?/2`** (Task C). Compares
+- ~~**`StatusHelpers.progress_matches_session?/2`** (Task C). Compares
   `progress.playable_item.container_id` against `now_playing[:movie_id]`
   etc., but `MpvSession.build_now_playing/1` doesn't populate those
   keys. Pre-existing latent bug, surfaced by Task C. Either backfill
   the keys at session start or rewrite the helper to use
-  `now_playing.entity_id`.
+  `now_playing.entity_id`.~~ ✅ Shipped 2026-05-17 (`57daa62f`) —
+  matcher rewritten to compare against `now_playing.entity_id`; UUIDs
+  are unique across container kinds so the kind discriminator
+  collapsed; existing tests ported to the production now_playing shape.
 - **`MpvSession` FK-key deferral** (Task C). Session-state still
   carries `movie_id` / `episode_id` / `video_object_id`; only the
   persistence boundary migrated. Worth a follow-up if a future task
@@ -752,7 +755,7 @@ campaign** than with this one. Don't tackle it piecemeal.
 ### Small open items (cherry-pickable, ordered by likely value)
 
 **Architectural / safety:**
-- Phase 2 — `StatusHelpers.progress_matches_session?/2` — pre-existing latent bug. Reads `now_playing[:movie_id]` etc. but `MpvSession.build_now_playing/1` doesn't populate those keys. Either backfill at session start or rewrite to use `now_playing.entity_id`.
+- ~~Phase 2 — `StatusHelpers.progress_matches_session?/2` — pre-existing latent bug.~~ ✅ Shipped 2026-05-17 (`57daa62f`) — matcher rewritten to compare against `now_playing.entity_id`.
 - Phase 3 — `Cache.handle_message/1` partial-refresh path direct test. Worth adding to `cache_test.exs` so future contributors don't regress the callback signature added in Phase 3 Task B.
 - Phase 3 — `reset_for_test!/0` Mix.env guard. Doc-tagged test-only but not enforced. Add a release-time guard.
 
