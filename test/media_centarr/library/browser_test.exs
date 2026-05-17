@@ -2,15 +2,12 @@ defmodule MediaCentarr.Library.BrowserTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Library.Browser
-  alias MediaCentarr.Watcher.FilePresence
+  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
 
-  # Creates a linked file and registers it as present in watcher_files,
-  # which the typed queries require for the EXISTS join.
-  defp create_present_file(attrs) do
-    file = create_linked_file(attrs)
-    FilePresence.record_file(file.file_path, file.watch_dir)
-    file
-  end
+  # Post-Phase-4 (library-presence-unification): `create_linked_file/1`
+  # auto-stamps Library.FilePresence, so a linked file IS a present file.
+  # The legacy `Watcher.FilePresence.record_file` no longer participates.
+  defp create_present_file(attrs), do: create_linked_file(attrs)
 
   describe "fetch_all_typed_entries/0" do
     test "includes a standalone movie with a linked file" do
@@ -88,7 +85,9 @@ defmodule MediaCentarr.Library.BrowserTest do
       movie = create_standalone_movie(%{name: "Gone Movie"})
       file = create_present_file(%{movie_id: movie.id})
 
-      FilePresence.mark_files_absent([file.file_path])
+      # Simulate the user-deletion flow: deleting Library.FilePresence
+      # cascade-deletes the WatchedFile (Phase-3 FK).
+      LibraryFilePresence.delete_paths([file.file_path])
 
       assert [] = Browser.fetch_all_typed_entries()
     end
@@ -211,7 +210,9 @@ defmodule MediaCentarr.Library.BrowserTest do
       movie = create_standalone_movie(%{name: "Absent Movie"})
       file = create_present_file(%{movie_id: movie.id})
 
-      FilePresence.mark_files_absent([file.file_path])
+      # Simulate the user-deletion flow: deleting Library.FilePresence
+      # cascade-deletes the WatchedFile (Phase-3 FK).
+      LibraryFilePresence.delete_paths([file.file_path])
 
       {entries, gone_ids} = Browser.fetch_typed_entries_by_ids([movie.id])
 

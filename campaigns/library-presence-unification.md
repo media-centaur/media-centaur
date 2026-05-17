@@ -2,7 +2,7 @@
 status: in-progress
 started: 2026-05-17
 last_updated: 2026-05-17
-phases_done: [1, 2, 3]
+phases_done: [1, 2, 3, 4]
 ---
 # Library presence unification
 
@@ -97,10 +97,22 @@ green and is committable on its own; don't straddle. Phases
    DB-level NOT-NULL is deferred to a follow-up migration in
    the release *after* the backfill has run everywhere — see
    the Phase-7 first sub-task below.
-4. **Phase 4** *(next)***.** Read-site flip: every Library join on
-   `watcher_files` switches to `library_file_presences`. One
-   commit per join site so bisect is precise. Tests updated
-   per site.
+4. ✅ **Phase 4.** Every Library join on `watcher_files` /
+   `Watcher.KnownFile` removed (8 join sites across
+   `library.ex`, `presentable_queries.ex`, `browser.ex`,
+   `views/detail.ex`). Presence is now structural via the
+   Phase-3 FK + cascade-delete; the `kf.state == :present`
+   filter is no longer needed (cascade-delete removes
+   WatchedFile when its FilePresence is deleted). Tests
+   updated to the new semantic: "absent" = no WatchedFile;
+   the previous flip-via-record_present pattern reworked
+   for the views projections. **Caveat:** for the
+   drive-unmount edge case, `Library.FilePresence` rows
+   linger until the Phase-6 AbsenceSweeper TTL-purges them
+   — drive-unmount entities are briefly visible after this
+   phase and before Phase 6 lands. Acceptable trade-off in a
+   contiguous multi-phase rollout; ADR-045 acknowledges
+   Phase 4 as the highest-risk slice.
 5. **Phase 5.** DiscoveryProducer ETS dedup; Parse stage gets
    a defensive `WatchedFile` / `ExtraFile` idempotency check.
    KnownFile becomes a dead write.

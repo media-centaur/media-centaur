@@ -54,8 +54,10 @@ defmodule MediaCentarr.Library.Views.DetailItem do
     * `:external_ids`               — `[%Library.ExternalId{}]` ID rows (TMDB, IMDB, etc.).
     * `:imdb_id`                    — convenience: IMDB id pulled from external_ids.
     * `:tmdb_id`                    — convenience: TMDB id pulled from external_ids.
-    * `:present?`                   — `true` when at least one backing WatchedFile is in the
-                                       `:present` state via `Watcher.KnownFile`.
+    * `:present?`                   — `true` when at least one backing WatchedFile exists for
+                                       the PlayableItem. Presence is structural after Phase 3
+                                       (`WatchedFile.file_presence_id` FK with cascade-delete
+                                       from `Library.FilePresence`).
   """
 
   @enforce_keys [:playable_item_id, :container_type, :container_id, :name]

@@ -16,11 +16,14 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
   alias MediaCentarr.Library.Views
   alias MediaCentarr.Library.Views.{Browse, BrowseItem}
   alias MediaCentarr.Topics
-  alias MediaCentarr.Watcher.FilePresence
+  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
 
   @table :library_view_browse
 
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
+  # Post-Phase-4 (library-presence-unification): `create_linked_file/1`
+  # auto-stamps Library.FilePresence, so a linked file IS a present file.
+  # Helper kept as a no-op so legacy seed code still reads clearly.
+  defp record_present(_file), do: :ok
 
   # ETS table is global; tests that exercise the cached path must clean
   # up so later tests fall back to a clean slate.
@@ -333,15 +336,18 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
     test "file becoming present surfaces the entity in next refresh" do
       on_exit_clear_table()
 
-      # A movie whose file is NOT yet recorded as present.
+      # Post-Phase-4 (library-presence-unification): "presence" is now
+      # structural — a WatchedFile exists iff its Library.FilePresence
+      # exists (cascade-delete via FK). The "absent" baseline below is
+      # the no-WatchedFile state; flipping to "present" means stamping
+      # the WatchedFile.
       movie = create_standalone_movie(%{name: "Late Arrival"})
-      file = create_linked_file(%{movie_id: movie.id})
 
       :ok = Browse.refresh_cache()
       assert Views.browse() == []
 
-      # File flips to present.
-      record_present(file)
+      # File flips to present: stamp the WatchedFile.
+      _file = create_linked_file(%{movie_id: movie.id})
 
       :ok = Browse.refresh_cache()
       assert [%BrowseItem{name: "Late Arrival"}] = Views.browse()
