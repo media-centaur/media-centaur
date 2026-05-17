@@ -28,6 +28,11 @@ Use [`template.md`](template.md) as a starter.
 * [`component-contracts.md`](component-contracts.md) — every
   LiveView function component declares a typed contract for
   domain-data attrs; eliminate bare `:any` / `:map` / `:list`.
+* [`library-presence-unification.md`](library-presence-unification.md)
+  — move file-presence ownership into Library
+  (`Library.FilePresence`), shrink Watcher to a thin filesystem
+  observer with no durable state. Closes the orphan-stuck-pipeline
+  bug class structurally.
 
 ## Shipped (retro story coverage outstanding)
 

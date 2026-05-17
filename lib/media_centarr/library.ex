@@ -13,6 +13,7 @@ defmodule MediaCentarr.Library do
       ExternalId,
       ExternalIds,
       FileEventHandler,
+      FilePresence,
       Image,
       ImageHealth,
       Movie,
