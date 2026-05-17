@@ -65,11 +65,11 @@ Inventoried 2026-05-17 across `detail_panel.ex`, `detail/hero.ex`, `detail/logic
 | Field | Used by | Why |
 |---|---|---|
 | `:images` | `Hero` (backdrop + logo), poster fallback | Currently entity-preloaded; modal hero needs backdrop URL + logo URL + poster URL |
-| `:seasons` (TV) | `DetailPanel.season_section`, `SeriesDetail.build/4` | List of `%{season_number, name, episodes: [...], extras: [...]}` with per-episode progress and presence |
-| `:movies` (MovieSeries) | `DetailPanel.content_list/1`, `MovieList.sort_movies/1` | List of `%{id, name, date_published, content_url, position}` for "play this entry of the series" |
-| `:watched_files` (leaf) | delete-file/folder UX, content_url resolution | One row per backing file on disk; modal renders the path, watch_dir, ability to "remove file" |
-| `:subtitle_tracks` (leaf) | `SubtitlesRow` | Currently fetched via `Subtitles.list_tracks_for_file/1`; could either inline at the projection or stay as a bulk-overlay |
-| `:extra_progress` (entity) | `extras_section` rendering of "watched 3 of 5 bonus features" | Currently entity-preloaded as `entity.extra_progress`; modal needs `%{extra_id => WatchProgress}` map |
+| `:seasons` (TV) | `DetailPanel.season_section`, `SeriesDetail.build/4` | Typed `[%DetailItem.Season{}]` carrying static episode metadata; per-episode progress overlays at the consumer |
+| `:movies` (MovieSeries) | `DetailPanel.content_list/1`, `MovieList.sort_movies/1` | Typed `[%DetailItem.MovieEntry{}]` with name, date_published, content_url, position; progress overlays at the consumer |
+| `:watched_files` (leaf) | delete-file/folder UX, content_url resolution | Typed `[%DetailItem.WatchedFile{}]` — one row per backing file on disk |
+| `:subtitle_tracks` (leaf) | `SubtitlesRow` | Typed `[%DetailItem.SubtitleTrack{}]` carrying kind + language + source. Decision: inline on projection refresh (default) or bulk-overlay at modal open — Task B settles based on cold-start build time |
+| ~`:extra_progress`~ | n/a | **REMOVED 2026-05-17 (Task A decision).** Progress overlays at LiveView via `Library.Progress.get/1`, same pattern as BrowseItem in Phase 3.1. Avoids invalidating Detail projection on every playback tick |
 | `:tracking_status` | `SeriesDetail` builder, modal toggle button | Read from `ReleaseTracking.lookup_tracking_status/1`; cross-context overlay, **stays at LiveView layer**, not on DetailItem |
 
 ### Cross-context overlays — stay at LiveView layer
@@ -90,16 +90,14 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 **Goal:** Define every field the modal needs, fail compilation everywhere a consumer reads a missing key. No DB code yet; DetailItem is a struct-with-types change.
 
-- [ ] Add `:images, :seasons, :movies, :watched_files, :subtitle_tracks, :extra_progress` to the struct and `@type t`.
-- [ ] Document each field's shape inline (per existing moduledoc convention). For `:seasons` and `:movies`, use typed inner structs (`Library.Views.DetailItem.Season`, `Library.Views.DetailItem.MovieEntry`) — not loose maps. Storybook contract (Credo MC0009) requires typed attrs.
-- [ ] Update `DetailItem` storybook fixtures to populate the new fields with realistic data so the existing detail stories keep rendering.
-- [ ] Re-run `mix precommit`. Compilation should fail in `Library.Views.Detail.refresh_cache/0` (the projection builder doesn't know about the new fields) — that's the next task.
+- [x] Add `:images, :seasons, :movies, :watched_files, :subtitle_tracks` to the struct and `@type t`. (`:extra_progress` dropped per the design decision above — progress is overlay, not embedded.)
+- [x] Inner structs declared in the same file: `DetailItem.Season`, `DetailItem.Episode`, `DetailItem.MovieEntry`, `DetailItem.WatchedFile`, `DetailItem.SubtitleTrack`. Plain `defstruct + @enforce_keys + @type t` following the `EpisodeListItem` precedent.
+- [ ] Update `DetailItem` storybook fixtures to populate the new fields with realistic data so the existing detail stories keep rendering. **(Deferred — no existing DetailItem-typed storybook attr exists yet; storybook flip lands at Task E alongside the consumer migration.)**
 
 **Tests:**
-* `test/media_centarr/library/views/detail_item_test.exs` — type-shape unit test for the new inner structs (cast/crew/etc. follow the same convention via `Library.Person`).
-* No existing test should require a change yet.
+* [x] `test/media_centarr/library/views/detail_item_test.exs` — struct-shape unit test (`async: true`, 12 cases). Covers field defaults + required-key enforcement for DetailItem and each inner struct.
 
-**Acceptance:** `DetailItem` struct compiles; projection-builder + consumer files fail compilation pointing at the new keys. Storybook stories render with new fixtures.
+**Acceptance:** `DetailItem` struct compiles; existing projection-builder + consumer files keep compiling because the new fields default to nil. **Shipped 2026-05-17.**
 
 ---
 
