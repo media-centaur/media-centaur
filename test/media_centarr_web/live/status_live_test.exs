@@ -69,8 +69,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
            state: :playing,
            now_playing: %{
              entity_id: movie_id,
-             movie_id: movie_id,
-             movie_name: "Position Update Movie",
+             entity_name: "Position Update Movie",
              position_seconds: 100.0,
              duration_seconds: 1000.0
            },
@@ -82,10 +81,9 @@ defmodule MediaCentarrWeb.StatusLiveTest do
       # 100s into 1000s = 900s remaining = 15m
       assert html =~ "15m remaining"
 
-      # Library Schema v2 Phase 2 Task C: progress records carry
-      # `playable_item_id` only. `progress_matches_session?/2` reads
-      # the synthesised `:playable_item` discriminator pair
-      # (`EntityShape.attach_container/3` at runtime).
+      # `progress_matches_session?/2` compares the progress record's
+      # synthesised `playable_item.container_id` against the session's
+      # `now_playing.entity_id` (both container UUIDs).
       send(
         view.pid,
         {:entity_progress_updated,
@@ -120,8 +118,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
            state: :playing,
            now_playing: %{
              entity_id: movie_id,
-             movie_id: movie_id,
-             movie_name: "Soon To Stop Movie",
+             entity_name: "Soon To Stop Movie",
              position_seconds: 0.0,
              duration_seconds: 1000.0
            },
