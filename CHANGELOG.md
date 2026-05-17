@@ -4,6 +4,17 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.65.1 — 2026-05-17
+
+### Behind the scenes
+
+Follow-up to the file-presence unification: cascading deletes are
+now driven entirely by the application instead of the database. No
+behaviour change for end users — the same deletion path runs in the
+same order as before — but future schema work on SQLite no longer
+needs to dance around foreign-key constraints. See
+`decisions/architecture/2026-05-17-046-app-owned-cascading-deletes.md`.
+
 ## v0.65.0 — 2026-05-17
 
 ### Improved
