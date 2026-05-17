@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-complete
 started: 2026-05-15
-last_updated: 2026-05-17e
+last_updated: 2026-05-17f
 ---
 # Library Schema v2 — architectural excellence
 
@@ -141,15 +141,12 @@ Phase 2 but worth picking up for full architectural polish:
 
 Items surfaced during Phase 2 reviews — not blocking Phase 3:
 
-- **`populate_leaf_content_url/1` silent-nil → raise on
-  NotLoaded** (Task I review). The `content_url` virtual field is
-  silently nil when `playable_items` isn't preloaded; convert to a
-  loud `ArgumentError` so the next contributor sees the
-  missing-preload bug at test time, not runtime.
-- **Multi-PlayableItem `content_url` ordering policy** (Task I).
-  `populate_leaf_content_url/1` uses `Enum.find_value` — order is
-  whatever Repo returned. Add `order_by: [asc: position]` on the
-  preload (or document the non-determinism explicitly).
+- ~~**`populate_leaf_content_url/1` silent-nil → raise on
+  NotLoaded** (Task I review).~~ ✅ Shipped 2026-05-17 as part of the
+  Phase 2/3 follow-up bundle.
+- ~~**Multi-PlayableItem `content_url` ordering policy** (Task I).~~
+  ✅ Shipped 2026-05-17 — now sorts by `:position` for canonical-cut
+  selection.
 - **`StatusHelpers.progress_matches_session?/2`** (Task C). Compares
   `progress.playable_item.container_id` against `now_playing[:movie_id]`
   etc., but `MpvSession.build_now_playing/1` doesn't populate those
@@ -165,14 +162,12 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
   :watch_progress)` silently returns the first row instead of raising.
   Acceptable today (no multi-cut writers); tighten when multi-cut UI
   ships.
-- **EntityCascade `bulk_destroy` ordering comment** (Task H). Cascade
-  order is correct but the relationship between `destroy_leaf!` and
-  `bulk_destroy` is implicit; one inline comment removes the trap.
-- **`Library.find_or_create_external_id/1`** (D+E+F review). Helper
-  looks up by `(source, external_id)` only — could return a row owned
-  by a different `owner_type` than requested. Currently has zero
-  callers (orphan helper). Either remove or fix to include
-  `owner_type` in the lookup.
+- ~~**EntityCascade `bulk_destroy` ordering comment** (Task H).~~
+  ✅ Shipped 2026-05-17 — inline comment explaining the cascade-order
+  dependency on `destroy_leaf!/2`.
+- ~~**`Library.find_or_create_external_id/1`** (D+E+F review).~~
+  ✅ Shipped 2026-05-17 — orphan helper removed; the boundary still
+  exposes `Library.ExternalIds.put/3` as the canonical write path.
 - **TMDB `Mapper` image helpers still emit legacy `entity_id` keys**
   (D+E+F). No live consumers (only tests); remove when those tests
   refactor.
@@ -180,12 +175,12 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
   `Maintenance.resources_in_delete_order/0` doesn't list PlayableItem;
   Task H rewrote the cascade so this is no longer load-bearing, but
   the constant could be deleted entirely if nothing else reads it.
-- **Validate-pair test for `release_tracking_items`** (Task J). 5-line
-  test for the half-set rejection of `validate_container_pair/1`.
-- **`ComingUpItemRef.entity_id` discoverability comment** (Task J). The
-  view-model field is named `entity_id` but holds a Library container
-  UUID — kept for URL-param convention. One-line `@doc` removes the
-  ambiguity.
+- ~~**Validate-pair test for `release_tracking_items`** (Task J).~~
+  ✅ Shipped 2026-05-17 — three cases covering both half-set
+  rejections and the unlinked happy path.
+- ~~**`ComingUpItemRef.entity_id` discoverability comment** (Task J).~~
+  ✅ Shipped 2026-05-17 — moduledoc now spells out that `:entity_id`
+  holds a Library container UUID despite the URL-param convention.
 - **`StatusResolver.progress_record_key/1` simplification** (Task C
   follow-up review). Now keys by `playable_item_id` only — verify no
   edge case where the legacy tuple-key invariant mattered.

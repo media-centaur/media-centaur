@@ -32,6 +32,47 @@ defmodule MediaCentarr.ReleaseTrackingTest do
 
       assert errors_on(changeset).tmdb_id
     end
+
+    # Phase 2 follow-up (Task J): validate_container_pair/1 rejects
+    # half-set (type without id, id without type) discriminator pairs —
+    # those rows had no meaning and produced confusing query behaviour
+    # downstream once the polymorphic FK fanout collapsed.
+
+    test "rejects library_container_id without library_container_type" do
+      assert {:error, changeset} =
+               ReleaseTracking.track_item(%{
+                 tmdb_id: 2_000_001,
+                 media_type: :tv_series,
+                 name: "Half-set id-only",
+                 library_container_id: Ecto.UUID.generate()
+               })
+
+      assert errors_on(changeset).library_container_type
+    end
+
+    test "rejects library_container_type without library_container_id" do
+      assert {:error, changeset} =
+               ReleaseTracking.track_item(%{
+                 tmdb_id: 2_000_002,
+                 media_type: :tv_series,
+                 name: "Half-set type-only",
+                 library_container_type: :tv_series
+               })
+
+      assert errors_on(changeset).library_container_id
+    end
+
+    test "accepts both halves unset (library-unlinked tracking item)" do
+      assert {:ok, item} =
+               ReleaseTracking.track_item(%{
+                 tmdb_id: 2_000_003,
+                 media_type: :tv_series,
+                 name: "Unlinked"
+               })
+
+      assert item.library_container_type == nil
+      assert item.library_container_id == nil
+    end
   end
 
   describe "ignore_item/1 and watch_item/1" do
