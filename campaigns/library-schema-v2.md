@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-complete; follow-ups open
 started: 2026-05-15
-last_updated: 2026-05-17k
+last_updated: 2026-05-17l
 resume_with: see "Resume — open follow-ups" section at the bottom
 ---
 # Library Schema v2 — architectural excellence
@@ -172,9 +172,14 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
 - ~~**`Library.find_or_create_external_id/1`** (D+E+F review).~~
   ✅ Shipped 2026-05-17 — orphan helper removed; the boundary still
   exposes `Library.ExternalIds.put/3` as the canonical write path.
-- **TMDB `Mapper` image helpers still emit legacy `entity_id` keys**
+- ~~**TMDB `Mapper` image helpers still emit legacy `entity_id` keys**
   (D+E+F). No live consumers (only tests); remove when those tests
-  refactor.
+  refactor.~~ ✅ Shipped 2026-05-17 (`movlskrk`) — `image_attrs/2`,
+  `movie_image_attrs/2`, `episode_image_attrs/2`,
+  `collection_image_attrs/2`, `child_movie_attrs/5`, and the private
+  `build_image_attrs/3` + `find_logo_path/1` deleted from `Mapper`
+  along with their tests; the pipeline's own `build_images/1` produces
+  the owner-key-less shape and `Library.Inbound` attaches the owner.
 - ~~**`resources_in_delete_order` missing PlayableItem** (D+E+F note).
   `Maintenance.resources_in_delete_order/0` doesn't list PlayableItem;
   Task H rewrote the cascade so this is no longer load-bearing, but
@@ -778,7 +783,7 @@ campaign** than with this one. Don't tackle it piecemeal.
 - Phase 1 — Year-helper consolidation (4+ helpers across the codebase; collapse once storybook migrates to typed `%Date{}` fixtures via the component-contracts campaign).
 - Phase 2 — `MpvSession` FK-key deferral. Session-state still carries `movie_id` / `episode_id` / `video_object_id`; persistence boundary migrated, runtime didn't.
 - Phase 2 — `has_one through` silent drop on multi-cut. Tighten when multi-cut UI ships.
-- Phase 2 — TMDB `Mapper` image helpers still emit legacy `entity_id` keys (only tests consume; remove when those tests refactor).
+- ~~Phase 2 — TMDB `Mapper` image helpers still emit legacy `entity_id` keys.~~ ✅ Shipped 2026-05-17 (`movlskrk`) — five dead helpers + their tests deleted.
 - ~~Phase 2 — `resources_in_delete_order` missing `PlayableItem`.~~ ✅ Shipped 2026-05-17 (`xwnkyrvm`) — added PlayableItem to the list; the premise that the constant was no longer load-bearing was wrong (`Maintenance.clear_database/0` still consumes it). Regression test added.
 - Phase 2 — `StatusResolver.progress_record_key/1` simplification. Now keys by `playable_item_id` only — verify no edge case where the legacy tuple-key invariant mattered.
 - Phase 3 — `Library.playable_item_ids_for_entities/1` UNION (three sequential `Repo.all/1` calls could collapse).

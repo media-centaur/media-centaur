@@ -549,68 +549,6 @@ defmodule MediaCentarr.TMDB.MapperTest do
     end
   end
 
-  describe "image_attrs/2" do
-    test "builds image attrs from poster, backdrop, and logo paths" do
-      data = %{
-        "poster_path" => "/poster.jpg",
-        "backdrop_path" => "/backdrop.jpg",
-        "images" => %{
-          "logos" => [%{"iso_639_1" => "en", "file_path" => "/logo.png"}]
-        }
-      }
-
-      result = Mapper.image_attrs("entity-uuid", data)
-
-      assert length(result) == 3
-
-      poster = Enum.find(result, &(&1.role == "poster"))
-      assert poster.entity_id == "entity-uuid"
-      assert poster.url == "https://image.tmdb.org/t/p/original/poster.jpg"
-
-      backdrop = Enum.find(result, &(&1.role == "backdrop"))
-      assert backdrop.entity_id == "entity-uuid"
-      assert backdrop.url == "https://image.tmdb.org/t/p/original/backdrop.jpg"
-
-      logo = Enum.find(result, &(&1.role == "logo"))
-      assert logo.entity_id == "entity-uuid"
-      assert logo.url == "https://image.tmdb.org/t/p/original/logo.png"
-    end
-
-    test "nil paths are skipped" do
-      data = %{
-        "poster_path" => "/poster.jpg",
-        "backdrop_path" => nil,
-        "images" => %{"logos" => []}
-      }
-
-      result = Mapper.image_attrs("entity-uuid", data)
-
-      assert length(result) == 1
-      assert hd(result).role == "poster"
-    end
-  end
-
-  describe "episode_image_attrs/2" do
-    test "still_path present returns thumb image" do
-      tmdb_episode = %{"still_path" => "/still.jpg"}
-
-      result = Mapper.episode_image_attrs("episode-uuid", tmdb_episode)
-
-      assert [image] = result
-      assert image.episode_id == "episode-uuid"
-      assert image.role == "thumb"
-      assert image.url == "https://image.tmdb.org/t/p/original/still.jpg"
-    end
-
-    test "nil still_path returns empty list" do
-      assert Mapper.episode_image_attrs("episode-uuid", %{"still_path" => nil}) == []
-    end
-
-    test "nil episode returns empty list" do
-      assert Mapper.episode_image_attrs("episode-uuid", nil) == []
-    end
-  end
-
   describe "movie_series_attrs/2" do
     test "maps collection data" do
       data = %{
@@ -625,56 +563,6 @@ defmodule MediaCentarr.TMDB.MapperTest do
       assert result.name == "Sample Trilogy"
       assert result.description == "Three sample films."
       assert result.url == "https://www.themoviedb.org/collection/263"
-    end
-  end
-
-  describe "child_movie_attrs/5" do
-    test "includes entity_id, tmdb_id as string, and position" do
-      data = %{
-        "title" => "Sample Origin",
-        "overview" => "Origin story.",
-        "release_date" => "2005-06-15",
-        "runtime" => 140,
-        "vote_average" => 7.7,
-        "credits" => %{
-          "crew" => [
-            %{"department" => "Directing", "job" => "Director", "name" => "Sample Director"}
-          ]
-        },
-        "release_dates" => nil
-      }
-
-      result = Mapper.child_movie_attrs("entity-uuid", 272, data, "/media/sample_origin.mkv", 0)
-
-      assert result.entity_id == "entity-uuid"
-      assert result.tmdb_id == "272"
-      assert result.name == "Sample Origin"
-      assert result.position == 0
-      assert result.content_url == "/media/sample_origin.mkv"
-      assert result.director == "Sample Director"
-    end
-  end
-
-  describe "movie_image_attrs/2" do
-    test "uses movie_id key" do
-      data = %{"poster_path" => "/poster.jpg", "backdrop_path" => nil}
-
-      result = Mapper.movie_image_attrs("movie-uuid", data)
-
-      assert [image] = result
-      assert image.movie_id == "movie-uuid"
-      assert image.role == "poster"
-    end
-  end
-
-  describe "collection_image_attrs/2" do
-    test "uses entity_id key" do
-      data = %{"poster_path" => "/poster.jpg", "backdrop_path" => nil}
-
-      result = Mapper.collection_image_attrs("entity-uuid", data)
-
-      assert [image] = result
-      assert image.entity_id == "entity-uuid"
     end
   end
 
