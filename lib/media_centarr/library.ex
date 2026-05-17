@@ -801,7 +801,13 @@ defmodule MediaCentarr.Library do
   defp populate_leaf_content_url(%{playable_items: playable_items} = leaf)
        when is_list(playable_items) do
     url =
-      Enum.find_value(playable_items, fn
+      playable_items
+      # Multi-PlayableItem leaves (multi-cut Movie, multi-part Episode)
+      # pick the lowest `:position` PI for the content_url surface — a
+      # deterministic canonical-cut choice rather than whatever order
+      # Repo happened to return. Per Phase 2 follow-up.
+      |> Enum.sort_by(& &1.position)
+      |> Enum.find_value(fn
         %PlayableItem{watched_files: [%WatchedFile{file_path: path} | _]} when is_binary(path) ->
           path
 
@@ -810,6 +816,17 @@ defmodule MediaCentarr.Library do
       end)
 
     %{leaf | content_url: url}
+  end
+
+  defp populate_leaf_content_url(%{playable_items: %Ecto.Association.NotLoaded{}} = leaf) do
+    # Loud failure replaces a Phase 2 silent-nil: callers must preload
+    # `playable_items: :watched_files`. The pre-Phase-3.2 silent path
+    # masked missing-preload bugs (leaf rendered with `content_url:
+    # nil`) until the consumer dereferenced the missing field at render
+    # time. Raising here surfaces the bug at the test boundary instead.
+    raise ArgumentError,
+          "populate_leaf_content_url/1 called on #{inspect(leaf.__struct__)} without :playable_items preloaded. " <>
+            "Preload `playable_items: :watched_files` before calling this function."
   end
 
   defp populate_leaf_content_url(leaf), do: leaf
@@ -1082,18 +1099,6 @@ defmodule MediaCentarr.Library do
   # ---------------------------------------------------------------------------
   # ExternalId
   # ---------------------------------------------------------------------------
-
-  def find_or_create_external_id(attrs) do
-    translated = translate_external_id_owner(Map.new(attrs))
-
-    find_or_insert_by(
-      ExternalId,
-      [source: lookup_attr(translated, :source), external_id: lookup_attr(translated, :external_id)],
-      translated
-    )
-  end
-
-  def find_or_create_external_id!(attrs), do: Repo.bang!(find_or_create_external_id(attrs))
 
   def create_external_id(attrs) do
     Repo.insert(ExternalId.create_changeset(translate_external_id_owner(attrs)))
