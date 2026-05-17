@@ -2,7 +2,7 @@
 status: in-progress
 started: 2026-05-17
 last_updated: 2026-05-17
-phases_done: [1, 2, 3, 4]
+phases_done: [1, 2, 3, 4, 5]
 ---
 # Library presence unification
 
@@ -113,9 +113,18 @@ green and is committable on its own; don't straddle. Phases
    phase and before Phase 6 lands. Acceptable trade-off in a
    contiguous multi-phase rollout; ADR-045 acknowledges
    Phase 4 as the highest-risk slice.
-5. **Phase 5.** DiscoveryProducer ETS dedup; Parse stage gets
-   a defensive `WatchedFile` / `ExtraFile` idempotency check.
-   KnownFile becomes a dead write.
+5. ✅ **Phase 5.** New
+   `MediaCentarr.Pipeline.Discovery.InflightSet` GenServer
+   owns an `:ets` named table that the Producer claims on
+   every `{:file_detected, ...}` event (returns `false` if
+   the path is already in flight; the duplicate is dropped).
+   The Producer's `ack/3` releases the path after batch
+   completion (success or failure). Pipeline dedup is now
+   structurally independent of the watcher_files DB upsert
+   side-effect — `Watcher.KnownFile.record_file` is a dead
+   write nothing reads. `Discovery.already_linked?/1` also
+   checks `ExtraFile` for the defensive Parse-stage
+   idempotency the campaign called for.
 6. **Phase 6.** New `Library.AbsenceSweeper` GenServer.
    Delete `Watcher.AbsencePolicy`. Topic + payload contract
    for `{:files_removed, paths}` preserved verbatim.
