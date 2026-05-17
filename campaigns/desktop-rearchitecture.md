@@ -71,7 +71,7 @@ canonical homes for the three-flavour Cache.Worker pattern and the
 source-vs-derived PubSub taxonomy.
 
 **Adjacent campaigns shipping pillar-aligned work:**
-* **Library Schema v2** (`library-schema-v2.md`, phases 1–3 shipped
+* **Library Schema v2** (`done/library-schema-v2.md`, phases 1–3 shipped
   2026-05-16) rebuilt the Pillar-1 schema the projections rebuild
   from: PlayableItem as the canonical leaf, polymorphic
   `(owner_type, owner_id)` discriminators on Image/Extra/ExternalId,
@@ -331,7 +331,7 @@ Append-only.
   to the new aliases. Search extraction (Phase 2) and
   Acquisition boundary cleanup (Phase 3) remain open.
 * `2026-05-16` — **Library Schema v2 phases 1–3 shipped
-  ([sibling campaign](library-schema-v2.md)).** Rebuilds the
+  ([sibling campaign](done/library-schema-v2.md)).** Rebuilds the
   Pillar-1 schema. PlayableItem is the canonical leaf;
   Image/Extra/ExternalId carry single
   `(owner_type, owner_id)` discriminators; container schemas
@@ -359,7 +359,7 @@ Append-only.
   diff against `jj log`, update before any new code touches the
   campaign.
 * `2026-05-17` — **LibraryLive grid Phase 3.1 cutover shipped
-  via rebase ([library-schema-v2 Phase 3.1](library-schema-v2.md#phase-31--librarylive-cutover--shipped-2026-05-16)).**
+  via rebase ([library-schema-v2 Phase 3.1](done/library-schema-v2.md#phase-31--librarylive-cutover--shipped-2026-05-16)).**
   Four-commit orphan branch authored 2026-05-16 (deferred while
   library-presence-unification finished through v0.65.1) rebased
   cleanly onto post-fork main today; no textual conflicts despite
@@ -551,7 +551,7 @@ slip.
 
 * **DetailLive / EntityModal consumer flip** to
   `Library.Views.Detail` — **🚧 in progress** as Phase 3.2 of
-  [`library-schema-v2.md`](library-schema-v2.md#phase-32--detaillive-cutover--in-progress-started-2026-05-17).
+  [`done/library-schema-v2.md`](done/library-schema-v2.md#phase-32--detaillive-cutover--in-progress-started-2026-05-17).
   Tasks A + B + C.1 shipped 2026-05-17 (DetailItem grew typed inner
   structs; projection populates them; episode `:content_url` +
   season `:number_of_episodes`/`:extras` prepared). Tasks C.2, D, E
@@ -627,7 +627,7 @@ slip.
 * TMDB rate-limiter / client — already paradigm-correct.
 * Pillar-1 schema redesign (PlayableItem reification, polymorphic
   discriminators, container metadata cleanup). Shipped under
-  the [`library-schema-v2`](library-schema-v2.md) sibling
+  the [`library-schema-v2`](done/library-schema-v2.md) sibling
   campaign; this campaign reconciles against its outcome rather
   than driving it.
 * Watcher / KnownFile schema retirement. Tracked under the
@@ -641,7 +641,7 @@ slip.
 * [ADR-043 — Acquisition split](../decisions/architecture/2026-05-10-043-acquisition-split.md)
 * [ADR-045 — File-presence ownership](../decisions/architecture/2026-05-17-045-file-presence-ownership.md)
 * Sibling campaigns:
-  * [`library-schema-v2.md`](library-schema-v2.md) — Pillar-1
+  * [`done/library-schema-v2.md`](done/library-schema-v2.md) — Pillar-1
     schema redesign; phases 1–3 shipped.
   * [`done/library-presence-unification.md`](done/library-presence-unification.md)
     — Watcher-to-Library presence ownership shift; phases 1–2

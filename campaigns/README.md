@@ -47,3 +47,12 @@ Use [`template.md`](template.md) as a starter.
   observer with no durable state. Closed the orphan-stuck-pipeline
   bug class structurally. Shipped v0.65.0; follow-up FK drop
   shipped v0.65.1 (ADR-046).
+* [`done/library-schema-v2.md`](done/library-schema-v2.md) —
+  pre-public architectural refit of the Library bounded context:
+  PlayableItem reified as the canonical leaf, supporting tables
+  collapsed to single-FK or single-discriminator shapes, all
+  Pillar-1 fields typed, ADR-041 projections fan out to every
+  Library LiveView read path. Phases 1–3.2 shipped 2026-05-15
+  through 2026-05-17; closure pass 2026-05-17. Deferred items
+  re-homed to component-contracts, test-infra, and Playback
+  workstreams (see the campaign's Closure section).
