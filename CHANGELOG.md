@@ -4,6 +4,26 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.63.0 — 2026-05-17
+
+### Fixed
+
+If your library has previously gotten stuck — files on disk, watcher
+running, but nothing ingesting — this upgrade unsticks it. A
+migration finds files the watcher had recorded but the pipeline
+never matched (typically because TMDB was misconfigured at the
+time), forgets them, and lets the next scan dispatch them fresh.
+Your library should populate within a few minutes of restart.
+
+### Behind the scenes
+
+This release lands the first two phases of a multi-release
+architectural refit that moves file-presence ownership from the
+watcher into the library, where it belongs. The visible behavior
+above is the first user-facing benefit of the refit; subsequent
+phases over the next few releases will eliminate the entire bug
+class structurally.
+
 ## v0.62.3 — 2026-05-17
 
 ### New
