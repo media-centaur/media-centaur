@@ -22,8 +22,27 @@ campaign lands.
 
 ## Status
 
-`2026-05-17`: Phase 0 in progress. ADR-045 written. Campaign
-spec authored. Schema + migration not yet started.
+`2026-05-17`: **Phases 1 + 2 shipped in v0.63.0.** Phases 3–8
+remain.
+
+* Phase 1 — `Library.FilePresence` schema, migration
+  `20260517100000_create_file_presences.exs`, and context API
+  (`stamp/2`, `stamp_many/3`, `list_paths_for_watch_dir/1`,
+  `list_stale/1`, `delete_paths/1`) live. Library boundary
+  exports `FilePresence`. ADR-045 written.
+* Phase 2 — Watcher dual-writes to both `Watcher.FilePresence`
+  and `Library.FilePresence`; scan-dedup reads from
+  `Library.FilePresence`. Backfill data migration
+  `20260517100100_backfill_file_presences.exs` ran with an
+  `INNER JOIN library_watched_files` filter — orphan
+  `:present` KnownFile rows are intentionally excluded so
+  the next watcher scan re-detects them fresh. That heals
+  the original orphan-stuck-pipeline bug on upgrade (verified
+  in this user's production: 206 WatchedFiles + 295-row
+  ingest queue active after upgrade).
+* Phases 3–8 — schema FK, read-site flip, DiscoveryProducer
+  ETS dedup, AbsenceSweeper port, drop `watcher_files`,
+  verification. See *Next steps* below.
 
 ## Decisions made
 
@@ -37,16 +56,17 @@ spec authored. Schema + migration not yet started.
 ## Next steps
 
 Per the eight-phase plan in [ADR-045][1]. Each phase ships
-green and is committable on its own; don't straddle.
+green and is committable on its own; don't straddle. Phases 1
+and 2 are ✅ done (see Status); resume at Phase 3.
 
-1. **Phase 1.** Introduce `Library.FilePresence` schema +
+1. ✅ **Phase 1.** Introduce `Library.FilePresence` schema +
    migration + context API. Non-breaking; no callers yet.
    Tests for the context.
-2. **Phase 2.** Watcher writes through `Library.FilePresence`
+2. ✅ **Phase 2.** Watcher writes through `Library.FilePresence`
    (dual-write with KnownFile). Backfill migration from
    `watcher_files`. Watcher's scan-dedup reads from
    FilePresence.
-3. **Phase 3.** Add `file_presence_id` FK to WatchedFile and
+3. **Phase 3** *(next)***.** Add `file_presence_id` FK to WatchedFile and
    ExtraFile. Backfill from `file_path`. Tighten to non-null
    after backfill.
 4. **Phase 4.** Read-site flip: every Library join on
