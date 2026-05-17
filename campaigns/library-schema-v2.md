@@ -1,7 +1,7 @@
 ---
-status: phase-3.2-in-progress
+status: phase-3.2-complete
 started: 2026-05-15
-last_updated: 2026-05-17d
+last_updated: 2026-05-17e
 ---
 # Library Schema v2 — architectural excellence
 
@@ -217,13 +217,22 @@ on_mount-hook cache-miss reads). The test-mode budget moved from 80
 to 45 to reflect the fallback path; the production benefit is the
 ETS lookup, not the test-mode count.
 
-## Phase 3.2 — DetailLive cutover (🚧 in progress, started 2026-05-17)
+## Phase 3.2 — DetailLive cutover (✅ shipped 2026-05-17)
 
 Apply the Phase 3.1 pattern (projection + bulk-helper overlays) to
 the entity-detail modal. Plan doc:
 [`docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md`](../docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md).
 
-Five tasks (A → E); A + B + C.1 + C.2 + D landed today (one remaining: E):
+Six commits over the day; the architectural goal — "opening the
+detail modal hits Pillar 2 (ETS) for Library data; only
+ReleaseTracking and Playback overlays touch the DB" — is achieved.
+Typed-attrs migration (DetailPanel/Hero/MoreInfoPanel/etc. attr
+`:entity, :map` → typed `DetailItem`) is deliberately deferred to
+**Phase 3.3 / the component-contracts campaign** — it's ~10 component
+files + storybook with no behaviour change, fitting more naturally
+with that workstream than with the projection-flip campaign.
+
+Five tasks (A → E); all landed today:
 
 - **Task A — DetailItem typed inner structs** (commit `e07ab5d7`, 2026-05-17).
   `DetailItem.{Season, Episode, MovieEntry, WatchedFile, SubtitleTrack}`
@@ -275,11 +284,16 @@ Five tasks (A → E); A + B + C.1 + C.2 + D landed today (one remaining: E):
   breaking the projection's canonical-leaf lookup). `mix precommit`
   green (3629 tests, 0 failures).
 
-Tasks remaining:
-
-- **E — Retire rich-entity-map attrs.** DetailPanel + sub-components
-  consume `DetailItem` directly. Adapter from C.2/D deleted; legacy
-  `load_extras_for_entity/1` removed.
+- **Task E — Boundary cleanup (partial; typed-attrs deferred)** (2026-05-17).
+  Documentation + budget polish that reflect the post-Task D reality:
+  DetailPanel + Hero + MoreInfoPanel + MovieCredits + SeriesCredits
+  `@doc_entity` strings refreshed to reference `Views.DetailItem.to_entity_map/1`
+  rather than the pre-3.2 `Library.Browser`. The
+  `no_db_on_render_test` budget for `/library?selected=<id>`
+  tightened from 90 → 80 (measured: 74). Dead-code deletions
+  (`load_extras_for_entity/1`) landed with Task D, not as a
+  separate commit. Full typed-attrs migration deferred to Phase 3.3
+  per the scope discussion in the plan doc.
 
 ## Phase 3 follow-ups
 

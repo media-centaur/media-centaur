@@ -19,7 +19,7 @@ defmodule MediaCentarrWeb.Components.Detail.Hero do
   attr :entity, :map,
     required: true,
     doc:
-      "polymorphic library entity — Movie, TVSeries, MovieSeries, or VideoObject — with `:images` preloaded for `image_url/2` lookup. The component reads `:name` and image roles only, so the union is intentionally untyped at this layer; tightening to a typed Subject struct is deferred to Phase 5 when DetailPanel itself reshapes its assigns."
+      "polymorphic entity-map from `MediaCentarr.Library.Views.DetailItem.to_entity_map/1`. Reads `:name` and `:images` only, so the union stays untyped at this layer; tightening to a typed `DetailItem` attr is a Phase 3.3 follow-up (component-contracts campaign)."
 
   attr :tagline, :string, default: nil
   attr :available, :boolean, default: true
