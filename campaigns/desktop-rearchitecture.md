@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-05-10
-last_updated: 2026-05-17
+last_updated: 2026-05-17b
 ---
 # Local-only desktop rearchitecture
 
@@ -358,6 +358,18 @@ Append-only.
   as shipped. Reconciliation rule applied: read campaign file,
   diff against `jj log`, update before any new code touches the
   campaign.
+* `2026-05-17` — **LibraryLive grid Phase 3.1 cutover shipped
+  via rebase ([library-schema-v2 Phase 3.1](library-schema-v2.md#phase-31--librarylive-cutover--shipped-2026-05-16)).**
+  Four-commit orphan branch authored 2026-05-16 (deferred while
+  library-presence-unification finished through v0.65.1) rebased
+  cleanly onto post-fork main today; no textual conflicts despite
+  presence-unification + ADR-046 churn. Test-suite-level migration:
+  the orphan's new bulk tests referenced the now-deleted
+  `Watcher.FilePresence.record_file/2` API; redirected to
+  `Library.FilePresence.stamp/2`. `mix precommit` green. Closes
+  the Open follow-up "LibraryLive grid consumer flip" and unlocks
+  DetailLive's downstream flip by establishing the BrowseItem-plus-
+  bulk-helpers pattern.
 
 ## Workstreams
 
@@ -537,12 +549,6 @@ slip.
 **From Library Schema v2 sibling campaign (relevant to A's
 "every read path through a projection" criterion):**
 
-* **LibraryLive grid consumer flip** to `Library.Views.Browse`.
-  Currently consumes `Library.Browser.fetch_all_typed_entries/0`
-  for the rich entry shape. Requires expanding `BrowseItem` to
-  carry `progress`, `progress_records`, `resume_target`,
-  `extra_progress`, per-card `playing?`. `no_db_on_render_test`
-  budget for `/library` is 80 queries today; target ≤5.
 * **DetailLive / EntityModal consumer flip** to
   `Library.Views.Detail`. `DetailItem` needs the full file /
   season / episode tree.
@@ -575,15 +581,6 @@ slip.
 * **Per-stage breakdown** (parse / search / images / publish)
   in the activity indicator. One aggregate count is enough
   today; the breakdown is useful when a stage gets stuck.
-
-**From v0.63.0 (Library presence unification Phase 1+2):**
-
-* **Phases 3–8** of `library-presence-unification` (FK on
-  WatchedFile/ExtraFile, read-site flip, DiscoveryProducer ETS
-  dedup, AbsenceSweeper port, KnownFile retirement, doc
-  updates). Tracked in that campaign file; mentioned here so
-  the desktop-rearchitecture closer can verify that campaign
-  has progressed before declaring this one done.
 
 **From the reconciliation itself:**
 
