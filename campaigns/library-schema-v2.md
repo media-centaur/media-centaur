@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-complete; follow-ups open
 started: 2026-05-15
-last_updated: 2026-05-17h
+last_updated: 2026-05-17i
 resume_with: see "Resume — open follow-ups" section at the bottom
 ---
 # Library Schema v2 — architectural excellence
@@ -324,12 +324,13 @@ shipped; these are the deliberate deferrals worth picking up next.
   public function is doc-tagged as test-only but not enforced. Add a
   release-time guard if/when we ship a hardened release where the
   surface needs to be locked down.
-- **Cache.handle_message/1 partial-refresh path direct test** (Task B
+- ~~**Cache.handle_message/1 partial-refresh path direct test** (Task B
   review I-1, not yet addressed). The partial-refresh
   `Cache.Worker` callback added in Task B is exercised end-to-end via
   Detail tests but lacks a direct unit test. Worth adding one in
   `cache_test.exs` so future contributors don't regress the callback
-  signature.
+  signature.~~ ✅ Shipped 2026-05-17 (`qqzqryml`) — `PartialRefreshFake`
+  exercises the optional callback and pins the dispatch behaviour.
 - **`Library.playable_item_ids_for_entities/1` UNION** (Task B
   review I-2, not yet addressed). Three sequential `Repo.all/1` calls
   could collapse to a single UNION query. Marginal at current sizes;
@@ -756,7 +757,7 @@ campaign** than with this one. Don't tackle it piecemeal.
 
 **Architectural / safety:**
 - ~~Phase 2 — `StatusHelpers.progress_matches_session?/2` — pre-existing latent bug.~~ ✅ Shipped 2026-05-17 (`57daa62f`) — matcher rewritten to compare against `now_playing.entity_id`.
-- Phase 3 — `Cache.handle_message/1` partial-refresh path direct test. Worth adding to `cache_test.exs` so future contributors don't regress the callback signature added in Phase 3 Task B.
+- ~~Phase 3 — `Cache.handle_message/1` partial-refresh path direct test.~~ ✅ Shipped 2026-05-17 (`qqzqryml`).
 - Phase 3 — `reset_for_test!/0` Mix.env guard. Doc-tagged test-only but not enforced. Add a release-time guard.
 
 **Code-quality cleanups:**

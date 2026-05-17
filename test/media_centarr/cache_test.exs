@@ -47,6 +47,34 @@ defmodule MediaCentarr.CacheTest do
     end
   end
 
+  defmodule PartialRefreshFake do
+    @behaviour MediaCentarr.Cache
+
+    @impl true
+    def subscribe do
+      send(:cache_test_recorder, :subscribed)
+      :ok
+    end
+
+    @impl true
+    def refresh_cache do
+      send(:cache_test_recorder, :refreshed)
+      :ok
+    end
+
+    @impl true
+    def relevant?(message) do
+      send(:cache_test_recorder, {:relevant_checked, message})
+      true
+    end
+
+    @impl true
+    def handle_message(message) do
+      send(:cache_test_recorder, {:partial_refresh, message})
+      :ok
+    end
+  end
+
   defmodule SelectiveFake do
     @behaviour MediaCentarr.Cache
 
@@ -140,6 +168,20 @@ defmodule MediaCentarr.CacheTest do
       send(worker, {:setting_changed, "the_key", "x"})
       assert_receive {:relevant_checked, {:setting_changed, "the_key", "x"}}
       assert_receive :refreshed
+    end
+
+    test "routes to handle_message/1 when the context implements it (partial-refresh path)" do
+      worker =
+        start_supervised!({Cache.Worker, context: PartialRefreshFake, name: :cache_worker_partial})
+
+      assert_receive :subscribed
+      assert_receive :refreshed
+
+      send(worker, {:row_updated, "uuid-1"})
+
+      assert_receive {:relevant_checked, {:row_updated, "uuid-1"}}
+      assert_receive {:partial_refresh, {:row_updated, "uuid-1"}}
+      refute_receive :refreshed, 50
     end
 
     test "survives unrelated messages without crashing" do
