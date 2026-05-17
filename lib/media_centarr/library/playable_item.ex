@@ -28,7 +28,7 @@ defmodule MediaCentarr.Library.PlayableItem do
   `Library` context's `create_playable_item/1`); orphan rows would only
   appear if writes skip the boundary.
 
-  See `campaigns/library-schema-v2.md` for the full target shape.
+  See `campaigns/done/library-schema-v2.md` for the full target shape.
   """
 
   use Ecto.Schema

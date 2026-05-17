@@ -8,7 +8,7 @@ defmodule MediaCentarr.Library.MovieSeries do
   containers with the same shape. TMDB collection endpoints expose fewer of
   these fields directly — most ingest-time values come back `nil` and are
   filled in by maintenance/refresh paths. See Phase 1 Task 4 of the Library
-  Schema v2 campaign (`campaigns/library-schema-v2.md`).
+  Schema v2 campaign (`campaigns/done/library-schema-v2.md`).
 
   TMDB ids (source `"tmdb_collection"`) live in `Library.ExternalId` rows
   reachable via the `:external_ids` association — no longer a column on
