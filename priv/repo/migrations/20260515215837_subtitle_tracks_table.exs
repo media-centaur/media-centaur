@@ -1,4 +1,15 @@
 defmodule MediaCentarr.Repo.Migrations.SubtitleTracksTable do
+  @moduledoc """
+  Library Schema v2 Phase 1 Task 5 — moves subtitle tracks out of the
+  `library_watched_files.subtitle_tracks` JSON column into the new
+  `subtitles_tracks` table owned by the Subtitles context.
+
+  **Reversibility caveat:** `down` re-creates the legacy column with an
+  empty default and drops the new table. Detected subtitle tracks are
+  lost on rollback — recovery requires re-running subtitle detection on
+  the affected files. Acceptable in a no-deployed-users world; flagged
+  here for any future rollback rehearsal.
+  """
   use Ecto.Migration
 
   def up do
