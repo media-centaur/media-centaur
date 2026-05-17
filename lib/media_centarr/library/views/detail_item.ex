@@ -169,15 +169,20 @@ defmodule MediaCentarr.Library.Views.DetailItem do
     A TV-series season bucket inside `DetailItem.seasons`. Carries
     static season metadata + the `Episode` list. Per-episode watch
     progress is overlaid at the consumer (`Library.Progress.get/1`).
+
+    `:number_of_episodes` mirrors the Season schema field — used by
+    `SeriesDetail.build/4` to gap-fill `EpisodeListItem.Missing` rows
+    when TMDB reports more episodes than the library has imported.
     """
 
     @enforce_keys [:season_number, :episodes]
-    defstruct [:season_number, :name, :episodes, extras: []]
+    defstruct [:season_number, :name, :episodes, :number_of_episodes, extras: []]
 
     @type t :: %__MODULE__{
             season_number: non_neg_integer(),
             name: String.t() | nil,
             episodes: [MediaCentarr.Library.Views.DetailItem.Episode.t()],
+            number_of_episodes: non_neg_integer() | nil,
             extras: [struct()]
           }
   end
@@ -186,6 +191,10 @@ defmodule MediaCentarr.Library.Views.DetailItem do
     @moduledoc """
     A single TV episode inside `DetailItem.Season.episodes`. Static
     episode metadata only. `WatchProgress` is overlaid at the consumer.
+
+    `:content_url` is the file path of the first linked `WatchedFile`
+    under the episode's `PlayableItem` — needed by `ResumeTarget` and
+    the episode-list renderer to wire the play button.
     """
 
     @enforce_keys [:episode_id, :playable_item_id, :season_number, :episode_number, :name]
@@ -198,7 +207,8 @@ defmodule MediaCentarr.Library.Views.DetailItem do
       :description,
       :date_published,
       :duration_seconds,
-      :present?
+      :present?,
+      :content_url
     ]
 
     @type t :: %__MODULE__{
@@ -210,7 +220,8 @@ defmodule MediaCentarr.Library.Views.DetailItem do
             description: String.t() | nil,
             date_published: Date.t() | nil,
             duration_seconds: integer() | nil,
-            present?: boolean() | nil
+            present?: boolean() | nil,
+            content_url: String.t() | nil
           }
   end
 
