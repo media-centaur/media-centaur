@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-complete; follow-ups open
 started: 2026-05-15
-last_updated: 2026-05-17i
+last_updated: 2026-05-17j
 resume_with: see "Resume — open follow-ups" section at the bottom
 ---
 # Library Schema v2 — architectural excellence
@@ -320,10 +320,15 @@ shipped; these are the deliberate deferrals worth picking up next.
   deferral).~~ ✅ Shipped as Phase 3.2 (Tasks A–D, 2026-05-17).
   `DetailItem` grew the full file/season/episode tree and every
   modal-open path reads through `Views.detail_by_container/2`.
-- **`reset_for_test!/0` Mix.env guard** (Task D review M-1). The
+- ~~**`reset_for_test!/0` Mix.env guard** (Task D review M-1). The
   public function is doc-tagged as test-only but not enforced. Add a
   release-time guard if/when we ship a hardened release where the
-  surface needs to be locked down.
+  surface needs to be locked down.~~ ✅ Shipped 2026-05-17 (`uksnwrzo`)
+  — `Library.Progress.reset_for_test!/0` wrapped in
+  `if Mix.env() == :test do ... end`; the function is undefined in
+  `:dev` / `:prod` BEAM bytecode (`function_exported?/3` returns
+  false). Worker handle_call clause kept unconditional intentionally
+  (gating it would crash the supervised worker if misused).
 - ~~**Cache.handle_message/1 partial-refresh path direct test** (Task B
   review I-1, not yet addressed). The partial-refresh
   `Cache.Worker` callback added in Task B is exercised end-to-end via
@@ -758,7 +763,7 @@ campaign** than with this one. Don't tackle it piecemeal.
 **Architectural / safety:**
 - ~~Phase 2 — `StatusHelpers.progress_matches_session?/2` — pre-existing latent bug.~~ ✅ Shipped 2026-05-17 (`57daa62f`) — matcher rewritten to compare against `now_playing.entity_id`.
 - ~~Phase 3 — `Cache.handle_message/1` partial-refresh path direct test.~~ ✅ Shipped 2026-05-17 (`qqzqryml`).
-- Phase 3 — `reset_for_test!/0` Mix.env guard. Doc-tagged test-only but not enforced. Add a release-time guard.
+- ~~Phase 3 — `reset_for_test!/0` Mix.env guard.~~ ✅ Shipped 2026-05-17 (`uksnwrzo`) — compile-time gated; absent from `:dev` / `:prod` BEAM.
 
 **Code-quality cleanups:**
 - Phase 1 — Year-helper consolidation (4+ helpers across the codebase; collapse once storybook migrates to typed `%Date{}` fixtures via the component-contracts campaign).
