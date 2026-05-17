@@ -33,6 +33,7 @@ defmodule MediaCentarr.Library.Views.DetailItemTest do
       assert item.movies == nil
       assert item.watched_files == nil
       assert item.subtitle_tracks == nil
+      assert item.container_director == nil
     end
 
     test "still enforces the existing required keys" do
@@ -290,10 +291,6 @@ defmodule MediaCentarr.Library.Views.DetailItemTest do
       assert entity.watched_files == []
     end
 
-    # Non-TV DetailItems are rejected statically by Elixir's set-theoretic
-    # typer (`parent_container_type: :tv_series` clause guard) — no runtime
-    # check needed. Task D adds movie / movie_series / video_object clauses.
-
     # --- Helpers ---
 
     defp tv_series_detail_item(overrides \\ []) do
@@ -325,6 +322,249 @@ defmodule MediaCentarr.Library.Views.DetailItemTest do
       }
 
       struct!(base, Map.new(overrides))
+    end
+  end
+
+  describe "to_entity_map/1 — standalone Movie adapter (Phase 3.2 Task D)" do
+    test "keys to the Movie container, type: :movie" do
+      detail_item = movie_detail_item()
+      entity = DetailItem.to_entity_map(detail_item)
+
+      assert entity.type == :movie
+      assert entity.id == detail_item.container_id
+      assert entity.name == detail_item.container_name
+    end
+
+    test "carries Movie-specific :director facet field" do
+      detail_item = movie_detail_item(container_director: "Sample Director")
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.director == "Sample Director"
+    end
+
+    test "passes leaf date_published through (entity-level for solo movies)" do
+      detail_item = movie_detail_item(date_published: ~D[2010-07-16])
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.date_published == ~D[2010-07-16]
+    end
+
+    test "derives :content_url from the first :watched_files entry — Resume.resolve_single needs it" do
+      files = [
+        %DetailItem.WatchedFile{path: "/media/x/a.mkv", watch_dir: "/media/x"},
+        %DetailItem.WatchedFile{path: "/media/x/b.mkv", watch_dir: "/media/x"}
+      ]
+
+      detail_item = movie_detail_item(watched_files: files)
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.content_url == "/media/x/a.mkv"
+    end
+
+    test "content_url is nil when no WatchedFiles attach" do
+      detail_item = movie_detail_item(watched_files: [])
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.content_url == nil
+    end
+
+    test "preserves :subtitle_tracks for DetailPanel's subtitle-language render" do
+      tracks = [
+        %DetailItem.SubtitleTrack{kind: :embedded, language: "en", source: "stream:2"},
+        %DetailItem.SubtitleTrack{kind: :sidecar, language: nil, source: "/x/forced.srt"}
+      ]
+
+      detail_item = movie_detail_item(subtitle_tracks: tracks)
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.subtitle_tracks == tracks
+    end
+
+    test "defaults extra_progress to []" do
+      detail_item = movie_detail_item()
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.extra_progress == []
+    end
+
+    defp movie_detail_item(overrides \\ []) do
+      base = %DetailItem{
+        playable_item_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        container_type: :movie,
+        container_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        name: "Sample Movie",
+        position: 1,
+        parent_container_type: nil,
+        parent_container_id: nil,
+        parent_container_name: nil,
+        container_name: "Sample Movie",
+        container_description: "A sample movie.",
+        container_year: 2010,
+        container_url: "https://tmdb.example/movie/1",
+        container_tagline: nil,
+        container_genres: ["Drama"],
+        container_studio: nil,
+        container_country_code: "US",
+        container_original_language: "en",
+        container_network: nil,
+        container_status: nil,
+        container_duration_seconds: 7200,
+        container_content_rating: "PG-13",
+        container_aggregate_rating: 7.5,
+        container_vote_count: 100,
+        container_number_of_seasons: nil,
+        container_director: nil,
+        cast: [],
+        crew: [],
+        extras: [],
+        external_ids: [],
+        images: [],
+        seasons: nil,
+        movies: nil,
+        watched_files: [],
+        subtitle_tracks: []
+      }
+
+      struct!(base, Map.new(overrides))
+    end
+  end
+
+  describe "to_entity_map/1 — MovieSeries adapter (Phase 3.2 Task D)" do
+    test "keys to the MovieSeries container (parent_container_id), type: :movie_series" do
+      detail_item = movie_series_detail_item()
+      entity = DetailItem.to_entity_map(detail_item)
+
+      assert entity.type == :movie_series
+      assert entity.id == detail_item.parent_container_id
+      assert entity.name == detail_item.container_name
+    end
+
+    test "expands :movies list into the rich shape DetailPanel/build_facets consumes" do
+      detail_item =
+        movie_series_detail_item(
+          movies: [
+            %DetailItem.MovieEntry{
+              movie_id: "11111111-1111-1111-1111-111111111111",
+              playable_item_id: "22222222-2222-2222-2222-222222222222",
+              name: "Sample Movie A",
+              date_published: ~D[2010-01-01],
+              collection_position: 1,
+              content_url: "/media/saga/part-1.mkv",
+              present?: true
+            },
+            %DetailItem.MovieEntry{
+              movie_id: "33333333-3333-3333-3333-333333333333",
+              playable_item_id: "44444444-4444-4444-4444-444444444444",
+              name: "Sample Movie B",
+              date_published: ~D[2012-01-01],
+              collection_position: 2,
+              content_url: "/media/saga/part-2.mkv",
+              present?: true
+            }
+          ]
+        )
+
+      entity = DetailItem.to_entity_map(detail_item)
+
+      assert [m1, m2] = entity.movies
+      assert m1.id == "11111111-1111-1111-1111-111111111111"
+      assert m1.name == "Sample Movie A"
+      assert m1.date_published == ~D[2010-01-01]
+      assert m1.content_url == "/media/saga/part-1.mkv"
+      assert m2.name == "Sample Movie B"
+    end
+
+    test "empty :movies list when projection produced nothing" do
+      detail_item = movie_series_detail_item(movies: nil)
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.movies == []
+    end
+
+    defp movie_series_detail_item(overrides \\ []) do
+      base = %DetailItem{
+        playable_item_id: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+        container_type: :movie,
+        container_id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+        name: "Sample Movie A",
+        position: 1,
+        parent_container_type: :movie_series,
+        parent_container_id: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+        parent_container_name: "Sample Saga",
+        container_name: "Sample Saga",
+        container_description: "A sample movie collection.",
+        container_year: 2010,
+        container_url: nil,
+        container_tagline: nil,
+        container_genres: ["Adventure"],
+        container_studio: nil,
+        container_country_code: nil,
+        container_original_language: nil,
+        container_network: nil,
+        container_status: nil,
+        container_duration_seconds: nil,
+        container_content_rating: nil,
+        container_aggregate_rating: 8.0,
+        container_vote_count: 500,
+        container_number_of_seasons: nil,
+        container_director: nil,
+        cast: [],
+        crew: [],
+        extras: [],
+        external_ids: [],
+        images: [],
+        seasons: nil,
+        movies: [],
+        watched_files: [],
+        subtitle_tracks: []
+      }
+
+      struct!(base, Map.new(overrides))
+    end
+  end
+
+  describe "to_entity_map/1 — VideoObject adapter (Phase 3.2 Task D)" do
+    test "keys to the VideoObject container, type: :video_object" do
+      detail_item = video_object_detail_item()
+      entity = DetailItem.to_entity_map(detail_item)
+
+      assert entity.type == :video_object
+      assert entity.id == detail_item.container_id
+      assert entity.name == detail_item.container_name
+      assert entity.date_published == detail_item.date_published
+    end
+
+    defp video_object_detail_item do
+      %DetailItem{
+        playable_item_id: "ffffffff-ffff-ffff-ffff-ffffffffffff",
+        container_type: :video_object,
+        container_id: "01010101-0101-0101-0101-010101010101",
+        name: "Sample Clip",
+        position: 1,
+        date_published: ~D[2024-06-01],
+        parent_container_type: nil,
+        parent_container_id: nil,
+        parent_container_name: nil,
+        container_name: "Sample Clip",
+        container_description: "A sample standalone clip.",
+        container_year: 2024,
+        container_url: nil,
+        container_tagline: nil,
+        container_genres: nil,
+        container_studio: nil,
+        container_country_code: nil,
+        container_original_language: nil,
+        container_network: nil,
+        container_status: nil,
+        container_duration_seconds: 300,
+        container_content_rating: nil,
+        container_aggregate_rating: nil,
+        container_vote_count: nil,
+        container_number_of_seasons: nil,
+        container_director: nil,
+        cast: [],
+        crew: [],
+        extras: [],
+        external_ids: [],
+        images: [],
+        seasons: nil,
+        movies: nil,
+        watched_files: [],
+        subtitle_tracks: []
+      }
     end
   end
 end

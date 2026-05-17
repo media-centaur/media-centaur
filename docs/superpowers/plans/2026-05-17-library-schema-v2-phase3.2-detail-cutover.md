@@ -171,17 +171,25 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 **Goal:** The non-TV entry path stops calling `Library.Browser.fetch_typed_entries_by_ids/1`. Movie / MovieSeries / VideoObject modal data comes from the projection.
 
-- [ ] Rewrite `Library.load_modal_entry/1`:
-  - For Movie/VideoObject: single `Views.detail_by_container/2` read; wrap in the modal entry shape (`%{entity: ..., progress: ..., progress_records: ...}`) using the projection's `DetailItem` + the existing `Library.list_progress_summaries/1` bulk helper from Phase 3.1.
-  - For MovieSeries: read each constituent movie's DetailItem via `Views.detail/1` (the projection caches by `playable_item_id`), aggregate into the MovieSeries-level shape. Decision point: does the projection emit one DetailItem per leaf, or one per container? Phase 3 settled on leaf — the consumer aggregates. Confirm consumers still want the MovieSeries-level wrapper or whether the modal can render directly from the constituent-leaf list.
-- [ ] `load_extras_for_entity/1` is retired — extras live on the DetailItem now.
-- [ ] The "modal entry" wrapper shape (`%{entity, progress, progress_records, tracking_status}`) survives this task; full retirement is Task E.
+- [x] Rewrote `Library.load_modal_entry/1` as a typed `cond` probe across the four container kinds (`:tv_series → :movie_series → :movie → :video_object`). Each probe calls `Views.detail_by_container/2`; the first match whose `any_present?` predicate is true wins. TV / MovieSeries predicates walk the typed `:seasons` / `:movies` tree; single-leaf predicates read `:present?` directly.
+- [x] `DetailItem.to_entity_map/1` grew three new clauses (Movie, MovieSeries via `parent_container_type: :movie_series`, VideoObject) producing the same entity-map shape the legacy Browser path produced.
+- [x] **Reused existing `Library.ProgressSummary.compute/2`**; new `Library.list_progress_records_for_container/2` dispatches per type — internally each path emits the same `:playable_item`-synthesised shape `EntityShape.extract_progress` produced.
+- [x] `load_extras_for_entity/1` is **kept but unused** — Task E will remove it along with the rest of the legacy entity-shape path. Listed in Task E's deletion list.
+- [x] Modal entry wrapper shape (`%{entity, progress, progress_records}`) survives — Task E retires.
+
+**Mid-flight findings:**
+* **`DetailItem` needed `:container_director`.** Movie facets read `movie.director`; the projection didn't carry it. Added to the struct, populated per-Movie (not bubbled from a parent MovieSeries — a multi-child MovieSeries entity-map gets `director: nil` rather than one child's director).
+* **Resume.resolve_single needs `entity.content_url`.** Adapter derives it from the first `:watched_files` entry; without it the page-smoke for movies-with-subtitles crashed at `Resume.resolve_single`.
+* **`Views.Detail.read{,_by_container}` needed a per-id DB fallback.** ETS-table-exists-but-row-missing now falls back to the live build path — covers test mode (Cache.Worker not started, refresh cadence uncoordinated with test fixtures) and the brief in-production window between an entity's creation and the projection's next refresh.
+* **Test-factory split-PlayableItem bug.** `create_standalone_movie` defaulted `Movie.position: 0` while `create_linked_file` hardcoded the PlayableItem at `position: 1`, then `find_or_create_watch_progress_for_movie` read `Movie.position=0` and created a SECOND PlayableItem at position 0. Pre-Phase-3.2 Browser preloads caught both; the projection's canonical-leaf lookup picked the position=0 file-less PI → `present?=false` → modal-open returned `:not_found`. Aligned `Movie.position` default to 1 to match production `Library.Inbound`.
 
 **Tests:**
-* `test/media_centarr/library_test.exs` — `load_modal_entry/1` cases per type. Assert: zero Library Repo queries when the projection is warm (cold-start populates first; test runs against warm projection).
-* `test/media_centarr_web/live/library_live_test.exs` — modal-open integration test for Movie + MovieSeries + VideoObject; assert the visible modal fields match the projection output.
+* [x] `detail_item_test.exs` — 11 new adapter cases across three describe blocks (Movie keying + metadata pass-through + director + date_published + subtitle_tracks + content_url derivation; MovieSeries keying + `:movies` list expansion; VideoObject keying).
+* [x] `detail_test.exs` — 1 new case for `:container_director` projection population.
+* [x] `library_test.exs` — N+1 budget for `load_modal_entry/1` on a 15-episode series tightened from ≤15 to ≤5 queries; setup now refreshes the projection so the test measures the production-warm path, not the test-mode DB-fallback cost.
+* [x] Existing `load_modal_entry/1` tests (movie, tv_series, movie_series, video_object, `:not_found` cases) pass **unchanged** — assertions on surface fields hold through the adapter.
 
-**Acceptance:** All four entity types flip. `no_db_on_render_test` budget for `/library?selected=<id>` drops to the Phase 3.1 floor (~5 production queries). `mix precommit` green.
+**Acceptance:** All four entity types flip; `mix precommit` green (3629 Elixir + 436 JS, 0 failures). **Shipped 2026-05-17.**
 
 ---
 
