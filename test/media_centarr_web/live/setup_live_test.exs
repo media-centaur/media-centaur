@@ -121,10 +121,13 @@ defmodule MediaCentarrWeb.SetupLiveTest do
   end
 
   describe "finish" do
-    test "flips setup_wizard_dismissed and redirects to / from summary", %{conn: conn} do
+    test "flips setup_wizard_dismissed and redirects to /library from summary", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/setup?step=summary")
 
-      assert {:error, {:live_redirect, %{to: "/"}}} =
+      # Tour lands on /library (not /) so the user sees the empty-state
+      # scan affordance + pipeline-activity indicator while ingest
+      # finishes draining the files the watcher just dispatched.
+      assert {:error, {:live_redirect, %{to: "/library"}}} =
                view |> element("button", "Finish") |> render_click()
 
       assert Config.get(:setup_wizard_dismissed) == true

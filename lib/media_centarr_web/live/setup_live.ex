@@ -277,7 +277,12 @@ defmodule MediaCentarrWeb.SetupLive do
 
   defp finish(socket) do
     Config.update(:setup_wizard_dismissed, true)
-    {:noreply, push_navigate(socket, to: "/")}
+    # Land on /library, not /, so the user sees the empty-state scan
+    # button + ingest indicator (LibraryLive.handle_info(:tick_pipeline))
+    # while the pipeline finishes processing the files the watcher just
+    # dispatched. Home would show "no continue watching" with no signal
+    # that anything is happening.
+    {:noreply, push_navigate(socket, to: "/library")}
   end
 
   defp step_index(step), do: Enum.find_index(@step_order, &(&1 == step)) + 1
