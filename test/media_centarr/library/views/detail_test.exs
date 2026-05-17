@@ -640,5 +640,63 @@ defmodule MediaCentarr.Library.Views.DetailTest do
 
       assert item.subtitle_tracks == []
     end
+
+    test "Season carries :number_of_episodes from Season schema" do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample TV NOE"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1, number_of_episodes: 10})
+
+      ep1 =
+        create_episode(%{season_id: season.id, episode_number: 1, name: "Ep 1", duration_seconds: 1800})
+
+      pi1 = create_playable_item_for_episode(ep1)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/noe-s01e01.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail(pi1.id)
+
+      assert [%DetailItem.Season{season_number: 1, number_of_episodes: 10}] = item.seasons
+    end
+
+    test "Season's :extras is populated from Season's preloaded extras" do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample TV Extras"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      _extra =
+        create_extra(%{
+          owner_type: :season,
+          owner_id: season.id,
+          name: "Behind the scenes",
+          content_url: "tv-extras/sample.mkv"
+        })
+
+      ep1 = create_episode(%{season_id: season.id, episode_number: 1, name: "Ep 1"})
+      pi1 = create_playable_item_for_episode(ep1)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/extras-s01e01.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail(pi1.id)
+
+      assert [%DetailItem.Season{extras: extras}] = item.seasons
+      assert length(extras) == 1
+      assert hd(extras).name == "Behind the scenes"
+    end
+
+    test "Episode carries :content_url from the first linked WatchedFile" do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample TV ContentURL"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      ep1 = create_episode(%{season_id: season.id, episode_number: 1, name: "Ep 1"})
+      pi1 = create_playable_item_for_episode(ep1)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/cu-s01e01.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail(pi1.id)
+
+      assert [%DetailItem.Season{episodes: [episode]}] = item.seasons
+      assert episode.content_url == "/media/test/cu-s01e01.mkv"
+    end
   end
 end

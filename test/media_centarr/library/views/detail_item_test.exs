@@ -53,6 +53,7 @@ defmodule MediaCentarr.Library.Views.DetailItemTest do
       assert season.name == nil
       assert season.episodes == []
       assert season.extras == []
+      assert season.number_of_episodes == nil
     end
 
     test "enforces season_number and episodes" do
@@ -81,6 +82,7 @@ defmodule MediaCentarr.Library.Views.DetailItemTest do
       assert episode.date_published == nil
       assert episode.duration_seconds == nil
       assert episode.present? == nil
+      assert episode.content_url == nil
     end
 
     test "enforces episode_id, playable_item_id, season_number, episode_number, name" do
