@@ -28,15 +28,10 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
   # Aggressive mount-time budget for every smoke. Media Centarr is a
   # local-first app; mounts should be near-instant. Steady-state mounts
-  # observed locally cluster at 3–25ms. 80ms gives headroom — tight
+  # observed locally cluster at 3–25ms. 60ms gives ~2× headroom — tight
   # enough to catch real regressions, loose enough to absorb routine
-  # GC/scheduler jitter and the /library?selected=<id> detail-panel
-  # mount which clusters at ~55–70ms during the multi-phase
-  # library-presence-unification campaign (the detail panel does a
-  # presence check per PlayableItem; Phase 6/7 simplify queries
-  # further and the budget should tighten back to 60ms then).
-  # Do not loosen casually.
-  @render_budget_ms 80
+  # GC/scheduler jitter. Do not loosen casually.
+  @render_budget_ms 60
 
   # Cold-start cost (BEAM JIT, schema caching, first-DB-query overhead)
   # is paid by whichever mount runs first. Without a warmup, that test
