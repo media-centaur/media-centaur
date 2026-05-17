@@ -383,14 +383,18 @@ defmodule MediaCentarr.Library.Views.DetailTest do
       assert Views.detail_by_container(:movie, Ecto.UUID.generate()) == nil
     end
 
-    test "returns nil for :tv_series — TVSeries has no canonical PlayableItem at container level" do
+    test "returns canonical episode's DetailItem for :tv_series (Phase 3.2)" do
       on_exit_clear_table()
 
       {series, _season, _episode, _file} = seed_present_episode("TV Resolve")
 
       assert :ok = Detail.refresh_cache()
 
-      assert Views.detail_by_container(:tv_series, series.id) == nil
+      item = Views.detail_by_container(:tv_series, series.id)
+      refute item == nil
+      assert item.container_type == :episode
+      assert item.parent_container_id == series.id
+      assert is_list(item.seasons)
     end
 
     test "returns the position=1 PlayableItem when multiple cuts exist for a Movie" do
@@ -463,6 +467,178 @@ defmodule MediaCentarr.Library.Views.DetailTest do
       :ok = Detail.refresh_cache()
       assert %DetailItem{} = Views.detail(pi_a.id)
       assert %DetailItem{} = Views.detail(pi_b.id)
+    end
+  end
+
+  describe "Phase 3.2 — expanded fields populated by cold-start refresh" do
+    test "Movie row carries :watched_files with path + watch_dir" do
+      on_exit_clear_table()
+      {movie, file} = seed_present_movie("Watched Files Movie")
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie, movie.id)
+
+      assert is_list(item.watched_files)
+      assert [%DetailItem.WatchedFile{path: path, watch_dir: dir}] = item.watched_files
+      assert path == file.file_path
+      assert dir == file.watch_dir
+    end
+
+    test "Movie row carries :images for entity-owned images" do
+      on_exit_clear_table()
+      {movie, _file} = seed_present_movie("Image Movie")
+
+      _img =
+        create_image(%{
+          owner_type: :movie,
+          owner_id: movie.id,
+          role: "poster",
+          content_url: "movies/image-movie/poster.jpg"
+        })
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie, movie.id)
+
+      assert is_list(item.images)
+      assert Enum.any?(item.images, &(&1.role == "poster"))
+    end
+
+    test "TV-series episode row carries :seasons populated with sibling episodes" do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample TV Tree"})
+      season1 = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      ep1 =
+        create_episode(%{
+          season_id: season1.id,
+          episode_number: 1,
+          name: "Pilot",
+          duration_seconds: 1800
+        })
+
+      ep2 =
+        create_episode(%{
+          season_id: season1.id,
+          episode_number: 2,
+          name: "Pilot 2",
+          duration_seconds: 1800
+        })
+
+      pi1 = create_playable_item_for_episode(ep1)
+      pi2 = create_playable_item_for_episode(ep2)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/tv-tree-s01e01.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/tv-tree-s01e02.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail(pi1.id)
+
+      assert is_list(item.seasons)
+      assert [%DetailItem.Season{season_number: 1, episodes: episodes}] = item.seasons
+      assert length(episodes) == 2
+      assert Enum.all?(episodes, &match?(%DetailItem.Episode{}, &1))
+      assert Enum.map(episodes, & &1.episode_number) == [1, 2]
+      assert Enum.all?(episodes, & &1.present?)
+    end
+
+    test "detail_by_container(:tv_series, id) returns canonical leaf with full seasons tree" do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample TV Canonical"})
+      season1 = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      ep1 =
+        create_episode(%{season_id: season1.id, episode_number: 1, name: "Ep 1", duration_seconds: 1800})
+
+      ep2 =
+        create_episode(%{season_id: season1.id, episode_number: 2, name: "Ep 2", duration_seconds: 1800})
+
+      pi1 = create_playable_item_for_episode(ep1)
+      pi2 = create_playable_item_for_episode(ep2)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/canon-s01e01.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/canon-s01e02.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:tv_series, series.id)
+
+      refute item == nil
+      assert item.playable_item_id == pi1.id
+      assert is_list(item.seasons)
+      assert [%DetailItem.Season{episodes: episodes}] = item.seasons
+      assert length(episodes) == 2
+    end
+
+    test "MovieSeries constituent movie row carries :movies" do
+      on_exit_clear_table()
+      ms = create_movie_series(%{name: "Sample MS Tree"})
+
+      movie1 =
+        create_movie(%{
+          name: "MS Part 1",
+          movie_series_id: ms.id,
+          position: 1
+        })
+
+      movie2 =
+        create_movie(%{
+          name: "MS Part 2",
+          movie_series_id: ms.id,
+          position: 2
+        })
+
+      pi1 = create_playable_item_for_movie(movie1)
+      pi2 = create_playable_item_for_movie(movie2)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/ms-part-1.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/ms-part-2.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail(pi1.id)
+
+      assert is_list(item.movies)
+      assert length(item.movies) == 2
+      assert Enum.all?(item.movies, &match?(%DetailItem.MovieEntry{}, &1))
+      assert Enum.map(item.movies, & &1.collection_position) == [1, 2]
+      assert Enum.all?(item.movies, & &1.present?)
+    end
+
+    test "detail_by_container(:movie_series, id) returns canonical leaf with movies list" do
+      on_exit_clear_table()
+      ms = create_movie_series(%{name: "Sample MS Canonical"})
+
+      movie1 =
+        create_movie(%{
+          name: "MS Canonical Part 1",
+          movie_series_id: ms.id,
+          position: 1
+        })
+
+      movie2 =
+        create_movie(%{
+          name: "MS Canonical Part 2",
+          movie_series_id: ms.id,
+          position: 2
+        })
+
+      pi1 = create_playable_item_for_movie(movie1)
+      pi2 = create_playable_item_for_movie(movie2)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/ms-canon-1.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/ms-canon-2.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie_series, ms.id)
+
+      refute item == nil
+      assert item.playable_item_id == pi1.id
+      assert is_list(item.movies)
+      assert length(item.movies) == 2
+    end
+
+    test ":subtitle_tracks defaults to empty list for leaves with no detected tracks" do
+      on_exit_clear_table()
+      {movie, _file} = seed_present_movie("No Subs Movie")
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie, movie.id)
+
+      assert item.subtitle_tracks == []
     end
   end
 end

@@ -105,19 +105,25 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 **Goal:** Populate the new DetailItem fields from Pillar 1 in the projection's cold-start + incremental-refresh paths.
 
-- [ ] Read every `PlayableItem` + container preloads needed to populate the expanded shape. For TV: `seasons → episodes → playable_items + watched_files + watch_progress`. For MovieSeries: `movies → playable_items + watched_files + watch_progress`. For Movie/VideoObject: single-leaf preload with `watched_files`.
-- [ ] Build `[%DetailItem.Season{}]` with episodes carrying their own progress + presence + watched-files-count flag. Pre-shape `SeasonView` and `EpisodeListItem` semantics so the existing `DetailPanel.season_section` consumers fall through unchanged once the LiveView assigns are flipped.
-- [ ] Build `[%DetailItem.MovieEntry{}]` carrying movie name, date_published, content_url (resolved from PlayableItem.WatchedFile), position (from `Movie.collection_position`).
-- [ ] Populate `:watched_files` on each DetailItem with `[%{path, watch_dir, role, file_presence_stamped_at}]`. **Role** is the existing `WatchedFile.role` enum (main / commentary / bonus_disc / etc.).
-- [ ] Populate `:subtitle_tracks` either by inlining the existing `Subtitles.list_tracks_for_file/1` query into the projection refresh (one extra query per PlayableItem at refresh time — projection caches it once), or by keeping it as a bulk-overlay (one query at modal open across the leaf set). Decide based on refresh-frequency vs. per-modal-open cost. **Default: inline.** Subtitle tracks are static after detection; per-leaf cost amortises into the cold-start build.
-- [ ] Populate `:extra_progress` by joining `Library.WatchProgress` on extras that have at least one `WatchedFile`. Returned as `%{extra_id => WatchProgress.t()}`.
-- [ ] Re-emit `:library_view_updated, :detail` on `library:views` for every refresh — this is the unchanged contract from Phase 3 Task B.
+- [x] Read every `PlayableItem`, group by top-level entity, build entity-level shared data (`:images`, `:seasons`, `:movies`) once per entity (functional sharing — same struct refs flow into sibling rows).
+- [x] Build `[%DetailItem.Season{}]` with `[%DetailItem.Episode{}]` carrying static episode metadata + `:present?` (overlaid from `WatchedFile` presence). No `progress` field per the Task A overlay decision.
+- [x] Build `[%DetailItem.MovieEntry{}]` carrying movie name, date_published, collection_position (from `Movie.position`), content_url (first `WatchedFile.file_path`).
+- [x] Populate `:watched_files` on each DetailItem with `[%DetailItem.WatchedFile{path, watch_dir}]`.
+- [x] Populate `:subtitle_tracks` by inlining `Subtitles.list_tracks_for_file/1` per WatchedFile (one query per file at refresh time). Empty list when no tracks detected.
+- [x] Extend `top_level_container/2` to recognise Movies under a MovieSeries (mirror of Episode → TVSeries). For these movies: `parent_container_type: :movie_series`, `parent_container_id: <ms_id>`, `parent_container_name: <ms name>`, and entity-level `container_*` fields come from the MovieSeries.
+- [x] Extend `read_by_container/2` to handle `:tv_series` and `:movie_series` — picks the canonical leaf (lowest `(season_number, episode_number)` for TV; lowest `position` for MovieSeries) by looking up the row's own entry in the shared `:seasons` / `:movies` tree (not the first entry of the shared list, which is the same across siblings).
+- [x] Re-emit `:library_view_updated, :detail` on `library:views` for every refresh — this is the unchanged contract from Phase 3 Task B.
+
+**Decisions made during implementation:**
+* **Subtitle tracks inlined** at refresh time (one query per WatchedFile). Cost paid at cold-start; reads stay free. Per the plan's open design decision #1.
+* **MovieSeries per-leaf retained** (not re-keyed). Row count: one per constituent movie, same as Phase 3.1. Per the plan's open design decision #2.
+* **Canonical-leaf sort key** picks the row by looking up `container_id` in the shared `:seasons`/`:movies` tree, not by inspecting the head of the tree (which is identical across all sibling rows and would fall back to playable_item_id ordering — wrong answer).
 
 **Tests:**
-* `test/media_centarr/library/views/detail_test.exs` — add 4 cold-start spec cases (Movie, MovieSeries, TVSeries, VideoObject) verifying each field of the expanded shape against factory fixtures.
-* Add 2 incremental-refresh specs: (a) record a new `WatchedFile` → `available_for_ids/1` change reflected in next read; (b) record a `WatchProgress` → progress field updated in next read. Both use `derived-topic-subscribe + receive` per the test-design rules.
+* [x] `test/media_centarr/library/views/detail_test.exs` — 7 new cases for the Phase 3.2 expanded fields: Movie `:watched_files`, Movie `:images`, TV episode `:seasons`, `detail_by_container(:tv_series, _)` canonical-leaf, MovieSeries `:movies`, `detail_by_container(:movie_series, _)` canonical-leaf, `:subtitle_tracks` empty-default.
+* [x] Updated 1 existing test that asserted `detail_by_container(:tv_series, _)` returns nil — now asserts it returns the canonical episode with `:seasons` populated.
 
-**Acceptance:** Projection cold-start populates new fields. Compilation still fails at consumer sites (Task C). `mix test test/media_centarr/library/views/detail_test.exs` green.
+**Acceptance:** Projection cold-start populates new fields. `mix test test/media_centarr/library/views/detail_test.exs` green (33 tests). `mix precommit` green (3603 tests). **Shipped 2026-05-17.**
 
 ---
 
