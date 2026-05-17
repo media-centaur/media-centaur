@@ -2,7 +2,8 @@ defmodule MediaCentarr.Library.ExtraFileTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Library
-  alias MediaCentarr.Library.ExtraFile
+  alias MediaCentarr.Library.{ExtraFile, FilePresence}
+  alias MediaCentarr.Repo
 
   describe "Library.create_extra_file/1" do
     test "links a file path to an Extra" do
@@ -84,6 +85,30 @@ defmodule MediaCentarr.Library.ExtraFileTest do
         })
 
       assert %{file_path: ["can't be blank"]} = errors_on(changeset)
+    end
+
+    test "auto-stamps a Library.FilePresence row and links its id" do
+      movie = create_entity(%{type: :movie, name: "Extra Presence Movie"})
+
+      extra =
+        create_extra(%{
+          movie_id: movie.id,
+          name: "BTS",
+          content_url: "/media/test/extras/presence-link.mkv",
+          position: 1
+        })
+
+      assert {:ok, file} =
+               Library.create_extra_file(%{
+                 file_path: "/media/test/extras/presence-link.mkv",
+                 watch_dir: "/media/test",
+                 extra_id: extra.id
+               })
+
+      assert file.file_presence_id
+      presence = Repo.get_by!(FilePresence, file_path: "/media/test/extras/presence-link.mkv")
+      assert file.file_presence_id == presence.id
+      assert presence.watch_dir == "/media/test"
     end
   end
 

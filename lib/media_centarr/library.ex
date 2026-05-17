@@ -63,6 +63,7 @@ defmodule MediaCentarr.Library do
     ExtraProgress,
     ExternalId,
     ExternalIds,
+    FilePresence,
     Image,
     Movie,
     MovieSeries,
@@ -660,7 +661,9 @@ defmodule MediaCentarr.Library do
   def list_watched_files, do: Repo.all(WatchedFile)
 
   def link_file(attrs) do
-    file_path = attrs[:file_path] || attrs["file_path"]
+    file_path = lookup_attr(attrs, :file_path)
+    watch_dir = lookup_attr(attrs, :watch_dir)
+    attrs = ensure_file_presence_id(attrs, file_path, watch_dir)
 
     case Repo.get_by(WatchedFile, file_path: file_path) do
       nil -> Repo.insert(WatchedFile.link_file_changeset(attrs))
@@ -1440,6 +1443,8 @@ defmodule MediaCentarr.Library do
   @spec create_extra_file(map()) :: {:ok, ExtraFile.t()} | {:error, Ecto.Changeset.t()}
   def create_extra_file(attrs) do
     file_path = lookup_attr(attrs, :file_path)
+    watch_dir = lookup_attr(attrs, :watch_dir)
+    attrs = ensure_file_presence_id(attrs, file_path, watch_dir)
 
     case Repo.get_by(ExtraFile, file_path: file_path) do
       nil -> Repo.insert(ExtraFile.link_file_changeset(attrs))
@@ -2712,4 +2717,19 @@ defmodule MediaCentarr.Library do
   defp lookup_attr(attrs, key) when is_atom(key) do
     attrs[key] || attrs[Atom.to_string(key)]
   end
+
+  # Stamps Library.FilePresence for the given path so the upcoming
+  # WatchedFile/ExtraFile insert satisfies its NOT-NULL changeset
+  # validation (and, after the matching schema migration, its FK
+  # constraint). Falls through unchanged when either input is missing
+  # or blank so the downstream changeset surfaces the missing-field
+  # error rather than crashing inside `FilePresence.stamp/3`.
+  defp ensure_file_presence_id(attrs, file_path, watch_dir)
+       when is_binary(file_path) and byte_size(file_path) > 0 and is_binary(watch_dir) and
+              byte_size(watch_dir) > 0 do
+    presence = FilePresence.stamp(file_path, watch_dir)
+    Map.put(attrs, :file_presence_id, presence.id)
+  end
+
+  defp ensure_file_presence_id(attrs, _file_path, _watch_dir), do: attrs
 end

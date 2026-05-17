@@ -2,6 +2,7 @@
 status: in-progress
 started: 2026-05-17
 last_updated: 2026-05-17
+phases_done: [1, 2, 3]
 ---
 # Library presence unification
 
@@ -22,8 +23,8 @@ campaign lands.
 
 ## Status
 
-`2026-05-17`: **Phases 1 + 2 shipped in v0.63.0.** Phases 3–8
-remain.
+`2026-05-17`: **Phases 1 + 2 shipped in v0.63.0; Phase 3
+landed on `main`.** Phases 4–8 remain.
 
 * Phase 1 — `Library.FilePresence` schema, migration
   `20260517100000_create_file_presences.exs`, and context API
@@ -40,9 +41,31 @@ remain.
   the original orphan-stuck-pipeline bug on upgrade (verified
   in this user's production: 206 WatchedFiles + 295-row
   ingest queue active after upgrade).
-* Phases 3–8 — schema FK, read-site flip, DiscoveryProducer
-  ETS dedup, AbsenceSweeper port, drop `watcher_files`,
-  verification. See *Next steps* below.
+* Phase 3 — `library_watched_files` and `library_extra_files`
+  gain a `file_presence_id` FK column with
+  `on_delete: :delete_all` (schema migration
+  `20260517110000_add_file_presence_id_to_library_files.exs`).
+  `Library.link_file/1` and `Library.create_extra_file/1` now
+  stamp `Library.FilePresence` for `(file_path, watch_dir)`
+  before insert/update and inject the id; both changesets
+  cast and `validate_required(:file_presence_id)`. Data
+  migration `20260517110200_backfill_file_presence_ids.exs`
+  seeds presence rows + populates the FK for any pre-existing
+  leaf rows. Cascade-delete is verified end-to-end in
+  `file_presence_test.exs`.
+  **Deferred:** the campaign's "tighten to non-null" step
+  cannot land in the same release as the backfill because
+  `MediaCentarr.Release` runs *all* schema migrations before
+  *any* data migration (see `lib/media_centarr/release.ex`
+  comments), so a NOT-NULL schema migration paired with the
+  Phase-3 backfill would fail at boot. Non-null is enforced
+  at the changeset layer today; the DB-level constraint
+  ships as a one-line follow-up migration in a later release
+  once every install has run the backfill (tracked as the
+  first sub-task of Phase 7).
+* Phases 4–8 — read-site flip, DiscoveryProducer ETS dedup,
+  AbsenceSweeper port, drop `watcher_files`, verification.
+  See *Next steps* below.
 
 ## Decisions made
 
@@ -56,8 +79,8 @@ remain.
 ## Next steps
 
 Per the eight-phase plan in [ADR-045][1]. Each phase ships
-green and is committable on its own; don't straddle. Phases 1
-and 2 are ✅ done (see Status); resume at Phase 3.
+green and is committable on its own; don't straddle. Phases
+1–3 are ✅ done (see Status); resume at Phase 4.
 
 1. ✅ **Phase 1.** Introduce `Library.FilePresence` schema +
    migration + context API. Non-breaking; no callers yet.
@@ -66,10 +89,15 @@ and 2 are ✅ done (see Status); resume at Phase 3.
    (dual-write with KnownFile). Backfill migration from
    `watcher_files`. Watcher's scan-dedup reads from
    FilePresence.
-3. **Phase 3** *(next)***.** Add `file_presence_id` FK to WatchedFile and
-   ExtraFile. Backfill from `file_path`. Tighten to non-null
-   after backfill.
-4. **Phase 4.** Read-site flip: every Library join on
+3. ✅ **Phase 3.** Added `file_presence_id` FK to WatchedFile
+   and ExtraFile (`on_delete: :delete_all`). `Library.link_file/1`
+   and `create_extra_file/1` stamp presence + inject id;
+   changesets `validate_required(:file_presence_id)`.
+   Backfill data migration runs against pre-existing rows.
+   DB-level NOT-NULL is deferred to a follow-up migration in
+   the release *after* the backfill has run everywhere — see
+   the Phase-7 first sub-task below.
+4. **Phase 4** *(next)***.** Read-site flip: every Library join on
    `watcher_files` switches to `library_file_presences`. One
    commit per join site so bisect is precise. Tests updated
    per site.
@@ -79,12 +107,15 @@ and 2 are ✅ done (see Status); resume at Phase 3.
 6. **Phase 6.** New `Library.AbsenceSweeper` GenServer.
    Delete `Watcher.AbsencePolicy`. Topic + payload contract
    for `{:files_removed, paths}` preserved verbatim.
-7. **Phase 7.** Stop dual-writes. Drop `watcher_files` table
-   with inline reconcile-orphan pass (any `:present`
-   KnownFile row without matching FilePresence gets a fresh
-   FilePresence so the next scan re-detects). Delete
-   `Watcher.KnownFile`, `Watcher.FilePresence`,
-   `Watcher.AbsencePolicy` modules.
+7. **Phase 7.** Tighten `file_presence_id` to NOT NULL on
+   both `library_watched_files` and `library_extra_files`
+   (the Phase-3 deferral — safe to ship once every install
+   has booted the Phase-3 backfill). Then stop dual-writes.
+   Drop `watcher_files` table with inline reconcile-orphan
+   pass (any `:present` KnownFile row without matching
+   FilePresence gets a fresh FilePresence so the next scan
+   re-detects). Delete `Watcher.KnownFile`,
+   `Watcher.FilePresence`, `Watcher.AbsencePolicy` modules.
 8. **Phase 8.** Verification: full precommit, real-library
    smoke, in-place upgrade smoke from the current production
    state. Update `docs/architecture.md` and `docs/watcher.md`

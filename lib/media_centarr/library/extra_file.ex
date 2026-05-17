@@ -47,6 +47,7 @@ defmodule MediaCentarr.Library.ExtraFile do
           file_path: String.t() | nil,
           watch_dir: String.t() | nil,
           extra_id: Ecto.UUID.t() | nil,
+          file_presence_id: Ecto.UUID.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }
@@ -56,26 +57,30 @@ defmodule MediaCentarr.Library.ExtraFile do
     field :watch_dir, :string
 
     belongs_to :extra, MediaCentarr.Library.Extra
+    belongs_to :file_presence, MediaCentarr.Library.FilePresence
 
     timestamps()
   end
 
   @doc """
-  Insert / update changeset for an ExtraFile. Requires `:file_path` and
-  `:extra_id`; `:watch_dir` is captured for cross-context presence
-  lookups (mirrors WatchedFile).
+  Insert / update changeset for an ExtraFile. Requires `:file_path`,
+  `:extra_id`, and `:file_presence_id`; `:watch_dir` is captured for
+  cross-context presence lookups (mirrors WatchedFile). Callers
+  should go through `Library.create_extra_file/1` rather than
+  building this changeset directly — that wrapper ensures a matching
+  FilePresence exists and injects its id.
   """
   def link_file_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:file_path, :watch_dir, :extra_id])
-    |> validate_required([:file_path, :extra_id])
+    |> cast(attrs, [:file_path, :watch_dir, :extra_id, :file_presence_id])
+    |> validate_required([:file_path, :extra_id, :file_presence_id])
     |> unique_constraint(:file_path)
   end
 
   def link_file_changeset(extra_file, attrs) do
     extra_file
-    |> cast(attrs, [:file_path, :watch_dir, :extra_id])
-    |> validate_required([:file_path, :extra_id])
+    |> cast(attrs, [:file_path, :watch_dir, :extra_id, :file_presence_id])
+    |> validate_required([:file_path, :extra_id, :file_presence_id])
     |> unique_constraint(:file_path)
   end
 end
