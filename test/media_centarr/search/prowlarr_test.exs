@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.ProwlarrTest do
+defmodule MediaCentarr.Search.ProwlarrTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Acquisition.{Prowlarr, SearchResult}
+  alias MediaCentarr.Search.{Prowlarr, SearchResult}
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)

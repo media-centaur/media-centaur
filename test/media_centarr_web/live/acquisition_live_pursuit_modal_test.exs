@@ -18,7 +18,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
   import Phoenix.LiveViewTest
   import MediaCentarr.TestFactory
 
-  alias MediaCentarr.Acquisition.Prowlarr
+  alias MediaCentarr.Search.Prowlarr
   alias MediaCentarr.Acquisition.Pursuits.Event
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Downloads.QueueState

@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.QualityWindowTest do
+defmodule MediaCentarr.Search.QualityWindowTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.QualityWindow
+  alias MediaCentarr.Search.QualityWindow
 
   defp snapshot(overrides) do
     base = %{

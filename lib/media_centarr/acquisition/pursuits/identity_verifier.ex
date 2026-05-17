@@ -26,10 +26,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition.Pursuits
-  alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit, State}
+  alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit, Recipe, State}
   alias MediaCentarr.Acquisition.Pursuits.Commands.{Cancel, Satisfy}
   alias MediaCentarr.Acquisition.Pursuits.Events.{IdentityMismatch, IdentityVerified}
-  alias MediaCentarr.Acquisition.{SearchResult, TitleMatcher}
+  alias MediaCentarr.Search.{SearchResult, TitleMatcher}
   alias MediaCentarr.Format
 
   @impl Oban.Worker
@@ -37,8 +37,9 @@ defmodule MediaCentarr.Acquisition.Pursuits.IdentityVerifier do
     with {:ok, pursuit} <- load_active_pursuit(pursuit_id) do
       basename = Path.basename(file_path)
       synthetic = %SearchResult{title: basename, guid: "", indexer_id: 0, quality: nil}
+      criteria = pursuit |> Recipe.from() |> Recipe.to_criteria()
 
-      if TitleMatcher.matches?(synthetic, pursuit) do
+      if criteria && TitleMatcher.matches?(synthetic, criteria) do
         verify(pursuit, file_path)
       else
         reject(pursuit, file_path, basename)

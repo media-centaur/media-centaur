@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Acquisition.QualityTest do
+defmodule MediaCentarr.Search.QualityTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.Quality
+  alias MediaCentarr.Search.Quality
 
   describe "parse/1" do
     test "detects 2160p marker" do

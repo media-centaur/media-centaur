@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.Prowlarr do
+defmodule MediaCentarr.Search.Prowlarr do
   @moduledoc """
   `SearchProvider` implementation backed by the Prowlarr indexer aggregator API.
 
@@ -43,11 +43,11 @@ defmodule MediaCentarr.Acquisition.Prowlarr do
   did not, which let the `/api/v1/release` bug ship.
   """
 
-  @behaviour MediaCentarr.Acquisition.SearchProvider
+  @behaviour MediaCentarr.Search.SearchProvider
 
   require MediaCentarr.Log, as: Log
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Search.SearchResult
 
   @doc "Clears the cached Req client so the next call rebuilds it from config."
   def invalidate_client do

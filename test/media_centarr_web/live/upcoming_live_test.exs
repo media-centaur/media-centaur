@@ -58,9 +58,9 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
       client =
         Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
 
-      :persistent_term.put({MediaCentarr.Acquisition.Prowlarr, :client}, client)
+      :persistent_term.put({MediaCentarr.Search.Prowlarr, :client}, client)
 
-      on_exit(fn -> :persistent_term.erase({MediaCentarr.Acquisition.Prowlarr, :client}) end)
+      on_exit(fn -> :persistent_term.erase({MediaCentarr.Search.Prowlarr, :client}) end)
 
       :ok
     end

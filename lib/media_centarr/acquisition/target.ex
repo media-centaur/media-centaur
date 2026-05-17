@@ -50,7 +50,7 @@ defmodule MediaCentarr.Acquisition.Target do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias MediaCentarr.Acquisition.{Quality, SearchResult}
+  alias MediaCentarr.Search.{Quality, SearchResult}
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   @foreign_key_type Ecto.UUID

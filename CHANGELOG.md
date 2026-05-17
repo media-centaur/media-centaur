@@ -4,6 +4,18 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.64.0 — 2026-05-17
+
+### Behind the scenes
+
+Internal refit: the release-search machinery (Prowlarr client, query
+building, title matching, quality bounds) moves into its own
+`MediaCentarr.Search` module group, separate from the acquisition
+flow that consumes it. No user-visible change in this release —
+this is the structural groundwork that lets the next acquisition
+features land without piling more responsibilities onto a single
+sprawling context.
+
 ## v0.63.0 — 2026-05-17
 
 ### Fixed
