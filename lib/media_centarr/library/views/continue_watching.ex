@@ -9,7 +9,7 @@ defmodule MediaCentarr.Library.Views.ContinueWatching do
 
   ## Refresh triggers
 
-  Subscribes to three source topics:
+  Subscribes to four source topics:
 
     * `library:updates` — entity creates/edits/deletes
       (already coalesced upstream by `Library.BroadcastCoalescer`).
@@ -22,6 +22,12 @@ defmodule MediaCentarr.Library.Views.ContinueWatching do
       active session — single-user, single-session means at most one
       rebuild per few seconds during playback. Cheap; preserves the
       existing UX where the bar ticks forward without page reload.
+    * `library:availability` — drive-mount and drive-unmount events.
+      The underlying `Library.list_in_progress/1` joins
+      `library_watched_files`, whose FK to `library_file_presences`
+      (cascade-delete) makes file presence equivalent to "currently
+      on disk." When a drive disappears, in-progress rows for its
+      titles must vanish from the row; when it returns, they reappear.
 
   Other `playback:events` (`:playback_state_changed`,
   `:extra_progress_updated`) do not affect Continue Watching's
@@ -48,6 +54,7 @@ defmodule MediaCentarr.Library.Views.ContinueWatching do
   @behaviour MediaCentarr.Cache
 
   alias MediaCentarr.Library
+  alias MediaCentarr.Library.Availability
   alias MediaCentarr.Library.Views.ContinueWatchingItem
   alias MediaCentarr.Topics
 
@@ -59,6 +66,7 @@ defmodule MediaCentarr.Library.Views.ContinueWatching do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.library_updates())
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.watch_history_events())
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.playback_events())
+    Availability.subscribe()
     :ok
   end
 
@@ -66,6 +74,7 @@ defmodule MediaCentarr.Library.Views.ContinueWatching do
   def relevant?({:entities_changed, _}), do: true
   def relevant?({:watch_event_created, _}), do: true
   def relevant?({:entity_progress_updated, _}), do: true
+  def relevant?({:availability_changed, _dir, _state}), do: true
   def relevant?(_), do: false
 
   @impl MediaCentarr.Cache

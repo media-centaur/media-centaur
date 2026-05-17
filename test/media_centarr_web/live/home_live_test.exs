@@ -80,7 +80,17 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       assert html =~ "/media-images/#{movie.id}/backdrop.jpg"
       refute html =~ "?v="
 
+      # In production the Continue Watching projection observes
+      # `:availability_changed` (it subscribes to `library:availability`),
+      # refreshes, and broadcasts `{:library_view_updated, :continue_watching}`
+      # — HomeLive bumps :image_version on the source event and schedules
+      # the section reload on the derived broadcast. Cache.Worker isn't
+      # running under ConnCase, so we simulate by refreshing the projection
+      # directly (which emits the same derived broadcast HomeLive listens
+      # for) immediately after the source event.
       send(view.pid, {:availability_changed, "/mnt/movies", :available})
+      :ok = MediaCentarr.Library.Views.ContinueWatching.refresh_cache()
+
       # 500ms debounce + slack
       Process.sleep(700)
 

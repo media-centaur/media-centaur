@@ -59,6 +59,11 @@ defmodule MediaCentarr.Library.Views.ContinueWatchingTest do
       assert ContinueWatching.relevant?({:entity_progress_updated, %{}})
     end
 
+    test "accepts availability changes (file presence flips alter the result set)" do
+      assert ContinueWatching.relevant?({:availability_changed, "/some/dir", :available})
+      assert ContinueWatching.relevant?({:availability_changed, "/some/dir", :unavailable})
+    end
+
     test "rejects unrelated messages" do
       refute ContinueWatching.relevant?(:something_else)
       refute ContinueWatching.relevant?({:playback_state_changed, %{}})
