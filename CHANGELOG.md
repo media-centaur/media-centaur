@@ -4,6 +4,14 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.64.1 — 2026-05-17
+
+### Behind the scenes
+
+Internal cleanup: prunes five no-longer-referenced exports from the
+acquisition boundary, finishing the third and final phase of the
+acquisition-split refactor begun in v0.62. No user-visible change.
+
 ## v0.64.0 — 2026-05-17
 
 ### Behind the scenes
