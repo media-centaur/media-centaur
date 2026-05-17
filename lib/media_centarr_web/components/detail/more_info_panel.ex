@@ -36,7 +36,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanel do
   attr :entity, :map,
     required: true,
     doc:
-      "entity view-model map (see `MediaCentarr.Library.EntityShape.to_view_model/2`). Loose-typed because it spans multiple Library schemas; the shell reads `:type` to dispatch and forwards the whole map to per-type sub-components."
+      "entity-map produced by `MediaCentarr.Library.Views.DetailItem.to_entity_map/1` (Phase 3.2 Task D). Loose-typed because it spans multiple container kinds; the shell reads `:type` to dispatch and forwards the map to per-type sub-components. Typed-attr migration is a Phase 3.3 follow-up."
 
   def more_info_panel(assigns) do
     ~H"""

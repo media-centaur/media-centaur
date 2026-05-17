@@ -248,16 +248,17 @@ defmodule MediaCentarrWeb.NoDbOnRenderTest do
     end
 
     test "GET /library?selected=<movie_id> mounts within budget", %{conn: conn, movie: movie} do
-      # The detail modal hydrates a single entity by id. It's not a
-      # grid-rebuild path — one entity, one preload chain. After Phase
-      # 3.1 the grid itself reads from Views.Browse, so the budget here
-      # is dominated by Library.load_modal_entry/1 plus the projection
-      # build for the grid (DB fallback in test mode).
+      # The detail modal hydrates a single entity by id. After Phase
+      # 3.2 Task D the modal-open path reads from Views.Detail
+      # (Pillar-2 ETS in production, ~5 queries via DB-fallback in
+      # test mode). The budget here is dominated by the Views.Browse
+      # cold-start build for the grid (Cache.Worker isn't running in
+      # tests — Phase 3 follow-up: warm Browse in test setup).
       mount_and_assert(
         conn,
         "/library?selected=#{movie.id}",
-        90,
-        "Detail modal hydration (load_modal_entry) + Views.Browse DB-fallback grid + bulk progress/availability"
+        85,
+        "Views.Browse DB-fallback grid (~65) + Views.Detail DB-fallback modal-open (~5) + bulk progress/availability. Isolated runs measure ~74; the +10 margin absorbs the inter-test PubSub/cache variance seen under the full suite."
       )
     end
   end
