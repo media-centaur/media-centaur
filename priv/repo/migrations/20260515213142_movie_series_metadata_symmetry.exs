@@ -3,7 +3,7 @@ defmodule MediaCentarr.Repo.Migrations.MovieSeriesMetadataSymmetry do
   Brings `library_movie_series` to metadata parity with `library_tv_series`
   so the detail surface can render collections with the same shape as
   series. See Phase 1 Task 4 of the Library Schema v2 campaign
-  (`campaigns/library-schema-v2.md`).
+  (`campaigns/done/library-schema-v2.md`).
 
   Adds the missing scalars (`tagline`, `original_language`, `studio`,
   `country_code`, `vote_count`, `status`) and the JSON-backed

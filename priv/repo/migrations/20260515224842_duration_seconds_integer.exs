@@ -3,7 +3,7 @@ defmodule MediaCentarr.Repo.Migrations.DurationSecondsInteger do
   Replaces the stringly-typed `duration` column on `library_movies` and
   `library_episodes` with the canonical `duration_seconds :integer`. See
   Phase 1 Task 3 of the Library Schema v2 campaign
-  (`campaigns/library-schema-v2.md`).
+  (`campaigns/done/library-schema-v2.md`).
 
   Prior to this migration, `duration` stored an ambiguous mix of formats —
   ISO 8601 (`"PT2H30M"`), bare minute strings (`"150"`), and free-text
