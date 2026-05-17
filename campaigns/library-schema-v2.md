@@ -1,7 +1,7 @@
 ---
-status: phase-3-shipped
+status: phase-3.2-in-progress
 started: 2026-05-15
-last_updated: 2026-05-16
+last_updated: 2026-05-17b
 ---
 # Library Schema v2 — architectural excellence
 
@@ -216,6 +216,50 @@ functions consumed alongside the projection at the LiveView layer.
 on_mount-hook cache-miss reads). The test-mode budget moved from 80
 to 45 to reflect the fallback path; the production benefit is the
 ETS lookup, not the test-mode count.
+
+## Phase 3.2 — DetailLive cutover (🚧 in progress, started 2026-05-17)
+
+Apply the Phase 3.1 pattern (projection + bulk-helper overlays) to
+the entity-detail modal. Plan doc:
+[`docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md`](../docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md).
+
+Five tasks (A → E); three landed today:
+
+- **Task A — DetailItem typed inner structs** (commit `e07ab5d7`, 2026-05-17).
+  `DetailItem.{Season, Episode, MovieEntry, WatchedFile, SubtitleTrack}`
+  inner modules + `:images, :seasons, :movies, :watched_files,
+  :subtitle_tracks` on DetailItem. Design decision recorded:
+  per-episode progress is overlay (`Library.Progress.get/1`), not
+  embedded — playback ticks must not invalidate the projection.
+
+- **Task B — Projection populates the new fields** (commit `7f1be81a`, 2026-05-17).
+  `Views.Detail.refresh_cache/0` extended: PlayableItems grouped by
+  top-level entity, entity-level shared data (`:images, :seasons,
+  :movies`) built once per group (functional sharing). Per-leaf
+  `:watched_files, :subtitle_tracks` per row. `read_by_container/2`
+  extended for `:tv_series` + `:movie_series` (canonical-leaf lookup).
+  `top_level_container/2` extended for Movies under MovieSeries
+  (mirror of Episode → TVSeries).
+
+- **Task C.1 — DetailItem.Episode/Season grow content_url + number_of_episodes + extras** (commit `3f242e9e`, 2026-05-17).
+  Prep for the SeriesDetail.compose flip. Episode's `:content_url`
+  from first WatchedFile; Season's `:number_of_episodes` from schema;
+  Season's `:extras` populated from preloaded Extra rows. No
+  consumer reads yet — splits the C work into prep + flip.
+
+Tasks remaining:
+
+- **C.2 — Flip SeriesDetail.compose to projection.** TV-series
+  modal-open path stops calling `Library.load_modal_entry/1` and
+  reads `Views.detail_by_container(:tv_series, id)`. Adapter
+  function converts DetailItem to the polymorphic-entity-map shape
+  SeriesDetail.build/4 expects (temporary compat layer, retired in
+  Task E). Cross-context overlay (ReleaseTracking releases, tracking
+  status) stays at the composer.
+- **D — Flip Library.load_modal_entry to projection.** Movie /
+  MovieSeries / VideoObject modal-open paths.
+- **E — Retire rich-entity-map attrs.** DetailPanel + sub-components
+  consume `DetailItem` directly. Adapter from C.2 deleted.
 
 ## Phase 3 follow-ups
 

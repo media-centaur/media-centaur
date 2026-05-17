@@ -550,8 +550,13 @@ slip.
 "every read path through a projection" criterion):**
 
 * **DetailLive / EntityModal consumer flip** to
-  `Library.Views.Detail`. `DetailItem` needs the full file /
-  season / episode tree.
+  `Library.Views.Detail` — **🚧 in progress** as Phase 3.2 of
+  [`library-schema-v2.md`](library-schema-v2.md#phase-32--detaillive-cutover--in-progress-started-2026-05-17).
+  Tasks A + B + C.1 shipped 2026-05-17 (DetailItem grew typed inner
+  structs; projection populates them; episode `:content_url` +
+  season `:number_of_episodes`/`:extras` prepared). Tasks C.2, D, E
+  remaining — SeriesDetail.compose flip, then Movie/MovieSeries/
+  VideoObject flip, then retirement of rich-entity-map attrs.
 * **Library search consumer flip** to `Library.Views.search/2`.
   Decision required: per-leaf rows (better UX, larger index) or
   entity-only matching (simpler, regresses nested season/episode

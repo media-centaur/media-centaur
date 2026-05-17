@@ -127,20 +127,39 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 ---
 
-### Task C — `SeriesDetail.compose/1` reads from projection *(LiveView-layer composition flip)*
+### Task C.1 — Prep DetailItem.Episode/Season for the SeriesDetail flip *(struct + projection)*
+
+**Goal:** Add the fields SeriesDetail.compose will need before flipping the read path. Splits Task C into prep + flip so each commit stays smaller.
+
+- [x] DetailItem.Episode gains `:content_url` — first WatchedFile's file_path under the episode's PlayableItem. Required by `ResumeTarget.compute/2` (walks `season.episodes` looking for `episode.content_url`) and the episode-list "play this episode" handler.
+- [x] DetailItem.Season gains `:number_of_episodes` — mirrors the Season schema field. Required by `SeriesDetail.build/4`'s gap-fill (`EpisodeListItem.Missing` rows).
+- [x] DetailItem.Season's `:extras` is populated from preloaded `Extra` rows (`owner_type: :season, owner_id: <season.id>`). Previously defaulted to []; projection now batches the lookup across seasons.
+
+**Tests:**
+* [x] `test/media_centarr/library/views/detail_item_test.exs` — struct-shape assertions for the two new fields.
+* [x] `test/media_centarr/library/views/detail_test.exs` — 3 new cold-start cases (Season `:number_of_episodes`, Season `:extras`, Episode `:content_url`).
+
+**Acceptance:** Fields populated by projection refresh; no consumer reads yet (Task C.2 flips). `mix precommit` green (3606 tests). **Shipped 2026-05-17 (commit `3f242e9e`).**
+
+### Task C.2 — `SeriesDetail.compose/1` reads from projection *(LiveView-layer composition flip)*
 
 **Goal:** TV-series modal entry path stops calling `Library.load_modal_entry/1`. The cross-context overlay (releases, tracking_status, resume target) stays at the LiveView layer; only the Library half flips.
 
-- [ ] Refactor `SeriesDetail.compose/1` to:
-  - Call `Library.Views.detail_by_container/2` for the TV series id.
-  - Map the returned `DetailItem` + its `:seasons` (typed inner struct) into the existing `SeriesDetail.build/4` inputs. The pure builder stays unchanged — typed input in, typed output out.
-  - Continue reading `ReleaseTracking.list_relevant_releases_for_library_container/2` and `lookup_tracking_status/1` exactly as before. The composer's cross-context fetch is preserved.
-- [ ] `SeriesDetail.build/4` already accepts a typed library entry — verify the new input shape (DetailItem → entry map) is interface-compatible OR adapt the builder to accept `DetailItem` directly. Prefer the second: the rich-`entity` shape is the legacy compatibility layer we are retiring.
-- [ ] Update the in-test factory entry shape consumed by `series_detail_test.exs` to use `DetailItem` directly.
+- [ ] Adapter function `MediaCentarr.Library.Views.DetailItem.to_entity_map/1` — converts DetailItem to the polymorphic-entity-map shape SeriesDetail.build/4 expects (`%{type: :tv_series, id, name, description, date_published, tagline, url, images, external_ids, extras, cast, crew, seasons: [%{season_number, name, episodes: [%{id, episode_number, name, content_url, ...}], extras, number_of_episodes}]}`). Temporary — Task E retires it.
+- [ ] Helper `Library.list_progress_records_for_tv_series/1` — returns `[%WatchProgress{}]` for every episode under the series. Used by SeriesDetail.compose to thread progress to build/4 (which currently extracts it from preloaded entity).
+- [ ] Helper `Library.ProgressSummary.compute_for_tv_series/2` (or extend the existing one) — totals across the series.
+- [ ] Rewrite `SeriesDetail.compose/1`:
+  - Call `Views.detail_by_container(:tv_series, id)` → DetailItem (or :not_found).
+  - Call `list_progress_records_for_tv_series/1` + summary compute.
+  - Call `ReleaseTracking.list_relevant_releases_for_library_container/2` and `lookup_tracking_status_by_id/1` (or read from DetailItem's `external_ids`).
+  - Build `entry = %{entity: to_entity_map(detail_item), progress: summary, progress_records: records, tracking_status: status}`.
+  - Compute `ResumeTarget` against the adapted entity.
+  - Pass to `build/4`, return `{:ok, view_model}`.
+- [ ] `series_detail_test.exs` — verify all `compose/1` DB-backed tests still pass with the new internal path.
 
 **Tests:**
-* `test/media_centarr_web/view_model/series_detail_test.exs` — flip the test factory to construct `%DetailItem{}` fixtures via `build_detail_item/1` (new factory helper). All existing assertions on the `[SeasonView]` output should still pass — the build/4 logic is unchanged, only its input shape moves.
-* Verify `compose/1` integration: assert the composer makes zero Repo queries for Library data when the projection is warm.
+* [ ] `series_detail_test.exs` `compose/1` describe block — assertions remain on `view_model.seasons` and `view_model.tracking_status`, not on the internal `:entity` shape. Existing tests should pass unchanged.
+* [ ] Optional integration assertion: `compose/1` makes zero `Library` Repo queries on warm projection (skip if test-mode DB-fallback dominates).
 
 **Acceptance:** TV-series modal load path reads through the projection. `mix precommit` green. `no_db_on_render_test` for TV-series `/library?selected=<id>` budget drops.
 
