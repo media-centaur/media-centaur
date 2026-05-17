@@ -195,6 +195,11 @@ defmodule MediaCentarr.Library.Views.DetailItem do
     `:content_url` is the file path of the first linked `WatchedFile`
     under the episode's `PlayableItem` — needed by `ResumeTarget` and
     the episode-list renderer to wire the play button.
+
+    `:images` carries per-episode `Library.Image` rows (typically a
+    `"thumb"` for the episode-row render). Defaults to `[]` so consumers
+    that dot-access `:images` cannot `KeyError` on episodes without
+    artwork.
     """
 
     @enforce_keys [:episode_id, :playable_item_id, :season_number, :episode_number, :name]
@@ -208,7 +213,8 @@ defmodule MediaCentarr.Library.Views.DetailItem do
       :date_published,
       :duration_seconds,
       :present?,
-      :content_url
+      :content_url,
+      images: []
     ]
 
     @type t :: %__MODULE__{
@@ -221,7 +227,8 @@ defmodule MediaCentarr.Library.Views.DetailItem do
             date_published: Date.t() | nil,
             duration_seconds: integer() | nil,
             present?: boolean() | nil,
-            content_url: String.t() | nil
+            content_url: String.t() | nil,
+            images: [struct()]
           }
   end
 
@@ -286,5 +293,77 @@ defmodule MediaCentarr.Library.Views.DetailItem do
             language: String.t(),
             source: String.t() | nil
           }
+  end
+
+  @doc """
+  Adapts a TV-series canonical-episode `DetailItem` into the
+  polymorphic entity-map shape today's consumers
+  (`MediaCentarrWeb.ViewModel.SeriesDetail.build/4`,
+  `MediaCentarr.Playback.ResumeTarget.compute/2`,
+  `MediaCentarrWeb.Live.EntityModal.find_tmdb_id/1`,
+  `MediaCentarrWeb.Live.EntityModal.resolve_progress_fk/4`) consume.
+
+  Library Schema v2 Phase 3.2 Task C.2 flips `SeriesDetail.compose/1`
+  to read from the `Library.Views.Detail` projection. This function
+  is the temporary compatibility shim — Task E retires it when the
+  consumer tree migrates to typed `DetailItem` attrs.
+
+  Pure: no DB, no side effects. Only handles `:tv_series` parent
+  containers; movie / movie_series / video_object flips land in Task D.
+  """
+  @spec to_entity_map(t()) :: map()
+  def to_entity_map(%__MODULE__{parent_container_type: :tv_series} = item) do
+    %{
+      id: item.parent_container_id,
+      type: :tv_series,
+      name: item.container_name,
+      description: item.container_description,
+      url: item.container_url,
+      tagline: item.container_tagline,
+      genres: item.container_genres,
+      studio: item.container_studio,
+      country_code: item.container_country_code,
+      original_language: item.container_original_language,
+      network: item.container_network,
+      status: item.container_status,
+      duration_seconds: item.container_duration_seconds,
+      content_rating: item.container_content_rating,
+      aggregate_rating_value: item.container_aggregate_rating,
+      vote_count: item.container_vote_count,
+      number_of_seasons: item.container_number_of_seasons,
+      cast: item.cast || [],
+      crew: item.crew || [],
+      extras: item.extras || [],
+      external_ids: item.external_ids || [],
+      imdb_id: item.imdb_id,
+      tmdb_id: item.tmdb_id,
+      images: item.images || [],
+      seasons: Enum.map(item.seasons || [], &season_to_map/1),
+      movies: [],
+      watched_files: []
+    }
+  end
+
+  defp season_to_map(%__MODULE__.Season{} = season) do
+    %{
+      season_number: season.season_number,
+      name: season.name,
+      number_of_episodes: season.number_of_episodes,
+      extras: season.extras || [],
+      episodes: Enum.map(season.episodes || [], &episode_to_map/1)
+    }
+  end
+
+  defp episode_to_map(%__MODULE__.Episode{} = episode) do
+    %{
+      id: episode.episode_id,
+      episode_number: episode.episode_number,
+      name: episode.name,
+      description: episode.description,
+      date_published: episode.date_published,
+      duration_seconds: episode.duration_seconds,
+      content_url: episode.content_url,
+      images: episode.images || []
+    }
   end
 end

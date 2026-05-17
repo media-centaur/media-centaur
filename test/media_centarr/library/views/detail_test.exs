@@ -540,6 +540,51 @@ defmodule MediaCentarr.Library.Views.DetailTest do
       assert Enum.all?(episodes, & &1.present?)
     end
 
+    test "TV-series episodes carry per-episode :images for thumbnail render (Phase 3.2 Task C.2)" do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample Thumb Show"})
+      season1 = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      ep1 =
+        create_episode(%{
+          season_id: season1.id,
+          episode_number: 1,
+          name: "Pilot",
+          duration_seconds: 1800
+        })
+
+      ep2 =
+        create_episode(%{
+          season_id: season1.id,
+          episode_number: 2,
+          name: "Pilot 2",
+          duration_seconds: 1800
+        })
+
+      pi1 = create_playable_item_for_episode(ep1)
+      pi2 = create_playable_item_for_episode(ep2)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/thumb-s01e01.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/thumb-s01e02.mkv"})
+
+      _img1 =
+        create_image(%{
+          owner_type: :episode,
+          owner_id: ep1.id,
+          role: "thumb",
+          content_url: "episodes/#{ep1.id}/thumb.jpg"
+        })
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail(pi1.id)
+
+      assert [%DetailItem.Season{episodes: [ep1_view, ep2_view]}] = item.seasons
+      assert is_list(ep1_view.images)
+      assert Enum.any?(ep1_view.images, &(&1.role == "thumb"))
+      # Episodes without images still get an empty list — never nil, so
+      # `image_url/2` (which dot-accesses `:images`) can't KeyError.
+      assert ep2_view.images == []
+    end
+
     test "detail_by_container(:tv_series, id) returns canonical leaf with full seasons tree" do
       on_exit_clear_table()
       series = create_tv_series(%{name: "Sample TV Canonical"})

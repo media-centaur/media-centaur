@@ -145,23 +145,25 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 **Goal:** TV-series modal entry path stops calling `Library.load_modal_entry/1`. The cross-context overlay (releases, tracking_status, resume target) stays at the LiveView layer; only the Library half flips.
 
-- [ ] Adapter function `MediaCentarr.Library.Views.DetailItem.to_entity_map/1` — converts DetailItem to the polymorphic-entity-map shape SeriesDetail.build/4 expects (`%{type: :tv_series, id, name, description, date_published, tagline, url, images, external_ids, extras, cast, crew, seasons: [%{season_number, name, episodes: [%{id, episode_number, name, content_url, ...}], extras, number_of_episodes}]}`). Temporary — Task E retires it.
-- [ ] Helper `Library.list_progress_records_for_tv_series/1` — returns `[%WatchProgress{}]` for every episode under the series. Used by SeriesDetail.compose to thread progress to build/4 (which currently extracts it from preloaded entity).
-- [ ] Helper `Library.ProgressSummary.compute_for_tv_series/2` (or extend the existing one) — totals across the series.
-- [ ] Rewrite `SeriesDetail.compose/1`:
-  - Call `Views.detail_by_container(:tv_series, id)` → DetailItem (or :not_found).
-  - Call `list_progress_records_for_tv_series/1` + summary compute.
-  - Call `ReleaseTracking.list_relevant_releases_for_library_container/2` and `lookup_tracking_status_by_id/1` (or read from DetailItem's `external_ids`).
-  - Build `entry = %{entity: to_entity_map(detail_item), progress: summary, progress_records: records, tracking_status: status}`.
-  - Compute `ResumeTarget` against the adapted entity.
-  - Pass to `build/4`, return `{:ok, view_model}`.
-- [ ] `series_detail_test.exs` — verify all `compose/1` DB-backed tests still pass with the new internal path.
+- [x] Adapter function `MediaCentarr.Library.Views.DetailItem.to_entity_map/1` — converts a `parent_container_type: :tv_series` DetailItem into the polymorphic entity-map shape consumers (`SeriesDetail.build/4`, `ResumeTarget.compute/2`, `EntityModal.find_tmdb_id/1`, `EntityModal.resolve_progress_fk/4`) read today. Pure; no DB; non-TV DetailItems rejected statically by the typer. Temporary — Task E retires it.
+- [x] Helper `Library.list_progress_records_for_tv_series/1` — returns `[%WatchProgress{}]` for every episode under the series, each with a synthesised `:playable_item` so `EpisodeList.progress_container_id/1` still resolves to the Episode UUID (same shape `EntityShape.extract_progress(_, :tv_series)` produced).
+- [x] **Reused existing `Library.ProgressSummary.compute/2`** — already pure and accepts the adapted entity-map shape, so no new helper needed. The plan's `compute_for_tv_series/2` proposal turned out to be redundant.
+- [x] Rewrite `SeriesDetail.compose/1`:
+  - Call `Views.detail_by_container(:tv_series, id)` → `%DetailItem{}` (or nil).
+  - On nil, probe `TypeResolver.resolve_container(id)` to preserve the `:not_found` vs. `{:error, :wrong_type}` discrimination the existing tests assert.
+  - Call `list_progress_records_for_tv_series/1` + `ProgressSummary.compute/2`.
+  - Call `ReleaseTracking.list_relevant_releases_for_library_container/2`; reuse the existing `lookup_tracking_status/1` private (already reads `external_ids` — works against the adapter output).
+  - Compute `ResumeTarget` against the adapted entity, pass to `build/4`.
+
+**Mid-flight finding:** the page-smoke fixture surfaced a per-episode-image render gap — `detail_panel.episode_row` dot-accesses `episode.images` (`KeyError` on a missing key). Fixed in the same commit by growing `DetailItem.Episode` with `:images` (default `[]`) and batch-loading per-episode images in `build_seasons_for_tv_series` (one extra query per refresh, bounded by season count). The adapter now passes `episode.images` through.
 
 **Tests:**
-* [ ] `series_detail_test.exs` `compose/1` describe block — assertions remain on `view_model.seasons` and `view_model.tracking_status`, not on the internal `:entity` shape. Existing tests should pass unchanged.
-* [ ] Optional integration assertion: `compose/1` makes zero `Library` Repo queries on warm projection (skip if test-mode DB-fallback dominates).
+* [x] `detail_item_test.exs` — 5 new adapter cases (TV-series keyed mapping, container metadata pass-through, season/episode shape expansion, external_ids + imdb_id pass-through, nil-collection → `[]` defaults).
+* [x] `library_test.exs` — 5 new `list_progress_records_for_tv_series/1` cases (empty series, series with no progress, multi-episode progress with `:playable_item.container_id` synthesis, cross-series isolation, unknown UUID).
+* [x] `detail_test.exs` — 1 new case for per-episode `:images` population.
+* [x] `series_detail_test.exs` — existing `compose/1` cases pass **unchanged** — assertions are on `view_model.seasons` and `view_model.tracking_status` (surface), not on the internal entity shape.
 
-**Acceptance:** TV-series modal load path reads through the projection. `mix precommit` green. `no_db_on_render_test` for TV-series `/library?selected=<id>` budget drops.
+**Acceptance:** TV-series modal load path reads through the projection. `mix precommit` green (3617 tests, 0 failures). **Shipped 2026-05-17.**
 
 ---
 

@@ -17,6 +17,9 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
   """
 
   alias MediaCentarr.Library
+  alias MediaCentarr.Library.ProgressSummary
+  alias MediaCentarr.Library.TypeResolver
+  alias MediaCentarr.Library.Views.DetailItem
   alias MediaCentarr.Playback.ResumeTarget
   alias MediaCentarr.ReleaseTracking
   alias MediaCentarrWeb.ViewModel.EpisodeListItem
@@ -57,33 +60,51 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
 
   @doc """
   Loads + composes the view model for a TV series. Returns
-  `:not_found` if no library entity matches `entity_id` (or it's
-  filtered by the present-files gating in `Library.load_modal_entry/1`).
-
-  Returns `{:error, :wrong_type}` if the entity exists but isn't a
+  `:not_found` if no library entity matches `entity_id`. Returns
+  `{:error, :wrong_type}` if the entity exists but isn't a
   `:tv_series` — the modal should fall back to its movie/movie_series
   flow.
+
+  Reads the Library half from `MediaCentarr.Library.Views.Detail`
+  (Pillar-2 ETS projection, microsecond reads in production; falls
+  back to a live build in test mode). Cross-context overlays
+  (ReleaseTracking releases, tracking_status) compose at this layer
+  per ADR-029, mirroring the HomeLive pattern.
 
   Computes the resume target via `MediaCentarr.Playback.ResumeTarget`
   on the loaded entry, so callers don't have to thread it separately.
   """
   @spec compose(Ecto.UUID.t()) :: {:ok, t()} | :not_found | {:error, :wrong_type}
   def compose(entity_id) when is_binary(entity_id) do
-    case Library.load_modal_entry(entity_id) do
-      {:ok, %{entity: %{type: :tv_series}} = entry} ->
-        releases =
-          ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :tv_series)
+    case Library.Views.detail_by_container(:tv_series, entity_id) do
+      %DetailItem{} = detail_item ->
+        compose_from_detail(detail_item, entity_id)
 
-        tracking_status = lookup_tracking_status(entry.entity)
-        resume_target = ResumeTarget.compute(entry.entity, entry.progress_records)
-        {:ok, build(entry, releases, tracking_status, resume_target)}
-
-      {:ok, _other_type} ->
-        {:error, :wrong_type}
-
-      :not_found ->
-        :not_found
+      nil ->
+        case TypeResolver.resolve_container(entity_id) do
+          {:ok, _other_type, _record} -> {:error, :wrong_type}
+          :not_found -> :not_found
+        end
     end
+  end
+
+  defp compose_from_detail(detail_item, entity_id) do
+    entity = DetailItem.to_entity_map(detail_item)
+    progress_records = Library.list_progress_records_for_tv_series(entity_id)
+    progress_summary = ProgressSummary.compute(entity, progress_records)
+
+    entry = %{
+      entity: entity,
+      progress: progress_summary,
+      progress_records: progress_records
+    }
+
+    releases =
+      ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :tv_series)
+
+    tracking_status = lookup_tracking_status(entity)
+    resume_target = ResumeTarget.compute(entity, progress_records)
+    {:ok, build(entry, releases, tracking_status, resume_target)}
   end
 
   @doc """

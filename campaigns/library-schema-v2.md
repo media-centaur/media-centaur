@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-in-progress
 started: 2026-05-15
-last_updated: 2026-05-17b
+last_updated: 2026-05-17c
 ---
 # Library Schema v2 — architectural excellence
 
@@ -223,7 +223,7 @@ Apply the Phase 3.1 pattern (projection + bulk-helper overlays) to
 the entity-detail modal. Plan doc:
 [`docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md`](../docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md).
 
-Five tasks (A → E); three landed today:
+Five tasks (A → E); four landed today:
 
 - **Task A — DetailItem typed inner structs** (commit `e07ab5d7`, 2026-05-17).
   `DetailItem.{Season, Episode, MovieEntry, WatchedFile, SubtitleTrack}`
@@ -247,15 +247,22 @@ Five tasks (A → E); three landed today:
   Season's `:extras` populated from preloaded Extra rows. No
   consumer reads yet — splits the C work into prep + flip.
 
+- **Task C.2 — SeriesDetail.compose/1 reads from projection** (commit `8d5dd0f7`, 2026-05-17).
+  TV-series modal-open path flipped: `Library.Views.detail_by_container(:tv_series, _)`
+  + new `DetailItem.to_entity_map/1` adapter (pure, TV-only, retires
+  in Task E) + new `Library.list_progress_records_for_tv_series/1`
+  (replaces the `EntityShape.extract_progress` walk over a preloaded
+  entity). Reused `ProgressSummary.compute/2`. The `:not_found` vs.
+  `{:error, :wrong_type}` distinction preserved via a `TypeResolver`
+  fallback when the projection returns nil. Page-smoke surfaced a
+  per-episode-image render gap, fixed in the same commit by growing
+  `DetailItem.Episode` with `:images` (default `[]`) and batch-loading
+  them in `build_seasons_for_tv_series`. `mix precommit` green (3617
+  tests, 0 failures). Existing `series_detail_test.exs` `compose/1`
+  cases pass unchanged.
+
 Tasks remaining:
 
-- **C.2 — Flip SeriesDetail.compose to projection.** TV-series
-  modal-open path stops calling `Library.load_modal_entry/1` and
-  reads `Views.detail_by_container(:tv_series, id)`. Adapter
-  function converts DetailItem to the polymorphic-entity-map shape
-  SeriesDetail.build/4 expects (temporary compat layer, retired in
-  Task E). Cross-context overlay (ReleaseTracking releases, tracking
-  status) stays at the composer.
 - **D — Flip Library.load_modal_entry to projection.** Movie /
   MovieSeries / VideoObject modal-open paths.
 - **E — Retire rich-entity-map attrs.** DetailPanel + sub-components
