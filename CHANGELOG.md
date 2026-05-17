@@ -4,6 +4,25 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.62.3 — 2026-05-17
+
+### New
+
+The Library page now has a Scan button when your library is empty but
+watch directories are configured. A line above it shows the live count
+of files the pipeline is still ingesting, so the page reads as
+"working on it" rather than "nothing here". The Setup Tour now lands
+you on the Library page when you finish, so this signal is visible
+from the moment your tour ends.
+
+### Fixed
+
+Add and Remove on the setup tour's watch-directories step now respond
+on the first click. They used to need two clicks because Settings
+writes were updating the database but leaving the in-memory cache
+stale until an async refresh caught up; same-action reads after the
+write now see the new value immediately.
+
 ## v0.62.2 — 2026-05-17
 
 ### Fixed
