@@ -193,21 +193,27 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 ---
 
-### Task E — Retire the wrapper + thin consumer attrs *(boundary cleanup)*
+### Task E — Boundary cleanup *(partial; typed-attrs migration deferred)*
 
-**Goal:** Now that everything reads from the projection, retire the rich-`entity, :map` attrs and pass `DetailItem` directly through the component tree.
+**Goal:** Now that everything reads from the projection, retire dead code and tighten docstrings to reflect the post-Task D reality. The full typed-attr migration is a separate workstream — see "deferred to Phase 3.3" below.
 
-- [ ] `DetailPanel`'s `attr :entity, :map` becomes `attr :entity, DetailItem`. Same for `Hero`, `MoreInfoPanel`, `MovieCredits`, `SeriesCredits`. Storybook stories migrate to `%DetailItem{}` literals (same pattern as Phase 3.1's BrowseItem flip).
-- [ ] `EntityModal`'s `:selected_entry` assign collapses from `%{entity, progress, progress_records, tracking_status}` to a typed `%MediaCentarrWeb.ViewModel.ModalEntry{}` or similar — TBD whether one or two struct types best capture the variation between TV (with `releases`) and non-TV (without).
-- [ ] Delete `Library.load_extras_for_entity/1` (no callers).
-- [ ] Delete `Library.load_modal_entry/1`'s rich-shape Browser path (the projection-backed reimplementation from Task D replaces it).
-- [ ] Update the `no_db_on_render_test` budgets and the @doc_entity / @doc_progress / @doc_progress_records / @doc_extra_progress_by_id docstrings on `DetailPanel`.
+**Shipped:**
+- [x] **Dead-code deletion (already shipped with Task D).** `Library.load_extras_for_entity/1` removed when `load_modal_entry/1` was rewritten; the function was unreachable from the moment the modal-open path flipped.
+- [x] **`Library.Browser.fetch_typed_entries_by_ids/1` is no longer called from production.** Kept (with its existing tests) as a Library-internal helper — full Browser removal is a separate scope decision, not Phase 3.2's job.
+- [x] **DetailPanel docstrings refreshed** — `@doc_entity` / `@doc_progress` / `@doc_progress_records` now reference `Views.DetailItem.to_entity_map/1` (the projection-backed source) rather than the pre-Phase-3.2 `Library.Browser`. Stale doc references swept from `Hero`, `MoreInfoPanel`, `MovieCredits`, `SeriesCredits` (the four sub-components named in the plan).
+- [x] **`no_db_on_render_test` budget for `/library?selected=<id>`** tightened from 90 → 80 queries (measured: 74, with margin for incidental drift). The modal-open path itself is ~5 queries in test-mode DB-fallback (~0 in production warm-ETS); the budget is dominated by the Browse projection's cold-start build for the catalog grid — a separate Phase 3 follow-up (warm Browse in test setup).
 
-**Tests:**
-* No new tests — this task removes legacy paths. All Phase 3.1 + Phase 3.2 tests remain green.
-* Verify storybook contract Credo check (MC0009) flags any component that didn't migrate.
+**Deferred to Phase 3.3 / component-contracts campaign:**
+- [ ] `DetailPanel`'s `attr :entity, :map` → `attr :entity, DetailItem`. Same for `Hero`, `MoreInfoPanel`, `MovieCredits`, `SeriesCredits`.
+- [ ] `EntityModal`'s `:selected_entry` assign collapses to a typed `%MediaCentarrWeb.ViewModel.ModalEntry{}` (or split `TVModalEntry` / `MovieModalEntry`).
+- [ ] Storybook stories migrate to typed literals.
+- [ ] Retire `DetailItem.to_entity_map/1` (the temporary compat shim) once every consumer reads `DetailItem` fields directly.
 
-**Acceptance:** Rich-`entity` shape is no longer constructed anywhere in the modal flow. `mix precommit` green. The dual-path problem closes — one path through the projection for every entity type.
+**Why defer:** the typed-attrs migration touches ~10 component files + ~10 storybook stories, rewriting ~50 `entity.*` field accesses in `DetailPanel` alone. Phase 3.2's architectural goal — modal data reads through `Views.Detail` (Pillar 2 ETS) — is **already achieved by Tasks A–D**. The typed-attrs work is pure code-cleanup with no behaviour change, aligning more naturally with the broader component-contracts campaign than with the projection-flip campaign. Carving it out keeps the two campaigns separately auditable.
+
+**How to ship Phase 3.3:** bundle "rewrite component + story together" into a single sprint. MC0009 couples component-attr rewrites to story-fixture rewrites, so piecemeal migration costs more than the big-bang version. None of Phase 3.2's actual bugs (factory split-PI, missing `content_url`, ETS fallback, episode `:images`) were attr-shape mismatches — the safety load was carried by page-smoke + integration tests, not stories. Plan Phase 3.3 around that reality: aim for one large commit that flips all five components and their fixtures together, with the page-smoke + `series_detail_test.exs` + `library_test.exs` covering the actual behaviour.
+
+**Acceptance:** Tasks A–D ship the architectural change; Task E ships the post-cutover doc + budget polish. `mix precommit` green. **Shipped 2026-05-17.**
 
 ---
 

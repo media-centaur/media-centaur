@@ -20,7 +20,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
   attr :entity, :map,
     required: true,
     doc:
-      "movie view-model map (see `MediaCentarr.Library.EntityShape.to_view_model/2`). Reads `:crew` (list of `MediaCentarr.Library.Person` structs) for director/writer filtering."
+      "movie entity-map from `MediaCentarr.Library.Views.DetailItem.to_entity_map/1`. Reads `:crew` (list of `MediaCentarr.Library.Person` structs) for director/writer filtering."
 
   def headline(assigns) do
     crew = assigns.entity[:crew] || []
