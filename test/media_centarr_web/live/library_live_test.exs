@@ -4,7 +4,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
   import MediaCentarr.TestFactory
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.{Library, Watcher.FilePresence}
+  alias MediaCentarr.Library
   alias MediaCentarr.Playback.{Events, ProgressBroadcaster}
   alias MediaCentarr.Playback.Events.{PlaybackFailed, PlaybackStateChanged}
 
@@ -28,8 +28,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       # path. handle_params now must reset the stream when entries are
       # loaded for the first time, not only when tab/sort/filter change.
       movie = create_standalone_movie(%{name: "Initial Mount Fixture"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
 
       {:ok, _view, html} = live(conn, "/library")
 
@@ -41,8 +40,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     setup do
       # Movie the user has started but not finished
       in_progress_movie = create_standalone_movie(%{name: "In Progress Movie"})
-      file1 = create_linked_file(%{movie_id: in_progress_movie.id})
-      FilePresence.record_file(file1.file_path, file1.watch_dir)
+      _ = create_linked_file(%{movie_id: in_progress_movie.id})
 
       create_watch_progress(%{
         movie_id: in_progress_movie.id,
@@ -52,8 +50,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       # Movie the user has fully completed
       finished_movie = create_standalone_movie(%{name: "Finished Movie"})
-      file2 = create_linked_file(%{movie_id: finished_movie.id})
-      FilePresence.record_file(file2.file_path, file2.watch_dir)
+      _ = create_linked_file(%{movie_id: finished_movie.id})
 
       progress =
         create_watch_progress(%{
@@ -66,8 +63,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       # Movie the user has never touched
       untouched_movie = create_standalone_movie(%{name: "Untouched Movie"})
-      file3 = create_linked_file(%{movie_id: untouched_movie.id})
-      FilePresence.record_file(file3.file_path, file3.watch_dir)
+      _ = create_linked_file(%{movie_id: untouched_movie.id})
 
       :ok
     end
@@ -102,8 +98,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
     setup do
       movie = create_standalone_movie(%{name: "Dismiss Fixture"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
       {:ok, movie: movie}
     end
 
@@ -150,8 +145,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
   describe "live updates from playback" do
     setup do
       movie = create_standalone_movie(%{name: "Live Update Movie"})
-      file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
+      _ = create_linked_file(%{movie_id: movie.id})
       {:ok, movie: movie}
     end
 
@@ -220,7 +214,6 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       # without crashing and with a clean re-render.
       movie = create_standalone_movie(%{name: "Availability Movie"})
       file = create_linked_file(%{movie_id: movie.id})
-      FilePresence.record_file(file.file_path, file.watch_dir)
 
       {:ok, view, _html} = live(conn, "/library")
 

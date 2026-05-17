@@ -1067,15 +1067,16 @@ defmodule MediaCentarr.Showcase do
     end)
   end
 
-  # Seeds one file-presence pair (library_watched_files + watcher_files) so
-  # the entity satisfies `Library.Browser.fetch_all_typed_entries`'s filter
-  # requiring a present watched file. Also touches an empty stub file at
-  # `file_path` so the detail modal's "video missing" banner doesn't fire
-  # — the UI checks File.exists?/1 on the content path for that state, and
-  # the showcase can't ship real video files. If the user drops a real
-  # file at that path later, mpv plays it; if not, the stub at least
-  # makes the detail screenshots look like a populated library.
-  # `Watcher.record_seen/1` is idempotent (atomic upsert under the hood);
+  # Seeds the `library_watched_files` + `library_file_presences` pair so
+  # the entity satisfies `Library.Browser.fetch_all_typed_entries`'s
+  # filter requiring a present watched file. Also touches an empty stub
+  # file at `file_path` so the detail modal's "video missing" banner
+  # doesn't fire — the UI checks `File.exists?/1` on the content path
+  # for that state, and the showcase can't ship real video files. If the
+  # user drops a real file at that path later, mpv plays it; if not, the
+  # stub at least makes the detail screenshots look like a populated
+  # library.  `Watcher.record_seen/1` is idempotent (delegates to
+  # `Library.link_file/1` which upserts and auto-stamps a FilePresence);
   # `File.touch!` is a no-op on existing files.
   #
   # The leaf for `:tv_series` containers is resolved by finding the

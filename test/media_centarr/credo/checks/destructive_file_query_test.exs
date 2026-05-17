@@ -4,13 +4,13 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQueryTest do
   alias MediaCentarr.Credo.Checks.DestructiveFileQuery
 
   describe "flags destructive queries on file-presence tables (positive cases)" do
-    test "Repo.delete_all on KnownFile without :watch_dir filter" do
+    test "Repo.delete_all on FilePresence without :watch_dir filter" do
       ~S'''
       defmodule Naive do
         import Ecto.Query
 
         def purge(ids) do
-          Repo.delete_all(from(k in KnownFile, where: k.id in ^ids))
+          Repo.delete_all(from(p in FilePresence, where: p.id in ^ids))
         end
       end
       '''
@@ -41,8 +41,23 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQueryTest do
 
         def purge(ids) do
           Repo.delete_all(
-            from(k in MediaCentarr.Watcher.KnownFile, where: k.id in ^ids)
+            from(p in MediaCentarr.Library.FilePresence, where: p.id in ^ids)
           )
+        end
+      end
+      '''
+      |> to_source_file()
+      |> run_check(DestructiveFileQuery)
+      |> assert_issue()
+    end
+
+    test "Repo.delete_all on ExtraFile without :watch_dir filter" do
+      ~S'''
+      defmodule Naive do
+        import Ecto.Query
+
+        def purge(ids) do
+          Repo.delete_all(from(e in ExtraFile, where: e.id in ^ids))
         end
       end
       '''
@@ -53,15 +68,15 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQueryTest do
   end
 
   describe "allows destructive queries with availability filter (negative cases)" do
-    test "KnownFile delete with :watch_dir in available_dirs is allowed" do
+    test "FilePresence delete with :watch_dir in available_dirs is allowed" do
       ~S'''
       defmodule Safe do
         import Ecto.Query
 
         def purge(available) do
           Repo.delete_all(
-            from(k in KnownFile,
-              where: k.state == :absent and k.watch_dir in ^available
+            from(p in FilePresence,
+              where: p.last_seen_at < ^cutoff and p.watch_dir in ^available
             )
           )
         end

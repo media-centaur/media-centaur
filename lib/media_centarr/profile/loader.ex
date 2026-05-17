@@ -26,7 +26,6 @@ defmodule MediaCentarr.Profile.Loader do
   """
 
   alias MediaCentarr.Library
-  alias MediaCentarr.Watcher.FilePresence
 
   @type scale :: :small | :medium | :large
 
@@ -106,8 +105,6 @@ defmodule MediaCentarr.Profile.Loader do
         watch_dir: "priv/profile/media"
       })
 
-      :ok = FilePresence.record_file(file_path, "priv/profile/media")
-
       movie.id
     end)
   end
@@ -154,8 +151,6 @@ defmodule MediaCentarr.Profile.Loader do
           file_path: file_path,
           watch_dir: "priv/profile/media"
         })
-
-        :ok = FilePresence.record_file(file_path, "priv/profile/media")
 
         episode.id
       end)
