@@ -139,7 +139,7 @@ rebuild.
 ## Pointers
 
 * Campaign that triggered this decision:
-  [`library-presence-unification`](../../campaigns/library-presence-unification.md)
+  [`library-presence-unification`](../../campaigns/done/library-presence-unification.md)
 * The owning ADR for file presence: [ADR-045](2026-05-17-045-file-presence-ownership.md) — amended in
   the same commit as this ADR to reflect the FK drop.
 * Boundary-coupling principle (the analogous app-layer rule):
