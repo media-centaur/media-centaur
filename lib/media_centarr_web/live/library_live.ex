@@ -17,6 +17,8 @@ defmodule MediaCentarrWeb.LibraryLive do
     Library.Availability
   }
 
+  alias MediaCentarr.Pipeline.Stats
+
   alias MediaCentarrWeb.Components.LibraryCards
 
   import MediaCentarrWeb.LibraryHelpers
@@ -33,6 +35,7 @@ defmodule MediaCentarrWeb.LibraryLive do
     if connected?(socket) do
       Availability.subscribe()
       MediaCentarr.Config.subscribe()
+      Process.send_after(self(), :tick_pipeline, 1_000)
     end
 
     {:ok,
@@ -56,7 +59,10 @@ defmodule MediaCentarrWeb.LibraryLive do
        availability_map: %{},
        watch_dirs: MediaCentarr.Config.get(:watch_dirs) || [],
        watch_dirs_configured: watch_dirs_configured?(),
-       dir_status: Availability.dir_status()
+       dir_status: Availability.dir_status(),
+       pipeline_queue_depth: 0,
+       scanning: false,
+       scan_task: nil
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.entity.id}")
      |> stream(:grid, [])}
@@ -157,6 +163,18 @@ defmodule MediaCentarrWeb.LibraryLive do
        to: build_path(%{socket | assigns: Map.put(socket.assigns, :filter_text, text)}, %{}),
        replace: true
      )}
+  end
+
+  # Run on a supervised Task so the socket stays responsive — a
+  # synchronous call would block render and the "Scanning…" label would
+  # never appear. Same pattern as `SettingsLive.handle_event("scan", ...)`.
+  def handle_event("scan", _params, socket) do
+    task =
+      Task.Supervisor.async_nolink(MediaCentarr.TaskSupervisor, fn ->
+        MediaCentarr.Watcher.Supervisor.scan()
+      end)
+
+    {:noreply, assign(socket, scanning: true, scan_task: task)}
   end
 
   # --- PubSub Handlers ---
@@ -330,6 +348,32 @@ defmodule MediaCentarrWeb.LibraryLive do
      )}
   end
 
+  # Polled once per second so the empty-state can show "Ingesting N
+  # files…" while the pipeline drains. Same cadence StatusLive uses.
+  # Cheap: Pipeline.Stats keeps the snapshot in ETS, no DB query.
+  def handle_info(:tick_pipeline, socket) do
+    Process.send_after(self(), :tick_pipeline, 1_000)
+    snapshot = Stats.get_snapshot()
+    depth = snapshot.discovery_queue_depth + snapshot.import_queue_depth
+    {:noreply, assign(socket, pipeline_queue_depth: depth)}
+  end
+
+  # Reply from the async scan Task. Matches on the stored ref so we
+  # don't confuse it with any other async_nolink result on this socket.
+  def handle_info({ref, {:ok, _count}}, %{assigns: %{scan_task: %Task{ref: ref}}} = socket) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, assign(socket, scanning: false, scan_task: nil)}
+  end
+
+  # Scan task exit — either after its result was reaped above or after
+  # a future Task.shutdown. Clear the ref either way.
+  def handle_info(
+        {:DOWN, ref, :process, _pid, _reason},
+        %{assigns: %{scan_task: %Task{ref: ref}}} = socket
+      ) do
+    {:noreply, assign(socket, scan_task: nil)}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -379,8 +423,22 @@ defmodule MediaCentarrWeb.LibraryLive do
           </div>
 
           <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">
-            <div :if={@watch_dirs_configured} class="text-base-content/60">
-              No entities found.
+            <div :if={@watch_dirs_configured} class="max-w-md mx-auto space-y-3">
+              <p class="text-base-content/80">No media yet.</p>
+              <p :if={@pipeline_queue_depth > 0} class="text-sm opacity-70">
+                Ingesting {@pipeline_queue_depth} file{if @pipeline_queue_depth == 1,
+                  do: "",
+                  else: "s"}…
+              </p>
+              <.button
+                variant="primary"
+                size="sm"
+                phx-click="scan"
+                disabled={@scanning}
+                data-nav-item
+              >
+                {if @scanning, do: "Scanning…", else: "Scan watch directories"}
+              </.button>
             </div>
             <div :if={not @watch_dirs_configured} class="max-w-md mx-auto space-y-2">
               <p class="text-base-content/80">
