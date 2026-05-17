@@ -262,44 +262,41 @@ defmodule MediaCentarrWeb.StatusHelpersTest do
     # `MediaCentarr.Library.EntityShape.attach_container/3` plugs it on
     # at extraction time. These tests construct the same shape directly
     # since they exercise the pure matcher in isolation.
-    test "matches movie progress to movie session by movie_id" do
+
+    test "matches against now_playing.entity_id (real MpvSession.build_now_playing shape)" do
+      # The session's `now_playing` map produced by
+      # `MpvSession.build_now_playing/1` carries only `:entity_id` — no
+      # legacy `:movie_id` / `:episode_id` / `:video_object_id` keys.
+      # The matcher must work against that shape.
+      movie_id = Ecto.UUID.generate()
+
       progress = %WatchProgress{
-        playable_item: %{container_type: :movie, container_id: "be868a6e"}
+        playable_item: %{container_type: :movie, container_id: movie_id}
       }
 
-      now_playing = %{movie_id: "be868a6e", episode_id: nil}
+      now_playing = %{entity_id: movie_id}
 
       assert StatusHelpers.progress_matches_session?(progress, now_playing)
     end
 
-    test "does not match when movie_id differs" do
+    test "matches movie progress to movie session" do
       progress = %WatchProgress{
         playable_item: %{container_type: :movie, container_id: "be868a6e"}
       }
 
-      now_playing = %{movie_id: "other-id"}
+      now_playing = %{entity_id: "be868a6e"}
 
-      refute StatusHelpers.progress_matches_session?(progress, now_playing)
+      assert StatusHelpers.progress_matches_session?(progress, now_playing)
     end
 
-    test "matches episode progress to episode session by episode_id" do
+    test "matches episode progress to episode session" do
       progress = %WatchProgress{
         playable_item: %{container_type: :episode, container_id: "ep-uuid"}
       }
 
-      now_playing = %{episode_id: "ep-uuid"}
+      now_playing = %{entity_id: "ep-uuid"}
 
       assert StatusHelpers.progress_matches_session?(progress, now_playing)
-    end
-
-    test "does not match when episode_id differs" do
-      progress = %WatchProgress{
-        playable_item: %{container_type: :episode, container_id: "ep-uuid-1"}
-      }
-
-      now_playing = %{episode_id: "ep-uuid-2"}
-
-      refute StatusHelpers.progress_matches_session?(progress, now_playing)
     end
 
     test "matches video object progress to video object session" do
@@ -307,17 +304,24 @@ defmodule MediaCentarrWeb.StatusHelpersTest do
         playable_item: %{container_type: :video_object, container_id: "vo-uuid"}
       }
 
-      now_playing = %{video_object_id: "vo-uuid"}
+      now_playing = %{entity_id: "vo-uuid"}
 
       assert StatusHelpers.progress_matches_session?(progress, now_playing)
     end
 
-    test "does not match when fk type differs — episode progress does not apply to movie session" do
+    test "does not match when container_id differs from session entity_id" do
       progress = %WatchProgress{
-        playable_item: %{container_type: :episode, container_id: "ep-uuid"}
+        playable_item: %{container_type: :movie, container_id: "be868a6e"}
       }
 
-      now_playing = %{movie_id: "be868a6e"}
+      now_playing = %{entity_id: "other-id"}
+
+      refute StatusHelpers.progress_matches_session?(progress, now_playing)
+    end
+
+    test "does not match when playable_item is missing" do
+      progress = %WatchProgress{playable_item: nil}
+      now_playing = %{entity_id: "be868a6e"}
 
       refute StatusHelpers.progress_matches_session?(progress, now_playing)
     end
