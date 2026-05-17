@@ -1,8 +1,9 @@
 ---
-status: phase-3.2-complete; follow-ups open
+status: complete
 started: 2026-05-15
-last_updated: 2026-05-17l
-resume_with: see "Resume — open follow-ups" section at the bottom
+completed: 2026-05-17
+last_updated: 2026-05-17m
+resume_with: see "Closure — campaign-deferred items by destination" section at the bottom
 ---
 # Library Schema v2 — architectural excellence
 
@@ -20,9 +21,9 @@ No users exist yet — destructive migrations are free. We take the
 shape we'd choose today and ship it, then we can ride it into a public
 release with confidence that the foundation is right.
 
-This campaign sits **alongside** [`desktop-rearchitecture.md`](desktop-rearchitecture.md):
+This campaign sits **alongside** [`desktop-rearchitecture.md`](../desktop-rearchitecture.md):
 - Desktop-rearchitecture moves *reads* from Pillar 1 (DB) to Pillar 2
-  (ETS projections) per [ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
+  (ETS projections) per [ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
 - This campaign rebuilds the *Pillar 1 schema* the projections rebuild
   from. The cleaner the schema, the cleaner the projection layer feeding
   off it.
@@ -49,7 +50,7 @@ green at every commit boundary. `mix test` stable at 3386 tests, 0
 failures.
 
 **Phase 2 — PlayableItem reification: ✅ complete (2026-05-16).**
-Detailed plan at [`docs/superpowers/plans/2026-05-16-library-schema-v2-phase2.md`](../docs/superpowers/plans/2026-05-16-library-schema-v2-phase2.md).
+Detailed plan at [`docs/superpowers/plans/2026-05-16-library-schema-v2-phase2.md`](../../docs/superpowers/plans/2026-05-16-library-schema-v2-phase2.md).
 Nine landed commits on top of Phase 1:
 
 | Task | Commit | Change |
@@ -79,7 +80,7 @@ parallel to WatchedFile, preserving file-presence for Extras without
 inventing a fake leaf. Folded into Task B's commit.
 
 **Phase 3 — Library projection fan-out: ✅ complete (2026-05-16).**
-Detailed plan at [`docs/superpowers/plans/2026-05-16-library-schema-v2-phase3.md`](../docs/superpowers/plans/2026-05-16-library-schema-v2-phase3.md).
+Detailed plan at [`docs/superpowers/plans/2026-05-16-library-schema-v2-phase3.md`](../../docs/superpowers/plans/2026-05-16-library-schema-v2-phase3.md).
 Five landed commits on top of Phase 2:
 
 | Task | Commit | Change |
@@ -159,8 +160,11 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
   collapsed; existing tests ported to the production now_playing shape.
 - **`MpvSession` FK-key deferral** (Task C). Session-state still
   carries `movie_id` / `episode_id` / `video_object_id`; only the
-  persistence boundary migrated. Worth a follow-up if a future task
-  needs the playable_item_id internally during a session.
+  persistence boundary migrated. Reconfirmed 2026-05-17: still
+  load-bearing at runtime (`persist_entity_progress/1` dispatches on
+  which FK is set + `broadcast_state_changed/2` branch decision), so
+  not actually free to clean up. Re-filed as Playback-context refactor;
+  out of Library Schema v2's boundary.
 - **`has_one through` silent drop on multi-cut** (Task C). When a
   Movie has multiple PlayableItems with progress, `Repo.preload(movie,
   :watch_progress)` silently returns the first row instead of raising.
@@ -199,9 +203,13 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
 - ~~**`ComingUpItemRef.entity_id` discoverability comment** (Task J).~~
   ✅ Shipped 2026-05-17 — moduledoc now spells out that `:entity_id`
   holds a Library container UUID despite the URL-param convention.
-- **`StatusResolver.progress_record_key/1` simplification** (Task C
+- ~~**`StatusResolver.progress_record_key/1` simplification** (Task C
   follow-up review). Now keys by `playable_item_id` only — verify no
-  edge case where the legacy tuple-key invariant mattered.
+  edge case where the legacy tuple-key invariant mattered.~~ ✅ Verified
+  2026-05-17 — function already simplified during Phase 2 Task C; sole
+  caller (`LibraryProgress.merge_progress_record/2`) compares two keys
+  for equality, no tuple-related edge case possible. No further code
+  change needed.
 
 ## Phase 3.1 — LibraryLive cutover (✅ shipped 2026-05-16)
 
@@ -234,7 +242,7 @@ ETS lookup, not the test-mode count.
 
 Apply the Phase 3.1 pattern (projection + bulk-helper overlays) to
 the entity-detail modal. Plan doc:
-[`docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md`](../docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md).
+[`docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md`](../../docs/superpowers/plans/2026-05-17-library-schema-v2-phase3.2-detail-cutover.md).
 
 Six commits over the day; the architectural goal — "opening the
 detail modal hits Pillar 2 (ETS) for Library data; only
@@ -515,7 +523,7 @@ because they're low-risk and reduce the surface area Phase 2 touches.
 | 6 | Drop `tmdb_id` and `imdb_id` columns from all container schemas; ExternalId rows are sole source. Add `Library.ExternalIds.put(:tmdb \| :imdb, owner, id)` helper. | 4 schemas, `Library.Inbound`, `TypeResolver.find_by_tmdb_id/1`, every caller of `record.tmdb_id` |
 
 Detailed Phase 1 implementation plan:
-[`docs/superpowers/plans/2026-05-15-library-schema-v2-phase1.md`](../docs/superpowers/plans/2026-05-15-library-schema-v2-phase1.md).
+[`docs/superpowers/plans/2026-05-15-library-schema-v2-phase1.md`](../../docs/superpowers/plans/2026-05-15-library-schema-v2-phase1.md).
 
 **Completion:** all of the above shipped, `mix precommit` green, all
 projections regenerate against the new shape, showcase rebuilds clean.
@@ -610,7 +618,7 @@ three consecutive runs.
 
 ### Phase 3 — Library projection fan-out *(Pillar 2 expansion)*
 
-Feeds into [`desktop-rearchitecture.md`](desktop-rearchitecture.md)
+Feeds into [`desktop-rearchitecture.md`](../desktop-rearchitecture.md)
 Workstream A. With the schema clean, every remaining DB-on-render
 path gets its own ETS projection.
 
@@ -743,62 +751,106 @@ These need resolution before / during the phase that touches them.
 
 ## Pointers
 
-- [ADR-041 — In-memory projection architecture](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
-- [ADR-029 — Data decoupling](../decisions/architecture/2026-03-26-029-data-decoupling.md)
-- [`campaigns/desktop-rearchitecture.md`](desktop-rearchitecture.md) — the projection fan-out partner campaign
-- [`docs/library.md`](../docs/library.md) — current schema documentation
-- [`lib/media_centarr/library/`](../lib/media_centarr/library/) — current schemas
-- [`lib/media_centarr/library/views/continue_watching.ex`](../lib/media_centarr/library/views/continue_watching.ex) — canonical projection example
+- [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
+- [ADR-029 — Data decoupling](../../decisions/architecture/2026-03-26-029-data-decoupling.md)
+- [`campaigns/desktop-rearchitecture.md`](../desktop-rearchitecture.md) — the projection fan-out partner campaign
+- [`docs/library.md`](../../docs/library.md) — current schema documentation
+- [`lib/media_centarr/library/`](../../lib/media_centarr/library/) — current schemas
+- [`lib/media_centarr/library/views/continue_watching.ex`](../../lib/media_centarr/library/views/continue_watching.ex) — canonical projection example
 
-## Resume — open follow-ups
+## Closure — campaign-deferred items by destination
 
-Phases 1, 2, 3, 3.1, 3.2 all shipped. The architectural goal is met
-across the board. What remains is **deliberately deferred polish** —
-each item below is small, contained, and can be picked up one at a
-time without re-reading the campaign cover-to-cover.
+**Status: complete (2026-05-17).** All five phases (1, 2, 3, 3.1, 3.2)
+shipped. Every architecturally load-bearing deliverable from the Goal
+section is met: PlayableItem is the canonical leaf; supporting tables
+collapsed to single-FK or single-discriminator shapes; all Pillar-1
+fields are typed; `EntityShape.normalize/3` and `WatchedFile.owner_id/1`
+are gone; Pillar-2 projections feed every Library LiveView read path;
+and the projections rest on the cleaner schema this campaign rebuilt.
 
-**Recommended next-session approach:** pick one item from the list,
-read its bullet for context, then check it against current code
-(grep for the named module/function) since the campaign was last
-reconciled 2026-05-17. Some may have been silently closed by
-unrelated work. Reconcile against `jj log` before assuming
-anything's still open.
+Closing this campaign required a final pass to reconcile the
+follow-up backlog. Items split into three buckets — already shipped
+(struck through in the Phase-N follow-up sections above), verified
+no-action, and explicitly **deferred to other workstreams**. The
+deferred set is enumerated below so the next campaign that picks
+them up doesn't need to read this one cover-to-cover.
 
-**The big deferral:** Phase 3.3 — full typed-attr migration
-(`DetailPanel`/Hero/MoreInfoPanel/MovieCredits/SeriesCredits attr
-`:entity, :map` → `attr :entity, DetailItem`; retire
-`DetailItem.to_entity_map/1`). ~10 component files + ~10 storybook
-fixtures in lockstep — see the Phase 3.2 plan doc for the
-ship-strategy note. Belongs more with the **component-contracts
-campaign** than with this one. Don't tackle it piecemeal.
+### Shipped during closure (2026-05-17)
 
-### Small open items (cherry-pickable, ordered by likely value)
+| Change ID | Commit | Item |
+|-----------|--------|------|
+| `57daa62f` | `fix(web): progress_matches_session? compares against now_playing.entity_id` | `StatusHelpers.progress_matches_session?/2` latent bug |
+| `qqzqryml` | `test(cache): pin partial-refresh dispatch via PartialRefreshFake` | `Cache.handle_message/1` direct test |
+| `uksnwrzo` | `fix(library): compile-time gate Library.Progress.reset_for_test!/0 to :test env` | `reset_for_test!/0` Mix.env guard |
+| `xwnkyrvm` | `fix(maintenance): include PlayableItem in clear_database delete order` | `resources_in_delete_order` missing PlayableItem |
+| `movlskrk` | `refactor(tmdb): drop dead TMDB.Mapper image + child-movie helpers` | TMDB Mapper legacy `entity_id` keys |
+| (this commit) | `docs(campaigns): library-schema-v2 — closure` | Phase 1 Task 5 migration-reversibility moduledoc note; `StatusResolver.progress_record_key/1` verification; campaign closure |
 
-**Architectural / safety:**
-- ~~Phase 2 — `StatusHelpers.progress_matches_session?/2` — pre-existing latent bug.~~ ✅ Shipped 2026-05-17 (`57daa62f`) — matcher rewritten to compare against `now_playing.entity_id`.
-- ~~Phase 3 — `Cache.handle_message/1` partial-refresh path direct test.~~ ✅ Shipped 2026-05-17 (`qqzqryml`).
-- ~~Phase 3 — `reset_for_test!/0` Mix.env guard.~~ ✅ Shipped 2026-05-17 (`uksnwrzo`) — compile-time gated; absent from `:dev` / `:prod` BEAM.
+### Deferred — by destination workstream
 
-**Code-quality cleanups:**
-- Phase 1 — Year-helper consolidation (4+ helpers across the codebase; collapse once storybook migrates to typed `%Date{}` fixtures via the component-contracts campaign).
-- Phase 2 — `MpvSession` FK-key deferral. Session-state still carries `movie_id` / `episode_id` / `video_object_id`; persistence boundary migrated, runtime didn't.
-- Phase 2 — `has_one through` silent drop on multi-cut. Tighten when multi-cut UI ships.
-- ~~Phase 2 — TMDB `Mapper` image helpers still emit legacy `entity_id` keys.~~ ✅ Shipped 2026-05-17 (`movlskrk`) — five dead helpers + their tests deleted.
-- ~~Phase 2 — `resources_in_delete_order` missing `PlayableItem`.~~ ✅ Shipped 2026-05-17 (`xwnkyrvm`) — added PlayableItem to the list; the premise that the constant was no longer load-bearing was wrong (`Maintenance.clear_database/0` still consumes it). Regression test added.
-- Phase 2 — `StatusResolver.progress_record_key/1` simplification. Now keys by `playable_item_id` only — verify no edge case where the legacy tuple-key invariant mattered.
-- Phase 3 — `Library.playable_item_ids_for_entities/1` UNION (three sequential `Repo.all/1` calls could collapse).
+**Component-contracts campaign:**
+- **Phase 3.3 — full typed-attr migration** (`DetailPanel` / Hero /
+  MoreInfoPanel / MovieCredits / SeriesCredits: `attr :entity, :map` →
+  `attr :entity, DetailItem`; retire `DetailItem.to_entity_map/1`). ~10
+  component files + ~10 storybook fixtures in lockstep; deliberately
+  un-piecemeal'd. See Phase 3.2 plan doc for the ship-strategy note.
+- **Phase 1 Task 2 — Year-helper consolidation.** Four+ year-extraction
+  helpers across the codebase carry binary-tolerance clauses only for
+  storybook fixtures that haven't migrated to typed `%Date{}` yet.
+  Blocks on the same typed-fixture sweep as Phase 3.3.
+- **Phase 1 Task 2 — `format_runtime/1` duplication.** Resolves when
+  the canonical view-model struct (from the component-contracts
+  campaign) absorbs formatting.
 
-**Performance / test-mode:**
-- Phase 3 — Browse projection ETS cache in test mode. Wire `Cache.Worker.refresh/1` into test setup so projections measure the production-warm path. Would tighten `/library` and `/library?selected=<id>` budgets significantly (today's ~74 → ~5 for the modal-open path).
-- Phase 3 — Browse projection `present?` could be derived honestly (Browse currently inherits Browser's pre-filter; tautological).
+**Test-infrastructure workstream:**
+- **Browse projection ETS cache in test mode.** Wiring `Cache.Worker.refresh/1`
+  into test setup would tighten `/library` and `/library?selected=<id>`
+  budgets from ~45 → ~10 queries — but cascades through page_smoke
+  budgets, no_db_on_render_test thresholds, and possibly other
+  projection caches. Larger blast radius than a Schema-v2 follow-up.
+- **Browse projection `present?` honestly derived.** Same blast radius —
+  requires deciding whether to expose a presence-agnostic Browse
+  source. Couples to the test-infra wiring above.
 
-**UX / scope-pending:**
-- Phase 3 — Library search → `Library.Views.search/2`. Decision-pending: broaden Search to per-leaf rows (better UX, larger index) or accept entity-only matching (regresses 3.1's nested-text-match removal). Decision should follow user-behaviour data.
-- Phase 3 — Library filter "nested season/episode search removed in 3.1". Same underlying decision as Search above.
+**Playback context refactor (separate from Library):**
+- **MpvSession FK-key deferral.** `session.movie_id` / `episode_id` /
+  `video_object_id` remain load-bearing in `persist_entity_progress/1`
+  + the broadcast_state_changed dispatch. Cleaning up requires
+  resolving `playable_item_id` at session start and migrating the
+  GenServer state shape. Out of Library Schema v2's boundary.
 
-**Showcase / docs:**
-- Phase 1 — Showcase subtitle seeding (`priv/showcase/media-centarr.db` has the `subtitles_tracks` table but no rows).
-- Phase 1 — Migration reversibility note in CHANGELOG for the Phase 1 Task 5 subtitles table.
-- Phase 1 — `refresh_movie_series_credits/0` skip predicate (currently a no-op data-wise).
-- Phase 1 — `Subtitles.list_tracks_for_file/1` ordering determinism (no current consumer depends on it; do when one does).
-- Phase 1 — `format_runtime/1` duplication observation (defer until the canonical view-model struct absorbs formatting).
+**Wait-for-consumer (do when a real caller materialises):**
+- **`Library.playable_item_ids_for_entities/1` UNION** — three sequential
+  `Repo.all/1` calls. Marginal at current sizes; do when batched cascade
+  ops surface as a hot path.
+- **`has_one through` silent drop on multi-cut** — `Repo.preload(movie,
+  :watch_progress)` returns the first row on multi-cut. Tighten when
+  multi-cut UI ships.
+- **`Subtitles.list_tracks_for_file/1` ordering determinism** — UUID +
+  second-resolution timestamps lose within-second order. No current
+  consumer depends on it.
+
+**Decision-pending (UX / scope):**
+- **Library search → `Library.Views.search/2`.** Whether to broaden
+  Search to per-leaf rows (better UX, larger index) or accept
+  entity-only matching (regresses 3.1's nested-text-match removal).
+  Decision should follow user-behaviour data, not a guess.
+- **Library filter "nested season/episode search removed in 3.1"** —
+  same underlying decision.
+- **`refresh_movie_series_credits/0` skip predicate** — currently a
+  no-op data-wise. Either implement a `last_credits_fetched_at`
+  predicate OR aggregate constituent movie credits up to collection
+  level. Pending product decision on whether collection-level credit
+  aggregation is wanted.
+
+**Pre-existing (not a Schema-v2 omission):**
+- **`Maintenance.resources_in_delete_order/0` still missing ExtraFile,
+  ChangeEntry, FilePresence** (discovered while fixing the PlayableItem
+  omission). Filed as a pre-existing Maintenance bug, not a Schema-v2
+  follow-up. The Phase-2-introduced ExtraFile is the closest to this
+  campaign's scope; the others predate it.
+
+**Showcase / demo seeding:**
+- **Showcase subtitle seeding** — `priv/showcase/media-centarr.db` has
+  the `subtitles_tracks` table but no rows. Belongs to the demo-seeder
+  workstream, not Schema v2.
