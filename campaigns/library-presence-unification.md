@@ -99,10 +99,19 @@ green and is committable on its own; don't straddle.
 * [ADR-029 — Data decoupling](../decisions/architecture/2026-03-26-029-data-decoupling.md)
 * [ADR-040 — Data migrations](../decisions/architecture/2026-05-09-040-data-migrations.md)
 * [ADR-042 — Multi-session campaigns](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
-* Bridge: this user's current install has 696 orphan
-  `:present` `KnownFile` rows blocking ingest. This is an
-  operational issue resolved by a manual delete + rescan,
-  separate from the campaign. Phase 7's drop migration is
-  the durable in-place upgrade for the same state.
+* Sibling campaigns:
+  * [`desktop-rearchitecture.md`](desktop-rearchitecture.md) —
+    this campaign's three-pillar alignment is captured under
+    its Workstream-A and pillar audit. Cross-referenced as a
+    sibling pillar-cleanup arc.
+  * [`library-schema-v2.md`](library-schema-v2.md) — Pillar-1
+    schema redesign that landed alongside; the FK from
+    `WatchedFile` / `ExtraFile` in Phase 3 of this campaign
+    attaches to the PlayableItem-driven leaf model
+    library-schema-v2 established.
+* Phase-7 drop migration auto-heals any future installs that
+  enter the same orphan-stuck-pipeline state this user hit on
+  2026-05-17 (resolved operationally by v0.63.0's backfill
+  intentionally skipping orphans).
 
 [1]: ../decisions/architecture/2026-05-17-045-file-presence-ownership.md
