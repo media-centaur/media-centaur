@@ -35,6 +35,7 @@ defmodule MediaCentarr.Maintenance do
     ExternalIds,
     Movie,
     MovieSeries,
+    PlayableItem,
     Season,
     TVSeries,
     VideoObject,
@@ -406,6 +407,7 @@ defmodule MediaCentarr.Maintenance do
       Movie,
       Season,
       WatchedFile,
+      PlayableItem,
       TVSeries,
       MovieSeries,
       VideoObject

@@ -1,7 +1,15 @@
 defmodule MediaCentarr.MaintenanceTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Library.{ExternalIds, Movie, MovieSeries, Person, TVSeries}
+  alias MediaCentarr.Library.{
+    ExternalIds,
+    Movie,
+    MovieSeries,
+    Person,
+    PlayableItem,
+    TVSeries
+  }
+
   alias MediaCentarr.Maintenance
   alias MediaCentarr.Repo
   alias MediaCentarr.Review
@@ -45,6 +53,21 @@ defmodule MediaCentarr.MaintenanceTest do
       Maintenance.clear_database()
 
       assert [] = Review.list_pending_files()
+    end
+
+    test "destroys PlayableItem rows (Library Schema v2 Phase 2 leaf)" do
+      # PlayableItem was introduced in Phase 2 as the canonical leaf.
+      # `resources_in_delete_order/0` must include it — otherwise
+      # `clear_database/0` leaves orphan PlayableItems referencing
+      # containers that have been deleted.
+      movie = create_standalone_movie(%{name: "Doomed Movie"})
+      create_playable_item_for_movie(movie)
+
+      assert Repo.aggregate(PlayableItem, :count) == 1
+
+      Maintenance.clear_database()
+
+      assert Repo.aggregate(PlayableItem, :count) == 0
     end
   end
 
