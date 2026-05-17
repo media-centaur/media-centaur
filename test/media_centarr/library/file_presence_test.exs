@@ -1,7 +1,8 @@
 defmodule MediaCentarr.Library.FilePresenceTest do
   use MediaCentarr.DataCase, async: false
 
-  alias MediaCentarr.Library.FilePresence
+  alias MediaCentarr.Library
+  alias MediaCentarr.Library.{ExtraFile, FilePresence, WatchedFile}
   alias MediaCentarr.Repo
 
   describe "stamp/3" do
@@ -144,6 +145,48 @@ defmodule MediaCentarr.Library.FilePresenceTest do
 
       assert FilePresence.delete_paths([]) == 0
       assert Repo.aggregate(FilePresence, :count) == 1
+    end
+  end
+
+  describe "FK cascade-delete (campaign Phase 3)" do
+    test "deleting a FilePresence cascades to its WatchedFile" do
+      movie = create_entity(%{type: :movie, name: "Cascade Movie"})
+      item = create_playable_item_for_movie(movie)
+
+      file =
+        create_linked_file(%{
+          file_path: "/media/test/cascade.mkv",
+          playable_item_id: item.id
+        })
+
+      presence = Repo.get!(FilePresence, file.file_presence_id)
+      assert {:ok, _} = Repo.delete(presence)
+
+      refute Repo.get(WatchedFile, file.id)
+    end
+
+    test "deleting a FilePresence cascades to its ExtraFile" do
+      movie = create_entity(%{type: :movie, name: "Extra Cascade"})
+
+      extra =
+        create_extra(%{
+          movie_id: movie.id,
+          name: "BTS",
+          content_url: "/media/test/extras/cascade.mkv",
+          position: 1
+        })
+
+      {:ok, file} =
+        Library.create_extra_file(%{
+          file_path: "/media/test/extras/cascade.mkv",
+          watch_dir: "/media/test",
+          extra_id: extra.id
+        })
+
+      presence = Repo.get!(FilePresence, file.file_presence_id)
+      assert {:ok, _} = Repo.delete(presence)
+
+      refute Repo.get(ExtraFile, file.id)
     end
   end
 end
