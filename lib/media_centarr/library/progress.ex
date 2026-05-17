@@ -138,26 +138,22 @@ defmodule MediaCentarr.Library.Progress do
     end
   end
 
-  @doc """
-  Clears the in-memory progress table. **Test-only**: production code
-  must never call this. Setup blocks call it so each case starts
-  cold without leaking state across tests. The persisted
-  `library_watch_progress` rows are unaffected; only the worker's
-  hot cache is dropped.
-
-  The `!` suffix and the `_for_test` infix are deliberate naming
-  guards — grepping for this function name should surface only test
-  callers.
-
-  Follow-up: enforce a `Mix.env() == :test` guard if/when we ship a
-  hardened release. Runtime `Mix.env/0` is brittle in compiled
-  releases, so the rename is the current line of defence.
-  """
-  @spec reset_for_test!() :: :ok
-  def reset_for_test! do
-    case Process.whereis(Worker) do
-      nil -> :ok
-      _pid -> GenServer.call(Worker, :reset_for_test!)
+  if Mix.env() == :test do
+    @doc """
+    Clears the in-memory progress table. **Test-only**: this function
+    is compile-time gated to `:test` env and does not exist in the
+    `:dev` or `:prod` BEAM bytecode — calling it from non-test code
+    is an `UndefinedFunctionError` at compile time. Setup blocks use
+    it so each case starts cold without leaking state across tests.
+    The persisted `library_watch_progress` rows are unaffected; only
+    the worker's hot cache is dropped.
+    """
+    @spec reset_for_test!() :: :ok
+    def reset_for_test! do
+      case Process.whereis(Worker) do
+        nil -> :ok
+        _pid -> GenServer.call(Worker, :reset_for_test!)
+      end
     end
   end
 
