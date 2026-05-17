@@ -30,7 +30,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.PickTarget do
   alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
   alias MediaCentarr.Acquisition.Pursuits.Commands.Runner
   alias MediaCentarr.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Search.SearchResult
   alias MediaCentarr.Acquisition.{Target, TargetStatus}
   alias MediaCentarr.Repo
 

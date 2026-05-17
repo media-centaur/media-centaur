@@ -5,12 +5,12 @@ defmodule MediaCentarr.Acquisition do
       MediaCentarr.Downloads,
       MediaCentarr.Library,
       MediaCentarr.ReleaseTracking,
+      MediaCentarr.Search,
       MediaCentarr.Settings
     ],
     exports: [
       AutoGrabSettings,
       CancelReasons,
-      Prowlarr,
       Pursuits,
       Pursuits.Commands.Cancel,
       Pursuits.Commands.ChangeTarget,
@@ -19,11 +19,8 @@ defmodule MediaCentarr.Acquisition do
       Pursuits.Events,
       Pursuits.InboundListener,
       Pursuits.Pursuit,
-      Quality,
-      QueryExpander,
       QueueMatcher,
       Reactor,
-      SearchSession,
       Target,
       TargetEvents,
       TargetEvents.Acquired,
@@ -94,13 +91,12 @@ defmodule MediaCentarr.Acquisition do
   alias MediaCentarr.Acquisition.{
     AutoGrabService,
     Config,
-    Prowlarr,
-    QueryExpander,
-    SearchResult,
     Target,
     TargetEvents,
     Targets
   }
+
+  alias MediaCentarr.Search.{Prowlarr, QueryExpander, SearchResult}
 
   alias MediaCentarr.Acquisition.Pursuits.Commands.{Arm, ArmAll, PickTarget, StartFromPick}
   alias MediaCentarr.Acquisition.Pursuits.{Pursuit, Recipe}
@@ -165,7 +161,7 @@ defmodule MediaCentarr.Acquisition do
   session — there are no incremental deltas.
   """
   @type search_message ::
-          {:search_session, MediaCentarr.Acquisition.SearchSession.t()}
+          {:search_session, MediaCentarr.Search.SearchSession.t()}
 
   @doc "Subscribes the caller to target lifecycle events."
   @spec subscribe() :: :ok | {:error, term()}
@@ -191,9 +187,9 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc "Returns the current search session struct (always present; may be empty)."
-  @spec current_search_session() :: MediaCentarr.Acquisition.SearchSession.t()
+  @spec current_search_session() :: MediaCentarr.Search.SearchSession.t()
   defdelegate current_search_session,
-    to: MediaCentarr.Acquisition.SearchSession,
+    to: MediaCentarr.Search.SearchSession,
     as: :current
 
   @doc """
@@ -202,9 +198,9 @@ defmodule MediaCentarr.Acquisition do
   can spawn Tasks for each expanded query.
   """
   @spec start_search(String.t()) ::
-          {:ok, %{session: MediaCentarr.Acquisition.SearchSession.t(), queries: [String.t()]}}
+          {:ok, %{session: MediaCentarr.Search.SearchSession.t(), queries: [String.t()]}}
           | {:error, :invalid_syntax}
-  defdelegate start_search(query), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate start_search(query), to: MediaCentarr.Search.SearchSession
 
   @doc "Records a per-query Prowlarr result against the current session."
   @spec record_search_result(
@@ -212,52 +208,52 @@ defmodule MediaCentarr.Acquisition do
           {:ok, [SearchResult.t()]} | {:error, term()}
         ) :: :ok
   defdelegate record_search_result(term, outcome),
-    to: MediaCentarr.Acquisition.SearchSession
+    to: MediaCentarr.Search.SearchSession
 
   @doc """
   Updates the query input box value and recomputes the expansion preview.
   Returns the updated session so the caller can assign it directly.
   """
-  @spec set_query_preview(String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate set_query_preview(query), to: MediaCentarr.Acquisition.SearchSession
+  @spec set_query_preview(String.t()) :: MediaCentarr.Search.SearchSession.t()
+  defdelegate set_query_preview(query), to: MediaCentarr.Search.SearchSession
 
   @doc "Sets `term => guid` in the session selections map. Returns the new session."
-  @spec set_selection(String.t(), String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate set_selection(term, guid), to: MediaCentarr.Acquisition.SearchSession
+  @spec set_selection(String.t(), String.t()) :: MediaCentarr.Search.SearchSession.t()
+  defdelegate set_selection(term, guid), to: MediaCentarr.Search.SearchSession
 
   @doc "Removes `term` from the session selections map. Returns the new session."
-  @spec clear_selection(String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate clear_selection(term), to: MediaCentarr.Acquisition.SearchSession
+  @spec clear_selection(String.t()) :: MediaCentarr.Search.SearchSession.t()
+  defdelegate clear_selection(term), to: MediaCentarr.Search.SearchSession
 
   @doc "Empties the session selections map. Returns the new session."
-  @spec clear_selections() :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate clear_selections(), to: MediaCentarr.Acquisition.SearchSession
+  @spec clear_selections() :: MediaCentarr.Search.SearchSession.t()
+  defdelegate clear_selections(), to: MediaCentarr.Search.SearchSession
 
   @doc "Toggles `expanded?` on the named group. Returns the new session."
-  @spec toggle_group(String.t()) :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate toggle_group(term), to: MediaCentarr.Acquisition.SearchSession
+  @spec toggle_group(String.t()) :: MediaCentarr.Search.SearchSession.t()
+  defdelegate toggle_group(term), to: MediaCentarr.Search.SearchSession
 
   @doc "Sets the boolean `grabbing?` flag on the session. Returns the new session."
-  @spec set_grabbing(boolean()) :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate set_grabbing(value), to: MediaCentarr.Acquisition.SearchSession
+  @spec set_grabbing(boolean()) :: MediaCentarr.Search.SearchSession.t()
+  defdelegate set_grabbing(value), to: MediaCentarr.Search.SearchSession
 
   @doc "Sets the last-grab outcome message on the session. Returns the new session."
   @spec set_grab_message({:ok | :partial | :error, String.t()}) ::
-          MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate set_grab_message(message), to: MediaCentarr.Acquisition.SearchSession
+          MediaCentarr.Search.SearchSession.t()
+  defdelegate set_grab_message(message), to: MediaCentarr.Search.SearchSession
 
   @doc "Resets the entire search session to the default empty state. Returns the new session."
-  @spec clear_search_session() :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate clear_search_session(), to: MediaCentarr.Acquisition.SearchSession, as: :clear
+  @spec clear_search_session() :: MediaCentarr.Search.SearchSession.t()
+  defdelegate clear_search_session(), to: MediaCentarr.Search.SearchSession, as: :clear
 
   @doc """
   Clears search results (groups + selections) but preserves the user's
   query string and expansion preview. Used after a grab batch completes.
   Returns the new session.
   """
-  @spec clear_search_results() :: MediaCentarr.Acquisition.SearchSession.t()
+  @spec clear_search_results() :: MediaCentarr.Search.SearchSession.t()
   defdelegate clear_search_results(),
-    to: MediaCentarr.Acquisition.SearchSession,
+    to: MediaCentarr.Search.SearchSession,
     as: :clear_results
 
   @doc """
@@ -265,8 +261,8 @@ defmodule MediaCentarr.Acquisition do
   The caller's pid becomes the monitored `searching_pid`. The caller is
   responsible for spawning Tasks for these terms. Returns the new session.
   """
-  @spec retry_search_terms([String.t()]) :: MediaCentarr.Acquisition.SearchSession.t()
-  defdelegate retry_search_terms(terms), to: MediaCentarr.Acquisition.SearchSession
+  @spec retry_search_terms([String.t()]) :: MediaCentarr.Search.SearchSession.t()
+  defdelegate retry_search_terms(terms), to: MediaCentarr.Search.SearchSession
 
   @doc """
   Returns the latest cached download-client queue snapshot (items only).

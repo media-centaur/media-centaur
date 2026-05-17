@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.SearchResult do
+defmodule MediaCentarr.Search.SearchResult do
   @moduledoc """
   A single result returned by a search provider.
 
@@ -6,7 +6,7 @@ defmodule MediaCentarr.Acquisition.SearchResult do
   construction time so callers can rank and filter without re-parsing.
   """
 
-  alias MediaCentarr.Acquisition.Quality
+  alias MediaCentarr.Search.Quality
 
   @enforce_keys [:title, :guid, :indexer_id]
   defstruct [

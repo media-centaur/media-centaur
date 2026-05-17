@@ -53,14 +53,11 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
 
   alias MediaCentarr.Acquisition.{
     AutoGrabSettings,
-    Prowlarr,
-    QualityWindow,
-    QueryBuilder,
-    Quality,
     Target,
-    TargetEvents,
-    TitleMatcher
+    TargetEvents
   }
+
+  alias MediaCentarr.Search.{Prowlarr, Quality, QualityWindow, QueryBuilder, TitleMatcher}
 
   alias MediaCentarr.Acquisition.Pursuits.{Commands, Pursuit, Recipe, State}
   alias MediaCentarr.Repo
@@ -130,8 +127,9 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
     )
 
     bounds = effective_bounds(pursuit)
+    criteria = pursuit |> Recipe.from() |> Recipe.to_criteria()
 
-    case search_until_match(target, pursuit, QueryBuilder.build(pursuit), bounds) do
+    case search_until_match(target, pursuit, criteria, QueryBuilder.build(criteria), bounds) do
       {:ok, best} -> handle_found(target, pursuit, best)
       {:needs_decision, _results} -> handle_needs_decision(target, pursuit)
       {:no_match, outcome} -> handle_no_results(target, pursuit, outcome)
@@ -166,21 +164,21 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
     "grab_failed" => 2
   }
 
-  defp search_until_match(target, pursuit, queries, bounds) do
+  defp search_until_match(target, pursuit, criteria, queries, bounds) do
     case pursuit.recipe_type do
-      "tmdb" -> search_until_tmdb_match(target, pursuit, queries, bounds)
+      "tmdb" -> search_until_tmdb_match(target, pursuit, criteria, queries, bounds)
       "prowlarr_query" -> search_until_any_result(queries)
     end
   end
 
-  defp search_until_tmdb_match(_target, pursuit, queries, bounds) do
+  defp search_until_tmdb_match(_target, pursuit, criteria, queries, bounds) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
       case Prowlarr.search(query, opts) do
         {:ok, []} ->
           {:cont, acc}
 
         {:ok, results} ->
-          case best_match(results, pursuit, bounds) do
+          case best_match(results, pursuit, criteria, bounds) do
             {:found, best} -> {:halt, {:ok, best}}
             {:none, outcome} -> {:cont, keep_more_informative(acc, outcome)}
           end
@@ -213,8 +211,7 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
   # outcome distinction "no_title_match" vs "no_acceptable_quality" is
   # preserved by upgrading the outcome the first time we see a
   # title-matching but quality-unacceptable result.
-  defp best_match(results, pursuit, {min, max}) do
-    recipe = Recipe.from(pursuit)
+  defp best_match(results, pursuit, criteria, {min, max}) do
     excluded = MapSet.new(pursuit.tried_release_guids || [])
 
     results
@@ -223,7 +220,7 @@ defmodule MediaCentarr.Acquisition.Jobs.PursueTarget do
         MapSet.member?(excluded, result.guid) ->
           acc
 
-        not TitleMatcher.matches?(result, recipe) ->
+        is_nil(criteria) or not TitleMatcher.matches?(result, criteria) ->
           acc
 
         not Quality.acceptable?(result.quality, min, max) ->

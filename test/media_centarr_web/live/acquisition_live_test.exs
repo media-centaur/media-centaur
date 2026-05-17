@@ -4,7 +4,8 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.Downloads.DownloadClient.QBittorrent
-  alias MediaCentarr.Acquisition.{Prowlarr, Target, TargetEvents}
+  alias MediaCentarr.Acquisition.{Target, TargetEvents}
+  alias MediaCentarr.Search.Prowlarr
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Secret
 

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.QualityWindow do
+defmodule MediaCentarr.Search.QualityWindow do
   @moduledoc """
   Pure function module computing the effective minimum quality for a
   pursuit at a given moment, accounting for the 4K-patience window.

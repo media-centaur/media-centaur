@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Acquisition.QueryExpander do
+defmodule MediaCentarr.Search.QueryExpander do
   @moduledoc """
   Expands a search query that may contain a brace group into a flat list of
   concrete queries, one per expansion. Pure function module — no I/O, no state.

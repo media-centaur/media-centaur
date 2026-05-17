@@ -2,7 +2,7 @@ defmodule MediaCentarr.Showcase.StubsTest do
   use ExUnit.Case, async: true
 
   alias MediaCentarr.Downloads.DownloadClient.QBittorrent
-  alias MediaCentarr.Acquisition.Prowlarr
+  alias MediaCentarr.Search.Prowlarr
   alias MediaCentarr.Showcase.Stubs
 
   describe "prowlarr_plug/1" do

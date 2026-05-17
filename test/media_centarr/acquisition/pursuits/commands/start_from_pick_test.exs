@@ -4,7 +4,8 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.StartFromPickTest do
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit}
   alias MediaCentarr.Acquisition.Pursuits.Commands.StartFromPick
   alias MediaCentarr.Acquisition.Pursuits.Events.{PursuitStarted, ReleasePicked}
-  alias MediaCentarr.Acquisition.{SearchResult, Target}
+  alias MediaCentarr.Acquisition.Target
+  alias MediaCentarr.Search.SearchResult
   alias MediaCentarr.Topics
 
   defp result(overrides \\ %{}) do

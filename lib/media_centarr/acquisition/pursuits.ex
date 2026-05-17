@@ -12,7 +12,9 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   import Ecto.Query
 
   alias MediaCentarr.Acquisition.Pursuits.{Event, Pursuit, State}
-  alias MediaCentarr.Acquisition.{QueryBuilder, QueueMatcher, Target}
+  alias MediaCentarr.Acquisition.Pursuits.Recipe, as: PursuitRecipe
+  alias MediaCentarr.Acquisition.{QueueMatcher, Target}
+  alias MediaCentarr.Search.QueryBuilder
 
   alias MediaCentarr.Acquisition.ViewModels.{
     PursuitHeader,
@@ -469,6 +471,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   # pure (no DB, no Prowlarr) — the same list the worker iterates over.
   defp search_queries_for(%Pursuit{} = pursuit) do
     pursuit
+    |> PursuitRecipe.from()
+    |> PursuitRecipe.to_criteria()
     |> QueryBuilder.build()
     |> Enum.map(fn {query, _opts} -> query end)
   end

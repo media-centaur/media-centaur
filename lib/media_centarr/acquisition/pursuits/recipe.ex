@@ -73,4 +73,33 @@ defmodule MediaCentarr.Acquisition.Pursuits.Recipe do
   defp tmdb_type_atom("movie"), do: :movie
   defp tmdb_type_atom("tv"), do: :tv
   defp tmdb_type_atom(nil), do: nil
+
+  @doc """
+  Projects this recipe into the `MediaCentarr.Search.Criteria` shape
+  consumed by `Search.QueryBuilder` and `Search.TitleMatcher`.
+
+  Both recipe types project — TitleMatcher itself rejects
+  `:prowlarr_query` criteria (the user-typed query bypasses title
+  matching), but QueryBuilder uses them to build the manual-query
+  search.
+  """
+  @spec to_criteria(t()) :: MediaCentarr.Search.Criteria.t()
+  def to_criteria(%__MODULE__{type: :tmdb} = recipe) do
+    %MediaCentarr.Search.Criteria{
+      type: :tmdb,
+      title: recipe.title,
+      tmdb_type: recipe.tmdb_type,
+      season_number: recipe.season_number,
+      episode_number: recipe.episode_number,
+      year: recipe.year
+    }
+  end
+
+  def to_criteria(%__MODULE__{type: :prowlarr_query} = recipe) do
+    %MediaCentarr.Search.Criteria{
+      type: :prowlarr_query,
+      title: recipe.title,
+      manual_query: recipe.manual_query
+    }
+  end
 end

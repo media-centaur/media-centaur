@@ -8,13 +8,13 @@ defmodule MediaCentarrWeb.AcquisitionLive.Logic do
   without rendering or mounting a socket.
 
   Search session mutators (build/toggle/record/select) moved to
-  `MediaCentarr.Acquisition.SearchSession` — the LiveView calls those
+  `MediaCentarr.Search.SearchSession` — the LiveView calls those
   through the `MediaCentarr.Acquisition` facade.
 
   Per ADR-030 (LiveView logic extraction).
   """
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentarr.Search.SearchResult
   alias MediaCentarr.Downloads.{Health, QueueItem}
 
   # How long after a user-initiated cancel we keep suppressing the

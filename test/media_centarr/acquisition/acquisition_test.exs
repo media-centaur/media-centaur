@@ -5,7 +5,8 @@ defmodule MediaCentarr.AcquisitionTest do
   import MediaCentarr.TestFactory
 
   alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.{Prowlarr, SearchResult, Target, TargetEvents}
+  alias MediaCentarr.Acquisition.{Target, TargetEvents}
+  alias MediaCentarr.Search.{Prowlarr, SearchResult}
   alias MediaCentarr.Acquisition.Pursuits.Pursuit
   alias MediaCentarr.Repo
 

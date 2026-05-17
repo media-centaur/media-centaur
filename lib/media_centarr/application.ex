@@ -67,7 +67,7 @@ defmodule MediaCentarr.Application do
           MediaCentarr.Watcher.AbsencePolicy,
           MediaCentarr.Library.FileEventHandler,
           MediaCentarr.SelfUpdate.Updater,
-          MediaCentarr.Acquisition.SearchSession
+          MediaCentarr.Search.SearchSession
         ] ++
         pubsub_listeners(Application.get_env(:media_centarr, :environment)) ++
         [

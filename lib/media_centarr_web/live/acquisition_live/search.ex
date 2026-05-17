@@ -10,8 +10,8 @@ defmodule MediaCentarrWeb.AcquisitionLive.Search do
 
   import MediaCentarrWeb.CoreComponents, only: [button: 1, icon: 1]
 
-  alias MediaCentarr.Acquisition.Quality
-  alias MediaCentarr.Acquisition.SearchSession
+  alias MediaCentarr.Search.Quality
+  alias MediaCentarr.Search.SearchSession
   alias MediaCentarrWeb.AcquisitionLive.Logic
 
   attr :session, SearchSession, required: true
