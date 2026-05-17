@@ -458,7 +458,7 @@ Each task above gets a fresh subagent dispatch:
 
 - [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
 - [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md)
-- [`campaigns/desktop-rearchitecture.md`](../../../campaigns/desktop-rearchitecture.md) — partner campaign; Phase 3's projections feed Workstream A
+- [`campaigns/done/desktop-rearchitecture.md`](../../../campaigns/done/desktop-rearchitecture.md) — partner campaign; Phase 3's projections feed Workstream A
 - `lib/media_centarr/cache.ex` — Cache.Worker behaviour
 - `lib/media_centarr/library/views/continue_watching.ex` — canonical projection
 - `test/media_centarr/library/views/continue_watching_test.exs` — canonical projection test

@@ -111,6 +111,6 @@ accumulating across sessions.
 * `campaigns/README.md` — index of active campaigns + the
   convention summary.
 * `campaigns/template.md` — starter template.
-* `campaigns/desktop-rearchitecture.md` — first seeded campaign
+* `campaigns/done/desktop-rearchitecture.md` — first seeded campaign
   (ADR-041 three-pillar segregation, broader local-only desktop
-  paradigm shift).
+  paradigm shift). Closed 2026-05-17.

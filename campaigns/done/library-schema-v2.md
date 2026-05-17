@@ -753,7 +753,7 @@ These need resolution before / during the phase that touches them.
 
 - [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
 - [ADR-029 — Data decoupling](../../decisions/architecture/2026-03-26-029-data-decoupling.md)
-- [`campaigns/desktop-rearchitecture.md`](../desktop-rearchitecture.md) — the projection fan-out partner campaign
+- [`campaigns/done/desktop-rearchitecture.md`](desktop-rearchitecture.md) — the projection fan-out partner campaign
 - [`docs/library.md`](../../docs/library.md) — current schema documentation
 - [`lib/media_centarr/library/`](../../lib/media_centarr/library/) — current schemas
 - [`lib/media_centarr/library/views/continue_watching.ex`](../../lib/media_centarr/library/views/continue_watching.ex) — canonical projection example
