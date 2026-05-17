@@ -17,6 +17,11 @@ defmodule MediaCentarr.Pipeline.Supervisor do
   def init(_opts) do
     children = [
       MediaCentarr.Pipeline.Stats,
+      # Discovery.InflightSet owns the ETS dedup table; must start
+      # before Discovery so the producer can call into it from `init/1`,
+      # and must sit above Discovery in the :rest_for_one tree so the
+      # table outlives any Broadway producer crash.
+      MediaCentarr.Pipeline.Discovery.InflightSet,
       MediaCentarr.Pipeline.Discovery,
       MediaCentarr.Pipeline.Import
     ]

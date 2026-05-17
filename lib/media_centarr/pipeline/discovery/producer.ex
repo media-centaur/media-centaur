@@ -11,6 +11,7 @@ defmodule MediaCentarr.Pipeline.Discovery.Producer do
   use GenStage
   require MediaCentarr.Log, as: Log
 
+  alias MediaCentarr.Pipeline.Discovery.InflightSet
   alias MediaCentarr.Pipeline.Payload
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
@@ -32,14 +33,17 @@ defmodule MediaCentarr.Pipeline.Discovery.Producer do
 
   @impl true
   def handle_info({:file_detected, %{path: path, watch_dir: watch_dir}}, state) do
-    payload = build_payload(%{path: path, watch_dir: watch_dir})
-
-    Log.info(:pipeline, "queued #{Path.basename(path)} — file detected")
-
-    state = %{state | queue: :queue.in(payload, state.queue)}
-    {messages, state} = dispatch(state)
-    emit_queue_depth(state.queue)
-    {:noreply, messages, state}
+    if InflightSet.claim(path) do
+      payload = build_payload(%{path: path, watch_dir: watch_dir})
+      Log.info(:pipeline, "queued #{Path.basename(path)} — file detected")
+      state = %{state | queue: :queue.in(payload, state.queue)}
+      {messages, state} = dispatch(state)
+      emit_queue_depth(state.queue)
+      {:noreply, messages, state}
+    else
+      Log.info(:pipeline, "deduped #{Path.basename(path)} — already in flight")
+      {:noreply, [], state}
+    end
   end
 
   # Startup reconciliation (ADR-023): rescan all watch directories to re-detect
@@ -63,7 +67,13 @@ defmodule MediaCentarr.Pipeline.Discovery.Producer do
     {:noreply, [], state}
   end
 
-  def ack(:ack_id, _successful, _failed), do: :ok
+  def ack(:ack_id, successful, failed) do
+    Enum.each(successful ++ failed, fn %Broadway.Message{data: %Payload{file_path: path}} ->
+      InflightSet.release(path)
+    end)
+
+    :ok
+  end
 
   @doc """
   Builds a `%Payload{}` from a file-detected event.

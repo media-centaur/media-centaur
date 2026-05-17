@@ -19,7 +19,7 @@ defmodule MediaCentarr.Pipeline.Discovery do
   import Ecto.Query
 
   alias MediaCentarr.DateUtil
-  alias MediaCentarr.Library.WatchedFile
+  alias MediaCentarr.Library.{ExtraFile, WatchedFile}
   alias MediaCentarr.Pipeline.{Payload, Stage}
   alias MediaCentarr.Pipeline.Stages.{Parse, Search}
   alias MediaCentarr.Repo
@@ -221,7 +221,12 @@ defmodule MediaCentarr.Pipeline.Discovery do
     # Post-Phase-2-Task-B every WatchedFile carries a non-null
     # `playable_item_id` (the column is NOT NULL at the schema level),
     # so the legacy "any per-type FK set" disjunction collapses to a
-    # simple existence check by path.
-    Repo.exists?(from(w in WatchedFile, where: w.file_path == ^file_path, limit: 1))
+    # simple existence check by path. The parallel ExtraFile path
+    # (bonus features ingested via a different writer) also short-
+    # circuits the pipeline — once a file is owned by either, the
+    # presence-unification campaign Phase 5 requires Discovery to
+    # treat it as done.
+    Repo.exists?(from(w in WatchedFile, where: w.file_path == ^file_path, limit: 1)) or
+      Repo.exists?(from(e in ExtraFile, where: e.file_path == ^file_path, limit: 1))
   end
 end
