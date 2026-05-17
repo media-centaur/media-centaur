@@ -111,18 +111,6 @@ defmodule MediaCentarr.TMDB.Mapper do
   end
 
   @doc """
-  Builds a list of image attribute maps from TMDB entity data (poster, backdrop, logo).
-
-  These pure helpers emit attribute maps with a single `owner_key` →
-  `owner_id` entry; the call site is responsible for routing the
-  `owner_key` (today: `:entity_id`, `:movie_id`, `:episode_id`) to the
-  appropriate sink. The ingest sink ultimately writes
-  `library_images.(owner_type, owner_id)` via
-  `Library.Inbound.process_image_ready/1`.
-  """
-  def image_attrs(entity_id, tmdb_data), do: build_image_attrs(:entity_id, entity_id, tmdb_data)
-
-  @doc """
   Extracts domain attributes for a MovieSeries entity from TMDB collection data.
 
   TMDB's `/collection/{id}` endpoint is sparse — it returns `name`,
@@ -144,93 +132,6 @@ defmodule MediaCentarr.TMDB.Mapper do
       cast: [],
       crew: []
     }
-  end
-
-  @doc """
-  Extracts domain attributes for a child Movie from TMDB movie data.
-  """
-  def child_movie_attrs(entity_id, tmdb_id, movie, file_path, position) do
-    %{
-      entity_id: entity_id,
-      tmdb_id: to_string(tmdb_id),
-      name: movie["title"],
-      description: movie["overview"],
-      date_published: parse_date(movie["release_date"]),
-      url: tmdb_url(:movie, tmdb_id),
-      duration_seconds: minutes_to_seconds(movie["runtime"]),
-      director: extract_director(movie["credits"]),
-      content_rating: extract_us_rating(movie["release_dates"]),
-      aggregate_rating_value: movie["vote_average"],
-      content_url: file_path,
-      position: position
-    }
-  end
-
-  @doc """
-  Builds image attribute maps for a child Movie (poster, backdrop, logo).
-  Uses `movie_id` instead of `entity_id`.
-  """
-  def movie_image_attrs(movie_id, tmdb_data), do: build_image_attrs(:movie_id, movie_id, tmdb_data)
-
-  @doc """
-  Builds a thumb image attribute map for an episode from TMDB episode data.
-  Returns a list with one entry if the episode has a `still_path`, or an empty list.
-  """
-  def episode_image_attrs(episode_id, tmdb_episode) do
-    still_path = tmdb_episode && tmdb_episode["still_path"]
-
-    if still_path do
-      [
-        %{
-          episode_id: episode_id,
-          role: "thumb",
-          url: tmdb_image_url(still_path),
-          extension: "jpg"
-        }
-      ]
-    else
-      []
-    end
-  end
-
-  @doc """
-  Builds image attribute maps for a MovieSeries entity from collection data.
-  """
-  def collection_image_attrs(entity_id, tmdb_data),
-    do: build_image_attrs(:entity_id, entity_id, tmdb_data)
-
-  defp build_image_attrs(owner_key, owner_id, tmdb_data) do
-    poster_path = tmdb_data["poster_path"]
-    backdrop_path = tmdb_data["backdrop_path"]
-    logo_path = find_logo_path(tmdb_data)
-
-    Enum.reject(
-      [
-        poster_path &&
-          %{
-            owner_key => owner_id,
-            role: "poster",
-            url: tmdb_image_url(poster_path),
-            extension: "jpg"
-          },
-        backdrop_path &&
-          %{
-            owner_key => owner_id,
-            role: "backdrop",
-            url: tmdb_image_url(backdrop_path),
-            extension: "jpg"
-          },
-        logo_path &&
-          %{owner_key => owner_id, role: "logo", url: tmdb_image_url(logo_path), extension: "png"}
-      ],
-      &is_nil/1
-    )
-  end
-
-  defp find_logo_path(tmdb_data) do
-    logos = get_in(tmdb_data, ["images", "logos"]) || []
-    logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
-    logo && logo["file_path"]
   end
 
   @doc "Builds a TMDB web URL for the given type and ID."
@@ -392,9 +293,8 @@ defmodule MediaCentarr.TMDB.Mapper do
   whose runtime hasn't been recorded yet, and sometimes returns `0` for
   the same condition — both map to `nil` so downstream "no duration
   known" guards (e.g. `detail_panel.duration_or_nil/1`) work uniformly.
-  Used by `movie_attrs/3`, `child_movie_attrs/5`, and `episode_attrs/4`
-  at the TMDB→domain boundary to feed `Movie.duration_seconds` /
-  `Episode.duration_seconds`.
+  Used by `movie_attrs/3` and `episode_attrs/4` at the TMDB→domain
+  boundary to feed `Movie.duration_seconds` / `Episode.duration_seconds`.
   """
   @spec minutes_to_seconds(integer() | nil) :: integer() | nil
   def minutes_to_seconds(nil), do: nil
