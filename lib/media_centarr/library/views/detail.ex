@@ -758,20 +758,30 @@ defmodule MediaCentarr.Library.Views.Detail do
       pi_by_episode_id = Map.new(playable_items, fn pi -> {pi.container_id, pi} end)
       pi_ids = Enum.map(playable_items, & &1.id)
 
-      present_pi_ids =
+      watched_files_by_pi_id =
         if pi_ids == [] do
-          MapSet.new()
+          %{}
         else
-          MapSet.new(
+          Enum.group_by(
             Repo.all(
               from(w in WatchedFile,
                 where: w.playable_item_id in ^pi_ids,
-                select: w.playable_item_id,
-                distinct: true
+                order_by: [asc: w.inserted_at, asc: w.id]
               )
-            )
+            ),
+            & &1.playable_item_id
           )
         end
+
+      extras_by_season_id =
+        Enum.group_by(
+          Repo.all(
+            from(x in MediaCentarr.Library.Extra,
+              where: x.owner_type == :season and x.owner_id in ^season_ids
+            )
+          ),
+          & &1.owner_id
+        )
 
       episodes_by_season_id = Enum.group_by(episodes, & &1.season_id)
 
@@ -781,6 +791,7 @@ defmodule MediaCentarr.Library.Views.Detail do
           |> Map.get(season.id, [])
           |> Enum.map(fn episode ->
             pi = Map.get(pi_by_episode_id, episode.id)
+            files = (pi && Map.get(watched_files_by_pi_id, pi.id, [])) || []
 
             %DetailItem.Episode{
               episode_id: episode.id,
@@ -791,19 +802,24 @@ defmodule MediaCentarr.Library.Views.Detail do
               description: episode.description,
               date_published: nil,
               duration_seconds: episode.duration_seconds,
-              present?: pi && MapSet.member?(present_pi_ids, pi.id)
+              present?: files != [],
+              content_url: files |> List.first() |> file_path()
             }
           end)
 
         %DetailItem.Season{
           season_number: season.season_number,
           name: season.name,
+          number_of_episodes: season.number_of_episodes,
           episodes: season_episodes,
-          extras: []
+          extras: Map.get(extras_by_season_id, season.id, [])
         }
       end)
     end
   end
+
+  defp file_path(nil), do: nil
+  defp file_path(%WatchedFile{file_path: path}), do: path
 
   defp build_movies_for_movie_series(movie_series_id) do
     movies =
