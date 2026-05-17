@@ -175,6 +175,7 @@ Each context exposes a `subscribe/0` facade that wraps `Phoenix.PubSub.subscribe
 - **PubSub for cross-context communication.** Contexts don't call into each other's internals; cross-context wiring is enforced by Boundary.
 - **Pipeline is a mediator.** The pipeline actively orchestrates — domain resources don't trigger pipeline behavior through state changes.
 - **Capability gating.** UI surfaces that depend on TMDB / Prowlarr / the download client only appear once the integration's most recent Test Connection succeeded. See `MediaCentarr.Capabilities`.
+- **Three-pillar state segregation.** Every state-bearing module belongs to exactly one of three pillars: long-term durable storage (DB), short-term in-memory state (ETS / `:persistent_term` / GenServer), or real-time PubSub coordination. LiveView read paths go through Pillar-2 projections that subscribe to source topics, refresh in-memory state, and emit derived `*_view_updated` broadcasts; LiveViews consume only the derived topics, never the DB on render. `MediaCentarr.Cache` is the unified container for the three Pillar-2 flavours; `Library.Progress.Worker` is the canonical GenServer-with-debounced-flush example. See [ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
 
 ## Specifications
 
