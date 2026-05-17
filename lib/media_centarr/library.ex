@@ -2208,6 +2208,42 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
+  Returns every `WatchProgress` record for episodes belonging to the
+  given TVSeries. Each returned record carries a synthesised
+  `:playable_item` map with `container_type: :episode` and
+  `container_id: <episode_uuid>` so downstream consumers
+  (`MediaCentarr.Library.EpisodeList.progress_container_id/1`) can key
+  by Episode UUID without a separate `belongs_to :playable_item`
+  preload.
+
+  Same shape `EntityShape.extract_progress(_, :tv_series)` produces for
+  the legacy entity-preload path; used by
+  `MediaCentarrWeb.ViewModel.SeriesDetail.compose/1` after the Phase 3.2
+  Task C.2 projection flip — the composer no longer has a preloaded
+  entity to extract from, so it pulls the records directly.
+
+  Returns `[]` for an unknown series id, or for a series with no
+  WatchProgress rows under any episode.
+  """
+  @spec list_progress_records_for_tv_series(Ecto.UUID.t()) :: [struct()]
+  def list_progress_records_for_tv_series(tv_series_id) when is_binary(tv_series_id) do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on: pi.id == wp.playable_item_id and pi.container_type == :episode,
+      join: e in Episode,
+      on: e.id == pi.container_id,
+      join: s in Season,
+      on: s.id == e.season_id,
+      where: s.tv_series_id == ^tv_series_id,
+      select: {wp, e.id}
+    )
+    |> Repo.all()
+    |> Enum.map(fn {progress, episode_id} ->
+      %{progress | playable_item: %{container_type: :episode, container_id: episode_id}}
+    end)
+  end
+
+  @doc """
   Bulk progress lookup for projection consumers (Phase 3.1). Resolves
   `%{entity_id => progress_summary}` for every container UUID in the
   input that has at least one `WatchProgress` row.

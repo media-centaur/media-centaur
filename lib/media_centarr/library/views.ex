@@ -89,15 +89,19 @@ defmodule MediaCentarr.Library.Views do
   like `/library?selected=<container_id>`) and need the canonical
   PlayableItem's row.
 
-  Handles single-leaf container types:
+  Handles every container kind (Phase 3.2 Task B expanded the projection
+  with entity-keyed reads):
 
     * `:movie` — returns the row for the position=1 PlayableItem.
     * `:video_object` — returns the row for the canonical PlayableItem.
+    * `:tv_series` — returns the canonical episode's row (lowest
+      `(season_number, episode_number)`), which carries the full
+      `:seasons` tree for the series.
+    * `:movie_series` — returns the lowest-`collection_position`
+      constituent movie's row, which carries the full `:movies` list.
 
-  Returns nil for `:tv_series`, `:movie_series`, and `:episode` — there
-  is no canonical PlayableItem at those container levels. TVSeries
-  consumers compose detail rows per-episode, and Episode callers
-  should hold the PlayableItem UUID directly.
+  Returns nil for `:episode` — callers should hold the PlayableItem
+  UUID directly via `detail/1`.
   """
   @spec detail_by_container(atom(), Ecto.UUID.t()) :: DetailItem.t() | nil
   def detail_by_container(container_type, container_id),
