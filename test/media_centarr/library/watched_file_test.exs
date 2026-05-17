@@ -2,7 +2,8 @@ defmodule MediaCentarr.Library.WatchedFileTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.Library
-  alias MediaCentarr.Library.WatchedFile
+  alias MediaCentarr.Library.{FilePresence, WatchedFile}
+  alias MediaCentarr.Repo
 
   describe "Library.link_file/1 (WatchedFile via PlayableItem)" do
     test "creates record keyed by playable_item_id" do
@@ -57,6 +58,23 @@ defmodule MediaCentarr.Library.WatchedFileTest do
         })
 
       assert %{playable_item_id: ["can't be blank"]} = errors_on(changeset)
+    end
+
+    test "auto-stamps a Library.FilePresence row and links its id" do
+      movie = create_entity(%{type: :movie, name: "Presence Movie"})
+      playable_item = create_playable_item_for_movie(movie)
+
+      assert {:ok, file} =
+               Library.link_file(%{
+                 file_path: "/media/test/presence-link.mkv",
+                 watch_dir: "/media/test",
+                 playable_item_id: playable_item.id
+               })
+
+      assert file.file_presence_id
+      presence = Repo.get_by!(FilePresence, file_path: "/media/test/presence-link.mkv")
+      assert file.file_presence_id == presence.id
+      assert presence.watch_dir == "/media/test"
     end
   end
 
