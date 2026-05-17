@@ -1,7 +1,7 @@
 ---
 status: phase-3.2-complete; follow-ups open
 started: 2026-05-15
-last_updated: 2026-05-17j
+last_updated: 2026-05-17k
 resume_with: see "Resume — open follow-ups" section at the bottom
 ---
 # Library Schema v2 — architectural excellence
@@ -175,10 +175,19 @@ Items surfaced during Phase 2 reviews — not blocking Phase 3:
 - **TMDB `Mapper` image helpers still emit legacy `entity_id` keys**
   (D+E+F). No live consumers (only tests); remove when those tests
   refactor.
-- **`resources_in_delete_order` missing PlayableItem** (D+E+F note).
+- ~~**`resources_in_delete_order` missing PlayableItem** (D+E+F note).
   `Maintenance.resources_in_delete_order/0` doesn't list PlayableItem;
   Task H rewrote the cascade so this is no longer load-bearing, but
-  the constant could be deleted entirely if nothing else reads it.
+  the constant could be deleted entirely if nothing else reads it.~~
+  ✅ Shipped 2026-05-17 (`xwnkyrvm`) — campaign-note premise was wrong:
+  `Maintenance.clear_database/0` is a second consumer (user-reachable
+  from Settings → Clear Database), so the constant IS load-bearing.
+  Added PlayableItem to the list + a regression test in
+  `maintenance_test.exs`. Phase 2 also introduced ExtraFile + a
+  ChangeEntry/FilePresence pair that were never in the list; those
+  predate Phase 2 in spirit (ChangeEntry) or are a separate cascade
+  question (FilePresence — has on_delete cascade *from* it), so they're
+  filed as a separate pre-existing bug, not this campaign's scope.
 - ~~**Validate-pair test for `release_tracking_items`** (Task J).~~
   ✅ Shipped 2026-05-17 — three cases covering both half-set
   rejections and the unlinked happy path.
@@ -770,7 +779,7 @@ campaign** than with this one. Don't tackle it piecemeal.
 - Phase 2 — `MpvSession` FK-key deferral. Session-state still carries `movie_id` / `episode_id` / `video_object_id`; persistence boundary migrated, runtime didn't.
 - Phase 2 — `has_one through` silent drop on multi-cut. Tighten when multi-cut UI ships.
 - Phase 2 — TMDB `Mapper` image helpers still emit legacy `entity_id` keys (only tests consume; remove when those tests refactor).
-- Phase 2 — `resources_in_delete_order` missing `PlayableItem`. Task H rewrote the cascade so this constant is no longer load-bearing — delete entirely if nothing else reads it.
+- ~~Phase 2 — `resources_in_delete_order` missing `PlayableItem`.~~ ✅ Shipped 2026-05-17 (`xwnkyrvm`) — added PlayableItem to the list; the premise that the constant was no longer load-bearing was wrong (`Maintenance.clear_database/0` still consumes it). Regression test added.
 - Phase 2 — `StatusResolver.progress_record_key/1` simplification. Now keys by `playable_item_id` only — verify no edge case where the legacy tuple-key invariant mattered.
 - Phase 3 — `Library.playable_item_ids_for_entities/1` UNION (three sequential `Repo.all/1` calls could collapse).
 
