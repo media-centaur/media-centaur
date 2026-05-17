@@ -6,7 +6,7 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
     explanations: [
       check: """
       Static guard against the durability bug class that motivated
-      `MediaCentarr.Watcher.AbsencePolicy`: a `Repo.delete_all` on a
+      `MediaCentarr.Library.AbsenceSweeper`: a `Repo.delete_all` on a
       file-presence-tracking table that doesn't filter on `:watch_dir`
       can silently destroy data for a drive that's currently
       unmounted (file marked absent because we can't see it, not
@@ -15,12 +15,12 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
       that drive).
 
       This check flags `Repo.delete_all(from(x in <Schema>, ...))`
-      where `<Schema>` is `KnownFile` or `WatchedFile` and the query
-      AST contains no reference to `:watch_dir`. The intent is to
-      force the destructive author to either:
+      where `<Schema>` is `FilePresence`, `WatchedFile`, or `ExtraFile`
+      and the query AST contains no reference to `:watch_dir`. The
+      intent is to force the destructive author to either:
 
         1. Add an availability filter — usually `where: x.watch_dir
-           in ^MediaCentarr.Watcher.AbsencePolicy.available_watch_dirs()`,
+           in ^MediaCentarr.Library.AbsenceSweeper.available_watch_dirs()`,
            or
         2. Add an explicit override comment that documents *why* the
            destructive op is safe without one (e.g. operator action,
@@ -32,7 +32,7 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
           # <one-line reason>
           Repo.delete_all(from(w in WatchedFile, where: w.id in ^ids))
 
-      Schemas wider than KnownFile/WatchedFile (entities, images, …)
+      Schemas wider than the file-presence trio (entities, images, …)
       are deliberately out of scope — they get destroyed via
       `EntityCascade`, which is downstream of file-presence deletes.
       Fixing the file-presence guard prevents the cascade from running
@@ -40,7 +40,7 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
       """
     ]
 
-  @target_schemas [:KnownFile, :WatchedFile]
+  @target_schemas [:FilePresence, :WatchedFile, :ExtraFile]
 
   @impl true
   def run(%SourceFile{} = source_file, params) do

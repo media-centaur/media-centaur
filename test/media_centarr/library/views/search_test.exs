@@ -17,7 +17,6 @@ defmodule MediaCentarr.Library.Views.SearchTest do
   alias MediaCentarr.Library.Views
   alias MediaCentarr.Library.Views.{Search, SearchItem}
   alias MediaCentarr.Topics
-  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
 
   @table :library_view_search
 

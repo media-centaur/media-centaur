@@ -2,12 +2,12 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetailTest do
   use MediaCentarr.DataCase, async: false
 
   alias MediaCentarr.ReleaseTracking
-  alias MediaCentarr.Watcher.FilePresence
   alias MediaCentarrWeb.ViewModel.EpisodeListItem
   alias MediaCentarrWeb.ViewModel.SeasonView
   alias MediaCentarrWeb.ViewModel.SeriesDetail
 
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
+  # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
+  defp record_present(_file), do: :ok
 
   describe "build/4 — pure composition" do
     test "no releases: items mirror library episodes with gap-fill" do

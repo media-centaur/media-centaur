@@ -22,9 +22,6 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentarr.{Config, Secret}
-  alias MediaCentarr.Watcher.FilePresence
-
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
 
   # Aggressive mount-time budget for every smoke. Media Centarr is a
   # local-first app; mounts should be near-instant. Steady-state mounts
@@ -85,6 +82,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       assert is_binary(html)
     end
   end
+
+  # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
+  defp record_present(_file), do: :ok
 
   describe "/library?selected=<id> with movie that has duration_seconds" do
     # Detail-panel metadata row formats `entity.duration_seconds` (integer

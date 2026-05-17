@@ -3,10 +3,8 @@ defmodule MediaCentarr.LibraryTest do
 
   import MediaCentarr.TestFactory
   alias MediaCentarr.Library
-  alias MediaCentarr.Watcher.FilePresence
 
   # Records the file as present in watcher_files so Browser queries include it.
-  defp record_present(file), do: FilePresence.record_file(file.file_path, file.watch_dir)
 
   defp count_queries(fun) do
     ref = make_ref()
@@ -36,6 +34,9 @@ defmodule MediaCentarr.LibraryTest do
       0 -> count
     end
   end
+
+  # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
+  defp record_present(_file), do: :ok
 
   describe "list_in_progress/1" do
     test "returns empty list when no entities exist" do

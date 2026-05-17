@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Watcher do
   use Boundary,
     deps: [MediaCentarr.Library],
-    exports: [Supervisor, FilePresence]
+    exports: [Supervisor]
 
   @moduledoc """
   Per-directory inotify GenServer plus the watcher subsystem's module-level
@@ -62,11 +62,10 @@ defmodule MediaCentarr.Watcher do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Library
-  alias MediaCentarr.Library.FilePresence, as: LibraryFilePresence
+  alias MediaCentarr.Library.FilePresence
   alias MediaCentarr.Library.WatchedFile
   alias MediaCentarr.Watcher.DeletionBuffer
   alias MediaCentarr.Watcher.ExcludeDirs
-  alias MediaCentarr.Watcher.FilePresence
   alias MediaCentarr.Watcher.MountStatus
   alias MediaCentarr.Watcher.VideoFile
   alias MediaCentarr.Watcher.Walk
@@ -117,30 +116,23 @@ defmodule MediaCentarr.Watcher do
   end
 
   @doc """
-  Records a file as seen by the watcher AND linked to a library entity, in
-  a single transaction. Used by the showcase seeder and any future caller
-  that needs both rows written atomically — historically these were two
-  unrelated calls and could leave a `library_watched_files` row without a
-  corresponding `watcher_files` row, exactly the state `rescan_unlinked`
-  exists to recover from.
+  Records a file as seen by the watcher AND linked to a library entity.
+  Used by the showcase seeder and any future caller that needs the
+  presence stamp + library link written atomically.
 
   `attrs` must include `file_path`, `watch_dir`, and `playable_item_id`
   (Library Schema v2 Phase 2 Task B — formerly one of the per-type FK
   columns `movie_id` / `tv_series_id` / `movie_series_id` /
   `video_object_id`).
+
+  After campaign Phase 7 there is no longer a parallel `watcher_files`
+  row to coordinate with — `Library.link_file/1` auto-stamps a
+  `Library.FilePresence` row via the Phase-3 FK so the transaction
+  wrapper is no longer load-bearing for cross-table consistency.
   """
   @spec record_seen(map()) :: {:ok, %WatchedFile{}} | {:error, term()}
-  def record_seen(%{file_path: file_path, watch_dir: watch_dir} = attrs) do
-    MediaCentarr.Repo.transaction(fn ->
-      case Library.link_file(attrs) do
-        {:ok, file} ->
-          FilePresence.record_file(file_path, watch_dir)
-          file
-
-        {:error, reason} ->
-          MediaCentarr.Repo.rollback(reason)
-      end
-    end)
+  def record_seen(%{file_path: _file_path, watch_dir: _watch_dir} = attrs) do
+    Library.link_file(attrs)
   end
 
   @impl true
@@ -360,8 +352,11 @@ defmodule MediaCentarr.Watcher do
       paths = DeletionBuffer.paths(state.deletion_buffer)
       Log.info(:watcher, log_message)
 
-      FilePresence.mark_files_absent(paths)
-
+      # Post-Phase-7: presence rows aren't marked absent inline anymore —
+      # the `{:files_removed, paths}` broadcast triggers
+      # `Library.FileEventHandler` which runs the entity-cleanup cascade
+      # and deletes the `Library.FilePresence` rows (FK cascade-deletes
+      # the dependent `WatchedFile` / `ExtraFile`).
       Phoenix.PubSub.broadcast(
         MediaCentarr.PubSub,
         MediaCentarr.Topics.library_file_events(),
@@ -390,12 +385,9 @@ defmodule MediaCentarr.Watcher do
     recovery = Keyword.get(opts, :recovery, false)
     Log.info(:watcher, "scanning #{dir}#{if recovery, do: " (recovery)", else: ""}")
 
-    # Library.FilePresence is the source of truth for "have we already
-    # dispatched this path?" — campaign-presence-unification Phase 2.
-    # Watcher.FilePresence (KnownFile) is still dual-written by
-    # `detect_file/2` so legacy joins continue to work; it gets
-    # retired in Phase 7.
-    known_paths = LibraryFilePresence.list_paths_for_watch_dir(dir)
+    # `Library.FilePresence` is the sole presence record post-Phase-7;
+    # `watcher_files` and the dual-write KnownFile module are gone.
+    known_paths = FilePresence.list_paths_for_watch_dir(dir)
     scan_directory_with_paths(dir, exclude_dirs, known_paths, recovery: recovery)
   end
 
@@ -416,38 +408,32 @@ defmodule MediaCentarr.Watcher do
         count + 1
       end)
 
-    # Restore any absent files that are now present on disk
-    restored_paths = FilePresence.restore_present_files(dir, video_files)
+    # Refresh `last_seen_at` in Library.FilePresence for every video
+    # file currently visible on disk. Idempotent UPSERT — new paths
+    # got their initial stamp via `detect_file/2` above; this bulk
+    # refresh keeps existing rows' `last_seen_at` from drifting into
+    # AbsenceSweeper purge territory across normal scans. One bulk
+    # write per scan keeps the cost flat regardless of library size.
+    FilePresence.stamp_many(video_files, dir)
 
-    # Refresh `last_seen_at` in Library.FilePresence for restored
-    # paths (newly-detected paths get stamped per-file by
-    # `detect_file/2` above). One bulk write per scan keeps the
-    # cost flat regardless of library size.
-    LibraryFilePresence.stamp_many(restored_paths, dir)
-
-    restored_entity_ids =
-      if restored_paths == [] do
-        []
-      else
-        unique_entity_ids(Library.list_files_by_paths(restored_paths))
-      end
-
-    broadcast_entities_changed(restored_entity_ids)
+    # No need to rebroadcast entity changes for "restored" files —
+    # post-Phase-7 there is no `:present | :absent` state to flip;
+    # files that were missed during a drive-offline window are
+    # re-stamped above and naturally re-render through the entity
+    # change broadcasts that fired when they were first ingested.
 
     # On recovery from :unavailable, re-push ALL entities for this watch dir
-    # so the channel re-serializes with now-available image paths
+    # so the channel re-serializes with now-available image paths.
     if Keyword.get(opts, :recovery, false) do
-      all_files = Library.list_files_by_watch_dir(dir)
-      all_entity_ids = unique_entity_ids(all_files)
-      additional_ids = all_entity_ids -- restored_entity_ids
+      all_entity_ids = unique_entity_ids(Library.list_files_by_watch_dir(dir))
 
-      if additional_ids != [] do
+      if all_entity_ids != [] do
         Log.info(
           :watcher,
-          "re-pushed #{length(additional_ids)} entities — recovery image re-resolution"
+          "re-pushed #{length(all_entity_ids)} entities — recovery image re-resolution"
         )
 
-        broadcast_entities_changed(additional_ids)
+        broadcast_entities_changed(all_entity_ids)
       end
     end
 
@@ -460,14 +446,13 @@ defmodule MediaCentarr.Watcher do
         dir: dir,
         total_video_files: length(video_files),
         known: length(video_files) - dispatched,
-        dispatched: dispatched,
-        restored: length(restored_entity_ids)
+        dispatched: dispatched
       }
     )
 
     Log.info(
       :watcher,
-      "scan completed — #{dispatched} new, #{length(restored_entity_ids)} restored, #{length(video_files)} total"
+      "scan completed — #{dispatched} new, #{length(video_files)} total"
     )
 
     dispatched
@@ -476,12 +461,7 @@ defmodule MediaCentarr.Watcher do
   defp detect_file(path, watch_dir) do
     Log.info(:watcher, "detected #{Path.basename(path)}")
 
-    # Dual-write while the campaign is mid-flight: KnownFile keeps
-    # legacy Library joins working; Library.FilePresence is the new
-    # source of truth read by `scan_directory/2`. Phase 7 deletes
-    # the KnownFile write.
-    FilePresence.record_file(path, watch_dir)
-    LibraryFilePresence.stamp(path, watch_dir)
+    FilePresence.stamp(path, watch_dir)
 
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,

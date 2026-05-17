@@ -2,7 +2,7 @@
 status: in-progress
 started: 2026-05-17
 last_updated: 2026-05-17
-phases_done: [1, 2, 3, 4, 5, 6]
+phases_done: [1, 2, 3, 4, 5, 6, 7]
 ---
 # Library presence unification
 
@@ -142,15 +142,27 @@ green and is committable on its own; don't straddle. Phases
    60-days-offline durability invariant and the
    remount → purge cascade. Status page now reads from
    `AbsenceSweeper.at_risk_summary/0`.
-7. **Phase 7.** Tighten `file_presence_id` to NOT NULL on
-   both `library_watched_files` and `library_extra_files`
-   (the Phase-3 deferral — safe to ship once every install
-   has booted the Phase-3 backfill). Then stop dual-writes.
-   Drop `watcher_files` table with inline reconcile-orphan
-   pass (any `:present` KnownFile row without matching
-   FilePresence gets a fresh FilePresence so the next scan
-   re-detects). Delete `Watcher.KnownFile`,
-   `Watcher.FilePresence`, `Watcher.AbsencePolicy` modules.
+7. ✅ **Phase 7.** Dual-writes stopped — `Watcher.detect_file/2`,
+   `flush_deletions`, `scan_directory_with_paths`, and
+   `record_seen/1` no longer touch any watcher_files table.
+   Schema migration `20260517120000_drop_watcher_files.exs`
+   drops the legacy table. `Watcher.KnownFile` and
+   `Watcher.FilePresence` modules deleted; Watcher boundary
+   exports trimmed to `[Supervisor]` only;
+   `Watcher.Supervisor.rescan_unlinked/0` now walks
+   `library_file_presences` for stranded paths. Credo check
+   `DestructiveFileQuery` rewritten to scope to
+   `FilePresence` / `WatchedFile` / `ExtraFile` (KnownFile
+   dropped). **Deferred from Phase 3:** the NOT NULL constraint
+   on `file_presence_id` still ships in a later release once
+   every install has booted the Phase-3 backfill. Today the
+   non-null invariant is enforced at the changeset layer
+   (`validate_required(:file_presence_id)`) and the FK
+   (`on_delete: :delete_all`) preserves the structural
+   "no entity without presence" guarantee. No reconcile-orphan
+   pass was needed — Phase-2 backfill skipped orphan rows by
+   design, and the watcher's next scan re-stamps any path
+   that lacks a `Library.FilePresence`.
 8. **Phase 8.** Verification: full precommit, real-library
    smoke, in-place upgrade smoke from the current production
    state. Update `docs/architecture.md` and `docs/watcher.md`
