@@ -2,7 +2,7 @@
 status: in-progress
 started: 2026-05-17
 last_updated: 2026-05-17
-phases_done: [1, 2, 3, 4, 5]
+phases_done: [1, 2, 3, 4, 5, 6]
 ---
 # Library presence unification
 
@@ -125,9 +125,23 @@ green and is committable on its own; don't straddle. Phases
    write nothing reads. `Discovery.already_linked?/1` also
    checks `ExtraFile` for the defensive Parse-stage
    idempotency the campaign called for.
-6. **Phase 6.** New `Library.AbsenceSweeper` GenServer.
-   Delete `Watcher.AbsencePolicy`. Topic + payload contract
-   for `{:files_removed, paths}` preserved verbatim.
+6. ✅ **Phase 6.** New `Library.AbsenceSweeper` GenServer
+   sweeps stale `Library.FilePresence` rows on TTL; runs
+   entity cleanup synchronously via
+   `FileEventHandler.cleanup_removed_files/1` BEFORE the
+   FilePresence delete (Phase-3 FK cascade would otherwise
+   remove WatchedFile ahead of the entity traversal); then
+   broadcasts the original `{:files_removed, paths}` contract
+   verbatim. Drive-state events (`:available` → reset
+   `last_seen_at` for that dir to give a full TTL window;
+   `:unavailable` → no-op, just let presence rows go stale
+   while the dir is filtered out of purge runs).
+   `Watcher.AbsencePolicy` and its test (`absence_policy_test`,
+   `durability_integration_test`) deleted; new
+   `library/absence_sweeper_test.exs` covers the
+   60-days-offline durability invariant and the
+   remount → purge cascade. Status page now reads from
+   `AbsenceSweeper.at_risk_summary/0`.
 7. **Phase 7.** Tighten `file_presence_id` to NOT NULL on
    both `library_watched_files` and `library_extra_files`
    (the Phase-3 deferral — safe to ship once every install

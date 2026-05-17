@@ -177,7 +177,7 @@ defmodule MediaCentarrWeb.StatusHelpers do
   absence clock is ticking without the user's awareness.
 
   - `at_risk_summary` — the map returned by
-    `MediaCentarr.Watcher.AbsencePolicy.at_risk_summary/0`.
+    `MediaCentarr.Library.AbsenceSweeper.at_risk_summary/0`.
   - `dir_status` — the map returned by
     `MediaCentarr.Library.Availability.dir_status/0` (or `%{}` if not
     yet seeded — treat unknown dirs as offline so the warning isn't

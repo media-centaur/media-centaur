@@ -7,11 +7,13 @@ defmodule MediaCentarr.Watcher.FilePresence do
   back on disk, resets the absence clock on remount. Pure data
   operations — no timers, no policy decisions, no PubSub.
 
-  Lifecycle policy (TTL expiration, dir-state event handling, the
-  `{:files_removed, paths}` broadcast contract) lives in
-  `MediaCentarr.Watcher.AbsencePolicy`. The relationship is one-way:
-  AbsencePolicy uses these primitives; this module is unaware of the
-  policy.
+  Lifecycle policy now lives in `MediaCentarr.Library.AbsenceSweeper`
+  (operating on `Library.FilePresence`). This module is kept only for
+  the dual-write era — `Watcher.detect_file/2` still writes KnownFile
+  rows alongside `Library.FilePresence.stamp/2`, but the writes are
+  dead — no reader uses them. Phase 7 of the
+  library-presence-unification campaign deletes this module along
+  with the `watcher_files` table.
   """
   require MediaCentarr.Log, as: Log
   import Ecto.Query
@@ -119,7 +121,9 @@ defmodule MediaCentarr.Watcher.FilePresence do
   Resets `absent_since` to `now()` for every `:absent` row in the
   given watch dir. Returns the number of rows touched.
 
-  Called by `MediaCentarr.Watcher.AbsencePolicy` on a dir's
+  Called by no live caller — kept for dual-write parity until Phase 7
+  drops the watcher_files table. Was called by the deleted
+  `MediaCentarr.Watcher.AbsencePolicy` on a dir's
   `:available` transition so users get a guaranteed full TTL window
   from the moment the drive becomes visible again, instead of
   counting absence accumulated while the drive was unverifiable.
