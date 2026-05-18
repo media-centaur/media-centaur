@@ -4,6 +4,46 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.66.0 — 2026-05-18
+
+### Improved
+
+The Library page and the entity-detail modal both render from
+in-memory projections instead of querying the database on every
+open. You should notice snappier card grids on `/library`, faster
+modal opens when you click into a title, and smoother updates when
+new media gets added while you're browsing.
+
+Continue Watching now refreshes itself when a watch drive comes
+back online. Previously, if a drive disappeared and reappeared,
+the row would stay in its stale state until you navigated away and
+back — now it picks up the change automatically.
+
+### Fixed
+
+A small visual glitch where the "now playing" indicator could
+appear on the wrong card immediately after starting playback (it
+was matching against the wrong identifier in some paths). The
+right card lights up now.
+
+### Behind the scenes
+
+This release ships the closure of two long-running architectural
+campaigns:
+
+- **Library Schema v2.** The internal data model has been rebuilt
+  around a canonical "playable item" leaf — every supporting table
+  (watched files, watch progress, subtitles, images, IDs) now keys
+  to that one row. Invisible today, but it unblocks future features
+  like multiple cuts of the same movie (theatrical + director's)
+  and multi-part episodes as natural data shapes rather than
+  workarounds. See decision record ADR-047.
+- **Desktop rearchitecture.** Every read path consumed by a page in
+  the UI now goes through an in-memory projection layer that
+  rebuilds in the background as data changes. CI now enforces this
+  with a per-page database-query budget so the pattern can't quietly
+  regress.
+
 ## v0.65.1 — 2026-05-17
 
 ### Behind the scenes
