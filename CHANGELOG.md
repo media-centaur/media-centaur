@@ -4,6 +4,21 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.66.1 — 2026-05-18
+
+### Fixed
+
+A crash on startup if your library contained a movie collection where
+some constituent movies were tracked in metadata but not yet on disk.
+The Library projection layer assumed every collection child had a
+file present and crashed when one didn't, taking the whole service
+down with it. The projection now treats "no file yet" as a normal
+state — the collection still appears, the missing children are
+flagged as not-present in the detail view.
+
+If you were on v0.66.0 and saw the service restarting in a loop,
+this is the patch that unblocks it.
+
 ## v0.66.0 — 2026-05-18
 
 ### Improved
