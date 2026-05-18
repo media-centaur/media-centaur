@@ -20,19 +20,25 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`component-contracts.md`](component-contracts.md) — every
-  LiveView function component declares a typed contract for
-  domain-data attrs; eliminate bare `:any` / `:map` / `:list`.
+_None._
 
 ## Archived
 
+* [`done/component-contracts.md`](done/component-contracts.md) —
+  every LiveView function component declares a typed contract for
+  domain-data attrs (struct / Ecto schema / shared ViewModel, or
+  `:any` / `:map` / `:list` with a justified `doc:`). 157/165
+  attrs documented; remaining 8 are excluded Phoenix-base infra.
+  `MC0008 TypedComponentAttrs` + `MC0009 StorybookCoverage` +
+  `storybook_render_test` form the enforcement triple. Shipped
+  2026-05-18.
 * [`done/page-redistribution.md`](done/page-redistribution.md) — IA
   refactor splitting Library into Home / Library / Upcoming /
   History; sidebar gains Watch (frontstage) and System
   (backstage) groups. All four pages and the sidebar split shipped
   2026-05-10. Outstanding storybook stories for the new sidebar
   grouping + History rewatch baseline re-homed to
-  [`component-contracts.md`](component-contracts.md).
+  [`done/component-contracts.md`](done/component-contracts.md).
 * [`done/pursuits-maturation.md`](done/pursuits-maturation.md) —
   three-phase maturation of the Acquisition Pursuits aggregate:
   Recipe value object + timeline VM, AutoCancel auto-pivot on
