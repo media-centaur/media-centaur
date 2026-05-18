@@ -158,11 +158,36 @@ defmodule MediaCentarrWeb.LibraryProgress do
   `season_number == 0` selects a movie (standalone or an entry within a
   movie series, indexed by `ordinal`). Any non-zero `season_number`
   selects an episode within a TV series.
+
+  For callers that already hold a single loaded entry rather than a
+  cache map (`EntityModal`), call `resolve_progress_fk_from_entry/4`
+  directly to skip the `Map.get`.
   """
   @spec resolve_progress_fk(map(), String.t(), non_neg_integer(), non_neg_integer()) ::
           {:movie_id, String.t() | nil} | {:episode_id, String.t() | nil}
-  def resolve_progress_fk(entries_by_id, entity_id, 0, ordinal) do
-    case Map.get(entries_by_id, entity_id) do
+  def resolve_progress_fk(entries_by_id, entity_id, season_number, episode_number) do
+    resolve_progress_fk_from_entry(
+      Map.get(entries_by_id, entity_id),
+      entity_id,
+      season_number,
+      episode_number
+    )
+  end
+
+  @doc """
+  Resolves `{fk_key, fk_id}` from a single loaded entry (the
+  `%{entity: ...}` shape used by both `LibraryLive`'s cache values and
+  `EntityModal`'s `:selected_entry`). Same semantics as
+  `resolve_progress_fk/4`, but skips the cache lookup.
+  """
+  @spec resolve_progress_fk_from_entry(
+          map() | nil,
+          String.t(),
+          non_neg_integer(),
+          non_neg_integer()
+        ) :: {:movie_id, String.t() | nil} | {:episode_id, String.t() | nil}
+  def resolve_progress_fk_from_entry(entry, entity_id, 0, ordinal) do
+    case entry do
       %{entity: %{type: :movie_series, movies: movies}} when is_list(movies) ->
         {:movie_id, find_movie_in_series(movies, ordinal)}
 
@@ -170,12 +195,14 @@ defmodule MediaCentarrWeb.LibraryProgress do
         {:movie_id, id}
 
       _ ->
+        # Standalone movie selection — entity_id is already the movie row.
+        # Extras inside any container also flow through season=0.
         {:movie_id, entity_id}
     end
   end
 
-  def resolve_progress_fk(entries_by_id, entity_id, season_number, episode_number) do
-    case Map.get(entries_by_id, entity_id) do
+  def resolve_progress_fk_from_entry(entry, _entity_id, season_number, episode_number) do
+    case entry do
       %{entity: %{type: :tv_series, seasons: seasons}} when is_list(seasons) ->
         {:episode_id, find_episode_in_seasons(seasons, season_number, episode_number)}
 
