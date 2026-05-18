@@ -59,7 +59,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.{Format, Library, Playback, ReleaseTracking}
-  alias MediaCentarr.Library.{FileEventHandler, MovieList}
+  alias MediaCentarr.Library.FileEventHandler
   alias MediaCentarr.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentarrWeb.Components.{DetailPanel, ModalShell}
   alias MediaCentarrWeb.ViewModel.SeriesDetail
@@ -170,7 +170,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
           )
 
         Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          EntityModal.update_watch_progress(entity_id, fk_key, fk_id)
+          EntityModal.toggle_watch_progress(entity_id, fk_key, fk_id)
         end)
 
         {:noreply, socket}
@@ -391,6 +391,26 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     end
   end
 
+  # Deferred autoplay — queued by `apply_modal_params/2` so the URL
+  # patch renders before the LV blocks on Playback.play/1 (which fans
+  # out to the Resolver + Sessions GenServer chain).
+  def handle_modal_pubsub({:autoplay, entity_id}, socket) do
+    _ = Playback.play(entity_id)
+    {:halt, socket}
+  end
+
+  # Deferred file-info load — fired by the `spawn_files_load/1` task
+  # spawned in `apply_modal_params/2`. Drops the result if the modal
+  # has since switched to a different entity (the inbound id no longer
+  # matches the open selection). Re-applies only when still relevant.
+  def handle_modal_pubsub({:detail_files_loaded, entity_id, files}, socket) do
+    if socket.assigns[:selected_entity_id] == entity_id do
+      {:halt, Phoenix.Component.assign(socket, :detail_files, files)}
+    else
+      {:halt, socket}
+    end
+  end
+
   def handle_modal_pubsub(_msg, socket), do: {:cont, socket}
 
   defp tv_series_selected?(socket) do
@@ -517,15 +537,26 @@ defmodule MediaCentarrWeb.Live.EntityModal do
           {socket.assigns.selected_entry, socket.assigns.expanded_seasons}
       end
 
+    # Files are loaded asynchronously so the modal can render immediately.
+    # `load_entity_files/1` issues a `File.stat/1` per file; on a network
+    # mount or sleeping disk this stalls handle_params. Per the
+    # "no-blocking LV page loads" rule, kick off a supervised task and
+    # receive `{:detail_files_loaded, id, files}` once it's done.
     detail_files =
-      if selection_changed do
-        if detail_view == :info && selected_id, do: load_entity_files(selected_id), else: []
-      else
-        if detail_view == :info && socket.assigns.detail_files == [] && selected_id do
-          load_entity_files(selected_id)
-        else
+      cond do
+        selection_changed and detail_view == :info and selected_id != nil ->
+          spawn_files_load(selected_id)
+          []
+
+        selection_changed ->
+          []
+
+        detail_view == :info and socket.assigns.detail_files == [] and selected_id != nil ->
+          spawn_files_load(selected_id)
+          []
+
+        true ->
           socket.assigns.detail_files
-        end
       end
 
     tracking_status =
@@ -541,8 +572,12 @@ defmodule MediaCentarrWeb.Live.EntityModal do
           socket.assigns.tracking_status
       end
 
+    # Defer Playback.play/1 to a `handle_info({:autoplay, id}, _)` clause
+    # so the URL patch renders + ships to the client before the LV blocks
+    # on the resolver + Sessions.play chain. The deferred message is
+    # picked up by `handle_modal_pubsub/2` (the EntityModal hook).
     if autoplay? && selected_entry do
-      _ = Playback.play(selected_id)
+      send(self(), {:autoplay, selected_id})
     end
 
     Phoenix.Component.assign(socket,
@@ -672,52 +707,12 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   def playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
 
   @doc false
-  @spec resolve_progress_fk(map() | nil, String.t(), non_neg_integer(), non_neg_integer()) ::
-          {:movie_id, String.t() | nil} | {:episode_id, String.t() | nil}
-  def resolve_progress_fk(_entry, entity_id, 0, _ordinal) do
-    # The DetailPanel emits season=0 + episode=ordinal for movies and
-    # extras. For a standalone movie selection, the entity_id is the
-    # movie row. For movie-series children, the play row carries the
-    # actual movie id, so the entity_id we receive is already correct.
-    {:movie_id, entity_id}
-  end
-
-  def resolve_progress_fk(%{entity: %{type: :movie_series, movies: movies}}, _entity_id, 0, ordinal)
-      when is_list(movies) do
-    available = MovieList.list_available(%{movies: movies})
-
-    movie_id =
-      case Enum.find(available, fn {ord, _id, _url} -> ord == ordinal end) do
-        {_ord, id, _url} -> id
-        nil -> nil
-      end
-
-    {:movie_id, movie_id}
-  end
-
-  def resolve_progress_fk(
-        %{entity: %{type: :tv_series, seasons: seasons}},
-        _entity_id,
-        season_number,
-        episode_number
-      )
-      when is_list(seasons) do
-    episode_id =
-      with %{episodes: episodes} when is_list(episodes) <-
-             Enum.find(seasons, &(&1.season_number == season_number)),
-           %{id: id} <- Enum.find(episodes, &(&1.episode_number == episode_number)) do
-        id
-      else
-        _ -> nil
-      end
-
-    {:episode_id, episode_id}
-  end
-
-  def resolve_progress_fk(_entry, _entity_id, _season, _episode), do: {:episode_id, nil}
+  defdelegate resolve_progress_fk(entry, entity_id, season_number, episode_number),
+    to: MediaCentarrWeb.LibraryProgress,
+    as: :resolve_progress_fk_from_entry
 
   @doc false
-  def update_watch_progress(entity_id, fk_key, fk_id) do
+  def toggle_watch_progress(entity_id, fk_key, fk_id) do
     progress = load_progress_by_fk(fk_key, fk_id)
     changed_record = apply_progress_transition(progress, fk_key, fk_id)
     ProgressBroadcaster.broadcast(entity_id, changed_record)
@@ -813,15 +808,47 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   def find_tmdb_id(_), do: nil
 
   @doc false
+  # Loads the watched-files list for an entity and stats each path. The
+  # stats run in parallel under `Task.async_stream` with a short
+  # per-file timeout — a stale network mount can take seconds to fail
+  # `File.stat/1`, and the synchronous-per-file path made that the
+  # bound on the whole list. Per-call concurrency is small (8) because
+  # the bottleneck is filesystem latency, not CPU.
   def load_entity_files(entity_id) do
-    Enum.map(Library.list_watched_files_by_entity_id(entity_id), fn file ->
-      size =
-        case File.stat(file.file_path) do
-          {:ok, %{size: size}} -> size
-          _ -> nil
-        end
+    entity_id
+    |> Library.list_watched_files_by_entity_id()
+    |> Task.async_stream(
+      fn file ->
+        size =
+          case File.stat(file.file_path) do
+            {:ok, %{size: size}} -> size
+            _ -> nil
+          end
 
-      %{file: file, size: size}
+        %{file: file, size: size}
+      end,
+      max_concurrency: 8,
+      ordered: true,
+      timeout: 1_500,
+      on_timeout: :kill_task
+    )
+    |> Enum.map(fn
+      {:ok, entry} -> entry
+      {:exit, _reason} -> nil
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Spawns the file-info load on a supervised task so handle_params
+  # returns immediately. The task replies via `{:detail_files_loaded,
+  # entity_id, files}` which the EntityModal hook applies — see
+  # `handle_modal_pubsub/2`.
+  defp spawn_files_load(entity_id) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      files = load_entity_files(entity_id)
+      send(parent, {:detail_files_loaded, entity_id, files})
     end)
   end
 
@@ -913,11 +940,14 @@ defmodule MediaCentarrWeb.Live.EntityModal do
         expanded = DetailPanel.auto_expand_season(sd.entity, sd.progress)
         {sd, expanded}
 
-      {:error, :wrong_type} ->
-        load_non_tv_entry(id)
-
+      # `SeriesDetail.compose/1` returns `:not_found` for any id that
+      # isn't a TV series, including ids that ARE existing movies /
+      # video_objects / movie_series. Falling through to the non-TV
+      # path lets `Library.load_modal_entry/1` open those modals; if
+      # the id is truly orphan it returns `:not_found` itself and we
+      # land on `{nil, MapSet.new()}` via `load_non_tv_entry/1`.
       :not_found ->
-        {nil, MapSet.new()}
+        load_non_tv_entry(id)
     end
   end
 

@@ -266,11 +266,19 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetailTest do
       assert :not_found == SeriesDetail.compose(Ecto.UUID.generate())
     end
 
-    test "returns {:error, :wrong_type} for movie entities" do
+    test "returns :not_found for non-TV entities" do
+      # `compose/1` no longer differentiates "exists but wrong type"
+      # from "doesn't exist at all" — both return `:not_found` and the
+      # caller (`EntityModal.load_entry_and_expand/1`) falls through to
+      # `Library.load_modal_entry/1` which handles non-TV opens. The
+      # previous `{:error, :wrong_type}` branch existed only because
+      # the older path went through `TypeResolver.resolve_container/2`
+      # (4 `Repo.get` probes) — that probe was waste; callers acted
+      # identically on either return.
       movie = create_standalone_movie()
       record_present(create_linked_file(%{movie_id: movie.id}))
 
-      assert {:error, :wrong_type} = SeriesDetail.compose(movie.id)
+      assert :not_found = SeriesDetail.compose(movie.id)
     end
 
     test "tv_series with no Item: seasons mirror library; no future seasons" do

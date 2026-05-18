@@ -74,8 +74,10 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
 
       # WatchProgress is keyed by `playable_item_id` since Library Schema
       # v2 Phase 2 Task C; the linked PlayableItem carries the
-      # `(container_type, container_id)` discriminator.
-      changed_record = MediaCentarr.Repo.preload(changed_record, :playable_item)
+      # `(container_type, container_id)` discriminator. The broadcaster
+      # substitutes a synthesised-`:playable_item` version (from
+      # `EntityShape.extract_progress/2`) so subscribers can key by
+      # container id without an extra preload.
       assert changed_record.playable_item.container_type == :episode
       assert changed_record.playable_item.container_id == episode.id
       assert changed_record.completed == true
@@ -83,6 +85,64 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
 
     test "returns :ok for nonexistent entity" do
       assert :ok == ProgressBroadcaster.broadcast(Ecto.UUID.generate())
+    end
+
+    test "changed_record in payload carries :playable_item container info" do
+      # Regression: subscribers (EntityModal hook) rebuild per-episode
+      # state from the broadcast payload's `changed_record` by reading
+      # `record.playable_item.container_id` (via
+      # `EpisodeList.progress_container_id/1`). The caller's raw record
+      # — what `Library.fetch_watch_progress_by_fk/2` and
+      # `mark_watch_completed!/1` return — has the `:playable_item`
+      # association as `%Ecto.Association.NotLoaded{}`, so without
+      # substitution the modal's in-memory merge dropped the record on
+      # the floor and the episode silently flipped back to :unwatched.
+      #
+      # Reproduces the real toggle path:
+      # `fetch_watch_progress_by_fk/2` returns an un-preloaded record →
+      # `mark_watch_completed!/1` preserves the un-preloaded shape →
+      # `ProgressBroadcaster.broadcast/2` must substitute a preloaded
+      # version for the broadcast payload.
+      tv_series = create_entity(%{type: :tv_series, name: "Toggle Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/show/s01e01.mkv"
+        })
+
+      _seeded =
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 0.0,
+          duration_seconds: 0.0
+        })
+
+      # Faithfully reproduce the runtime flow used by
+      # `EntityModal.toggle_watch_progress/3`: fetch via the legacy FK
+      # helper (no preload), then mark completed. The resulting record
+      # has `playable_item: %Ecto.Association.NotLoaded{}`.
+      {:ok, raw_progress} =
+        MediaCentarr.Library.fetch_watch_progress_by_fk(:episode_id, episode.id)
+
+      {:ok, raw_progress} = MediaCentarr.Library.mark_watch_completed(raw_progress)
+
+      assert match?(%Ecto.Association.NotLoaded{}, raw_progress.playable_item)
+
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
+
+      ProgressBroadcaster.broadcast(tv_series.id, raw_progress)
+
+      assert_receive {:entity_progress_updated, %{changed_record: changed_record}}
+
+      assert changed_record.id == raw_progress.id
+      assert is_map(changed_record.playable_item)
+      refute match?(%Ecto.Association.NotLoaded{}, changed_record.playable_item)
+      assert changed_record.playable_item.container_type == :episode
+      assert changed_record.playable_item.container_id == episode.id
     end
   end
 

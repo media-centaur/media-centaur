@@ -100,9 +100,10 @@ defmodule MediaCentarr.Library.Views.Browse do
   end
 
   defp read_from_ets do
+    # `:ordered_set` already iterates in key order, so `:ets.tab2list/1`
+    # returns rows already sorted by rank. No explicit sort needed.
     @table
     |> :ets.tab2list()
-    |> Enum.sort_by(fn {rank, _item} -> rank end)
     |> Enum.map(fn {_rank, item} -> item end)
   end
 

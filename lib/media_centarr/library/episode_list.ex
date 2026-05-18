@@ -52,6 +52,28 @@ defmodule MediaCentarr.Library.EpisodeList do
   def progress_container_id(_), do: nil
 
   @doc """
+  Maps a `WatchProgress` record (or `nil`) to the three-state UI atom
+  used by the detail panel and the SeriesDetail view model:
+
+  - `:unwatched` — no progress, or progress at position 0 and not completed
+  - `:current`   — progress past position 0 but not completed
+  - `:watched`   — `completed: true`
+
+  Shared between the rendering layer (`DetailPanel`) and the
+  composition layer (`SeriesDetail`) so the rule lives in one place.
+  """
+  @spec state_from_progress(map() | nil) :: :unwatched | :current | :watched
+  def state_from_progress(nil), do: :unwatched
+
+  def state_from_progress(progress) do
+    cond do
+      progress.completed -> :watched
+      (progress.position_seconds || 0.0) > 0.0 -> :current
+      true -> :unwatched
+    end
+  end
+
+  @doc """
   Indexes progress by episode_id from episodes with preloaded `watch_progress`.
 
   Returns `%{episode_id => progress}` for episodes that have progress records.

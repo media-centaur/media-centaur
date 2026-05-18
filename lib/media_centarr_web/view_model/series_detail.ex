@@ -18,7 +18,6 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.ProgressSummary
-  alias MediaCentarr.Library.TypeResolver
   alias MediaCentarr.Library.Views.DetailItem
   alias MediaCentarr.Playback.ResumeTarget
   alias MediaCentarr.ReleaseTracking
@@ -59,11 +58,19 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
         }
 
   @doc """
-  Loads + composes the view model for a TV series. Returns
-  `:not_found` if no library entity matches `entity_id`. Returns
-  `{:error, :wrong_type}` if the entity exists but isn't a
-  `:tv_series` — the modal should fall back to its movie/movie_series
-  flow.
+  Loads + composes the view model for a TV series. Returns `:not_found`
+  if no `:tv_series` projection row matches `entity_id` — the caller
+  is expected to try its non-TV path (`Library.load_modal_entry/1`) on
+  `:not_found`, which will succeed for movies / movie_series /
+  video_objects or itself return `:not_found` for truly orphan ids.
+
+  Previous versions probed `TypeResolver.resolve_container/2` on a miss
+  to differentiate "exists but wrong type" from "doesn't exist at all";
+  that probe issued up to 4 sequential `Repo.get` queries on every
+  non-TV modal open just to decide which branch the caller should
+  take. The branch decision is the same either way (try the non-TV
+  path), so the probe was pure waste — collapsed to a single
+  `:not_found` return.
 
   Reads the Library half from `MediaCentarr.Library.Views.Detail`
   (Pillar-2 ETS projection, microsecond reads in production; falls
@@ -74,17 +81,14 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
   Computes the resume target via `MediaCentarr.Playback.ResumeTarget`
   on the loaded entry, so callers don't have to thread it separately.
   """
-  @spec compose(Ecto.UUID.t()) :: {:ok, t()} | :not_found | {:error, :wrong_type}
+  @spec compose(Ecto.UUID.t()) :: {:ok, t()} | :not_found
   def compose(entity_id) when is_binary(entity_id) do
     case Library.Views.detail_by_container(:tv_series, entity_id) do
       %DetailItem{} = detail_item ->
         compose_from_detail(detail_item, entity_id)
 
       nil ->
-        case TypeResolver.resolve_container(entity_id) do
-          {:ok, _other_type, _record} -> {:error, :wrong_type}
-          :not_found -> :not_found
-        end
+        :not_found
     end
   end
 
@@ -290,15 +294,12 @@ defmodule MediaCentarrWeb.ViewModel.SeriesDetail do
 
   # --- Helpers (extracted from DetailPanel) ---
 
-  defp episode_state(nil), do: :unwatched
-
-  defp episode_state(progress) do
-    cond do
-      progress.completed -> :watched
-      (progress.position_seconds || 0.0) > 0.0 -> :current
-      true -> :unwatched
-    end
-  end
+  # Both `DetailPanel.episode_state/1` and this caller delegate to the
+  # same Library helper so the rendering layer and the composition
+  # layer can't drift.
+  defdelegate episode_state(progress),
+    to: MediaCentarr.Library.EpisodeList,
+    as: :state_from_progress
 
   defp count_watched_episodes(episodes, progress_by_episode_id) do
     Enum.count(episodes, fn episode ->

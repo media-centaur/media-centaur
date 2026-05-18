@@ -204,6 +204,81 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     end
   end
 
+  describe "toggle_watched updates the modal in real time" do
+    # Regression: the watched-toggle on a TV episode wrote to the DB
+    # but the modal didn't reflect the change without a reload, because
+    # the broadcast's `changed_record` lacked the synthesised
+    # `:playable_item` association that subscribers key by. This test
+    # exercises the full path — click → DB write → broadcast → hook
+    # merge → re-render — and asserts the episode flips state without
+    # the user navigating away.
+
+    setup do
+      tv_series = create_tv_series(%{name: "Toggle Live Update Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/toggle-show/s01e01.mkv"
+        })
+
+      {:ok, tv_series: tv_series, episode: episode}
+    end
+
+    test "clicking the toggle flips the episode to watched without remount",
+         %{conn: conn, tv_series: tv_series, episode: episode} do
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
+
+      {:ok, view, html} = live(conn, ~p"/library?selected=#{tv_series.id}")
+
+      assert html =~ "Mark watched"
+      refute html =~ "Mark unwatched"
+
+      view
+      |> element(~s|button[phx-click="toggle_watched"][phx-value-episode="#{episode.episode_number}"]|)
+      |> render_click()
+
+      # The handler dispatches the DB write to a Task; wait for the
+      # broadcast so we know the task has run before we render the LV.
+      assert_receive {:entity_progress_updated, %{entity_id: entity_id}}, 1000
+      assert entity_id == tv_series.id
+
+      html = render(view)
+      assert html =~ "Mark unwatched"
+    end
+
+    test "clicking again flips back to unwatched without remount",
+         %{conn: conn, tv_series: tv_series, episode: episode} do
+      # Seed an already-completed progress so the modal opens in the
+      # `:watched` state and the toggle goes :watched → :unwatched.
+      _ =
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 0.0,
+          duration_seconds: 0.0,
+          completed: true
+        })
+
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
+
+      {:ok, view, html} = live(conn, ~p"/library?selected=#{tv_series.id}")
+
+      assert html =~ "Mark unwatched"
+
+      view
+      |> element(~s|button[phx-click="toggle_watched"][phx-value-episode="#{episode.episode_number}"]|)
+      |> render_click()
+
+      assert_receive {:entity_progress_updated, _payload}, 1000
+
+      html = render(view)
+      assert html =~ "Mark watched"
+    end
+  end
+
   describe "live updates from availability" do
     test "availability_changed broadcast does not crash and re-renders",
          %{conn: conn} do

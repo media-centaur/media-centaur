@@ -10,8 +10,9 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
 
   alias MediaCentarr.Format
   alias MediaCentarr.Library
-  alias MediaCentarr.Library.{EntityShape, TypeResolver}
   alias MediaCentarr.Library.Progress, as: LibraryProgress
+  alias MediaCentarr.Library.Views, as: LibraryViews
+  alias MediaCentarr.Library.Views.DetailItem
   alias MediaCentarr.Playback.Events
   alias MediaCentarr.Playback.Events.{EntityProgressUpdated, ExtraProgressUpdated}
 
@@ -36,7 +37,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
           entity_id: entity_id,
           summary: summary,
           resume_target: resume_target,
-          changed_record: changed_record,
+          changed_record: enrich_changed_record(changed_record, progress_records),
           last_activity_at: DateTime.utc_now()
         })
 
@@ -45,19 +46,61 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
     end
   end
 
+  # Substitute the caller's raw `changed_record` with the matching record
+  # from the freshly loaded `progress_records` list. The DB-loaded version
+  # carries the synthesised `:playable_item` (via
+  # `EntityShape.extract_progress/2`) that subscribers need to key by
+  # container id (`EpisodeList.progress_container_id/1`). The caller's
+  # record — what `Library.fetch_watch_progress_by_fk/2` and
+  # `mark_watch_completed!/1` return — has `:playable_item` as
+  # `%Ecto.Association.NotLoaded{}`, which would silently drop the
+  # record out of the modal's in-memory merge.
+  defp enrich_changed_record(nil, _records), do: nil
+
+  defp enrich_changed_record(changed_record, records) do
+    case Enum.find(records, &(&1.id == changed_record.id)) do
+      nil -> changed_record
+      enriched -> enriched
+    end
+  end
+
+  # Resolves the entity via the Library Detail ETS projection (ADR-041)
+  # instead of `TypeResolver.resolve_container` + a full preload tree.
+  # Every progress tick during playback hits this path; the previous
+  # implementation issued up to 4 sequential `Repo.get` probes followed
+  # by a deep `Repo.preload` (`seasons: [:extras, episodes: [:images,
+  # :watch_progress, playable_items: :watched_files]]`). The projection
+  # already holds the same shape consumers need; reads are microsecond
+  # ETS lookups (with a DB fallback for test mode / pre-boot window —
+  # `Views.detail_by_container/2` handles both).
+  #
+  # The function still probes 4 container types since the broadcaster
+  # only receives `entity_id`. Future work: thread the known type from
+  # MpvSession so the probe loop drops to a single direct lookup.
   defp resolve_entity_with_progress(id) do
-    case TypeResolver.resolve_container(id, preload: Library.full_preloads_by_type()) do
-      {:ok, type, record} ->
-        progress =
-          record
-          |> EntityShape.extract_progress(type)
+    cond do
+      result = load_via_detail(:tv_series, id) -> result
+      result = load_via_detail(:movie_series, id) -> result
+      result = load_via_detail(:movie, id) -> result
+      result = load_via_detail(:video_object, id) -> result
+      true -> :not_found
+    end
+  end
+
+  defp load_via_detail(type, id) do
+    case LibraryViews.detail_by_container(type, id) do
+      %DetailItem{} = item ->
+        entity = DetailItem.to_entity_map(item)
+
+        progress_records =
+          type
+          |> Library.list_progress_records_for_container(id)
           |> overlay_in_memory_progress()
 
-        normalized = EntityShape.to_view_model(record, type)
-        {:ok, normalized, progress}
+        {:ok, entity, progress_records}
 
-      :not_found ->
-        :not_found
+      nil ->
+        nil
     end
   end
 

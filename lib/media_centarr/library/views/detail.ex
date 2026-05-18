@@ -83,6 +83,15 @@ defmodule MediaCentarr.Library.Views.Detail do
 
   @table :library_view_detail
 
+  # Secondary index mapping `{container_type, container_id_or_parent_id}`
+  # to the canonical `playable_item_id` for that entity. Lets
+  # `read_by_container/2` resolve a container UUID to its canonical
+  # PlayableItem row in two O(1) ETS lookups instead of the prior
+  # `:ets.select` table scan (which scanned every PlayableItem in the
+  # library on each TV-series or movie-series modal open). Maintained on
+  # full and partial refreshes alongside the main `@table`.
+  @canonical_table :library_view_detail_canonical
+
   @impl MediaCentarr.Cache
   def subscribe do
     Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.library_updates())
@@ -102,11 +111,16 @@ defmodule MediaCentarr.Library.Views.Detail do
     items = build_all_items()
 
     :ets.delete_all_objects(@table)
+    :ets.delete_all_objects(@canonical_table)
 
     Enum.each(items, fn item ->
       :ets.insert(@table, {item.playable_item_id, item})
       broadcast_row(item.playable_item_id)
     end)
+
+    items
+    |> build_canonical_entries()
+    |> Enum.each(&:ets.insert(@canonical_table, &1))
 
     :ok
   end
@@ -212,65 +226,93 @@ defmodule MediaCentarr.Library.Views.Detail do
     end
   end
 
-  defp read_from_ets_by_container(container_type, container_id)
-       when container_type in [:movie, :video_object] do
-    # Match-spec: rows where (container_type, container_id) matches and
-    # position == 1. Returns DetailItems sorted by position; pick the
-    # first.
-    match_spec = [
-      {{:_, %{container_type: container_type, container_id: container_id, position: 1}}, [], [:"$_"]}
-    ]
-
-    case :ets.select(@table, match_spec) do
-      [{_pi_id, %DetailItem{} = item}] -> item
-      [{_pi_id, %DetailItem{} = item} | _] -> item
-      _ -> nil
-    end
-  end
-
-  defp read_from_ets_by_container(:tv_series, tv_series_id) do
-    # Find episode rows whose parent_container_id matches. Pick the
-    # canonical lowest-position one (S01E01 in well-formed seeds).
-    match_spec = [
-      {{:_, %{container_type: :episode, parent_container_id: tv_series_id}}, [], [:"$_"]}
-    ]
-
-    case :ets.select(@table, match_spec) do
-      [] ->
+  defp read_from_ets_by_container(container_type, container_id) do
+    case :ets.whereis(@canonical_table) do
+      :undefined ->
         nil
 
-      rows ->
-        rows
-        |> Enum.map(fn {_pi_id, item} -> item end)
-        |> Enum.min_by(&canonical_episode_sort_key/1)
+      _ref ->
+        with [{_key, pi_id}] <- :ets.lookup(@canonical_table, {container_type, container_id}),
+             [{^pi_id, %DetailItem{} = item}] <- :ets.lookup(@table, pi_id) do
+          item
+        else
+          _ -> nil
+        end
     end
   end
 
-  defp read_from_ets_by_container(:movie_series, movie_series_id) do
-    match_spec = [
-      {{:_, %{container_type: :movie, parent_container_id: movie_series_id}}, [], [:"$_"]}
+  # --- Canonical-index population ---
+
+  # Picks the canonical PlayableItem row per `{container_type, container_id}`
+  # lookup key from the in-memory DetailItem set. Used by full refresh
+  # (`refresh_cache/0`) to bulk-populate the index from already-built
+  # items. The output is a list of `{key, playable_item_id}` tuples
+  # ready for `:ets.insert/2`.
+  defp build_canonical_entries(items) do
+    items
+    |> Enum.flat_map(&canonical_entries_for_row/1)
+    |> Enum.group_by(fn {key, _sort, _pi_id} -> key end)
+    |> Enum.map(fn {key, entries} ->
+      {_key, _sort, pi_id} = Enum.min_by(entries, fn {_key, sort, _pi_id} -> sort end)
+      {key, pi_id}
+    end)
+  end
+
+  # A row contributes to:
+  #   * its own leaf key for `:movie` / `:video_object` lookups
+  #     (`{:movie, movie_id}` / `{:video_object, vo_id}`); episodes do
+  #     not — `read_by_container(:episode, _)` is intentionally not
+  #     supported.
+  #   * its parent series key for series-rooted lookups
+  #     (`{:tv_series, series_id}` / `{:movie_series, ms_id}`).
+  #
+  # Sort key disambiguates siblings: lowest sort wins. Order chosen to
+  # match the prior `:ets.select` + Enum.min_by behaviour so the
+  # canonical row is identical to what callers got before the index
+  # was introduced.
+  defp canonical_entries_for_row(%DetailItem{container_type: :movie} = item) do
+    leaf_entry =
+      {{:movie, item.container_id}, {item.position || 0, item.playable_item_id}, item.playable_item_id}
+
+    series_entry =
+      case item.parent_container_type do
+        :movie_series ->
+          collection_position = movie_collection_position(item)
+
+          [
+            {{:movie_series, item.parent_container_id}, {collection_position, item.playable_item_id},
+             item.playable_item_id}
+          ]
+
+        _ ->
+          []
+      end
+
+    [leaf_entry | series_entry]
+  end
+
+  defp canonical_entries_for_row(%DetailItem{container_type: :video_object} = item) do
+    [
+      {{:video_object, item.container_id}, {item.position || 0, item.playable_item_id},
+       item.playable_item_id}
     ]
-
-    case :ets.select(@table, match_spec) do
-      [] ->
-        nil
-
-      rows ->
-        rows
-        |> Enum.map(fn {_pi_id, item} -> item end)
-        |> Enum.min_by(&canonical_movie_sort_key/1)
-    end
   end
+
+  defp canonical_entries_for_row(
+         %DetailItem{container_type: :episode, parent_container_id: tv_series_id} = item
+       )
+       when not is_nil(tv_series_id) do
+    sort = canonical_episode_sort_key(item)
+    [{{:tv_series, tv_series_id}, sort, item.playable_item_id}]
+  end
+
+  defp canonical_entries_for_row(_), do: []
 
   defp canonical_episode_sort_key(%DetailItem{
          seasons: seasons,
          container_id: episode_id,
          playable_item_id: pi_id
        }) do
-    # Sort key is THIS row's episode's (season_number, episode_number).
-    # The :seasons tree is shared across sibling rows; we look up the
-    # episode whose id == this row's container_id to pick a per-row
-    # discriminator.
     seasons
     |> List.wrap()
     |> Enum.find_value(nil, fn %DetailItem.Season{season_number: sn, episodes: eps} ->
@@ -285,7 +327,7 @@ defmodule MediaCentarr.Library.Views.Detail do
     end
   end
 
-  defp canonical_movie_sort_key(%DetailItem{
+  defp movie_collection_position(%DetailItem{
          movies: movies,
          container_id: movie_id,
          playable_item_id: pi_id
@@ -520,20 +562,101 @@ defmodule MediaCentarr.Library.Views.Detail do
   end
 
   defp rebuild_row(playable_item_id) do
+    old_keys = canonical_keys_for_stored_row(playable_item_id)
+
     case build_item_for_playable_item_id(playable_item_id) do
       nil ->
-        delete_row(playable_item_id)
+        :ets.delete(@table, playable_item_id)
+        Enum.each(old_keys, &recompute_canonical_for_key/1)
+        broadcast_row(playable_item_id)
 
       %DetailItem{} = item ->
         :ets.insert(@table, {playable_item_id, item})
+
+        new_keys =
+          item
+          |> canonical_entries_for_row()
+          |> Enum.map(fn {key, _sort, _pi_id} -> key end)
+
+        (old_keys ++ new_keys)
+        |> Enum.uniq()
+        |> Enum.each(&recompute_canonical_for_key/1)
+
         broadcast_row(playable_item_id)
     end
   end
 
   defp delete_row(playable_item_id) do
+    affected_keys = canonical_keys_for_stored_row(playable_item_id)
     :ets.delete(@table, playable_item_id)
+    Enum.each(affected_keys, &recompute_canonical_for_key/1)
     broadcast_row(playable_item_id)
   end
+
+  defp canonical_keys_for_stored_row(playable_item_id) do
+    case :ets.lookup(@table, playable_item_id) do
+      [{^playable_item_id, %DetailItem{} = item}] ->
+        item
+        |> canonical_entries_for_row()
+        |> Enum.map(fn {key, _sort, _pi_id} -> key end)
+
+      _ ->
+        []
+    end
+  end
+
+  # Recomputes the canonical-index entry for one lookup key by walking
+  # the main table for matching rows and picking the lowest sort key.
+  # Runs only on the write path (refresh / rebuild / delete) — the read
+  # path is two O(1) ETS lookups against this index.
+  defp recompute_canonical_for_key(key) do
+    case canonical_entries_for_key(key) do
+      [] ->
+        :ets.delete(@canonical_table, key)
+
+      entries ->
+        {_key, _sort, pi_id} = Enum.min_by(entries, fn {_key, sort, _pi_id} -> sort end)
+        :ets.insert(@canonical_table, {key, pi_id})
+    end
+  end
+
+  # Returns all canonical-index entries (`{key, sort, pi_id}`) under
+  # the given lookup key. Used to pick the canonical at write time.
+  defp canonical_entries_for_key({container_type, target_id})
+       when container_type in [:movie, :video_object] do
+    match_spec = [
+      {{:_, %{container_type: container_type, container_id: target_id}}, [], [:"$_"]}
+    ]
+
+    @table
+    |> :ets.select(match_spec)
+    |> Enum.flat_map(fn {_pi_id, item} -> canonical_entries_for_row(item) end)
+    |> Enum.filter(fn {key, _sort, _pi_id} -> key == {container_type, target_id} end)
+  end
+
+  defp canonical_entries_for_key({:tv_series, tv_series_id}) do
+    match_spec = [
+      {{:_, %{container_type: :episode, parent_container_id: tv_series_id}}, [], [:"$_"]}
+    ]
+
+    @table
+    |> :ets.select(match_spec)
+    |> Enum.flat_map(fn {_pi_id, item} -> canonical_entries_for_row(item) end)
+    |> Enum.filter(fn {key, _sort, _pi_id} -> key == {:tv_series, tv_series_id} end)
+  end
+
+  defp canonical_entries_for_key({:movie_series, movie_series_id}) do
+    match_spec = [
+      {{:_, %{container_type: :movie, parent_container_id: movie_series_id}}, [], [:"$_"]}
+    ]
+
+    @table
+    |> :ets.select(match_spec)
+    |> Enum.flat_map(fn {_pi_id, item} -> canonical_entries_for_row(item) end)
+    |> Enum.filter(fn {key, _sort, _pi_id} -> key == {:movie_series, movie_series_id} end)
+  end
+
+  defp canonical_entries_for_key(_), do: []
 
   defp delete_rows_for_container_id(container_id) do
     @table
@@ -563,6 +686,14 @@ defmodule MediaCentarr.Library.Views.Detail do
     case :ets.whereis(@table) do
       :undefined ->
         :ets.new(@table, [:set, :public, :named_table, read_concurrency: true])
+
+      _ref ->
+        :ok
+    end
+
+    case :ets.whereis(@canonical_table) do
+      :undefined ->
+        :ets.new(@canonical_table, [:set, :public, :named_table, read_concurrency: true])
 
       _ref ->
         :ok
