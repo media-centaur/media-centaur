@@ -7,11 +7,16 @@ defmodule MediaCentarr.Setup.Gate do
   the gate combines that with `IntegrationHealth` ("does it work?") to
   answer "may the user advance past this step?".
 
-  Critical-and-testable steps (`:tmdb`) require BOTH `probe.status =
-  :ok` AND `health.test_state = :ok` before advancement. Non-critical
-  steps (Prowlarr, download client) only need probe `:ok` to advance,
-  but the gate still surfaces the test state to the UI so a misconfig
-  is obvious.
+  Critical-and-testable steps (`:tmdb`) require `probe.status = :ok`
+  AND a `test_state` that is not actively `:error` — i.e. anything we
+  haven't proven to be broken. A `:pending` re-verify (the typical
+  state right after boot, when IntegrationHealth re-runs the test
+  against credentials saved in a prior session) does not block; the
+  background result still drives the next render's gate decision. A
+  prior `:error` does block — we keep that signal load-bearing.
+  Non-critical steps (Prowlarr, download client) only need probe `:ok`
+  to advance, but the gate still surfaces the test state to the UI so
+  a misconfig is obvious.
 
   Pseudo-steps `:welcome` and `:summary` always pass.
   """
@@ -30,7 +35,6 @@ defmodule MediaCentarr.Setup.Gate do
   @type probe :: %{:status => atom(), optional(atom()) => term()} | nil
   @type reason ::
           :probe_not_ok
-          | :test_pending
           | :test_failed
           | :test_not_run
 
@@ -67,7 +71,6 @@ defmodule MediaCentarr.Setup.Gate do
   @doc "Stable human-readable tooltip text for a `{:blocked, reason}` result."
   @spec reason_message(reason()) :: String.t()
   def reason_message(:probe_not_ok), do: "Complete this step before continuing."
-  def reason_message(:test_pending), do: "Verifying the connection — hold on…"
   def reason_message(:test_failed), do: "Connection test failed. Fix the credentials and try again."
 
   def reason_message(:test_not_run),
@@ -85,7 +88,12 @@ defmodule MediaCentarr.Setup.Gate do
 
   defp health_check(step, nil), do: missing_test_reason(step)
   defp health_check(_, %Status{test_state: :ok}), do: :ok
-  defp health_check(_, %Status{test_state: :pending}), do: {:blocked, :test_pending}
+  # `:pending` is a transient re-verify-in-progress state — most often
+  # observed at boot when IntegrationHealth re-runs the test against
+  # credentials saved in a prior session. We trust `configured?` and
+  # let the user advance; the background test result still drives the
+  # next render's decision.
+  defp health_check(_, %Status{test_state: :pending}), do: :ok
   defp health_check(_, %Status{test_state: :error}), do: {:blocked, :test_failed}
   defp health_check(step, %Status{test_state: :unknown}), do: missing_test_reason(step)
 
