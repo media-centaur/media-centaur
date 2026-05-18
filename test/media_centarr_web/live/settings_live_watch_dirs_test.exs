@@ -5,6 +5,16 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
 
   alias MediaCentarr.Config
 
+  # `SettingsLive.ensure_loaded/1` defers its 15+ config / capability
+  # / probe reads to a `Task.Supervisor` child that messages back via
+  # `{:settings_loaded, _}`. Tests that interact with deferred-loaded
+  # `watch_dirs` state must wait for the load before clicking edit/save.
+  defp wait_for_async_load(view) do
+    Process.sleep(100)
+    _ = render(view)
+    view
+  end
+
   setup do
     on_exit(fn ->
       :ok = Config.put_watch_dirs([])
@@ -53,6 +63,7 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
       ])
 
     {:ok, view, _} = live(conn, "/settings?section=library")
+    view = wait_for_async_load(view)
 
     view |> element("button[phx-click='watch_dir:open_edit'][phx-value-id='u1']") |> render_click()
 

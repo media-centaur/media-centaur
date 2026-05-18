@@ -4,6 +4,15 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
   import Phoenix.LiveViewTest
   import MediaCentarr.TestFactory
 
+  # `WatchHistoryLive.ensure_loaded/1` defers the summary read + first
+  # page fetch to a `Task.Supervisor` child that messages back via
+  # `{:history_loaded, _}` (per the "no blocking LV page loads" rule).
+  # Tests asserting on populated state must wait for that message.
+  defp render_after_async_load(view) do
+    Process.sleep(100)
+    render(view)
+  end
+
   describe "mount" do
     test "mounts the history page without error", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/history")
@@ -21,14 +30,15 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
     test "mounts and renders completion events from the database", %{conn: conn} do
       movie = create_movie(%{name: "Sample Anime One"})
       create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Anime One"})
-      {:ok, _view, html} = live(conn, "/history")
-      assert html =~ "Sample Anime One"
+      {:ok, view, _html} = live(conn, "/history")
+      assert render_after_async_load(view) =~ "Sample Anime One"
     end
 
     test "mounts with correct event count reflected in stats", %{conn: conn} do
       create_watch_event(%{title: "Movie A", duration_seconds: 3600.0})
       create_watch_event(%{title: "Movie B", duration_seconds: 7200.0})
-      {:ok, _view, html} = live(conn, "/history")
+      {:ok, view, _html} = live(conn, "/history")
+      html = render_after_async_load(view)
       # Two completions are visible on page
       assert html =~ "Movie A"
       assert html =~ "Movie B"
@@ -128,9 +138,9 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
         create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie B"})
       end
 
-      {:ok, _view, html} = live(conn, "/history")
+      {:ok, view, _html} = live(conn, "/history")
 
-      assert html =~ "3×"
+      assert render_after_async_load(view) =~ "3×"
     end
 
     test "does not show a rewatch badge for entities watched only once", %{conn: conn} do

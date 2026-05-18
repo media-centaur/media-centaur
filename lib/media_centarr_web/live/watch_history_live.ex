@@ -48,23 +48,53 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   # First-render data load — gated by `connected?` so the static HTTP render
   # ships empty defaults and the WebSocket render fills them in once. See
   # AGENTS.md → LiveView callbacks (Iron Law).
+  #
+  # Per the "no blocking LV page loads" rule, the summary read + first
+  # page of events run on a supervised task and message back via
+  # `{:history_loaded, _}`. The summary is a microsecond ETS read but
+  # `fetch_page/1` is a paginated DB query that scales with the history
+  # table; deferring it keeps `handle_params` snappy on big histories.
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
-      summary = WatchHistoryViews.summary()
-
-      socket =
-        assign(socket,
-          stats: summary.stats,
-          heatmap_cells_by_type: summary.heatmap_cells_by_type,
-          rewatch_counts: summary.rewatch_counts,
-          loaded?: true
-        )
-
-      {events, has_next} = fetch_page(socket)
-      assign(socket, events: events, has_next: has_next)
+      socket
+      |> start_async_history_load()
+      |> assign(:loaded?, true)
     else
       socket
     end
+  end
+
+  defp start_async_history_load(socket) do
+    parent = self()
+    filters = filter_snapshot(socket)
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      summary = WatchHistoryViews.summary()
+      {events, has_next} = fetch_page_for(filters)
+
+      send(
+        parent,
+        {:history_loaded,
+         %{
+           stats: summary.stats,
+           heatmap_cells_by_type: summary.heatmap_cells_by_type,
+           rewatch_counts: summary.rewatch_counts,
+           events: events,
+           has_next: has_next
+         }}
+      )
+    end)
+
+    socket
+  end
+
+  defp filter_snapshot(socket) do
+    %{
+      page: socket.assigns.page,
+      filter_type: socket.assigns.filter_type,
+      filter_search: socket.assigns.filter_search,
+      filter_date: socket.assigns.filter_date
+    }
   end
 
   @impl true
@@ -487,6 +517,12 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
     {:noreply, assign(socket, events: events, has_next: has_next)}
   end
 
+  # Async result from `start_async_history_load/1`. The task did the
+  # summary read + initial fetch_page off the LV process.
+  def handle_info({:history_loaded, assigns}, socket) do
+    {:noreply, assign(socket, Map.to_list(assigns))}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # --- Private helpers ---
@@ -513,15 +549,16 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
     end
   end
 
-  defp fetch_page(socket) do
-    a = socket.assigns
-    offset = (a.page - 1) * @page_size
+  defp fetch_page(socket), do: fetch_page_for(filter_snapshot(socket))
+
+  defp fetch_page_for(%{} = filters) do
+    offset = (filters.page - 1) * @page_size
 
     raw =
       WatchHistory.list_events(
-        entity_type: a.filter_type,
-        search: a.filter_search,
-        date: a.filter_date,
+        entity_type: filters.filter_type,
+        search: filters.filter_search,
+        date: filters.filter_date,
         limit: @page_size + 1,
         offset: offset
       )

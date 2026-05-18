@@ -9,6 +9,16 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   alias MediaCentarr.Capabilities
   alias MediaCentarr.Secret
 
+  # `AcquisitionLive.ensure_loaded/1` defers the initial reads (search
+  # session, capability flag, active pursuit rows, history rows) to a
+  # `Task.Supervisor` child that messages back via
+  # `{:acquisition_loaded, _}` (per the "no blocking LV page loads"
+  # rule). Tests asserting on populated state must wait for it.
+  defp render_after_async_load(view) do
+    Process.sleep(100)
+    render(view)
+  end
+
   defp stub_prowlarr_with(results) do
     Req.Test.stub(:prowlarr, fn conn ->
       Req.Test.json(conn, results)
@@ -575,7 +585,8 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       {:ok, _other_view, _other_html} = live(conn, "/")
 
-      {:ok, _view2, html2} = live(conn, "/download")
+      {:ok, view2, _html2} = live(conn, "/download")
+      html2 = render_after_async_load(view2)
 
       assert html2 =~ "Sample Show"
       assert html2 =~ "Sample.Show.S01E01"
@@ -631,8 +642,8 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       session_after = MediaCentarr.Acquisition.current_search_session()
       assert Enum.all?(session_after.groups, fn group -> group.status == :abandoned end)
 
-      {:ok, _view2, html2} = live(conn, "/download")
-      assert html2 =~ "Retry"
+      {:ok, view2, _html2} = live(conn, "/download")
+      assert render_after_async_load(view2) =~ "Retry"
     end
   end
 
@@ -824,9 +835,9 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
           status: "seeking"
         })
 
-      {:ok, _view, html} = live(conn, "/download")
+      {:ok, view, _html} = live(conn, "/download")
 
-      assert html =~ "Sample Show S01E03"
+      assert render_after_async_load(view) =~ "Sample Show S01E03"
     end
   end
 

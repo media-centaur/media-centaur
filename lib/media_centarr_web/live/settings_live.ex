@@ -169,29 +169,74 @@ defmodule MediaCentarrWeb.SettingsLive do
   # First-render data load — gated by `connected?` so the static HTTP render
   # ships empty defaults and the WebSocket render fills them in once. See
   # AGENTS.md → LiveView callbacks (Iron Law).
+  #
+  # `ensure_loaded/1` previously ran ~15 sync calls back-to-back: config
+  # reads, four `running?/0` GenServer calls, an image-health summary, a
+  # systemd service-state probe, three persisted connection-test reads,
+  # and the setup-banner probe set. Per the "no blocking LV page loads"
+  # rule, the work runs on a supervised task that messages back via
+  # `{:settings_loaded, assigns}` — `handle_params` returns immediately
+  # and the page progressively populates.
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
       socket
-      |> assign(config: load_config())
-      |> assign(watchers_running: Watcher.Supervisor.running?())
-      |> assign(pipeline_running: Pipeline.Supervisor.pipeline_running?())
-      |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())
-      |> assign(acquisition_running: Acquisition.auto_grab_running?())
-      |> assign(watch_dirs: MediaCentarr.Config.watch_dirs_entries())
-      |> assign(exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [])
-      |> assign(missing_images_summary: Maintenance.missing_images_summary())
-      |> assign(tmdb_test: load_test_result(:tmdb))
-      |> assign(prowlarr_test: load_test_result(:prowlarr))
-      |> assign(download_client_test: load_test_result(:download_client))
-      |> assign(tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)))
-      |> assign(service_state: SelfUpdate.service_state())
-      |> assign(bindings: Controls.get())
-      |> assign(glyph_style: Controls.glyph_style())
-      |> assign_setup_banner_state()
+      |> start_async_settings_load()
       |> assign(loaded?: true)
     else
       socket
     end
+  end
+
+  # Spawns the settings-page data load on a supervised task. The task
+  # parallelises the four `running?/0` probes (independent GenServer
+  # calls), then builds the rest of the assigns from a single config
+  # snapshot. Result lands via `handle_info({:settings_loaded, ...}, _)`.
+  defp start_async_settings_load(socket) do
+    parent = self()
+    setup_banner_dismissed? = socket.assigns.setup_banner_dismissed?
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      config = load_config()
+
+      [watchers_running, pipeline_running, image_pipeline_running, acquisition_running] =
+        [
+          fn -> Watcher.Supervisor.running?() end,
+          fn -> Pipeline.Supervisor.pipeline_running?() end,
+          fn -> ImagePipeline.Supervisor.pipeline_running?() end,
+          fn -> Acquisition.auto_grab_running?() end
+        ]
+        |> Task.async_stream(& &1.(), max_concurrency: 4, ordered: true, timeout: 10_000)
+        |> Enum.map(fn {:ok, result} -> result end)
+
+      {critical_failures, show_setup_banner?} =
+        compute_setup_banner_state(config, setup_banner_dismissed?)
+
+      send(
+        parent,
+        {:settings_loaded,
+         %{
+           config: config,
+           watchers_running: watchers_running,
+           pipeline_running: pipeline_running,
+           image_pipeline_running: image_pipeline_running,
+           acquisition_running: acquisition_running,
+           watch_dirs: MediaCentarr.Config.watch_dirs_entries(),
+           exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [],
+           missing_images_summary: Maintenance.missing_images_summary(),
+           tmdb_test: load_test_result(:tmdb),
+           prowlarr_test: load_test_result(:prowlarr),
+           download_client_test: load_test_result(:download_client),
+           tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
+           service_state: SelfUpdate.service_state(),
+           bindings: Controls.get(),
+           glyph_style: Controls.glyph_style(),
+           critical_failures: critical_failures,
+           show_setup_banner?: show_setup_banner?
+         }}
+      )
+    end)
+
+    socket
   end
 
   defp maybe_auto_check_updates(socket, "system") do
@@ -1176,6 +1221,13 @@ defmodule MediaCentarrWeb.SettingsLive do
        keyboard: keyboard_for_client(map),
        gamepad: gamepad_for_client(map)
      })}
+  end
+
+  # Async result from `start_async_settings_load/1`. The task did all
+  # the config / capability / probe work off the LV process; the only
+  # cost on this process is the single `assign/2` call.
+  def handle_info({:settings_loaded, assigns}, socket) do
+    {:noreply, assign(socket, Map.to_list(assigns))}
   end
 
   def handle_info(_msg, socket) do
@@ -3601,23 +3653,33 @@ defmodule MediaCentarrWeb.SettingsLive do
   # --- Private helpers ---
 
   # Computes the probe-driven setup banner state and assigns
-  # `critical_failures` + `show_setup_banner?`. Called from
-  # `ensure_loaded/1` (once per session) and after any config save —
-  # probes are pure (config + filesystem) so cost is negligible.
+  # `critical_failures` + `show_setup_banner?`. Called after any config
+  # save — probes are pure (config + filesystem) so cost is negligible.
   defp assign_setup_banner_state(socket) do
-    probes = MediaCentarrWeb.Live.SetupLive.Probes.all(probe_input(socket.assigns.config))
+    {critical_failures, show_banner?} =
+      compute_setup_banner_state(socket.assigns.config, socket.assigns.setup_banner_dismissed?)
+
+    socket
+    |> assign(critical_failures: critical_failures)
+    |> assign(show_setup_banner?: show_banner?)
+  end
+
+  # Pure helper — shared by the post-save banner assigner and the
+  # async first-load task spawned from `start_async_settings_load/1`.
+  # Returns the `{critical_failures, show_banner?}` pair without
+  # touching the socket so the task can compute it off the LV process.
+  defp compute_setup_banner_state(loaded_config, setup_banner_dismissed?) do
+    probes = MediaCentarrWeb.Live.SetupLive.Probes.all(probe_input(loaded_config))
     critical_failures = Overview.critical_failures(probes)
 
     show_banner? =
       Overview.show_setup_banner?(
         Config.get(:setup_wizard_dismissed) == true,
         critical_failures,
-        socket.assigns.setup_banner_dismissed?
+        setup_banner_dismissed?
       )
 
-    socket
-    |> assign(critical_failures: critical_failures)
-    |> assign(show_setup_banner?: show_banner?)
+    {critical_failures, show_banner?}
   end
 
   # Mirrors the input map `MediaCentarrWeb.SetupLive` builds — same shape

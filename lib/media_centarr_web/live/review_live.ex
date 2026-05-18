@@ -44,20 +44,31 @@ defmodule MediaCentarrWeb.ReviewLive do
   # First-render data load — gated by `connected?` so the static HTTP render
   # ships empty defaults and the WebSocket render fills them in once. See
   # AGENTS.md → LiveView callbacks (Iron Law).
+  #
+  # Per the "no blocking LV page loads" rule, the pending-files fetch
+  # (which scales with the review backlog) runs on a supervised task
+  # and messages back via `{:review_loaded, _}`. The capability flag
+  # read is cached and stays synchronous.
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
-      groups = Review.fetch_pending_groups()
-
       socket
-      |> assign(groups: groups)
-      |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
       |> assign(tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())
-      |> assign(loaded?: true)
-      |> apply_group_stats()
-      |> ensure_selection()
+      |> start_async_review_load()
+      |> assign(:loaded?, true)
     else
       socket
     end
+  end
+
+  defp start_async_review_load(socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      groups = Review.fetch_pending_groups()
+      send(parent, {:review_loaded, groups})
+    end)
+
+    socket
   end
 
   @impl true
@@ -328,6 +339,21 @@ defmodule MediaCentarrWeb.ReviewLive do
     else
       {:noreply, socket}
     end
+  end
+
+  # Async result from `start_async_review_load/1`. The fetch of pending
+  # groups ran off the LV process; re-run the derived-assigns pipeline
+  # (`apply_group_stats`, `ensure_selection`) on the new data so the
+  # master/detail panes settle into a consistent state.
+  def handle_info({:review_loaded, groups}, socket) do
+    socket =
+      socket
+      |> assign(groups: groups)
+      |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+      |> apply_group_stats()
+      |> ensure_selection()
+
+    {:noreply, socket}
   end
 
   def handle_info(_msg, socket) do

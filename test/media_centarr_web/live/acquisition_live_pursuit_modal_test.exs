@@ -130,7 +130,13 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
           |> Repo.insert()
       end)
 
-      {:ok, view, html} = live(conn, "/download")
+      {:ok, view, _html} = live(conn, "/download")
+
+      # `AcquisitionLive.ensure_loaded/1` defers `pursuit_rows` to an
+      # async task. Wait for the `{:acquisition_loaded, _}` reply
+      # before sampling render.
+      Process.sleep(100)
+      html = render(view)
 
       # The group renders collapsed by default — header visible, no
       # child rows yet. (The chevron is the only signal in the
