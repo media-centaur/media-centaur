@@ -892,6 +892,7 @@ defmodule MediaCentarr.Library.Views.Detail do
       Enum.map(movies, fn movie ->
         pi = Map.get(pi_by_movie_id, movie.id)
         files = (pi && Map.get(watched_files_by_pi_id, pi.id, [])) || []
+        first_file = List.first(files)
 
         %DetailItem.MovieEntry{
           movie_id: movie.id,
@@ -899,7 +900,7 @@ defmodule MediaCentarr.Library.Views.Detail do
           name: movie.name,
           date_published: movie.date_published,
           collection_position: movie.position,
-          content_url: files |> List.first() |> Map.get(:file_path),
+          content_url: first_file && first_file.file_path,
           present?: files != []
         }
       end)
