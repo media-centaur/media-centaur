@@ -36,6 +36,11 @@ Use [`template.md`](template.md) as a starter.
 
 ## Archived
 
+* [`done/pursuits-maturation.md`](done/pursuits-maturation.md) —
+  three-phase maturation of the Acquisition Pursuits aggregate:
+  Recipe value object + timeline VM, AutoCancel auto-pivot on
+  zero-seeders, single typed PubSub dialect on `acquisition:updates`
+  (`Acquisition.TargetEvents.*`). All phases shipped 2026-05-14.
 * [`done/desktop-rearchitecture.md`](done/desktop-rearchitecture.md)
   — local-only, single-user, no-auth desktop paradigm shift backed
   by ADR-041 three-pillar segregation. Shipped: Library projections
