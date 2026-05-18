@@ -129,9 +129,13 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
         released: false
       })
 
-      {:ok, view, html} = live(conn, ~p"/upcoming")
-      assert html =~ "Grab Live Show"
+      {:ok, view, _html} = live(conn, ~p"/upcoming")
 
+      # `UpcomingLive.ensure_loaded/1` spawns the data load on a
+      # supervised task and returns immediately (per the "no blocking
+      # LV page loads" rule). The initial HTML is the empty default;
+      # we wait for the `{:upcoming_loaded, ...}` message to land
+      # before asserting on populated state.
       send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
 
       Process.sleep(600)

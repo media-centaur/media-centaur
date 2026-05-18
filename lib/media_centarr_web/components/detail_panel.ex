@@ -619,36 +619,15 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             {@episode.description}
           </p>
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <.episode_duration_text
-            state={@state}
-            progress={@progress}
-            duration_seconds={@episode.duration_seconds}
-          />
-          <button
-            phx-click="toggle_watched"
-            phx-value-entity-id={@entity_id}
-            phx-value-season={@season_number}
-            phx-value-episode={@episode.episode_number}
-            data-nav-sub-item
-            class={[
-              "size-5 rounded-full flex items-center justify-center transition-all",
-              watched_circle_class(@state)
-            ]}
-            aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
-          >
-            <.icon
-              :if={@state == :watched}
-              name="hero-check-mini"
-              class="size-3 text-success-content"
-            />
-            <.icon
-              :if={@state != :watched}
-              name="hero-check-mini"
-              class="size-3 opacity-0 group-hover/check:opacity-60 transition-opacity"
-            />
-          </button>
-        </div>
+        <.watched_toggle
+          event="toggle_watched"
+          state={@state}
+          progress={@progress}
+          duration_seconds={@episode.duration_seconds}
+          phx-value-entity-id={@entity_id}
+          phx-value-season={@season_number}
+          phx-value-episode={@episode.episode_number}
+        />
       </div>
       <div
         :if={@state == :current}
@@ -728,15 +707,9 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
-  def episode_state(nil), do: :unwatched
-
-  def episode_state(progress) do
-    cond do
-      progress.completed -> :watched
-      (progress.position_seconds || 0.0) > 0.0 -> :current
-      true -> :unwatched
-    end
-  end
+  defdelegate episode_state(progress),
+    to: MediaCentarr.Library.EpisodeList,
+    as: :state_from_progress
 
   @doc """
   Pill copy for an upcoming-episode row. Past dates read
@@ -797,10 +770,82 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
     """
   end
 
-  defp watched_circle_class(:watched), do: "bg-success hover:bg-success/70"
+  # Note: the `group-hover/toggle:` classes below depend on the wrapper
+  # carrying `group/toggle` (set by `watched_toggle_zone_class/0`). Any
+  # caller that bypasses `watched_toggle/1` and renders this circle
+  # directly must include `group/toggle` on the wrapping click target,
+  # or the hover-preview check silently breaks with no test failure.
+  defp watched_circle_class(:watched), do: "bg-success group-hover/toggle:bg-success/70"
 
   defp watched_circle_class(_),
-    do: "group/check border border-base-content/20 hover:border-base-content/50"
+    do: "border border-base-content/20 group-hover/toggle:border-base-content/50"
+
+  # Shared layout + hover styling for the watched/unwatched toggle target.
+  # Wraps the duration text and the state circle so the entire right
+  # cluster is one large click/focus target instead of just the 20px
+  # circle — see UIDR-003 (interactive area must comfortably absorb
+  # imprecise clicks).
+  defp watched_toggle_zone_class do
+    [
+      "group/toggle flex items-center gap-2 flex-shrink-0 cursor-pointer",
+      "px-2 py-1 -mx-2 -my-1 rounded-md transition-colors",
+      "hover:bg-base-content/10"
+    ]
+  end
+
+  # Shared watched/unwatched toggle button. Used by episode, movie, and
+  # extra rows — the only per-call differences are the `phx-click`
+  # event name and the `phx-value-*` attributes (forwarded via the
+  # `:rest` global). Keeping all three call sites on one component
+  # prevents the hover/state styling from drifting between row types.
+  attr :event, :string, required: true
+  attr :state, :atom, required: true, values: [:watched, :current, :unwatched]
+
+  attr :progress, :map,
+    default: nil,
+    doc:
+      "`MediaCentarr.Library.WatchProgress.t() | nil` — passed through to `episode_duration_text/1` to render the remaining time in the `:current` state."
+
+  attr :duration_seconds, :integer, default: nil
+
+  attr :rest, :global,
+    doc:
+      "`phx-value-*` attributes that identify the toggle target (entity/season/episode for `toggle_watched`, entity/extra for `toggle_extra_watched`).",
+    include: ~w(phx-value-entity-id phx-value-season phx-value-episode phx-value-extra-id)
+
+  defp watched_toggle(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click={@event}
+      data-nav-sub-item
+      class={watched_toggle_zone_class()}
+      aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
+      {@rest}
+    >
+      <.episode_duration_text
+        state={@state}
+        progress={@progress}
+        duration_seconds={@duration_seconds}
+      />
+      <span class={[
+        "size-5 rounded-full flex items-center justify-center transition-all",
+        watched_circle_class(@state)
+      ]}>
+        <.icon
+          :if={@state == :watched}
+          name="hero-check-mini"
+          class="size-3 text-success-content"
+        />
+        <.icon
+          :if={@state != :watched}
+          name="hero-check-mini"
+          class="size-3 opacity-0 group-hover/toggle:opacity-60 transition-opacity"
+        />
+      </span>
+    </button>
+    """
+  end
 
   def progress_percent(%{position_seconds: pos, duration_seconds: dur})
       when is_number(pos) and is_number(dur) and dur > 0 do
@@ -879,36 +924,15 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             {@movie.description}
           </p>
         </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <.episode_duration_text
-            state={@state}
-            progress={@progress}
-            duration_seconds={@movie.duration_seconds}
-          />
-          <button
-            phx-click="toggle_watched"
-            phx-value-entity-id={@entity_id}
-            phx-value-season="0"
-            phx-value-episode={@ordinal}
-            data-nav-sub-item
-            class={[
-              "size-5 rounded-full flex items-center justify-center transition-all",
-              watched_circle_class(@state)
-            ]}
-            aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
-          >
-            <.icon
-              :if={@state == :watched}
-              name="hero-check-mini"
-              class="size-3 text-success-content"
-            />
-            <.icon
-              :if={@state != :watched}
-              name="hero-check-mini"
-              class="size-3 opacity-0 group-hover/check:opacity-60 transition-opacity"
-            />
-          </button>
-        </div>
+        <.watched_toggle
+          event="toggle_watched"
+          state={@state}
+          progress={@progress}
+          duration_seconds={@movie.duration_seconds}
+          phx-value-entity-id={@entity_id}
+          phx-value-season="0"
+          phx-value-episode={@ordinal}
+        />
       </div>
       <div
         :if={@state == :current}
@@ -952,31 +976,13 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       >
         <.icon name="hero-film-mini" class="size-4 text-base-content/40 flex-shrink-0" />
         <span class="flex-1 min-w-0 truncate text-base-content/70">{@extra.name || "—"}</span>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <.episode_duration_text state={@state} progress={@progress} duration_seconds={nil} />
-          <button
-            phx-click="toggle_extra_watched"
-            phx-value-extra-id={@extra.id}
-            phx-value-entity-id={@entity_id}
-            data-nav-sub-item
-            class={[
-              "size-5 rounded-full flex items-center justify-center transition-all",
-              watched_circle_class(@state)
-            ]}
-            aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
-          >
-            <.icon
-              :if={@state == :watched}
-              name="hero-check-mini"
-              class="size-3 text-success-content"
-            />
-            <.icon
-              :if={@state != :watched}
-              name="hero-check-mini"
-              class="size-3 opacity-0 group-hover/check:opacity-60 transition-opacity"
-            />
-          </button>
-        </div>
+        <.watched_toggle
+          event="toggle_extra_watched"
+          state={@state}
+          progress={@progress}
+          phx-value-entity-id={@entity_id}
+          phx-value-extra-id={@extra.id}
+        />
       </div>
       <div
         :if={@state == :current}

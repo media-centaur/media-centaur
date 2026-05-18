@@ -68,6 +68,16 @@ defmodule MediaCentarrWeb.UpcomingLive do
   # First-render data load — gated by `connected?` so the static HTTP render
   # ships empty defaults and the WebSocket render fills them in once. See
   # AGENTS.md → LiveView callbacks (Iron Law).
+  #
+  # The five `load_upcoming/1` loaders (releases / events / images /
+  # tracked items / grab statuses) total ~6 sequential DB queries. Per
+  # the "no blocking LV page loads" rule, the actual work runs on a
+  # supervised task that messages back via `{:upcoming_loaded, ...}` —
+  # `handle_params` returns immediately with the empty defaults the
+  # mount already seeded and the LV progressively populates.
+  #
+  # `Capabilities.tmdb_ready?/0` and `Acquisition.queue_state/0` are
+  # microsecond ETS / persistent_term reads and stay synchronous.
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
       socket
@@ -75,11 +85,46 @@ defmodule MediaCentarrWeb.UpcomingLive do
         tmdb_ready: Capabilities.tmdb_ready?(),
         queue_items: Acquisition.queue_state().items
       )
-      |> load_upcoming()
+      |> start_async_upcoming_load()
       |> assign(:loaded?, true)
     else
       socket
     end
+  end
+
+  # Kicks off the upcoming-zone data load on a supervised task. The
+  # task parallelises the three independent ReleaseTracking reads via
+  # `Task.async_stream`, then derives the dependent assigns (images,
+  # tracked items, grab statuses) from the in-memory results before
+  # messaging the LV with the full `:upcoming_loaded` payload.
+  defp start_async_upcoming_load(socket) do
+    parent = self()
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      [releases, events, watching_items] =
+        [
+          fn -> ReleaseTracking.list_releases() end,
+          fn -> ReleaseTracking.list_recent_events(10) end,
+          fn -> ReleaseTracking.list_watching_items() end
+        ]
+        |> Task.async_stream(& &1.(), max_concurrency: 3, ordered: true, timeout: 15_000)
+        |> Enum.map(fn {:ok, result} -> result end)
+
+      send(
+        parent,
+        {:upcoming_loaded,
+         %{
+           upcoming_releases: releases,
+           upcoming_events: events,
+           upcoming_images: load_tracking_images(releases),
+           tracked_items: build_tracked_items_from(watching_items),
+           release_grab_statuses: load_release_grab_statuses(releases),
+           acquisition_ready: Capabilities.prowlarr_ready?()
+         }}
+      )
+    end)
+
+    socket
   end
 
   @impl true
@@ -420,6 +465,14 @@ defmodule MediaCentarrWeb.UpcomingLive do
      )}
   end
 
+  # Async result from `start_async_upcoming_load/1`. The task parallels
+  # the three ReleaseTracking reads and derives the dependent assigns
+  # off the LV process — by the time this arrives the work is done and
+  # the assignment itself is the only LV-process cost.
+  def handle_info({:upcoming_loaded, assigns}, socket) do
+    {:noreply, assign(socket, Map.to_list(assigns))}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # --- Private ---
@@ -464,22 +517,11 @@ defmodule MediaCentarrWeb.UpcomingLive do
   defp pluralize(word, 1), do: word
   defp pluralize(word, _), do: word <> "s"
 
-  defp load_upcoming(socket) do
-    releases = ReleaseTracking.list_releases()
-    events = ReleaseTracking.list_recent_events(10)
-    image_map = load_tracking_images(releases)
-    tracked_items = build_tracked_items_from_watching()
-    grab_statuses = load_release_grab_statuses(releases)
-
-    assign(socket,
-      upcoming_releases: releases,
-      upcoming_events: events,
-      upcoming_images: image_map,
-      tracked_items: tracked_items,
-      release_grab_statuses: grab_statuses,
-      acquisition_ready: Capabilities.prowlarr_ready?()
-    )
-  end
+  # Mid-session reload path. Routes through the same async task as the
+  # initial load so the LV process never blocks on the multi-query
+  # `ReleaseTracking` + `Acquisition` chain. Result lands via
+  # `handle_info({:upcoming_loaded, ...}, socket)`.
+  defp load_upcoming(socket), do: start_async_upcoming_load(socket)
 
   defp load_release_grab_statuses(%{upcoming: upcoming, released: released}) do
     if Capabilities.prowlarr_ready?() do
@@ -499,8 +541,11 @@ defmodule MediaCentarrWeb.UpcomingLive do
      release.season_number, release.episode_number}
   end
 
-  defp build_tracked_items_from_watching do
-    Enum.map(ReleaseTracking.list_watching_items(), fn item ->
+  defp build_tracked_items_from_watching,
+    do: build_tracked_items_from(ReleaseTracking.list_watching_items())
+
+  defp build_tracked_items_from(watching_items) do
+    Enum.map(watching_items, fn item ->
       releases = item.releases || []
       upcoming_count = Enum.count(releases, &(not &1.released and not &1.in_library))
       released_count = Enum.count(releases, &(&1.released and not &1.in_library))

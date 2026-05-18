@@ -1680,7 +1680,7 @@ defmodule MediaCentarr.Library do
 
   The function is kept for callers that still think in container-FK terms
   (`MediaCentarr.WatchHistory.reset_watch_progress/1`,
-  `EntityModal.update_watch_progress/3`). New code should preload through
+  `EntityModal.toggle_watch_progress/3`). New code should preload through
   `playable_items` and read `entity.watch_progress` directly.
   """
   @spec fetch_watch_progress_by_fk(:movie_id | :episode_id | :video_object_id, Ecto.UUID.t()) ::
