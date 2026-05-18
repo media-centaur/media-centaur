@@ -41,9 +41,16 @@ defmodule MediaCentarr.Setup.GateTest do
       assert {:blocked, :test_not_run} = Gate.check(:tmdb, %{status: :ok}, health)
     end
 
-    test "probe :ok + health :pending → blocked :test_pending" do
+    test "probe :ok + health :pending → advance allowed (re-verify in background)" do
+      # `:pending` is the transient re-verify-in-progress state. The
+      # background re-verify also happens at boot for already-configured
+      # integrations, briefly re-gating users who'd successfully verified
+      # in a prior session. Trust `configured?` + a non-`:error`
+      # `test_state`: if the user has TMDB credentials and we're just
+      # re-checking, let them advance. If the test eventually flips to
+      # `:error`, the next render's gate sees the new state.
       health = status(:tmdb, :pending)
-      assert {:blocked, :test_pending} = Gate.check(:tmdb, %{status: :ok}, health)
+      assert :ok = Gate.check(:tmdb, %{status: :ok}, health)
     end
 
     test "probe :ok + health :error → blocked :test_failed" do
@@ -94,7 +101,6 @@ defmodule MediaCentarr.Setup.GateTest do
   describe "reason_message/1" do
     test "every reason atom has stable text" do
       assert is_binary(Gate.reason_message(:probe_not_ok))
-      assert is_binary(Gate.reason_message(:test_pending))
       assert is_binary(Gate.reason_message(:test_failed))
       assert is_binary(Gate.reason_message(:test_not_run))
     end

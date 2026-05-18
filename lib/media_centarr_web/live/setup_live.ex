@@ -203,9 +203,10 @@ defmodule MediaCentarrWeb.SetupLive do
         end
 
       {:blocked, _reason} ->
-        # Stay on the step. For TMDB (gating step) the user sees a
-        # transient "Verifying…" until the PubSub auto-advance fires
-        # when the verify completes.
+        # Stay on the step. With the gate now passing on `:pending`,
+        # this branch only fires for `:error` (creds rejected) or
+        # `:probe_not_ok` (creds empty / probe still says not configured).
+        # Either way the user has something concrete to fix.
         flash =
           cond do
             is_nil(id) -> "Saved."
