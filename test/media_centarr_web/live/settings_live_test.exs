@@ -3,6 +3,16 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  # The page's `ensure_loaded/1` defers its 15+ config / capability /
+  # probe reads to a `Task.Supervisor` child that messages back via
+  # `{:settings_loaded, _}` (per the "no blocking LV page loads" rule).
+  # Tests that assert on populated state need to wait for that message
+  # before sampling `render/1`.
+  defp render_after_async_load(view) do
+    Process.sleep(100)
+    render(view)
+  end
+
   test "mounts at /settings", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/settings")
     assert html =~ "Services"
@@ -45,7 +55,12 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
 
     test "renders when a critical probe is :error", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/settings")
+      {:ok, view, _html} = live(conn, ~p"/settings")
+
+      # SettingsLive defers `ensure_loaded` to a supervised task per
+      # the "no blocking LV page loads" rule — the first render is the
+      # empty default. Wait for `{:settings_loaded, _}` to land.
+      html = render_after_async_load(view)
 
       assert html =~ "Setup is incomplete"
       assert html =~ "Run tour"
@@ -53,8 +68,9 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
 
     test "dismiss event hides the banner for the session", %{conn: conn} do
-      {:ok, view, html} = live(conn, ~p"/settings")
-      assert html =~ "Setup is incomplete"
+      {:ok, view, _html} = live(conn, ~p"/settings")
+
+      assert render_after_async_load(view) =~ "Setup is incomplete"
 
       view |> element("button[phx-click='setup:dismiss_banner']") |> render_click()
 
@@ -165,7 +181,11 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
         extension: "jpg"
       })
 
-      {:ok, _view, html} = live(conn, ~p"/settings?section=danger")
+      {:ok, view, _html} = live(conn, ~p"/settings?section=danger")
+
+      # `missing_images_summary` is fetched inside the deferred
+      # `start_async_settings_load/1` task; wait for the result.
+      html = render_after_async_load(view)
 
       assert html =~ "Repair missing images"
       assert html =~ "1 missing"

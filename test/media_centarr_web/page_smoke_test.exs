@@ -402,8 +402,16 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
 
     test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
-      assert {:ok, _view, html} = live_within!(conn, "/download")
+      assert {:ok, view, html} = live_within!(conn, "/download")
       assert is_binary(html)
+
+      # `AcquisitionLive.ensure_loaded/1` defers the pursuit-row + history
+      # reads to a `Task.Supervisor` child that messages back via
+      # `{:acquisition_loaded, _}`. Wait for the result before asserting
+      # on populated cards.
+      Process.sleep(100)
+      html = render(view)
+
       # The seeded active pursuit must render its card, exercising the
       # PursuitRow component's no-match hint path (no queue item matches).
       assert html =~ "Sample Movie"
