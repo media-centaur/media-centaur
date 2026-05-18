@@ -4,6 +4,15 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
   import MediaCentarr.TestFactory
   import Phoenix.LiveViewTest
 
+  # `ReviewLive.ensure_loaded/1` defers `Review.fetch_pending_groups/0`
+  # to a `Task.Supervisor` child that messages back via
+  # `{:review_loaded, _}` (per the "no blocking LV page loads" rule).
+  # Tests asserting on populated state must wait for that message.
+  defp render_after_async_load(view) do
+    Process.sleep(100)
+    render(view)
+  end
+
   describe "GET /review" do
     test "renders without crashing", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/review")
@@ -18,8 +27,8 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
           parsed_type: "movie"
         })
 
-      {:ok, _view, html} = live(conn, "/review")
-      assert html =~ "Initial Mount Pending"
+      {:ok, view, _html} = live(conn, "/review")
+      assert render_after_async_load(view) =~ "Initial Mount Pending"
     end
   end
 
@@ -56,8 +65,8 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
           parsed_type: "movie"
         })
 
-      {:ok, view, html} = live(conn, "/review")
-      assert html =~ "Single Review File"
+      {:ok, view, _html} = live(conn, "/review")
+      assert render_after_async_load(view) =~ "Single Review File"
 
       send(view.pid, {:file_reviewed, file.id})
 
@@ -82,8 +91,8 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
           parsed_type: "tv"
         })
 
-      {:ok, view, html} = live(conn, "/review")
-      assert html =~ "Approved Show"
+      {:ok, view, _html} = live(conn, "/review")
+      assert render_after_async_load(view) =~ "Approved Show"
 
       group_key = {file_a.watch_directory, "Approved Show"}
       send(view.pid, {:group_approved, group_key, 2})

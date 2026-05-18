@@ -133,21 +133,64 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # First-render data load — gated by `connected?` so the static HTTP
   # render ships empty defaults and the WebSocket render fills them in
   # once. See AGENTS.md → LiveView callbacks (Iron Law).
+  #
+  # Per the "no blocking LV page loads" rule, the four initial reads
+  # (search session, capability flag, active pursuit rows, history
+  # rows) run on a supervised task in parallel and message back via
+  # `{:acquisition_loaded, _}`. The `Acquisition.queue_state/0` read
+  # is `:persistent_term` — microsecond — and stays synchronous so the
+  # page can render the queue's freshness state immediately.
   defp ensure_loaded(socket) do
     if connected?(socket) and not socket.assigns.loaded? do
       socket
-      |> assign(:search_session, Acquisition.current_search_session())
-      |> assign(:download_client_ready, Capabilities.download_client_ready?())
       |> assign_queue_from_state(Acquisition.queue_state())
-      |> load_pursuit_rows()
+      |> start_async_acquisition_load()
       |> assign(:loaded?, true)
     else
       socket
     end
   end
 
+  defp start_async_acquisition_load(socket) do
+    parent = self()
+    history_search = socket.assigns.history_search
+    history_filter = socket.assigns.history_filter
+
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      [search_session, download_client_ready, pursuit_rows, history_rows] =
+        [
+          fn -> Acquisition.current_search_session() end,
+          fn -> Capabilities.download_client_ready?() end,
+          fn -> MediaCentarr.Acquisition.Pursuits.list_active_rows() end,
+          fn -> compute_history_rows(history_filter, history_search) end
+        ]
+        |> Task.async_stream(& &1.(), max_concurrency: 4, ordered: true, timeout: 15_000)
+        |> Enum.map(fn {:ok, result} -> result end)
+
+      send(
+        parent,
+        {:acquisition_loaded,
+         %{
+           search_session: search_session,
+           download_client_ready: download_client_ready,
+           pursuit_rows: pursuit_rows,
+           history_rows: history_rows
+         }}
+      )
+    end)
+
+    socket
+  end
+
   defp load_pursuit_rows(socket) do
     assign(socket, pursuit_rows: MediaCentarr.Acquisition.Pursuits.list_active_rows())
+  end
+
+  defp compute_history_rows(history_filter, history_search) do
+    history_filter
+    |> HistoryLogic.list_rows_filter()
+    |> Pursuits.list_rows()
+    |> HistoryLogic.filter_pursuit_rows_by_search(history_search)
   end
 
   # QueueMonitor pre-filters completed items, but defend in depth: an
@@ -188,19 +231,33 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # sees Prowlarr results.
   @impl true
   def handle_params(params, _uri, socket) do
+    was_loaded? = socket.assigns.loaded?
+
     socket =
       socket
-      |> ensure_loaded()
+      # Filter assigns first so the async task in `ensure_loaded/1`
+      # snapshots the URL-driven filter state when it computes the
+      # first `history_rows`. On subsequent handle_params (loaded?=true)
+      # the sync `load_history/1` path picks up the new filters.
       |> assign(
         history_search: Map.get(params, "search", ""),
         history_filter: HistoryLogic.parse_filter(Map.get(params, "filter"))
       )
-      |> load_history()
+      |> ensure_loaded()
+      |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
     {:noreply, socket}
   end
+
+  # Skip the sync history reload on first load — the async task spawned
+  # by `ensure_loaded/1` already issues it with the URL-snapshot filter
+  # values and messages back via `{:acquisition_loaded, _}`. Mid-session
+  # URL changes (filter clicks, deep-links) fall through to the sync
+  # path so the user sees an immediate result.
+  defp maybe_load_history(socket, false), do: socket
+  defp maybe_load_history(socket, true), do: load_history(socket)
 
   # Drives the pursuit detail modal off the `?selected=<pursuit_id>` URL
   # param so the modal participates in browser history — back/forward
@@ -887,6 +944,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     end
   end
 
+  # Async result from `start_async_acquisition_load/1`. The task did
+  # all four reads (search session, capability flag, pursuit rows,
+  # history rows) in parallel off the LV process.
+  def handle_info({:acquisition_loaded, assigns}, socket) do
+    {:noreply, assign(socket, Map.to_list(assigns))}
+  end
+
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # ---------------------------------------------------------------------------
@@ -1093,12 +1157,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   defp quality_label(_), do: nil
 
   defp load_history(socket) do
-    rows =
-      socket.assigns.history_filter
-      |> HistoryLogic.list_rows_filter()
-      |> Pursuits.list_rows()
-      |> HistoryLogic.filter_pursuit_rows_by_search(socket.assigns.history_search)
-
+    rows = compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
     assign(socket, history_rows: rows)
   end
 

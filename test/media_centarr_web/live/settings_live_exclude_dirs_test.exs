@@ -5,6 +5,16 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
 
   alias MediaCentarr.Config
 
+  # SettingsLive's `ensure_loaded/1` defers its 15+ config / capability
+  # / probe reads to a `Task.Supervisor` child that messages back via
+  # `{:settings_loaded, _}`. Tests interacting with deferred-loaded
+  # state (exclude_dirs / watch_dirs / etc) must wait for the load.
+  defp wait_for_async_load(view) do
+    Process.sleep(100)
+    _ = render(view)
+    view
+  end
+
   setup do
     original = :persistent_term.get({Config, :config})
 
@@ -67,6 +77,7 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
 
     :ok = Config.update(:exclude_dirs, [tmp])
     {:ok, view, _} = live(conn, "/settings?section=library")
+    view = wait_for_async_load(view)
 
     html =
       view
@@ -93,6 +104,7 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
 
     :ok = Config.update(:exclude_dirs, [tmp_a, tmp_b])
     {:ok, view, _} = live(conn, "/settings?section=library")
+    view = wait_for_async_load(view)
 
     view
     |> element("button[phx-click='exclude_dir:delete'][phx-value-path='#{tmp_a}']")
