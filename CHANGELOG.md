@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.66.2 — 2026-05-18
+
+### Improved
+
+The setup tour no longer makes you wait for TMDB to re-verify when
+you reopen the wizard. Previously, if you'd already gotten TMDB
+working in a prior session, Next was briefly disabled after every
+restart while the app re-tested your saved key in the background.
+Now the wizard trusts your saved configuration and advances; if the
+re-test happens to fail, you'll see a flash and can step back to fix
+it. New first-time users still need a successful test to move on
+(an actually-failing test still blocks).
+
 ## v0.66.1 — 2026-05-18
 
 ### Fixed
