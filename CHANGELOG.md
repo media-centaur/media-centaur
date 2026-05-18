@@ -4,6 +4,48 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.67.0 — 2026-05-18
+
+### Improved
+
+Modal opens are noticeably faster. Clicking into a title — from
+anywhere in the app — used to do several database lookups to figure
+out what kind of entity it was before the detail panel could render.
+The detail projection now maintains a direct lookup index, so opening
+a TV series, movie series, movie, or video object is a microsecond
+cache hit instead of a multi-query probe.
+
+Playback stays responsive while something is running. Every few
+seconds during playback, the app broadcasts a progress update so the
+modal's resume indicator and the Continue Watching row track in
+real time. The broadcast used to re-load the whole entity from the
+database on each tick — every episode, every image, every linked
+file — and that cost was paid by every connected LiveView. The tick
+now reads the same data from the in-memory projection. If you left
+a video playing while browsing the library before and noticed the
+UI getting sluggish, that's gone.
+
+Opening the Files tab on a long-running show no longer freezes the
+modal while the app sizes each file. File stats now run in parallel
+on a supervised task; the modal paints immediately and sizes fill
+in as they come back. A stale network mount can no longer stall the
+whole modal — each stat now times out individually.
+
+Clicking Play on a Continue Watching card or the Home hero responds
+instantly. Previously the page paused briefly while the playback
+handshake completed; now the URL updates immediately and the player
+starts in the background.
+
+The Upcoming page paints right away instead of holding the navigation
+open while six release-tracking queries finished one after another.
+The calendar, releases, tracked items, and grab statuses now load in
+parallel and fill in as they arrive.
+
+The Library grid also avoids a small per-refresh cost: re-sorting an
+already-sorted view-projection list on every entity change. Not a
+felt change on its own, but it adds up across the many small refreshes
+the page receives.
+
 ## v0.66.2 — 2026-05-18
 
 ### Improved
