@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.67.1 — 2026-05-19
+
+### Improved
+
+Every page now paints instantly. Watch History, Acquisition, Review,
+and Settings used to wait on a handful of database reads and capability
+probes before the first paint — small individually, but the page was
+frozen until the slowest one returned. Those reads now happen on a
+supervised background task and stream into the page as they finish,
+so the layout is up the moment you click. If a probe is slow (a
+Prowlarr health check on a flaky network, for example) the page
+appears with placeholders instead of stalling.
+
 ## v0.67.0 — 2026-05-18
 
 ### Improved
