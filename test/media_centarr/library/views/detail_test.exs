@@ -655,6 +655,41 @@ defmodule MediaCentarr.Library.Views.DetailTest do
       assert Enum.all?(item.movies, & &1.present?)
     end
 
+    test "MovieSeries constituent rows tolerate a movie with no WatchedFile (not-yet-acquired)" do
+      # Regression: in production this path crashes the Detail projection
+      # at boot when a MovieSeries has child movies whose PlayableItem
+      # exists (TMDB metadata is in place) but no file has been acquired
+      # yet. The build_movies_for_movie_series path used
+      # `List.first(files) |> Map.get(:file_path)`, which crashed with
+      # BadMapError when files == []. Since the Detail Cache.Worker is in
+      # the supervision tree, the crash takes the whole app with it.
+      on_exit_clear_table()
+      ms = create_movie_series(%{name: "Sample MS Pending File"})
+
+      movie1 =
+        create_movie(%{name: "MS Pending Part 1", movie_series_id: ms.id, position: 1})
+
+      movie2 =
+        create_movie(%{name: "MS Pending Part 2", movie_series_id: ms.id, position: 2})
+
+      pi1 = create_playable_item_for_movie(movie1)
+      _pi2 = create_playable_item_for_movie(movie2)
+
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/ms-part-1.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail(pi1.id)
+
+      assert length(item.movies) == 2
+      [m1, m2] = item.movies
+
+      assert m1.present?
+      assert m1.content_url == "/media/test/ms-part-1.mkv"
+
+      refute m2.present?
+      assert m2.content_url == nil
+    end
+
     test "detail_by_container(:movie_series, id) returns canonical leaf with movies list" do
       on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Canonical"})
