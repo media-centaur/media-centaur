@@ -185,6 +185,14 @@ defmodule MediaCentarr.Profile.JSONFormatter do
   defp deserialise_deltas(nil), do: nil
 
   defp deserialise_deltas(deltas) do
+    # Force-load Diff so its field-name atoms (`:delta_abs`, `:delta_pct`,
+    # the `:classification` values) are interned before
+    # `String.to_existing_atom/1` is asked for them. In a Mix task path
+    # the Diff module hasn't been touched yet when JSONFormatter runs
+    # against a baseline file, so without this the load crashes on the
+    # first `:delta_abs` key.
+    Code.ensure_loaded(MediaCentarr.Profile.Diff)
+
     %{
       compared_against: deltas["compared_against"],
       thresholds: deltas["thresholds"],
