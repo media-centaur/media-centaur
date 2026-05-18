@@ -24,18 +24,15 @@ Use [`template.md`](template.md) as a starter.
   LiveView function component declares a typed contract for
   domain-data attrs; eliminate bare `:any` / `:map` / `:list`.
 
-## Shipped (retro story coverage outstanding)
-
-* [`page-redistribution.md`](page-redistribution.md) — IA
-  refactor splitting Library into Home / Library / Upcoming /
-  History; sidebar gains Watch (frontstage) and System
-  (backstage) groups. *All four pages and the sidebar split
-  shipped 2026-05-10; storybook stories for the new sidebar
-  grouping + History rewatch baseline remain — tracked under
-  component-contracts.*
-
 ## Archived
 
+* [`done/page-redistribution.md`](done/page-redistribution.md) — IA
+  refactor splitting Library into Home / Library / Upcoming /
+  History; sidebar gains Watch (frontstage) and System
+  (backstage) groups. All four pages and the sidebar split shipped
+  2026-05-10. Outstanding storybook stories for the new sidebar
+  grouping + History rewatch baseline re-homed to
+  [`component-contracts.md`](component-contracts.md).
 * [`done/pursuits-maturation.md`](done/pursuits-maturation.md) —
   three-phase maturation of the Acquisition Pursuits aggregate:
   Recipe value object + timeline VM, AutoCancel auto-pivot on
