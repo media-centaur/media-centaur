@@ -33,9 +33,6 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
       id={@id}
       phx-click="select_entity"
       phx-value-id={@entry.id}
-      phx-mounted={
-        JS.transition({"", "opacity-0 translate-y-1", "opacity-100 translate-y-0"}, time: 200)
-      }
       data-nav-item
       data-entity-id={@entry.id}
       tabindex="0"
