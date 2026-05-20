@@ -25,10 +25,30 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
   # Aggressive mount-time budget for every smoke. Media Centarr is a
   # local-first app; mounts should be near-instant. Steady-state mounts
-  # observed locally cluster at 3–25ms. 60ms gives ~2× headroom — tight
+  # observed locally (three runs, post-warmup, --trace) cluster as:
+  #
+  #   trivial routes (/console, /, /history): 2–9ms
+  #   typical pages (/library, /review, /setup, /upcoming): 4–17ms
+  #   heavy pages (/status, /settings, /download): 14–25ms
+  #   cross-context detail (/library?selected=<tv-tracked>): 40–58ms — overridden below
+  #
+  # 35ms gives ~1.4× headroom over the heaviest non-outlier route — tight
   # enough to catch real regressions, loose enough to absorb routine
-  # GC/scheduler jitter. Do not loosen casually.
-  @render_budget_ms 60
+  # GC/scheduler jitter. The TV-series tracked detail route exceeds this
+  # naturally and carries its own per-test override.
+  #
+  # Export `SMOKE_TIMINGS=1` to print observed per-mount timings to
+  # stderr while running these tests — useful when judging whether a
+  # regression is real or jitter, or when re-tuning the budget after
+  # a perf-affecting change ships. No runtime cost when unset.
+  @render_budget_ms 35
+
+  # The TV-series tracked-detail mount composes a typed `[%SeasonView{}]`
+  # from Library episodes + ReleaseTracking releases — observed at
+  # 40–58ms steady-state, the heaviest mount in the smoke set. 80ms
+  # gives this single route ~1.4× headroom. Tightening this requires
+  # investigation, not a budget bump in the other direction.
+  @tv_tracked_detail_budget_ms 80
 
   # Cold-start cost (BEAM JIT, schema caching, first-DB-query overhead)
   # is paid by whichever mount runs first. Without a warmup, that test
@@ -55,6 +75,10 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   defp live_within!(conn, path, budget_ms \\ @render_budget_ms) do
     {micros, result} = :timer.tc(fn -> live(conn, path) end)
     ms = div(micros, 1000)
+
+    if System.get_env("SMOKE_TIMINGS") == "1" do
+      IO.puts(:stderr, "SMOKE #{String.pad_trailing(path, 50)} #{ms}ms")
+    end
 
     if ms > budget_ms do
       flunk(
@@ -166,7 +190,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "library detail panel mounts for a TV series with upcoming + future-season releases",
          %{conn: conn, tv: tv} do
-      assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{tv.id}")
+      assert {:ok, _view, html} =
+               live_within!(conn, ~p"/library?selected=#{tv.id}", @tv_tracked_detail_budget_ms)
+
       # Confirm the upcoming-row data-role appears at least once — without
       # the typed `seasons_view` flowing through, no upcoming row would
       # render at all.
