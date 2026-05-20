@@ -684,9 +684,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   # Submitting a pick involves `Prowlarr.grab/1` (POST + indexer wait) and
   # the `PickTarget` write. Running that inline blocks the LiveView past
-  # the heartbeat window — same pattern that downgraded `refresh_alternatives`
-  # to longpoll. So we spawn a Task.Supervisor child and message the
-  # outcome back via `{:alternative_picked, pursuit_id, outcome}`.
+  # the heartbeat window — same pattern that previously disconnected
+  # `refresh_alternatives`. So we spawn a Task.Supervisor child and
+  # message the outcome back via `{:alternative_picked, pursuit_id, outcome}`.
   #
   # Fast path: when the SearchResult for this guid is still in the
   # `decision_results_by_guid` cache from the last render, pass it
@@ -718,7 +718,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   # Re-fetch decision-card alternatives. The Prowlarr round-trip can take
   # several seconds (especially with brace-expanded fan-out across
   # multiple indexers); doing it inline blocks the LiveView process
-  # past the heartbeat window and the client downgrades to longpoll.
+  # past the heartbeat window and the client disconnects.
   # We therefore:
   #
   #   1. event fires → flip the open card to `loading?: true` and render
