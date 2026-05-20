@@ -191,6 +191,10 @@
           {MediaCentarr.Credo.Checks.StorybookCoverage, []},
           {MediaCentarr.Credo.Checks.TypedComponentAttrs, []},
           {MediaCentarr.Credo.Checks.DestructiveFileQuery, []},
+          # MC0016 enforces eager + sync-decode on in-flow `<img>` tags per
+          # ADR-012. Lazy is allowed only in reveal-bounded surfaces named
+          # in the check's `@exempt_files` list.
+          {MediaCentarr.Credo.Checks.ImgAttributeDefaults, []},
           # MC0015 catches `execute("UPDATE …")` / `execute("DELETE …")` in
           # priv/repo/migrations/ — bulk row mutations belong in a data
           # migration per ADR-040, not in a schema migration where a dev
