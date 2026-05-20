@@ -4,6 +4,23 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.67.2 — 2026-05-20
+
+### Improved
+
+Posters, backdrops, and episode thumbnails now load instantly on
+repeat visits. Image responses previously had no cache directives,
+so the browser revalidated every artwork URL on each navigation —
+adding a noticeable round-trip to every list, grid, and detail
+view. The image server now returns local artwork with a one-hour
+cache window plus a content fingerprint, and the home page's
+version-busted URLs cache for a year. The first visit is unchanged;
+every visit after is served from the local browser cache.
+
+Patched two HTTP-server security advisories (Bandit chunked-encoding
+DoS, Plug multipart-header DoS) by updating to upstream patched
+releases. No user-visible behavior change beyond the fix itself.
+
 ## v0.67.1 — 2026-05-19
 
 ### Improved
