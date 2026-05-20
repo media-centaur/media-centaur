@@ -45,7 +45,8 @@ defmodule MediaCentarrWeb.Components.PosterRow do
           src={item.poster_url}
           alt={item.name}
           class="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
+          loading="eager"
+          decoding="sync"
         />
         <%!-- Fallback only when artwork is missing — the poster image itself
               already carries the title, so showing it again is redundant. --%>

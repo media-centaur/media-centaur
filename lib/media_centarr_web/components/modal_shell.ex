@@ -95,7 +95,13 @@ defmodule MediaCentarrWeb.Components.ModalShell do
           class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar"
         >
           <div :if={@backdrop_url} class="modal-page-backdrop" aria-hidden="true">
-            <img src={@backdrop_url} alt="" />
+            <img
+              src={@backdrop_url}
+              alt=""
+              loading="eager"
+              decoding="sync"
+              fetchpriority="high"
+            />
           </div>
 
           <%!-- Atmosphere + content share a positioning anchor that grows
