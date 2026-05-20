@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.67.3 — 2026-05-20
+
+### Improved
+
+Disabled the LiveView longpoll fallback. Previously, if the
+WebSocket handshake didn't complete within 2.5 seconds, the page
+would silently downgrade to HTTP long-polling — masking the real
+connectivity problem and producing a degraded experience that
+looked like a generally slow app. With the fallback off, transport
+failures surface as a normal reconnect attempt instead of a hidden
+slow path. On a healthy connection (essentially every connection)
+nothing changes.
+
 ## v0.67.2 — 2026-05-20
 
 ### Improved
