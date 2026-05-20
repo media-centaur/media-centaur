@@ -13,6 +13,42 @@ description: "Use this skill before any UI work — LiveView templates, componen
 - **Live data feels alive.** Smooth real-time updates, quiet when idle.
 - **Inspiration:** Linear.app — clean, fast, focused, excellent dark mode.
 
+## Rendering Defaults ([ADR-012])
+
+Media Centarr is a specialized desktop app, not a public-internet web app. We trade memory and bandwidth (essentially free in this context) for instant perception. These rules apply to every UI surface unless explicitly justified otherwise:
+
+**Images in the page flow:**
+
+```html
+<img src={...} loading="eager" decoding="sync" />
+```
+
+Enforced by `MediaCentarr.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading="lazy"` is reserved for bounded reveal-on-demand surfaces (cast headshots, track-search results). Adding a third lazy site requires extending the exempt list with a justification.
+
+**Hero / page-dominant images:** add `fetchpriority="high"`. Two per surface max — the priority signal must remain meaningful.
+
+```html
+<img src={@hero.backdrop_url} loading="eager" decoding="sync" fetchpriority="high" />
+```
+
+**Stable iterator ids.** Every `:for`'d root element gets `id={"<component>-#{item.entity_id}"}` so morphdom preserves it across renders. Without ids, items are torn down and rebuilt on every patch, replaying the decode/paint cycle.
+
+```html
+<button :for={item <- @items} id={"poster-row-#{item.entity_id}"} ...>
+```
+
+**No entrance animations on routine renders.** A page paint is not a moment to celebrate. Don't use `phx-mounted={JS.transition(...)}` for fade-in / slide-in on lists. Modal panels keep a 150ms scale-in (signals layering) — that's the ceiling.
+
+**Don't mask transport failures.** WebSocket is the only LiveView transport. No longpoll fallback. A real reconnect attempt is better UX than a hidden slow path.
+
+**Image cache headers** (already wired in `MediaCentarrWeb.Plugs.ImageServer`):
+- Versioned URLs (`?v=<n>`): `public, max-age=31536000, immutable`
+- Plain URLs: `public, max-age=3600` + ETag
+
+**Hashed static assets are `immutable`** (`Plug.Static` opts in `endpoint.ex`). Phoenix's content-hashed filenames guarantee correctness.
+
+**Static defaults in HTML to avoid pre-JS flash.** Anything driven by an attribute on `<html>` (input-method, sidebar collapse) gets a sane static default in `root.html.heex`. JS upgrades it later — but the first paint already matches.
+
 ## Theme System
 
 Two themes via daisyUI plugin. Colors use oklch color space with hue 264 (cool slate).
