@@ -4,6 +4,20 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.67.4 — 2026-05-20
+
+### Improved
+
+Pages now switch without an artwork flash. Posters, backdrops, and
+hero images used to render blank for a frame on every navigation
+while the browser decoded the image off-thread — even when the
+bytes were already in the local cache. In-flow artwork now fetches
+eagerly and decodes synchronously, so each page paints with its
+images already drawn. The hero and modal backdrops also claim
+high fetch priority. Cast headshots and search-result thumbnails
+remain lazy because they live behind reveals and can run into the
+dozens.
+
 ## v0.67.3 — 2026-05-20
 
 ### Improved
