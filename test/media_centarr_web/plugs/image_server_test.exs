@@ -10,8 +10,9 @@ defmodule MediaCentarrWeb.Plugs.ImageServerTest do
   the contract being tested here is the response shape that callers
   (the browser) depend on.
   """
-  use MediaCentarrWeb.ConnCase, async: true
+  use MediaCentarrWeb.ConnCase, async: false
 
+  alias MediaCentarr.Config
   alias MediaCentarrWeb.Plugs.ImageServer
 
   describe "missing file → role-appropriate SVG placeholder" do
@@ -71,6 +72,51 @@ defmodule MediaCentarrWeb.Plugs.ImageServerTest do
     end
   end
 
+  describe "existing file → aggressive cache headers" do
+    setup do
+      tmp_dir = Path.join(System.tmp_dir!(), "image_server_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+
+      file_path = Path.join(tmp_dir, "poster.jpg")
+      File.write!(file_path, "fake-jpeg-bytes")
+
+      original = :persistent_term.get({Config, :config}, %{})
+      :persistent_term.put({Config, :config}, Map.put(original, :data_dir, tmp_dir))
+
+      on_exit(fn ->
+        :persistent_term.put({Config, :config}, original)
+        File.rm_rf!(tmp_dir)
+      end)
+
+      %{filename: "poster.jpg"}
+    end
+
+    test "versioned URL gets far-future immutable cache (URL is the cache key)",
+         %{conn: conn, filename: filename} do
+      conn = call_plug(conn, "/media-images/#{filename}", "v=7")
+
+      assert conn.status == 200
+      [cache_control] = Plug.Conn.get_resp_header(conn, "cache-control")
+      assert cache_control =~ "max-age=31536000"
+      assert cache_control =~ "immutable"
+      assert cache_control =~ "public"
+    end
+
+    test "plain URL gets short max-age plus ETag for cheap revalidation",
+         %{conn: conn, filename: filename} do
+      conn = call_plug(conn, "/media-images/#{filename}")
+
+      assert conn.status == 200
+      [cache_control] = Plug.Conn.get_resp_header(conn, "cache-control")
+      assert cache_control =~ "max-age=3600"
+      assert cache_control =~ "public"
+      refute cache_control =~ "immutable"
+
+      assert [etag] = Plug.Conn.get_resp_header(conn, "etag")
+      assert etag =~ ~r/^"\d+-\d+"$/
+    end
+  end
+
   describe "path traversal guard (preserved)" do
     test "path containing .. halts with 400", %{conn: conn} do
       conn = call_plug(conn, "/media-images/../../etc/passwd")
@@ -87,10 +133,13 @@ defmodule MediaCentarrWeb.Plugs.ImageServerTest do
     end
   end
 
-  defp call_plug(conn, path) do
+  defp call_plug(conn, path, query_string \\ "") do
     segments = path |> String.trim_leading("/") |> String.split("/")
 
-    ImageServer.call(%{conn | path_info: segments, request_path: path}, ImageServer.init([]))
+    ImageServer.call(
+      %{conn | path_info: segments, request_path: path, query_string: query_string},
+      ImageServer.init([])
+    )
   end
 
   defp content_type(conn) do

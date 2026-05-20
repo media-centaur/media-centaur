@@ -78,8 +78,38 @@ defmodule MediaCentarrWeb.Plugs.ImageServer do
   defp send_file_response(conn, file_path) do
     conn
     |> put_resp_content_type(MIME.from_path(file_path))
+    |> put_cache_headers(file_path, conn.query_string)
     |> send_file(200, file_path)
     |> halt()
+  end
+
+  # Versioned URLs (`?v=<n>` or any query string) are the cache key:
+  # the LiveView bumps the version to invalidate, which produces a new
+  # URL. The file at the unversioned path is effectively immutable for
+  # *this* URL, so a far-future + `immutable` directive lets the browser
+  # skip even the conditional revalidation roundtrip.
+  defp put_cache_headers(conn, _file_path, query) when query != "" do
+    put_resp_header(conn, "cache-control", "public, max-age=31536000, immutable")
+  end
+
+  # Plain URLs don't carry a cache-buster, so the same URL can legally
+  # return new bytes after a TMDB re-scrape. A short max-age + ETag keeps
+  # repeat views instant while bounding staleness to an hour.
+  defp put_cache_headers(conn, file_path, "") do
+    conn
+    |> put_resp_header("cache-control", "public, max-age=3600")
+    |> put_etag(file_path)
+  end
+
+  defp put_etag(conn, file_path) do
+    case File.stat(file_path) do
+      {:ok, %{size: size, mtime: mtime}} ->
+        seconds = :calendar.datetime_to_gregorian_seconds(mtime)
+        put_resp_header(conn, "etag", ~s("#{size}-#{seconds}"))
+
+      _ ->
+        conn
+    end
   end
 
   defp send_placeholder(conn, relative) do
