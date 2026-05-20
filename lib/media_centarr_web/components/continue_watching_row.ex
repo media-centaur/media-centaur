@@ -53,6 +53,7 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
     >
       <button
         :for={item <- @items}
+        id={"continue-watching-#{item.entity_id}"}
         type="button"
         phx-click="select_entity"
         phx-value-id={item.entity_id}
