@@ -95,7 +95,13 @@ defmodule MediaCentarrWeb.HomeLive do
               entire page height so row titles sit on the same calm band.
               Both escape main's `px-6 py-6` padding and scroll with the page. --%>
         <div :if={@hero && @hero.backdrop_url} class="page-backdrop" aria-hidden="true">
-          <img src={@hero.backdrop_url} alt="" />
+          <img
+            src={@hero.backdrop_url}
+            alt=""
+            loading="eager"
+            decoding="sync"
+            fetchpriority="high"
+          />
         </div>
         <div :if={@hero} class="page-side-dim" aria-hidden="true"></div>
 

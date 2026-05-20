@@ -115,7 +115,8 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
         src={@item.backdrop_url}
         alt=""
         class="absolute inset-0 w-full h-full object-cover object-top"
-        loading="lazy"
+        loading="eager"
+        decoding="sync"
       />
       <div class="absolute inset-0 bg-gradient-to-r from-black/90 via-black/45 to-transparent"></div>
       <div class="relative z-10 p-8 max-w-[60%]">
@@ -170,7 +171,8 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
         src={@item.backdrop_url}
         alt=""
         class="absolute inset-0 w-full h-full object-cover object-top"
-        loading="lazy"
+        loading="eager"
+        decoding="sync"
       />
       <%!-- Diagonal scrim — strongest at bottom-left where content sits, --%>
       <%!-- letting the artwork breathe on the top-right. Survives bright artwork. --%>
