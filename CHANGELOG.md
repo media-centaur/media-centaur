@@ -4,6 +4,33 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.68.0 — 2026-05-20
+
+### Improved
+
+Navigation feels measurably snappier across the whole app. Several
+sources of perceived latency on every page change have been
+removed in a single sweep:
+
+* The library page used to play a fade-and-slide-in animation on
+  every card on every navigation. Cards now appear instantly.
+* Posters and tiles in the home rows (Continue Watching, Coming
+  Up, the upcoming marquee) now carry stable identities across
+  renders, so the browser preserves the existing elements instead
+  of tearing them down and rebuilding them on each refresh.
+* The thin progress bar at the top of the page now only shows on
+  genuinely slow operations. Fast navigations no longer briefly
+  flash it.
+* Modal panels open about 100ms faster.
+* The sort-dropdown menu no longer plays a brief slide-in
+  animation; it just appears when you open it.
+
+Initial app load and reloads are also faster: hashed JavaScript
+and CSS bundles are now served with a long-lived immutable cache
+header, so the browser never re-checks them once they're cached.
+A static default for input-method detection prevents a brief
+focus-ring flicker on the very first paint.
+
 ## v0.67.4 — 2026-05-20
 
 ### Improved
