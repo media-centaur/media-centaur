@@ -23,7 +23,9 @@ defmodule MediaCentarrWeb.Endpoint do
     at: "/",
     from: :media_centarr,
     gzip: not code_reloading?,
-    only: MediaCentarrWeb.static_paths()
+    only: MediaCentarrWeb.static_paths(),
+    cache_control_for_vsn_requests: "public, max-age=31536000, immutable",
+    cache_control_for_etags: "public, max-age=3600"
 
   plug MediaCentarrWeb.Plugs.ImageServer
 
