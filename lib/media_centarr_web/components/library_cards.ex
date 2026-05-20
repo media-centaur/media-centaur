@@ -51,7 +51,8 @@ defmodule MediaCentarrWeb.Components.LibraryCards do
           :if={@entry.poster_url && @available}
           src={@entry.poster_url}
           class="w-full h-full object-cover"
-          loading="lazy"
+          loading="eager"
+          decoding="sync"
         />
         <div
           :if={@entry.poster_url && !@available}

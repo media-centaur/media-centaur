@@ -64,7 +64,8 @@ defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
           :if={item.backdrop_url}
           src={item.backdrop_url}
           class="absolute inset-0 w-full h-full object-cover object-top"
-          loading="lazy"
+          loading="eager"
+          decoding="sync"
         />
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent">
         </div>

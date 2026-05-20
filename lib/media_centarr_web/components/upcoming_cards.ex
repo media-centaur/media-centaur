@@ -337,7 +337,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         :if={@release_count == 1 && @solo_backdrop && @in_month}
         src={@solo_backdrop}
         class="absolute inset-0 w-full h-full object-cover object-top"
-        loading="lazy"
+        loading="eager"
+        decoding="sync"
       />
       <div
         :if={@release_count == 1 && @solo_backdrop && @in_month}
@@ -434,7 +435,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
         :if={@backdrop}
         src={@backdrop}
         class="w-full h-full object-cover object-top"
-        loading="lazy"
+        loading="eager"
+        decoding="sync"
       />
       <div
         :if={!@backdrop}
@@ -549,7 +551,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           :if={@backdrop}
           src={@backdrop}
           class="w-full h-full object-cover object-top"
-          loading="lazy"
+          loading="eager"
+          decoding="sync"
         />
         <div :if={!@backdrop} class="w-full h-full flex items-center justify-center bg-base-300">
           <.icon name="hero-film" class="size-6 text-base-content/15" />
@@ -845,7 +848,8 @@ defmodule MediaCentarrWeb.Components.UpcomingCards do
           :if={@backdrop}
           src={@backdrop}
           class="w-full h-full object-cover object-top"
-          loading="lazy"
+          loading="eager"
+          decoding="sync"
         />
         <div :if={!@backdrop} class="w-full h-full flex items-center justify-center bg-base-300">
           <.icon name="hero-film" class="size-6 text-base-content/15" />
