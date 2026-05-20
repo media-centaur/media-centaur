@@ -34,6 +34,7 @@ defmodule MediaCentarrWeb.Components.PosterRow do
     >
       <button
         :for={item <- @items}
+        id={"poster-row-#{item.entity_id}"}
         type="button"
         phx-click="select_entity"
         phx-value-id={item.entity_id}

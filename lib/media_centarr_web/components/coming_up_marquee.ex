@@ -226,6 +226,7 @@ defmodule MediaCentarrWeb.Components.ComingUpMarquee do
   defp tile_link(%{item: %Item{entity_id: entity_id}} = assigns) when is_binary(entity_id) do
     ~H"""
     <button
+      id={"marquee-tile-#{@item.entity_id}"}
       type="button"
       phx-click="select_entity"
       phx-value-id={@item.entity_id}
