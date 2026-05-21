@@ -22,6 +22,7 @@ defmodule MediaCentarr.Playback.TrackResolver do
   """
 
   alias MediaCentarr.Library.MediaTrackOverride
+  alias MediaCentarr.Playback.Iso639
   alias MediaCentarr.Playback.LanguagePolicy
 
   defmodule Track do
@@ -219,6 +220,10 @@ defmodule MediaCentarr.Playback.TrackResolver do
 
   defp pick_audio_category(_, _, _, _), do: nil
 
+  defp find_by_lang(tracks, lang) do
+    Enum.find(tracks, fn track -> Iso639.equal?(track.lang, lang) end)
+  end
+
   # ---------------------------------------------------------------------------
   # Subtitles
   # ---------------------------------------------------------------------------
@@ -328,24 +333,20 @@ defmodule MediaCentarr.Playback.TrackResolver do
   defp find_forced(_tracks, nil), do: nil
 
   defp find_forced(tracks, lang) do
-    Enum.find(tracks, fn track -> track.lang == lang and track.forced end)
+    Enum.find(tracks, fn track -> Iso639.equal?(track.lang, lang) and track.forced end)
   end
 
   defp find_sub_in_lang(tracks, lang, forced) do
-    candidates = Enum.filter(tracks, fn track -> track.lang == lang end)
+    candidates = Enum.filter(tracks, fn track -> Iso639.equal?(track.lang, lang) end)
     Enum.find(candidates, fn track -> track.forced == forced end) || List.first(candidates)
   end
 
   defp audio_understood?(nil, _understood), do: false
-  defp audio_understood?(lang, understood), do: lang in understood
+  defp audio_understood?(lang, understood), do: Iso639.find_match(lang, understood) != nil
 
   # ---------------------------------------------------------------------------
   # Shared helpers
   # ---------------------------------------------------------------------------
-
-  defp find_by_lang(tracks, lang) do
-    Enum.find(tracks, fn track -> track.lang == lang end)
-  end
 
   defp override_subtitles_off?(%{subtitles_off: true}), do: true
   defp override_subtitles_off?(_), do: false

@@ -400,6 +400,57 @@ defmodule MediaCentarr.Playback.TrackResolverTest do
   # Edge cases
   # ---------------------------------------------------------------------------
 
+  describe "ISO 639 language code mismatch — regression coverage" do
+    # Discovered 2026-05-22 while inventorying real library: TMDB stores
+    # `original_language` as 2-letter ISO 639-1 ("ja", "fr"), mpv's
+    # `track-list` reports 3-letter ISO 639-2 ("jpn", "fra") for
+    # embedded tracks. Direct string comparison would never match,
+    # silently breaking the entire "original audio" branch for every
+    # non-English entity. `Iso639.equal?/2` normalizes both forms.
+    test "original_language='ja' (TMDB) matches track lang='jpn' (mpv)" do
+      result =
+        TrackResolver.resolve(
+          LanguagePolicy.defaults(),
+          nil,
+          [audio(1, "jpn"), audio(2, "eng")],
+          [sub(1, "eng")],
+          # 2-letter, as TMDB returns
+          "ja"
+        )
+
+      assert result.audio_lang == "jpn"
+    end
+
+    test "understood_languages=['en'] matches track lang='eng'" do
+      policy = %{LanguagePolicy.defaults() | understood_languages: ["en"]}
+
+      result =
+        TrackResolver.resolve(
+          policy,
+          nil,
+          [audio(1, "eng")],
+          [sub(1, "eng")],
+          "en"
+        )
+
+      assert result.audio_lang == "eng"
+      assert result.sub_index == nil
+    end
+
+    test "bibliographic 3-letter (fre) matches terminologic (fra)" do
+      result =
+        TrackResolver.resolve(
+          LanguagePolicy.defaults(),
+          nil,
+          [audio(1, "fre")],
+          [sub(1, "eng")],
+          "fra"
+        )
+
+      assert result.audio_lang == "fre"
+    end
+  end
+
   describe "audio resolution edge cases" do
     test "no track matches original — falls through to understood" do
       policy = LanguagePolicy.defaults()
