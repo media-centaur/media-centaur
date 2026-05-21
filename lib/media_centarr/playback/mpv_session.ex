@@ -43,10 +43,13 @@ defmodule MediaCentarr.Playback.MpvSession do
 
   alias MediaCentarr.Playback.{
     Events,
+    LanguageContext,
     MpvExitClassifier,
     MpvLogReader,
+    OverrideCapture,
     ProgressBroadcaster,
     SessionRegistry,
+    TrackResolver,
     WatchingTracker
   }
 
@@ -58,6 +61,10 @@ defmodule MediaCentarr.Playback.MpvSession do
   # Brief window after the first exit signal (tcp_closed OR exit_status) to let
   # the other signal and any final stderr chunks arrive before classifying.
   @exit_debounce_ms 200
+
+  # Debounce window for capturing user track changes — coalesces rapid
+  # keyboard mashing (e.g. #-#-# to cycle audio) into a single capture.
+  @track_capture_debounce_ms 3_000
 
   defstruct [
     :session_id,
@@ -87,7 +94,15 @@ defmodule MediaCentarr.Playback.MpvSession do
     seen_property_event?: false,
     output_tail: [],
     exiting?: false,
-    state: :starting
+    state: :starting,
+    language_context: nil,
+    audio_tracks: [],
+    subtitle_tracks: [],
+    current_audio_lang: nil,
+    current_sub_lang: nil,
+    current_sub_forced: false,
+    resolver_choice: nil,
+    capture_timer: nil
   ]
 
   # --- Public API ---
@@ -146,7 +161,8 @@ defmodule MediaCentarr.Playback.MpvSession do
       last_db_write_at: System.monotonic_time(:millisecond),
       socket_retries: max_retries,
       tracker: WatchingTracker.new(),
-      started_at: System.monotonic_time(:millisecond)
+      started_at: System.monotonic_time(:millisecond),
+      language_context: LanguageContext.init(params)
     }
 
     Log.info(:playback, "session started — #{Path.basename(params.content_url)}")
@@ -300,6 +316,14 @@ defmodule MediaCentarr.Playback.MpvSession do
     {:stop, :normal, finalize_with_classification(state)}
   end
 
+  # Debounced capture — fires after the user has settled on a track
+  # selection. Compares current state against what the resolver chose
+  # at episode start; persists an override only if they differ.
+  def handle_info(:capture_settled, state) do
+    perform_capture(state)
+    {:noreply, %{state | capture_timer: nil}}
+  end
+
   # Absorb EXIT messages from port link (required with trap_exit)
   def handle_info(_message, state), do: {:noreply, state}
 
@@ -316,6 +340,8 @@ defmodule MediaCentarr.Playback.MpvSession do
     Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
     mpv_path = MediaCentarr.Config.get(:mpv_path)
 
+    language_flags = LanguageContext.to_mpv_flags(state.language_context.priority_args)
+
     flags =
       [
         "--fullscreen",
@@ -325,6 +351,7 @@ defmodule MediaCentarr.Playback.MpvSession do
         "--input-ipc-server=#{state.socket_path}",
         "--log-file=#{state.log_file_path}"
       ] ++
+        language_flags ++
         if(state.start_position > 0, do: ["--start=#{state.start_position}"], else: []) ++
         [state.content_url]
 
@@ -428,7 +455,112 @@ defmodule MediaCentarr.Playback.MpvSession do
     finalize(state)
   end
 
+  defp handle_mpv_message(
+         %{"event" => "property-change", "name" => "track-list", "data" => tracks},
+         state
+       )
+       when is_list(tracks) do
+    handle_track_list_update(state, tracks)
+  end
+
+  defp handle_mpv_message(%{"event" => "property-change", "name" => "aid", "data" => aid}, state) do
+    lang = LanguageContext.lang_at(aid, state.audio_tracks)
+    schedule_capture(%{state | current_audio_lang: lang})
+  end
+
+  defp handle_mpv_message(%{"event" => "property-change", "name" => "sid", "data" => sid}, state) do
+    lang = LanguageContext.lang_at(sid, state.subtitle_tracks)
+    forced = LanguageContext.forced_at(sid, state.subtitle_tracks)
+    schedule_capture(%{state | current_sub_lang: lang, current_sub_forced: forced})
+  end
+
   defp handle_mpv_message(_message, state), do: state
+
+  # --- Language / track override capture ---
+
+  defp handle_track_list_update(state, raw_tracks) do
+    {audio_tracks, subtitle_tracks} = LanguageContext.parse_track_list(raw_tracks)
+    state = %{state | audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks}
+
+    if state.resolver_choice == nil and (audio_tracks != [] or subtitle_tracks != []) do
+      %{state | resolver_choice: compute_resolver_choice(state)}
+    else
+      state
+    end
+  end
+
+  defp compute_resolver_choice(state) do
+    ctx = state.language_context
+
+    result =
+      TrackResolver.resolve(
+        ctx.policy,
+        ctx.override,
+        state.audio_tracks,
+        state.subtitle_tracks,
+        ctx.original_language
+      )
+
+    Log.info(:playback, "track-resolver: " <> Enum.join(result.decision_log, " | "))
+
+    %{
+      audio_lang: result.audio_lang,
+      sub_lang: result.sub_lang,
+      sub_forced: result.sub_forced
+    }
+  end
+
+  # No capture for unsupported entity types (extras, video objects) — skip
+  # scheduling rather than computing-and-discarding to avoid spurious
+  # timer churn.
+  defp schedule_capture(%{language_context: %{owner_type: nil}} = state), do: state
+  defp schedule_capture(%{resolver_choice: nil} = state), do: state
+
+  defp schedule_capture(state) do
+    if state.capture_timer, do: Process.cancel_timer(state.capture_timer)
+    timer = Process.send_after(self(), :capture_settled, @track_capture_debounce_ms)
+    %{state | capture_timer: timer}
+  end
+
+  defp perform_capture(%{language_context: %{owner_type: nil}}), do: :ok
+  defp perform_capture(%{resolver_choice: nil}), do: :ok
+
+  defp perform_capture(state) do
+    current_state = %{
+      audio_lang: state.current_audio_lang,
+      sub_lang: state.current_sub_lang,
+      sub_forced: state.current_sub_forced
+    }
+
+    case OverrideCapture.compute(state.resolver_choice, current_state) do
+      :no_change ->
+        :ok
+
+      {:override, attrs} ->
+        persist_track_override(state.language_context, attrs)
+    end
+  end
+
+  defp persist_track_override(%{owner_type: owner_type, owner_id: owner_id}, attrs) do
+    case Library.upsert_media_track_override(owner_type, owner_id, attrs) do
+      {:ok, _override} ->
+        Log.info(
+          :playback,
+          "captured track override (#{owner_type}=#{Format.short_id(owner_id)}) — #{inspect(attrs)}"
+        )
+
+        Events.broadcast(%Events.TrackOverrideChanged{
+          owner_type: owner_type,
+          owner_id: owner_id
+        })
+
+      {:error, changeset} ->
+        Log.warning(
+          :playback,
+          "failed to persist track override — #{inspect(changeset.errors)}"
+        )
+    end
+  end
 
   # --- Debounced DB Writes ---
 
@@ -667,6 +799,9 @@ defmodule MediaCentarr.Playback.MpvSession do
     send_mpv_command(socket, ["observe_property", 2, "duration"])
     send_mpv_command(socket, ["observe_property", 3, "pause"])
     send_mpv_command(socket, ["observe_property", 4, "eof-reached"])
+    send_mpv_command(socket, ["observe_property", 5, "track-list"])
+    send_mpv_command(socket, ["observe_property", 6, "aid"])
+    send_mpv_command(socket, ["observe_property", 7, "sid"])
   end
 
   defp send_mpv_command(nil, _command), do: :ok
