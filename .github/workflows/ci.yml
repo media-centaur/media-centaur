@@ -108,9 +108,11 @@ jobs:
       # but a fresh macOS runner hits the warnings on every CI run.
       # Our policy is "zero warnings in app code", not "zero warnings
       # transitively in hex deps".
+      #
+      # Serial deps.compile: parallel mode races on the
+      # credo_check_error_handling_ecto_oban → credo edge (the former
+      # `use Credo.Check` at compile-time before credo is loaded).
       - name: Compile deps
-        env:
-          MIX_OS_DEPS_COMPILE_PARTITION_COUNT: "8"
         run: mix deps.compile
 
       - name: Compile app (warnings-as-errors)
