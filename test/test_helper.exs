@@ -36,3 +36,14 @@ Ecto.Adapters.SQL.Sandbox.mode(MediaCentarr.Repo, :manual)
 # tests that haven't wired a stub. Tests that exercise the auto-check flow
 # call `UpdateChecker.clear_cache/0` in their own setup.
 MediaCentarr.SelfUpdate.UpdateChecker.cache_result({:error, :disabled_in_tests})
+
+# Snapshot the post-helper Config cache so DataCase can restore it
+# before every test, defending against Config.update calls in one test
+# leaking into the next via global :persistent_term state. The snapshot
+# captures the in-memory cache *after* the wizard-dismissed patch above
+# and after any other test_helper mutations — that's the pristine state
+# every test should start from.
+:persistent_term.put(
+  {MediaCentarr.Config, :test_pristine_snapshot},
+  :persistent_term.get({MediaCentarr.Config, :config})
+)

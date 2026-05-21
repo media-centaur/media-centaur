@@ -37,10 +37,22 @@ defmodule MediaCentarr.DataCase do
 
   @doc """
   Sets up the sandbox based on the test tags.
+
+  Also restores the `MediaCentarr.Config` `:persistent_term` cache to
+  its post-helper pristine state. Without this, a previous test's
+  `Config.update/2` call leaks into the next test's view of `Config.get/1`
+  — the global cache survives sandbox rollback. See
+  `campaigns/test-isolation-hardening.md` (Category E).
   """
   def setup_sandbox(tags) do
+    restore_config_cache()
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentarr.Repo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+  end
+
+  defp restore_config_cache do
+    snapshot = :persistent_term.get({MediaCentarr.Config, :test_pristine_snapshot})
+    :persistent_term.put({MediaCentarr.Config, :config}, snapshot)
   end
 
   @doc """
