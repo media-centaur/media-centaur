@@ -1,7 +1,7 @@
 defmodule MediaCentarr.SelfUpdate do
   use Boundary,
     deps: [MediaCentarr.Settings],
-    exports: [Service, UpdateChecker]
+    exports: [UpdateChecker]
 
   @moduledoc """
   In-app release check + self-update for Media Centarr.
@@ -27,7 +27,8 @@ defmodule MediaCentarr.SelfUpdate do
   as a follow-up.
   """
 
-  alias MediaCentarr.SelfUpdate.{CheckerJob, Service, Storage, UpdateChecker, Updater}
+  alias MediaCentarr.Platform.Autostart
+  alias MediaCentarr.SelfUpdate.{CheckerJob, Storage, UpdateChecker, Updater}
   alias MediaCentarr.Topics
 
   @boot_check_delay_seconds 30
@@ -117,29 +118,29 @@ defmodule MediaCentarr.SelfUpdate do
           {:ok, UpdateChecker.classification(), map()} | {:error, term()}
   def record_check_result(outcome), do: Storage.record_check_result(outcome)
 
-  @doc "Returns the systemd state for the media-centarr unit. See `Service.state/1`."
-  @spec service_state() :: Service.state()
-  def service_state, do: Service.state()
+  @doc "Returns the autostart-system state for the media-centarr unit. See `Platform.Autostart.state/1`."
+  @spec service_state() :: Autostart.state()
+  def service_state, do: Autostart.state()
 
   @doc """
-  Returns the systemd unit this BEAM is under, or `nil` — cheap (no
-  `systemctl` shell-out). Use in hot paths where you only need to know
-  if we're managed and which unit, not its active/enabled state.
+  Returns the autostart unit this BEAM is under, or `nil` — cheap
+  (no shell-out). Use in hot paths where you only need to know if
+  we're managed and which unit, not its active/enabled state.
   """
   @spec detected_unit() :: String.t() | nil
-  def detected_unit, do: Service.detected_unit()
+  def detected_unit, do: Autostart.detected_unit()
 
-  @doc "Queues a systemd-managed restart of the running unit."
+  @doc "Queues an autostart-managed restart of the running unit."
   @spec service_restart() :: :ok | {:error, term()}
-  def service_restart, do: Service.restart()
+  def service_restart, do: Autostart.restart()
 
-  @doc "Queues a systemd-managed stop of the running unit."
+  @doc "Queues an autostart-managed stop of the running unit."
   @spec service_stop() :: :ok | {:error, term()}
-  def service_stop, do: Service.stop()
+  def service_stop, do: Autostart.stop()
 
-  @doc "Fetches the textual output of `systemctl --user status` for the unit."
+  @doc "Fetches the textual status output for the autostart-managed unit."
   @spec service_status_output() :: {:ok, String.t()} | {:error, term()}
-  def service_status_output, do: Service.status_output()
+  def service_status_output, do: Autostart.status_output()
 
   @doc """
   App-boot hydration. Reads the persisted `latest_known` entry into the

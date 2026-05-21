@@ -70,21 +70,17 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
     exec "$1"
     """
 
-    # `systemctl --user` needs XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS
-    # to reach the user's systemd instance. Without them the installer's
-    # `has_systemd_user` probe fails, no unit gets installed, and the
-    # service never gets restarted — the exact failure mode where the
-    # new release is staged on disk but the running BEAM keeps running.
-    systemd_env =
-      Enum.reject(
-        [
-          pass_through(env_getter, "XDG_RUNTIME_DIR"),
-          pass_through(env_getter, "DBUS_SESSION_BUS_ADDRESS"),
-          pass_through(env_getter, "XDG_DATA_DIRS"),
-          pass_through(env_getter, "XDG_CONFIG_DIRS")
-        ],
-        &is_nil/1
-      )
+    # The autostart system (systemd on Linux, launchd on macOS) tells us
+    # which env vars need forwarding through `env -i` so the detached
+    # installer can reach the user's supervisor. Linux requires
+    # XDG/DBUS; macOS launchd resolves from the caller's UID and needs
+    # nothing. Without the right list, the installer's autostart probe
+    # fails, no unit gets restarted, and the new release stages on disk
+    # but the running BEAM keeps running.
+    autostart_env =
+      MediaCentarr.Platform.Autostart.handoff_env_vars()
+      |> Enum.map(&pass_through(env_getter, &1))
+      |> Enum.reject(&is_nil/1)
 
     args =
       [
@@ -93,7 +89,7 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
         "HOME=" <> home,
         "PATH=/usr/bin:/bin"
       ] ++
-        systemd_env ++
+        autostart_env ++
         [
           "setsid",
           "--fork",
@@ -112,7 +108,7 @@ defmodule MediaCentarr.SelfUpdate.Handoff do
 
   # Returns `"NAME=value"` when the env var is present and non-empty in
   # the caller's environment, or `nil` if it isn't set. Used to forward
-  # the minimum set of env vars `systemctl --user` needs through
+  # the minimum set of env vars the autostart system needs through
   # `env -i`, without re-widening the attack surface to the whole env.
   defp pass_through(env_getter, name) do
     case env_getter.(name) do

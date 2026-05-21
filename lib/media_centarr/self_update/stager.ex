@@ -27,12 +27,21 @@ defmodule MediaCentarr.SelfUpdate.Stager do
   """
 
   @default_max_bytes 1_000_000_000
-  @default_required [
+
+  # Cross-platform base — every release tarball must contain these
+  # regardless of OS. The autostart-specific path
+  # (`share/systemd/<unit>` on Linux, `share/launchd/<plist>` on
+  # macOS) is appended at call-time from
+  # `Platform.Autostart.tarball_required_paths/0`.
+  @base_required [
     "bin/media-centarr-install",
     "bin/media_centarr",
-    "share/systemd/media-centarr.service",
     "share/defaults/media-centarr.toml"
   ]
+
+  defp default_required do
+    @base_required ++ MediaCentarr.Platform.Autostart.tarball_required_paths()
+  end
 
   @type extract_error ::
           :absolute_path
@@ -57,7 +66,7 @@ defmodule MediaCentarr.SelfUpdate.Stager do
           {:ok, String.t()} | {:error, extract_error()}
   def extract(tarball_path, target_dir, opts \\ []) do
     max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
-    required = Keyword.get(opts, :required, @default_required)
+    required = Keyword.get(opts, :required, default_required())
 
     with {:ok, entries} <- read_table(tarball_path),
          :ok <- validate_entries(entries, max_bytes),
