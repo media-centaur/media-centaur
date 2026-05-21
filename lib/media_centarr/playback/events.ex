@@ -101,6 +101,21 @@ defmodule MediaCentarr.Playback.Events do
           }
   end
 
+  defmodule TrackOverrideChanged do
+    @moduledoc """
+    The user changed audio/subtitle tracks during playback and the
+    selection differs from the language policy's choice — captured as
+    a per-entity override.
+    """
+    @enforce_keys [:owner_type, :owner_id]
+    defstruct [:owner_type, :owner_id]
+
+    @type t :: %__MODULE__{
+            owner_type: :tv_series | :movie,
+            owner_id: String.t()
+          }
+  end
+
   @doc """
   Broadcast a typed event on the `playback:events` topic. Each clause
   pairs a struct with the tagged-tuple shape subscribers pattern-match
@@ -111,6 +126,7 @@ defmodule MediaCentarr.Playback.Events do
           | ExtraProgressUpdated.t()
           | PlaybackStateChanged.t()
           | PlaybackFailed.t()
+          | TrackOverrideChanged.t()
         ) :: :ok | {:error, term()}
   def broadcast(%EntityProgressUpdated{} = event), do: do_broadcast({:entity_progress_updated, event})
 
@@ -119,6 +135,8 @@ defmodule MediaCentarr.Playback.Events do
   def broadcast(%PlaybackStateChanged{} = event), do: do_broadcast({:playback_state_changed, event})
 
   def broadcast(%PlaybackFailed{} = event), do: do_broadcast({:playback_failed, event})
+
+  def broadcast(%TrackOverrideChanged{} = event), do: do_broadcast({:track_override_changed, event})
 
   defp do_broadcast(message) do
     Phoenix.PubSub.broadcast(MediaCentarr.PubSub, Topics.playback_events(), message)

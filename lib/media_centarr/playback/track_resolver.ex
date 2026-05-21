@@ -52,7 +52,9 @@ defmodule MediaCentarr.Playback.TrackResolver do
   @type priority_args :: %{
           alang: [String.t()],
           slang: [String.t()],
-          sub_visibility: boolean()
+          sub_visibility: boolean(),
+          subs_match_audio: String.t(),
+          disable_subs: boolean()
         }
 
   # ---------------------------------------------------------------------------
@@ -65,7 +67,9 @@ defmodule MediaCentarr.Playback.TrackResolver do
     %{
       alang: build_alang(policy, override, original_language),
       slang: build_slang(policy, override),
-      sub_visibility: build_sub_visibility(policy, override)
+      sub_visibility: build_sub_visibility(policy, override),
+      subs_match_audio: build_subs_match_audio(policy, override),
+      disable_subs: build_disable_subs(policy, override)
     }
   end
 
@@ -105,11 +109,29 @@ defmodule MediaCentarr.Playback.TrackResolver do
   defp build_sub_visibility(policy, override) do
     cond do
       override_subtitles_off?(override) -> false
-      override_subtitle_lang(override) != nil -> true
       policy.subtitles_when == "off" -> false
-      policy.subtitles_when == "always" -> true
-      # "when_audio_not_understood" needs to know which audio was chosen;
-      # start hidden, toggle on post-launch if audio turns out foreign.
+      true -> true
+    end
+  end
+
+  # mpv's `--subs-with-matching-audio` controls whether auto-selection
+  # picks a sub when its language matches the audio. "exclusive" (the
+  # mpv default) skips them — exactly what `when_audio_not_understood`
+  # wants. "yes" forces selection regardless — what `always` and
+  # explicit overrides want.
+  defp build_subs_match_audio(policy, override) do
+    cond do
+      override_subtitle_lang(override) != nil -> "yes"
+      policy.subtitles_when == "always" -> "yes"
+      true -> "exclusive"
+    end
+  end
+
+  defp build_disable_subs(policy, override) do
+    cond do
+      override_subtitles_off?(override) -> true
+      override_subtitle_lang(override) != nil -> false
+      policy.subtitles_when == "off" -> true
       true -> false
     end
   end

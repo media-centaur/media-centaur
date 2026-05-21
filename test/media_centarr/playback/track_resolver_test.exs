@@ -640,12 +640,14 @@ defmodule MediaCentarr.Playback.TrackResolverTest do
   # ---------------------------------------------------------------------------
 
   describe "priority_args/3" do
-    test "default policy + jpn original — yields jpn,eng audio and eng subs hidden" do
+    test "default policy + jpn original — yields jpn,eng audio + eng subs + mpv handles conditional via subs_match_audio=exclusive" do
       args = TrackResolver.priority_args(LanguagePolicy.defaults(), nil, "jpn")
 
       assert args.alang == ["jpn", "eng"]
       assert args.slang == ["eng"]
-      assert args.sub_visibility == false
+      assert args.sub_visibility == true
+      assert args.subs_match_audio == "exclusive"
+      assert args.disable_subs == false
     end
 
     test "default policy + eng original — alang yields just eng (no duplicate)" do
@@ -654,7 +656,7 @@ defmodule MediaCentarr.Playback.TrackResolverTest do
       assert args.alang == ["eng"]
     end
 
-    test "captions-always — sub_visibility starts true" do
+    test "captions-always — subs_match_audio=yes (force-show even when audio matches sub lang)" do
       policy = %{
         LanguagePolicy.defaults()
         | subtitles_when: "always"
@@ -662,9 +664,10 @@ defmodule MediaCentarr.Playback.TrackResolverTest do
 
       args = TrackResolver.priority_args(policy, nil, "eng")
       assert args.sub_visibility == true
+      assert args.subs_match_audio == "yes"
     end
 
-    test "subs off — slang is empty list, visibility false" do
+    test "subs off — slang empty, disable_subs=true, visibility off" do
       policy = %{
         LanguagePolicy.defaults()
         | subtitles_when: "off"
@@ -673,6 +676,7 @@ defmodule MediaCentarr.Playback.TrackResolverTest do
       args = TrackResolver.priority_args(policy, nil, "eng")
       assert args.slang == []
       assert args.sub_visibility == false
+      assert args.disable_subs == true
     end
 
     test "polyglot — alang contains the full ordered list" do
