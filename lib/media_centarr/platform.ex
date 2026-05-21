@@ -24,7 +24,7 @@ defmodule MediaCentarr.Platform do
   | `Platform.DriveProbe`           | behaviour | `GnuDf`      | `BsdDf` *(future)* |
   | `Platform.LogSource`            | behaviour | `Journal`    | `Files` *(future)* |
   | `Platform.Autostart`            | behaviour | `Systemd`    | `Launchd` *(future)* |
-  | `Platform.ReleaseArtifact`      | pure      | `"linux-x86_64"` | `"darwin-arm64"` *(future)* |
+  | `Platform.ReleaseArtifact`      | pure      | `"linux-x86_64"` | `"darwin-arm64"` |
   | `Platform.Defaults`             | pure      | `/usr/bin/*` | `/opt/homebrew/bin/*` |
   | `Platform.DisplayEnv`           | pure      | Wayland/X11  | `{:ok, []}`  |
 
