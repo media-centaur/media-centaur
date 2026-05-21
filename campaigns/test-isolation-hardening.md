@@ -139,6 +139,15 @@ Append-only log.
   longer include any Category A signatures (run #26235171214: now
   Category B `ErrorReports.BucketsTest` + Category D
   `NoDbOnRenderTest`).
+* `2026-05-21` — **Phase 3 closed (Category E), with bonus
+  Category B + D closure.** `Config` `:persistent_term` cache
+  snapshot at boot + restore in `DataCase.setup_sandbox`
+  (`84e2371f`). Categories B (BucketsTest async-task bleed) and D
+  (NoDbOnRenderTest /library budget) were downstream of the
+  cache pollution — both auto-closed. CI **green on both Linux
+  and macOS** in run #26235627093, the first fully-green run of
+  the campaign. Phase 2's planned audit of LiveView `start_async`
+  patterns is no longer load-bearing — keep as a watching brief.
 
 ## Next steps
 
