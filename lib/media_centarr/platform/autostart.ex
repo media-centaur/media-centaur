@@ -92,6 +92,9 @@ defmodule MediaCentarr.Platform.Autostart do
   def tarball_required_paths, do: impl().tarball_required_paths()
 
   defp impl do
-    Application.get_env(:media_centarr, __MODULE__, MediaCentarr.Platform.Autostart.Systemd)
+    MediaCentarr.Platform.pick_impl(__MODULE__,
+      linux: MediaCentarr.Platform.Autostart.Systemd,
+      darwin: MediaCentarr.Platform.Autostart.Launchd
+    )
   end
 end

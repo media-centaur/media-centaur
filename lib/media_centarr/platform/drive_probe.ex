@@ -42,6 +42,9 @@ defmodule MediaCentarr.Platform.DriveProbe do
   def measure(path), do: impl().measure(path)
 
   defp impl do
-    Application.get_env(:media_centarr, __MODULE__, MediaCentarr.Platform.DriveProbe.GnuDf)
+    MediaCentarr.Platform.pick_impl(__MODULE__,
+      linux: MediaCentarr.Platform.DriveProbe.GnuDf,
+      darwin: MediaCentarr.Platform.DriveProbe.BsdDf
+    )
   end
 end
