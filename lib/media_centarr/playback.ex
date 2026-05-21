@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Playback do
   use Boundary,
-    deps: [MediaCentarr.Library],
-    exports: [Sessions, ProgressBroadcaster, ResumeTarget]
+    deps: [MediaCentarr.Library, MediaCentarr.Settings],
+    exports: [LanguagePolicy, ProgressBroadcaster, ResumeTarget, Sessions]
 
   @moduledoc """
   Public facade for the playback context — subscriptions and top-level queries.

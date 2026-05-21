@@ -17,6 +17,7 @@ defmodule MediaCentarr.Library do
       FilePresence,
       Image,
       ImageHealth,
+      MediaTrackOverride,
       Movie,
       MovieList,
       MovieSeries,
@@ -67,6 +68,7 @@ defmodule MediaCentarr.Library do
     ExternalIds,
     FilePresence,
     Image,
+    MediaTrackOverride,
     Movie,
     MovieSeries,
     PlayableItem,
@@ -2966,6 +2968,69 @@ defmodule MediaCentarr.Library do
     case Enum.find(images || [], &(&1.role == role)) do
       %{content_url: url} when is_binary(url) -> "/media-images/#{url}"
       _ -> nil
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # Media track overrides (per-entity audio/subtitle preferences)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Fetch the override for an entity, or `nil` if none has been recorded.
+  """
+  @spec get_media_track_override(MediaTrackOverride.owner_type(), Ecto.UUID.t()) ::
+          MediaTrackOverride.t() | nil
+  def get_media_track_override(owner_type, owner_id) when is_atom(owner_type) and is_binary(owner_id) do
+    Repo.get_by(MediaTrackOverride, owner_type: owner_type, owner_id: owner_id)
+  end
+
+  @doc """
+  Insert a new override row for an entity, or update the existing one in
+  place. Returns `{:ok, override}` or `{:error, changeset}`.
+
+  The override row stores the user's full diverges-from-policy state for
+  the entity: any of the four override fields may be `nil` (audio/subs
+  follow policy) or set (override that aspect to this language). Callers
+  are responsible for computing the diff against the policy choice
+  before invoking — this function just persists what it's given.
+  """
+  @spec upsert_media_track_override(MediaTrackOverride.owner_type(), Ecto.UUID.t(), map()) ::
+          {:ok, MediaTrackOverride.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_media_track_override(owner_type, owner_id, attrs)
+      when is_atom(owner_type) and is_binary(owner_id) and is_map(attrs) do
+    attrs =
+      attrs
+      |> Map.put(:owner_type, owner_type)
+      |> Map.put(:owner_id, owner_id)
+
+    # Guard against unknown owner_types reaching the Repo — Ecto.Enum
+    # would raise an `Ecto.Query.CastError` from the existence check
+    # before the changeset has a chance to surface a clean validation
+    # error to the caller.
+    if owner_type in MediaTrackOverride.owner_types() do
+      case get_media_track_override(owner_type, owner_id) do
+        nil -> Repo.insert(MediaTrackOverride.changeset(%MediaTrackOverride{}, attrs))
+        existing -> Repo.update(MediaTrackOverride.changeset(existing, attrs))
+      end
+    else
+      {:error, MediaTrackOverride.changeset(%MediaTrackOverride{}, attrs)}
+    end
+  end
+
+  @doc """
+  Delete the override row for an entity. Returns `:ok` whether or not
+  an override existed — callers don't need to check first.
+  """
+  @spec clear_media_track_override(MediaTrackOverride.owner_type(), Ecto.UUID.t()) :: :ok
+  def clear_media_track_override(owner_type, owner_id)
+      when is_atom(owner_type) and is_binary(owner_id) do
+    case get_media_track_override(owner_type, owner_id) do
+      nil ->
+        :ok
+
+      override ->
+        {:ok, _} = Repo.delete(override)
+        :ok
     end
   end
 
