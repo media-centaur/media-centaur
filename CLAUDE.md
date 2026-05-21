@@ -47,13 +47,13 @@ Map of contributor docs:
 | Protocol specs (data format, image caching) | [`specs/`](specs/) |
 | Decision records | [`decisions/`](decisions/) |
 
-## Version Control (Jujutsu)
+## Version Control (Git)
 
-All repositories use **JJ (Jujutsu)** — never use raw `git` commands.
+This repository uses **git** directly.
 
-- After completing a feature: `jj describe -m "type: short description"` (conventional commits: `feat:`, `fix:`, `refactor:`)
-- Amend the existing change for follow-up fixes (if not yet pushed)
-- Start unrelated features with `jj new`
+- After completing a feature: `git commit -m "type: short description"` (conventional commits: `feat:`, `fix:`, `refactor:`)
+- For follow-up fixes before pushing, `git commit --amend` is acceptable; after pushing, create a new commit.
+- Start unrelated features on a new branch with `git switch -c <branch-name>`.
 
 ## Build & Run
 
@@ -147,9 +147,9 @@ End-user docs live across three surfaces:
 ```sh
 cd ~/src/media-centarr/media-centarr.wiki
 # edit the relevant page(s)
-jj describe -m "wiki: <short summary>"
-jj bookmark set master -r @
-jj git push
+git add -A
+git commit -m "wiki: <short summary>"
+git push
 ```
 
 If a feature is WIP and the user-visible shape hasn't settled, note the wiki update as a follow-up — but don't mark the feature done without it.
@@ -166,7 +166,7 @@ Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)).
 
 `campaigns/` holds one markdown per long-running, multi-session initiative (3+ sessions, definable end state, resumable context). ADRs capture *decisions*; campaigns capture the *rollout*. See [ADR-042](decisions/architecture/2026-05-10-042-multi-session-campaigns.md) for the full convention and `campaigns/README.md` for the active list.
 
-**Reconciliation rule:** when resuming a campaign, the first action is to read the campaign file, reconcile it against `jj log` and the current code, and update Status / Decisions / Next steps **before** writing any new code. Drift makes the file worse than nothing.
+**Reconciliation rule:** when resuming a campaign, the first action is to read the campaign file, reconcile it against `git log` and the current code, and update Status / Decisions / Next steps **before** writing any new code. Drift makes the file worse than nothing.
 
 ## Defaults
 
