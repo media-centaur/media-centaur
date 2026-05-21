@@ -47,12 +47,44 @@ defmodule MediaCentarr.DataCase do
   def setup_sandbox(tags) do
     restore_config_cache()
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentarr.Repo, shared: not tags[:async])
+
+    # ExUnit on_exit callbacks run LIFO — the wait-for-tasks below
+    # runs BEFORE stop_owner. Both run in `ExUnit.OnExitHandler`
+    # (no sandbox ownership), so they must not touch the DB — only
+    # Process.monitor (the wait) and sandbox API (the stop) are
+    # safe here.
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    on_exit(&drain_supervised_tasks/0)
   end
 
   defp restore_config_cache do
     snapshot = :persistent_term.get({MediaCentarr.Config, :test_pristine_snapshot})
     :persistent_term.put({MediaCentarr.Config, :config}, snapshot)
+  end
+
+  # Waits for every `Task.Supervisor` child still running under
+  # `MediaCentarr.TaskSupervisor` to terminate. LiveView `start_async`
+  # calls + bare `Task.Supervisor.start_child` calls (e.g.
+  # `SettingsLive.start_async_settings_load`) outlive the test process
+  # by default; without this drain, those tasks hit the DB after the
+  # sandbox owner has terminated and raise `DBConnection.OwnershipError`,
+  # which Console.Handler then forwards into unrelated tests'
+  # `refute_receive` checks. See `campaigns/test-isolation-hardening.md`
+  # (Category B).
+  @task_drain_timeout_ms 1_000
+
+  defp drain_supervised_tasks do
+    MediaCentarr.TaskSupervisor
+    |> Task.Supervisor.children()
+    |> Enum.each(fn pid ->
+      ref = Process.monitor(pid)
+
+      receive do
+        {:DOWN, ^ref, _, _, _} -> :ok
+      after
+        @task_drain_timeout_ms -> :ok
+      end
+    end)
   end
 
   @doc """
