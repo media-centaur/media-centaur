@@ -131,7 +131,14 @@ Likely overlaps with category B — async settings load races against the
 
 Append-only log.
 
-* _None yet._
+* `2026-05-21` — **Phase 1 closed (Category A).** Audit of 71
+  on_exit callsites found exactly two DB-write offenders, both
+  migrated (`ef386275`, `872ea668`). `MC0018 NoDbInOnExit` Credo
+  check (commit `e1d6df06`) mechanically prevents re-introduction
+  — empty grandfathered list. Post-Phase-1 CI Linux failures no
+  longer include any Category A signatures (run #26235171214: now
+  Category B `ErrorReports.BucketsTest` + Category D
+  `NoDbOnRenderTest`).
 
 ## Next steps
 
