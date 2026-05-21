@@ -37,10 +37,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   # GC/scheduler jitter. The TV-series tracked detail route exceeds this
   # naturally and carries its own per-test override.
   #
-  # Export `SMOKE_TIMINGS=1` to print observed per-mount timings to
-  # stderr while running these tests — useful when judging whether a
-  # regression is real or jitter, or when re-tuning the budget after
-  # a perf-affecting change ships. No runtime cost when unset.
+  # For ongoing per-mount timing measurement use `scripts/profile`
+  # (the page-mount harness writes a markdown report). The smoke test
+  # is a budget gate, not an instrument.
   @render_budget_ms 35
 
   # The TV-series tracked-detail mount composes a typed `[%SeasonView{}]`
@@ -75,14 +74,6 @@ defmodule MediaCentarrWeb.PageSmokeTest do
   defp live_within!(conn, path, budget_ms \\ @render_budget_ms) do
     {micros, result} = :timer.tc(fn -> live(conn, path) end)
     ms = div(micros, 1000)
-
-    if System.get_env("SMOKE_TIMINGS") == "1" do
-      # `IO.write/2` rather than `IO.puts/2` — the credo `IoPuts` check
-      # nudges toward Logger, but Logger output in ExUnit is captured
-      # and suppressed, defeating the "tail this in a terminal" intent
-      # of the env-gated diagnostic. Stderr write is the right channel.
-      IO.write(:stderr, "SMOKE #{String.pad_trailing(path, 50)} #{ms}ms\n")
-    end
 
     if ms > budget_ms do
       flunk(
