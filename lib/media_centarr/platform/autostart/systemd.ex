@@ -1,6 +1,14 @@
-defmodule MediaCentarr.SelfUpdate.Service do
+defmodule MediaCentarr.Platform.Autostart.Systemd do
   @moduledoc """
+  Linux implementation of `MediaCentarr.Platform.Autostart`.
+
   Systemd-aware controls for the running media-centarr user unit.
+
+  Lifted verbatim from the original `MediaCentarr.SelfUpdate.Service`
+  — no logic edits, just relocated under the `Platform.*` namespace
+  and extended with two callbacks (`handoff_env_vars/0`,
+  `tarball_required_paths/0`) that previously lived as scattered
+  knowledge in `SelfUpdate.Handoff` and `SelfUpdate.Stager`.
 
   Two detection signals drive the Settings > System card:
 
@@ -34,25 +42,38 @@ defmodule MediaCentarr.SelfUpdate.Service do
     `File.read("/proc/self/cgroup")`)
   """
 
+  @behaviour MediaCentarr.Platform.Autostart
+
   require MediaCentarr.Log, as: Log
 
   @default_unit "media-centarr.service"
 
-  @type state :: %{
-          under_systemd: boolean(),
-          unit_name: String.t() | nil,
-          systemd_available: boolean(),
-          unit_installed: boolean(),
-          active: boolean(),
-          enabled: boolean()
-        }
+  # Env vars `systemctl --user` needs in the detached child to reach
+  # the user's systemd-user instance. Without these, the installer's
+  # `has_systemd_user` probe in the spawned shell fails and the unit
+  # never restarts.
+  @handoff_env_vars [
+    "XDG_RUNTIME_DIR",
+    "DBUS_SESSION_BUS_ADDRESS",
+    "XDG_DATA_DIRS",
+    "XDG_CONFIG_DIRS"
+  ]
+
+  @tarball_required_paths ["share/systemd/media-centarr.service"]
+
+  @impl MediaCentarr.Platform.Autostart
+  def handoff_env_vars, do: @handoff_env_vars
+
+  @impl MediaCentarr.Platform.Autostart
+  def tarball_required_paths, do: @tarball_required_paths
 
   @doc """
   Returns the current systemd state for whichever media-centarr unit this
   BEAM is running under (dev, showcase, or prod), or the default unit name
   as a fallback when detection yields nothing.
   """
-  @spec state(keyword()) :: state()
+  @impl MediaCentarr.Platform.Autostart
+  @spec state(keyword()) :: MediaCentarr.Platform.Autostart.state()
   def state(opts \\ []) do
     cmd_fn = Keyword.get(opts, :cmd_fn, &default_cmd/2)
     env_fn = Keyword.get(opts, :env_fn, &System.get_env/1)
@@ -82,6 +103,7 @@ defmodule MediaCentarr.SelfUpdate.Service do
   Cheap: only reads `INVOCATION_ID` and `/proc/self/cgroup` — no
   `systemctl` shell-out. Safe to call from hot paths like LiveView mount.
   """
+  @impl MediaCentarr.Platform.Autostart
   @spec detected_unit(keyword()) :: String.t() | nil
   def detected_unit(opts \\ []) do
     env_fn = Keyword.get(opts, :env_fn, &System.get_env/1)
@@ -95,6 +117,7 @@ defmodule MediaCentarr.SelfUpdate.Service do
   with `--no-block` so the caller doesn't deadlock on its own BEAM being
   killed.
   """
+  @impl MediaCentarr.Platform.Autostart
   @spec restart(keyword()) :: :ok | {:error, term()}
   def restart(opts \\ []) do
     cmd_fn = Keyword.get(opts, :cmd_fn, &default_cmd/2)
@@ -112,6 +135,7 @@ defmodule MediaCentarr.SelfUpdate.Service do
   After this returns, the app is no longer running; the user must
   `systemctl --user start <unit>` (or re-enable autostart) to bring it back.
   """
+  @impl MediaCentarr.Platform.Autostart
   @spec stop(keyword()) :: :ok | {:error, term()}
   def stop(opts \\ []) do
     cmd_fn = Keyword.get(opts, :cmd_fn, &default_cmd/2)
@@ -133,6 +157,7 @@ defmodule MediaCentarr.SelfUpdate.Service do
   read's perspective — the output is what the user wants to see either
   way. Only a true error (command not found, etc.) returns an error.
   """
+  @impl MediaCentarr.Platform.Autostart
   @spec status_output(keyword()) :: {:ok, String.t()} | {:error, term()}
   def status_output(opts \\ []) do
     cmd_fn = Keyword.get(opts, :cmd_fn, &default_cmd/2)

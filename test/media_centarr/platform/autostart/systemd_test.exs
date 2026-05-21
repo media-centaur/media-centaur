@@ -1,7 +1,7 @@
-defmodule MediaCentarr.SelfUpdate.ServiceTest do
+defmodule MediaCentarr.Platform.Autostart.SystemdTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.SelfUpdate.Service
+  alias MediaCentarr.Platform.Autostart.Systemd, as: Service
 
   # A tiny scripted command runner: returns canned output based on the
   # argv pattern the implementation invokes. Keeps the tests deterministic
@@ -305,7 +305,7 @@ defmodule MediaCentarr.SelfUpdate.ServiceTest do
       # No injection: this exercises the default_cmd path. The test isn't
       # asserting on the systemctl output (may or may not be present on CI);
       # it only asserts the call graph doesn't raise.
-      assert %{} = MediaCentarr.SelfUpdate.Service.state()
+      assert %{} = MediaCentarr.Platform.Autostart.Systemd.state()
     end
   end
 
@@ -354,6 +354,30 @@ defmodule MediaCentarr.SelfUpdate.ServiceTest do
       assert {:ok, output} = Service.status_output(cmd_fn: cmd)
       assert output =~ "media-centarr.service"
       assert output =~ "inactive"
+    end
+  end
+
+  describe "handoff_env_vars/0" do
+    # The detached installer's `systemctl --user` needs these vars
+    # forwarded through `env -i` to reach the user's systemd. Without
+    # them the installer's autostart probe fails, no unit gets
+    # restarted, and the new release stages on disk but the running
+    # BEAM keeps running.
+    test "returns the systemd-required env-var names" do
+      vars = Service.handoff_env_vars()
+
+      assert "XDG_RUNTIME_DIR" in vars
+      assert "DBUS_SESSION_BUS_ADDRESS" in vars
+      assert "XDG_DATA_DIRS" in vars
+      assert "XDG_CONFIG_DIRS" in vars
+    end
+  end
+
+  describe "tarball_required_paths/0" do
+    test "returns the systemd unit-file path that release tarballs must contain" do
+      assert Service.tarball_required_paths() == [
+               "share/systemd/media-centarr.service"
+             ]
     end
   end
 end
