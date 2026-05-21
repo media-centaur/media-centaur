@@ -39,8 +39,9 @@ defmodule MediaCentarr.Playback.MpvSession do
   alias MediaCentarr.Library.{Episode, Movie}
   alias MediaCentarr.Library.Progress, as: LibraryProgress
 
+  alias MediaCentarr.Platform.DisplayEnv
+
   alias MediaCentarr.Playback.{
-    DisplayEnv,
     Events,
     MpvExitClassifier,
     MpvLogReader,

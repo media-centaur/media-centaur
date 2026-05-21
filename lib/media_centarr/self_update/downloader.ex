@@ -21,7 +21,7 @@ defmodule MediaCentarr.SelfUpdate.Downloader do
 
       Downloader.run(tarball_url, sha256_url,
         target_dir: dir,
-        filename: "media-centarr-0.7.1-linux-x86_64.tar.gz",
+        filename: MediaCentarr.Platform.ReleaseArtifact.tarball_filename("0.7.1"),
         progress_fn: fn downloaded, total -> ... end
       )
   """

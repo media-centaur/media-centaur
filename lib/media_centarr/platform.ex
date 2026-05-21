@@ -24,9 +24,9 @@ defmodule MediaCentarr.Platform do
   | `Platform.DriveProbe`           | behaviour | `GnuDf`      | `BsdDf` *(future)* |
   | `Platform.LogSource`            | behaviour | `Journal`    | `Files` *(future)* |
   | `Platform.Autostart`            | behaviour | `Systemd`    | `Launchd` *(future)* |
-  | `Platform.ReleaseArtifact` *(future)* | pure | `"linux-x86_64"` | `"darwin-arm64"` |
-  | `Platform.Defaults` *(future)*  | pure      | `/usr/bin/*` | `/opt/homebrew/bin/*` |
-  | `Platform.DisplayEnv` *(future)*| pure      | Wayland/X11  | `[]`        |
+  | `Platform.ReleaseArtifact`      | pure      | `"linux-x86_64"` | `"darwin-arm64"` *(future)* |
+  | `Platform.Defaults`             | pure      | `/usr/bin/*` | `/opt/homebrew/bin/*` |
+  | `Platform.DisplayEnv`           | pure      | Wayland/X11  | `{:ok, []}`  |
 
   `*(future)*` next to a module name = seam not yet extracted.
   `*(future)*` next to a Linux/macOS impl = that side not yet

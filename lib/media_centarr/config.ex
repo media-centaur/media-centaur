@@ -421,10 +421,10 @@ defmodule MediaCentarr.Config do
       watch_dir_images: default_images_map,
       tmdb_api_key: Secret.wrap(Application.get_env(:media_centarr, :tmdb_api_key)),
       auto_approve_threshold: Application.get_env(:media_centarr, :auto_approve_threshold),
-      mpv_path: "/usr/bin/mpv",
+      mpv_path: MediaCentarr.Platform.Defaults.mpv_path(),
       mpv_socket_dir: "/tmp",
       mpv_socket_timeout_ms: 5000,
-      ffprobe_path: "/usr/bin/ffprobe",
+      ffprobe_path: MediaCentarr.Platform.Defaults.ffprobe_path(),
       setup_wizard_dismissed: false,
       exclude_dirs: [],
       extras_dirs: [

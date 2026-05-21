@@ -1,7 +1,7 @@
-defmodule MediaCentarr.Playback.DisplayEnvTest do
+defmodule MediaCentarr.Platform.DisplayEnvTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Playback.DisplayEnv
+  alias MediaCentarr.Platform.DisplayEnv
 
   @moduletag :tmp_dir
 
