@@ -21,7 +21,7 @@ defmodule MediaCentarr.Platform do
   | Module                          | Kind      | Linux        | macOS       |
   |---------------------------------|-----------|--------------|-------------|
   | `Platform.WatcherEvents`        | pure      | identity     | event remap |
-  | `Platform.DriveProbe`           | behaviour | `GnuDf`      | `BsdDf` *(future)* |
+  | `Platform.DriveProbe`           | behaviour | `GnuDf`      | `BsdDf`     |
   | `Platform.LogSource`            | behaviour | `Journal`    | `Files` *(future)* |
   | `Platform.Autostart`            | behaviour | `Systemd`    | `Launchd` *(future)* |
   | `Platform.ReleaseArtifact`      | pure      | `"linux-x86_64"` | `"darwin-arm64"` |
