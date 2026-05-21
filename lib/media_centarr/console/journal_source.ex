@@ -24,13 +24,13 @@ defmodule MediaCentarr.Console.JournalSource do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Console.Entry
+  alias MediaCentarr.Platform.LogSource
   alias MediaCentarr.SelfUpdate
   alias MediaCentarr.Topics
 
   @buffer_cap 500
   @debounce_close_ms 5_000
   @respawn_delay_ms 2_000
-  @prime_line_count 200
 
   defmodule State do
     @moduledoc false
@@ -111,7 +111,7 @@ defmodule MediaCentarr.Console.JournalSource do
     unit_fetcher = Keyword.get(opts, :unit_fetcher, &default_unit_fetcher/0)
 
     state = %State{
-      port_opener: Keyword.get(opts, :port_opener, &default_port_opener/1),
+      port_opener: Keyword.get(opts, :port_opener, &LogSource.open_port/1),
       unit: unit_fetcher.()
     }
 
@@ -310,24 +310,4 @@ defmodule MediaCentarr.Console.JournalSource do
   end
 
   defp default_unit_fetcher, do: SelfUpdate.detected_unit()
-
-  defp default_port_opener(unit) do
-    path = System.find_executable("journalctl") || "/usr/bin/journalctl"
-
-    Port.open({:spawn_executable, path}, [
-      :binary,
-      :exit_status,
-      :stderr_to_stdout,
-      {:line, 4096},
-      args: [
-        "--user",
-        "-u",
-        unit,
-        "-n",
-        Integer.to_string(@prime_line_count),
-        "-f",
-        "--output=short-iso"
-      ]
-    ])
-  end
 end

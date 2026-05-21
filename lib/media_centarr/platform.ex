@@ -21,15 +21,17 @@ defmodule MediaCentarr.Platform do
   | Module                          | Kind      | Linux        | macOS       |
   |---------------------------------|-----------|--------------|-------------|
   | `Platform.WatcherEvents`        | pure      | identity     | event remap |
+  | `Platform.DriveProbe`           | behaviour | `GnuDf`      | `BsdDf` *(future)* |
+  | `Platform.LogSource`            | behaviour | `Journal`    | `Files` *(future)* |
   | `Platform.Autostart` *(future)* | behaviour | `Systemd`    | `Launchd`   |
-  | `Platform.DriveProbe` *(future)*| behaviour | `GnuDf`      | `BsdDf`     |
-  | `Platform.LogSource` *(future)* | behaviour | `Journal`    | `Files`     |
   | `Platform.ReleaseArtifact` *(future)* | pure | `"linux-x86_64"` | `"darwin-arm64"` |
   | `Platform.Defaults` *(future)*  | pure      | `/usr/bin/*` | `/opt/homebrew/bin/*` |
   | `Platform.DisplayEnv` *(future)*| pure      | Wayland/X11  | `[]`        |
 
-  Future rows mark the campaign-defined seams that have not yet
-  been extracted (see `campaigns/macos-platform-support.md`).
+  `*(future)*` next to a module name = seam not yet extracted.
+  `*(future)*` next to a Linux/macOS impl = that side not yet
+  landed but the seam itself exists. See
+  `campaigns/macos-platform-support.md` for the rollout plan.
 
   ## Why a flat namespace
 
