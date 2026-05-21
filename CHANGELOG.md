@@ -4,6 +4,28 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.69.0 — 2026-05-21
+
+### New
+
+Experimental macOS support. Media Centarr now ships a `darwin-arm64`
+release alongside the Linux build, with a native macOS installer that
+sets up autostart via launchd (the macOS analog of systemd) and the same
+atomic install / upgrade flow Linux users have. The in-app
+Settings → Overview → Update now path works on both platforms — once
+installed, you upgrade the same way regardless of OS.
+
+**macOS support is experimental in this release.** Try it on a
+non-critical setup first, and report rough edges via the [macOS] issue
+link on the docs site. We don't own a Mac, so first user reports are
+how we'll discover what doesn't work yet.
+
+### Improved
+
+The README and docs site now carry visible status banners calling out
+the in-progress UI overhaul and the experimental status of macOS
+support, so you know what to expect at a glance.
+
 ## v0.68.1 — 2026-05-21
 
 Internal maintenance release. No user-visible changes — the performance
