@@ -39,6 +39,9 @@ defmodule MediaCentarr.Platform.LogSource do
   def available?(unit), do: impl().available?(unit)
 
   defp impl do
-    Application.get_env(:media_centarr, __MODULE__, MediaCentarr.Platform.LogSource.Journal)
+    MediaCentarr.Platform.pick_impl(__MODULE__,
+      linux: MediaCentarr.Platform.LogSource.Journal,
+      darwin: MediaCentarr.Platform.LogSource.Files
+    )
   end
 end

@@ -39,5 +39,49 @@ defmodule MediaCentarr.Platform do
   autostart + drive-probe + log-source into one file. The
   namespace is the inventory; the individual modules carry the
   contracts.
+
+  ## Impl picker
+
+  The only `:os.type/0` call site outside the seam impls themselves.
+  `pick_impl/3` is what every behaviour-facade module's private
+  `impl/0` calls — it routes between the Linux and macOS impls
+  based on the running OS, with an `Application.get_env` override
+  for tests.
   """
+
+  @doc """
+  Selects the OS-appropriate impl for a Platform.* behaviour.
+
+  Precedence:
+
+  1. `Application.get_env(:media_centarr, facade_module)` — tests
+     and runtime config can override.
+  2. The matching impl from the `os_impls` keyword list, keyed by
+     the running OS (`:linux` / `:darwin`).
+
+  Unrecognized unix-flavored OSes (FreeBSD, NetBSD, ...) fall back
+  to the Linux impl on the assumption that GNU-flavored utilities
+  are closer; raises on non-unix OSes (Windows isn't a target).
+
+  ## Options
+
+    * `:os_type` — override `:os.type/0` (tests only).
+  """
+  @spec pick_impl(module(), keyword(), keyword()) :: module()
+  def pick_impl(facade_module, os_impls, opts \\ []) do
+    case Application.get_env(:media_centarr, facade_module) do
+      nil -> default_for_os(os_impls, opts)
+      override -> override
+    end
+  end
+
+  defp default_for_os(os_impls, opts) do
+    os_type = Keyword.get(opts, :os_type, :os.type())
+
+    case os_type do
+      {:unix, :darwin} -> Keyword.fetch!(os_impls, :darwin)
+      {:unix, _other} -> Keyword.fetch!(os_impls, :linux)
+      other -> raise "unsupported OS for Platform impl: #{inspect(other)}"
+    end
+  end
 end
