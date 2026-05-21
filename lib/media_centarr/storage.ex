@@ -2,14 +2,19 @@ defmodule MediaCentarr.Storage do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
-  Measures disk usage for configured directories using `df`.
+  Aggregates disk-capacity info for configured directories.
 
-  Returns a list of drive maps grouped by mount point, each containing
-  capacity info and the roles (watch dirs, image caches, database) that
-  reside on that drive. Used by the Operations page storage section.
+  Owns the *orchestration* — which paths matter (watch dirs, image
+  caches, database), how to group results by mount point — but
+  delegates the OS-specific "ask the kernel how much space is left"
+  probe to `MediaCentarr.Platform.DriveProbe`. That keeps GNU/BSD
+  `df` flag differences quarantined to the Platform namespace.
+
+  Used by the Operations page storage section.
   """
 
   alias MediaCentarr.Config
+  alias MediaCentarr.Platform.DriveProbe
 
   @type role :: %{label: String.t(), path: String.t()}
 
@@ -47,50 +52,13 @@ defmodule MediaCentarr.Storage do
 
   @doc """
   Returns the number of available bytes on the filesystem containing `path`.
+
+  Thin delegate to `Platform.DriveProbe.available_bytes/1` — kept on
+  `Storage` so existing consumers (`Pipeline.Import`) don't need to
+  learn the new namespace.
   """
   @spec available_bytes(String.t()) :: {:ok, non_neg_integer()} | :error
-  def available_bytes(path) do
-    # `env: []` clears the inherited environment so we don't leak credentials
-    # (TMDB key, qBittorrent password, etc.) into a subprocess that doesn't
-    # need them. `df` only needs LANG-style locale settings to format output,
-    # which we don't depend on.
-    case System.cmd("df", ["--output=avail", "-B1", path], stderr_to_stdout: true, env: []) do
-      {output, 0} -> parse_avail(output)
-      _ -> :error
-    end
-  end
-
-  @doc """
-  Parses a single data line from `df --output=source,used,avail,target -B1` output
-  into a drive info map. Returns `{:ok, info}` or `:error`.
-  """
-  @spec parse_df_line(String.t()) :: {:ok, map()} | :error
-  def parse_df_line(line) do
-    case String.split(line, ~r/\s+/, trim: true) do
-      [source, used_str, avail_str | rest] when rest != [] ->
-        mount_point = Enum.join(rest, " ")
-
-        with {used, ""} <- Integer.parse(used_str),
-             {avail, ""} <- Integer.parse(avail_str) do
-          total = used + avail
-          percent = if total > 0, do: round(used * 100 / total), else: 0
-
-          {:ok,
-           %{
-             device: Path.basename(source),
-             mount_point: mount_point,
-             used_bytes: used,
-             total_bytes: total,
-             usage_percent: percent
-           }}
-        else
-          _ -> :error
-        end
-
-      _ ->
-        :error
-    end
-  end
+  def available_bytes(path), do: DriveProbe.available_bytes(path)
 
   @doc """
   Groups measured entries by mount point into drive maps.
@@ -120,43 +88,10 @@ defmodule MediaCentarr.Storage do
     path = if label == "Database", do: Path.dirname(path), else: path
 
     if File.dir?(path) do
-      case System.cmd("df", ["--output=source,used,avail,target", "-B1", path],
-             stderr_to_stdout: true,
-             env: []
-           ) do
-        {output, 0} ->
-          output
-          |> String.split("\n", trim: true)
-          |> Enum.drop(1)
-          |> List.first()
-          |> case do
-            nil -> nil
-            line -> with {:ok, info} <- parse_df_line(line), do: {path, label, info}
-          end
-
-        _ ->
-          nil
+      case DriveProbe.measure(path) do
+        {:ok, info} -> {path, label, info}
+        :error -> nil
       end
-    end
-  end
-
-  defp parse_avail(output) do
-    output
-    |> String.split("\n", trim: true)
-    |> Enum.drop(1)
-    |> List.first()
-    |> case do
-      nil ->
-        :error
-
-      line ->
-        line
-        |> String.trim()
-        |> Integer.parse()
-        |> case do
-          {bytes, ""} -> {:ok, bytes}
-          _ -> :error
-        end
     end
   end
 end
