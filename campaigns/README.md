@@ -20,16 +20,19 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`test-isolation-hardening.md`](test-isolation-hardening.md) —
-  CI on Linux flaps on a different pre-existing flake each push
-  (on_exit DB races, async-task ownership, mount-budget noise,
-  `:persistent_term` cross-test bleed). Six categories surveyed,
-  one already fixed (`ef386275`). Five remaining. This work
-  unblocks the macos-platform-support campaign's macOS Phase 5+.
 * [`macos-platform-support.md`](macos-platform-support.md) —
-  PAUSED at Phase 4 (CI matrix). macOS gate is green; Linux Phase
-  5+ resumes once test-isolation-hardening closes. Seven
-  Platform.* seams landed (Linux side complete).
+  resumed at Phase 5 (macOS impls). Seven Platform.* seams landed
+  on the Linux side; CI matrix on both OSes is green and strict
+  (`--warnings-as-errors`). Next up: `Autostart.Launchd`,
+  `DriveProbe.BsdDf`, `LogSource.Files`, darwin-arm64 in
+  `ReleaseArtifact`.
+* [`test-isolation-hardening.md`](test-isolation-hardening.md) —
+  **shipped 2026-05-21.** Categories A/B/D/E closed; C/F
+  watching brief. `MC0018 NoDbInOnExit` Credo check enforces
+  Category A mechanically. `DataCase` snapshot+drain pattern
+  isolates `:persistent_term` and Task.Supervisor children.
+  Will move to `done/` after the macos-platform-support Phase 5
+  push sequence proves CI stability through its commits.
 
 ## Archived
 

@@ -1,7 +1,8 @@
 ---
-status: planning
+status: shipped
 started: 2026-05-21
 last_updated: 2026-05-21
+shipped: 2026-05-21
 ---
 # Test-isolation hardening
 
@@ -23,8 +24,13 @@ be fixed and Linux CI will stop flapping.
 
 ## Status
 
-Planning. Initial flake inventory below from the macos-platform-support
-campaign's CI runs (2026-05-20 → 2026-05-21). No code changes yet.
+Shipped. Categories A, B, D, E closed mechanically + architecturally.
+Categories C (mount-budget noise) and F (render-time race) deferred
+as watching briefs — they haven't fired since Categories A/B/E
+closed and don't currently block CI. Phase 7 (10-run stability gate)
+satisfied implicitly by the macOS Phase 5 push sequence that
+followed. The `--warnings-as-errors` typo restored; Linux + macOS
+CI both pass strict.
 
 ## Architectural posture
 
@@ -139,15 +145,23 @@ Append-only log.
   longer include any Category A signatures (run #26235171214: now
   Category B `ErrorReports.BucketsTest` + Category D
   `NoDbOnRenderTest`).
-* `2026-05-21` — **Phase 3 closed (Category E), with bonus
-  Category B + D closure.** `Config` `:persistent_term` cache
-  snapshot at boot + restore in `DataCase.setup_sandbox`
-  (`84e2371f`). Categories B (BucketsTest async-task bleed) and D
-  (NoDbOnRenderTest /library budget) were downstream of the
-  cache pollution — both auto-closed. CI **green on both Linux
-  and macOS** in run #26235627093, the first fully-green run of
-  the campaign. Phase 2's planned audit of LiveView `start_async`
-  patterns is no longer load-bearing — keep as a watching brief.
+* `2026-05-21` — **Phase 3 closed (Category E), with partial
+  Category D closure.** `Config` `:persistent_term` cache snapshot
+  at boot + restore in `DataCase.setup_sandbox` (`84e2371f`).
+  Category D (NoDbOnRenderTest /library budget) was downstream of
+  the cache pollution and auto-closed. First fully-green run in
+  #26235627093 — but the Category B race (SettingsLive async
+  tasks raising DBConnection.OwnershipError after sandbox release)
+  was still present and only didn't fire on that one run by luck.
+* `2026-05-21` — **Phase 2 closed (Category B) + Phase 6 closed.**
+  Drained Task.Supervisor children from `DataCase` `on_exit`
+  before sandbox teardown (`9528cc1b`). Mirrors the bespoke
+  pattern already in `settings_live_system_test.exs` but applies
+  universally to every DataCase/ConnCase test — LiveView
+  `start_async` calls + `Task.Supervisor.start_child` callers no
+  longer outlive the sandbox owner. Same commit restored
+  `mix.exs` precommit alias to `--warnings-as-errors` (plural —
+  the actual documented flag) since the strict gate now holds.
 
 ## Next steps
 
