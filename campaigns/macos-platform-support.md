@@ -21,23 +21,23 @@ architecture.
 
 ## Status
 
-**Phases 1–5 shipped (2026-05-21).** All seven Platform.* seams
+**Phases 1–6 shipped (2026-05-21).** All seven Platform.* seams
 have both Linux and macOS impls; the impl picker
 (`MediaCentarr.Platform.pick_impl/3`) routes them by `:os.type/0`.
-CI is green on both `ubuntu-latest` and `macos-14` with
-`--warnings-as-errors` enforced. Public-facing READMEs and the
-docs-site landing carry visible "UI overhaul in progress" +
-"macOS — experimental" status banners (commit `cb0ce0aa`).
+CI is green on both `ubuntu-22.04` and `macos-14` with
+`--warnings-as-errors` enforced. Phase 6 added the release-side
+infrastructure: per-platform overlays under `rel/platforms/`, a
+macOS launchd plist + launcher wrapper, a macOS installer script
+mirroring the Linux contract, and a `release.yml` matrix that
+builds both `linux-x86_64` + `darwin-arm64` tarballs on every tag.
+Public-facing READMEs and the docs-site landing carry visible
+"UI overhaul in progress" + "macOS — experimental" status banners
+(commit `cb0ce0aa`).
 
-**Phase 6 next — release-artifact infrastructure.** No macOS
-tarball is built yet. The release pipeline still emits only the
-Linux tarball; the macOS installer script + launchd plist haven't
-been written; `rel/overlays/` hasn't been split into per-platform
-trees.
-
-**Phase 7 last — real-Mac parity smoke.** Manual verification on
-hardware. We don't own a Mac (see banner copy); first user reports
-will substitute.
+**Phase 7 next — real-Mac parity smoke.** First tag after Phase 6
+will produce both tarballs. Manual verification of install +
+in-app self-update on hardware is the remaining unknown. We don't
+own a Mac (see banner copy); first user reports will substitute.
 
 ## Resumption checkpoint
 
@@ -45,13 +45,13 @@ A future session resuming this campaign should:
 
 1. Read this file (`git log` for commit hashes; `Decisions made`
    for the trail).
-2. Confirm current `main` is at or past commit `06ca739f`
-   (Platform.pick_impl) — that's the campaign's Phase 5 close.
-3. Read **"Next steps"** below — only Phase 6 + Phase 7 +
-   distribution remain.
-4. Start Phase 6 work per the **"Release-overlay structure"**
-   section's design (per-platform overlays, mix.exs releases:
-   keyword split, release.yml matrix).
+2. Confirm current `main` is at or past commit `ed4ddf29`
+   (release.yml matrix) — that's the campaign's Phase 6 close.
+3. Read **"Next steps"** below — only Phase 7 (real-Mac smoke) +
+   distribution polish remain.
+4. There is no further code work scheduled. The next motion comes
+   from a tag (which triggers the new matrix workflow and produces
+   the first darwin-arm64 tarball) followed by macOS user feedback.
 
 The architectural posture, audit, divergence analysis, healthy-shape
 rules, project-structure visibility, and release-overlay structure
@@ -130,18 +130,30 @@ contents live under split overlays:
 
 ```
 rel/
-├── overlays/
+├── platforms/                          ← OS-divergent overlay trees live ONLY here
 │   ├── linux/                          ← contents of media-centarr-${ver}-linux-x86_64.tar.gz
 │   │   ├── bin/media-centarr-install   (Linux installer; systemd-aware)
 │   │   └── share/systemd/media-centarr.service
-│   └── darwin/                         ← contents of media-centarr-${ver}-darwin-arm64.tar.gz
-│       ├── bin/media-centarr-install   (macOS installer; launchctl-aware)
-│       └── share/launchd/com.media-centarr.app.plist
-└── overlays/shared/                    ← contents shipped in both
-    └── share/defaults/media-centarr.toml
+│   ├── darwin/                         ← contents of media-centarr-${ver}-darwin-arm64.tar.gz
+│   │   ├── bin/media-centarr-install   (macOS installer; launchctl-aware)
+│   │   ├── bin/media-centarr-launchd-start  (launchd wrapper: loads secrets.env, execs bin/media_centarr)
+│   │   └── share/launchd/com.media-centarr.app.plist
+│   └── shared/                         ← contents shipped in both
+│       └── share/defaults/media-centarr.toml
 ```
 
-`ls rel/overlays/` → see the two platform trees side by side.
+`ls rel/platforms/` → see the platform trees side by side.
+
+**Constraint discovered Phase 6a:** the overlay parent must NOT be
+`rel/overlays/`. Mix release's `copy_overlays/1` always prepends
+`rel/overlays/` (if it exists) to whatever `:overlays` config you
+pass — there is no opt-out. Per-platform subtrees under that path
+get double-copied: once stripped via the explicit `:overlays`
+config, once with the `linux/`/`darwin/` prefix from the auto-
+include. Renaming to `rel/platforms/` defeats the auto-include
+while preserving the `ls`-discoverability principle. See
+`mix.exs:overlays_for_target/0` and the Phase 6a commit message
+for the empirical trace.
 
 ### The inventory module
 
@@ -514,32 +526,60 @@ future contributors don't trip into them.
 ## Release-overlay structure
 
 Per-platform tarballs require per-platform release overlays.
-Mix supports this via separate `releases:` entries:
 
-```
+**Phase-6a discovery:** mix `releases:` cannot be split into
+`media_centarr_linux` + `media_centarr_darwin` entries the way the
+original design proposed — release name controls binary name, so a
+`media_centarr_linux` release would produce `bin/media_centarr_linux`,
+breaking every existing install whose self-updater expects
+`bin/media_centarr` and breaking `SelfUpdate.Stager`'s required-paths
+contract. Cross-version self-update would silently fail to find the
+binary in the new tarball.
+
+The shipped design is a single `media_centarr` release entry with
+OS-aware overlays selected at evaluation time:
+
+```elixir
 releases: [
-  media_centarr_linux: [
+  media_centarr: [
     include_executables_for: [:unix],
-    overlays: "rel/overlays/linux"
-  ],
-  media_centarr_darwin: [
-    include_executables_for: [:unix],
-    overlays: "rel/overlays/darwin"
+    overlays: overlays_for_target()
   ]
 ]
+
+defp overlays_for_target do
+  shared = "rel/platforms/shared"
+
+  per_os =
+    case :os.type() do
+      {:unix, :darwin} -> "rel/platforms/darwin"
+      {:unix, _} -> "rel/platforms/linux"
+    end
+
+  Enum.filter([shared, per_os], &File.dir?/1)
+end
 ```
+
+`mix release` runs natively on each target OS (`priv/mac_listener`
+is a per-platform binary that forces this), so `:os.type/0` at
+mix-evaluation time equals the build target. Same `bin/media_centarr`
+on both platforms; the OS-specific autostart unit-file +
+installer ride in via the overlays.
 
 Each overlay tree contains its own:
 * `bin/media-centarr-install` (platform-specific installer)
 * `share/<autostart-system>/<unit-file>` (systemd unit or
-  launchd plist)
-* `share/defaults/media-centarr.toml` (identical between platforms)
+  launchd plist; macOS also ships `bin/media-centarr-launchd-start`
+  as the LaunchAgent's entry-point wrapper)
+* `share/defaults/media-centarr.toml` (identical between platforms,
+  lives under `rel/platforms/shared/`)
 
-CI runs `mix release media_centarr_linux` on ubuntu-22.04 and
-`mix release media_centarr_darwin` on macos-14, emitting both
-tarballs to the same GitHub Release. The `bin/media_centarr`
-executable inside each is built natively on its target OS — no
-cross-compilation, which is forced anyway by `priv/mac_listener`.
+CI runs `mix release` on `ubuntu-22.04` and on `macos-14` in a
+matrix, emitting both tarballs (and a consolidated `SHA256SUMS`)
+to the same GitHub Release via a separate `release` job that
+depends on the matrix. No cross-compilation, no inline-create
+race (the previous design's `gh release create` would have raced
+when two matrix jobs landed simultaneously).
 
 ## Linux non-regression guarantees
 
@@ -610,44 +650,62 @@ Append-only log.
   Task DB ownership — DataCase drain), D (NoDbOnRender budget),
   E (Config persistent_term cache — DataCase snapshot+restore).
   See `campaigns/test-isolation-hardening.md`.
+* `2026-05-21` — **Phase 6 shipped.** Per-platform release-artifact
+  infrastructure landed in four narrow commits:
+  * `8ac48f89` — overlay restructure under `rel/platforms/{linux,shared}/`
+    + `mix.exs:overlays_for_target/0`. Linux tarball byte-equivalent.
+  * `fe45f0f5` — macOS launchd plist + `bin/media-centarr-launchd-start`
+    wrapper (loads `secrets.env`, exec's `bin/media_centarr` —
+    the launchd analog of systemd's `EnvironmentFile=`).
+  * `ae7f18e8` — macOS installer script mirroring the Linux
+    contract (`--update`/`--uninstall`/service install|remove,
+    atomic symlink flip, tag-injection guard, sha256/shasum
+    fallback for the macOS base install).
+  * `ed4ddf29` — `release.yml` matrix builds both `linux-x86_64`
+    + `darwin-arm64` on native runners; consolidated SHA256SUMS
+    + atomic publish via separate `release` job that depends on
+    the matrix.
+
+  **Two constraint discoveries** updated the original design:
+  1. **Mix auto-prepends `rel/overlays/`** to every release's
+     overlay list (`Mix.Tasks.Release.copy_overlays/1`, no opt-out).
+     Per-platform subtrees under that path got double-copied —
+     once stripped via the explicit `:overlays` config, once with
+     the `linux/`/`darwin/` prefix from the auto-include. Renamed
+     parent to `rel/platforms/` to defeat the auto-include while
+     preserving `ls`-discoverability.
+  2. **Mix release name controls binary name** — splitting
+     `releases:` into `media_centarr_linux` + `media_centarr_darwin`
+     (the original design) would have produced
+     `bin/media_centarr_linux`, breaking every existing install's
+     self-updater + `SelfUpdate.Stager`'s required-paths contract.
+     Single `media_centarr` release entry with `overlays_for_target/0`
+     selecting per-OS overlays at evaluation time keeps
+     `bin/media_centarr` stable across both platforms.
 
 ## Next steps
 
-Phases 1–5 are **done**; see the "Decisions made" log above for
-commit hashes. Only the deployment-side infrastructure remains.
+Phases 1–6 are **done**; see the "Decisions made" log above for
+commit hashes. Only manual real-machine smoke + downstream
+distribution polish remain.
 
-1. **Phase 6 — Per-platform release overlays + macOS tarball.**
-   * `rel/overlays/` splits into `rel/overlays/{linux,darwin,shared}/`.
-     `linux/` keeps the current systemd unit + installer; `darwin/`
-     gets a new launchd plist + macOS installer script;
-     `shared/` holds `share/defaults/media-centarr.toml` (identical
-     across OSes).
-   * `mix.exs` `releases:` keyword splits into `media_centarr_linux`
-     + `media_centarr_darwin`, each with its own `overlays:`.
-   * `lib/media_centarr/self_update/stager.ex` reads
-     `Platform.Autostart.tarball_required_paths/0` (already wired)
-     to validate the correct per-OS unit file is present.
-   * `.github/workflows/release.yml` grows a matrix: build both
-     OS variants on their native runner, upload both to the same
-     GitHub Release. The macOS tarball can't be cross-compiled
-     from Linux (`file_system`'s `priv/mac_listener` is a native
-     binary).
-   * Write the macOS installer (`rel/overlays/darwin/bin/media-centarr-install`)
-     to mirror the Linux installer's contract: install to
-     `~/.local/lib/media-centarr/`, seed config, run migrations,
-     flip symlink, install the LaunchAgent. macOS user-paths
-     stay XDG-style (per the deliberate non-seam decision).
-   * Write the launchd plist
-     (`rel/overlays/darwin/share/launchd/com.media-centarr.app.plist`):
-     `Label`, `ProgramArguments`, `KeepAlive`, `ThrottleInterval`,
-     `StandardOutPath`/`StandardErrorPath` (the paths
-     `Platform.LogSource.Files` tails — `~/Library/Logs/Media Centarr/`).
-   * Ship.
-2. **Phase 7 — Parity smoke (manual, real machine).** First-user
-   reports substitute for our lack of Mac hardware. The README +
+1. **Phase 7 — Parity smoke (manual, real machine).** The next
+   tag will trigger the matrix workflow and produce both
+   `media-centarr-${ver}-linux-x86_64.tar.gz` and
+   `media-centarr-${ver}-darwin-arm64.tar.gz`. First Mac user
+   reports substitute for our lack of hardware. The README +
    docs-site `[macOS]` issue link is the funnel. Track findings
-   here as the campaign re-opens with them.
-3. **Distribution polish.** Decide raw tarball + install.sh (parity
+   here as the campaign re-opens with them. Key things to verify:
+   * Tarball downloads, extracts, `bin/media-centarr-install`
+     runs to completion.
+   * LaunchAgent registers; the app starts and listens on the
+     configured port; logs land in `~/Library/Logs/Media Centarr/`.
+   * Settings → Overview → Update now exercises the full
+     `Platform.Autostart.Launchd.restart/0` path end-to-end.
+   * `file_system` (FSEvents) emits events the Watcher receives
+     (and `Platform.WatcherEvents.normalize/1` translates them
+     to the domain vocabulary correctly).
+2. **Distribution polish.** Decide raw tarball + install.sh (parity
    with Linux) vs Homebrew tap based on Phase-7 feedback. The user
    has explicitly ruled out notarization for now.
 
@@ -683,7 +741,11 @@ commit hashes. Only the deployment-side infrastructure remains.
 * `lib/media_centarr/platform/defaults.ex`
 * `lib/media_centarr/platform/display_env.ex`
 * `credo_checks/platform_branching_discipline.ex` — `MC00NN` check
-* `rel/overlays/{linux,darwin,shared}/` — split per-platform overlays
+* `rel/platforms/{linux,darwin,shared}/` — split per-platform overlays
+  (NOT `rel/overlays/` — see Phase-6a discovery in `Decisions made`)
+* `rel/platforms/darwin/share/launchd/com.media-centarr.app.plist` — LaunchAgent
+* `rel/platforms/darwin/bin/media-centarr-launchd-start` — launchd entry-point wrapper
+* `rel/platforms/darwin/bin/media-centarr-install` — macOS installer
 
 ### Lifts from
 
