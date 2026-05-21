@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-05-21
 last_updated: 2026-05-21
 ---
@@ -21,10 +21,42 @@ architecture.
 
 ## Status
 
-Scoping. Audit complete; seam map deepened with per-seam divergence
-analysis (below); behaviour contracts and rollout phases sketched.
-Next deliverable is an ADR locking in the platform-seam architecture,
-then phased implementation under that ADR.
+**Phases 1–5 shipped (2026-05-21).** All seven Platform.* seams
+have both Linux and macOS impls; the impl picker
+(`MediaCentarr.Platform.pick_impl/3`) routes them by `:os.type/0`.
+CI is green on both `ubuntu-latest` and `macos-14` with
+`--warnings-as-errors` enforced. Public-facing READMEs and the
+docs-site landing carry visible "UI overhaul in progress" +
+"macOS — experimental" status banners (commit `cb0ce0aa`).
+
+**Phase 6 next — release-artifact infrastructure.** No macOS
+tarball is built yet. The release pipeline still emits only the
+Linux tarball; the macOS installer script + launchd plist haven't
+been written; `rel/overlays/` hasn't been split into per-platform
+trees.
+
+**Phase 7 last — real-Mac parity smoke.** Manual verification on
+hardware. We don't own a Mac (see banner copy); first user reports
+will substitute.
+
+## Resumption checkpoint
+
+A future session resuming this campaign should:
+
+1. Read this file (`git log` for commit hashes; `Decisions made`
+   for the trail).
+2. Confirm current `main` is at or past commit `06ca739f`
+   (Platform.pick_impl) — that's the campaign's Phase 5 close.
+3. Read **"Next steps"** below — only Phase 6 + Phase 7 +
+   distribution remain.
+4. Start Phase 6 work per the **"Release-overlay structure"**
+   section's design (per-platform overlays, mix.exs releases:
+   keyword split, release.yml matrix).
+
+The architectural posture, audit, divergence analysis, healthy-shape
+rules, project-structure visibility, and release-overlay structure
+sections below are the *design* — they don't change as phases
+ship.
 
 ## Architectural posture
 
@@ -534,87 +566,90 @@ Concrete, checkable, must hold at every phase merge:
 
 ## Open decisions (block ADR, in order)
 
-1. **Architecture lock-in.** Does the seam map above match your
-   intent? Everything OS-divergent lands under
-   `lib/media_centarr/platform/`:
-   * Behaviours (3): `Platform.Autostart`, `Platform.DriveProbe`,
-     `Platform.LogSource`
-   * Pure helpers (4): `Platform.WatcherEvents`,
-     `Platform.ReleaseArtifact`, `Platform.Defaults`,
-     `Platform.DisplayEnv`
-   * Picker + inventory (1): `MediaCentarr.Platform`
-   * Deliberate non-seams: `Paths` (XDG on both — single code
-     path), `Spawn` (use the portable detach idiom — no abstraction
-     needed)
-   * Enforcement: new `MC00NN PlatformBranchingDiscipline` Credo
-     check fails the build on `:os.type/0` / OS-specific shell-outs
-     outside `MediaCentarr.Platform.*`
-2. **Architectures.** Apple Silicon only, or also Intel? Doesn't
-   shape the architecture, only the CI matrix.
+*All Phase-1 architecture decisions are resolved by the shipped
+work. Kept here as a record of the framing that drove the design.*
 
-Distribution / signing posture is **explicitly deferred** until
-the architecture lands.
+1. ~~**Architecture lock-in.**~~ **Resolved**: shipped exactly the
+   seam map proposed — 3 behaviours (`Autostart`, `DriveProbe`,
+   `LogSource`) + 4 pure helpers (`WatcherEvents`,
+   `ReleaseArtifact`, `Defaults`, `DisplayEnv`) + 1 picker
+   (`MediaCentarr.Platform`). Deliberate non-seams (`Paths`,
+   `Spawn`) stayed inline. `MC0017 PlatformBranchingDiscipline`
+   enforces the discoverability rule.
+2. ~~**Architectures.**~~ **Resolved**: Apple Silicon only.
+   `ReleaseArtifact` raises on Intel macOS (`x86_64-apple-darwin`).
+   Adding Intel later means one new clause in `detect/2` plus a
+   `macos-13` release-job, no further design change.
+
+**Still deferred (Phase 6+):**
+
+* Distribution channel (Homebrew tap, raw tarball + install.sh,
+  notarized .pkg). The user has explicitly said notarization /
+  signing polish is out of scope. Likely: raw tarball + install.sh
+  for parity with Linux, no Homebrew tap until there's user demand.
 
 ## Decisions made
 
 Append-only log.
 
-* _None yet._
+* `2026-05-21` — **Phases 1–5 shipped.** Linux Platform.* directory
+  (Phase 1, `bc156933`); Linux extractions Autostart + DriveProbe +
+  LogSource (Phase 2, three commits `ea88f5cb`/`3a28cc06`/`fadc5d9e`);
+  ReleaseArtifact + Defaults + DisplayEnv (Phase 3, `6b596f81`);
+  macOS CI gate (Phase 4, `765b9ef0` + fixes); macOS impls
+  (Phase 5: `6ca6bea5` ReleaseArtifact darwin-arm64, `0d9f341a`
+  DriveProbe.BsdDf, `32f7852c` Autostart.Launchd, `069ccbcd`
+  LogSource.Files, `06ca739f` Platform.pick_impl). All seven
+  Platform.* seams now have both Linux + macOS impls. CI green
+  across both runners with `--warnings-as-errors` enforced
+  (typo restored in `9528cc1b`).
+* `2026-05-21` — **`test-isolation-hardening` campaign closed
+  mid-Phase-4.** A side campaign harvested four categories of
+  pre-existing test flake the macOS strict-flag exposed:
+  Category A (on_exit DB writes — MC0018 Credo check), B (async
+  Task DB ownership — DataCase drain), D (NoDbOnRender budget),
+  E (Config persistent_term cache — DataCase snapshot+restore).
+  See `campaigns/test-isolation-hardening.md`.
 
 ## Next steps
 
-Each phase is independently shippable and reviewable. The
-architecture phases (1–4) ship on Linux first, with zero macOS
-code; they're pure refactor under the new seam abstraction. The
-macOS impls land in phase 5 onward.
+Phases 1–5 are **done**; see the "Decisions made" log above for
+commit hashes. Only the deployment-side infrastructure remains.
 
-1. **ADR — macOS platform conventions.** Locks the seam map,
-   architectures, autostart format, Linux non-regression contract,
-   Paths-stays-XDG decision.
-2. **Phase 1 — `Platform.WatcherEvents` (Linux-only refactor).**
-   First seam establishes `lib/media_centarr/platform/` directory,
-   the `MediaCentarr.Platform` inventory moduledoc, and the
-   `MC00NN` Credo check. `Platform.WatcherEvents.normalize/1`
-   returns the domain vocabulary; `Watcher.handle_info` matches
-   the normalized atoms. Linux atoms are an identity mapping.
-   Ship.
-3. **Phase 2 — Autostart, DriveProbe, LogSource extractions
-   (Linux only).** Three behaviours with their Linux impls
-   (`Platform.Autostart.Systemd`, `Platform.DriveProbe.GnuDf`,
-   `Platform.LogSource.Journal`) as lift-from-existing. Consumers
-   (`SelfUpdate.*`, `Storage`, `Console`) call through the
-   behaviour. Zero behaviour change, all existing tests pass
-   unchanged. Ship.
-4. **Phase 3 — `Platform.ReleaseArtifact` + `Platform.Defaults`
-   + `Platform.DisplayEnv` move.** Extract `linux-x86_64`
-   literals into `Platform.ReleaseArtifact`. `Config` reads
-   `Platform.Defaults` for mpv/ffprobe paths.
-   `Playback.DisplayEnv` body moves to `Platform.DisplayEnv`.
-   Ship.
-5. **Phase 4 — CI matrix.** Add `macos-14` job to `ci.yml` running
-   the same suite. Anything that breaks here is a portability bug
-   in the seam we just landed; fix and re-ship before adding macOS
-   impls. Ship.
-6. **Phase 5 — macOS impls.** `Platform.Autostart.Launchd`,
-   `Platform.DriveProbe.BsdDf`, `Platform.LogSource.Files`. macOS
-   branches in `Platform.ReleaseArtifact`, `Platform.Defaults`,
-   `Platform.WatcherEvents`, `Platform.DisplayEnv`. Behaviour
-   tests prove the contracts; Linux suite still passes. No
-   release artifact emitted yet. Ship.
-7. **Phase 6 — Per-platform release overlays + macOS tarball.**
-   Mix release config splits into `media_centarr_linux` /
-   `media_centarr_darwin`. `release.yml` matrix builds both.
-   Stager validates the platform-specific required paths.
-   The launchd plist + macOS installer script ship in
-   `rel/overlays/darwin/`. Ship.
-8. **Phase 7 — Parity smoke (manual, real machine).** Install on
-   a real macOS, configure mpv via Homebrew, exercise: file
-   watcher on FSEvents (incl. deletes + unmounts via the
-   normalizer), mpv playback, vix image processing, Library +
-   Acquisition + Settings UIs, in-app `Update now` from N → N+1.
-   The gate that says "macOS is shipping-grade."
-9. **Distribution.** Decide tap vs raw tarball vs both, write
-   install instructions, mirror to wiki.
+1. **Phase 6 — Per-platform release overlays + macOS tarball.**
+   * `rel/overlays/` splits into `rel/overlays/{linux,darwin,shared}/`.
+     `linux/` keeps the current systemd unit + installer; `darwin/`
+     gets a new launchd plist + macOS installer script;
+     `shared/` holds `share/defaults/media-centarr.toml` (identical
+     across OSes).
+   * `mix.exs` `releases:` keyword splits into `media_centarr_linux`
+     + `media_centarr_darwin`, each with its own `overlays:`.
+   * `lib/media_centarr/self_update/stager.ex` reads
+     `Platform.Autostart.tarball_required_paths/0` (already wired)
+     to validate the correct per-OS unit file is present.
+   * `.github/workflows/release.yml` grows a matrix: build both
+     OS variants on their native runner, upload both to the same
+     GitHub Release. The macOS tarball can't be cross-compiled
+     from Linux (`file_system`'s `priv/mac_listener` is a native
+     binary).
+   * Write the macOS installer (`rel/overlays/darwin/bin/media-centarr-install`)
+     to mirror the Linux installer's contract: install to
+     `~/.local/lib/media-centarr/`, seed config, run migrations,
+     flip symlink, install the LaunchAgent. macOS user-paths
+     stay XDG-style (per the deliberate non-seam decision).
+   * Write the launchd plist
+     (`rel/overlays/darwin/share/launchd/com.media-centarr.app.plist`):
+     `Label`, `ProgramArguments`, `KeepAlive`, `ThrottleInterval`,
+     `StandardOutPath`/`StandardErrorPath` (the paths
+     `Platform.LogSource.Files` tails — `~/Library/Logs/Media Centarr/`).
+   * Ship.
+2. **Phase 7 — Parity smoke (manual, real machine).** First-user
+   reports substitute for our lack of Mac hardware. The README +
+   docs-site `[macOS]` issue link is the funnel. Track findings
+   here as the campaign re-opens with them.
+3. **Distribution polish.** Decide raw tarball + install.sh (parity
+   with Linux) vs Homebrew tap based on Phase-7 feedback. The user
+   has explicitly ruled out notarization for now.
 
 ## Completion criteria
 
