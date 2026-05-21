@@ -1,6 +1,8 @@
-defmodule MediaCentarr.Playback.DisplayEnv do
+defmodule MediaCentarr.Platform.DisplayEnv do
   @moduledoc """
   Resolves the display-server environment that mpv needs to open a window.
+
+  ## Linux (Wayland/X11)
 
   The classic production failure: a systemd-user service starts before the
   graphical session has imported `WAYLAND_DISPLAY` / `DISPLAY` into its
@@ -20,6 +22,12 @@ defmodule MediaCentarr.Playback.DisplayEnv do
   the caller should refuse to launch and surface a clear failure to the
   user — there is no GUI to render into.
 
+  ## macOS (Cocoa)
+
+  mpv on macOS uses the native Cocoa backend — no socket discovery, no
+  display-env handover. `resolve/1` returns `{:ok, []}` so the caller's
+  port spawn proceeds with whatever env the BEAM already has.
+
   ## Why charlists
 
   Erlang ports take env tuples as `{key_charlist, value_charlist}`. The
@@ -31,6 +39,13 @@ defmodule MediaCentarr.Playback.DisplayEnv do
 
   @spec resolve(keyword()) :: {:ok, [env_entry]} | {:error, :no_display}
   def resolve(opts \\ []) do
+    case :os.type() do
+      {:unix, :darwin} -> {:ok, []}
+      _ -> resolve_linux(opts)
+    end
+  end
+
+  defp resolve_linux(opts) do
     env = Keyword.get(opts, :env) || System.get_env()
     runtime_dir = Keyword.get(opts, :runtime_dir) || env["XDG_RUNTIME_DIR"]
     x11_dir = Keyword.get(opts, :x11_dir) || "/tmp/.X11-unix"

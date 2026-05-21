@@ -33,10 +33,14 @@ defmodule MediaCentarr.SelfUpdate.Updater do
 
   require MediaCentarr.Log, as: Log
 
+  alias MediaCentarr.Platform.ReleaseArtifact
   alias MediaCentarr.SelfUpdate.{Downloader, Handoff, Stager, UpdateChecker}
   alias MediaCentarr.Topics
   alias MediaCentarr.Version
 
+  # SHA256SUMS is shared across platforms (one file per release tag)
+  # so the base URL stays here; the per-platform tarball URL comes
+  # from Platform.ReleaseArtifact.
   @repo_base "https://github.com/media-centarr/media-centarr/releases/download"
 
   defmodule State do
@@ -260,8 +264,8 @@ defmodule MediaCentarr.SelfUpdate.Updater do
   defp run_apply(release, deps, staging, parent) do
     tag = release.tag
     version = release.version
-    filename = tarball_filename(version)
-    tarball_url = "#{@repo_base}/#{tag}/#{filename}"
+    filename = ReleaseArtifact.tarball_filename(version)
+    tarball_url = ReleaseArtifact.tarball_url(tag, version)
     sums_url = "#{@repo_base}/#{tag}/SHA256SUMS"
 
     progress_fn = fn bytes, total ->
@@ -315,8 +319,6 @@ defmodule MediaCentarr.SelfUpdate.Updater do
       _ -> {:error, :no_update_pending}
     end
   end
-
-  defp tarball_filename(version), do: "media-centarr-#{version}-linux-x86_64.tar.gz"
 
   defp staging_dir(root, version) do
     unique = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
