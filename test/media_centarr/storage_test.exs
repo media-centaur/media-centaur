@@ -3,57 +3,9 @@ defmodule MediaCentarr.StorageTest do
 
   alias MediaCentarr.Storage
 
-  describe "parse_df_line/1" do
-    test "parses valid df output line into drive info" do
-      line = "/dev/sda1      750000000 250000000 /mnt/media"
-
-      assert {:ok, info} = Storage.parse_df_line(line)
-
-      assert info == %{
-               device: "sda1",
-               mount_point: "/mnt/media",
-               used_bytes: 750_000_000,
-               total_bytes: 1_000_000_000,
-               usage_percent: 75
-             }
-    end
-
-    test "extracts device basename from full device path" do
-      line = "/dev/nvme0n1p2  100000000 900000000 /home"
-
-      assert {:ok, info} = Storage.parse_df_line(line)
-      assert info.device == "nvme0n1p2"
-    end
-
-    test "handles device paths without /dev/ prefix" do
-      line = "tmpfs  500000 500000 /tmp"
-
-      assert {:ok, info} = Storage.parse_df_line(line)
-      assert info.device == "tmpfs"
-    end
-
-    test "calculates correct percentage for near-full disk" do
-      line = "/dev/sda1      950000000  50000000 /mnt/data"
-
-      assert {:ok, info} = Storage.parse_df_line(line)
-      assert info.usage_percent == 95
-    end
-
-    test "handles empty disk (0 used)" do
-      line = "/dev/sdb1              0 1000000000 /mnt/empty"
-
-      assert {:ok, info} = Storage.parse_df_line(line)
-      assert info.usage_percent == 0
-      assert info.used_bytes == 0
-      assert info.total_bytes == 1_000_000_000
-    end
-
-    test "returns error for malformed lines" do
-      assert :error = Storage.parse_df_line("")
-      assert :error = Storage.parse_df_line("not enough columns")
-      assert :error = Storage.parse_df_line("/dev/sda1 abc 123 /mnt")
-    end
-  end
+  # Parser tests for `df --output=...` output live with their owner
+  # at `MediaCentarr.Platform.DriveProbe.GnuDfTest.parse_line/1` —
+  # the GNU-output-format parser is Platform.* concern, not Storage's.
 
   describe "group_by_drive/1" do
     test "groups roles under the same mount point" do
