@@ -77,7 +77,11 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     ms = div(micros, 1000)
 
     if System.get_env("SMOKE_TIMINGS") == "1" do
-      IO.puts(:stderr, "SMOKE #{String.pad_trailing(path, 50)} #{ms}ms")
+      # `IO.write/2` rather than `IO.puts/2` — the credo `IoPuts` check
+      # nudges toward Logger, but Logger output in ExUnit is captured
+      # and suppressed, defeating the "tail this in a terminal" intent
+      # of the env-gated diagnostic. Stderr write is the right channel.
+      IO.write(:stderr, "SMOKE #{String.pad_trailing(path, 50)} #{ms}ms\n")
     end
 
     if ms > budget_ms do
