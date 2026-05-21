@@ -233,7 +233,12 @@
              grandfathered: [
                "lib/media_centarr/error_reports/env_metadata.ex"
              ]
-           ]}
+           ]},
+          # MC0018 blocks DB writes inside on_exit callbacks — they run in
+          # ExUnit.OnExitHandler without the test's sandbox ownership and
+          # race under concurrent-test load. See
+          # campaigns/test-isolation-hardening.md (Category A).
+          {MediaCentarr.Credo.Checks.NoDbInOnExit, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the
