@@ -102,12 +102,19 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
-      - name: Compile (warnings-as-errors)
+      # Compile deps first WITHOUT --warnings-as-errors. Hex deps (e.g.
+      # `toml`) use Elixir 1.19-deprecated single-quoted charlists; the
+      # Linux job dodges this via _build cache (one-time clean compile)
+      # but a fresh macOS runner hits the warnings on every CI run.
+      # Our policy is "zero warnings in app code", not "zero warnings
+      # transitively in hex deps".
+      - name: Compile deps
         env:
           MIX_OS_DEPS_COMPILE_PARTITION_COUNT: "8"
-        # `--include-children` so Boundary (which is registered as a
-        # compiler in mix.exs) runs after `mix compile`.
-        run: mix compile --warnings-as-errors
+        run: mix deps.compile
+
+      - name: Compile app (warnings-as-errors)
+        run: mix compile --warnings-as-errors --no-deps-check
 
       - name: Format check
         run: mix format --check-formatted
