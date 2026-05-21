@@ -20,10 +20,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`macos-platform-support.md`](macos-platform-support.md) — scoping
-  pass on shipping macOS as a first-class installable platform
-  without regressing Linux. Audit complete; ADR on packaging /
-  signing / paths / autostart is the next deliverable.
+* [`test-isolation-hardening.md`](test-isolation-hardening.md) —
+  CI on Linux flaps on a different pre-existing flake each push
+  (on_exit DB races, async-task ownership, mount-budget noise,
+  `:persistent_term` cross-test bleed). Six categories surveyed,
+  one already fixed (`ef386275`). Five remaining. This work
+  unblocks the macos-platform-support campaign's macOS Phase 5+.
+* [`macos-platform-support.md`](macos-platform-support.md) —
+  PAUSED at Phase 4 (CI matrix). macOS gate is green; Linux Phase
+  5+ resumes once test-isolation-hardening closes. Seven
+  Platform.* seams landed (Linux side complete).
 
 ## Archived
 
