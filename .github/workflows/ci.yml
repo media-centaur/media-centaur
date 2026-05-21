@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  test:
-    name: mix precommit
+  linux:
+    name: mix precommit (linux)
     runs-on: ubuntu-latest
 
     steps:
@@ -46,3 +46,70 @@ jobs:
 
       - name: Run precommit checks
         run: mix precommit
+
+  # macOS lint-and-compile gate. The full `mix test` suite expects the
+  # macOS Platform.* impls (Autostart.Launchd, DriveProbe.BsdDf,
+  # LogSource.Files) which land in a future campaign phase — until then
+  # running the Linux impls on macOS would fail by design. What we CAN
+  # validate today and care about:
+  #
+  #   * Code compiles natively on macOS (catches NIF-dep or file_system
+  #     mac_listener-style breakage before it ships).
+  #   * Every Credo check — including MC0017 PlatformBranchingDiscipline —
+  #     works cross-platform.
+  #   * Formatter is OS-agnostic.
+  #   * JS suite (input system, no Elixir touch) is OS-agnostic.
+  #
+  # This job extends to a full precommit once the macOS impls land in
+  # campaign Phase 5 — see campaigns/macos-platform-support.md.
+  macos:
+    name: lint + compile (macos)
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "28"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache deps
+        uses: actions/cache@v5
+        with:
+          path: deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Cache build
+        uses: actions/cache@v5
+        with:
+          path: _build
+          key: ${{ runner.os }}-build-${{ hashFiles('**/mix.lock') }}
+          restore-keys: ${{ runner.os }}-build-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile (warnings-as-errors)
+        env:
+          MIX_OS_DEPS_COMPILE_PARTITION_COUNT: "8"
+        run: mix compile --warnings-as-errors
+
+      - name: Format check
+        run: mix format --check-formatted
+
+      - name: Credo (incl. MC0017)
+        run: mix credo --strict
+
+      - name: Boundaries
+        run: mix boundaries
+
+      - name: JS tests
+        run: mix cmd bun test --dots assets/js/input/
