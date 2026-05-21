@@ -65,6 +65,11 @@ jobs:
   macos:
     name: lint + compile (macos)
     runs-on: macos-14
+    # MIX_ENV=test mirrors the Linux precommit (configured via
+    # preferred_envs: [precommit: :test] in mix.exs). Avoids pulling
+    # path-only dev deps like ex_code_view that don't exist on CI.
+    env:
+      MIX_ENV: test
 
     steps:
       - uses: actions/checkout@v6
@@ -100,6 +105,8 @@ jobs:
       - name: Compile (warnings-as-errors)
         env:
           MIX_OS_DEPS_COMPILE_PARTITION_COUNT: "8"
+        # `--include-children` so Boundary (which is registered as a
+        # compiler in mix.exs) runs after `mix compile`.
         run: mix compile --warnings-as-errors
 
       - name: Format check
