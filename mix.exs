@@ -18,7 +18,8 @@ defmodule MediaCentarr.MixProject do
           include_executables_for: [:unix],
           applications: [runtime_tools: :permanent],
           cookie: "media-centarr-local",
-          steps: [:assemble, :tar]
+          steps: [:assemble, :tar],
+          overlays: overlays_for_target()
         ]
       ],
       usage_rules: usage_rules()
@@ -45,6 +46,28 @@ defmodule MediaCentarr.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support", "credo_checks"]
   defp elixirc_paths(:dev), do: ["lib", "credo_checks"]
   defp elixirc_paths(_), do: ["lib"]
+
+  # Per-platform release overlays. `mix release` runs natively on each target
+  # OS (`priv/mac_listener` is a per-platform binary so macOS tarballs can't
+  # be cross-compiled from Linux), so `:os.type/0` at evaluation time is the
+  # build target. Shared overlay carries `defaults/media-centarr.toml`; the
+  # OS-specific overlay carries the autostart unit file + matching installer.
+  #
+  # Lives outside `rel/overlays/` because mix auto-prepends that directory to
+  # every release's overlays — having per-platform subtrees there would
+  # double-copy every file (once stripped via this list, once with the
+  # `linux/`/`darwin/` prefix from the auto-include).
+  defp overlays_for_target do
+    shared = "rel/platforms/shared"
+
+    per_os =
+      case :os.type() do
+        {:unix, :darwin} -> "rel/platforms/darwin"
+        {:unix, _} -> "rel/platforms/linux"
+      end
+
+    Enum.filter([shared, per_os], &File.dir?/1)
+  end
 
   # Specifies your project dependencies.
   #
