@@ -17,14 +17,18 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
   alias MediaCentarr.Config
 
   setup do
-    on_exit(fn ->
-      Config.update(:prowlarr_url, nil)
-      Config.update(:prowlarr_api_key, nil)
-      Config.update(:download_client_type, nil)
-      Config.update(:download_client_url, nil)
-      Config.update(:download_client_username, nil)
-      Config.update(:download_client_password, nil)
-    end)
+    # Reset Config keys at the START of each test (in the test process,
+    # while it owns its DB sandbox connection). The earlier on_exit
+    # cleanup ran in ExUnit.OnExitHandler — a different process without
+    # sandbox ownership — and was a flake under concurrent-test load.
+    # Resetting before each test instead of after the previous one
+    # produces the same hermetic effect with deterministic ownership.
+    Config.update(:prowlarr_url, nil)
+    Config.update(:prowlarr_api_key, nil)
+    Config.update(:download_client_type, nil)
+    Config.update(:download_client_url, nil)
+    Config.update(:download_client_username, nil)
+    Config.update(:download_client_password, nil)
 
     :ok
   end
