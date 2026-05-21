@@ -23,7 +23,7 @@ defmodule MediaCentarr.Platform do
   | `Platform.WatcherEvents`        | pure      | identity     | event remap |
   | `Platform.DriveProbe`           | behaviour | `GnuDf`      | `BsdDf`     |
   | `Platform.LogSource`            | behaviour | `Journal`    | `Files` *(future)* |
-  | `Platform.Autostart`            | behaviour | `Systemd`    | `Launchd` *(future)* |
+  | `Platform.Autostart`            | behaviour | `Systemd`    | `Launchd`   |
   | `Platform.ReleaseArtifact`      | pure      | `"linux-x86_64"` | `"darwin-arm64"` |
   | `Platform.Defaults`             | pure      | `/usr/bin/*` | `/opt/homebrew/bin/*` |
   | `Platform.DisplayEnv`           | pure      | Wayland/X11  | `{:ok, []}`  |
