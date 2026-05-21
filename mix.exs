@@ -125,14 +125,7 @@ defmodule MediaCentarr.MixProject do
         "phx.digest"
       ],
       precommit: [
-        # FIXME: should be `--warnings-as-errors` (plural) — see GH workflow
-        # `lint + compile (macos)` step which uses the correct form. Flipping
-        # this on Linux surfaced a tangle of pre-existing test-isolation
-        # flakes (DB-ownership races, no-db-on-render budget busts) under
-        # full-suite concurrent load. Restoring the typo to keep Linux CI
-        # stable until the flakes are diagnosed and fixed separately. The
-        # macOS gate (correct flag) catches new warnings in the meantime.
-        "compile --warning-as-errors",
+        "compile --warnings-as-errors",
         "deps.unlock --unused",
         "format",
         "credo --strict",
