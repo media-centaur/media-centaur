@@ -64,6 +64,7 @@ defmodule MediaCentarr.Watcher do
   alias MediaCentarr.Library
   alias MediaCentarr.Library.FilePresence
   alias MediaCentarr.Library.WatchedFile
+  alias MediaCentarr.Platform.WatcherEvents
   alias MediaCentarr.Watcher.DeletionBuffer
   alias MediaCentarr.Watcher.ExcludeDirs
   alias MediaCentarr.Watcher.MountStatus
@@ -192,21 +193,35 @@ defmodule MediaCentarr.Watcher do
   end
 
   def handle_info({:file_event, _pid, {path, events}}, state) do
+    # Translate backend-specific event atoms (inotify on Linux, FSEvents
+    # on macOS) into the Watcher's domain vocabulary. Without this,
+    # macOS deletes (`:removed`) and unmounts (`:unmount`) would slip
+    # past the pattern-match below and silently lose state.
+    domain_events = WatcherEvents.normalize(events)
+
     cond do
-      :unmounted in events ->
+      :unmounted in domain_events ->
         Log.warning(:watcher, "directory unmounted — #{state.dir}")
         broadcast_state(state.dir, :unavailable)
         {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
 
+      :scan_required in domain_events ->
+        # FSEvents advisory signals (dropped events, event-ID rollover,
+        # atomic renames) collapse to this — directory-level "go look"
+        # that bypasses the per-path interesting? filter.
+        Log.info(:watcher, "rescan-required signal — scheduling auto-scan for #{state.dir}")
+        send(self(), {:auto_scan, recovery: false})
+        {:noreply, state}
+
       not interesting?(path, state) ->
         {:noreply, state}
 
-      :created in events or :modified in events ->
+      :created in domain_events or :modified in domain_events ->
         Log.info(:watcher, "detected file event — #{Path.basename(path)}, checking size")
         send(self(), {:check_size, path, nil, 0})
         {:noreply, state}
 
-      :deleted in events ->
+      :deleted in domain_events ->
         {:noreply, buffer_deletion(state, path)}
 
       true ->

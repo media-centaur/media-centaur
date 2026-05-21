@@ -20,7 +20,10 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-_None._
+* [`macos-platform-support.md`](macos-platform-support.md) — scoping
+  pass on shipping macOS as a first-class installable platform
+  without regressing Linux. Audit complete; ADR on packaging /
+  signing / paths / autostart is the next deliverable.
 
 ## Archived
 

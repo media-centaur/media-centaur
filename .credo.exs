@@ -221,6 +221,18 @@
                  "priv/repo/migrations/20260515000000_repoint_collection_child_watched_files.exs"
                ]
              }
+           ]},
+          # MC0017 keeps OS-divergent code under `lib/media_centarr/platform/`.
+          # `:os.type/0` / `:os.cmd/1` outside that directory fail the build.
+          # The grandfathered list holds files with pre-existing calls scheduled
+          # for migration in later campaign phases — see
+          # `campaigns/macos-platform-support.md`. The list shrinks as each seam
+          # extracts to `Platform.*`; once empty, drop the option entirely.
+          {MediaCentarr.Credo.Checks.PlatformBranchingDiscipline,
+           [
+             grandfathered: [
+               "lib/media_centarr/error_reports/env_metadata.ex"
+             ]
            ]}
         ],
         disabled: [
