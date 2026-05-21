@@ -9,10 +9,27 @@ permissions:
   contents: write
 
 jobs:
+  # ────────────────────────────────────────────────────────────────────────
+  # Matrix: build the release tarball on each target OS natively.
+  #
+  # We CAN'T cross-compile: priv/mac_listener (a file_system dep) is a
+  # per-platform binary that Hex ships pre-compiled for the host OS.
+  # ubuntu-22.04 = older glibc → wider compatibility on user Linuxes.
+  # macos-14     = first GHA runner image on Apple Silicon arm64.
+  # ────────────────────────────────────────────────────────────────────────
   build:
-    name: Build Linux x86_64 release
-    # ubuntu-22.04 = older glibc → wider compatibility on user systems.
-    runs-on: ubuntu-22.04
+    name: Build ${{ matrix.platform_tag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform_tag: linux-x86_64
+            required_unit_path: share/systemd/media-centarr.service
+          - os: macos-14
+            platform_tag: darwin-arm64
+            required_unit_path: share/launchd/com.media-centarr.app.plist
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v6
@@ -82,10 +99,11 @@ jobs:
       - name: Build release tarball
         run: MIX_ENV=prod mix release --overwrite
 
-      - name: Stage release artifacts
+      - name: Stage release artifact
         id: stage
         run: |
           version="${{ steps.version.outputs.version }}"
+          platform="${{ matrix.platform_tag }}"
           src="_build/prod/media_centarr-${version}.tar.gz"
           if [ ! -f "$src" ]; then
             echo "::error::Expected tarball not found at $src"
@@ -93,19 +111,63 @@ jobs:
             exit 1
           fi
           mkdir -p artifacts
-          dest="artifacts/media-centarr-${version}-linux-x86_64.tar.gz"
+          dest="artifacts/media-centarr-${version}-${platform}.tar.gz"
           cp "$src" "$dest"
-          (cd artifacts && sha256sum "media-centarr-${version}-linux-x86_64.tar.gz" > SHA256SUMS)
           echo "tarball=$dest" >> "$GITHUB_OUTPUT"
 
-      - name: Smoke-test installer presence in tarball
+      - name: Smoke-test tarball contents
         run: |
-          tar -tzf "${{ steps.stage.outputs.tarball }}" | grep -q '^bin/media-centarr-install$' \
+          tarball="${{ steps.stage.outputs.tarball }}"
+          required_unit="${{ matrix.required_unit_path }}"
+          tar -tzf "$tarball" | grep -q '^bin/media-centarr-install$' \
             || (echo "::error::Tarball missing bin/media-centarr-install"; exit 1)
-          tar -tzf "${{ steps.stage.outputs.tarball }}" | grep -q '^share/systemd/media-centarr.service$' \
-            || (echo "::error::Tarball missing share/systemd/media-centarr.service"; exit 1)
-          tar -tzf "${{ steps.stage.outputs.tarball }}" | grep -q '^share/defaults/media-centarr.toml$' \
+          tar -tzf "$tarball" | grep -q '^bin/media_centarr$' \
+            || (echo "::error::Tarball missing bin/media_centarr"; exit 1)
+          tar -tzf "$tarball" | grep -q "^${required_unit}$" \
+            || (echo "::error::Tarball missing ${required_unit}"; exit 1)
+          tar -tzf "$tarball" | grep -q '^share/defaults/media-centarr.toml$' \
             || (echo "::error::Tarball missing share/defaults/media-centarr.toml"; exit 1)
+
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: tarball-${{ matrix.platform_tag }}
+          path: ${{ steps.stage.outputs.tarball }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Atomically publish all matrix-built tarballs to a single GitHub Release.
+  # Runs only after every matrix build succeeds — no half-published release.
+  # ────────────────────────────────────────────────────────────────────────
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          tag="${GITHUB_REF##*/}"
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Download all matrix tarballs
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          pattern: tarball-*
+          merge-multiple: true
+
+      - name: Generate consolidated SHA256SUMS
+        run: |
+          cd artifacts
+          sha256sum *.tar.gz > SHA256SUMS
+          echo "--- artifacts/ ---"
+          ls -la
 
       - name: Extract release notes from CHANGELOG
         run: |
@@ -124,7 +186,7 @@ jobs:
 
           if [ ! -s "$notes" ]; then
             cat > "$notes" <<EOF
-          Linux x86_64 release.
+          Cross-platform release: Linux x86_64 + macOS arm64.
 
           Install: see [docs/installation.md](https://github.com/${{ github.repository }}/blob/main/docs/installation.md)
           EOF
