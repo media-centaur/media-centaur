@@ -33,10 +33,12 @@ defmodule MediaCentarr.Acquisition do
       ViewModels.CurrentAction,
       ViewModels.DecisionCard,
       ViewModels.DownloadProgress,
+      ViewModels.NextStep,
       ViewModels.PursuitHeader,
       ViewModels.PursuitRow,
       ViewModels.PursuitStatus,
       ViewModels.PursuitWithDownload,
+      ViewModels.Recipe,
       ViewModels.Timeline,
       ViewModels.TimelineEntry
     ]

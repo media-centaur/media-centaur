@@ -125,7 +125,7 @@ defmodule MediaCentarr.MixProject do
         "phx.digest"
       ],
       precommit: [
-        "compile --warning-as-errors",
+        "compile --warnings-as-errors",
         "deps.unlock --unused",
         "format",
         "credo --strict",
