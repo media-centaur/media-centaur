@@ -23,7 +23,22 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 > **Alpha.** Functional for daily use but under active development. Expect rough edges and occasional breaking changes between releases.
 
 > [!NOTE]
-> **UI overhaul in progress (this week).** A complete pass over the visual design is shipping in small increments — every release this week is a noticeable step up for mouse-driven use, so updating now is worth it. Keyboard and gamepad navigation are paused while the UI settles and will resume next week; if you drive Media Centarr from the couch, hold off on updating, or update and accept that some focus rings and shortcut behaviour will be temporarily off.
+> **UI overhaul in progress.** A complete pass over the visual design is shipping page by page. Every page is fully operational throughout — we're raising the bar on craft, not gating anything behind the rebuild.
+>
+> | Page              | Status        |
+> | ----------------- | ------------- |
+> | Home              | **Done**      |
+> | Library           | In progress   |
+> | Release tracking  | In progress   |
+> | Acquisition       | In progress   |
+> | Dashboard         | In progress   |
+> | Review            | In progress   |
+> | Settings          | In progress   |
+
+> [!IMPORTANT]
+> **macOS support — experimental.** Media Centarr is being extended to run on macOS (Apple Silicon). The platform-architecture work is complete; runtime parity testing is ongoing. **Linux remains the only fully-supported platform today.**
+>
+> Even after the Mac build ships, expect an experimental period — we don't own Mac hardware, so the macOS path is Linux-developer-tested only. If you run it on macOS, please open a GitHub issue with `[macOS]` in the title so we can sharpen the experience from real-world reports.
 
 ---
 
