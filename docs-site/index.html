@@ -336,6 +336,138 @@
       </div>
     </section>
 
+    <!-- ================== STATUS STRIP ==================
+         Two cards: the in-progress UI overhaul and the
+         experimental macOS path. Both update over time as
+         pages ship / platform parity work lands.
+    -->
+    <section
+      aria-label="Current status"
+      class="border-y border-white/5 bg-ink-800/60"
+    >
+      <div class="mx-auto max-w-7xl px-6 py-12 sm:py-14">
+        <div class="grid gap-6 lg:grid-cols-2">
+          <!-- UI overhaul card -->
+          <article
+            class="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 sm:p-7"
+          >
+            <p
+              class="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.18em] text-amber-300"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+              UI overhaul in progress
+            </p>
+            <h3
+              class="display mt-3 text-2xl leading-tight text-parchment-100 sm:text-3xl"
+            >
+              A higher-quality interface, shipping page by page.
+            </h3>
+            <p class="mt-3 text-parchment-300">
+              Every page is fully operational throughout — we're raising the
+              bar on craft, not gating features behind the rebuild.
+            </p>
+            <ul
+              class="mt-5 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2"
+            >
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-parchment-200">Home</span>
+                <span
+                  class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300"
+                  >Done</span
+                >
+              </li>
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-parchment-200">Library</span>
+                <span
+                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
+                  >In progress</span
+                >
+              </li>
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-parchment-200">Release tracking</span>
+                <span
+                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
+                  >In progress</span
+                >
+              </li>
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-parchment-200">Acquisition</span>
+                <span
+                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
+                  >In progress</span
+                >
+              </li>
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-parchment-200">Dashboard</span>
+                <span
+                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
+                  >In progress</span
+                >
+              </li>
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-parchment-200">Review</span>
+                <span
+                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
+                  >In progress</span
+                >
+              </li>
+              <li class="flex items-center justify-between gap-3">
+                <span class="text-parchment-200">Settings</span>
+                <span
+                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
+                  >In progress</span
+                >
+              </li>
+            </ul>
+          </article>
+
+          <!-- macOS card -->
+          <article
+            class="rounded-2xl border border-arrow-500/30 bg-arrow-500/[0.05] p-6 sm:p-7"
+          >
+            <p
+              class="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.18em] text-arrow-500"
+            >
+              <span class="h-1.5 w-1.5 rounded-full bg-arrow-500"></span>
+              macOS support — experimental
+            </p>
+            <h3
+              class="display mt-3 text-2xl leading-tight text-parchment-100 sm:text-3xl"
+            >
+              Coming to Apple Silicon.
+            </h3>
+            <p class="mt-3 text-parchment-300">
+              <strong class="text-parchment-100"
+                >Linux is fully supported today.</strong
+              >
+              The macOS port is in active development — platform architecture
+              complete, runtime parity testing ongoing.
+            </p>
+            <p class="mt-3 text-parchment-300">
+              Even after the Mac build ships, expect an experimental period.
+              We don't own Mac hardware, so the macOS path is
+              Linux-developer-tested only. If you run it there, please open a
+              GitHub issue with
+              <code
+                class="rounded bg-white/10 px-1.5 py-0.5 text-[0.85em] text-parchment-100"
+                >[macOS]</code
+              >
+              in the title so we can sharpen the experience from real-world
+              reports.
+            </p>
+            <div class="mt-5">
+              <a
+                href="https://github.com/media-centarr/media-centarr/issues/new?labels=macos"
+                class="inline-flex items-center gap-2 rounded-md border border-white/15 px-3 py-1.5 text-sm font-medium text-parchment-100 hover:border-white/35 hover:bg-white/5"
+              >
+                File a macOS report →
+              </a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <main id="main">
       <!-- ================== WHAT IT DOES ================== -->
       <section id="what" class="scroll-mt-4 border-t border-white/5 bg-ink-800">
