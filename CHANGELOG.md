@@ -4,6 +4,23 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.71.2 — 2026-05-22
+
+### Fixed
+
+**Watch progress updates live again.** When you finish (or make progress
+on) an episode or movie, the detail screen now updates the progress bar
+and the watched checkmark right away — you no longer have to close the
+title and reopen it to see the new state.
+
+**Movie collections no longer crash the detail screen.** Opening a movie
+collection that contained a downloaded movie could crash its detail view.
+It now opens normally.
+
+**Playback tracking on files with many tracks.** Files carrying a lot of
+audio or subtitle tracks could trigger internal errors that interfered
+with playback tracking. These files are now handled correctly.
+
 ## v0.71.1 — 2026-05-22
 
 ### Improved
