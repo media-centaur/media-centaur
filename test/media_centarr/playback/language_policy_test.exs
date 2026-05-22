@@ -143,6 +143,97 @@ defmodule MediaCentarr.Playback.LanguagePolicyTest do
     end
   end
 
+  describe "from_form/1" do
+    test "parses comma-separated understood_languages, trims, normalizes" do
+      policy =
+        LanguagePolicy.from_form(%{
+          "understood_languages" => "en, spa ,  ja",
+          "audio_priority" => "original_first",
+          "subtitles_when" => "when_audio_not_understood",
+          "subtitles_language" => "understood",
+          "subtitles_variant" => "standard",
+          "forced_subs" => "fill_gaps"
+        })
+
+      assert policy.understood_languages == ["eng", "spa", "jpn"]
+    end
+
+    test "maps audio_priority preset 'original_first' to ordered list" do
+      policy = LanguagePolicy.from_form(form(%{"audio_priority" => "original_first"}))
+      assert policy.audio_priority == ["original", "understood", "any"]
+    end
+
+    test "maps audio_priority preset 'understood_first' (dub-preferrer)" do
+      policy = LanguagePolicy.from_form(form(%{"audio_priority" => "understood_first"}))
+      assert policy.audio_priority == ["understood", "original", "any"]
+    end
+
+    test "maps audio_priority preset 'any' to a single-element list" do
+      policy = LanguagePolicy.from_form(form(%{"audio_priority" => "any"}))
+      assert policy.audio_priority == ["any"]
+    end
+
+    test "passes through the subtitle enums verbatim" do
+      policy =
+        LanguagePolicy.from_form(
+          form(%{
+            "subtitles_when" => "always",
+            "subtitles_language" => "audio_language",
+            "subtitles_variant" => "sdh_preferred",
+            "forced_subs" => "never"
+          })
+        )
+
+      assert policy.subtitles_when == "always"
+      assert policy.subtitles_language == "audio_language"
+      assert policy.subtitles_variant == "sdh_preferred"
+      assert policy.forced_subs == "never"
+    end
+
+    test "empty understood_languages falls back to defaults" do
+      policy = LanguagePolicy.from_form(form(%{"understood_languages" => "  ,  "}))
+      assert policy.understood_languages == ["eng"]
+    end
+
+    test "round-trips through save/load" do
+      attrs = form(%{"understood_languages" => "en,fr", "subtitles_when" => "always"})
+      {:ok, _} = LanguagePolicy.save(LanguagePolicy.from_form(attrs))
+
+      reloaded = LanguagePolicy.load()
+      assert reloaded.understood_languages == ["eng", "fra"]
+      assert reloaded.subtitles_when == "always"
+    end
+
+    defp form(overrides) do
+      Map.merge(
+        %{
+          "understood_languages" => "eng",
+          "audio_priority" => "original_first",
+          "subtitles_when" => "when_audio_not_understood",
+          "subtitles_language" => "understood",
+          "subtitles_variant" => "standard",
+          "forced_subs" => "fill_gaps"
+        },
+        overrides
+      )
+    end
+  end
+
+  describe "audio_priority_preset/1" do
+    test "reverse-maps the policy's audio_priority list to a select value" do
+      assert LanguagePolicy.audio_priority_preset(%LanguagePolicy{
+               audio_priority: ["original", "understood", "any"]
+             }) == "original_first"
+
+      assert LanguagePolicy.audio_priority_preset(%LanguagePolicy{
+               audio_priority: ["understood", "original", "any"]
+             }) == "understood_first"
+
+      assert LanguagePolicy.audio_priority_preset(%LanguagePolicy{audio_priority: ["any"]}) ==
+               "any"
+    end
+  end
+
   describe "to_map/1 and default_map/0" do
     test "default_map/0 returns the string-keyed default shape" do
       assert LanguagePolicy.default_map() == %{

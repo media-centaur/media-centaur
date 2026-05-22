@@ -3,6 +3,8 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentarr.Playback.LanguagePolicy
+
   # The page's `ensure_loaded/1` defers its 15+ config / capability /
   # probe reads to a `Task.Supervisor` child that messages back via
   # `{:settings_loaded, _}` (per the "no blocking LV page loads" rule).
@@ -38,6 +40,42 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     test "section #{section} mounts without crashing", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/settings?section=#{unquote(section)}")
       assert is_binary(html)
+    end
+  end
+
+  describe "language & subtitle policy" do
+    test "submitting the form persists a normalized policy", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/settings?section=playback")
+
+      view
+      |> form("form[phx-submit=save_language_policy]", %{
+        "understood_languages" => "en, ja",
+        "audio_priority" => "understood_first",
+        "subtitles_when" => "always",
+        "subtitles_language" => "audio_language",
+        "subtitles_variant" => "sdh_preferred",
+        "forced_subs" => "never"
+      })
+      |> render_submit()
+
+      policy = LanguagePolicy.load()
+      assert policy.understood_languages == ["eng", "jpn"]
+      assert policy.audio_priority == ["understood", "original", "any"]
+      assert policy.subtitles_when == "always"
+      assert policy.subtitles_language == "audio_language"
+      assert policy.subtitles_variant == "sdh_preferred"
+      assert policy.forced_subs == "never"
+    end
+
+    test "the form reflects the persisted policy on load", %{conn: conn} do
+      {:ok, _} =
+        LanguagePolicy.save(%{
+          LanguagePolicy.defaults()
+          | understood_languages: ["spa", "fra"]
+        })
+
+      {:ok, _view, html} = live(conn, ~p"/settings?section=playback")
+      assert html =~ "spa, fra"
     end
   end
 
