@@ -193,15 +193,18 @@ defmodule MediaCentarr.Library.Progress.Worker do
 
   @impl true
   def handle_cast({:record, playable_item_id, position, duration}, state) do
-    # The public-API caller already wrote the row into the public ETS
-    # table before casting (see `Library.Progress.record/3`) for
-    # read-after-write semantics. We re-upsert here so direct callers
-    # (e.g. tests that bypass the public API to exercise the worker
-    # under a non-default table name) also end up with a row to flush.
-    # The write is idempotent — the latest position wins regardless of
-    # which path placed it.
+    # The public-API caller already wrote the latest row into the ETS
+    # table synchronously before casting (see `Library.Progress.record/3`)
+    # for read-after-write semantics. We only *fill a missing* row here,
+    # for direct callers that bypass the public write path (e.g. worker
+    # tests under a non-default table). We must NOT re-upsert a present
+    # row: this cast carries a snapshot from enqueue time, and under
+    # mailbox lag re-applying it would revert a newer synchronous write
+    # (the position would briefly go backwards via `get/1`). The flush
+    # reads the ETS hot value, not this snapshot, so persistence stays
+    # correct either way.
     now = DateTime.utc_now(:second)
-    upsert_in_memory(state.table, playable_item_id, position, duration, now, false)
+    fill_in_memory_if_absent(state.table, playable_item_id, position, duration, now, false)
 
     Events.broadcast(%ProgressTicked{
       playable_item_id: playable_item_id,
@@ -284,6 +287,13 @@ defmodule MediaCentarr.Library.Progress.Worker do
         @default_flush_interval_ms
       )
     )
+  end
+
+  defp fill_in_memory_if_absent(table, playable_item_id, position, duration, last_watched_at, completed?) do
+    case lookup_row(table, playable_item_id) do
+      nil -> upsert_in_memory(table, playable_item_id, position, duration, last_watched_at, completed?)
+      _present -> :ok
+    end
   end
 
   defp upsert_in_memory(table, playable_item_id, position, duration, last_watched_at, completed?) do

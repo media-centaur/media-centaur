@@ -96,6 +96,24 @@ defmodule MediaCentarr.Library.ProgressTest do
       assert %WatchProgress{position_seconds: 30.0} = Progress.get(pi.id)
     end
 
+    test "a stale/reordered worker cast does not revert a newer synchronous write" do
+      # Regression: `record/3` writes the hot value to ETS synchronously
+      # (read-after-write) and casts the worker to persist. Under mailbox
+      # lag the worker processed casts AFTER newer synchronous writes and
+      # re-upserted the ETS row from the *older* cast snapshot, briefly
+      # reverting `get/1` to a stale position (the Category-E flake). The
+      # worker must not clobber a row the public path already owns.
+      pi = seed_movie_playable_item()
+      :ok = Progress.record(pi.id, 30.0, 100.0)
+
+      # Inject an out-of-order (older) cast directly, as the worker would
+      # see one whose enqueue lagged behind a newer synchronous write.
+      :ok = GenServer.cast(Progress.Worker, {:record, pi.id, 10.0, 100.0})
+      :ok = GenServer.call(Progress.Worker, :sync)
+
+      assert %WatchProgress{position_seconds: 30.0} = Progress.get(pi.id)
+    end
+
     test "concurrent writes do not corrupt the record (any single recorded position survives)" do
       # NOTE: This test does NOT prove monotonicity under concurrent
       # writers. Production-safe monotonicity relies on the
