@@ -478,14 +478,27 @@ defmodule MediaCentarr.Playback.MpvSession do
 
   # --- Language / track override capture ---
 
+  # Recompute the resolver choice on *every* track-list update, not just
+  # the first. mpv populates tracks incrementally — audio frequently
+  # demuxes before subtitles — so the first non-empty list can be
+  # audio-only, which would otherwise freeze a wrong "no subs" baseline.
+  # track-list changes come only from mpv (initial load, external sub
+  # file); a user switching tracks fires `aid`/`sid`, never track-list,
+  # so recomputing here never clobbers a deliberate user selection.
   defp handle_track_list_update(state, raw_tracks) do
     {audio_tracks, subtitle_tracks} = LanguageContext.parse_track_list(raw_tracks)
     state = %{state | audio_tracks: audio_tracks, subtitle_tracks: subtitle_tracks}
 
-    if state.resolver_choice == nil and (audio_tracks != [] or subtitle_tracks != []) do
-      %{state | resolver_choice: compute_resolver_choice(state)}
-    else
+    if audio_tracks == [] and subtitle_tracks == [] do
       state
+    else
+      {new_choice, decision_log} = compute_resolver_choice(state)
+
+      if new_choice != state.resolver_choice do
+        Log.info(:playback, "track-resolver: " <> Enum.join(decision_log, " | "))
+      end
+
+      %{state | resolver_choice: new_choice}
     end
   end
 
@@ -501,13 +514,13 @@ defmodule MediaCentarr.Playback.MpvSession do
         ctx.original_language
       )
 
-    Log.info(:playback, "track-resolver: " <> Enum.join(result.decision_log, " | "))
-
-    %{
+    choice = %{
       audio_lang: result.audio_lang,
       sub_lang: result.sub_lang,
       sub_forced: result.sub_forced
     }
+
+    {choice, result.decision_log}
   end
 
   # No capture for unsupported entity types (extras, video objects) — skip
