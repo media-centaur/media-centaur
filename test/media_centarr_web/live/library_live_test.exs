@@ -163,8 +163,8 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       html = render(view)
       assert html =~ "Remembered tracks"
-      assert html =~ "jpn audio"
-      assert html =~ "eng subtitles"
+      assert html =~ "Japanese audio"
+      assert html =~ "English subtitles"
       assert html =~ "Reset to default"
     end
 
@@ -201,7 +201,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       html = render(view)
       assert html =~ "Remembered tracks"
-      assert html =~ "fra audio"
+      assert html =~ "French audio"
     end
 
     test "TrackOverrideChanged for a different entity is ignored", %{conn: conn, movie: movie} do

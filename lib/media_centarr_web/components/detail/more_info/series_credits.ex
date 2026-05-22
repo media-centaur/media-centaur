@@ -19,6 +19,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.SeriesCredits do
 
   use MediaCentarrWeb, :html
 
+  alias MediaCentarr.Playback.Iso639
   alias MediaCentarrWeb.Components.Detail.MoreInfo.People
 
   @tv_status_labels %{
@@ -61,7 +62,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.SeriesCredits do
           {"First aired", MediaCentarr.Format.iso_date(assigns.entity[:date_published])},
           {"Status", format_status(assigns.entity[:status])},
           {"Country", assigns.entity[:country_code]},
-          {"Language", assigns.entity[:original_language]}
+          {"Language", Iso639.display_name(assigns.entity[:original_language])}
         ],
         fn {_label, value} -> value in [nil, ""] end
       )
