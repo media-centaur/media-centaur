@@ -386,7 +386,11 @@ defmodule MediaCentarr.Playback.MpvSession do
         entity_id = session.entity_id
 
         Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          ProgressBroadcaster.broadcast(entity_id)
+          # Explicit nil: this is the end-of-playback summary refresh. The
+          # per-tick broadcast in persist_progress/1 already carried the
+          # changed playable_item_id, so there is no single record to
+          # report here.
+          ProgressBroadcaster.broadcast(entity_id, nil)
         end)
 
       # No progress tracking (shouldn't happen, but safe fallback)
