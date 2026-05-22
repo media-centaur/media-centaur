@@ -598,6 +598,19 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Fire-and-forget `discover_download_clients/0`. Runs the Prowlarr probe on
+  a supervised context-layer task (ADR-049: no web-layer `start_child`) and
+  sends `{:download_client_detect_result, result}` to `reply_to`.
+  """
+  def discover_download_clients_async(reply_to) do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      send(reply_to, {:download_client_detect_result, discover_download_clients()})
+    end)
+
+    :ok
+  end
+
+  @doc """
   Enqueues an automated acquisition for a TMDB target.
 
   Idempotent on the four-tuple `(tmdb_id, tmdb_type, season_number,
