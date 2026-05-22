@@ -152,6 +152,37 @@ defmodule MediaCentarr.Review do
   end
 
   @doc """
+  Fire-and-forget group approval. Runs the (file-moving) `approve_group/1`
+  on a supervised context-layer task — the approval must complete
+  regardless of the review LiveView's lifecycle (ADR-049: must-outlive
+  background work lives in the context, not a web-layer `start_child`).
+  Per-group results are broadcast on `Topics.review_updates/0`.
+  """
+  def approve_group_async(group_key, files) do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      {approved, errors} = approve_group(files)
+
+      if errors > 0 do
+        Phoenix.PubSub.broadcast(
+          MediaCentarr.PubSub,
+          Topics.review_updates(),
+          {:group_error, group_key, "#{errors} file(s) failed to approve"}
+        )
+      end
+
+      if approved > 0 do
+        Phoenix.PubSub.broadcast(
+          MediaCentarr.PubSub,
+          Topics.review_updates(),
+          {:group_approved, group_key, approved}
+        )
+      end
+    end)
+
+    :ok
+  end
+
+  @doc """
   Dismisses all files in a group.
   Returns `{dismissed_count, error_count}`.
   """

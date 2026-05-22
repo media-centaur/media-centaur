@@ -48,9 +48,7 @@ defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
   @grandfathered [
     "lib/media_centarr_web/live/acquisition_live.ex",
     "lib/media_centarr_web/live/entity_modal.ex",
-    "lib/media_centarr_web/live/review_live.ex",
-    "lib/media_centarr_web/live/settings_live.ex",
-    "lib/media_centarr_web/live/upcoming_live.ex"
+    "lib/media_centarr_web/live/settings_live.ex"
   ]
 
   @impl true
