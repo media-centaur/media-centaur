@@ -291,7 +291,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         })
 
       Library.mark_watch_completed!(progress)
-      ProgressBroadcaster.broadcast(movie.id)
+      ProgressBroadcaster.broadcast(movie.id, nil)
 
       assert render(view) =~ "Watch again"
     end

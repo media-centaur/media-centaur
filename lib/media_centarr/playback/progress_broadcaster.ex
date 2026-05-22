@@ -37,10 +37,14 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   in sync with the authoritative summary; without it the modal's
   in-memory merge no-ops and a per-episode badge never flips live.
 
-  Pass `nil` only when the caller truly has no single record to report
-  (e.g. a bulk recomputation).
+  The argument is **required** — there is deliberately no default. A
+  silent `nil` default is what let the playback path ship a payload with
+  `changed_record: nil`, defeating the modal's in-memory merge. Making it
+  required forces every caller to consciously state what changed; pass
+  `nil` explicitly only when there genuinely is no single record (e.g. a
+  bulk recomputation or an end-of-playback summary refresh).
   """
-  def broadcast(entity_id, changed \\ nil) do
+  def broadcast(entity_id, changed) do
     case resolve_entity_with_progress(entity_id) do
       {:ok, entity, progress_records} ->
         summary = MediaCentarr.Library.ProgressSummary.compute(entity, progress_records)

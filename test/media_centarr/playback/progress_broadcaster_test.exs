@@ -24,7 +24,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
 
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
 
-      ProgressBroadcaster.broadcast(tv_series.id)
+      ProgressBroadcaster.broadcast(tv_series.id, nil)
 
       assert_receive {:entity_progress_updated,
                       %{
@@ -84,7 +84,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
     end
 
     test "returns :ok for nonexistent entity" do
-      assert :ok == ProgressBroadcaster.broadcast(Ecto.UUID.generate())
+      assert :ok == ProgressBroadcaster.broadcast(Ecto.UUID.generate(), nil)
     end
 
     test "changed_record in payload carries :playable_item container info" do
@@ -238,7 +238,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
 
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
 
-      ProgressBroadcaster.broadcast(movie.id)
+      ProgressBroadcaster.broadcast(movie.id, nil)
 
       assert_receive {:entity_progress_updated,
                       %{

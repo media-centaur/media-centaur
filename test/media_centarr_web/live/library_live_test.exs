@@ -239,7 +239,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
         duration_seconds: 1000.0
       })
 
-      ProgressBroadcaster.broadcast(movie.id)
+      ProgressBroadcaster.broadcast(movie.id, nil)
 
       html = render(view)
       assert html =~ "progress-fill"
