@@ -62,23 +62,27 @@ defmodule MediaCentarr.DataCase do
     :persistent_term.put({MediaCentarr.Config, :config}, snapshot)
   end
 
-  # Waits for every `Task.Supervisor` child still running under
-  # `MediaCentarr.TaskSupervisor` to terminate. LiveView `start_async`
-  # calls + bare `Task.Supervisor.start_child` calls (e.g.
-  # `SettingsLive.start_async_settings_load`) outlive the test process
-  # by default; without this drain, those tasks hit the DB after the
-  # sandbox owner has terminated and raise `DBConnection.OwnershipError`,
+  # Terminates any `Task.Supervisor` child still running under
+  # `MediaCentarr.TaskSupervisor` at teardown, so it can't hit the DB
+  # after the sandbox owner is released (`DBConnection.OwnershipError`,
   # which Console.Handler then forwards into unrelated tests'
-  # `refute_receive` checks. See `campaigns/test-isolation-hardening.md`
-  # (Category B).
-  # Grace window for an orphaned task to finish its (fast, sub-ms on
-  # sqlite) DB work cleanly before the sandbox owner is released. Tasks
-  # that overrun the grace are blocked on something slow and non-DB —
-  # e.g. an HTTP retry backoff in a fire-and-forget Prowlarr search — and
-  # are killed rather than waited on. Waiting the full second per orphan
-  # is what turned the suite into an effective hang. The real cure is to
-  # own such async work so it can't orphan (ADR-049); until every call
-  # site is converted, this keeps teardown O(grace).
+  # `refute_receive` checks — see `campaigns/test-isolation-hardening.md`
+  # Category B).
+  #
+  # Each orphan gets a short grace window to finish its (fast, sub-ms on
+  # sqlite) DB work cleanly; one that overruns is blocked on something
+  # slow and non-DB — e.g. an HTTP retry backoff in a fire-and-forget
+  # search — and is killed rather than waited on. (Waiting the full
+  # second per orphan is what once turned the suite into an effective
+  # hang — see `campaigns/test-suite-performance.md`.)
+  #
+  # This is the permanent teardown safety net, not a temporary bridge.
+  # The web layer no longer spawns fire-and-forget tasks (ADR-049 /
+  # MC0019), but context-layer background work — searches, library
+  # maintenance, rescans (`Acquisition.run_search_one_async/1`,
+  # `Maintenance.*_async/1`, `Watcher.Supervisor.scan_async/0`, …) —
+  # legitimately runs under the global supervisor and can outlive a
+  # test. The drain bounds that to O(grace) per orphaned child.
   @task_drain_grace_ms 100
 
   defp drain_supervised_tasks do
