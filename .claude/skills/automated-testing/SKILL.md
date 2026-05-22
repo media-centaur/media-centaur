@@ -33,6 +33,38 @@ All non-trivial logic in LiveViews and function components must be extracted int
 - **Test with** `async: true` and `build_*` factory helpers — no database, no rendering.
 - **Examples:** `file_absent?(file_info)`, `episode_status(episode, progress)`, `progress_label(progress)`, `icon_for_state(state)`, `group_episodes_by_season(episodes)`.
 
+## Async Ownership & Suite Performance ([ADR-049])
+
+A well-managed suite is *fast because it is correct*, not fast because
+it cuts corners. Three rules, all enforced or load-bearing:
+
+**Async work is owned, never orphaned.** In the web layer, never spawn
+`Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)` — that
+task is owned by nobody, leaks past navigation, and orphans under the
+global supervisor in tests. Use `start_async/3` / `assign_async/3` for
+view loads (cancelled with the LiveView, awaitable in tests); use an
+Oban job or supervised service for work that must outlive the LiveView.
+Enforced by **MC0019** (`credo_checks/owned_async_in_web.ex`); its
+grandfather list is the rollout backlog.
+
+**Tests drive async to completion.** A test that mounts an async
+LiveView **awaits the result** before asserting — `render_async(view)`,
+or `assert_receive`, or a poll-with-deadline (`wait_until`). Never rely
+on `on_exit`/teardown to settle in-flight work, and never
+`Process.sleep` to "let it settle" (a poll-with-deadline on a
+deterministic predicate is fine; a fixed sleep is not).
+
+**Teardown is O(1).** `DataCase` terminates orphaned supervised tasks
+after a short grace rather than waiting on them. A 1000ms-per-orphan
+teardown drain once turned the whole suite into a multi-minute hang
+(see `campaigns/test-suite-performance.md`). If teardown is slow, the
+cause is unowned async — fix the seam, don't extend the wait.
+
+> **Why this matters:** flakiness and slowness in this codebase live
+> almost entirely in the LiveView layer (async + render timing). Pure
+> tests and synchronous DataCase tests are deterministic. When a test
+> flakes, suspect an un-awaited async assign first.
+
 ## What We Never Test
 
 - **GenServer internals** — no `:sys.get_state`, no direct `call/cast`. Test public API only. Thin wrappers around external systems (MpvSession, Watcher) are not worth mocking.
@@ -97,6 +129,41 @@ scripts/input-test --debug                            # headed browser, step thr
 scripts/input-test --trace on                         # capture trace for replay
 scripts/input-test --ui                               # Playwright UI mode
 ```
+
+### Diagnosing slowness & flakes
+
+```bash
+mix test --slowest 30                  # print the 30 slowest TESTS at the end
+mix test <file> --trace                # per-test wall time, serial (max_cases 1)
+mix test --repeat-until-failure 20     # flake hunt — re-run until one fails
+mix test --seed 0                      # deterministic order (reproduce a flake)
+mix test --timeout 8000 --max-failures 15   # turn hangs into fast, reported failures
+```
+
+**Per-test ms excludes `setup`/`on_exit`.** A test that reports `8ms`
+but leaves a ~1s gap before the next test is paying that second in
+**teardown** (the supervised-task drain waiting on an un-awaited async
+task) — not in the test body. `--trace` shows the per-test number; the
+gap between lines is the teardown. Chase the gap, not the number.
+
+**Gotchas that will waste your time:**
+
+- **`pkill -f 'mix test'` kills its own shell** — the command's own
+  cmdline contains the string `mix test`, so it matches and dies before
+  reaching the real command. To kill a real run, target a unique
+  substring (`pkill -f 'mix test --slowest'`) or check `fuser
+  priv/repo/media_centarr_test.db`.
+- **`mix test … | tail` shows nothing until the run ends** — `tail`
+  buffers to EOF, so you can't watch progress and a kill mid-run loses
+  all output. Redirect to a file (`> /tmp/out 2>&1`) and read that.
+- **`--trace` sets the per-test timeout to `:infinity`** — useless for
+  hunting hangs. Use a low `--timeout` *without* `--trace` so a hung
+  test fails fast with a stacktrace at the blocked line.
+- **A full run at idle CPU / load < 1 is *blocked*, not slow** — it's
+  waiting on timeouts/sleeps/IO, not computing. Look for `:timer.sleep`
+  in orphaned tasks (HTTP retry backoff is the classic), real network
+  calls that aren't stubbed for the calling process, or `refute_receive`
+  with long timeouts.
 
 ---
 
@@ -347,6 +414,7 @@ const msgs = filterDebugMessages(logs)   // filter for [input] prefix
 | [ADR-025] | Bulk operations: `return_errors?: true`, check `error_count`, `strategy: :stream` |
 | [ADR-026] | GenServer API encapsulation — test public functions, not message protocol |
 | [ADR-027] | Regression tests are append-only — never delete or weaken |
+| [ADR-049] | Testing principles — owned async, tests drive async, O(1) teardown, suite terminates within budget |
 
 [ADR-003]: decisions/architecture/2026-02-20-003-ash-as-exclusive-data-interface.md
 [ADR-012]: decisions/architecture/2026-02-27-012-engineering-standards.md
@@ -354,3 +422,4 @@ const msgs = filterDebugMessages(logs)   // filter for [input] prefix
 [ADR-025]: decisions/architecture/2026-03-07-025-ash-bulk-operation-safety.md
 [ADR-026]: decisions/architecture/2026-03-07-026-genserver-api-encapsulation.md
 [ADR-027]: decisions/architecture/2026-03-07-027-regression-tests-append-only.md
+[ADR-049]: decisions/architecture/2026-05-22-049-testing-principles.md
