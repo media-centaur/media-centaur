@@ -138,7 +138,7 @@ End-user docs live across three surfaces:
 |---|---|---|
 | README | `README.md` | GitHub visitors |
 | GitHub Pages | `docs-site/index.html` (auto-deployed via `.github/workflows/pages.yml`) | Marketing landing |
-| GitHub Wiki | `../media-centarr.wiki/` (jj-colocated, sibling repo) | Fleshed-out user docs |
+| GitHub Wiki | `../media-centarr.wiki/` (git, sibling repo) | Fleshed-out user docs |
 
 **Internal contributor docs** (`docs/`) stay in this repo. User-facing pages under `docs/` are pointer stubs to the wiki.
 
