@@ -42,16 +42,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Archived
 
-* [`done/test-suite-performance.md`](done/test-suite-performance.md) —
-  testing principles for a well-managed, high-performance suite
-  ([ADR-049](../decisions/architecture/2026-05-22-049-testing-principles.md)),
-  applied to fix a ~30s→non-terminating-hang regression. Root cause:
-  unowned LiveView `Task.Supervisor.start_child` orphans drained at
-  1000ms each in `on_exit`. Fixed via grace-then-terminate teardown +
-  a full owned-async rollout (8 LiveViews → `start_async`/context
-  `*_async`), enforced by `MC0019 OwnedAsyncInWeb` + a CI suite-time
-  gate, with the `automated-testing` skill carrying the playbook.
-  Shipped 2026-05-22.
 * [`done/component-contracts.md`](done/component-contracts.md) —
   every LiveView function component declares a typed contract for
   domain-data attrs (struct / Ecto schema / shared ViewModel, or
