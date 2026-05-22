@@ -10,13 +10,11 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   alias MediaCentarr.Secret
 
   # `AcquisitionLive.ensure_loaded/1` defers the initial reads (search
-  # session, capability flag, active pursuit rows, history rows) to a
-  # `Task.Supervisor` child that messages back via
-  # `{:acquisition_loaded, _}` (per the "no blocking LV page loads"
-  # rule). Tests asserting on populated state must wait for it.
+  # session, capability flag, active pursuit rows, history rows) to an
+  # owned `start_async(:acquisition_load, …)` (ADR-049). `render_async/1`
+  # awaits it deterministically — no wall-clock sleep.
   defp render_after_async_load(view) do
-    Process.sleep(100)
-    render(view)
+    render_async(view)
   end
 
   defp stub_prowlarr_with(results) do
