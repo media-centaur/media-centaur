@@ -57,6 +57,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   use Phoenix.Component
 
   require MediaCentarr.Log, as: Log
+  require Phoenix.LiveView
 
   alias MediaCentarr.{Format, Library, Playback, ReleaseTracking}
   alias MediaCentarr.Library.FileEventHandler
@@ -169,10 +170,9 @@ defmodule MediaCentarrWeb.Live.EntityModal do
             episode_number
           )
 
-        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          EntityModal.toggle_watch_progress(entity_id, fk_key, fk_id)
-        end)
-
+        # Local DB upsert + PubSub broadcast — fast, runs synchronously
+        # (ADR-044/049). The UI updates via the broadcast, not a return.
+        EntityModal.toggle_watch_progress(entity_id, fk_key, fk_id)
         {:noreply, socket}
       end
 
@@ -181,10 +181,7 @@ defmodule MediaCentarrWeb.Live.EntityModal do
             %{"extra-id" => extra_id, "entity-id" => entity_id},
             socket
           ) do
-        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          EntityModal.toggle_extra_watched(entity_id, extra_id)
-        end)
-
+        EntityModal.toggle_extra_watched(entity_id, extra_id)
         {:noreply, socket}
       end
 
@@ -192,9 +189,9 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
       def handle_event("rematch", %{"id" => entity_id}, socket) do
         if socket.assigns.rematch_confirm == entity_id do
-          Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-            MediaCentarr.Review.Rematch.rematch_entity(entity_id)
-          end)
+          # Just a PubSub broadcast — instant; the rematch work runs in the
+          # command handler. Synchronous (ADR-049).
+          MediaCentarr.Review.Rematch.rematch_entity(entity_id)
 
           {:noreply,
            socket
@@ -290,6 +287,16 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       def handle_event("delete_cancel", _params, socket) do
         {:noreply, assign(socket, delete_confirm: nil)}
       end
+
+      # Owned async (ADR-049): the modal's deferred file-info load runs via
+      # start_async/3 (see EntityModal.apply_modal_params/2). Result lands
+      # here and is applied only if the same entity is still selected.
+      @impl true
+      def handle_async({:detail_files, entity_id}, {:ok, files}, socket) do
+        {:noreply, MediaCentarrWeb.Live.EntityModal.apply_detail_files(socket, entity_id, files)}
+      end
+
+      def handle_async(_name, {:exit, _reason}, socket), do: {:noreply, socket}
     end
   end
 
@@ -403,14 +410,6 @@ defmodule MediaCentarrWeb.Live.EntityModal do
   # spawned in `apply_modal_params/2`. Drops the result if the modal
   # has since switched to a different entity (the inbound id no longer
   # matches the open selection). Re-applies only when still relevant.
-  def handle_modal_pubsub({:detail_files_loaded, entity_id, files}, socket) do
-    if socket.assigns[:selected_entity_id] == entity_id do
-      {:halt, Phoenix.Component.assign(socket, :detail_files, files)}
-    else
-      {:halt, socket}
-    end
-  end
-
   def handle_modal_pubsub(_msg, socket), do: {:cont, socket}
 
   defp tv_series_selected?(socket) do
@@ -539,25 +538,17 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
     # Files are loaded asynchronously so the modal can render immediately.
     # `load_entity_files/1` issues a `File.stat/1` per file; on a network
-    # mount or sleeping disk this stalls handle_params. Per the
-    # "no-blocking LV page loads" rule, kick off a supervised task and
-    # receive `{:detail_files_loaded, id, files}` once it's done.
+    # mount or sleeping disk this stalls handle_params. Per ADR-049, defer
+    # it to an owned start_async (kicked off below, after assign) whose
+    # result lands in `handle_async({:detail_files, id}, …)`.
+    should_load_files? =
+      detail_view == :info and selected_id != nil and
+        (selection_changed or socket.assigns.detail_files == [])
+
     detail_files =
-      cond do
-        selection_changed and detail_view == :info and selected_id != nil ->
-          spawn_files_load(selected_id)
-          []
-
-        selection_changed ->
-          []
-
-        detail_view == :info and socket.assigns.detail_files == [] and selected_id != nil ->
-          spawn_files_load(selected_id)
-          []
-
-        true ->
-          socket.assigns.detail_files
-      end
+      if selection_changed or should_load_files?,
+        do: [],
+        else: socket.assigns.detail_files
 
     tracking_status =
       cond do
@@ -580,15 +571,18 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       send(self(), {:autoplay, selected_id})
     end
 
-    Phoenix.Component.assign(socket,
-      selected_entity_id: selected_id,
-      selected_entry: selected_entry,
-      detail_presentation: if(selected_id, do: :modal),
-      detail_view: detail_view,
-      detail_files: detail_files,
-      expanded_seasons: expanded_seasons,
-      tracking_status: tracking_status
-    )
+    socket =
+      Phoenix.Component.assign(socket,
+        selected_entity_id: selected_id,
+        selected_entry: selected_entry,
+        detail_presentation: if(selected_id, do: :modal),
+        detail_view: detail_view,
+        detail_files: detail_files,
+        expanded_seasons: expanded_seasons,
+        tracking_status: tracking_status
+      )
+
+    if should_load_files?, do: start_async_files_load(socket, selected_id), else: socket
   end
 
   @doc """
@@ -839,17 +833,27 @@ defmodule MediaCentarrWeb.Live.EntityModal do
     |> Enum.reject(&is_nil/1)
   end
 
-  # Spawns the file-info load on a supervised task so handle_params
-  # returns immediately. The task replies via `{:detail_files_loaded,
-  # entity_id, files}` which the EntityModal hook applies — see
-  # `handle_modal_pubsub/2`.
-  defp spawn_files_load(entity_id) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      files = load_entity_files(entity_id)
-      send(parent, {:detail_files_loaded, entity_id, files})
+  # Owned async (ADR-049): the file-info load runs under the host LiveView
+  # via start_async/3 so handle_params returns immediately, the task is
+  # cancelled with the LiveView, and tests can await it. Result lands in
+  # the injected `handle_async({:detail_files, entity_id}, …)` clause,
+  # which calls `apply_detail_files/3`.
+  defp start_async_files_load(socket, entity_id) do
+    Phoenix.LiveView.start_async(socket, {:detail_files, entity_id}, fn ->
+      load_entity_files(entity_id)
     end)
+  end
+
+  @doc false
+  # Applies a deferred file-info load result, but only if the same entity is
+  # still selected — the user may have switched entities while the load was
+  # in flight.
+  def apply_detail_files(socket, entity_id, files) do
+    if socket.assigns[:selected_entity_id] == entity_id do
+      Phoenix.Component.assign(socket, :detail_files, files)
+    else
+      socket
+    end
   end
 
   @doc false
