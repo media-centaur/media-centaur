@@ -41,6 +41,11 @@ defmodule MediaCentarr.Downloads.QueueItem do
     :progress,
     :timeleft,
     :health,
+    # On-disk path the download lands at (qBittorrent's `content_path`):
+    # the file for a single-file torrent, the folder for a multi-file one.
+    # Captured onto the pursuit's Target so the lifecycle stage can be
+    # resolved by exact path against the review / library tables.
+    :content_path,
     # Memoised normalized title — computed once at construction so the
     # render-hot pairing in `QueueMatcher.match/2` reads `Map.get/2`
     # instead of running `String.downcase/1` + a regex over every queue
@@ -62,6 +67,7 @@ defmodule MediaCentarr.Downloads.QueueItem do
           progress: float() | nil,
           timeleft: String.t() | nil,
           health: MediaCentarr.Downloads.Health.status() | nil,
+          content_path: String.t() | nil,
           normalized_title: String.t() | nil
         }
 
@@ -83,6 +89,7 @@ defmodule MediaCentarr.Downloads.QueueItem do
       size_left: raw["amount_left"],
       progress: progress_from_qbittorrent(raw["progress"]),
       timeleft: format_eta(raw["eta"]),
+      content_path: blank_to_nil(raw["content_path"]),
       normalized_title: normalize_title(title)
     }
   end

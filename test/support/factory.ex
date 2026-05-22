@@ -989,7 +989,9 @@ defmodule MediaCentarr.TestFactory do
       :last_attempt_outcome,
       :cancelled_at,
       :cancelled_reason,
-      :prowlarr_guid
+      :prowlarr_guid,
+      :torrent_hash,
+      :content_path
     ]
 
     defaults = %{

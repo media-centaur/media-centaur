@@ -1213,6 +1213,20 @@ defmodule MediaCentarr.Library do
   end
 
   @doc """
+  Returns every on-disk file path currently linked to a `PlayableItem`
+  (i.e. present in the library).
+
+  Used by `Acquisition.Pursuits.LibraryReconciler` to satisfy
+  prowlarr-query pursuits, which carry no TMDB id to match on — the only
+  binding back to the library is the downloaded file's name, so the
+  reconciler matches the pursuit's release title against these basenames.
+  """
+  @spec list_present_file_paths() :: [String.t()]
+  def list_present_file_paths do
+    Repo.all(from(w in WatchedFile, select: w.file_path))
+  end
+
+  @doc """
   Returns `{tv_series_id, tmdb_id}` pairs for TV series in the given list
   that have a TMDB ExternalId row.
   """

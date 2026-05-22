@@ -28,6 +28,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   alias MediaCentarr.Downloads.QueueItem
   alias MediaCentarr.Downloads.QueueMonitor
   alias MediaCentarr.Repo
+  alias MediaCentarr.Review
 
   @spec get(Ecto.UUID.t()) :: {:ok, Pursuit.t()} | {:error, :not_found}
   def get(id) do
@@ -121,11 +122,25 @@ defmodule MediaCentarr.Acquisition.Pursuits do
       |> Enum.reject(&is_nil/1)
       |> fetch_targets_by_id()
 
+    pending_paths = Review.pending_file_paths()
+
     Enum.map(pursuits, fn pursuit ->
       target = Map.get(current_targets, pursuit.current_target_id)
-      build_row(pursuit, target)
+      build_row(pursuit, target, download_location(target, pending_paths))
     end)
   end
+
+  # Resolves the post-download lifecycle location of a target's file as a
+  # batched membership test (no per-pursuit query). `:in_review` when the
+  # captured `content_path` is sitting in the review queue, else `:none`.
+  # Library-landing isn't checked here — the reconciler satisfies a landed
+  # pursuit, so it leaves the active list rather than rendering a stage.
+  defp download_location(%Target{content_path: content_path}, pending_paths)
+       when is_binary(content_path) do
+    if MapSet.member?(pending_paths, content_path), do: :in_review, else: :none
+  end
+
+  defp download_location(_target, _pending_paths), do: :none
 
   defp states_for_filter(:active), do: State.in_flight()
   defp states_for_filter(:failed), do: ["exhausted"]
@@ -213,7 +228,8 @@ defmodule MediaCentarr.Acquisition.Pursuits do
   def status_from(%Pursuit{} = pursuit, queue_items \\ :persistent_term) do
     target = current_target(pursuit)
     queue_item = find_queue_match(target, queue_items)
-    {current_action, next_step, actions} = PursuitStatus.derive(pursuit, target, queue_item)
+    location = download_location(target, Review.pending_file_paths())
+    {current_action, next_step, actions} = PursuitStatus.derive(pursuit, target, queue_item, location)
     last_activity_at = latest_event_at(pursuit.id)
 
     %PursuitStatus{
@@ -381,7 +397,7 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     |> Map.new(fn target -> {target.id, target} end)
   end
 
-  defp build_row(%Pursuit{} = pursuit, target) do
+  defp build_row(%Pursuit{} = pursuit, target, location) do
     {release_title, target_status} =
       case target do
         %Target{release_title: rt, status: status} -> {rt, status_to_atom(status)}
@@ -391,8 +407,9 @@ defmodule MediaCentarr.Acquisition.Pursuits do
     # Status line for the index card. Queue-state-aware status takes
     # over at render time inside the row component when a download
     # footer is paired — derive here without a queue item so the row
-    # is independent of QueueMonitor cadence.
-    {status, _next_step, _actions} = PursuitStatus.derive(pursuit, target, nil)
+    # is independent of QueueMonitor cadence. `location` resolves the
+    # post-download stage when the torrent has left the client.
+    {status, _next_step, _actions} = PursuitStatus.derive(pursuit, target, nil, location)
 
     %PursuitRow{
       id: pursuit.id,

@@ -31,6 +31,30 @@ defmodule MediaCentarr.Downloads.QueueItemTest do
       assert item.timeleft == "30m"
     end
 
+    test "captures content_path from qBittorrent" do
+      item =
+        QueueItem.from_qbittorrent(%{
+          "hash" => "h",
+          "name" => "Some.Movie.2024-FGT",
+          "state" => "downloading",
+          "content_path" => "/downloads/Some.Movie.2024-FGT.mkv"
+        })
+
+      assert item.content_path == "/downloads/Some.Movie.2024-FGT.mkv"
+    end
+
+    test "content_path is nil when absent or blank" do
+      assert QueueItem.from_qbittorrent(%{"hash" => "h", "name" => "X", "state" => "downloading"}).content_path ==
+               nil
+
+      assert QueueItem.from_qbittorrent(%{
+               "hash" => "h",
+               "name" => "X",
+               "state" => "downloading",
+               "content_path" => ""
+             }).content_path == nil
+    end
+
     test "leaves :health nil — only QueueMonitor sets it (it's the only thing with history)" do
       item = QueueItem.from_qbittorrent(base_torrent(%{}))
       assert item.health == nil

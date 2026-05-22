@@ -1,7 +1,7 @@
 defmodule MediaCentarr.Acquisition.Pursuits.LibraryReconciler do
   @moduledoc """
-  Safety-net for active TMDB-recipe pursuits whose target file is
-  already in the library.
+  Safety-net that satisfies an active pursuit once the file it was
+  chasing has landed in the library.
 
   The primary completion path is the PubSub-driven chain:
 
@@ -12,22 +12,30 @@ defmodule MediaCentarr.Acquisition.Pursuits.LibraryReconciler do
   drops the message (supervisor restart between broadcast and Oban
   insert, listener crash before `dispatch/1` runs, etc.) the pursuit is
   orphaned indefinitely — active, with the file it was chasing already
-  on disk.
+  on disk. It is also keyed entirely on TMDB id, so it never fires for a
+  manual `prowlarr_query` grab.
 
-  This reconciler closes the gap. For every active pursuit with a TMDB
-  recipe, it queries the library by `(tmdb_id, season, episode)` for
-  TV or `tmdb_id` for movies. If the matching entity exists and its
-  `content_url` is set (file ingested), it dispatches `Commands.Satisfy`
-  directly — no title-matching is needed because the TMDB-id match is
-  authoritative (the library only sets `content_url` when the file was
-  parsed and matched to that TMDB id).
+  This reconciler closes both gaps. For every active pursuit it resolves
+  the landed file by trying, in order of authority:
 
-  Invoked by `Pursuits.Watcher` once per tick (15-min cron). Worst-case
-  satisfaction latency for the safety-net path is one tick; the primary
-  PubSub path remains the seconds-latency happy case.
+    1. **Content path** — the download's `content_path`, captured on the
+       `Target` by `DownloadIdentity`. The pipeline carries this path
+       unchanged into the library, so an exact (or under-directory) match
+       against the present `WatchedFile` paths is decisive and survives
+       the download client dropping the completed torrent.
+    2. **TMDB id** — for TMDB-recipe pursuits, `(tmdb_id[, season,
+       episode])` against the library. Authoritative; no title-matching.
+    3. **Release title** — the path-less fallback for `prowlarr_query`
+       pursuits (and any grab from before content paths were captured):
+       the normalized release title against present file basenames, the
+       same normalization `QueueMatcher` uses to pair a pursuit with its
+       live download. An exact normalized match only — a miss leaves the
+       pursuit active (safe; the user can cancel), where a false positive
+       would wrongly close a pursuit whose file isn't present.
 
-  Prowlarr-query (non-TMDB) pursuits are skipped — there's no library
-  binding to match against.
+  Invoked by `Pursuits.Watcher` once per tick. Worst-case satisfaction
+  latency for this safety-net is one tick; the primary PubSub path
+  remains the seconds-latency happy case for TMDB pursuits.
   """
 
   require MediaCentarr.Log, as: Log
@@ -35,35 +43,64 @@ defmodule MediaCentarr.Acquisition.Pursuits.LibraryReconciler do
   alias MediaCentarr.Acquisition.Pursuits
   alias MediaCentarr.Acquisition.Pursuits.Commands.Satisfy
   alias MediaCentarr.Acquisition.Pursuits.Pursuit
+  alias MediaCentarr.Acquisition.QueueMatcher
+  alias MediaCentarr.Acquisition.Target
   alias MediaCentarr.Library
 
   @spec reconcile_active() :: :ok
   def reconcile_active do
-    Pursuits.list_active()
-    |> Enum.filter(&(&1.recipe_type == "tmdb"))
-    |> Enum.each(&maybe_satisfy/1)
+    pairs = Pursuits.list_active_with_current_targets()
+    present_paths = Library.list_present_file_paths()
+    present_set = MapSet.new(present_paths)
+    basename_index = basename_index(present_paths)
+
+    Enum.each(pairs, fn {pursuit, target} ->
+      case landed_file(pursuit, target, present_set, basename_index) do
+        {:ok, path} -> satisfy(pursuit, path)
+        :not_found -> :ok
+      end
+    end)
+
+    :ok
   end
 
-  defp maybe_satisfy(%Pursuit{} = pursuit) do
-    case library_match(pursuit) do
-      {:ok, content_url} ->
-        Log.info(
-          :acquisition,
-          "library reconciler — file present, satisfying #{pursuit.title} (#{pursuit.id})"
-        )
+  defp satisfy(%Pursuit{} = pursuit, path) do
+    Log.info(
+      :acquisition,
+      "library reconciler — file present, satisfying #{pursuit.title} (#{pursuit.id})"
+    )
 
-        Satisfy.execute(%{
-          pursuit_id: pursuit.id,
-          final_target_id: pursuit.current_target_id,
-          final_release_title: Path.basename(content_url)
-        })
+    Satisfy.execute(%{
+      pursuit_id: pursuit.id,
+      final_target_id: pursuit.current_target_id,
+      final_release_title: Path.basename(path)
+    })
+  end
 
-      :not_found ->
-        :ok
+  defp landed_file(pursuit, target, present_set, basename_index) do
+    with :not_found <- content_path_match(target, present_set),
+         :not_found <- tmdb_match(pursuit) do
+      title_match(target, basename_index)
     end
   end
 
-  defp library_match(%Pursuit{
+  defp content_path_match(%Target{content_path: content_path}, present_set)
+       when is_binary(content_path) do
+    cond do
+      MapSet.member?(present_set, content_path) ->
+        {:ok, content_path}
+
+      under = Enum.find(present_set, &String.starts_with?(&1, content_path <> "/")) ->
+        {:ok, under}
+
+      true ->
+        :not_found
+    end
+  end
+
+  defp content_path_match(_target, _present_set), do: :not_found
+
+  defp tmdb_match(%Pursuit{
          tmdb_type: "tv",
          tmdb_id: tmdb_id,
          season_number: season,
@@ -73,9 +110,27 @@ defmodule MediaCentarr.Acquisition.Pursuits.LibraryReconciler do
     Library.find_present_episode(tmdb_id, season, episode)
   end
 
-  defp library_match(%Pursuit{tmdb_type: "movie", tmdb_id: tmdb_id}) when is_binary(tmdb_id) do
+  defp tmdb_match(%Pursuit{tmdb_type: "movie", tmdb_id: tmdb_id}) when is_binary(tmdb_id) do
     Library.find_present_movie(tmdb_id)
   end
 
-  defp library_match(_), do: :not_found
+  defp tmdb_match(_pursuit), do: :not_found
+
+  defp title_match(%Target{release_title: release_title}, basename_index)
+       when is_binary(release_title) do
+    case Map.get(basename_index, QueueMatcher.normalize_title(release_title)) do
+      nil -> :not_found
+      path -> {:ok, path}
+    end
+  end
+
+  defp title_match(_target, _basename_index), do: :not_found
+
+  # Maps each present file's normalized basename (extension stripped) to its
+  # path, so a pursuit's normalized release title is a single lookup.
+  defp basename_index(present_paths) do
+    Map.new(present_paths, fn path ->
+      {QueueMatcher.normalize_title(Path.rootname(Path.basename(path))), path}
+    end)
+  end
 end

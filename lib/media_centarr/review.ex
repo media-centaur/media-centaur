@@ -52,6 +52,21 @@ defmodule MediaCentarr.Review do
     )
   end
 
+  @doc """
+  Returns the set of file paths currently awaiting review (status
+  `:pending`). Used by `Acquisition` to resolve whether a pursuit's
+  downloaded file is sitting in the review queue, as a batched membership
+  test rather than a per-pursuit query.
+  """
+  @spec pending_file_paths() :: MapSet.t(String.t())
+  def pending_file_paths do
+    PendingFile
+    |> where([p], p.status == :pending)
+    |> select([p], p.file_path)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
   def create_pending_file(attrs) do
     Repo.insert(PendingFile.create_changeset(attrs))
   end
