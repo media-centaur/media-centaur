@@ -96,7 +96,13 @@ defmodule MediaCentarrWeb.LiveHelpers do
   URL for external images, or `nil` if no image exists for that role.
   """
   def image_url(entity, role) do
-    image = Enum.find(entity.images || [], &(&1.role == role))
+    # `Map.get/2`, not `entity.images`: some projection leaf shapes
+    # (e.g. `DetailItem.movie_entry_to_map/1` movie rows) omit the
+    # `:images` key entirely. Dot-access raises `KeyError` on a missing
+    # key — not the same as a `nil` value — which previously crashed the
+    # whole detail-panel render. A render helper must tolerate a missing
+    # optional key.
+    image = Enum.find(Map.get(entity, :images) || [], &(&1.role == role))
 
     if image && image.content_url do
       "/media-images/#{image.content_url}"

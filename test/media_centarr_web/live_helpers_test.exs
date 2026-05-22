@@ -24,6 +24,18 @@ defmodule MediaCentarrWeb.LiveHelpersTest do
       entity = %{images: nil}
       assert image_url(entity, "poster") == nil
     end
+
+    test "returns nil when the map has no :images key at all" do
+      # Regression: `DetailItem.movie_entry_to_map/1` emits movie rows
+      # for a movie_series with no `:images` key. `image_url/2`
+      # dot-accessed `entity.images`, which raises `KeyError` on a map
+      # missing the key (not just a nil value), crashing the entire
+      # detail-panel render (HomeLive) the moment a constituent movie
+      # row was shown. A render helper must tolerate a missing optional
+      # key, not take down the LiveView.
+      entity = %{id: "x", name: "Sample Movie", content_url: "y", present?: true}
+      assert image_url(entity, "poster") == nil
+    end
   end
 
   describe "time_ago/1" do

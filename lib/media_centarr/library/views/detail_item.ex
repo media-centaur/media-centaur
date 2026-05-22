@@ -506,7 +506,12 @@ defmodule MediaCentarr.Library.Views.DetailItem do
       date_published: entry.date_published,
       collection_position: entry.collection_position,
       content_url: entry.content_url,
-      present?: entry.present?
+      present?: entry.present?,
+      # Keep the leaf-map contract uniform with `episode_to_map/1` (which
+      # carries `:images`) so consumers like `LiveHelpers.image_url/2` can
+      # rely on the key existing. Per-movie poster rows aren't populated
+      # by the projection yet — see follow-up — so this is `[]` for now.
+      images: []
     }
   end
 end
