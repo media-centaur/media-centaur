@@ -238,7 +238,15 @@
           # ExUnit.OnExitHandler without the test's sandbox ownership and
           # race under concurrent-test load. See
           # campaigns/test-isolation-hardening.md (Category A).
-          {MediaCentarr.Credo.Checks.NoDbInOnExit, []}
+          {MediaCentarr.Credo.Checks.NoDbInOnExit, []},
+          # MC0019 bans fire-and-forget
+          # `Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)` in the
+          # web layer — orphaned tasks aren't owned by the LiveView, leak past
+          # navigation, and hung the test suite. Use start_async/3 (owned) or an
+          # Oban job for must-outlive work. The check's grandfather list is the
+          # owned-async rollout backlog. See ADR-049 /
+          # campaigns/test-suite-performance.md.
+          {MediaCentarr.Credo.Checks.OwnedAsyncInWeb, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the
