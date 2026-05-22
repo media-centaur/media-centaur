@@ -135,8 +135,106 @@ defmodule MediaCentarr.Acquisition.Pursuits.LibraryReconcilerTest do
     end
   end
 
+  describe "reconcile_active/0 — prowlarr_query pursuits" do
+    test "satisfies a prowlarr_query pursuit whose downloaded file is present in the library" do
+      # The grabbed release downloads to a file named after the release; the
+      # pipeline imports it (TMDB-matched), so the library file basename
+      # matches the pursuit's release title even though the pursuit has no
+      # tmdb_id of its own.
+      _movie =
+        create_movie(%{
+          name: "Sample Movie",
+          tmdb_id: "555",
+          content_url: "/library/Sample.Movie.2024.1080p.BluRay.x264-GRP.mkv"
+        })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          tmdb_id: nil,
+          tmdb_type: nil,
+          manual_query: "Sample Movie 2024",
+          title: "Sample.Movie.2024.1080p.BluRay.x264-GRP",
+          status: "acquired",
+          release_title: "Sample.Movie.2024.1080p.BluRay.x264-GRP"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+      assert Enum.any?(pursuit_events(pursuit.id), &(&1.kind == "pursuit_satisfied"))
+    end
+
+    test "leaves a prowlarr_query pursuit active when no library file matches its release" do
+      _movie =
+        create_movie(%{
+          name: "Other Movie",
+          tmdb_id: "999",
+          content_url: "/library/Other.Movie.2019.720p.WEB-DL-XYZ.mkv"
+        })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          tmdb_id: nil,
+          tmdb_type: nil,
+          manual_query: "Sample Movie 2024",
+          title: "Sample.Movie.2024.1080p.BluRay.x264-GRP",
+          status: "acquired",
+          release_title: "Sample.Movie.2024.1080p.BluRay.x264-GRP"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+      assert Repo.get!(Pursuit, pursuit.id).state == "active"
+    end
+  end
+
+  describe "reconcile_active/0 — content_path match" do
+    test "satisfies via the target's content_path even when title + tmdb don't match" do
+      _movie =
+        create_movie(%{
+          name: "Renamed Movie",
+          content_url: "/library/Renamed.Movie.Different.Name.mkv"
+        })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          tmdb_id: nil,
+          tmdb_type: nil,
+          title: "Original.Release.Name.2024-GRP",
+          release_title: "Original.Release.Name.2024-GRP",
+          content_path: "/library/Renamed.Movie.Different.Name.mkv"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+    end
+
+    test "satisfies when the content_path is a directory containing the present file" do
+      _movie =
+        create_movie(%{
+          name: "Folder Movie",
+          content_url: "/downloads/Folder.Movie.2024-GRP/Folder.Movie.2024-GRP.mkv"
+        })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          tmdb_id: nil,
+          tmdb_type: nil,
+          title: "Folder.Movie.2024-GRP",
+          release_title: "no-title-match",
+          content_path: "/downloads/Folder.Movie.2024-GRP"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+    end
+  end
+
   describe "reconcile_active/0 — scope" do
-    test "ignores prowlarr_query pursuits (no TMDB recipe to match against the library)" do
+    test "leaves a prowlarr_query pursuit active when it has no matched release to look up" do
       pursuit =
         insert_active_pursuit(%{
           recipe_type: "prowlarr_query",

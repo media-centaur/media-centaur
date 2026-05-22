@@ -263,18 +263,19 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
-            id: :no_match_stuck,
+            id: :downloaded_not_landed,
             description:
-              "Target acquired but the file never appeared in the download client — the v0.54 case.",
+              "Target acquired, torrent gone from the client, but no file has landed in the library or review queue yet.",
             attributes: %{
               vm:
                 row(:active, "Movie C",
                   release_title: "Movie.C.1080p",
                   target_status: :acquired,
                   status: %CurrentAction{
-                    verb: "Waiting",
-                    description: "Not visible in your download client.",
-                    severity: :warning
+                    verb: "Downloaded",
+                    description:
+                      "Finished downloading — no file has landed in your library or review queue yet.",
+                    severity: :info
                   }
                 )
             }

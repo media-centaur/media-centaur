@@ -56,6 +56,7 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
 
   @type action :: :cancel | :change_target | :request_decision
   @type staleness :: :fresh | :stale | :very_stale
+  @type location :: :in_review | :none
 
   @type t :: %__MODULE__{
           pursuit_id: Ecto.UUID.t(),
@@ -186,12 +187,13 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
   def derive(%Pursuit{state: "active"}, %Target{status: "acquired"}, _qi) do
     {
       %CurrentAction{
-        verb: "Waiting",
-        description: "Not visible in your download client.",
+        verb: "Downloaded",
+        description: "Finished downloading — no file has landed in your library or review queue yet.",
         severity: :info
       },
       %NextStep{
-        description: "Either it completed and is being matched, or it never reached the client."
+        description:
+          "It may still be importing or already be in your library; change target to grab a different release."
       },
       [:cancel, :change_target]
     }
@@ -208,6 +210,29 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
       []
     }
   end
+
+  @doc """
+  Location-aware variant. `location` distinguishes the post-download
+  lifecycle stage of an `acquired` target that's no longer in the queue:
+  `:in_review` (the file is sitting in the review queue) vs `:none`
+  (no matching file in review or library yet). For every other case the
+  location is irrelevant and this delegates to `derive/3`.
+  """
+  @spec derive(Pursuit.t(), Target.t() | nil, QueueItem.t() | nil, location()) ::
+          {CurrentAction.t(), NextStep.t() | nil, [action()]}
+  def derive(%Pursuit{state: "active"}, %Target{status: "acquired"}, nil, :in_review) do
+    {
+      %CurrentAction{
+        verb: "In review",
+        description: "Downloaded — waiting for you to approve the match in Review.",
+        severity: :info
+      },
+      %NextStep{description: "Approve it in the Review queue to finish importing."},
+      [:cancel]
+    }
+  end
+
+  def derive(pursuit, target, queue_item, _location), do: derive(pursuit, target, queue_item)
 
   # The seeking-state description tells the user what to expect next.
   # When the worker has scheduled a snooze (`next_attempt_at` is set),

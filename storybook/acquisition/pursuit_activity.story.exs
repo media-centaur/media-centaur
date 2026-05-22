@@ -167,17 +167,19 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
         }
       },
       %Variation{
-        id: :waiting_for_file,
+        id: :downloaded_not_landed,
         attributes: %{
           vm:
             base(
               current_action: %CurrentAction{
-                verb: "Waiting",
-                description: "Not visible in your download client.",
+                verb: "Downloaded",
+                description:
+                  "Finished downloading — no file has landed in your library or review queue yet.",
                 severity: :info
               },
               next_step: %NextStep{
-                description: "Either it completed and is being matched, or it never reached the client."
+                description:
+                  "It may still be importing or already be in your library; change target to grab a different release."
               },
               available_actions: [:cancel, :change_target],
               staleness: :very_stale,
@@ -185,6 +187,26 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
             ),
           on_cancel: "noop",
           on_change_target: "noop"
+        }
+      },
+      %Variation{
+        id: :in_review,
+        attributes: %{
+          vm:
+            base(
+              current_action: %CurrentAction{
+                verb: "In review",
+                description: "Downloaded — waiting for you to approve the match in Review.",
+                severity: :info
+              },
+              next_step: %NextStep{
+                description: "Approve it in the Review queue to finish importing."
+              },
+              available_actions: [:cancel],
+              staleness: :stale,
+              last_activity_at: DateTime.add(DateTime.utc_now(:second), -6 * 3600, :second)
+            ),
+          on_cancel: "noop"
         }
       },
       %Variation{

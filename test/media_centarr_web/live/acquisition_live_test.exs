@@ -817,10 +817,10 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       html = render(view)
       assert html =~ "Other downloads"
       assert html =~ ~s|id="orphan-hash-orphan"|
-      # The pursuit card surfaces `PursuitStatus.derive/3`'s `CurrentAction`
-      # as the status line when no torrent is matched — the "acquired but
-      # invisible in client" case is the v0.54 detail-page fix.
-      assert html =~ "Waiting — Not visible in your download client."
+      # The pursuit card surfaces `PursuitStatus.derive`'s `CurrentAction`
+      # as the status line when no torrent is matched — the acquired-but-
+      # not-yet-landed case now reads as the post-download lifecycle stage.
+      assert html =~ "Downloaded"
     end
 
     test "TV pursuits render an SxxExx suffix in the card title", %{conn: conn} do

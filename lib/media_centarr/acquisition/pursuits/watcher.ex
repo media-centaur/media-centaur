@@ -21,7 +21,14 @@ defmodule MediaCentarr.Acquisition.Pursuits.Watcher do
   require MediaCentarr.Log, as: Log
 
   alias MediaCentarr.Acquisition.Pursuits
-  alias MediaCentarr.Acquisition.Pursuits.{LibraryReconciler, Observations, Policy, Snapshots}
+
+  alias MediaCentarr.Acquisition.Pursuits.{
+    DownloadIdentity,
+    LibraryReconciler,
+    Observations,
+    Policy,
+    Snapshots
+  }
 
   alias MediaCentarr.Acquisition.Pursuits.Commands.{
     AutoCancel,
@@ -47,6 +54,10 @@ defmodule MediaCentarr.Acquisition.Pursuits.Watcher do
     Enum.each(pursuit_target_pairs, fn {pursuit, current_target} ->
       release_title = Map.get(release_titles, pursuit.id)
       refreshed = Observations.refresh!(pursuit, queue, now, release_title)
+
+      # First-observation capture of the download's durable file link onto
+      # the current target (write-once); later resolves the lifecycle stage.
+      DownloadIdentity.capture!(current_target, queue, release_title)
 
       refreshed
       |> Snapshots.build(queue, current_target)

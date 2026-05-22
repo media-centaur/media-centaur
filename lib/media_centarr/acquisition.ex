@@ -5,6 +5,7 @@ defmodule MediaCentarr.Acquisition do
       MediaCentarr.Downloads,
       MediaCentarr.Library,
       MediaCentarr.ReleaseTracking,
+      MediaCentarr.Review,
       MediaCentarr.Search,
       MediaCentarr.Settings
     ],

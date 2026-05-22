@@ -77,11 +77,40 @@ defmodule MediaCentarr.Acquisition.Target do
     field :origin, :string, default: "auto"
     field :prowlarr_guid, :string
     field :release_title, :string
+    # Durable link to the download's file, captured on first observation of
+    # the torrent in the queue. `torrent_hash` is qBittorrent's infohash;
+    # `content_path` is the on-disk path the download lands at — which the
+    # pipeline carries unchanged into review and the library, so it's an
+    # exact key for resolving the pursuit's lifecycle stage even after the
+    # client drops the completed torrent.
+    field :torrent_hash, :string
+    field :content_path, :string
 
     timestamps()
   end
 
   @type t :: %__MODULE__{}
+
+  @doc """
+  Records the download's stable identity (`torrent_hash`, `content_path`)
+  on first observation. Write-once: an already-captured value is never
+  overwritten, so a later snapshot (e.g. the torrent reappearing under a
+  changed content path mid-move) can't clobber the original landing path.
+  """
+  @spec record_download_changeset(t(), %{
+          optional(:torrent_hash) => String.t() | nil,
+          optional(:content_path) => String.t() | nil
+        }) ::
+          Ecto.Changeset.t()
+  def record_download_changeset(%__MODULE__{} = target, attrs) do
+    target
+    |> cast(attrs, [:torrent_hash, :content_path])
+    |> keep_existing(:torrent_hash, target.torrent_hash)
+    |> keep_existing(:content_path, target.content_path)
+  end
+
+  defp keep_existing(changeset, _field, nil), do: changeset
+  defp keep_existing(changeset, field, existing), do: force_change(changeset, field, existing)
 
   @doc "Builds a new target in `seeking` status for a pursuit."
   def create_changeset(attrs) do

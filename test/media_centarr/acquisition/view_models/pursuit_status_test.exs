@@ -132,11 +132,38 @@ defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatusTest do
       assert :change_target in actions
     end
 
-    test "no queue match -> Waiting with change_target hint" do
+    test "no queue match -> Downloaded with change_target hint" do
       {action, _next, actions} = PursuitStatus.derive(pursuit(:active), target(:acquired), nil)
 
-      assert action.verb == "Waiting"
+      assert action.verb == "Downloaded"
       assert :change_target in actions
+    end
+  end
+
+  describe "derive/4 — location-aware post-download stage" do
+    test "acquired + no queue + :in_review -> In review (no change_target)" do
+      {action, next, actions} =
+        PursuitStatus.derive(pursuit(:active), target(:acquired), nil, :in_review)
+
+      assert action.verb == "In review"
+      assert action.severity == :info
+      assert next.description =~ "Review"
+      assert actions == [:cancel]
+    end
+
+    test "acquired + no queue + :none -> Downloaded (delegates to derive/3)" do
+      {action, _next, actions} =
+        PursuitStatus.derive(pursuit(:active), target(:acquired), nil, :none)
+
+      assert action.verb == "Downloaded"
+      assert :change_target in actions
+    end
+
+    test "location is ignored once a queue item is present" do
+      {action, _next, _actions} =
+        PursuitStatus.derive(pursuit(:active), target(:acquired), queue_item(:downloading), :in_review)
+
+      assert action.verb == "Downloading"
     end
   end
 

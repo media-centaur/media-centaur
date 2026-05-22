@@ -39,6 +39,13 @@ Use [`template.md`](template.md) as a starter.
   hardened ([ADR-048](../decisions/architecture/2026-05-22-048-canonical-language-codes-at-boundary.md)).
   Remaining: entity-detail override badge + reset (traced), and live
   validation of the capture round-trip.
+* [`pursuit-lifecycle-tracking.md`](pursuit-lifecycle-tracking.md) —
+  track a pursuit's file through *downloaded → in review → landed in
+  library*; satisfy only at library-landing, surface the real stage
+  otherwise (fixes orphaned `prowlarr_query` grabs stuck on "not
+  visible in your download client"). Design approved 2026-05-22; Phase 1
+  built + held; Phase 2 (persist torrent hash + content path on Target)
+  next.
 
 ## Archived
 
