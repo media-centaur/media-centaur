@@ -144,6 +144,47 @@ defmodule MediaCentarr.Playback.ProgressBroadcasterTest do
       assert changed_record.playable_item.container_type == :episode
       assert changed_record.playable_item.container_id == episode.id
     end
+
+    test "accepts a playable_item_id (the MpvSession playback path) and threads the record" do
+      # Regression: the playback path (`MediaCentarr.Playback.MpvSession`)
+      # knows the *playable item* that ticked, not a `%WatchProgress{}`
+      # struct, so it called `broadcast/1` with no changed record. The
+      # payload arrived with `changed_record: nil`, the detail modal's
+      # in-memory merge no-op'd (`merge_progress_record(records, nil)`),
+      # and the per-episode watched badge never flipped live — only a
+      # full remount showed the new state. The broadcaster must accept a
+      # `playable_item_id` and resolve it to the freshly-loaded record
+      # (with synthesised `:playable_item`) the same way the struct form
+      # does.
+      tv_series = create_entity(%{type: :tv_series, name: "Playback Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/show/s01e01.mkv"
+        })
+
+      record =
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 600.0,
+          duration_seconds: 2400.0
+        })
+
+      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
+
+      ProgressBroadcaster.broadcast(tv_series.id, record.playable_item_id)
+
+      assert_receive {:entity_progress_updated, %{changed_record: changed_record}}
+
+      assert changed_record
+      assert changed_record.playable_item_id == record.playable_item_id
+      assert changed_record.playable_item.container_type == :episode
+      assert changed_record.playable_item.container_id == episode.id
+    end
   end
 
   describe "stale-read window — broadcast must reflect in-memory progress" do

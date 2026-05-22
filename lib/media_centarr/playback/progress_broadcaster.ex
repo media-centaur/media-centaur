@@ -19,13 +19,28 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
   @doc """
   Loads entity progress and broadcasts an `:entity_progress_updated` message.
 
-  `changed_record` is the specific `WatchProgress` record whose change triggered
-  this broadcast. Subscribers (LiveViews) use it to keep their in-memory
-  per-entity progress_records list in sync with the authoritative summary.
-  Pass `nil` only when the caller truly has no single record to report (e.g.
-  a bulk recomputation).
+  `changed` identifies the `WatchProgress` whose change triggered this
+  broadcast, in either of two forms:
+
+    * a `%WatchProgress{}` struct — the modal toggle path
+      (`EntityModal.toggle_watch_progress/3`), which already holds the
+      record;
+    * a `playable_item_id` binary — the playback path
+      (`MediaCentarr.Playback.MpvSession`), which knows the item that
+      ticked but not a struct.
+
+  Both resolve, by `playable_item_id`, to the freshly-loaded record from
+  `progress_records` — the version that carries the synthesised
+  `:playable_item` subscribers need to key by container id
+  (`EpisodeList.progress_container_id/1`). Subscribers (LiveViews) use
+  the result to keep their in-memory per-entity `progress_records` list
+  in sync with the authoritative summary; without it the modal's
+  in-memory merge no-ops and a per-episode badge never flips live.
+
+  Pass `nil` only when the caller truly has no single record to report
+  (e.g. a bulk recomputation).
   """
-  def broadcast(entity_id, changed_record \\ nil) do
+  def broadcast(entity_id, changed \\ nil) do
     case resolve_entity_with_progress(entity_id) do
       {:ok, entity, progress_records} ->
         summary = MediaCentarr.Library.ProgressSummary.compute(entity, progress_records)
@@ -37,7 +52,7 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
           entity_id: entity_id,
           summary: summary,
           resume_target: resume_target,
-          changed_record: enrich_changed_record(changed_record, progress_records),
+          changed_record: select_changed_record(progress_records, changed),
           last_activity_at: DateTime.utc_now()
         })
 
@@ -46,23 +61,28 @@ defmodule MediaCentarr.Playback.ProgressBroadcaster do
     end
   end
 
-  # Substitute the caller's raw `changed_record` with the matching record
-  # from the freshly loaded `progress_records` list. The DB-loaded version
-  # carries the synthesised `:playable_item` (via
-  # `EntityShape.extract_progress/2`) that subscribers need to key by
-  # container id (`EpisodeList.progress_container_id/1`). The caller's
-  # record — what `Library.fetch_watch_progress_by_fk/2` and
-  # `mark_watch_completed!/1` return — has `:playable_item` as
-  # `%Ecto.Association.NotLoaded{}`, which would silently drop the
-  # record out of the modal's in-memory merge.
-  defp enrich_changed_record(nil, _records), do: nil
+  # Resolve the caller's `changed` hint to the matching record from the
+  # freshly loaded `progress_records` list, keyed by the stable
+  # `playable_item_id` (the unique identity since Library Schema v2 Phase
+  # 2 Task C). The list version carries the synthesised `:playable_item`
+  # subscribers key by container id; the caller's own record — whether a
+  # raw `Library.fetch_watch_progress_by_fk/2` result with
+  # `:playable_item` as `%Ecto.Association.NotLoaded{}`, or an in-memory
+  # row from `Library.Progress.get/1` with `id: nil` — is unsuitable to
+  # pass through directly, which is why we substitute rather than echo.
+  # Returns `nil` when no single record is implicated, or when the
+  # implicated row isn't in the list yet (e.g. a brand-new item whose
+  # first persisted row hasn't landed).
+  defp select_changed_record(_records, nil), do: nil
 
-  defp enrich_changed_record(changed_record, records) do
-    case Enum.find(records, &(&1.id == changed_record.id)) do
-      nil -> changed_record
-      enriched -> enriched
-    end
-  end
+  defp select_changed_record(records, %{playable_item_id: playable_item_id}),
+    do: find_by_playable_item_id(records, playable_item_id)
+
+  defp select_changed_record(records, playable_item_id) when is_binary(playable_item_id),
+    do: find_by_playable_item_id(records, playable_item_id)
+
+  defp find_by_playable_item_id(records, playable_item_id),
+    do: Enum.find(records, &(&1.playable_item_id == playable_item_id))
 
   # Resolves the entity via the Library Detail ETS projection (ADR-041)
   # instead of `TypeResolver.resolve_container` + a full preload tree.
