@@ -1,5 +1,5 @@
 ---
-status: active
+status: shipped
 started: 2026-05-21
 last_updated: 2026-05-22
 ---
@@ -19,11 +19,14 @@ dub-preferrers, language learners) can configure it for themselves.
 
 ## Status
 
-Backend + Settings UI shipped and on `main`. Feature works end-to-end:
-policy is configurable in Settings → Playback, applied at mpv launch,
-overrides capture on playback and apply next time. **Remaining:** the
-entity-detail override badge + reset (task #7, fully traced below) and
-live validation of the override-capture round-trip in real playback.
+**Complete.** Policy configurable in Settings → Playback, applied at
+mpv launch; overrides capture mid-playback and apply next time;
+entity-detail **Remembered tracks** badge + **Reset to default** shipped
+in the *More info* panel, with live refresh on `TrackOverrideChanged`.
+Round-trip covered by an integration test
+(`track_override_round_trip_test.exs`) plus the manual real-playback
+procedure below. Wiki (Playback + Settings-Reference) and CHANGELOG
+updated. Closing items bucketed under *Completion criteria*.
 
 ## Decisions made
 
@@ -72,36 +75,51 @@ live validation of the override-capture round-trip in real playback.
 * Resolver baseline computed on an audio-only track-list (incremental
   demux) → now recomputes on every track-list update. (commit `ca45a3bc`)
 
-## Next steps
+## How it shipped (final session)
 
-1. **Validate override-capture round-trip in real playback** (cheap, do
-   first): play a foreign film (e.g. Pulse, movie id
-   `9f9e75f0-40f3-49bc-a502-895a7ced52d8`), press `#` to switch audio
-   mid-playback, wait ~4s for the `captured track override` log line,
-   quit, replay — confirm it launches with the captured track. Inspect
-   via `Library.get_media_track_override(:movie, id)`.
-2. **Task #7 — entity-detail override badge + reset.** Traced plan:
-   * Entity map (`Library.Views.DetailItem.to_entity_map/1`) already
-     carries `:id` + `:type` → owner_type = type when ∈ {movie,
-     tv_series}, owner_id = id.
-   * `EntityModal.refresh_selected_entry/1`
-     (lib/media_centarr_web/live/entity_modal.ex:602): after
-     `put_resume_target`, merge `track_override` into `entry.entity`
-     via `Library.get_media_track_override/2` (movie/tv_series only).
-   * Render "Tracks: jpn audio · eng subs · [Reset to default]" in
-     `MoreInfoPanel` (lib/media_centarr_web/components/detail/more_info_panel.ex)
-     gated on `entity[:track_override]` — **add a storybook variation**
-     (MC0009 tax).
-   * Add `reset_track_override` handler to EntityModal injected events →
-     `Library.clear_media_track_override/2` + refresh.
-   * Optionally subscribe to `TrackOverrideChanged` on `playback:events`
-     for live refresh.
-   * Tests: EntityModal reset flow + render assertion.
-3. **Wiki update** — document the Settings → Playback → Language &
-   Subtitles controls in the user-facing wiki (Settings-Reference.md).
-4. **CHANGELOG entry** for the next release once task #7 lands.
+* **Decorator seam over the two construction paths.** Both modal-entry
+  builders funnel through `DetailItem.to_entity_map/1` (pure, no DB), so
+  the override fetch lives in one context decorator
+  `Library.put_track_override/1`, applied after `to_entity_map` in
+  `build_modal_entry/3` (movies + every refresh) **and**
+  `SeriesDetail.compose_from_detail/2` (TV-series initial open). Chosen
+  over the originally-traced "merge in `refresh_selected_entry`" because
+  that only covered refresh, not initial open. DB reads stay in the
+  context.
+* **Badge** = `MoreInfoPanel.track_override_summary/1` (pure, unit-tested)
+  + a private `track_override_badge` render gated on
+  `entity[:track_override]`, between the meta block and external links.
+  Languages shown as raw ISO codes (`jpn audio · eng subtitles`) to
+  match the *Language* meta line directly above — friendly names were
+  rejected as inconsistent (would need to upgrade the meta line too;
+  deferred). Three storybook variations (audio+subs, subs-off, forced).
+* **Reset** = macro-injected `handle_event("reset_track_override")` →
+  `EntityModal.reset_track_override/1` (clear + surgical
+  `put_entry_track_override/2` merge — no reload, so a `%SeriesDetail{}`
+  entry keeps its typed seasons).
+* **Live refresh** = `handle_modal_pubsub({:track_override_changed,
+  %{owner_type, owner_id}}, …)` matched structurally (the Events struct
+  isn't exported across the Playback boundary), reusing the same
+  surgical merge.
 
-## Deferred to v2+ (raise once v1 fully lands)
+### Manual real-playback validation (the one seam tests can't cover)
+
+`MpvSession` is a thin mpv wrapper — not worth mocking (per
+`automated-testing`), so the capture→apply wiring is confirmed live:
+
+1. Start the dev server and play a foreign-audio film.
+2. Press `#` (cycle audio) / `j` (cycle subs) in mpv to a selection that
+   differs from what launched.
+3. Wait ~4s (debounce) for the `captured track override` log line
+   (Console drawer, `` ` ``, or `~/scripts/mc-rpc`).
+4. Inspect: `~/scripts/mc-rpc 'MediaCentarr.Library.get_media_track_override(:movie, "<id>") |> inspect()'`.
+5. Quit mpv, replay the same entity → confirm it launches with the
+   captured tracks (`--alang`/`--slang` reflect the override).
+6. Open the entity's **More info** → the **Remembered tracks** badge
+   shows the captured languages; **Reset to default** clears it and the
+   next play returns to policy.
+
+## Deferred to v2+ (raise as their own initiatives)
 
 From the brainstorm — valid, explicitly deferred (see plan doc):
 per-season overrides; audio descriptions; secondary/dual subtitles;
@@ -111,11 +129,16 @@ overrides; multi-viewer profiles; forced-subs language ≠ audio nuance.
 ## Completion criteria
 
 * Policy configurable in Settings UI — **done**.
-* Tracks auto-selected at playback per policy — **done** (validate live).
+* Tracks auto-selected at playback per policy — **done**.
 * Mid-playback track changes captured + applied next play — **done**
-  (validate live, step 1).
-* Override visible + resettable from the entity detail UI — **task #7**.
-* Wiki + CHANGELOG updated for the user-visible surface.
+  (round-trip integration test + manual procedure above).
+* Override visible + resettable from the entity detail UI — **done**
+  (Remembered tracks badge + Reset, live-refreshing).
+* Wiki + CHANGELOG updated for the user-visible surface — **done**.
+
+Deferred follow-up (re-home as its own concern, not blocking): friendly
+language names in the detail UI (`Japanese` vs `jpn`) — would also
+upgrade the meta-block *Language* line for consistency.
 
 ## Pointers
 

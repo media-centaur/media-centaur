@@ -33,12 +33,6 @@ Use [`template.md`](template.md) as a starter.
   isolates `:persistent_term` and Task.Supervisor children.
   Will move to `done/` after the macos-platform-support Phase 5
   push sequence proves CI stability through its commits.
-* [`language-track-preferences.md`](language-track-preferences.md) —
-  per-install audio/subtitle language policy + per-entity overrides.
-  Backend + Settings UI shipped; ISO 639 boundary normalization
-  hardened ([ADR-048](../decisions/architecture/2026-05-22-048-canonical-language-codes-at-boundary.md)).
-  Remaining: entity-detail override badge + reset (traced), and live
-  validation of the capture round-trip.
 * [`pursuit-lifecycle-tracking.md`](pursuit-lifecycle-tracking.md) —
   track a pursuit's file through *downloaded → in review → landed in
   library*; satisfy only at library-landing, surface the real stage
@@ -49,6 +43,12 @@ Use [`template.md`](template.md) as a starter.
 
 ## Archived
 
+* [`done/language-track-preferences.md`](done/language-track-preferences.md) —
+  per-install audio/subtitle language policy + per-entity overrides
+  captured mid-playback and applied next play, with an entity-detail
+  *Remembered tracks* badge + Reset (live-refreshing). ISO 639 boundary
+  normalization hardened ([ADR-048](../decisions/architecture/2026-05-22-048-canonical-language-codes-at-boundary.md)).
+  Shipped 2026-05-22. Deferred: friendly language names in the detail UI.
 * [`done/component-contracts.md`](done/component-contracts.md) —
   every LiveView function component declares a typed contract for
   domain-data attrs (struct / Ecto schema / shared ViewModel, or
