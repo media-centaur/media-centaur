@@ -4,6 +4,19 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.71.0 — 2026-05-22
+
+### Improved
+
+**See and reset a title's remembered tracks.** When Media Centarr
+remembers the audio or subtitle tracks for a show or movie — because you
+changed them during playback — it now shows them on the title's **More
+info** panel, on a *Remembered tracks* line (for example *"jpn audio ·
+eng subtitles"*). A **Reset to default** button there forgets the
+remembered choice so the title goes back to following your Settings →
+Playback language preferences. The line appears the moment a choice is
+captured, even while you're looking at the details.
+
 ## v0.70.0 — 2026-05-22
 
 ### New
