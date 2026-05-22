@@ -27,6 +27,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanel do
   use MediaCentarrWeb, :html
 
   alias MediaCentarr.Library.MediaTrackOverride
+  alias MediaCentarr.Playback.Iso639
 
   alias MediaCentarrWeb.Components.Detail.MoreInfo.{
     CastGrid,
@@ -89,23 +90,25 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanel do
   suffix. Returns `[]` when no aspect diverges — the badge then renders
   nothing.
 
-  Languages are shown as their stored ISO 639-2/T codes (`"jpn"`,
-  `"eng"`), matching the raw-code convention the meta block uses for the
-  *Language* line directly above.
+  Languages are shown by their English names (`Japanese`, `English`) via
+  `Iso639.display_name/1`; unknown codes fall back to the raw code.
   """
   @spec track_override_summary(MediaTrackOverride.t()) :: [String.t()]
   def track_override_summary(%MediaTrackOverride{} = override) do
     Enum.reject([audio_segment(override), subtitle_segment(override)], &is_nil/1)
   end
 
-  defp audio_segment(%MediaTrackOverride{audio_lang: lang}) when is_binary(lang), do: "#{lang} audio"
+  defp audio_segment(%MediaTrackOverride{audio_lang: lang}) when is_binary(lang),
+    do: "#{Iso639.display_name(lang)} audio"
+
   defp audio_segment(_override), do: nil
 
   defp subtitle_segment(%MediaTrackOverride{subtitles_off: true}), do: "Subtitles off"
 
   defp subtitle_segment(%MediaTrackOverride{subtitle_lang: lang, subtitle_forced: forced})
        when is_binary(lang) do
-    if forced, do: "#{lang} subtitles (forced)", else: "#{lang} subtitles"
+    name = Iso639.display_name(lang)
+    if forced, do: "#{name} subtitles (forced)", else: "#{name} subtitles"
   end
 
   defp subtitle_segment(_override), do: nil

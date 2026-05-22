@@ -92,6 +92,63 @@ defmodule MediaCentarr.Playback.Iso639 do
     "geo" => "kat"
   }
 
+  # Canonical 3-letter ISO 639-2/T code → English display name. Keyed on
+  # the *normalized* form, so `display_name/1` works for any input form
+  # (2-letter, bibliographic alternate) by normalizing first. Covers the
+  # same language set as the tables above; unknown codes fall back to the
+  # raw code so the UI degrades to what the metadata actually carried.
+  @names %{
+    "ara" => "Arabic",
+    "bod" => "Tibetan",
+    "bul" => "Bulgarian",
+    "cat" => "Catalan",
+    "ces" => "Czech",
+    "cym" => "Welsh",
+    "dan" => "Danish",
+    "deu" => "German",
+    "ell" => "Greek",
+    "eng" => "English",
+    "est" => "Estonian",
+    "fas" => "Persian",
+    "fin" => "Finnish",
+    "fra" => "French",
+    "heb" => "Hebrew",
+    "hin" => "Hindi",
+    "hrv" => "Croatian",
+    "hun" => "Hungarian",
+    "hye" => "Armenian",
+    "ind" => "Indonesian",
+    "isl" => "Icelandic",
+    "ita" => "Italian",
+    "jpn" => "Japanese",
+    "kat" => "Georgian",
+    "kor" => "Korean",
+    "lat" => "Latin",
+    "lav" => "Latvian",
+    "lit" => "Lithuanian",
+    "mkd" => "Macedonian",
+    "msa" => "Malay",
+    "mya" => "Burmese",
+    "nld" => "Dutch",
+    "nno" => "Norwegian Nynorsk",
+    "nob" => "Norwegian Bokmål",
+    "nor" => "Norwegian",
+    "pol" => "Polish",
+    "por" => "Portuguese",
+    "ron" => "Romanian",
+    "rus" => "Russian",
+    "slk" => "Slovak",
+    "slv" => "Slovenian",
+    "spa" => "Spanish",
+    "srp" => "Serbian",
+    "swe" => "Swedish",
+    "tha" => "Thai",
+    "tur" => "Turkish",
+    "ukr" => "Ukrainian",
+    "vie" => "Vietnamese",
+    "zho" => "Chinese"
+  }
+
   @doc "Canonicalize a language code to its 3-letter ISO 639-2/T form."
   @spec normalize(String.t() | nil) :: String.t() | nil
   def normalize(nil), do: nil
@@ -109,6 +166,21 @@ defmodule MediaCentarr.Playback.Iso639 do
   @doc "Compare two language codes, treating equivalent forms as equal."
   @spec equal?(String.t() | nil, String.t() | nil) :: boolean()
   def equal?(a, b), do: normalize(a) == normalize(b)
+
+  @doc """
+  Human-readable English name for a language code (`"jpn"` / `"ja"` →
+  `"Japanese"`). Normalizes the input first, so any accepted form maps to
+  the same name. Unknown codes fall back to the code itself; `nil` → `nil`.
+  """
+  @spec display_name(String.t() | nil) :: String.t() | nil
+  def display_name(nil), do: nil
+
+  def display_name(code) when is_binary(code) do
+    case Map.fetch(@names, normalize(code)) do
+      {:ok, name} -> name
+      :error -> code
+    end
+  end
 
   @doc """
   Check whether a language code matches any entry in a list of codes,

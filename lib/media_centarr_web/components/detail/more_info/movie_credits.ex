@@ -14,6 +14,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
 
   use MediaCentarrWeb, :html
 
+  alias MediaCentarr.Playback.Iso639
   alias MediaCentarrWeb.Components.Detail.MoreInfo.People
   alias MediaCentarrWeb.LibraryFormatters
 
@@ -55,7 +56,7 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfo.MovieCredits do
         [
           {"Studio", assigns.entity[:studio]},
           {"Country", assigns.entity[:country_code]},
-          {"Language", assigns.entity[:original_language]},
+          {"Language", Iso639.display_name(assigns.entity[:original_language])},
           {"Runtime", format_runtime(assigns.entity[:duration_seconds])},
           {"Released", MediaCentarr.Format.iso_date(assigns.entity[:date_published])}
         ],

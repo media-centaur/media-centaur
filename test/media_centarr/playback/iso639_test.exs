@@ -81,4 +81,38 @@ defmodule MediaCentarr.Playback.Iso639Test do
       assert Iso639.find_match("jpn", ["eng", "spa"]) == nil
     end
   end
+
+  describe "display_name/1" do
+    test "canonical 3-letter code → English name" do
+      assert Iso639.display_name("eng") == "English"
+      assert Iso639.display_name("jpn") == "Japanese"
+      assert Iso639.display_name("spa") == "Spanish"
+      assert Iso639.display_name("zho") == "Chinese"
+    end
+
+    test "2-letter code is normalized before lookup" do
+      assert Iso639.display_name("en") == "English"
+      assert Iso639.display_name("ja") == "Japanese"
+      assert Iso639.display_name("fr") == "French"
+    end
+
+    test "bibliographic alternate is normalized before lookup" do
+      assert Iso639.display_name("fre") == "French"
+      assert Iso639.display_name("ger") == "German"
+    end
+
+    test "case-insensitive" do
+      assert Iso639.display_name("EN") == "English"
+      assert Iso639.display_name("Jpn") == "Japanese"
+    end
+
+    test "unknown code falls back to the code itself" do
+      assert Iso639.display_name("zzz") == "zzz"
+      assert Iso639.display_name("klingon") == "klingon"
+    end
+
+    test "nil → nil" do
+      assert Iso639.display_name(nil) == nil
+    end
+  end
 end
