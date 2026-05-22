@@ -46,6 +46,68 @@ defmodule MediaCentarr.Maintenance do
   alias MediaCentarr.Review.PendingFile
   alias MediaCentarr.TMDB.{Client, Mapper}
 
+  # --- Async variants (ADR-049) ---
+  #
+  # Each runs its (long, library-wide, often TMDB-fetching) counterpart on
+  # a supervised context-layer task. These must outlive the triggering
+  # LiveView — a navigated-away admin shouldn't abort a bulk refresh — so
+  # they live here, not in a web-layer `start_child`. On completion each
+  # sends a result message to `reply_to` for the UI to clear its in-flight
+  # flag and show the result.
+
+  @doc "Async `clear_database/0`; sends `:database_cleared` to `reply_to`."
+  def clear_database_async(reply_to) do
+    run_async(fn ->
+      clear_database()
+      send(reply_to, :database_cleared)
+    end)
+  end
+
+  @doc "Async `refresh_image_cache/0`; sends `{:image_cache_refreshed, count}`."
+  def refresh_image_cache_async(reply_to) do
+    run_async(fn ->
+      {:ok, count} = refresh_image_cache()
+      send(reply_to, {:image_cache_refreshed, count})
+    end)
+  end
+
+  @doc "Async `refresh_movie_credits/0`; sends `{:movie_credits_refreshed, result}`."
+  def refresh_movie_credits_async(reply_to) do
+    run_async(fn ->
+      {:ok, result} = refresh_movie_credits()
+      send(reply_to, {:movie_credits_refreshed, result})
+    end)
+  end
+
+  @doc "Async `refresh_series_credits/0`; sends `{:series_credits_refreshed, result}`."
+  def refresh_series_credits_async(reply_to) do
+    run_async(fn ->
+      {:ok, result} = refresh_series_credits()
+      send(reply_to, {:series_credits_refreshed, result})
+    end)
+  end
+
+  @doc "Async `refresh_movie_subtitles/0`; sends `{:movie_subtitles_refreshed, result}`."
+  def refresh_movie_subtitles_async(reply_to) do
+    run_async(fn ->
+      {:ok, result} = refresh_movie_subtitles()
+      send(reply_to, {:movie_subtitles_refreshed, result})
+    end)
+  end
+
+  @doc "Async `repair_missing_images/0`; sends `{:image_repair_complete, result}`."
+  def repair_missing_images_async(reply_to) do
+    run_async(fn ->
+      {:ok, result} = repair_missing_images()
+      send(reply_to, {:image_repair_complete, result})
+    end)
+  end
+
+  defp run_async(fun) do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fun)
+    :ok
+  end
+
   @doc """
   Destroys all records from every library resource in FK-safe order,
   then clears image files from disk.

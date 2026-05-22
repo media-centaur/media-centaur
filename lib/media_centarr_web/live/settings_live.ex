@@ -10,6 +10,8 @@ defmodule MediaCentarrWeb.SettingsLive do
   use MediaCentarrWeb, :live_view
   use MediaCentarrWeb.Live.SpoilerFreeAware
 
+  require MediaCentarr.Log, as: Log
+
   alias MediaCentarr.{Capabilities, Config, SelfUpdate, Settings, Version}
   alias MediaCentarr.SelfUpdate.UpdateChecker
 
@@ -194,10 +196,9 @@ defmodule MediaCentarrWeb.SettingsLive do
   # calls), then builds the rest of the assigns from a single config
   # snapshot. Result lands via `handle_info({:settings_loaded, ...}, _)`.
   defp start_async_settings_load(socket) do
-    parent = self()
     setup_banner_dismissed? = socket.assigns.setup_banner_dismissed?
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+    start_async(socket, :settings_load, fn ->
       config = load_config()
 
       [watchers_running, pipeline_running, image_pipeline_running, acquisition_running] =
@@ -213,32 +214,26 @@ defmodule MediaCentarrWeb.SettingsLive do
       {critical_failures, show_setup_banner?} =
         compute_setup_banner_state(config, setup_banner_dismissed?)
 
-      send(
-        parent,
-        {:settings_loaded,
-         %{
-           config: config,
-           watchers_running: watchers_running,
-           pipeline_running: pipeline_running,
-           image_pipeline_running: image_pipeline_running,
-           acquisition_running: acquisition_running,
-           watch_dirs: MediaCentarr.Config.watch_dirs_entries(),
-           exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [],
-           missing_images_summary: Maintenance.missing_images_summary(),
-           tmdb_test: load_test_result(:tmdb),
-           prowlarr_test: load_test_result(:prowlarr),
-           download_client_test: load_test_result(:download_client),
-           tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
-           service_state: SelfUpdate.service_state(),
-           bindings: Controls.get(),
-           glyph_style: Controls.glyph_style(),
-           critical_failures: critical_failures,
-           show_setup_banner?: show_setup_banner?
-         }}
-      )
+      %{
+        config: config,
+        watchers_running: watchers_running,
+        pipeline_running: pipeline_running,
+        image_pipeline_running: image_pipeline_running,
+        acquisition_running: acquisition_running,
+        watch_dirs: MediaCentarr.Config.watch_dirs_entries(),
+        exclude_dirs: MediaCentarr.Config.get(:exclude_dirs) || [],
+        missing_images_summary: Maintenance.missing_images_summary(),
+        tmdb_test: load_test_result(:tmdb),
+        prowlarr_test: load_test_result(:prowlarr),
+        download_client_test: load_test_result(:download_client),
+        tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
+        service_state: SelfUpdate.service_state(),
+        bindings: Controls.get(),
+        glyph_style: Controls.glyph_style(),
+        critical_failures: critical_failures,
+        show_setup_banner?: show_setup_banner?
+      }
     end)
-
-    socket
   end
 
   defp maybe_auto_check_updates(socket, "system") do
@@ -264,17 +259,16 @@ defmodule MediaCentarrWeb.SettingsLive do
   defp maybe_auto_check_updates(socket, _section), do: socket
 
   defp start_update_check(socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      # Dual-write via SelfUpdate so Settings.Entry stays in sync with
-      # the in-memory cache. Without this, a manual check would refresh
-      # only the 5-min hot-path cache; on next boot the stale persisted
-      # row would hydrate back and the UI would regress to the old value.
-      result = UpdateChecker.latest_release()
-      _ = SelfUpdate.record_check_result(result)
-      send(liveview, {:update_check_result, result})
-    end)
+    socket =
+      start_async(socket, :update_check, fn ->
+        # Dual-write via SelfUpdate so Settings.Entry stays in sync with
+        # the in-memory cache. Without this, a manual check would refresh
+        # only the 5-min hot-path cache; on next boot the stale persisted
+        # row would hydrate back and the UI would regress to the old value.
+        result = UpdateChecker.latest_release()
+        _ = SelfUpdate.record_check_result(result)
+        result
+      end)
 
     # Keep `latest_release` (hydrated from Storage or a previous fetch)
     # visible while the new check runs — no "blanking" flash.
@@ -524,68 +518,32 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_event("clear_database", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      Maintenance.clear_database()
-      send(liveview, :database_cleared)
-    end)
-
+    Maintenance.clear_database_async(self())
     {:noreply, assign(socket, clearing_database: true)}
   end
 
   def handle_event("refresh_image_cache", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, count} = Maintenance.refresh_image_cache()
-      send(liveview, {:image_cache_refreshed, count})
-    end)
-
+    Maintenance.refresh_image_cache_async(self())
     {:noreply, assign(socket, refreshing_images: true)}
   end
 
   def handle_event("refresh_movie_credits", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, result} = Maintenance.refresh_movie_credits()
-      send(liveview, {:movie_credits_refreshed, result})
-    end)
-
+    Maintenance.refresh_movie_credits_async(self())
     {:noreply, assign(socket, refreshing_credits: true)}
   end
 
   def handle_event("refresh_series_credits", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, result} = Maintenance.refresh_series_credits()
-      send(liveview, {:series_credits_refreshed, result})
-    end)
-
+    Maintenance.refresh_series_credits_async(self())
     {:noreply, assign(socket, refreshing_series_credits: true)}
   end
 
   def handle_event("refresh_movie_subtitles", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, result} = Maintenance.refresh_movie_subtitles()
-      send(liveview, {:movie_subtitles_refreshed, result})
-    end)
-
+    Maintenance.refresh_movie_subtitles_async(self())
     {:noreply, assign(socket, refreshing_movie_subtitles: true)}
   end
 
   def handle_event("repair_missing_images", _params, socket) do
-    liveview = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      {:ok, result} = Maintenance.repair_missing_images()
-      send(liveview, {:image_repair_complete, result})
-    end)
-
+    Maintenance.repair_missing_images_async(self())
     {:noreply, assign(socket, repairing_images: true)}
   end
 
@@ -663,9 +621,7 @@ defmodule MediaCentarrWeb.SettingsLive do
       # by an earlier TMDB auth failure. Re-emit `:file_detected` for
       # any present watcher_files row with no library link so the
       # pipeline gets another chance.
-      Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-        MediaCentarr.Watcher.Supervisor.rescan_unlinked()
-      end)
+      MediaCentarr.Watcher.Supervisor.rescan_unlinked_async()
     end
 
     case Float.parse(params["auto_approve_threshold"] || "") do
@@ -677,12 +633,13 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     case params["_action"] do
       "test" ->
-        spawn_test_task(:tmdb_test_result, fn ->
-          case MediaCentarr.TMDB.Client.configuration() do
-            {:ok, _} -> :ok
-            {:error, _} -> :error
-          end
-        end)
+        socket =
+          start_async_test(socket, :tmdb_test_result, fn ->
+            case MediaCentarr.TMDB.Client.configuration() do
+              {:ok, _} -> :ok
+              {:error, _} -> :error
+            end
+          end)
 
         {:noreply, assign(socket, tmdb_testing: true)}
 
@@ -707,12 +664,13 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     case params["_action"] do
       "test" ->
-        spawn_test_task(:prowlarr_test_result, fn ->
-          case MediaCentarr.Acquisition.test_prowlarr() do
-            :ok -> :ok
-            {:error, _} -> :error
-          end
-        end)
+        socket =
+          start_async_test(socket, :prowlarr_test_result, fn ->
+            case MediaCentarr.Acquisition.test_prowlarr() do
+              :ok -> :ok
+              {:error, _} -> :error
+            end
+          end)
 
         {:noreply, assign(socket, prowlarr_testing: true)}
 
@@ -749,12 +707,13 @@ defmodule MediaCentarrWeb.SettingsLive do
 
     case params["_action"] do
       "test" ->
-        spawn_test_task(:download_client_test_result, fn ->
-          case Acquisition.test_download_client() do
-            :ok -> :ok
-            {:error, _} -> :error
-          end
-        end)
+        socket =
+          start_async_test(socket, :download_client_test_result, fn ->
+            case Acquisition.test_download_client() do
+              :ok -> :ok
+              {:error, _} -> :error
+            end
+          end)
 
         {:noreply, assign(socket, download_client_testing: true)}
 
@@ -764,13 +723,7 @@ defmodule MediaCentarrWeb.SettingsLive do
   end
 
   def handle_event("detect_download_client", _params, socket) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      result = Acquisition.discover_download_clients()
-      send(parent, {:download_client_detect_result, result})
-    end)
-
+    Acquisition.discover_download_clients_async(self())
     {:noreply, assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
   end
 
@@ -1076,78 +1029,6 @@ defmodule MediaCentarrWeb.SettingsLive do
      |> assign(image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?())}
   end
 
-  def handle_info({:prowlarr_test_result, status}, socket) do
-    info = save_test_result(:prowlarr, status)
-    {:noreply, assign(socket, prowlarr_testing: false, prowlarr_test: info)}
-  end
-
-  def handle_info({:tmdb_test_result, status}, socket) do
-    info = save_test_result(:tmdb, status)
-    {:noreply, assign(socket, tmdb_testing: false, tmdb_test: info)}
-  end
-
-  def handle_info({:download_client_test_result, status}, socket) do
-    info = save_test_result(:download_client, status)
-    {:noreply, assign(socket, download_client_testing: false, download_client_test: info)}
-  end
-
-  def handle_info({:download_client_detect_result, {:ok, [first | _rest] = clients}}, socket) do
-    # Stash detected values as a suggestion — do NOT persist. The URL
-    # Prowlarr returns is correct from Prowlarr's perspective but is
-    # often a Docker service name unreachable from this host. The user
-    # reviews the form and clicks Save to commit. See ADR-037.
-    detected = %{
-      type: first.type,
-      url: first.url,
-      username: first.username
-    }
-
-    extra =
-      if length(clients) > 1,
-        do: " (#{length(clients)} found, used the first)",
-        else: ""
-
-    {:noreply,
-     socket
-     |> assign(
-       detected_download_client: detected,
-       download_client_detecting: false,
-       download_client_detect_status: :ok
-     )
-     |> put_flash(
-       :info,
-       "Pre-filled from Prowlarr#{extra} — review URL, enter password, then Save"
-     )}
-  end
-
-  def handle_info({:download_client_detect_result, {:ok, []}}, socket) do
-    {:noreply,
-     socket
-     |> assign(download_client_detecting: false, download_client_detect_status: :empty)
-     |> put_flash(:error, "Prowlarr has no download clients configured")}
-  end
-
-  def handle_info({:download_client_detect_result, {:error, _reason}}, socket) do
-    {:noreply,
-     socket
-     |> assign(download_client_detecting: false, download_client_detect_status: :error)
-     |> put_flash(:error, "Couldn't reach Prowlarr to discover download clients")}
-  end
-
-  def handle_info({:update_check_result, {:ok, release}}, socket) do
-    status = UpdateChecker.compare(release, socket.assigns.app_version)
-    {:noreply, assign(socket, update_status: status, latest_release: release)}
-  end
-
-  def handle_info({:update_check_result, {:error, reason}}, socket) do
-    # Don't nil out latest_release — keep the last-known release
-    # visible on the card so the user sees meaningful info during a
-    # transient outage (rate limit, network blip, etc.). The error
-    # surfaces via update_status; the card's rendering handles the
-    # "have release + error status" state gracefully.
-    {:noreply, assign(socket, update_status: {:error, reason})}
-  end
-
   def handle_info({:progress, :done, pct}, socket) do
     # A normal restart cycle — BEAM dies, systemd starts the new release,
     # LiveView reconnects — completes in 2-3 seconds. If the BEAM hasn't
@@ -1244,11 +1125,84 @@ defmodule MediaCentarrWeb.SettingsLive do
   # Async result from `start_async_settings_load/1`. The task did all
   # the config / capability / probe work off the LV process; the only
   # cost on this process is the single `assign/2` call.
-  def handle_info({:settings_loaded, assigns}, socket) do
-    {:noreply, assign(socket, Map.to_list(assigns))}
+  def handle_info({:download_client_detect_result, {:ok, [first | _rest] = clients}}, socket) do
+    # Stash detected values as a suggestion — do NOT persist. The URL
+    # Prowlarr returns is correct from Prowlarr's perspective but is
+    # often a Docker service name unreachable from this host. The user
+    # reviews the form and clicks Save to commit. See ADR-037.
+    detected = %{type: first.type, url: first.url, username: first.username}
+
+    extra =
+      if length(clients) > 1,
+        do: " (#{length(clients)} found, used the first)",
+        else: ""
+
+    {:noreply,
+     socket
+     |> assign(
+       detected_download_client: detected,
+       download_client_detecting: false,
+       download_client_detect_status: :ok
+     )
+     |> put_flash(
+       :info,
+       "Pre-filled from Prowlarr#{extra} — review URL, enter password, then Save"
+     )}
+  end
+
+  def handle_info({:download_client_detect_result, {:ok, []}}, socket) do
+    {:noreply,
+     socket
+     |> assign(download_client_detecting: false, download_client_detect_status: :empty)
+     |> put_flash(:error, "Prowlarr has no download clients configured")}
+  end
+
+  def handle_info({:download_client_detect_result, {:error, _reason}}, socket) do
+    {:noreply,
+     socket
+     |> assign(download_client_detecting: false, download_client_detect_status: :error)
+     |> put_flash(:error, "Couldn't reach Prowlarr to discover download clients")}
   end
 
   def handle_info(_msg, socket) do
+    {:noreply, socket}
+  end
+
+  # --- Async results (owned via start_async/3, ADR-049) ---
+
+  @impl true
+  def handle_async(:settings_load, {:ok, assigns}, socket) do
+    {:noreply, assign(socket, Map.to_list(assigns))}
+  end
+
+  def handle_async(:tmdb_test_result, {:ok, status}, socket) do
+    info = save_test_result(:tmdb, status)
+    {:noreply, assign(socket, tmdb_testing: false, tmdb_test: info)}
+  end
+
+  def handle_async(:prowlarr_test_result, {:ok, status}, socket) do
+    info = save_test_result(:prowlarr, status)
+    {:noreply, assign(socket, prowlarr_testing: false, prowlarr_test: info)}
+  end
+
+  def handle_async(:download_client_test_result, {:ok, status}, socket) do
+    info = save_test_result(:download_client, status)
+    {:noreply, assign(socket, download_client_testing: false, download_client_test: info)}
+  end
+
+  def handle_async(:update_check, {:ok, {:ok, release}}, socket) do
+    status = UpdateChecker.compare(release, socket.assigns.app_version)
+    {:noreply, assign(socket, update_status: status, latest_release: release)}
+  end
+
+  def handle_async(:update_check, {:ok, {:error, reason}}, socket) do
+    # Keep the last-known release visible on the card during a transient
+    # outage; the error surfaces via update_status.
+    {:noreply, assign(socket, update_status: {:error, reason})}
+  end
+
+  def handle_async(name, {:exit, reason}, socket) do
+    Log.warning(:settings, "settings async #{inspect(name)} failed — #{inspect(reason)}")
     {:noreply, socket}
   end
 
@@ -3892,20 +3846,14 @@ defmodule MediaCentarrWeb.SettingsLive do
     }
   end
 
-  # Spawns a connection-test under TaskSupervisor and forwards the
-  # `:ok | :error` result to the LiveView's mailbox under
-  # `result_message`. Each save_* handler dispatches here when the form
-  # was submitted with `_action=test`. The test runs against the values
-  # the save handler just persisted, so a failing test never displaces
-  # the user's typed-in input.
-  defp spawn_test_task(result_message, fun) when is_atom(result_message) and is_function(fun, 0) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      send(parent, {result_message, fun.()})
-    end)
-
-    :ok
+  # Owned async (ADR-049): runs a connection-test under the LiveView via
+  # start_async/3, keyed by `result_key` so the result lands in the
+  # matching `handle_async(result_key, …)` clause. Each save_* handler
+  # dispatches here when the form was submitted with `_action=test`. The
+  # test runs against the values the save handler just persisted, so a
+  # failing test never displaces the user's typed-in input.
+  defp start_async_test(socket, result_key, fun) when is_atom(result_key) and is_function(fun, 0) do
+    start_async(socket, result_key, fun)
   end
 
   defp phx_values(map) when map_size(map) == 0, do: %{}

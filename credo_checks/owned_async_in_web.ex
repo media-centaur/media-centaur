@@ -41,13 +41,10 @@ defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
       """
     ]
 
-  # LiveViews that still spawn fire-and-forget tasks. This list IS the
-  # owned-async rollout backlog — it shrinks to empty as each LiveView
-  # converts to `start_async` / a durable home, at which point the rule
-  # is fully enforced. Do NOT add to it.
-  @grandfathered [
-    "lib/media_centarr_web/live/settings_live.ex"
-  ]
+  # The owned-async rollout is complete — every web-layer LiveView now uses
+  # `start_async` (view loads) or a context-layer function (must-outlive
+  # work). The rule is fully enforced; this list MUST stay empty.
+  @grandfathered []
 
   @impl true
   def run(%SourceFile{filename: filename} = source_file, params) do

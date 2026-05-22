@@ -366,6 +366,16 @@ defmodule MediaCentarr.Watcher.Supervisor do
   end
 
   @doc """
+  Fire-and-forget `rescan_unlinked/0`. Runs on a supervised context-layer
+  task so web-layer callers don't block and don't own the work — the
+  re-emit must complete regardless of the triggering LiveView (ADR-049).
+  """
+  def rescan_unlinked_async do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, &rescan_unlinked/0)
+    :ok
+  end
+
+  @doc """
   Returns true if any watcher is in a healthy state.
   """
   def media_dir_healthy? do
