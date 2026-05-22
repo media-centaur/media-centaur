@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.0 — 2026-05-22
+
+### Improved
+
+**Reliability hardening.** Internal safeguards and added test coverage so
+the watch-progress and movie-collection display issues fixed in 0.71.2
+can't quietly come back. No change to how Media Centarr behaves day to
+day.
+
 ## v0.71.2 — 2026-05-22
 
 ### Fixed
