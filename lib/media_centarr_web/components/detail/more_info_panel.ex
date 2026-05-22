@@ -26,6 +26,8 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanel do
 
   use MediaCentarrWeb, :html
 
+  alias MediaCentarr.Library.MediaTrackOverride
+
   alias MediaCentarrWeb.Components.Detail.MoreInfo.{
     CastGrid,
     ExternalLinks,
@@ -44,10 +46,69 @@ defmodule MediaCentarrWeb.Components.Detail.MoreInfoPanel do
       <.headline_for_type entity={@entity} />
       <CastGrid.cast_grid cast={@entity[:cast] || []} />
       <.meta_for_type entity={@entity} />
+      <.track_override_badge entity={@entity} />
       <ExternalLinks.external_links tmdb_url={@entity[:url]} imdb_id={@entity[:imdb_id]} />
     </section>
     """
   end
+
+  # Per-entity remembered audio/subtitle track selection. Rendered only
+  # when an override exists (movies + TV series carry it via
+  # `Library.put_track_override/1`); other container kinds and
+  # all-policy overrides render nothing. The Reset button clears the
+  # override via the EntityModal-injected `reset_track_override` event.
+  defp track_override_badge(%{entity: %{track_override: %MediaTrackOverride{} = override}} = assigns) do
+    assigns = assign(assigns, :segments, track_override_summary(override))
+
+    ~H"""
+    <div
+      :if={@segments != []}
+      class="glass-inset rounded-lg px-3 py-2.5 flex items-center justify-between gap-3"
+    >
+      <div class="flex items-center gap-2 min-w-0">
+        <.icon name="hero-language-mini" class="size-4 text-base-content/50 shrink-0" />
+        <div class="min-w-0">
+          <div class="text-xs uppercase tracking-wider text-base-content/50">Remembered tracks</div>
+          <div class="text-sm text-base-content truncate">{Enum.join(@segments, " · ")}</div>
+        </div>
+      </div>
+      <.button variant="neutral" size="xs" phx-click="reset_track_override" class="shrink-0">
+        Reset to default
+      </.button>
+    </div>
+    """
+  end
+
+  defp track_override_badge(assigns), do: ~H""
+
+  @doc """
+  Human-readable segments describing a captured per-entity track
+  override, for the *Remembered tracks* badge. Audio first, then
+  subtitles. Aspects left to policy (`nil`) are omitted; `subtitles_off`
+  yields `"Subtitles off"`; a forced subtitle gets a `" (forced)"`
+  suffix. Returns `[]` when no aspect diverges — the badge then renders
+  nothing.
+
+  Languages are shown as their stored ISO 639-2/T codes (`"jpn"`,
+  `"eng"`), matching the raw-code convention the meta block uses for the
+  *Language* line directly above.
+  """
+  @spec track_override_summary(MediaTrackOverride.t()) :: [String.t()]
+  def track_override_summary(%MediaTrackOverride{} = override) do
+    Enum.reject([audio_segment(override), subtitle_segment(override)], &is_nil/1)
+  end
+
+  defp audio_segment(%MediaTrackOverride{audio_lang: lang}) when is_binary(lang), do: "#{lang} audio"
+  defp audio_segment(_override), do: nil
+
+  defp subtitle_segment(%MediaTrackOverride{subtitles_off: true}), do: "Subtitles off"
+
+  defp subtitle_segment(%MediaTrackOverride{subtitle_lang: lang, subtitle_forced: forced})
+       when is_binary(lang) do
+    if forced, do: "#{lang} subtitles (forced)", else: "#{lang} subtitles"
+  end
+
+  defp subtitle_segment(_override), do: nil
 
   defp headline_for_type(%{entity: %{type: :movie}} = assigns) do
     MovieCredits.headline(assigns)

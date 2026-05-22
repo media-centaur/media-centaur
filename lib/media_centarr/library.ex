@@ -985,7 +985,7 @@ defmodule MediaCentarr.Library do
   defp any_present?(_type, %__MODULE__.Views.DetailItem{present?: present}), do: present == true
 
   defp build_modal_entry(container_type, item, id) do
-    entity = __MODULE__.Views.DetailItem.to_entity_map(item)
+    entity = item |> __MODULE__.Views.DetailItem.to_entity_map() |> put_track_override()
     progress_records = list_progress_records_for_container(container_type, id)
     progress = MediaCentarr.Library.ProgressSummary.compute(entity, progress_records)
 
@@ -3047,6 +3047,26 @@ defmodule MediaCentarr.Library do
         :ok
     end
   end
+
+  @doc """
+  Decorate a modal entity-map with its per-entity track override under
+  the `:track_override` key. Only movies and TV series can own an
+  override; every other container kind (`:movie_series`, `:video_object`)
+  — and any map missing `:id`/`:type` — gets `nil`.
+
+  Called by the modal-entry builders right after
+  `Views.DetailItem.to_entity_map/1`, so both construction paths
+  (`load_modal_entry/1` for movies + refreshes, `SeriesDetail.compose/1`
+  for TV-series initial opens) carry the override without the detail UI
+  issuing a second context round-trip.
+  """
+  @spec put_track_override(map()) :: map()
+  def put_track_override(%{id: id, type: type} = entity)
+      when type in [:movie, :tv_series] and is_binary(id) do
+    Map.put(entity, :track_override, get_media_track_override(type, id))
+  end
+
+  def put_track_override(entity) when is_map(entity), do: Map.put(entity, :track_override, nil)
 
   # ---------------------------------------------------------------------------
   # Helpers

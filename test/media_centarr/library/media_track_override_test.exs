@@ -140,6 +140,60 @@ defmodule MediaCentarr.Library.MediaTrackOverrideTest do
     end
   end
 
+  describe "put_track_override/1" do
+    test "attaches the override under :track_override for a movie entity" do
+      movie = create_movie(%{name: "Test Movie"})
+      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "jpn"})
+
+      entity = Library.put_track_override(%{id: movie.id, type: :movie})
+
+      assert %MediaTrackOverride{audio_lang: "jpn"} = entity.track_override
+    end
+
+    test "attaches nil when a movie entity has no override" do
+      movie = create_movie(%{name: "Test Movie"})
+
+      entity = Library.put_track_override(%{id: movie.id, type: :movie})
+
+      assert Map.fetch!(entity, :track_override) == nil
+    end
+
+    test "attaches the override for a tv_series entity" do
+      tv_series = create_tv_series()
+      {:ok, _} = Library.upsert_media_track_override(:tv_series, tv_series.id, %{subtitle_lang: "eng"})
+
+      entity = Library.put_track_override(%{id: tv_series.id, type: :tv_series})
+
+      assert %MediaTrackOverride{subtitle_lang: "eng"} = entity.track_override
+    end
+
+    test "attaches nil for a non-overridable type even if a row shares the id" do
+      movie = create_movie(%{name: "Test Movie"})
+      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "jpn"})
+
+      # movie_series is not a valid owner_type — the decorator must not
+      # fetch under it, so the badge never leaks across container kinds.
+      entity = Library.put_track_override(%{id: movie.id, type: :movie_series})
+
+      assert Map.fetch!(entity, :track_override) == nil
+    end
+
+    test "attaches nil when the entity map lacks id/type" do
+      entity = Library.put_track_override(%{name: "orphan"})
+
+      assert Map.fetch!(entity, :track_override) == nil
+    end
+
+    test "preserves the rest of the entity map" do
+      movie = create_movie(%{name: "Test Movie"})
+
+      entity = Library.put_track_override(%{id: movie.id, type: :movie, name: "Kept"})
+
+      assert entity.name == "Kept"
+      assert entity.id == movie.id
+    end
+  end
+
   describe "clear_media_track_override/2" do
     test "deletes an existing override and returns :ok" do
       tv_series = create_tv_series()
