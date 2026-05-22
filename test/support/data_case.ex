@@ -71,7 +71,15 @@ defmodule MediaCentarr.DataCase do
   # which Console.Handler then forwards into unrelated tests'
   # `refute_receive` checks. See `campaigns/test-isolation-hardening.md`
   # (Category B).
-  @task_drain_timeout_ms 1_000
+  # Grace window for an orphaned task to finish its (fast, sub-ms on
+  # sqlite) DB work cleanly before the sandbox owner is released. Tasks
+  # that overrun the grace are blocked on something slow and non-DB —
+  # e.g. an HTTP retry backoff in a fire-and-forget Prowlarr search — and
+  # are killed rather than waited on. Waiting the full second per orphan
+  # is what turned the suite into an effective hang. The real cure is to
+  # own such async work so it can't orphan (ADR-049); until every call
+  # site is converted, this keeps teardown O(grace).
+  @task_drain_grace_ms 100
 
   defp drain_supervised_tasks do
     MediaCentarr.TaskSupervisor
@@ -82,7 +90,9 @@ defmodule MediaCentarr.DataCase do
       receive do
         {:DOWN, ^ref, _, _, _} -> :ok
       after
-        @task_drain_timeout_ms -> :ok
+        @task_drain_grace_ms ->
+          Process.demonitor(ref, [:flush])
+          Process.exit(pid, :kill)
       end
     end)
   end
