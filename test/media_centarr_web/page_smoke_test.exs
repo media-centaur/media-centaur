@@ -76,6 +76,35 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
   end
 
+  describe "/?selected=<id> with a movie collection containing a downloaded movie" do
+    # Regression: the home detail panel renders `movie_row` for each
+    # present constituent movie of a movie_series. `movie_row` reads
+    # optional fields (:images, :description, :duration_seconds) that the
+    # lean `DetailItem.movie_entry_to_map/1` projection map omits — a bare
+    # dot-access raised `KeyError` and crashed HomeLive the moment a
+    # collection with a downloaded movie was opened. This smoke mounts the
+    # home detail for exactly that shape and asserts a movie row renders.
+    setup do
+      series = create_movie_series(%{name: "Smoke Movie Collection"})
+      # Auto-creates a present child Movie under the series (content_url ==
+      # the linked file path), so the projection surfaces a present
+      # constituent movie that content_list/1 renders as a movie_row.
+      _file = create_linked_file(%{movie_series_id: series.id})
+
+      {:ok, series: series}
+    end
+
+    test "home detail panel mounts and renders a movie row for a collection",
+         %{conn: conn, series: series} do
+      assert {:ok, _view, html} = live_async!(conn, ~p"/?selected=#{series.id}")
+      assert is_binary(html)
+      # Proves the movie_row branch actually rendered — a false-pass guard:
+      # if the constituent movie weren't present, this smoke would silently
+      # exercise nothing.
+      assert html =~ ~s(data-role="movie-row")
+    end
+  end
+
   describe "/library?selected=<id> with TV series that has tracked upcoming releases" do
     # The TV-series detail page composes a typed `[%SeasonView{}]` from
     # both Library episodes and ReleaseTracking releases. A render-path
