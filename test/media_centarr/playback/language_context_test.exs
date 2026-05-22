@@ -39,6 +39,23 @@ defmodule MediaCentarr.Playback.LanguageContextTest do
       assert track.lang == nil
     end
 
+    test "normalizes track languages to canonical 3-letter form at the boundary" do
+      # mpv reports a mix of 2-letter ("en") and 3-letter ("jpn") codes;
+      # all become canonical 3-letter once parsed, so no downstream
+      # comparison ever has to reconcile forms.
+      raw = [
+        %{"id" => 1, "type" => "audio", "lang" => "ja"},
+        %{"id" => 2, "type" => "audio", "lang" => "jpn"},
+        %{"id" => 1, "type" => "sub", "lang" => "en"},
+        %{"id" => 2, "type" => "sub", "lang" => "fre"}
+      ]
+
+      {audio, subs} = LanguageContext.parse_track_list(raw)
+
+      assert Enum.map(audio, & &1.lang) == ["jpn", "jpn"]
+      assert Enum.map(subs, & &1.lang) == ["eng", "fra"]
+    end
+
     test "detects sdh via mpv's hearing-impaired flag" do
       raw = [%{"id" => 1, "type" => "sub", "lang" => "eng", "hearing-impaired" => true}]
       {[], [track]} = LanguageContext.parse_track_list(raw)
@@ -175,6 +192,16 @@ defmodule MediaCentarr.Playback.LanguageContextTest do
       assert context.owner_type == :tv_series
       assert context.owner_id == tv_series.id
       assert context.original_language == "kor"
+    end
+
+    test "normalizes original_language from TMDB's 2-letter form" do
+      # TMDB stores ISO 639-1 ("ja"); the context canonicalizes to 3-letter
+      # so it matches mpv-reported track languages downstream.
+      movie = create_movie(%{name: "Sample Movie", original_language: "ja"})
+
+      context = LanguageContext.init(%{entity_id: movie.id, movie_id: movie.id})
+
+      assert context.original_language == "jpn"
     end
 
     test "loads existing override into context" do
