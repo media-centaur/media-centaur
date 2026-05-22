@@ -15,7 +15,11 @@ defmodule MediaCentarr.Library.MovieList do
     # canonical `"YYYY-MM-DD"` representation sorts lexicographically the
     # same as chronologically, and "" sorts before any populated date.
     Enum.sort_by(movies, fn movie ->
-      {(movie.date_published && Date.to_iso8601(movie.date_published)) || "", movie.position || 0}
+      # `sort_movies` is fed two shapes: full Movie structs (`:position`) and
+      # the MovieSeries detail/resume projection maps from
+      # `DetailItem.movie_entry_to_map/1` (`:collection_position`). Read either.
+      position = Map.get(movie, :collection_position) || Map.get(movie, :position) || 0
+      {(movie.date_published && Date.to_iso8601(movie.date_published)) || "", position}
     end)
   end
 
