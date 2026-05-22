@@ -43,6 +43,7 @@ defmodule MediaCentarr.Playback.MpvSession do
 
   alias MediaCentarr.Playback.{
     Events,
+    IpcFraming,
     LanguageContext,
     MpvExitClassifier,
     MpvLogReader,
@@ -102,7 +103,12 @@ defmodule MediaCentarr.Playback.MpvSession do
     current_sub_lang: nil,
     current_sub_forced: false,
     resolver_choice: nil,
-    capture_timer: nil
+    capture_timer: nil,
+    # Carries the unterminated tail of the mpv IPC byte stream between
+    # `{:tcp, ...}` deliveries. The socket is `packet: :raw`, so a long
+    # JSON line (e.g. `track-list`) can span chunks — `IpcFraming.feed/2`
+    # stitches them back together.
+    ipc_buffer: ""
   ]
 
   # --- Public API ---
@@ -191,7 +197,7 @@ defmodule MediaCentarr.Playback.MpvSession do
     case :gen_tcp.connect(
            {:local, socket_charlist},
            0,
-           [:binary, packet: :line, active: true],
+           [:binary, packet: :raw, active: true],
            500
          ) do
       {:ok, socket} ->
@@ -236,7 +242,7 @@ defmodule MediaCentarr.Playback.MpvSession do
   def handle_info(:connect_socket, state) do
     socket_path = to_charlist(state.socket_path)
 
-    case :gen_tcp.connect({:local, socket_path}, 0, [:binary, packet: :line, active: true]) do
+    case :gen_tcp.connect({:local, socket_path}, 0, [:binary, packet: :raw, active: true]) do
       {:ok, socket} ->
         Log.info(:playback, "connected to IPC socket")
         observe_properties(socket)
@@ -272,21 +278,12 @@ defmodule MediaCentarr.Playback.MpvSession do
   end
 
   def handle_info({:tcp, _socket, data}, state) do
-    state =
-      data
-      |> String.trim()
-      |> Jason.decode()
-      |> case do
-        {:ok, message} ->
-          state
-          |> flag_property_event(message)
-          |> then(&handle_mpv_message(message, &1))
-
-        {:error, error} ->
-          Log.warning(:playback, "IPC JSON decode failed — #{inspect(error)}")
-          state
-      end
-
+    # The socket is `packet: :raw`: a chunk may hold several IPC lines or
+    # only part of one (mpv's `track-list` regularly exceeds the read
+    # buffer). Stitch via the carried buffer, then decode each complete
+    # line. Decoding a fragment in isolation would raise Jason.DecodeError.
+    {lines, buffer} = IpcFraming.feed(state.ipc_buffer, data)
+    state = Enum.reduce(lines, %{state | ipc_buffer: buffer}, &decode_ipc_line/2)
     {:noreply, state}
   end
 
@@ -404,6 +401,28 @@ defmodule MediaCentarr.Playback.MpvSession do
   defp finalize(session), do: %{session | state: :stopped}
 
   # --- MPV Message Handling ---
+
+  # Decode one complete IPC line (already newline-framed by IpcFraming)
+  # and fold its effect into the session state. Blank lines (the trailing
+  # split segment of a "…}\n" chunk) are skipped.
+  defp decode_ipc_line(line, state) do
+    case String.trim(line) do
+      "" ->
+        state
+
+      trimmed ->
+        case Jason.decode(trimmed) do
+          {:ok, message} ->
+            state
+            |> flag_property_event(message)
+            |> then(&handle_mpv_message(message, &1))
+
+          {:error, error} ->
+            Log.warning(:playback, "IPC JSON decode failed — #{inspect(error)}")
+            state
+        end
+    end
+  end
 
   defp handle_mpv_message(
          %{"event" => "property-change", "name" => "time-pos", "data" => position},
@@ -668,7 +687,12 @@ defmodule MediaCentarr.Playback.MpvSession do
           # `{:entity_progress_updated, pi_id, pos}` tuple broadcast
           # from Progress.record/3 is consumed by projections that
           # only need the trigger.
-          ProgressBroadcaster.broadcast(entity_id)
+          #
+          # Thread `playable_item_id` so the payload carries the changed
+          # record — without it the detail modal's in-memory merge
+          # no-ops and a per-episode badge never flips live (it only
+          # corrects on a full remount).
+          ProgressBroadcaster.broadcast(entity_id, playable_item_id)
 
         {:error, reason} ->
           Log.warning(:playback, "failed to save progress — #{inspect(reason)}")
