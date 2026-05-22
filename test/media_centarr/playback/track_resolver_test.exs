@@ -449,6 +449,28 @@ defmodule MediaCentarr.Playback.TrackResolverTest do
 
       assert result.audio_lang == "fre"
     end
+
+    test "SUBTITLE path: understood=['eng'] matches a sub track tagged 'en'" do
+      # Real-world regression: a real 4K remux (Pulse) had Japanese audio
+      # and an English PGS sub tagged "en". With understood=["eng"] the
+      # main-subtitle picker did a direct == against "en" and missed it,
+      # so a foreign-audio film showed no subtitles. Audio matched only
+      # because original_language and the track were both "ja".
+      policy = %{LanguagePolicy.defaults() | understood_languages: ["eng"]}
+
+      result =
+        TrackResolver.resolve(
+          policy,
+          nil,
+          [audio(1, "ja"), audio(2, "it")],
+          [sub(1, "en"), sub(2, "it")],
+          "ja"
+        )
+
+      assert result.audio_lang == "ja"
+      assert result.sub_lang == "en"
+      assert result.sub_index == 1
+    end
   end
 
   describe "audio resolution edge cases" do
