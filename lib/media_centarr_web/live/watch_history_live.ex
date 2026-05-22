@@ -5,6 +5,8 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
   """
   use MediaCentarrWeb, :live_view
 
+  require MediaCentarr.Log, as: Log
+
   alias MediaCentarr.{Format, WatchHistory}
   alias MediaCentarr.WatchHistory.Views, as: WatchHistoryViews
 
@@ -64,28 +66,24 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
     end
   end
 
+  # Owned async (ADR-049): runs under the LiveView via `start_async/3`,
+  # cancelled with it and awaitable in tests. Result lands in
+  # `handle_async(:history_load, …)`.
   defp start_async_history_load(socket) do
-    parent = self()
     filters = filter_snapshot(socket)
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+    start_async(socket, :history_load, fn ->
       summary = WatchHistoryViews.summary()
       {events, has_next} = fetch_page_for(filters)
 
-      send(
-        parent,
-        {:history_loaded,
-         %{
-           stats: summary.stats,
-           heatmap_cells_by_type: summary.heatmap_cells_by_type,
-           rewatch_counts: summary.rewatch_counts,
-           events: events,
-           has_next: has_next
-         }}
-      )
+      %{
+        stats: summary.stats,
+        heatmap_cells_by_type: summary.heatmap_cells_by_type,
+        rewatch_counts: summary.rewatch_counts,
+        events: events,
+        has_next: has_next
+      }
     end)
-
-    socket
   end
 
   defp filter_snapshot(socket) do
@@ -428,22 +426,18 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
         {:noreply, socket}
 
       event ->
-        parent = self()
+        # `delete_event!` is a local sqlite delete + PubSub broadcast —
+        # fast enough to run synchronously (ADR-044), and a delete must
+        # complete regardless of navigation (no cancel-on-leave). The
+        # aggregate refresh (stats / heatmap / rewatch counts) arrives via
+        # the `WatchHistory.Views.Summary` projection, which observes the
+        # `:watch_event_deleted` broadcast and re-emits
+        # `{:watch_history_view_updated, :summary}` on the derived topic.
+        WatchHistory.delete_event!(event)
 
-        # Delete runs in a Task purely to keep the LiveView responsive
-        # for any latency in PubSub fanout. The aggregate refresh
-        # (stats / heatmap / rewatch counts) is driven by the
-        # `WatchHistory.Views.Summary` projection — `delete_event!`
-        # broadcasts `:watch_event_deleted`, which the projection
-        # observes and re-emits `{:watch_history_view_updated, :summary}`
-        # on the derived topic.
-        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          WatchHistory.delete_event!(event)
-          send(parent, {:delete_complete, event})
-        end)
-
-        events = Enum.reject(socket.assigns.events, &(&1.id == event.id))
-        {:noreply, assign(socket, events: events, deleting_event: event)}
+        socket = assign(socket, page: 1, deleted_event: event, deleting_event: nil)
+        {events, has_next} = fetch_page(socket)
+        {:noreply, assign(socket, events: events, has_next: has_next)}
     end
   end
 
@@ -464,23 +458,6 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
     socket = assign(socket, page: socket.assigns.page + 1)
     {events, has_next} = fetch_page(socket)
     {:noreply, assign(socket, events: events, has_next: has_next)}
-  end
-
-  @impl true
-  def handle_info({:delete_complete, event}, socket) do
-    # Local rows already pruned optimistically in `handle_event` —
-    # advance the modal state and refresh pagination off the remaining
-    # rows. Aggregate refresh arrives via `:watch_history_view_updated`.
-    socket = assign(socket, page: 1)
-    {events, has_next} = fetch_page(socket)
-
-    {:noreply,
-     assign(socket,
-       events: events,
-       has_next: has_next,
-       deleted_event: event,
-       deleting_event: nil
-     )}
   end
 
   @impl true
@@ -517,13 +494,19 @@ defmodule MediaCentarrWeb.WatchHistoryLive do
     {:noreply, assign(socket, events: events, has_next: has_next)}
   end
 
-  # Async result from `start_async_history_load/1`. The task did the
-  # summary read + initial fetch_page off the LV process.
-  def handle_info({:history_loaded, assigns}, socket) do
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  # Async result from `start_async_history_load/1` — summary read +
+  # initial fetch_page done off the LV process.
+  @impl true
+  def handle_async(:history_load, {:ok, assigns}, socket) do
     {:noreply, assign(socket, Map.to_list(assigns))}
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  def handle_async(:history_load, {:exit, reason}, socket) do
+    Log.warning(:watch_history, "history load failed — #{inspect(reason)}")
+    {:noreply, socket}
+  end
 
   # --- Private helpers ---
 
