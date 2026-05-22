@@ -69,14 +69,14 @@ defmodule MediaCentarr.Playback.LanguageContextTest do
           alang: ["jpn", "eng"],
           slang: ["eng"],
           sub_visibility: true,
-          subs_match_audio: "exclusive",
+          subs_match_audio: "no",
           disable_subs: false
         })
 
       assert "--alang=jpn,eng" in flags
       assert "--slang=eng" in flags
       assert "--sub-visibility=yes" in flags
-      assert "--subs-with-matching-audio=exclusive" in flags
+      assert "--subs-with-matching-audio=no" in flags
       refute "--sid=no" in flags
     end
 
@@ -86,7 +86,7 @@ defmodule MediaCentarr.Playback.LanguageContextTest do
           alang: ["eng"],
           slang: [],
           sub_visibility: false,
-          subs_match_audio: "exclusive",
+          subs_match_audio: "no",
           disable_subs: true
         })
 
@@ -99,7 +99,7 @@ defmodule MediaCentarr.Playback.LanguageContextTest do
           alang: [],
           slang: ["eng"],
           sub_visibility: true,
-          subs_match_audio: "exclusive",
+          subs_match_audio: "no",
           disable_subs: false
         })
 
@@ -113,12 +113,12 @@ defmodule MediaCentarr.Playback.LanguageContextTest do
           alang: ["eng"],
           slang: [],
           sub_visibility: false,
-          subs_match_audio: "exclusive",
+          subs_match_audio: "no",
           disable_subs: false
         })
 
       refute Enum.any?(flags, &String.starts_with?(&1, "--slang"))
-      assert "--subs-with-matching-audio=exclusive" in flags
+      assert "--subs-with-matching-audio=no" in flags
     end
   end
 

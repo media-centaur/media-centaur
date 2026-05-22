@@ -691,14 +691,28 @@ defmodule MediaCentarr.Playback.TrackResolverTest do
   # ---------------------------------------------------------------------------
 
   describe "priority_args/3" do
-    test "default policy + jpn original — yields jpn,eng audio + eng subs + mpv handles conditional via subs_match_audio=exclusive" do
+    test "default policy (fill_gaps) + jpn original — subs_match_audio=forced for native Greedo-scene handling" do
       args = TrackResolver.priority_args(LanguagePolicy.defaults(), nil, "jpn")
 
       assert args.alang == ["jpn", "eng"]
       assert args.slang == ["eng"]
       assert args.sub_visibility == true
-      assert args.subs_match_audio == "exclusive"
+      # Default policy has forced_subs="fill_gaps", so mpv's "forced"
+      # value handles the conditional: full subs for foreign audio,
+      # forced-only subs when audio is understood.
+      assert args.subs_match_audio == "forced"
       assert args.disable_subs == false
+    end
+
+    test "when_audio_not_understood + forced_subs=never — subs_match_audio=no" do
+      policy = %{
+        LanguagePolicy.defaults()
+        | subtitles_when: "when_audio_not_understood",
+          forced_subs: "never"
+      }
+
+      args = TrackResolver.priority_args(policy, nil, "jpn")
+      assert args.subs_match_audio == "no"
     end
 
     test "default policy + eng original — alang yields just eng (no duplicate)" do
