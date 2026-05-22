@@ -702,13 +702,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         result -> result
       end
 
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      outcome = Acquisition.pick_alternative(pursuit_id, arg, label)
-      send(parent, {:alternative_picked, pursuit_id, outcome})
-    end)
-
+    Acquisition.pick_alternative_async(pursuit_id, arg, label, self())
     {:noreply, put_flash(socket, :info, "Trying alternative…")}
   end
 
@@ -736,10 +730,9 @@ defmodule MediaCentarrWeb.AcquisitionLive do
           )
 
         pursuit_id = socket.assigns.selected_pursuit_id
-        parent = self()
 
-        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          decision =
+        socket =
+          start_async(socket, {:alternatives_refresh, pursuit_id}, fn ->
             case Pursuits.get(pursuit_id) do
               {:ok, pursuit} ->
                 build_decision(pursuit, Pursuits.header_from(pursuit).recipe.search_queries, nil)
@@ -747,9 +740,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
               _ ->
                 %{card: nil, results_by_guid: %{}}
             end
-
-          send(parent, {:alternatives_refreshed, pursuit_id, decision})
-        end)
+          end)
 
         {:noreply, socket}
 
@@ -776,17 +767,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
   end
 
   def handle_info({:run_search_one, query}, socket) do
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      outcome =
-        try do
-          Acquisition.search(query)
-        catch
-          kind, reason -> {:error, {kind, reason}}
-        end
-
-      Acquisition.record_search_result(query, outcome)
-    end)
-
+    Acquisition.run_search_one_async(query)
     {:noreply, socket}
   end
 
@@ -861,64 +842,7 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, load_pursuit_rows(socket)}
   end
 
-  # Result of the background "fetch alternatives on modal open" task
-  # spawned from `enqueue_alternatives_fetch/1`. The modal is already
-  # rendered with `loading?: true`; this swaps in the real card. Drops
-  # the result if the user has closed the modal or selected another
-  # pursuit while the search was in flight. Distinct from
-  # `:alternatives_refreshed` because the initial-open path does not
-  # flash on empty results — an empty card with the "Search Prowlarr
-  # again" CTA is already self-explanatory.
-  def handle_info({:alternatives_loaded, pursuit_id, decision}, socket) do
-    case socket.assigns do
-      %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
-        {:noreply,
-         assign(socket,
-           pursuit_detail: %{
-             detail
-             | decision_card: decision.card,
-               decision_results_by_guid: decision.results_by_guid
-           }
-         )}
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
-  # Result of the background "Search Prowlarr again" task. Verifies the
-  # modal is still on the same pursuit before applying — the user may
-  # have closed the modal or selected another pursuit while the search
-  # was in flight, in which case we drop the stale result.
-  def handle_info({:alternatives_refreshed, pursuit_id, decision}, socket) do
-    case socket.assigns do
-      %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
-        socket =
-          assign(socket,
-            pursuit_detail: %{
-              detail
-              | decision_card: decision.card,
-                decision_results_by_guid: decision.results_by_guid
-            }
-          )
-
-        socket =
-          case decision.card do
-            %{alternatives: []} ->
-              put_flash(socket, :info, "Prowlarr returned no new alternatives.")
-
-            _ ->
-              socket
-          end
-
-        {:noreply, socket}
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
-  # Result of the background pick task. Like `:alternatives_refreshed`,
+  # Result of the background pick task. Like the alternatives fetches,
   # only applies the outcome when the modal is still on the same pursuit
   # — a closed or pivoted modal drops the stale result. Success is
   # silent on the LV side (the PubSub `:target_picked` reload re-renders
@@ -951,8 +875,57 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     {:noreply, assign(socket, Map.to_list(assigns))}
   end
 
-  def handle_async(:acquisition_load, {:exit, reason}, socket) do
-    Log.warning(:acquisition, "acquisition load failed — #{inspect(reason)}")
+  # Initial modal-open alternatives fetch. Drops the result if the user has
+  # closed the modal or pivoted to another pursuit. No flash on empty — the
+  # empty card's "Search Prowlarr again" CTA is self-explanatory.
+  def handle_async({:alternatives_fetch, pursuit_id}, {:ok, decision}, socket) do
+    case socket.assigns do
+      %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
+        {:noreply,
+         assign(socket,
+           pursuit_detail: %{
+             detail
+             | decision_card: decision.card,
+               decision_results_by_guid: decision.results_by_guid
+           }
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  # "Search Prowlarr again" refresh. Same stale-guard; flashes on empty.
+  def handle_async({:alternatives_refresh, pursuit_id}, {:ok, decision}, socket) do
+    case socket.assigns do
+      %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
+        socket =
+          assign(socket,
+            pursuit_detail: %{
+              detail
+              | decision_card: decision.card,
+                decision_results_by_guid: decision.results_by_guid
+            }
+          )
+
+        socket =
+          case decision.card do
+            %{alternatives: []} ->
+              put_flash(socket, :info, "Prowlarr returned no new alternatives.")
+
+            _ ->
+              socket
+          end
+
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_async(name, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "acquisition async #{inspect(name)} failed — #{inspect(reason)}")
     {:noreply, socket}
   end
 
@@ -987,18 +960,19 @@ defmodule MediaCentarrWeb.AcquisitionLive do
             socket.assigns.pursuit_detail
           )
 
-        if needs_fetch?, do: enqueue_alternatives_fetch(pursuit.id)
+        socket =
+          assign(socket,
+            pursuit_detail: %{
+              header: header,
+              status: status,
+              timeline: timeline,
+              decision_card: card,
+              decision_results_by_guid: results_by_guid,
+              not_found?: false
+            }
+          )
 
-        assign(socket,
-          pursuit_detail: %{
-            header: header,
-            status: status,
-            timeline: timeline,
-            decision_card: card,
-            decision_results_by_guid: results_by_guid,
-            not_found?: false
-          }
-        )
+        if needs_fetch?, do: start_async_alternatives_fetch(socket, pursuit.id), else: socket
 
       {:error, :not_found} ->
         assign(socket,
@@ -1056,26 +1030,21 @@ defmodule MediaCentarrWeb.AcquisitionLive do
 
   defp decision_card_or_placeholder(_pursuit, _queries, _cached), do: {nil, %{}, false}
 
-  # Spawned off the LV process so the WebSocket message handler returns
-  # immediately. The task `send`s its result back as
-  # `{:alternatives_loaded, pursuit_id, decision}`; the LV's
-  # `handle_info/2` clause below ignores the message if the user has
-  # closed the modal or selected a different pursuit in the meantime.
-  defp enqueue_alternatives_fetch(pursuit_id) do
-    parent = self()
+  # Owned async (ADR-049): runs off the LV process via start_async/3 so the
+  # WebSocket handler returns immediately, the task is cancelled with the
+  # LiveView, and tests can await it. Result lands in
+  # `handle_async({:alternatives_fetch, pursuit_id}, …)`, which ignores it
+  # if the user has closed the modal or selected a different pursuit.
+  defp start_async_alternatives_fetch(socket, pursuit_id) do
+    start_async(socket, {:alternatives_fetch, pursuit_id}, fn ->
+      case Pursuits.get(pursuit_id) do
+        {:ok, pursuit} ->
+          queries = Pursuits.header_from(pursuit).recipe.search_queries
+          build_decision(pursuit, queries, nil)
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      decision =
-        case Pursuits.get(pursuit_id) do
-          {:ok, pursuit} ->
-            queries = Pursuits.header_from(pursuit).recipe.search_queries
-            build_decision(pursuit, queries, nil)
-
-          _ ->
-            %{card: nil, results_by_guid: %{}}
-        end
-
-      send(parent, {:alternatives_loaded, pursuit_id, decision})
+        _ ->
+          %{card: nil, results_by_guid: %{}}
+      end
     end)
   end
 

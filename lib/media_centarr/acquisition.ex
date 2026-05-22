@@ -307,6 +307,28 @@ defmodule MediaCentarr.Acquisition do
   end
 
   @doc """
+  Fire-and-forget single-query search. Runs `search/1` on a supervised
+  context-layer task and records the outcome into the live `SearchSession`
+  (which broadcasts `{:search_session, …}`). Per-query searches must
+  outlive the triggering LiveView so a navigated-away user's in-flight
+  fan-out still populates the shared session (ADR-049).
+  """
+  def run_search_one_async(query) do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      outcome =
+        try do
+          search(query)
+        catch
+          kind, reason -> {:error, {kind, reason}}
+        end
+
+      record_search_result(query, outcome)
+    end)
+
+    :ok
+  end
+
+  @doc """
   Like `search/2`, but first expands brace syntax in `query` (per
   `QueryExpander`), runs each concrete query against Prowlarr in
   parallel, and merges the results (deduped by guid). Use this when the
@@ -416,6 +438,22 @@ defmodule MediaCentarr.Acquisition do
          {:ok, result} <- find_alternative(pursuit, guid) do
       do_pick_alternative(pursuit, result, label)
     end
+  end
+
+  @doc """
+  Fire-and-forget `pick_alternative/3`. Runs the grab on a supervised
+  context-layer task — the grab must complete regardless of the triggering
+  LiveView's lifecycle (ADR-049: must-outlive background work lives in the
+  context, not a web-layer `start_child`). The outcome is sent to `reply_to`
+  as `{:alternative_picked, pursuit_id, outcome}` for an optional UI flash.
+  """
+  def pick_alternative_async(pursuit_id, arg, label, reply_to) do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      outcome = pick_alternative(pursuit_id, arg, label)
+      send(reply_to, {:alternative_picked, pursuit_id, outcome})
+    end)
+
+    :ok
   end
 
   defp do_pick_alternative(%Pursuit{} = pursuit, %SearchResult{} = result, label) do
