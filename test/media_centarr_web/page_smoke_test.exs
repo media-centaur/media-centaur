@@ -23,67 +23,13 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
   alias MediaCentarr.{Config, Secret}
 
-  # Aggressive mount-time budget for every smoke. Media Centarr is a
-  # local-first app; mounts should be near-instant. Steady-state mounts
-  # observed locally (three runs, post-warmup, --trace) cluster as:
-  #
-  #   trivial routes (/console, /, /history): 2–9ms
-  #   typical pages (/library, /review, /setup, /upcoming): 4–17ms
-  #   heavy pages (/status, /settings, /download): 14–25ms
-  #   cross-context detail (/library?selected=<tv-tracked>): 40–58ms — overridden below
-  #
-  # 35ms gives ~1.4× headroom over the heaviest non-outlier route — tight
-  # enough to catch real regressions, loose enough to absorb routine
-  # GC/scheduler jitter. The TV-series tracked detail route exceeds this
-  # naturally and carries its own per-test override.
-  #
-  # For ongoing per-mount timing measurement use `scripts/profile`
-  # (the page-mount harness writes a markdown report). The smoke test
-  # is a budget gate, not an instrument.
-  @render_budget_ms 35
-
-  # The TV-series tracked-detail mount composes a typed `[%SeasonView{}]`
-  # from Library episodes + ReleaseTracking releases — observed at
-  # 40–58ms steady-state, the heaviest mount in the smoke set. 80ms
-  # gives this single route ~1.4× headroom. Tightening this requires
-  # investigation, not a budget bump in the other direction.
-  @tv_tracked_detail_budget_ms 80
-
-  # Cold-start cost (BEAM JIT, schema caching, first-DB-query overhead)
-  # is paid by whichever mount runs first. Without a warmup, that test
-  # becomes flaky as the budget tightens. We pay the cold-start cost
-  # once per `mix test` invocation and gate further runs with
-  # :persistent_term so subsequent tests measure steady-state only.
-  @warmup_flag {__MODULE__, :warmed_up?}
-
-  setup %{conn: conn} = context do
-    warmup_once(conn)
-    context
-  end
-
-  defp warmup_once(conn) do
-    if :persistent_term.get(@warmup_flag, false) do
-      :ok
-    else
-      {:ok, _view, _html} = live(conn, "/")
-      :persistent_term.put(@warmup_flag, true)
-      :ok
-    end
-  end
-
-  defp live_within!(conn, path, budget_ms \\ @render_budget_ms) do
-    {micros, result} = :timer.tc(fn -> live(conn, path) end)
-    ms = div(micros, 1000)
-
-    if ms > budget_ms do
-      flunk(
-        "Page #{path} mount took #{ms}ms, exceeds budget of #{budget_ms}ms. " <>
-          "This is a local app — mounts should be near-instant."
-      )
-    end
-
-    result
-  end
+  # These smokes mount each route and assert the key structural content
+  # renders — a render-path crash (KeyError, FunctionClauseError, a bad
+  # struct/string conversion) surfaces here instead of in a user's
+  # browser. They make NO wall-clock timing assertions: per-mount
+  # duration under concurrent test load is inherently noisy and a budget
+  # gate flakes on the tail (ADR-049 — no timing assertions on noisy
+  # quantities). Ongoing mount-time measurement lives in `scripts/profile`.
 
   for {path, label} <- [
         {"/", "home"},
@@ -97,7 +43,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         {"/upcoming", "upcoming"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live_within!(conn, unquote(path))
+      assert {:ok, _view, html} = live(conn, unquote(path))
       assert is_binary(html)
     end
   end
@@ -125,7 +71,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "library detail panel mounts for a movie with duration_seconds",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = live(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
     end
   end
@@ -186,7 +132,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     test "library detail panel mounts for a TV series with upcoming + future-season releases",
          %{conn: conn, tv: tv} do
       assert {:ok, _view, html} =
-               live_within!(conn, ~p"/library?selected=#{tv.id}", @tv_tracked_detail_budget_ms)
+               live(conn, ~p"/library?selected=#{tv.id}")
 
       # Confirm the upcoming-row data-role appears at least once — without
       # the typed `seasons_view` flowing through, no upcoming row would
@@ -223,7 +169,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "library detail panel mounts when a linked file has subtitle tracks",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = live_within!(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = live(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
     end
   end
@@ -338,9 +284,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     test "upcoming zone renders without crashing", %{conn: conn} do
       # /?zone=upcoming redirects to /upcoming (HomeLive handles zone params).
       assert {:error, {:live_redirect, %{to: "/upcoming"}}} =
-               live_within!(conn, "/?zone=upcoming")
+               live(conn, "/?zone=upcoming")
 
-      assert {:ok, _view, html} = live_within!(conn, "/upcoming")
+      assert {:ok, _view, html} = live(conn, "/upcoming")
       assert is_binary(html)
     end
   end
@@ -423,7 +369,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
 
     test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
-      assert {:ok, view, html} = live_within!(conn, "/download")
+      assert {:ok, view, html} = live(conn, "/download")
       assert is_binary(html)
 
       # `AcquisitionLive.ensure_loaded/1` defers the pursuit-row + history
@@ -481,7 +427,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       conn: conn,
       pursuit_id: pursuit_id
     } do
-      assert {:ok, _view, html} = live_within!(conn, "/download?selected=#{pursuit_id}")
+      assert {:ok, _view, html} = live(conn, "/download?selected=#{pursuit_id}")
       assert is_binary(html)
       assert html =~ "Sample Movie"
       assert html =~ ~s|data-state="open"|
@@ -489,7 +435,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "renders not-found inside the modal for an unknown pursuit_id", %{conn: conn} do
       assert {:ok, _view, html} =
-               live_within!(conn, "/download?selected=#{Ecto.UUID.generate()}")
+               live(conn, "/download?selected=#{Ecto.UUID.generate()}")
 
       assert html =~ "Pursuit not found"
     end
