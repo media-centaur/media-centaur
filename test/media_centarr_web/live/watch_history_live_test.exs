@@ -5,12 +5,10 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
   import MediaCentarr.TestFactory
 
   # `WatchHistoryLive.ensure_loaded/1` defers the summary read + first
-  # page fetch to a `Task.Supervisor` child that messages back via
-  # `{:history_loaded, _}` (per the "no blocking LV page loads" rule).
-  # Tests asserting on populated state must wait for that message.
+  # page fetch to an owned `start_async(:history_load, …)` (ADR-049).
+  # `render_async/1` awaits it deterministically — no wall-clock sleep.
   defp render_after_async_load(view) do
-    Process.sleep(100)
-    render(view)
+    render_async(view)
   end
 
   describe "mount" do

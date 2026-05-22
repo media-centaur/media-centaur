@@ -187,10 +187,7 @@ defmodule MediaCentarrWeb.ConsoleLive.Shared do
       end
 
       def handle_event("rescan_library", _params, socket) do
-        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          MediaCentarr.Watcher.Supervisor.scan()
-        end)
-
+        MediaCentarr.Watcher.Supervisor.scan_async()
         {:noreply, socket}
       end
 

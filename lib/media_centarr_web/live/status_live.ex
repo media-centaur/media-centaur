@@ -9,6 +9,8 @@ defmodule MediaCentarrWeb.StatusLive do
   """
   use MediaCentarrWeb, :live_view
 
+  require MediaCentarr.Log, as: Log
+
   import MediaCentarrWeb.StatusHelpers
 
   alias MediaCentarr.{Config, ErrorReports, Library, Playback, Status, Storage, WatchHistory}
@@ -37,15 +39,10 @@ defmodule MediaCentarrWeb.StatusLive do
         pipeline_stats = Stats.get_snapshot()
         image_stats = ImagePipeline.Stats.get_snapshot()
 
-        # Kick off expensive queries off the mount path. Mount returns
-        # immediately with empty defaults; each task sends a message back
-        # when ready. Keeps /status responsive even with a big library
-        # and even when watch dirs are on slow / sleeping storage.
-        start_async_status_stats()
-        start_async_watch_history()
-        start_async_storage()
-        start_async_dir_health()
-
+        # Kick off expensive queries off the mount path via owned async.
+        # Mount returns immediately with empty defaults; each task fills
+        # its slice in via handle_async. Keeps /status responsive even
+        # with a big library and watch dirs on slow / sleeping storage.
         socket
         |> assign_defaults()
         |> assign(error_buckets: ErrorReports.list_buckets())
@@ -57,6 +54,10 @@ defmodule MediaCentarrWeb.StatusLive do
         |> assign(rate_limiter: fetch_rate_limiter())
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
+        |> start_async_status_stats()
+        |> start_async_watch_history()
+        |> start_async_storage()
+        |> start_async_dir_health()
       else
         socket
         |> assign_defaults()
@@ -93,37 +94,28 @@ defmodule MediaCentarrWeb.StatusLive do
     |> assign(show_report_modal: false)
   end
 
-  defp start_async_status_stats do
-    parent = self()
+  # Owned async (ADR-049): each load runs under the LiveView via
+  # `start_async/3` — cancelled with it, awaitable in tests, never an
+  # orphan under the global supervisor. Results land in the matching
+  # `handle_async/3` clauses below.
+  defp start_async_status_stats(socket) do
+    start_async(socket, :status_stats, fn -> Status.fetch_stats() end)
+  end
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      send(parent, {:status_stats_loaded, Status.fetch_stats()})
+  defp start_async_watch_history(socket) do
+    start_async(socket, :status_history, fn ->
+      %{stats: WatchHistory.stats(), events: WatchHistory.recent_events(5)}
     end)
   end
 
-  defp start_async_watch_history do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      send(parent, {:status_history_loaded, WatchHistory.stats(), WatchHistory.recent_events(5)})
+  defp start_async_storage(socket) do
+    start_async(socket, :status_storage, fn ->
+      %{drives: Storage.measure_all(), at_risk: AbsenceSweeper.at_risk_summary()}
     end)
   end
 
-  defp start_async_storage do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      send(parent, {:status_storage_loaded, Storage.measure_all()})
-      send(parent, {:status_at_risk_loaded, AbsenceSweeper.at_risk_summary()})
-    end)
-  end
-
-  defp start_async_dir_health do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      send(parent, {:status_dir_health_loaded, check_dir_health()})
-    end)
+  defp start_async_dir_health(socket) do
+    start_async(socket, :status_dir_health, fn -> check_dir_health() end)
   end
 
   # --- Events ---
@@ -163,24 +155,19 @@ defmodule MediaCentarrWeb.StatusLive do
     Process.send_after(self(), :tick_pipeline, 1_000)
     pipeline_stats = Stats.get_snapshot()
     image_stats = ImagePipeline.Stats.get_snapshot()
-    start_async_dir_health()
 
     {:noreply,
      socket
      |> assign(pipeline_stats: pipeline_stats)
      |> assign(image_pipeline_stats: image_stats)
      |> assign(rate_limiter: fetch_rate_limiter())
-     |> assign(retry_status: fetch_retry_status())}
-  end
-
-  def handle_info({:status_dir_health_loaded, dir_health}, socket) do
-    {:noreply, assign(socket, dir_health: dir_health)}
+     |> assign(retry_status: fetch_retry_status())
+     |> start_async_dir_health()}
   end
 
   def handle_info(:refresh_storage, socket) do
     Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
-    start_async_storage()
-    {:noreply, socket}
+    {:noreply, start_async_storage(socket)}
   end
 
   def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
@@ -190,12 +177,11 @@ defmodule MediaCentarrWeb.StatusLive do
     # (earliest_absent_since advances) via Library.AbsenceSweeper. The
     # badge that drives the user's "drive offline N days, X files at
     # risk" warning needs both reflected promptly.
-    start_async_storage()
-
     {:noreply,
      socket
      |> assign(watcher_statuses: MediaCentarr.Watcher.Supervisor.statuses())
-     |> assign(image_dir_statuses: MediaCentarr.Watcher.Supervisor.image_dir_statuses())}
+     |> assign(image_dir_statuses: MediaCentarr.Watcher.Supervisor.image_dir_statuses())
+     |> start_async_storage()}
   end
 
   def handle_info({:entities_changed, %{entity_ids: _entity_ids}}, socket) do
@@ -203,37 +189,16 @@ defmodule MediaCentarrWeb.StatusLive do
   end
 
   def handle_info(:refresh_stats, socket) do
-    start_async_status_stats()
-    start_async_watch_history()
-    {:noreply, assign(socket, stats_timer: nil)}
+    {:noreply,
+     socket
+     |> start_async_status_stats()
+     |> start_async_watch_history()
+     |> assign(stats_timer: nil)}
   end
 
   @impl true
   def handle_info({:buckets_changed, snapshot}, socket) do
     {:noreply, assign(socket, error_buckets: snapshot)}
-  end
-
-  def handle_info({:status_stats_loaded, stats}, socket) do
-    {:noreply,
-     socket
-     |> assign(library_stats: stats.library)
-     |> assign(pending_review_count: length(stats.pending_review))
-     |> assign(recent_changes: stats.recent_changes)}
-  end
-
-  def handle_info({:status_history_loaded, history_stats, history_events}, socket) do
-    {:noreply,
-     socket
-     |> assign(:history_events, history_events)
-     |> assign(:history_stats, history_stats)}
-  end
-
-  def handle_info({:status_at_risk_loaded, summary}, socket) do
-    {:noreply, assign(socket, at_risk_summary: summary)}
-  end
-
-  def handle_info({:status_storage_loaded, drives}, socket) do
-    {:noreply, assign(socket, storage_drives: drives)}
   end
 
   def handle_info({:watch_event_created, _event}, socket) do
@@ -286,6 +251,40 @@ defmodule MediaCentarrWeb.StatusLive do
   end
 
   def handle_info(_msg, socket) do
+    {:noreply, socket}
+  end
+
+  # --- Async results (owned via start_async/3, ADR-049) ---
+
+  @impl true
+  def handle_async(:status_stats, {:ok, stats}, socket) do
+    {:noreply,
+     socket
+     |> assign(library_stats: stats.library)
+     |> assign(pending_review_count: length(stats.pending_review))
+     |> assign(recent_changes: stats.recent_changes)}
+  end
+
+  def handle_async(:status_history, {:ok, %{stats: stats, events: events}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:history_events, events)
+     |> assign(:history_stats, stats)}
+  end
+
+  def handle_async(:status_storage, {:ok, %{drives: drives, at_risk: at_risk}}, socket) do
+    {:noreply,
+     socket
+     |> assign(storage_drives: drives)
+     |> assign(at_risk_summary: at_risk)}
+  end
+
+  def handle_async(:status_dir_health, {:ok, dir_health}, socket) do
+    {:noreply, assign(socket, dir_health: dir_health)}
+  end
+
+  def handle_async(name, {:exit, reason}, socket) do
+    Log.warning(:status, "status async #{inspect(name)} failed — #{inspect(reason)}")
     {:noreply, socket}
   end
 

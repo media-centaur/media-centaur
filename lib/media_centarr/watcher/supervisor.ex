@@ -313,6 +313,18 @@ defmodule MediaCentarr.Watcher.Supervisor do
   end
 
   @doc """
+  Fire-and-forget library rescan. Runs the (blocking) `scan/0` on a
+  supervised task so web-layer callers don't block and don't own the
+  work — the rescan must complete regardless of the triggering
+  LiveView's lifecycle (ADR-049: must-outlive background work lives in
+  the context layer, not a web-layer `start_child`).
+  """
+  def scan_async do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn -> scan() end)
+    :ok
+  end
+
+  @doc """
   Re-emits `{:file_detected, ...}` events for every `Library.FilePresence`
   row that has no matching link in `library_watched_files`.
 

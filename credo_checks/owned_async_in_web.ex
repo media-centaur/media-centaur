@@ -47,13 +47,10 @@ defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
   # is fully enforced. Do NOT add to it.
   @grandfathered [
     "lib/media_centarr_web/live/acquisition_live.ex",
-    "lib/media_centarr_web/live/console_live/shared.ex",
     "lib/media_centarr_web/live/entity_modal.ex",
     "lib/media_centarr_web/live/review_live.ex",
     "lib/media_centarr_web/live/settings_live.ex",
-    "lib/media_centarr_web/live/status_live.ex",
-    "lib/media_centarr_web/live/upcoming_live.ex",
-    "lib/media_centarr_web/live/watch_history_live.ex"
+    "lib/media_centarr_web/live/upcoming_live.ex"
   ]
 
   @impl true
