@@ -46,6 +46,33 @@ defmodule MediaCentarr.Library.MovieListTest do
       # Same date (2018-01-01): A (pos 2) before C (pos 3); then B (2020) last
       assert [{1, _, "/a.mkv"}, {2, _, "/c.mkv"}, {3, _, "/b.mkv"}] = result
     end
+
+    # Regression: the movie_series detail/resume path feeds slim *projection
+    # maps* (`DetailItem.movie_entry_to_map/1` — `collection_position`, not the
+    # schema's `:position`), never full Movie structs. sort_movies must read
+    # the projection key or it raises `KeyError: key :position not found` on
+    # the live render path (clicking a movie-series entity).
+    test "sorts projection maps keyed by collection_position (not :position)" do
+      movie_entry = fn name, url, date, pos ->
+        %{
+          id: Ecto.UUID.generate(),
+          name: name,
+          date_published: date,
+          collection_position: pos,
+          content_url: url,
+          present?: true
+        }
+      end
+
+      movie_a = movie_entry.("A", "/a.mkv", ~D[2018-01-01], 2)
+      movie_b = movie_entry.("B", "/b.mkv", ~D[2020-01-01], 1)
+      movie_c = movie_entry.("C", "/c.mkv", ~D[2018-01-01], 3)
+
+      entity = %{type: :movie_series, movies: [movie_b, movie_c, movie_a]}
+
+      result = MovieList.list_available(entity)
+      assert [{1, _, "/a.mkv"}, {2, _, "/c.mkv"}, {3, _, "/b.mkv"}] = result
+    end
   end
 
   describe "index_progress_by_movie/1 (via EpisodeList.index_progress_by_key/1)" do
