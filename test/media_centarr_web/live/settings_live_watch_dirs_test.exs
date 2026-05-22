@@ -24,7 +24,7 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
   end
 
   test "deep link opens the add dialog", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/settings?section=library&add_watch_dir=1")
+    {:ok, _view, html} = live_async!(conn, "/settings?section=library&add_watch_dir=1")
     assert html =~ "Add watch directory"
     assert html =~ "name=\"entry[dir]\""
   end
@@ -35,7 +35,7 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
     File.mkdir_p!(tmp)
     on_exit(fn -> File.rm_rf!(tmp) end)
 
-    {:ok, view, _} = live(conn, "/settings?section=library&add_watch_dir=1")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library&add_watch_dir=1")
 
     view
     |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
@@ -62,7 +62,7 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
         %{"id" => "u1", "dir" => Path.expand(tmp), "images_dir" => nil, "name" => "Movies"}
       ])
 
-    {:ok, view, _} = live(conn, "/settings?section=library")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library")
     view = wait_for_async_load(view)
 
     view |> element("button[phx-click='watch_dir:open_edit'][phx-value-id='u1']") |> render_click()
@@ -91,7 +91,7 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
         %{"id" => "existing", "dir" => Path.expand(tmp), "images_dir" => nil, "name" => nil}
       ])
 
-    {:ok, view, _} = live(conn, "/settings?section=library&add_watch_dir=1")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library&add_watch_dir=1")
 
     view
     |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})

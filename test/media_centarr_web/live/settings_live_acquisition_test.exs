@@ -44,7 +44,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
 
     test "acquisition section: prowlarr + download client test buttons submit the form",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
 
       refute has_element?(view, "#settings-prowlarr button[phx-click='test_prowlarr']"),
              "Prowlarr test button must not be a standalone phx-click — typed values would be lost"
@@ -67,7 +67,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
     end
 
     test "tmdb section: test button submits the form", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=tmdb")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=tmdb")
 
       refute has_element?(view, "#settings-tmdb button[phx-click='test_tmdb']"),
              "TMDB test button must not be a standalone phx-click"
@@ -81,7 +81,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
 
   describe "prowlarr form" do
     test "save persists form values", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       view
       |> form("#settings-prowlarr", %{
@@ -94,7 +94,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
     end
 
     test "test action persists values BEFORE running the test", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       view
       |> form("#settings-prowlarr", %{
@@ -108,7 +108,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
     end
 
     test "failed test does not revert the typed-in URL", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       view
       |> form("#settings-prowlarr", %{
@@ -128,7 +128,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
 
   describe "download client form" do
     test "save persists form values", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       view
       |> form("#settings-download-client", %{
@@ -144,7 +144,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
     end
 
     test "test action persists values BEFORE running the test", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       view
       |> form("#settings-download-client", %{
@@ -159,7 +159,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
     end
 
     test "failed test does not revert the typed-in URL", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       view
       |> form("#settings-download-client", %{
@@ -179,7 +179,7 @@ defmodule MediaCentarrWeb.SettingsLiveAcquisitionTest do
 
   describe "tmdb form" do
     test "test action persists API key BEFORE running the test", %{conn: conn} do
-      {:ok, view, _} = live(conn, ~p"/settings?section=tmdb")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=tmdb")
 
       view
       |> form("#settings-tmdb", %{

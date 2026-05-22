@@ -16,7 +16,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
   end
 
   test "mounts at /settings", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/settings")
+    {:ok, _view, html} = live_async!(conn, ~p"/settings")
     assert html =~ "Services"
   end
 
@@ -38,14 +38,14 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
         "danger"
       ] do
     test "section #{section} mounts without crashing", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/settings?section=#{unquote(section)}")
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=#{unquote(section)}")
       assert is_binary(html)
     end
   end
 
   describe "language & subtitle policy" do
     test "submitting the form persists a normalized policy", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=playback")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=playback")
 
       view
       |> form("form[phx-submit=save_language_policy]", %{
@@ -74,7 +74,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
           | understood_languages: ["spa", "fra"]
         })
 
-      {:ok, _view, html} = live(conn, ~p"/settings?section=playback")
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=playback")
       assert html =~ "spa, fra"
     end
   end
@@ -93,7 +93,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
 
     test "renders when a critical probe is :error", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings")
 
       # SettingsLive defers `ensure_loaded` to a supervised task per
       # the "no blocking LV page loads" rule — the first render is the
@@ -106,7 +106,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
 
     test "dismiss event hides the banner for the session", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings")
 
       assert render_after_async_load(view) =~ "Setup is incomplete"
 
@@ -117,7 +117,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
   end
 
   test "receives cross-tab spoiler_free sync via PubSub", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/settings")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings")
 
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
@@ -133,7 +133,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
   end
 
   test "receives watcher state changes via PubSub", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/settings")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings")
 
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
@@ -161,7 +161,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
 
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.pipeline_input())
 
-      {:ok, view, _html} = live(conn, ~p"/settings?section=tmdb")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=tmdb")
 
       view
       |> form("form[phx-submit='save_tmdb']", %{
@@ -180,7 +180,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
 
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.pipeline_input())
 
-      {:ok, view, _html} = live(conn, ~p"/settings?section=tmdb")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=tmdb")
 
       view
       |> form("form[phx-submit='save_tmdb']", %{
@@ -197,7 +197,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     alias MediaCentarr.Library
 
     test "renders disabled with no badge when nothing is missing", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/settings?section=danger")
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=danger")
 
       assert html =~ "Repair missing images"
       assert html =~ "All image files are present on disk"
@@ -219,7 +219,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
         extension: "jpg"
       })
 
-      {:ok, view, _html} = live(conn, ~p"/settings?section=danger")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
 
       # `missing_images_summary` is fetched inside the deferred
       # `start_async_settings_load/1` task; wait for the result.
@@ -231,7 +231,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
 
     test "dispatch flips to 'Repairing…' and completes with a flash", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=danger")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
 
       # Hand the LiveView a completion message directly — we don't need the
       # background Task.Supervisor path to prove the state-transition wiring.
@@ -259,7 +259,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
       # untouched afterwards.
       saved_url_before = Config.get(:download_client_url)
 
-      {:ok, view, _html} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
 
       detected = %{
         name: "qBittorrent",
@@ -285,7 +285,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
 
     test "empty result shows no clients configured", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
 
       send(view.pid, {:download_client_detect_result, {:ok, []}})
 
@@ -294,7 +294,7 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
     end
 
     test "error result shows connection failure", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=acquisition")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
 
       send(view.pid, {:download_client_detect_result, {:error, :timeout}})
 

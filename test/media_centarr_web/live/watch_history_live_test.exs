@@ -13,12 +13,12 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
 
   describe "mount" do
     test "mounts the history page without error", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/history")
+      {:ok, _view, html} = live_async!(conn, "/history")
       assert html =~ "Watch History"
     end
 
     test "mounts with empty state when no events", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
 
       # Verify the page is up and the render cycle completes without crashing
       rendered = render(view)
@@ -28,14 +28,14 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
     test "mounts and renders completion events from the database", %{conn: conn} do
       movie = create_movie(%{name: "Sample Anime One"})
       create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Anime One"})
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
       assert render_after_async_load(view) =~ "Sample Anime One"
     end
 
     test "mounts with correct event count reflected in stats", %{conn: conn} do
       create_watch_event(%{title: "Movie A", duration_seconds: 3600.0})
       create_watch_event(%{title: "Movie B", duration_seconds: 7200.0})
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
       html = render_after_async_load(view)
       # Two completions are visible on page
       assert html =~ "Movie A"
@@ -48,7 +48,7 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
       create_watch_event(%{entity_type: :movie, title: "A Movie"})
       create_watch_event(%{entity_type: :video_object, title: "A Video"})
 
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
 
       html =
         view
@@ -63,7 +63,7 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
       create_watch_event(%{entity_type: :movie, title: "A Movie"})
       create_watch_event(%{entity_type: :episode, title: "An Episode"})
 
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
 
       html =
         view
@@ -80,7 +80,7 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
       create_watch_event(%{title: "Sample Movie"})
       create_watch_event(%{title: "Other Title"})
 
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
 
       html =
         view
@@ -94,7 +94,7 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
 
   describe "real-time updates" do
     test "watch_event_created broadcast re-renders with the new event", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
 
       movie = create_movie(%{name: "Sample Movie"})
       event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie"})
@@ -113,7 +113,7 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
       # (500ms) rather than triggering a full stats + events re-fetch on every
       # message. Five messages must result in one :reload_history — the page
       # must render correctly after the window and not crash.
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
 
       movie = create_movie(%{name: "Other Movie"})
 
@@ -136,7 +136,7 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
         create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie B"})
       end
 
-      {:ok, view, _html} = live(conn, "/history")
+      {:ok, view, _html} = live_async!(conn, "/history")
 
       assert render_after_async_load(view) =~ "3×"
     end
@@ -145,7 +145,7 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
       movie = create_movie(%{name: "Other Movie"})
       create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Other Movie"})
 
-      {:ok, _view, html} = live(conn, "/history")
+      {:ok, _view, html} = live_async!(conn, "/history")
 
       refute html =~ "1×"
     end

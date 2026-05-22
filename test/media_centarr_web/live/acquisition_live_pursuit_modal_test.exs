@@ -63,7 +63,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, html} = live(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, html} = live_async!(conn, "/download?selected=#{pursuit.id}")
 
       # Modal is open
       assert has_element?(view, "#pursuit-modal[data-state='open']")
@@ -75,7 +75,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "satisfied", title: "Sample Movie", status: "acquired"})
 
-      {:ok, view, html} = live(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, html} = live_async!(conn, "/download?selected=#{pursuit.id}")
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
       assert html =~ "Done"
@@ -83,7 +83,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
     end
 
     test "renders not-found inside the modal for an unknown id", %{conn: conn} do
-      {:ok, view, html} = live(conn, "/download?selected=#{Ecto.UUID.generate()}")
+      {:ok, view, html} = live_async!(conn, "/download?selected=#{Ecto.UUID.generate()}")
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
       assert html =~ "Pursuit not found"
@@ -130,7 +130,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
           |> Repo.insert()
       end)
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       # `AcquisitionLive.ensure_loaded/1` defers `pursuit_rows` to an
       # async task. Wait for the `{:acquisition_loaded, _}` reply
@@ -181,6 +181,9 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       end)
 
       start_ms = System.monotonic_time(:millisecond)
+      # Intentionally NOT live_async! — this test asserts the mount returns
+      # without blocking on the (deliberately slow) Prowlarr fetch and shows
+      # the loading state, so it must observe the un-drained mount.
       {:ok, view, html} = live(conn, "/download?selected=#{pursuit.id}")
       open_ms = System.monotonic_time(:millisecond) - start_ms
 
@@ -192,7 +195,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
     end
 
     test "no `?selected=` param leaves the modal closed", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       assert has_element?(view, "#pursuit-modal[data-state='closed']")
     end
@@ -203,7 +206,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
       render_click(view, "cancel_pursuit", %{})
 
       reloaded = Repo.reload(pursuit)
@@ -215,7 +218,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "failed"})
 
-      {:ok, view, _html} = live(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
       render_click(view, "change_target", %{})
 
       assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "target_changed")
@@ -225,7 +228,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
       render_click(view, "request_decision", %{})
 
       reloaded = Repo.reload(pursuit)
@@ -239,7 +242,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
       assert has_element?(view, "#pursuit-modal[data-state='closed']")
 
       render_click(view, "select_pursuit", %{"id" => pursuit.id})
@@ -253,7 +256,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
       assert has_element?(view, "#pursuit-modal[data-state='open']")
 
       render_click(view, "close_pursuit", %{})
@@ -270,7 +273,7 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live(conn, "/download?filter=all&search=Sample")
+      {:ok, view, _html} = live_async!(conn, "/download?filter=all&search=Sample")
 
       render_click(view, "select_pursuit", %{"id" => pursuit.id})
       patched = assert_patch(view)

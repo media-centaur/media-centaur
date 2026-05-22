@@ -43,7 +43,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
         {"/upcoming", "upcoming"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live(conn, unquote(path))
+      assert {:ok, _view, html} = live_async!(conn, unquote(path))
       assert is_binary(html)
     end
   end
@@ -71,7 +71,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "library detail panel mounts for a movie with duration_seconds",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = live(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
     end
   end
@@ -132,7 +132,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     test "library detail panel mounts for a TV series with upcoming + future-season releases",
          %{conn: conn, tv: tv} do
       assert {:ok, _view, html} =
-               live(conn, ~p"/library?selected=#{tv.id}")
+               live_async!(conn, ~p"/library?selected=#{tv.id}")
 
       # Confirm the upcoming-row data-role appears at least once — without
       # the typed `seasons_view` flowing through, no upcoming row would
@@ -169,7 +169,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "library detail panel mounts when a linked file has subtitle tracks",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = live(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
     end
   end
@@ -284,9 +284,9 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     test "upcoming zone renders without crashing", %{conn: conn} do
       # /?zone=upcoming redirects to /upcoming (HomeLive handles zone params).
       assert {:error, {:live_redirect, %{to: "/upcoming"}}} =
-               live(conn, "/?zone=upcoming")
+               live_async!(conn, "/?zone=upcoming")
 
-      assert {:ok, _view, html} = live(conn, "/upcoming")
+      assert {:ok, _view, html} = live_async!(conn, "/upcoming")
       assert is_binary(html)
     end
   end
@@ -369,7 +369,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
     end
 
     test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
-      assert {:ok, view, html} = live(conn, "/download")
+      assert {:ok, view, html} = live_async!(conn, "/download")
       assert is_binary(html)
 
       # `AcquisitionLive.ensure_loaded/1` defers the pursuit-row + history
@@ -427,7 +427,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       conn: conn,
       pursuit_id: pursuit_id
     } do
-      assert {:ok, _view, html} = live(conn, "/download?selected=#{pursuit_id}")
+      assert {:ok, _view, html} = live_async!(conn, "/download?selected=#{pursuit_id}")
       assert is_binary(html)
       assert html =~ "Sample Movie"
       assert html =~ ~s|data-state="open"|
@@ -435,7 +435,7 @@ defmodule MediaCentarrWeb.PageSmokeTest do
 
     test "renders not-found inside the modal for an unknown pursuit_id", %{conn: conn} do
       assert {:ok, _view, html} =
-               live(conn, "/download?selected=#{Ecto.UUID.generate()}")
+               live_async!(conn, "/download?selected=#{Ecto.UUID.generate()}")
 
       assert html =~ "Pursuit not found"
     end

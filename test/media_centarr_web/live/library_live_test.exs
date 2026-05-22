@@ -10,7 +10,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
   describe "zone tabs removed" do
     test "library page has no zone tabs", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/library")
+      {:ok, _view, html} = live_async!(conn, "/library")
 
       refute html =~ "data-nav-zone=\"zone-tabs\""
       refute html =~ "data-zone-tab"
@@ -18,7 +18,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     end
 
     test "library page renders the catalog grid section", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/library")
+      {:ok, _view, html} = live_async!(conn, "/library")
 
       assert html =~ "id=\"browse\""
     end
@@ -30,7 +30,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Initial Mount Fixture"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, _view, html} = live(conn, "/library")
+      {:ok, _view, html} = live_async!(conn, "/library")
 
       assert html =~ "Initial Mount Fixture"
     end
@@ -69,7 +69,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     end
 
     test "?in_progress=1 only shows entities with in-progress watch progress", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/library?in_progress=1")
+      {:ok, _view, html} = live_async!(conn, "/library?in_progress=1")
 
       assert html =~ "In Progress Movie"
       refute html =~ "Finished Movie"
@@ -77,12 +77,12 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     end
 
     test "?in_progress=1 shows the active-filter indicator chip", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/library?in_progress=1")
+      {:ok, _view, html} = live_async!(conn, "/library?in_progress=1")
       assert html =~ "In progress"
     end
 
     test "/library (no param) shows all entities — no in-progress filter", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/library")
+      {:ok, _view, html} = live_async!(conn, "/library")
 
       assert html =~ "In Progress Movie"
       assert html =~ "Finished Movie"
@@ -103,7 +103,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
     end
 
     test "clicking the backdrop closes the modal", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
 
@@ -120,7 +120,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       # phx-click-away. That handler is document-scoped, so any sibling
       # overlay (Console drawer, future popover, toast) would dismiss
       # the modal when clicked. Dismissal lives on the backdrop instead.
-      {:ok, view, _html} = live(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal [phx-click-away]")
@@ -134,7 +134,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       # the URL, not just `view=info`. Without this the toggle handler
       # round-trips through `parse_view` and lands on `:main`, making
       # the More info button look broken.
-      {:ok, view, _html} = live(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
       view |> element("button[phx-click='toggle_credits_view']") |> render_click()
 
@@ -155,7 +155,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       # ProgressBroadcaster fires, the LibraryLive grid card must reflect
       # the new progress without the user reloading the page. Without this,
       # users start a movie and the catalog still shows it as untouched.
-      {:ok, view, html} = live(conn, "/library")
+      {:ok, view, html} = live_async!(conn, "/library")
       assert html =~ "Live Update Movie"
       refute html =~ "progress-fill"
 
@@ -177,7 +177,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       # The pulse dot in the top-right of the card is a high-signal "this
       # is playing right now" indicator. It must light up the moment another
       # device reports playback, not on the next page load.
-      {:ok, view, html} = live(conn, "/library")
+      {:ok, view, html} = live_async!(conn, "/library")
       refute html =~ "animate-pulse"
 
       Events.broadcast(%PlaybackStateChanged{
@@ -192,7 +192,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
     test "playback_failed broadcast renders an error flash",
          %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live(conn, "/library")
+      {:ok, view, _html} = live_async!(conn, "/library")
 
       Events.broadcast(%PlaybackFailed{
         entity_id: movie.id,
@@ -232,7 +232,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
          %{conn: conn, tv_series: tv_series, episode: episode} do
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
 
-      {:ok, view, html} = live(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
       assert html =~ "Mark watched"
       refute html =~ "Mark unwatched"
@@ -264,7 +264,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
       Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.playback_events())
 
-      {:ok, view, html} = live(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
       assert html =~ "Mark unwatched"
 
@@ -290,7 +290,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Availability Movie"})
       file = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live(conn, "/library")
+      {:ok, view, _html} = live_async!(conn, "/library")
 
       Phoenix.PubSub.broadcast(
         MediaCentarr.PubSub,

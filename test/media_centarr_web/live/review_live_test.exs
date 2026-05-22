@@ -13,7 +13,7 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
 
   describe "GET /review" do
     test "renders without crashing", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/review")
+      {:ok, _view, html} = live_async!(conn, "/review")
       # Empty-state copy or list section heading.
       assert html =~ "Review" or html =~ "Movies" or html =~ "TV Series"
     end
@@ -25,7 +25,7 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
           parsed_type: "movie"
         })
 
-      {:ok, view, _html} = live(conn, "/review")
+      {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Initial Mount Pending"
     end
   end
@@ -38,7 +38,7 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
 
     test "file_added broadcast triggers a debounced reload",
          %{conn: conn} do
-      {:ok, view, html} = live(conn, "/review")
+      {:ok, view, html} = live_async!(conn, "/review")
       refute html =~ "Newly Arrived File"
 
       _file =
@@ -63,7 +63,7 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
           parsed_type: "movie"
         })
 
-      {:ok, view, _html} = live(conn, "/review")
+      {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Single Review File"
 
       send(view.pid, {:file_reviewed, file.id})
@@ -89,7 +89,7 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
           parsed_type: "tv"
         })
 
-      {:ok, view, _html} = live(conn, "/review")
+      {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Approved Show"
 
       group_key = {file_a.watch_directory, "Approved Show"}
@@ -106,7 +106,7 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
           parsed_type: "movie"
         })
 
-      {:ok, view, _html} = live(conn, "/review")
+      {:ok, view, _html} = live_async!(conn, "/review")
 
       group_key = {file.watch_directory, "Errored Group File"}
       send(view.pid, {:group_error, group_key, "boom"})
