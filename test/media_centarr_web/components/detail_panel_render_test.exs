@@ -127,4 +127,28 @@ defmodule MediaCentarrWeb.Components.DetailPanelRenderTest do
       assert html =~ "Sample Director"
     end
   end
+
+  describe "movie_series constituent rows" do
+    test "renders a present constituent movie row without raising" do
+      # Regression: `DetailItem.movie_entry_to_map/1` produces movie-row
+      # maps with no `:images` key. `movie_row` calls
+      # `image_url(@movie, "poster")`, which dot-accessed `entity.images`
+      # and raised `KeyError` — taking down the whole HomeLive process
+      # the moment a movie_series detail panel rendered a present movie.
+      movie_row_map = %{
+        id: Ecto.UUID.generate(),
+        name: "Sample Movie",
+        present?: true,
+        content_url: "/movies/sample/sample.mkv",
+        date_published: ~D[2022-05-21],
+        collection_position: 1
+      }
+
+      movie_series = build_entity(%{type: :movie_series, movies: [movie_row_map]})
+
+      html = render_panel(movie_series)
+
+      assert html =~ "Sample Movie"
+    end
+  end
 end

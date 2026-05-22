@@ -75,7 +75,7 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
   @doc_extra_progress_by_id "`%{Ecto.UUID.t() => WatchProgress.t()}` keyed by extra id."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."
-  @doc_movie "`MediaCentarr.Library.Movie.t()` (Ecto schema) — used inside `MovieSeries` content lists."
+  @doc_movie "A movie row inside a `MovieSeries` content list. Either a `MediaCentarr.Library.Movie.t()` or the lean projection map from `DetailItem.movie_entry_to_map/1`. Required keys: `:id`, `:name`, `:date_published`. Optional (read via `Map.get`): `:images`, `:description`, `:duration_seconds`."
   @doc_extra "`MediaCentarr.Library.Extra.t()` (Ecto schema) — TV bonus content."
   @doc_files_list "list of file-info maps — same shape as `:detail_files`."
   @doc_file_info "single file-info map — `%{file: KnownFile.t(), entity_id, role, …}`."
@@ -881,6 +881,12 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
       |> assign(:state, state)
       |> assign(:is_resume_target, is_resume_target)
       |> assign(:thumbnail, image_url(assigns.movie, "poster"))
+      # `description` / `duration_seconds` are optional display fields. The
+      # movie_series projection map (`DetailItem.movie_entry_to_map/1`)
+      # omits them, so read via `Map.get` — a bare dot-access raises
+      # `KeyError` on the missing key and crashes the whole panel render.
+      |> assign(:description, Map.get(assigns.movie, :description))
+      |> assign(:duration_seconds, Map.get(assigns.movie, :duration_seconds))
 
     ~H"""
     <div
@@ -915,20 +921,20 @@ defmodule MediaCentarrWeb.Components.DetailPanel do
             </span>
           </span>
           <p
-            :if={@movie.description}
+            :if={@description}
             class={[
               "line-clamp-2 text-xs text-base-content/50",
               @spoiler_free && @state != :watched && "spoiler-blur"
             ]}
           >
-            {@movie.description}
+            {@description}
           </p>
         </div>
         <.watched_toggle
           event="toggle_watched"
           state={@state}
           progress={@progress}
-          duration_seconds={@movie.duration_seconds}
+          duration_seconds={@duration_seconds}
           phx-value-entity-id={@entity_id}
           phx-value-season="0"
           phx-value-episode={@ordinal}
