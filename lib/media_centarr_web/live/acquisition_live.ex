@@ -151,12 +151,15 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     end
   end
 
+  # Owned async (ADR-049): the load runs under the LiveView via
+  # `start_async/3` — cancelled when the LiveView dies, awaitable in
+  # tests via `render_async/1`, never an orphan under the global
+  # `TaskSupervisor`. Result lands in `handle_async(:acquisition_load, …)`.
   defp start_async_acquisition_load(socket) do
-    parent = self()
     history_search = socket.assigns.history_search
     history_filter = socket.assigns.history_filter
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+    start_async(socket, :acquisition_load, fn ->
       [search_session, download_client_ready, pursuit_rows, history_rows] =
         [
           fn -> Acquisition.current_search_session() end,
@@ -167,19 +170,13 @@ defmodule MediaCentarrWeb.AcquisitionLive do
         |> Task.async_stream(& &1.(), max_concurrency: 4, ordered: true, timeout: 15_000)
         |> Enum.map(fn {:ok, result} -> result end)
 
-      send(
-        parent,
-        {:acquisition_loaded,
-         %{
-           search_session: search_session,
-           download_client_ready: download_client_ready,
-           pursuit_rows: pursuit_rows,
-           history_rows: history_rows
-         }}
-      )
+      %{
+        search_session: search_session,
+        download_client_ready: download_client_ready,
+        pursuit_rows: pursuit_rows,
+        history_rows: history_rows
+      }
     end)
-
-    socket
   end
 
   defp load_pursuit_rows(socket) do
@@ -944,14 +941,20 @@ defmodule MediaCentarrWeb.AcquisitionLive do
     end
   end
 
-  # Async result from `start_async_acquisition_load/1`. The task did
-  # all four reads (search session, capability flag, pursuit rows,
-  # history rows) in parallel off the LV process.
-  def handle_info({:acquisition_loaded, assigns}, socket) do
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  # Async result from `start_async_acquisition_load/1` — the four initial
+  # reads (search session, capability flag, pursuit rows, history rows)
+  # done in parallel off the LV process and merged into assigns.
+  @impl true
+  def handle_async(:acquisition_load, {:ok, assigns}, socket) do
     {:noreply, assign(socket, Map.to_list(assigns))}
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  def handle_async(:acquisition_load, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "acquisition load failed — #{inspect(reason)}")
+    {:noreply, socket}
+  end
 
   # ---------------------------------------------------------------------------
   # Pursuit detail modal — loading + refresh helpers (moved from the
