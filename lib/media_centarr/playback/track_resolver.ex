@@ -314,7 +314,8 @@ defmodule MediaCentarr.Playback.TrackResolver do
     target_langs = subtitle_target_langs(policy, audio_lang)
 
     Enum.find_value(target_langs, fn lang ->
-      candidates = Enum.filter(tracks, fn track -> track.lang == lang and track.forced == false end)
+      candidates =
+        Enum.filter(tracks, fn track -> Iso639.equal?(track.lang, lang) and track.forced == false end)
 
       case policy.subtitles_variant do
         "sdh_preferred" -> Enum.find(candidates, & &1.sdh) || List.first(candidates)
