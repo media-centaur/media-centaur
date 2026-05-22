@@ -1,7 +1,8 @@
 ---
-status: in-progress
+status: shipped
 started: 2026-05-22
 last_updated: 2026-05-22
+shipped: 2026-05-22
 ---
 # Test-suite performance & principles
 
@@ -36,10 +37,24 @@ moved to context-layer `*_async` functions. Fast local ops
 (toggles, deletes, rematch) made synchronous (ADR-044). Full suite:
 **~53s / 3894 tests / 0 failures**, deterministic.
 
-Remaining (optional follow-ups): now that no web-layer orphans
-exist, the `DataCase` grace-kill drain could be simplified/removed;
-add a CI suite-time budget gate; cross-suite (bun/Playwright)
-Principle-4 pass (remaining `Process.sleep`-to-settle in tests).
+**Follow-ups closed (2026-05-22):**
+
+* **Drain — kept, not removed.** The "remove the drain" idea rested on
+  a wrong premise: must-outlive work was *relocated* to context-layer
+  `*_async` functions that still run under the global `TaskSupervisor`
+  and legitimately orphan in tests. The grace-kill drain is therefore
+  the *permanent* O(grace) teardown safety net, not a bridge —
+  re-documented in `data_case.ex`.
+* **CI suite-time gate added.** The Linux precommit step is wrapped in
+  `timeout -k 60 900` so a hung suite fails in ~15 min instead of
+  running to the GitHub Actions ceiling (Principle 1).
+* **Sleeps assessed.** The flaky class (`Process.sleep`-to-settle for
+  async loads) was eliminated during the rollout (→ `render_async` /
+  `wait_until`). The ~52 remaining are bounded debounce/real-timer
+  waits; a Credo check can't cleanly separate those from
+  poll-with-deadline, so no mechanical gate — tracked as minor hygiene.
+
+Campaign complete.
 
 ## The regression (confirmed root cause)
 
@@ -141,6 +156,10 @@ Append-only log.
   separate looser suite.** Same suite + same discipline; enforce
   owned-async via Credo (and eventually a teardown orphan assertion)
   rather than quarantining LiveView tests with relaxed setups.
+* `2026-05-22` — **Follow-ups closed; campaign shipped.** Drain kept
+  as permanent O(grace) safety net (context-layer async still orphans);
+  CI precommit wrapped in `timeout -k 60 900` (suite-time gate); sleeps
+  assessed (flaky class gone, rest bounded timer waits, no clean check).
 * `2026-05-22` — **Owned-async rollout complete.** All 8
   grandfathered LiveViews converted across 5 batches (watch_history/
   console/status; review/upcoming; entity_modal; acquisition;

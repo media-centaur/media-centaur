@@ -45,7 +45,13 @@ jobs:
         run: mix deps.get
 
       - name: Run precommit checks
-        run: mix precommit
+        # Suite-time gate (ADR-049 Principle 1): a hung suite must fail the
+        # build in minutes, not run to the GitHub Actions ceiling. Normal
+        # precommit is ~3-4 min on a warm cache; 900s is generous headroom
+        # that still catches the cumulative-orphan hang class that once
+        # regressed the suite (each test +~1s in teardown → never finishes).
+        # `-k 60` SIGKILLs a wedged BEAM 60s after the SIGTERM.
+        run: timeout -k 60 900 mix precommit
 
   # macOS lint-and-compile gate. The full `mix test` suite expects the
   # macOS Platform.* impls (Autostart.Launchd, DriveProbe.BsdDf,
