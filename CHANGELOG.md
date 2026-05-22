@@ -4,6 +4,34 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.70.0 — 2026-05-22
+
+### New
+
+**Language & subtitle preferences.** Set your preferred audio and
+subtitle languages once in Settings → Playback, and Media Centarr applies
+them automatically when you start something — choosing the matching audio
+track and turning subtitles on or off to suit. You can also override the
+choice for an individual show or movie when its needs differ from your
+defaults.
+
+**Manual downloads now finish on their own.** When you grab a release
+from search, Media Centarr follows the file all the way into your library
+and clears it from Active Pursuits once it lands — previously a manual
+grab could sit there indefinitely showing "Not visible in your download
+client." A download that finishes but never imports (for example, a
+higher-quality copy of something you already have) now shows its real
+stage — "Downloaded — not landed" or "In review" — instead of a confusing
+message.
+
+### Fixed
+
+- Fixed a crash when opening a movie collection — clicking certain
+  collection entries failed to load their details.
+- Audio and subtitle tracks are now selected more reliably: language
+  codes are matched consistently, including the "subtitles only when the
+  audio isn't in your language" case.
+
 ## v0.69.0 — 2026-05-21
 
 ### New
