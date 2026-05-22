@@ -5,12 +5,10 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
   import Phoenix.LiveViewTest
 
   # `ReviewLive.ensure_loaded/1` defers `Review.fetch_pending_groups/0`
-  # to a `Task.Supervisor` child that messages back via
-  # `{:review_loaded, _}` (per the "no blocking LV page loads" rule).
-  # Tests asserting on populated state must wait for that message.
+  # to an owned `start_async(:review_load, …)` (ADR-049). `render_async/1`
+  # awaits it deterministically — no wall-clock sleep.
   defp render_after_async_load(view) do
-    Process.sleep(100)
-    render(view)
+    render_async(view)
   end
 
   describe "GET /review" do

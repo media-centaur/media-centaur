@@ -13,6 +13,8 @@ defmodule MediaCentarrWeb.UpcomingLive do
   """
   use MediaCentarrWeb, :live_view
 
+  require MediaCentarr.Log, as: Log
+
   alias MediaCentarr.{Acquisition, Capabilities, ReleaseTracking}
   alias MediaCentarr.Acquisition.TargetEvents
   alias MediaCentarrWeb.Components.{TrackModal, UpcomingCards}
@@ -97,10 +99,9 @@ defmodule MediaCentarrWeb.UpcomingLive do
   # `Task.async_stream`, then derives the dependent assigns (images,
   # tracked items, grab statuses) from the in-memory results before
   # messaging the LV with the full `:upcoming_loaded` payload.
+  # Owned async (ADR-049): result lands in handle_async(:upcoming_load, …).
   defp start_async_upcoming_load(socket) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+    start_async(socket, :upcoming_load, fn ->
       [releases, events, watching_items] =
         [
           fn -> ReleaseTracking.list_releases() end,
@@ -110,21 +111,15 @@ defmodule MediaCentarrWeb.UpcomingLive do
         |> Task.async_stream(& &1.(), max_concurrency: 3, ordered: true, timeout: 15_000)
         |> Enum.map(fn {:ok, result} -> result end)
 
-      send(
-        parent,
-        {:upcoming_loaded,
-         %{
-           upcoming_releases: releases,
-           upcoming_events: events,
-           upcoming_images: load_tracking_images(releases),
-           tracked_items: build_tracked_items_from(watching_items),
-           release_grab_statuses: load_release_grab_statuses(releases),
-           acquisition_ready: Capabilities.prowlarr_ready?()
-         }}
-      )
+      %{
+        upcoming_releases: releases,
+        upcoming_events: events,
+        upcoming_images: load_tracking_images(releases),
+        tracked_items: build_tracked_items_from(watching_items),
+        release_grab_statuses: load_release_grab_statuses(releases),
+        acquisition_ready: Capabilities.prowlarr_ready?()
+      }
     end)
-
-    socket
   end
 
   @impl true
@@ -241,12 +236,10 @@ defmodule MediaCentarrWeb.UpcomingLive do
       {last_season, last_episode} =
         ReleaseTracking.find_last_library_episode(tv_series_id)
 
-      Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-        ReleaseTracking.track_from_search(
-          %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: nil},
-          %{start_season: last_season, start_episode: last_episode}
-        )
-      end)
+      ReleaseTracking.track_from_search_async(
+        %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: nil},
+        %{start_season: last_season, start_episode: last_episode}
+      )
 
       {:noreply, assign(socket, track_confirmed_ids: MapSet.put(confirmed, tmdb_id_str))}
     end
@@ -269,12 +262,10 @@ defmodule MediaCentarrWeb.UpcomingLive do
         {:noreply, assign(socket, track_scope_item: scope_item, track_collection_item: nil)}
 
       :movie ->
-        Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-          ReleaseTracking.track_from_search(
-            %{tmdb_id: tmdb_id, media_type: :movie, name: name, poster_path: poster_path},
-            %{}
-          )
-        end)
+        ReleaseTracking.track_from_search_async(
+          %{tmdb_id: tmdb_id, media_type: :movie, name: name, poster_path: poster_path},
+          %{}
+        )
 
         results =
           Enum.map(socket.assigns.track_search_results, fn r ->
@@ -300,12 +291,10 @@ defmodule MediaCentarrWeb.UpcomingLive do
           {0, 0}
       end
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      ReleaseTracking.track_from_search(
-        %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: poster_path},
-        %{start_season: start_season, start_episode: start_episode}
-      )
-    end)
+    ReleaseTracking.track_from_search_async(
+      %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: poster_path},
+      %{start_season: start_season, start_episode: start_episode}
+    )
 
     results =
       Enum.map(socket.assigns.track_search_results, fn r ->
@@ -469,11 +458,19 @@ defmodule MediaCentarrWeb.UpcomingLive do
   # the three ReleaseTracking reads and derives the dependent assigns
   # off the LV process — by the time this arrives the work is done and
   # the assignment itself is the only LV-process cost.
-  def handle_info({:upcoming_loaded, assigns}, socket) do
+  def handle_info(_msg, socket), do: {:noreply, socket}
+
+  # Async result from `start_async_upcoming_load/1` — releases, events,
+  # and watching items loaded in parallel off the LV process.
+  @impl true
+  def handle_async(:upcoming_load, {:ok, assigns}, socket) do
     {:noreply, assign(socket, Map.to_list(assigns))}
   end
 
-  def handle_info(_msg, socket), do: {:noreply, socket}
+  def handle_async(:upcoming_load, {:exit, reason}, socket) do
+    Log.warning(:release_tracking, "upcoming load failed — #{inspect(reason)}")
+    {:noreply, socket}
+  end
 
   # --- Private ---
 

@@ -7,6 +7,8 @@ defmodule MediaCentarrWeb.ReviewLive do
   """
   use MediaCentarrWeb, :live_view
 
+  require MediaCentarr.Log, as: Log
+
   import MediaCentarrWeb.ReviewHelpers
 
   alias MediaCentarr.Review
@@ -60,15 +62,9 @@ defmodule MediaCentarrWeb.ReviewLive do
     end
   end
 
+  # Owned async (ADR-049): result lands in handle_async(:review_load, …).
   defp start_async_review_load(socket) do
-    parent = self()
-
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      groups = Review.fetch_pending_groups()
-      send(parent, {:review_loaded, groups})
-    end)
-
-    socket
+    start_async(socket, :review_load, fn -> Review.fetch_pending_groups() end)
   end
 
   @impl true
@@ -90,29 +86,8 @@ defmodule MediaCentarrWeb.ReviewLive do
     group = socket.assigns.groups_by_key[group_key]
 
     if group do
-      socket = assign(socket, processing: MapSet.put(socket.assigns.processing, group_key))
-
-      Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-        {approved, errors} = Review.approve_group(group.files)
-
-        if errors > 0 do
-          Phoenix.PubSub.broadcast(
-            MediaCentarr.PubSub,
-            MediaCentarr.Topics.review_updates(),
-            {:group_error, group_key, "#{errors} file(s) failed to approve"}
-          )
-        end
-
-        if approved > 0 do
-          Phoenix.PubSub.broadcast(
-            MediaCentarr.PubSub,
-            MediaCentarr.Topics.review_updates(),
-            {:group_approved, group_key, approved}
-          )
-        end
-      end)
-
-      {:noreply, socket}
+      Review.approve_group_async(group_key, group.files)
+      {:noreply, assign(socket, processing: MapSet.put(socket.assigns.processing, group_key))}
     else
       {:noreply, socket}
     end
@@ -179,18 +154,18 @@ defmodule MediaCentarrWeb.ReviewLive do
 
   def handle_event("search", %{"query" => query, "type" => type}, socket) do
     type = String.to_existing_atom(type)
-    parent = self()
 
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
-      outcome =
-        try do
-          Review.search_tmdb(query, type)
-        catch
-          kind, reason -> {:error, {kind, reason}}
-        end
+    socket =
+      start_async(socket, :tmdb_search, fn ->
+        outcome =
+          try do
+            Review.search_tmdb(query, type)
+          catch
+            kind, reason -> {:error, {kind, reason}}
+          end
 
-      send(parent, {:tmdb_search_result, query, type, outcome})
-    end)
+        %{query: query, type: type, outcome: outcome}
+      end)
 
     {:noreply, assign(socket, searching: true, search_query: query, search_type: type)}
   end
@@ -321,7 +296,14 @@ defmodule MediaCentarrWeb.ReviewLive do
     {:noreply, assign(socket, tmdb_ready: MediaCentarr.Capabilities.tmdb_ready?())}
   end
 
-  def handle_info({:tmdb_search_result, query, type, outcome}, socket) do
+  def handle_info(_msg, socket) do
+    {:noreply, socket}
+  end
+
+  # --- Async results (owned via start_async/3, ADR-049) ---
+
+  @impl true
+  def handle_async(:tmdb_search, {:ok, %{query: query, type: type, outcome: outcome}}, socket) do
     # Discard stale results — the user may have changed query/type while the
     # async TMDB call was in flight. Without this guard, a slow earlier
     # search would clobber the latest one.
@@ -341,22 +323,20 @@ defmodule MediaCentarrWeb.ReviewLive do
     end
   end
 
-  # Async result from `start_async_review_load/1`. The fetch of pending
-  # groups ran off the LV process; re-run the derived-assigns pipeline
-  # (`apply_group_stats`, `ensure_selection`) on the new data so the
+  # Re-run the derived-assigns pipeline (`apply_group_stats`,
+  # `ensure_selection`) on the freshly fetched groups so the
   # master/detail panes settle into a consistent state.
-  def handle_info({:review_loaded, groups}, socket) do
-    socket =
-      socket
-      |> assign(groups: groups)
-      |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-      |> apply_group_stats()
-      |> ensure_selection()
-
-    {:noreply, socket}
+  def handle_async(:review_load, {:ok, groups}, socket) do
+    {:noreply,
+     socket
+     |> assign(groups: groups)
+     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+     |> apply_group_stats()
+     |> ensure_selection()}
   end
 
-  def handle_info(_msg, socket) do
+  def handle_async(name, {:exit, reason}, socket) do
+    Log.warning(:review, "review async #{inspect(name)} failed — #{inspect(reason)}")
     {:noreply, socket}
   end
 

@@ -310,6 +310,21 @@ defmodule MediaCentarr.ReleaseTracking do
     end
   end
 
+  @doc """
+  Fire-and-forget `track_from_search/2`. Runs the (TMDB-fetching) tracking
+  on a supervised context-layer task — tracking must complete regardless of
+  the triggering LiveView's lifecycle (ADR-049: must-outlive background work
+  lives in the context, not a web-layer `start_child`). The resulting
+  `broadcast_releases_updated/1` keeps subscribers in sync.
+  """
+  def track_from_search_async(result, opts \\ %{}) do
+    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+      track_from_search(result, opts)
+    end)
+
+    :ok
+  end
+
   defp do_track_from_search(%{media_type: :tv_series} = result, start_season, start_episode) do
     case Client.get_tv(result.tmdb_id) do
       {:ok, response} ->
