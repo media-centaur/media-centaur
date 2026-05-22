@@ -1,9 +1,9 @@
 ---
-description: Describe, bookmark, push jj changes — and optionally tag a release with a user-facing changelog and upgrade-safety check
+description: Commit and push git changes — and optionally tag a release with a user-facing changelog and upgrade-safety check
 allowed-tools: Bash, AskUserQuestion, Read, Write, Edit
 ---
 
-You are shipping one or more Jujutsu (jj) changes for Media Centarr, and optionally tagging a release the end-user updater will see. Media Centarr end users are media-center users — not engineers. Release notes they see must be written for them.
+You are shipping one or more git repos for Media Centarr, and optionally tagging a release the end-user updater will see. Media Centarr end users are media-center users — not engineers. Release notes they see must be written for them.
 
 > This skill supersedes the global `/ship` (`~/.claude/commands/ship.md`) when invoked from the Media Centarr repo. Both skills share the same arg modes (`/ship` / `patch` / `minor` / `major`), the same halt-on-failure discipline, the same end-user changelog voice, and the same tag flow. This local version adds the Media-Centarr-specific safety checks (pending migrations, `scripts/preflight`, Settings.Entry schema compatibility, updater-contract stability). When updating either skill, update the other to keep the concepts aligned.
 
@@ -11,7 +11,7 @@ You are shipping one or more Jujutsu (jj) changes for Media Centarr, and optiona
 
 Invocation modes:
 
-- `/ship` — plain ship. Describe working change(s), advance, bookmark, push `main`. No tag.
+- `/ship` — plain ship. Commit working change(s), push `main`. No tag.
 - `/ship major` — ship AND bump **major** version in `mix.exs` (X.y.z → (X+1).0.0), generate a user-facing changelog, validate upgrade safety, tag, push tag.
 - `/ship minor` — ship AND bump **minor** version (x.Y.z → x.(Y+1).0), same tag flow.
 - `/ship patch` — ship AND bump **patch** version (x.y.Z → x.y.(Z+1)), same tag flow.
@@ -23,26 +23,41 @@ If the argument is anything else, treat it as invalid and stop with a clear mess
 Determine which repos to operate on:
 
 ```bash
-if [ -d ".jj" ]; then
+if [ -d ".git" ]; then
   echo "SINGLE:$(pwd)"
 else
   for d in */; do
-    [ -d "$d/.jj" ] && echo "REPO:$(cd "$d" && pwd)"
+    [ -d "$d/.git" ] && echo "REPO:$(cd "$d" && pwd)"
   done
 fi
 ```
 
-- If CWD has `.jj/` → operate on CWD alone
-- Otherwise → immediate subdirectories containing `.jj/`
-- 0 repos → tell the user "No jj repos found in this directory" and stop
+- If CWD has `.git/` → operate on CWD alone
+- Otherwise → immediate subdirectories containing `.git/`
+- 0 repos → tell the user "No git repos found in this directory" and stop
 - More than 8 repos → tell the user "Found N repos — are you in the right directory?" and stop
 
 ## Step 2: Scan each repo
 
-For each discovered repo, run `jj diff --stat` and `jj log --limit 1` (in parallel when possible). Classify:
+For each discovered repo, run (in parallel where possible):
 
-- **has changes** — diff is non-empty OR the change already has a description (not "(no description set)")
-- **skip** — empty diff AND no description
+```bash
+cd <repo_path>
+git rev-parse --abbrev-ref HEAD                  # current branch
+git status --porcelain                           # uncommitted changes
+git log --oneline origin/main..HEAD              # unpushed commits
+git log --oneline HEAD..origin/main 2>/dev/null  # behind upstream?
+```
+
+Classify:
+
+- **has changes** — non-empty `git status --porcelain` OR non-empty unpushed-commit list
+- **skip** — clean working tree AND no unpushed commits
+
+Halt conditions per repo:
+
+- Current branch is not `main` → note the deviation; if version-bump mode, halt.
+- Repo is behind `origin/main` → halt with "Pull or rebase first; refusing to push from a stale tip."
 
 ## Step 3: Plan and confirm
 
@@ -60,32 +75,35 @@ If every repo would be skipped AND no tag is requested, tell the user there's no
 
 Only after confirmation. For each repo with changes, sequentially:
 
-### 4a: Write the description
+### 4a: Commit working changes (if any)
 
-- Run `jj diff` in the repo to read the full diff
-- Write a concise description: imperative verb phrase, sentence case, no trailing period, under 72 chars
+If `git status --porcelain` was non-empty, the working tree has uncommitted changes. Commit them BEFORE pushing:
+
+- Run `git diff` and `git diff --cached` to read the changes
+- Write a concise commit message: imperative verb phrase, sentence case, no trailing period, under 72 chars
 - Use conventional prefixes when they fit: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
-- If the change already has a description (not "(no description set)"), keep it unless the diff clearly doesn't match
-
-### 4b: Split if needed
-
-If the diff contains multiple DISTINCT types of work, split with `jj split -m "<description>" <files>` (the `-m` flag avoids opening an editor). The last group remains in the working copy.
-
-### 4c: Describe, advance, bookmark, push
+- If the diff contains multiple DISTINCT types of work, split into separate commits with `git add <files>` + `git commit -m "..."` per logical group — don't bundle unrelated changes
 
 ```bash
 cd <repo_path>
-jj desc -m "<message>"
-jj new
-jj bookmark set main -r @-
-jj git push --bookmark main
+git add <files>                            # specific paths, NEVER `git add -A` blindly
+git commit -m "<message>"
 ```
 
-If a push fails, report the error and continue to the next repo. Do not abort the entire operation.
+Be careful with `git add -A` / `git add .` — they can stage secrets (`.env`), large binaries, or files you didn't intend to ship. Prefer named paths.
+
+### 4b: Push
+
+```bash
+cd <repo_path>
+git push origin main
+```
+
+Never force-push `main`. If the push is rejected as non-fast-forward, the repo is behind upstream — halt with that message and ask the user to pull/rebase. If a push fails, report the error and continue to the next repo. Do not abort the entire operation.
 
 ## Step 5: Version bump + tag (only when mode is major|minor|patch)
 
-Run these in the Media Centarr app repo (the one with `mix.exs`). If shipping multiple repos, the tag applies to the main app repo only.
+Run these in the Media Centarr app repo (the one with `mix.exs`). If shipping multiple repos, the tag applies to the main app repo only. These steps happen AFTER the working-copy ship in Step 4 has been pushed, so `main` already includes the feature commits being released.
 
 ### 5a: Validate safe upgrade path
 
@@ -120,36 +138,32 @@ Media Centarr end users are media-center users. Technical commit messages are us
    - **Skip empty sections.** A release with no "New" doesn't need the heading.
 3. Present the draft changelog via `AskUserQuestion` with two options: "Use as-is" or "Edit before tagging". If the engineer picks "Edit", write the draft to a scratch file (e.g., `/tmp/release-notes-<version>.md`), tell the engineer to edit it, and ask them to confirm when done. Read the edited file back in.
 4. Prepend the final notes to `CHANGELOG.md` under a `## <version> — <YYYY-MM-DD>` header. If `CHANGELOG.md` doesn't exist, create it with a brief intro line.
-5. Commit the changelog update as its own jj change:
+5. Commit the changelog update as its own commit:
    ```bash
-   jj desc -m "docs: changelog for v<version>"
-   jj new
-   jj bookmark set main -r @-
-   jj git push --bookmark main
+   git add CHANGELOG.md
+   git commit -m "docs: changelog for v<version>"
    ```
 
 ### 5c: Bump version in mix.exs
 
-Read `mix.exs`, replace the `version: "x.y.z"` line with the new version. Commit as its own jj change:
+Read `mix.exs`, replace the `version: "x.y.z"` line with the new version. Commit as its own commit:
 
 ```bash
-jj desc -m "chore: bump version to <version>"
-jj new
-jj bookmark set main -r @-
-jj git push --bookmark main
+git add mix.exs
+git commit -m "chore: bump version to <version>"
 ```
 
-### 5d: Tag and push
+### 5d: Push and tag
 
-Read the version from the bumped `mix.exs` — the tag follows that value exactly. Pre-computed variables are not the source of truth; `mix.exs` is.
+Push the changelog + version-bump commits to `main`, then read the version from the bumped `mix.exs` — the tag follows that value exactly. Pre-computed variables are not the source of truth; `mix.exs` is.
 
 ```bash
+git push origin main
+
 version=$(grep -E '^\s*version:' mix.exs | head -1 | sed 's/.*"\(.*\)".*/\1/')
 git tag "v$version"
 git push origin "v$version"
 ```
-
-(Git is the source of truth for tags in a jj-colocated repo; `jj git push` doesn't push tags.)
 
 The GitHub Actions release workflow at `.github/workflows/release.yml` is triggered by the tag and builds the tarball. The release notes on the GitHub Release page come from the tag body or the workflow — if the workflow supports a release-notes input, pass the changelog contents; otherwise point the engineer at the GitHub release page to paste the notes manually.
 
@@ -159,15 +173,17 @@ Check the GitHub release after a minute with `gh release view "v<version>"` and 
 
 After everything, show a final table:
 
-- Repo name → description used → push result
+- Repo name → commit(s) used → push result
 - If tagged: target version, upgrade-safety check result, changelog preview location, tag push result, GitHub release status
 
 ## Important
 
-- NEVER use `jj commit` — jj's working copy is already a commit
+- NEVER force-push `main` — only fast-forward pushes from a local tip that's ahead of upstream
+- NEVER use `git add -A` / `git add .` blindly — name specific files to avoid staging secrets, large binaries, or unintended changes
 - NEVER mutate anything before the user confirms in Step 3
-- If `jj diff` is empty and there's no description, skip that repo
+- Create NEW commits rather than amending already-pushed commits
+- If the working tree is clean AND there are no unpushed commits, skip that repo — don't create empty commits
 - Each repo is independent — a failure in one does not block the others
-- When operating on multiple repos, always `cd` to the repo's absolute path before running jj commands
+- When operating on multiple repos, always `cd` to the repo's absolute path before running git commands
 - **Halt on upgrade-safety failures.** Don't silently override. The in-app updater runs on end users' machines — a broken upgrade path is worse than a delayed release.
 - **End-user voice.** Changelog entries go in front of media-center users. If a line sounds like a commit message, rewrite it until it doesn't.

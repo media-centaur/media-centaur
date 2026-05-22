@@ -70,7 +70,7 @@ The single most important rule, because it's the failure mode
 that makes any progress journal worse than nothing:
 
 > **When a campaign resumes, the first action is to read the
-> file, reconcile it against `jj log` and the current code, and
+> file, reconcile it against `git log` and the current code, and
 > update Status / Decisions / Next steps before writing any
 > new code.**
 

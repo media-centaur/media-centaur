@@ -13,7 +13,7 @@ for the full convention. The short version:
   `started` / `last_updated`, sections **Goal / Status /
   Decisions made / Next steps / Completion criteria**.
 * **Reconciliation rule**: when resuming a campaign, read the
-  file, reconcile against `jj log` and the code, update before
+  file, reconcile against `git log` and the code, update before
   writing any new code. Drift makes the file worse than nothing.
 
 Use [`template.md`](template.md) as a starter.

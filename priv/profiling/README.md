@@ -69,7 +69,7 @@ hides regressions.
 ```sh
 scripts/profile --rebaseline
 # review the printed diff, then accept the prompt
-jj describe -m "perf: rebaseline profile (scale: small)"
+git commit -am "perf: rebaseline profile (scale: small)"
 ```
 
 The prompt returns `false` in non-interactive contexts, so a

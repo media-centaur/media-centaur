@@ -145,7 +145,7 @@ if Mix.env() in [:dev, :test] do
           #{json_dest}
 
         Commit with:
-          jj describe -m "perf: rebaseline profile (scale: #{scale})"
+          git commit -am "perf: rebaseline profile (scale: #{scale})"
         """)
       else
         Mix.shell().info("Baseline unchanged.")
