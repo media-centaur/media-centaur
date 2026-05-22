@@ -115,16 +115,30 @@ defmodule MediaCentarr.Playback.TrackResolver do
     end
   end
 
-  # mpv's `--subs-with-matching-audio` controls whether auto-selection
-  # picks a sub when its language matches the audio. "exclusive" (the
-  # mpv default) skips them — exactly what `when_audio_not_understood`
-  # wants. "yes" forces selection regardless — what `always` and
-  # explicit overrides want.
+  # mpv's `--subs-with-matching-audio=<yes|forced|no>` controls
+  # auto-selection of a sub whose language matches the audio:
+  #
+  #   * "yes"    — always autoselect (used for `always` + explicit overrides)
+  #   * "no"     — never autoselect when audio matches the sub language
+  #                (used for plain `when_audio_not_understood`)
+  #   * "forced" — when audio matches, autoselect only a *forced* sub;
+  #                when audio doesn't match, autoselect a normal sub.
+  #                This is exactly the `fill_gaps` rule — full subs for
+  #                foreign audio, forced-only ("Greedo scene") subs when
+  #                the audio is in a language you understand.
   defp build_subs_match_audio(policy, override) do
     cond do
-      override_subtitle_lang(override) != nil -> "yes"
-      policy.subtitles_when == "always" -> "yes"
-      true -> "exclusive"
+      override_subtitle_lang(override) != nil ->
+        "yes"
+
+      policy.subtitles_when == "always" ->
+        "yes"
+
+      policy.subtitles_when == "when_audio_not_understood" and policy.forced_subs == "fill_gaps" ->
+        "forced"
+
+      true ->
+        "no"
     end
   end
 
