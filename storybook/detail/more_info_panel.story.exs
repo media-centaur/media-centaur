@@ -1,6 +1,7 @@
 defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentarr.Library.MediaTrackOverride
   alias MediaCentarr.Library.Person
 
   def function, do: &MediaCentarrWeb.Components.Detail.MoreInfoPanel.more_info_panel/1
@@ -101,6 +102,33 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
         attributes: %{entity: %{@entity | crew: [], cast: []}}
       },
       %Variation{
+        id: :movie_with_track_override,
+        description:
+          "Captured per-entity track override — 'Remembered tracks' badge with audio + subtitle languages and a Reset action",
+        attributes: %{
+          entity:
+            Map.put(@entity, :track_override, %MediaTrackOverride{
+              owner_type: :movie,
+              owner_id: "00000000-0000-0000-0000-000000000001",
+              audio_lang: "jpn",
+              subtitle_lang: "eng"
+            })
+        }
+      },
+      %Variation{
+        id: :movie_track_override_subs_off,
+        description: "Override that disables subtitles for this entity — badge reads 'Subtitles off'",
+        attributes: %{
+          entity:
+            Map.put(@entity, :track_override, %MediaTrackOverride{
+              owner_type: :movie,
+              owner_id: "00000000-0000-0000-0000-000000000002",
+              audio_lang: "eng",
+              subtitles_off: true
+            })
+        }
+      },
+      %Variation{
         id: :tv_series,
         description: "TV series — Created by row, aggregate cast, network/first-aired/status meta",
         attributes: %{entity: @tv_entity}
@@ -109,6 +137,19 @@ defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
         id: :tv_series_empty_credits,
         description: "TV series with no creators or cast — meta + links still render",
         attributes: %{entity: %{@tv_entity | crew: [], cast: []}}
+      },
+      %Variation{
+        id: :tv_series_with_track_override,
+        description: "TV series with a forced-subtitle override — badge shows '(forced)' suffix",
+        attributes: %{
+          entity:
+            Map.put(@tv_entity, :track_override, %MediaTrackOverride{
+              owner_type: :tv_series,
+              owner_id: "00000000-0000-0000-0000-000000000003",
+              subtitle_lang: "eng",
+              subtitle_forced: true
+            })
+        }
       }
     ]
   end

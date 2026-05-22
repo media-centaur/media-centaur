@@ -221,6 +221,12 @@ defmodule MediaCentarrWeb.Live.EntityModal do
         end
       end
 
+      # --- Track overrides ---
+
+      def handle_event("reset_track_override", _params, socket) do
+        {:noreply, EntityModal.reset_track_override(socket)}
+      end
+
       # --- Delete ---
       #
       # Inline-confirm pattern (mirrors Rematch): each delete button is
@@ -373,6 +379,19 @@ defmodule MediaCentarrWeb.Live.EntityModal do
       )
 
     {:cont, Phoenix.Component.assign(socket, :playback, playback)}
+  end
+
+  # A mid-playback track change was captured (or cleared) as a per-entity
+  # override. When it's the open entity, refresh the *Remembered tracks*
+  # badge in place — no full reload, so a composed `%SeriesDetail{}` entry
+  # keeps its typed seasons. Payload matched structurally (the Events
+  # struct isn't exported across the Playback boundary).
+  def handle_modal_pubsub({:track_override_changed, %{owner_type: type, owner_id: id}}, socket) do
+    if selected?(socket, id) do
+      {:cont, put_entry_track_override(socket, Library.get_media_track_override(type, id))}
+    else
+      {:cont, socket}
+    end
   end
 
   # Release-tracking updates: refetch the open entry when the open
@@ -699,6 +718,33 @@ defmodule MediaCentarrWeb.Live.EntityModal do
 
   @doc false
   def playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
+
+  @doc """
+  Clear the per-entity track override for the open entity and drop the
+  *Remembered tracks* badge from the modal. No-op when nothing is open or
+  the open entity isn't a movie / TV series (only those own overrides).
+  Public so the macro-injected `reset_track_override` event can call it.
+  """
+  @spec reset_track_override(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def reset_track_override(%{assigns: %{selected_entry: %{entity: %{id: id, type: type}}}} = socket)
+      when type in [:movie, :tv_series] and is_binary(id) do
+    Library.clear_media_track_override(type, id)
+    put_entry_track_override(socket, nil)
+  end
+
+  def reset_track_override(socket), do: socket
+
+  # Replace the open entry's `:track_override` in place. Surgical so we
+  # don't reload (and thereby downgrade) a composed `%SeriesDetail{}`
+  # entry to a plain map — both the modal-entry map and the SeriesDetail
+  # struct expose `:entity`, so `%{entry | entity: …}` works on either.
+  defp put_entry_track_override(%{assigns: %{selected_entry: entry}} = socket, override)
+       when not is_nil(entry) do
+    entity = Map.put(entry.entity, :track_override, override)
+    Phoenix.Component.assign(socket, :selected_entry, %{entry | entity: entity})
+  end
+
+  defp put_entry_track_override(socket, _override), do: socket
 
   @doc false
   defdelegate resolve_progress_fk(entry, entity_id, season_number, episode_number),

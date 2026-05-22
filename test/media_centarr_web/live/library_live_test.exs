@@ -6,7 +6,7 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
 
   alias MediaCentarr.Library
   alias MediaCentarr.Playback.{Events, ProgressBroadcaster}
-  alias MediaCentarr.Playback.Events.{PlaybackFailed, PlaybackStateChanged}
+  alias MediaCentarr.Playback.Events.{PlaybackFailed, PlaybackStateChanged, TrackOverrideChanged}
 
   describe "zone tabs removed" do
     test "library page has no zone tabs", %{conn: conn} do
@@ -139,6 +139,80 @@ defmodule MediaCentarrWeb.LibraryLiveTest do
       view |> element("button[phx-click='toggle_credits_view']") |> render_click()
 
       assert_patched(view, ~p"/library?selected=#{movie.id}&view=credits")
+    end
+  end
+
+  describe "track override badge + reset" do
+    setup do
+      movie = create_standalone_movie(%{name: "Track Override Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      {:ok, movie: movie}
+    end
+
+    test "credits view shows the remembered-tracks badge when an override exists", %{
+      conn: conn,
+      movie: movie
+    } do
+      {:ok, _} =
+        Library.upsert_media_track_override(:movie, movie.id, %{
+          audio_lang: "jpn",
+          subtitle_lang: "eng"
+        })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+
+      html = render(view)
+      assert html =~ "Remembered tracks"
+      assert html =~ "jpn audio"
+      assert html =~ "eng subtitles"
+      assert html =~ "Reset to default"
+    end
+
+    test "no badge when the entity has no override", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+
+      refute render(view) =~ "Remembered tracks"
+    end
+
+    test "Reset to default clears the override and drops the badge", %{conn: conn, movie: movie} do
+      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "jpn"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+      assert render(view) =~ "Remembered tracks"
+
+      view |> element("button[phx-click='reset_track_override']") |> render_click()
+
+      assert Library.get_media_track_override(:movie, movie.id) == nil
+      refute render(view) =~ "Remembered tracks"
+    end
+
+    test "TrackOverrideChanged broadcast surfaces the badge live without remount", %{
+      conn: conn,
+      movie: movie
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+      refute render(view) =~ "Remembered tracks"
+
+      # Simulate a mid-playback capture: the override lands in the DB and
+      # the MpvSession broadcasts TrackOverrideChanged. The open modal
+      # must reflect it without the user reopening.
+      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "fra"})
+      Events.broadcast(%TrackOverrideChanged{owner_type: :movie, owner_id: movie.id})
+
+      html = render(view)
+      assert html =~ "Remembered tracks"
+      assert html =~ "fra audio"
+    end
+
+    test "TrackOverrideChanged for a different entity is ignored", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+
+      Events.broadcast(%TrackOverrideChanged{
+        owner_type: :movie,
+        owner_id: Ecto.UUID.generate()
+      })
+
+      refute render(view) =~ "Remembered tracks"
     end
   end
 
