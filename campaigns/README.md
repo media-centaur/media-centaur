@@ -20,6 +20,13 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`test-suite-performance.md`](test-suite-performance.md) —
+  testing principles for a well-managed, high-performance suite,
+  applied to fix the ~30s→hang regression. Root cause confirmed
+  (unowned LiveView async drained in `on_exit`); principles codified
+  in [ADR-049](../decisions/architecture/2026-05-22-049-testing-principles.md).
+  Proof case: convert the acquisition mount-load seam to owned
+  `start_async`.
 * [`macos-platform-support.md`](macos-platform-support.md) —
   resumed at Phase 5 (macOS impls). Seven Platform.* seams landed
   on the Linux side; CI matrix on both OSes is green and strict

@@ -787,7 +787,9 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [matching]}})
 
-      html = render(view)
+      # Await the async pursuit-rows load deterministically rather than
+      # relying on render timing (ADR-049: tests drive async to completion).
+      html = wait_until(view, &(&1 =~ ~s|data-pursuit-id="#{pursuit.id}"|))
       # The card carries the pursuit id; the cancel button inside its footer
       # carries the queue item id — co-located in the rendered DOM, which is
       # exactly the pairing this redesign delivers.
