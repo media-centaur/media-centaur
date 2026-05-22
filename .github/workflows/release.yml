@@ -129,7 +129,7 @@ jobs:
             || (echo "::error::Tarball missing share/defaults/media-centarr.toml"; exit 1)
 
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: tarball-${{ matrix.platform_tag }}
           path: ${{ steps.stage.outputs.tarball }}
@@ -156,7 +156,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Download all matrix tarballs
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: tarball-*
