@@ -9,7 +9,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   alias MediaCentarr.Playback.Events.{PlaybackFailed, PlaybackStateChanged}
 
   test "GET / renders without crashing", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/")
+    {:ok, _view, html} = live_async!(conn, "/")
     # The page mounts and renders content — either section headings (when
     # there is data) or the empty-state message (when the test DB is empty).
     assert html =~ "Continue Watching" or html =~ "Your home page will populate"
@@ -18,7 +18,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
   test "section headings are visible when sections have data", %{conn: conn} do
     # We're not asserting specific data here — Library facade may or may
     # not have any entities in the test DB. Mount + render is enough.
-    {:ok, _view, _html} = live(conn, "/")
+    {:ok, _view, _html} = live_async!(conn, "/")
     assert true
   end
 
@@ -27,7 +27,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
     _ = create_linked_file(%{movie_id: movie.id})
     create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
-    {:ok, _view, html} = live(conn, "/")
+    {:ok, _view, html} = live_async!(conn, "/")
 
     assert html =~ "Sample Movie"
     assert html =~ "Continue Watching"
@@ -40,7 +40,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       # messages in quick succession should result in exactly one :reload_home
       # being processed — verifiable by the page rendering correctly after the
       # window and not crashing from concurrent data loads.
-      {:ok, view, _html} = live(conn, "/")
+      {:ok, view, _html} = live_async!(conn, "/")
 
       for _ <- 1..5 do
         send(view.pid, {:entities_changed, %MediaCentarr.Library.Events.EntitiesChanged{entity_ids: []}})
@@ -74,7 +74,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       _ = create_linked_file(%{movie_id: movie.id})
       create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
-      {:ok, view, html} = live(conn, "/")
+      {:ok, view, html} = live_async!(conn, "/")
 
       # Initial render: image_version is 0, URLs have no ?v= param.
       assert html =~ "/media-images/#{movie.id}/backdrop.jpg"
@@ -118,7 +118,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         released: false
       })
 
-      {:ok, _view, html} = live(conn, "/")
+      {:ok, _view, html} = live_async!(conn, "/")
 
       assert html =~ "Coming Up"
       assert html =~ "Slow Mares"
@@ -137,7 +137,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         duration_seconds: 100.0
       })
 
-      {:ok, view, _html} = live(conn, "/")
+      {:ok, view, _html} = live_async!(conn, "/")
 
       view
       |> element(
@@ -175,7 +175,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         released: false
       })
 
-      {:ok, view, _html} = live(conn, "/")
+      {:ok, view, _html} = live_async!(conn, "/")
 
       assert {:error, {:live_redirect, %{to: "/upcoming" <> _}}} =
                view
@@ -187,7 +187,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live(conn, "/")
+      {:ok, view, _html} = live_async!(conn, "/")
 
       view
       |> element(~s|[data-component="poster-row"] button[data-row-item]|, "Sample Movie")
@@ -201,7 +201,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, _view, html} = live(conn, "/?selected=#{movie.id}")
+      {:ok, _view, html} = live_async!(conn, "/?selected=#{movie.id}")
 
       assert html =~ ~s|data-state="open"|
     end
@@ -221,7 +221,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       # send the projection-refreshed event directly. The 500ms
       # debounce on continue_watching coalesces multiple refreshes
       # within the window.
-      {:ok, view, html} = live(conn, "/")
+      {:ok, view, html} = live_async!(conn, "/")
       refute html =~ "Newly Started Movie"
 
       movie = create_standalone_movie(%{name: "Newly Started Movie"})
@@ -246,7 +246,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       # front of Continue Watching. Without routing playback_state_changed
       # through schedule_section_reloads, the row order would only refresh
       # on the next page navigation.
-      {:ok, view, _html} = live(conn, "/")
+      {:ok, view, _html} = live_async!(conn, "/")
 
       movie = create_standalone_movie(%{name: "Now Playing Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
@@ -280,7 +280,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, html} = live(conn, "/?selected=#{movie.id}")
+      {:ok, view, html} = live_async!(conn, "/?selected=#{movie.id}")
       refute html =~ "Watch again"
 
       {:ok, progress} =
@@ -298,7 +298,7 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
     test "playback_failed broadcast renders an error flash",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/")
+      {:ok, view, _html} = live_async!(conn, "/")
 
       Events.broadcast(%PlaybackFailed{
         entity_id: Ecto.UUID.generate(),
@@ -312,16 +312,16 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
   describe "zone redirects" do
     test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
-      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live(conn, "/?zone=upcoming")
+      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live_async!(conn, "/?zone=upcoming")
     end
 
     test "redirects /?zone=library to /library", %{conn: conn} do
-      assert {:error, {:live_redirect, %{to: "/library"}}} = live(conn, "/?zone=library")
+      assert {:error, {:live_redirect, %{to: "/library"}}} = live_async!(conn, "/?zone=library")
     end
 
     test "/?zone=continue mounts normally (unknown zone is a no-op)", %{conn: conn} do
       # Unknown zone params are ignored — no redirect, page mounts in place
-      {:ok, _view, html} = live(conn, "/?zone=continue")
+      {:ok, _view, html} = live_async!(conn, "/?zone=continue")
 
       assert html =~ "Continue Watching" or html =~ "Your home page will populate"
     end

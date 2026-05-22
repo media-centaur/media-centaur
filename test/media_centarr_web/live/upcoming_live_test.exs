@@ -10,13 +10,13 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
   alias MediaCentarr.Repo
 
   test "GET /upcoming renders the page", %{conn: conn} do
-    {:ok, _view, html} = live(conn, "/upcoming")
+    {:ok, _view, html} = live_async!(conn, "/upcoming")
     # The page header always renders the "Upcoming" heading
     assert html =~ "Upcoming"
   end
 
   test "clicking the Track New Releases button opens the modal", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/upcoming")
+    {:ok, view, _html} = live_async!(conn, "/upcoming")
 
     # The track button only appears when TMDB is ready; if the test
     # environment isn't TMDB-ready, the conditional skips the assertion.
@@ -34,7 +34,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
       # most one reload — the page must still render correctly after the
       # window. (`:entities_changed` only refreshes `tracked_items` since
       # the other assigns derive from ReleaseTracking / Acquisition.)
-      {:ok, view, _html} = live(conn, "/upcoming")
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
 
       for _ <- 1..5 do
         send(
@@ -78,7 +78,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
         })
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/upcoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
 
       result = render_hook(view, "queue_all_show", %{"item-id" => item.id})
 
@@ -99,7 +99,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
     end
 
     test "flashes an error when the item is not found", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/upcoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
 
       result = render_hook(view, "queue_all_show", %{"item-id" => Ecto.UUID.generate()})
 
@@ -129,7 +129,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
         released: false
       })
 
-      {:ok, view, _html} = live(conn, ~p"/upcoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
 
       # `UpcomingLive.ensure_loaded/1` spawns the data load on a
       # supervised task and returns immediately (per the "no blocking
@@ -148,7 +148,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
       # Regression guard for the 500ms grab_statuses_timer debounce —
       # a season grab cascade emits one event per episode; without the
       # debounce we would re-query grab statuses N times back-to-back.
-      {:ok, view, _html} = live(conn, ~p"/upcoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
 
       for _ <- 1..5 do
         send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
@@ -162,7 +162,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
 
     test "queue_snapshot updates the in-memory queue items",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/upcoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
 
       send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: []}})
 
@@ -171,7 +171,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
 
     test "releases_updated broadcast triggers a debounced reload",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/upcoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
 
       send(view.pid, {:releases_updated, [Ecto.UUID.generate()]})
 

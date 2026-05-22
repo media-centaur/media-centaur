@@ -42,7 +42,7 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
     tmp = tmp_dir("valid")
     on_exit(fn -> File.rm_rf!(tmp) end)
 
-    {:ok, view, _} = live(conn, "/settings?section=library")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library")
 
     view
     |> form("form[phx-submit='exclude_dir:add']", %{"path" => tmp})
@@ -53,7 +53,7 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
   end
 
   test "rejects a relative path (inline error, input preserved, button disabled)", %{conn: conn} do
-    {:ok, view, _} = live(conn, "/settings?section=library")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library")
 
     html =
       view
@@ -65,7 +65,7 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
   end
 
   test "rejects a path that doesn't exist on disk", %{conn: conn} do
-    {:ok, view, _} = live(conn, "/settings?section=library")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library")
 
     html =
       view
@@ -82,7 +82,7 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
     on_exit(fn -> File.rm_rf!(tmp) end)
 
     :ok = Config.update(:exclude_dirs, [tmp])
-    {:ok, view, _} = live(conn, "/settings?section=library")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library")
     view = wait_for_async_load(view)
 
     html =
@@ -109,7 +109,7 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
     end)
 
     :ok = Config.update(:exclude_dirs, [tmp_a, tmp_b])
-    {:ok, view, _} = live(conn, "/settings?section=library")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library")
     view = wait_for_async_load(view)
 
     view

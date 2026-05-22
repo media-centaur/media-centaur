@@ -63,13 +63,13 @@ defmodule MediaCentarrWeb.SettingsLiveSystemTest do
   end
 
   test "overview section mounts and renders the current version", %{conn: conn} do
-    {:ok, _view, html} = live(conn, ~p"/settings?section=overview")
+    {:ok, _view, html} = live_async!(conn, ~p"/settings?section=overview")
     assert html =~ MediaCentarr.Version.current_version()
   end
 
   test "landing on overview auto-triggers an update check when cache is empty",
        %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
 
     # Allow the async task to run under Req.Test.
     Req.Test.allow(:github_releases_live, self(), view.pid)
@@ -89,7 +89,7 @@ defmodule MediaCentarrWeb.SettingsLiveSystemTest do
 
     :ok = UpdateChecker.cache_result({:ok, cached})
 
-    {:ok, view, _html} = live(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
 
     # Give any would-be auto-check a window to run; none should.
     Process.sleep(100)
@@ -102,7 +102,7 @@ defmodule MediaCentarrWeb.SettingsLiveSystemTest do
   test "landing on overview with a cached error reuses the error result", %{conn: conn} do
     :ok = UpdateChecker.cache_result({:error, :not_found})
 
-    {:ok, view, _html} = live(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
     Process.sleep(100)
 
     # The live stub returns v99.0.0 — confirm no fetch happened by asserting
@@ -121,7 +121,7 @@ defmodule MediaCentarrWeb.SettingsLiveSystemTest do
 
     :ok = UpdateChecker.cache_result({:ok, cached})
 
-    {:ok, view, _html} = live(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
     Process.sleep(100)
     assert render(view) =~ "v55.0.0"
 
@@ -132,7 +132,7 @@ defmodule MediaCentarrWeb.SettingsLiveSystemTest do
   end
 
   test "check results are written back to the cache", %{conn: conn} do
-    {:ok, view, _html} = live(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
     Req.Test.allow(:github_releases_live, self(), view.pid)
 
     assert_eventually(fn -> render(view) =~ "v99.0.0" end)

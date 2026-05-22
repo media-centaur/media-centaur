@@ -7,12 +7,12 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
   describe "GET /status" do
     test "renders without crashing", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/status")
+      {:ok, _view, html} = live_async!(conn, "/status")
       assert html =~ "Playback"
     end
 
     test "shows idle when no sessions are active", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/status")
+      {:ok, _view, html} = live_async!(conn, "/status")
       assert html =~ "idle" or html =~ "Idle"
     end
   end
@@ -24,7 +24,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
     test "playback_state_changed broadcast surfaces the now-playing item",
          %{conn: conn} do
-      {:ok, view, html} = live(conn, "/status")
+      {:ok, view, html} = live_async!(conn, "/status")
       refute html =~ "Sample Status Movie"
 
       movie_id = Ecto.UUID.generate()
@@ -58,7 +58,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
       # map), then fire :entity_progress_updated with a matching record so
       # the LV's progress_matches_session? predicate returns true and the
       # in-card progress bar moves.
-      {:ok, view, _html} = live(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status")
       movie_id = Ecto.UUID.generate()
 
       send(
@@ -107,7 +107,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
     test "playback_state_changed :stopped removes the session",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status")
       movie_id = Ecto.UUID.generate()
 
       send(
@@ -150,7 +150,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
       # Without the debounced :refresh_stats handler the page would lag
       # behind reality. We pin the contract by sending a watch_event_created
       # message and asserting the page does not crash and re-renders.
-      {:ok, view, _html} = live(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status")
 
       send(view.pid, {:watch_event_created, %{id: Ecto.UUID.generate()}})
 
@@ -159,7 +159,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
 
     test "entities_changed triggers a debounced rerender",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status")
 
       send(
         view.pid,
@@ -200,7 +200,7 @@ defmodule MediaCentarrWeb.StatusLiveTest do
         stale_at
       )
 
-      {:ok, view, _html} = live(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status")
 
       # Wait for the async storage + at-risk load (sent from a Task).
       eventually(fn -> render(view) =~ "at risk of TTL purge" end)

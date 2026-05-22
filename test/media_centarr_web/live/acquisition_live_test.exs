@@ -81,27 +81,27 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         Map.merge(config, %{prowlarr_url: nil, prowlarr_api_key: nil})
       )
 
-      assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/download")
+      assert {:error, {:live_redirect, %{to: "/"}}} = live_async!(conn, ~p"/download")
     end
 
     test "redirects to library when Prowlarr is configured but untested", %{conn: conn} do
       Capabilities.clear_test_result(:prowlarr)
 
-      assert {:error, {:live_redirect, %{to: "/"}}} = live(conn, ~p"/download")
+      assert {:error, {:live_redirect, %{to: "/"}}} = live_async!(conn, ~p"/download")
     end
 
     test "hides the active-downloads queue when the download client is untested",
          %{conn: conn} do
       Capabilities.clear_test_result(:download_client)
 
-      {:ok, _view, html} = live(conn, ~p"/download")
+      {:ok, _view, html} = live_async!(conn, ~p"/download")
 
       refute html =~ "Downloading"
       assert html =~ "Connect a download client"
     end
 
     test "renders the download page when Prowlarr is configured", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/download")
+      {:ok, _view, html} = live_async!(conn, ~p"/download")
 
       assert html =~ "Download"
       assert html =~ "data-page-behavior=\"download\""
@@ -111,7 +111,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
   describe "query_change" do
     test "updates expansion preview for valid syntax", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       html =
         view
@@ -122,7 +122,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     end
 
     test "shows error for invalid brace syntax", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       html =
         view
@@ -135,7 +135,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
   describe "submit_search and grab_selected" do
     test "renders results, lets user select, and submits a grab", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       # Allow the LiveView (and tasks it spawns via $callers) to use the stub.
       Req.Test.allow(:prowlarr, self(), view.pid)
@@ -223,7 +223,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       # Seed the queue via the same PubSub broadcast QueueMonitor emits.
@@ -281,7 +281,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       stale_item = %QueueItem{
@@ -323,7 +323,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       send(
@@ -377,7 +377,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       items =
@@ -421,7 +421,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   describe "retry_search (per-group)" do
     test "a single timed-out search becomes retryable; retry resolves to results",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -468,7 +468,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
   describe "retry_all_timeouts (footer button)" do
     test "appears only after every search completes and at least one timed out",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -510,7 +510,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     end
 
     test "does not appear when no searches timed out", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -548,7 +548,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       # (500ms) rather than calling load_activity on every message. Five events
       # in quick succession must result in one :reload_activity — the page must
       # render correctly after the window without crashing.
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       for _ <- 1..5 do
         send(view.pid, %TargetEvents.Picked{target: %Target{}})
@@ -569,7 +569,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     test "search query and results persist across navigation", %{conn: conn} do
       stub_prowlarr_with([sample_release()])
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
@@ -581,9 +581,9 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       assert html =~ "Sample Show"
       assert html =~ "Sample.Show.S01E01"
 
-      {:ok, _other_view, _other_html} = live(conn, "/")
+      {:ok, _other_view, _other_html} = live_async!(conn, "/")
 
-      {:ok, view2, _html2} = live(conn, "/download")
+      {:ok, view2, _html2} = live_async!(conn, "/download")
       html2 = render_after_async_load(view2)
 
       assert html2 =~ "Sample Show"
@@ -596,7 +596,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         sample_release(guid: "guid-2", title: "Sample.Show.S01E01.1080p.WEB-DL.mkv")
       ])
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
       Req.Test.allow(:prowlarr, self(), view.pid)
 
       view
@@ -611,8 +611,8 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       session_before = MediaCentarr.Acquisition.current_search_session()
       assert session_before.selections == %{"Sample Show" => "guid-2"}
 
-      {:ok, _other_view, _other_html} = live(conn, "/")
-      {:ok, _view2, _html2} = live(conn, "/download")
+      {:ok, _other_view, _other_html} = live_async!(conn, "/")
+      {:ok, _view2, _html2} = live_async!(conn, "/download")
 
       session_after = MediaCentarr.Acquisition.current_search_session()
       assert session_after.selections == %{"Sample Show" => "guid-2"}
@@ -623,7 +623,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
         :timer.sleep(:infinity)
       end)
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Pending Show"})
@@ -640,7 +640,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       session_after = MediaCentarr.Acquisition.current_search_session()
       assert Enum.all?(session_after.groups, fn group -> group.status == :abandoned end)
 
-      {:ok, view2, _html2} = live(conn, "/download")
+      {:ok, view2, _html2} = live_async!(conn, "/download")
       assert render_after_async_load(view2) =~ "Retry"
     end
   end
@@ -659,7 +659,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
     test "queue_snapshot broadcast paints the active queue",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       item = %QueueItem{
         id: "hash-snapshot",
@@ -683,7 +683,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       # QueueMonitor pre-filters completed items, but the LV defends in
       # depth — a stale snapshot from cache or a future driver that emits
       # completed entries must not surface seeded torrents on /download.
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       done = %QueueItem{id: "h1", title: "Already Done Movie", state: :completed}
       live_item = %QueueItem{id: "h2", title: "Still Downloading Movie", state: :downloading}
@@ -697,7 +697,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
     test "empty queue_snapshot transitions to the empty state",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       seed = %QueueItem{id: "h3", title: "Soon To Vanish", state: :downloading}
       send(view.pid, {:queue_state, %MediaCentarr.Downloads.QueueState{items: [seed]}})
@@ -732,7 +732,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       monitor = start_supervised!(MediaCentarr.Downloads.QueueMonitor)
       Req.Test.allow(:qbittorrent, self(), monitor)
 
-      {:ok, view, _html} = live(conn, ~p"/download")
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       # Drain any racing mount-time poll so the subsequent assert_receive
       # observes the post-:capabilities_changed call specifically.
@@ -771,7 +771,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
          %{conn: conn} do
       pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       matching = %QueueItem{
         id: "hash-paired",
@@ -802,7 +802,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
          %{conn: conn} do
       _pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       unrelated = %QueueItem{
         id: "hash-orphan",
@@ -835,7 +835,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
           status: "seeking"
         })
 
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       assert render_after_async_load(view) =~ "Sample Show S01E03"
     end
@@ -850,7 +850,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
     test "five rapid grab_failed events coalesce into one reload",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       for _ <- 1..5 do
         send(view.pid, {:target_failed, %{id: Ecto.UUID.generate(), reason: "boom"}})
@@ -864,7 +864,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
     test "grab_submitted broadcast triggers a debounced reload without crashing",
          %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/download")
 
       send(view.pid, {:target_picked, %{id: Ecto.UUID.generate()}})
       send(view.pid, {:target_armed, %{id: Ecto.UUID.generate()}})
