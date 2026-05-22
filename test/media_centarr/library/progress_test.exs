@@ -323,6 +323,26 @@ defmodule MediaCentarr.Library.ProgressTest do
       assert %WatchProgress{completed: true, playable_item_id: pi_id} = Progress.get(pi.id)
       assert pi_id == pi.id
     end
+
+    test "a later record/3 tick does not clear an already-completed flag" do
+      # Regression: mpv keeps reporting position ticks through the tail
+      # of a finished item. `record/3` wrote the in-memory row with
+      # `completed: false`, clobbering the `true` that `complete/1` had
+      # just set. The completion guard in `MpvSession`
+      # (`maybe_mark_completed_via_progress/3`) then read that false on
+      # every subsequent tick and re-ran completion — redundant
+      # synchronous DB writes and `{:watch_completed, _}` broadcasts for
+      # the rest of playback. A position tick must never downgrade
+      # completion; un-completing is an explicit action on another path.
+      pi = seed_movie_playable_item()
+      :ok = Progress.record(pi.id, 90.0, 100.0)
+      :ok = Progress.complete(pi.id)
+      assert %WatchProgress{completed: true} = Progress.get(pi.id)
+
+      :ok = Progress.record(pi.id, 95.0, 100.0)
+
+      assert %WatchProgress{completed: true, position_seconds: 95.0} = Progress.get(pi.id)
+    end
   end
 
   describe "get/1 fallback to DB for cold rows" do
