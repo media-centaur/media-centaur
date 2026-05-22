@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.71.1 — 2026-05-22
+
+### Improved
+
+**Language names are spelled out.** A title's detail view now shows full
+language names — *Japanese*, *English*, *Spanish* — instead of
+three-letter codes, both on the *Remembered tracks* line and in the
+Language detail.
+
 ## v0.71.0 — 2026-05-22
 
 ### Improved
