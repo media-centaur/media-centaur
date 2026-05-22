@@ -12,6 +12,7 @@ defmodule MediaCentarr.Playback.LanguageContext do
 
   alias MediaCentarr.Library
   alias MediaCentarr.Library.{Movie, TVSeries}
+  alias MediaCentarr.Playback.Iso639
   alias MediaCentarr.Playback.LanguagePolicy
   alias MediaCentarr.Playback.TrackResolver
   alias MediaCentarr.Playback.TrackResolver.Track
@@ -96,7 +97,11 @@ defmodule MediaCentarr.Playback.LanguageContext do
   defp build_track(track) do
     %Track{
       index: Map.get(track, "id"),
-      lang: lang_of(track),
+      # Boundary normalization: every track language entering the system
+      # is canonicalized to 3-letter ISO 639-2/T here, so downstream code
+      # never has to reconcile mpv's "en"/"jpn" forms against TMDB's
+      # "en"/"ja" forms — they're all the same form past this point.
+      lang: Iso639.normalize(lang_of(track)),
       title: Map.get(track, "title"),
       forced: Map.get(track, "forced", false) == true,
       sdh: sdh_of(track)
@@ -167,7 +172,7 @@ defmodule MediaCentarr.Playback.LanguageContext do
   defp resolve_owner(%{movie_id: movie_id}) when is_binary(movie_id) do
     case Repo.get(Movie, movie_id) do
       nil -> {nil, nil, nil}
-      movie -> {:movie, movie.id, movie.original_language}
+      movie -> {:movie, movie.id, Iso639.normalize(movie.original_language)}
     end
   end
 
@@ -177,7 +182,7 @@ defmodule MediaCentarr.Playback.LanguageContext do
     # walk Episode → Season → TVSeries — entity_id is already the series.
     case Repo.get(TVSeries, entity_id) do
       nil -> {nil, nil, nil}
-      series -> {:tv_series, series.id, series.original_language}
+      series -> {:tv_series, series.id, Iso639.normalize(series.original_language)}
     end
   end
 

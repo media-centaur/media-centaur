@@ -64,6 +64,19 @@ defmodule MediaCentarr.Playback.LanguagePolicyTest do
       assert policy.forced_subs == "fill_gaps"
     end
 
+    test "normalizes understood_languages to canonical 3-letter form on load" do
+      # User saved 2-letter codes; load canonicalizes so the resolver
+      # compares against mpv's 3-letter track tags correctly.
+      {:ok, _} =
+        Settings.find_or_create_entry(%{
+          key: LanguagePolicy.settings_key(),
+          value: %{"understood_languages" => ["en", "es", "ja"]}
+        })
+
+      policy = LanguagePolicy.load()
+      assert policy.understood_languages == ["eng", "spa", "jpn"]
+    end
+
     test "ignores invalid value types (non-string in lists, non-string scalars)" do
       {:ok, _} =
         Settings.find_or_create_entry(%{

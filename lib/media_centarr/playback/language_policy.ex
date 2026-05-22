@@ -40,6 +40,7 @@ defmodule MediaCentarr.Playback.LanguagePolicy do
       `subtitles_when` choosing not to show main subs).
   """
 
+  alias MediaCentarr.Playback.Iso639
   alias MediaCentarr.Settings
 
   @settings_key "playback.tracks"
@@ -139,8 +140,13 @@ defmodule MediaCentarr.Playback.LanguagePolicy do
 
   defp from_map(value) when is_map(value) do
     %__MODULE__{
+      # Boundary normalization: canonicalize understood languages to
+      # 3-letter ISO 639-2/T on load so the resolver compares like with
+      # like regardless of whether the user typed "en" or "eng".
       understood_languages:
-        read_list(value, "understood_languages", @builtin_defaults.understood_languages),
+        value
+        |> read_list("understood_languages", @builtin_defaults.understood_languages)
+        |> Enum.map(&Iso639.normalize/1),
       audio_priority: read_list(value, "audio_priority", @builtin_defaults.audio_priority),
       subtitles_when: read_string(value, "subtitles_when", @builtin_defaults.subtitles_when),
       subtitles_language: read_string(value, "subtitles_language", @builtin_defaults.subtitles_language),

@@ -235,7 +235,7 @@ defmodule MediaCentarr.Playback.TrackResolver do
   defp pick_audio_category(_, _, _, _), do: nil
 
   defp find_by_lang(tracks, lang) do
-    Enum.find(tracks, fn track -> Iso639.equal?(track.lang, lang) end)
+    Enum.find(tracks, &matches_lang?(&1, lang))
   end
 
   # ---------------------------------------------------------------------------
@@ -314,8 +314,7 @@ defmodule MediaCentarr.Playback.TrackResolver do
     target_langs = subtitle_target_langs(policy, audio_lang)
 
     Enum.find_value(target_langs, fn lang ->
-      candidates =
-        Enum.filter(tracks, fn track -> Iso639.equal?(track.lang, lang) and track.forced == false end)
+      candidates = Enum.filter(tracks, &(matches_lang?(&1, lang) and not &1.forced))
 
       case policy.subtitles_variant do
         "sdh_preferred" -> Enum.find(candidates, & &1.sdh) || List.first(candidates)
@@ -348,16 +347,24 @@ defmodule MediaCentarr.Playback.TrackResolver do
   defp find_forced(_tracks, nil), do: nil
 
   defp find_forced(tracks, lang) do
-    Enum.find(tracks, fn track -> Iso639.equal?(track.lang, lang) and track.forced end)
+    Enum.find(tracks, &(matches_lang?(&1, lang) and &1.forced))
   end
 
   defp find_sub_in_lang(tracks, lang, forced) do
-    candidates = Enum.filter(tracks, fn track -> Iso639.equal?(track.lang, lang) end)
+    candidates = Enum.filter(tracks, &matches_lang?(&1, lang))
     Enum.find(candidates, fn track -> track.forced == forced end) || List.first(candidates)
   end
 
   defp audio_understood?(nil, _understood), do: false
   defp audio_understood?(lang, understood), do: Iso639.find_match(lang, understood) != nil
+
+  # Single source of truth for "does this track's language match the
+  # requested code?". Every language comparison in the resolver routes
+  # through here — see ADR on canonical language codes. Inputs are
+  # already canonicalized at the boundary (LanguageContext.parse_track_list,
+  # LanguagePolicy.load), so `Iso639.equal?/2` is belt-and-suspenders:
+  # it would still match even if a raw code slipped past the boundary.
+  defp matches_lang?(track, lang), do: Iso639.equal?(track.lang, lang)
 
   # ---------------------------------------------------------------------------
   # Shared helpers
