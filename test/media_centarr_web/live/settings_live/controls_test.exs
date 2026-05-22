@@ -7,7 +7,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
 
   describe "mount" do
     test "renders all bindings grouped by category", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
       rendered = render(view)
 
       assert rendered =~ "Controls"
@@ -22,7 +22,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
 
   describe "remap flow" do
     test "clicking remap enters listening state", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
       |> element(
@@ -35,7 +35,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
 
     test "controls:bind event persists and broadcasts", %{conn: conn} do
       :ok = Controls.subscribe()
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       render_hook(view, "controls:bind", %{"id" => "play", "kind" => "keyboard", "value" => "k"})
       assert_receive {:controls_changed, map}
@@ -43,7 +43,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
     end
 
     test "controls:cancel leaves state unchanged", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
       |> element(
@@ -59,7 +59,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
   describe "clear and reset" do
     test "clicking clear unsets the binding", %{conn: conn} do
       :ok = Controls.subscribe()
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
       |> element(~s|button[phx-click="controls:clear"][phx-value-id="back"][phx-value-kind="keyboard"]|)
@@ -72,7 +72,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
     test "reset_all button restores defaults", %{conn: conn} do
       {:ok, _} = Controls.put(:navigate_up, :keyboard, "w")
       :ok = Controls.subscribe()
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
       |> element(~s|button[phx-click="controls:reset_all"]|)
@@ -86,7 +86,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
       {:ok, _} = Controls.put(:navigate_up, :keyboard, "w")
       {:ok, _} = Controls.put(:play, :keyboard, "k")
       :ok = Controls.subscribe()
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
       |> element(~s|button[phx-click="controls:reset_category"][phx-value-category="navigation"]|)
@@ -101,7 +101,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
   describe "glyph style toggle" do
     test "switches between xbox and playstation", %{conn: conn} do
       :ok = Controls.subscribe()
-      {:ok, view, _html} = live(conn, ~p"/settings?section=controls")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
       |> element(~s|button[phx-click="controls:set_glyph"][phx-value-style="playstation"]|)

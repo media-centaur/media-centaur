@@ -19,12 +19,12 @@ defmodule MediaCentarrWeb.StatusLive.ErrorSummaryTest do
   end
 
   test "mount populates error_buckets assign", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/status")
+    {:ok, view, _html} = live_async!(conn, "/status")
     assert has_element?(view, "[data-testid='error-summary-card']")
   end
 
   test "receives :buckets_changed broadcasts", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/status")
+    {:ok, view, _html} = live_async!(conn, "/status")
 
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
