@@ -109,6 +109,39 @@ defmodule MediaCentarr.Playback.LanguagePolicy do
   end
 
   @doc """
+  Build a policy from the Settings form's submitted params. Languages
+  arrive as a comma-separated string and are split/trimmed/normalized;
+  audio priority arrives as a single preset token (`"original_first"` |
+  `"understood_first"` | `"any"`) which expands to the ordered list the
+  resolver expects; the subtitle enums pass through verbatim.
+  """
+  @spec from_form(map()) :: t()
+  def from_form(params) when is_map(params) do
+    %__MODULE__{
+      understood_languages: parse_languages(params["understood_languages"]),
+      audio_priority: parse_audio_priority(params["audio_priority"]),
+      subtitles_when: params["subtitles_when"] || @builtin_defaults.subtitles_when,
+      subtitles_language: params["subtitles_language"] || @builtin_defaults.subtitles_language,
+      subtitles_variant: params["subtitles_variant"] || @builtin_defaults.subtitles_variant,
+      forced_subs: params["forced_subs"] || @builtin_defaults.forced_subs
+    }
+  end
+
+  @doc """
+  Reverse of `from_form`'s audio-priority mapping: collapse the ordered
+  list back to the select's preset token, so the form can show the
+  current selection.
+  """
+  @spec audio_priority_preset(t()) :: String.t()
+  def audio_priority_preset(%__MODULE__{audio_priority: priority}) do
+    case priority do
+      ["understood" | _] -> "understood_first"
+      ["any"] -> "any"
+      _ -> "original_first"
+    end
+  end
+
+  @doc """
   Persists the policy. Accepts either a `%LanguagePolicy{}` or a plain
   map with string-keyed fields (as produced by a form submit). Returns
   `{:ok, _}` / `{:error, _}` from the Settings write.
@@ -168,4 +201,22 @@ defmodule MediaCentarr.Playback.LanguagePolicy do
       _ -> default
     end
   end
+
+  defp parse_languages(nil), do: @builtin_defaults.understood_languages
+
+  defp parse_languages(str) when is_binary(str) do
+    str
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&Iso639.normalize/1)
+    |> case do
+      [] -> @builtin_defaults.understood_languages
+      langs -> langs
+    end
+  end
+
+  defp parse_audio_priority("understood_first"), do: ["understood", "original", "any"]
+  defp parse_audio_priority("any"), do: ["any"]
+  defp parse_audio_priority(_), do: ["original", "understood", "any"]
 end
