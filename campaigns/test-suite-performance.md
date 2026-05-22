@@ -27,16 +27,19 @@ waiting 1000ms each. Full `mix precommit` green: Elixir **54.5s /
 deterministic across seeds, zero ownership noise; bun 436/0.
 [ADR-049] + this campaign written.
 
-Sustainability locked in: **MC0019** Credo check bans new
-fire-and-forget web-layer tasks (grandfather list = rollout backlog),
-and the `automated-testing` skill now carries the principles + a
-runner/diagnostics playbook. First rollout site converted
-(AcquisitionLive mount-load → `start_async`).
+**Owned-async rollout complete.** All 8 grandfathered LiveViews
+converted; the **MC0019 grandfather list is empty** and the rule is
+fully enforced — no fire-and-forget `Task.Supervisor.start_child`
+remains in `lib/media_centarr_web`. View loads use `start_async`;
+must-outlive work (grabs, searches, library maintenance, rescans)
+moved to context-layer `*_async` functions. Fast local ops
+(toggles, deletes, rematch) made synchronous (ADR-044). Full suite:
+**~53s / 3894 tests / 0 failures**, deterministic.
 
-Remaining: convert the rest of the grandfather-listed sites (mostly
-low-value view-loads; the must-outlive action sites need an
-Oban-vs-cancel decision), then remove the drain, add a CI suite-time
-budget gate, and a cross-suite (bun/Playwright) pass.
+Remaining (optional follow-ups): now that no web-layer orphans
+exist, the `DataCase` grace-kill drain could be simplified/removed;
+add a CI suite-time budget gate; cross-suite (bun/Playwright)
+Principle-4 pass (remaining `Process.sleep`-to-settle in tests).
 
 ## The regression (confirmed root cause)
 
@@ -138,6 +141,13 @@ Append-only log.
   separate looser suite.** Same suite + same discipline; enforce
   owned-async via Credo (and eventually a teardown orphan assertion)
   rather than quarantining LiveView tests with relaxed setups.
+* `2026-05-22` — **Owned-async rollout complete.** All 8
+  grandfathered LiveViews converted across 5 batches (watch_history/
+  console/status; review/upcoming; entity_modal; acquisition;
+  settings). Pattern: view loads → `start_async`/`handle_async`;
+  must-outlive work → context `*_async` (Maintenance, Acquisition,
+  Watcher.Supervisor, Review, ReleaseTracking); fast local ops →
+  synchronous. MC0019 grandfather list empty → rule fully enforced.
 * `2026-05-22` — **Enforcement + skill shipped.** `MC0019
   OwnedAsyncInWeb` Credo check bans fire-and-forget
   `Task.Supervisor.start_child` in `lib/media_centarr_web` (8 LiveViews
