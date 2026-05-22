@@ -33,6 +33,12 @@ Use [`template.md`](template.md) as a starter.
   isolates `:persistent_term` and Task.Supervisor children.
   Will move to `done/` after the macos-platform-support Phase 5
   push sequence proves CI stability through its commits.
+* [`language-track-preferences.md`](language-track-preferences.md) —
+  per-install audio/subtitle language policy + per-entity overrides.
+  Backend + Settings UI shipped; ISO 639 boundary normalization
+  hardened ([ADR-048](../decisions/architecture/2026-05-22-048-canonical-language-codes-at-boundary.md)).
+  Remaining: entity-detail override badge + reset (traced), and live
+  validation of the capture round-trip.
 
 ## Archived
 
