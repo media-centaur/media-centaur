@@ -87,8 +87,22 @@ defmodule MediaCentarr.Library.Progress do
     position = position_seconds / 1
     duration = duration_seconds / 1
 
-    write_in_memory(playable_item_id, position, duration, false)
+    # Preserve a completion already recorded for this item. mpv keeps
+    # reporting position ticks through the tail of a finished item, so
+    # a tick must never downgrade `completed: true` back to false —
+    # doing so defeats the completion idempotency guard in
+    # `MpvSession.maybe_mark_completed_via_progress/3`, which then
+    # re-runs completion (and re-broadcasts `{:watch_completed, _}`)
+    # every tick. We read the hot row only: a *cold* completed row is
+    # not hydrated into memory (see Worker.init/1), so a fresh rewatch
+    # session correctly starts at `completed: false`. Un-completing is
+    # an explicit action on a different path.
+    write_in_memory(playable_item_id, position, duration, hot_completed?(playable_item_id))
     cast({:record, playable_item_id, position, duration})
+  end
+
+  defp hot_completed?(playable_item_id) do
+    match?(%{completed: true}, lookup_in_memory_row(playable_item_id))
   end
 
   @doc """
