@@ -27,9 +27,16 @@ waiting 1000ms each. Full `mix precommit` green: Elixir **54.5s /
 deterministic across seeds, zero ownership noise; bun 436/0.
 [ADR-049] + this campaign written.
 
-Remaining: own the async at the fire-and-forget call sites (so the
-drain becomes unnecessary), add mechanical enforcement, evolve the
-`automated-testing` skill, and a cross-suite + CI pass.
+Sustainability locked in: **MC0019** Credo check bans new
+fire-and-forget web-layer tasks (grandfather list = rollout backlog),
+and the `automated-testing` skill now carries the principles + a
+runner/diagnostics playbook. First rollout site converted
+(AcquisitionLive mount-load → `start_async`).
+
+Remaining: convert the rest of the grandfather-listed sites (mostly
+low-value view-loads; the must-outlive action sites need an
+Oban-vs-cancel decision), then remove the drain, add a CI suite-time
+budget gate, and a cross-suite (bun/Playwright) pass.
 
 ## The regression (confirmed root cause)
 
@@ -131,6 +138,14 @@ Append-only log.
   separate looser suite.** Same suite + same discipline; enforce
   owned-async via Credo (and eventually a teardown orphan assertion)
   rather than quarantining LiveView tests with relaxed setups.
+* `2026-05-22` — **Enforcement + skill shipped.** `MC0019
+  OwnedAsyncInWeb` Credo check bans fire-and-forget
+  `Task.Supervisor.start_child` in `lib/media_centarr_web` (8 LiveViews
+  grandfathered as the rollout backlog). `automated-testing` skill now
+  carries the async-ownership principles + a runner/diagnostics
+  playbook (`--slowest`/`--trace`/`--repeat-until-failure`, the
+  `pkill -f 'mix test'` self-kill and `| tail` buffering gotchas).
+  First rollout site: AcquisitionLive mount-load → `start_async`.
 * `2026-05-22` — **Fixed first unmasked Category-F flake.** The
   faster drain surfaced a render-vs-assertion race in
   `acquisition_live_test.exs` ("matched queue item" test) that the
